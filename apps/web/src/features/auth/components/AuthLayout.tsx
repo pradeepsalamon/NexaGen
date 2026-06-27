@@ -1,0 +1,44 @@
+import type { ReactNode } from "react";
+import { Logo } from "../../../components/Logo";
+import { PageContainer } from "../../../components/PageContainer";
+
+type AuthLayoutProps = {
+  children: ReactNode;
+  eyebrow: string;
+  title: string;
+};
+
+export function AuthLayout({ children, eyebrow, title }: AuthLayoutProps) {
+  return (
+    <PageContainer>
+      <div className="mx-auto grid min-h-[calc(100vh-24px)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-40px)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-stretch lg:gap-3">
+        <section
+          className="relative hidden min-h-0 flex-col gap-4 overflow-hidden rounded-panel border border-app-border bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_22%,var(--color-surface)),color-mix(in_srgb,var(--color-accent)_22%,var(--color-surface)))] p-6 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--color-primary)_18%,transparent)_1px,transparent_1px),linear-gradient(color-mix(in_srgb,var(--color-primary)_16%,transparent)_1px,transparent_1px)] before:bg-[length:42px_42px] before:opacity-30 lg:flex lg:max-h-[calc(100vh-40px)]"
+          aria-labelledby="auth-hero-title"
+        >
+          <div className="relative z-10 mx-auto my-auto flex max-w-2xl flex-col items-center text-center">
+            <Logo stacked />
+            <p className="mb-2 mt-7 text-xs font-extrabold uppercase text-primary">
+              {eyebrow}
+            </p>
+            <h1
+              className="mb-3 max-w-[13ch] text-[clamp(2.25rem,5.2vw,3.55rem)] font-extrabold leading-[0.95] text-app-text"
+              id="auth-hero-title"
+            >
+              {title}
+            </h1>
+            <span className="block max-w-lg text-sm leading-6 text-app-muted md:text-base">
+              Premium chess learning for focused students and families.
+            </span>
+          </div>
+        </section>
+        <section
+          className="flex min-h-[calc(100vh-24px)] items-center justify-center rounded-panel border border-app-border bg-app-surface/90 p-3 lg:max-h-[calc(100vh-40px)] lg:min-h-0 lg:overflow-y-auto lg:p-5"
+          aria-label="Authentication form"
+        >
+          {children}
+        </section>
+      </div>
+    </PageContainer>
+  );
+}

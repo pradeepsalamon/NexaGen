@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/@prisma/client/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+//
+// ENUMS
+//
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  COACH
+  STUDENT
+}
+
+enum UserStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+  DELETED
+}
+
+enum ExperienceLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum CoachTitle {
+  NONE
+  CM
+  FM
+  IM
+  GM
+}
+
+//
+// USER
+//
+
+model User {
+  id String @id @default(cuid())
+
+  email    String  @unique
+  username String? @unique
+  password String
+
+  firstName String
+  lastName  String?
+
+  phoneNumber String?
+
+  avatarUrl String?
+
+  role   UserRole   @default(STUDENT)
+  status UserStatus @default(PENDING)
+
+  timezone String @default("Asia/Kolkata")
+
+  isEmailVerified Boolean @default(false)
+
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+
+  createdById  String?
+  createdBy    User?   @relation("UserCreatedUsers", fields: [createdById], references: [id])
+  createdUsers User[]  @relation("UserCreatedUsers")
+
+  studentProfile  StudentProfile?
+  coachProfile    CoachProfile?        @relation("UserCoachProfile")
+  approvedCoaches CoachProfile[]       @relation("CoachApprovedBy")
+  authSessions    AuthSession[]
+  passwordResets  PasswordResetToken[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  @@index([role])
+  @@index([status])
+  @@map("users")
+}
+
+//
+// STUDENT PROFILE
+//
+
+model StudentProfile {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dateOfBirth DateTime?
+
+  chessRating Int?
+  fideId      String?
+
+  experienceLevel ExperienceLevel @default(BEGINNER)
+
+  parentName  String
+  parentEmail String?
+  parentPhone String?
+
+  parentRelationship String?
+
+  enrolledAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("student_profiles")
+}
+
+//
+// COACH PROFILE
+//
+
+model CoachProfile {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation("UserCoachProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  title CoachTitle @default(NONE)
+
+  bio String?
+
+  qualification String?
+
+  fideId     String?
+  fideRating Int?
+
+  specialization String?
+
+  yearsOfExperience Int?
+
+  hourlyRate Decimal? @db.Decimal(10, 2)
+
+  approvalStatus UserStatus @default(PENDING)
+
+  approvedById String?
+  approvedBy   User?   @relation("CoachApprovedBy", fields: [approvedById], references: [id])
+
+  approvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("coach_profiles")
+}
+
+//
+// AUTH SESSION
+//
+
+model AuthSession {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash String
+
+  userAgent String?
+  ipAddress String?
+
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model PasswordResetToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}

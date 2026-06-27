@@ -1,0 +1,122 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #f4f8ff;
+  --foreground: #0f172a;
+  --card: rgba(255, 255, 255, 0.82);
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #2563eb;
+  --primary-foreground: #eff6ff;
+  --secondary: #dbeafe;
+  --secondary-foreground: #1e3a8a;
+  --muted: #e2e8f0;
+  --muted-foreground: #475569;
+  --accent: #eff6ff;
+  --accent-foreground: #1d4ed8;
+  --destructive: #dc2626;
+  --destructive-foreground: #fef2f2;
+  --border: rgba(148, 163, 184, 0.35);
+  --input: rgba(255, 255, 255, 0.92);
+  --ring: rgba(37, 99, 235, 0.45);
+  --radius: 1rem;
+}
+
+.dark {
+  --background: #020617;
+  --foreground: #e2e8f0;
+  --card: rgba(15, 23, 42, 0.86);
+  --card-foreground: #e2e8f0;
+  --popover: #0f172a;
+  --popover-foreground: #e2e8f0;
+  --primary: #60a5fa;
+  --primary-foreground: #0f172a;
+  --secondary: rgba(30, 41, 59, 0.9);
+  --secondary-foreground: #bfdbfe;
+  --muted: rgba(30, 41, 59, 0.92);
+  --muted-foreground: #94a3b8;
+  --accent: rgba(30, 64, 175, 0.16);
+  --accent-foreground: #bfdbfe;
+  --destructive: #f87171;
+  --destructive-foreground: #450a0a;
+  --border: rgba(148, 163, 184, 0.2);
+  --input: rgba(15, 23, 42, 0.86);
+  --ring: rgba(96, 165, 250, 0.5);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 8px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(circle at top, rgba(96, 165, 250, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(148, 163, 184, 0.08)),
+    var(--background);
+  color: var(--foreground);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at top, rgba(37, 99, 235, 0.18), transparent 28%),
+    linear-gradient(180deg, rgba(2, 6, 23, 0.86), rgba(2, 6, 23, 0.98)),
+    var(--background);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.lk-participant-tile {
+  border-radius: 1.25rem;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.lk-participant-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
