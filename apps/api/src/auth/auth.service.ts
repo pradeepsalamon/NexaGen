@@ -5,8 +5,12 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { getApiEnv, getFrontendUrl } from "@nexa-gen/config/api";
 import {
+  CoachProfile,
+  CoachTitle,
   ExperienceLevel,
+  StudentProfile,
   User,
   UserRole,
   UserStatus
@@ -18,7 +22,8 @@ import type {
   LoginRequest,
   LogoutResponse,
   RegisterRequest,
-  ResetPasswordRequest
+  ResetPasswordRequest,
+  UpdateProfileRequest
 } from "@nexa-gen/types";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -47,22 +52,23 @@ type AuthResult = AuthResponse &
     accessTokenMaxAge: number;
     refreshTokenMaxAge: number;
   };
+type UserWithProfiles = User & {
+  coachProfile?: CoachProfile | null;
+  studentProfile?: StudentProfile | null;
+};
 
 const dummyPasswordHash =
   "$2b$12$7Hb149Y.levymTZlxpT3M.52k1w61HGHtm49NErn1svp4nVrPi9nO";
 
 @Injectable()
 export class AuthService {
-  private readonly accessSecret =
-    process.env.JWT_ACCESS_SECRET ?? "change-this-access-token-secret";
-  private readonly refreshSecret =
-    process.env.JWT_REFRESH_SECRET ?? "change-this-refresh-token-secret";
-  private readonly accessTokenTtl = (process.env.JWT_ACCESS_TTL ??
-    "15m") as JwtDuration;
-  private readonly refreshTokenTtl = (process.env.JWT_REFRESH_TTL ??
-    "7d") as JwtDuration;
-  private readonly refreshTokenShortTtl = (process.env.JWT_REFRESH_SHORT_TTL ??
-    "1d") as JwtDuration;
+  private readonly env = getApiEnv();
+  private readonly accessSecret = this.env.JWT_ACCESS_SECRET;
+  private readonly refreshSecret = this.env.JWT_REFRESH_SECRET;
+  private readonly accessTokenTtl = this.env.JWT_ACCESS_TTL as JwtDuration;
+  private readonly refreshTokenTtl = this.env.JWT_REFRESH_TTL as JwtDuration;
+  private readonly refreshTokenShortTtl =
+    this.env.JWT_REFRESH_SHORT_TTL as JwtDuration;
   private readonly accessTokenMaxAge = parseDurationMs(
     this.accessTokenTtl,
     15 * 60_000
@@ -76,17 +82,14 @@ export class AuthService {
     86_400_000
   );
   private readonly loginResponseDelayMs = parseDurationMs(
-    process.env.LOGIN_RESPONSE_DELAY ?? "500ms",
+    this.env.LOGIN_RESPONSE_DELAY,
     500
   );
   private readonly passwordResetResponseDelayMs = parseDurationMs(
-    process.env.PASSWORD_RESET_RESPONSE_DELAY ?? "5s",
+    this.env.PASSWORD_RESET_RESPONSE_DELAY,
     5_000
   );
-  private readonly frontendUrl =
-    process.env.FRONTEND_URL ??
-    process.env.CORS_ORIGIN?.split(",")[0]?.trim() ??
-    "http://localhost:3000";
+  private readonly frontendUrl = getFrontendUrl(this.env);
 
   constructor(
     private readonly jwtService: JwtService,
@@ -127,6 +130,7 @@ export class AuthService {
     const passwordHash = await hashSecret(payload.password);
 
     const user = await this.prisma.user.create({
+      include: { coachProfile: true, studentProfile: true },
       data: {
         email: payload.email.toLowerCase(),
         password: passwordHash,
@@ -167,6 +171,7 @@ export class AuthService {
   ): Promise<AuthResult> {
     const startedAt = Date.now();
     const user = await this.prisma.user.findUnique({
+      include: { coachProfile: true, studentProfile: true },
       where: { email: payload.email.toLowerCase() }
     });
     const passwordMatches = await verifySecret(
@@ -222,7 +227,9 @@ export class AuthService {
 
     const payload = await this.verifyRefreshToken(refreshToken);
     const session = await this.prisma.authSession.findFirst({
-      include: { user: true },
+      include: {
+        user: { include: { coachProfile: true, studentProfile: true } }
+      },
       where: {
         expiresAt: { gt: new Date() },
         id: payload.sessionId,
@@ -305,6 +312,7 @@ export class AuthService {
 
     const payload = await this.verifyAccessToken(accessToken);
     const user = await this.prisma.user.findUnique({
+      include: { coachProfile: true, studentProfile: true },
       where: { id: payload.sub }
     });
 
@@ -313,6 +321,96 @@ export class AuthService {
     }
 
     return { user: this.toAuthUser(user) };
+  }
+
+  async updateProfile(
+    accessToken: string | undefined,
+    payload: UpdateProfileRequest
+  ): Promise<AuthResponse> {
+    if (!accessToken) {
+      throw new UnauthorizedException("Access token is missing.");
+    }
+
+    const tokenPayload = await this.verifyAccessToken(accessToken);
+    const user = await this.prisma.user.findUnique({
+      include: { coachProfile: true, studentProfile: true },
+      where: { id: tokenPayload.sub }
+    });
+
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException("Invalid session.");
+    }
+
+    const email = payload.email.toLowerCase().trim();
+    const username = this.toNullableString(payload.username);
+
+    await this.assertUniqueProfileIdentity(user.id, email, username);
+
+    const updatedUser = await this.prisma.$transaction(async (transaction) => {
+      await transaction.user.update({
+        data: {
+          avatarUrl: this.toNullableString(payload.avatarUrl),
+          email,
+          firstName: payload.firstName.trim(),
+          lastName: this.toNullableString(payload.lastName),
+          phoneNumber: this.toNullableString(payload.phoneNumber),
+          timezone: payload.timezone?.trim() || user.timezone,
+          username
+        },
+        where: { id: user.id }
+      });
+
+      if (user.studentProfile && payload.studentProfile) {
+        await transaction.studentProfile.update({
+          data: {
+            chessRating: payload.studentProfile.chessRating ?? null,
+            dateOfBirth: this.toNullableDate(payload.studentProfile.dateOfBirth),
+            experienceLevel: payload.studentProfile.experienceLevel
+              ? this.toPrismaExperienceLevel(payload.studentProfile.experienceLevel)
+              : user.studentProfile.experienceLevel,
+            fideId: this.toNullableString(payload.studentProfile.fideId),
+            parentEmail: this.toNullableString(payload.studentProfile.parentEmail),
+            parentName:
+              payload.studentProfile.parentName?.trim() ||
+              user.studentProfile.parentName,
+            parentPhone: this.toNullableString(payload.studentProfile.parentPhone),
+            parentRelationship: this.toNullableString(
+              payload.studentProfile.parentRelationship
+            )
+          },
+          where: { userId: user.id }
+        });
+      }
+
+      if (user.coachProfile && payload.coachProfile) {
+        await transaction.coachProfile.update({
+          data: {
+            bio: this.toNullableString(payload.coachProfile.bio),
+            fideId: this.toNullableString(payload.coachProfile.fideId),
+            fideRating: payload.coachProfile.fideRating ?? null,
+            hourlyRate: this.toNullableString(payload.coachProfile.hourlyRate),
+            qualification: this.toNullableString(
+              payload.coachProfile.qualification
+            ),
+            specialization: this.toNullableString(
+              payload.coachProfile.specialization
+            ),
+            title: payload.coachProfile.title
+              ? this.toCoachTitle(payload.coachProfile.title)
+              : user.coachProfile.title,
+            yearsOfExperience: payload.coachProfile.yearsOfExperience ?? null
+          },
+          where: { userId: user.id }
+        });
+      }
+
+      return transaction.user.findUniqueOrThrow({
+        include: { coachProfile: true, studentProfile: true },
+        where: { id: user.id }
+      });
+    });
+
+    return { user: this.toAuthUser(updatedUser) };
   }
 
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
@@ -460,16 +558,116 @@ export class AuthService {
     return payload;
   }
 
-  private toAuthUser(user: User): AuthUser {
+  private toAuthUser(user: UserWithProfiles): AuthUser {
     return {
+      avatarUrl: user.avatarUrl,
+      coachProfile: user.coachProfile
+        ? {
+            bio: user.coachProfile.bio,
+            fideId: user.coachProfile.fideId,
+            fideRating: user.coachProfile.fideRating,
+            hourlyRate: user.coachProfile.hourlyRate?.toString() ?? null,
+            qualification: user.coachProfile.qualification,
+            specialization: user.coachProfile.specialization,
+            title: user.coachProfile.title,
+            yearsOfExperience: user.coachProfile.yearsOfExperience
+          }
+        : null,
       email: user.email,
       firstName: user.firstName,
       id: user.id,
       isEmailVerified: user.isEmailVerified,
       lastName: user.lastName,
+      phoneNumber: user.phoneNumber,
       role: user.role,
-      status: user.status
+      status: user.status,
+      studentProfile: user.studentProfile
+        ? {
+            chessRating: user.studentProfile.chessRating,
+            dateOfBirth: user.studentProfile.dateOfBirth?.toISOString() ?? null,
+            experienceLevel: user.studentProfile.experienceLevel,
+            fideId: user.studentProfile.fideId,
+            parentEmail: user.studentProfile.parentEmail,
+            parentName: user.studentProfile.parentName,
+            parentPhone: user.studentProfile.parentPhone,
+            parentRelationship: user.studentProfile.parentRelationship
+          }
+        : null,
+      timezone: user.timezone,
+      username: user.username
     };
+  }
+
+  private async assertUniqueProfileIdentity(
+    userId: string,
+    email: string,
+    username: string | null
+  ) {
+    const [existingEmailUser, existingUsernameUser] = await Promise.all([
+      this.prisma.user.findUnique({ where: { email } }),
+      username ? this.prisma.user.findUnique({ where: { username } }) : null
+    ]);
+
+    if (existingEmailUser && existingEmailUser.id !== userId) {
+      throw new ConflictException("An account already exists for this email.");
+    }
+
+    if (existingUsernameUser && existingUsernameUser.id !== userId) {
+      throw new ConflictException("This username is already taken.");
+    }
+  }
+
+  private toNullableString(value: string | undefined) {
+    const trimmed = value?.trim();
+    return trimmed ? trimmed : null;
+  }
+
+  private toNullableDate(value: string | undefined) {
+    const trimmed = value?.trim();
+
+    if (!trimmed) {
+      return null;
+    }
+
+    const date = new Date(trimmed);
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException("Date of birth is invalid.");
+    }
+
+    return date;
+  }
+
+  private toCoachTitle(title: UpdateProfileRequest["coachProfile"] extends infer T
+    ? T extends { title?: infer U }
+      ? U
+      : never
+    : never) {
+    const titles: Record<string, CoachTitle> = {
+      CM: CoachTitle.CM,
+      FM: CoachTitle.FM,
+      GM: CoachTitle.GM,
+      IM: CoachTitle.IM,
+      NONE: CoachTitle.NONE
+    };
+
+    return titles[title as string] ?? CoachTitle.NONE;
+  }
+
+  private toPrismaExperienceLevel(
+    level: UpdateProfileRequest["studentProfile"] extends infer T
+      ? T extends { experienceLevel?: infer U }
+        ? U
+        : never
+      : never
+  ) {
+    const levels: Record<string, ExperienceLevel> = {
+      ADVANCED: ExperienceLevel.ADVANCED,
+      BEGINNER: ExperienceLevel.BEGINNER,
+      INTERMEDIATE: ExperienceLevel.INTERMEDIATE
+    };
+
+    return levels[level as string] ?? ExperienceLevel.BEGINNER;
   }
 
   private toExperienceLevel(level: RegisterRequest["experienceLevel"]) {

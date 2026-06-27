@@ -1,8 +1,19 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ??
-  "http://localhost:3001";
+import axios, { AxiosError, type AxiosRequestConfig } from "axios";
+import { getWebEnv } from "@nexa-gen/config/web";
 
-type ApiFetchOptions = Omit<RequestInit, "body"> & {
+const API_BASE_URL = getWebEnv({
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
+}).NEXT_PUBLIC_API_URL;
+
+const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    "Content-Type": "application/json"
+  },
+  withCredentials: true
+});
+
+type ApiFetchOptions = Omit<AxiosRequestConfig, "data" | "url"> & {
   body?: unknown;
 };
 
@@ -10,32 +21,31 @@ export async function apiFetch<TResponse>(
   path: string,
   options: ApiFetchOptions = {}
 ) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers
-    }
-  });
+  try {
+    const { body, ...requestConfig } = options;
+    const response = await apiClient.request<TResponse>({
+      ...requestConfig,
+      data: body,
+      url: path
+    });
 
-  if (!response.ok) {
-    let message = "Something went wrong.";
-
-    try {
-      const error = (await response.json()) as {
-        message?: string | string[];
-      };
-      message = Array.isArray(error.message)
-        ? error.message.join(" ")
-        : error.message || message;
-    } catch {
-      message = response.statusText || message;
+    return response.data;
+  } catch (error) {
+    if (error instanceof AxiosError) {
+      const message = getApiErrorMessage(error);
+      throw new Error(message);
     }
 
-    throw new Error(message);
+    throw error;
+  }
+}
+
+function getApiErrorMessage(error: AxiosError<{ message?: string | string[] }>) {
+  const message = error.response?.data?.message;
+
+  if (Array.isArray(message)) {
+    return message.join(" ");
   }
 
-  return (await response.json()) as TResponse;
+  return message || error.response?.statusText || "Something went wrong.";
 }

@@ -9,6 +9,7 @@ import { FormField } from "../../../components/ui/FormField";
 import { Input } from "../../../components/ui/Input";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
 import { Select } from "../../../components/ui/Select";
+import { useToast } from "../../../providers/ToastProvider";
 import { useAuthStore } from "../../../stores/authStore";
 import { register } from "../api/authApi";
 import type { ExperienceLevel, RegisterFormValues } from "../types/auth";
@@ -34,12 +35,17 @@ const initialValues: RegisterFormValues = {
 
 export function RegisterForm() {
   const router = useRouter();
+  const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
   const [values, setValues] = useState<RegisterFormValues>(initialValues);
   const registerMutation = useMutation({
     mutationFn: register,
     onSuccess: ({ user }) => {
       setUser(user);
+      toast.success({
+        message: "Your account is ready.",
+        title: "Registration successful"
+      });
       router.push("/");
     }
   });
@@ -203,7 +209,7 @@ export function RegisterForm() {
               />
             </FormField>
           </div>
-          <Button disabled={registerMutation.isPending} fullWidth type="submit">
+          <Button fullWidth isLoading={registerMutation.isPending} type="submit">
             {registerMutation.isPending ? "Registering..." : "Register"}
           </Button>
         </form>

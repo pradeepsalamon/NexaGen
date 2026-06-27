@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Patch,
   Post,
   Req,
   Res
@@ -14,7 +15,8 @@ import {
   ForgotPasswordDto,
   LoginDto,
   RegisterDto,
-  ResetPasswordDto
+  ResetPasswordDto,
+  UpdateProfileDto
 } from "./dto";
 import { AUTH_COOKIE_NAMES, AUTH_COOKIE_PATHS } from "./types";
 
@@ -89,6 +91,17 @@ export class AuthController {
   @Get("me")
   async me(@Req() request: Request) {
     return this.authService.me(request.cookies?.[AUTH_COOKIE_NAMES.accessToken]);
+  }
+
+  @Patch("profile")
+  async updateProfile(
+    @Body() body: UpdateProfileDto,
+    @Req() request: Request
+  ) {
+    return this.authService.updateProfile(
+      request.cookies?.[AUTH_COOKIE_NAMES.accessToken],
+      body
+    );
   }
 
   @Post("forgot-password")

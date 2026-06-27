@@ -7,7 +7,8 @@ import type {
   MessageResponse,
   RefreshSessionResponse,
   RegisterRequest,
-  ResetPasswordRequest
+  ResetPasswordRequest,
+  UpdateProfileRequest
 } from "@nexa-gen/types";
 import { apiFetch } from "../../../lib/api";
 
@@ -39,6 +40,13 @@ export function logout() {
 
 export function getCurrentUser() {
   return apiFetch<AuthResponse>("/auth/me");
+}
+
+export function updateProfile(payload: UpdateProfileRequest) {
+  return apiFetch<AuthResponse>("/auth/profile", {
+    body: payload,
+    method: "PATCH"
+  });
 }
 
 export function forgotPassword(payload: ForgotPasswordRequest) {

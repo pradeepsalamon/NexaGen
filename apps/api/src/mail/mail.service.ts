@@ -1,14 +1,16 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { getApiEnv } from "@nexa-gen/config/api";
 import nodemailer from "nodemailer";
 
 @Injectable()
 export class MailService {
-  private readonly from = process.env.SMTP_FROM ?? process.env.SMTP_USER;
-  private readonly host = process.env.SMTP_HOST;
-  private readonly pass = process.env.SMTP_PASS;
-  private readonly port = Number(process.env.SMTP_PORT ?? 587);
-  private readonly secure = process.env.SMTP_SECURE === "true";
-  private readonly user = process.env.SMTP_USER;
+  private readonly env = getApiEnv();
+  private readonly from = this.env.SMTP_FROM ?? this.env.SMTP_USER;
+  private readonly host = this.env.SMTP_HOST;
+  private readonly pass = this.env.SMTP_PASS;
+  private readonly port = this.env.SMTP_PORT;
+  private readonly secure = this.env.SMTP_SECURE;
+  private readonly user = this.env.SMTP_USER;
 
   async sendPasswordResetLink(to: string, resetLink: string) {
     const transporter = this.createTransporter();

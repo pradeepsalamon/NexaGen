@@ -6,8 +6,6 @@ import {
 } from "lucide-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Logo } from "../../../components/Logo";
-import { LogoutButton } from "../../../features/auth/components/LogoutButton";
 
 const accessTokenCookieName = "nexagen_access_token";
 
@@ -25,16 +23,14 @@ export default function SuperAdminDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-app-background px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-6xl gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-panel border border-app-border bg-app-surface p-4 shadow-card">
-          <Logo compact />
-          <div className="flex flex-wrap items-center gap-2">
+        <header className="flex flex-wrap items-center justify-end gap-4 rounded-panel border border-app-border bg-app-surface p-4 shadow-card">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <div className="inline-flex min-h-11 items-center gap-2 rounded-control bg-[color-mix(in_srgb,var(--color-primary)_12%,var(--color-surface))] px-3 py-2 text-sm font-extrabold text-primary">
               <ShieldCheck aria-hidden="true" className="size-4" />
               Super Admin
             </div>
-            <LogoutButton />
           </div>
         </header>
 

@@ -10,6 +10,7 @@ import { Checkbox } from "../../../components/ui/Checkbox";
 import { FormField } from "../../../components/ui/FormField";
 import { Input } from "../../../components/ui/Input";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
+import { useToast } from "../../../providers/ToastProvider";
 import { useTouchedFields } from "../hooks/useTouchedFields";
 import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
@@ -26,6 +27,7 @@ const initialValues: LoginFormValues = {
 
 export function LoginForm() {
   const router = useRouter();
+  const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
   const [values, setValues] = useState<LoginFormValues>(initialValues);
   const { touched, touchAll, touchField } = useTouchedFields<LoginFormValues>();
@@ -41,6 +43,10 @@ export function LoginForm() {
         (user.role === "SUPER_ADMIN" ? "/dashboard/super-admin" : "/");
 
       setUser(user);
+      toast.success({
+        message: "Welcome back to NexaGen Chess.",
+        title: "Login successful"
+      });
       router.push(nextUrl);
     }
   });
@@ -113,7 +119,7 @@ export function LoginForm() {
             />
             <Link href="/forgot-password">Forgot Password?</Link>
           </div>
-          <Button disabled={loginMutation.isPending} fullWidth type="submit">
+          <Button fullWidth isLoading={loginMutation.isPending} type="submit">
             {loginMutation.isPending ? "Logging in..." : "Login"}
           </Button>
         </form>

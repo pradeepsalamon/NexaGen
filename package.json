@@ -2,17 +2,19 @@
   "name": "nexa-gen",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@11.15.0",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
-    "dev:web": "npm run dev -w apps/web",
+    "dev": "turbo dev --parallel",
+    "dev:clean": "npm run clean -w apps/web && npm run clean -w apps/api && turbo dev --parallel",
+    "dev:web": "turbo dev --filter=@nexa-gen/web --parallel",
     "dev:web:clean": "npm run clean -w apps/web && npm run dev -w apps/web",
-    "dev:api": "npm run start:dev -w apps/api",
+    "dev:api": "turbo dev --filter=@nexa-gen/api --parallel",
     "dev:api:clean": "npm run clean -w apps/api && npm run start:dev -w apps/api",
-    "build": "npm run build --workspaces --if-present",
+    "build": "turbo build",
     "build:prod": "npm run build:prod -w apps/api && npm run build -w apps/web",
     "db:generate": "npm run prisma:generate -w apps/api",
     "db:migrate:dev": "npm run migrate:dev -w apps/api",
@@ -20,10 +22,12 @@
     "db:migrate:deploy": "npm run migrate:deploy -w apps/api",
     "db:migrate:status": "npm run migrate:status -w apps/api",
     "db:seed": "npm run seed -w apps/api",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "turbo": "^2.5.4",
     "typescript": "^5.5.4"
   }
 }

@@ -7,6 +7,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
+import { ToastProvider } from "./ToastProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -25,8 +26,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <SessionBootstrap />
-        {children}
+        <ToastProvider>
+          <SessionBootstrap />
+          {children}
+        </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

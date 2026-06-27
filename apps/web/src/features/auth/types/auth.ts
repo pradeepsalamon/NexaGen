@@ -1,4 +1,6 @@
-export type ExperienceLevel = "beginner" | "intermediate" | "advanced";
+import type { ExperienceLevel } from "@nexa-gen/types";
+
+export type { ExperienceLevel };
 
 export type LoginFormValues = {
   email: string;

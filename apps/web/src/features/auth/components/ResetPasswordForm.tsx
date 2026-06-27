@@ -95,6 +95,7 @@ export function ResetPasswordForm() {
           <Button
             disabled={resetPasswordMutation.isPending || !token}
             fullWidth
+            isLoading={resetPasswordMutation.isPending}
             type="submit"
           >
             {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}

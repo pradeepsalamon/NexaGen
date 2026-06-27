@@ -1,17 +1,16 @@
 import cookieParser from "cookie-parser";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { getApiEnv, getCorsOrigins } from "@nexa-gen/config/api";
 import type { NextFunction, Request, Response } from "express";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
+  const env = getApiEnv();
   const app = await NestFactory.create(AppModule, {
     logger: ["error", "warn"]
   });
-  const corsOrigins = (process.env.CORS_ORIGIN ?? "http://localhost:3000")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const corsOrigins = getCorsOrigins(env);
 
   app.use((request: Request, response: Response, next: NextFunction) => {
     const startedAt = Date.now();
@@ -42,7 +41,7 @@ async function bootstrap() {
     credentials: true,
     origin: corsOrigins
   });
-  await app.listen(process.env.PORT ? Number(process.env.PORT) : 3001);
+  await app.listen(env.PORT);
 }
 
 bootstrap();
