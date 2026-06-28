@@ -17,7 +17,7 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div className="grid gap-1.5">
-      <label className="text-sm font-bold text-app-text" htmlFor={id}>
+      <label className="text-sm font-semibold text-app-text" htmlFor={id}>
         {label}
       </label>
       {children}

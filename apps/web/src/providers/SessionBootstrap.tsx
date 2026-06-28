@@ -7,12 +7,18 @@ import { useAuthStore } from "../stores/authStore";
 
 export function SessionBootstrap() {
   const clearSession = useAuthStore((state) => state.clearSession);
+  const setSessionChecked = useAuthStore((state) => state.setSessionChecked);
+  const setSessionLoading = useAuthStore((state) => state.setSessionLoading);
   const setUser = useAuthStore((state) => state.setUser);
   const sessionQuery = useQuery({
     queryFn: getCurrentUser,
     queryKey: ["auth", "me"],
     retry: false
   });
+
+  useEffect(() => {
+    setSessionLoading(sessionQuery.isLoading || sessionQuery.isFetching);
+  }, [sessionQuery.isFetching, sessionQuery.isLoading, setSessionLoading]);
 
   useEffect(() => {
     if (sessionQuery.data) {
@@ -25,6 +31,18 @@ export function SessionBootstrap() {
       clearSession();
     }
   }, [clearSession, sessionQuery.isError]);
+
+  useEffect(() => {
+    if (sessionQuery.isError || sessionQuery.isSuccess) {
+      setSessionChecked(true);
+      setSessionLoading(false);
+    }
+  }, [
+    sessionQuery.isError,
+    sessionQuery.isSuccess,
+    setSessionChecked,
+    setSessionLoading
+  ]);
 
   return null;
 }

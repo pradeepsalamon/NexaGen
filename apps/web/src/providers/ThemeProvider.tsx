@@ -17,6 +17,7 @@ import {
 
 type ThemeContextValue = {
   colors: CustomThemeColors;
+  isHydrated: boolean;
   mode: ThemeMode;
   resetColors: () => void;
   setColor: (name: keyof CustomThemeColors, value: string) => void;
@@ -31,6 +32,51 @@ type StoredTheme = {
 const STORAGE_KEY = "nexagen-chess-theme";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
+const defaultColors = {
+  primary: DEFAULT_THEME_COLORS.primary,
+  secondary: DEFAULT_THEME_COLORS.secondary,
+  accent: DEFAULT_THEME_COLORS.accent
+};
+
+function getStoredTheme(): {
+  colors: CustomThemeColors;
+  mode: ThemeMode;
+} {
+  if (typeof window === "undefined") {
+    return {
+      colors: defaultColors,
+      mode: "light"
+    };
+  }
+
+  const savedTheme = window.localStorage.getItem(STORAGE_KEY);
+
+  if (!savedTheme) {
+    return {
+      colors: defaultColors,
+      mode: "light"
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(savedTheme) as StoredTheme;
+
+    return {
+      colors: {
+        primary: parsed.colors?.primary ?? DEFAULT_THEME_COLORS.primary,
+        secondary: parsed.colors?.secondary ?? DEFAULT_THEME_COLORS.secondary,
+        accent: parsed.colors?.accent ?? DEFAULT_THEME_COLORS.accent
+      },
+      mode: parsed.mode === "dark" ? "dark" : "light"
+    };
+  } catch {
+    return {
+      colors: defaultColors,
+      mode: "light"
+    };
+  }
+}
+
 function applyTheme(mode: ThemeMode, colors: CustomThemeColors) {
   const root = document.documentElement;
   root.dataset.theme = mode;
@@ -40,47 +86,27 @@ function applyTheme(mode: ThemeMode, colors: CustomThemeColors) {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [isHydrated, setIsHydrated] = useState(false);
   const [mode, setMode] = useState<ThemeMode>("light");
-  const [colors, setColors] = useState<CustomThemeColors>({
-    primary: DEFAULT_THEME_COLORS.primary,
-    secondary: DEFAULT_THEME_COLORS.secondary,
-    accent: DEFAULT_THEME_COLORS.accent
-  });
+  const [colors, setColors] = useState<CustomThemeColors>(defaultColors);
 
   useEffect(() => {
-    const defaultColors = {
-      primary: DEFAULT_THEME_COLORS.primary,
-      secondary: DEFAULT_THEME_COLORS.secondary,
-      accent: DEFAULT_THEME_COLORS.accent
-    };
-    const savedTheme = window.localStorage.getItem(STORAGE_KEY);
+    const storedTheme = getStoredTheme();
 
-    if (!savedTheme) {
-      applyTheme("light", defaultColors);
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(savedTheme) as StoredTheme;
-      const nextMode = parsed.mode === "dark" ? "dark" : "light";
-      const nextColors = {
-        primary: parsed.colors?.primary ?? DEFAULT_THEME_COLORS.primary,
-        secondary: parsed.colors?.secondary ?? DEFAULT_THEME_COLORS.secondary,
-        accent: parsed.colors?.accent ?? DEFAULT_THEME_COLORS.accent
-      };
-
-      setMode(nextMode);
-      setColors(nextColors);
-      applyTheme(nextMode, nextColors);
-    } catch {
-      applyTheme("light", defaultColors);
-    }
+    setMode(storedTheme.mode);
+    setColors(storedTheme.colors);
+    applyTheme(storedTheme.mode, storedTheme.colors);
+    setIsHydrated(true);
   }, []);
 
   useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
     applyTheme(mode, colors);
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ colors, mode }));
-  }, [colors, mode]);
+  }, [colors, isHydrated, mode]);
 
   const resetColors = useCallback(() => {
     setColors({
@@ -102,8 +128,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ colors, mode, resetColors, setColor, toggleMode }),
-    [colors, mode, resetColors, setColor, toggleMode]
+    () => ({ colors, isHydrated, mode, resetColors, setColor, toggleMode }),
+    [colors, isHydrated, mode, resetColors, setColor, toggleMode]
   );
 
   return (

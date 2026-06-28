@@ -6,6 +6,9 @@
     "noEmit": true,
     "incremental": true,
     "jsx": "preserve",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
     "plugins": [
       {
         "name": "next"

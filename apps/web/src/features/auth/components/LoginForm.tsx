@@ -11,6 +11,7 @@ import { FormField } from "../../../components/ui/FormField";
 import { Input } from "../../../components/ui/Input";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
 import { useToast } from "../../../providers/ToastProvider";
+import { getErrorMessage } from "../../../lib/errors";
 import { useTouchedFields } from "../hooks/useTouchedFields";
 import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
@@ -37,6 +38,12 @@ export function LoginForm() {
   );
   const loginMutation = useMutation({
     mutationFn: login,
+    onError: (error) => {
+      toast.danger({
+        message: getErrorMessage(error),
+        title: "Login failed"
+      });
+    },
     onSuccess: ({ user }) => {
       const nextUrl =
         new URLSearchParams(window.location.search).get("next") ??

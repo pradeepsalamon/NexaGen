@@ -5,6 +5,8 @@ import {
   QueryClientProvider
 } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
+import { Header } from "../components/layout/Header";
+import { TooltipProvider } from "../components/ui/Tooltip";
 import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
@@ -27,8 +29,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ToastProvider>
-          <SessionBootstrap />
-          {children}
+          <TooltipProvider delayDuration={250}>
+            <SessionBootstrap />
+            <Header />
+            <div className="pt-16">{children}</div>
+          </TooltipProvider>
         </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>

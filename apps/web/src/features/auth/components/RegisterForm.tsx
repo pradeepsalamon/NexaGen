@@ -10,6 +10,7 @@ import { Input } from "../../../components/ui/Input";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
 import { Select } from "../../../components/ui/Select";
 import { useToast } from "../../../providers/ToastProvider";
+import { getErrorMessage } from "../../../lib/errors";
 import { useAuthStore } from "../../../stores/authStore";
 import { register } from "../api/authApi";
 import type { ExperienceLevel, RegisterFormValues } from "../types/auth";
@@ -40,6 +41,12 @@ export function RegisterForm() {
   const [values, setValues] = useState<RegisterFormValues>(initialValues);
   const registerMutation = useMutation({
     mutationFn: register,
+    onError: (error) => {
+      toast.danger({
+        message: getErrorMessage(error),
+        title: "Registration failed"
+      });
+    },
     onSuccess: ({ user }) => {
       setUser(user);
       toast.success({

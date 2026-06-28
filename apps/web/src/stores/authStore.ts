@@ -4,6 +4,12 @@ import type { AuthUser } from "@nexa-gen/types";
 
 type AuthState = {
   clearSession: () => void;
+  isHydrated: boolean;
+  isSessionChecked: boolean;
+  isSessionLoading: boolean;
+  setHydrated: (isHydrated: boolean) => void;
+  setSessionChecked: (isSessionChecked: boolean) => void;
+  setSessionLoading: (isSessionLoading: boolean) => void;
   setUser: (user: AuthUser) => void;
   user?: AuthUser;
 };
@@ -11,11 +17,31 @@ type AuthState = {
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      clearSession: () => set({ user: undefined }),
-      setUser: (user) => set({ user })
+      isHydrated: false,
+      isSessionChecked: false,
+      isSessionLoading: true,
+      clearSession: () =>
+        set({
+          isSessionChecked: true,
+          isSessionLoading: false,
+          user: undefined
+        }),
+      setHydrated: (isHydrated) => set({ isHydrated }),
+      setSessionChecked: (isSessionChecked) => set({ isSessionChecked }),
+      setSessionLoading: (isSessionLoading) => set({ isSessionLoading }),
+      setUser: (user) =>
+        set({
+          isSessionChecked: true,
+          isSessionLoading: false,
+          user
+        })
     }),
     {
-      name: "nexagen-auth"
+      name: "nexagen-auth",
+      onRehydrateStorage: () => (state) => {
+        state?.setHydrated(true);
+      },
+      partialize: (state) => ({ user: state.user })
     }
   )
 );

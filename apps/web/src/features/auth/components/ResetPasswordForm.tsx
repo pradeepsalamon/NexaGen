@@ -7,18 +7,31 @@ import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import { FormField } from "../../../components/ui/FormField";
 import { PasswordInput } from "../../../components/ui/PasswordInput";
+import { getErrorMessage } from "../../../lib/errors";
+import { useToast } from "../../../providers/ToastProvider";
 import { resetPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
 import { AuthLayout } from "./AuthLayout";
 
 export function ResetPasswordForm() {
   const router = useRouter();
+  const toast = useToast();
   const [confirmPassword, setConfirmPassword] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
   const resetPasswordMutation = useMutation({
     mutationFn: resetPassword,
+    onError: (error) => {
+      toast.danger({
+        message: getErrorMessage(error),
+        title: "Password reset failed"
+      });
+    },
     onSuccess: () => {
+      toast.success({
+        message: "You can now log in with your new password.",
+        title: "Password updated"
+      });
       router.push("/login");
     }
   });

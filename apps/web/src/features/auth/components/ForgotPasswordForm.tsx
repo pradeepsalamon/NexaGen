@@ -6,14 +6,23 @@ import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
 import { FormField } from "../../../components/ui/FormField";
 import { Input } from "../../../components/ui/Input";
+import { getErrorMessage } from "../../../lib/errors";
+import { useToast } from "../../../providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
 import { AuthLayout } from "./AuthLayout";
 
 export function ForgotPasswordForm() {
+  const toast = useToast();
   const [email, setEmail] = useState("");
   const forgotPasswordMutation = useMutation({
-    mutationFn: forgotPassword
+    mutationFn: forgotPassword,
+    onError: (error) => {
+      toast.danger({
+        message: getErrorMessage(error),
+        title: "Reset request failed"
+      });
+    }
   });
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {

@@ -28,28 +28,9 @@ const highlights = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen overflow-hidden">
-      <section className="mx-auto grid min-h-screen w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
+    <main className="min-h-[calc(100vh-4rem)] overflow-hidden">
+      <section className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
         <div className="grid gap-8">
-          <nav className="flex flex-wrap items-center justify-between gap-4">
-            <Logo compact />
-            <div className="flex items-center gap-3">
-              <Link
-                className="rounded-control px-3 py-2 text-sm text-app-muted"
-                href="/login"
-              >
-                Log in
-              </Link>
-              <Link
-                className="inline-flex min-h-10 items-center gap-2 rounded-control bg-primary px-4 text-sm font-extrabold text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--color-primary)_26%,transparent)] transition hover:-translate-y-0.5"
-                href="/register"
-              >
-                Register
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-            </div>
-          </nav>
-
           <div className="max-w-3xl">
             <p className="mb-3 text-xs font-extrabold uppercase text-primary">
               NexaGen Chess Academy
@@ -62,6 +43,21 @@ export default function Home() {
               coaches, designed around practice, progress, and consistent class
               routines.
             </p>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Link
+                className="inline-flex min-h-11 items-center gap-2 rounded-control bg-primary px-5 text-sm font-extrabold text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--color-primary)_26%,transparent)] transition hover:-translate-y-0.5 hover:opacity-100"
+                href="/register"
+              >
+                Register
+                <ArrowRight aria-hidden="true" className="size-4" />
+              </Link>
+              <Link
+                className="inline-flex min-h-11 items-center rounded-control border border-app-border bg-app-surface/80 px-5 text-sm font-extrabold text-app-text shadow-card transition hover:-translate-y-0.5 hover:opacity-100"
+                href="/login"
+              >
+                Log in
+              </Link>
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">

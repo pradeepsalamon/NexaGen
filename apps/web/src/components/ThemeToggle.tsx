@@ -1,31 +1,55 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { Button } from "./ui/Button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from "./ui/Tooltip";
 import { useTheme } from "../providers/ThemeProvider";
 
 export function ThemeToggle() {
   const { mode, toggleMode } = useTheme();
   const isDark = mode === "dark";
-  const ModeIcon = isDark ? Moon : Sun;
+  const label = `Change to ${isDark ? "light" : "dark"} theme`;
 
   return (
-    <button
-      aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
-      aria-pressed={isDark}
-      className="inline-flex min-h-10 items-center gap-2 rounded-full border border-app-border bg-app-surface/85 py-1 pl-1 pr-3 text-sm font-bold text-app-text"
-      onClick={toggleMode}
-      type="button"
-    >
-      <span
-        aria-hidden="true"
-        className="block h-7 w-12 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_18%,var(--color-surface-soft))] p-1"
-      >
-        <span
-          className={`block size-5 rounded-full bg-primary shadow-[0_5px_16px_color-mix(in_srgb,var(--color-primary)_32%,transparent)] transition ${isDark ? "translate-x-5" : "translate-x-0"}`}
-        />
-      </span>
-      <ModeIcon aria-hidden="true" className="size-4" strokeWidth={2.5} />
-      <span>{isDark ? "Dark" : "Light"}</span>
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          aria-label={label}
+          aria-pressed={isDark}
+          className="relative h-9 min-h-9 w-[72px] rounded-full border-2 border-app-border bg-app-soft p-1 shadow-card hover:bg-app-soft dark:border-neutral-800 dark:bg-neutral-950 dark:hover:bg-neutral-950"
+          onClick={toggleMode}
+          type="button"
+          variant="outline"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_38%,transparent)] transition dark:bg-transparent dark:text-white/70 dark:shadow-none"
+          >
+            <Sun
+              aria-hidden="true"
+              className="size-3.5"
+              strokeWidth={2.5}
+            />
+          </span>
+          <span
+            aria-hidden="true"
+            className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full text-app-muted transition dark:bg-primary dark:text-white dark:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]"
+          >
+            <Moon
+              aria-hidden="true"
+              className="size-3.5"
+              strokeWidth={2.5}
+            />
+          </span>
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom">
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }

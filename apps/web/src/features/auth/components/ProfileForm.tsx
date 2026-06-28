@@ -4,13 +4,19 @@ import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type { AuthUser, UpdateProfileRequest } from "@nexa-gen/types";
 import { Button } from "../../../components/ui/Button";
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList
+} from "../../../components/ui/Combobox";
 import { FormField } from "../../../components/ui/FormField";
 import { Input } from "../../../components/ui/Input";
-import {
-  SearchableSelect,
-  type SearchableSelectOption
-} from "../../../components/ui/SearchableSelect";
 import { useAuthStore } from "../../../stores/authStore";
+import { getErrorMessage } from "../../../lib/errors";
+import { useToast } from "../../../providers/ToastProvider";
 import { updateProfile } from "../api/authApi";
 
 type ProfileFormValues = {
@@ -69,13 +75,24 @@ const defaultTimezoneOptions = ["Asia/Kolkata", "UTC"].map((timezone) => ({
 }));
 
 export function ProfileForm() {
+  const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
   const user = useAuthStore((state) => state.user);
   const [values, setValues] = useState<ProfileFormValues>(emptyValues);
   const profileMutation = useMutation({
     mutationFn: updateProfile,
+    onError: (error) => {
+      toast.danger({
+        message: getErrorMessage(error),
+        title: "Profile update failed"
+      });
+    },
     onSuccess: ({ user: updatedUser }) => {
       setUser(updatedUser);
+      toast.success({
+        message: "Your profile changes have been saved.",
+        title: "Profile updated"
+      });
     }
   });
 
@@ -143,12 +160,6 @@ export function ProfileForm() {
           {profileMutation.error.message}
         </p>
       ) : null}
-      {profileMutation.isSuccess ? (
-        <p className="rounded-control border border-[color-mix(in_srgb,var(--color-accent)_48%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent)_16%,var(--color-surface))] px-3.5 py-3 text-sm text-app-text">
-          Profile updated.
-        </p>
-      ) : null}
-
       <div className="grid gap-4 md:grid-cols-2">
         <FormField id="profile-email" label="Email">
           <Input
@@ -207,14 +218,24 @@ export function ProfileForm() {
           />
         </FormField>
         <FormField id="profile-timezone" label="Timezone">
-          <SearchableSelect
+          <Combobox
             id="profile-timezone"
-            onChange={(value) => updateField("timezone", value)}
-            options={timezoneOptions}
-            placeholder="Select timezone"
-            searchPlaceholder="Search timezone"
+            items={timezoneOptions}
+            onValueChange={(value) => updateField("timezone", value)}
             value={values.timezone}
-          />
+          >
+            <ComboboxInput placeholder="Select timezone" />
+            <ComboboxContent>
+              <ComboboxEmpty>No timezone found.</ComboboxEmpty>
+              <ComboboxList>
+                {(timezone) => (
+                  <ComboboxItem key={timezone} value={timezone}>
+                    {timezone}
+                  </ComboboxItem>
+                )}
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
         </FormField>
       </div>
 
@@ -527,7 +548,7 @@ function formatDate(value: string | null | undefined) {
   return value ? value.slice(0, 10) : "";
 }
 
-function getTimezoneOptions(currentTimezone: string): SearchableSelectOption[] {
+function getTimezoneOptions(currentTimezone: string): string[] {
   const intlWithTimezones = Intl as typeof Intl & {
     supportedValuesOf?: (key: "timeZone") => string[];
   };
@@ -543,8 +564,5 @@ function getTimezoneOptions(currentTimezone: string): SearchableSelectOption[] {
     uniqueTimezones.add(trimmedCurrentTimezone);
   }
 
-  return [...uniqueTimezones].sort().map((timezone) => ({
-    label: timezone,
-    value: timezone
-  }));
+  return [...uniqueTimezones].sort();
 }

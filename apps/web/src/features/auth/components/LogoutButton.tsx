@@ -6,6 +6,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { ConfirmationModal } from "../../../components/common/ConfirmationModal";
 import { Button } from "../../../components/ui/Button";
+import { getErrorMessage } from "../../../lib/errors";
 import { useToast } from "../../../providers/ToastProvider";
 import { useAuthStore } from "../../../stores/authStore";
 import { logout } from "../api/authApi";
@@ -17,13 +18,21 @@ export function LogoutButton() {
   const clearSession = useAuthStore((state) => state.clearSession);
   const logoutMutation = useMutation({
     mutationFn: logout,
-    onSettled: () => {
-      setIsConfirmOpen(false);
-      clearSession();
+    onError: (error) => {
+      toast.danger({
+        message: getErrorMessage(error),
+        title: "Logout request failed"
+      });
+    },
+    onSuccess: () => {
       toast.success({
         message: "You have been signed out.",
         title: "Logout successful"
       });
+    },
+    onSettled: () => {
+      setIsConfirmOpen(false);
+      clearSession();
       router.replace("/login");
       router.refresh();
     }

@@ -2,6 +2,7 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import { useState, type InputHTMLAttributes } from "react";
+import { Button } from "./Button";
 import { Input } from "./Input";
 
 type PasswordInputProps = InputHTMLAttributes<HTMLInputElement> & {
@@ -26,15 +27,17 @@ export function PasswordInput({
         type={isVisible ? "text" : "password"}
         {...props}
       />
-      <button
+      <Button
         aria-controls={id}
         aria-label={buttonLabel}
-        className="absolute right-1.5 top-1 inline-flex size-9 items-center justify-center rounded-control text-primary transition hover:bg-primary/10"
+        className="absolute right-1.5 top-1 inline-flex size-9 items-center justify-center rounded-control text-app-muted transition hover:bg-app-soft hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
         onClick={() => setIsVisible((current) => !current)}
+        size="icon"
         type="button"
+        variant="ghost"
       >
         <VisibilityIcon aria-hidden="true" className="size-4" strokeWidth={2.5} />
-      </button>
+      </Button>
     </div>
   );
 }
