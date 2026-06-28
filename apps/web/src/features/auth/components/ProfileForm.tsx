@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 import type { AuthUser, UpdateProfileRequest } from "@nexa-gen/types";
-import { Button } from "../../../components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import {
   Combobox,
   ComboboxContent,
@@ -11,12 +11,16 @@ import {
   ComboboxInput,
   ComboboxItem,
   ComboboxList
-} from "../../../components/ui/Combobox";
-import { FormField } from "../../../components/ui/FormField";
-import { Input } from "../../../components/ui/Input";
-import { useAuthStore } from "../../../stores/authStore";
-import { getErrorMessage } from "../../../lib/errors";
-import { useToast } from "../../../providers/ToastProvider";
+} from "@/components/ui/Combobox";
+import { FormField } from "@/components/ui/FormField";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { format } from "date-fns";
+import { Input } from "@/components/ui/Input";
+import { Select } from "@/components/ui/Select";
+import { Textarea } from "@/components/ui/Textarea";
+import { useAuthStore } from "@/stores/authStore";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
 import { updateProfile } from "../api/authApi";
 
 type ProfileFormValues = {
@@ -81,18 +85,8 @@ export function ProfileForm() {
   const [values, setValues] = useState<ProfileFormValues>(emptyValues);
   const profileMutation = useMutation({
     mutationFn: updateProfile,
-    onError: (error) => {
-      toast.danger({
-        message: getErrorMessage(error),
-        title: "Profile update failed"
-      });
-    },
     onSuccess: ({ user: updatedUser }) => {
       setUser(updatedUser);
-      toast.success({
-        message: "Your profile changes have been saved.",
-        title: "Profile updated"
-      });
     }
   });
 
@@ -150,16 +144,16 @@ export function ProfileForm() {
       return;
     }
 
-    profileMutation.mutate(toProfilePayload(values, user));
+    toast.promise(profileMutation.mutateAsync(toProfilePayload(values, user)), {
+      loading: "Saving profile...",
+      success: "Profile updated.",
+      error: "Failed to update profile."
+    });
   }
 
   return (
     <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
-      {profileMutation.error ? (
-        <p className="rounded-control border border-app-danger bg-[color-mix(in_srgb,var(--color-danger)_8%,var(--color-surface))] px-3.5 py-3 text-sm text-app-danger">
-          {profileMutation.error.message}
-        </p>
-      ) : null}
+
       <div className="grid gap-4 md:grid-cols-2">
         <FormField id="profile-email" label="Email">
           <Input
@@ -317,13 +311,12 @@ export function ProfileForm() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <FormField id="profile-date-of-birth" label="Date of Birth">
-              <Input
-                id="profile-date-of-birth"
-                onChange={(event) =>
-                  updateField("dateOfBirth", event.target.value)
-                }
-                type="date"
-                value={values.dateOfBirth}
+              <DatePicker
+                onChange={(date) => {
+                  const dateStr = date ? format(date, "yyyy-MM-dd") : "";
+                  updateField("dateOfBirth", dateStr);
+                }}
+                value={values.dateOfBirth ? new Date(values.dateOfBirth) : undefined}
               />
             </FormField>
             <FormField id="profile-chess-rating" label="Chess Rating">
@@ -349,16 +342,16 @@ export function ProfileForm() {
             </FormField>
           </div>
           <FormField id="profile-experience-level" label="Experience Level">
-            <select
-              className="min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3.5 text-sm text-app-text transition hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] focus:outline-none"
+            <Select
               id="profile-experience-level"
               onChange={(event) => updateField("experienceLevel", event.target.value)}
+              options={[
+                { label: "Beginner", value: "BEGINNER" },
+                { label: "Intermediate", value: "INTERMEDIATE" },
+                { label: "Advanced", value: "ADVANCED" }
+              ]}
               value={values.experienceLevel}
-            >
-              <option value="BEGINNER">Beginner</option>
-              <option value="INTERMEDIATE">Intermediate</option>
-              <option value="ADVANCED">Advanced</option>
-            </select>
+            />
           </FormField>
         </section>
       ) : null}
@@ -375,18 +368,18 @@ export function ProfileForm() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <FormField id="profile-coach-title" label="Title">
-              <select
-                className="min-h-11 w-full rounded-control border border-app-border bg-app-surface px-3.5 text-sm text-app-text transition hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] focus:outline-none"
+              <Select
                 id="profile-coach-title"
                 onChange={(event) => updateField("title", event.target.value)}
+                options={[
+                  { label: "None", value: "NONE" },
+                  { label: "CM", value: "CM" },
+                  { label: "FM", value: "FM" },
+                  { label: "IM", value: "IM" },
+                  { label: "GM", value: "GM" }
+                ]}
                 value={values.title}
-              >
-                <option value="NONE">None</option>
-                <option value="CM">CM</option>
-                <option value="FM">FM</option>
-                <option value="IM">IM</option>
-                <option value="GM">GM</option>
-              </select>
+              />
             </FormField>
             <FormField id="profile-fide-rating" label="FIDE Rating">
               <Input
@@ -459,8 +452,8 @@ export function ProfileForm() {
             </FormField>
           </div>
           <FormField id="profile-bio" label="Bio">
-            <textarea
-              className="min-h-28 w-full rounded-control border border-app-border bg-app-surface px-3.5 py-3 text-sm text-app-text transition placeholder:text-app-muted/70 hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] focus:outline-none"
+            <Textarea
+              className="min-h-28"
               id="profile-bio"
               maxLength={2000}
               onChange={(event) => updateField("bio", event.target.value)}

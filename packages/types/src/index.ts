@@ -6,6 +6,8 @@ export type UserStatus = "ACTIVE" | "PENDING" | "SUSPENDED" | "DELETED";
 
 export type CoachTitle = "NONE" | "CM" | "FM" | "IM" | "GM";
 
+export type BatchStatus = "UPCOMING" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
+
 export const experienceLevelSchema = z.enum([
   "beginner",
   "intermediate",
@@ -19,6 +21,8 @@ export const prismaExperienceLevelSchema = z.enum([
 ]);
 
 export const coachTitleSchema = z.enum(["NONE", "CM", "FM", "IM", "GM"]);
+
+export const batchStatusSchema = z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARCHIVED"]);
 
 export const passwordSchema = z
   .string()
@@ -100,6 +104,36 @@ export const updateProfileRequestSchema = z.object({
   username: z.string().max(80).optional()
 });
 
+const batchUserIdsSchema = z
+  .array(z.string().min(1))
+  .max(100, "A batch can include up to 100 users per role.")
+  .optional()
+  .default([]);
+
+export const createBatchRequestSchema = z
+  .object({
+    coachIds: batchUserIdsSchema,
+    description: z.string().max(2000).optional(),
+    endsAt: z.string().optional(),
+    name: z.string().min(1, "Batch name is required.").max(120),
+    scheduleNotes: z.string().max(1000).optional(),
+    startsAt: z.string().optional(),
+    status: batchStatusSchema.optional().default("ACTIVE"),
+    studentIds: batchUserIdsSchema
+  })
+  .refine(
+    (value) => {
+      if (!value.startsAt || !value.endsAt) {
+        return true;
+      }
+
+      return new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime();
+    },
+    { message: "End date must be after start date.", path: ["endsAt"] }
+  );
+
+export const updateBatchRequestSchema = createBatchRequestSchema.partial();
+
 export type ExperienceLevel = z.infer<typeof experienceLevelSchema>;
 
 export type PrismaExperienceLevel = z.infer<typeof prismaExperienceLevelSchema>;
@@ -151,6 +185,47 @@ export type ForgotPasswordRequest = z.infer<typeof forgotPasswordRequestSchema>;
 export type ResetPasswordRequest = z.infer<typeof resetPasswordRequestSchema>;
 
 export type UpdateProfileRequest = z.infer<typeof updateProfileRequestSchema>;
+
+export type CreateBatchRequest = z.infer<typeof createBatchRequestSchema>;
+
+export type UpdateBatchRequest = z.infer<typeof updateBatchRequestSchema>;
+
+export type BatchUserSummary = {
+  email: string;
+  firstName: string;
+  id: string;
+  lastName?: string | null;
+  role: UserRole;
+};
+
+export type Batch = {
+  coachCount: number;
+  coaches: BatchUserSummary[];
+  createdAt: string;
+  description?: string | null;
+  endsAt?: string | null;
+  id: string;
+  name: string;
+  scheduleNotes?: string | null;
+  startsAt?: string | null;
+  status: BatchStatus;
+  studentCount: number;
+  students: BatchUserSummary[];
+  updatedAt: string;
+};
+
+export type BatchAssignableUsersResponse = {
+  coaches: BatchUserSummary[];
+  students: BatchUserSummary[];
+};
+
+export type BatchListResponse = {
+  batches: Batch[];
+};
+
+export type BatchResponse = {
+  batch: Batch;
+};
 
 export type AuthResponse = {
   user: AuthUser;

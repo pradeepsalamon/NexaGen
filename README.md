@@ -158,6 +158,70 @@ npm run build -w apps/api
 npm run build -w apps/web
 ```
 
+## UI Component Standards
+
+### Primary UI Library
+
+This project uses **shadcn/ui** as the default component library.
+
+Developers should always prefer existing shadcn/ui components before creating custom UI. All UI primitives live in `apps/web/src/components/ui/`.
+
+### Component Usage Policy
+
+- **Reuse before creating.** Check existing components first.
+- **Prefer composition over customization.** Combine shadcn primitives instead of building from scratch.
+- **Do not wrap shadcn components unnecessarily.** Use them directly wherever possible.
+- **Keep styling consistent with the current design.** Use the project's CSS variable tokens (`--color-primary`, `--color-surface`, etc.) and Tailwind theme tokens (`app-*`, `primary`, `secondary`).
+- **Use Tailwind utility classes** instead of creating duplicate components.
+
+### Preferred Components
+
+**Layout & Navigation**
+
+- Tabs
+- Separator
+
+**Forms**
+
+- Input
+- Textarea
+- Select (native)
+- Checkbox
+- Combobox
+- FormField
+- Label
+- PasswordInput
+
+**Buttons**
+
+- Button (with CVA variants: `primary`, `destructive`, `ghost`, `outline`, `secondary`)
+
+**Feedback**
+
+- Sonner (Toast)
+- Skeleton
+
+**Containers**
+
+- Card (with CardHeader, CardTitle, CardDescription, CardContent, CardFooter)
+- Dialog
+- AlertDialog
+- DropdownMenu
+
+**Data Display**
+
+- Badge
+- Table (with TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption)
+- Tooltip
+
+### Development Rule
+
+When building a new feature:
+
+1. Check whether shadcn/ui already provides the required component.
+2. Reuse existing project components where possible.
+3. Only create a custom component if no suitable shadcn component exists or the feature requires custom behavior.
+
 ## Project Rule
 
 When implementing or updating a feature, update the relevant README in the same change so setup, commands, env variables, and behavior stay current.

@@ -15,8 +15,8 @@ import {
   useRef,
   useState
 } from "react";
-import { Button } from "./Button";
-import { cn } from "../../lib/utils";
+import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 type ComboboxContextValue = {
   disabled: boolean;

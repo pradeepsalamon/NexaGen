@@ -3,15 +3,15 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
-import { FormField } from "../../../components/ui/FormField";
-import { Input } from "../../../components/ui/Input";
-import { PasswordInput } from "../../../components/ui/PasswordInput";
-import { Select } from "../../../components/ui/Select";
-import { useToast } from "../../../providers/ToastProvider";
-import { getErrorMessage } from "../../../lib/errors";
-import { useAuthStore } from "../../../stores/authStore";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { FormField } from "@/components/ui/FormField";
+import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { Select } from "@/components/ui/Select";
+import { useToast } from "@/providers/ToastProvider";
+import { getErrorMessage } from "@/lib/errors";
+import { useAuthStore } from "@/stores/authStore";
 import { register } from "../api/authApi";
 import type { ExperienceLevel, RegisterFormValues } from "../types/auth";
 import { AuthHeader } from "./AuthHeader";
@@ -42,7 +42,7 @@ export function RegisterForm() {
   const registerMutation = useMutation({
     mutationFn: register,
     onError: (error) => {
-      toast.danger({
+      toast.error({
         message: getErrorMessage(error),
         title: "Registration failed"
       });
@@ -100,11 +100,7 @@ export function RegisterForm() {
           title="Register"
         />
         <form className="grid gap-3.5" onSubmit={handleSubmit}>
-          {registerMutation.error ? (
-            <p className="rounded-control border border-app-danger bg-[color-mix(in_srgb,var(--color-danger)_8%,var(--color-surface))] px-3.5 py-3 text-sm text-app-danger">
-              {registerMutation.error.message}
-            </p>
-          ) : null}
+
           <div className="grid gap-3.5 md:grid-cols-2">
             <FormField id="student-name" label="Student Name">
               <Input

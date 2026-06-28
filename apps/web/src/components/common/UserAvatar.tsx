@@ -6,7 +6,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger
-} from "../ui/Tooltip";
+} from "@/components/ui/Tooltip";
 
 type UserWithAvatar = AuthUser & {
   avatarUrl?: string | null;

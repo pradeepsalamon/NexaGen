@@ -4,11 +4,11 @@ import { useState } from "react";
 import { LogOut } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ConfirmationModal } from "../../../components/common/ConfirmationModal";
-import { Button } from "../../../components/ui/Button";
-import { getErrorMessage } from "../../../lib/errors";
-import { useToast } from "../../../providers/ToastProvider";
-import { useAuthStore } from "../../../stores/authStore";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
+import { Button } from "@/components/ui/Button";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
+import { useAuthStore } from "@/stores/authStore";
 import { logout } from "../api/authApi";
 
 export function LogoutButton() {
@@ -19,7 +19,7 @@ export function LogoutButton() {
   const logoutMutation = useMutation({
     mutationFn: logout,
     onError: (error) => {
-      toast.danger({
+      toast.error({
         message: getErrorMessage(error),
         title: "Logout request failed"
       });

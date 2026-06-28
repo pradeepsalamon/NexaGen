@@ -4,21 +4,21 @@ import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
-import { Checkbox } from "../../../components/ui/Checkbox";
-import { FormField } from "../../../components/ui/FormField";
-import { Input } from "../../../components/ui/Input";
-import { PasswordInput } from "../../../components/ui/PasswordInput";
-import { useToast } from "../../../providers/ToastProvider";
-import { getErrorMessage } from "../../../lib/errors";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { FormField } from "@/components/ui/FormField";
+import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { useToast } from "@/providers/ToastProvider";
+import { getErrorMessage } from "@/lib/errors";
 import { useTouchedFields } from "../hooks/useTouchedFields";
 import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
 import { login } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
 import { AuthLayout } from "./AuthLayout";
-import { useAuthStore } from "../../../stores/authStore";
+import { useAuthStore } from "@/stores/authStore";
 
 const initialValues: LoginFormValues = {
   email: "",
@@ -39,7 +39,7 @@ export function LoginForm() {
   const loginMutation = useMutation({
     mutationFn: login,
     onError: (error) => {
-      toast.danger({
+      toast.error({
         message: getErrorMessage(error),
         title: "Login failed"
       });
@@ -86,11 +86,7 @@ export function LoginForm() {
           title="Log in"
         />
         <form className="grid gap-4" noValidate onSubmit={handleSubmit}>
-          {loginMutation.error ? (
-            <p className="rounded-control border border-app-danger bg-[color-mix(in_srgb,var(--color-danger)_8%,var(--color-surface))] px-3.5 py-3 text-sm text-app-danger">
-              {loginMutation.error.message}
-            </p>
-          ) : null}
+
           <FormField error={errors.email} id="email" label="Email">
             <Input
               autoComplete="email"
@@ -120,8 +116,8 @@ export function LoginForm() {
               checked={values.rememberMe}
               id="remember-me"
               label="Remember me"
-              onChange={(event) =>
-                updateField("rememberMe", event.target.checked)
+              onCheckedChange={(checked) =>
+                updateField("rememberMe", !!checked)
               }
             />
             <Link href="/forgot-password">Forgot Password?</Link>

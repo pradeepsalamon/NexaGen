@@ -3,13 +3,14 @@
 import { Loader2, LogIn } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "../ThemeToggle";
-import { Logo } from "../Logo";
-import { UserAvatar } from "../common/UserAvatar";
-import { useAuthStore } from "../../stores/authStore";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Logo } from "@/components/Logo";
+import { UserAvatar } from "@/components/common/UserAvatar";
+import { useAuthStore } from "@/stores/authStore";
 
 const pageTitles: Record<string, string> = {
   "/": "NexaGen Chess",
+  "/dashboard/batches": "Batches",
   "/dashboard": "Dashboard",
   "/dashboard/super-admin": "Super Admin Dashboard",
   "/forgot-password": "Account Help",

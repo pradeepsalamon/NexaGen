@@ -1,10 +1,12 @@
 import {
   BarChart3,
   CalendarDays,
+  Layers3,
   ShieldCheck,
   UserRoundCheck
 } from "lucide-react";
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 const accessTokenCookieName = "nexagen_access_token";
@@ -31,6 +33,13 @@ export default function SuperAdminDashboardPage() {
               <ShieldCheck aria-hidden="true" className="size-4" />
               Super Admin
             </div>
+            <Link
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+              href="/dashboard/batches"
+            >
+              <Layers3 aria-hidden="true" className="size-4" />
+              Batches
+            </Link>
           </div>
         </header>
 

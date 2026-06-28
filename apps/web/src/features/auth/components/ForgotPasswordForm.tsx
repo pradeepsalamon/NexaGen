@@ -2,12 +2,12 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
-import { FormField } from "../../../components/ui/FormField";
-import { Input } from "../../../components/ui/Input";
-import { getErrorMessage } from "../../../lib/errors";
-import { useToast } from "../../../providers/ToastProvider";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { FormField } from "@/components/ui/FormField";
+import { Input } from "@/components/ui/Input";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
 import { AuthLayout } from "./AuthLayout";
@@ -18,7 +18,7 @@ export function ForgotPasswordForm() {
   const forgotPasswordMutation = useMutation({
     mutationFn: forgotPassword,
     onError: (error) => {
-      toast.danger({
+      toast.error({
         message: getErrorMessage(error),
         title: "Reset request failed"
       });
@@ -40,11 +40,7 @@ export function ForgotPasswordForm() {
           title="Forgot Password"
         />
         <form className="grid gap-4" onSubmit={handleSubmit}>
-          {forgotPasswordMutation.error ? (
-            <p className="rounded-control border border-app-danger bg-[color-mix(in_srgb,var(--color-danger)_8%,var(--color-surface))] px-3.5 py-3 text-sm text-app-danger">
-              {forgotPasswordMutation.error.message}
-            </p>
-          ) : null}
+
           {forgotPasswordMutation.data ? (
             <p className="rounded-control border border-[color-mix(in_srgb,var(--color-accent)_48%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent)_16%,var(--color-surface))] px-3.5 py-3 text-sm text-app-text">
               If an account with this email exists, password reset instructions

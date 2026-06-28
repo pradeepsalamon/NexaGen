@@ -1,12 +1,12 @@
 import { forwardRef, type InputHTMLAttributes } from "react";
-import { cn } from "../../lib/utils";
+import { cn } from "@/lib/utils";
 
 type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   hasError?: boolean;
 };
 
-export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, hasError = false, ...props },
+const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  { className, hasError = false, type, ...props },
   ref
 ) {
   return (
@@ -18,7 +18,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         className
       )}
       ref={ref}
+      type={type}
       {...props}
     />
   );
 });
+Input.displayName = "Input";
+
+export { Input };
+

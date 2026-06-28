@@ -1,4 +1,5 @@
 import {
+  BatchStatus,
   CoachTitle,
   ExperienceLevel,
   PrismaClient,
@@ -125,10 +126,116 @@ async function main() {
     where: { userId: student.id }
   });
 
+  const batch =
+    (await prisma.batch.findFirst({
+      where: { name: "Seeded Beginner Batch" }
+    })) ??
+    (await prisma.batch.create({
+      data: {
+        createdById: superAdmin.id,
+        description: "Seeded batch for local coach and student assignment tests.",
+        name: "Seeded Beginner Batch",
+        scheduleNotes: "Saturdays, 10:00 AM IST",
+        status: BatchStatus.ACTIVE
+      }
+    }));
+
+  await prisma.batchCoach.upsert({
+    create: {
+      batchId: batch.id,
+      coachId: coach.id
+    },
+    update: {},
+    where: {
+      batchId_coachId: {
+        batchId: batch.id,
+        coachId: coach.id
+      }
+    }
+  });
+
+  await prisma.batchStudent.upsert({
+    create: {
+      batchId: batch.id,
+      studentId: student.id
+    },
+    update: {},
+    where: {
+      batchId_studentId: {
+        batchId: batch.id,
+        studentId: student.id
+      }
+    }
+  });
+
   console.log("Seeded test users:");
   console.log(`- superadmin@nexagen.test / ${seedPassword}`);
   console.log(`- coach@nexagen.test / ${seedPassword}`);
   console.log(`- student@nexagen.test / ${seedPassword}`);
+  console.log(`- batch: ${batch.name}`);
+
+  const batchCount = await prisma.batch.count();
+  if (batchCount < 5) {
+    console.log("Seeding additional mock batches for UI testing...");
+    const batchNames = [
+      "Intermediate Tactics",
+      "Endgame Mastery",
+      "Opening Principles",
+      "Advanced Strategy",
+      "Blitz Training",
+      "Tournament Prep A",
+      "Tournament Prep B",
+      "Kids Beginner Sat",
+      "Kids Beginner Sun",
+      "Adults Evening Class",
+      "Positional Play 101",
+      "Mastering the Sicilian",
+      "Attacking Chess",
+      "Defensive Techniques",
+      "Calculation Bootcamp",
+      "Pawn Structures",
+      "Rook Endgames",
+      "Rapid Improvement",
+      "Chess Fundamentals",
+      "Advanced Calculation"
+    ];
+
+    const statuses = [
+      BatchStatus.ACTIVE,
+      BatchStatus.UPCOMING,
+      BatchStatus.ARCHIVED,
+      BatchStatus.ACTIVE
+    ];
+
+    for (let i = 0; i < batchNames.length; i++) {
+      const startsAt = new Date();
+      startsAt.setDate(startsAt.getDate() + i * 2 - 10);
+
+      const mockBatch = await prisma.batch.create({
+        data: {
+          createdById: superAdmin.id,
+          description: `Mock batch ${i + 1} for testing`,
+          name: batchNames[i],
+          scheduleNotes: i % 2 === 0 ? "Weekends" : "Weekdays",
+          startsAt,
+          status: statuses[i % statuses.length]
+        }
+      });
+
+      if (i % 3 !== 0) {
+        await prisma.batchCoach.create({
+          data: { batchId: mockBatch.id, coachId: coach.id }
+        });
+      }
+
+      if (i % 2 !== 0) {
+        await prisma.batchStudent.create({
+          data: { batchId: mockBatch.id, studentId: student.id }
+        });
+      }
+    }
+    console.log(`Seeded ${batchNames.length} mock batches.`);
+  }
 }
 
 main()

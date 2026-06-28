@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Label } from "@/components/ui/Label";
 
 type FormFieldProps = {
   children: ReactNode;
@@ -17,9 +18,9 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div className="grid gap-1.5">
-      <label className="text-sm font-semibold text-app-text" htmlFor={id}>
+      <Label htmlFor={id}>
         {label}
-      </label>
+      </Label>
       {children}
       {error ? (
         <p
@@ -37,3 +38,4 @@ export function FormField({
     </div>
   );
 }
+

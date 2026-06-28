@@ -29,7 +29,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <ToastProvider>
-          <TooltipProvider delayDuration={250}>
+          <TooltipProvider delayDuration={600}>
             <SessionBootstrap />
             <Header />
             <div className="pt-16">{children}</div>

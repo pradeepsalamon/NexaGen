@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Logo } from "../../../components/Logo";
-import { PageContainer } from "../../../components/PageContainer";
+import { Logo } from "@/components/Logo";
+import { PageContainer } from "@/components/PageContainer";
 
 type AuthLayoutProps = {
   children: ReactNode;

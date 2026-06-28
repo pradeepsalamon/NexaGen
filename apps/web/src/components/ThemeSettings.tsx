@@ -2,8 +2,8 @@
 
 import { RotateCcw, Settings } from "lucide-react";
 import { useId, useState } from "react";
-import { useTheme } from "../providers/ThemeProvider";
-import { Button } from "./ui/Button";
+import { useTheme } from "@/providers/ThemeProvider";
+import { Button } from "@/components/ui/Button";
 
 const colorFields = [
   { key: "primary", label: "Primary Color" },

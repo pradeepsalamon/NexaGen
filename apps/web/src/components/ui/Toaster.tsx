@@ -2,7 +2,7 @@
 
 import { Toaster as Sonner } from "sonner";
 import type { ComponentProps, CSSProperties } from "react";
-import { useTheme } from "../../providers/ThemeProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 
 type ToasterProps = ComponentProps<typeof Sonner>;
 
@@ -32,7 +32,7 @@ export function Toaster({ ...props }: ToasterProps) {
       toastOptions={{
         classNames: {
           closeButton:
-            "border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white",
+            "!bg-app-surface !border-app-border !text-app-text hover:!bg-app-soft",
           description: "text-current/90",
           toast:
             "top-16 rounded-app border p-4 text-white shadow-[0_24px_70px_rgba(16,24,40,0.22)]",

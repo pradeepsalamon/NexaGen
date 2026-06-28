@@ -3,12 +3,12 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
-import { FormField } from "../../../components/ui/FormField";
-import { PasswordInput } from "../../../components/ui/PasswordInput";
-import { getErrorMessage } from "../../../lib/errors";
-import { useToast } from "../../../providers/ToastProvider";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { FormField } from "@/components/ui/FormField";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
 import { resetPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
 import { AuthLayout } from "./AuthLayout";
@@ -22,7 +22,7 @@ export function ResetPasswordForm() {
   const resetPasswordMutation = useMutation({
     mutationFn: resetPassword,
     onError: (error) => {
-      toast.danger({
+      toast.error({
         message: getErrorMessage(error),
         title: "Password reset failed"
       });
@@ -69,11 +69,7 @@ export function ResetPasswordForm() {
           title="Reset Password"
         />
         <form className="grid gap-4" onSubmit={handleSubmit}>
-          {resetPasswordMutation.error ? (
-            <p className="rounded-control border border-app-danger bg-[color-mix(in_srgb,var(--color-danger)_8%,var(--color-surface))] px-3.5 py-3 text-sm text-app-danger">
-              {resetPasswordMutation.error.message}
-            </p>
-          ) : null}
+
           {!token ? (
             <p className="rounded-control border border-[color-mix(in_srgb,var(--color-warm)_48%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-warm)_18%,var(--color-surface))] px-3.5 py-3 text-sm text-app-text">
               Reset token is missing from the link.

@@ -7,52 +7,96 @@ import {
   useMemo
 } from "react";
 import { toast as sonnerToast } from "sonner";
-import { Toaster } from "../components/ui/sonner";
+import { Toaster } from "../components/ui/Toaster";
 
-export type ToastType = "success" | "warning" | "danger";
+export type ToastType = "success" | "warning" | "error" | "info" | "loading";
+
+export type ToastAction = {
+  label: string;
+  onClick: () => void;
+};
 
 type ToastInput = {
+  action?: ToastAction;
   durationMs?: number;
   message?: string;
   title: string;
   type: ToastType;
 };
 
+type PromiseInput = {
+  error: string;
+  loading: string;
+  success: string;
+};
+
 type ToastContextValue = {
-  danger: (toast: Omit<ToastInput, "type">) => void;
   dismissToast: (id: string | number) => void;
+  error: (toast: Omit<ToastInput, "type">) => void;
+  info: (toast: Omit<ToastInput, "type">) => void;
+  loading: (toast: Omit<ToastInput, "type">) => void;
+  promise: <T>(promise: Promise<T>, messages: PromiseInput) => void;
   showToast: (toast: ToastInput) => void;
   success: (toast: Omit<ToastInput, "type">) => void;
   warning: (toast: Omit<ToastInput, "type">) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | undefined>(undefined);
-const DEFAULT_DURATION_MS = 5000;
 
-function showToast({ durationMs, message, title, type }: ToastInput) {
+function getDefaultDuration(type: ToastType): number {
+  switch (type) {
+    case "success":
+      return 3000;
+    case "info":
+      return 4000;
+    case "warning":
+    case "error":
+      return 5000;
+    case "loading":
+      return Number.POSITIVE_INFINITY;
+  }
+}
+
+function showToast({ action, durationMs, message, title, type }: ToastInput) {
   const options = {
+    action,
     description: message,
-    duration: durationMs ?? DEFAULT_DURATION_MS
+    duration: durationMs ?? getDefaultDuration(type)
   };
 
-  if (type === "danger") {
-    sonnerToast.error(title, options);
-    return;
+  switch (type) {
+    case "error":
+      sonnerToast.error(title, options);
+      break;
+    case "warning":
+      sonnerToast.warning(title, options);
+      break;
+    case "info":
+      sonnerToast.info(title, options);
+      break;
+    case "loading":
+      sonnerToast.loading(title, options);
+      break;
+    case "success":
+      sonnerToast.success(title, options);
+      break;
   }
-
-  if (type === "warning") {
-    sonnerToast.warning(title, options);
-    return;
-  }
-
-  sonnerToast.success(title, options);
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ToastContextValue>(
     () => ({
-      danger: (toast) => showToast({ ...toast, type: "danger" }),
       dismissToast: (id) => sonnerToast.dismiss(id),
+      error: (toast) => showToast({ ...toast, type: "error" }),
+      info: (toast) => showToast({ ...toast, type: "info" }),
+      loading: (toast) => showToast({ ...toast, type: "loading" }),
+      promise: (promise, messages) => {
+        sonnerToast.promise(promise, {
+          error: messages.error,
+          loading: messages.loading,
+          success: messages.success
+        });
+      },
       showToast,
       success: (toast) => showToast({ ...toast, type: "success" }),
       warning: (toast) => showToast({ ...toast, type: "warning" })

@@ -11,8 +11,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle
-} from "../ui/AlertDialog";
-import { Button } from "../ui/Button";
+} from "@/components/ui/AlertDialog";
+import { Button } from "@/components/ui/Button";
 
 type ConfirmationModalProps = {
   cancelLabel?: string;
