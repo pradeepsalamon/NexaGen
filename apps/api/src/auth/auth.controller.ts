@@ -10,6 +10,7 @@ import {
   Res
 } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { API_ROUTES } from "@nexa-gen/types";
 import { AuthService } from "./auth.service";
 import {
   ForgotPasswordDto,
@@ -20,11 +21,11 @@ import {
 } from "./dto";
 import { AUTH_COOKIE_NAMES, AUTH_COOKIE_PATHS } from "./types";
 
-@Controller("auth")
+@Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post("register")
+  @Post(API_ROUTES.auth.register)
   async register(
     @Body() body: RegisterDto,
     @Req() request: Request,
@@ -40,7 +41,7 @@ export class AuthController {
     return { user: result.user };
   }
 
-  @Post("login")
+  @Post(API_ROUTES.auth.login)
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() body: LoginDto,
@@ -57,7 +58,7 @@ export class AuthController {
     return { user: result.user };
   }
 
-  @Post("refresh")
+  @Post(API_ROUTES.auth.refresh)
   @HttpCode(HttpStatus.OK)
   async refresh(
     @Req() request: Request,
@@ -73,7 +74,7 @@ export class AuthController {
     return { user: result.user };
   }
 
-  @Post("logout")
+  @Post(API_ROUTES.auth.logout)
   @HttpCode(HttpStatus.OK)
   async logout(
     @Req() request: Request,
@@ -88,12 +89,12 @@ export class AuthController {
     return result;
   }
 
-  @Get("me")
+  @Get(API_ROUTES.auth.me)
   async me(@Req() request: Request) {
     return this.authService.me(request.cookies?.[AUTH_COOKIE_NAMES.accessToken]);
   }
 
-  @Patch("profile")
+  @Patch(API_ROUTES.auth.profile)
   async updateProfile(
     @Body() body: UpdateProfileDto,
     @Req() request: Request
@@ -104,13 +105,13 @@ export class AuthController {
     );
   }
 
-  @Post("forgot-password")
+  @Post(API_ROUTES.auth.forgotPassword)
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.forgotPassword(body.email);
   }
 
-  @Post("reset-password")
+  @Post(API_ROUTES.auth.resetPassword)
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() body: ResetPasswordDto) {
     return this.authService.resetPassword(body);

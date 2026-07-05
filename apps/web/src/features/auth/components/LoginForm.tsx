@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
-import { useTouchedFields } from "../hooks/useTouchedFields";
+import { useTouchedFields } from "@/hooks/useTouchedFields";
 import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
 import { login } from "../api/authApi";

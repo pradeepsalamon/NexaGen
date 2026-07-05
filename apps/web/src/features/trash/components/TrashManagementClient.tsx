@@ -1,60 +1,39 @@
 "use client";
 
+import { useCallback, useMemo, useState } from "react";
+import { type ColumnDef } from "@tanstack/react-table";
 import {
-  ChevronsUpDown,
   FilterX,
   ListFilter,
   RotateCcw,
-  Search,
   ShieldAlert,
   Trash2,
-  XCircle
 } from "lucide-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TrashEntity, TrashItem } from "@nexa-gen/types";
-import { useCallback, useMemo, useState } from "react";
-import {
-  type ColumnDef,
-  getCoreRowModel,
-  useReactTable,
-  type PaginationState,
-  type RowSelectionState,
-  type SortingState
-} from "@tanstack/react-table";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@/components/ui/AlertDialog";
-import { Badge } from "@/components/ui/Badge";
+
+import { useToast } from "@/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { Badge } from "@/components/ui/Badge";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
+import { useDataTable } from "@/hooks/useDataTable";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger
-} from "@/components/ui/Tooltip";
-import { useToast } from "@/providers/ToastProvider";
-import {
-  bulkDeleteTrashItemsPermanently,
-  bulkRestoreTrashItems,
-  deleteTrashItemPermanently,
-  emptyTrash,
-  listTrash,
-  restoreTrashItem
-} from "../api/trashApi";
+  useBulkDeleteTrashItemsPermanentlyMutation,
+  useBulkRestoreTrashItemsMutation,
+  useDeleteTrashItemPermanentlyMutation,
+  useEmptyTrashMutation,
+  useRestoreTrashItemMutation,
+  useTrashQuery,
+} from "../hooks/useTrashApi";
 
 const entityOptions = [
   { label: "All entities", value: "ALL" },
@@ -67,40 +46,38 @@ const entityOptions = [
 ];
 
 export function TrashManagementClient() {
-  const queryClient = useQueryClient();
   const toast = useToast();
   const [search, setSearch] = useState("");
   const [entity, setEntity] = useState<TrashEntity | "ALL">("ALL");
   const [deletedFrom, setDeletedFrom] = useState("");
   const [deletedTo, setDeletedTo] = useState("");
 
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 10
-  });
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-
   const [pendingActions, setPendingActions] = useState<Record<string, number>>({});
   const [hiddenItems, setHiddenItems] = useState<Record<string, boolean>>({});
 
-  const [sorting, setSorting] = useState<SortingState>([{ id: "deletedAt", desc: true }]);
+  const {
+    table,
+    rowSelection,
+    setRowSelection,
+    pagination,
+    setPagination,
+    sorting,
+    setSorting
+  } = useDataTable<TrashItem, unknown>({
+    columns: [],
+    data: [],
+    initialSorting: [{ id: "deletedAt", desc: true }]
+  });
 
-  const query = useQuery({
-    queryFn: () =>
-      listTrash({
-        deletedFrom,
-        deletedTo,
-        entity,
-        page: pagination.pageIndex + 1,
-        pageSize: pagination.pageSize,
-        search,
-        sortBy: sorting[0]?.id as any || "deletedAt",
-        sortOrder: sorting[0]?.desc ? "desc" : "asc"
-      }),
-    queryKey: [
-      "trash",
-      { deletedFrom, deletedTo, entity, page: pagination.pageIndex + 1, pageSize: pagination.pageSize, search, sorting }
-    ]
+  const query = useTrashQuery({
+    deletedFrom,
+    deletedTo,
+    entity,
+    page: pagination.pageIndex + 1,
+    pageSize: pagination.pageSize,
+    search,
+    sortBy: sorting[0]?.id as any || "deletedAt",
+    sortOrder: sorting[0]?.desc ? "desc" : "asc"
   });
 
   const items = useMemo(() => {
@@ -116,39 +93,11 @@ export function TrashManagementClient() {
     return items.filter(item => selectedKeys.includes(getItemKey(item)));
   }, [items, rowSelection]);
 
-  const restoreMutation = useMutation({
-    mutationFn: (item: TrashItem) => restoreTrashItem(item.entity, item.id),
-    onSuccess: () => onActionSuccess("Item restored.")
-  });
-  const deleteMutation = useMutation({
-    mutationFn: (item: TrashItem) =>
-      deleteTrashItemPermanently(item.entity, item.id),
-    onSuccess: () => onActionSuccess("Item permanently deleted.")
-  });
-  const bulkRestoreMutation = useMutation({
-    mutationFn: () =>
-      bulkRestoreTrashItems({
-        items: selectedItems.map(toRef)
-      }),
-    onSuccess: () => onActionSuccess("Selected items restored.")
-  });
-  const bulkDeleteMutation = useMutation({
-    mutationFn: () =>
-      bulkDeleteTrashItemsPermanently({
-        items: selectedItems.map(toRef)
-      }),
-    onSuccess: () => onActionSuccess("Selected items permanently deleted.")
-  });
-  const emptyMutation = useMutation({
-    mutationFn: emptyTrash,
-    onSuccess: (result) =>
-      onActionSuccess(`${result.deletedCount} trash item(s) permanently deleted.`)
-  });
-
-  function onActionSuccess(title: string) {
-    setRowSelection({});
-    queryClient.invalidateQueries({ queryKey: ["trash"] });
-  }
+  const restoreMutation = useRestoreTrashItemMutation();
+  const deleteMutation = useDeleteTrashItemPermanentlyMutation();
+  const bulkRestoreMutation = useBulkRestoreTrashItemsMutation();
+  const bulkDeleteMutation = useBulkDeleteTrashItemsPermanentlyMutation();
+  const emptyMutation = useEmptyTrashMutation();
 
   const handleDelayedAction = useCallback((
     itemsToActOn: TrashItem[],
@@ -170,13 +119,13 @@ export function TrashManagementClient() {
         if (itemsToActOn.length === 1) {
           restoreMutation.mutate(itemsToActOn[0] as TrashItem);
         } else {
-          bulkRestoreMutation.mutate();
+          bulkRestoreMutation.mutate({ items: itemsToActOn.map(toRef) });
         }
       } else {
         if (itemsToActOn.length === 1) {
           deleteMutation.mutate(itemsToActOn[0] as TrashItem);
         } else {
-          bulkDeleteMutation.mutate();
+          bulkDeleteMutation.mutate({ items: itemsToActOn.map(toRef) });
         }
       }
 
@@ -255,7 +204,7 @@ export function TrashManagementClient() {
       {
         accessorKey: "entity",
         header: ({ column }) => (
-          <SortButton
+          <DataTableSortButton
             label="Entity"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           />
@@ -265,7 +214,7 @@ export function TrashManagementClient() {
       {
         accessorKey: "title",
         header: ({ column }) => (
-          <SortButton
+          <DataTableSortButton
             label="Title"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           />
@@ -284,7 +233,7 @@ export function TrashManagementClient() {
       {
         accessorKey: "deletedAt",
         header: ({ column }) => (
-          <SortButton
+          <DataTableSortButton
             label="Deleted At"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           />
@@ -295,7 +244,7 @@ export function TrashManagementClient() {
         id: "deletedBy",
         accessorKey: "deletedBy",
         header: ({ column }) => (
-          <SortButton
+          <DataTableSortButton
             label="Deleted By"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           />
@@ -357,65 +306,88 @@ export function TrashManagementClient() {
     [handleDelayedAction, restoreMutation.isPending, deleteMutation.isPending]
   );
 
-  const table = useReactTable({
+  // Re-initialize table with actual columns and data, maintaining state
+  // Because useDataTable uses useReactTable under the hood, we can't easily dynamically 
+  // update columns in useDataTable if it's memoized wrong, but useReactTable handles dynamic columns.
+  // Wait, useDataTable accepts data and columns! We just need to ensure useDataTable is called with the columns.
+  table.setOptions((prev) => ({
+    ...prev,
     data: items,
     columns,
     pageCount,
-    state: {
-      pagination,
-      rowSelection,
-      sorting
-    },
-    onPaginationChange: setPagination,
-    onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
-    getRowId: (row) => getItemKey(row),
     manualPagination: true,
-    manualSorting: true,
-    getCoreRowModel: getCoreRowModel()
-  });
+    manualSorting: true
+  }));
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    action: "delete-selected" | "empty";
+  }>({ isOpen: false, action: "delete-selected" });
+
+  const confirmAction = () => {
+    if (confirmModal.action === "delete-selected") {
+      handleDelayedAction(selectedItems, "delete", "Selected items permanently deleted.");
+    } else if (confirmModal.action === "empty") {
+      emptyMutation.mutate();
+    }
+    setConfirmModal({ isOpen: false, action: "delete-selected" });
+  };
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-extrabold uppercase text-primary">
-              Super Admin
-            </p>
-            <h1 className="mt-2 text-3xl font-extrabold leading-tight text-app-text">
-              Trash
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              disabled={!selectedItems.length}
-              isLoading={bulkRestoreMutation.isPending}
-              onClick={() => handleDelayedAction(selectedItems, "restore", "Selected items restored.")}
-              type="button"
-              variant="primary"
-            >
-              <RotateCcw aria-hidden="true" className="size-4" />
-              Restore Selected
-            </Button>
+        <PageHeader 
+          title="Trash" 
+          description="Manage deleted entities." 
+          actions={
+            <>
+              <Button
+                disabled={!selectedItems.length}
+                isLoading={bulkRestoreMutation.isPending}
+                onClick={() => handleDelayedAction(selectedItems, "restore", "Selected items restored.")}
+                type="button"
+                variant="primary"
+              >
+                <RotateCcw aria-hidden="true" className="size-4" />
+                Restore Selected
+              </Button>
 
-            <ConfirmButton
-              disabled={!selectedItems.length}
-              isLoading={bulkDeleteMutation.isPending}
-              label="Delete Selected"
-              message="Are you sure you want to permanently delete the selected items? This action cannot be undone."
-              onConfirm={() => handleDelayedAction(selectedItems, "delete", "Selected items permanently deleted.")}
-            />
+              <Button
+                disabled={!selectedItems.length}
+                isLoading={bulkDeleteMutation.isPending}
+                onClick={() => setConfirmModal({ isOpen: true, action: "delete-selected" })}
+                type="button"
+                variant="destructive"
+              >
+                <Trash2 aria-hidden="true" className="size-4" />
+                Delete Selected
+              </Button>
 
-            <ConfirmButton
-              disabled={items.length === 0}
-              isLoading={emptyMutation.isPending}
-              label="Empty Trash"
-              message="Are you sure you want to permanently delete all items in the trash? This action cannot be undone."
-              onConfirm={() => emptyMutation.mutate()}
-            />
-          </div>
-        </header>
+              <Button
+                disabled={items.length === 0}
+                isLoading={emptyMutation.isPending}
+                onClick={() => setConfirmModal({ isOpen: true, action: "empty" })}
+                type="button"
+                variant="destructive"
+              >
+                Empty Trash
+              </Button>
+            </>
+          } 
+        />
+
+        <ConfirmationModal
+          isOpen={confirmModal.isOpen}
+          onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+          onConfirm={confirmAction}
+          title={confirmModal.action === "empty" ? "Empty Trash?" : "Delete permanently?"}
+          confirmLabel={confirmModal.action === "empty" ? "Empty Trash" : "Delete Permanently"}
+          isConfirming={bulkDeleteMutation.isPending || emptyMutation.isPending}
+        >
+          {confirmModal.action === "empty" 
+            ? "Are you sure you want to permanently delete all items in the trash? This action cannot be undone."
+            : "Are you sure you want to permanently delete the selected items? This action cannot be undone."}
+        </ConfirmationModal>
 
         <Card className="grid gap-4 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -474,18 +446,21 @@ export function TrashManagementClient() {
             </div>
           </div>
 
-          <DataTable
-            columnsLength={columns.length}
-            isLoading={query.isLoading}
-            loadingText="Loading trash..."
-            noDataText={
-              <div className="grid justify-items-center gap-2 py-8 text-app-muted">
-                <ShieldAlert aria-hidden="true" className="size-8" />
-                <p className="font-semibold">Trash is empty.</p>
-              </div>
-            }
-            table={table}
-          />
+          {items.length === 0 && !query.isLoading ? (
+            <EmptyState 
+              title="Trash is empty."
+              description="No deleted items found matching your filters."
+              icon={ShieldAlert}
+            />
+          ) : (
+            <DataTable
+              columnsLength={columns.length}
+              isLoading={query.isLoading}
+              loadingText="Loading trash..."
+              noDataText=""
+              table={table}
+            />
+          )}
 
           <DataTablePagination
             table={table}
@@ -494,82 +469,6 @@ export function TrashManagementClient() {
         </Card>
       </div>
     </main>
-  );
-}
-
-function ConfirmButton({
-  disabled,
-  iconOnly = false,
-  isLoading,
-  label,
-  message,
-  onConfirm
-}: {
-  disabled?: boolean;
-  iconOnly?: boolean;
-  isLoading?: boolean;
-  label: string;
-  message: string;
-  onConfirm: () => void;
-}) {
-  const trigger = iconOnly ? (
-    <Button
-      aria-label={label}
-      className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
-      disabled={disabled}
-      size="icon"
-      type="button"
-      variant="outline"
-    >
-      <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
-    </Button>
-  ) : (
-    <Button
-      aria-label={label}
-      disabled={disabled}
-      size="default"
-      type="button"
-      variant="destructive"
-    >
-      <Trash2 aria-hidden="true" className="size-4" />
-      {label}
-    </Button>
-  );
-
-  return (
-    <AlertDialog>
-      {iconOnly ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-          </TooltipTrigger>
-          <TooltipContent>Delete permanently</TooltipContent>
-        </Tooltip>
-      ) : (
-        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      )}
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Delete permanently?</AlertDialogTitle>
-        </AlertDialogHeader>
-        <AlertDialogDescription>{message}</AlertDialogDescription>
-        <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button variant="primary">Cancel</Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button
-              isLoading={isLoading}
-              onClick={onConfirm}
-              type="button"
-              variant="destructive"
-            >
-              Delete Permanently
-            </Button>
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 
@@ -596,19 +495,6 @@ function formatDeletedBy(item: TrashItem) {
   return (
     [item.deletedBy.firstName, item.deletedBy.lastName].filter(Boolean).join(" ") ||
     item.deletedBy.email
-  );
-}
-
-function SortButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <Button
-      variant="ghost"
-      onClick={onClick}
-      className="-ml-4 h-8 data-[state=open]:bg-accent"
-    >
-      <span>{label}</span>
-      <ChevronsUpDown className="ml-2 h-4 w-4" />
-    </Button>
   );
 }
 

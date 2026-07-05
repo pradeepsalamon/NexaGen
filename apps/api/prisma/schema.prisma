@@ -21,7 +21,7 @@ enum UserRole {
 enum UserStatus {
   ACTIVE
   PENDING
-  SUSPENDED
+  ARCHIVED
   DELETED
 }
 

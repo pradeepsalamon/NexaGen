@@ -4,13 +4,12 @@ import logoImage from "../nexa_logo.png";
 type LogoProps = {
   compact?: boolean;
   stacked?: boolean;
-  imageWidth?: number;
-  imageHeight?: number;
+  size?: number;
 };
 
-export function Logo({ compact = false, stacked = false, imageWidth: propImageWidth, imageHeight: propImageHeight }: LogoProps) {
-  const imageWidth = propImageWidth ?? (stacked ? 64 : compact ? 32 : 40);
-  const imageHeight = propImageHeight ?? (stacked ? 64 : compact ? 32 : 40);
+export function Logo({ compact = false, stacked = false, size }: LogoProps) {
+  const imageWidth = size ?? (stacked ? 64 : compact ? 32 : 40);
+  const imageHeight = size ?? (stacked ? 64 : compact ? 32 : 40);
 
   return (
     <div

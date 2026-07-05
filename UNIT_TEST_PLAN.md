@@ -11,6 +11,8 @@ Implemented backend modules inspected:
 - `apps/api/src/auth`
 - `apps/api/src/mail`
 - `apps/api/src/prisma`
+- `apps/api/src/user`
+- `apps/api/src/batch`
 - `apps/api/src/app.module.ts`
 - `apps/api/src/main.ts`
 - `apps/api/prisma/seed.ts`
@@ -19,8 +21,6 @@ Implemented backend modules inspected:
   - `packages/types/src/index.ts`
 
 Not yet implemented in `apps/api/src`:
-
-- Users module
 - Roles and permissions module
 - Courses module
 - Lessons module
@@ -919,6 +919,82 @@ Expected scenario categories:
 - Missing metadata.
 - Error propagation.
 - Edge cases and null/undefined input.
+
+### Users Module
+
+Priority: Critical
+
+Files requiring unit tests:
+
+- `UserService`
+- `UserController`
+- User DTOs:
+  - `CreateUserDto`
+  - `UpdateUserDto`
+
+Expected scenario categories:
+
+- **List/Search:**
+  - Pagination handling.
+  - Search by name/email/username.
+  - Filter by role.
+  - Filter by status.
+  - Admin authorization.
+- **Create User:**
+  - Create with missing/invalid data.
+  - Conflict on email/username.
+  - Admin authorization.
+  - Successful creation with default status.
+- **Update User:**
+  - Not found scenario.
+  - Admin authorization.
+  - Successful partial update.
+  - Conflict on email/username.
+- **Archive User:**
+  - Not found scenario.
+  - Admin authorization.
+  - Successful status change to ARCHIVED.
+- **Restore User:**
+  - Not found scenario.
+  - Admin authorization.
+  - Successful status change to ACTIVE.
+- **Delete User:**
+  - Not found scenario.
+  - Admin authorization.
+  - Successful soft delete (isDeleted flag).
+  - Attempting to fetch a soft-deleted user.
+
+### Batches Module
+
+Priority: High
+
+Files requiring unit tests:
+
+- `BatchService`
+- `BatchController`
+- Batch DTOs:
+  - `CreateBatchDto`
+  - `UpdateBatchDto`
+
+Expected scenario categories:
+
+- **List/Search:**
+  - Pagination handling.
+  - Filter by status (ACTIVE, ARCHIVED).
+  - Admin authorization.
+  - Coach authorization (seeing only their batches).
+- **Create Batch:**
+  - Validation failures (name, schedule).
+  - Admin authorization.
+  - Successful creation.
+- **Update Batch:**
+  - Not found scenario.
+  - Admin authorization.
+  - Successful update.
+- **Archive/Restore/Delete:**
+  - Not found scenario.
+  - Admin authorization.
+  - Correct status transitions and soft deletes.
 
 ## Maintenance Rules
 

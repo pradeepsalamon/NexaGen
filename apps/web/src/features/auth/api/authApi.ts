@@ -10,54 +10,55 @@ import type {
   ResetPasswordRequest,
   UpdateProfileRequest
 } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-gen/types";
 import { apiFetch } from "../../../lib/api";
 
 export function register(payload: RegisterRequest) {
-  return apiFetch<AuthResponse>("/auth/register", {
+  return apiFetch<AuthResponse>(API_ROUTES.auth.register, {
     body: payload,
     method: "POST"
   });
 }
 
 export function login(payload: LoginRequest) {
-  return apiFetch<AuthResponse>("/auth/login", {
+  return apiFetch<AuthResponse>(API_ROUTES.auth.login, {
     body: payload,
     method: "POST"
   });
 }
 
 export function refreshSession() {
-  return apiFetch<RefreshSessionResponse>("/auth/refresh", {
+  return apiFetch<RefreshSessionResponse>(API_ROUTES.auth.refresh, {
     method: "POST"
   });
 }
 
 export function logout() {
-  return apiFetch<LogoutResponse>("/auth/logout", {
+  return apiFetch<LogoutResponse>(API_ROUTES.auth.logout, {
     method: "POST"
   });
 }
 
 export function getCurrentUser() {
-  return apiFetch<AuthResponse>("/auth/me");
+  return apiFetch<AuthResponse>(API_ROUTES.auth.me);
 }
 
 export function updateProfile(payload: UpdateProfileRequest) {
-  return apiFetch<AuthResponse>("/auth/profile", {
+  return apiFetch<AuthResponse>(API_ROUTES.auth.profile, {
     body: payload,
     method: "PATCH"
   });
 }
 
 export function forgotPassword(payload: ForgotPasswordRequest) {
-  return apiFetch<ForgotPasswordResponse>("/auth/forgot-password", {
+  return apiFetch<ForgotPasswordResponse>(API_ROUTES.auth.forgotPassword, {
     body: payload,
     method: "POST"
   });
 }
 
 export function resetPassword(payload: ResetPasswordRequest) {
-  return apiFetch<MessageResponse>("/auth/reset-password", {
+  return apiFetch<MessageResponse>(API_ROUTES.auth.resetPassword, {
     body: payload,
     method: "POST"
   });

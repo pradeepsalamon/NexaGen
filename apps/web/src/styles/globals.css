@@ -71,4 +71,15 @@
   select:focus-visible {
     @apply outline outline-2 outline-offset-2 outline-app-focus;
   }
+
+  /* Disable Chrome autofill background */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 50px var(--color-surface) inset !important;
+    -webkit-text-fill-color: var(--color-text) !important;
+    caret-color: var(--color-text) !important;
+    color: var(--color-text) !important;
+  }
 }

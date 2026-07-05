@@ -11,27 +11,28 @@ import {
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
+import { API_ROUTES } from "@nexa-gen/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { TrashBulkActionDto } from "./dto/trash-bulk-action.dto";
 import { TrashQueryDto } from "./dto/trash-query.dto";
 import { TrashService } from "./trash.service";
 
-@Controller("admin/trash")
+@Controller()
 export class TrashController {
   constructor(private readonly trashService: TrashService) {}
 
-  @Get()
+  @Get(API_ROUTES.trash.list)
   list(@Query() query: TrashQueryDto, @Req() request: Request) {
     return this.trashService.list(this.getAccessToken(request), query);
   }
 
-  @Post("restore")
+  @Post(API_ROUTES.trash.restoreBulk)
   @HttpCode(HttpStatus.OK)
   bulkRestore(@Body() body: TrashBulkActionDto, @Req() request: Request) {
     return this.trashService.bulkRestore(this.getAccessToken(request), body);
   }
 
-  @Delete()
+  @Delete(API_ROUTES.trash.list)
   @HttpCode(HttpStatus.OK)
   bulkPermanentDelete(
     @Body() body: TrashBulkActionDto,
@@ -43,13 +44,13 @@ export class TrashController {
     );
   }
 
-  @Delete("empty")
+  @Delete(API_ROUTES.trash.empty)
   @HttpCode(HttpStatus.OK)
   emptyTrash(@Req() request: Request) {
     return this.trashService.emptyTrash(this.getAccessToken(request));
   }
 
-  @Post(":entity/:id/restore")
+  @Post(API_ROUTES.trash.restoreItem())
   @HttpCode(HttpStatus.OK)
   restore(
     @Param("entity") entity: string,
@@ -59,7 +60,7 @@ export class TrashController {
     return this.trashService.restore(this.getAccessToken(request), entity, id);
   }
 
-  @Delete(":entity/:id")
+  @Delete(API_ROUTES.trash.deleteItem())
   @HttpCode(HttpStatus.OK)
   permanentDelete(
     @Param("entity") entity: string,

@@ -11,6 +11,30 @@ import { hashSecret } from "../src/auth/auth.utils";
 const prisma = new PrismaClient();
 const seedPassword = "Test@12345";
 
+async function upsertUser(email: string, createData: any, updateData: any) {
+  const existing = await prisma.user.findFirst({ where: { email, isDeleted: false } });
+  if (existing) {
+    return prisma.user.update({ where: { id: existing.id }, data: updateData });
+  }
+  return prisma.user.create({ data: createData });
+}
+
+async function upsertCoachProfile(userId: string, createData: any, updateData: any) {
+  const existing = await prisma.coachProfile.findFirst({ where: { userId, isDeleted: false } });
+  if (existing) {
+    return prisma.coachProfile.update({ where: { id: existing.id }, data: updateData });
+  }
+  return prisma.coachProfile.create({ data: createData });
+}
+
+async function upsertStudentProfile(userId: string, createData: any, updateData: any) {
+  const existing = await prisma.studentProfile.findFirst({ where: { userId, isDeleted: false } });
+  if (existing) {
+    return prisma.studentProfile.update({ where: { id: existing.id }, data: updateData });
+  }
+  return prisma.studentProfile.create({ data: createData });
+}
+
 async function main() {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Refusing to seed production database.");
@@ -19,8 +43,9 @@ async function main() {
   const password = await hashSecret(seedPassword);
   const verifiedAt = new Date();
 
-  const superAdmin = await prisma.user.upsert({
-    create: {
+  const superAdmin = await upsertUser(
+    "superadmin@nexagen.test",
+    {
       email: "superadmin@nexagen.test",
       emailVerifiedAt: verifiedAt,
       firstName: "Super",
@@ -31,17 +56,17 @@ async function main() {
       status: UserStatus.ACTIVE,
       username: "superadmin"
     },
-    update: {
+    {
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
       password,
       status: UserStatus.ACTIVE
-    },
-    where: { email: "superadmin@nexagen.test" }
-  });
+    }
+  );
 
-  const coach = await prisma.user.upsert({
-    create: {
+  const coach = await upsertUser(
+    "coach@nexagen.test",
+    {
       email: "coach@nexagen.test",
       emailVerifiedAt: verifiedAt,
       firstName: "Test",
@@ -52,17 +77,17 @@ async function main() {
       status: UserStatus.ACTIVE,
       username: "testcoach"
     },
-    update: {
+    {
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
       password,
       status: UserStatus.ACTIVE
-    },
-    where: { email: "coach@nexagen.test" }
-  });
+    }
+  );
 
-  await prisma.coachProfile.upsert({
-    create: {
+  await upsertCoachProfile(
+    coach.id,
+    {
       approvalStatus: UserStatus.ACTIVE,
       approvedAt: verifiedAt,
       approvedById: superAdmin.id,
@@ -74,16 +99,16 @@ async function main() {
       userId: coach.id,
       yearsOfExperience: 5
     },
-    update: {
+    {
       approvalStatus: UserStatus.ACTIVE,
       approvedAt: verifiedAt,
       approvedById: superAdmin.id
-    },
-    where: { userId: coach.id }
-  });
+    }
+  );
 
-  const student = await prisma.user.upsert({
-    create: {
+  const student = await upsertUser(
+    "student@nexagen.test",
+    {
       createdById: coach.id,
       email: "student@nexagen.test",
       emailVerifiedAt: verifiedAt,
@@ -95,18 +120,18 @@ async function main() {
       status: UserStatus.ACTIVE,
       username: "teststudent"
     },
-    update: {
+    {
       createdById: coach.id,
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
       password,
       status: UserStatus.ACTIVE
-    },
-    where: { email: "student@nexagen.test" }
-  });
+    }
+  );
 
-  await prisma.studentProfile.upsert({
-    create: {
+  await upsertStudentProfile(
+    student.id,
+    {
       chessRating: 950,
       experienceLevel: ExperienceLevel.BEGINNER,
       parentEmail: "parent@nexagen.test",
@@ -115,16 +140,15 @@ async function main() {
       parentRelationship: "Parent",
       userId: student.id
     },
-    update: {
+    {
       chessRating: 950,
       experienceLevel: ExperienceLevel.BEGINNER,
       parentEmail: "parent@nexagen.test",
       parentName: "Test Parent",
       parentPhone: "+919999999999",
       parentRelationship: "Parent"
-    },
-    where: { userId: student.id }
-  });
+    }
+  );
 
   const batch =
     (await prisma.batch.findFirst({

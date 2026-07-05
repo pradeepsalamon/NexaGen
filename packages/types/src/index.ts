@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+export * from "./api-endpoints";
+
 export type UserRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT";
 
-export type UserStatus = "ACTIVE" | "PENDING" | "SUSPENDED" | "DELETED";
+export type UserStatus = "ACTIVE" | "PENDING" | "ARCHIVED" | "DELETED";
 
 export type CoachTitle = "NONE" | "CM" | "FM" | "IM" | "GM";
 
@@ -24,6 +26,9 @@ export const coachTitleSchema = z.enum(["NONE", "CM", "FM", "IM", "GM"]);
 
 export const batchStatusSchema = z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARCHIVED"]);
 
+export const userStatusSchema = z.enum(["ACTIVE", "PENDING", "ARCHIVED", "DELETED"]);
+
+export const userRoleSchema = z.enum(["SUPER_ADMIN", "ADMIN", "COACH", "STUDENT"]);
 export const passwordSchema = z
   .string()
   .min(8, "Password must be at least 8 characters.")
@@ -110,29 +115,46 @@ const batchUserIdsSchema = z
   .optional()
   .default([]);
 
-export const createBatchRequestSchema = z
-  .object({
-    coachIds: batchUserIdsSchema,
-    description: z.string().max(2000).optional(),
-    endsAt: z.string().optional(),
-    name: z.string().min(1, "Batch name is required.").max(120),
-    scheduleNotes: z.string().max(1000).optional(),
-    startsAt: z.string().optional(),
-    status: batchStatusSchema.optional().default("ACTIVE"),
-    studentIds: batchUserIdsSchema
-  })
-  .refine(
-    (value) => {
-      if (!value.startsAt || !value.endsAt) {
-        return true;
-      }
+const batchDateRefinement = (value: { startsAt?: string; endsAt?: string }) => {
+  if (!value.startsAt || !value.endsAt) {
+    return true;
+  }
+  return new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime();
+};
 
-      return new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime();
-    },
-    { message: "End date must be after start date.", path: ["endsAt"] }
-  );
+const batchDateRefinementOptions = { message: "End date must be after start date.", path: ["endsAt"] };
 
-export const updateBatchRequestSchema = createBatchRequestSchema.partial();
+const createBatchRequestBaseSchema = z.object({
+  coachIds: batchUserIdsSchema,
+  description: z.string().max(2000).optional(),
+  endsAt: z.string().optional(),
+  name: z.string().min(1, "Batch name is required.").max(120),
+  scheduleNotes: z.string().max(1000).optional(),
+  startsAt: z.string().optional(),
+  status: batchStatusSchema.optional().default("ACTIVE"),
+  studentIds: batchUserIdsSchema
+});
+
+export const createBatchRequestSchema = createBatchRequestBaseSchema.refine(
+  batchDateRefinement,
+  batchDateRefinementOptions
+);
+
+export const updateBatchRequestSchema = createBatchRequestBaseSchema.partial().refine(
+  batchDateRefinement,
+  batchDateRefinementOptions
+);
+
+export const createUserRequestSchema = z.object({
+  email: z.string().email("Enter a valid email address.").max(255),
+  firstName: z.string().min(1, "First name is required.").max(120),
+  lastName: z.string().max(120).optional(),
+  password: z.string().min(8, "Password must be at least 8 characters.").optional(),
+  role: userRoleSchema.optional().default("STUDENT"),
+  status: userStatusSchema.optional().default("ACTIVE")
+});
+
+export const updateUserRequestSchema = createUserRequestSchema.partial();
 
 export type ExperienceLevel = z.infer<typeof experienceLevelSchema>;
 
@@ -190,6 +212,10 @@ export type CreateBatchRequest = z.infer<typeof createBatchRequestSchema>;
 
 export type UpdateBatchRequest = z.infer<typeof updateBatchRequestSchema>;
 
+export type CreateUserRequest = z.infer<typeof createUserRequestSchema>;
+
+export type UpdateUserRequest = z.infer<typeof updateUserRequestSchema>;
+
 export type BatchUserSummary = {
   email: string;
   firstName: string;
@@ -228,6 +254,14 @@ export type BatchResponse = {
 };
 
 export type AuthResponse = {
+  user: AuthUser;
+};
+
+export type UserListResponse = {
+  users: AuthUser[];
+};
+
+export type UserResponse = {
   user: AuthUser;
 };
 
