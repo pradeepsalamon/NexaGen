@@ -234,7 +234,8 @@ export class AuthService {
         expiresAt: { gt: new Date() },
         id: payload.sessionId,
         revokedAt: null,
-        userId: payload.sub
+        userId: payload.sub,
+        user: { isDeleted: false }
       }
     });
 
@@ -457,7 +458,8 @@ export class AuthService {
       where: {
         expiresAt: { gt: new Date() },
         tokenHash: hashOpaqueToken(payload.token),
-        usedAt: null
+        usedAt: null,
+        user: { isDeleted: false }
       }
     });
 
@@ -561,7 +563,7 @@ export class AuthService {
   private toAuthUser(user: UserWithProfiles): AuthUser {
     return {
       avatarUrl: user.avatarUrl,
-      coachProfile: user.coachProfile
+      coachProfile: user.coachProfile && !user.coachProfile.isDeleted
         ? {
             bio: user.coachProfile.bio,
             fideId: user.coachProfile.fideId,
@@ -581,7 +583,7 @@ export class AuthService {
       phoneNumber: user.phoneNumber,
       role: user.role,
       status: user.status,
-      studentProfile: user.studentProfile
+      studentProfile: user.studentProfile && !user.studentProfile.isDeleted
         ? {
             chessRating: user.studentProfile.chessRating,
             dateOfBirth: user.studentProfile.dateOfBirth?.toISOString() ?? null,

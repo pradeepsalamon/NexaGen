@@ -31,8 +31,8 @@
   --color-surface-soft: #141414;
   --color-text: #f5f7fb;
   --color-text-muted: #a1a1aa;
-  --color-border: #27272a;
-  --color-danger: #ff8a80;
+  --color-border: #38383d;
+  --color-danger: #dc2626;
   --shadow-soft: 0 24px 90px rgba(0, 0, 0, 0.34);
   --shadow-card: 0 20px 54px rgba(0, 0, 0, 0.3);
 }
@@ -49,11 +49,9 @@
   body {
     @apply min-h-full bg-app-background font-sans text-app-text;
     background-image:
-      radial-gradient(
-        circle at top left,
+      radial-gradient(circle at top left,
         color-mix(in srgb, var(--color-accent) 18%, transparent),
-        transparent 30rem
-      ),
+        transparent 30rem),
       linear-gradient(135deg, var(--color-background), var(--color-surface-soft));
   }
 

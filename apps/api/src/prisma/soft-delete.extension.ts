@@ -1,0 +1,205 @@
+import { Prisma } from "@prisma/client";
+
+type QueryArgs = {
+  include?: Record<string, unknown>;
+  includeDeleted?: boolean;
+  select?: Record<string, unknown>;
+  where?: Record<string, unknown>;
+};
+
+export const softDeleteModels = [
+  "User",
+  "StudentProfile",
+  "CoachProfile",
+  "Batch",
+  "BatchCoach",
+  "BatchStudent"
+] as const;
+
+export type SoftDeleteModel = (typeof softDeleteModels)[number];
+export type TrashAction =
+  | "SOFT_DELETE"
+  | "RESTORE"
+  | "PERMANENT_DELETE"
+  | "AUTOMATIC_CLEANUP";
+
+export const trashEntities = [
+  {
+    delegate: "batchCoach",
+    label: "BatchCoach",
+    searchFields: [],
+    titleField: "id"
+  },
+  {
+    delegate: "batchStudent",
+    label: "BatchStudent",
+    searchFields: [],
+    titleField: "id"
+  },
+  {
+    delegate: "studentProfile",
+    label: "StudentProfile",
+    searchFields: ["parentName", "parentEmail", "parentPhone"],
+    titleField: "parentName"
+  },
+  {
+    delegate: "coachProfile",
+    label: "CoachProfile",
+    searchFields: ["bio", "qualification", "specialization", "fideId"],
+    titleField: "qualification"
+  },
+  {
+    delegate: "batch",
+    label: "Batch",
+    searchFields: ["name", "description", "scheduleNotes"],
+    titleField: "name"
+  },
+  {
+    delegate: "user",
+    label: "User",
+    searchFields: ["email", "firstName", "lastName", "username"],
+    titleField: "email"
+  }
+] as const;
+
+export type TrashEntity = (typeof trashEntities)[number]["label"];
+
+const readOperations = new Set([
+  "findMany",
+  "findFirst",
+  "findFirstOrThrow",
+  "findUnique",
+  "findUniqueOrThrow",
+  "count",
+  "aggregate",
+  "groupBy"
+]);
+
+const delegateToModel = new Map<string, TrashEntity>(
+  trashEntities.map((entity) => [entity.delegate, entity.label])
+);
+
+const relationToModel: Record<string, SoftDeleteModel> = {
+  approvedBy: "User",
+  approvedCoaches: "CoachProfile",
+  batch: "Batch",
+  coachedBatches: "BatchCoach",
+  coaches: "BatchCoach",
+  coach: "User",
+  coachProfile: "CoachProfile",
+  createdBatches: "Batch",
+  createdBy: "User",
+  createdUsers: "User",
+  deletedBy: "User",
+  student: "User",
+  studentBatches: "BatchStudent",
+  studentProfile: "StudentProfile",
+  students: "BatchStudent",
+  user: "User"
+};
+
+const trashableModelNames = new Set<string>(softDeleteModels);
+const filterableRelationNames = new Set([
+  "approvedCoaches",
+  "coachedBatches",
+  "coaches",
+  "createdBatches",
+  "createdUsers",
+  "studentBatches",
+  "students"
+]);
+
+export const softDeleteExtension = Prisma.defineExtension({
+  name: "soft-delete-filter",
+  query: {
+    $allModels: {
+      async $allOperations({ args, model, operation, query }) {
+        const queryArgs = args as QueryArgs | undefined;
+        const includeDeleted = Boolean(queryArgs?.includeDeleted);
+
+        if (queryArgs && "includeDeleted" in queryArgs) {
+          delete queryArgs.includeDeleted;
+        }
+
+        if (
+          !includeDeleted &&
+          readOperations.has(operation) &&
+          trashableModelNames.has(model)
+        ) {
+          applySoftDeleteFilter(queryArgs);
+        }
+
+        return query(args);
+      }
+    }
+  }
+});
+
+export function getTrashEntity(entity: string) {
+  return trashEntities.find(
+    (trashEntity) => trashEntity.label.toLowerCase() === entity.toLowerCase()
+  );
+}
+
+export function getTrashEntityByDelegate(delegate: string) {
+  return delegateToModel.get(delegate);
+}
+
+function applySoftDeleteFilter(args: QueryArgs | undefined) {
+  if (!args) {
+    return;
+  }
+
+  args.where = addIsDeletedFalse(args.where);
+  addRelationFilters(args.include);
+  addRelationFilters(args.select);
+}
+
+function addRelationFilters(record: Record<string, unknown> | undefined) {
+  if (!record) {
+    return;
+  }
+
+  for (const [relationName, relationValue] of Object.entries(record)) {
+    const relationModel = relationToModel[relationName];
+
+    if (
+      !relationModel ||
+      !filterableRelationNames.has(relationName) ||
+      relationValue === false
+    ) {
+      continue;
+    }
+
+    if (relationValue === true) {
+      record[relationName] = {
+        where: { isDeleted: false }
+      };
+      continue;
+    }
+
+    if (typeof relationValue !== "object" || relationValue === null) {
+      continue;
+    }
+
+    const relationArgs = relationValue as QueryArgs;
+    relationArgs.where = addIsDeletedFalse(relationArgs.where);
+    addRelationFilters(relationArgs.include);
+    addRelationFilters(relationArgs.select);
+  }
+}
+
+function addIsDeletedFalse(where: Record<string, unknown> | undefined) {
+  if (!where) {
+    return { isDeleted: false };
+  }
+
+  if ("isDeleted" in where) {
+    return where;
+  }
+
+  return {
+    ...where,
+    isDeleted: false
+  };
+}

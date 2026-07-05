@@ -3,6 +3,7 @@ import type {
   BatchListResponse,
   BatchResponse,
   CreateBatchRequest,
+  TrashActionResponse,
   UpdateBatchRequest
 } from "@nexa-gen/types";
 import { apiFetch } from "../../../lib/api";
@@ -38,5 +39,11 @@ export function archiveBatch(batchId: string) {
 export function restoreBatch(batchId: string) {
   return apiFetch<BatchResponse>(`/batches/${batchId}/restore`, {
     method: "PATCH"
+  });
+}
+
+export function deleteBatch(batchId: string) {
+  return apiFetch<TrashActionResponse>(`/batches/${batchId}`, {
+    method: "DELETE"
   });
 }

@@ -9,6 +9,7 @@ import {
   RotateCcw,
   Save,
   Settings2,
+  Trash2,
   SlidersHorizontal,
   UsersRound
 } from "lucide-react";
@@ -56,6 +57,9 @@ import {
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { DataTable } from "@/components/ui/DataTable";
+import { DataTablePagination } from "@/components/ui/DataTablePagination";
+import { DataTableToolbar } from "@/components/ui/DataTableToolbar";
 import {
   Table,
   TableBody,
@@ -70,11 +74,13 @@ import { useToast } from "@/providers/ToastProvider";
 import {
   archiveBatch,
   createBatch,
+  deleteBatch,
   getAssignableBatchUsers,
   listBatches,
   restoreBatch,
   updateBatch
 } from "../api/batchApi";
+import { restoreTrashItem } from "../../trash/api/trashApi";
 
 type BatchFormState = {
   coachIds: string[];
@@ -200,16 +206,59 @@ export function BatchManagementClient() {
     }
   });
 
-  const restoreMutation = useMutation({
-    mutationFn: restoreBatch,
+  const undeleteMutation = useMutation({
+    mutationFn: (batchId: string) => restoreTrashItem("Batch", batchId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["batches"] });
-      toast.success({ title: "Batch restored" });
+      toast.success({ title: "Batch restored from trash" });
+    },
+    onError: () => {
+      toast.error({ title: "Failed to restore batch" });
+    }
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: restoreBatch,
+    onSuccess: async (data, batchId) => {
+      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      toast.showToast({
+        type: "success",
+        title: "Batch unarchived",
+        durationMs: 5000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            archiveMutation.mutate(batchId);
+          }
+        }
+      });
     },
     onError: (error) => {
       toast.error({
-        title: "Failed to restore batch"
+        title: "Failed to unarchive batch"
       });
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteBatch,
+    onSuccess: async (data, batchId) => {
+      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      setRowSelection({});
+      toast.showToast({
+        type: "warning",
+        title: "Batch moved to trash",
+        durationMs: 5000,
+        action: {
+          label: "Undo",
+          onClick: () => {
+            undeleteMutation.mutate(batchId);
+          }
+        }
+      });
+    },
+    onError: () => {
+      toast.error({ title: "Failed to delete batch" });
     }
   });
 
@@ -275,49 +324,58 @@ export function BatchManagementClient() {
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-extrabold uppercase text-primary">
-              Batch management
-            </p>
-            <h1 className="mt-2 text-3xl font-extrabold leading-tight text-app-text">
-              Batches
-            </h1>
-          </div>
-          <Button className="min-h-10" onClick={handleNewBatch} type="button">
-            <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            Create Batch
-          </Button>
-        </header>
-
         <Tabs
-          onValueChange={(value) => setActiveTab(value as BatchManagementTab)}
+          onValueChange={(value) => {
+            if (value === "create") {
+              handleNewBatch();
+            } else {
+              setActiveTab(value as BatchManagementTab);
+            }
+          }}
           value={activeTab}
         >
-          <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
-            <TabsTrigger value="all">
-              <UsersRound aria-hidden="true" className="size-4" />
-              All Batches
-            </TabsTrigger>
-            <TabsTrigger value="create">
-              <Plus aria-hidden="true" className="size-4" />
-              {selectedBatch ? "Edit" : "Create"}
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <Settings2 aria-hidden="true" className="size-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+          <header className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-extrabold uppercase text-primary">
+                Batch management
+              </p>
+              <h1 className="mt-2 text-3xl font-extrabold leading-tight text-app-text">
+                Batches
+              </h1>
+            </div>
+            <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
+              <TabsTrigger value="all">
+                <UsersRound aria-hidden="true" className="size-4" />
+                All Batches
+              </TabsTrigger>
+              <TabsTrigger value="create">
+                {editingBatchId ? (
+                  <Pencil aria-hidden="true" className="size-4" />
+                ) : (
+                  <Plus aria-hidden="true" className="size-4" />
+                )}
+                {editingBatchId ? "Edit" : "Create"}
+              </TabsTrigger>
+              <TabsTrigger value="settings">
+                <Settings2 aria-hidden="true" className="size-4" />
+                Settings
+              </TabsTrigger>
+            </TabsList>
+          </header>
 
           <TabsContent value="all">
             <BatchDataTable
               archiveBatch={(batchId) => archiveMutation.mutate(batchId)}
+              deleteBatch={(batchId) => deleteMutation.mutate(batchId)}
+              restoreBatch={(batchId) => restoreMutation.mutate(batchId)}
               batches={filteredBatches}
               columnFilters={columnFilters}
               columnVisibility={columnVisibility}
               editBatch={editBatch}
               globalFilter={globalFilter}
               isArchiving={archiveMutation.isPending}
+              isDeleting={deleteMutation.isPending}
+              isRestoring={restoreMutation.isPending}
               isLoading={batchesQuery.isLoading}
               pagination={pagination}
               rowSelection={rowSelection}
@@ -374,12 +432,16 @@ export function BatchManagementClient() {
 
 function BatchDataTable({
   archiveBatch,
+  deleteBatch,
+  restoreBatch,
   batches,
   columnFilters,
   columnVisibility,
   editBatch,
   globalFilter,
   isArchiving,
+  isDeleting,
+  isRestoring,
   isLoading,
   pagination,
   rowSelection,
@@ -394,12 +456,16 @@ function BatchDataTable({
   statusFilter
 }: {
   archiveBatch: (batchId: string) => void;
+  deleteBatch: (batchId: string) => void;
+  restoreBatch: (batchId: string) => void;
   batches: Batch[];
   columnFilters: ColumnFiltersState;
   columnVisibility: VisibilityState;
   editBatch: (batch: Batch) => void;
   globalFilter: string;
   isArchiving: boolean;
+  isDeleting: boolean;
+  isRestoring: boolean;
   isLoading: boolean;
   pagination: PaginationState;
   rowSelection: RowSelectionState;
@@ -438,6 +504,7 @@ function BatchDataTable({
       },
       {
         accessorKey: "name",
+        enableColumnFilter: true,
         header: ({ column }) => (
           <SortButton
             label="Batch"
@@ -455,6 +522,7 @@ function BatchDataTable({
       },
       {
         accessorKey: "status",
+        enableColumnFilter: true,
         header: ({ column }) => (
           <SortButton
             label="Status"
@@ -511,45 +579,69 @@ function BatchDataTable({
         enableHiding: false,
         enableSorting: false,
         header: "Actions",
-        cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-label={`Edit ${row.original.name}`}
-                  className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
-                  onClick={() => editBatch(row.original)}
-                  size="icon"
-                  type="button"
-                  variant="outline"
-                >
-                  <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Edit batch</TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  aria-label={`Archive ${row.original.name}`}
-                  className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:border-secondary hover:bg-secondary hover:text-black"
-                  disabled={row.original.status === "ARCHIVED" || isArchiving}
-                  onClick={() => archiveBatch(row.original.id)}
-                  size="icon"
-                  type="button"
-                  variant="outline"
-                >
-                  <Archive aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Archive batch</TooltipContent>
-            </Tooltip>
-          </div>
-        )
+        cell: ({ row }) => {
+          const isArchived = row.original.status === "ARCHIVED";
+          return (
+            <div className="flex items-center justify-end gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={`Edit ${row.original.name}`}
+                    className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                    onClick={() => editBatch(row.original)}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Edit batch</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={isArchived ? `Unarchive ${row.original.name}` : `Archive ${row.original.name}`}
+                    className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:border-secondary hover:bg-secondary hover:text-black"
+                    disabled={isArchiving || isRestoring}
+                    onClick={() => isArchived ? restoreBatch(row.original.id) : archiveBatch(row.original.id)}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                  >
+                    {isArchived ? (
+                      <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                    ) : (
+                      <Archive aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isArchived ? "Unarchive batch" : "Archive batch"}</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    aria-label={`Delete ${row.original.name}`}
+                    className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
+                    disabled={isDeleting}
+                    onClick={() => deleteBatch(row.original.id)}
+                    size="icon"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete batch</TooltipContent>
+              </Tooltip>
+            </div>
+          );
+        }
       }
     ],
-    [archiveBatch, editBatch, isArchiving]
+    [archiveBatch, deleteBatch, restoreBatch, editBatch, isArchiving, isDeleting, isRestoring]
   );
   const table = useReactTable({
     data: batches,
@@ -577,120 +669,32 @@ function BatchDataTable({
 
   return (
     <Card className="grid gap-4 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-          <div className="relative min-w-[220px] flex-1 sm:max-w-sm">
-            <ListFilter
-              aria-hidden="true"
-              className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-app-muted"
-              strokeWidth={2.5}
-            />
-            <Input
-              className="pl-9"
-              onChange={(event) => setGlobalFilter(event.target.value)}
-              placeholder="Filter batches..."
-              value={globalFilter}
-            />
-          </div>
+      <DataTableToolbar
+        actions={<ColumnVisibilityMenu table={table} />}
+        filters={
           <Select
             className="w-40"
             onChange={(event) => setStatusFilter(event.target.value)}
             options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
             value={statusFilter}
           />
-        </div>
+        }
+        onSearchChange={setGlobalFilter}
+        searchPlaceholder="Filter batches..."
+        searchValue={globalFilter}
+      />
 
-        <ColumnVisibilityMenu table={table} />
-      </div>
+      <DataTable
+        columnsLength={columns.length}
+        isLoading={isLoading}
+        noDataText="No batches found."
+        table={table}
+      />
 
-      <div className="rounded-app border border-app-border">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell
-                  className="h-28 text-center font-semibold text-app-muted"
-                  colSpan={columns.length}
-                >
-                  Loading batches...
-                </TableCell>
-              </TableRow>
-            ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  data-state={row.getIsSelected() ? "selected" : undefined}
-                  key={row.id}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell
-                  className="h-28 text-center font-semibold text-app-muted"
-                  colSpan={columns.length}
-                >
-                  No batches found.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm font-semibold text-app-muted">
-          {selectedCount} of {table.getFilteredRowModel().rows.length} selected
-        </p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            className="w-32"
-            onChange={(event) => table.setPageSize(Number(event.target.value))}
-            options={pageSizeOptions}
-            value={String(table.getState().pagination.pageSize)}
-          />
-          <Button
-            disabled={!table.getCanPreviousPage()}
-            onClick={() => table.previousPage()}
-            type="button"
-            variant="outline"
-          >
-            Previous
-          </Button>
-          <span className="px-2 text-sm font-bold text-app-muted">
-            Page {table.getState().pagination.pageIndex + 1} of{" "}
-            {table.getPageCount() || 1}
-          </span>
-          <Button
-            disabled={!table.getCanNextPage()}
-            onClick={() => table.nextPage()}
-            type="button"
-            variant="outline"
-          >
-            Next
-          </Button>
-        </div>
-      </div>
+      <DataTablePagination
+        table={table}
+        totalRows={table.getFilteredRowModel().rows.length}
+      />
     </Card>
   );
 }

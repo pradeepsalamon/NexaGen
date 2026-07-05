@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Layers3,
   ShieldCheck,
+  Trash2,
   UserRoundCheck
 } from "lucide-react";
 import { cookies } from "next/headers";
@@ -39,6 +40,13 @@ export default function SuperAdminDashboardPage() {
             >
               <Layers3 aria-hidden="true" className="size-4" />
               Batches
+            </Link>
+            <Link
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+              href="/admin/trash"
+            >
+              <Trash2 aria-hidden="true" className="size-4" />
+              Trash
             </Link>
           </div>
         </header>

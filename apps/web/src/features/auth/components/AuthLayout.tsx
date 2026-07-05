@@ -1,14 +1,14 @@
+"use client";
+
 import type { ReactNode } from "react";
 import { Logo } from "@/components/Logo";
 import { PageContainer } from "@/components/PageContainer";
 
 type AuthLayoutProps = {
   children: ReactNode;
-  eyebrow: string;
-  title: string;
 };
 
-export function AuthLayout({ children, eyebrow, title }: AuthLayoutProps) {
+export function AuthLayout({ children }: AuthLayoutProps) {
   return (
     <PageContainer>
       <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-stretch lg:gap-3">
@@ -17,16 +17,7 @@ export function AuthLayout({ children, eyebrow, title }: AuthLayoutProps) {
           aria-labelledby="auth-hero-title"
         >
           <div className="relative z-10 mx-auto my-auto flex max-w-2xl flex-col items-center text-center">
-            <Logo stacked />
-            <p className="mb-2 mt-7 text-xs font-extrabold uppercase text-primary">
-              {eyebrow}
-            </p>
-            <h1
-              className="mb-3 max-w-[13ch] text-[clamp(2.25rem,5.2vw,3.55rem)] font-extrabold leading-[0.95] text-app-text"
-              id="auth-hero-title"
-            >
-              {title}
-            </h1>
+            <Logo stacked imageHeight={400} imageWidth={400}/>
             <span className="block max-w-lg text-sm leading-6 text-app-muted md:text-base">
               Premium chess learning for focused students and families.
             </span>

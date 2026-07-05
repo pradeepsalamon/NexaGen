@@ -11,7 +11,6 @@ import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { resetPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { AuthLayout } from "./AuthLayout";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -60,8 +59,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <AuthLayout eyebrow="New password" title="Set a stronger password.">
-      <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
+    <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
         <AuthHeader
           actionHref="/login"
           actionLabel="Back to login"
@@ -111,6 +109,5 @@ export function ResetPasswordForm() {
           </Button>
         </form>
       </Card>
-    </AuthLayout>
   );
 }

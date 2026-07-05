@@ -15,7 +15,6 @@ import { useAuthStore } from "@/stores/authStore";
 import { register } from "../api/authApi";
 import type { ExperienceLevel, RegisterFormValues } from "../types/auth";
 import { AuthHeader } from "./AuthHeader";
-import { AuthLayout } from "./AuthLayout";
 
 const experienceOptions: { label: string; value: ExperienceLevel }[] = [
   { label: "Beginner", value: "beginner" },
@@ -91,8 +90,7 @@ export function RegisterForm() {
   }
 
   return (
-    <AuthLayout eyebrow="Start learning" title="Build better chess habits.">
-      <Card className="w-full max-w-[610px] animate-slide-up p-4 sm:p-5">
+    <Card className="w-full max-w-[610px] animate-slide-up p-4 sm:p-5">
         <AuthHeader
           actionHref="/login"
           actionLabel="Log in"
@@ -217,6 +215,5 @@ export function RegisterForm() {
           </Button>
         </form>
       </Card>
-    </AuthLayout>
   );
 }

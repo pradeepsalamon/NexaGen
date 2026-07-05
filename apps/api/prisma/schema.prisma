@@ -86,13 +86,26 @@ model User {
   studentBatches  BatchStudent[]       @relation("BatchStudents")
   authSessions    AuthSession[]
   passwordResets  PasswordResetToken[]
+  deletedRecords  TrashAuditLog[]      @relation("TrashAuditDeletedBy")
+  deletedStudentProfiles StudentProfile[] @relation("StudentProfileDeletedBy")
+  deletedCoachProfiles   CoachProfile[]   @relation("CoachProfileDeletedBy")
+  deletedBatches         Batch[]          @relation("BatchDeletedBy")
+  deletedBatchCoaches    BatchCoach[]     @relation("BatchCoachDeletedBy")
+  deletedBatchStudents   BatchStudent[]   @relation("BatchStudentDeletedBy")
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?    @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedUsers User[]  @relation("UserDeletedBy")
 
   @@index([role])
   @@index([status])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
   @@map("users")
 }
 
@@ -121,9 +134,16 @@ model StudentProfile {
 
   enrolledAt DateTime @default(now())
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?    @relation("StudentProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
   @@map("student_profiles")
 }
 
@@ -159,9 +179,16 @@ model CoachProfile {
 
   approvedAt DateTime?
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?    @relation("CoachProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
   @@map("coach_profiles")
 }
 
@@ -230,11 +257,18 @@ model Batch {
   coaches  BatchCoach[]
   students BatchStudent[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?    @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([createdById])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
   @@map("batches")
 }
 
@@ -248,9 +282,16 @@ model BatchCoach {
   coach   User   @relation("BatchCoaches", fields: [coachId], references: [id], onDelete: Cascade)
 
   assignedAt DateTime @default(now())
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?    @relation("BatchCoachDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@unique([batchId, coachId])
   @@index([coachId])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
   @@map("batch_coaches")
 }
 
@@ -264,8 +305,32 @@ model BatchStudent {
   student   User   @relation("BatchStudents", fields: [studentId], references: [id], onDelete: Cascade)
 
   enrolledAt DateTime @default(now())
+  isDeleted   Boolean  @default(false)
+  deletedAt   DateTime?
+  deletedById String?
+  deletedBy   User?    @relation("BatchStudentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@unique([batchId, studentId])
   @@index([studentId])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
   @@map("batch_students")
+}
+
+model TrashAuditLog {
+  id        String   @id @default(cuid())
+  entity    String
+  entityId  String
+  action    String
+  userId    String?
+  user      User?    @relation("TrashAuditDeletedBy", fields: [userId], references: [id], onDelete: SetNull)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([entity])
+  @@index([entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("trash_audit_logs")
 }

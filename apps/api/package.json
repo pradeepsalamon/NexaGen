@@ -27,6 +27,7 @@
     "@nestjs/core": "^10.3.10",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/platform-express": "^10.3.10",
+    "@nestjs/schedule": "^6.1.3",
     "@nexa-gen/config": "*",
     "@nexa-gen/types": "*",
     "@prisma/client": "^6.19.3",

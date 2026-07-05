@@ -245,3 +245,63 @@ export type ForgotPasswordResponse = {
 export type MessageResponse = {
   message: string;
 };
+
+export type TrashEntity =
+  | "User"
+  | "StudentProfile"
+  | "CoachProfile"
+  | "Batch"
+  | "BatchCoach"
+  | "BatchStudent";
+
+export type TrashDeletedBy = {
+  email: string;
+  firstName: string;
+  id: string;
+  lastName?: string | null;
+  role: UserRole;
+};
+
+export type TrashItem = {
+  daysUntilPermanentDeletion: number | null;
+  deletedAt: string | null;
+  deletedBy: TrashDeletedBy | null;
+  entity: TrashEntity;
+  id: string;
+  title: string;
+};
+
+export type TrashListRequest = {
+  deletedById?: string;
+  deletedFrom?: string;
+  deletedTo?: string;
+  entity?: TrashEntity | "ALL";
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sortBy?: "entity" | "title" | "deletedAt" | "deletedBy";
+  sortOrder?: "asc" | "desc";
+};
+
+export type TrashListResponse = {
+  items: TrashItem[];
+  page: number;
+  pageSize: number;
+  retentionDays: number;
+  total: number;
+};
+
+export type TrashBulkActionRequest = {
+  items: Array<{
+    entity: TrashEntity;
+    id: string;
+  }>;
+};
+
+export type TrashActionResponse = {
+  ok: true;
+};
+
+export type EmptyTrashResponse = TrashActionResponse & {
+  deletedCount: number;
+};

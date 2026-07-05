@@ -68,9 +68,8 @@ export function ConfirmationModal({
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
             <Button
-              className="border-[color-mix(in_srgb,var(--color-primary)_38%,var(--color-border))]"
               disabled={isConfirming}
-              variant="outline"
+              variant="primary"
             >
               {cancelLabel}
             </Button>

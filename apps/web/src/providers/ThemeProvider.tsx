@@ -100,6 +100,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    function syncStoredTheme(event: StorageEvent) {
+      if (event.key !== STORAGE_KEY && event.key !== null) {
+        return;
+      }
+
+      const storedTheme = getStoredTheme();
+      setMode(storedTheme.mode);
+      setColors(storedTheme.colors);
+      applyTheme(storedTheme.mode, storedTheme.colors);
+    }
+
+    window.addEventListener("storage", syncStoredTheme);
+
+    return () => {
+      window.removeEventListener("storage", syncStoredTheme);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isHydrated) {
       return;
     }

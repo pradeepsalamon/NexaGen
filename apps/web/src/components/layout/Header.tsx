@@ -56,7 +56,7 @@ export function Header() {
           className="min-w-0 justify-self-start rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           href={activeUser ? "/dashboard" : "/"}
         >
-          <Logo compact />
+          <Logo compact imageHeight={80} imageWidth={80}/>
         </Link>
         <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
           {pageTitle}

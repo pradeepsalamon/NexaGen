@@ -17,7 +17,6 @@ import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
 import { login } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { AuthLayout } from "./AuthLayout";
 import { useAuthStore } from "@/stores/authStore";
 
 const initialValues: LoginFormValues = {
@@ -77,8 +76,7 @@ export function LoginForm() {
   }
 
   return (
-    <AuthLayout eyebrow="Welcome back" title="Continue your chess journey.">
-      <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
+    <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
         <AuthHeader
           actionHref="/register"
           actionLabel="Create account"
@@ -127,6 +125,5 @@ export function LoginForm() {
           </Button>
         </form>
       </Card>
-    </AuthLayout>
   );
 }

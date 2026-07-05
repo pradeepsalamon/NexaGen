@@ -25,6 +25,7 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
+import { TrashRepository } from "../trash/trash.repository";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type BatchWithAssignments = Prisma.BatchGetPayload<{
@@ -36,6 +37,9 @@ const batchInclude = {
     include: {
       coach: true
     },
+    where: {
+      coach: { isDeleted: false }
+    },
     orderBy: {
       assignedAt: "asc"
     }
@@ -43,6 +47,9 @@ const batchInclude = {
   students: {
     include: {
       student: true
+    },
+    where: {
+      student: { isDeleted: false }
     },
     orderBy: {
       enrolledAt: "asc"
@@ -56,8 +63,9 @@ export class BatchService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService
-  ) {}
+    private readonly prisma: PrismaService,
+    private readonly trashRepository: TrashRepository
+  ) { }
 
   async list(accessToken: string | undefined): Promise<BatchListResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
@@ -195,19 +203,51 @@ export class BatchService {
       });
 
       if (payload.coachIds) {
-        await transaction.batchCoach.deleteMany({ where: { batchId } });
-        await transaction.batchCoach.createMany({
-          data: payload.coachIds.map((coachId) => ({ batchId, coachId })),
-          skipDuplicates: true
+        await transaction.batchCoach.updateMany({
+          data: {
+            deletedAt: new Date(),
+            deletedById: user.id,
+            isDeleted: true
+          },
+          where: { batchId }
         });
+        await Promise.all(
+          payload.coachIds.map((coachId) =>
+            transaction.batchCoach.upsert({
+              create: { batchId, coachId },
+              update: {
+                deletedAt: null,
+                deletedById: null,
+                isDeleted: false
+              },
+              where: { batchId_coachId: { batchId, coachId } }
+            })
+          )
+        );
       }
 
       if (payload.studentIds) {
-        await transaction.batchStudent.deleteMany({ where: { batchId } });
-        await transaction.batchStudent.createMany({
-          data: payload.studentIds.map((studentId) => ({ batchId, studentId })),
-          skipDuplicates: true
+        await transaction.batchStudent.updateMany({
+          data: {
+            deletedAt: new Date(),
+            deletedById: user.id,
+            isDeleted: true
+          },
+          where: { batchId }
         });
+        await Promise.all(
+          payload.studentIds.map((studentId) =>
+            transaction.batchStudent.upsert({
+              create: { batchId, studentId },
+              update: {
+                deletedAt: null,
+                deletedById: null,
+                isDeleted: false
+              },
+              where: { batchId_studentId: { batchId, studentId } }
+            })
+          )
+        );
       }
 
       return transaction.batch.findUniqueOrThrow({
@@ -251,6 +291,17 @@ export class BatchService {
     return { batch: this.toBatch(batch) };
   }
 
+  async delete(accessToken: string | undefined, batchId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    this.assertCanManageBatches(user);
+
+    await this.prisma.$transaction((transaction) =>
+      this.trashRepository.softDelete(transaction, "Batch", batchId, user.id)
+    );
+
+    return { ok: true };
+  }
+
   private async getAuthenticatedUser(accessToken: string | undefined) {
     if (!accessToken) {
       throw new UnauthorizedException("Access token is missing.");
@@ -288,10 +339,10 @@ export class BatchService {
     }
 
     if (user.role === UserRole.COACH) {
-      return { coaches: { some: { coachId: user.id } } };
+      return { coaches: { some: { coachId: user.id, isDeleted: false } } };
     }
 
-    return { students: { some: { studentId: user.id } } };
+    return { students: { some: { isDeleted: false, studentId: user.id } } };
   }
 
   private async assertAssignableUsers(coachIds?: string[], studentIds?: string[]) {
@@ -301,21 +352,21 @@ export class BatchService {
     const [coachCount, studentCount] = await Promise.all([
       uniqueCoachIds.length
         ? this.prisma.user.count({
-            where: {
-              id: { in: uniqueCoachIds },
-              role: UserRole.COACH,
-              status: UserStatus.ACTIVE
-            }
-          })
+          where: {
+            id: { in: uniqueCoachIds },
+            role: UserRole.COACH,
+            status: UserStatus.ACTIVE
+          }
+        })
         : 0,
       uniqueStudentIds.length
         ? this.prisma.user.count({
-            where: {
-              id: { in: uniqueStudentIds },
-              role: UserRole.STUDENT,
-              status: UserStatus.ACTIVE
-            }
-          })
+          where: {
+            id: { in: uniqueStudentIds },
+            role: UserRole.STUDENT,
+            status: UserStatus.ACTIVE
+          }
+        })
         : 0
     ]);
 

@@ -10,7 +10,6 @@ import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { AuthLayout } from "./AuthLayout";
 
 export function ForgotPasswordForm() {
   const toast = useToast();
@@ -31,8 +30,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <AuthLayout eyebrow="Account help" title="Recover your access.">
-      <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
+    <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
         <AuthHeader
           actionHref="/login"
           actionLabel="Back to login"
@@ -75,6 +73,5 @@ export function ForgotPasswordForm() {
           </Button>
         </form>
       </Card>
-    </AuthLayout>
   );
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -53,6 +54,11 @@ export class BatchController {
   @Patch(":id/restore")
   restore(@Param("id") id: string, @Req() request: Request) {
     return this.batchService.restore(this.getAccessToken(request), id);
+  }
+
+  @Delete(":id")
+  delete(@Param("id") id: string, @Req() request: Request) {
+    return this.batchService.delete(this.getAccessToken(request), id);
   }
 
   private getAccessToken(request: Request) {

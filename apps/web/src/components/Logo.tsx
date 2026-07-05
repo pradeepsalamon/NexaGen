@@ -1,22 +1,24 @@
 import Image from "next/image";
-import logoImage from "../nexa_logo.jpeg";
+import logoImage from "../nexa_logo.png";
 
 type LogoProps = {
   compact?: boolean;
   stacked?: boolean;
+  imageWidth?: number;
+  imageHeight?: number;
 };
 
-export function Logo({ compact = false, stacked = false }: LogoProps) {
-  const imageWidth = stacked ? 184 : compact ? 40 : 48;
-  const imageHeight = stacked ? 100 : compact ? 40 : 48;
+export function Logo({ compact = false, stacked = false, imageWidth: propImageWidth, imageHeight: propImageHeight }: LogoProps) {
+  const imageWidth = propImageWidth ?? (stacked ? 64 : compact ? 32 : 40);
+  const imageHeight = propImageHeight ?? (stacked ? 64 : compact ? 32 : 40);
 
   return (
     <div
-      className={`relative z-10 flex ${stacked ? "flex-col items-center text-center" : "items-center"} gap-3`}
+      className={`relative z-10 flex ${stacked ? "flex-col items-center text-center gap-4" : "items-center gap-3"}`}
     >
       <Image
         alt="NexaGen Chess logo"
-        className={`${stacked ? "rounded-panel object-contain p-3" : "rounded-app object-cover"} border border-app-border bg-app-surface shadow-card`}
+        className="object-contain"
         height={imageHeight}
         priority
         src={logoImage}
@@ -24,12 +26,12 @@ export function Logo({ compact = false, stacked = false }: LogoProps) {
       />
       <div>
         <span
-          className={`${stacked ? "text-2xl sm:text-3xl" : compact ? "text-sm" : "text-base"} block font-extrabold leading-tight text-app-text`}
+          className={`${stacked ? "text-2xl sm:text-3xl tracking-tight" : compact ? "text-sm" : "text-base"} block font-extrabold leading-tight text-app-text`}
         >
           NexaGen Chess
         </span>
         {!compact ? (
-          <span className="mt-0.5 block text-xs text-app-muted">
+          <span className="mt-1 block text-sm font-medium text-app-muted">
             Learn. Practice. Master.
           </span>
         ) : null}

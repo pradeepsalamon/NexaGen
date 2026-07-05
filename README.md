@@ -30,6 +30,8 @@ NexaGen Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS AP
   - checked: `JWT_REFRESH_TTL=7d`
 - Password reset magic link sent through SMTP with neutral account-existence messaging and timing
 - Login timing protection for unknown-email and wrong-password attempts
+- Batch management with soft delete into the Super Admin Trash workspace
+- Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
 
 ## Development
@@ -140,6 +142,27 @@ npm run build:prod
 
 More Prisma notes live in `apps/api/prisma/README.md`.
 
+## Trash And Soft Delete
+
+Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, and `BatchStudent`.
+
+When adding a new trash-enabled model:
+
+1. Add `isDeleted`, `deletedAt`, and `deletedById` fields in Prisma, plus supporting indexes and the deleted-by relation.
+2. Add the model to `softDeleteModels` and `trashEntities` in `soft-delete.extension.ts`.
+3. Add relation names to `relationToModel`, and add only list relations that support `where` to `filterableRelationNames`.
+4. Audit every `include` and `select` that can return the model. Singular relations cannot accept relation-level `where`, so filter through the parent query or response mapping.
+5. Add partial unique indexes for unique fields or composite unique indexes so deleted rows do not block reuse:
+
+```sql
+CREATE UNIQUE INDEX "example_key" ON "table"("field") WHERE "isDeleted" = false;
+```
+
+6. Wire feature-level delete routes, such as `DELETE /batches/:id`, through `TrashRepository.softDelete` so audit logging and retention behavior stay consistent.
+7. Update shared types in `packages/types` and frontend entity filters in the Trash UI when a new entity should be visible to admins.
+
+Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally scaled API instances do not run the cleanup concurrently.
+
 ## Verification
 
 Common checks:
@@ -173,6 +196,7 @@ Developers should always prefer existing shadcn/ui components before creating cu
 - **Do not wrap shadcn components unnecessarily.** Use them directly wherever possible.
 - **Keep styling consistent with the current design.** Use the project's CSS variable tokens (`--color-primary`, `--color-surface`, etc.) and Tailwind theme tokens (`app-*`, `primary`, `secondary`).
 - **Use Tailwind utility classes** instead of creating duplicate components.
+- **Label icon-only actions.** Any button or trigger that shows only an icon must include an `aria-label` and a visible hover/focus label using the project's Tooltip or Popover pattern.
 
 ### Preferred Components
 

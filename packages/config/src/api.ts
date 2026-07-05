@@ -22,6 +22,7 @@ const apiEnvSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PASSWORD_RESET_RESPONSE_DELAY: durationSchema.default("5s"),
   PORT: z.coerce.number().int().positive().default(3001),
+  TRASH_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SMTP_FROM: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PASS: z.string().optional(),
