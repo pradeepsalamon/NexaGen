@@ -164,12 +164,7 @@ async function main() {
       }
     }));
 
-  await prisma.batchCoach.upsert({
-    create: {
-      batchId: batch.id,
-      coachId: coach.id
-    },
-    update: {},
+  const existingBatchCoach = await prisma.batchCoach.findUnique({
     where: {
       batchId_coachId: {
         batchId: batch.id,
@@ -178,12 +173,16 @@ async function main() {
     }
   });
 
-  await prisma.batchStudent.upsert({
-    create: {
-      batchId: batch.id,
-      studentId: student.id
-    },
-    update: {},
+  if (!existingBatchCoach) {
+    await prisma.batchCoach.create({
+      data: {
+        batchId: batch.id,
+        coachId: coach.id
+      }
+    });
+  }
+
+  const existingBatchStudent = await prisma.batchStudent.findUnique({
     where: {
       batchId_studentId: {
         batchId: batch.id,
@@ -191,6 +190,15 @@ async function main() {
       }
     }
   });
+
+  if (!existingBatchStudent) {
+    await prisma.batchStudent.create({
+      data: {
+        batchId: batch.id,
+        studentId: student.id
+      }
+    });
+  }
 
   console.log("Seeded test users:");
   console.log(`- superadmin@nexagen.test / ${seedPassword}`);

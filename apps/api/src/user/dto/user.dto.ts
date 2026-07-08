@@ -26,8 +26,7 @@ export class CreateUserDto implements CreateUserRequest {
 
   @IsString()
   @MinLength(8, { message: "Password must be at least 8 characters." })
-  @IsOptional()
-  password?: string;
+  password!: string;
 
   @IsEnum(UserRole)
   @IsOptional()

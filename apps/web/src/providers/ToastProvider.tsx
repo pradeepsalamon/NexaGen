@@ -51,7 +51,7 @@ function getDefaultDuration(type: ToastType): number {
       return 4000;
     case "warning":
     case "error":
-      return 5000;
+      return 8000;
     case "loading":
       return Number.POSITIVE_INFINITY;
   }

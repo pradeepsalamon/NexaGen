@@ -4,11 +4,26 @@ import type { ReactNode } from "react";
 import { Logo } from "@/components/Logo";
 import { PageContainer } from "@/components/PageContainer";
 
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import { useAuthStore } from "@/stores/authStore";
+
 type AuthLayoutProps = {
   children: ReactNode;
 };
 
 export function AuthLayout({ children }: AuthLayoutProps) {
+  const user = useAuthStore((state) => state.user);
+  const isSessionChecked = useAuthStore((state) => state.isSessionChecked);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (isSessionChecked && user) {
+      const nextUrl = searchParams.get("next") ?? (user.role === "SUPER_ADMIN" ? "/admin/super-admin" : "/");
+      window.location.href = nextUrl;
+    }
+  }, [isSessionChecked, user, searchParams]);
   return (
     <PageContainer>
       <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-stretch lg:gap-3">
@@ -24,7 +39,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           </div>
         </section>
         <section
-          className="flex min-h-[calc(100vh-5.5rem)] items-center justify-center rounded-panel border border-app-border bg-app-surface/90 p-3 lg:max-h-[calc(100vh-6.5rem)] lg:min-h-0 lg:overflow-y-auto lg:p-5"
+          className="flex min-h-[calc(100vh-5.5rem)] items-center justify-center rounded-panel border border-app-border bg-app-surface/90 p-3 lg:max-h-[calc(100vh-6.5rem)] lg:min-h-0 lg:overflow-y-auto lg:p-2"
           aria-label="Authentication form"
         >
           {children}

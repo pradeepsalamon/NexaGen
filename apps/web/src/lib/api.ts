@@ -68,6 +68,9 @@ apiClient.interceptors.response.use(
       } catch (err) {
         processQueue(err as Error);
         useAuthStore.getState().clearSession();
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
+        }
         return Promise.reject(err);
       } finally {
         isRefreshing = false;

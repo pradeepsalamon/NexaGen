@@ -9,18 +9,20 @@ import { Card } from "@/components/ui/Card";
 import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormSelect } from "@/components/forms/FormSelect";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
 import { useCreateUserMutation, useUpdateUserMutation } from "../hooks/useUsersApi";
 
-const userFormSchema = z.object({
+const baseUserFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().optional(),
   email: z.string().email("Invalid email address"),
-  password: z.string().optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").optional(),
   role: z.enum(["STUDENT", "COACH", "ADMIN", "SUPER_ADMIN"]),
   status: z.enum(["ACTIVE", "PENDING", "ARCHIVED", "DELETED"]),
 });
 
-type UserFormValues = z.infer<typeof userFormSchema>;
+type UserFormValues = z.infer<typeof baseUserFormSchema>;
 
 const roleOptions = [
   { label: "Student", value: "STUDENT" },
@@ -42,8 +44,18 @@ interface UserFormProps {
 }
 
 export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
+  const { error } = useToast();
   const createMutation = useCreateUserMutation();
   const updateMutation = useUpdateUserMutation();
+  const userFormSchema = baseUserFormSchema.superRefine((value, context) => {
+    if (!selectedUser && !value.password) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Password is required",
+        path: ["password"]
+      });
+    }
+  });
 
   const form = useForm<UserFormValues>({
     resolver: zodResolver(userFormSchema),
@@ -72,6 +84,9 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
         payload.password = values.password;
       }
       updateMutation.mutate({ id: selectedUser.id, payload }, {
+        onError: (mutationError) => {
+          error({ title: "Failed to save user", message: getErrorMessage(mutationError) });
+        },
         onSuccess: () => {
           form.reset();
           onSuccess();
@@ -79,6 +94,9 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
       });
     } else {
       createMutation.mutate(values as CreateUserRequest, {
+        onError: (mutationError) => {
+          error({ title: "Failed to create user", message: getErrorMessage(mutationError) });
+        },
         onSuccess: () => {
           form.reset();
           onSuccess();

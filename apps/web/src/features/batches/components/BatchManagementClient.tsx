@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Archive,
   Pencil,
@@ -35,14 +35,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { useDataTable } from "@/hooks/useDataTable";
+import { queryKeys } from "@/lib/queryKeys";
+import { useRestoreTrashItemMutation } from "@/features/trash/hooks/useTrashApi";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { BatchForm } from "./BatchForm";
 import { BatchSettings } from "./BatchSettings";
 import {
   useArchiveBatchMutation,
   useBatchesQuery,
+  useCreateBatchMutation,
   useDeleteBatchMutation,
-  useRestoreBatchMutation
+  useRestoreBatchMutation,
+  useUpdateBatchMutation
 } from "../hooks/useBatchesApi";
 
 type BatchManagementTab = "all" | "create" | "settings";
@@ -55,7 +60,7 @@ const statusOptions = [
 ];
 
 export function BatchManagementClient() {
-  const { showToast, error, success } = useToast();
+  const { showToast, error, success, info } = useToast();
 
   const [activeTab, setActiveTab] = useState<BatchManagementTab>("all");
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
@@ -63,9 +68,12 @@ export function BatchManagementClient() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   
   const batchesQuery = useBatchesQuery();
+  const updateMutation = useUpdateBatchMutation();
+  const deleteMutation = useDeleteBatchMutation();
   const archiveMutation = useArchiveBatchMutation();
   const restoreMutation = useRestoreBatchMutation();
-  const deleteMutation = useDeleteBatchMutation();
+  const restoreTrashItemMutation = useRestoreTrashItemMutation();
+  const queryClient = useQueryClient();
 
   const selectedBatch = useMemo(
     () =>
@@ -98,64 +106,105 @@ export function BatchManagementClient() {
     initialPagination: { pageIndex: 0, pageSize: 10 }
   });
 
-  function editBatch(batch: Batch) {
+  const editBatch = useCallback((batch: Batch) => {
     setEditingBatchId(batch.id);
     setActiveTab("create");
-  }
+  }, []);
 
   function handleNewBatch() {
     setEditingBatchId(null);
     setActiveTab("create");
   }
 
-  function handleArchive(id: string, isUndo?: boolean) {
+  const handleArchive = useCallback((id: string, isUndo?: boolean) => {
     archiveMutation.mutate({ id, isUndo }, {
       onSuccess: () => {
         setRowSelection({});
         showToast({
-          type: "success",
-          title: "Batch archived",
+          type: isUndo ? "info" : "success",
+          title: isUndo ? "Action undone." : "Batch archived",
           durationMs: 5000,
           ...(isUndo ? {} : {
             action: {
               label: "Undo",
-              onClick: () => handleRestore(id, true)
+              onClick: () => {
+                restoreMutation.mutate(
+                  { id, isUndo: true },
+                  {
+                    onError: () => error({ title: "Failed to undo archive" }),
+                    onSuccess: () => info({ title: "Action undone." })
+                  }
+                );
+              }
             }
           })
         });
       },
       onError: () => error({ title: "Failed to archive batch" })
     });
-  }
+  }, [archiveMutation, error, info, restoreMutation, setRowSelection, showToast]);
 
-  function handleRestore(id: string, isUndo?: boolean) {
+  const handleRestore = useCallback((id: string, isUndo?: boolean) => {
     restoreMutation.mutate({ id, isUndo }, {
       onSuccess: () => {
         showToast({
-          type: "success",
-          title: "Batch unarchived",
+          type: isUndo ? "info" : "success",
+          title: isUndo ? "Action undone." : "Batch unarchived",
           durationMs: 5000,
           ...(isUndo ? {} : {
             action: {
               label: "Undo",
-              onClick: () => handleArchive(id, true)
+              onClick: () => {
+                archiveMutation.mutate(
+                  { id, isUndo: true },
+                  {
+                    onError: () => error({ title: "Failed to undo unarchive" }),
+                    onSuccess: () => info({ title: "Action undone." })
+                  }
+                );
+              }
             }
           })
         });
       },
       onError: () => error({ title: "Failed to unarchive batch" })
     });
-  }
+  }, [archiveMutation, error, info, restoreMutation, showToast]);
 
-  function handleDelete(id: string) {
+  const handleDelete = useCallback((id: string) => {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setRowSelection({});
-        success({ title: "Batch deleted" });
+        success({
+          title: "Batch deleted",
+          action: {
+              label: "Undo",
+              onClick: () => {
+                restoreTrashItemMutation.mutate(
+                { entity: "Batch", id },
+                {
+                  onSuccess: () => {
+                    info({ title: "Action undone." });
+                    queryClient.invalidateQueries({ queryKey: queryKeys.batches.all });
+                  },
+                  onError: () => error({ title: "Failed to undo delete" })
+                }
+              );
+            }
+          }
+        });
       },
       onError: () => error({ title: "Failed to delete batch" })
     });
-  }
+  }, [
+    deleteMutation,
+    error,
+    info,
+    queryClient,
+    restoreTrashItemMutation,
+    setRowSelection,
+    success
+  ]);
 
   const columns = useMemo<ColumnDef<Batch>[]>(
     () => [
@@ -345,7 +394,15 @@ export function BatchManagementClient() {
         }
       }
     ],
-    [archiveMutation.isPending, restoreMutation.isPending, deleteMutation.isPending]
+    [
+      archiveMutation.isPending,
+      deleteMutation.isPending,
+      editBatch,
+      handleArchive,
+      handleDelete,
+      handleRestore,
+      restoreMutation.isPending
+    ]
   );
 
   table.setOptions((prev) => ({

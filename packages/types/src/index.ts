@@ -149,7 +149,7 @@ export const createUserRequestSchema = z.object({
   email: z.string().email("Enter a valid email address.").max(255),
   firstName: z.string().min(1, "First name is required.").max(120),
   lastName: z.string().max(120).optional(),
-  password: z.string().min(8, "Password must be at least 8 characters.").optional(),
+  password: passwordSchema,
   role: userRoleSchema.optional().default("STUDENT"),
   status: userStatusSchema.optional().default("ACTIVE")
 });

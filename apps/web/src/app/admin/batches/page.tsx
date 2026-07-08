@@ -8,7 +8,7 @@ export default function BatchesPage() {
   const hasAccessToken = Boolean(cookies().get(accessTokenCookieName)?.value);
 
   if (!hasAccessToken) {
-    redirect("/login?next=/dashboard/batches");
+    redirect("/login?next=/admin/batches");
   }
 
   return <BatchManagementClient />;

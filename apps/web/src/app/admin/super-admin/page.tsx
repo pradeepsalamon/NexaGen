@@ -4,7 +4,8 @@ import {
   Layers3,
   ShieldCheck,
   Trash2,
-  UserRoundCheck
+  UserRoundCheck,
+  Users
 } from "lucide-react";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -22,7 +23,7 @@ export default function SuperAdminDashboardPage() {
   const hasAccessToken = Boolean(cookies().get(accessTokenCookieName)?.value);
 
   if (!hasAccessToken) {
-    redirect("/login?next=/dashboard/super-admin");
+    redirect("/login?next=/admin/super-admin");
   }
 
   return (
@@ -36,10 +37,17 @@ export default function SuperAdminDashboardPage() {
             </div>
             <Link
               className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
-              href="/dashboard/batches"
+              href="/admin/batches"
             >
               <Layers3 aria-hidden="true" className="size-4" />
               Batches
+            </Link>
+            <Link
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+              href="/admin/users"
+            >
+              <Users aria-hidden="true" className="size-4" />
+              Users
             </Link>
             <Link
               className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"

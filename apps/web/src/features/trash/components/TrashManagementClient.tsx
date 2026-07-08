@@ -89,8 +89,10 @@ export function TrashManagementClient() {
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize));
 
   const selectedItems = useMemo(() => {
-    const selectedKeys = Object.keys(rowSelection).filter(key => rowSelection[key]);
-    return items.filter(item => selectedKeys.includes(getItemKey(item)));
+    return Object.keys(rowSelection)
+      .filter((key) => rowSelection[key])
+      .map((key) => items[parseInt(key, 10)])
+      .filter(Boolean);
   }, [items, rowSelection]);
 
   const restoreMutation = useRestoreTrashItemMutation();
@@ -355,7 +357,10 @@ export function TrashManagementClient() {
               <Button
                 disabled={!selectedItems.length}
                 isLoading={bulkDeleteMutation.isPending}
-                onClick={() => setConfirmModal({ isOpen: true, action: "delete-selected" })}
+                onClick={() => {
+                  handleDelayedAction(selectedItems, "delete", "Selected items permanently deleted.");
+                  table.toggleAllPageRowsSelected(false);
+                }}
                 type="button"
                 variant="destructive"
               >

@@ -24,7 +24,7 @@ export function FormField({
       {children}
       {error ? (
         <p
-          className="m-0 text-xs leading-5 text-app-danger"
+          className="sr-only"
           id={`${id}-error`}
           role="alert"
         >

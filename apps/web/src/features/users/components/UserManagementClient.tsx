@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   Archive,
   Pencil,
@@ -44,6 +44,9 @@ import {
   useRestoreUserMutation,
   useUsersQuery
 } from "../hooks/useUsersApi";
+import { useRestoreTrashItemMutation } from "@/features/trash/hooks/useTrashApi";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 
 type UserManagementTab = "all" | "create" | "settings";
 
@@ -55,7 +58,7 @@ const statusOptions = [
 ];
 
 export function UserManagementClient() {
-  const { showToast, error, success } = useToast();
+  const { showToast, error, success, info } = useToast();
 
   const [activeTab, setActiveTab] = useState<UserManagementTab>("all");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
@@ -63,9 +66,11 @@ export function UserManagementClient() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   
   const usersQuery = useUsersQuery();
+  const deleteMutation = useDeleteUserMutation();
   const archiveMutation = useArchiveUserMutation();
   const restoreMutation = useRestoreUserMutation();
-  const deleteMutation = useDeleteUserMutation();
+  const restoreTrashItemMutation = useRestoreTrashItemMutation();
+  const queryClient = useQueryClient();
 
   const selectedUser = useMemo(
     () =>
@@ -98,64 +103,105 @@ export function UserManagementClient() {
     initialPagination: { pageIndex: 0, pageSize: 10 }
   });
 
-  function editUser(user: AuthUser) {
+  const editUser = useCallback((user: AuthUser) => {
     setEditingUserId(user.id);
     setActiveTab("create");
-  }
+  }, []);
 
   function handleNewUser() {
     setEditingUserId(null);
     setActiveTab("create");
   }
 
-  function handleArchive(id: string, isUndo?: boolean) {
+  const handleArchive = useCallback((id: string, isUndo?: boolean) => {
     archiveMutation.mutate({ id, isUndo }, {
       onSuccess: () => {
         setRowSelection({});
         showToast({
-          type: "success",
-          title: "User archived",
+          type: isUndo ? "info" : "success",
+          title: isUndo ? "Action undone." : "User archived",
           durationMs: 5000,
           ...(isUndo ? {} : {
             action: {
               label: "Undo",
-              onClick: () => handleRestore(id, true)
+              onClick: () => {
+                restoreMutation.mutate(
+                  { id, isUndo: true },
+                  {
+                    onError: () => error({ title: "Failed to undo archive" }),
+                    onSuccess: () => info({ title: "Action undone." })
+                  }
+                );
+              }
             }
           })
         });
       },
       onError: () => error({ title: "Failed to archive user" })
     });
-  }
+  }, [archiveMutation, error, info, restoreMutation, setRowSelection, showToast]);
 
-  function handleRestore(id: string, isUndo?: boolean) {
+  const handleRestore = useCallback((id: string, isUndo?: boolean) => {
     restoreMutation.mutate({ id, isUndo }, {
       onSuccess: () => {
         showToast({
-          type: "success",
-          title: "User unarchived",
+          type: isUndo ? "info" : "success",
+          title: isUndo ? "Action undone." : "User unarchived",
           durationMs: 5000,
           ...(isUndo ? {} : {
             action: {
               label: "Undo",
-              onClick: () => handleArchive(id, true)
+              onClick: () => {
+                archiveMutation.mutate(
+                  { id, isUndo: true },
+                  {
+                    onError: () => error({ title: "Failed to undo unarchive" }),
+                    onSuccess: () => info({ title: "Action undone." })
+                  }
+                );
+              }
             }
           })
         });
       },
       onError: () => error({ title: "Failed to unarchive user" })
     });
-  }
+  }, [archiveMutation, error, info, restoreMutation, showToast]);
 
-  function handleDelete(id: string) {
+  const handleDelete = useCallback((id: string) => {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setRowSelection({});
-        success({ title: "User deleted" });
+        success({
+          title: "User deleted",
+          action: {
+              label: "Undo",
+              onClick: () => {
+                restoreTrashItemMutation.mutate(
+                { entity: "User", id },
+                {
+                  onSuccess: () => {
+                    info({ title: "Action undone." });
+                    queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+                  },
+                  onError: () => error({ title: "Failed to undo delete" })
+                }
+              );
+            }
+          }
+        });
       },
       onError: () => error({ title: "Failed to delete user" })
     });
-  }
+  }, [
+    deleteMutation,
+    error,
+    info,
+    queryClient,
+    restoreTrashItemMutation,
+    setRowSelection,
+    success
+  ]);
 
   const columns = useMemo<ColumnDef<AuthUser>[]>(
     () => [
@@ -307,7 +353,15 @@ export function UserManagementClient() {
         }
       }
     ],
-    [archiveMutation.isPending, restoreMutation.isPending, deleteMutation.isPending]
+    [
+      archiveMutation.isPending,
+      deleteMutation.isPending,
+      editUser,
+      handleArchive,
+      handleDelete,
+      handleRestore,
+      restoreMutation.isPending
+    ]
   );
 
   table.setOptions((prev) => ({

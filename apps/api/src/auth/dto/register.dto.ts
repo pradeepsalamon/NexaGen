@@ -47,7 +47,6 @@ export class RegisterDto implements RegisterRequest {
   password!: string;
 
   @IsString()
-  @MinLength(8)
   confirmPassword!: string;
 
   @IsOptional()

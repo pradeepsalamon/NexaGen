@@ -21,6 +21,7 @@ import type { AccessTokenPayload } from "../auth/types";
 import { TrashRepository } from "../trash/trash.repository";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
+type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
 
 const userInclude = {
   coachProfile: true,
@@ -47,7 +48,7 @@ export class UserService {
       where: { isDeleted: false }
     });
 
-    return { users: users.map((u) => this.toAuthUser(u as any)) };
+    return { users: users.map((u) => this.toAuthUser(u)) };
   }
 
   async getById(accessToken: string | undefined, id: string): Promise<UserResponse> {
@@ -63,12 +64,17 @@ export class UserService {
       throw new NotFoundException("User not found.");
     }
 
-    return { user: this.toAuthUser(targetUser as any) };
+    return { user: this.toAuthUser(targetUser) };
   }
 
   async create(accessToken: string | undefined, data: CreateUserRequest): Promise<UserResponse> {
     const authUser = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageUsers(authUser);
+    this.assertCanCreateRole(authUser, data.role ?? UserRole.STUDENT);
+
+    if (!data.password) {
+      throw new BadRequestException("Password is required.");
+    }
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email: data.email }
@@ -78,7 +84,7 @@ export class UserService {
       throw new BadRequestException("User with this email already exists.");
     }
 
-    const passwordHash = await hashSecret(data.password || "Password123!");
+    const passwordHash = await hashSecret(data.password);
 
     const newUser = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -87,21 +93,21 @@ export class UserService {
           firstName: data.firstName,
           lastName: data.lastName,
           password: passwordHash,
-          role: data.role as UserRole,
-          status: data.status as UserStatus,
+          role: data.role ?? UserRole.STUDENT,
+          status: data.status ?? UserStatus.ACTIVE,
           createdById: authUser.id,
           isEmailVerified: true
         }
       });
 
-      if (data.role === UserRole.STUDENT) {
+      if ((data.role ?? UserRole.STUDENT) === UserRole.STUDENT) {
         await tx.studentProfile.create({
           data: {
             userId: created.id,
             parentName: data.firstName + " Parent",
           }
         });
-      } else if (data.role === UserRole.COACH) {
+      } else if ((data.role ?? UserRole.STUDENT) === UserRole.COACH) {
         await tx.coachProfile.create({
           data: {
             userId: created.id
@@ -114,7 +120,7 @@ export class UserService {
       });
     });
 
-    return { user: this.toAuthUser(newUser as any) };
+    return { user: this.toAuthUser(newUser) };
   }
 
   async update(
@@ -133,6 +139,11 @@ export class UserService {
     if (!userToUpdate) {
       throw new NotFoundException("User not found.");
     }
+    this.assertCanModifyTarget(authUser, userToUpdate);
+
+    if (data.role && data.role !== userToUpdate.role) {
+      this.assertCanChangeRole(authUser, userToUpdate, data.role);
+    }
 
     if (data.email && data.email !== userToUpdate.email) {
       const existingUser = await this.prisma.user.findUnique({
@@ -143,7 +154,7 @@ export class UserService {
       }
     }
 
-    let passwordHash = undefined;
+    let passwordHash: string | undefined;
     if (data.password) {
       passwordHash = await hashSecret(data.password);
     }
@@ -155,8 +166,8 @@ export class UserService {
           firstName: data.firstName,
           lastName: data.lastName,
           password: passwordHash,
-          role: data.role as UserRole | undefined,
-          status: data.status as UserStatus | undefined
+          role: data.role,
+          status: data.status
         },
         where: { id }
       });
@@ -178,12 +189,27 @@ export class UserService {
       });
     });
 
-    return { user: this.toAuthUser(updated as any) };
+    return { user: this.toAuthUser(updated) };
   }
 
   async archive(accessToken: string | undefined, id: string): Promise<UserResponse> {
     const authUser = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageUsers(authUser);
+
+    const userToArchive = await this.prisma.user.findUnique({
+      include: userInclude,
+      where: { id, isDeleted: false }
+    });
+
+    if (!userToArchive) {
+      throw new NotFoundException("User not found.");
+    }
+
+    if (userToArchive.id === authUser.id) {
+      throw new BadRequestException("You cannot archive yourself.");
+    }
+
+    this.assertCanModifyTarget(authUser, userToArchive);
 
     const updated = await this.prisma.user.update({
       where: { id, isDeleted: false },
@@ -191,12 +217,23 @@ export class UserService {
       include: userInclude
     });
 
-    return { user: this.toAuthUser(updated as any) };
+    return { user: this.toAuthUser(updated) };
   }
 
   async restore(accessToken: string | undefined, id: string): Promise<UserResponse> {
     const authUser = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageUsers(authUser);
+
+    const userToRestore = await this.prisma.user.findUnique({
+      include: userInclude,
+      where: { id, isDeleted: false }
+    });
+
+    if (!userToRestore) {
+      throw new NotFoundException("User not found.");
+    }
+
+    this.assertCanModifyTarget(authUser, userToRestore);
 
     const updated = await this.prisma.user.update({
       where: { id, isDeleted: false },
@@ -204,7 +241,7 @@ export class UserService {
       include: userInclude
     });
 
-    return { user: this.toAuthUser(updated as any) };
+    return { user: this.toAuthUser(updated) };
   }
 
   async delete(accessToken: string | undefined, id: string): Promise<{ ok: true }> {
@@ -222,6 +259,8 @@ export class UserService {
     if (userToDelete.id === authUser.id) {
       throw new BadRequestException("You cannot delete yourself.");
     }
+    this.assertCanModifyTarget(authUser, userToDelete);
+    await this.assertCanDeleteSuperAdmin(userToDelete);
 
     await this.prisma.$transaction(async (tx) => {
       await tx.user.update({
@@ -276,10 +315,74 @@ export class UserService {
     }
   }
 
-  private toAuthUser(user: any): AuthUser {
+  private assertCanCreateRole(user: AuthenticatedUser, role: UserRole) {
+    if (
+      user.role !== UserRole.SUPER_ADMIN &&
+      (role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN)
+    ) {
+      throw new ForbiddenException("Only super admins can create admin users.");
+    }
+  }
+
+  private assertCanModifyTarget(user: AuthenticatedUser, targetUser: Pick<User, "id" | "role">) {
+    if (
+      user.role === UserRole.ADMIN &&
+      (targetUser.role === UserRole.ADMIN || targetUser.role === UserRole.SUPER_ADMIN)
+    ) {
+      throw new ForbiddenException("Admins cannot manage admin users.");
+    }
+  }
+
+  private assertCanChangeRole(
+    user: AuthenticatedUser,
+    targetUser: Pick<User, "id" | "role">,
+    role: UserRole
+  ) {
+    if (user.id === targetUser.id) {
+      throw new BadRequestException("You cannot change your own role.");
+    }
+
+    if (
+      user.role !== UserRole.SUPER_ADMIN &&
+      (role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN)
+    ) {
+      throw new ForbiddenException("Only super admins can assign admin roles.");
+    }
+  }
+
+  private async assertCanDeleteSuperAdmin(targetUser: Pick<User, "id" | "role">) {
+    if (targetUser.role !== UserRole.SUPER_ADMIN) {
+      return;
+    }
+
+    const remainingSuperAdmins = await this.prisma.user.count({
+      where: {
+        id: { not: targetUser.id },
+        isDeleted: false,
+        role: UserRole.SUPER_ADMIN
+      }
+    });
+
+    if (remainingSuperAdmins === 0) {
+      throw new BadRequestException("You cannot delete the last super admin.");
+    }
+  }
+
+  private toAuthUser(user: UserWithProfiles): AuthUser {
     return {
       avatarUrl: user.avatarUrl,
-      coachProfile: user.coachProfile,
+      coachProfile: user.coachProfile && !user.coachProfile.isDeleted
+        ? {
+            bio: user.coachProfile.bio,
+            fideId: user.coachProfile.fideId,
+            fideRating: user.coachProfile.fideRating,
+            hourlyRate: user.coachProfile.hourlyRate?.toString() ?? null,
+            qualification: user.coachProfile.qualification,
+            specialization: user.coachProfile.specialization,
+            title: user.coachProfile.title,
+            yearsOfExperience: user.coachProfile.yearsOfExperience
+          }
+        : null,
       email: user.email,
       firstName: user.firstName,
       id: user.id,
@@ -288,7 +391,18 @@ export class UserService {
       phoneNumber: user.phoneNumber,
       role: user.role,
       status: user.status,
-      studentProfile: user.studentProfile,
+      studentProfile: user.studentProfile && !user.studentProfile.isDeleted
+        ? {
+            chessRating: user.studentProfile.chessRating,
+            dateOfBirth: user.studentProfile.dateOfBirth?.toISOString() ?? null,
+            experienceLevel: user.studentProfile.experienceLevel,
+            fideId: user.studentProfile.fideId,
+            parentEmail: user.studentProfile.parentEmail,
+            parentName: user.studentProfile.parentName,
+            parentPhone: user.studentProfile.parentPhone,
+            parentRelationship: user.studentProfile.parentRelationship
+          }
+        : null,
       timezone: user.timezone
     };
   }

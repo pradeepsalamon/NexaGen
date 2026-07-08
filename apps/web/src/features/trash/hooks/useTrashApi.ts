@@ -20,7 +20,7 @@ export function useTrashQuery(params: TrashListRequest) {
 export function useRestoreTrashItemMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (item: TrashItem) => restoreTrashItem(item.entity, item.id),
+    mutationFn: (item: Pick<TrashItem, "entity" | "id">) => restoreTrashItem(item.entity, item.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
     }

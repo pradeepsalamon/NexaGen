@@ -21,12 +21,17 @@
     "db:migrate:create": "npm run migrate:dev:create -w apps/api",
     "db:migrate:deploy": "npm run migrate:deploy -w apps/api",
     "db:migrate:status": "npm run migrate:status -w apps/api",
+    "db:reset": "npm run db:reset -w apps/api",
     "db:seed": "npm run seed -w apps/api",
     "lint": "turbo lint",
+    "prepare": "husky",
+    "precommit": "npm run typecheck && npm run lint && npm run test",
+    "test": "npm run test -w apps/api -- --runInBand",
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "husky": "^9.1.7",
     "turbo": "^2.5.4",
     "typescript": "^5.5.4"
   }

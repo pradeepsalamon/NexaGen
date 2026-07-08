@@ -46,14 +46,14 @@ export function LoginForm() {
     onSuccess: ({ user }) => {
       const nextUrl =
         new URLSearchParams(window.location.search).get("next") ??
-        (user.role === "SUPER_ADMIN" ? "/dashboard/super-admin" : "/");
+        (user.role === "SUPER_ADMIN" ? "/admin/super-admin" : "/");
 
       setUser(user);
       toast.success({
         message: "Welcome back to NexaGen Chess.",
         title: "Login successful"
       });
-      router.push(nextUrl);
+      window.location.href = nextUrl;
     }
   });
 
@@ -109,7 +109,7 @@ export function LoginForm() {
               value={values.password}
             />
           </FormField>
-          <div className="flex flex-wrap items-center justify-between gap-2 max-sm:flex-col max-sm:items-start">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Checkbox
               checked={values.rememberMe}
               id="remember-me"

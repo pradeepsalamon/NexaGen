@@ -16,9 +16,6 @@ export function AuthHeader({
 }: AuthHeaderProps) {
   return (
     <div className="mb-5 grid gap-4 lg:mb-6">
-      <div className="lg:hidden">
-        <Logo compact />
-      </div>
       <div>
         <h2 className="mb-2 text-[clamp(1.55rem,6vw,2.15rem)] font-extrabold leading-tight text-app-text">
           {title}

@@ -7,7 +7,20 @@ import {
   type TrashAction
 } from "../prisma/soft-delete.extension";
 
-type PrismaClientLike = Record<string, any>;
+type PrismaDelegateLike = {
+  count: (args: unknown) => Promise<number>;
+  create: (args: unknown) => Promise<unknown>;
+  delete: (args: unknown) => Promise<unknown>;
+  findFirst: (args: unknown) => Promise<TrashRecord | null>;
+  findMany: (args: unknown) => Promise<TrashRecord[]>;
+  update: (args: unknown) => Promise<unknown>;
+};
+type PrismaClientLike = Record<string, unknown>;
+type TrashRecord = {
+  deletedAt: Date | string | null;
+  deletedBy?: unknown;
+  id: string;
+} & Record<string, unknown>;
 type TrashFindOptions = {
   deletedById?: string;
   deletedFrom?: Date;
@@ -64,7 +77,7 @@ export class TrashRepository {
 
     return {
       items: results.flatMap((result) =>
-        result.items.map((item: Record<string, unknown>) =>
+        result.items.map((item) =>
           this.toTrashItem(result.entity, item)
         )
       ),
@@ -183,7 +196,7 @@ export class TrashRepository {
           }
         });
 
-        return items.map((item: { id: string }) => ({
+        return items.map((item) => ({
           entity: entity.label,
           id: item.id
         }));
@@ -257,7 +270,7 @@ export class TrashRepository {
 
   private toTrashItem(
     entity: (typeof trashEntities)[number],
-    item: Record<string, unknown>
+    item: TrashRecord
   ) {
     return {
       deletedAt: item.deletedAt,
@@ -268,7 +281,7 @@ export class TrashRepository {
     };
   }
 
-  private getTitle(titleField: string, item: Record<string, unknown>) {
+  private getTitle(titleField: string, item: TrashRecord) {
     const title = item[titleField];
 
     if (typeof title === "string" && title.trim()) {
@@ -279,6 +292,6 @@ export class TrashRepository {
   }
 
   private getDelegate(client: PrismaClientLike, delegate: string) {
-    return (client as unknown as Record<string, any>)[delegate];
+    return (client as Record<string, PrismaDelegateLike>)[delegate];
   }
 }

@@ -1,7 +1,7 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Save } from "lucide-react";
+import { Save, UserMinus, UserPlus } from "lucide-react";
 import type { Batch, BatchStatus, CreateBatchRequest, UpdateBatchRequest } from "@nexa-gen/types";
 
 import { Button } from "@/components/ui/Button";
@@ -13,13 +13,18 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormSelect } from "@/components/forms/FormSelect";
+import { AddMemberDialog } from "./AddMemberDialog";
+import { getErrorMessage } from "@/lib/errors";
+import { useToast } from "@/providers/ToastProvider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useAssignableUsersQuery, useCreateBatchMutation, useUpdateBatchMutation } from "../hooks/useBatchesApi";
 
 const batchFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
   startsAt: z.string().min(1, "Start date is required"),
-  endsAt: z.string().min(1, "End date is required"),
+  endsAt: z.string().optional(),
   scheduleNotes: z.string().optional(),
   status: z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARCHIVED"]),
   coachIds: z.array(z.string()).optional(),
@@ -35,12 +40,13 @@ const statusOptions = [
   { label: "Archived", value: "ARCHIVED" }
 ];
 
-interface BatchFormProps {
-  selectedBatch: Batch | null;
-  onSuccess: () => void;
-}
+type BatchFormProps = {
+  onSuccess?: () => void;
+  selectedBatch?: Batch | null;
+};
 
 export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
+  const { error, success, info } = useToast();
   const createMutation = useCreateBatchMutation();
   const updateMutation = useUpdateBatchMutation();
   const assignableUsersQuery = useAssignableUsersQuery();
@@ -65,18 +71,31 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   function onSubmit(values: BatchFormValues) {
+    const payload = {
+      ...values,
+      endsAt: values.endsAt || undefined,
+    };
+
     if (selectedBatch) {
-      updateMutation.mutate({ id: selectedBatch.id, payload: values as UpdateBatchRequest }, {
+      updateMutation.mutate({ id: selectedBatch.id, payload: payload as UpdateBatchRequest }, {
+        onError: (mutationError) => {
+          error({ title: "Failed to save batch", message: getErrorMessage(mutationError) });
+        },
         onSuccess: () => {
+          success({ title: "Batch updated successfully" });
           form.reset();
-          onSuccess();
+          onSuccess?.();
         }
       });
     } else {
-      createMutation.mutate(values as CreateBatchRequest, {
+      createMutation.mutate(payload as CreateBatchRequest, {
+        onError: (mutationError) => {
+          error({ title: "Failed to create batch", message: getErrorMessage(mutationError) });
+        },
         onSuccess: () => {
+          success({ title: "Batch created successfully" });
           form.reset();
-          onSuccess();
+          onSuccess?.();
         }
       });
     }
@@ -85,24 +104,29 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
   return (
     <Card className="p-5">
       <Form form={form} onSubmit={onSubmit} className="grid gap-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-extrabold uppercase text-primary">
-              {selectedBatch ? "Edit batch" : "Create batch"}
-            </p>
-            <h2 className="mt-2 text-xl font-extrabold text-app-text">
-              {selectedBatch ? selectedBatch.name : "Batch details"}
-            </h2>
+        <Tabs defaultValue="details" className="w-full">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border pb-4 mb-4">
+            <div>
+              <p className="text-xs font-extrabold uppercase text-primary">
+                {selectedBatch ? "Edit batch" : "Create batch"}
+              </p>
+              <h2 className="mt-2 text-xl font-extrabold text-app-text">
+                {selectedBatch ? selectedBatch.name : "Batch details"}
+              </h2>
+            </div>
+            <div className="flex gap-4 items-center">
+              <TabsList>
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="members">Manage Members</TabsTrigger>
+              </TabsList>
+              <Button disabled={isSaving} isLoading={isSaving} type="submit">
+                <Save aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                {selectedBatch ? "Save Batch" : "Create Batch"}
+              </Button>
+            </div>
           </div>
-          <div>
-            <Button disabled={isSaving} isLoading={isSaving} type="submit">
-              <Save aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              {selectedBatch ? "Save Batch" : "Create Batch"}
-            </Button>
-          </div>
-        </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+          <TabsContent value="details" className="grid gap-4 lg:grid-cols-2">
           <FormInput name="name" label="Batch Name" required />
           <FormSelect name="status" label="Status" options={statusOptions} />
 
@@ -163,71 +187,156 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               />
             </BaseFormField>
           </div>
-        </div>
+          </TabsContent>
 
-        <div className="mt-2 grid gap-6 md:grid-cols-2">
-          <Card className="flex flex-col border border-app-border bg-app-surface/50 shadow-none">
-            <div className="border-b border-app-border bg-app-soft/30 px-4 py-3">
-              <h3 className="text-sm font-semibold text-app-text">
-                Assign Coaches
-              </h3>
-            </div>
-            <div className="flex-1 p-4">
-              <div className="grid gap-2">
-                <Controller
-                  control={form.control}
-                  name="coachIds"
-                  render={({ field }) => (
-                    <Select
-                      multiple
-                      className="min-h-[160px] bg-app-surface"
-                      value={field.value}
-                      onChange={(e) => {
-                        const values = Array.from(e.target.selectedOptions, option => option.value);
-                        field.onChange(values);
-                      }}
-                      options={coaches.map((c) => ({
-                        label: `${c.firstName} ${c.lastName || ""}`,
-                        value: c.id
-                      }))}
-                    />
-                  )}
-                />
-              </div>
-            </div>
-          </Card>
+          <TabsContent value="members">
+            <div className="grid gap-6 md:grid-cols-2">
+              <Controller
+                control={form.control}
+                name="coachIds"
+                render={({ field }) => {
+                  const assignedCoaches = coaches.filter(c => field.value?.includes(c.id));
+                  const unassignedCoaches = coaches.filter(c => !field.value?.includes(c.id));
 
-          <Card className="flex flex-col border border-app-border bg-app-surface/50 shadow-none">
-            <div className="border-b border-app-border bg-app-soft/30 px-4 py-3">
-              <h3 className="text-sm font-semibold text-app-text">
-                Assign Students
-              </h3>
+                  return (
+                    <Card className="flex flex-col border border-app-border bg-app-surface/50 shadow-none h-full">
+                      <div className="flex items-center justify-between border-b border-app-border bg-app-soft/30 px-4 py-3">
+                        <h3 className="text-sm font-semibold text-app-text">
+                          Assign Coaches
+                        </h3>
+                        <AddMemberDialog members={unassignedCoaches} onAdd={(id) => field.onChange([...(field.value || []), id])} type="Coach" />
+                      </div>
+                      <div className="flex-1 p-4">
+                        <div className="flex flex-col gap-4">
+                          {assignedCoaches.length > 0 ? (
+                            <div className="flex flex-col gap-2">
+                              {assignedCoaches.map(c => (
+                                <div key={c.id} className="flex items-center justify-between p-3 border border-app-border rounded-lg bg-app-surface shadow-sm">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                                      {c.firstName.charAt(0)}{c.lastName ? c.lastName.charAt(0) : ""}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-semibold text-app-text">{c.firstName} {c.lastName || ""}</p>
+                                      <p className="text-xs text-app-muted">{c.email}</p>
+                                    </div>
+                                  </div>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            field.onChange((field.value || []).filter(id => id !== c.id));
+                                            info({
+                                              title: "Coach removed",
+                                              message: `${c.firstName} ${c.lastName || ""} was removed from this batch.`,
+                                              action: {
+                                                label: "Undo",
+                                                onClick: () => {
+                                                  const current = form.getValues("coachIds") || [];
+                                                  if (!current.includes(c.id)) {
+                                                    form.setValue("coachIds", [...current, c.id], { shouldDirty: true });
+                                                  }
+                                                }
+                                              }
+                                            });
+                                          }}
+                                          className="flex size-8 items-center justify-center rounded-full border border-app-danger text-app-text transition-colors hover:bg-app-danger hover:text-white"
+                                        >
+                                          <UserMinus className="size-4" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Remove coach</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-app-muted">No coaches assigned yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                }}
+              />
+
+              <Controller
+                control={form.control}
+                name="studentIds"
+                render={({ field }) => {
+                  const assignedStudents = students.filter(s => field.value?.includes(s.id));
+                  const unassignedStudents = students.filter(s => !field.value?.includes(s.id));
+
+                  return (
+                    <Card className="flex flex-col border border-app-border bg-app-surface/50 shadow-none h-full">
+                      <div className="flex items-center justify-between border-b border-app-border bg-app-soft/30 px-4 py-3">
+                        <h3 className="text-sm font-semibold text-app-text">
+                          Assign Students
+                        </h3>
+                        <AddMemberDialog members={unassignedStudents} onAdd={(id) => field.onChange([...(field.value || []), id])} type="Student" />
+                      </div>
+                      <div className="flex-1 p-4">
+                        <div className="flex flex-col gap-4">
+                          {assignedStudents.length > 0 ? (
+                            <div className="flex flex-col gap-2">
+                              {assignedStudents.map(s => (
+                                <div key={s.id} className="flex items-center justify-between p-3 border border-app-border rounded-lg bg-app-surface shadow-sm">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                                      {s.firstName.charAt(0)}{s.lastName ? s.lastName.charAt(0) : ""}
+                                    </div>
+                                    <div>
+                                      <p className="text-sm font-semibold text-app-text">{s.firstName} {s.lastName || ""}</p>
+                                      <p className="text-xs text-app-muted">{s.email}</p>
+                                    </div>
+                                  </div>
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            field.onChange((field.value || []).filter(id => id !== s.id));
+                                            info({
+                                              title: "Student removed",
+                                              message: `${s.firstName} ${s.lastName || ""} was removed from this batch.`,
+                                              action: {
+                                                label: "Undo",
+                                                onClick: () => {
+                                                  const current = form.getValues("studentIds") || [];
+                                                  if (!current.includes(s.id)) {
+                                                    form.setValue("studentIds", [...current, s.id], { shouldDirty: true });
+                                                  }
+                                                }
+                                              }
+                                            });
+                                          }}
+                                          className="flex size-8 items-center justify-center rounded-full border border-app-danger text-app-text transition-colors hover:bg-app-danger hover:text-white"
+                                        >
+                                          <UserMinus className="size-4" />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Remove student</TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-sm text-app-muted">No students assigned yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                }}
+              />
             </div>
-            <div className="flex-1 p-4">
-              <div className="grid gap-2">
-                <Controller
-                  control={form.control}
-                  name="studentIds"
-                  render={({ field }) => (
-                    <Select
-                      multiple
-                      className="min-h-[160px] bg-app-surface"
-                      value={field.value}
-                      onChange={(e) => {
-                        const values = Array.from(e.target.selectedOptions, option => option.value);
-                        field.onChange(values);
-                      }}
-                      options={students.map((s) => ({
-                        label: `${s.firstName} ${s.lastName || ""}`,
-                        value: s.id
-                      }))}
-                    />
-                  )}
-                />
-              </div>
-            </div>
-          </Card>
-        </div>
+          </TabsContent>
+        </Tabs>
       </Form>
     </Card>
   );

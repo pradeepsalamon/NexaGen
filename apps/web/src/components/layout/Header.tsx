@@ -10,9 +10,9 @@ import { useAuthStore } from "@/stores/authStore";
 
 const pageTitles: Record<string, string> = {
   "/": "NexaGen Chess",
-  "/dashboard/batches": "Batches",
-  "/dashboard": "Dashboard",
-  "/dashboard/super-admin": "Super Admin Dashboard",
+  "/admin/batches": "Batches",
+  "/admin": "Admin Dashboard",
+  "/admin/super-admin": "Super Admin Dashboard",
   "/forgot-password": "Account Help",
   "/login": "Login",
   "/profile": "Profile",
@@ -54,7 +54,7 @@ export function Header() {
         <Link
           aria-label={activeUser ? "Go to Dashboard" : "Go to Home"}
           className="min-w-0 justify-self-start rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-          href={activeUser ? "/dashboard" : "/"}
+          href={activeUser ? "/admin" : "/"}
         >
           <Logo compact size={40}/>
         </Link>

@@ -1,4 +1,4 @@
-import type { SelectHTMLAttributes } from "react";
+import { forwardRef, type SelectHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export type SelectOption = {
@@ -12,16 +12,15 @@ type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   placeholder?: string;
 };
 
-export function Select({
-  className,
-  hasError = false,
-  options,
-  placeholder,
-  ...props
-}: SelectProps) {
-  return (
-    <select
-      aria-invalid={hasError}
+const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  function Select(
+    { className, hasError = false, options, placeholder, ...props },
+    ref
+  ) {
+    return (
+      <select
+        aria-invalid={hasError}
+        ref={ref}
       className={cn(
         "min-h-11 w-full appearance-none rounded-control border bg-app-surface bg-[linear-gradient(45deg,transparent_50%,var(--color-text-muted)_50%),linear-gradient(135deg,var(--color-text-muted)_50%,transparent_50%)] bg-[length:6px_6px,6px_6px] bg-[position:calc(100%-20px)_52%,calc(100%-14px)_52%] bg-no-repeat px-3.5 pr-10 text-sm text-app-text shadow-sm transition hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] disabled:cursor-not-allowed disabled:opacity-60 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] focus:outline-none",
         hasError ? "border-app-danger" : "border-app-border",
@@ -37,4 +36,7 @@ export function Select({
       ))}
     </select>
   );
-}
+});
+Select.displayName = "Select";
+
+export { Select };
