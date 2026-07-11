@@ -22,6 +22,7 @@ import type {
   LoginRequest,
   LogoutResponse,
   RegisterRequest,
+  RegisterCoachRequest,
   ResetPasswordRequest,
   UpdateProfileRequest
 } from "@nexa-gen/types";
@@ -140,6 +141,8 @@ export class AuthService {
         role: UserRole.STUDENT,
         status: UserStatus.ACTIVE,
         timezone: "Asia/Kolkata",
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
         studentProfile: {
           create: {
             experienceLevel: this.toExperienceLevel(payload.experienceLevel),
@@ -149,6 +152,79 @@ export class AuthService {
         }
       }
     });
+
+    const tokenPair = await this.createSession(
+      user,
+      context,
+      this.refreshTokenShortMaxAge,
+      this.refreshTokenShortTtl
+    );
+
+    return {
+      ...tokenPair,
+      accessTokenMaxAge: this.accessTokenMaxAge,
+      refreshTokenMaxAge: this.refreshTokenShortMaxAge,
+      user: this.toAuthUser(user)
+    };
+  }
+
+  
+  async registerCoach(
+    payload: RegisterCoachRequest,
+    context: SessionContext
+  ): Promise<AuthResult> {
+    if (payload.password !== payload.confirmPassword) {
+      throw new BadRequestException("Passwords must match.");
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: payload.email.toLowerCase() }
+    });
+
+    if (existingUser) {
+      throw new ConflictException("An account already exists for this email.");
+    }
+
+    const { firstName, lastName } = splitStudentName(payload.coachName);
+    const passwordHash = await hashSecret(payload.password);
+
+    const user = await this.prisma.user.create({
+      include: { coachProfile: true, studentProfile: true },
+      data: {
+        email: payload.email.toLowerCase(),
+        password: passwordHash,
+        firstName,
+        lastName,
+        phoneNumber: payload.contactNumber,
+        role: UserRole.COACH,
+        status: UserStatus.ACTIVE,
+        timezone: "Asia/Kolkata",
+        isEmailVerified: true,
+        emailVerifiedAt: new Date(),
+        coachProfile: {
+          create: {
+            title: this.toCoachTitle(payload.title),
+            fideId: this.toNullableString(payload.fideId),
+            fideRating: payload.fideRating ?? null,
+            yearsOfExperience: payload.yearsOfExperience ?? null
+          }
+        }
+      }
+    });
+
+    /* Temporarily disabled email verification
+    const verificationToken = createOpaqueToken();
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        expiresAt: new Date(Date.now() + 24 * 60 * 60_000), // 24 hours
+        tokenHash: hashOpaqueToken(verificationToken),
+        userId: user.id
+      }
+    });
+    const verifyLink = new URL("/verify-email", this.frontendUrl);
+    verifyLink.searchParams.set("token", verificationToken);
+    await this.mailService.sendEmailVerificationLink(user.email, verifyLink.toString()); 
+    */
 
     const tokenPair = await this.createSession(
       user,
@@ -446,6 +522,68 @@ export class AuthService {
     await this.waitForPasswordResetResponseDelay(startedAt);
 
     return { ok: true };
+  }
+
+  
+  async verifyEmail(token: string) {
+    const verification = await this.prisma.emailVerificationToken.findFirst({
+      include: { user: true },
+      where: {
+        expiresAt: { gt: new Date() },
+        tokenHash: hashOpaqueToken(token),
+        usedAt: null,
+        user: { isDeleted: false }
+      }
+    });
+
+    if (!verification) {
+      throw new BadRequestException("Verification token is invalid or expired.");
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        data: { isEmailVerified: true, emailVerifiedAt: new Date() },
+        where: { id: verification.userId }
+      }),
+      this.prisma.emailVerificationToken.update({
+        data: { usedAt: new Date() },
+        where: { id: verification.id }
+      })
+    ]);
+
+    return { message: "Email verified successfully." };
+  }
+
+  async resendVerificationEmail(accessToken: string | undefined) {
+    if (!accessToken) {
+      throw new UnauthorizedException("Access token is missing.");
+    }
+
+    const payload = await this.verifyAccessToken(accessToken);
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub }
+    });
+
+    // We allow resending even if status is PENDING
+    if (!user || user.isEmailVerified) {
+      throw new BadRequestException("Invalid request or email is already verified.");
+    }
+
+    /* Temporarily disabled email verification
+    const verificationToken = createOpaqueToken();
+    await this.prisma.emailVerificationToken.create({
+      data: {
+        expiresAt: new Date(Date.now() + 24 * 60 * 60_000), // 24 hours
+        tokenHash: hashOpaqueToken(verificationToken),
+        userId: user.id
+      }
+    });
+    const verifyLink = new URL("/verify-email", this.frontendUrl);
+    verifyLink.searchParams.set("token", verificationToken);
+    await this.mailService.sendEmailVerificationLink(user.email, verifyLink.toString()); 
+    */
+
+    return { message: "Verification email sent." };
   }
 
   async resetPassword(payload: ResetPasswordRequest) {

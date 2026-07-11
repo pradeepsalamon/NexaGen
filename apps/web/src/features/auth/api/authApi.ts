@@ -7,14 +7,23 @@ import type {
   MessageResponse,
   RefreshSessionResponse,
   RegisterRequest,
+  RegisterCoachRequest,
   ResetPasswordRequest,
-  UpdateProfileRequest
+  UpdateProfileRequest,
+  VerifyEmailRequest
 } from "@nexa-gen/types";
 import { API_ROUTES } from "@nexa-gen/types";
 import { apiFetch } from "../../../lib/api";
 
 export function register(payload: RegisterRequest) {
   return apiFetch<AuthResponse>(API_ROUTES.auth.register, {
+    body: payload,
+    method: "POST"
+  });
+}
+
+export function registerCoach(payload: RegisterCoachRequest) {
+  return apiFetch<AuthResponse>(API_ROUTES.auth.registerCoach, {
     body: payload,
     method: "POST"
   });
@@ -60,6 +69,19 @@ export function forgotPassword(payload: ForgotPasswordRequest) {
 export function resetPassword(payload: ResetPasswordRequest) {
   return apiFetch<MessageResponse>(API_ROUTES.auth.resetPassword, {
     body: payload,
+    method: "POST"
+  });
+}
+
+export function verifyEmail(payload: VerifyEmailRequest) {
+  return apiFetch<MessageResponse>(API_ROUTES.auth.verifyEmail, {
+    body: payload,
+    method: "POST"
+  });
+}
+
+export function resendVerification() {
+  return apiFetch<MessageResponse>(API_ROUTES.auth.resendVerification, {
     method: "POST"
   });
 }

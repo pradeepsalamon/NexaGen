@@ -7,6 +7,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { Header } from "../components/layout/Header";
 import { TooltipProvider } from "../components/ui/Tooltip";
+import { EmailVerificationBanner } from "../components/layout/EmailVerificationBanner";
 import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
@@ -32,6 +33,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <TooltipProvider delayDuration={600}>
             <SessionBootstrap />
             <Header />
+            {/* <EmailVerificationBanner /> (Temporarily disabled) */}
             <div className="pt-16">{children}</div>
           </TooltipProvider>
         </ToastProvider>

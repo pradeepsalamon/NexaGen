@@ -41,6 +41,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.passwordResetToken;
   }
 
+  get emailVerificationToken() {
+    return this.client.emailVerificationToken;
+  }
+
   get batch() {
     return this.client.batch;
   }

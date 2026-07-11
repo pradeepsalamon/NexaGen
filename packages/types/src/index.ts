@@ -339,3 +339,45 @@ export type TrashActionResponse = {
 export type EmptyTrashResponse = TrashActionResponse & {
   deletedCount: number;
 };
+
+
+export const registerCoachRequestSchema = z
+  .object({
+    confirmPassword: z.string().min(8, "Confirm your password."),
+    contactNumber: z.string().min(1, "Contact number is required.").max(30),
+    email: z.string().email("Enter a valid email address.").max(255),
+    coachName: z.string().min(1, "Coach name is required.").max(120),
+    password: passwordSchema,
+    title: coachTitleSchema.optional().default("NONE"),
+    fideId: z.string().max(80).optional(),
+    fideRating: z.number().int().min(0).max(4000).optional(),
+    yearsOfExperience: z.number().int().min(0).max(80).optional()
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    message: "Passwords must match.",
+    path: ["confirmPassword"]
+  });
+
+export const verifyEmailRequestSchema = z.object({
+  token: z.string().min(1, "Verification token is required.")
+});
+
+export type RegisterCoachRequest = z.infer<typeof registerCoachRequestSchema>;
+export type VerifyEmailRequest = z.infer<typeof verifyEmailRequestSchema>;
+
+export type PendingCoach = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string | null;
+  createdAt: string;
+  coachProfile: AuthCoachProfile;
+};
+
+export type PendingCoachesResponse = {
+  coaches: PendingCoach[];
+};
+
+export type UpdateCoachStatusRequest = {
+  status: "ACTIVE" | "ARCHIVED" | "DELETED";
+};

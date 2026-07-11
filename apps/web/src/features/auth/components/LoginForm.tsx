@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -27,6 +27,7 @@ const initialValues: LoginFormValues = {
 
 export function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
   const [values, setValues] = useState<LoginFormValues>(initialValues);
@@ -45,7 +46,7 @@ export function LoginForm() {
     },
     onSuccess: ({ user }) => {
       const nextUrl =
-        new URLSearchParams(window.location.search).get("next") ??
+        searchParams.get("next") ??
         (user.role === "SUPER_ADMIN" ? "/admin/super-admin" : "/");
 
       setUser(user);
@@ -53,7 +54,7 @@ export function LoginForm() {
         message: "Welcome back to NexaGen Chess.",
         title: "Login successful"
       });
-      window.location.href = nextUrl;
+      router.push(nextUrl);
     }
   });
 

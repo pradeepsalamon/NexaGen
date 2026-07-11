@@ -1,11 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getCurrentUser } from "../features/auth/api/authApi";
 import { useAuthStore } from "../stores/authStore";
 
 export function SessionBootstrap() {
+  const router = useRouter();
   const clearSession = useAuthStore((state) => state.clearSession);
   const setSessionChecked = useAuthStore((state) => state.setSessionChecked);
   const setSessionLoading = useAuthStore((state) => state.setSessionLoading);
@@ -15,6 +17,17 @@ export function SessionBootstrap() {
     queryKey: ["auth", "me"],
     retry: false
   });
+
+  useEffect(() => {
+    const handleLogout = () => {
+      router.push("/login");
+    };
+
+    window.addEventListener("auth:logout", handleLogout);
+    return () => {
+      window.removeEventListener("auth:logout", handleLogout);
+    };
+  }, [router]);
 
   useEffect(() => {
     setSessionLoading(sessionQuery.isLoading || sessionQuery.isFetching);

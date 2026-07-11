@@ -21,9 +21,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   useEffect(() => {
     if (isSessionChecked && user) {
       const nextUrl = searchParams.get("next") ?? (user.role === "SUPER_ADMIN" ? "/admin/super-admin" : "/");
-      window.location.href = nextUrl;
+      router.replace(nextUrl);
     }
-  }, [isSessionChecked, user, searchParams]);
+  }, [isSessionChecked, user, searchParams, router]);
   return (
     <PageContainer>
       <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-stretch lg:gap-3">

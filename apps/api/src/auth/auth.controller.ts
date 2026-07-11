@@ -9,6 +9,7 @@ import {
   Req,
   Res
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { API_ROUTES } from "@nexa-gen/types";
 import { AuthService } from "./auth.service";
@@ -17,7 +18,9 @@ import {
   LoginDto,
   RegisterDto,
   ResetPasswordDto,
-  UpdateProfileDto
+  UpdateProfileDto,
+  RegisterCoachDto,
+  VerifyEmailDto
 } from "./dto";
 import { AUTH_COOKIE_NAMES, AUTH_COOKIE_PATHS } from "./types";
 
@@ -26,6 +29,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post(API_ROUTES.auth.register)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(
     @Body() body: RegisterDto,
     @Req() request: Request,
@@ -41,7 +45,25 @@ export class AuthController {
     return { user: result.user };
   }
 
+  @Post(API_ROUTES.auth.registerCoach)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  async registerCoach(
+    @Body() body: RegisterCoachDto,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const result = await this.authService.registerCoach(
+      body,
+      this.getSessionContext(request)
+    );
+
+    this.setAuthCookies(response, result);
+
+    return { user: result.user };
+  }
+
   @Post(API_ROUTES.auth.login)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() body: LoginDto,
@@ -106,15 +128,31 @@ export class AuthController {
   }
 
   @Post(API_ROUTES.auth.forgotPassword)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() body: ForgotPasswordDto) {
     return this.authService.forgotPassword(body.email);
   }
 
   @Post(API_ROUTES.auth.resetPassword)
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async resetPassword(@Body() body: ResetPasswordDto) {
     return this.authService.resetPassword(body);
+  }
+
+  @Post(API_ROUTES.auth.verifyEmail)
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() body: VerifyEmailDto) {
+    return this.authService.verifyEmail(body.token);
+  }
+
+  @Post(API_ROUTES.auth.resendVerification)
+  @HttpCode(HttpStatus.OK)
+  async resendVerification(@Req() request: Request) {
+    return this.authService.resendVerificationEmail(
+      request.cookies?.[AUTH_COOKIE_NAMES.accessToken]
+    );
   }
 
   private setAuthCookies(

@@ -68,8 +68,12 @@ apiClient.interceptors.response.use(
       } catch (err) {
         processQueue(err as Error);
         useAuthStore.getState().clearSession();
-        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-          window.location.href = "/login";
+        if (typeof window !== "undefined") {
+          const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
+          const isPublicRoute = publicRoutes.some(route => window.location.pathname.startsWith(route));
+          if (!isPublicRoute) {
+            window.dispatchEvent(new CustomEvent("auth:logout"));
+          }
         }
         return Promise.reject(err);
       } finally {
@@ -109,6 +113,14 @@ export async function apiFetch<TResponse>(
 }
 
 function getApiErrorMessage(error: AxiosError<{ message?: string | string[] }>) {
+  if (error.response?.status === 429) {
+    const retryAfter = error.response.headers["retry-after"];
+    if (retryAfter) {
+      return `Too Many Requests please try (${retryAfter}s remaining)`;
+    }
+    return "Too Many Requests please try again later";
+  }
+
   const message = error.response?.data?.message;
 
   if (Array.isArray(message)) {

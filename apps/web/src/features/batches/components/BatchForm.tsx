@@ -115,10 +115,12 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               </h2>
             </div>
             <div className="flex gap-4 items-center">
-              <TabsList>
-                <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="members">Manage Members</TabsTrigger>
-              </TabsList>
+              {selectedBatch && (
+                <TabsList>
+                  <TabsTrigger value="details">Details</TabsTrigger>
+                  <TabsTrigger value="members">Manage Members</TabsTrigger>
+                </TabsList>
+              )}
               <Button disabled={isSaving} isLoading={isSaving} type="submit">
                 <Save aria-hidden="true" className="size-4" strokeWidth={2.5} />
                 {selectedBatch ? "Save Batch" : "Create Batch"}
@@ -189,8 +191,9 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
           </div>
           </TabsContent>
 
-          <TabsContent value="members">
-            <div className="grid gap-6 md:grid-cols-2">
+          {selectedBatch && (
+            <TabsContent value="members">
+              <div className="grid gap-6 md:grid-cols-2">
               <Controller
                 control={form.control}
                 name="coachIds"
@@ -204,7 +207,24 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                         <h3 className="text-sm font-semibold text-app-text">
                           Assign Coaches
                         </h3>
-                        <AddMemberDialog members={unassignedCoaches} onAdd={(id) => field.onChange([...(field.value || []), id])} type="Coach" />
+                        <AddMemberDialog members={unassignedCoaches} onAdd={(id) => {
+                          field.onChange([...(field.value || []), id]);
+                          const c = unassignedCoaches.find(x => x.id === id);
+                          if (c) {
+                            success({
+                              title: "Coach added",
+                              message: `${c.firstName} ${c.lastName || ""} was added to this batch.`,
+                              action: {
+                                label: "Undo",
+                                onClick: () => {
+                                  const current = form.getValues("coachIds") || [];
+                                  form.setValue("coachIds", current.filter(x => x !== id), { shouldDirty: true });
+                                  info({ title: "Action undone", message: "Coach addition was undone." });
+                                }
+                              }
+                            });
+                          }
+                        }} type="Coach" />
                       </div>
                       <div className="flex-1 p-4">
                         <div className="flex flex-col gap-4">
@@ -228,7 +248,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                                           type="button"
                                           onClick={() => {
                                             field.onChange((field.value || []).filter(id => id !== c.id));
-                                            info({
+                                            success({
                                               title: "Coach removed",
                                               message: `${c.firstName} ${c.lastName || ""} was removed from this batch.`,
                                               action: {
@@ -237,6 +257,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                                                   const current = form.getValues("coachIds") || [];
                                                   if (!current.includes(c.id)) {
                                                     form.setValue("coachIds", [...current, c.id], { shouldDirty: true });
+                                                    info({ title: "Action undone", message: "Coach removal was undone." });
                                                   }
                                                 }
                                               }
@@ -276,7 +297,24 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                         <h3 className="text-sm font-semibold text-app-text">
                           Assign Students
                         </h3>
-                        <AddMemberDialog members={unassignedStudents} onAdd={(id) => field.onChange([...(field.value || []), id])} type="Student" />
+                        <AddMemberDialog members={unassignedStudents} onAdd={(id) => {
+                          field.onChange([...(field.value || []), id]);
+                          const s = unassignedStudents.find(x => x.id === id);
+                          if (s) {
+                            success({
+                              title: "Student added",
+                              message: `${s.firstName} ${s.lastName || ""} was added to this batch.`,
+                              action: {
+                                label: "Undo",
+                                onClick: () => {
+                                  const current = form.getValues("studentIds") || [];
+                                  form.setValue("studentIds", current.filter(x => x !== id), { shouldDirty: true });
+                                  info({ title: "Action undone", message: "Student addition was undone." });
+                                }
+                              }
+                            });
+                          }
+                        }} type="Student" />
                       </div>
                       <div className="flex-1 p-4">
                         <div className="flex flex-col gap-4">
@@ -300,7 +338,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                                           type="button"
                                           onClick={() => {
                                             field.onChange((field.value || []).filter(id => id !== s.id));
-                                            info({
+                                            success({
                                               title: "Student removed",
                                               message: `${s.firstName} ${s.lastName || ""} was removed from this batch.`,
                                               action: {
@@ -309,6 +347,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                                                   const current = form.getValues("studentIds") || [];
                                                   if (!current.includes(s.id)) {
                                                     form.setValue("studentIds", [...current, s.id], { shouldDirty: true });
+                                                    info({ title: "Action undone", message: "Student removal was undone." });
                                                   }
                                                 }
                                               }
@@ -336,6 +375,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               />
             </div>
           </TabsContent>
+          )}
         </Tabs>
       </Form>
     </Card>

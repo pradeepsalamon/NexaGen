@@ -120,6 +120,7 @@ export function BatchManagementClient() {
     archiveMutation.mutate({ id, isUndo }, {
       onSuccess: () => {
         setRowSelection({});
+        queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
         showToast({
           type: isUndo ? "info" : "success",
           title: isUndo ? "Action undone." : "Batch archived",
@@ -142,7 +143,7 @@ export function BatchManagementClient() {
       },
       onError: () => error({ title: "Failed to archive batch" })
     });
-  }, [archiveMutation, error, info, restoreMutation, setRowSelection, showToast]);
+  }, [archiveMutation, error, info, queryClient, restoreMutation, setRowSelection, showToast]);
 
   const handleRestore = useCallback((id: string, isUndo?: boolean) => {
     restoreMutation.mutate({ id, isUndo }, {
@@ -175,6 +176,7 @@ export function BatchManagementClient() {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setRowSelection({});
+        queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
         success({
           title: "Batch deleted",
           action: {
@@ -186,6 +188,7 @@ export function BatchManagementClient() {
                   onSuccess: () => {
                     info({ title: "Action undone." });
                     queryClient.invalidateQueries({ queryKey: queryKeys.batches.all });
+                    queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
                   },
                   onError: () => error({ title: "Failed to undo delete" })
                 }

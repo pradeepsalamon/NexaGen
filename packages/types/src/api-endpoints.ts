@@ -7,7 +7,10 @@ export const API_ROUTES = {
     me: "/auth/me",
     profile: "/auth/profile",
     forgotPassword: "/auth/forgot-password",
-    resetPassword: "/auth/reset-password"
+    resetPassword: "/auth/reset-password",
+    registerCoach: "/auth/register-coach",
+    verifyEmail: "/auth/verify-email",
+    resendVerification: "/auth/resend-verification"
   },
   users: {
     list: "/users",
@@ -34,5 +37,9 @@ export const API_ROUTES = {
     empty: "/admin/trash/empty",
     restoreItem: (entity: string = ":entity", id: string = ":id") => `/admin/trash/${entity}/${id}/restore`,
     deleteItem: (entity: string = ":entity", id: string = ":id") => `/admin/trash/${entity}/${id}`
+  },
+  admin: {
+    pendingCoaches: "/admin/coaches/pending",
+    updateCoachStatus: (id: string = ":id") => `/admin/coaches/${id}/status`
   }
 } as const;

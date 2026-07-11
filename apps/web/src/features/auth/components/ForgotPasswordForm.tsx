@@ -21,6 +21,14 @@ export function ForgotPasswordForm() {
         message: getErrorMessage(error),
         title: "Reset request failed"
       });
+    },
+    onSuccess: (data) => {
+      toast.success({
+        message: `If an account with this email exists, password reset instructions will be sent.${
+          data?.resetToken ? ` Dev reset token: ${data.resetToken}` : ""
+        }`,
+        title: "Reset Request Sent"
+      });
     }
   });
 
@@ -39,15 +47,6 @@ export function ForgotPasswordForm() {
         />
         <form className="grid gap-4" onSubmit={handleSubmit}>
 
-          {forgotPasswordMutation.data ? (
-            <p className="rounded-control border border-[color-mix(in_srgb,var(--color-accent)_48%,var(--color-border))] bg-[color-mix(in_srgb,var(--color-accent)_16%,var(--color-surface))] px-3.5 py-3 text-sm text-app-text">
-              If an account with this email exists, password reset instructions
-              will be sent.{" "}
-              {forgotPasswordMutation.data.resetToken
-                ? `Dev reset token: ${forgotPasswordMutation.data.resetToken}`
-                : null}
-            </p>
-          ) : null}
           <FormField
             hint="Enter the email linked to your student account."
             id="forgot-email"

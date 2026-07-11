@@ -86,6 +86,7 @@ model User {
   studentBatches  BatchStudent[]       @relation("BatchStudents")
   authSessions    AuthSession[]
   passwordResets  PasswordResetToken[]
+  emailVerifications EmailVerificationToken[]
   deletedRecords  TrashAuditLog[]      @relation("TrashAuditDeletedBy")
   deletedStudentProfiles StudentProfile[] @relation("StudentProfileDeletedBy")
   deletedCoachProfiles   CoachProfile[]   @relation("CoachProfileDeletedBy")
@@ -233,6 +234,23 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
   @@map("password_reset_tokens")
+}
+
+model EmailVerificationToken {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 //

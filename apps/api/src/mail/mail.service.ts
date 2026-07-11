@@ -42,6 +42,36 @@ export class MailService {
     });
   }
 
+  async sendEmailVerificationLink(to: string, verificationLink: string) {
+    const transporter = this.createTransporter();
+
+    await transporter.sendMail({
+      from: this.from,
+      to,
+      subject: "Verify your NexaGen Chess email address",
+      text: [
+        "Welcome to NexaGen Chess! Please verify your email address by clicking the link below:",
+        verificationLink,
+        "",
+        "This link expires in 24 hours. If you did not create an account, you can ignore this email."
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>Welcome to NexaGen Chess!</h2>
+          <p>Please verify your email address by clicking the button below. This link expires in 24 hours.</p>
+          <p>
+            <a href="${verificationLink}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
+              Verify Email Address
+            </a>
+          </p>
+          <p>If the button does not work, copy and paste this link into your browser:</p>
+          <p><a href="${verificationLink}">${verificationLink}</a></p>
+          <p>If you did not create an account, you can ignore this email.</p>
+        </div>
+      `
+    });
+  }
+
   private createTransporter() {
     if (!this.host || !this.user || !this.pass || !this.from) {
       throw new ServiceUnavailableException("SMTP is not configured.");

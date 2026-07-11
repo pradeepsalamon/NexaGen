@@ -117,6 +117,7 @@ export function UserManagementClient() {
     archiveMutation.mutate({ id, isUndo }, {
       onSuccess: () => {
         setRowSelection({});
+        queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
         showToast({
           type: isUndo ? "info" : "success",
           title: isUndo ? "Action undone." : "User archived",
@@ -139,7 +140,7 @@ export function UserManagementClient() {
       },
       onError: () => error({ title: "Failed to archive user" })
     });
-  }, [archiveMutation, error, info, restoreMutation, setRowSelection, showToast]);
+  }, [archiveMutation, error, info, queryClient, restoreMutation, setRowSelection, showToast]);
 
   const handleRestore = useCallback((id: string, isUndo?: boolean) => {
     restoreMutation.mutate({ id, isUndo }, {
@@ -172,6 +173,7 @@ export function UserManagementClient() {
     deleteMutation.mutate(id, {
       onSuccess: () => {
         setRowSelection({});
+        queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
         success({
           title: "User deleted",
           action: {
@@ -183,6 +185,7 @@ export function UserManagementClient() {
                   onSuccess: () => {
                     info({ title: "Action undone." });
                     queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+                    queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
                   },
                   onError: () => error({ title: "Failed to undo delete" })
                 }

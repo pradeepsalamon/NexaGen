@@ -4,7 +4,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
@@ -14,7 +13,6 @@ import { getErrorMessage } from "@/lib/errors";
 import { useAuthStore } from "@/stores/authStore";
 import { register } from "../api/authApi";
 import type { ExperienceLevel, RegisterFormValues } from "../types/auth";
-import { AuthHeader } from "./AuthHeader";
 
 const experienceOptions: { label: string; value: ExperienceLevel }[] = [
   { label: "Beginner", value: "beginner" },
@@ -90,14 +88,7 @@ export function RegisterForm() {
   }
 
   return (
-    <Card className="w-full max-w-[610px] animate-slide-up p-4 sm:p-5">
-        <AuthHeader
-          actionHref="/login"
-          actionLabel="Log in"
-          helperText="Already learning with us?"
-          title="Register"
-        />
-        <form className="grid gap-3.5" onSubmit={handleSubmit}>
+    <form className="grid gap-3.5" onSubmit={handleSubmit}>
 
           <div className="grid gap-3.5 md:grid-cols-2">
             <FormField id="student-name" label="Student Name">
@@ -210,10 +201,9 @@ export function RegisterForm() {
               />
             </FormField>
           </div>
-          <Button fullWidth isLoading={registerMutation.isPending} type="submit">
-            {registerMutation.isPending ? "Registering..." : "Register"}
-          </Button>
-        </form>
-      </Card>
+        <Button fullWidth isLoading={registerMutation.isPending} type="submit">
+          {registerMutation.isPending ? "Registering..." : "Register"}
+        </Button>
+      </form>
   );
 }
