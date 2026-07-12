@@ -1,65 +1,177 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import * as React from "react";
-import { DayPicker } from "react-day-picker";
-import { buttonVariants } from "@/components/ui/Button";
+import { DayButton, DayPicker, getDefaultClassNames } from "react-day-picker";
 import { cn } from "@/lib/utils";
-
-export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
 function Calendar({
   className,
   classNames,
+  components,
   showOutsideDays = true,
   ...props
-}: CalendarProps) {
+}: React.ComponentProps<typeof DayPicker>) {
+  const defaultClassNames = getDefaultClassNames();
+
   return (
     <DayPicker
-      className={cn("p-3", className)}
+      className={cn(
+        "w-fit bg-white p-4 text-zinc-950 [--cell-size:2.25rem] dark:bg-zinc-950 dark:text-zinc-100",
+        className
+      )}
       classNames={{
-        months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-        month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          buttonVariants({ variant: "outline" }),
-          "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        root: cn(
+          "w-fit bg-white text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100",
+          defaultClassNames.root
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell:
-          "text-app-muted rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "h-9 w-9 text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+        months: cn("relative flex flex-col", defaultClassNames.months),
+        month: cn("flex w-full flex-col gap-4", defaultClassNames.month),
+        nav: cn(
+          "absolute inset-x-0 top-0 flex h-[--cell-size] items-center justify-between",
+          defaultClassNames.nav
+        ),
+        button_previous: cn(
+          "inline-flex size-[--cell-size] items-center justify-center rounded-md border border-transparent bg-transparent p-0 text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-40 aria-disabled:opacity-40 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+          defaultClassNames.button_previous
+        ),
+        button_next: cn(
+          "inline-flex size-[--cell-size] items-center justify-center rounded-md border border-transparent bg-transparent p-0 text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-40 aria-disabled:opacity-40 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+          defaultClassNames.button_next
+        ),
+        month_caption: cn(
+          "flex h-[--cell-size] items-center justify-center px-[--cell-size]",
+          defaultClassNames.month_caption
+        ),
+        caption_label: cn(
+          "select-none text-base font-bold text-zinc-950 dark:text-zinc-100",
+          defaultClassNames.caption_label
+        ),
+        dropdowns: cn(
+          "flex h-[--cell-size] items-center justify-center gap-2 text-sm font-medium text-zinc-950 dark:text-zinc-100",
+          defaultClassNames.dropdowns
+        ),
+        dropdown_root: cn(
+          "relative rounded-md border border-zinc-300 bg-white text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100",
+          defaultClassNames.dropdown_root
+        ),
+        dropdown: cn(
+          "absolute inset-0 bg-white text-zinc-950 opacity-0 dark:bg-zinc-950 dark:text-zinc-100",
+          defaultClassNames.dropdown
+        ),
+        month_grid: cn(
+          "w-full border-collapse border-spacing-0",
+          defaultClassNames.month_grid
+        ),
+        weekdays: cn("flex gap-1", defaultClassNames.weekdays),
+        weekday: cn(
+          "flex size-[--cell-size] select-none items-center justify-center rounded-md text-[0.82rem] font-normal text-zinc-500 dark:text-zinc-500",
+          defaultClassNames.weekday
+        ),
+        week: cn("mt-1.5 flex gap-1", defaultClassNames.week),
+        week_number_header: cn(
+          "size-[--cell-size] select-none text-zinc-500 dark:text-zinc-500",
+          defaultClassNames.week_number_header
+        ),
+        week_number: cn(
+          "flex size-[--cell-size] items-center justify-center text-[0.82rem] font-normal text-zinc-500 dark:text-zinc-500",
+          defaultClassNames.week_number
+        ),
         day: cn(
-          buttonVariants({ variant: "ghost" }),
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100"
+          "relative size-[--cell-size] select-none p-0 text-center text-zinc-950 dark:text-zinc-100",
+          defaultClassNames.day
         ),
-        day_range_end: "day-range-end",
-        day_selected:
-          "bg-app-text text-app-surface hover:bg-app-text/90 hover:text-app-surface focus:bg-app-text focus:text-app-surface",
-        day_today: "bg-app-soft text-app-text font-bold",
-        day_outside:
-          "day-outside text-app-muted opacity-50 aria-selected:bg-app-soft/50 aria-selected:text-app-muted aria-selected:opacity-30",
-        day_disabled: "text-app-muted opacity-50",
-        day_range_middle:
-          "aria-selected:bg-app-soft aria-selected:text-app-text",
-        day_hidden: "invisible",
+        today: cn("text-zinc-950 dark:text-zinc-100", defaultClassNames.today),
+        selected: cn("text-white", defaultClassNames.selected),
+        outside: cn(
+          "text-zinc-300 opacity-80 aria-selected:text-zinc-300 dark:text-zinc-700 dark:aria-selected:text-zinc-700",
+          defaultClassNames.outside
+        ),
+        disabled: cn(
+          "text-zinc-300 opacity-50 dark:text-zinc-700",
+          defaultClassNames.disabled
+        ),
+        hidden: cn("invisible", defaultClassNames.hidden),
+        range_start: cn("text-white", defaultClassNames.range_start),
+        range_middle: cn("text-zinc-100", defaultClassNames.range_middle),
+        range_end: cn("text-white", defaultClassNames.range_end),
         ...classNames
       }}
       components={{
-        IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
-        IconRight: ({ ...props }) => <ChevronRight className="h-4 w-4" />
+        Chevron: ({ className, orientation, ...chevronProps }) => {
+          if (orientation === "left") {
+            return (
+              <ChevronLeftIcon
+                className={cn("size-4", className)}
+                {...chevronProps}
+              />
+            );
+          }
+
+          if (orientation === "right") {
+            return (
+              <ChevronRightIcon
+                className={cn("size-4", className)}
+                {...chevronProps}
+              />
+            );
+          }
+
+          return (
+            <ChevronDownIcon
+              className={cn("size-4", className)}
+              {...chevronProps}
+            />
+          );
+        },
+        DayButton: CalendarDayButton,
+        ...components
       }}
       showOutsideDays={showOutsideDays}
       {...props}
     />
   );
 }
-Calendar.displayName = "Calendar";
 
-export { Calendar };
+function CalendarDayButton({
+  className,
+  day,
+  modifiers,
+  ...props
+}: React.ComponentProps<typeof DayButton>) {
+  const ref = React.useRef<HTMLButtonElement>(null);
+
+  React.useEffect(() => {
+    if (modifiers.focused) ref.current?.focus();
+  }, [modifiers.focused]);
+
+  return (
+    <button
+      ref={ref}
+      className={cn(
+        "inline-flex size-[--cell-size] items-center justify-center rounded-md border border-transparent bg-transparent p-0 text-sm font-semibold leading-none text-zinc-950 transition-colors dark:text-zinc-100",
+        "hover:bg-zinc-100 hover:text-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500",
+        "disabled:pointer-events-none disabled:opacity-50",
+        modifiers.outside &&
+          "text-zinc-300 opacity-80 hover:bg-transparent hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-600",
+        modifiers.today &&
+          !modifiers.selected &&
+          "border-blue-500 text-zinc-950 ring-1 ring-blue-500 ring-offset-0 dark:text-zinc-100",
+        modifiers.selected &&
+          "border-blue-600 bg-blue-600 text-white hover:bg-blue-600 hover:text-white",
+        className
+      )}
+      data-day={day.date.toLocaleDateString()}
+      data-selected-single={
+        modifiers.selected &&
+        !modifiers.range_start &&
+        !modifiers.range_end &&
+        !modifiers.range_middle
+      }
+      {...props}
+    />
+  );
+}
+
+export { Calendar, CalendarDayButton };

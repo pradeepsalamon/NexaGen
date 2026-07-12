@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { UserPlus, Plus } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";

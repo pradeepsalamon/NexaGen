@@ -10,12 +10,19 @@ import { useAuthStore } from "@/stores/authStore";
 
 const pageTitles: Record<string, string> = {
   "/": "NexaGen Chess",
-  "/admin/batches": "Batches",
-  "/admin": "Admin Dashboard",
-  "/admin/super-admin": "Super Admin Dashboard",
+  "/admin": "Overview",
+  "/admin/batches": "Batch management",
+  "/admin/coaches": "Coach applications",
+  "/admin/trash": "Trash",
+  "/admin/users": "User management",
+  "/coach": "Coach Dashboard",
+  "/coach/batches": "My Batches",
+  "/coach/schedule": "Schedule",
+  "/coach/students": "Students",
+  "/coach/history": "Class History",
   "/forgot-password": "Account Help",
   "/login": "Login",
-  "/profile": "Profile",
+  "/profile": "My Profile",
   "/register": "Register",
   "/reset-password": "Reset Password"
 };
@@ -23,6 +30,10 @@ const pageTitles: Record<string, string> = {
 function formatPageTitle(pathname: string) {
   if (pageTitles[pathname]) {
     return pageTitles[pathname];
+  }
+
+  if (pathname.startsWith("/classes/")) {
+    return "Class Details";
   }
 
   const currentSegment = pathname.split("/").filter(Boolean).at(-1);
@@ -48,13 +59,15 @@ export function Header() {
   const isAuthPending = !isHydrated || isSessionLoading || !isSessionChecked;
   const activeUser = isSessionChecked ? user : undefined;
 
+  const homeHref = activeUser?.role === "SUPER_ADMIN" ? "/admin" : activeUser?.role === "COACH" ? "/coach" : "/";
+
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface/95 shadow-[0_1px_0_rgba(16,24,40,0.02)] backdrop-blur supports-[backdrop-filter]:bg-app-surface/88">
       <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 sm:px-6 lg:px-8">
         <Link
           aria-label={activeUser ? "Go to Dashboard" : "Go to Home"}
           className="min-w-0 justify-self-start rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-          href={activeUser ? "/admin" : "/"}
+          href={homeHref}
         >
           <Logo compact size={40}/>
         </Link>

@@ -381,3 +381,102 @@ export type PendingCoachesResponse = {
 export type UpdateCoachStatusRequest = {
   status: "ACTIVE" | "ARCHIVED" | "DELETED";
 };
+
+//
+// COACH DASHBOARD TYPES
+//
+
+export const classStatusSchema = z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
+export type ClassStatus = z.infer<typeof classStatusSchema>;
+
+export type CoachClass = {
+  id: string;
+  batchId: string;
+  batchName: string;
+  coachId: string;
+  title: string | null;
+  topic: string | null;
+  description: string | null;
+  objectives: string | null;
+  homework: string | null;
+  notes: string | null;
+  status: ClassStatus;
+  startsAt: string;
+  endsAt: string;
+  meetingRoomId: string | null;
+  createdAt: string;
+  studentCount: number;
+};
+
+export type CoachDashboardResponse = {
+  batchCount: number;
+  studentCount: number;
+  todayClasses: number;
+  upcomingClasses: number;
+  completedClasses: number;
+};
+
+export type CoachBatch = {
+  id: string;
+  name: string;
+  status: BatchStatus;
+  scheduleNotes: string | null;
+  studentCount: number;
+  nextClass: string | null;
+};
+
+export type CoachBatchesResponse = {
+  batches: CoachBatch[];
+};
+
+export type CoachClassListResponse = {
+  classes: CoachClass[];
+};
+
+export type CoachClassResponse = {
+  class: CoachClass;
+};
+
+export type CoachStudent = {
+  id: string;
+  firstName: string;
+  lastName: string | null;
+  email: string;
+  status: UserStatus;
+  batches: Array<{ id: string; name: string }>;
+  chessRating: number | null;
+};
+
+export type CoachStudentsResponse = {
+  students: CoachStudent[];
+};
+
+const classDateRefinement = (value: { startsAt: string; endsAt: string }) => {
+  return new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime();
+};
+const classDateRefinementOptions = { message: "End time must be after start time.", path: ["endsAt"] };
+
+const createClassRequestBaseSchema = z.object({
+  batchId: z.string().min(1, "Batch is required."),
+  title: z.string().max(120).optional(),
+  topic: z.string().min(1, "Topic is required.").max(120),
+  description: z.string().max(2000).optional(),
+  objectives: z.string().max(2000).optional(),
+  homework: z.string().max(2000).optional(),
+  notes: z.string().max(2000).optional(),
+  startsAt: z.string(),
+  endsAt: z.string()
+});
+
+export const createClassRequestSchema = createClassRequestBaseSchema.refine(classDateRefinement, classDateRefinementOptions);
+
+export type CreateClassRequest = z.infer<typeof createClassRequestSchema>;
+
+export const updateClassRequestSchema = createClassRequestBaseSchema.partial().refine((val) => {
+  if (val.startsAt && val.endsAt) {
+    return classDateRefinement({ startsAt: val.startsAt, endsAt: val.endsAt });
+  }
+  return true;
+}, classDateRefinementOptions);
+
+export type UpdateClassRequest = z.infer<typeof updateClassRequestSchema>;

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "batches" ALTER COLUMN "startsAt" SET DATA TYPE DATE,
+ALTER COLUMN "endsAt" SET DATA TYPE DATE;

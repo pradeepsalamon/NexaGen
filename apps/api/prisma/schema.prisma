@@ -46,6 +46,13 @@ enum BatchStatus {
   ARCHIVED
 }
 
+enum ClassStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
 //
 // USER
 //
@@ -84,6 +91,7 @@ model User {
   createdBatches  Batch[]              @relation("BatchCreatedBy")
   coachedBatches  BatchCoach[]         @relation("BatchCoaches")
   studentBatches  BatchStudent[]       @relation("BatchStudents")
+  classes         CoachClass[]         @relation("ClassCoach")
   authSessions    AuthSession[]
   passwordResets  PasswordResetToken[]
   emailVerifications EmailVerificationToken[]
@@ -266,14 +274,15 @@ model Batch {
 
   status BatchStatus @default(ACTIVE)
 
-  startsAt DateTime?
-  endsAt   DateTime?
+  startsAt DateTime? @db.Date
+  endsAt   DateTime? @db.Date
 
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   coaches  BatchCoach[]
   students BatchStudent[]
+  classes  CoachClass[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -351,4 +360,42 @@ model TrashAuditLog {
   @@index([action])
   @@index([createdAt])
   @@map("trash_audit_logs")
+}
+
+//
+// CLASSES
+//
+
+model CoachClass {
+  id          String      @id @default(cuid())
+  
+  batchId     String
+  batch       Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  
+  coachId     String
+  coach       User        @relation("ClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  
+  title       String?
+  topic       String?
+  description String?
+  objectives  String?
+  homework    String?
+  notes       String?
+  
+  status      ClassStatus @default(SCHEDULED)
+  
+  startsAt    DateTime
+  endsAt      DateTime
+  
+  meetingRoomId String?
+  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  cancelledAt DateTime?
+  
+  @@index([batchId])
+  @@index([coachId])
+  @@index([status])
+  @@index([startsAt])
+  @@map("classes")
 }

@@ -10,8 +10,7 @@ import {
   type RowSelectionState,
   type SortingState,
   type VisibilityState,
-  useReactTable,
-  type Table
+  useReactTable
 } from "@tanstack/react-table";
 
 interface UseDataTableProps<TData, TValue> {

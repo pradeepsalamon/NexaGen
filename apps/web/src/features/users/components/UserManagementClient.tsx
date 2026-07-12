@@ -11,7 +11,7 @@ import {
   Trash2,
   UsersRound
 } from "lucide-react";
-import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { AuthUser, UserRole, UserStatus } from "@nexa-gen/types";
 
 import { useToast } from "@/providers/ToastProvider";

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { TrashBulkActionRequest, TrashEntity, TrashItem, TrashListRequest } from "@nexa-gen/types";
+import type { TrashBulkActionRequest, TrashItem, TrashListRequest } from "@nexa-gen/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   bulkDeleteTrashItemsPermanently,

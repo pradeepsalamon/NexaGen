@@ -10,6 +10,7 @@ export function middleware(request: NextRequest) {
   if (!hasAccessToken) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", request.nextUrl.pathname);
+    loginUrl.searchParams.set("reason", "unauthorized");
     return NextResponse.redirect(loginUrl);
   }
 

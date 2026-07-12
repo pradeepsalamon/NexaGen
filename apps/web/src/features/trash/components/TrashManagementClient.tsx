@@ -15,6 +15,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
@@ -52,7 +53,7 @@ export function TrashManagementClient() {
   const [deletedFrom, setDeletedFrom] = useState("");
   const [deletedTo, setDeletedTo] = useState("");
 
-  const [pendingActions, setPendingActions] = useState<Record<string, number>>({});
+  const [, setPendingActions] = useState<Record<string, number>>({});
   const [hiddenItems, setHiddenItems] = useState<Record<string, boolean>>({});
 
   const {
@@ -61,8 +62,7 @@ export function TrashManagementClient() {
     setRowSelection,
     pagination,
     setPagination,
-    sorting,
-    setSorting
+    sorting
   } = useDataTable<TrashItem, unknown>({
     columns: [],
     data: [],
@@ -408,20 +408,18 @@ export function TrashManagementClient() {
               />
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-app-muted">From</span>
-                <Input
-                  aria-label="Deleted from"
-                  onChange={(event) => setDeletedFrom(event.target.value)}
-                  type="date"
-                  value={deletedFrom}
+                <DatePicker
+                  onChange={(date) => setDeletedFrom(date ? date.toISOString().slice(0, 10) : "")}
+                  value={deletedFrom ? new Date(deletedFrom) : undefined}
+                  placeholder="Deleted from"
                 />
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-app-muted">To</span>
-                <Input
-                  aria-label="Deleted to"
-                  onChange={(event) => setDeletedTo(event.target.value)}
-                  type="date"
-                  value={deletedTo}
+                <DatePicker
+                  onChange={(date) => setDeletedTo(date ? date.toISOString().slice(0, 10) : "")}
+                  value={deletedTo ? new Date(deletedTo) : undefined}
+                  placeholder="Deleted to"
                 />
               </div>
               {(search || entity !== "ALL" || deletedFrom || deletedTo) && (

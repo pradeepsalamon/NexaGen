@@ -45,16 +45,21 @@ export function LoginForm() {
       });
     },
     onSuccess: ({ user }) => {
-      const nextUrl =
-        searchParams.get("next") ??
-        (user.role === "SUPER_ADMIN" ? "/admin/super-admin" : "/");
-
       setUser(user);
       toast.success({
         message: "Welcome back to NexaGen Chess.",
         title: "Login successful"
       });
-      router.push(nextUrl);
+
+      if (searchParams.has("next")) {
+        router.push(searchParams.get("next") as string);
+      } else if (user.role === "SUPER_ADMIN") {
+        router.push("/admin");
+      } else if (user.role === "COACH") {
+        router.push("/coach");
+      } else {
+        router.push("/");
+      }
     }
   });
 

@@ -41,5 +41,17 @@ export const API_ROUTES = {
   admin: {
     pendingCoaches: "/admin/coaches/pending",
     updateCoachStatus: (id: string = ":id") => `/admin/coaches/${id}/status`
+  },
+  coach: {
+    dashboard: "/coach/dashboard",
+    batches: "/coach/batches",
+    classes: "/coach/classes",
+    upcomingClasses: "/coach/classes/upcoming",
+    classHistory: "/coach/classes/history",
+    createClass: "/coach/classes",
+    getClass: (id: string = ":id") => `/coach/classes/${id}`,
+    updateClass: (id: string = ":id") => `/coach/classes/${id}`,
+    cancelClass: (id: string = ":id") => `/coach/classes/${id}/cancel`,
+    students: "/coach/students"
   }
 } as const;

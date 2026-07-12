@@ -1,14 +1,13 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Save, UserMinus, UserPlus } from "lucide-react";
-import type { Batch, BatchStatus, CreateBatchRequest, UpdateBatchRequest } from "@nexa-gen/types";
+import { Save, UserMinus } from "lucide-react";
+import type { Batch, CreateBatchRequest, UpdateBatchRequest } from "@nexa-gen/types";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { DateTimePicker } from "@/components/ui/DateTimePicker";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { FormField as BaseFormField } from "@/components/ui/FormField";
-import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
@@ -59,8 +58,8 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
     defaultValues: {
       name: selectedBatch?.name || "",
       description: selectedBatch?.description || "",
-      startsAt: selectedBatch?.startsAt ? new Date(selectedBatch.startsAt).toISOString().slice(0, 16) : "",
-      endsAt: selectedBatch?.endsAt ? new Date(selectedBatch.endsAt).toISOString().slice(0, 16) : "",
+      startsAt: selectedBatch?.startsAt ? new Date(selectedBatch.startsAt).toISOString().slice(0, 10) : "",
+      endsAt: selectedBatch?.endsAt ? new Date(selectedBatch.endsAt).toISOString().slice(0, 10) : "",
       scheduleNotes: selectedBatch?.scheduleNotes || "",
       status: selectedBatch?.status || "ACTIVE",
       coachIds: selectedBatch?.coaches.map(c => c.id) || [],
@@ -132,27 +131,27 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
           <FormInput name="name" label="Batch Name" required />
           <FormSelect name="status" label="Status" options={statusOptions} />
 
-          <BaseFormField id="startsAt" label="Start Date/Time" error={form.formState.errors.startsAt?.message}>
+          <BaseFormField id="startsAt" label="Start Date" error={form.formState.errors.startsAt?.message}>
             <Controller
               control={form.control}
               name="startsAt"
               render={({ field }) => (
-                <DateTimePicker
+                <DatePicker
                   value={field.value ? new Date(field.value) : undefined}
-                  onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 16) : "")}
+                  onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 10) : "")}
                 />
               )}
             />
           </BaseFormField>
 
-          <BaseFormField id="endsAt" label="End Date/Time" error={form.formState.errors.endsAt?.message}>
+          <BaseFormField id="endsAt" label="End Date" error={form.formState.errors.endsAt?.message}>
             <Controller
               control={form.control}
               name="endsAt"
               render={({ field }) => (
-                <DateTimePicker
+                <DatePicker
                   value={field.value ? new Date(field.value) : undefined}
-                  onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 16) : "")}
+                  onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 10) : "")}
                 />
               )}
             />

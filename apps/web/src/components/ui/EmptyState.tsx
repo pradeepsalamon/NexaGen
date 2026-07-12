@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { type LucideIcon, Inbox } from "lucide-react";
 import { Button } from "./Button";
 
@@ -19,7 +18,7 @@ export function EmptyState({
   action
 }: EmptyStateProps) {
   return (
-    <div className="flex min-h-[300px] flex-col items-center justify-center rounded-app border border-dashed border-app-border bg-app-surface/50 p-8 text-center animate-in fade-in">
+    <div className="flex min-h-[300px] flex-col items-center justify-center rounded-app border-2 border-dashed border-app-border bg-app-surface/50 p-8 text-center animate-in fade-in">
       <div className="flex size-14 items-center justify-center rounded-full bg-app-soft">
         <Icon className="size-6 text-app-muted" />
       </div>

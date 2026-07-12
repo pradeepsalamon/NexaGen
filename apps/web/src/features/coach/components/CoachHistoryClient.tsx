@@ -1,0 +1,136 @@
+"use client";
+
+import { useMemo } from "react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { History, Eye } from "lucide-react";
+import Link from "next/link";
+import type { CoachClass } from "@nexa-gen/types";
+import { Badge } from "../../../components/ui/Badge";
+import { Button } from "../../../components/ui/Button";
+import { DataTable } from "../../../components/ui/DataTable";
+import { DataTablePagination } from "../../../components/ui/DataTablePagination";
+import { DataTableSortButton } from "../../../components/ui/DataTableSortButton";
+import { EmptyState } from "../../../components/ui/EmptyState";
+import { useDataTable } from "../../../hooks/useDataTable";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../components/ui/Tooltip";
+import { useClassHistory } from "../hooks/useCoachApi";
+
+export function CoachHistoryClient() {
+  const { data, isLoading } = useClassHistory();
+
+  const columns = useMemo<ColumnDef<CoachClass>[]>(
+    () => [
+      {
+        accessorKey: "date",
+        header: ({ column }) => (
+          <DataTableSortButton 
+            label="Date & Time" 
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} 
+          />
+        ),
+        cell: ({ row }) => {
+          const date = new Date(row.original.startsAt);
+          return (
+            <div className="flex flex-col">
+              <span className="font-medium">{date.toLocaleDateString()}</span>
+              <span className="text-xs text-app-muted">
+                {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          );
+        },
+        sortingFn: (a, b) => {
+          return new Date(a.original.startsAt).getTime() - new Date(b.original.startsAt).getTime();
+        }
+      },
+      {
+        accessorKey: "batchName",
+        header: ({ column }) => (
+          <DataTableSortButton 
+            label="Batch" 
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} 
+          />
+        ),
+      },
+      {
+        accessorKey: "title",
+        header: "Topic",
+        cell: ({ row }) => {
+          return (
+            <span className="line-clamp-1 max-w-[200px]">
+              {row.original.title || row.original.topic || "Regular Session"}
+            </span>
+          );
+        }
+      },
+      {
+        accessorKey: "status",
+        header: "Status",
+        cell: ({ row }) => {
+          const status = row.original.status;
+          const variant = status === "COMPLETED" ? "success" : status === "CANCELLED" ? "destructive" : "secondary";
+          return (
+            <Badge variant={variant} className="text-[10px]">
+              {status}
+            </Badge>
+          );
+        }
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild variant="outline" size="icon" className="size-8 rounded-full border-yellow-500 p-0 text-app-text transition-colors hover:border-yellow-500 hover:bg-yellow-500 hover:text-black">
+                  <Link href={`/classes/${row.original.id}`} aria-label={`View ${row.original.title || row.original.topic}`}>
+                    <Eye className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>View Details</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )
+      }
+    ],
+    []
+  );
+
+  const { table } = useDataTable({
+    data: data?.classes || [],
+    columns,
+    initialSorting: [{ id: "date", desc: true }]
+  });
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-extrabold text-app-text tracking-tight">Class History</h1>
+        <p className="text-app-muted mt-1">Review your past and cancelled classes.</p>
+      </div>
+
+      <div className="rounded-app border border-app-border bg-app-surface shadow-card overflow-hidden">
+        {isLoading ? (
+          <div className="p-8 text-center text-app-muted">Loading history...</div>
+        ) : data?.classes?.length === 0 ? (
+          <div className="p-12">
+            <EmptyState
+              icon={History}
+              title="No class history"
+              description="You haven't completed or cancelled any classes yet."
+            />
+          </div>
+        ) : (
+          <>
+            <DataTable columnsLength={columns.length} table={table as any} />
+            <div className="border-t border-app-border p-4 bg-app-soft">
+              <DataTablePagination table={table as any} totalRows={data?.classes.length || 0} />
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

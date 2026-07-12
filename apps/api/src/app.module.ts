@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { BatchModule } from "./batch/batch.module";
+import { CoachModule } from "./coach/coach.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { TrashModule } from "./trash/trash.module";
 import { UserModule } from "./user/user.module";
@@ -17,8 +18,10 @@ import { AdminModule } from './admin/admin.module';
     PrismaModule, 
     AuthModule, 
     BatchModule, 
+    CoachModule,
     TrashModule, 
-    UserModule, AdminModule
+    UserModule,
+    AdminModule
   ],
   providers: [
     {

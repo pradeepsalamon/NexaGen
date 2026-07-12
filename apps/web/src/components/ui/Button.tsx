@@ -73,14 +73,20 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
       type={type}
       {...props}
     >
-      {isLoading ? (
-        <Loader2
-          aria-hidden="true"
-          className="size-4 shrink-0 animate-spin"
-          strokeWidth={2.5}
-        />
-      ) : null}
-      {children}
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {isLoading ? (
+            <Loader2
+              aria-hidden="true"
+              className="size-4 shrink-0 animate-spin"
+              strokeWidth={2.5}
+            />
+          ) : null}
+          {children}
+        </>
+      )}
     </Comp>
   );
 });

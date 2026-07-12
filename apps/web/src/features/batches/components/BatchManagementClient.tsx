@@ -11,11 +11,10 @@ import {
   Trash2,
   UsersRound
 } from "lucide-react";
-import type { ColumnDef, VisibilityState } from "@tanstack/react-table";
-import type { Batch, BatchStatus, BatchUserSummary } from "@nexa-gen/types";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { Batch, BatchUserSummary } from "@nexa-gen/types";
 
 import { useToast } from "@/providers/ToastProvider";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -40,14 +39,13 @@ import { useRestoreTrashItemMutation } from "@/features/trash/hooks/useTrashApi"
 import { useQueryClient } from "@tanstack/react-query";
 
 import { BatchForm } from "./BatchForm";
+import { BatchStatusBadge } from "./BatchStatusBadge";
 import { BatchSettings } from "./BatchSettings";
 import {
   useArchiveBatchMutation,
   useBatchesQuery,
-  useCreateBatchMutation,
   useDeleteBatchMutation,
-  useRestoreBatchMutation,
-  useUpdateBatchMutation
+  useRestoreBatchMutation
 } from "../hooks/useBatchesApi";
 
 type BatchManagementTab = "all" | "create" | "settings";
@@ -68,7 +66,6 @@ export function BatchManagementClient() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   
   const batchesQuery = useBatchesQuery();
-  const updateMutation = useUpdateBatchMutation();
   const deleteMutation = useDeleteBatchMutation();
   const archiveMutation = useArchiveBatchMutation();
   const restoreMutation = useRestoreBatchMutation();
@@ -323,9 +320,7 @@ export function BatchManagementClient() {
           />
         ),
         cell: ({ row }) => (
-          <Badge variant={getStatusBadgeVariant(row.original.status)}>
-            {formatStatus(row.original.status)}
-          </Badge>
+          <BatchStatusBadge status={row.original.status} />
         )
       },
       {
@@ -563,30 +558,15 @@ function formatUserName(user: BatchUserSummary) {
   return [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
 }
 
-function formatStatus(status: BatchStatus) {
-  return status.charAt(0) + status.slice(1).toLowerCase();
-}
-
-function getStatusBadgeVariant(status: BatchStatus) {
-  switch (status) {
-    case "ACTIVE":
-      return "success";
-    case "UPCOMING":
-      return "warning";
-    case "COMPLETED":
-      return "secondary";
-    case "ARCHIVED":
-    default:
-      return "default";
-  }
-}
-
 function formatDate(value?: string | null) {
   if (!value) return "Not set";
+  
+  // Create a UTC date from the ISO date string to avoid timezone shifts
+  const date = new Date(value);
   return new Intl.DateTimeFormat("en", {
     dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
+    timeZone: "UTC"
+  }).format(date);
 }
 
 function formatColumnLabel(columnId: string) {

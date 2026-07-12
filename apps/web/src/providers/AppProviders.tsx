@@ -7,7 +7,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { Header } from "../components/layout/Header";
 import { TooltipProvider } from "../components/ui/Tooltip";
-import { EmailVerificationBanner } from "../components/layout/EmailVerificationBanner";
+
 import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";

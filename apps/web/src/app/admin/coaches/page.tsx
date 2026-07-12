@@ -1,10 +1,10 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, X, GraduationCap, ChevronLeft } from "lucide-react";
-import Link from "next/link";
+import { Check, X, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getPendingCoaches, updateCoachStatus } from "@/features/admin/api/adminApi";
+import { BackButton } from "@/components/ui/BackButton";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -40,13 +40,7 @@ export default function PendingCoachesPage() {
         <header className="mb-8 flex items-center justify-between">
           <div>
             <div className="mb-2 flex items-center gap-2">
-              <Link
-                href="/admin/super-admin"
-                className="inline-flex items-center text-sm font-medium text-app-muted hover:text-primary transition-colors"
-              >
-                <ChevronLeft className="mr-1 size-4" />
-                Back to Dashboard
-              </Link>
+              <BackButton />
             </div>
             <h1 className="text-3xl font-extrabold text-app-text">Pending Coach Applications</h1>
             <p className="mt-2 text-app-muted">Review and approve applications for new coaches.</p>

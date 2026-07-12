@@ -6,6 +6,7 @@ import { PageContainer } from "@/components/PageContainer";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 
 type AuthLayoutProps = {
@@ -17,10 +18,26 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   const isSessionChecked = useAuthStore((state) => state.isSessionChecked);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (searchParams.get("reason") === "unauthorized") {
+      // Force a refetch to allow the interceptor to attempt a token refresh
+      queryClient.resetQueries({ queryKey: ["auth", "me"] });
+      const next = searchParams.get("next");
+      router.replace(next ? `/login?next=${next}` : "/login");
+      return;
+    }
+
     if (isSessionChecked && user) {
-      const nextUrl = searchParams.get("next") ?? (user.role === "SUPER_ADMIN" ? "/admin/super-admin" : "/");
+      let nextUrl = "/";
+      if (searchParams.has("next")) {
+        nextUrl = searchParams.get("next") as string;
+      } else if (user.role === "SUPER_ADMIN") {
+        nextUrl = "/admin";
+      } else if (user.role === "COACH") {
+        nextUrl = "/coach";
+      }
       router.replace(nextUrl);
     }
   }, [isSessionChecked, user, searchParams, router]);

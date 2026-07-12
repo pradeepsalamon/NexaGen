@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/Card";
 import { verifyEmail } from "@/features/auth/api/authApi";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
-import { useAuthStore } from "@/stores/authStore";
 import { AuthHeader } from "@/features/auth/components/AuthHeader";
 import { Button } from "@/components/ui/Button";
 

@@ -19,4 +19,13 @@ export const queryKeys = {
     all: ["trash"] as const,
     list: (params: TrashListRequest) => ["trash", "list", params] as const,
   },
+  coach: {
+    dashboard: ["coach", "dashboard"] as const,
+    batches: ["coach", "batches"] as const,
+    classes: ["coach", "classes"] as const,
+    upcomingClasses: ["coach", "classes", "upcoming"] as const,
+    classHistory: ["coach", "classes", "history"] as const,
+    classDetail: (id: string) => ["coach", "classes", "detail", id] as const,
+    students: ["coach", "students"] as const,
+  },
 } as const;

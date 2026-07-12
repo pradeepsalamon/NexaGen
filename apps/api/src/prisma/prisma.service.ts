@@ -61,6 +61,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.trashAuditLog;
   }
 
+  get coachClass() {
+    return this.client.coachClass;
+  }
+
   async $connect() {
     return this.client.$connect();
   }
