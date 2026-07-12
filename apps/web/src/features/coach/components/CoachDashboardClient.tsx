@@ -2,10 +2,10 @@
 
 import { Calendar, CheckCircle2, Clock, Users, BookOpen, Layers } from "lucide-react";
 import Link from "next/link";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
-import { Skeleton } from "../../../components/ui/Skeleton";
-import { EmptyState } from "../../../components/ui/EmptyState";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useCoachDashboard, useTodayClasses } from "../hooks/useCoachApi";
 import { ClassCard } from "./ClassCard";
 import { useState } from "react";

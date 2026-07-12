@@ -5,14 +5,14 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { History, Eye } from "lucide-react";
 import Link from "next/link";
 import type { CoachClass } from "@nexa-gen/types";
-import { Badge } from "../../../components/ui/Badge";
-import { Button } from "../../../components/ui/Button";
-import { DataTable } from "../../../components/ui/DataTable";
-import { DataTablePagination } from "../../../components/ui/DataTablePagination";
-import { DataTableSortButton } from "../../../components/ui/DataTableSortButton";
-import { EmptyState } from "../../../components/ui/EmptyState";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { DataTable } from "@/components/ui/DataTable";
+import { DataTablePagination } from "@/components/ui/DataTablePagination";
+import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { useDataTable } from "../../../hooks/useDataTable";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../../../components/ui/Tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useClassHistory } from "../hooks/useCoachApi";
 
 export function CoachHistoryClient() {

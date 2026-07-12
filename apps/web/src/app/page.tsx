@@ -6,7 +6,7 @@ import {
   Trophy
 } from "lucide-react";
 import Link from "next/link";
-import { Logo } from "../components/Logo";
+import { Logo } from "@/components/Logo";
 
 const highlights = [
   {

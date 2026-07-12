@@ -2,11 +2,11 @@
 
 import { Calendar, Users } from "lucide-react";
 import Link from "next/link";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { BatchStatusBadge } from "../../batches/components/BatchStatusBadge";
-import { EmptyState } from "../../../components/ui/EmptyState";
-import { Skeleton } from "../../../components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useCoachBatches } from "../hooks/useCoachApi";
 
 export function CoachBatchesClient() {

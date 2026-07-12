@@ -7,7 +7,7 @@ import {
   useMemo
 } from "react";
 import { toast as sonnerToast } from "sonner";
-import { Toaster } from "../components/ui/Toaster";
+import { Toaster } from "@/components/ui/Toaster";
 
 export type ToastType = "success" | "warning" | "error" | "info" | "loading";
 

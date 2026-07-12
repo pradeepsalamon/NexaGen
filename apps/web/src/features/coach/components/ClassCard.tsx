@@ -1,14 +1,14 @@
 import { Calendar, Clock, MoreVertical, Users } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "../../../components/ui/Badge";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger
-} from "../../../components/ui/DropdownMenu";
+} from "@/components/ui/DropdownMenu";
 import type { CoachClass } from "@nexa-gen/types";
 import { getClassStatusBadgeVariant, getStatusLabel } from "../../../constants/classes";
 

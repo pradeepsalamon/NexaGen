@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import type { CoachClass } from "@nexa-gen/types";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
-import { EmptyState } from "../../../components/ui/EmptyState";
-import { Skeleton } from "../../../components/ui/Skeleton";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useUpcomingClasses, useCoachBatches, useCancelClass } from "../hooks/useCoachApi";
 import { ClassCard } from "./ClassCard";
 import { ScheduleClassDialog } from "./ScheduleClassDialog";

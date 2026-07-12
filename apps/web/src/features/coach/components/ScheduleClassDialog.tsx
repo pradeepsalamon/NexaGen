@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { createClassRequestSchema, type CreateClassRequest, type CoachClass, type CoachBatch } from "@nexa-gen/types";
-import { Button } from "../../../components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import {
   Dialog,
   DialogContent,
@@ -10,12 +10,12 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../../components/ui/Dialog";
-import { Form } from "../../../components/forms/Form";
-import { FormInput } from "../../../components/forms/FormInput";
-import { FormField as BaseFormField } from "../../../components/ui/FormField";
-import { DatePicker } from "../../../components/ui/DatePicker";
-import { FormSelect } from "../../../components/forms/FormSelect";
+} from "@/components/ui/Dialog";
+import { Form } from "@/components/forms/Form";
+import { FormInput } from "@/components/forms/FormInput";
+import { FormField as BaseFormField } from "@/components/ui/FormField";
+import { DatePicker } from "@/components/ui/DatePicker";
+import { FormSelect } from "@/components/forms/FormSelect";
 import { useCreateClass, useUpdateClass } from "../hooks/useCoachApi";
 
 interface ScheduleClassDialogProps {

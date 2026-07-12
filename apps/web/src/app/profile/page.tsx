@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { AppShell } from "../../components/layout/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { LogoutButton } from "../../features/auth/components/LogoutButton";
 import { ProfileForm } from "../../features/auth/components/ProfileForm";
 import { ProfileRoleHeading } from "../../features/auth/components/ProfileRoleHeading";

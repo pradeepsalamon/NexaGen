@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { AppShell } from "../../components/layout/AppShell";
-import { CoachSidebar } from "../../components/layout/CoachSidebar";
+import { AppShell } from "@/components/layout/AppShell";
+import { CoachSidebar } from "@/components/layout/CoachSidebar";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 

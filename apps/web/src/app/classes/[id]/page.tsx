@@ -3,13 +3,13 @@
 import { useEffect } from "react";
 import { Calendar, Clock, Video } from "lucide-react";
 import { useParams } from "next/navigation";
-import { Button } from "../../../components/ui/Button";
-import { Card } from "../../../components/ui/Card";
-import { Badge } from "../../../components/ui/Badge";
-import { Skeleton } from "../../../components/ui/Skeleton";
-import { AppShell } from "../../../components/layout/AppShell";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { AppShell } from "@/components/layout/AppShell";
 import { useClassDetail } from "../../../features/coach/hooks/useCoachApi";
-import { BackButton } from "../../../components/ui/BackButton";
+import { BackButton } from "@/components/ui/BackButton";
 import { getClassStatusBadgeVariant } from "../../../constants/classes";
 
 export default function ClassDetailsPage() {
