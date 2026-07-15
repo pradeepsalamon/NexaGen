@@ -40,7 +40,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       }
       router.replace(nextUrl);
     }
-  }, [isSessionChecked, user, searchParams, router]);
+  }, [isSessionChecked, user, searchParams, router, queryClient]);
   return (
     <PageContainer>
       <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-stretch lg:gap-3">

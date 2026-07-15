@@ -65,6 +65,38 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.coachClass;
   }
 
+  get liveClass() {
+    return this.client.liveClass;
+  }
+
+  get course() {
+    return this.client.course;
+  }
+
+  get courseModule() {
+    return this.client.courseModule;
+  }
+
+  get studentCourseProgress() {
+    return this.client.studentCourseProgress;
+  }
+
+  get practice() {
+    return this.client.practice;
+  }
+
+  get studentPractice() {
+    return this.client.studentPractice;
+  }
+
+  get studentActivity() {
+    return this.client.studentActivity;
+  }
+
+  get announcement() {
+    return this.client.announcement;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

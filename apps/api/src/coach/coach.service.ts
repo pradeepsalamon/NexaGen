@@ -65,7 +65,7 @@ export class CoachService {
       this.prisma.coachClass.count({
         where: {
           coachId,
-          status: ClassStatus.SCHEDULED,
+          status: { in: [ClassStatus.SCHEDULED, ClassStatus.IN_PROGRESS] },
           startsAt: { gte: endOfDay }
         }
       }),
@@ -90,7 +90,9 @@ export class CoachService {
       include: {
         students: { where: { isDeleted: false } },
         classes: {
-          where: { status: ClassStatus.SCHEDULED, startsAt: { gte: new Date() } },
+          where: { 
+            status: { in: [ClassStatus.SCHEDULED, ClassStatus.IN_PROGRESS] } 
+          },
           orderBy: { startsAt: "asc" },
           take: 1
         }
@@ -131,7 +133,11 @@ export class CoachService {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
     const classes = await this.prisma.coachClass.findMany({
-      where: { coachId, status: ClassStatus.SCHEDULED, startsAt: { gte: startOfDay } },
+      where: { 
+        coachId, 
+        status: { in: [ClassStatus.SCHEDULED, ClassStatus.IN_PROGRESS] }, 
+        startsAt: { gte: startOfDay } 
+      },
       include: { batch: { include: { students: { where: { isDeleted: false } } } } },
       orderBy: { startsAt: "asc" }
     });

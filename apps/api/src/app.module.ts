@@ -7,7 +7,9 @@ import { CoachModule } from "./coach/coach.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { TrashModule } from "./trash/trash.module";
 import { UserModule } from "./user/user.module";
+import { LiveClassModule } from "./live-class/live-class.module";
 import { AdminModule } from './admin/admin.module';
+import { StudentModule } from "./student/student.module";
 
 @Module({
   imports: [
@@ -21,7 +23,9 @@ import { AdminModule } from './admin/admin.module';
     CoachModule,
     TrashModule, 
     UserModule,
-    AdminModule
+    LiveClassModule,
+    AdminModule,
+    StudentModule
   ],
   providers: [
     {

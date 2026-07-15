@@ -85,30 +85,34 @@ model User {
   createdBy    User?   @relation("UserCreatedUsers", fields: [createdById], references: [id])
   createdUsers User[]  @relation("UserCreatedUsers")
 
-  studentProfile  StudentProfile?
-  coachProfile    CoachProfile?        @relation("UserCoachProfile")
-  approvedCoaches CoachProfile[]       @relation("CoachApprovedBy")
-  createdBatches  Batch[]              @relation("BatchCreatedBy")
-  coachedBatches  BatchCoach[]         @relation("BatchCoaches")
-  studentBatches  BatchStudent[]       @relation("BatchStudents")
-  classes         CoachClass[]         @relation("ClassCoach")
-  authSessions    AuthSession[]
-  passwordResets  PasswordResetToken[]
-  emailVerifications EmailVerificationToken[]
-  deletedRecords  TrashAuditLog[]      @relation("TrashAuditDeletedBy")
-  deletedStudentProfiles StudentProfile[] @relation("StudentProfileDeletedBy")
-  deletedCoachProfiles   CoachProfile[]   @relation("CoachProfileDeletedBy")
-  deletedBatches         Batch[]          @relation("BatchDeletedBy")
-  deletedBatchCoaches    BatchCoach[]     @relation("BatchCoachDeletedBy")
-  deletedBatchStudents   BatchStudent[]   @relation("BatchStudentDeletedBy")
+  studentProfile         StudentProfile?
+  coachProfile           CoachProfile?            @relation("UserCoachProfile")
+  approvedCoaches        CoachProfile[]           @relation("CoachApprovedBy")
+  createdBatches         Batch[]                  @relation("BatchCreatedBy")
+  coachedBatches         BatchCoach[]             @relation("BatchCoaches")
+  studentBatches         BatchStudent[]           @relation("BatchStudents")
+  classes                CoachClass[]             @relation("ClassCoach")
+  authSessions           AuthSession[]
+  passwordResets         PasswordResetToken[]
+  emailVerifications     EmailVerificationToken[]
+  deletedRecords         TrashAuditLog[]          @relation("TrashAuditDeletedBy")
+  deletedStudentProfiles StudentProfile[]         @relation("StudentProfileDeletedBy")
+  deletedCoachProfiles   CoachProfile[]           @relation("CoachProfileDeletedBy")
+  deletedBatches         Batch[]                  @relation("BatchDeletedBy")
+  deletedBatchCoaches    BatchCoach[]             @relation("BatchCoachDeletedBy")
+  deletedBatchStudents   BatchStudent[]           @relation("BatchStudentDeletedBy")
+  liveClasses            LiveClass[]              @relation("LiveClassCoach")
+  courseProgress         StudentCourseProgress[]  @relation("StudentCourseProgress")
+  practices              StudentPractice[]        @relation("StudentPractice")
+  activities             StudentActivity[]        @relation("StudentActivity")
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isDeleted   Boolean  @default(false)
-  deletedAt   DateTime?
-  deletedById String?
-  deletedBy   User?    @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  deletedUsers User[]  @relation("UserDeletedBy")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  isDeleted    Boolean   @default(false)
+  deletedAt    DateTime?
+  deletedById  String?
+  deletedBy    User?     @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedUsers User[]    @relation("UserDeletedBy")
 
   @@index([role])
   @@index([status])
@@ -143,12 +147,12 @@ model StudentProfile {
 
   enrolledAt DateTime @default(now())
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isDeleted   Boolean  @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
   deletedById String?
-  deletedBy   User?    @relation("StudentProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedBy   User?     @relation("StudentProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([isDeleted])
   @@index([deletedAt])
@@ -188,12 +192,12 @@ model CoachProfile {
 
   approvedAt DateTime?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isDeleted   Boolean  @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
   deletedById String?
-  deletedBy   User?    @relation("CoachProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedBy   User?     @relation("CoachProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([isDeleted])
   @@index([deletedAt])
@@ -280,16 +284,17 @@ model Batch {
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  coaches  BatchCoach[]
-  students BatchStudent[]
-  classes  CoachClass[]
+  coaches     BatchCoach[]
+  students    BatchStudent[]
+  classes     CoachClass[]
+  liveClasses LiveClass[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  isDeleted   Boolean  @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
   deletedById String?
-  deletedBy   User?    @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedBy   User?     @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([createdById])
@@ -308,11 +313,11 @@ model BatchCoach {
   coachId String
   coach   User   @relation("BatchCoaches", fields: [coachId], references: [id], onDelete: Cascade)
 
-  assignedAt DateTime @default(now())
-  isDeleted   Boolean  @default(false)
+  assignedAt  DateTime  @default(now())
+  isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
   deletedById String?
-  deletedBy   User?    @relation("BatchCoachDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedBy   User?     @relation("BatchCoachDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@unique([batchId, coachId])
   @@index([coachId])
@@ -331,11 +336,11 @@ model BatchStudent {
   studentId String
   student   User   @relation("BatchStudents", fields: [studentId], references: [id], onDelete: Cascade)
 
-  enrolledAt DateTime @default(now())
-  isDeleted   Boolean  @default(false)
+  enrolledAt  DateTime  @default(now())
+  isDeleted   Boolean   @default(false)
   deletedAt   DateTime?
   deletedById String?
-  deletedBy   User?    @relation("BatchStudentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedBy   User?     @relation("BatchStudentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
 
   @@unique([batchId, studentId])
   @@index([studentId])
@@ -367,35 +372,155 @@ model TrashAuditLog {
 //
 
 model CoachClass {
-  id          String      @id @default(cuid())
-  
-  batchId     String
-  batch       Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  
-  coachId     String
-  coach       User        @relation("ClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
-  
+  id String @id @default(cuid())
+
+  batchId String
+  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  coachId String
+  coach   User   @relation("ClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
   title       String?
   topic       String?
   description String?
   objectives  String?
   homework    String?
   notes       String?
-  
-  status      ClassStatus @default(SCHEDULED)
-  
-  startsAt    DateTime
-  endsAt      DateTime
-  
+
+  status ClassStatus @default(SCHEDULED)
+
+  startsAt DateTime
+  endsAt   DateTime
+
   meetingRoomId String?
-  
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
-  
+
+  liveClass LiveClass? @relation("LiveClassSchedule")
+
   @@index([batchId])
   @@index([coachId])
   @@index([status])
   @@index([startsAt])
   @@map("classes")
+}
+
+//
+// LIVE CLASSES
+//
+
+model LiveClass {
+  id String @id @default(cuid())
+
+  batchId String
+  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  coachId String
+  coach   User   @relation("LiveClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
+  scheduleId String     @unique
+  schedule   CoachClass @relation("LiveClassSchedule", fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  roomName String  @unique
+  roomSid  String? @unique
+
+  status String @default("SCHEDULED") // SCHEDULED, WAITING, LIVE, ENDED, CANCELLED
+
+  scheduledAt DateTime
+  startedAt   DateTime?
+  endedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  metadata Json?
+
+  @@index([batchId])
+  @@index([coachId])
+  @@index([status])
+  @@map("live_classes")
+}
+
+//
+// COURSES
+//
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  modules     CourseModule[]
+  progress    StudentCourseProgress[]
+}
+
+model CourseModule {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+}
+
+model StudentCourseProgress {
+  id              String   @id @default(cuid())
+  studentId       String
+  student         User     @relation("StudentCourseProgress", fields: [studentId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  progressPercent Int      @default(0)
+  lastOpenedAt    DateTime @default(now())
+
+  @@unique([studentId, courseId])
+  @@map("student_course_progress")
+}
+
+//
+// PRACTICE & ASSIGNMENTS
+//
+
+model Practice {
+  id         String   @id @default(cuid())
+  title      String
+  difficulty String   // BEGINNER, INTERMEDIATE, ADVANCED
+  dueDate    DateTime
+  students   StudentPractice[]
+}
+
+model StudentPractice {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    User     @relation("StudentPractice", fields: [studentId], references: [id], onDelete: Cascade)
+  practiceId String
+  practice   Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  status     String   // PENDING, IN_PROGRESS, COMPLETED
+
+  @@unique([studentId, practiceId])
+  @@map("student_practices")
+}
+
+//
+// ACTIVITY & ANNOUNCEMENTS
+//
+
+model StudentActivity {
+  id        String   @id @default(cuid())
+  studentId String
+  student   User     @relation("StudentActivity", fields: [studentId], references: [id], onDelete: Cascade)
+  type      String   // CLASS_JOINED, LESSON_COMPLETED, PRACTICE_FINISHED, FEEDBACK
+  title     String
+  createdAt DateTime @default(now())
+
+  @@index([studentId])
+  @@map("student_activities")
+}
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  type        String   // BATCH, COURSE, PLATFORM
+  createdAt   DateTime @default(now())
+
+  @@map("announcements")
 }

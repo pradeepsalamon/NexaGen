@@ -53,5 +53,15 @@ export const API_ROUTES = {
     updateClass: (id: string = ":id") => `/coach/classes/${id}`,
     cancelClass: (id: string = ":id") => `/coach/classes/${id}/cancel`,
     students: "/coach/students"
+  },
+  liveClass: {
+    start: (id: string = ":id") => `/live-class/${id}/start`,
+    token: (id: string = ":id") => `/live-class/${id}/token`,
+    end: (id: string = ":id") => `/live-class/${id}/end`,
+    get: (id: string = ":id") => `/live-class/${id}`,
+    participants: (id: string = ":id") => `/live-class/${id}/participants`
+  },
+  student: {
+    dashboard: "/student/dashboard"
   }
 } as const;

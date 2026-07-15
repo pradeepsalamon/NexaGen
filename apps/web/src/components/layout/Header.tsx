@@ -49,7 +49,13 @@ function formatPageTitle(pathname: string) {
     .join(" ");
 }
 
-export function Header() {
+export function Header({
+  centerSlot,
+  rightSlot,
+}: {
+  centerSlot?: React.ReactNode;
+  rightSlot?: React.ReactNode;
+} = {}) {
   const pathname = usePathname();
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const isSessionChecked = useAuthStore((state) => state.isSessionChecked);
@@ -71,10 +77,15 @@ export function Header() {
         >
           <Logo compact size={40}/>
         </Link>
-        <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
-          {pageTitle}
-        </h1>
+        {centerSlot ? (
+          centerSlot
+        ) : (
+          <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
+            {pageTitle}
+          </h1>
+        )}
         <div className="flex items-center gap-2 justify-self-end">
+          {rightSlot}
           <ThemeToggle />
           {isAuthPending ? (
             <div

@@ -105,7 +105,7 @@ export function ScheduleClassDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{classToEdit ? "Edit Class" : "Schedule Class"}</DialogTitle>
           <DialogDescription>
@@ -123,7 +123,7 @@ export function ScheduleClassDialog({
             options={batches.map(b => ({ label: b.name, value: b.id }))}
           />
           
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <BaseFormField id="startsAt" label="Start Time" error={form.formState.errors.startsAt?.message}>
               <Controller
                 control={form.control}

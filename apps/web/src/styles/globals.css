@@ -83,3 +83,91 @@
     color: var(--color-text) !important;
   }
 }
+
+@layer components {
+  /* LiveKit PreJoin Overrides */
+  .custom-prejoin .lk-prejoin {
+    @apply mx-auto flex w-full max-w-[480px] flex-col gap-5 bg-transparent p-0;
+  }
+
+  .custom-prejoin .lk-video-container {
+    @apply relative aspect-video w-full overflow-hidden rounded-control bg-black shadow-card;
+    border: 1px solid color-mix(in srgb, var(--color-border) 78%, var(--color-primary));
+  }
+
+  .custom-prejoin .lk-video-container::before {
+    content: "";
+    @apply pointer-events-none absolute inset-0 z-0;
+    background:
+      radial-gradient(circle at center, transparent 48%, rgba(0, 0, 0, 0.2)),
+      linear-gradient(
+        to top right,
+        color-mix(in srgb, var(--color-primary) 8%, transparent),
+        color-mix(in srgb, var(--color-accent) 5%, transparent)
+      );
+  }
+
+  .custom-prejoin .lk-video-container > * {
+    @apply relative z-10 h-full w-full;
+  }
+
+  .custom-prejoin .lk-button-group-container,
+  .custom-prejoin .lk-camera-mic-controls {
+    @apply mt-1 flex w-full flex-wrap items-center justify-center gap-3;
+  }
+
+  .custom-prejoin .lk-button-group {
+    @apply flex min-w-[10rem] flex-1 items-stretch overflow-hidden rounded-control border border-app-border bg-app-surface shadow-sm transition-all sm:flex-none;
+  }
+
+  .custom-prejoin .lk-button-group:hover {
+    @apply shadow-md;
+    border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  }
+
+  .custom-prejoin input.lk-form-control,
+  .custom-prejoin .lk-username-container > input {
+    display: none !important;
+  }
+
+  .custom-prejoin .lk-button-group .lk-button {
+    @apply flex min-h-11 flex-1 items-center justify-center gap-2 border-0 bg-transparent px-3 py-2 text-sm font-bold leading-none text-app-text outline-none transition-colors hover:bg-app-soft hover:opacity-100 sm:px-4 sm:text-base;
+  }
+
+  .custom-prejoin .lk-button-group .lk-button:last-child {
+    @apply flex-none border-l border-app-border px-3;
+  }
+
+  .custom-prejoin button[type="submit"] {
+    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-white shadow-[0_10px_28px_rgba(66,120,206,0.24)] transition-all hover:opacity-90 active:scale-[0.98] sm:text-lg;
+    background: linear-gradient(to right, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, transparent));
+    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+  }
+
+  .custom-prejoin .lk-button-group .lk-button svg,
+  .custom-prejoin button[type="submit"] svg {
+    @apply h-5 w-5 flex-none;
+  }
+
+  /* Meeting room — hide default LiveKit metadata inside redesigned tiles */
+  .lk-participant-metadata {
+    display: none !important;
+  }
+
+  /* Meeting room — ensure video tiles fill their containers */
+  .lk-participant-tile {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  .lk-participant-tile .lk-video-container {
+    position: absolute;
+    inset: 0;
+  }
+
+  .lk-participant-tile .lk-video-container video {
+    width: 100%;
+    height: 100%;
+  }
+}

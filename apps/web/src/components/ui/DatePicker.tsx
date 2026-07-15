@@ -118,7 +118,7 @@ export function DatePicker({
           />
           <span className="min-w-0 flex-1 truncate">
             {selectedDate
-              ? format(selectedDate, withTime ? "PPP p" : "PPP")
+              ? format(selectedDate, withTime ? "PP p" : "PPP")
               : displayPlaceholder}
           </span>
           <ChevronDown

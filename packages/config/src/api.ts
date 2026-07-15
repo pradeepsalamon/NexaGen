@@ -31,7 +31,10 @@ const apiEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
-  SMTP_USER: z.string().optional()
+  SMTP_USER: z.string().optional(),
+  LIVEKIT_URL: z.string().optional(),
+  LIVEKIT_API_KEY: z.string().optional(),
+  LIVEKIT_API_SECRET: z.string().optional()
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

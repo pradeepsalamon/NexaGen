@@ -5,6 +5,7 @@ import {
   QueryClientProvider
 } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 
@@ -13,6 +14,9 @@ import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isMeetingRoute = pathname?.startsWith("/live-class");
+
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -32,9 +36,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ToastProvider>
           <TooltipProvider delayDuration={600}>
             <SessionBootstrap />
-            <Header />
+            {!isMeetingRoute && <Header />}
             {/* <EmailVerificationBanner /> (Temporarily disabled) */}
-            <div className="pt-16">{children}</div>
+            <div className={!isMeetingRoute ? "pt-16" : ""}>{children}</div>
           </TooltipProvider>
         </ToastProvider>
       </ThemeProvider>

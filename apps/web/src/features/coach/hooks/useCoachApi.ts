@@ -1,7 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { queryKeys } from "../../../lib/queryKeys";
 import { useToast } from "../../../providers/ToastProvider";
-import type { CreateClassRequest, UpdateClassRequest } from "@nexa-gen/types";
+import type { CreateClassRequest, UpdateClassRequest, CoachClassResponse } from "@nexa-gen/types";
 import {
   cancelClass,
   createClass,
@@ -50,11 +50,15 @@ export function useClassHistory() {
   });
 }
 
-export function useClassDetail(id: string) {
+export function useClassDetail(
+  id: string,
+  options?: Omit<UseQueryOptions<CoachClassResponse, Error>, "queryKey" | "queryFn">
+) {
   return useQuery({
     queryKey: queryKeys.coach.classDetail(id),
     queryFn: () => getClassById(id),
-    enabled: !!id
+    enabled: !!id,
+    ...options
   });
 }
 

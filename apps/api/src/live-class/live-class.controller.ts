@@ -1,0 +1,45 @@
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+} from "@nestjs/common";
+import type { Request } from "express";
+import { LiveClassService } from "./live-class.service";
+import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { API_ROUTES } from "@nexa-gen/types";
+
+@Controller()
+export class LiveClassController {
+  constructor(private readonly liveClassService: LiveClassService) { }
+
+  private getAccessToken(request: Request) {
+    return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
+  }
+
+  @Post(API_ROUTES.liveClass.start())
+  startClass(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.startClass(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.token())
+  getToken(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.getToken(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.end())
+  endClass(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.endClass(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.liveClass.get())
+  getLiveClass(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.getLiveClass(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.liveClass.participants())
+  getParticipants(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.getParticipants(this.getAccessToken(request), id);
+  }
+}
