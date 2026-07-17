@@ -9,7 +9,7 @@ import { UserAvatar } from "@/components/common/UserAvatar";
 import { useAuthStore } from "@/stores/authStore";
 
 const pageTitles: Record<string, string> = {
-  "/": "NexaGen Chess",
+  "/": "Nexa Chess",
   "/admin": "Overview",
   "/admin/batches": "Batch management",
   "/admin/coaches": "Coach applications",
@@ -52,9 +52,11 @@ function formatPageTitle(pathname: string) {
 export function Header({
   centerSlot,
   rightSlot,
+  leftSlot,
 }: {
   centerSlot?: React.ReactNode;
   rightSlot?: React.ReactNode;
+  leftSlot?: React.ReactNode;
 } = {}) {
   const pathname = usePathname();
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -70,13 +72,16 @@ export function Header({
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface/95 shadow-[0_1px_0_rgba(16,24,40,0.02)] backdrop-blur supports-[backdrop-filter]:bg-app-surface/88">
       <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 sm:px-6 lg:px-8">
-        <Link
-          aria-label={activeUser ? "Go to Dashboard" : "Go to Home"}
-          className="min-w-0 justify-self-start rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-          href={homeHref}
-        >
-          <Logo compact size={40}/>
-        </Link>
+        <div className="flex items-center gap-3 min-w-0 justify-self-start">
+          <Link
+            aria-label={activeUser ? "Go to Dashboard" : "Go to Home"}
+            className="shrink-0 rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            href={homeHref}
+          >
+            <Logo compact size={40}/>
+          </Link>
+          {leftSlot}
+        </div>
         {centerSlot ? (
           centerSlot
         ) : (

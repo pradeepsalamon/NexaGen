@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getLiveClassToken } from "../api/live-class";
+import { getLiveClassToken, getLiveClass } from "../api/live-class";
 
 export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
   const [token, setToken] = useState<string | null>(null);
@@ -7,6 +7,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
   const [topic, setTopic] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [classStatus, setClassStatus] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -16,12 +17,25 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
         setIsLoading(true);
         setError(null);
         
-        const res = await getLiveClassToken(roomId);
-        
-        if (mounted) {
-          setToken(res.token);
-          setRoomName(res.roomName);
-          setTopic(res.topic || null);
+        const classDetails = await getLiveClass(roomId);
+        if (mounted) setClassStatus(classDetails.status);
+
+        if (classDetails.status === "COMPLETED" || classDetails.status === "CANCELLED") {
+          throw new Error("Class has ended");
+        }
+
+        if (classDetails.status === "SCHEDULED") {
+          throw new Error("Class has not been started yet");
+        }
+
+        if (shouldFetch) {
+          const res = await getLiveClassToken(roomId);
+          
+          if (mounted) {
+            setToken(res.token);
+            setRoomName(res.roomName);
+            setTopic(res.topic || classDetails.topic || null);
+          }
         }
       } catch (err) {
         if (mounted) {
@@ -34,7 +48,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
       }
     }
 
-    if (roomId && shouldFetch) {
+    if (roomId) {
       fetchToken();
     }
 
@@ -43,5 +57,5 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
     };
   }, [roomId, shouldFetch]);
 
-  return { token, roomName, topic, error, isLoading };
+  return { token, roomName, topic, error, isLoading, classStatus };
 }

@@ -80,7 +80,7 @@ describe("MailService", () => {
       const callArgs = mockSendMail.mock.calls[0][0];
       expect(callArgs.to).toBe("user@example.com");
       expect(callArgs.from).toBe("test@example.com");
-      expect(callArgs.subject).toContain("Reset your NexaGen Chess password");
+      expect(callArgs.subject).toContain("Reset your Nexa Chess password");
       expect(callArgs.text).toContain("https://reset.link");
       expect(callArgs.html).toContain("https://reset.link");
     });

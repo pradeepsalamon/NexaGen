@@ -10,8 +10,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-gen/config/api";
-import { LiveClassStatus, LiveKitTokenOptions } from "./types/live-class.types";
-import { UserRole, UserStatus } from "@prisma/client";
+import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
+import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 
 @Injectable()
@@ -49,7 +49,7 @@ export class LiveClassService {
     }
   }
 
-  async startClass(accessToken: string | undefined, scheduleId: string) {
+  async startClass(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
 
     if (user.role !== UserRole.COACH) {
@@ -57,7 +57,7 @@ export class LiveClassService {
     }
 
     const scheduledClass = await this.prisma.coachClass.findUnique({
-      where: { id: scheduleId }
+      where: { id: classId }
     });
 
     if (!scheduledClass) {
@@ -72,69 +72,81 @@ export class LiveClassService {
       throw new BadRequestException("Cannot start a cancelled or completed class.");
     }
 
-    let liveClass = await this.prisma.liveClass.findUnique({
-      where: { scheduleId }
+    let liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId }
     });
 
-    if (liveClass && liveClass.status === LiveClassStatus.LIVE) {
+    if (liveSession && liveSession.status === LiveSessionStatus.LIVE) {
       throw new ConflictException("Live class is already running.");
     }
 
-    if (!liveClass) {
-      const roomName = this.livekit.generateRoomName(scheduleId);
+    if (!liveSession) {
+      const roomName = this.livekit.generateRoomName(classId);
       const room = await this.livekit.createRoom(roomName);
 
-      liveClass = await this.prisma.liveClass.create({
+      liveSession = await this.prisma.liveSession.create({
         data: {
           batchId: scheduledClass.batchId,
           coachId: scheduledClass.coachId,
-          scheduleId: scheduledClass.id,
+          classId: scheduledClass.id,
           roomName: roomName,
-          roomSid: room.sid,
-          status: LiveClassStatus.LIVE,
+          livekitRoomName: room.sid,
+          status: LiveSessionStatus.LIVE,
           scheduledAt: scheduledClass.startsAt,
           startedAt: new Date()
         }
       });
     } else {
-      liveClass = await this.prisma.liveClass.update({
-        where: { id: liveClass.id },
+      liveSession = await this.prisma.liveSession.update({
+        where: { id: liveSession.id },
         data: {
-          status: LiveClassStatus.LIVE,
+          status: LiveSessionStatus.LIVE,
           startedAt: new Date()
         }
       });
     }
 
     await this.prisma.coachClass.update({
-      where: { id: scheduleId },
-      data: { status: "IN_PROGRESS" }
+      where: { id: classId },
+      data: { status: ClassStatus.LIVE }
     });
 
-    return { message: "Class started successfully", liveClass };
+    return { message: "Class started successfully", liveSession };
   }
 
-  async getToken(accessToken: string | undefined, scheduleId: string) {
+  async getToken(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
 
-    const liveClass = await this.prisma.liveClass.findUnique({
-      where: { scheduleId },
+    const scheduledClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId }
+    });
+
+    if (!scheduledClass) {
+      throw new NotFoundException("Class not found.");
+    }
+
+    if (scheduledClass.status !== ClassStatus.LIVE) {
+      throw new ForbiddenException("Class is not currently active.");
+    }
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
       include: { 
-        batch: { include: { students: true } },
-        schedule: true
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        class: true
       }
     });
 
-    if (!liveClass) {
+    if (!liveSession) {
       throw new NotFoundException("Live class has not been started yet.");
     }
 
-    if (liveClass.status !== LiveClassStatus.LIVE) {
-      throw new BadRequestException(`Live class is currently ${liveClass.status}.`);
+    if (liveSession.status !== LiveSessionStatus.LIVE) {
+      throw new BadRequestException(`Live class is currently ${liveSession.status}.`);
     }
 
-    const isCoach = user.role === UserRole.COACH && liveClass.coachId === user.id;
-    const isStudent = user.role === UserRole.STUDENT && liveClass.batch.students.some((s: any) => s.studentId === user.id);
+    const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
+    const isStudent = user.role === UserRole.STUDENT && liveSession.batch.students.some((s: any) => s.studentId === user.id);
     const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
 
     if (!isCoach && !isStudent && !isAdmin) {
@@ -142,78 +154,102 @@ export class LiveClassService {
     }
 
     const tokenOptions: LiveKitTokenOptions = {
-      roomName: liveClass.roomName,
+      roomName: liveSession.roomName,
       participantIdentity: user.id,
       participantName: `${user.firstName} ${user.lastName || ""}`.trim(),
       isCoach: isCoach || isAdmin
     };
 
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
-    const topic = liveClass.schedule?.topic || liveClass.schedule?.title || "Live Class";
-    return { token: livekitToken, roomName: liveClass.roomName, topic };
+    const topic = liveSession.class?.topic || liveSession.class?.title || "Live Class";
+    return { token: livekitToken, roomName: liveSession.roomName, topic };
   }
 
-  async endClass(accessToken: string | undefined, scheduleId: string) {
+  async endClass(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
 
     if (user.role !== UserRole.COACH && user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException("You do not have permission to end this class.");
     }
 
-    const liveClass = await this.prisma.liveClass.findUnique({
-      where: { scheduleId }
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId }
     });
 
-    if (!liveClass) {
+    if (!liveSession) {
       throw new NotFoundException("Live class not found.");
     }
 
-    if (user.role === UserRole.COACH && liveClass.coachId !== user.id) {
+    if (user.role === UserRole.COACH && liveSession.coachId !== user.id) {
       throw new ForbiddenException("You can only end your own classes.");
     }
 
-    await this.livekit.deleteRoom(liveClass.roomName);
+    await this.livekit.deleteRoom(liveSession.roomName);
 
-    await this.prisma.liveClass.update({
-      where: { id: liveClass.id },
+    await this.prisma.liveSession.update({
+      where: { id: liveSession.id },
       data: {
-        status: LiveClassStatus.ENDED,
+        status: LiveSessionStatus.ENDED,
         endedAt: new Date()
       }
     });
 
     await this.prisma.coachClass.update({
-      where: { id: scheduleId },
-      data: { status: "COMPLETED" }
+      where: { id: classId },
+      data: { status: ClassStatus.COMPLETED }
     });
 
     return { message: "Class ended successfully" };
   }
 
-  async getLiveClass(accessToken: string | undefined, scheduleId: string) {
-    await this.getAuthenticatedUser(accessToken);
-    const liveClass = await this.prisma.liveClass.findUnique({
-      where: { scheduleId }
+  async getLiveClass(accessToken: string | undefined, classId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    const scheduledClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
+      include: { 
+        liveSession: true,
+        batch: { include: { students: { where: { isDeleted: false } } } }
+      }
     });
 
-    if (!liveClass) {
-      throw new NotFoundException("Live class not found.");
+    if (!scheduledClass) {
+      throw new NotFoundException("Class not found.");
     }
 
-    return liveClass;
+    const isCoach = user.role === UserRole.COACH && scheduledClass.coachId === user.id;
+    const isStudent = user.role === UserRole.STUDENT && scheduledClass.batch.students.some((s: any) => s.studentId === user.id);
+    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+
+    if (!isCoach && !isStudent && !isAdmin) {
+      throw new ForbiddenException("You do not have access to this class.");
+    }
+
+    // Exclude the deeply nested batch details before returning to avoid over-fetching/leaking
+    const { batch, ...classWithoutBatch } = scheduledClass;
+
+    return classWithoutBatch;
   }
 
-  async getParticipants(accessToken: string | undefined, scheduleId: string) {
-    await this.getAuthenticatedUser(accessToken);
-    const liveClass = await this.prisma.liveClass.findUnique({
-      where: { scheduleId }
+  async getParticipants(accessToken: string | undefined, classId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+      include: { batch: { include: { students: { where: { isDeleted: false } } } } }
     });
 
-    if (!liveClass) {
+    if (!liveSession) {
       throw new NotFoundException("Live class not found.");
     }
 
-    const participants = await this.livekit.listParticipants(liveClass.roomName);
+    const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
+    const isStudent = user.role === UserRole.STUDENT && liveSession.batch.students.some((s: any) => s.studentId === user.id);
+    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+
+    if (!isCoach && !isStudent && !isAdmin) {
+      throw new ForbiddenException("You do not have access to this class's participants.");
+    }
+
+    const participants = await this.livekit.listParticipants(liveSession.roomName);
     return { participants };
   }
 }

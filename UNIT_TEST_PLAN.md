@@ -328,7 +328,7 @@ Test scenarios for `login()`:
 
 Test scenarios for `refresh()`:
 
-- Reads refresh token from `nexagen_refresh_token` cookie.
+- Reads refresh token from `nexa_refresh_token` cookie.
 - Delegates token and session context to `AuthService.refresh`.
 - Sets replacement cookies.
 - Returns only `{ user }`.
@@ -345,14 +345,14 @@ Test scenarios for `logout()`:
 
 Test scenarios for `me()`:
 
-- Reads access token from `nexagen_access_token` cookie.
+- Reads access token from `nexa_access_token` cookie.
 - Delegates to `AuthService.me`.
 - Returns service response.
 - Propagates unauthorized exceptions.
 
 Test scenarios for `updateProfile()`:
 
-- Reads access token from `nexagen_access_token` cookie.
+- Reads access token from `nexa_access_token` cookie.
 - Delegates access token and body to `AuthService.updateProfile`.
 - Returns service response.
 - Propagates unauthorized exceptions.
@@ -525,7 +525,7 @@ Priority: Medium
 
 Scenarios:
 
-- Cookie names remain `nexagen_access_token` and `nexagen_refresh_token`.
+- Cookie names remain `nexa_access_token` and `nexa_refresh_token`.
 - Cookie paths remain `/`.
 - `AuthModule` compiles with mocked `PrismaModule`, `MailModule`, and `JwtModule` dependencies where appropriate.
 - `AuthModule` exports `AuthService`.

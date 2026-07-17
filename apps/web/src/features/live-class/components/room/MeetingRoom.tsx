@@ -4,9 +4,12 @@ import { useState } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
+  StartAudio,
 } from "@livekit/components-react";
 import { DisconnectReason } from "livekit-client";
-import { RoomLayout } from "./RoomLayout";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/authStore";
+import { MeetingLayout } from "../meeting/MeetingLayout";
 import { ConnectionLost } from "../states/ErrorStates";
 import { getWebEnv } from "@nexa-gen/config/web";
 
@@ -29,13 +32,15 @@ function isIgnorableRoomError(message: string) {
 
 export function MeetingRoom({ token }: MeetingRoomProps) {
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
   
   if (error) {
     return (
       <ConnectionLost 
         onRetry={() => {
           setError(null);
-          window.location.reload(); // Simple retry strategy for now
+          window.location.reload();
         }} 
       />
     );
@@ -53,6 +58,8 @@ export function MeetingRoom({ token }: MeetingRoomProps) {
       onConnected={() => setError(null)}
       onDisconnected={(reason) => {
         if (!reason || reason === DisconnectReason.CLIENT_INITIATED) {
+          const homeHref = user?.role === "SUPER_ADMIN" ? "/admin" : user?.role === "COACH" ? "/coach" : "/dashboard/student";
+          router.push(homeHref);
           return;
         }
         setError(`Disconnected: ${reason}`);
@@ -62,8 +69,9 @@ export function MeetingRoom({ token }: MeetingRoomProps) {
         setError(roomError.message);
       }}
     >
-      <RoomLayout />
+      <MeetingLayout />
       <RoomAudioRenderer />
+      <StartAudio label="Click to allow audio playback" />
     </LiveKitRoom>
   );
 }

@@ -3,15 +3,19 @@
 import { PreJoin } from "@livekit/components-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
 import { RoomEnded } from "../states/ErrorStates";
-import { LiveClassStatus } from "../../types/live-class";
+import { ClassStatus } from "../../types/live-class";
+import { useAuthStore } from "@/stores/authStore";
 
 interface PreJoinCardProps {
-  status?: LiveClassStatus;
+  status?: ClassStatus;
   onJoin: () => void;
 }
 
 export function PreJoinCard({ status, onJoin }: PreJoinCardProps) {
-  if (status === "ENDED") {
+  const user = useAuthStore((state) => state.user);
+  const displayName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Student";
+
+  if (status === "COMPLETED") {
     return <RoomEnded />;
   }
 
@@ -27,7 +31,7 @@ export function PreJoinCard({ status, onJoin }: PreJoinCardProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="px-5 pb-6 sm:px-8">
-          <div className="custom-prejoin">
+          <div className="custom-prejoin [&_.lk-username-container]:hidden [&_input[type='text']]:hidden">
             {/* The LiveKit PreJoin component handles the device selection and preview */}
             <PreJoin
               onSubmit={onJoin}
@@ -35,7 +39,7 @@ export function PreJoinCard({ status, onJoin }: PreJoinCardProps) {
               defaults={{
                 audioEnabled: true,
                 videoEnabled: true,
-                username: "Student",
+                username: displayName,
               }}
             />
           </div>

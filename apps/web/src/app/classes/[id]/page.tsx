@@ -25,7 +25,7 @@ export default function ClassDetailsPage() {
 
   useEffect(() => {
     if (cls) {
-      document.title = `${cls.title || cls.topic || 'Class Details'} - NexaGen`;
+      document.title = `${cls.title || cls.topic || 'Class Details'} - Nexa Chess`;
     }
   }, [cls]);
 
@@ -62,7 +62,7 @@ export default function ClassDetailsPage() {
                 <Badge variant={getClassStatusBadgeVariant(cls.status)} className="text-xs uppercase font-bold tracking-wider">
                   {cls.status}
                 </Badge>
-                {cls.status === "IN_PROGRESS" && (
+                {(cls.status === "IN_PROGRESS" || cls.status === "LIVE") && (
                   <span className="flex h-3 w-3 relative ml-1" title="Live Now">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
@@ -114,7 +114,7 @@ export default function ClassDetailsPage() {
                       {startLiveClassMutation.isPending ? "Starting Live Class..." : "Start Live Class"}
                     </Button>
                   </>
-                ) : cls.status === "IN_PROGRESS" ? (
+                ) : (cls.status === "IN_PROGRESS" || cls.status === "LIVE") ? (
                   <>
                     <h2 className="text-2xl font-bold text-app-text">Class is Live!</h2>
                     <p className="text-app-muted">The live session is currently active.</p>
@@ -138,7 +138,7 @@ export default function ClassDetailsPage() {
               </>
             ) : (
               <>
-                {cls.status === "IN_PROGRESS" ? (
+                {(cls.status === "IN_PROGRESS" || cls.status === "LIVE") ? (
                   <>
                     <h2 className="text-2xl font-bold text-app-text">Class is Live!</h2>
                     <p className="text-app-muted">The coach has started the live session. Join now!</p>

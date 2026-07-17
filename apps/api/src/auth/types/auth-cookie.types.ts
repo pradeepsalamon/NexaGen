@@ -1,6 +1,6 @@
 export const AUTH_COOKIE_NAMES = {
-  accessToken: "nexagen_access_token",
-  refreshToken: "nexagen_refresh_token"
+  accessToken: "nexa_access_token",
+  refreshToken: "nexa_refresh_token"
 } as const;
 
 export const AUTH_COOKIE_PATHS = {

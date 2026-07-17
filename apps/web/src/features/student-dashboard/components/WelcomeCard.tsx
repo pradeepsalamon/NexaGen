@@ -31,7 +31,7 @@ export function WelcomeCard({
             studentName.charAt(0).toUpperCase()
           )}
         </div>
-        
+
         <div className="flex-1 text-center md:text-left space-y-2">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-app-text">
             Welcome back, {studentName}! 👋

@@ -1,17 +1,28 @@
-export type LiveClassStatus = "SCHEDULED" | "WAITING" | "LIVE" | "ENDED" | "CANCELLED";
+export type ClassStatus = "SCHEDULED" | "LIVE" | "COMPLETED" | "CANCELLED";
+export type LiveSessionStatus = "SCHEDULED" | "WAITING" | "LIVE" | "ENDED" | "CANCELLED";
 
-export interface LiveClass {
+export interface LiveSession {
   id: string;
-  batchId: string;
-  coachId: string;
-  scheduleId: string;
+  classId: string;
   roomName: string;
-  roomSid: string | null;
-  status: LiveClassStatus;
+  livekitRoomName: string | null;
+  status: LiveSessionStatus;
   scheduledAt: string;
   startedAt: string | null;
   endedAt: string | null;
-  metadata: any;
+  recordingUrl: string | null;
+}
+
+export interface CoachClass {
+  id: string;
+  batchId: string;
+  coachId: string;
+  title: string | null;
+  topic: string | null;
+  status: ClassStatus;
+  startsAt: string;
+  endsAt: string;
+  liveSession?: LiveSession;
 }
 
 export interface LiveKitTokenResponse {

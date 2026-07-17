@@ -29,7 +29,7 @@ type StoredTheme = {
   mode?: ThemeMode;
 };
 
-const STORAGE_KEY = "nexagen-chess-theme";
+const STORAGE_KEY = "nexa-chess-theme";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 const defaultColors = {

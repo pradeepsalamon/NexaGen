@@ -11,7 +11,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-const accessTokenCookieName = "nexagen_access_token";
+const accessTokenCookieName = "nexa_access_token";
 
 const metrics = [
   { icon: UserRoundCheck, label: "Active students", value: "186" },
@@ -86,7 +86,7 @@ export default function SuperAdminDashboardPage() {
               Access check
             </h2>
             <p className="mt-2 text-sm leading-6 text-app-muted">
-              Cookie gate passed for `nexagen_access_token`.
+              Cookie gate passed for `nexa_access_token`.
             </p>
           </aside>
         </section>

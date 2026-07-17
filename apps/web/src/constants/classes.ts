@@ -6,7 +6,8 @@ type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 export const getClassStatusBadgeVariant = (status: string): BadgeVariant => {
   switch (status) {
     case "SCHEDULED": return "warning";
-    case "IN_PROGRESS": return "success";
+    case "IN_PROGRESS":
+    case "LIVE": return "success";
     case "COMPLETED": return "secondary";
     case "CANCELLED": return "destructive";
     default: return "default";

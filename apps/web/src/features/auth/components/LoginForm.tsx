@@ -47,7 +47,7 @@ export function LoginForm() {
     onSuccess: ({ user }) => {
       setUser(user);
       toast.success({
-        message: "Welcome back to NexaGen Chess.",
+        message: "Welcome back to Nexa Chess.",
         title: "Login successful"
       });
 
@@ -86,7 +86,7 @@ export function LoginForm() {
         <AuthHeader
           actionHref="/register"
           actionLabel="Create account"
-          helperText="New to NexaGen Chess?"
+          helperText="New to Nexa Chess?"
           title="Log in"
         />
         <form className="grid gap-4" noValidate onSubmit={handleSubmit}>

@@ -31,9 +31,9 @@ npm run db:seed
 The seed script is idempotent, refuses to run when `NODE_ENV=production`, and
 creates these active accounts with password `Test@12345`:
 
-- `superadmin@nexagen.test`
-- `coach@nexagen.test`
-- `student@nexagen.test`
+- `superadmin@nexa.test`
+- `coach@nexa.test`
+- `student@nexa.test`
 
 ## Production
 

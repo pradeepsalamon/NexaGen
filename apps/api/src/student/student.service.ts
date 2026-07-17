@@ -7,7 +7,7 @@ import { getApiEnv } from "@nexa-gen/config/api";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
 import { UserStatus } from "@prisma/client";
-import { endOfDay, startOfDay } from "date-fns";
+
 
 @Injectable()
 export class StudentService {
@@ -21,8 +21,9 @@ export class StudentService {
   async getDashboard(accessToken: string | undefined) {
     const user = await this.getAuthenticatedUser(accessToken);
     const now = new Date();
-    const todayStart = startOfDay(now);
-    const todayEnd = endOfDay(now);
+    // Use a rolling 24h window to avoid server-timezone dependency
+    const todayStart = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+    const todayEnd = new Date(now.getTime() + 20 * 60 * 60 * 1000);
 
     // 1. Fetch upcoming classes for batches the student is enrolled in
     const scheduledClasses = await this.prisma.coachClass.findMany({
@@ -32,7 +33,7 @@ export class StudentService {
         status: { not: "CANCELLED" }
       },
       orderBy: { startsAt: "asc" },
-      include: { coach: true, liveClass: true }
+      include: { coach: true, liveSession: true }
     });
 
     // 2. Fetch Course Progress

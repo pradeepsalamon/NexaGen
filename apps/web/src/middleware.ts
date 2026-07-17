@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const accessTokenCookieName = "nexagen_access_token";
+const accessTokenCookieName = "nexa_access_token";
 
 export function middleware(request: NextRequest) {
   const hasAccessToken = Boolean(

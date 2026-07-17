@@ -3,14 +3,14 @@ import { AppProviders } from "../providers/AppProviders";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "NexaGen Chess",
+  title: "Nexa Chess",
   description: "Online Chess Learning Management System"
 };
 
 const themeInitScript = `
 (() => {
   try {
-    const savedTheme = window.localStorage.getItem("nexagen-chess-theme");
+    const savedTheme = window.localStorage.getItem("nexa-chess-theme");
     const parsed = savedTheme ? JSON.parse(savedTheme) : {};
     const mode = parsed.mode === "dark" ? "dark" : "light";
     const colors = parsed.colors || {};

@@ -1,13 +1,13 @@
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES } from "@nexa-gen/types";
-import { LiveClass, LiveKitTokenResponse, ParticipantInfo } from "../types/live-class";
+import { CoachClass, LiveSession, LiveKitTokenResponse, ParticipantInfo } from "../types/live-class";
 
-export const getLiveClass = (roomId: string): Promise<LiveClass> => {
-  return apiFetch<LiveClass>(API_ROUTES.liveClass.get(roomId));
+export const getLiveClass = (roomId: string): Promise<CoachClass> => {
+  return apiFetch<CoachClass>(API_ROUTES.liveClass.get(roomId));
 };
 
-export const startLiveClass = (roomId: string): Promise<{ liveClass: LiveClass }> => {
-  return apiFetch<{ liveClass: LiveClass }>(API_ROUTES.liveClass.start(roomId), { method: "POST" });
+export const startLiveClass = (roomId: string): Promise<{ liveSession: LiveSession }> => {
+  return apiFetch<{ liveSession: LiveSession }>(API_ROUTES.liveClass.start(roomId), { method: "POST" });
 };
 
 export const endLiveClass = (roomId: string): Promise<void> => {

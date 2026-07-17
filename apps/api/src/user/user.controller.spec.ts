@@ -58,7 +58,7 @@ describe("UserController", () => {
 
   const mockRequest = (token?: string) =>
     ({
-      cookies: token ? { nexagen_access_token: token } : {}
+      cookies: token ? { nexa_access_token: token } : {}
     }) as Request;
 
   it("calls list", async () => {
