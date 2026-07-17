@@ -11,53 +11,93 @@ import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
 import { PreJoinCard } from "@/features/live-class/components/prejoin/PreJoinCard";
 import { LoadingMeeting } from "@/features/live-class/components/states/LoadingMeeting";
 import { ConnectionLost, PermissionDenied, RoomEnded, ClassNotStarted } from "@/features/live-class/components/states/ErrorStates";
+import { Header } from "@/components/layout/Header";
 
 export default function LiveClassPage() {
   const params = useParams();
   const roomId = params.roomId as string;
 
   const [hasJoined, setHasJoined] = useState(false);
-  const { token, topic, error, isLoading } = useLiveClass(roomId, hasJoined);
-
-  if (!hasJoined) {
-    return (
-      <PreJoinCard 
-        onJoin={() => setHasJoined(true)} 
-      />
-    );
-  }
+  const { token, topic, error, isLoading, classStatus } = useLiveClass(roomId, hasJoined);
 
   if (isLoading) {
-    return <LoadingMeeting message="Preparing your Live Class..." />;
+    return (
+      <div className="flex flex-col h-screen">
+        <Header />
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          <LoadingMeeting message="Preparing your Live Class..." />
+        </div>
+      </div>
+    );
   }
 
   if (error) {
     const errorStr = error.toLowerCase();
     
-    if (errorStr.includes("not been started")) {
-      return <ClassNotStarted onRetry={() => window.location.reload()} />;
+    if (errorStr.includes("not been started") || classStatus === "SCHEDULED") {
+      return (
+        <div className="flex flex-col h-screen">
+          <Header />
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <ClassNotStarted roomId={roomId} onRetry={() => window.location.reload()} />
+          </div>
+        </div>
+      );
     }
     
     if (errorStr.includes("not authorized") || errorStr.includes("permission")) {
-      return <PermissionDenied />;
+      return (
+        <div className="flex flex-col h-screen">
+          <Header />
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <PermissionDenied />
+          </div>
+        </div>
+      );
     }
     
-    if (errorStr.includes("ended")) {
-      return <RoomEnded />;
+    if (errorStr.includes("ended") || classStatus === "COMPLETED" || classStatus === "CANCELLED") {
+      return (
+        <div className="flex flex-col h-screen">
+          <Header />
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+            <RoomEnded />
+          </div>
+        </div>
+      );
     }
     
     return (
-      <ConnectionLost 
-        onRetry={() => window.location.reload()} 
-      />
+      <div className="flex flex-col h-screen">
+        <Header />
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          <ConnectionLost onRetry={() => window.location.reload()} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasJoined) {
+    return (
+      <div className="flex flex-col h-screen">
+        <Header />
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900">
+          <PreJoinCard onJoin={() => setHasJoined(true)} />
+        </div>
+      </div>
     );
   }
 
   if (!token) {
-    return <LoadingMeeting message="Connecting..." />;
+    return (
+      <div className="flex flex-col h-screen">
+        <Header />
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          <LoadingMeeting message="Connecting..." />
+        </div>
+      </div>
+    );
   }
-
-
 
   return (
     <LiveClassProvider topic={topic}>

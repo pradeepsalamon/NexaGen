@@ -44,9 +44,9 @@ async function main() {
   const verifiedAt = new Date();
 
   const superAdmin = await upsertUser(
-    "superadmin@nexagen.test",
+    "superadmin@nexa.test",
     {
-      email: "superadmin@nexagen.test",
+      email: "superadmin@nexa.test",
       emailVerifiedAt: verifiedAt,
       firstName: "Super",
       isEmailVerified: true,
@@ -65,9 +65,9 @@ async function main() {
   );
 
   const coach = await upsertUser(
-    "coach@nexagen.test",
+    "coach@nexa.test",
     {
-      email: "coach@nexagen.test",
+      email: "coach@nexa.test",
       emailVerifiedAt: verifiedAt,
       firstName: "Test",
       isEmailVerified: true,
@@ -107,10 +107,10 @@ async function main() {
   );
 
   const student = await upsertUser(
-    "student@nexagen.test",
+    "student@nexa.test",
     {
       createdById: coach.id,
-      email: "student@nexagen.test",
+      email: "student@nexa.test",
       emailVerifiedAt: verifiedAt,
       firstName: "Test",
       isEmailVerified: true,
@@ -134,7 +134,7 @@ async function main() {
     {
       chessRating: 950,
       experienceLevel: ExperienceLevel.BEGINNER,
-      parentEmail: "parent@nexagen.test",
+      parentEmail: "parent@nexa.test",
       parentName: "Test Parent",
       parentPhone: "+919999999999",
       parentRelationship: "Parent",
@@ -143,7 +143,7 @@ async function main() {
     {
       chessRating: 950,
       experienceLevel: ExperienceLevel.BEGINNER,
-      parentEmail: "parent@nexagen.test",
+      parentEmail: "parent@nexa.test",
       parentName: "Test Parent",
       parentPhone: "+919999999999",
       parentRelationship: "Parent"
@@ -201,9 +201,9 @@ async function main() {
   }
 
   console.log("Seeded test users:");
-  console.log(`- superadmin@nexagen.test / ${seedPassword}`);
-  console.log(`- coach@nexagen.test / ${seedPassword}`);
-  console.log(`- student@nexagen.test / ${seedPassword}`);
+  console.log(`- superadmin@nexa.test / ${seedPassword}`);
+  console.log(`- coach@nexa.test / ${seedPassword}`);
+  console.log(`- student@nexa.test / ${seedPassword}`);
   console.log(`- batch: ${batch.name}`);
 
   const batchCount = await prisma.batch.count();

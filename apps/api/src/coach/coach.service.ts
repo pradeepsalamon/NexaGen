@@ -44,8 +44,9 @@ export class CoachService {
   async getDashboard(accessToken: string | undefined): Promise<CoachDashboardResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    // Use a rolling window rather than server-local midnight to prevent timezone drift
+    const startOfDay = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+    const endOfDay = new Date(now.getTime() + 20 * 60 * 60 * 1000);
 
     const [batchCount, students, todayClasses, upcomingClasses, completedClasses] = await Promise.all([
       this.prisma.batchCoach.count({
@@ -58,14 +59,14 @@ export class CoachService {
       this.prisma.coachClass.count({
         where: {
           coachId,
-          status: { in: [ClassStatus.SCHEDULED, ClassStatus.IN_PROGRESS] },
+          status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] },
           startsAt: { gte: startOfDay, lt: endOfDay }
         }
       }),
       this.prisma.coachClass.count({
         where: {
           coachId,
-          status: { in: [ClassStatus.SCHEDULED, ClassStatus.IN_PROGRESS] },
+          status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] },
           startsAt: { gte: endOfDay }
         }
       }),
@@ -91,7 +92,7 @@ export class CoachService {
         students: { where: { isDeleted: false } },
         classes: {
           where: { 
-            status: { in: [ClassStatus.SCHEDULED, ClassStatus.IN_PROGRESS] } 
+            status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] } 
           },
           orderBy: { startsAt: "asc" },
           take: 1
@@ -115,8 +116,8 @@ export class CoachService {
   async getTodayClasses(accessToken: string | undefined): Promise<CoachClassListResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+    const startOfDay = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+    const endOfDay = new Date(now.getTime() + 20 * 60 * 60 * 1000);
 
     const classes = await this.prisma.coachClass.findMany({
       where: { coachId, startsAt: { gte: startOfDay, lt: endOfDay } },
@@ -130,12 +131,12 @@ export class CoachService {
   async getUpcomingClasses(accessToken: string | undefined): Promise<CoachClassListResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
     const now = new Date();
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDay = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
     const classes = await this.prisma.coachClass.findMany({
       where: { 
         coachId, 
-        status: { in: [ClassStatus.SCHEDULED, ClassStatus.IN_PROGRESS] }, 
+        status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] }, 
         startsAt: { gte: startOfDay } 
       },
       include: { batch: { include: { students: { where: { isDeleted: false } } } } },

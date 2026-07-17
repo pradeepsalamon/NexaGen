@@ -1,6 +1,6 @@
-# NexaGen Chess
+# Nexa Chess
 
-NexaGen Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, shared TypeScript packages, Prisma/PostgreSQL persistence, and HTTP-only cookie based auth.
+Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, shared TypeScript packages, Prisma/PostgreSQL persistence, and HTTP-only cookie based auth.
 
 ## Workspaces
 
@@ -124,9 +124,9 @@ npm run db:seed
 
 Seeded login accounts all use `Test@12345`:
 
-- `superadmin@nexagen.test`
-- `coach@nexagen.test`
-- `student@nexagen.test`
+- `superadmin@nexa.test`
+- `coach@nexa.test`
+- `student@nexa.test`
 
 Apply committed migrations in production:
 

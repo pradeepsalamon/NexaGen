@@ -38,7 +38,7 @@ export class LiveKitService implements OnModuleInit {
       this.logger.log(`Creating LiveKit room: ${roomName}`);
       const room = await this.roomClient.createRoom({
         name: roomName,
-        emptyTimeout: 10 * 60 * 60, // 10 hours timeout to prevent LiveKit dashboard session fragmentation
+        emptyTimeout: 10 * 60, // 10 minutes timeout to prevent resource leaks
         maxParticipants: 100,
       });
       return room;
@@ -98,7 +98,7 @@ export class LiveKitService implements OnModuleInit {
         at.addGrant({
           roomJoin: true,
           room: options.roomName,
-          canPublish: true,
+          canPublish: true, // Allow students to publish video/audio
           canSubscribe: true,
           canPublishData: true,
           roomAdmin: false,

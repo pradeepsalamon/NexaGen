@@ -144,7 +144,7 @@ describe("AuthController", () => {
   describe("logout", () => {
     it("calls authService.logout and clears cookies", async () => {
       const req = mockRequest("127.0.0.1", "test-agent", {
-        nexagen_refresh_token: "some-token"
+        nexa_refresh_token: "some-token"
       });
       const res = mockResponse();
 
@@ -160,7 +160,7 @@ describe("AuthController", () => {
   describe("me", () => {
     it("calls authService.me with access token", async () => {
       const req = mockRequest("127.0.0.1", "test-agent", {
-        nexagen_access_token: "access-token"
+        nexa_access_token: "access-token"
       });
       const response: AuthResponse = { user };
 

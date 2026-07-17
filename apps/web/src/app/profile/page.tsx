@@ -5,7 +5,7 @@ import { LogoutButton } from "../../features/auth/components/LogoutButton";
 import { ProfileForm } from "../../features/auth/components/ProfileForm";
 import { ProfileRoleHeading } from "../../features/auth/components/ProfileRoleHeading";
 
-const accessTokenCookieName = "nexagen_access_token";
+const accessTokenCookieName = "nexa_access_token";
 
 export default function ProfilePage() {
   const hasAccessToken = Boolean(cookies().get(accessTokenCookieName)?.value);

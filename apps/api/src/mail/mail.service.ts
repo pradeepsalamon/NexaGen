@@ -18,16 +18,16 @@ export class MailService {
     await transporter.sendMail({
       from: this.from,
       to,
-      subject: "Reset your NexaGen Chess password",
+      subject: "Reset your Nexa Chess password",
       text: [
-        "Use this link to reset your NexaGen Chess password:",
+        "Use this link to reset your Nexa Chess password:",
         resetLink,
         "",
         "This link expires in 30 minutes. If you did not request it, you can ignore this email."
       ].join("\n"),
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>Reset your NexaGen Chess password</h2>
+          <h2>Reset your Nexa Chess password</h2>
           <p>Use the button below to choose a new password. This link expires in 30 minutes.</p>
           <p>
             <a href="${resetLink}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
@@ -48,16 +48,16 @@ export class MailService {
     await transporter.sendMail({
       from: this.from,
       to,
-      subject: "Verify your NexaGen Chess email address",
+      subject: "Verify your Nexa Chess email address",
       text: [
-        "Welcome to NexaGen Chess! Please verify your email address by clicking the link below:",
+        "Welcome to Nexa Chess! Please verify your email address by clicking the link below:",
         verificationLink,
         "",
         "This link expires in 24 hours. If you did not create an account, you can ignore this email."
       ].join("\n"),
       html: `
         <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
-          <h2>Welcome to NexaGen Chess!</h2>
+          <h2>Welcome to Nexa Chess!</h2>
           <p>Please verify your email address by clicking the button below. This link expires in 24 hours.</p>
           <p>
             <a href="${verificationLink}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">

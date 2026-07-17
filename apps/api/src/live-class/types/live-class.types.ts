@@ -1,4 +1,4 @@
-export enum LiveClassStatus {
+export enum LiveSessionStatus {
   SCHEDULED = "SCHEDULED",
   WAITING = "WAITING",
   LIVE = "LIVE",

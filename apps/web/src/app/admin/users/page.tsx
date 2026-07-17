@@ -3,7 +3,7 @@ import { UserManagementClient } from "@/features/users/components/UserManagement
 
 export const metadata: Metadata = {
   description: "Manage users, roles, and statuses.",
-  title: "User Management - Admin | Nexa Gen"
+  title: "User Management - Admin | Nexa Chess"
 };
 
 export default function UsersPage() {

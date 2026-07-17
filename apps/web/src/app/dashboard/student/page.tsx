@@ -45,24 +45,24 @@ export default function StudentDashboardPage() {
 
   return (
     <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
-      <PageHeader 
-        title="Student Dashboard" 
-        description="Track your progress and continue learning." 
+      <PageHeader
+        title="Student Dashboard"
+        description="Track your progress and continue learning."
       />
 
       {/* Row 1: Welcome & Today's Class */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <WelcomeCard 
+          <WelcomeCard
             studentName={user?.firstName || "Student"}
             courseName={data?.courses?.[0]?.title || "Explore Courses"}
             batchName="Your Batch"
             memberSince="Recently"
-            liveClassId={data?.todaysClass?.status === "IN_PROGRESS" ? data.todaysClass.id : undefined}
+            liveClassId={(data?.todaysClass?.status === "IN_PROGRESS" || data?.todaysClass?.status === "LIVE") ? data.todaysClass.id : undefined}
           />
         </div>
         <div className="lg:col-span-1">
-          <TodaysClass 
+          <TodaysClass
             id={data?.todaysClass?.id}
             topic={data?.todaysClass?.topic}
             coachName={data?.todaysClass?.coachName}

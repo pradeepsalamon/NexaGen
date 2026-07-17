@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthState>()(
         })
     }),
     {
-      name: "nexagen-auth",
+      name: "nexa-auth",
       onRehydrateStorage: () => (state) => {
         state?.setHydrated(true);
       },

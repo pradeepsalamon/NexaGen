@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Calendar, Clock } from "lucide-react";
 import Link from "next/link";
-import { LiveClassStatus } from "@/features/live-class/types/live-class";
+import { ClassStatus } from "@/features/live-class/types/live-class";
 
 interface ScheduledClass {
   id: string;
@@ -11,7 +11,7 @@ interface ScheduledClass {
   time: string;
   coach: string;
   topic: string;
-  status: LiveClassStatus;
+  status: ClassStatus;
 }
 
 interface UpcomingClassesProps {

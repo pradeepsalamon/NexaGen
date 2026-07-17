@@ -33,7 +33,7 @@ export default function Home() {
         <div className="grid gap-8">
           <div className="max-w-3xl">
             <p className="mb-3 text-xs font-extrabold uppercase text-primary">
-              NexaGen Chess Academy
+              Nexa Chess Academy
             </p>
             <h1 className="max-w-[12ch] text-[clamp(3rem,9vw,5.8rem)] font-extrabold leading-[0.92] text-app-text">
               Build better chess habits.

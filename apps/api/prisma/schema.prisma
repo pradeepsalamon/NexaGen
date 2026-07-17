@@ -48,7 +48,7 @@ enum BatchStatus {
 
 enum ClassStatus {
   SCHEDULED
-  IN_PROGRESS
+  LIVE
   COMPLETED
   CANCELLED
 }
@@ -101,7 +101,7 @@ model User {
   deletedBatches         Batch[]                  @relation("BatchDeletedBy")
   deletedBatchCoaches    BatchCoach[]             @relation("BatchCoachDeletedBy")
   deletedBatchStudents   BatchStudent[]           @relation("BatchStudentDeletedBy")
-  liveClasses            LiveClass[]              @relation("LiveClassCoach")
+  liveSessions            LiveSession[]              @relation("LiveClassCoach")
   courseProgress         StudentCourseProgress[]  @relation("StudentCourseProgress")
   practices              StudentPractice[]        @relation("StudentPractice")
   activities             StudentActivity[]        @relation("StudentActivity")
@@ -287,7 +287,7 @@ model Batch {
   coaches     BatchCoach[]
   students    BatchStudent[]
   classes     CoachClass[]
-  liveClasses LiveClass[]
+  liveSessions LiveSession[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -398,7 +398,7 @@ model CoachClass {
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
 
-  liveClass LiveClass? @relation("LiveClassSchedule")
+  liveSession LiveSession? @relation("LiveSessionSchedule")
 
   @@index([batchId])
   @@index([coachId])
@@ -411,7 +411,7 @@ model CoachClass {
 // LIVE CLASSES
 //
 
-model LiveClass {
+model LiveSession {
   id String @id @default(cuid())
 
   batchId String
@@ -420,17 +420,18 @@ model LiveClass {
   coachId String
   coach   User   @relation("LiveClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
 
-  scheduleId String     @unique
-  schedule   CoachClass @relation("LiveClassSchedule", fields: [scheduleId], references: [id], onDelete: Cascade)
+  classId String     @unique
+  class   CoachClass @relation("LiveSessionSchedule", fields: [classId], references: [id], onDelete: Cascade)
 
   roomName String  @unique
-  roomSid  String? @unique
+  livekitRoomName  String? @unique
 
   status String @default("SCHEDULED") // SCHEDULED, WAITING, LIVE, ENDED, CANCELLED
 
   scheduledAt DateTime
   startedAt   DateTime?
   endedAt     DateTime?
+  recordingUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -440,7 +441,7 @@ model LiveClass {
   @@index([batchId])
   @@index([coachId])
   @@index([status])
-  @@map("live_classes")
+  @@map("live_sessions")
 }
 
 //
