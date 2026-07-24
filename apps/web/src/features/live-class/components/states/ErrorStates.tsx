@@ -20,7 +20,7 @@ function ErrorState({ title, message, onRetry, actionText, actionHref }: ErrorSt
       </div>
       <h2 className="mb-2 text-2xl font-bold tracking-tight">{title}</h2>
       <p className="mb-8 max-w-md text-muted-foreground">{message}</p>
-      
+
       <div className="flex gap-4">
         {onRetry && (
           <Button onClick={onRetry} variant="outline">
@@ -94,7 +94,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
   // For students, silently poll to check if class started
   useEffect(() => {
     if (isCoach || !roomId || !onRetry) return;
-    
+
     let mounted = true;
     const interval = setInterval(async () => {
       try {

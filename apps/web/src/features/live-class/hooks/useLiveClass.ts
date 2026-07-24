@@ -16,9 +16,14 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         const classDetails = await getLiveClass(roomId);
-        if (mounted) setClassStatus(classDetails.status);
+        if (mounted) {
+          setClassStatus(classDetails.status);
+          if (classDetails.topic) {
+            setTopic(classDetails.topic);
+          }
+        }
 
         if (classDetails.status === "COMPLETED" || classDetails.status === "CANCELLED") {
           throw new Error("Class has ended");
@@ -30,11 +35,13 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
 
         if (shouldFetch) {
           const res = await getLiveClassToken(roomId);
-          
+
           if (mounted) {
             setToken(res.token);
             setRoomName(res.roomName);
-            setTopic(res.topic || classDetails.topic || null);
+            if (res.topic || classDetails.topic) {
+              setTopic(res.topic || classDetails.topic);
+            }
           }
         }
       } catch (err) {

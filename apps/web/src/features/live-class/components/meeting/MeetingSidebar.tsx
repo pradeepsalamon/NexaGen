@@ -4,6 +4,7 @@ import { lazy, Suspense, memo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, MessageSquareText, Users, Settings, StickyNote } from "lucide-react";
 import { useLiveClassState, type SidebarTab } from "../../providers/LiveClassProvider";
+import { useLiveClassChat } from "../../providers/ChatProvider";
 import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 
@@ -76,9 +77,11 @@ function SidebarContent({ tab }: { tab: Exclude<SidebarTab, null> }) {
 
 const SidebarTabs = memo(function SidebarTabs({
   active,
+  unreadChatCount,
   onTabChange,
 }: {
   active: Exclude<SidebarTab, null>;
+  unreadChatCount: number;
   onTabChange: (tab: Exclude<SidebarTab, null>) => void;
 }) {
   return (
@@ -97,7 +100,14 @@ const SidebarTabs = memo(function SidebarTabs({
           aria-selected={active === panel.id}
           role="tab"
         >
-          {panel.icon}
+          <div className="relative">
+            {panel.icon}
+            {panel.id === "chat" && unreadChatCount > 0 && (
+              <div className="absolute -right-1.5 -top-1.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold text-white shadow-sm ring-2 ring-app-background">
+                {unreadChatCount > 99 ? "99+" : unreadChatCount}
+              </div>
+            )}
+          </div>
           <span className="hidden sm:inline">{panel.label}</span>
         </button>
       ))}
@@ -109,6 +119,7 @@ const SidebarTabs = memo(function SidebarTabs({
 
 export function MeetingSidebar() {
   const { activeSidebar, setActiveSidebar } = useLiveClassState();
+  const { unreadCount } = useLiveClassChat();
 
   return (
     <AnimatePresence>
@@ -127,6 +138,7 @@ export function MeetingSidebar() {
           <div className="flex h-14 shrink-0 items-center justify-between border-b border-app-border/60 bg-app-surface/40 backdrop-blur-md px-2">
             <SidebarTabs
               active={activeSidebar}
+              unreadChatCount={unreadCount}
               onTabChange={(tab) => setActiveSidebar(tab)}
             />
             <button

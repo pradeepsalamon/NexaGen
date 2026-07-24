@@ -386,7 +386,7 @@ export type UpdateCoachStatusRequest = {
 // COACH DASHBOARD TYPES
 //
 
-export const classStatusSchema = z.enum(["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"]);
+export const classStatusSchema = z.enum(["SCHEDULED", "IN_PROGRESS", "LIVE", "COMPLETED", "CANCELLED"]);
 export type ClassStatus = z.infer<typeof classStatusSchema>;
 
 export type CoachClass = {

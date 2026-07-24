@@ -8,10 +8,11 @@ import { useAuthStore } from "@/stores/authStore";
 
 interface PreJoinCardProps {
   status?: ClassStatus;
+  topic?: string | null;
   onJoin: () => void;
 }
 
-export function PreJoinCard({ status, onJoin }: PreJoinCardProps) {
+export function PreJoinCard({ status, topic, onJoin }: PreJoinCardProps) {
   const user = useAuthStore((state) => state.user);
   const displayName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Student";
 
@@ -24,7 +25,7 @@ export function PreJoinCard({ status, onJoin }: PreJoinCardProps) {
       <Card className="w-full max-w-[720px] border-app-border/80 bg-app-surface/95 shadow-soft backdrop-blur">
         <CardHeader className="px-5 pb-4 pt-6 text-center sm:px-8">
           <CardTitle className="text-2xl font-extrabold tracking-normal sm:text-3xl">
-            Ready to join the class?
+            {topic ? `Ready to join "${topic}"?` : "Ready to join the class?"}
           </CardTitle>
           <CardDescription className="mx-auto mt-1 max-w-xl text-sm sm:text-base">
             Configure your camera and microphone before entering the class.

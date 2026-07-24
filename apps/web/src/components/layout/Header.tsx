@@ -36,6 +36,10 @@ function formatPageTitle(pathname: string) {
     return "Class Details";
   }
 
+  if (pathname.startsWith("/live-class/")) {
+    return "Live Class";
+  }
+
   const currentSegment = pathname.split("/").filter(Boolean).at(-1);
 
   if (!currentSegment) {

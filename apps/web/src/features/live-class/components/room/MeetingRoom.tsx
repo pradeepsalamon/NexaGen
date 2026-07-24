@@ -10,6 +10,7 @@ import { DisconnectReason } from "livekit-client";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
+import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionLost } from "../states/ErrorStates";
 import { getWebEnv } from "@nexa-gen/config/web";
 
@@ -69,7 +70,9 @@ export function MeetingRoom({ token }: MeetingRoomProps) {
         setError(roomError.message);
       }}
     >
-      <MeetingLayout />
+      <ChatProvider>
+        <MeetingLayout />
+      </ChatProvider>
       <RoomAudioRenderer />
       <StartAudio label="Click to allow audio playback" />
     </LiveKitRoom>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useMemo, memo, useCallback } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   MessageSquareText,
   Send,
@@ -12,20 +12,11 @@ import {
   Copy,
   Reply,
   MoreHorizontal,
+  ChevronDown
 } from "lucide-react";
-import { useChat } from "@livekit/components-react";
+import { useLiveClassChat, type ChatMessageData } from "../../providers/ChatProvider";
 import { cn } from "@/lib/utils";
 import { ParticipantAvatar } from "./ParticipantAvatar";
-
-// ─── Types ───────────────────────────────────────────────────
-
-interface ChatMessageData {
-  id: number;
-  senderName: string;
-  message: string;
-  isOwn: boolean;
-  timestamp: Date;
-}
 
 // ─── Chat Message ────────────────────────────────────────────
 
@@ -180,8 +171,7 @@ function ChatEmptyState() {
 // ─── Chat Panel Content ──────────────────────────────────────
 
 export function MeetingChat() {
-  const { send, chatMessages, isSending } = useChat();
-  const [draft, setDraft] = useState("");
+  const { send, chatMessages, isSending, draft, setDraft } = useLiveClassChat();
 
   // Search state
   const [isSearching, setIsSearching] = useState(false);
@@ -198,7 +188,7 @@ export function MeetingChat() {
   const handleScroll = useCallback(() => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 120;
     setIsScrolledUp(!isNearBottom);
   }, []);
 
@@ -237,7 +227,7 @@ export function MeetingChat() {
         console.error("Failed to send message", err);
       }
     },
-    [draft, isSending, send, scrollToBottom],
+    [draft, isSending, send, scrollToBottom, setDraft],
   );
 
   const handleKeyDown = useCallback(
@@ -265,23 +255,16 @@ export function MeetingChat() {
       filtered = chatMessages.filter(
         (msg) =>
           msg.message?.toLowerCase().includes(query) ||
-          msg.from?.name?.toLowerCase().includes(query),
+          msg.senderName?.toLowerCase().includes(query),
       );
     }
-
-    return filtered.map((msg, index) => ({
-      id: index,
-      senderName: msg.from?.name || msg.from?.identity || "Unknown",
-      message: msg.message ?? "",
-      isOwn: !!msg.from?.isLocal,
-      timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date(),
-    }));
+    return filtered;
   }, [chatMessages, isSearching, searchQuery]);
 
   return (
     <div className="flex h-full flex-col">
       {/* Search / Header bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-app-border/40 px-4">
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-app-border/40 px-4 bg-app-surface/60 backdrop-blur-md">
         <div className="flex-1 min-w-0 mr-2">
           {isSearching ? (
             <input
@@ -292,12 +275,12 @@ export function MeetingChat() {
               className="w-full bg-transparent text-sm font-medium text-app-text outline-none placeholder:text-app-muted"
             />
           ) : (
-            <span className="text-xs font-semibold text-app-muted uppercase tracking-wider">
+            <span className="text-xs font-bold text-app-text uppercase tracking-wider opacity-80">
               {messages.length} messages
             </span>
           )}
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => {
               setIsSearching(!isSearching);
@@ -329,7 +312,7 @@ export function MeetingChat() {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative flex-1 overflow-y-auto overscroll-contain px-4 py-4 custom-scrollbar"
+        className="relative flex-1 overflow-y-auto overscroll-contain px-4 py-4 custom-scrollbar bg-gradient-to-b from-transparent to-app-surface/20"
       >
         {messages.length === 0 ? (
           isSearching ? (
@@ -342,9 +325,9 @@ export function MeetingChat() {
         ) : (
           <div className="flex flex-col pb-4">
             {!isSearching && (
-              <div className="flex items-center justify-center my-4">
+              <div className="flex items-center justify-center my-4 opacity-70">
                 <div className="h-px flex-1 bg-app-border/50" />
-                <span className="px-3 text-[10px] font-semibold text-app-muted uppercase tracking-wider">
+                <span className="px-3 text-[10px] font-bold text-app-muted uppercase tracking-wider">
                   Today
                 </span>
                 <div className="h-px flex-1 bg-app-border/50" />
@@ -358,34 +341,37 @@ export function MeetingChat() {
 
               return <ChatMessage key={msg.id} msg={msg} showHeader={showHeader} />;
             })}
-            <div ref={messagesEndRef} className="h-1" />
+            <div ref={messagesEndRef} className="h-2" />
           </div>
         )}
 
-        {/* Scroll to bottom */}
-        {isScrolledUp && (
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            onClick={scrollToBottom}
-            className="sticky bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-app-surface border border-app-border px-3 py-1.5 shadow-lg text-xs font-medium text-app-text hover:bg-app-soft transition-colors z-10"
-            type="button"
-          >
-            ↓ New Messages
-          </motion.button>
-        )}
+        {/* Scroll to bottom floating button */}
+        <AnimatePresence>
+          {isScrolledUp && (
+            <motion.button
+              initial={{ opacity: 0, y: 15, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 15, scale: 0.9 }}
+              onClick={scrollToBottom}
+              className="sticky bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-primary/95 text-white px-4 py-2 shadow-xl shadow-primary/20 text-xs font-semibold hover:bg-primary transition-colors z-20 backdrop-blur-md"
+              type="button"
+            >
+              <ChevronDown className="size-4" />
+              New Messages
+            </motion.button>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Composer */}
-      <div className="shrink-0 border-t border-app-border/40 bg-app-surface/40 p-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
+      <div className="shrink-0 border-t border-app-border/40 bg-app-surface/90 backdrop-blur-xl p-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
         <form
           onSubmit={handleSubmit}
           className={cn(
             "flex items-end gap-2 rounded-2xl border bg-app-background px-3 py-2.5 transition-all duration-200 shadow-sm",
             draft.trim() || isSending
-              ? "border-primary/30 ring-2 ring-primary/10 shadow-primary/5"
-              : "border-app-border focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10",
+              ? "border-primary/40 ring-4 ring-primary/5 shadow-primary/5"
+              : "border-app-border/60 focus-within:border-primary/40 focus-within:ring-4 focus-within:ring-primary/5 hover:border-app-border",
           )}
         >
           <input
@@ -393,14 +379,15 @@ export function MeetingChat() {
             ref={fileInputRef}
             onChange={handleFileChange}
             className="hidden"
+            accept="image/*,.pdf,.doc,.docx,.txt"
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="shrink-0 p-1.5 text-app-muted hover:text-app-text transition-colors rounded-lg hover:bg-app-soft mb-0.5"
+            className="shrink-0 p-1.5 text-app-muted hover:text-primary transition-colors rounded-lg hover:bg-primary/10 mb-0.5 group relative"
             title="Attach file"
           >
-            <Paperclip className="size-5" />
+            <Paperclip className="size-5 transition-transform group-hover:scale-110" />
           </button>
 
           <textarea
@@ -408,34 +395,34 @@ export function MeetingChat() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
-            className="max-h-[120px] min-h-[24px] w-full resize-none bg-transparent px-1 py-1.5 text-[15px] leading-relaxed text-app-text outline-none placeholder:text-app-muted custom-scrollbar"
+            placeholder="Message room..."
+            className="max-h-[120px] min-h-[24px] w-full resize-none bg-transparent px-1 py-1.5 text-[14px] leading-relaxed text-app-text outline-none placeholder:text-app-muted/70 custom-scrollbar font-medium"
             rows={1}
           />
 
           <button
             type="button"
             onClick={() => {
-              setDraft((prev) => prev + "😀");
+              setDraft(draft + "😀");
               textareaRef.current?.focus();
             }}
-            className="shrink-0 p-1.5 text-app-muted hover:text-app-text transition-colors rounded-lg hover:bg-app-soft mb-0.5"
+            className="shrink-0 p-1.5 text-app-muted hover:text-primary transition-colors rounded-lg hover:bg-primary/10 mb-0.5 group relative"
             title="Add emoji"
           >
-            <Smile className="size-5" />
+            <Smile className="size-5 transition-transform group-hover:scale-110" />
           </button>
 
           <button
             type="submit"
             disabled={!draft.trim() || isSending}
             className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-full transition-all duration-200 mb-0.5",
+              "flex size-9 shrink-0 items-center justify-center rounded-full transition-all duration-300 mb-0.5",
               draft.trim()
-                ? "bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90 hover:scale-105 active:scale-95"
-                : "bg-app-soft text-app-muted cursor-not-allowed",
+                ? "bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95"
+                : "bg-app-border/40 text-app-muted/50 cursor-not-allowed",
             )}
           >
-            <Send className="size-4" />
+            <Send className="size-4 ml-0.5" />
           </button>
         </form>
       </div>
