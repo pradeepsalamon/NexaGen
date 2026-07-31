@@ -63,12 +63,25 @@ export class CoachController {
   }
 
   @Get(API_ROUTES.coach.getClass())
-  getClassById(@Param("id") id: string, @Req() request: Request) {
-    return this.coachService.getClassById(this.getAccessToken(request), id);
+  async getClass(
+    @Req() request: Request,
+    @Param("id") classId: string
+  ) {
+    const accessToken = request.cookies.nexa_access_token;
+    return this.coachService.getClassById(accessToken, classId);
+  }
+
+  @Get(API_ROUTES.coach.classDetails())
+  async getClassDetails(
+    @Req() request: Request,
+    @Param("id") classId: string
+  ) {
+    const accessToken = request.cookies.nexa_access_token;
+    return this.coachService.getClassDetails(accessToken, classId);
   }
 
   @Patch(API_ROUTES.coach.updateClass())
-  updateClass(
+  async updateClass(
     @Param("id") id: string,
     @Body(new ZodPipe(updateClassRequestSchema)) body: UpdateClassRequest,
     @Req() request: Request

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { History, Eye } from "lucide-react";
+import { History, Eye, Info } from "lucide-react";
 import Link from "next/link";
 import type { CoachClass } from "@nexa-gen/types";
 import { Badge } from "@/components/ui/Badge";
@@ -14,9 +14,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useDataTable } from "../../../hooks/useDataTable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useClassHistory } from "../hooks/useCoachApi";
+import { CoachClassDetailsDialog } from "./CoachClassDetailsDialog";
 
 export function CoachHistoryClient() {
   const { data, isLoading } = useClassHistory();
+  const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const columns = useMemo<ColumnDef<CoachClass>[]>(
     () => [
@@ -81,16 +84,39 @@ export function CoachHistoryClient() {
         header: "Actions",
         cell: ({ row }) => (
           <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button asChild variant="outline" size="icon" className="size-8 rounded-full border-yellow-500 p-0 text-app-text transition-colors hover:border-yellow-500 hover:bg-yellow-500 hover:text-black">
-                  <Link href={`/classes/${row.original.id}`} aria-label={`View ${row.original.title || row.original.topic}`}>
-                    <Eye className="size-4" strokeWidth={2.5} aria-hidden="true" />
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>View Details</TooltipContent>
-            </Tooltip>
+            <div className="flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button asChild variant="outline" size="icon" className="size-8 rounded-full border-yellow-500 p-0 text-app-text transition-colors hover:border-yellow-500 hover:bg-yellow-500 hover:text-black">
+                    <Link href={`/classes/${row.original.id}`} aria-label={`View ${row.original.title || row.original.topic}`}>
+                      <Eye className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                    </Link>
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>View Class Page</TooltipContent>
+              </Tooltip>
+
+              {row.original.status === "COMPLETED" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label="View completed details"
+                      className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                      onClick={() => {
+                        setDetailsClassId(row.original.id);
+                        setIsDetailsOpen(true);
+                      }}
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                    >
+                      <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>View Details</TooltipContent>
+                </Tooltip>
+              )}
+            </div>
           </TooltipProvider>
         )
       }
@@ -131,6 +157,14 @@ export function CoachHistoryClient() {
           </>
         )}
       </div>
+      <CoachClassDetailsDialog
+        classId={detailsClassId}
+        isOpen={isDetailsOpen}
+        onOpenChange={(open) => {
+          setIsDetailsOpen(open);
+          if (!open) setTimeout(() => setDetailsClassId(null), 300);
+        }}
+      />
     </div>
   );
 }

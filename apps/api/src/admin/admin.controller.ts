@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, Body, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, Req, UnauthorizedException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { API_ROUTES } from '@nexa-gen/types';
 import type { UpdateCoachStatusRequest } from '@nexa-gen/types';
@@ -49,5 +49,72 @@ export class AdminController {
   ) {
     const adminId = await this.getAdminId(request);
     return this.adminService.updateCoachStatus(adminId, id, body);
+  }
+
+  @Post(API_ROUTES.admin.demoClasses)
+  async createDemoClass(
+    @Body() body: any, // We will map this to the proper Zod schema in the route or service
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.createDemoClass(adminId, body);
+  }
+
+  @Patch(API_ROUTES.admin.updateDemoClass())
+  async updateDemoClass(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.updateDemoClass(adminId, id, body);
+  }
+
+  @Patch(API_ROUTES.admin.cancelDemoClass())
+  async cancelDemoClass(
+    @Param('id') id: string,
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.cancelDemoClass(adminId, id);
+  }
+
+  @Patch(API_ROUTES.admin.restoreDemoClass())
+  async restoreDemoClass(
+    @Param('id') id: string,
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.restoreDemoClass(adminId, id);
+  }
+
+  @Get(API_ROUTES.admin.demoClasses)
+  async listDemoClasses(@Req() request: Request) {
+    await this.getAdminId(request);
+    return this.adminService.listDemoClasses();
+  }
+
+  @Get(API_ROUTES.admin.demoClassDetails())
+  async getDemoClassDetails(
+    @Param('id') id: string,
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.getDemoClassDetails(adminId, id);
+  }
+
+  @Get(API_ROUTES.admin.batchClasses)
+  async listBatchClasses(@Req() request: Request) {
+    await this.getAdminId(request);
+    return this.adminService.listBatchClasses();
+  }
+
+  @Get(API_ROUTES.admin.batchClassDetails())
+  async getBatchClassDetails(
+    @Param('id') id: string,
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.getBatchClassDetails(adminId, id);
   }
 }

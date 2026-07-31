@@ -10,6 +10,7 @@ import { UserModule } from "./user/user.module";
 import { LiveClassModule } from "./live-class/live-class.module";
 import { AdminModule } from './admin/admin.module';
 import { StudentModule } from "./student/student.module";
+import { ScheduleModule } from "@nestjs/schedule";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { StudentModule } from "./student/student.module";
       ttl: 60000,
       limit: 100,
     }]),
+    ScheduleModule.forRoot(),
     PrismaModule, 
     AuthModule, 
     BatchModule, 

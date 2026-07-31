@@ -68,7 +68,7 @@ export function DatePicker({
     nextDate.setSeconds(0, 0);
 
     setDateTimeValue(nextDate);
-    onChange(toIsoSafeDateTime(nextDate));
+    onChange(nextDate);
   };
 
   const handleTimeChange = (
@@ -97,7 +97,7 @@ export function DatePicker({
     }
 
     setDateTimeValue(nextDate);
-    onChange(toIsoSafeDateTime(nextDate));
+    onChange(nextDate);
   };
 
   return (
@@ -216,6 +216,3 @@ function normalizeDateOnlyValue(date: Date) {
   return toIsoSafeDateOnly(normalized);
 }
 
-function toIsoSafeDateTime(date: Date) {
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-}

@@ -5,7 +5,8 @@ import {
   ShieldCheck,
   Trash2,
   UserRoundCheck,
-  Users
+  Users,
+  Video
 } from "lucide-react";
 import { cookies } from "next/headers";
 import Link from "next/link";
@@ -62,6 +63,20 @@ export default function SuperAdminDashboardPage() {
             >
               <Users aria-hidden="true" className="size-4" />
               Coach Apps
+            </Link>
+            <Link
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+              href="/admin/demo-classes"
+            >
+              <Video aria-hidden="true" className="size-4" />
+              Demo Classes
+            </Link>
+            <Link
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+              href="/admin/classes"
+            >
+              <Video aria-hidden="true" className="size-4" />
+              Batch Classes
             </Link>
           </div>
         </header>

@@ -1,12 +1,11 @@
 import {
-  ArrowRight,
   CalendarCheck,
   GraduationCap,
   ShieldCheck,
   Trophy
 } from "lucide-react";
-import Link from "next/link";
 import { Logo } from "@/components/Logo";
+import { HeroActions } from "@/components/home/HeroActions";
 
 const highlights = [
   {
@@ -43,21 +42,7 @@ export default function Home() {
               coaches, designed around practice, progress, and consistent class
               routines.
             </p>
-            <div className="mt-7 flex flex-wrap items-center gap-3">
-              <Link
-                className="inline-flex min-h-11 items-center gap-2 rounded-control bg-primary px-5 text-sm font-extrabold text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--color-primary)_26%,transparent)] transition hover:-translate-y-0.5 hover:opacity-100"
-                href="/register"
-              >
-                Register
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-              <Link
-                className="inline-flex min-h-11 items-center rounded-control border border-app-border bg-app-surface/80 px-5 text-sm font-extrabold text-app-text shadow-card transition hover:-translate-y-0.5 hover:opacity-100"
-                href="/login"
-              >
-                Log in
-              </Link>
-            </div>
+            <HeroActions />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">

@@ -135,19 +135,21 @@ export function MeetingSidebar() {
           aria-label={`${activeSidebar} panel`}
         >
           {/* Header with tabs and close */}
-          <div className="flex h-14 shrink-0 items-center justify-between border-b border-app-border/60 bg-app-surface/40 backdrop-blur-md px-2">
-            <SidebarTabs
-              active={activeSidebar}
-              unreadChatCount={unreadCount}
-              onTabChange={(tab) => setActiveSidebar(tab)}
-            />
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-app-border/60 bg-app-surface/40 backdrop-blur-md px-2 gap-2">
+            <div className="flex-1 min-w-0 overflow-x-auto custom-scrollbar-hide">
+              <SidebarTabs
+                active={activeSidebar}
+                unreadChatCount={unreadCount}
+                onTabChange={(tab) => setActiveSidebar(tab)}
+              />
+            </div>
             <button
               type="button"
               onClick={() => setActiveSidebar(null)}
-              className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-red-500/10 hover:text-red-500 mr-1"
+              className="flex shrink-0 size-9 items-center justify-center rounded-lg text-app-text/70 bg-app-soft transition-colors hover:bg-red-500 hover:text-white mr-1"
               aria-label="Close panel"
             >
-              <X className="size-4" />
+              <X className="size-5" />
             </button>
           </div>
 

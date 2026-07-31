@@ -24,7 +24,7 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
           <Target className="h-5 w-5 text-secondary" />
           Assignments & Practice
         </CardTitle>
-        <Link href="/dashboard/student/practice">
+        <Link href="/student/practice">
           <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
             View All
           </Button>
@@ -60,7 +60,7 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
                 </div>
                 
                 <div className="flex items-center">
-                  <Link href={`/dashboard/student/practice/${practice.id}`} className="w-full sm:w-auto">
+                  <Link href={`/student/practice/${practice.id}`} className="w-full sm:w-auto">
                     <Button 
                       variant={practice.status === "Completed" ? "outline" : "primary"} 
                       size="sm" 
@@ -79,3 +79,4 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
     </Card>
   );
 }
+

@@ -39,7 +39,7 @@ function ErrorState({ title, message, onRetry, actionText, actionHref }: ErrorSt
 
 export function ConnectionLost({ onRetry }: { onRetry?: () => void }) {
   const user = useAuthStore((state) => state.user);
-  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/dashboard/student";
+  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/student";
 
   return (
     <ErrorState
@@ -54,7 +54,7 @@ export function ConnectionLost({ onRetry }: { onRetry?: () => void }) {
 
 export function PermissionDenied() {
   const user = useAuthStore((state) => state.user);
-  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/dashboard/student";
+  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/student";
 
   return (
     <ErrorState
@@ -68,7 +68,7 @@ export function PermissionDenied() {
 
 export function RoomEnded() {
   const user = useAuthStore((state) => state.user);
-  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/dashboard/student";
+  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/student";
 
   return (
     <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
@@ -143,7 +143,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
     );
   }
 
-  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/dashboard/student";
+  const dashboardUrl = user?.role === "COACH" ? "/dashboard/coach" : "/student";
 
   // Waiting Room for students
   return (
@@ -163,3 +163,4 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
     </div>
   );
 }
+

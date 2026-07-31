@@ -59,7 +59,7 @@ export function MeetingRoom({ token }: MeetingRoomProps) {
       onConnected={() => setError(null)}
       onDisconnected={(reason) => {
         if (!reason || reason === DisconnectReason.CLIENT_INITIATED) {
-          const homeHref = user?.role === "SUPER_ADMIN" ? "/admin" : user?.role === "COACH" ? "/coach" : "/dashboard/student";
+          const homeHref = user?.role === "SUPER_ADMIN" ? "/admin" : user?.role === "COACH" ? "/coach" : "/student";
           router.push(homeHref);
           return;
         }
@@ -78,3 +78,4 @@ export function MeetingRoom({ token }: MeetingRoomProps) {
     </LiveKitRoom>
   );
 }
+

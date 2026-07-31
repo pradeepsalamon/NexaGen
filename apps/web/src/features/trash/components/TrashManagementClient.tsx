@@ -409,7 +409,7 @@ export function TrashManagementClient() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-app-muted">From</span>
                 <DatePicker
-                  onChange={(date) => setDeletedFrom(date ? date.toISOString().slice(0, 10) : "")}
+                  onChange={(date) => setDeletedFrom(date ? date.toISOString() : "")}
                   value={deletedFrom ? new Date(deletedFrom) : undefined}
                   placeholder="Deleted from"
                 />
@@ -417,7 +417,7 @@ export function TrashManagementClient() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-app-muted">To</span>
                 <DatePicker
-                  onChange={(date) => setDeletedTo(date ? date.toISOString().slice(0, 10) : "")}
+                  onChange={(date) => setDeletedTo(date ? date.toISOString() : "")}
                   value={deletedTo ? new Date(deletedTo) : undefined}
                   placeholder="Deleted to"
                 />

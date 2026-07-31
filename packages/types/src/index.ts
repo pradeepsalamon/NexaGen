@@ -437,6 +437,19 @@ export type CoachClassResponse = {
   class: CoachClass;
 };
 
+export type CoachClassDetails = CoachClass & {
+  actualStartsAt: string | null;
+  actualEndsAt: string | null;
+  participants: {
+    name: string;
+    joinedAt: string;
+  }[];
+};
+
+export type CoachClassDetailsResponse = {
+  class: CoachClassDetails;
+};
+
 export type CoachStudent = {
   id: string;
   firstName: string;
@@ -480,3 +493,127 @@ export const updateClassRequestSchema = createClassRequestBaseSchema.partial().r
 }, classDateRefinementOptions);
 
 export type UpdateClassRequest = z.infer<typeof updateClassRequestSchema>;
+
+// -- STUDENT ATTENDANCE TYPES --
+
+export const studentAttendanceHistorySchema = z.object({
+  id: z.string(),
+  topic: z.string(),
+  batchName: z.string(),
+  coachName: z.string(),
+  date: z.string().datetime(),
+  status: z.enum(["PRESENT", "ABSENT"]),
+  joinedAt: z.string().datetime().nullable(),
+});
+
+export const studentAttendanceStatsSchema = z.object({
+  total: z.number(),
+  attended: z.number(),
+  missed: z.number(),
+  percentage: z.number(),
+});
+
+export const studentAttendanceResponseSchema = z.object({
+  stats: studentAttendanceStatsSchema,
+  history: z.array(studentAttendanceHistorySchema),
+});
+
+export type StudentAttendanceHistory = z.infer<typeof studentAttendanceHistorySchema>;
+export type StudentAttendanceStats = z.infer<typeof studentAttendanceStatsSchema>;
+export type StudentAttendanceResponse = z.infer<typeof studentAttendanceResponseSchema>;
+
+// -- DEMO CLASS TYPES --
+
+export const createDemoClassRequestSchema = z.object({
+  coachId: z.string().cuid(),
+  topic: z.string().min(1).max(120),
+  description: z.string().max(2000).optional(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime()
+}).refine((value) => new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime(), {
+  message: "End time must be after start time.",
+  path: ["endsAt"]
+});
+
+export const updateDemoClassRequestSchema = z.object({
+  coachId: z.string().cuid().optional(),
+  topic: z.string().min(1).max(120).optional(),
+  description: z.string().max(2000).optional(),
+  startsAt: z.string().datetime().optional(),
+  endsAt: z.string().datetime().optional()
+}).refine((value) => {
+  if (value.startsAt && value.endsAt) {
+    return new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime();
+  }
+  return true;
+}, {
+  message: "End time must be after start time.",
+  path: ["endsAt"]
+});
+
+export const guestJoinDemoRequestSchema = z.object({
+  guestName: z.string().min(1, "Name is required").max(50)
+});
+
+export const guestJoinDemoResponseSchema = z.object({
+  token: z.string(),
+  roomName: z.string(),
+  topic: z.string()
+});
+
+export const demoClassSchema = z.object({
+  id: z.string(),
+  topic: z.string(),
+  description: z.string().nullable().optional(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  status: z.enum(["SCHEDULED", "LIVE", "COMPLETED", "CANCELLED"]),
+  coachName: z.string()
+});
+
+export const listDemoClassesResponseSchema = z.object({
+  classes: z.array(demoClassSchema)
+});
+
+export const demoClassDetailsSchema = demoClassSchema.extend({
+  actualStartsAt: z.string().datetime().nullable(),
+  actualEndsAt: z.string().datetime().nullable(),
+  participants: z.array(z.object({
+    name: z.string(),
+    joinedAt: z.string().datetime()
+  }))
+});
+
+export const demoClassDetailsResponseSchema = z.object({
+  class: demoClassDetailsSchema
+});
+
+export type CreateDemoClassRequest = z.infer<typeof createDemoClassRequestSchema>;
+export type UpdateDemoClassRequest = z.infer<typeof updateDemoClassRequestSchema>;
+export type GuestJoinDemoRequest = z.infer<typeof guestJoinDemoRequestSchema>;
+export type GuestJoinDemoResponse = z.infer<typeof guestJoinDemoResponseSchema>;
+export type DemoClass = z.infer<typeof demoClassSchema>;
+export type ListDemoClassesResponse = z.infer<typeof listDemoClassesResponseSchema>;
+export type DemoClassDetails = z.infer<typeof demoClassDetailsSchema>;
+export type DemoClassDetailsResponse = z.infer<typeof demoClassDetailsResponseSchema>;
+
+export type AdminBatchClass = CoachClass & {
+  coachName: string;
+};
+
+export type AdminBatchClassDetails = AdminBatchClass & {
+  actualStartsAt: string | null;
+  actualEndsAt: string | null;
+  participants: {
+    name: string;
+    joinedAt: string;
+  }[];
+};
+
+export type ListAdminBatchClassesResponse = {
+  classes: AdminBatchClass[];
+};
+
+export type AdminBatchClassDetailsResponse = {
+  class: AdminBatchClassDetails;
+};

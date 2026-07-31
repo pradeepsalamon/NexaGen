@@ -40,7 +40,14 @@ export const API_ROUTES = {
   },
   admin: {
     pendingCoaches: "/admin/coaches/pending",
-    updateCoachStatus: (id: string = ":id") => `/admin/coaches/${id}/status`
+    updateCoachStatus: (id: string = ":id") => `/admin/coaches/${id}/status`,
+    demoClasses: "/admin/demo-classes",
+    updateDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}`,
+    cancelDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}/cancel`,
+    restoreDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}/restore`,
+    demoClassDetails: (id: string = ":id") => `/admin/demo-classes/${id}/details`,
+    batchClasses: "/admin/classes",
+    batchClassDetails: (id: string = ":id") => `/admin/classes/${id}/details`
   },
   coach: {
     dashboard: "/coach/dashboard",
@@ -52,6 +59,7 @@ export const API_ROUTES = {
     getClass: (id: string = ":id") => `/coach/classes/${id}`,
     updateClass: (id: string = ":id") => `/coach/classes/${id}`,
     cancelClass: (id: string = ":id") => `/coach/classes/${id}/cancel`,
+    classDetails: (id: string = ":id") => `/coach/classes/${id}/details`,
     students: "/coach/students"
   },
   liveClass: {
@@ -59,9 +67,11 @@ export const API_ROUTES = {
     token: (id: string = ":id") => `/live-class/${id}/token`,
     end: (id: string = ":id") => `/live-class/${id}/end`,
     get: (id: string = ":id") => `/live-class/${id}`,
-    participants: (id: string = ":id") => `/live-class/${id}/participants`
+    participants: (id: string = ":id") => `/live-class/${id}/participants`,
+    demoJoin: (id: string = ":id") => `/live-class/demo/${id}/join`
   },
   student: {
-    dashboard: "/student/dashboard"
+    dashboard: "/student/dashboard",
+    attendance: "/student/attendance"
   }
 } as const;

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 export type SidebarTab = "chat" | "participants" | "settings" | "notes" | null;
+export type BoardControlStudentId = string | null;
 
 interface LiveClassContextValue {
   /** Which sidebar panel is currently open */
@@ -26,6 +27,14 @@ interface LiveClassContextValue {
 
   /** Class topic / room name from token response */
   topic: string | null;
+
+  /** Whether the shared chessboard is open in the meeting */
+  isChessboardOpen: boolean;
+  toggleChessboard: () => void;
+
+  /** The participant identity currently given board control (null = coach only) */
+  boardControlStudentId: BoardControlStudentId;
+  setBoardControlStudent: (identity: BoardControlStudentId) => void;
 }
 
 const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefined);
@@ -41,6 +50,8 @@ export function LiveClassProvider({
   const [pinnedParticipantSid, setPinnedParticipantSid] = useState<string | null>(null);
   const [handRaised, setHandRaised] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isChessboardOpen, setIsChessboardOpen] = useState(false);
+  const [boardControlStudentId, setBoardControlStudentId] = useState<BoardControlStudentId>(null);
 
   const toggleSidebar = useCallback(
     (tab: Exclude<SidebarTab, null>) => {
@@ -65,6 +76,14 @@ export function LiveClassProvider({
     }
   }, []);
 
+  const toggleChessboard = useCallback(() => {
+    setIsChessboardOpen((prev) => !prev);
+  }, []);
+
+  const setBoardControlStudent = useCallback((identity: BoardControlStudentId) => {
+    setBoardControlStudentId(identity);
+  }, []);
+
   return (
     <LiveClassContext.Provider
       value={{
@@ -80,6 +99,10 @@ export function LiveClassProvider({
         setIsFullscreen,
         toggleFullscreen,
         topic: topic || null,
+        isChessboardOpen,
+        toggleChessboard,
+        boardControlStudentId,
+        setBoardControlStudent,
       }}
     >
       {children}

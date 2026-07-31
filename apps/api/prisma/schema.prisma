@@ -105,6 +105,7 @@ model User {
   courseProgress         StudentCourseProgress[]  @relation("StudentCourseProgress")
   practices              StudentPractice[]        @relation("StudentPractice")
   activities             StudentActivity[]        @relation("StudentActivity")
+  classAttendances       ClassAttendance[]
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -374,11 +375,13 @@ model TrashAuditLog {
 model CoachClass {
   id String @id @default(cuid())
 
-  batchId String
-  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   coachId String
   coach   User   @relation("ClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
+  isDemo  Boolean @default(false)
 
   title       String?
   topic       String?
@@ -399,12 +402,33 @@ model CoachClass {
   cancelledAt DateTime?
 
   liveSession LiveSession? @relation("LiveSessionSchedule")
+  attendances ClassAttendance[]
 
   @@index([batchId])
   @@index([coachId])
   @@index([status])
   @@index([startsAt])
   @@map("classes")
+}
+
+model ClassAttendance {
+  id        String   @id @default(cuid())
+  
+  classId   String
+  class     CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  studentId String
+  student   User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  status    String     @default("PRESENT") // e.g., PRESENT, ABSENT
+  joinedAt  DateTime?  @default(now())
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+  @@map("class_attendance")
 }
 
 //
@@ -414,8 +438,8 @@ model CoachClass {
 model LiveSession {
   id String @id @default(cuid())
 
-  batchId String
-  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
 
   coachId String
   coach   User   @relation("LiveClassCoach", fields: [coachId], references: [id], onDelete: Cascade)

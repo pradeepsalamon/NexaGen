@@ -92,7 +92,8 @@ export class CoachService {
         students: { where: { isDeleted: false } },
         classes: {
           where: { 
-            status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] } 
+            status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] },
+            endsAt: { gte: new Date() }
           },
           orderBy: { startsAt: "asc" },
           take: 1
@@ -131,13 +132,12 @@ export class CoachService {
   async getUpcomingClasses(accessToken: string | undefined): Promise<CoachClassListResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
     const now = new Date();
-    const startOfDay = new Date(now.getTime() - 4 * 60 * 60 * 1000);
 
     const classes = await this.prisma.coachClass.findMany({
       where: { 
         coachId, 
         status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] }, 
-        startsAt: { gte: startOfDay } 
+        endsAt: { gte: now } 
       },
       include: { batch: { include: { students: { where: { isDeleted: false } } } } },
       orderBy: { startsAt: "asc" }
@@ -198,6 +198,45 @@ export class CoachService {
     }
 
     return { class: this.toCoachClass(cls) };
+  }
+
+  async getClassDetails(accessToken: string | undefined, classId: string) {
+    const coachId = await this.getAuthenticatedCoachId(accessToken);
+
+    const existingClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
+      include: {
+        batch: {
+          include: { students: true }
+        },
+        liveSession: true,
+        attendances: {
+          include: {
+            student: true
+          }
+        }
+      }
+    });
+
+    if (!existingClass || existingClass.coachId !== coachId) {
+      throw new NotFoundException("Class not found");
+    }
+
+    const participants = existingClass.attendances.map(a => ({
+      name: `${a.student.firstName} ${a.student.lastName || ''}`.trim(),
+      joinedAt: a.joinedAt ? a.joinedAt.toISOString() : existingClass.createdAt.toISOString()
+    }));
+
+    const coachClass = this.toCoachClass(existingClass);
+
+    return {
+      class: {
+        ...coachClass,
+        actualStartsAt: existingClass.liveSession?.startedAt ? existingClass.liveSession.startedAt.toISOString() : null,
+        actualEndsAt: existingClass.liveSession?.endedAt ? existingClass.liveSession.endedAt.toISOString() : null,
+        participants
+      }
+    };
   }
 
   async updateClass(
@@ -327,8 +366,8 @@ export class CoachService {
   private toCoachClass(c: CoachClassWithRelations): CoachClass {
     return {
       id: c.id,
-      batchId: c.batchId,
-      batchName: c.batch.name,
+      batchId: c.batchId || "",
+      batchName: c.batch?.name || "Demo Class",
       coachId: c.coachId,
       title: c.title,
       topic: c.topic,
@@ -341,7 +380,7 @@ export class CoachService {
       endsAt: c.endsAt.toISOString(),
       meetingRoomId: c.meetingRoomId,
       createdAt: c.createdAt.toISOString(),
-      studentCount: c.batch.students.length
+      studentCount: c.batch?.students?.length || 0
     };
   }
 

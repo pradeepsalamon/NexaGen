@@ -1,5 +1,5 @@
 import { API_ROUTES } from "@nexa-gen/types";
-import type { PendingCoachesResponse, UpdateCoachStatusRequest } from "@nexa-gen/types";
+import type { PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse, DemoClassDetailsResponse } from "@nexa-gen/types";
 import { apiFetch } from "@/lib/api";
 
 export async function getPendingCoaches(): Promise<PendingCoachesResponse> {
@@ -11,4 +11,42 @@ export async function updateCoachStatus({ id, ...body }: { id: string } & Update
     body,
     method: "PATCH"
   });
+}
+
+export async function getDemoClasses(): Promise<ListDemoClassesResponse> {
+  return apiFetch<ListDemoClassesResponse>(API_ROUTES.admin.demoClasses);
+}
+
+export async function createDemoClass(data: CreateDemoClassRequest): Promise<DemoClass> {
+  const res = await apiFetch<{ class: DemoClass }>(API_ROUTES.admin.demoClasses, {
+    body: JSON.stringify(data),
+    method: "POST"
+  });
+  return res.class;
+}
+
+export async function updateDemoClass(id: string, data: UpdateDemoClassRequest): Promise<DemoClass> {
+  const res = await apiFetch<{ class: DemoClass }>(API_ROUTES.admin.updateDemoClass(id), {
+    body: JSON.stringify(data),
+    method: "PATCH"
+  });
+  return res.class;
+}
+
+export async function cancelDemoClass(id: string): Promise<DemoClass> {
+  const res = await apiFetch<{ class: DemoClass }>(API_ROUTES.admin.cancelDemoClass(id), {
+    method: "PATCH"
+  });
+  return res.class;
+}
+
+export async function restoreDemoClass(id: string): Promise<DemoClass> {
+  const res = await apiFetch<{ class: DemoClass }>(API_ROUTES.admin.restoreDemoClass(id), {
+    method: "PATCH"
+  });
+  return res.class;
+}
+
+export async function getDemoClassDetails(id: string): Promise<DemoClassDetailsResponse> {
+  return await apiFetch<DemoClassDetailsResponse>(API_ROUTES.admin.demoClassDetails(id));
 }

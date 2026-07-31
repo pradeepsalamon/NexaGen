@@ -26,7 +26,7 @@ export function ContinueLearning({ courses = [] }: ContinueLearningProps) {
           <PlayCircle className="h-10 w-10 text-app-border mb-3" />
           <p className="text-app-text font-medium">Your learning activity will appear here.</p>
           <p className="text-sm text-app-muted mt-1">Enroll in a course to get started.</p>
-          <Link href="/dashboard/student/courses" className="mt-4">
+          <Link href="/student/courses" className="mt-4">
             <Button variant="outline" className="font-semibold">Browse Courses</Button>
           </Link>
         </CardContent>
@@ -68,7 +68,7 @@ export function ContinueLearning({ courses = [] }: ContinueLearningProps) {
                 </div>
               </div>
               
-              <Link href={`/dashboard/student/courses/${course.id}`}>
+              <Link href={`/student/courses/${course.id}`}>
                 <Button size="sm" className="w-full md:w-auto font-bold bg-primary text-white shadow-sm hover:opacity-90">
                   <PlayCircle className="h-4 w-4 mr-1.5" />
                   Continue
@@ -81,3 +81,4 @@ export function ContinueLearning({ courses = [] }: ContinueLearningProps) {
     </Card>
   );
 }
+

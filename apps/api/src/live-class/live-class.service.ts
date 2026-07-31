@@ -4,8 +4,10 @@ import {
   ForbiddenException,
   UnauthorizedException,
   ConflictException,
-  BadRequestException
+  BadRequestException,
+  Logger
 } from "@nestjs/common";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { JwtService } from "@nestjs/jwt";
@@ -17,6 +19,7 @@ import type { AccessTokenPayload } from "../auth/types";
 @Injectable()
 export class LiveClassService {
   private readonly env = getApiEnv();
+  private readonly logger = new Logger(LiveClassService.name);
 
   constructor(
     private readonly prisma: PrismaService,
@@ -146,7 +149,7 @@ export class LiveClassService {
     }
 
     const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
-    const isStudent = user.role === UserRole.STUDENT && liveSession.batch.students.some((s: any) => s.studentId === user.id);
+    const isStudent = user.role === UserRole.STUDENT && liveSession.batch?.students.some((s: any) => s.studentId === user.id);
     const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
 
     if (!isCoach && !isStudent && !isAdmin) {
@@ -162,6 +165,29 @@ export class LiveClassService {
 
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
     const topic = liveSession.class?.topic || liveSession.class?.title || "Live Class";
+
+    // Auto-mark attendance for students when they request a token (join class)
+    if (isStudent && liveSession.classId) {
+      await this.prisma.classAttendance.upsert({
+        where: {
+          classId_studentId: {
+            classId: liveSession.classId,
+            studentId: user.id
+          }
+        },
+        update: {
+          status: "PRESENT",
+          updatedAt: new Date()
+        },
+        create: {
+          classId: liveSession.classId,
+          studentId: user.id,
+          status: "PRESENT",
+          joinedAt: new Date()
+        }
+      });
+    }
+
     return { token: livekitToken, roomName: liveSession.roomName, topic };
   }
 
@@ -184,10 +210,16 @@ export class LiveClassService {
       throw new ForbiddenException("You can only end your own classes.");
     }
 
-    await this.livekit.deleteRoom(liveSession.roomName);
+    await this.internalEndClass(classId, liveSession.id, liveSession.roomName);
+
+    return { message: "Class ended successfully" };
+  }
+
+  private async internalEndClass(classId: string, liveSessionId: string, roomName: string) {
+    await this.livekit.deleteRoom(roomName);
 
     await this.prisma.liveSession.update({
-      where: { id: liveSession.id },
+      where: { id: liveSessionId },
       data: {
         status: LiveSessionStatus.ENDED,
         endedAt: new Date()
@@ -198,8 +230,44 @@ export class LiveClassService {
       where: { id: classId },
       data: { status: ClassStatus.COMPLETED }
     });
+  }
 
-    return { message: "Class ended successfully" };
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleStaleClasses() {
+    try {
+      const now = new Date();
+      
+      // Find all LIVE sessions whose scheduled end time has passed
+      const activeSessions = await this.prisma.liveSession.findMany({
+        where: {
+          status: LiveSessionStatus.LIVE,
+          class: {
+            endsAt: {
+              lte: now
+            }
+          }
+        },
+        include: {
+          class: true
+        }
+      });
+
+      for (const session of activeSessions) {
+        try {
+          const participants = await this.livekit.listParticipants(session.roomName);
+          const coachParticipant = participants.find(p => p.identity === session.coachId);
+          
+          if (!coachParticipant) {
+            this.logger.log(`Automatically ending class ${session.classId} because coach left after scheduled end time.`);
+            await this.internalEndClass(session.classId, session.id, session.roomName);
+          }
+        } catch (error) {
+          this.logger.error(`Failed to auto-end class ${session.classId}`, error);
+        }
+      }
+    } catch (error) {
+      this.logger.error("Error in handleStaleClasses cron job", error);
+    }
   }
 
   async getLiveClass(accessToken: string | undefined, classId: string) {
@@ -217,7 +285,7 @@ export class LiveClassService {
     }
 
     const isCoach = user.role === UserRole.COACH && scheduledClass.coachId === user.id;
-    const isStudent = user.role === UserRole.STUDENT && scheduledClass.batch.students.some((s: any) => s.studentId === user.id);
+    const isStudent = user.role === UserRole.STUDENT && scheduledClass.batch?.students.some((s: any) => s.studentId === user.id);
     const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
 
     if (!isCoach && !isStudent && !isAdmin) {
@@ -242,7 +310,7 @@ export class LiveClassService {
     }
 
     const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
-    const isStudent = user.role === UserRole.STUDENT && liveSession.batch.students.some((s: any) => s.studentId === user.id);
+    const isStudent = user.role === UserRole.STUDENT && liveSession.batch?.students.some((s: any) => s.studentId === user.id);
     const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
 
     if (!isCoach && !isStudent && !isAdmin) {
@@ -251,5 +319,81 @@ export class LiveClassService {
 
     const participants = await this.livekit.listParticipants(liveSession.roomName);
     return { participants };
+  }
+
+  async joinDemoClass(classId: string, body: { guestName: string }) {
+    if (!body.guestName || body.guestName.trim().length === 0) {
+      throw new BadRequestException("Guest name is required");
+    }
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+      include: { class: true }
+    });
+
+    if (!liveSession) {
+      // No live session created yet — class hasn't started
+      const coachClass = await this.prisma.coachClass.findUnique({ where: { id: classId } });
+      if (coachClass?.status === 'COMPLETED') {
+        throw new NotFoundException("This demo class has already ended.");
+      }
+      if (coachClass?.status === 'CANCELLED') {
+        throw new NotFoundException("This demo class has been cancelled.");
+      }
+      const now = new Date();
+      if (coachClass?.startsAt && coachClass.startsAt > now) {
+        const formattedTime = coachClass.startsAt.toLocaleString('en-US', {
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        throw new NotFoundException(`This demo class has not started yet. It is scheduled for ${formattedTime}. Please wait for the coach to begin the session.`);
+      }
+      throw new NotFoundException("This demo class has not started yet. Please wait for the coach to begin the session.");
+    }
+
+    if (liveSession.status === LiveSessionStatus.ENDED) {
+      throw new NotFoundException("This demo class has already ended.");
+    }
+
+    if (liveSession.status !== LiveSessionStatus.LIVE) {
+      const now = new Date();
+      if (liveSession.class?.startsAt && liveSession.class.startsAt > now) {
+        const formattedTime = liveSession.class.startsAt.toLocaleString('en-US', {
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+        });
+        throw new NotFoundException(`This demo class has not started yet. It is scheduled for ${formattedTime}. Please wait for the coach to begin the session.`);
+      }
+      throw new NotFoundException("This demo class has not started yet. Please wait for the coach to begin the session.");
+    }
+
+    if (!liveSession.class?.isDemo) {
+      throw new ForbiddenException("This class is not a demo class.");
+    }
+
+    const participantIdentity = `guest_${Math.random().toString(36).substring(7)}`;
+
+    const tokenOptions: LiveKitTokenOptions = {
+      roomName: liveSession.roomName,
+      participantIdentity,
+      participantName: body.guestName,
+      isCoach: false
+    };
+
+    const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
+    const topic = liveSession.class?.topic || liveSession.class?.title || "Demo Class";
+
+    // Track guest participant in metadata
+    const metadata = (liveSession.metadata as Record<string, any>) || {};
+    const participants = metadata.participants || [];
+    participants.push({
+      name: body.guestName,
+      joinedAt: new Date().toISOString()
+    });
+    
+    await this.prisma.liveSession.update({
+      where: { id: liveSession.id },
+      data: { metadata: { ...metadata, participants } }
+    });
+
+    return { token: livekitToken, roomName: liveSession.roomName, topic };
   }
 }

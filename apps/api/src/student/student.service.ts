@@ -77,11 +77,30 @@ export class StudentService {
       }
     }
 
+    // Calculate actual attendance percentage
+    const completedClassesCount = await this.prisma.coachClass.count({
+      where: {
+        batch: { students: { some: { studentId: user.id, isDeleted: false } } },
+        status: "COMPLETED"
+      }
+    });
+
+    const attendedClassesCount = await this.prisma.classAttendance.count({
+      where: {
+        studentId: user.id,
+        status: "PRESENT"
+      }
+    });
+
+    const attendancePercent = completedClassesCount > 0 
+      ? Math.round((attendedClassesCount / completedClassesCount) * 100) 
+      : 100;
+
     const progressMetrics = [
-      { label: "Classes Attended", value: activities.filter((a: any) => a.type === 'CLASS_JOINED').length.toString(), trend: "" },
+      { label: "Classes Attended", value: attendedClassesCount.toString(), trend: "" },
       { label: "Lessons Completed", value: activities.filter((a: any) => a.type === 'LESSON_COMPLETED').length.toString(), trend: "" },
       { label: "Practice Hrs", value: "0", trend: "" },
-      { label: "Attendance", value: "100%", trend: "" }
+      { label: "Attendance", value: `${attendancePercent}%`, trend: "" }
     ];
 
     return {
@@ -129,6 +148,54 @@ export class StudentService {
         date: a.createdAt.toLocaleDateString()
       })),
       progressMetrics
+    };
+  }
+
+  async getAttendance(accessToken: string | undefined) {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    const completedClasses = await this.prisma.coachClass.findMany({
+      where: {
+        batch: { students: { some: { studentId: user.id, isDeleted: false } } },
+        status: "COMPLETED"
+      },
+      include: {
+        batch: true,
+        coach: true,
+        attendances: {
+          where: { studentId: user.id }
+        }
+      },
+      orderBy: { startsAt: "desc" }
+    });
+
+    const attendedClassesCount = completedClasses.filter(c => c.attendances.length > 0 && c.attendances[0].status === "PRESENT").length;
+    const totalClassesCount = completedClasses.length;
+    const attendancePercent = totalClassesCount > 0 
+      ? Math.round((attendedClassesCount / totalClassesCount) * 100) 
+      : 100;
+
+    const history = completedClasses.map(cls => {
+      const isPresent = cls.attendances.length > 0 && cls.attendances[0].status === "PRESENT";
+      return {
+        id: cls.id,
+        topic: cls.topic || "Untitled Class",
+        batchName: cls.batch?.name || "Demo Class",
+        coachName: `${cls.coach.firstName} ${cls.coach.lastName || ""}`.trim(),
+        date: cls.startsAt.toISOString(),
+        status: isPresent ? "PRESENT" : "ABSENT",
+        joinedAt: isPresent ? cls.attendances[0].joinedAt?.toISOString() : null
+      };
+    });
+
+    return {
+      stats: {
+        total: totalClassesCount,
+        attended: attendedClassesCount,
+        missed: totalClassesCount - attendedClassesCount,
+        percentage: attendancePercent
+      },
+      history
     };
   }
 

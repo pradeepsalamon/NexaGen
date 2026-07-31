@@ -58,7 +58,7 @@ export function WelcomeCard({
               </Button>
             </Link>
           ) : (
-            <Link href="/dashboard/student/schedule">
+            <Link href="/student/schedule">
               <Button variant="outline" className="w-full md:w-auto font-bold border-primary text-primary hover:bg-primary/10">
                 View Schedule
               </Button>
@@ -69,3 +69,4 @@ export function WelcomeCard({
     </Card>
   );
 }
+

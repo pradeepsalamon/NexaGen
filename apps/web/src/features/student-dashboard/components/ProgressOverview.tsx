@@ -14,13 +14,26 @@ interface ProgressOverviewProps {
 
 export function ProgressOverview({ metrics }: ProgressOverviewProps) {
   const defaultMetrics: ProgressMetric[] = [
-    { label: "Classes Attended", value: "24", icon: <Users className="h-5 w-5 text-primary" /> },
-    { label: "Attendance", value: "92%", icon: <CheckCircle2 className="h-5 w-5 text-green-500" />, trend: "+2% this month" },
-    { label: "Lessons Completed", value: "18", icon: <BookOpen className="h-5 w-5 text-accent" /> },
-    { label: "Practice Hours", value: "32h", icon: <Clock className="h-5 w-5 text-secondary" />, trend: "+4h this week" },
+    { label: "Classes Attended", value: "0", icon: <Users className="h-5 w-5 text-primary" /> },
+    { label: "Attendance", value: "0%", icon: <CheckCircle2 className="h-5 w-5 text-green-500" /> },
+    { label: "Lessons Completed", value: "0", icon: <BookOpen className="h-5 w-5 text-accent" /> },
+    { label: "Practice Hrs", value: "0", icon: <Clock className="h-5 w-5 text-secondary" /> },
   ];
 
-  const displayMetrics = metrics || defaultMetrics;
+  const getIconForLabel = (label: string) => {
+    switch (label) {
+      case "Classes Attended": return <Users className="h-5 w-5 text-primary" />;
+      case "Attendance": return <CheckCircle2 className="h-5 w-5 text-green-500" />;
+      case "Lessons Completed": return <BookOpen className="h-5 w-5 text-accent" />;
+      case "Practice Hrs": return <Clock className="h-5 w-5 text-secondary" />;
+      default: return <CheckCircle2 className="h-5 w-5 text-app-muted" />;
+    }
+  };
+
+  const displayMetrics = metrics?.map(m => ({
+    ...m,
+    icon: m.icon || getIconForLabel(m.label)
+  })) || defaultMetrics;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

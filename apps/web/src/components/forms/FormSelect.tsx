@@ -2,7 +2,9 @@ import { useFormContext } from "react-hook-form";
 import { FormField as BaseFormField } from "../ui/FormField";
 import { Select, type SelectOption } from "../ui/Select";
 
-interface FormSelectProps {
+import { SelectHTMLAttributes } from "react";
+
+interface FormSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   name: string;
   label: string;
   hint?: string;

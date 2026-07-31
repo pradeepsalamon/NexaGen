@@ -69,7 +69,7 @@ apiClient.interceptors.response.use(
         processQueue(err as Error);
         useAuthStore.getState().clearSession();
         if (typeof window !== "undefined") {
-          const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
+          const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/demo"];
           const isPublicRoute = publicRoutes.some(route => window.location.pathname.startsWith(route));
           if (!isPublicRoute) {
             window.dispatchEvent(new CustomEvent("auth:logout"));
@@ -89,6 +89,8 @@ type ApiFetchOptions = Omit<AxiosRequestConfig, "data" | "url"> & {
   body?: unknown;
 };
 
+import { toast } from "sonner";
+
 export async function apiFetch<TResponse>(
   path: string,
   options: ApiFetchOptions = {}
@@ -105,6 +107,15 @@ export async function apiFetch<TResponse>(
   } catch (error) {
     if (error instanceof AxiosError) {
       const message = getApiErrorMessage(error);
+      
+      // Globally show a toast for network errors (e.g. server down)
+      if (!error.response) {
+        toast.error("Connection Error", { 
+          description: "Cannot connect to the server. Please check your connection.",
+          id: "global-network-error" 
+        });
+      }
+
       throw new Error(message);
     }
 

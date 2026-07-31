@@ -7,7 +7,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuthStore } from "@/stores/authStore";
+import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 
 type AuthLayoutProps = {
   children: ReactNode;
@@ -30,13 +30,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     }
 
     if (isSessionChecked && user) {
-      let nextUrl = "/";
+      let nextUrl = getRoleDashboardHref(user.role);
       if (searchParams.has("next")) {
         nextUrl = searchParams.get("next") as string;
-      } else if (user.role === "SUPER_ADMIN") {
-        nextUrl = "/admin";
-      } else if (user.role === "COACH") {
-        nextUrl = "/coach";
       }
       router.replace(nextUrl);
     }

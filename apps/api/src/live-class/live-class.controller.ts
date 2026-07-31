@@ -4,6 +4,7 @@ import {
   Param,
   Post,
   Req,
+  Body,
 } from "@nestjs/common";
 import type { Request } from "express";
 import { LiveClassService } from "./live-class.service";
@@ -41,5 +42,11 @@ export class LiveClassController {
   @Get(API_ROUTES.liveClass.participants())
   getParticipants(@Param("id") id: string, @Req() request: Request) {
     return this.liveClassService.getParticipants(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.demoJoin())
+  joinDemoClass(@Param("id") id: string, @Body() body: any) {
+    // Expected body: GuestJoinDemoRequest
+    return this.liveClassService.joinDemoClass(id, body);
   }
 }

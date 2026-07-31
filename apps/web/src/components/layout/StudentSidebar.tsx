@@ -16,14 +16,14 @@ import {
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard/student", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/student/courses", label: "My Courses", icon: BookOpen },
-  { href: "/dashboard/student/batches", label: "My Batches", icon: Layers3 },
-  { href: "/dashboard/student/live-classes", label: "Live Classes", icon: Video },
-  { href: "/dashboard/student/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/dashboard/student/practice", label: "Practice", icon: Target },
-  { href: "/dashboard/student/progress", label: "Progress", icon: TrendingUp },
-  { href: "/dashboard/student/attendance", label: "Attendance", icon: UserCheck },
+  { href: "/student", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/student/courses", label: "My Courses", icon: BookOpen },
+  { href: "/student/batches", label: "My Batches", icon: Layers3 },
+  { href: "/student/live-classes", label: "Live Classes", icon: Video },
+  { href: "/student/schedule", label: "Schedule", icon: CalendarDays },
+  { href: "/student/practice", label: "Practice", icon: Target },
+  { href: "/student/progress", label: "Progress", icon: TrendingUp },
+  { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/profile", label: "Profile & Settings", icon: Settings },
 ];
 
@@ -56,3 +56,4 @@ export function StudentSidebar() {
     </aside>
   );
 }
+

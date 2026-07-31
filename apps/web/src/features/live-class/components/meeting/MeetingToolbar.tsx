@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useEffect } from "react";
+import { memo, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Mic,
@@ -15,12 +15,12 @@ import {
   Hand,
   Maximize,
   Minimize,
+  Crown,
 } from "lucide-react";
 import {
   useTrackToggle,
   useDisconnectButton,
   useParticipants,
-  useChat,
   useLocalParticipant,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
@@ -28,6 +28,8 @@ import { MeetingControlButton } from "./MeetingControlButton";
 import { RecordingBadge } from "./MeetingStatus";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/authStore";
+import { useLiveClassChat } from "../../providers/ChatProvider";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
   const {
@@ -37,18 +39,14 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     toggleHandRaised,
     isFullscreen,
     toggleFullscreen,
+    isChessboardOpen,
+    toggleChessboard,
   } = useLiveClassState();
 
-  const { chatMessages } = useChat();
-  const [unreadCount, setUnreadCount] = useState(0);
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
 
-  useEffect(() => {
-    if (activeSidebar === "chat") {
-      setUnreadCount(0);
-    } else if (chatMessages && chatMessages.length > 0) {
-      setUnreadCount((prev) => prev + 1);
-    }
-  }, [chatMessages, activeSidebar]);
+  const { unreadCount } = useLiveClassChat();
 
   const { localParticipant } = useLocalParticipant();
 
@@ -113,6 +111,23 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
           variant={screen.enabled ? "active" : "default"}
           {...extractProps(screen.buttonProps)}
         />
+
+        {/* ── Chessboard share (coach only) ── */}
+        {isCoach && (
+          <MeetingControlButton
+            icon={
+              <Crown
+                className={cn(
+                  "size-5 transition-transform",
+                  isChessboardOpen && "text-amber-400 scale-110",
+                )}
+              />
+            }
+            label={isChessboardOpen ? "Close Board" : "Share Board"}
+            variant={isChessboardOpen ? "active" : "default"}
+            onClick={toggleChessboard}
+          />
+        )}
 
         {/* Divider */}
         <div className="mx-1 h-8 w-px bg-app-border sm:mx-2" aria-hidden="true" />

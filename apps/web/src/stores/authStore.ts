@@ -45,3 +45,18 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+export function getRoleDashboardHref(role?: string): string {
+  if (role === "SUPER_ADMIN" || role === "ADMIN") {
+    return "/admin";
+  }
+  if (role === "COACH") {
+    return "/coach";
+  }
+  if (role === "STUDENT") {
+    return "/student";
+  }
+  return "/";
+}
+
+

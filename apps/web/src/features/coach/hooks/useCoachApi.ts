@@ -62,6 +62,20 @@ export function useClassDetail(
   });
 }
 
+async function getCoachClassDetails(id: string): Promise<import("@nexa-gen/types").CoachClassDetailsResponse> {
+  const { API_ROUTES } = await import("@nexa-gen/types");
+  const { apiFetch } = await import("@/lib/api");
+  return await apiFetch(API_ROUTES.coach.classDetails(id));
+}
+
+export function useCoachClassDetailsQuery(id: string, enabled: boolean = true) {
+  return useQuery({
+    queryKey: [...queryKeys.coach.classes, id, "details"],
+    queryFn: () => getCoachClassDetails(id),
+    enabled: !!id && enabled,
+  });
+}
+
 export function useCoachStudents() {
   return useQuery({
     queryKey: queryKeys.coach.students,

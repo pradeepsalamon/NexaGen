@@ -28,4 +28,7 @@ export const queryKeys = {
     classDetail: (id: string) => ["coach", "classes", "detail", id] as const,
     students: ["coach", "students"] as const,
   },
+  admin: {
+    base: ["admin"] as const,
+  },
 } as const;

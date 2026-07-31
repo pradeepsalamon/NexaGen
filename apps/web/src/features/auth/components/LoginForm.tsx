@@ -17,7 +17,8 @@ import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
 import { login } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
-import { useAuthStore } from "@/stores/authStore";
+import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
+
 
 const initialValues: LoginFormValues = {
   email: "",
@@ -53,12 +54,8 @@ export function LoginForm() {
 
       if (searchParams.has("next")) {
         router.push(searchParams.get("next") as string);
-      } else if (user.role === "SUPER_ADMIN") {
-        router.push("/admin");
-      } else if (user.role === "COACH") {
-        router.push("/coach");
       } else {
-        router.push("/");
+        router.push(getRoleDashboardHref(user.role));
       }
     }
   });

@@ -46,6 +46,8 @@ export interface BoardActions {
   makeMove: (from: string, to: string, promotion?: string) => boolean;
   undo: () => void;
   redo: () => void;
+  jumpToStart: () => void;
+  jumpToEnd: () => void;
   reset: () => void;
   setFen: (fen: string) => void;
   setPgn: (pgn: string) => void;
@@ -156,6 +158,38 @@ export const createBoardStore = () => {
           isGameOver: state.chess.isGameOver(),
           turn: state.chess.turn() === 'w' ? 'white' : 'black',
           historyIndex: state.historyIndex + 1
+        });
+      }
+    },
+    
+    jumpToStart: () => {
+      const state = get();
+      if (state.historyIndex >= 0) {
+        while (state.chess.undo()) {
+          // undo all
+        }
+        set({
+          fen: state.chess.fen(),
+          pgn: state.chess.pgn(),
+          isGameOver: state.chess.isGameOver(),
+          turn: state.chess.turn() === 'w' ? 'white' : 'black',
+          historyIndex: -1
+        });
+      }
+    },
+    
+    jumpToEnd: () => {
+      const state = get();
+      if (state.historyIndex < state.moveHistory.length - 1) {
+        for (let i = state.historyIndex + 1; i < state.moveHistory.length; i++) {
+          state.chess.move(state.moveHistory[i]);
+        }
+        set({
+          fen: state.chess.fen(),
+          pgn: state.chess.pgn(),
+          isGameOver: state.chess.isGameOver(),
+          turn: state.chess.turn() === 'w' ? 'white' : 'black',
+          historyIndex: state.moveHistory.length - 1
         });
       }
     },

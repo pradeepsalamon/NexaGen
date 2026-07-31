@@ -1,12 +1,13 @@
 "use client";
 
-import { Loader2, LogIn } from "lucide-react";
+import { LayoutDashboard, Loader2, LogIn } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
-import { UserAvatar } from "@/components/common/UserAvatar";
-import { useAuthStore } from "@/stores/authStore";
+import { UserNavMenu } from "@/components/layout/UserNavMenu";
+import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
+import { cn } from "@/lib/utils";
 
 const pageTitles: Record<string, string> = {
   "/": "Nexa Chess",
@@ -20,6 +21,14 @@ const pageTitles: Record<string, string> = {
   "/coach/schedule": "Schedule",
   "/coach/students": "Students",
   "/coach/history": "Class History",
+  "/student": "Student Dashboard",
+  "/student/courses": "My Courses",
+  "/student/batches": "My Batches",
+  "/student/live-classes": "Live Classes",
+  "/student/schedule": "Schedule",
+  "/student/practice": "Practice",
+  "/student/progress": "Progress",
+  "/student/attendance": "Attendance",
   "/forgot-password": "Account Help",
   "/login": "Login",
   "/profile": "My Profile",
@@ -71,7 +80,8 @@ export function Header({
   const isAuthPending = !isHydrated || isSessionLoading || !isSessionChecked;
   const activeUser = isSessionChecked ? user : undefined;
 
-  const homeHref = activeUser?.role === "SUPER_ADMIN" ? "/admin" : activeUser?.role === "COACH" ? "/coach" : "/";
+  const dashboardHref = getRoleDashboardHref(activeUser?.role);
+  const homeHref = activeUser ? dashboardHref : "/";
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface/95 shadow-[0_1px_0_rgba(16,24,40,0.02)] backdrop-blur supports-[backdrop-filter]:bg-app-surface/88">
@@ -95,6 +105,20 @@ export function Header({
         )}
         <div className="flex items-center gap-2 justify-self-end">
           {rightSlot}
+          {activeUser && (
+            <Link
+              className={cn(
+                "inline-flex min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
+                pathname.startsWith(dashboardHref) && dashboardHref !== "/"
+                  ? "border-primary bg-primary text-white"
+                  : "border-app-border bg-app-soft text-app-text hover:border-primary/50 hover:bg-app-soft/80"
+              )}
+              href={dashboardHref}
+            >
+              <LayoutDashboard aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Link>
+          )}
           <ThemeToggle />
           {isAuthPending ? (
             <div
@@ -109,7 +133,7 @@ export function Header({
               />
             </div>
           ) : activeUser ? (
-            <UserAvatar user={activeUser} />
+            <UserNavMenu user={activeUser} />
           ) : (
             <Link
               className="inline-flex min-h-10 items-center gap-2 rounded-control border border-app-border bg-primary px-3 text-sm font-extrabold text-white shadow-card transition hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:px-4"
@@ -124,3 +148,4 @@ export function Header({
     </header>
   );
 }
+

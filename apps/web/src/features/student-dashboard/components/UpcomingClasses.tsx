@@ -23,7 +23,7 @@ export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
     <Card className="border-app-border bg-app-surface shadow-sm h-full flex flex-col">
       <CardHeader className="pb-4 flex flex-row items-center justify-between border-b border-app-border/50">
         <CardTitle className="text-lg font-semibold">Upcoming Classes</CardTitle>
-        <Link href="/dashboard/student/schedule">
+        <Link href="/student/schedule">
           <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
             View Schedule
           </Button>
@@ -66,3 +66,4 @@ export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
     </Card>
   );
 }
+

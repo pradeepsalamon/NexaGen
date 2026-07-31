@@ -58,8 +58,8 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
     defaultValues: {
       name: selectedBatch?.name || "",
       description: selectedBatch?.description || "",
-      startsAt: selectedBatch?.startsAt ? new Date(selectedBatch.startsAt).toISOString().slice(0, 10) : "",
-      endsAt: selectedBatch?.endsAt ? new Date(selectedBatch.endsAt).toISOString().slice(0, 10) : "",
+      startsAt: selectedBatch?.startsAt || "",
+      endsAt: selectedBatch?.endsAt || "",
       scheduleNotes: selectedBatch?.scheduleNotes || "",
       status: selectedBatch?.status || "ACTIVE",
       coachIds: selectedBatch?.coaches.map(c => c.id) || [],
@@ -138,7 +138,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               render={({ field }) => (
                 <DatePicker
                   value={field.value ? new Date(field.value) : undefined}
-                  onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 10) : "")}
+                  onChange={(date) => field.onChange(date ? date.toISOString() : "")}
                 />
               )}
             />
@@ -151,7 +151,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               render={({ field }) => (
                 <DatePicker
                   value={field.value ? new Date(field.value) : undefined}
-                  onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 10) : "")}
+                  onChange={(date) => field.onChange(date ? date.toISOString() : "")}
                 />
               )}
             />

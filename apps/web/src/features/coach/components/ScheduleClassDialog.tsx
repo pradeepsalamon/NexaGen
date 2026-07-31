@@ -55,8 +55,8 @@ export function ScheduleClassDialog({
         topic: classToEdit.topic || "",
         description: classToEdit.description || "",
         homework: classToEdit.homework || "",
-        startsAt: classToEdit.startsAt.slice(0, 16), // datetime-local format
-        endsAt: classToEdit.endsAt.slice(0, 16)
+        startsAt: classToEdit.startsAt,
+        endsAt: classToEdit.endsAt
       });
     } else if (open) {
       // Default to next hour
@@ -65,10 +65,8 @@ export function ScheduleClassDialog({
       const start = new Date(now.getTime() + 60 * 60 * 1000);
       const end = new Date(start.getTime() + 60 * 60 * 1000); // 1 hr duration
 
-      // Convert to local ISO string format YYYY-MM-DDThh:mm required for datetime-local
-      const tzoffset = start.getTimezoneOffset() * 60000;
-      const startLocal = new Date(start.getTime() - tzoffset).toISOString().slice(0, 16);
-      const endLocal = new Date(end.getTime() - tzoffset).toISOString().slice(0, 16);
+      const startLocal = start.toISOString();
+      const endLocal = end.toISOString();
 
       form.reset({
         batchId: batches.length > 0 ? batches[0].id : "",
@@ -132,7 +130,7 @@ export function ScheduleClassDialog({
                   <DatePicker
                     withTime
                     value={field.value ? new Date(field.value) : undefined}
-                    onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 16) : "")}
+                    onChange={(date) => field.onChange(date ? date.toISOString() : "")}
                   />
                 )}
               />
@@ -145,7 +143,7 @@ export function ScheduleClassDialog({
                   <DatePicker
                     withTime
                     value={field.value ? new Date(field.value) : undefined}
-                    onChange={(date) => field.onChange(date ? date.toISOString().slice(0, 16) : "")}
+                    onChange={(date) => field.onChange(date ? date.toISOString() : "")}
                   />
                 )}
               />
