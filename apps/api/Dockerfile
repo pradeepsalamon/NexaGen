@@ -17,7 +17,7 @@ RUN npx turbo run build --filter=@nexa-chess/api
 RUN npm prune --omit=dev
 
 FROM node:20-alpine AS runner
-RUN apk update && apk add --no-cache openssl
+RUN apk update && apk add --no-cache openssl stockfish
 WORKDIR /app
 
 COPY --from=builder /app .
