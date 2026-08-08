@@ -56,37 +56,36 @@ services:
       - nexa_network
 
   livekit:
-  image: livekit/livekit-server:v1.6.0
-  container_name: nexa_livekit
-  restart: unless-stopped
+    image: livekit/livekit-server:v1.6.0
+    container_name: nexa_livekit
+    restart: unless-stopped
 
-  command: --config /etc/livekit.yaml
+    command: --config /etc/livekit.yaml
 
-  environment:
-    LIVEKIT_KEYS: "${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}"
+    environment:
+      LIVEKIT_KEYS: "${LIVEKIT_API_KEY}:${LIVEKIT_API_SECRET}"
 
-  volumes:
-    - ./livekit.yaml:/etc/livekit.yaml:ro
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
 
-  depends_on:
-    redis:
-      condition: service_healthy
+    depends_on:
+      redis:
+        condition: service_healthy
 
-  ports:
-    - "7880:7880"
-    - "7881:7881"
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "50000-50010:50000-50010/udp"
 
-    # Temporary test (11 UDP ports only)
-    - "50000-50010:50000-50010/udp"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
-  logging:
-    driver: json-file
-    options:
-      max-size: "10m"
-      max-file: "3"
+    networks:
+      - nexa_network
 
-  networks:
-    - nexa_network
   api:
     build:
       context: .
@@ -101,7 +100,7 @@ services:
       redis:
         condition: service_healthy
       livekit:
-        condition: service_healthy
+        condition: service_started
 
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-nexa_chess}?schema=public
@@ -144,9 +143,14 @@ services:
     ports:
       - "3001:3001"
 
-    # Replace with /health endpoint if you implement one.
     healthcheck:
-      test: [ "CMD", "node", "-e", "require('net').connect(3001,'127.0.0.1',()=>process.exit(0)).on('error',()=>process.exit(1))" ]
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('net').connect(3001,'127.0.0.1',()=>process.exit(0)).on('error',()=>process.exit(1))"
+        ]
       interval: 15s
       timeout: 5s
       retries: 5
