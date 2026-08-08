@@ -107,7 +107,7 @@ export default function LiveClassPage() {
 
   return (
     <LiveClassProvider topic={topic}>
-      <MeetingRoom token={token} />
+      <MeetingRoom token={token} classId={roomId} />
     </LiveClassProvider>
   );
 }

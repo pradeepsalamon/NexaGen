@@ -1,4 +1,4 @@
-import type { UserRole } from "@nexa-gen/types";
+import type { UserRole } from "@nexa-chess/types";
 
 export type AccessTokenPayload = {
   email: string;

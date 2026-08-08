@@ -1,5 +1,5 @@
-import { API_ROUTES } from "@nexa-gen/types";
-import type { ListAdminBatchClassesResponse, AdminBatchClassDetailsResponse } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
+import type { ListAdminBatchClassesResponse, AdminBatchClassDetailsResponse } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 
 export async function getBatchClasses(): Promise<ListAdminBatchClassesResponse> {

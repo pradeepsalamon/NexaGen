@@ -1,4 +1,4 @@
-import type { UpdateProfileRequest } from "@nexa-gen/types";
+import type { UpdateProfileRequest } from "@nexa-chess/types";
 import {
   IsEmail,
   IsIn,

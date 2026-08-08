@@ -53,6 +53,20 @@ enum ClassStatus {
   CANCELLED
 }
 
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  PARTIAL
+  ABSENT
+}
+
+enum AttendanceEventType {
+  JOIN
+  LEAVE
+  DISCONNECT
+  RECONNECT
+}
+
 //
 // USER
 //
@@ -101,11 +115,13 @@ model User {
   deletedBatches         Batch[]                  @relation("BatchDeletedBy")
   deletedBatchCoaches    BatchCoach[]             @relation("BatchCoachDeletedBy")
   deletedBatchStudents   BatchStudent[]           @relation("BatchStudentDeletedBy")
-  liveSessions            LiveSession[]              @relation("LiveClassCoach")
+  liveSessions           LiveSession[]            @relation("LiveClassCoach")
   courseProgress         StudentCourseProgress[]  @relation("StudentCourseProgress")
   practices              StudentPractice[]        @relation("StudentPractice")
   activities             StudentActivity[]        @relation("StudentActivity")
   classAttendances       ClassAttendance[]
+  attendanceLogs         AttendanceLog[]        @relation("UserAttendanceLogs")
+  chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -420,15 +436,74 @@ model ClassAttendance {
   studentId String
   student   User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   
-  status    String     @default("PRESENT") // e.g., PRESENT, ABSENT
-  joinedAt  DateTime?  @default(now())
+  status            AttendanceStatus @default(PRESENT)
+  joinedAt          DateTime?  @default(now())
+  leftAt            DateTime?
+  
+  totalDuration     Int?       // Total seconds actually in class
+  attendancePercent Float?     // 0-100 calculated percentage
+  reconnectCount    Int        @default(0)
+  lastActivity      DateTime?
+  
+  logs              AttendanceLog[]
   
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
   @@unique([classId, studentId])
   @@index([studentId])
+  @@index([status])
   @@map("class_attendance")
+}
+
+model AttendanceLog {
+  id              String   @id @default(cuid())
+  
+  attendanceId    String
+  attendance      ClassAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User   @relation("UserAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
+  
+  eventType       AttendanceEventType
+  timestamp       DateTime @default(now())
+  
+  sessionStart    DateTime?
+  sessionEnd      DateTime?
+  sessionDuration Int?      // seconds for this segment
+  
+  reason          String?   // disconnect reason from LiveKit
+  userAgent       String?
+  ipAddress       String?
+  source          String    @default("LIVEKIT") // LIVEKIT, MANUAL, SYSTEM
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([attendanceId])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([eventType])
+  @@map("attendance_logs")
+}
+
+model AttendancePolicy {
+  id                  String  @id @default(cuid())
+  
+  name                String  @default("Default Policy")
+  isActive            Boolean @default(true)
+  
+  presentThreshold    Float   @default(90)
+  lateThreshold       Float   @default(70)
+  partialThreshold    Float   @default(30)
+  
+  gracePeriodMinutes  Int     @default(5)
+  minDurationMinutes  Int     @default(5)
+  reconnectTolerance  Int     @default(3)
+  
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  @@map("attendance_policies")
 }
 
 //
@@ -462,10 +537,34 @@ model LiveSession {
 
   metadata Json?
 
+  chatMessages LiveChatMessage[]
+
   @@index([batchId])
   @@index([coachId])
   @@index([status])
   @@map("live_sessions")
+}
+
+model LiveChatMessage {
+  id String @id @default(cuid())
+
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  senderId   String
+  sender     User   @relation("UserLiveChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  senderName String
+  senderRole String?
+  
+  message    String @db.Text
+
+  createdAt  DateTime @default(now())
+
+  @@index([liveSessionId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@map("live_chat_messages")
 }
 
 //

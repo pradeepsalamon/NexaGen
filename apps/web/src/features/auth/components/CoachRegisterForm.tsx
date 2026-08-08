@@ -12,7 +12,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { useAuthStore } from "@/stores/authStore";
 import { registerCoach } from "../api/authApi";
-import type { RegisterCoachRequest } from "@nexa-gen/types";
+import type { RegisterCoachRequest } from "@nexa-chess/types";
 
 const titleOptions: { label: string; value: string }[] = [
   { label: "None", value: "NONE" },

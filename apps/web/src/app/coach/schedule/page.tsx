@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { CoachScheduleClient } from "../../../features/coach/components/CoachScheduleClient";
 
 export const metadata = {
@@ -5,5 +6,10 @@ export const metadata = {
 };
 
 export default function CoachSchedulePage() {
-  return <CoachScheduleClient />;
+  return (
+    <Suspense fallback={<div className="p-8">Loading schedule...</div>}>
+      <CoachScheduleClient />
+    </Suspense>
+  );
 }
+

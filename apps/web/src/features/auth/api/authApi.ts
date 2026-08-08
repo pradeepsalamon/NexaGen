@@ -11,8 +11,8 @@ import type {
   ResetPasswordRequest,
   UpdateProfileRequest,
   VerifyEmailRequest
-} from "@nexa-gen/types";
-import { API_ROUTES } from "@nexa-gen/types";
+} from "@nexa-chess/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
 
 export function register(payload: RegisterRequest) {

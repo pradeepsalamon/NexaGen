@@ -1,4 +1,4 @@
-import type { ForgotPasswordRequest } from "@nexa-gen/types";
+import type { ForgotPasswordRequest } from "@nexa-chess/types";
 import { IsEmail } from "class-validator";
 
 export class ForgotPasswordDto implements ForgotPasswordRequest {

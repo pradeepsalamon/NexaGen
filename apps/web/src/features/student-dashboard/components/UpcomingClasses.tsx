@@ -1,9 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Calendar, Clock } from "lucide-react";
 import Link from "next/link";
 import { ClassStatus } from "@/features/live-class/types/live-class";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 
 interface ScheduledClass {
   id: string;
@@ -57,7 +57,7 @@ export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
                     </div>
                   </div>
                 </div>
-                <Badge variant="outline" className="w-fit">Scheduled</Badge>
+                <ClassStatusBadge status={cls.status} />
               </div>
             ))}
           </div>

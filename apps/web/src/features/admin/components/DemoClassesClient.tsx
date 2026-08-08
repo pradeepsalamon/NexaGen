@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Copy, Ban, CalendarDays, Plus, SlidersHorizontal, Pencil, RotateCcw, Info } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { DemoClass } from "@nexa-gen/types";
+import type { DemoClass } from "@nexa-chess/types";
 
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";

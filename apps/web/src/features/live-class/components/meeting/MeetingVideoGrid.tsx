@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, memo } from "react";
+import { useMemo, useRef, memo, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
   isTrackReference,
@@ -9,13 +10,61 @@ import {
   useIsSpeaking,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { Mic, MicOff, Maximize2, Minimize2, X, Pin, Hand } from "lucide-react";
+import { Mic, MicOff, Maximize2, Minimize2, Pin, Hand, Crown } from "lucide-react";
 import { Track } from "livekit-client";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { NetworkQualityIndicator } from "./MeetingStatus";
 import { EmptyMeetingState } from "./EmptyMeetingState";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { lazy, Suspense } from "react";
+import { BoardProvider, useBoardStore } from "@/features/chessboard/context/BoardProvider";
+
+// Lazy-load board components for code splitting
+const LiveBoardSyncBridge = lazy(() =>
+  import("./LiveBoardSyncBridge").then((m) => ({ default: m.LiveBoardSyncBridge })),
+);
+
+import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
+import { useBoardSync } from "@/features/chessboard/hooks/useBoardSync";
+
+// ─── Student Request Control Button ──────────────────────────
+
+function RequestControlButton() {
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const { permissionMode, selectedStudentId } = useBoardStore();
+  const { requestControl } = useBoardSync();
+
+  if (isCoach) return null;
+
+  const hasControl = Boolean(
+    user?.id &&
+    (permissionMode === "EVERYONE" ||
+      (permissionMode === "SELECTED_STUDENT" && selectedStudentId === user.id))
+  );
+
+  if (hasControl) {
+    return (
+      <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-black/80 px-3 py-1.5 text-xs font-semibold text-emerald-400 shadow-md backdrop-blur-md">
+        <Crown className="size-3.5 text-emerald-400" />
+        You have control
+      </span>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={requestControl}
+      className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-black/80 px-3 py-1.5 text-xs font-semibold text-amber-400 shadow-md backdrop-blur-md transition-all hover:bg-black/90 hover:border-amber-400 hover:text-amber-300 hover:scale-105 active:scale-95"
+    >
+      <Hand className="size-3.5 text-amber-400" />
+      Request Control
+    </button>
+  );
+}
 
 // ─── Helpers ─────────────────────────────────────────────────
 
@@ -49,12 +98,7 @@ function getRole(participant: TrackReferenceOrPlaceholder["participant"]): strin
 }
 
 function getHandRaised(participant: TrackReferenceOrPlaceholder["participant"]): boolean {
-  try {
-    const meta = participant.metadata ? JSON.parse(participant.metadata) : null;
-    return !!meta?.handRaised;
-  } catch {
-    return false;
-  }
+  return participant.attributes?.handRaised === "true";
 }
 
 // ─── Track Sorting ───────────────────────────────────────────
@@ -81,6 +125,10 @@ function useSortedTracks(tracks: TrackReferenceOrPlaceholder[]) {
       const aIsScreen = a.source === Track.Source.ScreenShare;
       const bIsScreen = b.source === Track.Source.ScreenShare;
       if (aIsScreen !== bIsScreen) return aIsScreen ? -1 : 1;
+
+      const aIsCoach = getRole(a.participant)?.toUpperCase() === "COACH";
+      const bIsCoach = getRole(b.participant)?.toUpperCase() === "COACH";
+      if (aIsCoach !== bIsCoach) return aIsCoach ? -1 : 1;
 
       const aIsSpeaking = a.participant.isSpeaking;
       const bIsSpeaking = b.participant.isSpeaking;
@@ -109,16 +157,19 @@ interface VideoTileProps {
 }
 
 const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileProps) {
+  const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
   const isSpeaking = useIsSpeaking(participant);
   const isMuted = !participant.isMicrophoneEnabled;
-  const name = participant.name || participant.identity || "Unknown";
+  const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
+  const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const trackKey = useMemo(() => getTrackKey(trackRef), [trackRef]);
-  const role = useMemo(() => getRole(participant), [participant]);
-  const handRaised = useMemo(() => getHandRaised(participant), [participant, participant.metadata]);
+  const role = useMemo(() => getRole(participant), [participant, participant.metadata]);
+  const handRaised = getHandRaised(participant);
   const isLocal = participant.isLocal;
+
 
   return (
     <motion.div
@@ -151,12 +202,10 @@ const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileProps) {
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-app-soft">
           <ParticipantAvatar name={name} size="lg" />
-          <div className="text-center">
+          <div className="text-center flex items-center justify-center gap-1.5">
             <p className="text-sm font-medium text-app-text/80">{name}</p>
-            {role && (
-              <span className="mt-0.5 inline-block rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
-                {role}
-              </span>
+            {role && role.toUpperCase() === "COACH" && (
+              <span className="text-app-muted text-xs font-normal">(Coach)</span>
             )}
           </div>
         </div>
@@ -176,12 +225,17 @@ const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileProps) {
           {isMuted ? <MicOff className="size-3" /> : <Mic className="size-3" />}
         </span>
 
-        <span className="max-w-[120px] truncate text-xs font-semibold text-white/90">
-          {isLocal && !isScreenShare
-            ? "You"
-            : isScreenShare
-              ? `${name}'s screen`
-              : name}
+        <span className="max-w-[160px] flex items-center gap-1.5 truncate text-xs font-semibold text-white/90">
+          <span className="truncate">
+            {isLocal && !isScreenShare
+              ? "You"
+              : isScreenShare
+                ? `${name}'s screen`
+                : name}
+          </span>
+          {role && role.toUpperCase() === "COACH" && !isScreenShare && (
+            <span className="text-white/70 font-normal shrink-0">(Coach)</span>
+          )}
         </span>
       </div>
 
@@ -193,12 +247,7 @@ const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileProps) {
       {/* Top-right controls — visible on hover */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-2.5">
         <div className="flex gap-2 items-center">
-          {/* Role badge (when video is on) */}
-          {hasVideo && role && (
-            <span className="rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary backdrop-blur-sm">
-              {role}
-            </span>
-          )}
+          {/* Role badge moved to bottom-left next to name */}
           {/* Hand raised indicator */}
           {handRaised && (
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm">
@@ -250,9 +299,11 @@ const CompactVideoTile = memo(function CompactVideoTile({
 }: {
   trackRef: TrackReferenceOrPlaceholder;
 }) {
+  const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
   const isSpeaking = useIsSpeaking(participant);
-  const name = participant.name || participant.identity || "Unknown";
+  const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
+  const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const isMuted = !participant.isMicrophoneEnabled;
@@ -312,7 +363,9 @@ function FocusOverlay({
   trackRef: TrackReferenceOrPlaceholder;
   onClose: () => void;
 }) {
-  const name = trackRef.participant.name || trackRef.participant.identity || "Unknown";
+  const user = useAuthStore((state) => state.user);
+  const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
+  const name = trackRef.participant.name || (trackRef.participant.isLocal ? localName : trackRef.participant.identity) || "Unknown";
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
 
   return (
@@ -334,14 +387,6 @@ function FocusOverlay({
             >
               <Minimize2 className="size-4" />
               Exit full screen
-            </button>
-            <button
-              type="button"
-              className="flex size-9 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-surface hover:text-app-text"
-              onClick={onClose}
-              aria-label="Close full screen view"
-            >
-              <X className="size-5" />
             </button>
           </div>
         </div>
@@ -366,7 +411,11 @@ function FocusOverlay({
 // ─── Main Video Grid ─────────────────────────────────────────
 
 export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
-  const { pinnedParticipantSid, setPinnedParticipantSid } = useLiveClassState();
+  const { pinnedParticipantSid, setPinnedParticipantSid, isChessboardOpen } = useLiveClassState();
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const showBoardTile = isChessboardOpen && !isCoach;
+  const [isBoardFullscreen, setIsBoardFullscreen] = useState(false);
 
   const tracks = useTracks(
     [
@@ -374,7 +423,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
       { source: Track.Source.ScreenShare, withPlaceholder: false },
     ],
     { onlySubscribed: false },
-  );
+  ).filter(t => !t.participant.identity.endsWith('_board'));
 
   const sortedTracks = useSortedTracks(tracks);
 
@@ -386,12 +435,14 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
     [pinnedParticipantSid, tracks],
   );
 
+  const totalItems = sortedTracks.length + (showBoardTile && !compact ? 1 : 0);
+
   const gridClasses = useMemo(
-    () => getGridClasses(sortedTracks.length),
-    [sortedTracks.length],
+    () => getGridClasses(totalItems),
+    [totalItems],
   );
 
-  if (sortedTracks.length === 0 && !compact) {
+  if (totalItems === 0 && !compact) {
     return (
       <div className="flex h-full w-full items-center justify-center">
         <EmptyMeetingState />
@@ -418,18 +469,76 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
 
   return (
     <>
-      <div className="flex h-full w-full items-center justify-center p-3 pb-20 sm:p-4 sm:pb-24">
+      <div className="flex min-h-full w-full flex-col p-3 pb-20 sm:p-4 sm:pb-24">
         <LayoutGroup>
           <div
             className={cn(
-              "grid w-full gap-2.5 auto-rows-fr sm:gap-3",
+              "grid w-full gap-2.5 auto-rows-fr sm:gap-3 my-auto",
               gridClasses,
-              sortedTracks.length <= 2 && "mx-auto max-w-5xl",
-              sortedTracks.length <= 4 && sortedTracks.length > 2 && "mx-auto max-w-6xl",
+              totalItems <= 2 && "mx-auto max-w-5xl",
+              totalItems <= 4 && totalItems > 2 && "mx-auto max-w-6xl",
             )}
-            style={{ maxHeight: "100%" }}
           >
             <AnimatePresence mode="popLayout">
+              {showBoardTile && (
+                <BoardProvider>
+                  <Suspense fallback={null}>
+                    <LiveBoardSyncBridge />
+                  </Suspense>
+                  <motion.div
+                    key="inline-chessboard"
+                    layout
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200"
+                  >
+                    {/* Only render ChessgroundBoard when NOT in fullscreen to avoid dual-instance conflicts */}
+                    {!isBoardFullscreen && (
+                      <div className="absolute inset-y-0 aspect-square" style={{ left: '50%', transform: 'translateX(-50%)' }}>
+                        <ChessgroundBoard broadcastAnnotations={() => {}} />
+                      </div>
+                    )}
+                    {isBoardFullscreen && (
+                      <div className="flex flex-col items-center justify-center gap-2 text-app-muted">
+                        <Maximize2 className="size-6" />
+                        <span className="text-xs font-medium">Viewing full screen</span>
+                      </div>
+                    )}
+
+                    {/* Bottom-left name pill & request control button */}
+                    <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2">
+                      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
+                        <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+                          <Crown className="size-3" />
+                        </span>
+                        <span className="max-w-[160px] flex items-center gap-1.5 truncate text-xs font-semibold text-white/90">
+                          <span className="truncate">Shared Board</span>
+                        </span>
+                      </div>
+                      <RequestControlButton />
+                    </div>
+
+                    {/* Top-right pin/fullscreen button — visible on hover */}
+                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end p-2.5">
+                      <button
+                        type="button"
+                        className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-sm"
+                        onClick={() => setIsBoardFullscreen(true)}
+                        aria-label="View board full screen"
+                      >
+                        <Maximize2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
+
+                  {/* Fullscreen overlay — same BoardProvider, single ChessgroundBoard instance */}
+                  {isBoardFullscreen && (
+                    <BoardFocusOverlay onClose={() => setIsBoardFullscreen(false)} />
+                  )}
+                </BoardProvider>
+              )}
               {sortedTracks.map((trackRef) => (
                 <VideoTile
                   key={getTrackKey(trackRef)}
@@ -442,7 +551,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
         </LayoutGroup>
       </div>
 
-      {/* Fullscreen / Focus overlay */}
+      {/* Fullscreen / Focus overlay for participant */}
       <AnimatePresence>
         {fullscreenTrack && (
           <FocusOverlay
@@ -452,5 +561,42 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
         )}
       </AnimatePresence>
     </>
+  );
+}
+
+// ─── Board Focus Overlay (fullscreen chessboard) ──────────────
+
+function BoardFocusOverlay({ onClose }: { onClose: () => void }) {
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-background/95 p-4 backdrop-blur-md">
+      <div className="relative flex h-full w-full max-w-7xl flex-col gap-3">
+        {/* Header bar */}
+        <div className="flex shrink-0 items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-app-text font-semibold">
+            <Crown className="size-4 text-amber-500" />
+            <span>Shared Board</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <RequestControlButton />
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 py-2 text-sm font-medium text-app-text shadow-sm transition-colors hover:bg-app-soft"
+              onClick={onClose}
+            >
+              <Minimize2 className="size-4" />
+              Exit full screen
+            </button>
+          </div>
+        </div>
+
+        {/* Board container — square, centered, uses same BoardProvider context */}
+        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-2xl flex items-center justify-center">
+          <div className="h-full aspect-square max-w-full">
+            <ChessgroundBoard broadcastAnnotations={() => {}} />
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }

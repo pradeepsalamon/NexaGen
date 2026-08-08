@@ -1,6 +1,8 @@
 import { createStore } from "zustand";
 import { Chess, Move } from "chess.js";
 import { BoardPermissionMode } from "../types/sync";
+import { playSound, SoundType } from "../audio/sounds";
+import { useBoardStore as usePersistedStore } from "./boardStore";
 
 export interface BoardState {
   // Engine
@@ -39,6 +41,8 @@ export interface BoardState {
   activeBrush: string; // e.g. "green", "red"
   isEditingPosition: boolean;
   pendingPromotion: { from: string, to: string } | null;
+  isSetupPositionOpen: boolean;
+  isDrawingMode: boolean;
 }
 
 export interface BoardActions {
@@ -71,6 +75,8 @@ export interface BoardActions {
   setEditingPosition: (editing: boolean) => void;
   setPendingPromotion: (promo: { from: string, to: string } | null) => void;
   setShowCoordinates: (show: boolean) => void;
+  setIsDrawingMode: (mode: boolean) => void;
+  setIsSetupPositionOpen: (open: boolean) => void;
 }
 
 export type BoardStore = BoardState & BoardActions;
@@ -94,6 +100,7 @@ export const createBoardStore = () => {
     boardTheme: "blue",
     pieceTheme: "cburnett",
     showCoordinates: true,
+    isDrawingMode: false,
     
     arrows: [],
     squareStyles: {},
@@ -107,6 +114,7 @@ export const createBoardStore = () => {
     activeBrush: "green",
     isEditingPosition: false,
     pendingPromotion: null,
+    isSetupPositionOpen: false,
     
     makeMove: (from, to, promotion = 'q') => {
       const state = get();
@@ -117,16 +125,30 @@ export const createBoardStore = () => {
           const newHistory = state.moveHistory.slice(0, state.historyIndex + 1);
           newHistory.push(move);
           
+          const isGameOver = state.chess.isGameOver();
+          const isCheck = state.chess.inCheck();
+          
+          let moveType: SoundType = "move";
+          if (isGameOver) moveType = "gameEnd";
+          else if (isCheck) moveType = "check";
+          else if (move.captured) moveType = "capture";
+          
+          playSound(moveType);
+          
+          // Save lastMoveType to the persisted store so broadcastState can read it
+          usePersistedStore.getState().setLastMoveType(moveType);
+          
           set({
             fen: state.chess.fen(),
             pgn: state.chess.pgn(),
-            isGameOver: state.chess.isGameOver(),
+            isGameOver,
             turn: state.chess.turn() === 'w' ? 'white' : 'black',
             moveHistory: newHistory,
             historyIndex: newHistory.length - 1
           });
           return true;
         }
+
       } catch (e) {
         return false;
       }
@@ -269,12 +291,21 @@ export const createBoardStore = () => {
           console.warn("Failed to load synced FEN", payload.fen);
         }
       }
+      
+      // Play sound for incoming remote move
+      if ((payload as any).moveType) {
+        playSound((payload as any).moveType);
+      }
+      
       set({ ...payload });
     },
+
     
     setActiveBrush: (brush) => set({ activeBrush: brush }),
     setEditingPosition: (editing) => set({ isEditingPosition: editing }),
     setPendingPromotion: (promo) => set({ pendingPromotion: promo }),
-    setShowCoordinates: (show) => set({ showCoordinates: show })
+    setShowCoordinates: (show) => set({ showCoordinates: show }),
+    setIsDrawingMode: (mode) => set({ isDrawingMode: mode }),
+    setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open })
   }));
 };

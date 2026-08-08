@@ -5,7 +5,8 @@ import {
   RotateCw, 
   X,
   SkipBack,
-  SkipForward
+  SkipForward,
+  PenTool
 } from "lucide-react";
 import { useBoardStore } from "../../context/BoardProvider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
@@ -21,7 +22,9 @@ export function BoardNavigation() {
     jumpToEnd, 
     permissionMode,
     historyIndex,
-    moveHistory 
+    moveHistory,
+    isDrawingMode,
+    setIsDrawingMode
   } = useBoardStore();
   
   const canModify = permissionMode !== "VIEW_ONLY"; 
@@ -30,7 +33,7 @@ export function BoardNavigation() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-center gap-2 mt-4 text-gray-600">
+      <div className="flex items-center justify-center gap-2 mt-4 text-gray-600 dark:text-slate-400">
         
         <Tooltip>
           <TooltipTrigger asChild>
@@ -46,6 +49,17 @@ export function BoardNavigation() {
           <TooltipContent>Previous Move</TooltipContent>
         </Tooltip>
         
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <NavIconButton 
+              icon={<PenTool size={16} />} 
+              onClick={() => setIsDrawingMode(!isDrawingMode)} 
+              isActive={isDrawingMode} 
+            />
+          </TooltipTrigger>
+          <TooltipContent>Toggle 1-Click Drawing Mode</TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger asChild>
             <NavIconButton 
@@ -82,16 +96,19 @@ export function BoardNavigation() {
   );
 }
 
-const NavIconButton = React.forwardRef<HTMLButtonElement, { icon: React.ReactNode, onClick?: () => void, disabled?: boolean }>(
-  ({ icon, onClick, disabled, ...props }, ref) => {
+const NavIconButton = React.forwardRef<HTMLButtonElement, { icon: React.ReactNode, onClick?: () => void, disabled?: boolean, isActive?: boolean }>(
+  ({ icon, onClick, disabled, isActive, ...props }, ref) => {
     return (
       <button
         ref={ref}
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center bg-white shadow-sm transition-colors
-          ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 active:bg-gray-100'}
+        className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-sm transition-colors
+          ${disabled ? 'opacity-50 cursor-not-allowed border-gray-300 bg-white dark:border-slate-700 dark:bg-slate-800' : 
+            isActive 
+              ? 'border-blue-400 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-400' 
+              : 'border-gray-300 bg-white hover:bg-gray-50 active:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:active:bg-slate-600'}
         `}
         {...props}
       >

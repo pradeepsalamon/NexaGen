@@ -2,7 +2,7 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Save, UserMinus } from "lucide-react";
-import type { Batch, CreateBatchRequest, UpdateBatchRequest } from "@nexa-gen/types";
+import type { Batch, CreateBatchRequest, UpdateBatchRequest } from "@nexa-chess/types";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";

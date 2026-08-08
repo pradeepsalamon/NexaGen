@@ -1,3 +1,3 @@
-# @nexa-gen/ui
+# @nexa-chess/ui
 
 Shared UI package shell.

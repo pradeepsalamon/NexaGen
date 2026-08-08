@@ -34,7 +34,9 @@ const apiEnvSchema = z.object({
   SMTP_USER: z.string().optional(),
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
-  LIVEKIT_API_SECRET: z.string().optional()
+  LIVEKIT_API_SECRET: z.string().optional(),
+  STOCKFISH_PATH: z.string().optional(),
+  STOCKFISH_POOL_SIZE: z.coerce.number().int().positive().default(4)
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

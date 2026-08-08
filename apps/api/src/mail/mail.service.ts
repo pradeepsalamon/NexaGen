@@ -1,5 +1,5 @@
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import nodemailer from "nodemailer";
 
 @Injectable()

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException } from "@nestjs/common";
 import { RoomServiceClient, AccessToken, Room } from "livekit-server-sdk";
 import { LiveKitTokenOptions } from "./types/live-class.types";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 
 @Injectable()
 export class LiveKitService implements OnModuleInit {
@@ -83,6 +83,7 @@ export class LiveKitService implements OnModuleInit {
       const at = new AccessToken(this.apiKey, this.apiSecret, {
         identity: options.participantIdentity,
         name: options.participantName,
+        metadata: JSON.stringify({ role: options.isCoach ? 'COACH' : 'STUDENT' }),
       });
 
       if (options.isCoach) {
@@ -93,6 +94,7 @@ export class LiveKitService implements OnModuleInit {
           canSubscribe: true,
           canPublishData: true,
           roomAdmin: true,
+          canUpdateOwnMetadata: true,
         });
       } else {
         at.addGrant({
@@ -102,6 +104,7 @@ export class LiveKitService implements OnModuleInit {
           canSubscribe: true,
           canPublishData: true,
           roomAdmin: false,
+          canUpdateOwnMetadata: true,
         });
       }
 

@@ -5,12 +5,11 @@ import { Calendar, Clock, Video, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { AppShell } from "@/components/layout/AppShell";
 import { useClassDetail } from "../../../features/coach/hooks/useCoachApi";
 import { BackButton } from "@/components/ui/BackButton";
-import { getClassStatusBadgeVariant } from "../../../constants/classes";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { useAuthStore } from "@/stores/authStore";
 import { useStartLiveClass } from "../../../features/live-class/hooks/useLiveClassApi";
 
@@ -59,15 +58,7 @@ export default function ClassDetailsPage() {
                 {cls.title || cls.topic || "Regular Session"}
               </h1>
               <div className="flex items-center gap-2">
-                <Badge variant={getClassStatusBadgeVariant(cls.status)} className="text-xs uppercase font-bold tracking-wider">
-                  {cls.status}
-                </Badge>
-                {(cls.status === "IN_PROGRESS" || cls.status === "LIVE") && (
-                  <span className="flex h-3 w-3 relative ml-1" title="Live Now">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                  </span>
-                )}
+                <ClassStatusBadge status={cls.status} />
               </div>
             </div>
             <p className="text-xl text-app-muted font-medium">

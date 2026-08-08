@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateUserRequest, UpdateUserRequest } from "@nexa-gen/types";
+import type { CreateUserRequest, UpdateUserRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   archiveUser,

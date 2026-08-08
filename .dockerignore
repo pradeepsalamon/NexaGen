@@ -1,0 +1,10 @@
+node_modules
+.next
+.next-build
+dist
+.env
+.env.*
+!.env.example
+.git
+.turbo
+*.log

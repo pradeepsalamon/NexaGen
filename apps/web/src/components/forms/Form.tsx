@@ -60,12 +60,18 @@ function getFieldErrorMessages(errors: FieldErrors<FieldValues>) {
   Object.values(errors).forEach((error) => {
     if (!error) return;
 
-    if (isFieldError(error) && typeof error.message === "string") {
-      messages.push(error.message);
-    }
-
-    if (typeof error === "object") {
+    if (isFieldError(error)) {
+      if (typeof error.message === "string") {
+        messages.push(error.message);
+      }
+    } else if (typeof error === "object" && error !== null && !Array.isArray(error)) {
       messages.push(...getFieldErrorMessages(error as FieldErrors<FieldValues>));
+    } else if (Array.isArray(error)) {
+      error.forEach((item) => {
+        if (typeof item === "object" && item !== null) {
+          messages.push(...getFieldErrorMessages(item as FieldErrors<FieldValues>));
+        }
+      });
     }
   });
 

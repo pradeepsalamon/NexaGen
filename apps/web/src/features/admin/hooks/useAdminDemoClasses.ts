@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/providers/ToastProvider";
 import { queryKeys } from "@/lib/queryKeys";
 import { getDemoClasses, createDemoClass, updateDemoClass, cancelDemoClass, restoreDemoClass, getDemoClassDetails } from "../api/adminApi";
-import type { CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse } from "@nexa-gen/types";
+import type { CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse } from "@nexa-chess/types";
 
 export function useDemoClassesQuery() {
   return useQuery<ListDemoClassesResponse, Error>({

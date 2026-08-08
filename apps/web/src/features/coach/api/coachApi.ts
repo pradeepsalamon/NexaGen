@@ -1,4 +1,4 @@
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import type {
   CoachDashboardResponse,
   CoachBatchesResponse,
@@ -7,7 +7,7 @@ import type {
   CoachStudentsResponse,
   CreateClassRequest,
   UpdateClassRequest
-} from "@nexa-gen/types";
+} from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
 
 export async function getCoachDashboard(): Promise<CoachDashboardResponse> {

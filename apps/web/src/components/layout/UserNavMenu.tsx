@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import { LayoutDashboard, User as UserIcon, LogOut, ChevronDown } from "lucide-react";
-import type { AuthUser } from "@nexa-gen/types";
+import type { AuthUser } from "@nexa-chess/types";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
 import { useToast } from "@/providers/ToastProvider";

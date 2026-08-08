@@ -8,7 +8,8 @@ export interface SyncMessage {
 export interface MovePayload {
   fen: string;
   pgn: string;
-  move: {
+  moveType?: "move" | "capture" | "check" | "gameEnd";
+  move?: {
     from: string;
     to: string;
     promotion?: string;
@@ -21,11 +22,12 @@ export interface AnnotationPayload {
 }
 
 export interface BoardSyncMessage extends SyncMessage {
-  type: "MOVE" | "RESET" | "UNDO" | "REDO" | "FORCE_SYNC" | "UPDATE_ANNOTATIONS" | "UPDATE_PERMISSIONS" | "REQUEST_SYNC";
+  type: "MOVE" | "RESET" | "UNDO" | "REDO" | "FORCE_SYNC" | "UPDATE_ANNOTATIONS" | "UPDATE_PERMISSIONS" | "REQUEST_SYNC" | "REQUEST_CONTROL";
   payload?: 
     | MovePayload 
     | AnnotationPayload 
     | { mode: BoardPermissionMode; selectedStudentId?: string }
-    | { fen: string; pgn: string; orientation: "white" | "black" }
+    | { fen: string; pgn: string; orientation: "white" | "black"; moveType?: "move" | "capture" | "check" | "gameEnd" }
+    | { studentId: string; studentName: string }
     | any;
 }

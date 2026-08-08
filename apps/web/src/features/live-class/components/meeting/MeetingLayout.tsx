@@ -1,22 +1,15 @@
 "use client";
 
-import { lazy, Suspense } from "react";
+import { useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
+import { useParticipants } from "@livekit/components-react";
+import { useAuthStore } from "@/stores/authStore";
 import { MeetingHeader } from "./MeetingHeader";
 import { MeetingVideoGrid } from "./MeetingVideoGrid";
 import { MeetingToolbar } from "./MeetingToolbar";
 import { MeetingSidebar } from "./MeetingSidebar";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { BoardProvider } from "@/features/chessboard/context/BoardProvider";
-
-// Lazy-load chessboard panel for code splitting
-const LiveChessboardPanel = lazy(() =>
-  import("./LiveChessboardPanel").then((m) => ({ default: m.LiveChessboardPanel })),
-);
-const LiveBoardSyncBridge = lazy(() =>
-  import("./LiveBoardSyncBridge").then((m) => ({ default: m.LiveBoardSyncBridge })),
-);
 
 /**
  * Main meeting layout orchestrator.
@@ -49,7 +42,33 @@ export function MeetingLayout() {
   // Register keyboard shortcuts (M, V, Escape)
   useKeyboardShortcuts();
 
-  const { isChessboardOpen } = useLiveClassState();
+  const { setIsChessboardOpen } = useLiveClassState();
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+
+  const participants = useParticipants();
+
+  // Watch for the _board participant and coach presence to sync board state for students
+  useEffect(() => {
+    if (isCoach) return; // Coach controls their own local state/tab
+    
+    // If the coach has opened the board tab, the _board participant will be in the room
+    const hasBoardParticipant = participants.some(p => p.identity.endsWith("_board"));
+    
+    // Check if at least one coach is in the room
+    const hasCoachInRoom = participants.some(p => {
+      try {
+        if (!p.metadata) return false;
+        const meta = JSON.parse(p.metadata);
+        return meta.role === "COACH" || meta.role === "SUPER_ADMIN";
+      } catch {
+        return false;
+      }
+    });
+
+    // Board is destroyed/hidden if coach stops board OR leaves meeting
+    setIsChessboardOpen(hasBoardParticipant && hasCoachInRoom);
+  }, [participants, isCoach, setIsChessboardOpen]);
 
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background text-app-text pt-16">
@@ -59,27 +78,11 @@ export function MeetingLayout() {
       {/* Main content — fills remaining space */}
       <main className="relative flex flex-1 overflow-hidden">
         {/* Content area — takes all available space */}
-        <div className="flex-1 min-w-0 overflow-hidden flex flex-col">
+        <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative">
           <AnimatePresence mode="wait">
-            {isChessboardOpen ? (
-              <BoardProvider key="board-session">
-                <Suspense fallback={null}>
-                  <LiveBoardSyncBridge />
-                  {/* Chessboard takes the majority of space */}
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <LiveChessboardPanel />
-                  </div>
-                  {/* Video filmstrip at the bottom */}
-                  <div className="shrink-0 border-t border-app-border/60 bg-app-surface/30 backdrop-blur-sm">
-                    <MeetingVideoGrid compact />
-                  </div>
-                </Suspense>
-              </BoardProvider>
-            ) : (
-              <div key="video-grid" className="flex-1 min-h-0 overflow-hidden">
-                <MeetingVideoGrid />
-              </div>
-            )}
+            <div key="video-grid" className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col relative">
+              <MeetingVideoGrid />
+            </div>
           </AnimatePresence>
         </div>
 

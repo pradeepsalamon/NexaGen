@@ -15,7 +15,13 @@ const toastColorVars = {
   "--success-text": "#ffffff",
   "--warning-bg": "#f59e0b",
   "--warning-border": "rgba(253, 230, 138, 0.82)",
-  "--warning-text": "#ffffff"
+  "--warning-text": "#ffffff",
+  "--info-bg": "#334155",
+  "--info-border": "rgba(100, 116, 139, 0.78)",
+  "--info-text": "#ffffff",
+  "--normal-bg": "#334155",
+  "--normal-border": "rgba(100, 116, 139, 0.78)",
+  "--normal-text": "#ffffff"
 } as CSSProperties;
 
 export function Toaster({ ...props }: ToasterProps) {

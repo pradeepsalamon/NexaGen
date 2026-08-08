@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useCoachDashboard, useTodayClasses } from "../hooks/useCoachApi";
 import { ClassCard } from "./ClassCard";
 import { useState } from "react";
-import type { CoachClass } from "@nexa-gen/types";
+import type { CoachClass } from "@nexa-chess/types";
 import { useCancelClass } from "../hooks/useCoachApi";
 import { useRouter } from "next/navigation";
 
@@ -89,9 +89,10 @@ export function CoachDashboardClient() {
           <p className="text-app-muted mt-1">Overview of your classes, batches, and students.</p>
         </div>
         <Button asChild>
-          <Link href="/coach/schedule">Schedule Class</Link>
+          <Link href="/coach/schedule?openModal=true">Schedule Class</Link>
         </Button>
       </div>
+
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {dashboardLoading
@@ -164,8 +165,9 @@ export function CoachDashboardClient() {
               description="You have no classes scheduled for today. Enjoy your day or schedule a new class."
               action={{
                 label: "Schedule Class",
-                onClick: () => router.push("/coach/schedule")
+                onClick: () => router.push("/coach/schedule?openModal=true")
               }}
+
             />
           </Card>
         )}

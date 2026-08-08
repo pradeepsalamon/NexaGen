@@ -11,3 +11,8 @@ export class EndClassDto {
   @IsString()
   reason?: string;
 }
+
+export class CreateChatMessageDto {
+  @IsString()
+  message!: string;
+}

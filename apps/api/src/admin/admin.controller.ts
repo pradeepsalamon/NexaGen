@@ -1,13 +1,13 @@
 import { Controller, Get, Patch, Post, Param, Body, Req, UnauthorizedException } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { API_ROUTES } from '@nexa-gen/types';
-import type { UpdateCoachStatusRequest } from '@nexa-gen/types';
+import { API_ROUTES } from '@nexa-chess/types';
+import type { UpdateCoachStatusRequest } from '@nexa-chess/types';
 import type { Request } from 'express';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { JwtService } from '@nestjs/jwt';
 import type { AccessTokenPayload } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
-import { getApiEnv } from '@nexa-gen/config/api';
+import { getApiEnv } from '@nexa-chess/config/api';
 
 @Controller()
 export class AdminController {

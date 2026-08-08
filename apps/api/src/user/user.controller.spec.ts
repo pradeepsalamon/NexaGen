@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import type { UpdateUserRequest, UserListResponse, UserResponse } from "@nexa-gen/types";
+import type { UpdateUserRequest, UserListResponse, UserResponse } from "@nexa-chess/types";
 import type { Request } from "express";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";

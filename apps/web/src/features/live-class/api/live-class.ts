@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { CoachClass, LiveSession, LiveKitTokenResponse, ParticipantInfo } from "../types/live-class";
 
 export const getLiveClass = (roomId: string): Promise<CoachClass> => {
@@ -14,10 +14,22 @@ export const endLiveClass = (roomId: string): Promise<void> => {
   return apiFetch<void>(API_ROUTES.liveClass.end(roomId), { method: "POST" });
 };
 
-export const getLiveClassToken = (roomId: string): Promise<LiveKitTokenResponse> => {
-  return apiFetch<LiveKitTokenResponse>(API_ROUTES.liveClass.token(roomId), { method: "POST" });
+export const getLiveClassToken = (roomId: string, clientId?: string): Promise<LiveKitTokenResponse> => {
+  const url = API_ROUTES.liveClass.token(roomId) + (clientId ? `?clientId=${clientId}` : "");
+  return apiFetch<LiveKitTokenResponse>(url, { method: "POST" });
 };
 
 export const getLiveClassParticipants = (roomId: string): Promise<{ participants: ParticipantInfo[] }> => {
   return apiFetch<{ participants: ParticipantInfo[] }>(API_ROUTES.liveClass.participants(roomId));
+};
+
+export const getChatHistory = (roomId: string): Promise<any[]> => {
+  return apiFetch<any[]>(API_ROUTES.liveClass.chat(roomId));
+};
+
+export const saveChatMessage = (roomId: string, message: string): Promise<any> => {
+  return apiFetch<any>(API_ROUTES.liveClass.chat(roomId), {
+    method: "POST",
+    body: JSON.stringify({ message }),
+  });
 };

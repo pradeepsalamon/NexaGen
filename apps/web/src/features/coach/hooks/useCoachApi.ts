@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import { queryKeys } from "../../../lib/queryKeys";
 import { useToast } from "../../../providers/ToastProvider";
-import type { CreateClassRequest, UpdateClassRequest, CoachClassResponse } from "@nexa-gen/types";
+import type { CreateClassRequest, UpdateClassRequest, CoachClassResponse } from "@nexa-chess/types";
 import {
   cancelClass,
   createClass,
@@ -62,8 +62,8 @@ export function useClassDetail(
   });
 }
 
-async function getCoachClassDetails(id: string): Promise<import("@nexa-gen/types").CoachClassDetailsResponse> {
-  const { API_ROUTES } = await import("@nexa-gen/types");
+async function getCoachClassDetails(id: string): Promise<import("@nexa-chess/types").CoachClassDetailsResponse> {
+  const { API_ROUTES } = await import("@nexa-chess/types");
   const { apiFetch } = await import("@/lib/api");
   return await apiFetch(API_ROUTES.coach.classDetails(id));
 }

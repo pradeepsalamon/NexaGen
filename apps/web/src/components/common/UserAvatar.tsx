@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { AuthUser } from "@nexa-gen/types";
+import type { AuthUser } from "@nexa-chess/types";
 import {
   Tooltip,
   TooltipContent,

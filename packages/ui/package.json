@@ -1,5 +1,5 @@
 {
-  "name": "@nexa-gen/ui",
+  "name": "@nexa-chess/ui",
   "version": "0.1.0",
   "private": true,
   "main": "dist/index.js",

@@ -1,6 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
-import { getWebEnv } from "@nexa-gen/config/web";
-import { API_ROUTES } from "@nexa-gen/types";
+import { getWebEnv } from "@nexa-chess/config/web";
+import { API_ROUTES } from "@nexa-chess/types";
 import { useAuthStore } from "../stores/authStore";
 
 const API_BASE_URL = getWebEnv({
@@ -72,6 +72,12 @@ apiClient.interceptors.response.use(
           const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/demo"];
           const isPublicRoute = publicRoutes.some(route => window.location.pathname.startsWith(route));
           if (!isPublicRoute) {
+            import("sonner").then(({ toast }) => {
+              toast.error("Session Expired", {
+                description: "Your session has expired. Please log in again to continue.",
+                id: "session-expired",
+              });
+            });
             window.dispatchEvent(new CustomEvent("auth:logout"));
           }
         }

@@ -9,7 +9,7 @@ import {
   ShieldAlert,
   Trash2,
 } from "lucide-react";
-import type { TrashEntity, TrashItem } from "@nexa-gen/types";
+import type { TrashEntity, TrashItem } from "@nexa-chess/types";
 
 import { useToast } from "@/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";

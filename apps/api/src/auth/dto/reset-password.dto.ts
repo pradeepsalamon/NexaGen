@@ -1,4 +1,4 @@
-import type { ResetPasswordRequest } from "@nexa-gen/types";
+import type { ResetPasswordRequest } from "@nexa-chess/types";
 import { IsString, Matches, MinLength } from "class-validator";
 
 export class ResetPasswordDto implements ResetPasswordRequest {

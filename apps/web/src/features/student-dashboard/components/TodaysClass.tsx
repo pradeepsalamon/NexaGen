@@ -1,9 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Clock, User, Calendar, Play } from "lucide-react";
 import Link from "next/link";
-// removed LiveClassStatus import
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 
 interface TodaysClassProps {
   id?: string;
@@ -40,19 +39,12 @@ export function TodaysClass({
   }
 
   const isLive = status === "IN_PROGRESS" || status === "LIVE";
-  const isEnded = status === "ENDED" || status === "COMPLETED";
 
   return (
     <Card className={`h-full border-app-border shadow-sm transition-all ${isLive ? 'border-primary/50 ring-1 ring-primary/20 bg-primary/5' : 'bg-app-surface'}`}>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
         <CardTitle className="text-lg font-semibold">Today&apos;s Class</CardTitle>
-        {isLive && (
-          <Badge variant="destructive" className="animate-pulse bg-red-500 hover:bg-red-600 shadow-sm">
-            LIVE NOW
-          </Badge>
-        )}
-        {status === "SCHEDULED" && <Badge variant="secondary">Upcoming</Badge>}
-        {isEnded && <Badge variant="outline">Completed</Badge>}
+        <ClassStatusBadge status={status as any} />
       </CardHeader>
       <CardContent className="space-y-4">
         <div>

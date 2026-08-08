@@ -2,8 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { MailService } from "./mail.service";
 import { ServiceUnavailableException } from "@nestjs/common";
 import * as nodemailer from "nodemailer";
-import * as configModule from "@nexa-gen/config/api";
-import type { ApiEnv } from "@nexa-gen/config/api";
+import * as configModule from "@nexa-chess/config/api";
+import type { ApiEnv } from "@nexa-chess/config/api";
 
 jest.mock("nodemailer");
 
@@ -42,6 +42,7 @@ describe("MailService", () => {
       SMTP_SECURE: false,
       SMTP_USER: "testuser",
       TRASH_RETENTION_DAYS: 30,
+      STOCKFISH_POOL_SIZE: 1,
       ...envMocks
     };
 

@@ -30,6 +30,7 @@ interface LiveClassContextValue {
 
   /** Whether the shared chessboard is open in the meeting */
   isChessboardOpen: boolean;
+  setIsChessboardOpen: (val: boolean) => void;
   toggleChessboard: () => void;
 
   /** The participant identity currently given board control (null = coach only) */
@@ -100,6 +101,7 @@ export function LiveClassProvider({
         toggleFullscreen,
         topic: topic || null,
         isChessboardOpen,
+        setIsChessboardOpen,
         toggleChessboard,
         boardControlStudentId,
         setBoardControlStudent,
@@ -116,4 +118,8 @@ export function useLiveClassState() {
     throw new Error("useLiveClassState must be used within a LiveClassProvider");
   }
   return context;
+}
+
+export function useOptionalLiveClassState() {
+  return useContext(LiveClassContext);
 }

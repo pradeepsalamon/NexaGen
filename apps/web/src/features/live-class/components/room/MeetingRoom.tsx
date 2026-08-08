@@ -12,7 +12,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionLost } from "../states/ErrorStates";
-import { getWebEnv } from "@nexa-gen/config/web";
+import { getWebEnv } from "@nexa-chess/config/web";
 
 const env = getWebEnv({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -21,6 +21,7 @@ const env = getWebEnv({
 
 interface MeetingRoomProps {
   token: string;
+  classId: string;
 }
 
 function isIgnorableRoomError(message: string) {
@@ -31,7 +32,7 @@ function isIgnorableRoomError(message: string) {
   );
 }
 
-export function MeetingRoom({ token }: MeetingRoomProps) {
+export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
@@ -58,7 +59,11 @@ export function MeetingRoom({ token }: MeetingRoomProps) {
       data-lk-theme="default"
       onConnected={() => setError(null)}
       onDisconnected={(reason) => {
-        if (!reason || reason === DisconnectReason.CLIENT_INITIATED) {
+        if (
+          !reason ||
+          reason === DisconnectReason.CLIENT_INITIATED ||
+          reason === DisconnectReason.ROOM_DELETED
+        ) {
           const homeHref = user?.role === "SUPER_ADMIN" ? "/admin" : user?.role === "COACH" ? "/coach" : "/student";
           router.push(homeHref);
           return;
@@ -70,7 +75,7 @@ export function MeetingRoom({ token }: MeetingRoomProps) {
         setError(roomError.message);
       }}
     >
-      <ChatProvider>
+      <ChatProvider classId={classId}>
         <MeetingLayout />
       </ChatProvider>
       <RoomAudioRenderer />

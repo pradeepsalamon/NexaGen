@@ -1,5 +1,5 @@
-import { API_ROUTES } from "@nexa-gen/types";
-import type { PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse, DemoClassDetailsResponse } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
+import type { PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse, DemoClassDetailsResponse } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 
 export async function getPendingCoaches(): Promise<PendingCoachesResponse> {

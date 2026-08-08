@@ -1,7 +1,7 @@
 import cookieParser from "cookie-parser";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
-import { getApiEnv, getCorsOrigins } from "@nexa-gen/config/api";
+import { getApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
 import type { NextFunction, Request, Response } from "express";
 import { AppModule } from "./app.module";
 

@@ -1,6 +1,5 @@
 import { Calendar, Clock, MoreVertical, Users } from "lucide-react";
 import Link from "next/link";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
@@ -9,8 +8,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/DropdownMenu";
-import type { CoachClass } from "@nexa-gen/types";
-import { getClassStatusBadgeVariant, getStatusLabel } from "../../../constants/classes";
+import type { CoachClass } from "@nexa-chess/types";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 
 interface ClassCardProps {
   classItem: CoachClass;
@@ -37,9 +36,7 @@ export function ClassCard({ classItem, onEdit, onCancel }: ClassCardProps) {
             <h3 className="font-bold text-app-text line-clamp-1">
               {classItem.title || classItem.topic || "Regular Session"}
             </h3>
-            <Badge variant={getClassStatusBadgeVariant(classItem.status)} className="text-[10px] uppercase font-bold tracking-wider">
-              {getStatusLabel(classItem.status)}
-            </Badge>
+            <ClassStatusBadge status={classItem.status} />
           </div>
           <p className="text-sm font-medium text-app-muted line-clamp-1">
             {classItem.batchName}

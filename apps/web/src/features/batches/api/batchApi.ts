@@ -5,8 +5,8 @@ import type {
   CreateBatchRequest,
   TrashActionResponse,
   UpdateBatchRequest
-} from "@nexa-gen/types";
-import { API_ROUTES } from "@nexa-gen/types";
+} from "@nexa-chess/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
 
 export function listBatches() {

@@ -8,11 +8,12 @@ import {
   Smile,
   Copy,
   Reply,
-  MoreHorizontal,
   ChevronDown
 } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { toast } from "sonner";
 import { useLiveClassChat, type ChatMessageData } from "../../providers/ChatProvider";
 import { cn } from "@/lib/utils";
 import { ParticipantAvatar } from "./ParticipantAvatar";
@@ -34,6 +35,34 @@ const ChatMessage = memo(function ChatMessage({
       }),
     [msg.timestamp],
   );
+
+  const { setDraft } = useLiveClassChat();
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(msg.message);
+    toast.success("Message copied!");
+  }, [msg.message]);
+
+  const handleReply = useCallback(() => {
+    setDraft((prev: string) => {
+      const cleanMessage = msg.message
+        .split("\n")
+        .filter((line) => !line.trim().startsWith(">"))
+        .join("\n")
+        .trim();
+
+      const quotedMessage = cleanMessage
+        .split("\n")
+        .map((line) => `> ${line}`)
+        .join("\n");
+
+      const prefix = prev ? prev + "\n" : "";
+      return prefix + `${quotedMessage}\n@${msg.senderName} `;
+    });
+    setTimeout(() => {
+      document.querySelector<HTMLTextAreaElement>('textarea[placeholder="Message room..."]')?.focus();
+    }, 10);
+  }, [msg.message, msg.senderName, setDraft]);
 
   return (
     <motion.div
@@ -62,10 +91,15 @@ const ChatMessage = memo(function ChatMessage({
       {/* Content */}
       <div className={cn("min-w-0 flex flex-col max-w-[75%]", msg.isOwn ? "items-end" : "items-start")}>
         {showHeader && !msg.isOwn && (
-          <div className="mb-1 flex items-baseline gap-2 pl-1">
+          <div className="mb-1 flex items-baseline gap-1.5 pl-1">
             <span className="text-xs font-semibold text-app-text/90">
               {msg.senderName}
             </span>
+            {msg.senderRole && msg.senderRole.toUpperCase() === "COACH" && (
+              <span className="text-[10px] font-normal text-app-muted">
+                (Coach)
+              </span>
+            )}
           </div>
         )}
 
@@ -84,21 +118,40 @@ const ChatMessage = memo(function ChatMessage({
                 : "bg-app-surface border border-app-border text-app-text rounded-2xl rounded-tl-sm dark:bg-app-soft/50",
             )}
           >
-            {msg.message.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
-              if (part.match(/(https?:\/\/[^\s]+)/g)) {
-                return (
-                  <a
-                    key={i}
-                    href={part}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="underline underline-offset-2 hover:opacity-80 transition-opacity break-all"
-                  >
-                    {part}
-                  </a>
-                );
-              }
-              return part;
+            {msg.message.split("\n").map((line, lineIndex) => {
+              const isQuote = line.trim().startsWith(">");
+              const textContent = isQuote ? line.trim().substring(1).trim() : line;
+              
+              // Only render link parsing for normal lines (simplifies the logic)
+              const renderTextWithLinks = (text: string) => {
+                return text.split(/(https?:\/\/[^\s]+)/g).map((part, i) => {
+                  if (part.match(/(https?:\/\/[^\s]+)/g)) {
+                    return (
+                      <a
+                        key={i}
+                        href={part}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline underline-offset-2 hover:opacity-80 transition-opacity break-all"
+                      >
+                        {part}
+                      </a>
+                    );
+                  }
+                  return part;
+                });
+              };
+
+              return (
+                <div
+                  key={lineIndex}
+                  className={cn(
+                    isQuote && "my-1 border-l-2 border-current pl-2.5 opacity-75 text-[13px] italic bg-black/5 dark:bg-white/5 py-1 rounded-r-md",
+                  )}
+                >
+                  {renderTextWithLinks(textContent)}
+                </div>
+              );
             })}
           </div>
 
@@ -109,27 +162,33 @@ const ChatMessage = memo(function ChatMessage({
               msg.isOwn ? "pr-2" : "pl-2",
             )}
           >
-            <button
-              className="p-1.5 text-app-muted hover:text-app-text hover:bg-app-soft rounded-md transition-colors"
-              title="Reply"
-              type="button"
-            >
-              <Reply className="size-3.5" />
-            </button>
-            <button
-              className="p-1.5 text-app-muted hover:text-app-text hover:bg-app-soft rounded-md transition-colors"
-              title="Copy"
-              type="button"
-            >
-              <Copy className="size-3.5" />
-            </button>
-            <button
-              className="p-1.5 text-app-muted hover:text-app-text hover:bg-app-soft rounded-md transition-colors"
-              title="More"
-              type="button"
-            >
-              <MoreHorizontal className="size-3.5" />
-            </button>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="p-1.5 text-app-muted hover:text-app-text hover:bg-app-soft rounded-md transition-colors"
+                    type="button"
+                    onClick={handleReply}
+                  >
+                    <Reply className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Reply</TooltipContent>
+              </Tooltip>
+
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="p-1.5 text-app-muted hover:text-app-text hover:bg-app-soft rounded-md transition-colors"
+                    type="button"
+                    onClick={handleCopy}
+                  >
+                    <Copy className="size-3.5" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>Copy</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 

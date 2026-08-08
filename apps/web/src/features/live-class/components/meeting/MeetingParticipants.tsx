@@ -15,13 +15,22 @@ interface ParticipantMeta {
   handRaised?: boolean;
 }
 
-function parseMeta(metadata: string | undefined): ParticipantMeta {
-  if (!metadata) return {};
-  try {
-    return JSON.parse(metadata) as ParticipantMeta;
-  } catch {
-    return {};
+function parseMeta(participant: ReturnType<typeof useParticipants>[number]): ParticipantMeta {
+  const meta: ParticipantMeta = {};
+  if (participant.metadata) {
+    try {
+      Object.assign(meta, JSON.parse(participant.metadata));
+    } catch {
+      // ignore
+    }
   }
+  // Attributes take precedence for handRaised since client can update them
+  if (participant.attributes?.handRaised === "true") {
+    meta.handRaised = true;
+  } else if (participant.attributes?.handRaised === "false") {
+    meta.handRaised = false;
+  }
+  return meta;
 }
 
 // ─── Participant List Item ───────────────────────────────────
@@ -39,11 +48,13 @@ const ParticipantListItem = memo(function ParticipantListItem({
   hasBoardControl,
   onToggleBoardControl,
 }: ParticipantItemProps) {
+  const user = useAuthStore((state) => state.user);
   const isMuted = !participant.isMicrophoneEnabled;
   const isCameraEnabled = participant.isCameraEnabled;
   const isScreenSharing = participant.isScreenShareEnabled;
-  const name = participant.name || participant.identity || "Unknown";
-  const meta = parseMeta(participant.metadata);
+  const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
+  const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
+  const meta = parseMeta(participant);
 
   return (
     <div
@@ -56,18 +67,16 @@ const ParticipantListItem = memo(function ParticipantListItem({
           size="sm"
           className="size-8 text-[10px] shrink-0"
         />
-        <div className="flex flex-col min-w-0">
-          <span className="text-sm font-medium text-app-text truncate">
-            {name}{" "}
+        <div className="flex flex-col overflow-hidden justify-center">
+          <span className="truncate text-sm font-medium text-app-text flex items-center gap-1.5">
+            {name}
+            {meta.role && meta.role.toUpperCase() === "COACH" && (
+              <span className="text-app-muted text-xs font-normal">(Coach)</span>
+            )}
             {participant.isLocal && (
               <span className="text-app-muted text-xs font-normal">(You)</span>
             )}
           </span>
-          {meta.role && (
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
-              {meta.role}
-            </span>
-          )}
         </div>
       </div>
 
@@ -134,7 +143,7 @@ export function MeetingParticipants() {
     const students: typeof filteredParticipants = [];
 
     filteredParticipants.forEach((p) => {
-      const meta = parseMeta(p.metadata);
+      const meta = parseMeta(p);
       if (meta.role?.toLowerCase() === "coach" || meta.role?.toLowerCase() === "teacher") {
         coaches.push(p);
       } else {

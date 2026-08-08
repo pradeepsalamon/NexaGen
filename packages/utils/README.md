@@ -1,3 +1,3 @@
-# @nexa-gen/utils
+# @nexa-chess/utils
 
 Shared utilities package shell.

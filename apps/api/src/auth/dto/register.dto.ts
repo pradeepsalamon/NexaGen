@@ -1,4 +1,4 @@
-import type { RegisterRequest } from "@nexa-gen/types";
+import type { RegisterRequest } from "@nexa-chess/types";
 import {
   IsEmail,
   IsIn,

@@ -12,7 +12,7 @@ import {
   UsersRound
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { Batch, BatchUserSummary } from "@nexa-gen/types";
+import type { Batch, BatchUserSummary } from "@nexa-chess/types";
 
 import { useToast } from "@/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";

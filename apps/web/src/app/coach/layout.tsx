@@ -9,8 +9,10 @@ const AUTH_COOKIE_NAME = "nexa_access_token";
 export default function CoachLayout({ children }: { children: ReactNode }) {
   const hasAccessToken = Boolean(cookies().get(AUTH_COOKIE_NAME)?.value);
 
-  if (!hasAccessToken) {
-    redirect("/login?next=/coach&reason=unauthorized");
+  const hasRefreshToken = Boolean(cookies().get("nexa_refresh_token")?.value);
+
+  if (!hasAccessToken && !hasRefreshToken) {
+    redirect("/login?reason=unauthorized");
   }
 
   return (

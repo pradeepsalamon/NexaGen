@@ -155,7 +155,12 @@ export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
           )}
           <button
             type="button"
-            onClick={toggleChessboard}
+            onClick={() => {
+              toggleChessboard();
+              try {
+                window.close();
+              } catch {}
+            }}
             className="flex size-9 items-center justify-center rounded-xl border border-app-border bg-app-surface/80 text-app-muted shadow-sm backdrop-blur-md transition-all hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
             aria-label="Close chessboard"
             title="Close chessboard"
@@ -170,23 +175,16 @@ export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
 
       {/* Board container — maintains square aspect ratio */}
       <div
-        className="w-full h-full flex flex-col items-center justify-center px-4 py-14 relative"
-        style={{ containerType: "size" }}
+        className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 relative min-h-0"
       >
-        <div className="flex flex-col items-center justify-center gap-3">
+        <div className="flex flex-col items-center justify-center gap-3 w-full h-full min-h-0">
           {/* The board itself */}
-          <div
-            className="rounded-xl shadow-lg overflow-hidden border border-app-border/50 bg-[#e0d8c8]"
-            style={{
-              width: "min(100cqw - 3rem, 100cqh - 8rem)",
-              height: "min(100cqw - 3rem, 100cqh - 8rem)",
-            }}
-          >
+          <div className="aspect-square max-h-[85%] max-w-full rounded-xl shadow-lg overflow-hidden border border-app-border/50 bg-[#e0d8c8] flex-shrink-0">
             <ChessgroundBoard />
           </div>
 
           {/* Navigation bar (coach-only) */}
-          <div className="flex items-center justify-center">
+          <div className="flex items-center justify-center shrink-0">
             <div className="bg-app-surface/80 border border-app-border rounded-xl backdrop-blur-md shadow-sm px-2 py-1">
               <CompactBoardNav />
             </div>

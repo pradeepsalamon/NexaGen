@@ -2,20 +2,26 @@ import { useEffect, useCallback, useRef } from "react";
 import { useDataChannel, useLocalParticipant, useConnectionState } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 import { useBoardStore } from "../context/BoardProvider";
+import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardSyncMessage } from "../types/sync";
 import { useAuthStore } from "@/stores/authStore";
+import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
+import { toast } from "sonner";
 
 const BOARD_SYNC_TOPIC = "board_sync";
 
 export function useBoardSync() {
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH";
+  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
   const { localParticipant } = useLocalParticipant();
+  const liveClassState = useOptionalLiveClassState();
   
   const { 
     fen, pgn, orientation, arrows, squareStyles, permissionMode, selectedStudentId,
-    syncFromRemote 
+    syncFromRemote
   } = useBoardStore();
+
+  const lastMoveType = usePersistedStore((state) => state.lastMoveType);
 
   const sendRef = useRef<any>(null);
 
@@ -37,9 +43,9 @@ export function useBoardSync() {
   const broadcastState = useCallback((type: BoardSyncMessage["type"] = "MOVE") => {
     broadcastMsg({
       type,
-      payload: { fen, pgn, orientation }
+      payload: { fen, pgn, orientation, moveType: type === "MOVE" ? lastMoveType : undefined }
     });
-  }, [broadcastMsg, fen, pgn, orientation]);
+  }, [broadcastMsg, fen, pgn, orientation, lastMoveType]);
 
   const broadcastAnnotations = useCallback(() => {
     broadcastMsg({
@@ -55,6 +61,19 @@ export function useBoardSync() {
     });
   }, [broadcastMsg, permissionMode, selectedStudentId]);
 
+  const requestControl = useCallback(() => {
+    if (!user) return;
+    const name = `${user.firstName} ${user.lastName || ""}`.trim();
+    broadcastMsg({
+      type: "REQUEST_CONTROL",
+      payload: { studentId: user.id, studentName: name }
+    });
+    toast.success("Requested board control from coach");
+  }, [broadcastMsg, user]);
+
+  const isRemoteUpdateRef = useRef(false);
+  const isMountedRef = useRef(false);
+
   const handleIncomingSync = useCallback((msg: BoardSyncMessage) => {
     switch (msg.type) {
       case "MOVE":
@@ -62,8 +81,8 @@ export function useBoardSync() {
       case "REDO":
       case "RESET":
       case "FORCE_SYNC":
-        // Sync full state for simplicity and robust state
         if (msg.payload && msg.payload.fen) {
+          isRemoteUpdateRef.current = true;
           syncFromRemote({
             fen: msg.payload.fen,
             pgn: msg.payload.pgn || "",
@@ -73,6 +92,7 @@ export function useBoardSync() {
         break;
       case "UPDATE_ANNOTATIONS":
         if (msg.payload) {
+          isRemoteUpdateRef.current = true;
           syncFromRemote({
             arrows: msg.payload.arrows || [],
             squareStyles: msg.payload.squares || {}
@@ -81,10 +101,14 @@ export function useBoardSync() {
         break;
       case "UPDATE_PERMISSIONS":
         if (msg.payload && msg.payload.mode) {
+          isRemoteUpdateRef.current = true;
           syncFromRemote({
             permissionMode: msg.payload.mode,
             selectedStudentId: msg.payload.selectedStudentId
           });
+          if (liveClassState?.setBoardControlStudent) {
+            liveClassState.setBoardControlStudent(msg.payload.selectedStudentId || null);
+          }
         }
         break;
       case "REQUEST_SYNC":
@@ -93,8 +117,52 @@ export function useBoardSync() {
           broadcastState("FORCE_SYNC");
         }
         break;
+      case "REQUEST_CONTROL":
+        if (isCoach && msg.payload?.studentId) {
+          const studentId = msg.payload.studentId;
+          const studentName = msg.payload.studentName || "A student";
+          toast(`${studentName} requested board control`, {
+            id: `req-board-control-${studentId}`,
+            action: {
+              label: "Grant Control",
+              onClick: () => {
+                if (liveClassState?.setBoardControlStudent) {
+                  liveClassState.setBoardControlStudent(studentId);
+                  toast.success(`Granted board control to ${studentName}`, {
+                    id: `grant-board-control-${studentId}`,
+                  });
+                }
+              }
+            },
+            duration: 10000,
+          });
+        }
+        break;
     }
-  }, [isCoach, syncFromRemote, broadcastState]);
+  }, [isCoach, syncFromRemote, broadcastState, liveClassState]);
+
+  // Automatically broadcast FEN/PGN changes to all participants unless it came from a remote update
+  useEffect(() => {
+    if (!isMountedRef.current) {
+      isMountedRef.current = true;
+      return;
+    }
+
+    if (isRemoteUpdateRef.current) {
+      isRemoteUpdateRef.current = false;
+      return;
+    }
+
+    // Only send if we actually have a connection
+    broadcastState("MOVE");
+  }, [fen, pgn, orientation, broadcastState]);
+
+  // Automatically broadcast drawings/annotations when they change locally
+  useEffect(() => {
+    if (!isMountedRef.current) return;
+    if (isRemoteUpdateRef.current) return;
+    broadcastAnnotations();
+  }, [arrows, squareStyles, broadcastAnnotations]);
 
   const onMessageReceived = useCallback((msg: any) => {
     try {
@@ -126,6 +194,7 @@ export function useBoardSync() {
   return {
     broadcastState,
     broadcastAnnotations,
-    broadcastPermissions
+    broadcastPermissions,
+    requestControl
   };
 }

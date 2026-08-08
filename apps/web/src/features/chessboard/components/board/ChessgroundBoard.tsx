@@ -10,17 +10,22 @@ import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
 
-export function ChessgroundBoard() {
+interface ChessgroundBoardProps {
+  /** Callback to broadcast annotation changes. No-op by default. */
+  broadcastAnnotations?: () => void;
+}
+
+export function ChessgroundBoard({ broadcastAnnotations = () => {} }: ChessgroundBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH";
+  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
 
   const { 
     chess, fen, turn, orientation, boardTheme, pieceTheme, showCoordinates, 
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentId,
-    isEditingPosition, setPendingPromotion
+    isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode
   } = useBoardStore();
 
   const canMove = useMemo(() => {
@@ -50,44 +55,110 @@ export function ChessgroundBoard() {
     return moves;
   }, [fen, isGameOver, chess, canMove, isEditingPosition]);
 
+  // Use a ref to access the latest state in the onChange callback without triggering infinite loops
+  const stateRef = useRef({ arrows, activeBrush });
+  useEffect(() => {
+    stateRef.current = { arrows, activeBrush };
+  }, [arrows, activeBrush]);
+
+  const isAutoClearing = useRef(false);
+  const isDrawingModeRef = useRef(isDrawingMode);
+  
+  useEffect(() => {
+    isDrawingModeRef.current = isDrawingMode;
+  }, [isDrawingMode]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    
+    const handleDown = (e: MouseEvent | TouchEvent) => {
+      // Ignore if it's already a right or middle click
+      if ('button' in e && e.button !== 0) return;
+
+      isAutoClearing.current = true;
+      setTimeout(() => {
+        isAutoClearing.current = false;
+      }, 0);
+
+      // If we are in 1-click drawing mode, convert left-click/touch into a right-click
+      if (isDrawingModeRef.current) {
+        e.stopPropagation();
+        e.preventDefault();
+        
+        const target = e.target as HTMLElement;
+        let clientX = 0, clientY = 0;
+        
+        if (e.type.startsWith('touch')) {
+           const touch = (e as TouchEvent).touches[0];
+           if (touch) {
+             clientX = touch.clientX;
+             clientY = touch.clientY;
+           }
+        } else {
+           clientX = (e as MouseEvent).clientX;
+           clientY = (e as MouseEvent).clientY;
+        }
+
+        const syntheticEvent = new MouseEvent('mousedown', {
+           bubbles: true,
+           cancelable: true,
+           view: window,
+           button: 2, // Right click button
+           buttons: 2,
+           clientX,
+           clientY
+        });
+        
+        target.dispatchEvent(syntheticEvent);
+      }
+    };
+
+    el.addEventListener('mousedown', handleDown as EventListener, { capture: true, passive: false });
+    el.addEventListener('touchstart', handleDown as EventListener, { capture: true, passive: false });
+    return () => {
+      el.removeEventListener('mousedown', handleDown as EventListener, { capture: true });
+      el.removeEventListener('touchstart', handleDown as EventListener, { capture: true });
+    };
+  }, []);
+
+  const brushColors: Record<string, string> = {
+    green: '#15781B',
+    red: '#882020',
+    blue: '#003088',
+    yellow: '#e68f00'
+  };
+
+  const getBrushConfig = (colorId: string) => {
+    return { key: colorId.charAt(0), color: brushColors[colorId] || brushColors.green, opacity: 1, lineWidth: 10 };
+  };
+
   // Initialize Chessground
   useEffect(() => {
     if (!containerRef.current) return;
     
+    let instance: any;
+
     const config: Config = {
-      fen: fen,
-      orientation: orientation,
-      coordinates: showCoordinates,
-      viewOnly: false,
+      fen,
       turnColor: turn,
-      highlight: {
-        lastMove: true,
-        check: true
-      },
-      animation: {
-        enabled: !isEditingPosition,
-        duration: 200
-      },
+      orientation,
+      coordinates: showCoordinates,
+      animation: { enabled: !isEditingPosition },
       movable: {
-        color: isEditingPosition ? 'both' : turn,
+        color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
         free: isEditingPosition,
         dests,
         events: {
           after: (orig, dest) => {
              if (isEditingPosition) {
-                // In edit mode, we just update the FEN locally without strict chess.js rules
-                // (Advanced FEN generation would be needed here for true free editing)
                 return;
              }
-             
-             // Check for promotion
              const piece = chess.get(orig as any);
              if (piece && piece.type === 'p' && (dest[1] === '1' || dest[1] === '8')) {
                  setPendingPromotion({ from: orig, to: dest });
                  return;
              }
-             
-             // Normal move
              makeMove(orig, dest, 'q'); 
           }
         }
@@ -97,27 +168,70 @@ export function ChessgroundBoard() {
         visible: true,
         eraseOnClick: false,
         brushes: {
-          green: { key: 'g', color: '#15781B', opacity: 1, lineWidth: 10 },
-          red: { key: 'r', color: '#882020', opacity: 1, lineWidth: 10 },
-          blue: { key: 'b', color: '#003088', opacity: 1, lineWidth: 10 },
-          yellow: { key: 'y', color: '#e68f00', opacity: 1, lineWidth: 10 },
+          green: getBrushConfig(activeBrush),
+          primaryGreen: getBrushConfig('green'),
+          red: getBrushConfig('red'),
+          blue: getBrushConfig('blue'),
+          yellow: getBrushConfig('yellow'),
         },
         onChange: (shapes) => {
-          // Convert chessground shapes back to our string[][] format
-          const newArrows = shapes.map(s => [s.orig, s.dest || s.orig, s.brush || 'green']);
-          // Only update if changed to prevent loops
-          setAnnotations(newArrows, {});
+          const { arrows: currentArrows, activeBrush: currentActiveBrush } = stateRef.current;
+          
+          if (isAutoClearing.current && shapes.length === 0) {
+            // Chessground is attempting to natively auto-clear annotations on click.
+            // We reject this and restore the arrows immediately.
+            setTimeout(() => {
+              if (containerRef.current && instance) {
+                const mappedShapes = currentArrows.map(a => ({
+                  orig: a[0] as any,
+                  dest: (a[1] === a[0] ? undefined : a[1]) as any,
+                  brush: a[2] === 'green' ? 'primaryGreen' : a[2]
+                }));
+                instance.setShapes(mappedShapes);
+              }
+            }, 0);
+            return;
+          }
+
+          const newArrows = shapes.map(s => {
+            const orig = s.orig;
+            const dest = s.dest || s.orig;
+            const existing = currentArrows.find(a => a[0] === orig && a[1] === dest);
+            if (existing) {
+               return [orig, dest, existing[2]];
+            }
+            const brush = currentActiveBrush === 'green' ? 'primaryGreen' : currentActiveBrush;
+            return [orig, dest, brush];
+          });
+          setAnnotations(newArrows as any, {});
+          setTimeout(() => broadcastAnnotations(), 0);
         }
       }
     };
     
-    const instance = Chessground(containerRef.current, config);
+    instance = Chessground(containerRef.current, config);
     setCg(instance);
     
     return () => {
       instance.destroy();
     };
   }, []); // Mount only
+
+  // Update brushes dynamically when activeBrush changes
+  useEffect(() => {
+    if (!cg) return;
+    cg.set({
+      drawable: {
+        brushes: {
+          green: getBrushConfig(activeBrush),
+          primaryGreen: getBrushConfig('green'),
+          red: getBrushConfig('red'),
+          blue: getBrushConfig('blue'),
+          yellow: getBrushConfig('yellow'),
+        }
+      }
+    });
+  }, [cg, activeBrush]);
 
   // Sync state to Chessground
   useEffect(() => {
@@ -132,12 +246,6 @@ export function ChessgroundBoard() {
         color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
         free: isEditingPosition,
         dests
-      },
-      drawable: {
-        // Set the active brush for the user
-        // Chessground defaults to green. To switch, we don't have a direct `activeBrush` API,
-        // but we can rely on right-click + modifier keys natively, or just store it.
-        // Actually, we can intercept drawing if needed, but for now we let chessground handle it.
       }
     });
   }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, isEditingPosition]);
@@ -145,11 +253,15 @@ export function ChessgroundBoard() {
   // Sync annotations (arrows)
   useEffect(() => {
     if (!cg) return;
-    const shapes = arrows.map(a => ({
-      orig: a[0] as any,
-      dest: (a[1] === a[0] ? undefined : a[1]) as any, // if orig==dest, it's a circle
-      brush: a[2]
-    }));
+    const shapes = arrows.map(a => {
+      // Map any legacy 'green' brushes to 'primaryGreen'
+      const brushColor = a[2] === 'green' ? 'primaryGreen' : a[2];
+      return {
+        orig: a[0] as any,
+        dest: (a[1] === a[0] ? undefined : a[1]) as any,
+        brush: brushColor
+      };
+    });
     cg.setShapes(shapes);
   }, [cg, arrows]);
 

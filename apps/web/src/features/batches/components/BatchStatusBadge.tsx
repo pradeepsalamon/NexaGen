@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/Badge";
-import type { BatchStatus } from "@nexa-gen/types";
+import type { BatchStatus } from "@nexa-chess/types";
 
 export function BatchStatusBadge({ status }: { status: BatchStatus }) {
   return (

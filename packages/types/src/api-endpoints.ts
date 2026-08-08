@@ -68,10 +68,26 @@ export const API_ROUTES = {
     end: (id: string = ":id") => `/live-class/${id}/end`,
     get: (id: string = ":id") => `/live-class/${id}`,
     participants: (id: string = ":id") => `/live-class/${id}/participants`,
+    chat: (id: string = ":id") => `/live-class/${id}/chat`,
     demoJoin: (id: string = ":id") => `/live-class/demo/${id}/join`
   },
   student: {
     dashboard: "/student/dashboard",
     attendance: "/student/attendance"
+  },
+  attendance: {
+    student: "/attendance/student",
+    studentById: (id: string = ":id") => `/attendance/student/${id}`,
+    coach: "/attendance/coach",
+    coachById: (id: string = ":id") => `/attendance/coach/${id}`,
+    class: (id: string = ":id") => `/attendance/class/${id}`,
+    classLive: (id: string = ":id") => `/attendance/class/${id}/live`,
+    classLogs: (id: string = ":id", studentId: string = ":studentId") =>
+      `/attendance/class/${id}/logs/${studentId}`,
+    adminDashboard: "/attendance/admin/dashboard",
+    adminReports: "/attendance/admin/reports",
+    adminExport: "/attendance/admin/export",
+    policy: "/attendance/policy",
+    webhook: "/webhooks/livekit"
   }
 } as const;

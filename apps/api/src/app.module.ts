@@ -11,6 +11,9 @@ import { LiveClassModule } from "./live-class/live-class.module";
 import { AdminModule } from './admin/admin.module';
 import { StudentModule } from "./student/student.module";
 import { ScheduleModule } from "@nestjs/schedule";
+import { UploadModule } from "./upload/upload.module";
+import { StockfishModule } from "./stockfish/stockfish.module";
+import { AttendanceModule } from "./attendance/attendance.module";
 
 @Module({
   imports: [
@@ -27,7 +30,10 @@ import { ScheduleModule } from "@nestjs/schedule";
     UserModule,
     LiveClassModule,
     AdminModule,
-    StudentModule
+    StudentModule,
+    UploadModule,
+    StockfishModule,
+    AttendanceModule
   ],
   providers: [
     {

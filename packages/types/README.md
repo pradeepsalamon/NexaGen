@@ -1,3 +1,3 @@
-# @nexa-gen/types
+# @nexa-chess/types
 
 Shared types package shell.

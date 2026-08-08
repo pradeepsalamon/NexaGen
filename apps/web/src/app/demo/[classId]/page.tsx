@@ -13,7 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { useToast } from "@/providers/ToastProvider";
 
 export default function DemoClassPage() {
@@ -112,7 +112,7 @@ export default function DemoClassPage() {
 
   return (
     <LiveClassProvider topic={topic}>
-      <MeetingRoom token={token} />
+      <MeetingRoom token={token} classId={classId} />
     </LiveClassProvider>
   );
 }

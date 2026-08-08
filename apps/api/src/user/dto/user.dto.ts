@@ -6,7 +6,7 @@ import {
   MaxLength,
   MinLength
 } from "class-validator";
-import type { CreateUserRequest, UpdateUserRequest } from "@nexa-gen/types";
+import type { CreateUserRequest, UpdateUserRequest } from "@nexa-chess/types";
 import { UserRole, UserStatus } from "@prisma/client";
 
 export class CreateUserDto implements CreateUserRequest {

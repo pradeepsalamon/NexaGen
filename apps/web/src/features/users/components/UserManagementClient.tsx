@@ -12,7 +12,7 @@ import {
   UsersRound
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { AuthUser, UserRole, UserStatus } from "@nexa-gen/types";
+import type { AuthUser, UserRole, UserStatus } from "@nexa-chess/types";
 
 import { useToast } from "@/providers/ToastProvider";
 import { Badge } from "@/components/ui/Badge";

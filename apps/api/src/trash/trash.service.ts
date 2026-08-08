@@ -4,7 +4,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import { UserRole, UserStatus } from "@prisma/client";
 import { parseDurationMs } from "../auth/auth.utils";
 import type { AccessTokenPayload } from "../auth/types";

@@ -9,7 +9,7 @@ import {
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { BatchService } from "./batch.service";
 import { CreateBatchDto, UpdateBatchDto } from "./dto/batch.dto";

@@ -8,7 +8,7 @@ import {
   MaxLength,
   MinLength
 } from "class-validator";
-import type { CreateBatchRequest, UpdateBatchRequest } from "@nexa-gen/types";
+import type { CreateBatchRequest, UpdateBatchRequest } from "@nexa-chess/types";
 import { BatchStatus } from "@prisma/client";
 
 export class CreateBatchDto implements CreateBatchRequest {

@@ -24,8 +24,8 @@ export function MoveHistory() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-background border border-white/5 rounded-md overflow-hidden">
-      <div className="bg-muted px-4 py-2 border-b border-white/5 text-sm font-semibold flex justify-between items-center">
+    <div className="flex flex-col h-full bg-background border border-gray-200 dark:border-white/10 rounded-md overflow-hidden">
+      <div className="bg-muted px-4 py-2 border-b border-gray-200 dark:border-white/10 text-sm font-semibold flex justify-between items-center">
         <span>Moves</span>
       </div>
       <div 
@@ -38,7 +38,7 @@ export function MoveHistory() {
           </div>
         )}
         {rows.map((row) => (
-          <div key={row.moveNumber} className="flex hover:bg-white/5 px-2 py-1 rounded transition-colors">
+          <div key={row.moveNumber} className="flex hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded transition-colors">
             <span className="w-8 text-muted-foreground">{row.moveNumber}.</span>
             
             <span className={`flex-1 cursor-pointer hover:text-primary transition-colors ${historyIndex === row.whiteIndex ? 'text-primary font-bold' : ''}`}>

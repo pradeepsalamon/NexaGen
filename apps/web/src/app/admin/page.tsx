@@ -23,8 +23,10 @@ const metrics = [
 export default function SuperAdminDashboardPage() {
   const hasAccessToken = Boolean(cookies().get(accessTokenCookieName)?.value);
 
-  if (!hasAccessToken) {
-    redirect("/login?next=/admin");
+  const hasRefreshToken = Boolean(cookies().get("nexa_refresh_token")?.value);
+
+  if (!hasAccessToken && !hasRefreshToken) {
+    redirect("/login?reason=unauthorized");
   }
 
   return (
@@ -49,6 +51,13 @@ export default function SuperAdminDashboardPage() {
             >
               <Users aria-hidden="true" className="size-4" />
               Users
+            </Link>
+            <Link
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+              href="/admin/attendance"
+            >
+              <UserRoundCheck aria-hidden="true" className="size-4" />
+              Attendance
             </Link>
             <Link
               className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"

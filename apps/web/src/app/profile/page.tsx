@@ -10,8 +10,10 @@ const accessTokenCookieName = "nexa_access_token";
 export default function ProfilePage() {
   const hasAccessToken = Boolean(cookies().get(accessTokenCookieName)?.value);
 
-  if (!hasAccessToken) {
-    redirect("/login?next=/profile");
+  const hasRefreshToken = Boolean(cookies().get("nexa_refresh_token")?.value);
+
+  if (!hasAccessToken && !hasRefreshToken) {
+    redirect("/login?reason=unauthorized");
   }
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, ChevronDown } from "lucide-react";
+import { Calendar as CalendarIcon, ChevronDown, Clock } from "lucide-react";
 import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { Calendar } from "@/components/ui/Calendar";
@@ -10,8 +10,8 @@ import {
   PopoverContent,
   PopoverTrigger
 } from "@/components/ui/Popover";
-import { Select } from "@/components/ui/Select";
 import { cn } from "@/lib/utils";
+
 
 type DatePickerProps = {
   className?: string;
@@ -19,6 +19,8 @@ type DatePickerProps = {
   placeholder?: string;
   value: Date | undefined;
   withTime?: boolean;
+  side?: "top" | "bottom" | "left" | "right";
+  align?: "start" | "center" | "end";
 };
 
 export function DatePicker({
@@ -26,7 +28,9 @@ export function DatePicker({
   onChange,
   placeholder,
   value,
-  withTime = false
+  withTime = false,
+  side = "right",
+  align = "start"
 }: DatePickerProps) {
   const [dateTimeValue, setDateTimeValue] = React.useState<Date | undefined>(
     value
@@ -129,9 +133,13 @@ export function DatePicker({
       </PopoverTrigger>
 
       <PopoverContent
-        align="start"
-        className="w-auto rounded-lg border-zinc-200 bg-white p-0 text-zinc-950 shadow-lg dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
+        align={align}
+        side={side}
+        sideOffset={8}
+        collisionPadding={16}
+        className="z-[60] w-auto max-h-[calc(100vh-2rem)] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-0 text-zinc-950 shadow-xl dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
       >
+
         <Calendar
           autoFocus
           mode="single"
@@ -139,49 +147,60 @@ export function DatePicker({
           selected={selectedDate}
         />
         {withTime ? (
-          <div className="flex items-center gap-2 border-t border-zinc-200 p-3 dark:border-zinc-800">
-            <Select
-              className="h-9 min-h-0 rounded-md border-zinc-300 bg-white py-0 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
-              onChange={(event) => handleTimeChange("hour", event.target.value)}
-              options={Array.from({ length: 12 }).map((_, index) => {
-                const hour = index === 0 ? 12 : index;
-                return {
-                  label: hour.toString().padStart(2, "0"),
-                  value: hour.toString()
-                };
-              })}
-              value={
-                selectedDate ? (selectedDate.getHours() % 12 || 12).toString() : "12"
-              }
-            />
-            <span className="font-bold text-zinc-500 dark:text-zinc-400">:</span>
-            <Select
-              className="h-9 min-h-0 rounded-md border-zinc-300 bg-white py-0 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
-              onChange={(event) =>
-                handleTimeChange("minute", event.target.value)
-              }
-              options={Array.from({ length: 12 }).map((_, index) => ({
-                label: (index * 5).toString().padStart(2, "0"),
-                value: (index * 5).toString()
-              }))}
-              value={
-                selectedDate
-                  ? (Math.floor(selectedDate.getMinutes() / 5) * 5).toString()
-                  : "0"
-              }
-            />
-            <Select
-              className="h-9 min-h-0 rounded-md border-zinc-300 bg-white py-0 text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
-              onChange={(event) => handleTimeChange("ampm", event.target.value)}
-              options={[
-                { label: "AM", value: "AM" },
-                { label: "PM", value: "PM" }
-              ]}
-              value={selectedDate && selectedDate.getHours() >= 12 ? "PM" : "AM"}
-            />
+          <div className="flex items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/80">
+            <div className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              <Clock className="size-4.5 text-zinc-500 dark:text-zinc-400" />
+              <span>Time:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                className="h-9.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 cursor-pointer"
+                onChange={(event) => handleTimeChange("hour", event.target.value)}
+                value={
+                  selectedDate ? (selectedDate.getHours() % 12 || 12).toString() : "12"
+                }
+              >
+                {Array.from({ length: 12 }).map((_, index) => {
+                  const hour = index === 0 ? 12 : index;
+                  return (
+                    <option key={hour} value={hour.toString()}>
+                      {hour.toString().padStart(2, "0")}
+                    </option>
+                  );
+                })}
+              </select>
+              <span className="font-bold text-zinc-400 text-sm">:</span>
+              <select
+                className="h-9.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 cursor-pointer"
+                onChange={(event) =>
+                  handleTimeChange("minute", event.target.value)
+                }
+                value={
+                  selectedDate
+                    ? (Math.floor(selectedDate.getMinutes() / 5) * 5).toString()
+                    : "0"
+                }
+              >
+                {Array.from({ length: 12 }).map((_, index) => (
+                  <option key={index} value={(index * 5).toString()}>
+                    {(index * 5).toString().padStart(2, "0")}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="h-9.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 cursor-pointer"
+                onChange={(event) => handleTimeChange("ampm", event.target.value)}
+                value={selectedDate && selectedDate.getHours() >= 12 ? "PM" : "AM"}
+              >
+                <option value="AM">AM</option>
+                <option value="PM">PM</option>
+              </select>
+            </div>
           </div>
         ) : null}
       </PopoverContent>
+
+
     </Popover>
   );
 }

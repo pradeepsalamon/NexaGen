@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { SlidersHorizontal, Info } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { AdminBatchClass } from "@nexa-gen/types";
+import type { AdminBatchClass } from "@nexa-chess/types";
 
 import { Card } from "@/components/ui/Card";
 import { DataTable } from "@/components/ui/DataTable";

@@ -1,4 +1,4 @@
-import type { TrashListRequest } from "@nexa-gen/types";
+import type { TrashListRequest } from "@nexa-chess/types";
 
 export const queryKeys = {
   auth: {

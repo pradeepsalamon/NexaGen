@@ -14,6 +14,9 @@ interface BoardState {
   boardTheme: string;
   pieceTheme: string;
   showCoordinates: boolean;
+  soundEnabled: boolean;
+  lastMoveType?: "move" | "capture" | "check" | "gameEnd";
+
   
   // Annotations
   arrows: string[][];
@@ -22,6 +25,7 @@ interface BoardState {
   // Permissions
   permissionMode: BoardPermissionMode;
   selectedStudentId?: string; // For 1-on-1 mode
+  isSetupPositionOpen: boolean;
 
   // Actions
   setFen: (fen: string) => void;
@@ -34,11 +38,15 @@ interface BoardState {
   setOrientation: (orientation: "white" | "black") => void;
   setThemes: (board: string, piece: string) => void;
   toggleCoordinates: () => void;
+  toggleSound: () => void;
+  setLastMoveType: (type: "move" | "capture" | "check" | "gameEnd" | undefined) => void;
+
   
   setAnnotations: (arrows: string[][], squares: Record<string, any>) => void;
   clearAnnotations: () => void;
   
   setPermissionMode: (mode: BoardPermissionMode, studentId?: string) => void;
+  setIsSetupPositionOpen: (open: boolean) => void;
   
   syncFromRemote: (payload: Partial<BoardState>) => void;
 }
@@ -57,12 +65,16 @@ export const useBoardStore = create<BoardState>()(
       boardTheme: "blue",
       pieceTheme: "cburnett", // Standard lichess piece theme
       showCoordinates: true,
+      soundEnabled: true,
+      lastMoveType: undefined,
+
       
       arrows: [],
       squareStyles: {},
       
       permissionMode: "COACH_ONLY",
       selectedStudentId: undefined,
+      isSetupPositionOpen: false,
       
       setFen: (fen) => set({ fen }),
       setPgn: (pgn) => set({ pgn }),
@@ -115,11 +127,21 @@ export const useBoardStore = create<BoardState>()(
       setOrientation: (orientation) => set({ orientation }),
       setThemes: (boardTheme, pieceTheme) => set({ boardTheme, pieceTheme }),
       toggleCoordinates: () => set((state) => ({ showCoordinates: !state.showCoordinates })),
+      toggleSound: () => {
+        set((state) => {
+          const enabled = !state.soundEnabled;
+          import("../audio/sounds").then((mod) => mod.setSoundEnabled(enabled));
+          return { soundEnabled: enabled };
+        });
+      },
+      setLastMoveType: (type) => set({ lastMoveType: type }),
+
       
       setAnnotations: (arrows, squares) => set({ arrows, squareStyles: squares }),
       clearAnnotations: () => set({ arrows: [], squareStyles: {} }),
       
       setPermissionMode: (permissionMode, selectedStudentId) => set({ permissionMode, selectedStudentId }),
+      setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open }),
       
       syncFromRemote: (payload) => set((state) => ({ ...state, ...payload }))
     }),
@@ -129,6 +151,7 @@ export const useBoardStore = create<BoardState>()(
         boardTheme: state.boardTheme,
         pieceTheme: state.pieceTheme,
         showCoordinates: state.showCoordinates,
+        soundEnabled: state.soundEnabled,
       }),
     }
   )

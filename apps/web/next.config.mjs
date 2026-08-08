@@ -10,6 +10,7 @@ const nextConfig = (phase) => ({
     phase === PHASE_PRODUCTION_BUILD || phase === PHASE_PRODUCTION_SERVER
       ? ".next-build"
       : ".next",
+  output: "standalone",
   webpack(config, { dev }) {
     if (dev) {
       config.cache = false;

@@ -11,7 +11,7 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { AuthService } from "./auth.service";
 import {
   ForgotPasswordDto,
@@ -86,14 +86,19 @@ export class AuthController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response
   ) {
-    const result = await this.authService.refresh(
-      request.cookies?.[AUTH_COOKIE_NAMES.refreshToken],
-      this.getSessionContext(request)
-    );
+    try {
+      const result = await this.authService.refresh(
+        request.cookies?.[AUTH_COOKIE_NAMES.refreshToken],
+        this.getSessionContext(request)
+      );
 
-    this.setAuthCookies(response, result);
+      this.setAuthCookies(response, result);
 
-    return { user: result.user };
+      return { user: result.user };
+    } catch (error) {
+      this.clearAuthCookies(response);
+      throw error;
+    }
   }
 
   @Post(API_ROUTES.auth.logout)

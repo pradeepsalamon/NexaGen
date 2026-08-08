@@ -1,4 +1,4 @@
-import type { ExperienceLevel } from "@nexa-gen/types";
+import type { ExperienceLevel } from "@nexa-chess/types";
 
 export type { ExperienceLevel };
 

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { CreateBatchRequest, UpdateBatchRequest } from "@nexa-gen/types";
+import type { CreateBatchRequest, UpdateBatchRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   archiveBatch,

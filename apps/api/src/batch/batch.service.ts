@@ -6,7 +6,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   Batch,
   BatchAssignableUsersResponse,
@@ -15,7 +15,7 @@ import type {
   BatchUserSummary,
   CreateBatchRequest,
   UpdateBatchRequest
-} from "@nexa-gen/types";
+} from "@nexa-chess/types";
 import {
   BatchStatus,
   Prisma,

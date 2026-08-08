@@ -496,14 +496,26 @@ export type UpdateClassRequest = z.infer<typeof updateClassRequestSchema>;
 
 // -- STUDENT ATTENDANCE TYPES --
 
+export const attendanceStatusEnum = z.enum(["PRESENT", "LATE", "PARTIAL", "ABSENT"]);
+export type AttendanceStatusType = z.infer<typeof attendanceStatusEnum>;
+
+export const attendanceEventTypeEnum = z.enum(["JOIN", "LEAVE", "DISCONNECT", "RECONNECT"]);
+export type AttendanceEventTypeType = z.infer<typeof attendanceEventTypeEnum>;
+
 export const studentAttendanceHistorySchema = z.object({
   id: z.string(),
   topic: z.string(),
   batchName: z.string(),
   coachName: z.string(),
-  date: z.string().datetime(),
-  status: z.enum(["PRESENT", "ABSENT"]),
-  joinedAt: z.string().datetime().nullable(),
+  date: z.string(),
+  status: attendanceStatusEnum,
+  joinedAt: z.string().nullable(),
+  leftAt: z.string().nullable(),
+  scheduledDuration: z.number(),
+  actualDuration: z.number(),
+  attendancePercent: z.number(),
+  reconnectCount: z.number(),
+  logCount: z.number(),
 });
 
 export const studentAttendanceStatsSchema = z.object({
@@ -511,6 +523,11 @@ export const studentAttendanceStatsSchema = z.object({
   attended: z.number(),
   missed: z.number(),
   percentage: z.number(),
+  totalLearningHours: z.number(),
+  currentStreak: z.number(),
+  longestStreak: z.number(),
+  monthlyPercent: z.number(),
+  weeklyPercent: z.number(),
 });
 
 export const studentAttendanceResponseSchema = z.object({
@@ -521,6 +538,196 @@ export const studentAttendanceResponseSchema = z.object({
 export type StudentAttendanceHistory = z.infer<typeof studentAttendanceHistorySchema>;
 export type StudentAttendanceStats = z.infer<typeof studentAttendanceStatsSchema>;
 export type StudentAttendanceResponse = z.infer<typeof studentAttendanceResponseSchema>;
+
+// -- ATTENDANCE LOG TYPES --
+
+export const attendanceLogEntrySchema = z.object({
+  id: z.string(),
+  eventType: attendanceEventTypeEnum,
+  timestamp: z.string(),
+  sessionStart: z.string().nullable(),
+  sessionEnd: z.string().nullable(),
+  sessionDuration: z.number().nullable(),
+  reason: z.string().nullable(),
+  source: z.string(),
+});
+
+export const attendanceLogsResponseSchema = z.object({
+  classId: z.string(),
+  studentId: z.string(),
+  status: attendanceStatusEnum,
+  totalDuration: z.number().nullable(),
+  attendancePercent: z.number().nullable(),
+  reconnectCount: z.number(),
+  joinedAt: z.string().nullable(),
+  leftAt: z.string().nullable(),
+  scheduledDuration: z.number(),
+  totalInterruptions: z.number(),
+  longestInterruption: z.number(),
+  totalDowntime: z.number(),
+  logs: z.array(attendanceLogEntrySchema),
+});
+
+export type AttendanceLogEntry = z.infer<typeof attendanceLogEntrySchema>;
+export type AttendanceLogsResponse = z.infer<typeof attendanceLogsResponseSchema>;
+
+// -- CLASS ATTENDANCE REPORT TYPES --
+
+export const classAttendanceStudentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  status: z.string(),
+  joinedAt: z.string().nullable(),
+  leftAt: z.string().nullable(),
+  duration: z.number(),
+  attendancePercent: z.number(),
+  reconnectCount: z.number(),
+  logCount: z.number(),
+});
+
+export const classAttendanceReportSchema = z.object({
+  classId: z.string(),
+  topic: z.string(),
+  batchName: z.string(),
+  coachName: z.string(),
+  scheduledStart: z.string(),
+  scheduledEnd: z.string(),
+  actualStart: z.string().nullable(),
+  actualEnd: z.string().nullable(),
+  scheduledDuration: z.number(),
+  status: z.string(),
+  totalStudents: z.number(),
+  presentCount: z.number(),
+  absentCount: z.number(),
+  lateCount: z.number(),
+  partialCount: z.number(),
+  overallPercent: z.number(),
+  students: z.array(classAttendanceStudentSchema),
+});
+
+export type ClassAttendanceStudent = z.infer<typeof classAttendanceStudentSchema>;
+export type ClassAttendanceReport = z.infer<typeof classAttendanceReportSchema>;
+
+// -- COACH TEACHING STATS TYPES --
+
+export const coachTeachingStatsSchema = z.object({
+  totalClasses: z.number(),
+  completedClasses: z.number(),
+  cancelledClasses: z.number(),
+  totalTeachingHours: z.number(),
+  avgSessionMinutes: z.number(),
+  lateStarts: z.number(),
+  earlyExits: z.number(),
+  monthlyClasses: z.number(),
+});
+
+export const coachTeachingHistorySchema = z.object({
+  id: z.string(),
+  topic: z.string(),
+  batchName: z.string(),
+  date: z.string(),
+  scheduledStart: z.string(),
+  scheduledEnd: z.string(),
+  actualStart: z.string().nullable(),
+  actualEnd: z.string().nullable(),
+  teachingDuration: z.number(),
+  studentsPresent: z.number(),
+  totalStudents: z.number(),
+  attendancePercent: z.number(),
+});
+
+export const coachTeachingResponseSchema = z.object({
+  stats: coachTeachingStatsSchema,
+  history: z.array(coachTeachingHistorySchema),
+});
+
+export type CoachTeachingStats = z.infer<typeof coachTeachingStatsSchema>;
+export type CoachTeachingHistory = z.infer<typeof coachTeachingHistorySchema>;
+export type CoachTeachingResponse = z.infer<typeof coachTeachingResponseSchema>;
+
+// -- ADMIN ATTENDANCE DASHBOARD TYPES --
+
+export const adminAttendanceTodaySchema = z.object({
+  totalClasses: z.number(),
+  liveClasses: z.number(),
+  studentsPresent: z.number(),
+  studentsAbsent: z.number(),
+  totalStudents: z.number(),
+  totalCoaches: z.number(),
+});
+
+export const adminAttendanceMonthlyTrendSchema = z.object({
+  month: z.string(),
+  classes: z.number(),
+  attended: z.number(),
+  total: z.number(),
+  percent: z.number(),
+});
+
+export const adminAttendanceDashboardSchema = z.object({
+  today: adminAttendanceTodaySchema,
+  overall: z.object({
+    completedClasses: z.number(),
+    totalAttendanceRecords: z.number(),
+  }),
+  monthlyTrend: z.array(adminAttendanceMonthlyTrendSchema),
+});
+
+export type AdminAttendanceToday = z.infer<typeof adminAttendanceTodaySchema>;
+export type AdminAttendanceMonthlyTrend = z.infer<typeof adminAttendanceMonthlyTrendSchema>;
+export type AdminAttendanceDashboard = z.infer<typeof adminAttendanceDashboardSchema>;
+
+// -- LIVE CLASS MONITORING TYPES --
+
+export const liveMonitoringStudentSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  isOnline: z.boolean(),
+  joinedAt: z.string().nullable(),
+  lastActivity: z.string().nullable(),
+  reconnectCount: z.number(),
+  status: z.string(),
+});
+
+export const liveClassMonitoringSchema = z.object({
+  classId: z.string(),
+  isLive: z.boolean(),
+  startedAt: z.string().nullable(),
+  totalEnrolled: z.number(),
+  onlineCount: z.number(),
+  offlineCount: z.number(),
+  students: z.array(liveMonitoringStudentSchema),
+});
+
+export type LiveMonitoringStudent = z.infer<typeof liveMonitoringStudentSchema>;
+export type LiveClassMonitoring = z.infer<typeof liveClassMonitoringSchema>;
+
+// -- ATTENDANCE POLICY TYPES --
+
+export const attendancePolicySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  isActive: z.boolean(),
+  presentThreshold: z.number(),
+  lateThreshold: z.number(),
+  partialThreshold: z.number(),
+  gracePeriodMinutes: z.number(),
+  minDurationMinutes: z.number(),
+  reconnectTolerance: z.number(),
+});
+
+export const updateAttendancePolicySchema = z.object({
+  presentThreshold: z.number().min(0).max(100).optional(),
+  lateThreshold: z.number().min(0).max(100).optional(),
+  partialThreshold: z.number().min(0).max(100).optional(),
+  gracePeriodMinutes: z.number().min(0).optional(),
+  minDurationMinutes: z.number().min(0).optional(),
+  reconnectTolerance: z.number().min(0).optional(),
+});
+
+export type AttendancePolicy = z.infer<typeof attendancePolicySchema>;
+export type UpdateAttendancePolicy = z.infer<typeof updateAttendancePolicySchema>;
+
 
 // -- DEMO CLASS TYPES --
 

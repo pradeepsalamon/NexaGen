@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { getLiveClassToken, getLiveClass } from "../api/live-class";
 
-export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
+export function useLiveClass(roomId: string, shouldFetch: boolean = true, clientId?: string) {
   const [token, setToken] = useState<string | null>(null);
   const [roomName, setRoomName] = useState<string | null>(null);
   const [topic, setTopic] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
         }
 
         if (shouldFetch) {
-          const res = await getLiveClassToken(roomId);
+          const res = await getLiveClassToken(roomId, clientId);
 
           if (mounted) {
             setToken(res.token);
@@ -62,7 +62,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true) {
     return () => {
       mounted = false;
     };
-  }, [roomId, shouldFetch]);
+  }, [roomId, shouldFetch, clientId]);
 
   return { token, roomName, topic, error, isLoading, classStatus };
 }

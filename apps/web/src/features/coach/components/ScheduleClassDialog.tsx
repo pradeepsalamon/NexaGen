@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { createClassRequestSchema, type CreateClassRequest, type CoachClass, type CoachBatch } from "@nexa-gen/types";
+import { createClassRequestSchema, type CreateClassRequest, type CoachClass, type CoachBatch } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -23,13 +23,15 @@ interface ScheduleClassDialogProps {
   onOpenChange: (open: boolean) => void;
   classToEdit?: CoachClass | null;
   batches: CoachBatch[];
+  defaultBatchId?: string;
 }
 
 export function ScheduleClassDialog({
   open,
   onOpenChange,
   classToEdit,
-  batches
+  batches,
+  defaultBatchId
 }: ScheduleClassDialogProps) {
   const createClassMutation = useCreateClass();
   const updateClassMutation = useUpdateClass(classToEdit?.id || "");
@@ -68,8 +70,12 @@ export function ScheduleClassDialog({
       const startLocal = start.toISOString();
       const endLocal = end.toISOString();
 
+      const initialBatch = (defaultBatchId && batches.some(b => b.id === defaultBatchId))
+        ? defaultBatchId
+        : (batches.length > 0 ? batches[0].id : "");
+
       form.reset({
-        batchId: batches.length > 0 ? batches[0].id : "",
+        batchId: initialBatch,
         title: "",
         topic: "",
         description: "",
@@ -78,7 +84,8 @@ export function ScheduleClassDialog({
         endsAt: endLocal
       });
     }
-  }, [classToEdit, open, form, batches]);
+  }, [classToEdit, open, form, batches, defaultBatchId]);
+
 
   const onSubmit = (data: CreateClassRequest) => {
     // Need to ensure the datetime strings sent to backend are full ISO strings UTC
@@ -103,7 +110,7 @@ export function ScheduleClassDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{classToEdit ? "Edit Class" : "Schedule Class"}</DialogTitle>
           <DialogDescription>

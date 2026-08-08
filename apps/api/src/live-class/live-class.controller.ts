@@ -5,11 +5,12 @@ import {
   Post,
   Req,
   Body,
+  Query,
 } from "@nestjs/common";
 import type { Request } from "express";
 import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 
 @Controller()
 export class LiveClassController {
@@ -25,8 +26,8 @@ export class LiveClassController {
   }
 
   @Post(API_ROUTES.liveClass.token())
-  getToken(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.getToken(this.getAccessToken(request), id);
+  getToken(@Param("id") id: string, @Req() request: Request, @Query("clientId") clientId?: string) {
+    return this.liveClassService.getToken(this.getAccessToken(request), id, clientId);
   }
 
   @Post(API_ROUTES.liveClass.end())
@@ -42,6 +43,16 @@ export class LiveClassController {
   @Get(API_ROUTES.liveClass.participants())
   getParticipants(@Param("id") id: string, @Req() request: Request) {
     return this.liveClassService.getParticipants(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.chat())
+  saveChatMessage(@Param("id") id: string, @Req() request: Request, @Body() body: { message: string }) {
+    return this.liveClassService.saveChatMessage(this.getAccessToken(request), id, body.message);
+  }
+
+  @Get(API_ROUTES.liveClass.chat())
+  getChatHistory(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.getChatHistory(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.demoJoin())

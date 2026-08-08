@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
-import type { CoachClass } from "@nexa-gen/types";
+import type { CoachClass } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,13 +13,24 @@ import { ClassCard } from "./ClassCard";
 import { ScheduleClassDialog } from "./ScheduleClassDialog";
 
 export function CoachScheduleClient() {
+  const searchParams = useSearchParams();
+  const openQuery = searchParams.get("openModal") === "true" || searchParams.has("batchId");
+  const batchIdQuery = searchParams.get("batchId") || undefined;
+
   const { data: upcomingData, isLoading: upcomingLoading } = useUpcomingClasses();
   const { data: batchesData, isLoading: batchesLoading } = useCoachBatches();
 
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(openQuery);
   const [classToEdit, setClassToEdit] = useState<CoachClass | null>(null);
   const [classToCancel, setClassToCancel] = useState<CoachClass | null>(null);
   const cancelClassMutation = useCancelClass(classToCancel?.id || "");
+
+  useEffect(() => {
+    if (openQuery) {
+      setDialogOpen(true);
+    }
+  }, [openQuery]);
+
 
   const handleEdit = (classItem: CoachClass) => {
     setClassToEdit(classItem);
@@ -97,7 +109,9 @@ export function CoachScheduleClient() {
         onOpenChange={setDialogOpen}
         classToEdit={classToEdit}
         batches={batches}
+        defaultBatchId={batchIdQuery}
       />
+
     </div>
   );
 }

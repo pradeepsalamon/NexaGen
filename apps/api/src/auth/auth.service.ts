@@ -5,7 +5,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv, getFrontendUrl } from "@nexa-gen/config/api";
+import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
   CoachProfile,
   CoachTitle,
@@ -25,7 +25,7 @@ import type {
   RegisterCoachRequest,
   ResetPasswordRequest,
   UpdateProfileRequest
-} from "@nexa-gen/types";
+} from "@nexa-chess/types";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type {

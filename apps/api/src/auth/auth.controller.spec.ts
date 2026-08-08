@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import type { AuthResponse, AuthUser, LoginRequest, RegisterRequest } from "@nexa-gen/types";
+import type { AuthResponse, AuthUser, LoginRequest, RegisterRequest } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";

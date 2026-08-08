@@ -5,16 +5,19 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
-  Logger
+  Logger,
+  Inject,
+  forwardRef
 } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
 import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
+import { AttendanceService } from "../attendance/attendance.service";
 
 @Injectable()
 export class LiveClassService {
@@ -24,7 +27,9 @@ export class LiveClassService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly livekit: LiveKitService,
-    private readonly jwtService: JwtService
+    private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => AttendanceService))
+    private readonly attendanceService: AttendanceService
   ) { }
 
   private async getAuthenticatedUser(accessToken: string | undefined) {
@@ -109,15 +114,22 @@ export class LiveClassService {
       });
     }
 
+    const originalDurationMs = scheduledClass.endsAt.getTime() - scheduledClass.startsAt.getTime();
+    const now = new Date();
+
     await this.prisma.coachClass.update({
       where: { id: classId },
-      data: { status: ClassStatus.LIVE }
+      data: { 
+        status: ClassStatus.LIVE,
+        startsAt: now,
+        endsAt: new Date(now.getTime() + originalDurationMs)
+      }
     });
 
     return { message: "Class started successfully", liveSession };
   }
 
-  async getToken(accessToken: string | undefined, classId: string) {
+  async getToken(accessToken: string | undefined, classId: string, clientId?: string) {
     const user = await this.getAuthenticatedUser(accessToken);
 
     const scheduledClass = await this.prisma.coachClass.findUnique({
@@ -158,7 +170,7 @@ export class LiveClassService {
 
     const tokenOptions: LiveKitTokenOptions = {
       roomName: liveSession.roomName,
-      participantIdentity: user.id,
+      participantIdentity: clientId ? `${user.id}_${clientId}` : user.id,
       participantName: `${user.firstName} ${user.lastName || ""}`.trim(),
       isCoach: isCoach || isAdmin
     };
@@ -168,24 +180,15 @@ export class LiveClassService {
 
     // Auto-mark attendance for students when they request a token (join class)
     if (isStudent && liveSession.classId) {
-      await this.prisma.classAttendance.upsert({
-        where: {
-          classId_studentId: {
-            classId: liveSession.classId,
-            studentId: user.id
-          }
-        },
-        update: {
-          status: "PRESENT",
-          updatedAt: new Date()
-        },
-        create: {
-          classId: liveSession.classId,
-          studentId: user.id,
-          status: "PRESENT",
-          joinedAt: new Date()
-        }
-      });
+      try {
+        await this.attendanceService.recordJoinEvent(
+          liveSession.classId,
+          user.id,
+          { source: "TOKEN_REQUEST" }
+        );
+      } catch (error) {
+        this.logger.warn(`Failed to record attendance for student ${user.id}`, error);
+      }
     }
 
     return { token: livekitToken, roomName: liveSession.roomName, topic };
@@ -228,8 +231,18 @@ export class LiveClassService {
 
     await this.prisma.coachClass.update({
       where: { id: classId },
-      data: { status: ClassStatus.COMPLETED }
+      data: { 
+        status: ClassStatus.COMPLETED,
+        endsAt: new Date()
+      }
     });
+
+    // Finalize attendance calculations for all students
+    try {
+      await this.attendanceService.finalizeClassAttendance(classId);
+    } catch (error) {
+      this.logger.error(`Failed to finalize attendance for class ${classId}`, error);
+    }
   }
 
   @Cron(CronExpression.EVERY_MINUTE)
@@ -395,5 +408,49 @@ export class LiveClassService {
     });
 
     return { token: livekitToken, roomName: liveSession.roomName, topic };
+  }
+
+  async saveChatMessage(accessToken: string | undefined, classId: string, message: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+    });
+
+    if (!liveSession) {
+      throw new NotFoundException("Live session not found.");
+    }
+
+    const name = user.role === UserRole.COACH 
+      ? `${user.firstName} ${user.lastName}` 
+      : `${user.firstName}`; // Could use identity logic if needed
+
+    return this.prisma.liveChatMessage.create({
+      data: {
+        liveSessionId: liveSession.id,
+        senderId: user.id,
+        senderName: name,
+        senderRole: user.role,
+        message,
+      },
+    });
+  }
+
+  async getChatHistory(accessToken: string | undefined, classId: string) {
+    await this.getAuthenticatedUser(accessToken); // Just to verify access
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+    });
+
+    if (!liveSession) {
+      throw new NotFoundException("Live session not found.");
+    }
+
+    return this.prisma.liveChatMessage.findMany({
+      where: { liveSessionId: liveSession.id },
+      orderBy: { createdAt: "asc" },
+      take: 500, // Limit to last 500 messages
+    });
   }
 }

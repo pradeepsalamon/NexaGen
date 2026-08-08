@@ -1,3 +1,3 @@
-# @nexa-gen/config
+# @nexa-chess/config
 
 Shared configuration package shell.

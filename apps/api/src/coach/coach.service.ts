@@ -5,7 +5,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   CoachDashboardResponse,
   CoachBatchesResponse,
@@ -15,7 +15,7 @@ import type {
   CreateClassRequest,
   UpdateClassRequest,
   CoachClass
-} from "@nexa-gen/types";
+} from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";

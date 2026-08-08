@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { useAssignableUsersQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useCreateDemoClassMutation, useUpdateDemoClassMutation } from "../hooks/useAdminDemoClasses";
-import type { DemoClass } from "@nexa-gen/types";
+import type { DemoClass } from "@nexa-chess/types";
 
 const formSchema = z.object({
   coachId: z.string().min(1, "Coach is required"),

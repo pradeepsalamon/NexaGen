@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Users } from "lucide-react";
-import type { CoachStudent } from "@nexa-gen/types";
+import type { CoachStudent } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";

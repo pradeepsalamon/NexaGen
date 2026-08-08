@@ -8,7 +8,8 @@ import {
   CalendarDays, 
   Users, 
   History, 
-  Settings 
+  Settings,
+  UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ const navItems = [
   { href: "/coach/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/coach/students", label: "Students", icon: Users },
   { href: "/coach/history", label: "Class History", icon: History },
+  { href: "/coach/attendance", label: "Attendance", icon: UserCheck },
   { href: "/profile", label: "Settings", icon: Settings },
 ];
 

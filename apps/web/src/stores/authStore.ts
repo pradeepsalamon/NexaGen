@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AuthUser } from "@nexa-gen/types";
+import type { AuthUser } from "@nexa-chess/types";
 
 type AuthState = {
   clearSession: () => void;

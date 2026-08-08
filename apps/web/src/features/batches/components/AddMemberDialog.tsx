@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
-import type { BatchUserSummary } from "@nexa-gen/types";
+import type { BatchUserSummary } from "@nexa-chess/types";
 
 type AddMemberDialogProps = {
   members: BatchUserSummary[];

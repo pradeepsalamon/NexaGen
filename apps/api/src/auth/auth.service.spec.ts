@@ -4,7 +4,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import type { RegisterRequest } from "@nexa-gen/types";
+import type { RegisterRequest } from "@nexa-chess/types";
 import { ExperienceLevel, UserRole, UserStatus } from "@prisma/client";
 import { AuthService } from "./auth.service";
 import { hashSecret } from "./auth.utils";

@@ -6,14 +6,14 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   AuthUser,
   CreateUserRequest,
   UpdateUserRequest,
   UserListResponse,
   UserResponse
-} from "@nexa-gen/types";
+} from "@nexa-chess/types";
 import { Prisma, User, UserRole, UserStatus } from "@prisma/client";
 import { hashSecret } from "../auth/auth.utils";
 import { PrismaService } from "../prisma/prisma.service";

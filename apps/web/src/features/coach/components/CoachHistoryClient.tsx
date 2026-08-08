@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { History, Eye, Info } from "lucide-react";
 import Link from "next/link";
-import type { CoachClass } from "@nexa-gen/types";
+import type { CoachClass } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";

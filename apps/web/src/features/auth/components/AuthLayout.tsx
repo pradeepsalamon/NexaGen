@@ -24,19 +24,19 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     if (searchParams.get("reason") === "unauthorized") {
       // Force a refetch to allow the interceptor to attempt a token refresh
       queryClient.resetQueries({ queryKey: ["auth", "me"] });
-      const next = searchParams.get("next");
-      router.replace(next ? `/login?next=${next}` : "/login");
+      router.replace("/login");
       return;
     }
 
     if (isSessionChecked && user) {
-      let nextUrl = getRoleDashboardHref(user.role);
-      if (searchParams.has("next")) {
-        nextUrl = searchParams.get("next") as string;
-      }
-      router.replace(nextUrl);
+      router.replace(getRoleDashboardHref(user.role));
     }
   }, [isSessionChecked, user, searchParams, router, queryClient]);
+
+  if (!isSessionChecked || user) {
+    return null;
+  }
+
   return (
     <PageContainer>
       <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-stretch lg:gap-3">

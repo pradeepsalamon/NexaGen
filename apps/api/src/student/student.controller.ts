@@ -4,7 +4,7 @@ import {
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { StudentService } from "./student.service";
 

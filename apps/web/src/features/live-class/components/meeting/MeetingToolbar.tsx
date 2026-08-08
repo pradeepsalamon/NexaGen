@@ -30,8 +30,25 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../providers/ChatProvider";
+import { useParams } from "next/navigation";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/Dialog";
+import { Button } from "@/components/ui/Button";
+import { endLiveClass } from "../../api/live-class";
+import { toast } from "sonner";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
+  const params = useParams();
+  const roomId = params?.roomId as string;
+
   const {
     activeSidebar,
     toggleSidebar,
@@ -51,22 +68,31 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   const { localParticipant } = useLocalParticipant();
 
   useEffect(() => {
+    if (!isCoach || !roomId) return;
+    const handleUnload = () => {
+      try {
+        const channel = new BroadcastChannel(`live-class-board-${roomId}`);
+        channel.postMessage({ type: "CLOSE_BOARD_TAB" });
+        channel.close();
+      } catch {}
+    };
+    window.addEventListener("beforeunload", handleUnload);
+    return () => window.removeEventListener("beforeunload", handleUnload);
+  }, [isCoach, roomId]);
+
+  useEffect(() => {
     if (!localParticipant) return;
     
-    let currentMeta: any = {};
-    try {
-      currentMeta = localParticipant.metadata ? JSON.parse(localParticipant.metadata) : {};
-    } catch (e) {
-      // Ignore parse errors
-    }
-
-    if (currentMeta.handRaised !== handRaised) {
-      localParticipant.setMetadata(JSON.stringify({ ...currentMeta, handRaised }))
+    // Use attributes instead of metadata so the client has permission to update it
+    const currentHandRaised = localParticipant.attributes?.handRaised === "true";
+    if (currentHandRaised !== handRaised) {
+      localParticipant.setAttributes({ handRaised: handRaised.toString() })
         .catch((err) => {
-          console.warn("Failed to update local metadata for hand raise:", err);
+          console.warn("Failed to update local attributes for hand raise:", err);
         });
     }
-  }, [handRaised, localParticipant, localParticipant?.metadata]);
+  }, [handRaised, localParticipant, localParticipant?.attributes]);
+
 
   const mic = useTrackToggle({ source: Track.Source.Microphone });
   const camera = useTrackToggle({ source: Track.Source.Camera });
@@ -78,6 +104,17 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   const extractProps = <T extends { className?: string }>(props: T) => {
     const { className: _cls, ...rest } = props;
     return rest;
+  };
+
+  const handleEndClass = async () => {
+    if (!roomId) return;
+    try {
+      await endLiveClass(roomId);
+      toast.success("Class ended successfully");
+      // The disconnect webhook will automatically handle redirecting the coach
+    } catch (error) {
+      toast.error("Failed to end class");
+    }
   };
 
   return (
@@ -125,7 +162,15 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
             }
             label={isChessboardOpen ? "Close Board" : "Share Board"}
             variant={isChessboardOpen ? "active" : "default"}
-            onClick={toggleChessboard}
+            onClick={() => {
+              const newState = !isChessboardOpen;
+              toggleChessboard();
+              localParticipant?.setAttributes({ isChessboardOpen: newState.toString() }).catch(console.warn);
+              if (newState) {
+                const roomId = window.location.pathname.split("/").pop();
+                window.open(`/live-class/${roomId}/board`, "_blank");
+              }
+            }}
           />
         )}
 
@@ -192,12 +237,66 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
         <RecordingBadge className="hidden sm:flex" />
 
         {/* ── Leave ─────────────────────────── */}
-        <MeetingControlButton
-          icon={<LogOut className="size-5" />}
-          label="Leave Meeting"
-          variant="danger"
-          {...extractProps(leaveProps)}
-        />
+        {isCoach ? (
+          <Dialog>
+            <DialogTrigger asChild>
+              <MeetingControlButton
+                icon={<LogOut className="size-5" />}
+                label="Leave Meeting"
+                variant="danger"
+              />
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Leave Meeting?</DialogTitle>
+                <DialogDescription>
+                  Are you leaving the room temporarily, or would you like to end the class for everyone?
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-3 py-4">
+                <DialogClose asChild>
+                  <Button
+                    variant="outline"
+                    className="justify-start gap-3 h-auto py-3 px-4 text-left"
+                    onClick={(e) => leaveProps.onClick?.(e as any)}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-app-text">Leave Quietly</span>
+                      <span className="text-sm text-app-muted font-normal">The room will stay open for students.</span>
+                    </div>
+                  </Button>
+                </DialogClose>
+                
+                <DialogClose asChild>
+                  <Button
+                    variant="destructive"
+                    className="justify-start gap-3 h-auto py-3 px-4 text-left"
+                    onClick={handleEndClass}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-semibold text-white">End class for everyone</span>
+                      <span className="text-sm text-white/80 font-normal">Finalizes attendance immediately.</span>
+                    </div>
+                  </Button>
+                </DialogClose>
+              </div>
+              <DialogFooter className="sm:justify-start">
+                <DialogClose asChild>
+                  <Button variant="ghost" className="w-full sm:w-auto text-app-muted hover:text-app-text">
+                    Cancel
+                  </Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        ) : (
+          <MeetingControlButton
+            icon={<LogOut className="size-5" />}
+            label="Leave Meeting"
+            variant="danger"
+            {...extractProps(leaveProps)}
+          />
+        )}
       </div>
     </motion.div>
   );

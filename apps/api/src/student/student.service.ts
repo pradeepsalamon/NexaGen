@@ -3,7 +3,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-gen/config/api";
+import { getApiEnv } from "@nexa-chess/config/api";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
 import { UserStatus } from "@prisma/client";
@@ -66,16 +66,31 @@ export class StudentService {
     });
 
     // Determine Today's class vs Upcoming
-    let todaysClass = null;
+    let todaysClass: typeof scheduledClasses[0] | null = null;
     const upcomingClasses = [];
 
-    for (const cls of scheduledClasses) {
-      if (!todaysClass && cls.startsAt <= todayEnd) {
-        todaysClass = cls;
-      } else if (upcomingClasses.length < 5) {
-        upcomingClasses.push(cls);
+    const classesToday = scheduledClasses.filter(c => c.startsAt <= todayEnd);
+    const classesFuture = scheduledClasses.filter(c => c.startsAt > todayEnd);
+
+    if (classesToday.length > 0) {
+      const liveClass = classesToday.find(c => c.status === "LIVE");
+      const scheduledClass = classesToday.find(c => c.status === "SCHEDULED");
+      const completedClass = [...classesToday].reverse().find(c => c.status === "COMPLETED");
+
+      todaysClass = liveClass || scheduledClass || completedClass || classesToday[0];
+
+      // Put the rest of today's scheduled classes in upcoming
+      if (todaysClass) {
+        const remainingToday = classesToday.filter(
+          c => c.id !== todaysClass!.id && c.status === "SCHEDULED"
+        );
+        upcomingClasses.push(...remainingToday);
       }
     }
+
+    // Only include SCHEDULED future classes in the upcoming list
+    upcomingClasses.push(...classesFuture.filter(c => c.status === "SCHEDULED"));
+    const finalUpcoming = upcomingClasses.slice(0, 5);
 
     // Calculate actual attendance percentage
     const completedClassesCount = await this.prisma.coachClass.count({
@@ -112,7 +127,7 @@ export class StudentService {
         duration: `${Math.round((todaysClass.endsAt.getTime() - todaysClass.startsAt.getTime()) / 60000)} min`,
         status: todaysClass.status
       } : null,
-      upcomingClasses: upcomingClasses.map(c => ({
+      upcomingClasses: finalUpcoming.map(c => ({
         id: c.id,
         date: c.startsAt.toLocaleDateString([], { month: 'short', day: 'numeric' }),
         time: c.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),

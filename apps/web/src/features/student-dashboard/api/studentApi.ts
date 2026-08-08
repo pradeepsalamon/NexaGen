@@ -1,4 +1,4 @@
-import { API_ROUTES } from "@nexa-gen/types";
+import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
 
 export async function getStudentDashboard(): Promise<any> {

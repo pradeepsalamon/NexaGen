@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
-import type { AuthUser, UpdateProfileRequest } from "@nexa-gen/types";
+import { type FormEvent, useEffect, useMemo, useState, useRef } from "react";
+import type { AuthUser, UpdateProfileRequest } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
   Combobox,
@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/providers/ToastProvider";
 import { updateProfile } from "../api/authApi";
+import { uploadImage, deleteImage } from "@/lib/uploadApi";
+import { Upload, Edit2, Trash2 } from "lucide-react";
 
 type ProfileFormValues = {
   avatarUrl: string;
@@ -89,6 +91,37 @@ export function ProfileForm() {
     }
   });
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    const uploadPromise = (async () => {
+      if (values.avatarUrl) {
+        await deleteImage(values.avatarUrl).catch(() => {});
+      }
+      const { url } = await uploadImage(file);
+      updateField("avatarUrl", url);
+      await profileMutation.mutateAsync(toProfilePayload({ ...values, avatarUrl: url }, user));
+    })();
+
+    toast.promise(uploadPromise, {
+      loading: "Uploading photo...",
+      success: "Photo uploaded successfully.",
+      error: "Failed to upload photo."
+    });
+
+    uploadPromise.finally(() => {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    });
+  };
+
   useEffect(() => {
     if (!user) {
       return;
@@ -150,8 +183,73 @@ export function ProfileForm() {
     });
   }
 
+  const initials = `${values.firstName.trim().charAt(0)}${values.lastName.trim().charAt(0)}`.toUpperCase() || "NC";
+
   return (
-    <form className="mt-6 grid gap-4" onSubmit={handleSubmit}>
+    <form className="mt-6 grid gap-6" onSubmit={handleSubmit}>
+      <div className="flex flex-col items-center justify-center space-y-4 mb-2">
+        <div className="size-24 rounded-full overflow-hidden ring-2 ring-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-primary flex items-center justify-center shrink-0 shadow-sm text-3xl font-extrabold">
+          {values.avatarUrl ? (
+            <img src={values.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span>{initials}</span>
+          )}
+        </div>
+        
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept="image/png, image/jpeg, image/webp"
+          className="hidden"
+        />
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            {values.avatarUrl ? (
+              <><Edit2 className="mr-2 h-4 w-4" /> Change Photo</>
+            ) : (
+              <><Upload className="mr-2 h-4 w-4" /> Add Photo</>
+            )}
+          </Button>
+          {values.avatarUrl && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-950/20"
+              onClick={() => {
+                const oldUrl = values.avatarUrl;
+                setIsUploading(true);
+                
+                const removePromise = (async () => {
+                  await deleteImage(oldUrl);
+                  updateField("avatarUrl", "");
+                  await profileMutation.mutateAsync(toProfilePayload({ ...values, avatarUrl: "" }, user));
+                })();
+
+                toast.promise(removePromise, {
+                  loading: "Removing photo...",
+                  success: "Photo removed.",
+                  error: "Failed to remove photo."
+                });
+
+                removePromise.finally(() => setIsUploading(false));
+              }}
+              disabled={isUploading}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Remove
+            </Button>
+          )}
+        </div>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <FormField id="profile-email" label="Email">
@@ -231,22 +329,6 @@ export function ProfileForm() {
           </Combobox>
         </FormField>
       </div>
-
-      <FormField
-        hint="Use a direct image URL for your profile avatar."
-        id="profile-avatar-url"
-        label="Avatar URL"
-      >
-        <Input
-          id="profile-avatar-url"
-          inputMode="url"
-          maxLength={500}
-          onChange={(event) => updateField("avatarUrl", event.target.value)}
-          placeholder="https://example.com/avatar.png"
-          type="url"
-          value={values.avatarUrl}
-        />
-      </FormField>
 
       {user?.studentProfile ? (
         <section className="grid gap-4 rounded-app border border-app-border bg-app-soft/45 p-4">

@@ -10,7 +10,7 @@ import {
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
-import { API_ROUTES, createClassRequestSchema, updateClassRequestSchema, type CreateClassRequest, type UpdateClassRequest } from "@nexa-gen/types";
+import { API_ROUTES, createClassRequestSchema, updateClassRequestSchema, type CreateClassRequest, type UpdateClassRequest } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { CoachService } from "./coach.service";
 

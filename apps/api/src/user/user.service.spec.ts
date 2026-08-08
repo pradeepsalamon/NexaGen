@@ -5,7 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import type { CreateUserRequest, UpdateUserRequest } from "@nexa-gen/types";
+import type { CreateUserRequest, UpdateUserRequest } from "@nexa-chess/types";
 import { UserRole, UserStatus } from "@prisma/client";
 import { UserService } from "./user.service";
 import { PrismaService } from "../prisma/prisma.service";
