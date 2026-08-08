@@ -16,5 +16,8 @@
       "default": "./dist/index.js"
     }
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "devDependencies": {
+    "@nexa-chess/tsconfig": "^0.1.0"
+  }
 }

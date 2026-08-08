@@ -19,5 +19,8 @@
   "sideEffects": false,
   "dependencies": {
     "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@nexa-chess/tsconfig": "^0.1.0"
   }
 }
