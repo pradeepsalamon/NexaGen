@@ -246,6 +246,15 @@ When building a new feature:
 2. Reuse existing project components where possible.
 3. Only create a custom component if no suitable shadcn component exists or the feature requires custom behavior.
 
+## Production Deployment (Docker Compose)
+
+The provided `docker-compose.yml` has been hardened for production environments (like Oracle Cloud ARM64 instances):
+- **LiveKit Security**: LiveKit reads its API keys securely via environment variables (`LIVEKIT_KEYS`) rather than hardcoded configuration files, eliminating placeholder values.
+- **Service Isolation**: PostgreSQL and Redis are bound exclusively to `127.0.0.1` or internal Docker networks, reducing the external attack surface.
+- **Health Checks**: Robust container health checks have been added for all services (API, Web, LiveKit, Redis, and PostgreSQL) ensuring that dependent services wait for their prerequisites before starting.
+- **Persistence**: Both PostgreSQL and Redis use Docker named volumes for persistent data storage across restarts.
+- **Pinned Versions**: Container images are explicitly pinned to stable versions that support `ARM64` architecture (e.g. `postgres:15.6-alpine`, `redis:7.2.4-alpine`, `livekit/livekit-server:v1.6.0`).
+
 ## Project Rule
 
 When implementing or updating a feature, update the relevant README in the same change so setup, commands, env variables, and behavior stay current.
