@@ -1,5 +1,5 @@
 import Image from "next/image";
-import logoImage from "../nexa_logo.png";
+import logoImage from "@/assets/logos/nexa_logo.png";
 
 type LogoProps = {
   compact?: boolean;
