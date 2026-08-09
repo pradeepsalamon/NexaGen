@@ -57,6 +57,18 @@ export class BackupController {
     return this.backupService.getDownloadUrl(key);
   }
 
+  @Post('restore')
+  async restoreBackup(
+    @Query('key') key: string,
+    @Req() request: Request
+  ) {
+    await this.getAdminId(request);
+    if (!key) {
+      throw new BadRequestException('Backup key is required');
+    }
+    return this.backupService.restoreBackup(key);
+  }
+
   @Delete()
   async deleteBackup(
     @Query('key') key: string,

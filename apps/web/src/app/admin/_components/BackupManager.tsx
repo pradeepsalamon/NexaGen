@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HardDriveDownload, Loader2, Download, Trash2, ShieldAlert } from "lucide-react";
+import { HardDriveDownload, Loader2, Download, Trash2, ShieldAlert, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
@@ -105,6 +105,28 @@ export function BackupManager() {
     }
   };
 
+  const [restoreItem, setRestoreItem] = useState<BackupItem | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const handleRestore = async () => {
+    if (!restoreItem) return;
+    setIsRestoring(true);
+    try {
+      const data = await apiFetch<{ message: string }>(`/admin/backups/restore?key=${encodeURIComponent(restoreItem.key)}`, {
+        method: "POST",
+      });
+      toast.success(data.message || "Database restored successfully! Reloading in 3 seconds...");
+      // Reload page to fetch new state from the database
+      setTimeout(() => window.location.reload(), 3000);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to restore backup.");
+    } finally {
+      setIsRestoring(false);
+      setRestoreItem(null);
+    }
+  };
+
+
   const formatSize = (bytes: number) => {
     const mb = bytes / (1024 * 1024);
     return `${mb.toFixed(2)} MB`;
@@ -203,21 +225,30 @@ export function BackupManager() {
                     <div className="flex justify-end gap-2">
                       <Button
                         variant="outline"
-                        size="sm"
-                        className="h-8 px-2"
+                        size="icon"
+                        className="size-8 rounded-full border-blue-500 p-0 text-app-text transition-colors hover:bg-blue-500 hover:text-white"
                         onClick={() => handleDownload(backup.key)}
                         title="Download"
                       >
-                        <Download className="size-4" />
+                        <Download className="size-4" strokeWidth={2.5} />
                       </Button>
                       <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-8 px-2"
+                        variant="outline"
+                        size="icon"
+                        className="size-8 rounded-full border-amber-500 p-0 text-app-text transition-colors hover:bg-amber-500 hover:text-white"
+                        onClick={() => setRestoreItem(backup)}
+                        title="Restore"
+                      >
+                        <RotateCcw className="size-4" strokeWidth={2.5} />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
                         onClick={() => setDeleteItem(backup)}
                         title="Delete"
                       >
-                        <Trash2 className="size-4" />
+                        <Trash2 className="size-4" strokeWidth={2.5} />
                       </Button>
                     </div>
                   </TableCell>
@@ -230,7 +261,7 @@ export function BackupManager() {
 
       <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader>
+          <AlertDialogHeader className="flex-col">
             <AlertDialogTitle className="flex items-center gap-2">
               <ShieldAlert className="size-5 text-destructive" />
               Delete this database backup?
@@ -249,16 +280,63 @@ export function BackupManager() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              disabled={isDeleting}
-            >
-              {isDeleting ? <Loader2 className="size-4 animate-spin" /> : "Delete Backup"}
+            <AlertDialogCancel asChild disabled={isDeleting}>
+              <Button variant="outline">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild disabled={isDeleting}>
+              <Button
+                variant="destructive"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDelete();
+                }}
+              >
+                {isDeleting ? <Loader2 className="size-4 animate-spin mr-2" /> : <Trash2 className="size-4 mr-2" />}
+                {isDeleting ? "Deleting..." : "Delete Backup"}
+              </Button>
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={!!restoreItem} onOpenChange={(open) => !open && setRestoreItem(null)}>
+        <AlertDialogContent className="border-red-500/50 shadow-[0_0_40px_-10px_rgba(239,68,68,0.3)]">
+          <AlertDialogHeader className="flex-col">
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="size-5" />
+              CRITICAL: Restore Database?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 mt-2">
+                <div className="bg-destructive/10 text-destructive font-semibold p-3 rounded-md border border-destructive/20">
+                  ⚠️ WARNING: This will immediately WIPE the current production database and replace it entirely with this backup. ALL data added after this backup was taken will be PERMANENTLY LOST.
+                </div>
+                {restoreItem && (
+                  <div className="rounded-control bg-app-soft p-3 text-sm">
+                    <strong>Target Backup:</strong> {restoreItem.filename} <br />
+                    <strong>Date:</strong> {new Date(restoreItem.date).toLocaleString()}
+                  </div>
+                )}
+                <p className="font-medium text-app-text">
+                  This action cannot be undone. Are you absolutely sure?
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel asChild disabled={isRestoring}>
+              <Button variant="outline">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild disabled={isRestoring}>
+              <Button
+                variant="destructive"
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleRestore();
+                }}
+              >
+                {isRestoring ? <Loader2 className="size-4 animate-spin mr-2" /> : <RotateCcw className="size-4 mr-2" />}
+                {isRestoring ? "Restoring Database..." : "Yes, WIPE and RESTORE"}
+              </Button>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

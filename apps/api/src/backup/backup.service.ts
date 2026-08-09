@@ -181,4 +181,54 @@ export class BackupService {
       }
     }
   }
+
+  async restoreBackup(key: string): Promise<{ message: string }> {
+    const bucketName = this.validateConfig();
+    const downloadPath = path.join('/tmp', `restore-${Date.now()}.sql.gz`);
+
+    try {
+      this.logger.log(`Downloading backup ${key} for restoration...`);
+      const getCommand = new GetObjectCommand({
+        Bucket: bucketName,
+        Key: key,
+      });
+      const response = await this.s3Client.send(getCommand);
+      
+      // Save stream to file
+      const bodyStream = response.Body as NodeJS.ReadableStream;
+      await new Promise<void>((resolve, reject) => {
+        const writeStream = fs.createWriteStream(downloadPath);
+        bodyStream.pipe(writeStream);
+        writeStream.on('error', reject);
+        writeStream.on('finish', resolve);
+      });
+
+      this.logger.log(`Restoring database from ${downloadPath}...`);
+      
+      const dbUrl = process.env.DATABASE_URL;
+      if (!dbUrl) throw new Error('DATABASE_URL is not set.');
+      
+      // Remove query parameters like ?schema=public
+      const cleanDbUrl = dbUrl.split('?')[0];
+      
+      // 1. Drop and recreate the public schema to ensure a perfectly clean slate
+      // This prevents "relation already exists" and "duplicate key" conflicts.
+      const wipeCommand = `/bin/bash -c "set -o pipefail; psql \\"${cleanDbUrl}\\" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'"`;
+      await execAsync(wipeCommand);
+      
+      // 2. Pipe the unzipped sql file into PostgreSQL
+      const restoreCommand = `/bin/bash -c "set -o pipefail; gunzip -c ${downloadPath} | psql \\"${cleanDbUrl}\\""`;
+      await execAsync(restoreCommand);
+      
+      this.logger.log(`Database successfully restored from ${key}.`);
+      return { message: 'Database successfully restored from backup.' };
+    } catch (error) {
+      this.logger.error('Restore process failed:', error);
+      throw new InternalServerErrorException('Database restore failed. Check server logs.');
+    } finally {
+      if (fs.existsSync(downloadPath)) {
+        fs.unlinkSync(downloadPath);
+      }
+    }
+  }
 }
