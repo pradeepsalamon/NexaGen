@@ -67,8 +67,10 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (err) {
         processQueue(err as Error);
+        const wasAuthenticated = !!useAuthStore.getState().user;
         useAuthStore.getState().clearSession();
-        if (typeof window !== "undefined") {
+        
+        if (typeof window !== "undefined" && wasAuthenticated) {
           const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/demo"];
           const isPublicRoute = publicRoutes.some(route => window.location.pathname.startsWith(route));
           if (!isPublicRoute) {

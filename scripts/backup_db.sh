@@ -95,9 +95,13 @@ echo "Enforcing retention policy (${RETENTION_DAYS} days)..."
 # Calculate cutoff timestamp (compatible with Linux date)
 CUTOFF_TIMESTAMP=$(date -d "${RETENTION_DAYS} days ago" +%s)
 
-# List ONLY automatic backups using OCI CLI
-# We use --query to fetch name and time-created, and --output text to parse it easily in bash
-oci os object list -ns "$NAMESPACE" -bn "$BUCKET" --prefix "database/automatic/" --query "data[*].[name, \"time-created\"]" --output text | while read -r FILE_NAME FILE_TIME_RAW; do
+# List ONLY automatic backups using OCI CLI table format
+# We use --query to fetch name and time-created, then parse the ASCII table directly in Bash
+oci os object list -ns "$NAMESPACE" -bn "$BUCKET" --prefix "database/automatic/" --query "data[*].{Name:name, Time:\"time-created\"}" --output table | grep "database/automatic/" | while IFS='|' read -r col1 raw_name raw_time col4; do
+  # Trim whitespace using xargs
+  FILE_NAME=$(echo "$raw_name" | xargs)
+  FILE_TIME_RAW=$(echo "$raw_time" | xargs)
+  
   if [[ -n "$FILE_NAME" && -n "$FILE_TIME_RAW" && "$FILE_NAME" == *.sql.gz ]]; then
     # Convert OCI ISO timestamp (e.g. 2026-08-09T10:00:00.000Z) to epoch seconds
     FILE_TIMESTAMP=$(date -d "$FILE_TIME_RAW" +%s)
