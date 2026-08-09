@@ -417,6 +417,7 @@ export function BatchManagementClient() {
             if (value === "create") {
               handleNewBatch();
             } else {
+              setEditingBatchId(null);
               setActiveTab(value as BatchManagementTab);
             }
           }}

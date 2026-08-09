@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { HardDriveDownload, Loader2, Download, Trash2, ShieldAlert, RotateCcw } from "lucide-react";
+import { HardDriveDownload, Loader2, Download, ShieldAlert, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
@@ -38,9 +38,6 @@ export function BackupManager() {
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
-  
-  const [deleteItem, setDeleteItem] = useState<BackupItem | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchBackups = async () => {
     setIsLoading(true);
@@ -88,22 +85,6 @@ export function BackupManager() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!deleteItem) return;
-    setIsDeleting(true);
-    try {
-      await apiFetch(`/admin/backups?key=${encodeURIComponent(deleteItem.key)}`, {
-        method: "DELETE",
-      });
-      toast.success("Backup deleted successfully");
-      setBackups((prev) => prev.filter((b) => b.key !== deleteItem.key));
-    } catch (error) {
-      toast.error("Failed to delete backup.");
-    } finally {
-      setIsDeleting(false);
-      setDeleteItem(null);
-    }
-  };
 
   const [restoreItem, setRestoreItem] = useState<BackupItem | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
@@ -241,15 +222,6 @@ export function BackupManager() {
                       >
                         <RotateCcw className="size-4" strokeWidth={2.5} />
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
-                        onClick={() => setDeleteItem(backup)}
-                        title="Delete"
-                      >
-                        <Trash2 className="size-4" strokeWidth={2.5} />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -258,46 +230,6 @@ export function BackupManager() {
           </TableBody>
         </Table>
       </div>
-
-      <AlertDialog open={!!deleteItem} onOpenChange={(open) => !open && setDeleteItem(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader className="flex-col">
-            <AlertDialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="size-5 text-destructive" />
-              Delete this database backup?
-            </AlertDialogTitle>
-            <AlertDialogDescription asChild>
-              <div className="space-y-2 mt-2">
-                <p>This will permanently remove the off-server backup from Oracle Object Storage. This action cannot be undone.</p>
-                {deleteItem && (
-                  <div className="rounded-control bg-app-soft p-3 text-sm">
-                    <strong>File:</strong> {deleteItem.filename} <br />
-                    <strong>Size:</strong> {formatSize(deleteItem.size)} <br />
-                    <strong>Date:</strong> {new Date(deleteItem.date).toLocaleString()}
-                  </div>
-                )}
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild disabled={isDeleting}>
-              <Button variant="outline">Cancel</Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild disabled={isDeleting}>
-              <Button
-                variant="destructive"
-                onClick={(e) => {
-                  e.preventDefault();
-                  handleDelete();
-                }}
-              >
-                {isDeleting ? <Loader2 className="size-4 animate-spin mr-2" /> : <Trash2 className="size-4 mr-2" />}
-                {isDeleting ? "Deleting..." : "Delete Backup"}
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
       <AlertDialog open={!!restoreItem} onOpenChange={(open) => !open && setRestoreItem(null)}>
         <AlertDialogContent className="border-red-500/50 shadow-[0_0_40px_-10px_rgba(239,68,68,0.3)]">
           <AlertDialogHeader className="flex-col">

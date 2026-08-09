@@ -354,6 +354,7 @@ export function DemoClassesClient() {
             if (value === "create") {
               handleNewClass();
             } else {
+              setEditingClassId(null);
               setActiveTab(value as DemoClassManagementTab);
             }
           }}

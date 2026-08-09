@@ -381,6 +381,7 @@ export function UserManagementClient() {
             if (value === "create") {
               handleNewUser();
             } else {
+              setEditingUserId(null);
               setActiveTab(value as UserManagementTab);
             }
           }}
