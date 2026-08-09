@@ -78,8 +78,8 @@ fi
 echo "Backup created locally: $TEMP_FILE ($(du -h "$TEMP_FILE" | cut -f1))"
 
 # 3. Upload to OCI Object Storage
-echo "Uploading backup to OCI Object Storage..."
-aws s3 cp "$TEMP_FILE" "s3://${BUCKET}/${REMOTE_PATH}" --endpoint-url "$ENDPOINT"
+echo "Uploading backup to OCI Object Storage (Buffer mode to bypass aws-chunked)..."
+node "$SCRIPT_DIR/upload_to_oci.js" "$TEMP_FILE" "$BUCKET" "$REMOTE_PATH" "$ENDPOINT" "$REGION"
 
 # 4. Verify Upload via Head-Object
 echo "Verifying uploaded object exists in OCI..."

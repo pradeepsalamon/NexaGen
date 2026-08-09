@@ -140,12 +140,15 @@ export class BackupService {
       await execAsync(pgDumpCommand);
       this.logger.log('Database dump completed. Uploading to OCI Object Storage...');
 
-      const fileStream = fs.createReadStream(backupFilePath);
+      // Use readFileSync (Buffer) instead of createReadStream.
+      // OCI S3 Compatibility API rejects aws-chunked transfer encoding which AWS SDK
+      // automatically uses for streams. Passing a Buffer provides an exact Content-Length.
+      const fileBuffer = fs.readFileSync(backupFilePath);
 
       const uploadCommand = new PutObjectCommand({
         Bucket: bucketName,
         Key: objectKey,
-        Body: fileStream,
+        Body: fileBuffer,
         ContentType: 'application/gzip',
       });
 
