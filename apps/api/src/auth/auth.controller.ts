@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
+import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import { API_ROUTES } from "@nexa-chess/types";
 import { AuthService } from "./auth.service";
 import {
@@ -169,38 +170,42 @@ export class AuthController {
       refreshTokenMaxAge: number;
     }
   ) {
-    const isProduction = process.env.NODE_ENV === "production";
-    const sameSite = isProduction ? "none" : "lax";
+    const env = getApiEnv();
+    const isHttps = getFrontendUrl(env).startsWith("https://");
+    const sameSite = isHttps ? "none" : "lax";
+    const secure = isHttps;
 
     response.cookie(AUTH_COOKIE_NAMES.accessToken, tokens.accessToken, {
       httpOnly: true,
       maxAge: tokens.accessTokenMaxAge,
       path: AUTH_COOKIE_PATHS.accessToken,
       sameSite,
-      secure: isProduction
+      secure
     });
     response.cookie(AUTH_COOKIE_NAMES.refreshToken, tokens.refreshToken, {
       httpOnly: true,
       maxAge: tokens.refreshTokenMaxAge,
       path: AUTH_COOKIE_PATHS.refreshToken,
       sameSite,
-      secure: isProduction
+      secure
     });
   }
 
   private clearAuthCookies(response: Response) {
-    const isProduction = process.env.NODE_ENV === "production";
-    const sameSite = isProduction ? "none" : "lax";
+    const env = getApiEnv();
+    const isHttps = getFrontendUrl(env).startsWith("https://");
+    const sameSite = isHttps ? "none" : "lax";
+    const secure = isHttps;
 
     response.clearCookie(AUTH_COOKIE_NAMES.accessToken, {
       path: AUTH_COOKIE_PATHS.accessToken,
       sameSite,
-      secure: isProduction
+      secure
     });
     response.clearCookie(AUTH_COOKIE_NAMES.refreshToken, {
       path: AUTH_COOKIE_PATHS.refreshToken,
       sameSite,
-      secure: isProduction
+      secure
     });
   }
 

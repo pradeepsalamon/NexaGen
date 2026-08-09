@@ -61,3 +61,6 @@ The same scripts can be run directly in the API workspace:
 npm run migrate:dev -w apps/api
 npm run migrate:deploy -w apps/api
 ```
+
+prod prisma studio
+ssh -L 5433:127.0.0.1:5432 ubuntu@146.56.55.170
