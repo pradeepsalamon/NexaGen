@@ -24,7 +24,7 @@
     "test:cov": "jest --coverage"
   },
   "prisma": {
-    "seed": "ts-node --transpile-only prisma/seed.ts"
+    "seed": "node prisma/seed-runner.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1106.0",

@@ -17,6 +17,12 @@ docker compose up -d
 docker compose up -d --build
 ```
 
+**Rebuild and deploy ONLY a specific app after pulling new code (Fastest)**
+*(Replace `api` with `web`, `livekit`, or whatever container changed)*
+```bash
+docker compose up -d --build api
+```
+
 **Stop the entire application safely**
 ```bash
 docker compose down
