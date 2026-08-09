@@ -37,7 +37,7 @@ fi
 REGION="$OCI_REGION"
 NAMESPACE="$OCI_NAMESPACE"
 BUCKET="$OCI_BUCKET_NAME"
-ENDPOINT="https://${NAMESPACE}.compat.objectstorage.${REGION}.oraclecloud.com"
+ENDPOINT="https://${NAMESPACE}.compat.objectstorage.${REGION}.oci.customer-oci.com"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 
 export AWS_ACCESS_KEY_ID="$OCI_ACCESS_KEY_ID"

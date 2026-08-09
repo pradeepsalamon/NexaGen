@@ -34,7 +34,7 @@ export class BackupService {
   constructor() {
     const config = this.ociConfig;
     if (config.region && config.namespace && config.accessKeyId && config.secretAccessKey) {
-      const endpoint = `https://${config.namespace}.compat.objectstorage.${config.region}.oraclecloud.com`;
+      const endpoint = `https://${config.namespace}.compat.objectstorage.${config.region}.oci.customer-oci.com`;
       this.s3Client = new S3Client({
         region: config.region,
         endpoint,

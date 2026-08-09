@@ -15,7 +15,7 @@ This document outlines the procedure for manually restoring the production datab
 
 *(Alternatively, you can download it directly on the VPS using the AWS CLI configured for OCI)*:
 ```bash
-aws s3 cp s3://nexa-db-backups/database/automatic/nexa-db-2026-08-09-02-00-00.sql.gz ./ --endpoint-url https://YOUR_NAMESPACE.compat.objectstorage.YOUR_REGION.oraclecloud.com
+aws s3 cp s3://nexa-db-backups/database/automatic/nexa-db-2026-08-09-02-00-00.sql.gz ./ --endpoint-url https://YOUR_NAMESPACE.compat.objectstorage.YOUR_REGION.oci.customer-oci.com
 ```
 
 ## 2. Prepare the Environment
