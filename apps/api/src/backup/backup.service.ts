@@ -135,7 +135,12 @@ export class BackupService {
          throw new Error('DATABASE_URL is not set.');
       }
       
-      const pgDumpCommand = `pg_dump "${dbUrl}" | gzip > ${backupFilePath}`;
+      // pg_dump (libpq) rejects Prisma-specific query params like ?schema=public
+      // So we strip all query parameters before passing it to pg_dump
+      const cleanDbUrl = dbUrl.split('?')[0];
+      
+      // Use bash with pipefail so if pg_dump fails, the entire command fails
+      const pgDumpCommand = `/bin/bash -c "set -o pipefail; pg_dump \\"${cleanDbUrl}\\" | gzip > ${backupFilePath}"`;
       
       await execAsync(pgDumpCommand);
       this.logger.log('Database dump completed. Uploading to OCI Object Storage...');
