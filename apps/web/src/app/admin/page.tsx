@@ -11,6 +11,7 @@ import {
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BackupManager } from "./_components/BackupManager";
 
 const accessTokenCookieName = "nexa_access_token";
 
@@ -139,6 +140,8 @@ export default function SuperAdminDashboardPage() {
             );
           })}
         </section>
+        
+        <BackupManager />
       </div>
     </main>
   );

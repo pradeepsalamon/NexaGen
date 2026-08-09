@@ -14,6 +14,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { UploadModule } from "./upload/upload.module";
 import { StockfishModule } from "./stockfish/stockfish.module";
 import { AttendanceModule } from "./attendance/attendance.module";
+import { BackupModule } from "./backup/backup.module";
 
 @Module({
   imports: [
@@ -33,7 +34,8 @@ import { AttendanceModule } from "./attendance/attendance.module";
     StudentModule,
     UploadModule,
     StockfishModule,
-    AttendanceModule
+    AttendanceModule,
+    BackupModule
   ],
   providers: [
     {
