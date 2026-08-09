@@ -40,9 +40,9 @@ BUCKET="$OCI_BUCKET_NAME"
 ENDPOINT="https://${NAMESPACE}.compat.objectstorage.${REGION}.oci.customer-oci.com"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 
-export AWS_ACCESS_KEY_ID="$OCI_ACCESS_KEY_ID"
-export AWS_SECRET_ACCESS_KEY="$OCI_SECRET_ACCESS_KEY"
-export AWS_DEFAULT_REGION="$REGION"
+# OCI CLI authentication uses its native configuration (~/.oci/config)
+# which the user has confirmed is already set up on the VPS.
+# We no longer need to export AWS credentials for this script.
 
 DATE=$(date +%Y-%m-%d-%H-%M-%S)
 FILENAME="nexa-db-${DATE}.sql.gz"
@@ -78,12 +78,12 @@ fi
 echo "Backup created locally: $TEMP_FILE ($(du -h "$TEMP_FILE" | cut -f1))"
 
 # 3. Upload to OCI Object Storage
-echo "Uploading backup to OCI Object Storage (Buffer mode to bypass aws-chunked)..."
-node "$SCRIPT_DIR/upload_to_oci.js" "$TEMP_FILE" "$BUCKET" "$REMOTE_PATH" "$ENDPOINT" "$REGION"
+echo "Uploading backup to OCI Object Storage using OCI CLI..."
+oci os object put -ns "$NAMESPACE" -bn "$BUCKET" --name "$REMOTE_PATH" --file "$TEMP_FILE"
 
 # 4. Verify Upload via Head-Object
 echo "Verifying uploaded object exists in OCI..."
-if ! aws s3api head-object --bucket "$BUCKET" --key "$REMOTE_PATH" --endpoint-url "$ENDPOINT" >/dev/null 2>&1; then
+if ! oci os object head -ns "$NAMESPACE" -bn "$BUCKET" --name "$REMOTE_PATH" >/dev/null 2>&1; then
   echo "Error: Verification failed. The object '$REMOTE_PATH' was not found in OCI."
   exit 1
 fi
@@ -95,18 +95,16 @@ echo "Enforcing retention policy (${RETENTION_DAYS} days)..."
 # Calculate cutoff timestamp (compatible with Linux date)
 CUTOFF_TIMESTAMP=$(date -d "${RETENTION_DAYS} days ago" +%s)
 
-# List ONLY automatic backups
-aws s3 ls "s3://${BUCKET}/database/automatic/" --endpoint-url "$ENDPOINT" | while read -r line; do
-  FILE_DATE=$(echo "$line" | awk '{print $1}')
-  FILE_TIME=$(echo "$line" | awk '{print $2}')
-  FILE_NAME=$(echo "$line" | awk '{print $4}')
-  
-  if [[ -n "$FILE_DATE" && -n "$FILE_TIME" && -n "$FILE_NAME" && "$FILE_NAME" == *.sql.gz ]]; then
-    FILE_TIMESTAMP=$(date -d "$FILE_DATE $FILE_TIME" +%s)
+# List ONLY automatic backups using OCI CLI
+# We use --query to fetch name and time-created, and --output text to parse it easily in bash
+oci os object list -ns "$NAMESPACE" -bn "$BUCKET" --prefix "database/automatic/" --query "data[*].[name, \"time-created\"]" --output text | while read -r FILE_NAME FILE_TIME_RAW; do
+  if [[ -n "$FILE_NAME" && -n "$FILE_TIME_RAW" && "$FILE_NAME" == *.sql.gz ]]; then
+    # Convert OCI ISO timestamp (e.g. 2026-08-09T10:00:00.000Z) to epoch seconds
+    FILE_TIMESTAMP=$(date -d "$FILE_TIME_RAW" +%s)
     
     if [ "$FILE_TIMESTAMP" -lt "$CUTOFF_TIMESTAMP" ]; then
       echo "Deleting old backup: $FILE_NAME"
-      aws s3 rm "s3://${BUCKET}/database/automatic/${FILE_NAME}" --endpoint-url "$ENDPOINT"
+      oci os object delete -ns "$NAMESPACE" -bn "$BUCKET" --name "$FILE_NAME" --force
     fi
   fi
 done
