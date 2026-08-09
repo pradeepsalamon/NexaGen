@@ -435,7 +435,14 @@ export function UserManagementClient() {
               <DataTable
                 columnsLength={columns.length}
                 isLoading={usersQuery.isLoading}
-                noDataText="No users found."
+                noDataText={
+                  <div className="flex flex-col items-center justify-center space-y-4 py-4">
+                    <p>No users found.</p>
+                    <Button onClick={handleNewUser} size="sm">
+                      <Plus className="mr-2 size-4" /> Create User
+                    </Button>
+                  </div>
+                }
                 table={table}
               />
 

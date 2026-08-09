@@ -471,7 +471,14 @@ export function BatchManagementClient() {
               <DataTable
                 columnsLength={columns.length}
                 isLoading={batchesQuery.isLoading}
-                noDataText="No batches found."
+                noDataText={
+                  <div className="flex flex-col items-center justify-center space-y-4 py-4">
+                    <p>No batches found.</p>
+                    <Button onClick={handleNewBatch} size="sm">
+                      <Plus className="mr-2 size-4" /> Create Batch
+                    </Button>
+                  </div>
+                }
                 table={table}
               />
 

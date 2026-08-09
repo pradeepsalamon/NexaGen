@@ -404,7 +404,14 @@ export function DemoClassesClient() {
               <DataTable
                 columnsLength={columns.length}
                 isLoading={isLoading}
-                noDataText="No demo classes found."
+                noDataText={
+                  <div className="flex flex-col items-center justify-center space-y-4 py-4">
+                    <p>No demo classes found.</p>
+                    <Button onClick={() => setActiveTab("create")} size="sm">
+                      <Plus className="mr-2 size-4" /> Create Demo Class
+                    </Button>
+                  </div>
+                }
                 table={table}
               />
 

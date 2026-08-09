@@ -1,0 +1,99 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      api: ${{ steps.filter.outputs.api }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect affected services
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/**'
+              - 'docker-compose.yml'
+              - 'docker-compose*.yml'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'turbo.json'
+            api:
+              - 'apps/api/**'
+              - 'prisma/**'
+              - 'packages/**'
+              - 'docker-compose.yml'
+              - 'docker-compose*.yml'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'turbo.json'
+
+  deploy:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          WEB_CHANGED: ${{ needs.detect-changes.outputs.web }}
+          API_CHANGED: ${{ needs.detect-changes.outputs.api }}
+          COMMIT_SHA: ${{ github.sha }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          envs: WEB_CHANGED,API_CHANGED,COMMIT_SHA
+          script: |
+            echo "========================================"
+            echo "NEXA PRODUCTION DEPLOYMENT"
+            echo "========================================"
+            echo "Commit: $COMMIT_SHA"
+            
+            SERVICES=""
+            if [ "$WEB_CHANGED" = "true" ]; then
+              SERVICES="web"
+            fi
+            if [ "$API_CHANGED" = "true" ]; then
+              SERVICES="$SERVICES api"
+            fi
+            
+            # Trim leading/trailing whitespace
+            SERVICES=$(echo $SERVICES | xargs)
+            
+            echo "Affected services: $SERVICES"
+            
+            if [ -z "$SERVICES" ]; then
+              echo "No services affected. Exiting."
+              exit 0
+            fi
+            
+            # Navigate to the project directory
+            cd /opt/nexa-chess/NexaGen || { echo "Failed to find project directory"; exit 1; }
+            
+            # Fetch the latest commit objects so we can extract the deployment script
+            git fetch origin main
+            
+            # Ensure the scripts directory exists and fetch the deployment script from the target commit
+            mkdir -p scripts
+            git show "$COMMIT_SHA:scripts/deploy-production.sh" > ./scripts/deploy-production.sh
+            
+            # Ensure the deployment script is executable
+            chmod +x ./scripts/deploy-production.sh
+            
+            # Run the deployment script
+            ./scripts/deploy-production.sh "$COMMIT_SHA" $SERVICES
