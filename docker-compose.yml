@@ -61,7 +61,7 @@ services:
       - nexa_network
 
   livekit:
-    image: livekit/livekit-server:v1.6.0
+    image: livekit/livekit-server:latest
     container_name: nexa_livekit
     restart: unless-stopped
 

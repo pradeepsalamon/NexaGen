@@ -8,6 +8,7 @@ rtc:
   port_range_start: 50000
   port_range_end: 50010
   use_external_ip: true
+  node_ip: 146.56.55.170
 
 redis:
   address: redis:6379
