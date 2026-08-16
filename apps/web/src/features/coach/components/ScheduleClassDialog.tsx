@@ -15,7 +15,7 @@ import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { DatePicker } from "@/components/ui/DatePicker";
-import { Select } from "@/components/ui/Select";
+import { Input } from "@/components/ui/Input";
 import { FormSelect } from "@/components/forms/FormSelect";
 import { useCreateClass, useUpdateClass } from "../hooks/useCoachApi";
 
@@ -37,6 +37,7 @@ export function ScheduleClassDialog({
   defaultBatchId
 }: ScheduleClassDialogProps) {
   const [duration, setDuration] = useState("60");
+  const [isDurationDropdownOpen, setIsDurationDropdownOpen] = useState(false);
   const createClassMutation = useCreateClass();
   const updateClassMutation = useUpdateClass(classToEdit?.id || "");
 
@@ -155,17 +156,42 @@ export function ScheduleClassDialog({
             </BaseFormField>
             <div className="space-y-2">
               <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Duration</label>
-              <Select
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                options={[
-                  { label: "30 minutes", value: "30" },
-                  { label: "45 minutes", value: "45" },
-                  { label: "60 minutes (1 hour)", value: "60" },
-                  { label: "90 minutes (1.5 hours)", value: "90" },
-                  { label: "120 minutes (2 hours)", value: "120" }
-                ]}
-              />
+              <div className="relative">
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="Minutes (e.g. 60)"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  onFocus={() => setIsDurationDropdownOpen(true)}
+                  onBlur={() => setTimeout(() => setIsDurationDropdownOpen(false), 200)}
+                />
+                {isDurationDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 rounded-md border border-app-border bg-app-surface shadow-md">
+                    <ul className="max-h-60 overflow-auto py-1 text-sm text-app-text">
+                      {[
+                        { label: "30 minutes", value: "30" },
+                        { label: "45 minutes", value: "45" },
+                        { label: "60 minutes (1 hour)", value: "60" },
+                        { label: "90 minutes (1.5 hours)", value: "90" },
+                        { label: "120 minutes (2 hours)", value: "120" }
+                      ].map(option => (
+                        <li
+                          key={option.value}
+                          className="px-3 py-2 hover:bg-primary hover:text-white cursor-pointer transition-colors"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setDuration(option.value);
+                            setIsDurationDropdownOpen(false);
+                          }}
+                        >
+                          {option.label}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
