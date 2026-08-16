@@ -71,6 +71,8 @@ services:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       LIVEKIT_API_KEY: "${LIVEKIT_API_KEY}"
       LIVEKIT_API_SECRET: "${LIVEKIT_API_SECRET}"
+      LIVEKIT_WEBHOOK_API_KEY: "${LIVEKIT_API_KEY}"
+      LIVEKIT_WEBHOOK_URLS: "http://api:3001/webhooks/livekit"
 
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
