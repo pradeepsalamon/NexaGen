@@ -69,6 +69,8 @@ services:
 
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
+      LIVEKIT_API_KEY: "${LIVEKIT_API_KEY}"
+      LIVEKIT_API_SECRET: "${LIVEKIT_API_SECRET}"
 
     volumes:
       - ./livekit.yaml:/etc/livekit.yaml:ro
