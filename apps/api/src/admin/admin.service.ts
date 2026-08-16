@@ -317,7 +317,8 @@ export class AdminService {
         coach: true,
         batch: {
           include: { students: true }
-        }
+        },
+        liveSession: true
       },
       orderBy: { startsAt: 'desc' }
     });
@@ -340,7 +341,8 @@ export class AdminService {
         meetingRoomId: c.meetingRoomId,
         createdAt: c.createdAt.toISOString(),
         studentCount: c.batch?.students?.length || 0,
-        coachName: `${c.coach.firstName} ${c.coach.lastName || ''}`.trim()
+        coachName: `${c.coach.firstName} ${c.coach.lastName || ''}`.trim(),
+        hasRecording: !!c.liveSession?.recordingUrl,
       }))
     };
   }

@@ -16,7 +16,7 @@ import { useAuthStore } from "@/stores/authStore";
  */
 export function useLiveBoardSync() {
   const { boardControlStudentId, isChessboardOpen } = useLiveClassState();
-  const { setPermissionMode } = useBoardStore();
+  const { setPermissionMode, permissionMode, selectedStudentId } = useBoardStore();
   const { broadcastState, broadcastPermissions } = useBoardSync();
   const hasInitialized = useRef(false);
   const user = useAuthStore((state) => state.user);
@@ -36,7 +36,7 @@ export function useLiveBoardSync() {
   useEffect(() => {
     if (!isChessboardOpen || !isCoach) return;
     broadcastPermissions();
-  }, [boardControlStudentId, isChessboardOpen, broadcastPermissions, isCoach]);
+  }, [permissionMode, selectedStudentId, isChessboardOpen, broadcastPermissions, isCoach]);
 
   // When the board is first opened, force-sync full state to all
   useEffect(() => {

@@ -15,8 +15,11 @@ import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { Select } from "@/components/ui/Select";
 import { FormSelect } from "@/components/forms/FormSelect";
 import { useCreateClass, useUpdateClass } from "../hooks/useCoachApi";
+
+import { useState } from "react";
 
 interface ScheduleClassDialogProps {
   open: boolean;
@@ -33,6 +36,7 @@ export function ScheduleClassDialog({
   batches,
   defaultBatchId
 }: ScheduleClassDialogProps) {
+  const [duration, setDuration] = useState("60");
   const createClassMutation = useCreateClass();
   const updateClassMutation = useUpdateClass(classToEdit?.id || "");
 
@@ -60,6 +64,9 @@ export function ScheduleClassDialog({
         startsAt: classToEdit.startsAt,
         endsAt: classToEdit.endsAt
       });
+      const durMs = new Date(classToEdit.endsAt).getTime() - new Date(classToEdit.startsAt).getTime();
+      const durMins = Math.round(durMs / 60000);
+      setDuration(durMins.toString());
     } else if (open) {
       // Default to next hour
       const now = new Date();
@@ -83,16 +90,20 @@ export function ScheduleClassDialog({
         startsAt: startLocal,
         endsAt: endLocal
       });
+      setDuration("60");
     }
   }, [classToEdit, open, form, batches, defaultBatchId]);
 
 
   const onSubmit = (data: CreateClassRequest) => {
+    const startObj = new Date(data.startsAt);
+    const endsAtObj = new Date(startObj.getTime() + parseInt(duration) * 60000);
+    
     // Need to ensure the datetime strings sent to backend are full ISO strings UTC
     const submitData = {
       ...data,
-      startsAt: new Date(data.startsAt).toISOString(),
-      endsAt: new Date(data.endsAt).toISOString()
+      startsAt: startObj.toISOString(),
+      endsAt: endsAtObj.toISOString()
     };
 
     if (classToEdit) {
@@ -142,19 +153,20 @@ export function ScheduleClassDialog({
                 )}
               />
             </BaseFormField>
-            <BaseFormField id="endsAt" label="End Time" error={form.formState.errors.endsAt?.message}>
-              <Controller
-                control={form.control}
-                name="endsAt"
-                render={({ field }) => (
-                  <DatePicker
-                    withTime
-                    value={field.value ? new Date(field.value) : undefined}
-                    onChange={(date) => field.onChange(date ? date.toISOString() : "")}
-                  />
-                )}
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Duration</label>
+              <Select
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                options={[
+                  { label: "30 minutes", value: "30" },
+                  { label: "45 minutes", value: "45" },
+                  { label: "60 minutes (1 hour)", value: "60" },
+                  { label: "90 minutes (1.5 hours)", value: "90" },
+                  { label: "120 minutes (2 hours)", value: "120" }
+                ]}
               />
-            </BaseFormField>
+            </div>
           </div>
 
           <FormInput

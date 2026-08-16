@@ -28,7 +28,8 @@ type CoachClassWithRelations = Prisma.CoachClassGetPayload<{
           where: { isDeleted: false }
         }
       }
-    }
+    },
+    liveSession: true
   }
 }>;
 
@@ -122,7 +123,10 @@ export class CoachService {
 
     const classes = await this.prisma.coachClass.findMany({
       where: { coachId, startsAt: { gte: startOfDay, lt: endOfDay } },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } },
+      include: { 
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        liveSession: true 
+      },
       orderBy: { startsAt: "asc" }
     });
 
@@ -139,7 +143,10 @@ export class CoachService {
         status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] }, 
         endsAt: { gte: now } 
       },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } },
+      include: { 
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        liveSession: true
+      },
       orderBy: { startsAt: "asc" }
     });
 
@@ -151,7 +158,10 @@ export class CoachService {
 
     const classes = await this.prisma.coachClass.findMany({
       where: { coachId, status: { in: [ClassStatus.COMPLETED, ClassStatus.CANCELLED] } },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } },
+      include: { 
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        liveSession: true 
+      },
       orderBy: { startsAt: "desc" },
       take: 50
     });
@@ -179,7 +189,10 @@ export class CoachService {
         startsAt: new Date(payload.startsAt),
         endsAt: new Date(payload.endsAt)
       },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } }
+      include: { 
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        liveSession: true 
+      }
     });
 
     return { class: this.toCoachClass(cls) };
@@ -190,7 +203,10 @@ export class CoachService {
 
     const cls = await this.prisma.coachClass.findUnique({
       where: { id: classId },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } }
+      include: { 
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        liveSession: true 
+      }
     });
 
     if (!cls || cls.coachId !== coachId) {
@@ -268,7 +284,10 @@ export class CoachService {
         startsAt: payload.startsAt ? new Date(payload.startsAt) : undefined,
         endsAt: payload.endsAt ? new Date(payload.endsAt) : undefined
       },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } }
+      include: { 
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        liveSession: true
+      }
     });
 
     return { class: this.toCoachClass(cls) };
@@ -288,7 +307,10 @@ export class CoachService {
         status: ClassStatus.CANCELLED,
         cancelledAt: new Date()
       },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } }
+      include: { 
+        batch: { include: { students: { where: { isDeleted: false } } } },
+        liveSession: true
+      }
     });
 
     return { class: this.toCoachClass(cls) };
@@ -380,7 +402,8 @@ export class CoachService {
       endsAt: c.endsAt.toISOString(),
       meetingRoomId: c.meetingRoomId,
       createdAt: c.createdAt.toISOString(),
-      studentCount: c.batch?.students?.length || 0
+      studentCount: c.batch?.students?.length || 0,
+      hasRecording: !!c.liveSession?.recordingUrl,
     };
   }
 

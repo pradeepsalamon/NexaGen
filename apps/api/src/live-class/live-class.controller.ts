@@ -60,4 +60,19 @@ export class LiveClassController {
     // Expected body: GuestJoinDemoRequest
     return this.liveClassService.joinDemoClass(id, body);
   }
+
+  @Post(API_ROUTES.liveClass.startRecording())
+  startRecording(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.startRecording(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.stopRecording())
+  stopRecording(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.stopRecording(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.liveClass.downloadRecording())
+  downloadRecording(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.downloadRecording(this.getAccessToken(request), id);
+  }
 }

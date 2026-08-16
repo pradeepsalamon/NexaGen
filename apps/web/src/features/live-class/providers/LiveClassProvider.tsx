@@ -28,6 +28,12 @@ interface LiveClassContextValue {
   /** Class topic / room name from token response */
   topic: string | null;
 
+  /** Time the class officially started */
+  startedAt: string | null;
+
+  /** Time the class officially ends */
+  endsAt: string | null;
+
   /** Whether the shared chessboard is open in the meeting */
   isChessboardOpen: boolean;
   setIsChessboardOpen: (val: boolean) => void;
@@ -36,6 +42,11 @@ interface LiveClassContextValue {
   /** The participant identity currently given board control (null = coach only) */
   boardControlStudentId: BoardControlStudentId;
   setBoardControlStudent: (identity: BoardControlStudentId) => void;
+
+  /** Whether the class is currently being recorded */
+  isRecording: boolean;
+  setIsRecording: (val: boolean) => void;
+  toggleRecording: () => void;
 }
 
 const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefined);
@@ -43,9 +54,13 @@ const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefi
 export function LiveClassProvider({
   children,
   topic,
+  startedAt,
+  endsAt,
 }: {
   children: ReactNode;
   topic?: string | null;
+  startedAt?: string | null;
+  endsAt?: string | null;
 }) {
   const [activeSidebar, setActiveSidebar] = useState<SidebarTab>(null);
   const [pinnedParticipantSid, setPinnedParticipantSid] = useState<string | null>(null);
@@ -53,6 +68,7 @@ export function LiveClassProvider({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChessboardOpen, setIsChessboardOpen] = useState(false);
   const [boardControlStudentId, setBoardControlStudentId] = useState<BoardControlStudentId>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   const toggleSidebar = useCallback(
     (tab: Exclude<SidebarTab, null>) => {
@@ -85,6 +101,10 @@ export function LiveClassProvider({
     setBoardControlStudentId(identity);
   }, []);
 
+  const toggleRecording = useCallback(() => {
+    setIsRecording((prev) => !prev);
+  }, []);
+
   return (
     <LiveClassContext.Provider
       value={{
@@ -99,12 +119,17 @@ export function LiveClassProvider({
         isFullscreen,
         setIsFullscreen,
         toggleFullscreen,
-        topic: topic || null,
+        topic: topic ?? null,
+        startedAt: startedAt ?? null,
+        endsAt: endsAt ?? null,
         isChessboardOpen,
         setIsChessboardOpen,
         toggleChessboard,
         boardControlStudentId,
         setBoardControlStudent,
+        isRecording,
+        setIsRecording,
+        toggleRecording,
       }}
     >
       {children}

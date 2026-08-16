@@ -8,6 +8,7 @@ import { ContinueLearning } from "@/features/student-dashboard/components/Contin
 import { PracticeSection } from "@/features/student-dashboard/components/PracticeSection";
 import { RecentActivity } from "@/features/student-dashboard/components/RecentActivity";
 import { Announcements } from "@/features/student-dashboard/components/Announcements";
+import { PastClasses } from "@/features/student-dashboard/components/PastClasses";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuthStore } from "@/stores/authStore";
 import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
@@ -91,6 +92,11 @@ export default function StudentDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RecentActivity activities={data?.activities || []} />
         <Announcements announcements={data?.announcements || []} />
+      </div>
+
+      {/* Row 6: Past Classes */}
+      <div>
+        <PastClasses classes={data?.pastClasses || []} />
       </div>
     </div>
   );

@@ -10,6 +10,13 @@ import { MeetingToolbar } from "./MeetingToolbar";
 import { MeetingSidebar } from "./MeetingSidebar";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { BoardProvider } from "@/features/chessboard/context/BoardProvider";
+import { lazy, Suspense } from "react";
+
+// Lazy-load board sync bridge for code splitting
+const LiveBoardSyncBridge = lazy(() =>
+  import("./LiveBoardSyncBridge").then((m) => ({ default: m.LiveBoardSyncBridge })),
+);
 
 /**
  * Main meeting layout orchestrator.
@@ -48,26 +55,26 @@ export function MeetingLayout() {
 
   const participants = useParticipants();
 
-  // Watch for the _board participant and coach presence to sync board state for students
+  // Watch for coach presence and their isChessboardOpen attribute to sync board state for students
   useEffect(() => {
-    if (isCoach) return; // Coach controls their own local state/tab
+    if (isCoach) return; // Coach controls their own local state
     
-    // If the coach has opened the board tab, the _board participant will be in the room
-    const hasBoardParticipant = participants.some(p => p.identity.endsWith("_board"));
-    
-    // Check if at least one coach is in the room
-    const hasCoachInRoom = participants.some(p => {
+    // Check if at least one coach in the room has the board open
+    const isBoardOpenByCoach = participants.some(p => {
+      let isCoachRole = false;
       try {
-        if (!p.metadata) return false;
-        const meta = JSON.parse(p.metadata);
-        return meta.role === "COACH" || meta.role === "SUPER_ADMIN";
-      } catch {
-        return false;
-      }
+        if (p.metadata) {
+          const meta = JSON.parse(p.metadata);
+          isCoachRole = meta.role === "COACH" || meta.role === "SUPER_ADMIN";
+        }
+      } catch {}
+      
+      const isOpenAttr = p.attributes?.isChessboardOpen === "true";
+      return isCoachRole && isOpenAttr;
     });
 
     // Board is destroyed/hidden if coach stops board OR leaves meeting
-    setIsChessboardOpen(hasBoardParticipant && hasCoachInRoom);
+    setIsChessboardOpen(isBoardOpenByCoach);
   }, [participants, isCoach, setIsChessboardOpen]);
 
   return (
@@ -78,13 +85,18 @@ export function MeetingLayout() {
       {/* Main content — fills remaining space */}
       <main className="relative flex flex-1 overflow-hidden">
         {/* Content area — takes all available space */}
-        <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative">
-          <AnimatePresence mode="wait">
-            <div key="video-grid" className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col relative">
-              <MeetingVideoGrid />
-            </div>
-          </AnimatePresence>
-        </div>
+        <BoardProvider>
+          <Suspense fallback={null}>
+            <LiveBoardSyncBridge />
+          </Suspense>
+          <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative">
+            <AnimatePresence mode="wait">
+              <div key="video-grid" className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col relative">
+                <MeetingVideoGrid />
+              </div>
+            </AnimatePresence>
+          </div>
+        </BoardProvider>
 
         {/* Sidebar — slides in from right */}
         <MeetingSidebar />

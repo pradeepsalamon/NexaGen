@@ -9,6 +9,7 @@ import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormSelect } from "@/components/forms/FormSelect";
 import { DatePicker } from "@/components/ui/DatePicker";
+import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { useAssignableUsersQuery } from "@/features/batches/hooks/useBatchesApi";
@@ -28,7 +29,10 @@ interface DemoClassFormProps {
   selectedClass?: DemoClass | null;
 }
 
+import { useState } from "react";
+
 export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) {
+  const [duration, setDuration] = useState("60");
   const { data: usersData, isLoading: isLoadingUsers } = useAssignableUsersQuery();
   const createMutation = useCreateDemoClassMutation();
   const updateMutation = useUpdateDemoClassMutation(selectedClass?.id || "");
@@ -53,22 +57,29 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
         startsAt: selectedClass.startsAt,
         endsAt: selectedClass.endsAt,
       });
+      const durMs = new Date(selectedClass.endsAt).getTime() - new Date(selectedClass.startsAt).getTime();
+      const durMins = Math.round(durMs / 60000);
+      setDuration(durMins.toString());
     } else {
       form.reset({
         coachId: "",
         topic: "",
         description: "",
         startsAt: "",
-        endsAt: "",
+        endsAt: new Date().toISOString(),
       });
+      setDuration("60");
     }
   }, [selectedClass, form, usersData]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    const startObj = new Date(values.startsAt);
+    const endsAtObj = new Date(startObj.getTime() + parseInt(duration) * 60000);
+    
     const submitData = {
       ...values,
-      startsAt: new Date(values.startsAt).toISOString(),
-      endsAt: new Date(values.endsAt).toISOString(),
+      startsAt: startObj.toISOString(),
+      endsAt: endsAtObj.toISOString(),
     };
     if (selectedClass) {
       updateMutation.mutate(submitData, {
@@ -131,17 +142,20 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                 withTime
               />
             </BaseFormField>
-            <BaseFormField
-              id="endsAt"
-              label="End Time"
-              error={form.formState.errors.endsAt?.message}
-            >
-              <DatePicker
-                value={form.watch("endsAt") ? new Date(form.watch("endsAt")) : undefined}
-                onChange={(date) => form.setValue("endsAt", date ? date.toISOString() : "")}
-                withTime
+            <div className="space-y-2">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Duration</label>
+              <Select
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                options={[
+                  { label: "30 minutes", value: "30" },
+                  { label: "45 minutes", value: "45" },
+                  { label: "60 minutes (1 hour)", value: "60" },
+                  { label: "90 minutes (1.5 hours)", value: "90" },
+                  { label: "120 minutes (2 hours)", value: "120" }
+                ]}
               />
-            </BaseFormField>
+            </div>
           </div>
           <BaseFormField
             id="description"

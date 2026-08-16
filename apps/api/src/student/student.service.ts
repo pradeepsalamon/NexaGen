@@ -92,6 +92,17 @@ export class StudentService {
     upcomingClasses.push(...classesFuture.filter(c => c.status === "SCHEDULED"));
     const finalUpcoming = upcomingClasses.slice(0, 5);
 
+    // Fetch past classes for the dashboard
+    const pastClasses = await this.prisma.coachClass.findMany({
+      where: {
+        batch: { students: { some: { studentId: user.id, isDeleted: false } } },
+        status: { in: ["COMPLETED", "CANCELLED"] },
+      },
+      orderBy: { startsAt: "desc" },
+      take: 10,
+      include: { coach: true, liveSession: true }
+    });
+
     // Calculate actual attendance percentage
     const completedClassesCount = await this.prisma.coachClass.count({
       where: {
@@ -161,6 +172,14 @@ export class StudentService {
         description: a.description,
         type: a.type,
         date: a.createdAt.toLocaleDateString()
+      })),
+      pastClasses: pastClasses.map((c: any) => ({
+        id: c.id,
+        topic: c.topic || "Untitled Class",
+        coachName: c.coach.firstName,
+        date: c.startsAt.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+        status: c.status,
+        hasRecording: !!c.liveSession?.recordingUrl,
       })),
       progressMetrics
     };

@@ -145,6 +145,7 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
       orientation,
       coordinates: showCoordinates,
       animation: { enabled: !isEditingPosition },
+      viewOnly: !canMove,
       movable: {
         color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
         free: isEditingPosition,
@@ -242,6 +243,7 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
       orientation,
       coordinates: showCoordinates,
       animation: { enabled: !isEditingPosition },
+      viewOnly: !canMove,
       movable: {
         color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
         free: isEditingPosition,

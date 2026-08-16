@@ -18,14 +18,7 @@ import { EmptyMeetingState } from "./EmptyMeetingState";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
-import { lazy, Suspense } from "react";
-import { BoardProvider, useBoardStore } from "@/features/chessboard/context/BoardProvider";
-
-// Lazy-load board components for code splitting
-const LiveBoardSyncBridge = lazy(() =>
-  import("./LiveBoardSyncBridge").then((m) => ({ default: m.LiveBoardSyncBridge })),
-);
-
+import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { useBoardSync } from "@/features/chessboard/hooks/useBoardSync";
 
@@ -481,10 +474,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
           >
             <AnimatePresence mode="popLayout">
               {showBoardTile && (
-                <BoardProvider>
-                  <Suspense fallback={null}>
-                    <LiveBoardSyncBridge />
-                  </Suspense>
+                <>
                   <motion.div
                     key="inline-chessboard"
                     layout
@@ -533,11 +523,11 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                     </div>
                   </motion.div>
 
-                  {/* Fullscreen overlay — same BoardProvider, single ChessgroundBoard instance */}
+                  {/* Fullscreen overlay — single ChessgroundBoard instance */}
                   {isBoardFullscreen && (
                     <BoardFocusOverlay onClose={() => setIsBoardFullscreen(false)} />
                   )}
-                </BoardProvider>
+                </>
               )}
               {sortedTracks.map((trackRef) => (
                 <VideoTile

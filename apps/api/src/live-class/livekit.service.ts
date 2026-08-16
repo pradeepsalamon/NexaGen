@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException } from "@nestjs/common";
-import { RoomServiceClient, AccessToken, Room } from "livekit-server-sdk";
+import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload } from "livekit-server-sdk";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
 
@@ -7,6 +7,7 @@ import { getApiEnv } from "@nexa-chess/config/api";
 export class LiveKitService implements OnModuleInit {
   private readonly logger = new Logger(LiveKitService.name);
   private roomClient!: RoomServiceClient;
+  private egressClient!: EgressClient;
 
   private readonly livekitUrl: string;
   private readonly apiKey: string;
@@ -26,7 +27,8 @@ export class LiveKitService implements OnModuleInit {
     }
 
     this.roomClient = new RoomServiceClient(this.livekitUrl, this.apiKey, this.apiSecret);
-    this.logger.log("LiveKit RoomServiceClient initialized.");
+    this.egressClient = new EgressClient(this.livekitUrl, this.apiKey, this.apiSecret);
+    this.logger.log("LiveKit RoomServiceClient and EgressClient initialized.");
   }
 
   generateRoomName(scheduleId: string): string {
@@ -112,6 +114,57 @@ export class LiveKitService implements OnModuleInit {
     } catch (error) {
       this.logger.error("Failed to generate LiveKit token", error);
       throw new InternalServerErrorException("Failed to generate LiveKit access token");
+    }
+  }
+
+  async startRecording(roomName: string, filepath: string): Promise<string> {
+    try {
+      this.logger.log(`Starting LiveKit room composite egress for room: ${roomName}`);
+      let s3Output: { case: "s3", value: S3Upload } | undefined = undefined;
+      const { OCI_ACCESS_KEY_ID, OCI_SECRET_ACCESS_KEY, OCI_REGION, OCI_NAMESPACE, OCI_BUCKET_NAME } = process.env;
+      
+      if (OCI_ACCESS_KEY_ID && OCI_SECRET_ACCESS_KEY && OCI_REGION && OCI_NAMESPACE && OCI_BUCKET_NAME) {
+        const s3Upload = new S3Upload({
+          accessKey: OCI_ACCESS_KEY_ID,
+          secret: OCI_SECRET_ACCESS_KEY,
+          region: OCI_REGION,
+          endpoint: `https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oci.customer-oci.com`,
+          bucket: OCI_BUCKET_NAME,
+          forcePathStyle: true,
+        });
+        s3Output = { case: "s3", value: s3Upload };
+      }
+
+      const fileOutput = new EncodedFileOutput({
+        filepath,
+        fileType: EncodedFileType.MP4,
+        output: s3Output,
+      });
+      const info = await this.egressClient.startRoomCompositeEgress(
+        roomName,
+        {
+          file: fileOutput,
+        },
+        {
+          layout: "grid",
+        }
+      );
+      this.logger.log(`Started recording ${roomName}, egressId: ${info.egressId}`);
+      return info.egressId;
+    } catch (error) {
+      this.logger.error(`Failed to start recording for room: ${roomName}`, error);
+      throw new InternalServerErrorException("Failed to start LiveKit recording");
+    }
+  }
+
+  async stopRecording(egressId: string): Promise<void> {
+    try {
+      this.logger.log(`Stopping LiveKit egress: ${egressId}`);
+      await this.egressClient.stopEgress(egressId);
+      this.logger.log(`Stopped recording egressId: ${egressId}`);
+    } catch (error) {
+      this.logger.error(`Failed to stop recording for egressId: ${egressId}`, error);
+      throw new InternalServerErrorException("Failed to stop LiveKit recording");
     }
   }
 }

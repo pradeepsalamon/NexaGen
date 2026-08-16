@@ -16,6 +16,7 @@ import {
   Maximize,
   Minimize,
   Crown,
+  Circle,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -42,7 +43,7 @@ import {
   DialogClose,
 } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
-import { endLiveClass } from "../../api/live-class";
+import { endLiveClass, startRecording, stopRecording } from "../../api/live-class";
 import { toast } from "sonner";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
@@ -58,6 +59,8 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     toggleFullscreen,
     isChessboardOpen,
     toggleChessboard,
+    isRecording,
+    setIsRecording,
   } = useLiveClassState();
 
   const user = useAuthStore((state) => state.user);
@@ -66,19 +69,6 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   const { unreadCount } = useLiveClassChat();
 
   const { localParticipant } = useLocalParticipant();
-
-  useEffect(() => {
-    if (!isCoach || !roomId) return;
-    const handleUnload = () => {
-      try {
-        const channel = new BroadcastChannel(`live-class-board-${roomId}`);
-        channel.postMessage({ type: "CLOSE_BOARD_TAB" });
-        channel.close();
-      } catch {}
-    };
-    window.addEventListener("beforeunload", handleUnload);
-    return () => window.removeEventListener("beforeunload", handleUnload);
-  }, [isCoach, roomId]);
 
   useEffect(() => {
     if (!localParticipant) return;
@@ -114,6 +104,23 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       // The disconnect webhook will automatically handle redirecting the coach
     } catch (error) {
       toast.error("Failed to end class");
+    }
+  };
+
+  const handleToggleRecording = async () => {
+    if (!roomId) return;
+    try {
+      if (isRecording) {
+        await stopRecording(roomId);
+        setIsRecording(false);
+        toast.success("Recording stopped and saved to backup storage.");
+      } else {
+        await startRecording(roomId);
+        setIsRecording(true);
+        toast.success("Recording started successfully.");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle recording");
     }
   };
 
@@ -162,15 +169,33 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
             }
             label={isChessboardOpen ? "Close Board" : "Share Board"}
             variant={isChessboardOpen ? "active" : "default"}
-            onClick={() => {
+            onClick={async () => {
               const newState = !isChessboardOpen;
               toggleChessboard();
               localParticipant?.setAttributes({ isChessboardOpen: newState.toString() }).catch(console.warn);
               if (newState) {
                 const roomId = window.location.pathname.split("/").pop();
-                window.open(`/live-class/${roomId}/board`, "_blank");
+                // Using a specific window name reuses the tab if it's already open
+                window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
               }
             }}
+          />
+        )}
+
+        {/* ── Record (coach only) ── */}
+        {isCoach && (
+          <MeetingControlButton
+            icon={
+              <Circle
+                className={cn(
+                  "size-5 transition-transform",
+                  isRecording && "fill-red-500 text-red-500 scale-110 animate-pulse",
+                )}
+              />
+            }
+            label={isRecording ? "Stop Recording" : "Record Class"}
+            variant={isRecording ? "active" : "default"}
+            onClick={handleToggleRecording}
           />
         )}
 
@@ -246,7 +271,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
                 variant="danger"
               />
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md" hideCloseButton>
               <DialogHeader>
                 <DialogTitle>Leave Meeting?</DialogTitle>
                 <DialogDescription>
@@ -280,9 +305,9 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
                   </Button>
                 </DialogClose>
               </div>
-              <DialogFooter className="sm:justify-start">
+              <DialogFooter>
                 <DialogClose asChild>
-                  <Button variant="ghost" className="w-full sm:w-auto text-app-muted hover:text-app-text">
+                  <Button variant="secondary">
                     Cancel
                   </Button>
                 </DialogClose>

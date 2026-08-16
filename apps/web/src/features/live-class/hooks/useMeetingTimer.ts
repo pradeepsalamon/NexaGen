@@ -3,26 +3,32 @@ import { useConnectionState } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 
 /**
- * Tracks elapsed time since the LiveKit room reached `Connected` state.
- * Returns a formatted string like "00:05:32" and the raw elapsed seconds.
+ * Tracks elapsed time and remaining time.
+ * Returns a formatted string like "00:05:32" depending on the mode.
  */
-export function useMeetingTimer() {
+export function useMeetingTimer(startedAt?: string | null, endsAt?: string | null) {
   const connectionState = useConnectionState();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [mode, setMode] = useState<"up" | "down">("up");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const connectedAtRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (connectionState === ConnectionState.Connected) {
-      if (connectedAtRef.current === null) {
-        connectedAtRef.current = Date.now();
-      }
-
-      intervalRef.current = setInterval(() => {
-        if (connectedAtRef.current !== null) {
-          setElapsedSeconds(Math.floor((Date.now() - connectedAtRef.current) / 1000));
+    if (connectionState === ConnectionState.Connected && startedAt) {
+      const startMs = new Date(startedAt).getTime();
+      const endMs = endsAt ? new Date(endsAt).getTime() : 0;
+      
+      const update = () => {
+        const now = Date.now();
+        setElapsedSeconds(Math.max(0, Math.floor((now - startMs) / 1000)));
+        if (endMs) {
+          setRemainingSeconds(Math.max(0, Math.floor((endMs - now) / 1000)));
         }
-      }, 1000);
+      };
+
+      update();
+
+      intervalRef.current = setInterval(update, 1000);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -36,12 +42,16 @@ export function useMeetingTimer() {
         intervalRef.current = null;
       }
     };
-  }, [connectionState]);
+  }, [connectionState, startedAt, endsAt]);
 
-  const formatted = useCallback(() => {
-    const hrs = Math.floor(elapsedSeconds / 3600);
-    const mins = Math.floor((elapsedSeconds % 3600) / 60);
-    const secs = elapsedSeconds % 60;
+  const toggleMode = useCallback(() => {
+    setMode((prev) => (prev === "up" ? "down" : "up"));
+  }, []);
+
+  const formatSeconds = (totalSeconds: number) => {
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
 
     const pad = (n: number) => n.toString().padStart(2, "0");
 
@@ -49,11 +59,16 @@ export function useMeetingTimer() {
       return `${pad(hrs)}:${pad(mins)}:${pad(secs)}`;
     }
     return `${pad(mins)}:${pad(secs)}`;
-  }, [elapsedSeconds]);
+  };
+
+  const formatted = mode === "up" ? formatSeconds(elapsedSeconds) : formatSeconds(remainingSeconds);
 
   return {
     elapsedSeconds,
-    formatted: formatted(),
+    remainingSeconds,
+    formatted,
+    mode,
+    toggleMode,
     isRunning: connectionState === ConnectionState.Connected,
   };
 }

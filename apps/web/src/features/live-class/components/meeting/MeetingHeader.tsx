@@ -6,7 +6,7 @@ import { TimerBadge, LiveBadge, RecordingBadge } from "./MeetingStatus";
 import { Header } from "@/components/layout/Header";
 
 export const MeetingHeader = memo(function MeetingHeader() {
-  const { topic } = useLiveClassState();
+  const { topic, startedAt, endsAt } = useLiveClassState();
 
   const leftSlot = (
     <div className="flex items-center gap-2">
@@ -23,7 +23,7 @@ export const MeetingHeader = memo(function MeetingHeader() {
 
   const rightSlot = (
     <div className="flex items-center gap-2 mr-1">
-      <TimerBadge />
+      <TimerBadge startedAt={startedAt} endsAt={endsAt} />
     </div>
   );
 

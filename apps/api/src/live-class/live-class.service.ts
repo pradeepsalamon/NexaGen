@@ -18,6 +18,7 @@ import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types
 import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 import { AttendanceService } from "../attendance/attendance.service";
+import { BackupService } from "../backup/backup.service";
 
 @Injectable()
 export class LiveClassService {
@@ -29,7 +30,8 @@ export class LiveClassService {
     private readonly livekit: LiveKitService,
     private readonly jwtService: JwtService,
     @Inject(forwardRef(() => AttendanceService))
-    private readonly attendanceService: AttendanceService
+    private readonly attendanceService: AttendanceService,
+    private readonly backupService: BackupService
   ) { }
 
   private async getAuthenticatedUser(accessToken: string | undefined) {
@@ -166,6 +168,21 @@ export class LiveClassService {
 
     if (!isCoach && !isStudent && !isAdmin) {
       throw new ForbiddenException("You are not authorized to join this class.");
+    }
+
+    if (isStudent) {
+      try {
+        const participants = await this.livekit.listParticipants(liveSession.roomName);
+        const hasCoach = participants.some(p => p.identity === liveSession.coachId);
+        
+        if (!hasCoach) {
+          throw new BadRequestException("Coach has not joined the meeting yet. Please wait.");
+        }
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        // If room doesn't exist yet or livekit api fails, assume coach isn't there
+        throw new BadRequestException("Coach has not joined the meeting yet. Please wait.");
+      }
     }
 
     const tokenOptions: LiveKitTokenOptions = {
@@ -452,5 +469,115 @@ export class LiveClassService {
       orderBy: { createdAt: "asc" },
       take: 500, // Limit to last 500 messages
     });
+  }
+
+  async startRecording(accessToken: string | undefined, classId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (user.role !== UserRole.COACH && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException("Only coaches or admins can start recording.");
+    }
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+    });
+
+    if (!liveSession) {
+      throw new NotFoundException("Live session not found.");
+    }
+
+    if (liveSession.status !== LiveSessionStatus.LIVE) {
+      throw new BadRequestException("Class is not live.");
+    }
+
+    const metadata = (liveSession.metadata as Record<string, any>) || {};
+    if (metadata.egressId) {
+      throw new BadRequestException("Recording is already in progress.");
+    }
+
+    const roomName = liveSession.roomName;
+    const timestamp = new Date().getTime();
+    const filepath = `recordings/${roomName}-${timestamp}.mp4`;
+
+    const egressId = await this.livekit.startRecording(liveSession.roomName, filepath);
+
+    await this.prisma.liveSession.update({
+      where: { id: liveSession.id },
+      data: {
+        metadata: { ...metadata, egressId },
+        recordingUrl: filepath,
+      },
+    });
+
+    return { success: true, egressId, filepath };
+  }
+
+  async stopRecording(accessToken: string | undefined, classId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (user.role !== UserRole.COACH && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException("Only coaches or admins can stop recording.");
+    }
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+    });
+
+    if (!liveSession) {
+      throw new NotFoundException("Live session not found.");
+    }
+
+    const metadata = (liveSession.metadata as Record<string, any>) || {};
+    if (!metadata.egressId) {
+      throw new BadRequestException("No active recording found for this class.");
+    }
+
+    await this.livekit.stopRecording(metadata.egressId);
+
+    const { egressId, ...restMetadata } = metadata;
+
+    await this.prisma.liveSession.update({
+      where: { id: liveSession.id },
+      data: {
+        metadata: restMetadata,
+      },
+    });
+
+    return { success: true };
+  }
+
+  async downloadRecording(accessToken: string | undefined, classId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+      include: {
+        batch: {
+          include: {
+            students: true,
+          }
+        }
+      }
+    });
+
+    if (!liveSession || !liveSession.recordingUrl) {
+      throw new NotFoundException("Recording not found.");
+    }
+
+    let isAuthorized = false;
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
+      isAuthorized = true;
+    } else if (user.role === UserRole.COACH && liveSession.coachId === user.id) {
+      isAuthorized = true;
+    } else if (user.role === UserRole.STUDENT) {
+      const isStudentInBatch = liveSession.batch?.students.some(s => s.studentId === user.id);
+      if (isStudentInBatch) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      throw new ForbiddenException("You are not authorized to view this recording.");
+    }
+
+    return this.backupService.getDownloadUrl(liveSession.recordingUrl);
   }
 }

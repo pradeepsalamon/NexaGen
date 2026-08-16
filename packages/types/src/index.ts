@@ -406,6 +406,7 @@ export type CoachClass = {
   meetingRoomId: string | null;
   createdAt: string;
   studentCount: number;
+  hasRecording?: boolean;
 };
 
 export type CoachDashboardResponse = {
@@ -806,6 +807,7 @@ export type DemoClassDetailsResponse = z.infer<typeof demoClassDetailsResponseSc
 
 export type AdminBatchClass = CoachClass & {
   coachName: string;
+  hasRecording?: boolean;
 };
 
 export type AdminBatchClassDetails = AdminBatchClass & {

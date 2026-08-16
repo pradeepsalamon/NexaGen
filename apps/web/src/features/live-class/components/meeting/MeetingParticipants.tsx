@@ -121,7 +121,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
 // ─── Participants Panel Content ──────────────────────────────
 
 export function MeetingParticipants() {
-  const participants = useParticipants();
+  const participants = useParticipants().filter(p => !p.identity.endsWith('_board'));
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
   const { isChessboardOpen, boardControlStudentId, setBoardControlStudent } = useLiveClassState();

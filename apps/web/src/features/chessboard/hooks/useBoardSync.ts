@@ -1,7 +1,7 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useContext, useEffect, useCallback, useRef } from "react";
 import { useDataChannel, useLocalParticipant, useConnectionState } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
-import { useBoardStore } from "../context/BoardProvider";
+import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardSyncMessage } from "../types/sync";
 import { useAuthStore } from "@/stores/authStore";
@@ -15,6 +15,8 @@ export function useBoardSync() {
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
   const { localParticipant } = useLocalParticipant();
   const liveClassState = useOptionalLiveClassState();
+  
+  const store = useContext(BoardContext);
   
   const { 
     fen, pgn, orientation, arrows, squareStyles, permissionMode, selectedStudentId,
@@ -72,7 +74,6 @@ export function useBoardSync() {
   }, [broadcastMsg, user]);
 
   const isRemoteUpdateRef = useRef(false);
-  const isMountedRef = useRef(false);
 
   const handleIncomingSync = useCallback((msg: BoardSyncMessage) => {
     switch (msg.type) {
@@ -141,28 +142,46 @@ export function useBoardSync() {
     }
   }, [isCoach, syncFromRemote, broadcastState, liveClassState]);
 
-  // Automatically broadcast FEN/PGN changes to all participants unless it came from a remote update
+  // Zustand Store Subscription for Immediate Syncing
+  // This bypasses React's batching behavior, ensuring that rapidly consecutive moves
+  // are ALL broadcasted over LiveKit without skipping intermediate FENs.
   useEffect(() => {
-    if (!isMountedRef.current) {
-      isMountedRef.current = true;
-      return;
-    }
+    if (!store) return;
+    
+    const unsubscribe = store.subscribe((state, prevState) => {
+      const boardChanged = state.fen !== prevState.fen || state.pgn !== prevState.pgn || state.orientation !== prevState.orientation;
+      const annotationsChanged = state.arrows !== prevState.arrows || state.squareStyles !== prevState.squareStyles;
+      
+      if (boardChanged || annotationsChanged) {
+        // If the change came from a remote sync event, we don't broadcast it back.
+        if (isRemoteUpdateRef.current) {
+          isRemoteUpdateRef.current = false;
+          return;
+        }
 
-    if (isRemoteUpdateRef.current) {
-      isRemoteUpdateRef.current = false;
-      return;
-    }
+        if (boardChanged) {
+          broadcastMsg({
+            type: "MOVE",
+            payload: { 
+              fen: state.fen, 
+              pgn: state.pgn, 
+              orientation: state.orientation, 
+              moveType: usePersistedStore.getState().lastMoveType 
+            }
+          });
+        }
 
-    // Only send if we actually have a connection
-    broadcastState("MOVE");
-  }, [fen, pgn, orientation, broadcastState]);
-
-  // Automatically broadcast drawings/annotations when they change locally
-  useEffect(() => {
-    if (!isMountedRef.current) return;
-    if (isRemoteUpdateRef.current) return;
-    broadcastAnnotations();
-  }, [arrows, squareStyles, broadcastAnnotations]);
+        if (annotationsChanged) {
+          broadcastMsg({
+            type: "UPDATE_ANNOTATIONS",
+            payload: { arrows: state.arrows, squares: state.squareStyles }
+          });
+        }
+      }
+    });
+    
+    return unsubscribe;
+  }, [store, broadcastMsg]);
 
   const onMessageReceived = useCallback((msg: any) => {
     try {

@@ -27,23 +27,31 @@ export function ThemeToggle() {
         >
           <span
             aria-hidden="true"
-            className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_38%,transparent)] transition dark:bg-transparent dark:text-white/70 dark:shadow-none"
+            className="absolute flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_38%,transparent)] transition-all duration-300 ease-in-out z-10"
+            style={{
+              transform: isDark ? "translateX(36px)" : "translateX(0)",
+              left: "4px",
+              top: "4px"
+            }}
           >
-            <Sun
-              aria-hidden="true"
-              className="size-3.5"
-              strokeWidth={2.5}
-            />
+            {isDark ? (
+              <Moon aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            ) : (
+              <Sun aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            )}
+          </span>
+          
+          <span
+            aria-hidden="true"
+            className="absolute left-1 top-1 flex size-6 items-center justify-center rounded-full text-app-muted z-0"
+          >
+            <Sun aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
           </span>
           <span
             aria-hidden="true"
-            className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full text-app-muted transition dark:bg-primary dark:text-white dark:shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_38%,transparent)]"
+            className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full text-app-muted z-0"
           >
-            <Moon
-              aria-hidden="true"
-              className="size-3.5"
-              strokeWidth={2.5}
-            />
+            <Moon aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
           </span>
         </Button>
       </TooltipTrigger>

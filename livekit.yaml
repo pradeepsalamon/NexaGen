@@ -12,3 +12,8 @@ rtc:
 
 redis:
   address: redis:6379
+
+webhook:
+  api_key: ${LIVEKIT_API_KEY}
+  urls:
+    - "http://api:3001/webhooks/livekit"

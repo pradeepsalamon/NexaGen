@@ -18,7 +18,7 @@ export default function LiveClassPage() {
   const roomId = params.roomId as string;
 
   const [hasJoined, setHasJoined] = useState(false);
-  const { token, topic, error, isLoading, classStatus } = useLiveClass(roomId, hasJoined);
+  const { token, topic, error, isLoading, classStatus, startedAt, endsAt } = useLiveClass(roomId, hasJoined);
 
   const headerCenter = (
     <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
@@ -106,7 +106,7 @@ export default function LiveClassPage() {
   }
 
   return (
-    <LiveClassProvider topic={topic}>
+    <LiveClassProvider topic={topic} startedAt={startedAt} endsAt={endsAt}>
       <MeetingRoom token={token} classId={roomId} />
     </LiveClassProvider>
   );

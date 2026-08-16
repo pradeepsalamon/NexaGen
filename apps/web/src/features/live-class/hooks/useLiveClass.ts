@@ -8,6 +8,8 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [classStatus, setClassStatus] = useState<string | null>(null);
+  const [startedAt, setStartedAt] = useState<string | null>(null);
+  const [endsAt, setEndsAt] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -22,6 +24,12 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
           setClassStatus(classDetails.status);
           if (classDetails.topic) {
             setTopic(classDetails.topic);
+          }
+          if (classDetails.startsAt) {
+            setStartedAt(classDetails.startsAt);
+          }
+          if (classDetails.endsAt) {
+            setEndsAt(classDetails.endsAt);
           }
         }
 
@@ -64,5 +72,5 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
     };
   }, [roomId, shouldFetch, clientId]);
 
-  return { token, roomName, topic, error, isLoading, classStatus };
+  return { token, roomName, topic, error, isLoading, classStatus, startedAt, endsAt };
 }

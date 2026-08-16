@@ -6,10 +6,11 @@ import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { Calendar } from "@/components/ui/Calendar";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from "@/components/ui/Popover";
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/Dialog";
 import { cn } from "@/lib/utils";
 
 
@@ -19,8 +20,6 @@ type DatePickerProps = {
   placeholder?: string;
   value: Date | undefined;
   withTime?: boolean;
-  side?: "top" | "bottom" | "left" | "right";
-  align?: "start" | "center" | "end";
 };
 
 export function DatePicker({
@@ -28,9 +27,7 @@ export function DatePicker({
   onChange,
   placeholder,
   value,
-  withTime = false,
-  side = "right",
-  align = "start"
+  withTime = false
 }: DatePickerProps) {
   const [dateTimeValue, setDateTimeValue] = React.useState<Date | undefined>(
     value
@@ -105,8 +102,8 @@ export function DatePicker({
   };
 
   return (
-    <Popover>
-      <PopoverTrigger asChild>
+    <Dialog>
+      <DialogTrigger asChild>
         <Button
           variant="outline"
           className={cn(
@@ -130,15 +127,12 @@ export function DatePicker({
             className="ml-3 size-4 shrink-0 text-zinc-500 dark:text-zinc-300"
           />
         </Button>
-      </PopoverTrigger>
+      </DialogTrigger>
 
-      <PopoverContent
-        align={align}
-        side={side}
-        sideOffset={8}
-        collisionPadding={16}
-        className="z-[60] w-auto max-h-[calc(100vh-2rem)] overflow-y-auto rounded-lg border border-zinc-200 bg-white p-0 text-zinc-950 shadow-xl dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100"
+      <DialogContent
+        className="w-auto p-0 border-0 bg-transparent shadow-none sm:rounded-lg overflow-hidden flex flex-col items-center justify-center [&>button]:hidden"
       >
+        <div className="bg-white dark:bg-zinc-950 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
 
         <Calendar
           autoFocus
@@ -198,10 +192,18 @@ export function DatePicker({
             </div>
           </div>
         ) : null}
-      </PopoverContent>
-
-
-    </Popover>
+        
+        <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+          <DialogClose asChild>
+            <Button variant="primary" size="sm" className="w-full bg-secondary hover:bg-secondary/90 text-app-text font-semibold">
+              Done
+            </Button>
+          </DialogClose>
+        </div>
+        
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

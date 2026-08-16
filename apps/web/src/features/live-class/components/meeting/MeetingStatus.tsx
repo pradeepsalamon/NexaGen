@@ -4,7 +4,11 @@ import { useConnectionState, useConnectionQualityIndicator } from "@livekit/comp
 import { ConnectionState, ConnectionQuality, type Participant } from "livekit-client";
 import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
-import { Timer, Wifi, WifiOff, Radio } from "lucide-react";
+import { Timer, Wifi, WifiOff, Radio, TriangleAlert } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 
 // ─── Connection Badge ────────────────────────────────────────
 
@@ -128,23 +132,68 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
 
 // ─── Timer Badge ──────────────────────────────────────────────
 
-export function TimerBadge({ className }: { className?: string }) {
-  const { formatted, isRunning } = useMeetingTimer();
+export function TimerBadge({ className, startedAt, endsAt }: { className?: string, startedAt?: string | null, endsAt?: string | null }) {
+  const { formatted, isRunning, toggleMode, mode, remainingSeconds } = useMeetingTimer(startedAt, endsAt);
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const toastShownRef = useRef<{ fiveMin: boolean, oneMin: boolean }>({ fiveMin: false, oneMin: false });
+
+  useEffect(() => {
+    if (!isCoach || !endsAt) return;
+
+    if (remainingSeconds > 0) {
+      if (remainingSeconds <= 60 && !toastShownRef.current.oneMin) {
+        toast.error("Class ends in less than 1 minute!", { duration: 5000 });
+        toastShownRef.current.oneMin = true;
+      } else if (remainingSeconds <= 300 && remainingSeconds > 60 && !toastShownRef.current.fiveMin) {
+        toast.warning("Class ends in 5 minutes.", { duration: 5000 });
+        toastShownRef.current.fiveMin = true;
+      }
+    }
+  }, [remainingSeconds, isCoach, endsAt]);
 
   if (!isRunning) return null;
 
+  let colorClass = "text-app-muted border-app-border hover:bg-app-surface";
+  let isWarning = false;
+
+  if (mode === "down") {
+    if (remainingSeconds <= 60) {
+      colorClass = "text-red-500 border-red-500 bg-red-500/10 hover:bg-red-500/20";
+      isWarning = true;
+    } else if (remainingSeconds <= 300) {
+      colorClass = "text-amber-500 border-amber-500 bg-amber-500/10 hover:bg-amber-500/20";
+      isWarning = true;
+    } else {
+      colorClass = "text-primary border-primary bg-primary/10 hover:bg-primary/20";
+    }
+  }
+
+  const tooltipText = mode === "up" ? "Elapsed Time (Click to toggle)" : "Remaining Time (Click to toggle)";
+
   return (
-    <div
-      className={cn(
-        "flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface/80 px-3 py-1.5 text-xs font-medium text-app-muted shadow-sm backdrop-blur-sm tabular-nums",
-        className,
-      )}
-      role="timer"
-      aria-label={`Meeting duration: ${formatted}`}
-    >
-      <Timer className="size-3.5" />
-      <span>{formatted}</span>
-    </div>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={toggleMode}
+            className={cn(
+              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-sm tabular-nums transition-colors",
+              colorClass,
+              className,
+            )}
+            role="timer"
+            aria-label={`Meeting duration: ${formatted}`}
+          >
+            {isWarning ? <TriangleAlert className="size-3.5" /> : <Timer className="size-3.5" />}
+            <span>{formatted}</span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>
+          <p>{tooltipText}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 

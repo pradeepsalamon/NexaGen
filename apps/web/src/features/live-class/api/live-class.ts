@@ -33,3 +33,11 @@ export const saveChatMessage = (roomId: string, message: string): Promise<any> =
     body: JSON.stringify({ message }),
   });
 };
+
+export const startRecording = (roomId: string): Promise<{ success: boolean, egressId: string, filepath: string }> => {
+  return apiFetch(API_ROUTES.liveClass.startRecording(roomId), { method: "POST" });
+};
+
+export const stopRecording = (roomId: string): Promise<{ success: boolean }> => {
+  return apiFetch(API_ROUTES.liveClass.stopRecording(roomId), { method: "POST" });
+};

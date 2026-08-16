@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { SlidersHorizontal, Info } from "lucide-react";
+import { SlidersHorizontal, Info, Download } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { apiFetch } from "@/lib/api";
 import type { AdminBatchClass } from "@nexa-chess/types";
 
 import { Card } from "@/components/ui/Card";
@@ -42,6 +43,18 @@ export function BatchClassesClient() {
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const handleDownload = async (classId: string) => {
+    try {
+      const data = await apiFetch<{ url: string }>(`/live-class/${classId}/recording/download`);
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error("Failed to download recording:", error);
+      alert("Failed to download recording. It may have expired or is unavailable.");
+    }
+  };
 
   const filteredClasses = useMemo(() => {
     if (statusFilter === "ALL") return classes;
@@ -175,6 +188,23 @@ export function BatchClassesClient() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>View Details</TooltipContent>
+                  </Tooltip>
+                )}
+                {row.original.hasRecording && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        aria-label="Download Recording"
+                        className="size-8 rounded-full border-green-500 p-0 text-app-text transition-colors hover:border-green-500 hover:bg-green-500 hover:text-white"
+                        onClick={() => handleDownload(row.original.id)}
+                        size="icon"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Download Recording</TooltipContent>
                   </Tooltip>
                 )}
               </div>
