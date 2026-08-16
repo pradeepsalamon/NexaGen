@@ -10,7 +10,8 @@ export function useMeetingTimer(startedAt?: string | null, endsAt?: string | nul
   const connectionState = useConnectionState();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
-  const [mode, setMode] = useState<"up" | "down">("up");
+  const [overtimeSeconds, setOvertimeSeconds] = useState(0);
+  const [mode, setMode] = useState<"up" | "down">(endsAt ? "down" : "up");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -22,7 +23,14 @@ export function useMeetingTimer(startedAt?: string | null, endsAt?: string | nul
         const now = Date.now();
         setElapsedSeconds(Math.max(0, Math.floor((now - startMs) / 1000)));
         if (endMs) {
-          setRemainingSeconds(Math.max(0, Math.floor((endMs - now) / 1000)));
+          const diff = Math.floor((endMs - now) / 1000);
+          if (diff >= 0) {
+            setRemainingSeconds(diff);
+            setOvertimeSeconds(0);
+          } else {
+            setRemainingSeconds(0);
+            setOvertimeSeconds(Math.abs(diff));
+          }
         }
       };
 
@@ -61,11 +69,18 @@ export function useMeetingTimer(startedAt?: string | null, endsAt?: string | nul
     return `${pad(mins)}:${pad(secs)}`;
   };
 
-  const formatted = mode === "up" ? formatSeconds(elapsedSeconds) : formatSeconds(remainingSeconds);
+  const isOvertime = mode === "down" && remainingSeconds === 0 && overtimeSeconds > 0;
+  const formatted = mode === "up"
+    ? formatSeconds(elapsedSeconds)
+    : isOvertime
+      ? `+${formatSeconds(overtimeSeconds)}`
+      : formatSeconds(remainingSeconds);
 
   return {
     elapsedSeconds,
     remainingSeconds,
+    overtimeSeconds,
+    isOvertime,
     formatted,
     mode,
     toggleMode,

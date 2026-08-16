@@ -133,7 +133,7 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
 // ─── Timer Badge ──────────────────────────────────────────────
 
 export function TimerBadge({ className, startedAt, endsAt }: { className?: string, startedAt?: string | null, endsAt?: string | null }) {
-  const { formatted, isRunning, toggleMode, mode, remainingSeconds } = useMeetingTimer(startedAt, endsAt);
+  const { formatted, isRunning, toggleMode, mode, remainingSeconds, isOvertime } = useMeetingTimer(startedAt, endsAt);
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
   const toastShownRef = useRef<{ fiveMin: boolean, oneMin: boolean }>({ fiveMin: false, oneMin: false });
@@ -158,7 +158,10 @@ export function TimerBadge({ className, startedAt, endsAt }: { className?: strin
   let isWarning = false;
 
   if (mode === "down") {
-    if (remainingSeconds <= 60) {
+    if (isOvertime) {
+      colorClass = "text-red-500 border-red-500 bg-red-500/10 hover:bg-red-500/20";
+      isWarning = true;
+    } else if (remainingSeconds <= 60) {
       colorClass = "text-red-500 border-red-500 bg-red-500/10 hover:bg-red-500/20";
       isWarning = true;
     } else if (remainingSeconds <= 300) {
@@ -169,7 +172,11 @@ export function TimerBadge({ className, startedAt, endsAt }: { className?: strin
     }
   }
 
-  const tooltipText = mode === "up" ? "Elapsed Time (Click to toggle)" : "Remaining Time (Click to toggle)";
+  const tooltipText = mode === "up"
+    ? "Elapsed Time (Click to toggle)"
+    : isOvertime
+      ? "Overtime! (Click to toggle)"
+      : "Remaining Time (Click to toggle)";
 
   return (
     <TooltipProvider>

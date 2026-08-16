@@ -116,6 +116,9 @@ export class AttendanceWebhookController {
     // Skip guest participants (those with identity starting with "guest_")
     if (participantIdentity?.startsWith("guest_")) return;
 
+    // Skip board bot participants (chessboard sync bots)
+    if (participantIdentity?.endsWith("_board")) return;
+
     switch (event.event) {
       case "participant_joined": {
         // Check if this is a reconnect (already has attendance record with logs)

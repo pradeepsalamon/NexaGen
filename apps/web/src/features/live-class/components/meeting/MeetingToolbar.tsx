@@ -206,7 +206,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
         <MeetingControlButton
           icon={<Users className="size-5" />}
           label="Participants"
-          badge={participants.length}
+          badge={participants.filter(p => !p.identity.endsWith('_board')).length}
           variant={activeSidebar === "participants" ? "active" : "default"}
           onClick={() => toggleSidebar("participants")}
         />
