@@ -101,6 +101,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.classAttendance;
   }
 
+  get coachAttendance() {
+    return this.client.coachAttendance;
+  }
+
+  get coachAttendanceLog() {
+    return this.client.coachAttendanceLog;
+  }
+
   get liveChatMessage() {
     return this.client.liveChatMessage;
   }

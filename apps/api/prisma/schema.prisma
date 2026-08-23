@@ -51,6 +51,7 @@ enum ClassStatus {
   LIVE
   COMPLETED
   CANCELLED
+  IN_PROGRESS
 }
 
 enum AttendanceStatus {
@@ -121,6 +122,8 @@ model User {
   activities             StudentActivity[]        @relation("StudentActivity")
   classAttendances       ClassAttendance[]
   attendanceLogs         AttendanceLog[]        @relation("UserAttendanceLogs")
+  coachAttendances       CoachAttendance[]      @relation("CoachClassAttendance")
+  coachAttendanceLogs    CoachAttendanceLog[]   @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
 
   createdAt    DateTime  @default(now())
@@ -419,6 +422,7 @@ model CoachClass {
 
   liveSession LiveSession? @relation("LiveSessionSchedule")
   attendances ClassAttendance[]
+  coachAttendance CoachAttendance?
 
   @@index([batchId])
   @@index([coachId])
@@ -484,6 +488,64 @@ model AttendanceLog {
   @@index([timestamp])
   @@index([eventType])
   @@map("attendance_logs")
+}
+
+model CoachAttendance {
+  id              String   @id @default(cuid())
+  
+  classId         String   @unique
+  class           CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  
+  coachId         String
+  coach           User       @relation("CoachClassAttendance", fields: [coachId], references: [id], onDelete: Cascade)
+  
+  status          AttendanceStatus @default(PRESENT)
+  joinedAt        DateTime?  @default(now())
+  leftAt          DateTime?
+  
+  totalDuration   Int?       // Total seconds coach was in class
+  boardDuration   Int?       // Total seconds board was active in this class
+  reconnectCount  Int        @default(0)
+  lastActivity    DateTime?
+  
+  logs            CoachAttendanceLog[]
+  
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@index([coachId])
+  @@index([status])
+  @@map("coach_attendance")
+}
+
+model CoachAttendanceLog {
+  id              String   @id @default(cuid())
+  
+  attendanceId    String
+  attendance      CoachAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  
+  userId          String
+  user            User   @relation("UserCoachAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
+  
+  eventType       String     // JOIN, LEAVE, DISCONNECT, RECONNECT, BOARD_JOIN, BOARD_LEAVE
+  timestamp       DateTime @default(now())
+  
+  sessionStart    DateTime?
+  sessionEnd      DateTime?
+  sessionDuration Int?      // seconds for this segment
+  
+  reason          String?   // disconnect reason
+  userAgent       String?
+  ipAddress       String?
+  source          String    @default("LIVEKIT") // LIVEKIT, MANUAL, SYSTEM
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([attendanceId])
+  @@index([userId])
+  @@index([timestamp])
+  @@index([eventType])
+  @@map("coach_attendance_logs")
 }
 
 model AttendancePolicy {

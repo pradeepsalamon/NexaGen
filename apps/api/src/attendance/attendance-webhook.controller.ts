@@ -110,49 +110,91 @@ export class AttendanceWebhookController {
 
     if (!userId) return;
 
-    // Skip coach events (we track coach via LiveSession startedAt/endedAt)
-    if (userId === liveSession.coachId) return;
-
     // Skip guest participants (those with identity starting with "guest_")
     if (participantIdentity?.startsWith("guest_")) return;
 
-    // Skip board bot participants (chessboard sync bots)
-    if (participantIdentity?.endsWith("_board")) return;
+    const isCoach = userId === liveSession.coachId;
+    const isBoard = participantIdentity?.endsWith("_board");
 
     switch (event.event) {
       case "participant_joined": {
-        // Check if this is a reconnect (already has attendance record with logs)
+        if (isBoard) {
+          await this.attendanceService.recordBoardJoinEvent(classId, liveSession.coachId);
+          break;
+        }
+
+        if (isCoach) {
+          const existing = await this.prisma.coachAttendance.findUnique({
+            where: { classId },
+            include: { logs: { orderBy: { timestamp: "desc" }, take: 1 } },
+          });
+
+          if (!existing) {
+            await this.attendanceService.recordCoachJoinEvent(classId, userId, { source: "LIVEKIT" });
+          } else {
+            const lastEvent = existing.logs[0]?.eventType;
+            if (lastEvent === "JOIN" || lastEvent === "RECONNECT") {
+              // Ghost drop
+              await this.attendanceService.recordCoachLeaveEvent(classId, userId, "Ghost drop");
+            }
+            await this.attendanceService.recordCoachReconnectEvent(classId, userId);
+          }
+          break;
+        }
+
+        // Student logic
         const existing = await this.prisma.classAttendance.findUnique({
           where: { classId_studentId: { classId, studentId: userId } },
           include: { logs: { orderBy: { timestamp: "desc" }, take: 1 } },
         });
 
-        if (
-          existing &&
-          existing.logs.length > 0 &&
-          existing.logs[0].eventType !== "JOIN"
-        ) {
-          // This is a reconnect
-          await this.attendanceService.recordReconnectEvent(classId, userId);
-        } else if (!existing) {
+        if (!existing) {
           // First time joining
-          await this.attendanceService.recordJoinEvent(classId, userId, {
-            source: "LIVEKIT",
-          });
+          await this.attendanceService.recordJoinEvent(classId, userId, { source: "LIVEKIT" });
         } else {
-          // Already has a JOIN log, treat as reconnect
+          const lastEvent = existing.logs[0]?.eventType;
+          if (lastEvent === "JOIN" || lastEvent === "RECONNECT") {
+            // Ghost drop
+            await this.attendanceService.recordLeaveEvent(classId, userId, "Ghost drop");
+          }
           await this.attendanceService.recordReconnectEvent(classId, userId);
         }
         break;
       }
 
-      case "participant_left":
+      case "participant_left": {
+        if (isBoard) {
+          await this.attendanceService.recordBoardLeaveEvent(classId, liveSession.coachId);
+          break;
+        }
+
+        // Map LiveKit DisconnectReason enum to human-readable string
+        const reasons: Record<string, string> = {
+          "0": "Unknown",
+          "1": "Left voluntarily",
+          "2": "Duplicate identity",
+          "3": "Server shutdown",
+          "4": "Removed by coach",
+          "5": "Room ended",
+          "6": "State mismatch",
+          "7": "Join failure",
+        };
+        const reasonCode = event.participant?.disconnectReason?.toString();
+        const reasonText = reasonCode ? (reasons[reasonCode] || `Reason ${reasonCode}`) : "Left";
+
+        if (isCoach) {
+          await this.attendanceService.recordCoachLeaveEvent(classId, userId, reasonText);
+          break;
+        }
+
+        // Student logic
         await this.attendanceService.recordLeaveEvent(
           classId,
           userId,
-          event.participant?.disconnectReason || "left"
+          reasonText
         );
         break;
+      }
 
       case "room_finished":
         await this.attendanceService.finalizeClassAttendance(classId);

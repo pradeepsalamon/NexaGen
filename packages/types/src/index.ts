@@ -632,6 +632,8 @@ export const coachTeachingHistorySchema = z.object({
   actualStart: z.string().nullable(),
   actualEnd: z.string().nullable(),
   teachingDuration: z.number(),
+  coachTotalDuration: z.number().optional(),
+  boardDuration: z.number().optional(),
   studentsPresent: z.number(),
   totalStudents: z.number(),
   attendancePercent: z.number(),

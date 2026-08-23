@@ -3,6 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { getApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
 import type { NextFunction, Request, Response } from "express";
+import * as express from "express";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
@@ -30,6 +31,13 @@ async function bootstrap() {
 
     next();
   });
+
+  // LiveKit sends 'application/webhook+json'. Parse it as raw text so we can verify the signature.
+  app.use(
+    "/webhooks/livekit",
+    express.text({ type: "application/webhook+json" })
+  );
+
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({

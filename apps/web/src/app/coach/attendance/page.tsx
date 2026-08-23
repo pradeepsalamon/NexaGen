@@ -137,6 +137,8 @@ export default function CoachAttendancePage() {
                     <th scope="col" className="px-6 py-4 font-semibold">Topic / Batch</th>
                     <th scope="col" className="px-6 py-4 font-semibold w-[200px]">Student Attendance</th>
                     <th scope="col" className="px-6 py-4 font-semibold">Teaching Time</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">Coach Attendance</th>
+                    <th scope="col" className="px-6 py-4 font-semibold">Board Usage</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-app-border">
@@ -166,6 +168,16 @@ export default function CoachAttendancePage() {
                       </td>
                       <td className="px-6 py-4 text-app-muted font-medium">
                         {formatDuration(record.teachingDuration)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-app-text">
+                          {formatDuration(record.coachTotalDuration || 0)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-blue-500">
+                          {formatDuration(record.boardDuration || 0)}
+                        </div>
                       </td>
                     </tr>
                   ))}

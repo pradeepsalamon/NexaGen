@@ -240,6 +240,213 @@ export class AttendanceService {
   }
 
   // ──────────────────────────────────────────────
+  // COACH & BOARD EVENT RECORDING
+  // ──────────────────────────────────────────────
+
+  async recordCoachJoinEvent(
+    classId: string,
+    coachId: string,
+    metadata?: { source?: string }
+  ) {
+    const now = new Date();
+
+    const attendance = await this.prisma.coachAttendance.upsert({
+      where: { classId },
+      update: {
+        status: AttendanceStatus.PRESENT,
+        lastActivity: now,
+        updatedAt: now,
+      },
+      create: {
+        classId,
+        coachId,
+        status: AttendanceStatus.PRESENT,
+        joinedAt: now,
+        lastActivity: now,
+      },
+    });
+
+    await this.prisma.coachAttendanceLog.create({
+      data: {
+        attendanceId: attendance.id,
+        userId: coachId,
+        eventType: "JOIN",
+        timestamp: now,
+        sessionStart: now,
+        source: metadata?.source || "LIVEKIT",
+      },
+    });
+
+    this.logger.log(`COACH JOIN recorded: coach=${coachId} class=${classId}`);
+    return attendance;
+  }
+
+  async recordCoachReconnectEvent(classId: string, coachId: string) {
+    const now = new Date();
+
+    const attendance = await this.prisma.coachAttendance.findUnique({
+      where: { classId },
+    });
+    if (!attendance) return null;
+
+    await this.prisma.coachAttendanceLog.create({
+      data: {
+        attendanceId: attendance.id,
+        userId: coachId,
+        eventType: "RECONNECT",
+        timestamp: now,
+        sessionStart: now,
+        source: "LIVEKIT",
+      },
+    });
+
+    await this.prisma.coachAttendance.update({
+      where: { id: attendance.id },
+      data: {
+        reconnectCount: { increment: 1 },
+        lastActivity: now,
+        status: AttendanceStatus.PRESENT,
+      },
+    });
+
+    this.logger.log(`COACH RECONNECT recorded: coach=${coachId} class=${classId}`);
+    return attendance;
+  }
+
+  async recordCoachLeaveEvent(
+    classId: string,
+    coachId: string,
+    reason?: string
+  ) {
+    const now = new Date();
+
+    const attendance = await this.prisma.coachAttendance.findUnique({
+      where: { classId },
+    });
+    if (!attendance) return null;
+
+    const openSession = await this.prisma.coachAttendanceLog.findFirst({
+      where: {
+        attendanceId: attendance.id,
+        eventType: { in: ["JOIN", "RECONNECT"] },
+        sessionEnd: null,
+      },
+      orderBy: { timestamp: "desc" },
+    });
+
+    const sessionDuration = openSession?.sessionStart
+      ? Math.floor((now.getTime() - openSession.sessionStart.getTime()) / 1000)
+      : 0;
+
+    if (openSession) {
+      await this.prisma.coachAttendanceLog.update({
+        where: { id: openSession.id },
+        data: { sessionEnd: now, sessionDuration },
+      });
+    }
+
+    await this.prisma.coachAttendanceLog.create({
+      data: {
+        attendanceId: attendance.id,
+        userId: coachId,
+        eventType: "LEAVE",
+        timestamp: now,
+        reason,
+        source: "LIVEKIT",
+      },
+    });
+
+    await this.prisma.coachAttendance.update({
+      where: { id: attendance.id },
+      data: { leftAt: now, lastActivity: now },
+    });
+
+    this.logger.log(`COACH LEAVE recorded: coach=${coachId} class=${classId}`);
+    return attendance;
+  }
+
+  async recordBoardJoinEvent(classId: string, coachId: string) {
+    const now = new Date();
+
+    const attendance = await this.prisma.coachAttendance.upsert({
+      where: { classId },
+      update: { lastActivity: now },
+      create: {
+        classId,
+        coachId,
+        status: AttendanceStatus.PRESENT,
+        joinedAt: now,
+        lastActivity: now,
+      },
+    });
+
+    await this.prisma.coachAttendanceLog.create({
+      data: {
+        attendanceId: attendance.id,
+        userId: `${coachId}_board`,
+        eventType: "BOARD_JOIN",
+        timestamp: now,
+        sessionStart: now,
+        source: "LIVEKIT",
+      },
+    });
+
+    this.logger.log(`BOARD JOIN recorded for class=${classId}`);
+    return attendance;
+  }
+
+  async recordBoardLeaveEvent(classId: string, coachId: string) {
+    const now = new Date();
+
+    const attendance = await this.prisma.coachAttendance.findUnique({
+      where: { classId },
+    });
+    if (!attendance) return null;
+
+    const openBoardSession = await this.prisma.coachAttendanceLog.findFirst({
+      where: {
+        attendanceId: attendance.id,
+        eventType: "BOARD_JOIN",
+        sessionEnd: null,
+      },
+      orderBy: { timestamp: "desc" },
+    });
+
+    const sessionDuration = openBoardSession?.sessionStart
+      ? Math.floor((now.getTime() - openBoardSession.sessionStart.getTime()) / 1000)
+      : 0;
+
+    if (openBoardSession) {
+      await this.prisma.coachAttendanceLog.update({
+        where: { id: openBoardSession.id },
+        data: { sessionEnd: now, sessionDuration },
+      });
+    }
+
+    await this.prisma.coachAttendanceLog.create({
+      data: {
+        attendanceId: attendance.id,
+        userId: `${coachId}_board`,
+        eventType: "BOARD_LEAVE",
+        timestamp: now,
+        source: "LIVEKIT",
+      },
+    });
+
+    // Update the total board duration
+    await this.prisma.coachAttendance.update({
+      where: { id: attendance.id },
+      data: {
+        boardDuration: { increment: sessionDuration },
+        lastActivity: now,
+      },
+    });
+
+    this.logger.log(`BOARD LEAVE recorded for class=${classId} duration=${sessionDuration}s`);
+    return attendance;
+  }
+
+  // ──────────────────────────────────────────────
   // FINALIZATION (called when class ends)
   // ──────────────────────────────────────────────
 
@@ -317,6 +524,22 @@ export class AttendanceService {
       }
     }
 
+    // Finalize coach attendance
+    const coachAttendance = await this.prisma.coachAttendance.findUnique({
+      where: { classId },
+      include: { logs: { orderBy: { timestamp: "asc" } } },
+    });
+
+    if (coachAttendance) {
+      const coachTotalDuration = this.calculateTotalDuration(
+        coachAttendance.logs.filter((l) => l.eventType === "JOIN" || l.eventType === "RECONNECT" || l.eventType === "LEAVE")
+      );
+      await this.prisma.coachAttendance.update({
+        where: { id: coachAttendance.id },
+        data: { totalDuration: coachTotalDuration },
+      });
+    }
+
     this.logger.log(
       `Class attendance finalized: classId=${classId}, attendees=${attendances.length}`
     );
@@ -388,7 +611,7 @@ export class AttendanceService {
       }
 
       // Track streaks (classes ordered desc, so newest first)
-      if (isPresent) {
+      if (isPresent || isPartial) {
         if (!streakBroken) currentStreak++;
         longestStreak = Math.max(longestStreak, currentStreak);
       } else {
@@ -442,7 +665,8 @@ export class AttendanceService {
       return (
         att &&
         (att.status === AttendanceStatus.PRESENT ||
-          att.status === AttendanceStatus.LATE)
+          att.status === AttendanceStatus.LATE ||
+          att.status === AttendanceStatus.PARTIAL)
       );
     }).length;
 
@@ -451,7 +675,8 @@ export class AttendanceService {
       return (
         att &&
         (att.status === AttendanceStatus.PRESENT ||
-          att.status === AttendanceStatus.LATE)
+          att.status === AttendanceStatus.LATE ||
+          att.status === AttendanceStatus.PARTIAL)
       );
     }).length;
 
@@ -750,6 +975,7 @@ export class AttendanceService {
         batch: { include: { students: { where: { isDeleted: false } } } },
         liveSession: true,
         attendances: { where: { status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.LATE] } } },
+        coachAttendance: true,
       },
       orderBy: { startsAt: "desc" },
       take: 50,
@@ -775,6 +1001,8 @@ export class AttendanceService {
         actualStart: cls.liveSession?.startedAt?.toISOString() || null,
         actualEnd: cls.liveSession?.endedAt?.toISOString() || null,
         teachingDuration: teachDuration,
+        coachTotalDuration: cls.coachAttendance?.totalDuration || 0,
+        boardDuration: cls.coachAttendance?.boardDuration || 0,
         studentsPresent: cls.attendances.length,
         totalStudents: cls.batch?.students?.length || 0,
         attendancePercent:
@@ -1160,7 +1388,7 @@ export class AttendanceService {
 
   private calculateTotalDuration(
     logs: Array<{
-      eventType: AttendanceEventType;
+      eventType: string | AttendanceEventType;
       sessionStart: Date | null;
       sessionEnd: Date | null;
       sessionDuration: number | null;
