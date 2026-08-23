@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
-import { useBoardStore } from "../../store/boardStore";
+import { useBoardStore } from "../../context/BoardProvider";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import { Role, Color } from "chessground/types";

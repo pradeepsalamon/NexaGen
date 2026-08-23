@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useBoardStore as usePersistedStore } from "../../store/boardStore";
+import { useBoardStore as usePersistedStore } from "../../context/BoardProvider";
 import { analyzePosition, StockfishAnalysisResult } from '../../api/stockfishApi';
 import { Loader2 } from 'lucide-react';
 

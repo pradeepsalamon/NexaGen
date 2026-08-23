@@ -55,6 +55,7 @@ export interface BoardActions {
   reset: () => void;
   setFen: (fen: string) => void;
   setPgn: (pgn: string) => void;
+  pushHistory: (fen: string, pgn: string) => void;
   
   // UI Actions
   setOrientation: (orientation: "white" | "black") => void;
@@ -262,6 +263,28 @@ export const createBoardStore = () => {
         });
       } catch (e) {
         console.warn("Invalid PGN", pgn);
+      }
+    },
+
+    pushHistory: (fen, pgn) => {
+      const state = get();
+      try {
+        if (pgn) {
+          state.chess.loadPgn(pgn);
+        } else {
+          state.chess.load(fen);
+        }
+        const moveHistory = state.chess.history({ verbose: true });
+        set({
+          fen: state.chess.fen(),
+          pgn: state.chess.pgn(),
+          isGameOver: state.chess.isGameOver(),
+          turn: state.chess.turn() === 'w' ? 'white' : 'black',
+          moveHistory,
+          historyIndex: moveHistory.length - 1
+        });
+      } catch (e) {
+        console.warn("Failed to load position", fen);
       }
     },
     

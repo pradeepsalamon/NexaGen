@@ -18,6 +18,7 @@ interface ChessgroundBoardProps {
 export function ChessgroundBoard({ broadcastAnnotations = () => {} }: ChessgroundBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
+  const cgRef = useRef<any>(null);
   
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
@@ -75,6 +76,11 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
     const handleDown = (e: MouseEvent | TouchEvent) => {
       // Ignore if it's already a right or middle click
       if ('button' in e && e.button !== 0) return;
+
+      // Invalidate chessground's cached board bounds so square hit-testing uses
+      // the current geometry (the board can be moved/resized by layout shifts
+      // and CSS transforms that ResizeObserver does not report).
+      cgRef.current?.state?.dom?.bounds?.clear?.();
 
       isAutoClearing.current = true;
       setTimeout(() => {
@@ -145,7 +151,7 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
       orientation,
       coordinates: showCoordinates,
       animation: { enabled: !isEditingPosition },
-      viewOnly: !canMove,
+      viewOnly: false,
       movable: {
         color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
         free: isEditingPosition,
@@ -165,7 +171,7 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
         }
       },
       drawable: {
-        enabled: true,
+        enabled: isCoach,
         visible: true,
         eraseOnClick: false,
         brushes: {
@@ -211,12 +217,18 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
     };
     
     instance = Chessground(containerRef.current, config);
+    cgRef.current = instance;
+    const boardEl = containerRef.current;
     setCg(instance);
-    
+
     return () => {
       instance.destroy();
+      cgRef.current = null;
+      // chessground's destroy() only unbinds its listeners and does not remove
+      // the rendered board; clear it so re-initialization doesn't stack wraps.
+      while (boardEl && boardEl.firstChild) boardEl.removeChild(boardEl.firstChild);
     };
-  }, []); // Mount only
+  }, [showCoordinates]); // Re-create on coordinate toggle: chessground v9 renders rank/file labels only at construction (renderWrap)
 
   // Update brushes dynamically when activeBrush changes
   useEffect(() => {
@@ -244,13 +256,14 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
       coordinates: showCoordinates,
       animation: { enabled: !isEditingPosition },
       viewOnly: !canMove,
+      drawable: { enabled: isCoach },
       movable: {
         color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
         free: isEditingPosition,
         dests
       }
     });
-  }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, isEditingPosition]);
+  }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, isEditingPosition, isCoach]);
   
   // Sync annotations (arrows)
   useEffect(() => {
@@ -268,8 +281,8 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
   }, [cg, arrows]);
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="w-full h-full"
       data-board={boardTheme}
       data-piece={pieceTheme}
