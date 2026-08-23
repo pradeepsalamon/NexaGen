@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
 import { uploadPgn } from "@/lib/uploadApi";
 import { toast } from "sonner";
-import { useBoardStore } from "../../store/boardStore";
+import { useBoardStore } from "../../context/BoardProvider";
 import { useAuthStore } from "@/stores/authStore";
 import { Chess } from "chess.js";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";

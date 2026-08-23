@@ -75,6 +75,17 @@ export function useBoardSync() {
 
   const isRemoteUpdateRef = useRef(false);
 
+  // Mark the next store change as remote-originated so it isn't echoed back.
+  // The flag auto-expires because some remote messages (e.g. UPDATE_PERMISSIONS)
+  // don't produce a board change, and would otherwise suppress the following
+  // local move broadcast.
+  const markRemoteUpdate = useCallback(() => {
+    isRemoteUpdateRef.current = true;
+    setTimeout(() => {
+      isRemoteUpdateRef.current = false;
+    }, 0);
+  }, []);
+
   const handleIncomingSync = useCallback((msg: BoardSyncMessage) => {
     switch (msg.type) {
       case "MOVE":
@@ -83,7 +94,7 @@ export function useBoardSync() {
       case "RESET":
       case "FORCE_SYNC":
         if (msg.payload && msg.payload.fen) {
-          isRemoteUpdateRef.current = true;
+          markRemoteUpdate();
           syncFromRemote({
             fen: msg.payload.fen,
             pgn: msg.payload.pgn || "",
@@ -93,7 +104,7 @@ export function useBoardSync() {
         break;
       case "UPDATE_ANNOTATIONS":
         if (msg.payload) {
-          isRemoteUpdateRef.current = true;
+          markRemoteUpdate();
           syncFromRemote({
             arrows: msg.payload.arrows || [],
             squareStyles: msg.payload.squares || {}
@@ -102,7 +113,7 @@ export function useBoardSync() {
         break;
       case "UPDATE_PERMISSIONS":
         if (msg.payload && msg.payload.mode) {
-          isRemoteUpdateRef.current = true;
+          markRemoteUpdate();
           syncFromRemote({
             permissionMode: msg.payload.mode,
             selectedStudentId: msg.payload.selectedStudentId
@@ -140,7 +151,7 @@ export function useBoardSync() {
         }
         break;
     }
-  }, [isCoach, syncFromRemote, broadcastState, liveClassState]);
+  }, [isCoach, syncFromRemote, broadcastState, liveClassState, markRemoteUpdate]);
 
   // Zustand Store Subscription for Immediate Syncing
   // This bypasses React's batching behavior, ensuring that rapidly consecutive moves

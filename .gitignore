@@ -11,3 +11,8 @@ coverage
 .env.local
 npm-debug.log*
 bin/
+
+# Server-specific logs and keys
+backup.log
+github-actions-key
+github-actions-key.pub
