@@ -134,7 +134,7 @@ export default function StudentAttendancePage() {
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm hidden lg:block">
+        <Card className="border-app-border bg-app-surface shadow-sm">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
               <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
@@ -165,12 +165,12 @@ export default function StudentAttendancePage() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
                   <tr>
-                    <th scope="col" className="px-6 py-4 font-semibold">Date & Time</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Topic / Coach</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Batch</th>
-                    <th scope="col" className="px-6 py-4 font-semibold w-[200px]">Attendance %</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Duration</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Status</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Date & Time</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Topic / Coach</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Batch</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">Attendance %</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Duration</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-app-border">
@@ -180,7 +180,7 @@ export default function StudentAttendancePage() {
                       onClick={() => handleRowClick(record)}
                       className="hover:bg-app-soft/50 transition-colors cursor-pointer"
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-app-text font-medium">
+                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
                         {new Date(record.date).toLocaleDateString(undefined, { 
                           weekday: 'short', month: 'short', day: 'numeric' 
                         })}
@@ -190,18 +190,18 @@ export default function StudentAttendancePage() {
                           })}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="font-medium text-app-text">{record.topic}</div>
                         <div className="text-xs text-app-muted mt-0.5">{record.coachName}</div>
                       </td>
-                      <td className="px-6 py-4 text-app-muted">{record.batchName}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">{record.batchName}</td>
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <AttendancePercentBar percent={record.attendancePercent} />
                       </td>
-                      <td className="px-6 py-4 text-app-muted">
+                      <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
                         {formatDuration(record.actualDuration)} <span className="text-xs">/ {formatDuration(record.scheduledDuration)}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <AttendanceStatusBadge status={record.status} />
                       </td>
                     </tr>

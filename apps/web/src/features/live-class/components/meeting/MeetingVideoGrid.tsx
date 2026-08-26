@@ -487,7 +487,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                     {/* Only render ChessgroundBoard when NOT in fullscreen to avoid dual-instance conflicts */}
                     {!isBoardFullscreen && (
                       <div className="absolute inset-y-0 aspect-square" style={{ left: '50%', transform: 'translateX(-50%)' }}>
-                        <ChessgroundBoard broadcastAnnotations={() => {}} />
+                        <ChessgroundBoard />
                       </div>
                     )}
                     {isBoardFullscreen && (
@@ -582,7 +582,7 @@ function BoardFocusOverlay({ onClose }: { onClose: () => void }) {
         {/* Board container — square, centered, uses same BoardProvider context */}
         <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-2xl flex items-center justify-center">
           <div className="h-full aspect-square max-w-full">
-            <ChessgroundBoard broadcastAnnotations={() => {}} />
+            <ChessgroundBoard />
           </div>
         </div>
       </div>

@@ -133,7 +133,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       role="toolbar"
       aria-label="Meeting controls"
     >
-      <div className="pointer-events-auto flex items-center gap-1.5 rounded-2xl border border-app-border bg-app-surface/90 px-3 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:gap-2 sm:px-4 sm:py-3">
+      <div className="pointer-events-auto flex flex-wrap items-center justify-center max-w-full gap-1.5 rounded-2xl border border-app-border bg-app-surface/90 px-3 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:flex-nowrap sm:gap-2 sm:px-4 sm:py-3">
         {/* ── Media controls ────────────────── */}
         <MeetingControlButton
           icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}

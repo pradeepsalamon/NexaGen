@@ -886,6 +886,350 @@ export class AttendanceService {
     };
   }
 
+  async getCompletedClasses(
+    accessToken: string | undefined,
+    filters: {
+      dateFrom?: string;
+      dateTo?: string;
+      coachId?: string;
+      batchId?: string;
+      page?: number;
+      limit?: number;
+    }
+  ) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException("Admin access required.");
+    }
+
+    const page = filters.page || 1;
+    const limit = Math.min(filters.limit || 20, 100);
+    const skip = (page - 1) * limit;
+
+    const where: any = {
+      status: { in: [ClassStatus.COMPLETED, ClassStatus.CANCELLED] },
+    };
+
+    if (filters.dateFrom || filters.dateTo) {
+      where.startsAt = {
+        ...(filters.dateFrom && { gte: new Date(filters.dateFrom) }),
+        ...(filters.dateTo && { lte: new Date(filters.dateTo) }),
+      };
+    }
+    if (filters.coachId) where.coachId = filters.coachId;
+    if (filters.batchId) where.batchId = filters.batchId;
+
+    const [classes, total] = await Promise.all([
+      this.prisma.coachClass.findMany({
+        where,
+        include: {
+          coach: true,
+          batch: { include: { students: { where: { isDeleted: false } } } },
+          liveSession: true,
+          coachAttendance: true,
+          attendances: {
+            where: { status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.LATE] } },
+          },
+        },
+        orderBy: { startsAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      this.prisma.coachClass.count({ where }),
+    ]);
+
+    const items = classes.map((cls) => {
+      const scheduledDuration = Math.floor(
+        (cls.endsAt.getTime() - cls.startsAt.getTime()) / 1000
+      );
+      const totalStudents = cls.batch?.students?.length || 0;
+
+      return {
+        id: cls.id,
+        topic: cls.topic || "Untitled Class",
+        batchName: cls.batch?.name || "Demo Class",
+        coachName: `${cls.coach.firstName} ${cls.coach.lastName || ""}`.trim(),
+        coachId: cls.coachId,
+        date: cls.startsAt.toISOString(),
+        scheduledStart: cls.startsAt.toISOString(),
+        scheduledEnd: cls.endsAt.toISOString(),
+        actualStart: cls.liveSession?.startedAt?.toISOString() || null,
+        actualEnd: cls.liveSession?.endedAt?.toISOString() || null,
+        scheduledDuration,
+        actualDuration:
+          cls.liveSession?.startedAt && cls.liveSession?.endedAt
+            ? Math.floor(
+                (cls.liveSession.endedAt.getTime() -
+                  cls.liveSession.startedAt.getTime()) /
+                  1000
+              )
+            : 0,
+        status: cls.status,
+        totalStudents,
+        studentsAttended: cls.attendances.length,
+        coachTeachingDuration: cls.coachAttendance?.totalDuration || 0,
+        coachBoardDuration: cls.coachAttendance?.boardDuration || 0,
+        attendancePercent:
+          totalStudents > 0
+            ? Math.round((cls.attendances.length / totalStudents) * 100)
+            : 0,
+      };
+    });
+
+    return {
+      classes: items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async getAdminCoachTeachingReport(
+    accessToken: string | undefined,
+    filters: {
+      dateFrom?: string;
+      dateTo?: string;
+      coachId?: string;
+    }
+  ) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException("Admin access required.");
+    }
+
+    const coachWhere: any = {
+      role: UserRole.COACH,
+      status: UserStatus.ACTIVE,
+      isDeleted: false,
+    };
+    if (filters.coachId) coachWhere.id = filters.coachId;
+
+    const coaches = await this.prisma.user.findMany({
+      where: coachWhere,
+      include: { coachProfile: true },
+    });
+
+    const coachReports = await Promise.all(
+      coaches.map(async (coach) => {
+        const dateFilter =
+          filters.dateFrom || filters.dateTo
+            ? {
+                startsAt: {
+                  ...(filters.dateFrom && { gte: new Date(filters.dateFrom) }),
+                  ...(filters.dateTo && { lte: new Date(filters.dateTo) }),
+                },
+              }
+            : {};
+
+        const [totalClasses, cancelledClasses, coachAttendances] =
+          await Promise.all([
+            this.prisma.coachClass.count({
+              where: { coachId: coach.id, ...dateFilter },
+            }),
+            this.prisma.coachClass.count({
+              where: { coachId: coach.id, status: ClassStatus.CANCELLED, ...dateFilter },
+            }),
+            this.prisma.coachAttendance.findMany({
+              where: {
+                coachId: coach.id,
+                class: { status: ClassStatus.COMPLETED, ...dateFilter },
+              },
+              include: { class: { select: { startsAt: true, endsAt: true } } },
+            }),
+          ]);
+
+        let totalScheduledSeconds = 0;
+        let totalActualSeconds = 0;
+
+        for (const ca of coachAttendances) {
+          totalScheduledSeconds += Math.floor(
+            (ca.class.endsAt.getTime() - ca.class.startsAt.getTime()) / 1000
+          );
+          totalActualSeconds += ca.totalDuration || 0;
+        }
+
+        const completedClasses = coachAttendances.length;
+        const completionPercent =
+          totalClasses > 0
+            ? Math.round((completedClasses / totalClasses) * 100)
+            : 0;
+        const avgDurationMinutes =
+          completedClasses > 0
+            ? Math.round(totalActualSeconds / completedClasses / 60)
+            : 0;
+
+        return {
+          coachId: coach.id,
+          coachName: `${coach.firstName} ${coach.lastName || ""}`.trim(),
+          email: coach.email,
+          totalClasses,
+          completedClasses,
+          cancelledClasses,
+          totalScheduledHours:
+            Math.round((totalScheduledSeconds / 3600) * 10) / 10,
+          totalActualHours:
+            Math.round((totalActualSeconds / 3600) * 10) / 10,
+          avgDurationMinutes,
+          completionPercent,
+        };
+      })
+    );
+
+    return { coaches: coachReports };
+  }
+
+  async getClassDetailReport(
+    accessToken: string | undefined,
+    classId: string
+  ) {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    const coachClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
+      include: {
+        coach: true,
+        batch: {
+          include: {
+            students: {
+              where: { isDeleted: false },
+              include: { student: true },
+            },
+          },
+        },
+        liveSession: true,
+        coachAttendance: {
+          include: { logs: { orderBy: { timestamp: "asc" } } },
+        },
+        attendances: {
+          include: {
+            student: true,
+            logs: { orderBy: { timestamp: "asc" } },
+          },
+        },
+      },
+    });
+
+    if (!coachClass) throw new NotFoundException("Class not found.");
+
+    const isCoach =
+      user.role === UserRole.COACH && coachClass.coachId === user.id;
+    const isAdmin =
+      user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+    if (!isCoach && !isAdmin) {
+      throw new ForbiddenException("Not authorized to view this class report.");
+    }
+
+    const scheduledDuration = Math.floor(
+      (coachClass.endsAt.getTime() - coachClass.startsAt.getTime()) / 1000
+    );
+
+    const totalStudents = coachClass.batch?.students?.length || 0;
+    const attendanceMap = new Map(
+      coachClass.attendances.map((a) => [a.studentId, a])
+    );
+
+    const presentCount = coachClass.attendances.filter(
+      (a) => a.status === AttendanceStatus.PRESENT || a.status === AttendanceStatus.LATE
+    ).length;
+    const absentCount = totalStudents - coachClass.attendances.length;
+    const lateCount = coachClass.attendances.filter(
+      (a) => a.status === AttendanceStatus.LATE
+    ).length;
+    const partialCount = coachClass.attendances.filter(
+      (a) => a.status === AttendanceStatus.PARTIAL
+    ).length;
+
+    const overallPercent =
+      totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
+
+    const students = (coachClass.batch?.students || []).map((bs) => {
+      const att = attendanceMap.get(bs.studentId);
+      return {
+        id: bs.studentId,
+        name: `${bs.student.firstName} ${bs.student.lastName || ""}`.trim(),
+        email: bs.student.email,
+        status: att?.status || "ABSENT",
+        joinedAt: att?.joinedAt?.toISOString() || null,
+        leftAt: att?.leftAt?.toISOString() || null,
+        duration: att?.totalDuration || 0,
+        attendancePercent: att?.attendancePercent ?? 0,
+        reconnectCount: att?.reconnectCount || 0,
+        logCount: att?.logs?.length || 0,
+        logs: (att?.logs || []).map((log) => ({
+          id: log.id,
+          eventType: log.eventType,
+          timestamp: log.timestamp.toISOString(),
+          sessionStart: log.sessionStart?.toISOString() || null,
+          sessionEnd: log.sessionEnd?.toISOString() || null,
+          sessionDuration: log.sessionDuration,
+          reason: log.reason,
+          source: log.source,
+        })),
+      };
+    });
+
+    const coachAttendance = coachClass.coachAttendance
+      ? {
+          coachName: `${coachClass.coach.firstName} ${coachClass.coach.lastName || ""}`.trim(),
+          joinedAt: coachClass.coachAttendance.joinedAt?.toISOString() || null,
+          leftAt: coachClass.coachAttendance.leftAt?.toISOString() || null,
+          totalDuration: coachClass.coachAttendance.totalDuration,
+          boardDuration: coachClass.coachAttendance.boardDuration,
+          reconnectCount: coachClass.coachAttendance.reconnectCount,
+          logs: coachClass.coachAttendance.logs.map((log) => ({
+            id: log.id,
+            eventType: log.eventType,
+            timestamp: log.timestamp.toISOString(),
+            sessionStart: log.sessionStart?.toISOString() || null,
+            sessionEnd: log.sessionEnd?.toISOString() || null,
+            sessionDuration: log.sessionDuration,
+            reason: log.reason,
+            source: log.source,
+          })),
+        }
+      : null;
+
+    const actualDuration =
+      coachClass.liveSession?.startedAt && coachClass.liveSession?.endedAt
+        ? Math.floor(
+            (coachClass.liveSession.endedAt.getTime() -
+              coachClass.liveSession.startedAt.getTime()) /
+              1000
+          )
+        : 0;
+
+    return {
+      classId: coachClass.id,
+      topic: coachClass.topic || "Untitled Class",
+      batchName: coachClass.batch?.name || "Demo Class",
+      coachName: `${coachClass.coach.firstName} ${coachClass.coach.lastName || ""}`.trim(),
+      scheduledStart: coachClass.startsAt.toISOString(),
+      scheduledEnd: coachClass.endsAt.toISOString(),
+      actualStart: coachClass.liveSession?.startedAt?.toISOString() || null,
+      actualEnd: coachClass.liveSession?.endedAt?.toISOString() || null,
+      scheduledDuration,
+      actualDuration,
+      status: coachClass.status,
+      totalStudents,
+      presentCount,
+      absentCount,
+      lateCount,
+      partialCount,
+      overallPercent,
+      coachAttendance,
+      students,
+    };
+  }
+
   async getCoachTeachingStats(
     accessToken: string | undefined,
     targetCoachId?: string
@@ -912,7 +1256,6 @@ export class AttendanceService {
       totalClasses,
       completedClasses,
       cancelledClasses,
-      sessions,
       monthlyClasses,
     ] = await Promise.all([
       this.prisma.coachClass.count({ where: { coachId } }),
@@ -921,15 +1264,6 @@ export class AttendanceService {
       }),
       this.prisma.coachClass.count({
         where: { coachId, status: ClassStatus.CANCELLED },
-      }),
-      this.prisma.liveSession.findMany({
-        where: { coachId, startedAt: { not: null }, endedAt: { not: null } },
-        select: {
-          startedAt: true,
-          endedAt: true,
-          class: { select: { startsAt: true } },
-        },
-        orderBy: { startedAt: "desc" },
       }),
       this.prisma.coachClass.count({
         where: {
@@ -944,28 +1278,30 @@ export class AttendanceService {
     let lateStarts = 0;
     const earlyExits = 0;
 
-    for (const session of sessions) {
-      if (session.startedAt && session.endedAt) {
-        const duration = Math.floor(
-          (session.endedAt.getTime() - session.startedAt.getTime()) / 1000
-        );
-        totalTeachingSeconds += duration;
+    // Use coach attendance records for accurate teaching hours
+    const coachAttendances = await this.prisma.coachAttendance.findMany({
+      where: { coachId, class: { status: ClassStatus.COMPLETED } },
+      include: { class: { select: { startsAt: true } } },
+    });
 
-        // Late start: started more than 5 minutes after scheduled
-        if (session.class?.startsAt) {
-          const lateBy =
-            (session.startedAt.getTime() - session.class.startsAt.getTime()) /
-            60000;
-          if (lateBy > 5) lateStarts++;
-        }
+    for (const ca of coachAttendances) {
+      if (ca.totalDuration) {
+        totalTeachingSeconds += ca.totalDuration;
+      }
+
+      // Late start: joined more than 5 minutes after scheduled
+      if (ca.joinedAt && ca.class?.startsAt) {
+        const lateBy =
+          (ca.joinedAt.getTime() - ca.class.startsAt.getTime()) / 60000;
+        if (lateBy > 5) lateStarts++;
       }
     }
 
     const totalTeachingHours =
       Math.round((totalTeachingSeconds / 3600) * 10) / 10;
     const avgSessionMinutes =
-      sessions.length > 0
-        ? Math.round(totalTeachingSeconds / sessions.length / 60)
+      coachAttendances.length > 0
+        ? Math.round(totalTeachingSeconds / coachAttendances.length / 60)
         : 0;
 
     // Recent class history
@@ -1394,14 +1730,22 @@ export class AttendanceService {
       sessionDuration: number | null;
     }>
   ): number {
+    const now = new Date();
     let total = 0;
     for (const log of logs) {
       if (
-        (log.eventType === AttendanceEventType.JOIN ||
-          log.eventType === AttendanceEventType.RECONNECT) &&
-        log.sessionDuration
+        log.eventType === AttendanceEventType.JOIN ||
+        log.eventType === AttendanceEventType.RECONNECT ||
+        log.eventType === "JOIN" ||
+        log.eventType === "RECONNECT"
       ) {
-        total += log.sessionDuration;
+        if (log.sessionDuration) {
+          total += log.sessionDuration;
+        } else if (log.sessionStart && !log.sessionEnd) {
+          total += Math.floor(
+            (now.getTime() - log.sessionStart.getTime()) / 1000
+          );
+        }
       }
     }
     return total;

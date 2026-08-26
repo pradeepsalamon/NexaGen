@@ -39,4 +39,20 @@ export class UploadController {
     const result = await this.uploadService.uploadPgn(pgnContent, filename);
     return { url: result.secure_url };
   }
+
+  @Post('pdf')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadPdf(
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 20 }), // 20MB
+          new FileTypeValidator({ fileType: 'application/pdf' }),
+        ],
+      }),
+    ) file: Express.Multer.File,
+  ) {
+    const result = await this.uploadService.uploadPdf(file);
+    return { url: result.secure_url };
+  }
 }

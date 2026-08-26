@@ -6,6 +6,8 @@ import type { NextFunction, Request, Response } from "express";
 import * as express from "express";
 import { AppModule } from "./app.module";
 
+const HTTP_LOG_EXCLUDED_PREFIXES = ["/stockfish", "/health"];
+
 async function bootstrap() {
   const env = getApiEnv();
   const app = await NestFactory.create(AppModule, {
@@ -17,6 +19,14 @@ async function bootstrap() {
     const startedAt = Date.now();
 
     response.on("finish", () => {
+      if (
+        HTTP_LOG_EXCLUDED_PREFIXES.some((prefix) =>
+          request.originalUrl?.startsWith(prefix)
+        )
+      ) {
+        return;
+      }
+
       const durationMs = Date.now() - startedAt;
       const ipAddress =
         request.ip ||

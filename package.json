@@ -30,6 +30,7 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "concurrently": "^8.2.2",
     "husky": "^9.1.7",
     "turbo": "^2.5.4",

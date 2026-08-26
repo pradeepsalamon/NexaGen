@@ -172,7 +172,7 @@ export function CoachHistoryClient() {
         {isLoading ? (
           <div className="p-8 text-center text-app-muted">Loading history...</div>
         ) : data?.classes?.length === 0 ? (
-          <div className="p-12">
+          <div className="p-6 sm:p-12">
             <EmptyState
               icon={History}
               title="No class history"

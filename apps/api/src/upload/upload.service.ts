@@ -51,4 +51,23 @@ export class UploadService {
       streamifier.createReadStream(buffer).pipe(uploadStream);
     });
   }
+
+  uploadPdf(file: Express.Multer.File): Promise<UploadApiResponse> {
+    return new Promise((resolve, reject) => {
+      const originalName = (file.originalname || 'document.pdf').replace(/\.pdf$/i, '');
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'nexa_chess/pdfs',
+          resource_type: 'raw',
+          public_id: `${Date.now()}_${originalName}.pdf`,
+        },
+        (error, result) => {
+          if (error) return reject(new BadRequestException(error.message));
+          resolve(result as UploadApiResponse);
+        },
+      );
+
+      streamifier.createReadStream(file.buffer).pipe(uploadStream);
+    });
+  }
 }

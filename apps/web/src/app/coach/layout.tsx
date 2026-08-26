@@ -19,7 +19,7 @@ export default function CoachLayout({ children }: { children: ReactNode }) {
     <AppShell>
       <div className="flex min-h-[calc(100vh-64px)] bg-app-background">
         <CoachSidebar />
-        <main className="flex-1 overflow-x-hidden p-6 md:p-8">
+        <main className="flex-1 min-w-0 overflow-x-hidden p-4 pb-24 md:p-6 md:pb-6 lg:p-8">
           <div className="mx-auto max-w-6xl">
             {children}
           </div>

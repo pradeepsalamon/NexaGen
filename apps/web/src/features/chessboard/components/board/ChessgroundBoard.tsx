@@ -10,12 +10,7 @@ import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
 
-interface ChessgroundBoardProps {
-  /** Callback to broadcast annotation changes. No-op by default. */
-  broadcastAnnotations?: () => void;
-}
-
-export function ChessgroundBoard({ broadcastAnnotations = () => {} }: ChessgroundBoardProps) {
+export function ChessgroundBoard() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const cgRef = useRef<any>(null);
@@ -211,7 +206,8 @@ export function ChessgroundBoard({ broadcastAnnotations = () => {} }: Chessgroun
             return [orig, dest, brush];
           });
           setAnnotations(newArrows as any, {});
-          setTimeout(() => broadcastAnnotations(), 0);
+          // Broadcasting is handled by the store subscription in useBoardSync;
+          // calling broadcastAnnotations here races it with a stale closure.
         }
       }
     };

@@ -1,5 +1,7 @@
 import { MoveHistory } from "../panels/MoveHistory";
 import { StockfishPanel } from "./StockfishPanel";
+import { PdfPanel } from "./PdfPanel";
+import { MasterbasePanel } from "./MasterbasePanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
 import { uploadPgn } from "@/lib/uploadApi";
@@ -11,7 +13,7 @@ import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveC
 import { useParticipants } from "@livekit/components-react";
 
 export function SidebarTabs() {
-  const { pgn, reset, undo, pushHistory, historyIndex, setIsSetupPositionOpen } = useBoardStore();
+  const { pgn, reset, undo, pushHistory, historyIndex, setIsSetupPositionOpen, activeTab, setActiveTab } = useBoardStore();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
 
@@ -88,7 +90,7 @@ export function SidebarTabs() {
       )}
 
       {/* Tabs Section */}
-      <Tabs defaultValue="moves" className="flex-1 flex flex-col min-h-0">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
         <TabsList className="w-full justify-start bg-transparent border-b border-gray-200 dark:border-slate-800 rounded-none h-auto p-0 space-x-4 mb-4 overflow-x-auto">
           <TabsTrigger 
             value="moves" 
@@ -129,17 +131,11 @@ export function SidebarTabs() {
             <LiveClassControlPanel liveClassState={liveClassState} />
           </TabsContent>
         )}
-        <TabsContent value="pdf" className="flex-1 mt-0">
-          <div className="flex flex-col items-center justify-center h-full text-sm text-gray-500 dark:text-slate-400 p-4 text-center">
-            <span className="font-semibold mb-2">PDF Viewer</span>
-            <p>A built-in PDF viewer for reading chess books side-by-side with the board is coming soon.</p>
-          </div>
+        <TabsContent value="pdf" className="flex-1 min-h-0 mt-0">
+          <PdfPanel />
         </TabsContent>
-        <TabsContent value="masterbase" className="flex-1 mt-0">
-          <div className="flex flex-col items-center justify-center h-full text-sm text-gray-500 dark:text-slate-400 p-4 text-center">
-            <span className="font-semibold mb-2">Masterbase Explorer</span>
-            <p>Lichess Master Games integration is coming soon to explore opening theory.</p>
-          </div>
+        <TabsContent value="masterbase" className="flex-1 min-h-0 overflow-y-auto mt-0">
+          <MasterbasePanel />
         </TabsContent>
       </Tabs>
     </div>

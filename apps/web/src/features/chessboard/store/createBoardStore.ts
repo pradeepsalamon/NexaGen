@@ -43,6 +43,10 @@ export interface BoardState {
   pendingPromotion: { from: string, to: string } | null;
   isSetupPositionOpen: boolean;
   isDrawingMode: boolean;
+
+  // Workspace UI (synced across clients)
+  activeTab: string;
+  pdfUrl: string | null;
 }
 
 export interface BoardActions {
@@ -52,6 +56,7 @@ export interface BoardActions {
   redo: () => void;
   jumpToStart: () => void;
   jumpToEnd: () => void;
+  jumpToPly: (index: number) => void;
   reset: () => void;
   setFen: (fen: string) => void;
   setPgn: (pgn: string) => void;
@@ -78,6 +83,10 @@ export interface BoardActions {
   setShowCoordinates: (show: boolean) => void;
   setIsDrawingMode: (mode: boolean) => void;
   setIsSetupPositionOpen: (open: boolean) => void;
+
+  // Workspace UI (synced across clients)
+  setActiveTab: (tab: string) => void;
+  setPdfUrl: (url: string | null) => void;
 }
 
 export type BoardStore = BoardState & BoardActions;
@@ -116,6 +125,9 @@ export const createBoardStore = () => {
     isEditingPosition: false,
     pendingPromotion: null,
     isSetupPositionOpen: false,
+
+    activeTab: "moves",
+    pdfUrl: null,
     
     makeMove: (from, to, promotion = 'q') => {
       const state = get();
@@ -215,6 +227,36 @@ export const createBoardStore = () => {
           historyIndex: state.moveHistory.length - 1
         });
       }
+    },
+
+    jumpToPly: (index) => {
+      const state = get();
+      const target = Math.max(-1, Math.min(index, state.moveHistory.length - 1));
+      if (target === state.historyIndex) return;
+
+      if (target > state.historyIndex) {
+        // Replay moves forward from the current position
+        for (let i = state.historyIndex + 1; i <= target; i++) {
+          try {
+            state.chess.move(state.moveHistory[i]);
+          } catch (e) {
+            break;
+          }
+        }
+      } else {
+        // Undo back to the target ply
+        while (state.chess.history().length - 1 > target) {
+          if (!state.chess.undo()) break;
+        }
+      }
+
+      set({
+        fen: state.chess.fen(),
+        pgn: state.chess.pgn(),
+        isGameOver: state.chess.isGameOver(),
+        turn: state.chess.turn() === 'w' ? 'white' : 'black',
+        historyIndex: target
+      });
     },
     
     reset: () => {
@@ -329,6 +371,8 @@ export const createBoardStore = () => {
     setPendingPromotion: (promo) => set({ pendingPromotion: promo }),
     setShowCoordinates: (show) => set({ showCoordinates: show }),
     setIsDrawingMode: (mode) => set({ isDrawingMode: mode }),
-    setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open })
+    setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open }),
+    setActiveTab: (tab) => set({ activeTab: tab }),
+    setPdfUrl: (pdfUrl) => set({ pdfUrl })
   }));
 };

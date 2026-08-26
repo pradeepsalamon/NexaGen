@@ -133,18 +133,18 @@ export default function CoachAttendancePage() {
               <table className="w-full text-sm text-left">
                 <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
                   <tr>
-                    <th scope="col" className="px-6 py-4 font-semibold">Date & Time</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Topic / Batch</th>
-                    <th scope="col" className="px-6 py-4 font-semibold w-[200px]">Student Attendance</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Teaching Time</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Coach Attendance</th>
-                    <th scope="col" className="px-6 py-4 font-semibold">Board Usage</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Date & Time</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Topic / Batch</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">Student Attendance</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Teaching Time</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Coach Attendance</th>
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Board Usage</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-app-border">
                   {history.map((record: CoachTeachingHistory) => (
                     <tr key={record.id} className="hover:bg-app-soft/50 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap text-app-text font-medium">
+                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
                         {new Date(record.date).toLocaleDateString(undefined, { 
                           weekday: 'short', month: 'short', day: 'numeric' 
                         })}
@@ -154,11 +154,11 @@ export default function CoachAttendancePage() {
                           })}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="font-medium text-app-text">{record.topic}</div>
                         <div className="text-xs text-app-muted mt-0.5">{record.batchName}</div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="flex flex-col gap-1">
                           <AttendancePercentBar percent={record.attendancePercent} />
                           <span className="text-xs text-app-muted text-right">
@@ -166,15 +166,15 @@ export default function CoachAttendancePage() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-app-muted font-medium">
+                      <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted font-medium">
                         {formatDuration(record.teachingDuration)}
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="font-medium text-app-text">
                           {formatDuration(record.coachTotalDuration || 0)}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-3 md:px-6 md:py-4">
                         <div className="font-medium text-blue-500">
                           {formatDuration(record.boardDuration || 0)}
                         </div>

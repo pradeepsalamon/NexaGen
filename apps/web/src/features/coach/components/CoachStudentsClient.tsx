@@ -147,7 +147,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
         {studentsLoading ? (
           <div className="p-8 text-center text-app-muted">Loading students...</div>
         ) : filteredStudents.length === 0 ? (
-          <div className="p-12">
+          <div className="p-6 sm:p-12">
             <EmptyState
               icon={Users}
               title="No students found"

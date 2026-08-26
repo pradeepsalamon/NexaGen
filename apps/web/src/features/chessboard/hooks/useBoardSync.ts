@@ -20,6 +20,7 @@ export function useBoardSync() {
   
   const { 
     fen, pgn, orientation, arrows, squareStyles, permissionMode, selectedStudentId,
+    activeTab, pdfUrl,
     syncFromRemote
   } = useBoardStore();
 
@@ -98,7 +99,10 @@ export function useBoardSync() {
           syncFromRemote({
             fen: msg.payload.fen,
             pgn: msg.payload.pgn || "",
-            ...(msg.payload.orientation ? { orientation: msg.payload.orientation } : {})
+            ...(msg.payload.orientation ? { orientation: msg.payload.orientation } : {}),
+            // FORCE_SYNC carries the full board snapshot, including annotations
+            ...(Array.isArray(msg.payload.arrows) ? { arrows: msg.payload.arrows } : {}),
+            ...(msg.payload.squares ? { squareStyles: msg.payload.squares } : {})
           });
         }
         break;
@@ -123,10 +127,31 @@ export function useBoardSync() {
           }
         }
         break;
+      case "SET_UI_STATE":
+        if (msg.payload && (msg.payload.activeTab !== undefined || msg.payload.pdfUrl !== undefined)) {
+          markRemoteUpdate();
+          syncFromRemote({
+            ...(msg.payload.activeTab !== undefined ? { activeTab: msg.payload.activeTab } : {}),
+            ...(msg.payload.pdfUrl !== undefined ? { pdfUrl: msg.payload.pdfUrl } : {})
+          });
+        }
+        break;
       case "REQUEST_SYNC":
         // A late joiner requested a sync. If we are the coach, send full state.
         if (isCoach) {
-          broadcastState("FORCE_SYNC");
+          const snapshot = store?.getState();
+          broadcastMsg({
+            type: "FORCE_SYNC",
+            payload: {
+              fen: snapshot?.fen ?? fen,
+              pgn: snapshot?.pgn ?? pgn,
+              orientation: snapshot?.orientation ?? orientation,
+              arrows: snapshot?.arrows ?? arrows,
+              squares: snapshot?.squareStyles ?? squareStyles,
+              activeTab: snapshot?.activeTab ?? activeTab,
+              pdfUrl: snapshot?.pdfUrl ?? pdfUrl
+            }
+          });
         }
         break;
       case "REQUEST_CONTROL":
@@ -151,7 +176,7 @@ export function useBoardSync() {
         }
         break;
     }
-  }, [isCoach, syncFromRemote, broadcastState, liveClassState, markRemoteUpdate]);
+  }, [isCoach, store, syncFromRemote, broadcastState, broadcastMsg, fen, pgn, orientation, arrows, squareStyles, liveClassState, markRemoteUpdate]);
 
   // Zustand Store Subscription for Immediate Syncing
   // This bypasses React's batching behavior, ensuring that rapidly consecutive moves
@@ -162,8 +187,9 @@ export function useBoardSync() {
     const unsubscribe = store.subscribe((state, prevState) => {
       const boardChanged = state.fen !== prevState.fen || state.pgn !== prevState.pgn || state.orientation !== prevState.orientation;
       const annotationsChanged = state.arrows !== prevState.arrows || state.squareStyles !== prevState.squareStyles;
-      
-      if (boardChanged || annotationsChanged) {
+      const uiChanged = state.activeTab !== prevState.activeTab || state.pdfUrl !== prevState.pdfUrl;
+
+      if (boardChanged || annotationsChanged || uiChanged) {
         // If the change came from a remote sync event, we don't broadcast it back.
         if (isRemoteUpdateRef.current) {
           isRemoteUpdateRef.current = false;
@@ -186,6 +212,13 @@ export function useBoardSync() {
           broadcastMsg({
             type: "UPDATE_ANNOTATIONS",
             payload: { arrows: state.arrows, squares: state.squareStyles }
+          });
+        }
+
+        if (uiChanged) {
+          broadcastMsg({
+            type: "SET_UI_STATE",
+            payload: { activeTab: state.activeTab, pdfUrl: state.pdfUrl }
           });
         }
       }
