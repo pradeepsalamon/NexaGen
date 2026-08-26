@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Loader2, Users, CalendarX, TrendingUp, Presentation, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { apiFetch } from "@/lib/api";
@@ -50,7 +51,7 @@ export default function AdminAttendanceDashboardPage() {
   const { today, monthlyTrend } = data;
 
   return (
-    <div className="space-y-6 max-w-6xl p-6">
+    <div className="space-y-6 max-w-6xl p-4 sm:p-6">
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-app-text">Platform Attendance</h1>
@@ -113,7 +114,7 @@ export default function AdminAttendanceDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm hidden lg:block">
+        <Card className="border-app-border bg-app-surface shadow-sm">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
               <span className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
@@ -134,26 +135,26 @@ export default function AdminAttendanceDashboardPage() {
             <table className="w-full text-sm text-left">
               <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
                 <tr>
-                  <th scope="col" className="px-6 py-4 font-semibold">Month</th>
-                  <th scope="col" className="px-6 py-4 font-semibold">Classes</th>
-                  <th scope="col" className="px-6 py-4 font-semibold w-[250px]">Attendance Rate</th>
-                  <th scope="col" className="px-6 py-4 font-semibold">Attended / Total</th>
+                  <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Month</th>
+                  <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Classes</th>
+                  <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[250px]">Attendance Rate</th>
+                  <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Attended / Total</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-app-border">
                 {monthlyTrend.map((trend, i) => (
                   <tr key={i} className="hover:bg-app-soft/50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-app-text font-medium flex items-center gap-2">
+                    <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-app-muted" />
                       {trend.month}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       {trend.classes}
                     </td>
-                    <td className="px-6 py-4">
+                    <td className="px-3 py-3 md:px-6 md:py-4">
                       <AttendancePercentBar percent={trend.percent} />
                     </td>
-                    <td className="px-6 py-4 text-app-muted">
+                    <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
                       {trend.attended} / {trend.total}
                     </td>
                   </tr>
@@ -167,19 +168,18 @@ export default function AdminAttendanceDashboardPage() {
       {/* Quick Links */}
       <h2 className="text-xl font-semibold mt-10 mb-4 border-b border-app-border pb-2">Quick Actions</h2>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* We would add links to /admin/attendance/reports etc. here */}
-        <div className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
-          <p className="font-semibold text-app-text">Generate Reports</p>
-          <p className="text-xs text-app-muted mt-1">Export attendance to CSV</p>
-        </div>
-        <div className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
-          <p className="font-semibold text-app-text">Attendance Policy</p>
-          <p className="text-xs text-app-muted mt-1">Configure thresholds</p>
-        </div>
-        <div className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
-          <p className="font-semibold text-app-text">Class Reports</p>
-          <p className="text-xs text-app-muted mt-1">View detailed class logs</p>
-        </div>
+        <Link href="/admin/attendance/completed-classes" className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
+          <p className="font-semibold text-app-text">Completed Classes</p>
+          <p className="text-xs text-app-muted mt-1">View all completed classes with attendance</p>
+        </Link>
+        <Link href="/admin/attendance/coaches" className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
+          <p className="font-semibold text-app-text">Coach Teaching Report</p>
+          <p className="text-xs text-app-muted mt-1">Track actual teaching hours per coach</p>
+        </Link>
+        <Link href={`${API_ROUTES.attendance.adminExport}`} className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
+          <p className="font-semibold text-app-text">Export CSV</p>
+          <p className="text-xs text-app-muted mt-1">Download attendance report</p>
+        </Link>
       </div>
     </div>
   );

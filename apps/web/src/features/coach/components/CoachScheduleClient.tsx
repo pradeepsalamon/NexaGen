@@ -89,7 +89,7 @@ export function CoachScheduleClient() {
             ))}
           </div>
         ) : (
-          <Card className="p-12">
+          <Card className="p-6 sm:p-12">
             <EmptyState
               icon={Plus}
               title="No upcoming classes"

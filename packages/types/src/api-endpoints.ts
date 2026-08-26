@@ -84,11 +84,13 @@ export const API_ROUTES = {
     coach: "/attendance/coach",
     coachById: (id: string = ":id") => `/attendance/coach/${id}`,
     class: (id: string = ":id") => `/attendance/class/${id}`,
+    classDetail: (id: string = ":id") => `/attendance/class/${id}/detail`,
     classLive: (id: string = ":id") => `/attendance/class/${id}/live`,
     classLogs: (id: string = ":id", studentId: string = ":studentId") =>
       `/attendance/class/${id}/logs/${studentId}`,
     adminDashboard: "/attendance/admin/dashboard",
-    adminReports: "/attendance/admin/reports",
+    adminCoachReport: "/attendance/admin/coach-report",
+    adminCompletedClasses: "/attendance/admin/completed-classes",
     adminExport: "/attendance/admin/export",
     policy: "/attendance/policy",
     webhook: "/webhooks/livekit"

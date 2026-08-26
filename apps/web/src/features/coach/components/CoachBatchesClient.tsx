@@ -71,7 +71,7 @@ export function CoachBatchesClient() {
           })}
         </div>
       ) : (
-        <Card className="p-12">
+        <Card className="p-6 sm:p-12">
           <EmptyState
             icon={Users}
             title="No batches assigned"

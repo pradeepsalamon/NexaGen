@@ -53,7 +53,7 @@ export default function PendingCoachesPage() {
             <div className="h-24 w-full rounded-panel bg-app-surface border border-app-border" />
           </div>
         ) : !data?.coaches.length ? (
-          <div className="rounded-panel border border-app-border bg-app-surface p-12 text-center shadow-card">
+          <div className="rounded-panel border border-app-border bg-app-surface p-6 sm:p-12 text-center shadow-card">
             <GraduationCap className="mx-auto size-12 text-app-muted opacity-50" />
             <h3 className="mt-4 text-lg font-bold text-app-text">No pending applications</h3>
             <p className="mt-2 text-sm text-app-muted">You&apos;re all caught up!</p>

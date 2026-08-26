@@ -113,12 +113,12 @@ export function SetupPositionDialog() {
 
   return (
     <Dialog open={isSetupPositionOpen} onOpenChange={setIsSetupPositionOpen}>
-      <DialogContent className="max-w-[800px] w-[95vw] p-0 bg-background border-border">
-        <DialogHeader className="px-6 py-4 border-b border-border">
+      <DialogContent className="max-w-[800px] w-[95vw] max-h-[calc(100vh-2rem)] overflow-y-auto p-0 bg-background border-border">
+        <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-border">
           <DialogTitle>Setup Position</DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col md:flex-row p-6 gap-6">
+        <div className="flex flex-col md:flex-row p-4 sm:p-6 gap-4 sm:gap-6">
           
           {/* Left Spare Pieces (White) */}
           <div className="flex md:flex-col justify-center gap-2 cg-wrap cburnett">
@@ -134,11 +134,11 @@ export function SetupPositionDialog() {
           </div>
 
           {/* Center Board */}
-          <div className="flex-shrink-0 mx-auto bg-[#e0d8c8] dark:bg-slate-800 shadow-md">
+          <div className="md:flex-shrink-0 mx-auto w-full max-w-[400px] md:w-[400px] aspect-square bg-[#e0d8c8] dark:bg-slate-800 shadow-md">
             <div 
               ref={boardRef} 
               className="cg-wrap cg-board-wrap cg-wrap-piece brown cburnett"
-              style={{ width: "400px", height: "400px" }}
+              style={{ width: "100%", height: "100%" }}
             />
           </div>
 

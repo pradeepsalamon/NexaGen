@@ -22,12 +22,13 @@ export interface AnnotationPayload {
 }
 
 export interface BoardSyncMessage extends SyncMessage {
-  type: "MOVE" | "RESET" | "UNDO" | "REDO" | "FORCE_SYNC" | "UPDATE_ANNOTATIONS" | "UPDATE_PERMISSIONS" | "REQUEST_SYNC" | "REQUEST_CONTROL";
+  type: "MOVE" | "RESET" | "UNDO" | "REDO" | "FORCE_SYNC" | "UPDATE_ANNOTATIONS" | "UPDATE_PERMISSIONS" | "REQUEST_SYNC" | "REQUEST_CONTROL" | "SET_UI_STATE";
   payload?: 
     | MovePayload 
     | AnnotationPayload 
     | { mode: BoardPermissionMode; selectedStudentId?: string }
     | { fen: string; pgn: string; orientation: "white" | "black"; moveType?: "move" | "capture" | "check" | "gameEnd" }
     | { studentId: string; studentName: string }
+    | { activeTab?: string; pdfUrl?: string | null }
     | any;
 }

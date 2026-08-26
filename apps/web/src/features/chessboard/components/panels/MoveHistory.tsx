@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useBoardStore } from "../../context/BoardProvider";
 
 export function MoveHistory() {
-  const { moveHistory, historyIndex } = useBoardStore();
+  const { moveHistory, historyIndex, jumpToPly } = useBoardStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom
@@ -41,13 +41,25 @@ export function MoveHistory() {
           <div key={row.moveNumber} className="flex hover:bg-black/5 dark:hover:bg-white/5 px-2 py-1 rounded transition-colors">
             <span className="w-8 text-muted-foreground">{row.moveNumber}.</span>
             
-            <span className={`flex-1 cursor-pointer hover:text-primary transition-colors ${historyIndex === row.whiteIndex ? 'text-primary font-bold' : ''}`}>
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={() => jumpToPly(row.whiteIndex)}
+              className={`flex-1 cursor-pointer hover:text-primary transition-colors ${historyIndex === row.whiteIndex ? 'text-primary font-bold' : ''}`}
+            >
               {row.white.san}
             </span>
             
-            <span className={`flex-1 cursor-pointer hover:text-primary transition-colors ${row.black ? (historyIndex === row.blackIndex ? 'text-primary font-bold' : '') : ''}`}>
-              {row.black ? row.black.san : ""}
-            </span>
+            {row.black && (
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={() => jumpToPly(row.blackIndex)}
+                className={`flex-1 cursor-pointer hover:text-primary transition-colors ${historyIndex === row.blackIndex ? 'text-primary font-bold' : ''}`}
+              >
+                {row.black.san}
+              </span>
+            )}
           </div>
         ))}
       </div>

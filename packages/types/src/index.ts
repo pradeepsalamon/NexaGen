@@ -731,6 +731,124 @@ export const updateAttendancePolicySchema = z.object({
 export type AttendancePolicy = z.infer<typeof attendancePolicySchema>;
 export type UpdateAttendancePolicy = z.infer<typeof updateAttendancePolicySchema>;
 
+// -- COMPLETED CLASSES LISTING TYPES --
+
+export const completedClassItemSchema = z.object({
+  id: z.string(),
+  topic: z.string(),
+  batchName: z.string(),
+  coachName: z.string(),
+  coachId: z.string(),
+  date: z.string(),
+  scheduledStart: z.string(),
+  scheduledEnd: z.string(),
+  actualStart: z.string().nullable(),
+  actualEnd: z.string().nullable(),
+  scheduledDuration: z.number(),
+  actualDuration: z.number(),
+  status: z.string(),
+  totalStudents: z.number(),
+  studentsAttended: z.number(),
+  coachTeachingDuration: z.number(),
+  coachBoardDuration: z.number(),
+  attendancePercent: z.number(),
+});
+
+export const completedClassesResponseSchema = z.object({
+  classes: z.array(completedClassItemSchema),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+  }),
+});
+
+export type CompletedClassItem = z.infer<typeof completedClassItemSchema>;
+export type CompletedClassesResponse = z.infer<typeof completedClassesResponseSchema>;
+
+// -- ADMIN COACH TEACHING REPORT TYPES --
+
+export const adminCoachTeachingItemSchema = z.object({
+  coachId: z.string(),
+  coachName: z.string(),
+  email: z.string(),
+  totalClasses: z.number(),
+  completedClasses: z.number(),
+  cancelledClasses: z.number(),
+  totalScheduledHours: z.number(),
+  totalActualHours: z.number(),
+  avgDurationMinutes: z.number(),
+  completionPercent: z.number(),
+});
+
+export const adminCoachTeachingReportSchema = z.object({
+  coaches: z.array(adminCoachTeachingItemSchema),
+});
+
+export type AdminCoachTeachingItem = z.infer<typeof adminCoachTeachingItemSchema>;
+export type AdminCoachTeachingReport = z.infer<typeof adminCoachTeachingReportSchema>;
+
+// -- CLASS DETAIL REPORT TYPES (extended) --
+
+export const classDetailStudentLogSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+  status: z.string(),
+  joinedAt: z.string().nullable(),
+  leftAt: z.string().nullable(),
+  duration: z.number(),
+  attendancePercent: z.number(),
+  reconnectCount: z.number(),
+  logCount: z.number(),
+  logs: z.array(attendanceLogEntrySchema),
+});
+
+export const classDetailCoachAttendanceSchema = z.object({
+  coachName: z.string(),
+  joinedAt: z.string().nullable(),
+  leftAt: z.string().nullable(),
+  totalDuration: z.number().nullable(),
+  boardDuration: z.number().nullable(),
+  reconnectCount: z.number(),
+  logs: z.array(z.object({
+    id: z.string(),
+    eventType: z.string(),
+    timestamp: z.string(),
+    sessionStart: z.string().nullable(),
+    sessionEnd: z.string().nullable(),
+    sessionDuration: z.number().nullable(),
+    reason: z.string().nullable(),
+    source: z.string(),
+  })),
+});
+
+export const classDetailReportSchema = z.object({
+  classId: z.string(),
+  topic: z.string(),
+  batchName: z.string(),
+  coachName: z.string(),
+  scheduledStart: z.string(),
+  scheduledEnd: z.string(),
+  actualStart: z.string().nullable(),
+  actualEnd: z.string().nullable(),
+  scheduledDuration: z.number(),
+  actualDuration: z.number(),
+  status: z.string(),
+  totalStudents: z.number(),
+  presentCount: z.number(),
+  absentCount: z.number(),
+  lateCount: z.number(),
+  partialCount: z.number(),
+  overallPercent: z.number(),
+  coachAttendance: classDetailCoachAttendanceSchema.nullable(),
+  students: z.array(classDetailStudentLogSchema),
+});
+
+export type ClassDetailStudentLog = z.infer<typeof classDetailStudentLogSchema>;
+export type ClassDetailCoachAttendance = z.infer<typeof classDetailCoachAttendanceSchema>;
+export type ClassDetailReport = z.infer<typeof classDetailReportSchema>;
 
 // -- DEMO CLASS TYPES --
 

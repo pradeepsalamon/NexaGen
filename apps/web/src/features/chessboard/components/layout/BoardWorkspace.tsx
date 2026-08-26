@@ -14,7 +14,7 @@ export function BoardWorkspace() {
     <div className="flex flex-col md:flex-row h-full w-full bg-transparent text-app-text p-0 md:p-4 overflow-hidden gap-4">
       
       {/* Left: Board Area */}
-      <div className="flex-1 flex flex-col items-center justify-center min-w-0 relative h-full">
+      <div className="flex-1 flex flex-col items-center justify-center min-w-0 min-h-0 relative md:h-full">
         <PromotionDialog />
         
         <div className="absolute right-4 top-4 z-10 flex gap-2">
@@ -43,7 +43,7 @@ export function BoardWorkspace() {
       </div>
 
       {/* Right Sidebar Area */}
-      <div className="w-full md:w-[480px] lg:w-[550px] flex-shrink-0 bg-white dark:bg-slate-900 shadow-sm border border-gray-200 dark:border-slate-800 h-full flex flex-col overflow-hidden">
+      <div className="w-full h-[46vh] md:w-[480px] lg:w-[550px] flex-shrink-0 bg-white dark:bg-slate-900 shadow-sm border border-gray-200 dark:border-slate-800 md:h-full flex flex-col overflow-hidden">
         <SidebarTabs />
       </div>
 

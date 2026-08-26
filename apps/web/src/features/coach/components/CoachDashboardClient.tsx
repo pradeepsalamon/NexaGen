@@ -158,7 +158,7 @@ export function CoachDashboardClient() {
             ))}
           </div>
         ) : (
-          <Card className="p-12">
+          <Card className="p-6 sm:p-12">
             <EmptyState
               icon={Calendar}
               title="No classes today"

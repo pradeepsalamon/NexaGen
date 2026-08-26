@@ -111,6 +111,59 @@ export class AttendanceController {
     );
   }
 
+  // ── Admin Completed Classes ──
+
+  @Get(API_ROUTES.attendance.adminCompletedClasses)
+  getCompletedClasses(
+    @Req() request: Request,
+    @Query("dateFrom") dateFrom?: string,
+    @Query("dateTo") dateTo?: string,
+    @Query("coachId") coachId?: string,
+    @Query("batchId") batchId?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ) {
+    return this.attendanceService.getCompletedClasses(
+      this.getAccessToken(request),
+      {
+        dateFrom,
+        dateTo,
+        coachId,
+        batchId,
+        page: page ? parseInt(page, 10) : undefined,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      }
+    );
+  }
+
+  // ── Admin Coach Teaching Report ──
+
+  @Get(API_ROUTES.attendance.adminCoachReport)
+  getAdminCoachTeachingReport(
+    @Req() request: Request,
+    @Query("dateFrom") dateFrom?: string,
+    @Query("dateTo") dateTo?: string,
+    @Query("coachId") coachId?: string,
+  ) {
+    return this.attendanceService.getAdminCoachTeachingReport(
+      this.getAccessToken(request),
+      { dateFrom, dateTo, coachId }
+    );
+  }
+
+  // ── Class Detail Report ──
+
+  @Get(API_ROUTES.attendance.classDetail())
+  getClassDetailReport(
+    @Param("id") id: string,
+    @Req() request: Request
+  ) {
+    return this.attendanceService.getClassDetailReport(
+      this.getAccessToken(request),
+      id
+    );
+  }
+
   // ── Admin Export ──
 
   @Get(API_ROUTES.attendance.adminExport)
