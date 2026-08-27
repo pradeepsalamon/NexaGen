@@ -165,7 +165,7 @@ Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally sc
 
 ## Verification
 
-Common checks:
+Common checks for validation:
 
 ```bash
 npm run typecheck
