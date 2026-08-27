@@ -59,6 +59,7 @@ async function bootstrap() {
     credentials: true,
     origin: corsOrigins
   });
+  // Trigger API deploy
   await app.listen(env.PORT);
 }
 

@@ -32,6 +32,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Trigger Web deploy
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
