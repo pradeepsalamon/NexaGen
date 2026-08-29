@@ -18,11 +18,11 @@
       "environment": "development",
       "project_path": "/opt/nexa-chess/NexaGen-dev",
       "max_concurrent": 1,
-      "last_heartbeat": "2026-08-29T11:28:17.808Z",
+      "last_heartbeat": "2026-08-29T11:28:33.118Z",
       "tasks_completed": 2,
-      "tasks_failed": 1,
+      "tasks_failed": 2,
       "current_task": null
     }
   ],
-  "updated_at": "2026-08-29T11:28:17.808Z"
+  "updated_at": "2026-08-29T11:28:33.118Z"
 }
