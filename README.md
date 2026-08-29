@@ -71,8 +71,39 @@ npm run dev:api:clean
 
 Default local URLs:
 
-- Web: http://localhost:3000
-- API: http://localhost:3001
+- Web: http://localhost:3010 (Dev mode) or http://localhost:3000 (Production container)
+- API: http://localhost:3011 (Dev mode) or http://localhost:3001 (Production container)
+
+### Background Dev Server Scripts (`nexa` CLI)
+
+The project includes background management scripts using `tmux` so that servers continue running in the background even after closing the terminal session:
+
+```bash
+# Start dev servers in watch/hot-reload mode (background tmux session)
+nexa dev          # or: nexa start-dev / start-dev
+
+# Build & launch production-mode staging servers for testing
+nexa stage        # or: nexa start-stage / start-stage
+
+# Check status and health of dev servers
+nexa status       # or: nexa status-dev / status-dev
+
+# Stop all dev servers
+nexa stop         # or: nexa stop-dev / stop-dev
+
+# Quick restart dev servers
+nexa restart
+
+# View live logs
+nexa logs         # shows latest logs for both API & Web
+nexa logs api     # shows API logs
+nexa logs web     # shows Web logs
+
+# Attach to interactive tmux console
+nexa attach
+```
+
+*Note: These commands are available from anywhere in the system terminal (symlinked into `~/bin/`).*
 
 ## Environment
 

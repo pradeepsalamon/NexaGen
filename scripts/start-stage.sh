@@ -1,16 +1,24 @@
 #!/bin/bash
 set -e
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 cd "$DIR"
+
+echo "Stopping any existing dev/staging processes..."
+tmux kill-session -t nexa-dev 2>/dev/null || true
+fuser -k 3010/tcp 3011/tcp 2>/dev/null || true
+sleep 1
 
 echo "=== Building Apps in Production Mode for DEV Testing ==="
 
 # Build API & Web
 npm run build
-
-# Kill existing dev session if running
-tmux kill-session -t nexa-dev 2>/dev/null || true
 
 echo "=== Launching Production-Optimized DEV Servers on Ports 3010 / 3011 ==="
 
