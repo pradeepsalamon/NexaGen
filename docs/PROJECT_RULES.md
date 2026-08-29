@@ -318,13 +318,19 @@ helper for dirty-state UX.
 
 - `features/live-class/` — LiveKit meeting UI (`MeetingRoom`, `MeetingLayout`,
   video grid, chat, participants, prejoin). Providers: `LiveClassProvider`,
-  `ChatProvider`. Hooks: `useLiveClass`, `useLiveClassApi`, `useLiveBoardSync`,
+  `ChatProvider`. Hooks: `useLiveClass`, `useLiveClassApi`, `useLiveBoardSyncBridge`,
   `useMeetingTimer`, `useKeyboardShortcuts`.
 - `features/chessboard/` — standalone board (chessground render + chess.js rules),
-  Zustand `boardStore` / `createBoardStore`, `BoardProvider`, Stockfish panel via
-  `/stockfish` API, PDF & masterbase panels, drawing toolbar.
-- The board is synced into a live class through `LiveBoardSyncBridge` +
-  `useLiveBoardSync` (types in `features/chessboard/types/sync.ts`).
+  Zustand `boardStore` / `createBoardStore` (game + shared chess clock +
+  per-client detach), `BoardProvider`, Stockfish panel via `/stockfish` API,
+  PDF & masterbase panels, drawing toolbar, `ChessClock`.
+- The board is synced into a live class through `LiveBoardSyncBridge` (the single
+  sync engine — provides `BoardSyncContext`; consume with `useBoardSync()`) +
+  `useLiveBoardSyncBridge`. Protocol types + the `senderMayMutateBoard` rule live
+  in `features/chessboard/types/sync.ts` / `lib/boardSyncRules.ts`. Board control
+  is keyed by the **full LiveKit participant identity** (`${userId}_${clientId}`).
+  The coach board is the in-meeting `LiveChessboardPanel`; `/live-class/:id/board`
+  is an optional dedicated window that takes over as authoritative when open.
 - Meeting routes (`/live-class`, `/demo`, `/test-board`) render without the global
   `<Header>` (see `AppProviders`).
 
@@ -338,7 +344,8 @@ helper for dirty-state UX.
   `JWT_REFRESH_SHORT_TTL`, `LOGIN_RESPONSE_DELAY`, `PASSWORD_RESET_RESPONSE_DELAY`,
   `CORS_ORIGIN` (comma-separated), `FRONTEND_URL`, `TRASH_RETENTION_DAYS`,
   `SMTP_*`, `LIVEKIT_URL`/`LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`,
-  `CLOUDINARY_*`, `STOCKFISH_PATH`, `STOCKFISH_POOL_SIZE`.
+  `CLOUDINARY_*`, `STOCKFISH_PATH`, `STOCKFISH_POOL_SIZE`, `STOCKFISH_MOVETIME`
+  (per-position engine search time in ms, default 800).
 - **Web:** `getWebEnv()` in `packages/config/src/web.ts` validates
   `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_LIVEKIT_URL` (with localhost defaults).
   `NEXT_PUBLIC_CONTACT_EMAIL` is read directly from `process.env`. **`NEXT_PUBLIC_*`
@@ -358,6 +365,9 @@ helper for dirty-state UX.
   `*.module.ts`, `*.dto.ts`.
 - Follow `UNIT_TEST_PLAN.md` for scope and priorities.
 - E2E: Playwright in `e2e/` using `.env.e2e`. `npx playwright test`. Not in `npm test`.
+  `live-board-sync.spec.ts` is opt-in (`RUN_LIVE_BOARD_E2E=1`): it needs a real
+  LiveKit (`docker compose up -d livekit postgres redis`) and the web server run
+  with `NEXT_PUBLIC_E2E=1` (mounts the `window.__nexaBoard` test harness).
 - No web component unit tests today — don't retrofit a framework without agreement;
   add Playwright coverage for critical flows instead.
 

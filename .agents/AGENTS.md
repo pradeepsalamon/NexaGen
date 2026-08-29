@@ -1,3 +1,14 @@
+# New Feature Rule
+
+**CRITICAL RULE:** Before implementing any new feature, read
+[docs/BACKLOG.md](../docs/BACKLOG.md) — especially its "Root causes" section.
+It documents recurring traps: (1) the backend endpoint + `packages/types` shape +
+service auth for the thing you are about to build may already exist with only the
+frontend missing — grep `API_ROUTES` and `apps/web` first; (2) importer-less code
+tied to an `NEXA-####` commit may be half-reverted `.ai/`-manager output that
+should be deleted, not extended. If the feature is a BACKLOG.md entry, move it to
+"Resolved" or narrow it in the same change.
+
 # Prisma Models Rule
 
 **CRITICAL RULE:** Whenever you add a new model to `apps/api/prisma/schema.prisma`, you MUST also add a corresponding getter for it in `apps/api/src/prisma/prisma.service.ts`. 

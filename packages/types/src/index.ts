@@ -987,3 +987,189 @@ export type ListAdminBatchClassesResponse = {
 export type AdminBatchClassDetailsResponse = {
   class: AdminBatchClassDetails;
 };
+
+//
+// ASSIGNMENTS
+//
+// An assignment is a reusable PGN item in a library. Admins author shared items
+// (visible to every coach); coaches author private items (visible only to the
+// author). A coach then deploys an item to one or more of their batches with a
+// due date, which fans out one per-student completion row per batch member.
+
+/** 512KB of PGN text — mirrors MAX_PGN_LENGTH in the API upload controller. */
+export const MAX_ASSIGNMENT_PGN_LENGTH = 512 * 1024;
+
+export const assignmentDifficultySchema = z.enum(["BEGINNER", "INTERMEDIATE", "ADVANCED"]);
+export const assignmentStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "COMPLETED"]);
+
+export type AssignmentDifficulty = z.infer<typeof assignmentDifficultySchema>;
+export type AssignmentStatus = z.infer<typeof assignmentStatusSchema>;
+
+/**
+ * Create a library assignment. `batchIds` + `dueDate` are optional — when a coach
+ * supplies them the item is created and immediately deployed to those batches in
+ * one step. Admins omit them (library-only).
+ */
+export const createAssignmentRequestSchema = z
+  .object({
+    title: z.string().min(1, "Title is required.").max(200),
+    description: z.string().max(2000).optional(),
+    pgn: z
+      .string()
+      .min(1, "PGN is required.")
+      .max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large."),
+    difficulty: assignmentDifficultySchema.optional().default("BEGINNER"),
+    batchIds: z.array(z.string().min(1)).optional(),
+    dueDate: z.string().datetime({ message: "A valid due date is required." }).optional()
+  })
+  .refine((v) => !v.batchIds || v.batchIds.length === 0 || Boolean(v.dueDate), {
+    message: "A due date is required when assigning to batches.",
+    path: ["dueDate"]
+  });
+
+export const updateAssignmentRequestSchema = z.object({
+  title: z.string().min(1, "Title is required.").max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  pgn: z
+    .string()
+    .min(1, "PGN is required.")
+    .max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large.")
+    .optional(),
+  difficulty: assignmentDifficultySchema.optional()
+});
+
+export const deployAssignmentRequestSchema = z.object({
+  assignmentId: z.string().min(1, "Assignment is required."),
+  batchIds: z.array(z.string().min(1)).min(1, "Select at least one batch."),
+  dueDate: z.string().datetime({ message: "A valid due date is required." })
+});
+
+export const updateAssignmentStatusRequestSchema = z.object({
+  status: z.enum(["IN_PROGRESS", "COMPLETED"]),
+  note: z.string().max(1000).optional()
+});
+
+export type CreateAssignmentRequest = z.infer<typeof createAssignmentRequestSchema>;
+export type UpdateAssignmentRequest = z.infer<typeof updateAssignmentRequestSchema>;
+export type DeployAssignmentRequest = z.infer<typeof deployAssignmentRequestSchema>;
+export type UpdateAssignmentStatusRequest = z.infer<typeof updateAssignmentStatusRequestSchema>;
+
+export type AssignmentLibraryItem = {
+  id: string;
+  title: string;
+  description: string | null;
+  pgn: string;
+  pgnUrl: string | null;
+  difficulty: AssignmentDifficulty;
+  /** true = shared library item (admin), false = author-private (coach). */
+  isLibrary: boolean;
+  createdById: string | null;
+  createdByName: string | null;
+  /** the caller may edit/delete this item. */
+  canManage: boolean;
+  deploymentCount: number;
+  createdAt: string;
+};
+
+export type AssignmentLibraryResponse = {
+  assignments: AssignmentLibraryItem[];
+};
+
+export type AssignmentResponse = {
+  assignment: AssignmentLibraryItem;
+};
+
+export type AssignmentDeploymentStats = {
+  total: number;
+  completed: number;
+  inProgress: number;
+  pending: number;
+};
+
+export type AssignmentDeployment = {
+  id: string;
+  assignmentId: string;
+  title: string;
+  difficulty: AssignmentDifficulty;
+  batchId: string;
+  batchName: string;
+  dueDate: string;
+  createdAt: string;
+  stats: AssignmentDeploymentStats;
+};
+
+export type AssignmentDeploymentListResponse = {
+  deployments: AssignmentDeployment[];
+};
+
+export type AssignmentSubmission = {
+  studentId: string;
+  studentName: string;
+  status: AssignmentStatus;
+  completedAt: string | null;
+  note: string | null;
+};
+
+export type AssignmentDeploymentDetail = AssignmentDeployment & {
+  description: string | null;
+  pgn: string;
+  pgnUrl: string | null;
+  submissions: AssignmentSubmission[];
+};
+
+export type AssignmentDeploymentDetailResponse = {
+  deployment: AssignmentDeploymentDetail;
+};
+
+export type StudentAssignmentItem = {
+  /** the StudentAssignment row id — used for the detail route + status updates. */
+  id: string;
+  assignmentId: string;
+  title: string;
+  description: string | null;
+  pgn: string;
+  pgnUrl: string | null;
+  difficulty: AssignmentDifficulty;
+  dueDate: string;
+  coachName: string | null;
+  batchName: string;
+  status: AssignmentStatus;
+  completedAt: string | null;
+  note: string | null;
+};
+
+export type StudentAssignmentListResponse = {
+  assignments: StudentAssignmentItem[];
+};
+
+export type StudentAssignmentDetailResponse = {
+  assignment: StudentAssignmentItem;
+};
+
+//
+// STOCKFISH ENGINE ANALYSIS
+//
+// `POST /stockfish/analyze` — coach/admin only. The client sends the current
+// position as a FEN; the API returns the pooled engine's evaluation of it.
+
+export const stockfishAnalyzeRequestSchema = z.object({
+  fen: z.string().trim().min(1, "FEN is required.").max(120, "FEN is malformed.")
+});
+
+export type StockfishAnalyzeRequest = z.infer<typeof stockfishAnalyzeRequestSchema>;
+
+export interface StockfishAnalysisResult {
+  /** Centipawn evaluation in pawns (white-positive). `null` when a mate is seen. */
+  evaluation: number | null;
+  /** Moves-to-mate (sign = side to deliver it). `null` when it is a cp score. */
+  mate: number | null;
+  /** Best move in SAN (falls back to UCI if the line can't be replayed). */
+  bestMove: string;
+  /** Best move in raw UCI (`e2e4`), for drawing an arrow on the board. */
+  bestMoveUci: string;
+  depth: number;
+  /** Principal variation in SAN. */
+  pv: string[];
+  /** Principal variation in raw UCI. */
+  pvUci: string[];
+}

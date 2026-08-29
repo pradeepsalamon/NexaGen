@@ -1,7 +1,12 @@
 import { createStore } from "zustand";
 import { Chess, Move } from "chess.js";
-import { BoardPermissionMode } from "../types/sync";
+import { BoardPermissionMode, ClockState } from "../types/sync";
 import { playSound, SoundType } from "../audio/sounds";
+import {
+  DEFAULT_CLOCK,
+  applyMoveToClock,
+  freezeClock,
+} from "../lib/clock";
 import { useBoardStore as usePersistedStore } from "./boardStore";
 
 export interface BoardState {
@@ -53,6 +58,14 @@ export interface BoardState {
   activeTab: string;
   pdfUrl: string | null;
 
+  // Shared chess clock (synced across clients via SET_CLOCK; coach-controlled).
+  clock: ClockState;
+
+  // Per-client: a student who has "detached" to explore their own line. While
+  // true, incoming board-position syncs are ignored (permissions still apply)
+  // and local moves are not broadcast. Always false for the coach.
+  isDetached: boolean;
+
   // Bumped by every `syncFromRemote` call, and only by it. `useBoardSync`'s
   // store subscriber compares this against the previous state to tell whether
   // a given transition was remote-originated, instead of a `setTimeout`-cleared
@@ -84,7 +97,18 @@ export interface BoardActions {
   
   // Permissions
   setPermissionMode: (mode: BoardPermissionMode, studentId?: string) => void;
-  
+
+  // Clock (coach-controlled)
+  setClock: (clock: ClockState) => void;
+  configureClock: (opts: { initialMs: number; incrementMs: number }) => void;
+  startClock: (color?: "white" | "black") => void;
+  pauseClock: () => void;
+  resetClock: () => void;
+
+  // Detach / resync (student-local)
+  detachBoard: () => void;
+  resyncBoard: () => void;
+
   // Sync
   // `moveType` isn't board state to store — it's a one-shot cue for which sound
   // to play on this incoming remote move — so it rides alongside the payload
@@ -152,7 +176,10 @@ export const createBoardStore = () => {
 
     activeTab: "moves",
     pdfUrl: null,
-    
+
+    clock: { ...DEFAULT_CLOCK },
+    isDetached: false,
+
     makeMove: (from, to, promotion = 'q') => {
       const state = get();
       try {
@@ -182,7 +209,12 @@ export const createBoardStore = () => {
             isGameOver,
             turn: state.chess.turn() === 'w' ? 'white' : 'black',
             moveHistory: newHistory,
-            historyIndex: newHistory.length - 1
+            historyIndex: newHistory.length - 1,
+            clock: applyMoveToClock(
+              state.clock,
+              move.color === 'w' ? 'white' : 'black',
+              Date.now()
+            )
           });
           return true;
         }
@@ -296,7 +328,14 @@ export const createBoardStore = () => {
         moveHistory: [],
         historyIndex: -1,
         arrows: [],
-        squareStyles: {}
+        squareStyles: {},
+        clock: {
+          ...state.clock,
+          whiteMs: state.clock.initialMs,
+          blackMs: state.clock.initialMs,
+          running: null,
+          updatedAt: Date.now()
+        }
       });
     },
     
@@ -370,9 +409,65 @@ export const createBoardStore = () => {
     clearAnnotations: () => set({ arrows: [], squareStyles: {} }),
     
     setPermissionMode: (mode, studentId) => set({ permissionMode: mode, selectedStudentId: studentId }),
-    
+
+    setClock: (clock) => set({ clock }),
+    configureClock: ({ initialMs, incrementMs }) =>
+      set({
+        clock: {
+          enabled: true,
+          initialMs,
+          incrementMs,
+          whiteMs: initialMs,
+          blackMs: initialMs,
+          running: null,
+          updatedAt: Date.now()
+        }
+      }),
+    startClock: (color) => {
+      const state = get();
+      const now = Date.now();
+      const frozen = freezeClock(state.clock, now);
+      set({
+        clock: {
+          ...frozen,
+          enabled: true,
+          running: color ?? state.turn,
+          updatedAt: now
+        }
+      });
+    },
+    pauseClock: () => set({ clock: freezeClock(get().clock, Date.now()) }),
+    resetClock: () => {
+      const state = get();
+      set({
+        clock: {
+          ...state.clock,
+          whiteMs: state.clock.initialMs,
+          blackMs: state.clock.initialMs,
+          running: null,
+          updatedAt: Date.now()
+        }
+      });
+    },
+
+    detachBoard: () => set({ isDetached: true }),
+    resyncBoard: () => set({ isDetached: false }),
+
     syncFromRemote: ({ moveType, ...payload }) => {
       const state = get();
+
+      // A detached student follows their own line: apply only permission
+      // changes and ignore board position / annotations / clock (Part D).
+      if (state.isDetached) {
+        if (!payload.permissionMode) return;
+        set({
+          permissionMode: payload.permissionMode,
+          selectedStudentId: payload.selectedStudentId,
+          remoteSyncId: state.remoteSyncId + 1
+        });
+        return;
+      }
+
       // The ply the sender is viewing within their mainline (AUDIT H21).
       const remotePly = payload.historyIndex;
       // If FEN is updated remotely, update local chess.js instance

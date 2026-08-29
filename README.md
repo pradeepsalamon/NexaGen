@@ -30,6 +30,10 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - Login timing protection for unknown-email and wrong-password attempts
 - Batch management with soft delete into the Super Admin Trash workspace
 - Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
+- PGN assignments: admin-authored shared library + coach-authored items, deployed
+  to batches with a due date; students replay the line on a read-only board and
+  mark it complete (`assignment` API module, `features/assignments` on web,
+  `/coach/assignments`, `/admin/assignments`, `/student/practice`)
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
 
 ## Development
@@ -181,6 +185,30 @@ npm run typecheck -w apps/api
 npm run typecheck -w apps/web
 npm run build -w apps/api
 npm run build -w apps/web
+```
+
+### End-to-end (Playwright)
+
+```bash
+npx playwright test                 # e2e/ specs; needs api + web running
+```
+
+`e2e/live-board-sync.spec.ts` (shared live-class chessboard) is **opt-in** — it
+drives two real LiveKit participants:
+
+```bash
+docker compose up -d livekit postgres redis
+# run web with the board test harness enabled (apps/web/.env.local):
+#   NEXT_PUBLIC_E2E=1
+npm run dev
+RUN_LIVE_BOARD_E2E=1 npx playwright test live-board-sync
+```
+
+`e2e/analysis-board.spec.ts` (engine analysis, Load Game, Setup Position, Save) is
+opt-in the same way — additionally needs `STOCKFISH_PATH` set in `apps/api/.env`:
+
+```bash
+RUN_ANALYSIS_E2E=1 npx playwright test analysis-board
 ```
 
 ## UI Component Standards

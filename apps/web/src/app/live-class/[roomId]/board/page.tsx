@@ -98,9 +98,10 @@ export default function LiveClassBoardPage() {
           {/* We wrap it in LiveClassProvider so LiveBoardSyncBridge can access useLiveClassState */}
           <LiveClassProvider topic="Board">
             <BoardProvider>
-              <ForceOpenBoard />
-              <LiveBoardSyncBridge />
-              <BoardWorkspace />
+              <LiveBoardSyncBridge>
+                <ForceOpenBoard />
+                <BoardWorkspace />
+              </LiveBoardSyncBridge>
             </BoardProvider>
           </LiveClassProvider>
         </LiveKitRoom>

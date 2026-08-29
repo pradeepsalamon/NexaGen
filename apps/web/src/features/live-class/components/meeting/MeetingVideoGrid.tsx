@@ -10,6 +10,7 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
+import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
 import { getGridClasses, getTrackKey, useSortedTracks } from "./video-grid/videoGrid.utils";
 import { RequestControlButton } from "./video-grid/RequestControlButton";
 import { VideoTile } from "./video-grid/VideoTile";
@@ -107,6 +108,11 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                         <span className="text-xs font-medium">Viewing full screen</span>
                       </div>
                     )}
+
+                    {/* Clock (only renders when the coach has enabled one) */}
+                    <div className="absolute top-2 left-1/2 z-10 -translate-x-1/2">
+                      <ChessClock />
+                    </div>
 
                     {/* Bottom-left name pill & request control button */}
                     <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2">

@@ -3,6 +3,7 @@
 import { createPortal } from "react-dom";
 import { Crown, Minimize2 } from "lucide-react";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
+import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
 import { RequestControlButton } from "./RequestControlButton";
 
 export function BoardFocusOverlay({ onClose }: { onClose: () => void }) {
@@ -16,6 +17,7 @@ export function BoardFocusOverlay({ onClose }: { onClose: () => void }) {
             <span>Shared Board</span>
           </div>
           <div className="flex items-center gap-2">
+            <ChessClock />
             <RequestControlButton />
             <button
               type="button"

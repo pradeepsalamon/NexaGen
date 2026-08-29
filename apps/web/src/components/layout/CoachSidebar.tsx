@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Layers3, 
-  CalendarDays, 
-  Users, 
-  History, 
+import {
+  LayoutDashboard,
+  Layers3,
+  CalendarDays,
+  Users,
+  History,
   Settings,
-  UserCheck
+  UserCheck,
+  ClipboardList
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/coach", label: "Dashboard", icon: LayoutDashboard },
   { href: "/coach/batches", label: "My Batches", icon: Layers3 },
   { href: "/coach/schedule", label: "Schedule", icon: CalendarDays },
+  { href: "/coach/assignments", label: "Assignments", icon: ClipboardList },
   { href: "/coach/students", label: "Students", icon: Users },
   { href: "/coach/history", label: "Class History", icon: History },
   { href: "/coach/attendance", label: "Attendance", icon: UserCheck },

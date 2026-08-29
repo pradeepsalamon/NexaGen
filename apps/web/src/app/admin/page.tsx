@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CalendarDays,
+  ClipboardList,
   Layers3,
   ShieldCheck,
   Trash2,
@@ -60,6 +61,13 @@ export default function SuperAdminDashboardPage() {
             >
               <UserRoundCheck aria-hidden="true" className="size-4" />
               Attendance
+            </Link>
+            <Link
+              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+              href="/admin/assignments"
+            >
+              <ClipboardList aria-hidden="true" className="size-4" />
+              Assignments
             </Link>
             <SuperAdminOnly>
               <Link

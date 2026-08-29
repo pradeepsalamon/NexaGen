@@ -21,7 +21,7 @@ const navItems = [
   { href: "/student/batches", label: "My Batches", icon: Layers3 },
   { href: "/student/live-classes", label: "Live Classes", icon: Video },
   { href: "/student/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/student/practice", label: "Practice", icon: Target },
+  { href: "/student/practice", label: "Assignments", icon: Target },
   { href: "/student/progress", label: "Progress", icon: TrendingUp },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/profile", label: "Profile & Settings", icon: Settings },
