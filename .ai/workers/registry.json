@@ -25,8 +25,8 @@
       "branch": null,
       "heartbeat": "2026-08-29T13:44:03.479Z",
       "tasks_completed": 9,
-      "tasks_failed": 10,
-      "last_heartbeat": "2026-08-29T13:44:03.473Z"
+      "tasks_failed": 11,
+      "last_heartbeat": "2026-08-29T14:06:45.221Z"
     },
     {
       "worker_id": "nexa-dev-02",
@@ -85,5 +85,5 @@
       "last_heartbeat": "2026-08-29T12:51:55.145Z"
     }
   ],
-  "updated_at": "2026-08-29T13:47:28.243Z"
+  "updated_at": "2026-08-29T14:06:45.221Z"
 }

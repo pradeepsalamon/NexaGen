@@ -35,12 +35,6 @@ export class AdminController {
     }
   }
 
-  @Get('admin/dev-status')
-  async getDevStatus(@Req() request: Request) {
-    await this.getAdminId(request);
-    return this.adminService.getDevStatus();
-  }
-
   @Get(API_ROUTES.admin.pendingCoaches)
   async getPendingCoaches(@Req() request: Request) {
     await this.getAdminId(request);
