@@ -7,7 +7,6 @@ coverage
 .turbo
 **/.turbo
 *.tsbuildinfo
-*.tsbuildinfo
 .env
 .env.local
 npm-debug.log*
