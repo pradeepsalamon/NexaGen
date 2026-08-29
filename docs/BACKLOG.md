@@ -33,7 +33,6 @@ real class — then wire the YAML (needs the real key name, so likely via
 | **Course / CourseModule / Practice / StudentPractice / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create any of them — "Continue Learning / Practice / Announcements" are permanently empty outside seed data. |
 | **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
 | **Live-monitoring screen** | `GET /attendance/class/:id/live` (`classLive`) and `getLiveClassMonitoring` are fully implemented and unused — no frontend. |
-| **Admin drill-downs** | `GET /attendance/student/:id` and `/attendance/coach/:id` have no frontend caller. |
 
 ## Other deferred
 
