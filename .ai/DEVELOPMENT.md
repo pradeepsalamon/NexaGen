@@ -50,17 +50,19 @@ npm run test             # Run Jest tests
 npm run typecheck        # TypeScript type checking
 npm run lint             # ESLint
 
-# AI Development System (Phase 7 Git Worktree Parallelism)
-npm run ai:status        # Complete observability dashboard (Manager, Workers, Worktrees, Queue, Safety)
-npm run ai:schedule      # Run parallel scheduler cycle across active tasks
-npm run ai:manager       # Start Main AI Manager DAG orchestration
-npm run ai:worker        # Start Gemini Worker
-npm run ai:tasks         # Task Manager CLI (list, create, show)
-npm run ai:finish        # Verify, commit, and complete active task
-npm run ai:audit         # Run 89-assertion Worker Safety Audit
-npm run ai:test:manager  # Run 30-scenario Manager Test Suite
-npm run ai:observe       # Run VPS health observability check
-npm run ai:verify        # Run full QA pipeline
+# AI Development System (Phase 9 Production-Grade Execution & Approval)
+npm run ai:manager -- "<prompt>"  # Real development request (plans, analyzes risk & regressions)
+npm run ai:manager -- --plan "..."# Plan without executing (status: AWAITING_APPROVAL)
+npm run ai:manager -- --approve ID# Explicitly approve task for worker execution
+npm run ai:manager -- --approve-plan ID # Approve full DAG plan
+npm run ai:manager -- --reject ID # Explicitly reject active task
+npm run ai:schedule               # Run parallel scheduler cycle across approved tasks
+npm run ai:status                 # Status Dashboard V2 (Approvals, Queue, Risk, Worktrees, Safety)
+npm run ai:manager -- --review ID # Review completed task & generate Human Review Package V2
+npm run ai:manager -- --merge-check ID # Read-only merge readiness assessment
+npm run ai:manager -- --post-merge-check ID # Diagnostic post-merge health verification
+npm run ai:audit                  # Run 124-assertion deterministic Safety Audit
+npm run ai:test:manager           # Run 30-scenario Phase 9 Manager Test Suite
 
 # Cleaning
 npm run dev:clean        # Clean .next + dist, then dev

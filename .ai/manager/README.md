@@ -57,17 +57,20 @@ The Manager never directly edits application files. It formulates rigorous speci
 
 | Module | Purpose |
 |:---|:---|
-| `manager.js` | Main entrypoint, CLI coordinator, lifecycle manager |
+| `manager.js` | Main entrypoint, CLI coordinator, lifecycle manager, approval gates |
+| `risk-engine.js` | Multi-factor request risk classification (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) |
+| `regression-engine.js` | Historical deep search, past root cause extraction, regression churn detection |
+| `test-intelligence.js` | Dynamic test impact mapping, targeted test command selection |
 | `task-lifecycle.js` | 18-state deterministic task lifecycle state machine & transition auditor |
-| `qa-gate.js` | Centralized QA gate engine (tiered verification, secrets, diffs, types, tests, ACs) |
+| `qa-gate.js` | Centralized QA gate engine (tiered verification, secrets, diffs, API/DB safety, scope creep) |
 | `worktree-manager.js` | Git worktree lifecycle management, dependency symlinking, read-only merge assessment |
 | `project-context.js` | Real-time environment inspection, change impact classification, historical task lookup |
 | `worker-registry.js` | Multi-worker pool management, capability matching, heartbeat tracking |
 | `dependency-graph.js` | DAG dependency validation, cycle detection, topological sorting, ASCII rendering |
-| `scheduler.js` | Idempotent task scheduling cycle, parallel worktree dispatching, lock acquisition |
-| `planner.js` | Intent analysis, safety pre-check, smart task decomposition, acceptance criteria builder |
+| `scheduler.js` | Idempotent task scheduling cycle, parallel worktree dispatching, approval gate enforcement |
+| `planner.js` | Intent analysis, risk & regression intelligence, task decomposition, approval preparation |
 | `dispatcher.js` | Pre-dispatch environment health checks, worktree validation, task invocation |
-| `reviewer.js` | Completion report validation, acceptance criteria verification, Human Review Package generator |
+| `reviewer.js` | Completion report validation, Human Review Package V2 (.ai/reviews/*.md), diff quality audit |
 | `providers/base-provider.js` | Abstract AI provider interface |
 | `providers/gemini-provider.js` | Gemini adapter for analysis, schema generation, and review |
 
@@ -82,11 +85,26 @@ The Manager never directly edits application files. It formulates rigorous speci
 ## CLI Commands
 
 ```bash
-# Check complete AI Development System status & observability
-npm run ai:status
+# Real development request: analyzes request, assesses risk, searches regression history, creates plan (AWAITING_APPROVAL)
+npm run ai:manager -- "Fix student attendance calculation bug"
 
-# Run one scheduler cycle across active task queue (dispatches parallel worktrees)
+# Plan and generate work orders without executing
+npm run ai:manager -- --plan "Add student rating badge component"
+
+# Explicitly approve a task for worker execution
+npm run ai:manager -- --approve NEXA-0072
+
+# Approve an entire multi-task DAG plan
+npm run ai:manager -- --approve-plan NEXA-0072
+
+# Explicitly reject an active task
+npm run ai:manager -- --reject NEXA-0072
+
+# Run one scheduler cycle across approved tasks (dispatches parallel worktrees)
 npm run ai:schedule
+
+# Check complete AI Development System status & observability (Dashboard V2)
+npm run ai:status
 
 # List all registered workers in multi-worker pool
 npm run ai:manager -- --workers
@@ -98,7 +116,10 @@ npm run ai:manager -- --worktrees
 npm run ai:manager -- --worktree-check
 
 # Perform read-only merge readiness assessment for a completed task
-npm run ai:manager -- --merge-check NEXA-0071
+npm run ai:manager -- --merge-check NEXA-0072
+
+# Diagnostic post-merge health check (diagnostic only, never performs merge)
+npm run ai:manager -- --post-merge-check NEXA-0072
 
 # Render ASCII task dependency tree for active tasks
 npm run ai:manager -- --graph
@@ -106,21 +127,12 @@ npm run ai:manager -- --graph
 # Query structured project development history
 npm run ai:manager -- --history attendance
 
-# Plan and generate work orders without executing
-npm run ai:manager -- --plan "Add student rating badge component"
+# Review a completion report and generate Human Review Package V2 (.ai/reviews/*.md)
+npm run ai:manager -- --review NEXA-0072
 
-# Dispatch a specific work order to a capable worker
-npm run ai:manager -- --dispatch NEXA-0005
-
-# Review a completion report and view Human Review Package
-npm run ai:manager -- --review NEXA-0005
-
-# Full automated end-to-end DAG orchestration
-npm run ai:manager -- "Fix coach profile rating display bug"
-
-# Run 108-assertion worker safety audit
+# Run 124-assertion deterministic Safety Audit
 npm run ai:audit
 
-# Run 48-scenario manager test suite
+# Run 30-scenario Phase 9 Manager Test Suite
 npm run ai:test:manager
 ```

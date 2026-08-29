@@ -18,25 +18,26 @@
 - **Ports**: 3000 (web), 3001 (api)
 - **Runtime**: Docker containers
 
-## AI Worker Permissions (Phase 7 Git Worktree Isolation)
+## AI Worker Permissions (Phase 9 Human Approval & Risk Engine)
 
 > **AUTHORITATIVE TRANSPORT RULE**:
 > **Redis is NOT used for AI task orchestration. Filesystem task contracts remain authoritative.**
-> Shared Redis is used exclusively for application caching with strict dev prefix filtering.
+> Shared Redis is used exclusively for application caching with strict dev prefix filtering (`nexa:dev:*`, `nexa:ai:*`).
 
 ### ALLOWED (Development & Isolated Worktrees)
 
 ```
+✅ Planning:   npm run ai:manager -- "<request>" (outputs structured plan & risk)
 ✅ Worktrees:  Execute inside /opt/nexa-chess/NexaGen-dev/.worktrees/<worker_id>
 ✅ Read/Write: /opt/nexa-chess/NexaGen-dev/** (inside assigned worktree)
 ✅ Read:       /opt/nexa-chess/NexaGen-dev/.env (dev config only)
 ✅ Database:   PostgreSQL → vps_dev ONLY
-✅ Redis:      Keys with prefix nexa:dev:* or nexa:ai:*
+✅ Redis:      Keys with prefix nexa:dev:* or nexa:ai:* (application caching only)
 ✅ LiveKit:    Test rooms named dev-ai-<task-id>-<purpose>
 ✅ Docker:     docker logs, docker ps, docker exec (read-only diagnostics)
 ✅ Git:        Create task branch (ai/NEXA-XXXX-*), commit to task branch inside worktree
 ✅ Shell:      Run tests, builds, lints inside assigned worker worktree
-✅ Network:    Read-only monitoring (vnstat, ss, netstat)
+✅ Review:     Generate .ai/reviews/NEXA-XXXX.md and read-only merge check
 ```
 
 ### BLOCKED (Production & System)
@@ -57,6 +58,9 @@
 ### REQUIRES HUMAN APPROVAL
 
 ```
+⚠️ Executing planned tasks (npm run ai:manager -- --approve <TASK_ID>)
+⚠️ Approving multi-task DAG plans (npm run ai:manager -- --approve-plan <TASK_ID>)
+⚠️ High-risk database migrations or auth modifications
 ⚠️ Merging AI task branch (ai/NEXA-XXXX-*) into dev
 ⚠️ Merging dev into main
 ⚠️ Deploying to production

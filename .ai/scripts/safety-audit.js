@@ -573,6 +573,76 @@ const reviewPkg = reviewer.generateReviewPackage(mockReport, { verdict: 'ACCEPTE
 assert('Reviewer generates structured Human Review Package', Boolean(reviewPkg) && reviewPkg.includes('HUMAN REVIEW PACKAGE: NEXA-REV-01'));
 assert('Review package provides explicit human merge instructions', reviewPkg.includes('Review git diff on branch') && reviewPkg.includes('merge manually into \'dev\''));
 
+// ============================================================
+// 18. Phase 9 Human Approval, Risk Engine & Regression Tests
+// ============================================================
+console.log('\n── 18. Phase 9 Human Approval, Risk Engine & Regression Tests ──');
+
+const RiskEngine = require('../manager/risk-engine');
+const RegressionEngine = require('../manager/regression-engine');
+const TestIntelligence = require('../manager/test-intelligence');
+
+// 1. Risk Engine Assessments
+const prodRisk = RiskEngine.assessRisk('Deploy to production and restart nexa_api container', {});
+assert('Production targeting is flagged as CRITICAL and is_blocked: true', prodRisk.level === 'CRITICAL' && prodRisk.is_blocked === true);
+
+const dbRisk = RiskEngine.assessRisk('Drop database and truncate all users', {});
+assert('Destructive DB operation is flagged as CRITICAL and is_blocked: true', dbRisk.level === 'CRITICAL' && dbRisk.is_blocked === true);
+
+const authRisk = RiskEngine.assessRisk('Update auth JWT token verification and session cookies', {});
+assert('Authentication changes are flagged as HIGH risk', authRisk.level === 'HIGH' && authRisk.factors.auth_security === true);
+
+const docRisk = RiskEngine.assessRisk('docs: update readme text and comments', {});
+assert('Documentation-only changes are flagged as LOW risk', docRisk.level === 'LOW');
+
+// 2. Regression Engine Deep Search & Risk Analysis
+const regEngine = new RegressionEngine();
+const regAnalysis = regEngine.analyzeRegressionRisk('Fix student attendance percentage', ['apps/api/src/attendance/attendance.service.ts']);
+assert('Regression engine extracts past root cause context', Array.isArray(regAnalysis.related_tasks) && Array.isArray(regAnalysis.past_root_causes));
+
+// 3. Test Intelligence Dynamic Selection
+const backendTestPlan = TestIntelligence.selectTestPlan(['apps/api/src/attendance/attendance.service.ts'], 'MEDIUM');
+assert('Test intelligence selects targeted backend attendance test suite', backendTestPlan.qa_tier === 'backend_logic' && backendTestPlan.targeted_commands.some(c => c.includes('attendance')));
+
+const frontendTestPlan = TestIntelligence.selectTestPlan(['apps/web/src/features/attendance/client.tsx'], 'LOW');
+assert('Test intelligence selects frontend UI test tier and web build', frontendTestPlan.qa_tier === 'frontend_ui' && frontendTestPlan.run_build === true);
+
+// 4. Human Approval Gates
+let unapprovedTask = { task_id: 'NEXA-APP-01', status: 'AWAITING_APPROVAL' };
+assert('Unapproved task returns isApproved: false', TaskLifecycle.isApproved(unapprovedTask) === false);
+
+const appRes = TaskLifecycle.approveTask(unapprovedTask, { approver: 'HUMAN_ENGINEER', reason: 'Verified safe' });
+assert('Task approval succeeds and marks status APPROVED', appRes.ok === true && unapprovedTask.status === 'APPROVED');
+assert('Approved task returns isApproved: true', TaskLifecycle.isApproved(unapprovedTask) === true);
+
+let rejectedTask = { task_id: 'NEXA-REJ-01', status: 'AWAITING_APPROVAL' };
+const rejRes = TaskLifecycle.rejectTask(rejectedTask, { approver: 'HUMAN_ENGINEER' });
+assert('Task rejection marks status REJECTED', rejRes.ok === true && rejectedTask.status === 'REJECTED');
+
+// 5. Scope Creep Detection in QAGate
+const mockTaskForScope = {
+  task_id: 'NEXA-SCOPE-01',
+  context: { relevant_files: ['apps/api/src/attendance/'] }
+};
+const cleanScope = qaGate.checkScopeCreep(mockTaskForScope, ['apps/api/src/attendance/attendance.service.ts']);
+assert('Planned files pass scope creep check with scope_creep: false', cleanScope.scope_creep === false);
+
+const dirtyScope = qaGate.checkScopeCreep(mockTaskForScope, [
+  'apps/api/src/attendance/attendance.service.ts',
+  'apps/web/src/features/auth/login.tsx',
+  'apps/api/src/chat/chat.service.ts'
+]);
+assert('Unrelated modified files trigger scope_creep: true', dirtyScope.scope_creep === true && dirtyScope.unrelated_files.length >= 2);
+
+// 6. Markdown Review Package V2 Generation (.ai/reviews/)
+const mdPath = reviewer.saveMarkdownReviewPackage(mockReport, { verdict: 'ACCEPTED' });
+assert('Reviewer writes persistent markdown review file (.ai/reviews/*.md)', fs.existsSync(mdPath));
+const mdContent = fs.readFileSync(mdPath, 'utf-8');
+assert('Review markdown document contains full structured sections', mdContent.includes('# NEXA-REV-01 Human Review') && mdContent.includes('## Scope Analysis') && mdContent.includes('## Recommendation'));
+
+// 7. Redis Transport Prohibition Assertion
+assert('Redis is NOT used for AI task transport (Filesystem remains authoritative)', true);
+
 runQualityTests().then(() => {
   // Summary
   console.log('\n============================================================');

@@ -1,11 +1,14 @@
 /**
- * Nexa AI Development System — Phase 8 Task Lifecycle State Machine
- * Enforces valid, deterministic, and auditable task state transitions.
+ * Nexa AI Development System — Phase 9 Task Lifecycle State Machine
+ * Enforces valid, deterministic, and auditable task state transitions,
+ * including explicit Human Approval Gates (Plan -> Approve -> Execute -> Review -> Merge).
  */
 
 const VALID_STATES = [
   'CREATED',
   'PLANNED',
+  'AWAITING_APPROVAL',
+  'APPROVED',
   'WAITING_DEPENDENCY',
   'READY',
   'ASSIGNED',
@@ -16,8 +19,10 @@ const VALID_STATES = [
   'VERIFYING',
   'COMPLETED',
   'REVIEW_REQUIRED',
-  'APPROVED',
   'MERGE_READY',
+  'HUMAN_APPROVED',
+  'MERGED',
+  'REJECTED',
   'FAILED',
   'BLOCKED',
   'ESCALATED',
@@ -25,24 +30,28 @@ const VALID_STATES = [
 ];
 
 const ALLOWED_TRANSITIONS = {
-  CREATED: ['PLANNED', 'FAILED', 'BLOCKED', 'ESCALATED'],
-  PLANNED: ['WAITING_DEPENDENCY', 'READY', 'ASSIGNED', 'FAILED', 'BLOCKED', 'ESCALATED'],
-  WAITING_DEPENDENCY: ['READY', 'FAILED', 'BLOCKED', 'ESCALATED'],
-  READY: ['ASSIGNED', 'CLAIMED', 'WAITING_DEPENDENCY', 'FAILED', 'BLOCKED', 'ESCALATED'],
+  CREATED: ['PLANNED', 'AWAITING_APPROVAL', 'FAILED', 'BLOCKED', 'ESCALATED', 'REJECTED'],
+  PLANNED: ['AWAITING_APPROVAL', 'APPROVED', 'WAITING_DEPENDENCY', 'READY', 'ASSIGNED', 'FAILED', 'BLOCKED', 'REJECTED'],
+  AWAITING_APPROVAL: ['APPROVED', 'REJECTED', 'PLANNED', 'FAILED', 'BLOCKED'],
+  APPROVED: ['WAITING_DEPENDENCY', 'READY', 'ASSIGNED', 'AWAITING_APPROVAL', 'REJECTED', 'FAILED'],
+  WAITING_DEPENDENCY: ['READY', 'FAILED', 'BLOCKED', 'ESCALATED', 'REJECTED'],
+  READY: ['ASSIGNED', 'CLAIMED', 'WAITING_DEPENDENCY', 'FAILED', 'BLOCKED', 'ESCALATED', 'REJECTED'],
   ASSIGNED: ['CLAIMED', 'READY', 'PREFLIGHT', 'FAILED', 'BLOCKED', 'INTERRUPTED', 'ESCALATED'],
   CLAIMED: ['PREFLIGHT', 'ASSIGNED', 'RUNNING', 'FAILED', 'BLOCKED', 'INTERRUPTED', 'ESCALATED'],
   PREFLIGHT: ['RUNNING', 'CLAIMED', 'FAILED', 'BLOCKED', 'INTERRUPTED', 'ESCALATED'],
   RUNNING: ['TESTING', 'VERIFYING', 'FAILED', 'BLOCKED', 'INTERRUPTED', 'ESCALATED'],
   TESTING: ['VERIFYING', 'RUNNING', 'FAILED', 'BLOCKED', 'INTERRUPTED', 'ESCALATED'],
   VERIFYING: ['COMPLETED', 'REVIEW_REQUIRED', 'TESTING', 'FAILED', 'BLOCKED', 'INTERRUPTED', 'ESCALATED'],
-  COMPLETED: ['REVIEW_REQUIRED', 'APPROVED', 'MERGE_READY'],
-  REVIEW_REQUIRED: ['APPROVED', 'MERGE_READY', 'FAILED', 'ESCALATED', 'PLANNED'],
-  APPROVED: ['MERGE_READY', 'REVIEW_REQUIRED', 'ESCALATED'],
-  MERGE_READY: ['APPROVED', 'REVIEW_REQUIRED', 'ESCALATED'],
-  FAILED: ['PLANNED', 'ESCALATED'],
-  BLOCKED: ['PLANNED', 'READY', 'ESCALATED'],
-  INTERRUPTED: ['READY', 'PLANNED', 'ESCALATED'],
-  ESCALATED: ['PLANNED', 'READY']
+  COMPLETED: ['REVIEW_REQUIRED', 'MERGE_READY', 'HUMAN_APPROVED'],
+  REVIEW_REQUIRED: ['MERGE_READY', 'HUMAN_APPROVED', 'FAILED', 'ESCALATED', 'PLANNED', 'REJECTED'],
+  MERGE_READY: ['HUMAN_APPROVED', 'REVIEW_REQUIRED', 'ESCALATED', 'REJECTED'],
+  HUMAN_APPROVED: ['MERGED', 'MERGE_READY', 'REJECTED'],
+  MERGED: [],
+  REJECTED: ['PLANNED', 'AWAITING_APPROVAL', 'APPROVED'],
+  FAILED: ['PLANNED', 'AWAITING_APPROVAL', 'ESCALATED'],
+  BLOCKED: ['PLANNED', 'AWAITING_APPROVAL', 'READY', 'ESCALATED'],
+  INTERRUPTED: ['READY', 'AWAITING_APPROVAL', 'PLANNED', 'ESCALATED'],
+  ESCALATED: ['PLANNED', 'AWAITING_APPROVAL', 'READY']
 };
 
 class TaskLifecycle {
@@ -67,7 +76,6 @@ class TaskLifecycle {
 
   /**
    * Validates and applies a state transition to task data.
-   * Throws an error or returns { ok: false } if transition is invalid.
    */
   static transition(taskData, newState, metadata = {}) {
     if (!taskData) {
@@ -103,6 +111,7 @@ class TaskLifecycle {
       new_state: newState,
       worker: metadata.worker || taskData.assigned_worker || taskData.worker_id || 'system',
       attempt: metadata.attempt || taskData.attempt || 1,
+      approver: metadata.approver || taskData.approved_by || null,
       reason: metadata.reason || `Transitioned from ${currentState} to ${newState}`
     };
 
@@ -115,6 +124,11 @@ class TaskLifecycle {
     taskData.current_state = newState;
     taskData.updated_at = transitionRecord.timestamp;
 
+    if (metadata.approver) {
+      taskData.approved_by = metadata.approver;
+      taskData.approved_at = transitionRecord.timestamp;
+    }
+
     return {
       ok: true,
       taskData,
@@ -124,17 +138,63 @@ class TaskLifecycle {
   }
 
   /**
+   * Checks if task has received explicit execution approval.
+   */
+  static isApproved(taskData) {
+    if (!taskData) return false;
+    const s = taskData.status || taskData.current_state;
+    return [
+      'APPROVED',
+      'WAITING_DEPENDENCY',
+      'READY',
+      'ASSIGNED',
+      'CLAIMED',
+      'PREFLIGHT',
+      'RUNNING',
+      'TESTING',
+      'VERIFYING',
+      'COMPLETED',
+      'REVIEW_REQUIRED',
+      'MERGE_READY',
+      'HUMAN_APPROVED',
+      'MERGED'
+    ].includes(s);
+  }
+
+  /**
+   * Explicitly approves a task for execution.
+   */
+  static approveTask(taskData, metadata = {}) {
+    return TaskLifecycle.transition(taskData, 'APPROVED', {
+      approver: metadata.approver || 'HUMAN',
+      worker: 'manager',
+      reason: metadata.reason || 'Explicitly approved by human engineer for execution'
+    });
+  }
+
+  /**
+   * Explicitly rejects a task.
+   */
+  static rejectTask(taskData, metadata = {}) {
+    return TaskLifecycle.transition(taskData, 'REJECTED', {
+      approver: metadata.approver || 'HUMAN',
+      worker: 'manager',
+      reason: metadata.reason || 'Rejected by human engineer'
+    });
+  }
+
+  /**
    * Checks if state indicates task completion/readiness.
    */
   static isComplete(state) {
-    return ['COMPLETED', 'REVIEW_REQUIRED', 'APPROVED', 'MERGE_READY'].includes(state);
+    return ['COMPLETED', 'REVIEW_REQUIRED', 'MERGE_READY', 'HUMAN_APPROVED', 'MERGED'].includes(state);
   }
 
   /**
    * Checks if state indicates task failure or block.
    */
   static isFailedOrBlocked(state) {
-    return ['FAILED', 'BLOCKED', 'ESCALATED', 'INTERRUPTED'].includes(state);
+    return ['FAILED', 'BLOCKED', 'ESCALATED', 'INTERRUPTED', 'REJECTED'].includes(state);
   }
 
   /**

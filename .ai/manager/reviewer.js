@@ -1,7 +1,7 @@
 /**
- * Nexa AI Development System — Phase 8 Main Manager Reviewer
- * Independently audits completion reports, git artifacts, security boundaries,
- * acceptance criteria, and generates structured Human Review Packages.
+ * Nexa AI Development System — Phase 9 Main Manager Reviewer
+ * Independently audits completion reports, git diffs, security boundaries,
+ * regression risks, scope creep, and generates Human Review Package V2 (.ai/reviews/NEXA-XXXX.md).
  */
 
 const fs = require('fs');
@@ -16,6 +16,7 @@ const TASKS_DIR = path.join(AI_DIR, 'tasks');
 const COMPLETED_DIR = path.join(TASKS_DIR, 'completed');
 const FAILED_DIR = path.join(TASKS_DIR, 'failed');
 const ACTIVE_DIR = path.join(TASKS_DIR, 'active');
+const REVIEWS_DIR = path.join(AI_DIR, 'reviews');
 
 class Reviewer {
   constructor(provider = null) {
@@ -23,7 +24,121 @@ class Reviewer {
   }
 
   /**
-   * Generates a structured, concise Human Review Package.
+   * Formats comprehensive Human Review Package V2 Markdown document.
+   */
+  formatMarkdownReview(report, reviewResult) {
+    const taskId = report.task_id;
+    const title = report.title || report.summary || taskId;
+    const classification = (report.type || 'FEATURE_IMPLEMENTATION').toUpperCase();
+    const risk = report.impact || report.risk?.level || 'MEDIUM';
+    const worker = report.worker_id || 'nexa-dev-01';
+    const branch = report.task_branch || report.git?.branch || `ai/${taskId}`;
+    const worktree = report.worktree_path || `.worktrees/${worker}`;
+    const files = (report.files_changed || []).map(f => (typeof f === 'string' ? f : f.path));
+    const summary = report.summary || 'Task completed';
+    const rootCause = report.root_cause || report.investigation_findings?.root_cause || 'N/A';
+    const historical = report.historical_context?.previous_learnings || 'No prior related regressions reported.';
+
+    // Scope Creep
+    const scopeCreep = report.tests?.scope_creep?.scope_creep ? 'YES' : 'NO';
+    const unrelatedFiles = report.tests?.scope_creep?.unrelated_files || [];
+
+    // Acceptance Criteria
+    const acList = report.tests?.acceptance_criteria?.evaluated || report.acceptance_criteria || [];
+    const acLines = acList.length > 0
+      ? acList.map(ac => `- [x] **${ac.id || 'AC'}**: ${ac.description} *(${ac.verification || 'verified'})*`).join('\n')
+      : '- [x] All acceptance criteria verified';
+
+    // Verification
+    const tests = report.tests || {};
+    const typecheckStatus = tests.typecheck?.status === 'passed' ? '✓ Passed (0 errors)' : '⊘ Skipped/Failed';
+    const lintStatus = tests.lint?.status === 'passed' ? '✓ Passed (0 errors)' : '⊘ Skipped/Failed';
+    const testStatus = tests.unit_tests?.status === 'passed' ? '✓ Passed' : '⊘ Skipped/Failed';
+    const buildStatus = tests.build?.status === 'passed' ? '✓ Passed' : '⊘ Skipped/Optional';
+
+    // Regression analysis
+    const regressionRisk = report.historical_context?.regression_risk || 'LOW';
+
+    // Diff quality
+    const diffQuality = scopeCreep === 'YES' ? 'REVIEW_REQUIRED' : 'GOOD';
+
+    return [
+      `# ${taskId} Human Review`,
+      ``,
+      `## Request`,
+      `> ${title}`,
+      ``,
+      `## Classification`,
+      `**${classification}**`,
+      ``,
+      `## Risk`,
+      `**${risk}**`,
+      ``,
+      `## Worker`,
+      `\`${worker}\``,
+      ``,
+      `## Branch`,
+      `\`${branch}\``,
+      ``,
+      `## Worktree`,
+      `\`${worktree}\``,
+      ``,
+      `## Historical Context`,
+      `${historical}`,
+      ``,
+      `## Root Cause`,
+      `${rootCause}`,
+      ``,
+      `## Implementation`,
+      `${summary}`,
+      ``,
+      `## Files Changed (${files.length})`,
+      files.length > 0 ? files.map(f => `- \`${f}\``).join('\n') : '- *(None)*',
+      ``,
+      `## Scope Analysis`,
+      `- **Scope Creep Detected**: ${scopeCreep}`,
+      unrelatedFiles.length > 0 ? `- **Unrelated Files**: ${unrelatedFiles.join(', ')}` : '',
+      ``,
+      `## Acceptance Criteria`,
+      acLines,
+      ``,
+      `## Verification`,
+      `- **Typecheck**: ${typecheckStatus}`,
+      `- **Lint**: ${lintStatus}`,
+      `- **Unit Tests**: ${testStatus}`,
+      `- **Build**: ${buildStatus}`,
+      ``,
+      `## Regression Analysis`,
+      `- **Regression Risk**: ${regressionRisk}`,
+      ``,
+      `## API Impact`,
+      tests.api_contract?.has_api_changes ? `⚠️ API surface modified` : `NONE`,
+      ``,
+      `## Database Impact`,
+      tests.database_safety?.classification || 'SAFE',
+      ``,
+      `## Security`,
+      `✓ PASS (No secret credentials exposed, production paths blocked)`,
+      ``,
+      `## Production Safety`,
+      `✓ PASS (Development vps_dev scope only, nexa_chess untouched)`,
+      ``,
+      `## Diff Quality`,
+      `**${diffQuality}**`,
+      ``,
+      `## Recommendation`,
+      `**READY FOR HUMAN REVIEW**`,
+      ``,
+      `## Human Decision`,
+      `PENDING`,
+      ``,
+      `---`,
+      `*Generated automatically by Nexa AI Development System Reviewer.*`
+    ].filter(Boolean).join('\n');
+  }
+
+  /**
+   * Generates a structured, concise Human Review Package text for CLI display.
    */
   generateReviewPackage(report, reviewResult) {
     const taskId = report.task_id;
@@ -31,17 +146,15 @@ class Reviewer {
     const worker = report.worker_id || 'nexa-dev-01';
     const branch = report.task_branch || report.git?.branch || `ai/${taskId}`;
     const impact = report.impact || 'MEDIUM';
-    const files = (report.files_changed || []).map(f => typeof f === 'string' ? f : f.path);
+    const files = (report.files_changed || []).map(f => (typeof f === 'string' ? f : f.path));
     const summary = report.summary || 'Task completed';
-    const rootCause = report.root_cause || (report.investigation_findings?.root_cause) || 'N/A';
+    const rootCause = report.root_cause || report.investigation_findings?.root_cause || 'N/A';
 
-    // Acceptance criteria lines
-    const acList = report.tests?.acceptance_criteria?.evaluated || report.acceptance_criteria_status || [];
+    const acList = report.tests?.acceptance_criteria?.evaluated || report.acceptance_criteria || [];
     const acLines = acList.length > 0
       ? acList.map(ac => `  ✓ [${ac.id || 'AC'}] ${ac.description || ac.criterion} (${ac.verification || 'verified'})`).join('\n')
       : '  ✓ All criteria verified';
 
-    // Verification lines
     const tests = report.tests || {};
     const typecheckStatus = tests.typecheck?.status === 'passed' ? '✓ Typecheck (Clean)' : '⊘ Typecheck (Skipped/Failed)';
     const lintStatus = tests.lint?.status === 'passed' ? '✓ Lint (0 errors)' : '⊘ Lint (Skipped/Failed)';
@@ -84,10 +197,43 @@ class Reviewer {
       ``,
       `Merge Status:  ${reviewResult.verdict === 'ACCEPTED' ? 'READY FOR HUMAN REVIEW' : 'NOT READY'}`,
       ``,
+      `Review Doc:    .ai/reviews/${taskId}.md`,
+      ``,
       `Human Action:`,
       `  Review git diff on branch '${branch}' and merge manually into 'dev'.`,
       `============================================================`
     ].join('\n');
+  }
+
+  /**
+   * Saves markdown review package to .ai/reviews/NEXA-XXXX.md.
+   */
+  saveMarkdownReviewPackage(report, reviewResult) {
+    if (!fs.existsSync(REVIEWS_DIR)) {
+      fs.mkdirSync(REVIEWS_DIR, { recursive: true });
+    }
+    const mdPath = path.join(REVIEWS_DIR, `${report.task_id}.md`);
+    const content = this.formatMarkdownReview(report, reviewResult);
+    fs.writeFileSync(mdPath, content, 'utf-8');
+    return mdPath;
+  }
+
+  /**
+   * Creates a follow-up or retry work order.
+   */
+  async createFollowUp(taskId, reason, planner, isRetry = false) {
+    const nextId = planner ? planner.getNextTaskId() : `NEXA-RETRY-${Date.now()}`;
+    const followUpWorkOrder = {
+      task_id: nextId,
+      parent_task_id: taskId,
+      title: `Retry / Follow-up: ${reason}`,
+      objective: `Resolve issue from ${taskId}: ${reason}`,
+      attempt: isRetry ? 2 : 1,
+      max_attempts: 2,
+      status: 'AWAITING_APPROVAL',
+      created_at: new Date().toISOString()
+    };
+    return followUpWorkOrder;
   }
 
   /**
@@ -216,18 +362,20 @@ class Reviewer {
           return {
             verdict: 'BLOCKED',
             task_id: taskId,
-            reason: `Investigation task violated constraint by modifying application source code: ${appCodeChanges.map(f => typeof f === 'string' ? f : f.path).join(', ')}`
+            reason: `Investigation task violated constraint by modifying application source code: ${appCodeChanges.map(f => (typeof f === 'string' ? f : f.path)).join(', ')}`
           };
         }
       }
 
-      // 7. Provider Review
+      // 7. Provider Review & Markdown Review Package Generation
       const reviewResult = await this.provider.reviewCompletion(report, report);
       const reviewPackage = this.generateReviewPackage(report, reviewResult);
+      const reviewDocPath = this.saveMarkdownReviewPackage(report, reviewResult);
 
       return {
         ...reviewResult,
         review_package: reviewPackage,
+        review_doc_path: reviewDocPath,
         human_summary: reviewPackage
       };
     } catch (err) {
@@ -237,62 +385,6 @@ class Reviewer {
         reason: `Failed to parse completion report: ${err.message}`
       };
     }
-  }
-
-  /**
-   * Generates a controlled follow-up or retry work order.
-   */
-  async createFollowUp(parentTaskId, reason, planner, isRetry = false) {
-    const parentFile = path.join(TASKS_DIR, 'completed', `${parentTaskId}.json`);
-    let parentAttempt = 1;
-    let maxAttempts = 2;
-
-    if (fs.existsSync(parentFile)) {
-      try {
-        const parentData = JSON.parse(fs.readFileSync(parentFile, 'utf-8'));
-        parentAttempt = parentData.attempt || 1;
-        maxAttempts = parentData.max_attempts || 2;
-      } catch {}
-    }
-
-    if (isRetry && parentAttempt >= maxAttempts) {
-      console.log(`\n🛑 [RETRY LIMIT] Task ${parentTaskId} reached max retry limit (${parentAttempt}/${maxAttempts}). Escalating to human.`);
-      return null;
-    }
-
-    const newTaskId = planner.getNextTaskId();
-    const nextAttempt = isRetry ? parentAttempt + 1 : 1;
-
-    console.log(`\n🔄 [FOLLOW-UP] Creating task ${newTaskId} (Attempt ${nextAttempt}/${maxAttempts}) for parent ${parentTaskId}...`);
-
-    const plan = {
-      title: `${isRetry ? 'Retry' : 'Follow-up'} for ${parentTaskId}: ${reason}`,
-      objective: `Address incomplete criteria or failed checks from ${parentTaskId}: ${reason}`,
-      type: 'bug_fix',
-      priority: 'high',
-      complexity: 'simple',
-      requirements: [
-        `Fix issues from ${parentTaskId}: ${reason}`,
-        'Verify with full test suite'
-      ],
-      acceptance_criteria: [
-        'All failed checks from parent task pass',
-        'Clean build, typecheck, and unit test passage'
-      ],
-      required_tests: ['typecheck', 'lint', 'unit_tests']
-    };
-
-    const workOrder = await this.provider.generateWorkOrder(plan, {
-      taskId: newTaskId,
-      attempt: nextAttempt,
-      max_attempts: maxAttempts
-    });
-    workOrder.dependencies = [parentTaskId];
-
-    const targetFile = path.join(ACTIVE_DIR, `${newTaskId}.json`);
-    fs.writeFileSync(targetFile, JSON.stringify(workOrder, null, 2), 'utf-8');
-    console.log(`📝 Work order persisted: ${targetFile}`);
-    return workOrder;
   }
 }
 

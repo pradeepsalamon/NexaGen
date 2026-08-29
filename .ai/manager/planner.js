@@ -1,7 +1,7 @@
 /**
- * Nexa AI Development System — Phase 8 Main Manager Planner
- * Handles request analysis, safety pre-check, smart task decomposition,
- * acceptance criteria formulation, impact assessment, and work order creation.
+ * Nexa AI Development System — Phase 9 Main Manager Planner
+ * Handles request analysis, risk assessment, regression intelligence, smart task decomposition,
+ * acceptance criteria formulation, test intelligence, and approval-ready work order creation.
  */
 
 const fs = require('fs');
@@ -9,6 +9,9 @@ const path = require('path');
 const GeminiProvider = require('./providers/gemini-provider');
 const ProjectContextEngine = require('./project-context');
 const TaskLifecycle = require('./task-lifecycle');
+const RiskEngine = require('./risk-engine');
+const RegressionEngine = require('./regression-engine');
+const TestIntelligence = require('./test-intelligence');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
 const AI_DIR = path.join(DEV_ROOT, '.ai');
@@ -17,9 +20,10 @@ const ACTIVE_DIR = path.join(TASKS_DIR, 'active');
 const COUNTER_FILE = path.join(TASKS_DIR, 'counter.txt');
 
 class Planner {
-  constructor(provider = null, contextEngine = null) {
+  constructor(provider = null, contextEngine = null, regressionEngine = null) {
     this.provider = provider || new GeminiProvider();
     this.contextEngine = contextEngine || new ProjectContextEngine();
+    this.regressionEngine = regressionEngine || new RegressionEngine();
     this.projectContext = this.loadProjectContext();
   }
 
@@ -63,33 +67,16 @@ class Planner {
       return { ok: false, code: 'BLOCKED_INVALID_REQUEST', reason: 'User prompt cannot be empty' };
     }
 
-    const promptLower = userPrompt.toLowerCase();
-
-    // Production targeting check
-    if (
-      /\b(production|prod|deploy to prod|nexa_chess|nexa_web|nexa_api container)\b/i.test(promptLower) &&
-      /\b(deploy|drop|delete|restart|stop|modify|change|migrate)\b/i.test(promptLower)
-    ) {
+    const risk = RiskEngine.assessRisk(userPrompt, {});
+    if (risk.is_blocked) {
       return {
         ok: false,
         code: 'BLOCKED_PRODUCTION_CHANGE',
-        reason: 'Manager cannot target or modify production infrastructure. Work is strictly restricted to development.'
+        reason: risk.reasons.join('; ')
       };
     }
 
-    // System destruction check
-    if (
-      /\brm\s+-rf\s+(\/|~|\.\.)/i.test(promptLower) ||
-      /\b(flushall|flushdb|drop database|truncate|iptables\s+-f|ufw\s+disable)\b/i.test(promptLower)
-    ) {
-      return {
-        ok: false,
-        code: 'BLOCKED_UNSAFE_REQUEST',
-        reason: 'Requested action contains destructive database or system operations that are strictly prohibited.'
-      };
-    }
-
-    return { ok: true };
+    return { ok: true, risk };
   }
 
   /**
@@ -129,9 +116,9 @@ class Planner {
 
   /**
    * Plans and creates structured work orders with machine-readable acceptance criteria,
-   * impact analysis, and historical context.
+   * risk analysis, regression intelligence, and approval gates.
    */
-  async plan(userPrompt) {
+  async plan(userPrompt, options = {}) {
     const safety = this.preCheckSafety(userPrompt);
     if (!safety.ok) {
       return { ok: false, code: safety.code, reason: safety.reason };
@@ -140,8 +127,8 @@ class Planner {
     const subPrompts = this.detectDecomposition(userPrompt);
     const workOrders = [];
 
-    // Retrieve relevant historical task context
-    const historyInfo = this.contextEngine.getRelevantHistoryForPrompt(userPrompt);
+    // Regression analysis
+    const regressionInfo = this.regressionEngine.analyzeRegressionRisk(userPrompt, []);
 
     if (subPrompts.length >= 2) {
       console.log(`\n🧩 Complex request detected. Decomposing into ${subPrompts.length} DAG tasks:`);
@@ -157,30 +144,39 @@ class Planner {
           max_attempts: 2
         });
 
-        // Set DAG dependencies: Frontend and tests depend on earlier components
+        // Set DAG dependencies
         if (i === 1) {
-          // Frontend depends on Backend
           workOrder.dependencies = [workOrders[0].task_id];
         } else if (i > 1) {
-          // Test/QA depends on all previous
           workOrder.dependencies = workOrders.map(w => w.task_id);
         }
 
-        // Inject historical context
-        if (historyInfo.matched) {
-          workOrder.historical_context = {
-            related_tasks: historyInfo.related_tasks,
-            previous_learnings: `Previous related task(s) found: ${historyInfo.context_snippet}. Ensure new work avoids past regression patterns.`,
-            warnings: []
-          };
-        }
+        // Assess Risk
+        const risk = RiskEngine.assessRisk(subPrompt, workOrder.context || {});
+        workOrder.impact = risk.level;
+        workOrder.risk = risk;
 
-        // Assess Impact
-        const impact = this.contextEngine.analyzeImpact(subPrompt, workOrder.context?.relevant_files || []);
-        workOrder.impact = impact.level;
+        // Test Intelligence
+        const testPlan = TestIntelligence.selectTestPlan(workOrder.context?.relevant_files || [], risk.level);
+        workOrder.qa_tier = testPlan.qa_tier;
+        workOrder.test_plan = testPlan;
+        workOrder.verification_commands = testPlan.targeted_commands;
 
-        // Initialize state via TaskLifecycle
-        TaskLifecycle.transition(workOrder, 'PLANNED', { worker: 'manager', reason: 'Task planned by Main Manager' });
+        // Inject Regression & Historical context
+        workOrder.historical_context = {
+          related_tasks: regressionInfo.related_tasks,
+          previous_learnings: regressionInfo.context_summary || 'No direct prior failure hotspots identified.',
+          past_root_causes: regressionInfo.past_root_causes,
+          warnings: regressionInfo.warnings,
+          regression_risk: regressionInfo.regression_risk
+        };
+
+        // Initialize state via TaskLifecycle (Plan -> AWAITING_APPROVAL)
+        const initialState = options.autoApprove ? 'APPROVED' : 'AWAITING_APPROVAL';
+        TaskLifecycle.transition(workOrder, initialState, {
+          worker: 'manager',
+          reason: options.autoApprove ? 'Auto-approved for execution' : 'Planned by Main Manager (Awaiting human approval)'
+        });
 
         workOrders.push(workOrder);
       }
@@ -193,21 +189,32 @@ class Planner {
         max_attempts: 2
       });
 
-      // Inject historical context
-      if (historyInfo.matched) {
-        workOrder.historical_context = {
-          related_tasks: historyInfo.related_tasks,
-          previous_learnings: `Previous related task(s) found: ${historyInfo.context_snippet}. Inspect previous context before changing.`,
-          warnings: []
-        };
-      }
+      // Assess Risk
+      const risk = RiskEngine.assessRisk(userPrompt, workOrder.context || {});
+      workOrder.impact = risk.level;
+      workOrder.risk = risk;
 
-      // Assess Impact
-      const impact = this.contextEngine.analyzeImpact(userPrompt, workOrder.context?.relevant_files || []);
-      workOrder.impact = impact.level;
+      // Test Intelligence
+      const testPlan = TestIntelligence.selectTestPlan(workOrder.context?.relevant_files || [], risk.level);
+      workOrder.qa_tier = testPlan.qa_tier;
+      workOrder.test_plan = testPlan;
+      workOrder.verification_commands = testPlan.targeted_commands;
 
-      // Initialize state via TaskLifecycle
-      TaskLifecycle.transition(workOrder, 'PLANNED', { worker: 'manager', reason: 'Task planned by Main Manager' });
+      // Inject Regression & Historical context
+      workOrder.historical_context = {
+        related_tasks: regressionInfo.related_tasks,
+        previous_learnings: regressionInfo.context_summary || 'No direct prior failure hotspots identified.',
+        past_root_causes: regressionInfo.past_root_causes,
+        warnings: regressionInfo.warnings,
+        regression_risk: regressionInfo.regression_risk
+      };
+
+      // Initialize state via TaskLifecycle (Plan -> AWAITING_APPROVAL)
+      const initialState = options.autoApprove ? 'APPROVED' : 'AWAITING_APPROVAL';
+      TaskLifecycle.transition(workOrder, initialState, {
+        worker: 'manager',
+        reason: options.autoApprove ? 'Auto-approved for execution' : 'Planned by Main Manager (Awaiting human approval)'
+      });
 
       workOrders.push(workOrder);
     }
@@ -219,7 +226,13 @@ class Planner {
       console.log(`📝 Work order persisted: ${targetFile}`);
     }
 
-    return { ok: true, workOrders };
+    return {
+      ok: true,
+      workOrders,
+      risk: workOrders[0]?.risk || { level: 'MEDIUM', reasons: [] },
+      regression: regressionInfo,
+      status: options.autoApprove ? 'APPROVED' : 'AWAITING_APPROVAL'
+    };
   }
 }
 

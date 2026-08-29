@@ -207,7 +207,7 @@ HUMAN ENGINEER (Final Merging & Deployment Authority)
         Worker 01        Worker 02        Worker 03
       (Backend/API)     (Frontend/UI)    (QA/Testing)
 
-## AI Development System (Phase 7 Git Worktree Parallelism)
+## AI Development System (Phase 9 Production-Grade Execution & Human Approval)
 
 The repository features an autonomous pair-programming development system located under `.ai/`:
 
@@ -218,65 +218,74 @@ The repository features an autonomous pair-programming development system locate
 
 ```
                          HUMAN (USER)
-                              │
-                              ▼
-                     MAIN AI MANAGER
-                              │
-                       Project Context
-                              │
-                       Smart Planner
-                              │
-                      Dependency Graph (DAG)
-                              │
-                          Scheduler
-                              │
-                      .ai/tasks/active/
-                              │
-             ┌────────────────┼────────────────┐
-             │                │                │
-             ▼                ▼                ▼
-        Worker 01        Worker 02        Worker 03
-      (Backend/API)     (Frontend/UI)    (QA/Testing)
-             │                │                │
-     .worktrees/01    .worktrees/02    .worktrees/03
-             │                │                │
-             └────────────────┼────────────────┘
-                              │
-                    .ai/tasks/completed/
-                              │
-                           Reviewer
-                              │
-                        Human Summary
-                              │
-                              ▼
+                               │
+                               ▼
+                      MAIN AI MANAGER
+                               │
+                        Risk Engine & Context
+                               │
+                      Regression Intelligence
+                               │
+                        Smart Planner
+                               │
+                    [AWAITING_APPROVAL]
+                               │
+                         Human Approval
+                               │
+                    [APPROVED] -> DAG Scheduler
+                               │
+                       .ai/tasks/active/
+                               │
+              ┌────────────────┼────────────────┐
+              │                │                │
+              ▼                ▼                ▼
+         Worker 01        Worker 02        Worker 03
+       (Backend/API)     (Frontend/UI)    (QA/Testing)
+              │                │                │
+      .worktrees/01    .worktrees/02    .worktrees/03
+              │                │                │
+              └────────────────┼────────────────┘
+                               │
+                            QA Gate
+                               │
+                     .ai/tasks/completed/
+                               │
+                            Reviewer
+                               │
+                  Human Review Package V2
+                    (.ai/reviews/NEXA-XXXX.md)
+                               │
+                               ▼
                       Human Merge to DEV
 ```
 
 ### Components
 
 1. **Main AI Manager & Control Plane** (`.ai/manager/`):
+   - `RiskEngine` (`risk-engine.js`): Multi-factor risk analysis evaluating production impact, database schema/migrations, auth/security, API contracts, LiveKit, Redis, and scope size (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+   - `RegressionEngine` (`regression-engine.js`): Deeply searches historical tasks, surfaces past root causes and errors, detects repeated file churn, and flags `REGRESSION_RISK: HIGH`.
+   - `TestIntelligence` (`test-intelligence.js`): Analyzes changed files to select targeted test commands rather than blindly running full suites.
    - `ProjectContextEngine`: Real-time, safe inspection of git status, native dev services (Web :3010, API :3011, PostgreSQL `vps_dev`, Redis, LiveKit), monorepo workspace structure, and task history search with complete secret redaction.
    - `WorktreeManager` (`worktree-manager.js`): Manages native Git worktrees (`.worktrees/nexa-dev-01`, `nexa-dev-02`, `nexa-dev-03`), symlinks workspace dependencies (`node_modules`, `.env`), enforces branch isolation, prevents dirty worktree overwrites, and performs non-destructive read-only merge readiness assessment (`--merge-check`).
    - `WorkerRegistry` (`worker-registry.js`): Manages multi-worker pool, specializations, capability matching, assigned worktree paths, and heartbeat tracking in `.ai/workers/registry.json`.
    - `DependencyGraph` (`dependency-graph.js`): Validates Directed Acyclic Graphs (DAGs), rejects circular, self, and missing dependencies, and evaluates runnable vs blocked tasks.
-   - `Scheduler` (`scheduler.js` / `npm run ai:schedule`): Idempotent, parallel scheduler that scans active queues, matches capable available workers, allocates isolated worktrees, acquires atomic file locks (`.lock`), dispatches tasks, and recovers stale locks.
-   - `Planner` (`planner.js`): Analyzes user intent, partitions affected areas (`known`, `inferred`, `unknown`), infers `required_capabilities`, and generates structured work orders (`NEXA-XXXX.json`).
+   - `Scheduler` (`scheduler.js` / `npm run ai:schedule`): Idempotent, parallel scheduler that enforces approval gates, matches capable available workers, allocates isolated worktrees, acquires atomic file locks (`.lock`), dispatches tasks, and recovers stale locks.
+   - `Planner` (`planner.js`): Analyzes user intent, classifies risk, queries regression intelligence, partitions affected areas, and generates approval-ready work orders (`AWAITING_APPROVAL`).
    - `Dispatcher` (`dispatcher.js`): Performs pre-dispatch health checks, verifies worktree cleanliness, checks out task branches, and dispatches workers inside dedicated worktrees.
-   - `Reviewer` (`reviewer.js`): Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, enforces `investigation` read-only constraints, and manages retries (`max_attempts: 2`).
+   - `Reviewer` (`reviewer.js`): Independently audits completion reports, generates `.ai/reviews/NEXA-XXXX.md` Human Review Package V2, performs diff quality audits (`GOOD`, `REVIEW_REQUIRED`, `REJECTED`), and enforces human merge authority.
 
 2. **Gemini Coding Workers** (`.ai/scripts/worker.js`):
    - `Worktree Execution Boundary`: Operates strictly inside assigned `.worktrees/<worker_id>` directory. Refuses execution in shared root repository.
    - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, protects LiveKit production rooms, blocks destructive system and Redis commands.
    - `Task Branch Isolation`: Checks out `ai/<TASK_ID>-<slug>` branch inside dedicated worktree. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
-   - `State Machine`: Tracks complete task transitions (`CREATED` -> `PLANNED` -> `ASSIGNED` -> `CLAIMED` -> `PREFLIGHT` -> `RUNNING` -> `TESTING` -> `VERIFYING` -> `COMPLETED`).
+   - `State Machine`: Tracks complete task transitions across 18 auditable lifecycle states.
    - `Heartbeat & Pulse`: Continuously pulses runtime state per worker (`heartbeat_<worker_id>.json`).
-   - `Crash Recovery`: Detects dead worker processes, preserves task branch and worktree without deleting, marks task `INTERRUPTED`.
-   - `QA Gate`: Executes `typecheck`, `lint`, and `unit tests` via `.ai/scripts/verify.sh` inside isolated worktrees.
+   - `QA Gate Engine` (`qa-gate.js`): Centralized tiered verification covering diff inspection, secret scanning, database safety, API contract checks, scope creep detection, and acceptance criteria.
    - `Completion Reporter`: Generates schema-compliant `.ai/tasks/completed/<TASK_ID>.json` with `worktree_path`, `task_branch`, and `commit_sha`.
 
 3. **Shared Infrastructure Safety**:
    - **PostgreSQL**: Logical database separation (`vps_dev` vs `nexa_chess`). AI worker is strictly whitelisted to `vps_dev`.
-   - **Redis**: Shared daemon isolated via logical key namespaces (`nexa:dev:*`, `nexa:ai:*`). Flush commands hard-blocked.
+   - **Redis**: Shared daemon isolated via logical key namespaces (`nexa:dev:*`, `nexa:ai:*`). Redis is application infrastructure only; **never used as task queue**.
    - **LiveKit**: Shared daemon isolated via test room naming convention (`dev-ai-<task-id>-<purpose>`).
 
 4. **Human Approval Boundaries**:

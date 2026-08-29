@@ -718,8 +718,12 @@ function reviewDiffAndCommit(taskData, branchName, workspaceRoot = DEV_ROOT) {
   
   const statusOutput = execSync('git status --porcelain', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
   if (!statusOutput) {
-    console.log('  ℹ No modified files detected to commit.');
-    return { filesChanged: [], commitSha: null };
+    console.log('  ℹ No uncommitted modified files detected.');
+    let headSha = null;
+    try {
+      headSha = execSync('git rev-parse HEAD', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
+    } catch {}
+    return { filesChanged: [], commitSha: headSha, diffSummary: 'Branch HEAD commit recorded' };
   }
 
   const filesChanged = [];
@@ -782,6 +786,14 @@ function generateCompletionReport(taskData, executionResult, workspaceRoot = DEV
 
   const currentBranch = execSync('git branch --show-current', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
   const baseBranch = taskData._base_branch || 'dev';
+  let finalSha = commitSha;
+  if (!finalSha) {
+    try {
+      finalSha = execSync('git rev-parse HEAD', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
+    } catch {
+      finalSha = 'HEAD';
+    }
+  }
 
   recordTaskStateTransition(taskData, 'COMPLETED');
 
@@ -791,7 +803,7 @@ function generateCompletionReport(taskData, executionResult, workspaceRoot = DEV
     worker_id: taskData.assigned_worker || WORKER_ID,
     worktree_path: taskData.worktree_path || workspaceRoot,
     task_branch: currentBranch,
-    commit_sha: commitSha || null,
+    commit_sha: finalSha,
     worktree_status: 'COMPLETED',
     attempt: taskData.attempt || 1,
     max_attempts: taskData.max_attempts || 2,
@@ -827,7 +839,7 @@ function generateCompletionReport(taskData, executionResult, workspaceRoot = DEV
     git: {
       branch: currentBranch,
       base_branch: baseBranch,
-      commits: commitSha ? [{ sha: commitSha, message: taskData.title }] : [],
+      commits: [{ sha: finalSha, message: taskData.title }],
       diff_summary: diffSummary || 'Clean implementation'
     },
     issues: [],

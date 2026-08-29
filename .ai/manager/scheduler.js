@@ -12,6 +12,7 @@ const WorkerRegistry = require('./worker-registry');
 const DependencyGraph = require('./dependency-graph');
 const Dispatcher = require('./dispatcher');
 const Reviewer = require('./reviewer');
+const TaskLifecycle = require('./task-lifecycle');
 const { checkAndRecoverInterrupted } = require('../scripts/worker');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
@@ -148,6 +149,11 @@ class Scheduler {
     const assignedWorkerIdsInCycle = new Set();
 
     for (const task of runnableTasks) {
+      if (!TaskLifecycle.isApproved(task)) {
+        log(`\n⏳ [${task.task_id}] Skipped: Task is AWAITING_HUMAN_APPROVAL. (Run: npm run ai:manager -- --approve ${task.task_id})`);
+        continue;
+      }
+
       const requiredCaps = task.required_capabilities || [];
       const worker = this.registry.findCapableWorker(requiredCaps, Array.from(assignedWorkerIdsInCycle));
 
@@ -163,7 +169,6 @@ class Scheduler {
       
       // Update task assignment in file via TaskLifecycle
       task.assigned_worker = workerId;
-      const TaskLifecycle = require('./task-lifecycle');
       TaskLifecycle.transition(task, 'ASSIGNED', { worker: workerId, reason: `Assigned to capable worker ${workerId}` });
       fs.writeFileSync(path.join(ACTIVE_DIR, `${task.task_id}.json`), JSON.stringify(task, null, 2), 'utf-8');
 

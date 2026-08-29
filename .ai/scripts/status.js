@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Nexa AI Development System — Phase 7 Observability CLI
- * Displays comprehensive multi-worker pool status, worktrees, queues, dependency graph state, dev services, and safety.
+ * Nexa AI Development System — Phase 9 Observability CLI (Status Dashboard V2)
+ * Displays comprehensive multi-worker pool status, approval state, risk breakdown,
+ * worktrees, queues, dependency graph state, dev services, and safety boundaries.
  */
 
 const fs = require('fs');
@@ -14,6 +15,7 @@ const DEV_ROOT = path.resolve(__dirname, '../..');
 const ACTIVE_DIR = path.join(DEV_ROOT, '.ai', 'tasks', 'active');
 const COMPLETED_DIR = path.join(DEV_ROOT, '.ai', 'tasks', 'completed');
 const FAILED_DIR = path.join(DEV_ROOT, '.ai', 'tasks', 'failed');
+const REVIEWS_DIR = path.join(DEV_ROOT, '.ai', 'reviews');
 
 async function main() {
   const engine = new ProjectContextEngine(DEV_ROOT);
@@ -27,6 +29,48 @@ async function main() {
   console.log(`Manager:       READY`);
   console.log(`Provider:      ${summary.worker.provider}`);
   console.log(`Scheduler:     READY (CLI / Filesystem DAG Worktree Parallelism)`);
+  console.log(`Mode:          PLAN -> APPROVE -> EXECUTE -> REVIEW (Human Authority)`);
+
+  // Load active tasks
+  const activeTasks = [];
+  if (fs.existsSync(ACTIVE_DIR)) {
+    const files = fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.json'));
+    for (const f of files) {
+      try {
+        activeTasks.push(JSON.parse(fs.readFileSync(path.join(ACTIVE_DIR, f), 'utf-8')));
+      } catch {}
+    }
+  }
+
+  const completedIds = fs.existsSync(COMPLETED_DIR)
+    ? new Set(fs.readdirSync(COMPLETED_DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')))
+    : new Set();
+
+  const failedIds = fs.existsSync(FAILED_DIR)
+    ? new Set(fs.readdirSync(FAILED_DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')))
+    : new Set();
+
+  const runningIds = fs.existsSync(ACTIVE_DIR)
+    ? new Set(fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.lock')).map(f => f.replace('.lock', '')))
+    : new Set();
+
+  const reviewDocsCount = fs.existsSync(REVIEWS_DIR)
+    ? fs.readdirSync(REVIEWS_DIR).filter(f => f.endsWith('.md')).length
+    : 0;
+
+  // Approval breakdowns
+  const awaitingApproval = activeTasks.filter(t => t.status === 'AWAITING_APPROVAL' || t.status === 'PLANNED').length;
+  const approvedTasks = activeTasks.filter(t => t.status === 'APPROVED' || t.status === 'READY').length;
+  const reviewRequired = activeTasks.filter(t => t.status === 'REVIEW_REQUIRED').length;
+  const mergeReady = activeTasks.filter(t => t.status === 'MERGE_READY').length;
+
+  console.log('\nHUMAN APPROVAL GATES');
+  console.log('--------------------------------');
+  console.log(`Awaiting Approval: ${awaitingApproval}`);
+  console.log(`Approved:          ${approvedTasks}`);
+  console.log(`Review Required:   ${reviewRequired}`);
+  console.log(`Merge Ready:       ${mergeReady}`);
+  console.log(`Review Packages:   ${reviewDocsCount} (.ai/reviews/*.md)`);
 
   console.log('\nWORKERS (Pool & Worktrees)');
   console.log('--------------------------------');
@@ -67,29 +111,6 @@ async function main() {
   console.log(`Orphaned:      ${wtOrphaned}`);
   console.log(`Invalid:       ${wtInvalid}`);
 
-  // Load dependency graph details
-  const activeTasks = [];
-  if (fs.existsSync(ACTIVE_DIR)) {
-    const files = fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.json'));
-    for (const f of files) {
-      try {
-        activeTasks.push(JSON.parse(fs.readFileSync(path.join(ACTIVE_DIR, f), 'utf-8')));
-      } catch {}
-    }
-  }
-
-  const completedIds = fs.existsSync(COMPLETED_DIR)
-    ? new Set(fs.readdirSync(COMPLETED_DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')))
-    : new Set();
-
-  const failedIds = fs.existsSync(FAILED_DIR)
-    ? new Set(fs.readdirSync(FAILED_DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')))
-    : new Set();
-
-  const runningIds = fs.existsSync(ACTIVE_DIR)
-    ? new Set(fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.lock')).map(f => f.replace('.lock', '')))
-    : new Set();
-
   const graph = new DependencyGraph(activeTasks);
   const runnable = graph.getRunnableTasks(completedIds, runningIds);
   const blocked = graph.getBlockedTasks(completedIds, failedIds);
@@ -103,11 +124,18 @@ async function main() {
   console.log(`Completed:     ${completedIds.size}`);
   console.log(`Failed:        ${failedIds.size}`);
 
-  console.log('\nDEPENDENCIES');
+  // Risk breakdown
+  const riskLow = activeTasks.filter(t => (t.impact || t.risk?.level) === 'LOW').length;
+  const riskMed = activeTasks.filter(t => (t.impact || t.risk?.level) === 'MEDIUM').length;
+  const riskHigh = activeTasks.filter(t => (t.impact || t.risk?.level) === 'HIGH').length;
+  const riskCrit = activeTasks.filter(t => (t.impact || t.risk?.level) === 'CRITICAL').length;
+
+  console.log('\nRISK BREAKDOWN');
   console.log('--------------------------------');
-  console.log(`Runnable Tasks:       ${runnable.length > 0 ? runnable.map(r => r.task_id).join(', ') : 'None'}`);
-  console.log(`Waiting Tasks:        ${queued.length > 0 ? queued.map(q => q.task_id).join(', ') : 'None'}`);
-  console.log(`Blocked Dependencies: ${blocked.length > 0 ? blocked.map(b => `${b.task_id} (needs ${b.pending_dependencies.concat(b.failed_dependencies).join(', ')})`).join(', ') : 'None'}`);
+  console.log(`Low:           ${riskLow}`);
+  console.log(`Medium:        ${riskMed}`);
+  console.log(`High:          ${riskHigh}`);
+  console.log(`Critical:      ${riskCrit}`);
 
   console.log('\nDEV ENVIRONMENT');
   console.log('--------------------------------');
@@ -126,12 +154,6 @@ async function main() {
   console.log(`Production Docker: ${summary.safety_boundaries.production_docker}`);
   console.log(`Redis Scope:       ${summary.safety_boundaries.redis_scope}`);
   console.log(`LiveKit Scope:     ${summary.safety_boundaries.livekit_scope}`);
-
-  if (summary.tasks.last_task) {
-    console.log('\nLast task:');
-    console.log(`[${summary.tasks.last_task.task_id}] ${summary.tasks.last_task.title}`);
-    console.log(`Status: ${summary.tasks.last_task.status}`);
-  }
 
   console.log('============================================================\n');
 }

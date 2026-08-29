@@ -1,11 +1,13 @@
 /**
- * Nexa AI Development System — Phase 8 Centralized QA Gate Engine
- * Implements tiered, automated verification across Git diffs, secrets, types, linter, tests, builds, and acceptance criteria.
+ * Nexa AI Development System — Phase 9 Centralized QA Gate Engine
+ * Implements tiered, automated verification across Git diffs, secrets, types, linter, tests, builds,
+ * acceptance criteria, API contract safety, database safety, scope creep, and dependency safety.
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const TestIntelligence = require('./test-intelligence');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
 
@@ -21,35 +23,6 @@ const SECRET_SCAN_PATTERNS = [
 class QAGate {
   constructor(workspaceRoot = DEV_ROOT) {
     this.workspaceRoot = workspaceRoot;
-  }
-
-  /**
-   * Determines appropriate QA verification tier based on task metadata.
-   */
-  static determineTier(taskData) {
-    if (!taskData) return 'backend_logic';
-
-    const type = (taskData.type || '').toLowerCase();
-    const impact = (taskData.impact || '').toUpperCase();
-    const affected = (taskData.affected_areas?.known || []).concat(taskData.context?.relevant_files || []);
-
-    if (impact === 'CRITICAL' || impact === 'HIGH') {
-      return 'high_risk_full';
-    }
-
-    if (type === 'documentation' || affected.every(f => f.endsWith('.md') || f.startsWith('.ai/'))) {
-      return 'docs_only';
-    }
-
-    if (affected.some(f => f.includes('prisma') || f.includes('schema.prisma') || f.includes('migrations'))) {
-      return 'database_schema';
-    }
-
-    if (type === 'frontend' || affected.some(f => f.includes('apps/web') || f.includes('packages/ui'))) {
-      return 'frontend_ui';
-    }
-
-    return 'backend_logic';
   }
 
   /**
@@ -117,14 +90,18 @@ class QAGate {
    */
   checkDatabaseSafety(filesChanged = []) {
     const violations = [];
-    const hasPrismaChange = filesChanged.some(f => f.includes('schema.prisma'));
+    let classification = 'SAFE';
 
-    if (hasPrismaChange) {
+    const hasPrismaChange = filesChanged.some(f => f.includes('schema.prisma'));
+    const hasMigrationChange = filesChanged.some(f => f.includes('migrations'));
+
+    if (hasPrismaChange || hasMigrationChange) {
+      classification = 'REQUIRES_REVIEW';
+
       // Check Prisma getters rule (AGENTS.md rule)
       const prismaServicePath = path.join(this.workspaceRoot, 'apps/api/src/prisma/prisma.service.ts');
       if (fs.existsSync(prismaServicePath)) {
         const pService = fs.readFileSync(prismaServicePath, 'utf-8');
-        // Basic syntax sanity
         if (!pService.includes('PrismaService') || !pService.includes('softDeleteExtension')) {
           violations.push('PrismaService missing core configuration in apps/api/src/prisma/prisma.service.ts');
         }
@@ -133,7 +110,90 @@ class QAGate {
 
     return {
       ok: violations.length === 0,
+      classification,
       violations
+    };
+  }
+
+  /**
+   * 4. API Contract Safety: checks for breaking endpoint changes or modified DTOs.
+   */
+  checkApiContractSafety(filesChanged = []) {
+    const apiFiles = filesChanged.filter(f => f.includes('apps/api') && (f.includes('controller.ts') || f.includes('dto.ts')));
+    const warnings = [];
+
+    if (apiFiles.length > 0) {
+      warnings.push(`API surface touched in: ${apiFiles.join(', ')}. Review for breaking contract changes.`);
+    }
+
+    return {
+      ok: true,
+      has_api_changes: apiFiles.length > 0,
+      warnings
+    };
+  }
+
+  /**
+   * 5. Scope Creep Detection: compares planned files vs actual files.
+   */
+  checkScopeCreep(taskData, filesChanged = []) {
+    const planned = (taskData.context?.relevant_files || []).concat(taskData.affected_areas?.known || []).map(f => f.toLowerCase());
+    
+    if (planned.length === 0 || filesChanged.length === 0) {
+      return { scope_creep: false, unrelated_files: [] };
+    }
+
+    const unrelated = [];
+    for (const actual of filesChanged) {
+      const actualLower = actual.toLowerCase();
+      // Allow test files, markdown, or direct prefixes
+      const isExpected = planned.some(p => actualLower.startsWith(p) || p.startsWith(actualLower) || actualLower.includes(path.basename(p, path.extname(p))));
+      if (!isExpected && !actualLower.endsWith('.spec.ts') && !actualLower.endsWith('.test.ts') && !actualLower.endsWith('.md')) {
+        unrelated.push(actual);
+      }
+    }
+
+    return {
+      scope_creep: unrelated.length > 0,
+      unrelated_files: unrelated
+    };
+  }
+
+  /**
+   * 6. Dependency Safety: checks package.json modifications.
+   */
+  checkDependencySafety(filesChanged = []) {
+    const pkgFiles = filesChanged.filter(f => path.basename(f) === 'package.json');
+    const warnings = [];
+
+    if (pkgFiles.length > 0) {
+      warnings.push(`Dependencies modified in: ${pkgFiles.join(', ')}. Review package additions.`);
+    }
+
+    return {
+      ok: true,
+      has_dependency_changes: pkgFiles.length > 0,
+      warnings
+    };
+  }
+
+  /**
+   * 7. Configuration Safety: checks .env, Docker, CI/CD, Nginx files.
+   */
+  checkConfigurationSafety(filesChanged = []) {
+    const configFiles = filesChanged.filter(f =>
+      f.includes('.env') ||
+      f.includes('docker') ||
+      f.includes('Dockerfile') ||
+      f.includes('.github') ||
+      f.includes('nginx') ||
+      f.includes('scripts/deploy')
+    );
+
+    return {
+      ok: !configFiles.some(f => f.includes('.env.production') || f.includes('production')),
+      has_config_changes: configFiles.length > 0,
+      config_files: configFiles
     };
   }
 
@@ -159,7 +219,7 @@ class QAGate {
 
       const mandatory = ac.mandatory !== false;
       let status = 'passed';
-      let evidence = 'Verified via automated test suites';
+      let evidence = 'Verified via automated QA Gate';
 
       // Check against test results
       if (ac.verification === 'typecheck' && verificationResults.typecheck?.status !== 'passed') {
@@ -197,32 +257,38 @@ class QAGate {
   }
 
   /**
-   * Executes the complete centralized QA verification pipeline.
+   * Executes the complete centralized QA verification pipeline with Test Intelligence.
    */
   run(taskData) {
-    const tier = taskData.qa_tier || QAGate.determineTier(taskData);
+    // 1. Diff Inspection
+    const diff = this.inspectDiff();
+    if (!diff.ok) {
+      return { ok: false, code: 'DIFF_INSPECTION_FAILED', error: diff.error };
+    }
+
+    // Select dynamic test plan via TestIntelligence
+    const testPlan = TestIntelligence.selectTestPlan(diff.filesChanged, taskData.impact || 'MEDIUM');
+    const tier = taskData.qa_tier || testPlan.qa_tier;
+
     console.log(`\n🛡️ [QA GATE] Running verification (Tier: ${tier.toUpperCase()}) in workspace:`);
     console.log(`   📁 ${this.workspaceRoot}`);
+    if (testPlan.rationale) console.log(`   ℹ️ ${testPlan.rationale}`);
 
     const testResults = {
       tier,
-      diff_inspection: { status: 'passed' },
+      diff_inspection: { status: 'passed', filesChanged: diff.filesChanged },
       secret_scan: { status: 'passed' },
       database_safety: { status: 'passed' },
+      api_contract: { status: 'passed' },
+      scope_creep: { status: 'passed' },
+      dependency_safety: { status: 'passed' },
+      config_safety: { status: 'passed' },
       typecheck: { status: 'skipped' },
       lint: { status: 'skipped' },
       unit_tests: { status: 'skipped' },
       build: { status: 'skipped' },
       acceptance_criteria: { status: 'passed' }
     };
-
-    // 1. Diff Inspection
-    const diff = this.inspectDiff();
-    if (!diff.ok) {
-      testResults.diff_inspection = { status: 'failed', error: diff.error };
-      return { ok: false, code: 'DIFF_INSPECTION_FAILED', testResults };
-    }
-    testResults.diff_inspection = { status: 'passed', filesChanged: diff.filesChanged };
 
     // 2. Secret Scan
     const secrets = this.scanSecrets(diff.filesChanged);
@@ -233,15 +299,33 @@ class QAGate {
 
     // 3. Database Safety
     const dbSafety = this.checkDatabaseSafety(diff.filesChanged);
+    testResults.database_safety = { status: dbSafety.ok ? 'passed' : 'failed', classification: dbSafety.classification, violations: dbSafety.violations };
     if (!dbSafety.ok) {
-      testResults.database_safety = { status: 'failed', violations: dbSafety.violations };
       return { ok: false, code: 'DATABASE_SAFETY_FAILED', reason: dbSafety.violations.join('; '), testResults };
     }
 
-    // Tier-based execution
+    // 4. API Contract Safety
+    const apiSafety = this.checkApiContractSafety(diff.filesChanged);
+    testResults.api_contract = { status: 'passed', has_api_changes: apiSafety.has_api_changes, warnings: apiSafety.warnings };
+
+    // 5. Scope Creep
+    const scopeCheck = this.checkScopeCreep(taskData, diff.filesChanged);
+    testResults.scope_creep = { status: scopeCheck.scope_creep ? 'review_required' : 'passed', scope_creep: scopeCheck.scope_creep, unrelated_files: scopeCheck.unrelated_files };
+
+    // 6. Dependency & Config Safety
+    const depSafety = this.checkDependencySafety(diff.filesChanged);
+    testResults.dependency_safety = { status: 'passed', has_dependency_changes: depSafety.has_dependency_changes, warnings: depSafety.warnings };
+
+    const configSafety = this.checkConfigurationSafety(diff.filesChanged);
+    testResults.config_safety = { status: configSafety.ok ? 'passed' : 'failed', has_config_changes: configSafety.has_config_changes, config_files: configSafety.config_files };
+    if (!configSafety.ok) {
+      return { ok: false, code: 'CONFIG_SAFETY_FAILED', reason: 'Forbidden production configuration modification detected', testResults };
+    }
+
+    // 7. Dynamic Execution via TestIntelligence
     const gitEnv = { ...process.env, PAGER: 'cat', GIT_PAGER: 'cat' };
 
-    // 4. Typecheck
+    // Typecheck
     if (tier !== 'docs_only') {
       try {
         console.log('   Running Typecheck...');
@@ -253,7 +337,7 @@ class QAGate {
       }
     }
 
-    // 5. Lint
+    // Lint
     if (tier !== 'docs_only') {
       try {
         console.log('   Running Lint...');
@@ -265,7 +349,7 @@ class QAGate {
       }
     }
 
-    // 6. Unit Tests
+    // Unit / Integration Tests
     if (tier === 'backend_logic' || tier === 'database_schema' || tier === 'frontend_ui' || tier === 'high_risk_full') {
       try {
         console.log('   Running Unit Tests...');
@@ -277,7 +361,7 @@ class QAGate {
       }
     }
 
-    // 7. Build (for frontend and high-risk tasks)
+    // Build (for frontend and high-risk tasks)
     if (tier === 'frontend_ui' || tier === 'high_risk_full') {
       try {
         console.log('   Running Build...');
