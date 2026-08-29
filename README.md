@@ -7,8 +7,6 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - `apps/web`: Next.js App Router frontend
 - `apps/api`: NestJS backend API
 - `packages/types`: Shared request/response/domain types
-- `packages/ui`: Shared UI package shell
-- `packages/utils`: Shared utilities package shell
 - `packages/config`: Shared configuration package shell
 
 ## Current Features

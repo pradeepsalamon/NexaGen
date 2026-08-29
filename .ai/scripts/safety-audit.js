@@ -52,7 +52,7 @@ console.log('============================================================\n');
 // ============================================================
 console.log('── 1. Filesystem & Path Boundary Tests ──');
 
-const testDevPath = SafetyValidator.validatePath('packages/utils/src/dev-info.ts');
+const testDevPath = SafetyValidator.validatePath('packages/config/src/index.ts');
 assert('DEV path is allowed', testDevPath.ok === true);
 
 const testProdPath = SafetyValidator.validatePath('/opt/nexa-chess/NexaGen/docker-compose.yml');
@@ -522,7 +522,7 @@ const QAGate = require('../manager/qa-gate');
 const qaGate = new QAGate(DEV_ROOT);
 
 // 1. Secret Scanning in QA Gate
-const cleanSecrets = qaGate.scanSecrets(['packages/utils/src/dev-info.ts']);
+const cleanSecrets = qaGate.scanSecrets(['packages/config/src/index.ts']);
 assert('Clean source files pass secret scanner', cleanSecrets.ok === true && cleanSecrets.leaks.length === 0);
 
 const dirtySecretFile = qaGate.scanSecrets(['.env', '.env.production']);
@@ -561,7 +561,7 @@ const mockReport = {
   task_branch: 'ai/NEXA-REV-01-test',
   impact: 'LOW',
   summary: 'Implemented test feature safely',
-  files_changed: [{ path: 'packages/utils/src/dev-info.ts' }],
+  files_changed: [{ path: 'packages/config/src/index.ts' }],
   tests: {
     typecheck: { status: 'passed' },
     lint: { status: 'passed' },

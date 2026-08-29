@@ -27,7 +27,6 @@ apps/
 packages/
   types/        shared types + Zod schemas + API_ROUTES   (@nexa-chess/types)
   config/       env parsing/validation                    (@nexa-chess/config)
-  ui/ utils/    empty shells — not used yet
   tsconfig/     shared base tsconfig
 e2e/            Playwright specs
 scripts/        deploy + db backup shell scripts

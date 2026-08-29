@@ -34,8 +34,6 @@ real class — then wire the YAML (needs the real key name, so likely via
 | **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
 | **Live-monitoring screen** | `GET /attendance/class/:id/live` (`classLive`) and `getLiveClassMonitoring` are fully implemented and unused — no frontend. |
 | **Admin drill-downs** | `GET /attendance/student/:id` and `/attendance/coach/:id` have no frontend caller. |
-| **God-component splits** | `ProfileForm.tsx` (642L), `MeetingVideoGrid.tsx` (592L), `completed-classes/[id]/page.tsx` (483L), `DemoClassesClient.tsx` (484L), `MeetingChat.tsx` (421L) — not split or memoized. |
-| **`packages/ui` / `packages/utils`** | Declared workspaces, empty shells — either fill or remove. |
 
 ## Other deferred
 

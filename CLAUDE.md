@@ -16,7 +16,6 @@ npm-workspaces monorepo driven by **Turborepo**.
 | `apps/api` | `@nexa-chess/api` | NestJS 10, Prisma 6 / PostgreSQL, JWT auth via HTTP-only cookies, `@nestjs/throttler`, `@nestjs/schedule`, LiveKit server SDK, Cloudinary, Nodemailer |
 | `packages/types` | `@nexa-chess/types` | Shared request/response types, Zod schemas, and `API_ROUTES` route registry |
 | `packages/config` | `@nexa-chess/config` | Env parsing/validation (`getApiEnv`, `getWebEnv`) with Zod |
-| `packages/ui` / `packages/utils` | — | Currently near-empty shells; do not assume they contain anything |
 | `packages/tsconfig` | `@nexa-chess/tsconfig` | Shared base tsconfig |
 
 Infra: `docker-compose.yml` (web, api, postgres, redis, livekit), self-hosted on an Oracle Cloud ARM64 Ubuntu box. CI in `.github/workflows/deploy-production.yml` SSHes to the VPS and runs `scripts/deploy-production.sh` on push to `main`.
