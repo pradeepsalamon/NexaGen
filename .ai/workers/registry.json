@@ -20,10 +20,10 @@
       "environment": "development",
       "max_concurrency": 1,
       "current_task": null,
-      "heartbeat": "2026-08-29T12:21:34.017Z",
+      "heartbeat": "2026-08-29T12:23:51.149Z",
       "tasks_completed": 4,
-      "tasks_failed": 2,
-      "last_heartbeat": "2026-08-29T12:21:34.010Z"
+      "tasks_failed": 3,
+      "last_heartbeat": "2026-08-29T12:23:51.166Z"
     },
     {
       "worker_id": "nexa-dev-02",
@@ -74,5 +74,5 @@
       "tasks_failed": 0
     }
   ],
-  "updated_at": "2026-08-29T12:21:34.017Z"
+  "updated_at": "2026-08-29T12:23:51.166Z"
 }

@@ -153,35 +153,64 @@ NexaGen/
 - **Chess**: Custom chessboard with drag/drop, PGN, FEN support
 - **Live Video**: LiveKit React SDK
 
-## AI Development System (Phase 5 Project-Aware Development Control Plane)
+## AI Development System (Phase 6 Multi-Worker Filesystem Orchestration)
 
 The repository features an autonomous pair-programming development system located under `.ai/`:
 
+> **AUTHORITATIVE DESIGN PRINCIPLE**: The filesystem remains the authoritative AI task transport. No Redis Streams, message queues, Kafka, RabbitMQ, or external database brokers are introduced.
+
 ```
-User (Human) ──► Main AI Manager ──► Work Order ──► Gemini Worker (nexa-dev-01)
-                       │                                   │
-                       │                              verify.sh & git commit
-                       │                                   │
-                 Human Summary ◄── Reviewer ◄── Completion Report
+                         HUMAN (USER)
+                              │
+                              ▼
+                     MAIN AI MANAGER
+                              │
+                       Project Context
+                              │
+                       Smart Planner
+                              │
+                      Dependency Graph (DAG)
+                              │
+                          Scheduler
+                              │
+                      .ai/tasks/active/
+                              │
+             ┌────────────────┼────────────────┐
+             │                │                │
+             ▼                ▼                ▼
+        Worker 01        Worker 02        Worker 03
+      (Backend/API)     (Frontend/UI)    (QA/Testing)
+             │                │                │
+             └────────────────┼────────────────┘
+                              │
+                    .ai/tasks/completed/
+                              │
+                           Reviewer
+                              │
+                        Human Summary
+                              │
+                              ▼
+                      Human Merge to DEV
 ```
 
 ### Components
 
 1. **Main AI Manager & Control Plane** (`.ai/manager/`):
    - `ProjectContextEngine`: Real-time, safe inspection of git status, native dev services (Web :3010, API :3011, PostgreSQL `vps_dev`, Redis, LiveKit), monorepo workspace structure, and task history search with complete secret redaction.
-   - `Planner`: Analyzes user intent, partitions affected areas into `known` / `inferred` / `unknown`, categorizes task modes (`feature_implementation`, `bug_fix`, `investigation`, `refactor`), creates structured work orders (`NEXA-XXXX.json`), and breaks complex multi-step prompts into dependency-chained subtasks.
-   - `Dispatcher`: Performs pre-dispatch environment health checks (`checkEnvironmentHealth()`), verifies worker availability, detects stale heartbeats, and dispatches work orders to `nexa-dev-01`.
-   - `Reviewer`: Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, enforces `investigation` read-only constraints, verifies zero production or secret modifications, and manages controlled retries (`max_attempts: 2`).
-   - `Provider Adapter`: Provider-independent interface (`base-provider.js`, `gemini-provider.js`).
+   - `WorkerRegistry`: Manages multi-worker pool (`nexa-dev-01`, `nexa-dev-02`, `nexa-dev-03`), capabilities matching, and heartbeat tracking in `.ai/workers/registry.json`.
+   - `DependencyGraph`: Validates Directed Acyclic Graphs (DAGs), rejects circular (`A -> B -> A`), self (`A -> A`), and missing dependencies, and evaluates runnable vs blocked tasks.
+   - `Scheduler` (`npm run ai:schedule`): Idempotent, CLI-driven scheduler that scans active queues, matches capable available workers, acquires atomic file locks (`.lock`), dispatches tasks, and recovers stale locks.
+   - `Planner`: Analyzes user intent, partitions affected areas (`known`, `inferred`, `unknown`), infers `required_capabilities`, and generates structured work orders (`NEXA-XXXX.json`).
+   - `Dispatcher`: Performs pre-dispatch environment health checks, routes work orders to matching capable workers, and prevents workspace collisions.
+   - `Reviewer`: Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, enforces `investigation` read-only constraints, and manages retries (`max_attempts: 2`).
 
-2. **Gemini Coding Worker** (`nexa-dev-01` in `.ai/scripts/worker.js`):
+2. **Gemini Coding Workers** (`.ai/scripts/worker.js`):
    - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, protects LiveKit production rooms, blocks destructive system and Redis commands.
    - `Dirty Worktree Guard`: Protects uncommitted human modifications from being overwritten (`BLOCKED_USER_CHANGES`).
    - `Task Branch Isolation`: Creates `ai/<TASK_ID>-<slug>` branch from base branch. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
    - `State Machine`: Tracks complete task transitions (`CREATED` -> `PLANNED` -> `ASSIGNED` -> `CLAIMED` -> `PREFLIGHT` -> `RUNNING` -> `TESTING` -> `VERIFYING` -> `COMPLETED`).
    - `Heartbeat & Pulse`: Continuously pulses runtime state (`pid`, `task_id`, `phase`, `elapsed_seconds`).
    - `Crash Recovery`: Detects dead worker processes, preserves task branch without deleting, marks task `INTERRUPTED`.
-   - `Investigation Mode`: Strictly enforces read-only analysis without application code modification.
    - `QA Gate`: Executes `typecheck`, `lint`, and `unit tests` via `.ai/scripts/verify.sh`.
    - `Completion Reporter`: Generates schema-compliant `.ai/tasks/completed/<TASK_ID>.json`.
 
@@ -191,8 +220,9 @@ User (Human) ──► Main AI Manager ──► Work Order ──► Gemini Wor
    - **LiveKit**: Shared daemon isolated via test room naming convention (`dev-ai-<task-id>-<purpose>`).
 
 4. **Human Approval Boundaries**:
-   - Automated: Task planning, dispatch, execution, testing, branch commits, completion review.
+   - Automated: Task planning, capability routing, DAG dispatch, execution, testing, branch commits, completion review.
    - Requires Human Approval: Merging task branch into `dev`, merging into `main`, production deployments, production DB migrations.
+
 
 
 
