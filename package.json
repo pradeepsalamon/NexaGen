@@ -27,7 +27,12 @@
     "prepare": "husky",
     "precommit": "npm run typecheck && npm run lint && npm run test",
     "test": "npm run test -w apps/api -- --runInBand",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "ai:worker": "node .ai/scripts/worker.js",
+    "ai:tasks": "node .ai/scripts/task-manager.js",
+    "ai:finish": "node .ai/scripts/finish-task.js",
+    "ai:observe": ".ai/scripts/observe.sh",
+    "ai:verify": ".ai/scripts/verify.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

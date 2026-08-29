@@ -4,17 +4,25 @@
       "id": "nexa-dev-01",
       "name": "Primary Development Worker",
       "type": "coding",
-      "capabilities": ["backend", "frontend", "database", "docker", "testing", "devops"],
+      "capabilities": [
+        "backend",
+        "frontend",
+        "database",
+        "docker",
+        "testing",
+        "devops"
+      ],
       "provider": "gemini",
       "model": "gemini-2.5-pro",
-      "status": "AVAILABLE",
+      "status": "BUSY",
       "environment": "development",
       "project_path": "/opt/nexa-chess/NexaGen-dev",
       "max_concurrent": 1,
-      "last_heartbeat": null,
+      "last_heartbeat": "2026-08-29T11:16:41.635Z",
       "tasks_completed": 0,
-      "tasks_failed": 0
+      "tasks_failed": 0,
+      "current_task": "NEXA-0001"
     }
   ],
-  "updated_at": "2026-08-29T11:00:00Z"
+  "updated_at": "2026-08-29T11:16:41.635Z"
 }

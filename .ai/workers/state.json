@@ -1,0 +1,10 @@
+{
+  "worker_id": "nexa-dev-01",
+  "task_id": "NEXA-0001",
+  "status": "RUNNING",
+  "phase": "VERIFYING",
+  "started_at": "2026-08-29T11:19:16.035Z",
+  "heartbeat": "2026-08-29T11:19:16.035Z",
+  "pid": 3972160,
+  "hostname": "nexa-vcn"
+}
