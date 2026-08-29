@@ -177,9 +177,9 @@ fi
 echo "========================================"
 echo "DEPLOYMENT SUCCESSFUL"
 echo "========================================"
-echo "Cleaning up dangling images..."
-# Safely prune dangling images (unnamed, unused images from rebuilds)
+echo "Cleaning up dangling images and build cache..."
 docker image prune -f
+docker builder prune --reserved-space 2GB -f 2>/dev/null || docker builder prune --keep-storage 2GB -f 2>/dev/null || docker builder prune -f
 
 echo "Deployment complete."
 exit 0
