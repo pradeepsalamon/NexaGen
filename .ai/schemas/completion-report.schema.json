@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Nexa AI Completion Report",
+  "type": "object",
+  "required": ["task_id", "status", "worker_id", "summary", "changes", "files_changed", "tests", "git", "completed_at"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^NEXA-\\d{4}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["completed", "failed", "partial", "blocked"]
+    },
+    "worker_id": { "type": "string" },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable summary of what was done"
+    },
+    "changes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of changes made"
+    },
+    "files_changed": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": { "type": "string" },
+          "action": { "type": "string", "enum": ["created", "modified", "deleted"] }
+        }
+      }
+    },
+    "database_changes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Migrations or schema changes"
+    },
+    "tests": {
+      "type": "object",
+      "properties": {
+        "typecheck": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["passed", "failed", "skipped"] },
+            "duration_ms": { "type": "integer" }
+          }
+        },
+        "lint": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["passed", "failed", "skipped"] },
+            "errors": { "type": "integer" },
+            "warnings": { "type": "integer" }
+          }
+        },
+        "build": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["passed", "failed", "skipped"] },
+            "duration_ms": { "type": "integer" }
+          }
+        },
+        "unit_tests": {
+          "type": "object",
+          "properties": {
+            "status": { "type": "string", "enum": ["passed", "failed", "skipped"] },
+            "total": { "type": "integer" },
+            "passed": { "type": "integer" },
+            "failed": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Manual verification steps performed"
+    },
+    "git": {
+      "type": "object",
+      "properties": {
+        "branch": { "type": "string" },
+        "commits": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "sha": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        },
+        "diff_summary": { "type": "string" }
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Problems encountered or unresolved issues"
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Suggestions for follow-up work"
+    },
+    "completed_at": { "type": "string", "format": "date-time" },
+    "duration_minutes": { "type": "number" },
+    "token_usage": {
+      "type": "object",
+      "properties": {
+        "provider": { "type": "string" },
+        "input_tokens": { "type": "integer" },
+        "output_tokens": { "type": "integer" },
+        "estimated_cost": { "type": "string" }
+      }
+    }
+  }
+}

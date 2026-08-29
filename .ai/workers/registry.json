@@ -1,0 +1,20 @@
+{
+  "workers": [
+    {
+      "id": "nexa-dev-01",
+      "name": "Primary Development Worker",
+      "type": "coding",
+      "capabilities": ["backend", "frontend", "database", "docker", "testing", "devops"],
+      "provider": "gemini",
+      "model": "gemini-2.5-pro",
+      "status": "AVAILABLE",
+      "environment": "development",
+      "project_path": "/opt/nexa-chess/NexaGen-dev",
+      "max_concurrent": 1,
+      "last_heartbeat": null,
+      "tasks_completed": 0,
+      "tasks_failed": 0
+    }
+  ],
+  "updated_at": "2026-08-29T11:00:00Z"
+}
