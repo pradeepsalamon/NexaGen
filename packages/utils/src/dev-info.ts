@@ -18,3 +18,8 @@ export function getDevEnvironmentInfo(): DevEnvironmentInfo {
     uptimeSeconds: Math.floor(process.uptime ? process.uptime() : 0)
   };
 }
+
+export function getDevExecutionDuration(startTimeMs: number): number {
+  if (!startTimeMs || typeof startTimeMs !== 'number') return 0;
+  return Math.max(0, Date.now() - startTimeMs);
+}

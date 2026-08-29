@@ -152,3 +152,39 @@ NexaGen/
 - **Styling**: Tailwind CSS
 - **Chess**: Custom chessboard with drag/drop, PGN, FEN support
 - **Live Video**: LiveKit React SDK
+
+## AI Development System (Phase 3 Orchestration)
+
+The repository features an autonomous pair-programming development system located under `.ai/`:
+
+```
+User (Human) ──► Main AI Manager ──► Work Order ──► Gemini Worker (nexa-dev-01)
+                       │                                   │
+                       │                              verify.sh & git commit
+                       │                                   │
+                 Human Summary ◄── Reviewer ◄── Completion Report
+```
+
+### Components
+
+1. **Main AI Manager** (`.ai/manager/`):
+   - `Planner`: Analyzes user intent, checks project memory docs, breaks complex requests into task sequences, creates work orders (`NEXA-XXXX.json`).
+   - `Dispatcher`: Checks worker availability (`registry.json`), verifies atomic locks, dispatches work orders to `nexa-dev-01`.
+   - `Reviewer`: Audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, generates follow-up tasks if criteria are unmet.
+   - `Provider Adapter`: Provider-independent interface (`base-provider.js`, `gemini-provider.js`).
+
+2. **Gemini Coding Worker** (`nexa-dev-01` in `.ai/scripts/worker.js`):
+   - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, checks command policy.
+   - `Task Branch Isolation`: Creates `ai/<TASK_ID>-<slug>` branch from `dev`. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
+   - `QA Gate`: Executes `typecheck`, `lint`, and `unit tests` via `.ai/scripts/verify.sh`.
+   - `Completion Reporter`: Generates schema-compliant `.ai/tasks/completed/<TASK_ID>.json`.
+
+3. **Shared Infrastructure Safety**:
+   - **PostgreSQL**: Logical database separation (`vps_dev` vs `nexa_chess`). AI worker is strictly whitelisted to `vps_dev`.
+   - **Redis**: Shared daemon isolated via logical key namespaces (`nexa:dev:*`, `nexa:ai:*`). Flush commands hard-blocked.
+   - **LiveKit**: Shared daemon isolated via test room naming convention (`dev-ai-<task-id>-<purpose>`).
+
+4. **Human Approval Boundaries**:
+   - Automated: Task planning, dispatch, execution, testing, branch commits, completion review.
+   - Requires Human Approval: Merging task branch into `dev`, merging into `main`, production deployments, production DB migrations.
+

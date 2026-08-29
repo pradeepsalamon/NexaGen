@@ -50,6 +50,16 @@ npm run test             # Run Jest tests
 npm run typecheck        # TypeScript type checking
 npm run lint             # ESLint
 
+# AI Development System (Phase 3)
+npm run ai:manager       # Start Main AI Manager orchestration
+npm run ai:worker        # Start Gemini Worker
+npm run ai:tasks         # Task Manager CLI (list, create, show)
+npm run ai:finish        # Verify, commit, and complete active task
+npm run ai:audit         # Run 48-test Worker Safety Audit
+npm run ai:test:manager  # Run 15-scenario Manager Test Suite
+npm run ai:observe       # Run VPS health observability check
+npm run ai:verify        # Run full QA pipeline
+
 # Cleaning
 npm run dev:clean        # Clean .next + dist, then dev
 ```

@@ -24,3 +24,5 @@ github-actions-key.pub
 .ai/workers/state.json
 .ai/workers/heartbeat.json
 .ai/tasks/active/*.lock
+.ai/manager/state/*
+!.ai/manager/state/.gitkeep

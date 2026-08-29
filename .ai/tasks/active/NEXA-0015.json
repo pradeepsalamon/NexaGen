@@ -1,0 +1,70 @@
+{
+  "task_id": "NEXA-0015",
+  "title": "Add task execution timing helper to packages/utils",
+  "objective": "Add task execution timing helper to packages/utils",
+  "priority": "medium",
+  "type": "feature_implementation",
+  "complexity": "simple",
+  "environment": {
+    "server": "nexa-vcn",
+    "environment": "development",
+    "project_path": "/opt/nexa-chess/NexaGen-dev",
+    "branch": "ai/NEXA-0015-add-task-execution-timing-help"
+  },
+  "context": {
+    "relevant_files": [
+      "packages/utils/src/"
+    ],
+    "related_models": [],
+    "architecture_notes": "NexaGen monorepo dev environment (/opt/nexa-chess/NexaGen-dev)"
+  },
+  "requirements": [
+    "Implement solution for: Add task execution timing helper to packages/utils",
+    "Follow repository coding conventions and AGENTS.md rules",
+    "Ensure all TypeScript types and ESLint rules pass"
+  ],
+  "constraints": [
+    "Development environment ONLY (/opt/nexa-chess/NexaGen-dev)",
+    "Do not touch or target production (/opt/nexa-chess/NexaGen)",
+    "PostgreSQL target is vps_dev only (nexa_chess is strictly blocked)",
+    "Redis keys must use nexa:dev:* or nexa:ai:* namespaces",
+    "LiveKit rooms must follow dev-ai-<task-id>-<purpose> convention",
+    "Must pass QA verify.sh before marking completed",
+    "Do not auto-merge into dev/main; remain on task branch"
+  ],
+  "acceptance_criteria": [
+    "Code changes directly fulfill the requested objective",
+    "All automated QA checks pass (typecheck, lint, build, unit tests)",
+    "No regression in existing test suites"
+  ],
+  "required_tests": [
+    "typecheck",
+    "lint",
+    "unit_tests"
+  ],
+  "safety": {
+    "allowed_paths": [
+      "/opt/nexa-chess/NexaGen-dev/"
+    ],
+    "blocked_paths": [
+      "/opt/nexa-chess/NexaGen/",
+      "/etc/",
+      "/var/",
+      "/usr/",
+      "/root/"
+    ],
+    "allowed_databases": [
+      "vps_dev"
+    ],
+    "blocked_databases": [
+      "nexa_chess",
+      "postgres"
+    ],
+    "requires_approval": false
+  },
+  "assigned_worker": "nexa-dev-01",
+  "provider": "gemini",
+  "model": "gemini-2.5-pro",
+  "created_at": "2026-08-29T11:42:19.239Z",
+  "timeout_minutes": 30
+}

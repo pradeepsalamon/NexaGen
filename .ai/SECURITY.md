@@ -25,40 +25,40 @@
 ```
 ✅ Read/Write: /opt/nexa-chess/NexaGen-dev/**
 ✅ Read:       /opt/nexa-chess/NexaGen-dev/.env (dev config only)
-✅ Database:   PostgreSQL → vps_dev
+✅ Database:   PostgreSQL → vps_dev ONLY
 ✅ Redis:      Keys with prefix nexa:dev:* or nexa:ai:*
-✅ Docker:     docker logs, docker ps, docker exec (read-only queries)
-✅ Git:        Branch, commit, push to dev or ai/* branches
-✅ Shell:      Run tests, builds, lints in NexaGen-dev
+✅ LiveKit:    Test rooms named dev-ai-<task-id>-<purpose>
+✅ Docker:     docker logs, docker ps, docker exec (read-only diagnostics)
+✅ Git:        Create task branch (ai/NEXA-XXXX-*), commit to task branch
+✅ Shell:      Run tests, builds, lints inside DEV_ROOT
 ✅ Network:    Read-only monitoring (vnstat, ss, netstat)
 ```
 
-### BLOCKED (Production)
+### BLOCKED (Production & System)
 
 ```
 ❌ Write:      /opt/nexa-chess/NexaGen/**
 ❌ Read:       /opt/nexa-chess/NexaGen/.env (production secrets)
-❌ Database:   PostgreSQL → nexa_chess
-❌ Docker:     docker stop/rm/restart nexa_web or nexa_api
-❌ Docker:     docker compose down / docker system prune
-❌ Git:        Push to main, force push, delete remote branches
-❌ System:     Modify firewall, cron, systemd services
-❌ System:     Install/remove system packages
-❌ System:     Modify SSH config
+❌ Database:   PostgreSQL → nexa_chess or postgres
+❌ Redis:      FLUSHALL, FLUSHDB, unscoped prod keys
+❌ LiveKit:    Mutating production rooms
+❌ Docker:     docker stop/rm/restart nexa_web, nexa_api, or compose down
+❌ Git:        Auto-merging to dev/main, auto-pushing to dev/main, force push
+❌ System:     sudo, apt install, ufw delete, iptables -F, useradd, passwd
+❌ Filesystem: Path traversal (../NexaGen, /etc, symlink escape)
 ```
 
 ### REQUIRES HUMAN APPROVAL
 
 ```
-⚠️ Restart production containers
-⚠️ Run Prisma migrations on nexa_chess
-⚠️ Modify production .env
-⚠️ Modify firewall rules (ufw)
-⚠️ Delete Git branches (local or remote)
-⚠️ Modify system crontab
-⚠️ Install system packages (apt)
-⚠️ Merge AI branches to dev
-⚠️ Any operation affecting production data
+⚠️ Merging AI task branch (ai/NEXA-XXXX-*) into dev
+⚠️ Merging dev into main
+⚠️ Deploying to production
+⚠️ Restarting production containers
+⚠️ Running Prisma migrations on nexa_chess
+⚠️ Modifying production .env
+⚠️ Modifying firewall rules (ufw)
+⚠️ Installing system packages (apt)
 ```
 
 ## Secrets Policy
