@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>NexaGen AI Control Center</title>
+  <meta name="theme-color" content="#090d16">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-app text-app antialiased">
+  
+  <!-- Main App Shell -->
+  <div id="app" class="flex flex-col min-h-screen">
+    
+    <!-- Top Header (Sticky) -->
+    <header class="app-header">
+      <div class="header-left">
+        <div class="logo-icon">
+          <i data-lucide="bot"></i>
+        </div>
+        <div>
+          <div class="header-title-row">
+            <h1 class="header-title">Control Center</h1>
+            <span id="header-status-badge" class="badge badge-success">
+              <span class="pulse-dot"></span> DEV Healthy
+            </span>
+          </div>
+          <p class="header-meta">
+            <i data-lucide="shield-check" class="meta-icon"></i>
+            <span class="font-mono">vps_dev</span>
+            <span class="separator">•</span>
+            <span id="header-branch-name" class="font-mono">dev</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Desktop Inline Navigation (Hidden on Mobile) -->
+      <nav class="desktop-nav-inline">
+        <button class="nav-tab active" data-tab="dashboard">
+          <i data-lucide="layout-dashboard"></i> Overview
+        </button>
+        <button class="nav-tab" data-tab="tasks">
+          <i data-lucide="list-todo"></i> Tasks
+          <span id="tasks-badge-desktop" class="tab-badge hidden">0</span>
+        </button>
+        <button class="nav-tab" data-tab="approvals">
+          <i data-lucide="check-circle-2"></i> Approvals
+          <span id="approvals-badge-desktop" class="tab-badge badge-amber hidden">0</span>
+        </button>
+        <button class="nav-tab" data-tab="workers">
+          <i data-lucide="cpu"></i> Workers
+        </button>
+        <button class="nav-tab" data-tab="reviews">
+          <i data-lucide="file-check-2"></i> Reviews
+        </button>
+        <button class="nav-tab" data-tab="environment">
+          <i data-lucide="sliders"></i> Environment
+        </button>
+      </nav>
+
+      <div class="header-actions">
+        <button id="btn-refresh" class="btn-icon" aria-label="Refresh Data">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+        <button id="btn-create-task" class="btn-primary-sm">
+          <i data-lucide="plus"></i>
+          <span>Plan</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- 1. DASHBOARD VIEW -->
+      <section id="view-dashboard" class="tab-view active">
+        
+        <!-- Approvals Warning Alert (Dynamic) -->
+        <div id="dashboard-approval-alert" class="approval-alert hidden">
+          <div class="alert-content">
+            <div class="alert-icon"><i data-lucide="alert-triangle"></i></div>
+            <div>
+              <h2 id="approval-alert-title" class="alert-title">0 Tasks Awaiting Approval</h2>
+              <p class="alert-desc">Human authorization required before worker execution.</p>
+            </div>
+          </div>
+          <button id="btn-alert-review" class="btn-amber-sm">
+            Review <i data-lucide="arrow-right"></i>
+          </button>
+        </div>
+
+        <div class="dashboard-grid">
+          
+          <!-- Left Column (Primary Metrics & Activity) -->
+          <div class="space-y-4">
+            
+            <!-- System State Card -->
+            <div class="card system-card">
+              <div class="card-header-row">
+                <div class="flex items-center gap-2">
+                  <div class="icon-bubble"><i data-lucide="bot"></i></div>
+                  <div>
+                    <div class="card-eyebrow">SYSTEM STATE</div>
+                    <div class="card-heading" id="dash-system-heading">Autonomous Manager Active</div>
+                  </div>
+                </div>
+                <span class="badge badge-primary" id="dash-provider-badge">GEMINI</span>
+              </div>
+
+              <div class="services-grid">
+                <div class="service-chip">
+                  <span class="chip-label">WEB & API</span>
+                  <span class="chip-value"><span class="status-dot green"></span> :3010 / :3011</span>
+                </div>
+                <div class="service-chip">
+                  <span class="chip-label">DATABASE</span>
+                  <span class="chip-value"><span class="status-dot green"></span> vps_dev</span>
+                </div>
+                <div class="service-chip">
+                  <span class="chip-label">BRANCH</span>
+                  <span class="chip-value font-mono" id="dash-branch-val">dev</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Action Tiles -->
+            <div class="quick-actions-grid">
+              <button id="qa-new-task" class="action-tile tile-primary">
+                <div class="tile-icon"><i data-lucide="plus"></i></div>
+                <div class="tile-text">
+                  <span class="tile-title">New Request</span>
+                  <span class="tile-sub">Plan task via AI</span>
+                </div>
+              </button>
+
+              <button id="qa-approvals" class="action-tile tile-amber">
+                <div class="tile-icon"><i data-lucide="check-circle-2"></i></div>
+                <div class="tile-text">
+                  <span class="tile-title" id="qa-approvals-title">Approvals (0)</span>
+                  <span class="tile-sub">Gate review</span>
+                </div>
+              </button>
+
+              <button id="qa-schedule" class="action-tile tile-green">
+                <div class="tile-icon"><i data-lucide="play"></i></div>
+                <div class="tile-text">
+                  <span class="tile-title" id="qa-schedule-title">Scheduler</span>
+                  <span class="tile-sub">Dispatch approved</span>
+                </div>
+              </button>
+
+              <button id="qa-workers" class="action-tile tile-neutral">
+                <div class="tile-icon"><i data-lucide="cpu"></i></div>
+                <div class="tile-text">
+                  <span class="tile-title">Workers (3)</span>
+                  <span class="tile-sub">Parallel worktrees</span>
+                </div>
+              </button>
+            </div>
+
+            <!-- Task Metrics Grid -->
+            <div class="section-block">
+              <div class="section-header">
+                <h2 class="section-title">TASK METRICS</h2>
+                <button class="link-btn" data-tab="tasks">View All (<span id="dash-total-tasks">0</span>) →</button>
+              </div>
+              <div class="metrics-grid">
+                <div class="metric-card" data-filter="RUNNING">
+                  <div class="metric-header">
+                    <span>Running</span>
+                    <span class="pulse-dot"></span>
+                  </div>
+                  <div class="metric-value text-primary" id="metric-running">0</div>
+                </div>
+                <div class="metric-card" data-filter="AWAITING_APPROVAL">
+                  <div class="metric-header">
+                    <span>Approvals</span>
+                    <span class="status-dot amber"></span>
+                  </div>
+                  <div class="metric-value text-amber" id="metric-approvals">0</div>
+                </div>
+                <div class="metric-card" data-filter="COMPLETED">
+                  <div class="metric-header">
+                    <span>Completed</span>
+                    <span class="status-dot green"></span>
+                  </div>
+                  <div class="metric-value text-green" id="metric-completed">0</div>
+                </div>
+              </div>
+              <div class="metrics-subgrid">
+                <div class="submetric"><span>Blocked:</span> <strong id="metric-blocked">0</strong></div>
+                <div class="submetric"><span>Failed:</span> <strong id="metric-failed">0</strong></div>
+                <div class="submetric"><span>High Risk:</span> <strong id="metric-high-risk">0</strong></div>
+              </div>
+            </div>
+
+            <!-- Recent Tasks Feed -->
+            <div class="section-block">
+              <div class="section-header">
+                <h2 class="section-title">RECENT ACTIVITY</h2>
+                <button class="link-btn" data-tab="tasks">History →</button>
+              </div>
+              <div id="dash-recent-tasks" class="space-y-2">
+                <!-- Dynamic Tasks -->
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right Column (Workers Pool & Environment Quick View) -->
+          <div class="space-y-4">
+            
+            <!-- Workers Overview -->
+            <div class="section-block">
+              <div class="section-header">
+                <h2 class="section-title">WORKER POOL</h2>
+                <button class="link-btn" data-tab="workers">Manage →</button>
+              </div>
+              <div id="dash-workers-list" class="space-y-2">
+                <!-- Dynamic Workers -->
+              </div>
+            </div>
+
+            <!-- Quick Environment & Security -->
+            <div class="card" style="border-color: rgba(16, 185, 129, 0.25);">
+              <div class="flex items-center gap-2 mb-2">
+                <i data-lucide="shield-check" class="text-green size-4"></i>
+                <h3 class="font-extrabold text-xs">DEVELOPMENT BOUNDARIES</h3>
+              </div>
+              <div class="space-y-1.5 text-xs text-muted">
+                <div class="flex items-center justify-between">
+                  <span>Database:</span>
+                  <span class="font-mono text-green font-bold">vps_dev (Allowed)</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Redis Scope:</span>
+                  <span class="font-mono">nexa:dev:*, nexa:ai:*</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span>Worktrees:</span>
+                  <span class="font-mono">.worktrees/* (Isolated)</span>
+                </div>
+                <div class="flex items-center justify-between" style="padding-top: 0.25rem; border-top: 1px solid rgba(51, 65, 85, 0.3);">
+                  <span>Production:</span>
+                  <span class="font-bold text-rose-400">Strictly Protected 🔒</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- 2. TASKS VIEW -->
+      <section id="view-tasks" class="tab-view">
+        <div class="search-bar-container">
+          <i data-lucide="search" class="search-icon"></i>
+          <input type="text" id="task-search-input" placeholder="Search by ID, title, keyword or worker...">
+          <button id="btn-clear-search" class="clear-btn hidden">Clear</button>
+        </div>
+
+        <div class="filter-chips-row">
+          <button class="filter-chip active" data-filter="ALL">All</button>
+          <button class="filter-chip" data-filter="AWAITING_APPROVAL">Approval</button>
+          <button class="filter-chip" data-filter="RUNNING">Running</button>
+          <button class="filter-chip" data-filter="COMPLETED">Completed</button>
+          <button class="filter-chip" data-filter="FAILED">Failed</button>
+          <button class="filter-chip" data-filter="BLOCKED">Blocked</button>
+          <button class="filter-chip" data-filter="ESCALATED">Escalated</button>
+        </div>
+
+        <div id="tasks-list" class="space-y-2.5 pt-2">
+          <!-- Dynamic Task Cards -->
+        </div>
+      </section>
+
+      <!-- 3. APPROVALS VIEW -->
+      <section id="view-approvals" class="tab-view">
+        <div class="info-banner">
+          <div class="flex items-center gap-3">
+            <div class="icon-bubble amber"><i data-lucide="check-circle-2"></i></div>
+            <div>
+              <h2 class="font-bold text-sm">Human Approval Gate</h2>
+              <p class="text-xs text-muted" id="approvals-header-desc">0 tasks waiting for deliberate authorization.</p>
+            </div>
+          </div>
+        </div>
+
+        <div id="approvals-list" class="space-y-3 pt-2">
+          <!-- Dynamic Approval Cards -->
+        </div>
+      </section>
+
+      <!-- 4. WORKERS VIEW -->
+      <section id="view-workers" class="tab-view">
+        <div class="info-banner">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="icon-bubble primary"><i data-lucide="cpu"></i></div>
+              <div>
+                <h2 class="font-bold text-sm">Multi-Worker Pool</h2>
+                <p class="text-xs text-muted">Dedicated Git worktrees per worker.</p>
+              </div>
+            </div>
+            <span class="badge badge-success">Isolated</span>
+          </div>
+        </div>
+
+        <div id="workers-list" class="space-y-3 pt-2">
+          <!-- Dynamic Worker Cards -->
+        </div>
+      </section>
+
+      <!-- 5. REVIEWS VIEW -->
+      <section id="view-reviews" class="tab-view">
+        <div class="info-banner">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <div class="icon-bubble primary"><i data-lucide="file-check-2"></i></div>
+              <div>
+                <h2 class="font-bold text-sm">Human Review Center</h2>
+                <p class="text-xs text-muted">Audited completion reports & packages.</p>
+              </div>
+            </div>
+            <span id="reviews-count-badge" class="badge badge-primary">0 Audited</span>
+          </div>
+        </div>
+
+        <div id="reviews-list" class="space-y-3 pt-2">
+          <!-- Dynamic Review Items -->
+        </div>
+      </section>
+
+      <!-- 6. ENVIRONMENT VIEW -->
+      <section id="view-environment" class="tab-view">
+        <div class="card env-card">
+          <div class="flex items-center gap-2 mb-3">
+            <i data-lucide="code-2" class="text-primary size-5"></i>
+            <h2 class="font-extrabold text-sm">DEVELOPMENT ENVIRONMENT</h2>
+          </div>
+          <div class="env-item">
+            <span class="env-k">Workspace</span>
+            <span class="env-v font-mono" id="env-dev-path">/opt/nexa-chess/NexaGen-dev</span>
+          </div>
+          <div class="env-item">
+            <span class="env-k">Git Branch</span>
+            <span class="env-v font-mono" id="env-dev-branch">dev</span>
+          </div>
+          <div class="env-item">
+            <span class="env-k">Web Server</span>
+            <span class="env-v font-mono text-green">Port 3010 (Healthy)</span>
+          </div>
+          <div class="env-item">
+            <span class="env-k">API Server</span>
+            <span class="env-v font-mono text-green">Port 3011 (Healthy)</span>
+          </div>
+          <div class="env-item">
+            <span class="env-k">PostgreSQL</span>
+            <span class="env-v font-mono text-green">vps_dev (127.0.0.1:5432)</span>
+          </div>
+          <div class="env-item">
+            <span class="env-k">Redis Keyspace</span>
+            <span class="env-v font-mono">nexa:dev:*, nexa:ai:*</span>
+          </div>
+          <div class="env-item">
+            <span class="env-k">LiveKit Rooms</span>
+            <span class="env-v font-mono">dev-ai-* (Isolated)</span>
+          </div>
+        </div>
+
+        <!-- Production Protected Card -->
+        <div class="card prod-card">
+          <div class="flex items-center gap-2 mb-2">
+            <i data-lucide="shield-alert" class="text-rose-500 size-5"></i>
+            <h2 class="font-extrabold text-sm text-rose-400">PRODUCTION — STRICTLY PROTECTED</h2>
+          </div>
+          <p class="text-xs text-muted leading-relaxed mb-3">
+            AI workers are hard-blocked from production files, production database (<code class="font-mono text-rose-300">nexa_chess</code>), and production Docker containers.
+          </p>
+          <div class="prod-badge-grid">
+            <span class="prod-badge">❌ No Prod Path Access</span>
+            <span class="prod-badge">❌ No nexa_chess DB</span>
+            <span class="prod-badge">❌ No Docker Mutate</span>
+            <span class="prod-badge">❌ No Auto Merge/Push</span>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Mobile Fixed Bottom Navigation Bar (Hidden on Desktop) -->
+    <nav class="mobile-bottom-nav">
+      <button class="bnav-btn active" data-tab="dashboard">
+        <i data-lucide="layout-dashboard"></i>
+        <span>Overview</span>
+      </button>
+      <button class="bnav-btn" data-tab="tasks">
+        <i data-lucide="list-todo"></i>
+        <span id="bnav-tasks-badge" class="bnav-badge hidden">0</span>
+        <span>Tasks</span>
+      </button>
+      <button class="bnav-btn" data-tab="approvals">
+        <i data-lucide="check-circle-2"></i>
+        <span id="bnav-approvals-badge" class="bnav-badge badge-amber hidden">0</span>
+        <span>Approvals</span>
+      </button>
+      <button class="bnav-btn" data-tab="workers">
+        <i data-lucide="cpu"></i>
+        <span>Workers</span>
+      </button>
+      <button class="bnav-btn" data-tab="reviews">
+        <i data-lucide="file-check-2"></i>
+        <span>Reviews</span>
+      </button>
+      <button class="bnav-btn" data-tab="environment">
+        <i data-lucide="sliders"></i>
+        <span>Env</span>
+      </button>
+    </nav>
+
+    <!-- Task Detail Drawer / Modal -->
+    <div id="task-detail-modal" class="modal-backdrop hidden">
+      <div class="drawer-panel">
+        <div class="drawer-header">
+          <div class="flex items-center gap-2">
+            <span id="modal-task-id" class="font-mono font-black text-primary text-sm">NEXA-0000</span>
+            <span id="modal-task-impact" class="badge">MEDIUM</span>
+            <span id="modal-task-status" class="badge badge-primary">PLANNED</span>
+          </div>
+          <button id="btn-close-modal" class="btn-icon-sm"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="drawer-body">
+          <h2 id="modal-task-title" class="drawer-title">Task Title</h2>
+          <p id="modal-task-objective" class="drawer-desc">Task objective description...</p>
+
+          <!-- Elevated Risk Alert (if any) -->
+          <div id="modal-risk-box" class="risk-alert-box hidden">
+            <i data-lucide="shield-alert" class="size-4 shrink-0"></i>
+            <div id="modal-risk-reasons">Risk reasons...</div>
+          </div>
+
+          <!-- Regression Warnings (if any) -->
+          <div id="modal-regression-box" class="regression-box hidden">
+            <i data-lucide="history" class="size-4 shrink-0 text-primary"></i>
+            <div id="modal-regression-content">Regression learnings...</div>
+          </div>
+
+          <!-- Meta Grid -->
+          <div class="meta-grid">
+            <div class="meta-item">
+              <span class="meta-k">Worker</span>
+              <span class="meta-v font-mono" id="modal-task-worker">-</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-k">Worktree</span>
+              <span class="meta-v font-mono truncate" id="modal-task-worktree">-</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-k">Branch</span>
+              <span class="meta-v font-mono truncate" id="modal-task-branch">-</span>
+            </div>
+            <div class="meta-item">
+              <span class="meta-k">Attempt</span>
+              <span class="meta-v" id="modal-task-attempt">1 / 2</span>
+            </div>
+          </div>
+
+          <!-- Acceptance Criteria -->
+          <div class="drawer-section">
+            <div class="section-eyebrow">ACCEPTANCE CRITERIA</div>
+            <div id="modal-ac-list" class="space-y-1.5 pt-1">
+              <!-- Criteria -->
+            </div>
+          </div>
+
+          <!-- Changed Files -->
+          <div class="drawer-section" id="modal-files-section">
+            <div class="section-eyebrow">FILES MODIFIED</div>
+            <div id="modal-files-list" class="files-list">
+              <!-- Files -->
+            </div>
+          </div>
+
+          <!-- Review Markdown Preview (if present) -->
+          <div class="drawer-section hidden" id="modal-review-section">
+            <div class="section-eyebrow">HUMAN REVIEW PACKAGE</div>
+            <pre id="modal-review-text" class="review-pre"></pre>
+          </div>
+        </div>
+
+        <div class="drawer-footer" id="modal-drawer-footer">
+          <!-- Dynamic Action Buttons (Approve, Reject, Close) -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Plan New Task Dialog -->
+    <div id="create-task-modal" class="modal-backdrop hidden">
+      <div class="dialog-panel">
+        <div class="dialog-header">
+          <div class="flex items-center gap-2">
+            <div class="icon-bubble primary"><i data-lucide="plus"></i></div>
+            <h2 class="font-extrabold text-sm">Plan Development Request</h2>
+          </div>
+          <button id="btn-close-create" class="btn-icon-sm"><i data-lucide="x"></i></button>
+        </div>
+
+        <div class="dialog-body">
+          <p class="text-xs text-muted leading-relaxed">
+            Describe the bug or feature in natural language. The Smart Planner will assess risk, query regression history, and create approval-ready work orders.
+          </p>
+
+          <div class="mt-3">
+            <textarea id="create-prompt-input" rows="4" placeholder="e.g. Investigate and fix student attendance percentage calculation when joining late. Add regression tests." class="dialog-textarea"></textarea>
+          </div>
+
+          <!-- Loading Indicator -->
+          <div id="create-planning-spinner" class="planning-spinner hidden">
+            <i data-lucide="refresh-cw" class="animate-spin text-primary"></i>
+            <span class="text-xs font-bold">Analyzing request & calculating risk...</span>
+          </div>
+
+          <!-- Plan Preview Result (if generated) -->
+          <div id="create-plan-preview" class="plan-preview hidden">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-bold text-green flex items-center gap-1">
+                <i data-lucide="check-circle-2" class="size-3.5"></i> Plan Generated
+              </span>
+              <span id="plan-risk-badge" class="badge">MEDIUM RISK</span>
+            </div>
+            <div id="plan-preview-details" class="text-xs space-y-1"></div>
+          </div>
+        </div>
+
+        <div class="dialog-footer">
+          <button id="btn-cancel-create" class="btn-secondary">Cancel</button>
+          <button id="btn-submit-plan" class="btn-primary">Generate Plan</button>
+          <button id="btn-approve-plan-direct" class="btn-green hidden">Approve & Execute</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

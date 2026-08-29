@@ -27,13 +27,24 @@
     "prepare": "husky",
     "precommit": "npm run typecheck && npm run lint && npm run test",
     "test": "npm run test -w apps/api -- --runInBand",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "ai:manager": "node .ai/manager/manager.js",
+    "ai:worker": "node .ai/scripts/worker.js",
+    "ai:status": "node .ai/scripts/status.js",
+    "ai:schedule": "node .ai/manager/scheduler.js",
+    "ai:tasks": "node .ai/scripts/task-manager.js",
+    "ai:finish": "node .ai/scripts/finish-task.js",
+    "ai:audit": "node .ai/scripts/safety-audit.js",
+    "ai:test:manager": "node .ai/scripts/manager-test.js",
+    "ai:observe": ".ai/scripts/observe.sh",
+    "ai:verify": ".ai/scripts/verify.sh",
+    "ai:ui": "node .ai/ui/server.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
     "concurrently": "^8.2.2",
     "husky": "^9.1.7",
-    "turbo": "^2.5.4",
-    "typescript": "^5.5.4"
+    "turbo": "^2.10.12",
+    "typescript": "^5.9.3"
   }
 }

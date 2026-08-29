@@ -59,6 +59,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
+ENV PATH="/usr/games:${PATH}"
 
 WORKDIR /app
 
