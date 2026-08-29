@@ -14,15 +14,15 @@
       ],
       "provider": "gemini",
       "model": "gemini-2.5-pro",
-      "status": "BUSY",
+      "status": "AVAILABLE",
       "environment": "development",
       "project_path": "/opt/nexa-chess/NexaGen-dev",
       "max_concurrent": 1,
-      "last_heartbeat": "2026-08-29T11:27:51.456Z",
-      "tasks_completed": 1,
+      "last_heartbeat": "2026-08-29T11:28:17.808Z",
+      "tasks_completed": 2,
       "tasks_failed": 1,
-      "current_task": "NEXA-0002"
+      "current_task": null
     }
   ],
-  "updated_at": "2026-08-29T11:27:51.456Z"
+  "updated_at": "2026-08-29T11:28:17.808Z"
 }
