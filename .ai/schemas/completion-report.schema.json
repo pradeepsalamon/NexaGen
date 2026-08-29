@@ -13,6 +13,14 @@
       "enum": ["completed", "failed", "partial", "blocked", "interrupted"]
     },
     "worker_id": { "type": "string" },
+    "worktree_path": { "type": "string" },
+    "task_branch": { "type": "string" },
+    "commit_sha": { "type": "string" },
+    "worktree_status": {
+      "type": "string",
+      "enum": ["AVAILABLE", "ASSIGNED", "CREATING", "READY", "RUNNING", "TESTING", "COMPLETED", "RELEASED", "DIRTY", "ORPHANED", "INTERRUPTED", "BLOCKED"],
+      "default": "COMPLETED"
+    },
     "attempt": { "type": "integer", "default": 1 },
     "max_attempts": { "type": "integer", "default": 2 },
     "summary": {

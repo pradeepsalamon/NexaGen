@@ -50,6 +50,23 @@
       "items": { "type": "string" },
       "description": "Required worker capability tags (e.g. backend, nestjs, prisma, frontend, nextjs, testing)"
     },
+    "worktree_path": {
+      "type": "string",
+      "description": "Path to isolated worker git worktree (e.g. /opt/nexa-chess/NexaGen-dev/.worktrees/nexa-dev-01)"
+    },
+    "task_branch": {
+      "type": "string",
+      "description": "Target git branch checked out in worker worktree (e.g. ai/NEXA-0001-desc)"
+    },
+    "worktree_status": {
+      "type": "string",
+      "enum": ["AVAILABLE", "ASSIGNED", "CREATING", "READY", "RUNNING", "TESTING", "COMPLETED", "RELEASED", "DIRTY", "ORPHANED", "INTERRUPTED", "BLOCKED"],
+      "default": "AVAILABLE"
+    },
+    "worktree_created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "environment": {
       "type": "object",
       "properties": {

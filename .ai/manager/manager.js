@@ -242,6 +242,83 @@ class MainManager {
 
     return { ok: true, results };
   }
+
+  /**
+   * Displays all Git worktrees and worker ownership.
+   */
+  showWorktrees() {
+    this.showBanner();
+    const WorktreeManager = require('./worktree-manager');
+    const wm = new WorktreeManager(DEV_ROOT);
+    const worktrees = wm.listWorktrees();
+
+    console.log('── Git Worktrees & Worker Ownership ──');
+    for (const wt of worktrees) {
+      const statusIcon = wt.status === 'AVAILABLE' ? '🟢' : wt.status === 'READY' ? '🟢' : wt.status === 'DIRTY' ? '🟡' : '🔴';
+      console.log(`  ${statusIcon} Worker:    ${wt.worker_id}`);
+      console.log(`     Path:      ${wt.worktree_path}`);
+      console.log(`     Status:    ${wt.status}`);
+      console.log(`     Branch:    ${wt.branch || 'None'}`);
+      console.log(`     Clean:     ${wt.is_clean ? 'YES' : 'NO (Uncommitted Changes)'}`);
+      console.log('');
+    }
+  }
+
+  /**
+   * Validates all worker worktrees.
+   */
+  checkWorktrees() {
+    this.showBanner();
+    const WorktreeManager = require('./worktree-manager');
+    const wm = new WorktreeManager(DEV_ROOT);
+    const worktrees = wm.listWorktrees();
+
+    console.log('── Validating Worker Worktrees ──');
+    let allValid = true;
+    for (const wt of worktrees) {
+      if (wt.exists) {
+        const val = wm.validateWorkerWorktree(wt.worker_id);
+        if (val.ok) {
+          console.log(`  ✅ [${wt.worker_id}] Worktree valid (${val.branch || 'no branch'}, clean: ${val.is_clean})`);
+        } else {
+          console.log(`  ❌ [${wt.worker_id}] Validation failed: [${val.code}] ${val.reason}`);
+          allValid = false;
+        }
+      } else {
+        console.log(`  ℹ️ [${wt.worker_id}] Worktree available for creation on demand`);
+      }
+    }
+    console.log('');
+    return allValid;
+  }
+
+  /**
+   * Performs read-only merge readiness assessment.
+   */
+  checkMerge(taskId, baseBranch = 'dev') {
+    this.showBanner();
+    const WorktreeManager = require('./worktree-manager');
+    const wm = new WorktreeManager(DEV_ROOT);
+    const res = wm.checkMergeReadiness(taskId, null, baseBranch);
+
+    console.log(`── Merge Readiness Check for Task: ${taskId} ──\n`);
+    console.log(`  Task Branch:       ${res.task_branch || 'ai/' + taskId}`);
+    console.log(`  Base Branch:       ${res.base_branch || baseBranch}`);
+    console.log(`  Commits Ahead:     ${res.commits_ahead || 0}`);
+    console.log(`  Changed Files:     ${res.changed_files ? res.changed_files.length : 0}`);
+    if (res.changed_files && res.changed_files.length > 0) {
+      res.changed_files.forEach(f => console.log(`     • ${f}`));
+    }
+    console.log(`  Merge Conflicts:   ${res.has_conflicts ? '⚠️ DETECTED' : 'NONE (Clean)'}`);
+    if (res.has_conflicts) {
+      console.log(`     Details: ${res.conflict_details}`);
+    }
+    console.log(`  Test Status:       ${res.test_status || 'UNKNOWN'}`);
+    console.log(`\n  VERDICT:           ${res.verdict === 'READY_FOR_HUMAN_REVIEW' ? '✅ READY_FOR_HUMAN_REVIEW' : '❌ NOT_READY'}`);
+    console.log(`  Recommendation:    ${res.recommendation}\n`);
+    console.log(`  🛑 SAFETY NOTE: Antigravity never auto-merges into dev. Human review required.\n`);
+    return res;
+  }
 }
 
 // CLI handler
@@ -255,6 +332,9 @@ async function main() {
     console.log('  npm run ai:manager -- "<user_request>"       Execute full planning & DAG orchestration workflow');
     console.log('  npm run ai:manager -- --status               Display manager & worker queue status');
     console.log('  npm run ai:manager -- --workers              List all registered workers in multi-worker pool');
+    console.log('  npm run ai:manager -- --worktrees            List all Git worktrees and worker assignments');
+    console.log('  npm run ai:manager -- --worktree-check       Validate integrity of all worker worktrees');
+    console.log('  npm run ai:manager -- --merge-check <ID>     Read-only merge readiness assessment');
     console.log('  npm run ai:manager -- --graph [TASK_ID]      Render ASCII dependency tree for task(s)');
     console.log('  npm run ai:manager -- --history [query]      Query structured project development history');
     console.log('  npm run ai:manager -- --plan "<request>"     Plan and generate work order without executing');
@@ -272,6 +352,27 @@ async function main() {
 
   if (args.includes('--workers')) {
     manager.showWorkers();
+    return;
+  }
+
+  if (args.includes('--worktrees')) {
+    manager.showWorktrees();
+    return;
+  }
+
+  if (args.includes('--worktree-check')) {
+    manager.checkWorktrees();
+    return;
+  }
+
+  if (args.includes('--merge-check')) {
+    const checkIdx = args.indexOf('--merge-check') + 1;
+    const taskId = args[checkIdx];
+    if (!taskId) {
+      console.error('❌ Error: Task ID required for --merge-check (e.g. npm run ai:manager -- --merge-check NEXA-0034)');
+      process.exit(1);
+    }
+    manager.checkMerge(taskId);
     return;
   }
 

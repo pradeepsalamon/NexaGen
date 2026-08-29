@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * Nexa AI Development System — Phase 6 Observability CLI
- * Displays comprehensive multi-worker pool status, queues, dependency graph state, dev services, and safety.
+ * Nexa AI Development System — Phase 7 Observability CLI
+ * Displays comprehensive multi-worker pool status, worktrees, queues, dependency graph state, dev services, and safety.
  */
 
 const fs = require('fs');
 const path = require('path');
 const ProjectContextEngine = require('../manager/project-context');
 const DependencyGraph = require('../manager/dependency-graph');
+const WorktreeManager = require('../manager/worktree-manager');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
 const ACTIVE_DIR = path.join(DEV_ROOT, '.ai', 'tasks', 'active');
@@ -17,15 +18,17 @@ const FAILED_DIR = path.join(DEV_ROOT, '.ai', 'tasks', 'failed');
 async function main() {
   const engine = new ProjectContextEngine(DEV_ROOT);
   const summary = engine.getProjectContextSummary();
+  const wm = new WorktreeManager(DEV_ROOT);
+  const worktrees = wm.listWorktrees();
 
   console.log('============================================================');
   console.log('               NEXAGEN AI DEVELOPMENT SYSTEM');
   console.log('============================================================');
   console.log(`Manager:       READY`);
   console.log(`Provider:      ${summary.worker.provider}`);
-  console.log(`Scheduler:     READY (CLI / Filesystem DAG)`);
+  console.log(`Scheduler:     READY (CLI / Filesystem DAG Worktree Parallelism)`);
 
-  console.log('\nWORKERS (Pool)');
+  console.log('\nWORKERS (Pool & Worktrees)');
   console.log('--------------------------------');
   const pool = summary.worker.workers_pool || [];
   if (pool.length === 0) {
@@ -33,17 +36,36 @@ async function main() {
   } else {
     for (const w of pool) {
       const statusIcon = w.status === 'AVAILABLE' ? '🟢' : w.status === 'BUSY' ? '🟡' : '🔴';
+      const wtInfo = worktrees.find(wt => wt.worker_id === w.worker_id);
       console.log(`  ${statusIcon} Worker:        ${w.worker_id} (${w.name || 'Coding Worker'})`);
       console.log(`     Status:        ${w.status}`);
       console.log(`     Current Task:  ${w.current_task || 'None'}`);
+      console.log(`     Worktree:      ${w.worktree_path || wtInfo?.worktree_path || `.worktrees/${w.worker_id}`}`);
+      console.log(`     Branch:        ${w.branch || wtInfo?.branch || 'None'}`);
       console.log(`     Capabilities:  [${w.capabilities.join(', ')}]`);
-      console.log(`     Workspace:     ${w.workspace}`);
       if (w.pulse_age_seconds !== null) {
         console.log(`     Heartbeat:     ${w.pulse_age_seconds}s ago`);
       }
       console.log('');
     }
   }
+
+  // Worktree Pool Summary
+  const wtTotal = worktrees.length;
+  const wtAvailable = worktrees.filter(wt => wt.status === 'AVAILABLE' || wt.status === 'READY').length;
+  const wtAssigned = worktrees.filter(wt => wt.status === 'ASSIGNED' || wt.status === 'RUNNING').length;
+  const wtDirty = worktrees.filter(wt => wt.status === 'DIRTY').length;
+  const wtOrphaned = worktrees.filter(wt => wt.status === 'ORPHANED').length;
+  const wtInvalid = worktrees.filter(wt => wt.status === 'INVALID').length;
+
+  console.log('WORKTREES');
+  console.log('--------------------------------');
+  console.log(`Total:         ${wtTotal}`);
+  console.log(`Available:     ${wtAvailable}`);
+  console.log(`Assigned:      ${wtAssigned}`);
+  console.log(`Dirty:         ${wtDirty}`);
+  console.log(`Orphaned:      ${wtOrphaned}`);
+  console.log(`Invalid:       ${wtInvalid}`);
 
   // Load dependency graph details
   const activeTasks = [];
@@ -73,14 +95,13 @@ async function main() {
   const blocked = graph.getBlockedTasks(completedIds, failedIds);
   const queued = activeTasks.filter(t => !runningIds.has(t.task_id) && !runnable.some(r => r.task_id === t.task_id));
 
-  console.log('TASK QUEUE');
+  console.log('\nTASK QUEUE');
   console.log('--------------------------------');
-  console.log(`Ready (Runnable):   ${runnable.length}`);
-  console.log(`Queued (Waiting):   ${queued.length}`);
-  console.log(`Running (Locked):   ${runningIds.size}`);
-  console.log(`Blocked on Deps:    ${blocked.length}`);
-  console.log(`Completed:          ${completedIds.size}`);
-  console.log(`Failed:             ${failedIds.size}`);
+  console.log(`Runnable:      ${runnable.length}`);
+  console.log(`Waiting:       ${queued.length}`);
+  console.log(`Running:       ${runningIds.size}`);
+  console.log(`Completed:     ${completedIds.size}`);
+  console.log(`Failed:        ${failedIds.size}`);
 
   console.log('\nDEPENDENCIES');
   console.log('--------------------------------');
@@ -99,6 +120,7 @@ async function main() {
 
   console.log('\nSAFETY');
   console.log('--------------------------------');
+  console.log(`Shared Repository: PROTECTED (Isolated Git Worktrees)`);
   console.log(`Production Access: ${summary.safety_boundaries.production_access}`);
   console.log(`Production DB:     ${summary.safety_boundaries.production_db}`);
   console.log(`Production Docker: ${summary.safety_boundaries.production_docker}`);

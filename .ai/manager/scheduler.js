@@ -142,40 +142,46 @@ class Scheduler {
       }
     }
 
-    // 6. Schedule & Dispatch Runnable Tasks
+    // 6. Schedule & Dispatch Runnable Tasks in Parallel
     let scheduledCount = 0;
     const dispatchedTasks = [];
+    const assignedWorkerIdsInCycle = new Set();
 
     for (const task of runnableTasks) {
       const requiredCaps = task.required_capabilities || [];
-      const worker = this.registry.findCapableWorker(requiredCaps);
+      const worker = this.registry.findCapableWorker(requiredCaps, Array.from(assignedWorkerIdsInCycle));
 
       if (!worker) {
         log(`\n⚠️ [${task.task_id}] No capable AVAILABLE worker found for capabilities: [${requiredCaps.join(', ')}]`);
         continue;
       }
 
-      log(`\n🚀 [SCHEDULE] Assigning task ${task.task_id} to worker '${worker.worker_id || worker.id}'...`);
+      const workerId = worker.worker_id || worker.id;
+      assignedWorkerIdsInCycle.add(workerId);
+
+      log(`\n🚀 [SCHEDULE] Assigning task ${task.task_id} to worker '${workerId}'...`);
       
       // Update task assignment in file
-      task.assigned_worker = worker.worker_id || worker.id;
+      task.assigned_worker = workerId;
       task.state_history = task.state_history || [];
       task.state_history.push({
         state: 'ASSIGNED',
-        worker: worker.worker_id || worker.id,
+        worker: workerId,
         timestamp: new Date().toISOString()
       });
       fs.writeFileSync(path.join(ACTIVE_DIR, `${task.task_id}.json`), JSON.stringify(task, null, 2), 'utf-8');
 
       // Dispatch task
-      const dispatcher = new Dispatcher(worker.worker_id || worker.id);
+      const dispatcher = new Dispatcher(workerId);
       const dispatchResult = await dispatcher.dispatch(task.task_id);
 
       if (dispatchResult.ok) {
         scheduledCount++;
         dispatchedTasks.push({
           task_id: task.task_id,
-          worker_id: worker.worker_id || worker.id
+          worker_id: workerId,
+          worktree_path: dispatchResult.worktree_path,
+          task_branch: dispatchResult.task_branch
         });
       } else {
         log(`❌ Dispatch failed for ${task.task_id}: ${dispatchResult.reason || dispatchResult.error}`);

@@ -1,13 +1,14 @@
 /**
- * Nexa AI Development System — Phase 6 Main Manager Dispatcher
- * Dispatches work orders to available worker agents based on capabilities,
- * monitors execution, prevents workspace conflicts, and performs crash recovery.
+ * Nexa AI Development System — Phase 7 Main Manager Dispatcher
+ * Dispatches work orders to isolated worker Git worktrees based on capabilities,
+ * monitors execution, prevents workspace conflicts, and manages worktree lifecycles.
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
 const WorkerRegistry = require('./worker-registry');
+const WorktreeManager = require('./worktree-manager');
 const { checkAndRecoverInterrupted } = require('../scripts/worker');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
@@ -17,9 +18,10 @@ const ACTIVE_DIR = path.join(TASKS_DIR, 'active');
 const WORKER_SCRIPT = path.join(AI_DIR, 'scripts', 'worker.js');
 
 class Dispatcher {
-  constructor(workerId = 'nexa-dev-01', registry = null) {
+  constructor(workerId = 'nexa-dev-01', registry = null, worktreeManager = null) {
     this.workerId = workerId;
     this.registry = registry || new WorkerRegistry();
+    this.worktreeManager = worktreeManager || new WorktreeManager(DEV_ROOT);
   }
 
   /**
@@ -56,6 +58,8 @@ class Dispatcher {
       ok: true,
       status: isHeartbeatStale ? 'STALE' : worker.status,
       current_task: worker.current_task,
+      branch: worker.branch || null,
+      workspace: worker.workspace || this.worktreeManager.getWorkerWorktreePath(targetWorkerId),
       capabilities: worker.capabilities || [],
       worker,
       is_stale: isHeartbeatStale
@@ -63,7 +67,7 @@ class Dispatcher {
   }
 
   /**
-   * Dispatches a work order to an eligible capable worker.
+   * Dispatches a work order to an eligible capable worker inside an isolated Git worktree.
    */
   async dispatch(taskId, preferredWorkerId = null) {
     const taskPath = path.join(ACTIVE_DIR, `${taskId}.json`);
@@ -101,7 +105,6 @@ class Dispatcher {
     const targetWorkerId = preferredWorkerId || taskData.assigned_worker || this.workerId;
     let selectedWorker = this.registry.getWorker(targetWorkerId);
 
-    // If specific worker requested, verify capabilities
     const requiredCaps = taskData.required_capabilities || [];
     if (selectedWorker) {
       const workerCaps = (selectedWorker.capabilities || []).map(c => c.toLowerCase());
@@ -110,7 +113,6 @@ class Dispatcher {
       );
 
       if (!hasCaps) {
-        // Try to find another capable worker
         const alternative = this.registry.findCapableWorker(requiredCaps);
         if (alternative) {
           selectedWorker = alternative;
@@ -152,44 +154,71 @@ class Dispatcher {
       };
     }
 
-    console.log(`\n📡 [DISPATCH] Dispatching ${taskId} to worker '${workerId}' (Capabilities: [${(selectedWorker.capabilities || []).join(', ')}])...`);
+    // 3. Create or Validate Dedicated Git Worktree
+    const taskBranch = taskData.task_branch || taskData.environment?.branch || `ai/${taskId}-task`;
+    console.log(`\n🌿 [WORKTREE] Setting up isolated worktree for worker '${workerId}' on branch '${taskBranch}'...`);
+    
+    const worktreeResult = this.worktreeManager.createWorkerWorktree(workerId, taskId, taskBranch);
+    if (!worktreeResult.ok) {
+      console.error(`❌ Worktree setup failed: [${worktreeResult.code}] ${worktreeResult.reason}`);
+      return {
+        ok: false,
+        code: worktreeResult.code || 'BLOCKED_WORKTREE',
+        reason: worktreeResult.reason
+      };
+    }
 
-    // Record assignment in work order
+    const worktreePath = worktreeResult.worktree_path;
+
+    // 4. Update Task Work Order Metadata
     taskData.assigned_worker = workerId;
+    taskData.worktree_path = worktreePath;
+    taskData.task_branch = taskBranch;
+    taskData.worktree_status = 'RUNNING';
+    taskData.worktree_created_at = new Date().toISOString();
     taskData.state_history = taskData.state_history || [];
     taskData.state_history.push({
       state: 'CLAIMED',
       worker: workerId,
+      worktree: worktreePath,
+      branch: taskBranch,
       timestamp: new Date().toISOString()
     });
     fs.writeFileSync(taskPath, JSON.stringify(taskData, null, 2), 'utf-8');
 
-    // Update worker status to BUSY
-    this.registry.updateWorkerStatus(workerId, 'BUSY', taskId);
+    // 5. Update Worker Registry to BUSY
+    this.registry.updateWorkerStatus(workerId, 'BUSY', taskId, taskBranch, worktreePath);
 
+    console.log(`\n📡 [DISPATCH] Dispatching ${taskId} to worker '${workerId}' inside worktree:\n   📁 ${worktreePath}`);
+
+    // 6. Execute Worker inside Dedicated Worktree
     try {
-      const workerOutput = execSync(`node "${WORKER_SCRIPT}" --run "${taskId}"`, {
+      const workerOutput = execSync(`node "${WORKER_SCRIPT}" --run "${taskId}" --workspace "${worktreePath}" --worker-id "${workerId}"`, {
         cwd: DEV_ROOT,
         encoding: 'utf-8',
         timeout: 180000
       });
 
       // Release worker back to AVAILABLE
-      this.registry.updateWorkerStatus(workerId, 'AVAILABLE', null);
+      this.registry.updateWorkerStatus(workerId, 'AVAILABLE', null, null, worktreePath);
+      this.worktreeManager.releaseWorkerWorktree(workerId, taskId, { removeWorktree: false });
 
       return {
         ok: true,
         task_id: taskId,
         worker_id: workerId,
+        worktree_path: worktreePath,
+        task_branch: taskBranch,
         output: workerOutput
       };
     } catch (err) {
-      this.registry.updateWorkerStatus(workerId, 'AVAILABLE', null);
+      this.registry.updateWorkerStatus(workerId, 'AVAILABLE', null, null, worktreePath);
       return {
         ok: false,
         code: 'DISPATCH_EXECUTION_ERROR',
         task_id: taskId,
         worker_id: workerId,
+        worktree_path: worktreePath,
         error: err.message,
         stdout: err.stdout ? err.stdout.toString() : '',
         stderr: err.stderr ? err.stderr.toString() : ''

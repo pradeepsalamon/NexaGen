@@ -18,32 +18,38 @@
 - **Ports**: 3000 (web), 3001 (api)
 - **Runtime**: Docker containers
 
-## AI Worker Permissions
+## AI Worker Permissions (Phase 7 Git Worktree Isolation)
 
-### ALLOWED (Development)
+> **AUTHORITATIVE TRANSPORT RULE**:
+> **Redis is NOT used for AI task orchestration. Filesystem task contracts remain authoritative.**
+> Shared Redis is used exclusively for application caching with strict dev prefix filtering.
+
+### ALLOWED (Development & Isolated Worktrees)
 
 ```
-✅ Read/Write: /opt/nexa-chess/NexaGen-dev/**
+✅ Worktrees:  Execute inside /opt/nexa-chess/NexaGen-dev/.worktrees/<worker_id>
+✅ Read/Write: /opt/nexa-chess/NexaGen-dev/** (inside assigned worktree)
 ✅ Read:       /opt/nexa-chess/NexaGen-dev/.env (dev config only)
 ✅ Database:   PostgreSQL → vps_dev ONLY
 ✅ Redis:      Keys with prefix nexa:dev:* or nexa:ai:*
 ✅ LiveKit:    Test rooms named dev-ai-<task-id>-<purpose>
 ✅ Docker:     docker logs, docker ps, docker exec (read-only diagnostics)
-✅ Git:        Create task branch (ai/NEXA-XXXX-*), commit to task branch
-✅ Shell:      Run tests, builds, lints inside DEV_ROOT
+✅ Git:        Create task branch (ai/NEXA-XXXX-*), commit to task branch inside worktree
+✅ Shell:      Run tests, builds, lints inside assigned worker worktree
 ✅ Network:    Read-only monitoring (vnstat, ss, netstat)
 ```
 
 ### BLOCKED (Production & System)
 
 ```
+❌ Shared Root:Direct worker code modification in shared root repository
 ❌ Write:      /opt/nexa-chess/NexaGen/**
 ❌ Read:       /opt/nexa-chess/NexaGen/.env (production secrets)
 ❌ Database:   PostgreSQL → nexa_chess or postgres
-❌ Redis:      FLUSHALL, FLUSHDB, unscoped prod keys
+❌ Redis:      FLUSHALL, FLUSHDB, unscoped prod keys, task queue brokers
 ❌ LiveKit:    Mutating production rooms
 ❌ Docker:     docker stop/rm/restart nexa_web, nexa_api, or compose down
-❌ Git:        Auto-merging to dev/main, auto-pushing to dev/main, force push
+❌ Git:        Auto-merging to dev/main, auto-pushing to dev/main, force push, branch deletion
 ❌ System:     sudo, apt install, ufw delete, iptables -F, useradd, passwd
 ❌ Filesystem: Path traversal (../NexaGen, /etc, symlink escape)
 ```

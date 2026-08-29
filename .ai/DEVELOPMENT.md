@@ -50,15 +50,15 @@ npm run test             # Run Jest tests
 npm run typecheck        # TypeScript type checking
 npm run lint             # ESLint
 
-# AI Development System (Phase 6 Multi-Worker Filesystem Orchestration)
-npm run ai:status        # Complete observability dashboard (Manager, Workers, Queue, Safety)
-npm run ai:schedule      # Run filesystem scheduler cycle across active tasks
+# AI Development System (Phase 7 Git Worktree Parallelism)
+npm run ai:status        # Complete observability dashboard (Manager, Workers, Worktrees, Queue, Safety)
+npm run ai:schedule      # Run parallel scheduler cycle across active tasks
 npm run ai:manager       # Start Main AI Manager DAG orchestration
 npm run ai:worker        # Start Gemini Worker
 npm run ai:tasks         # Task Manager CLI (list, create, show)
 npm run ai:finish        # Verify, commit, and complete active task
-npm run ai:audit         # Run 79-assertion Worker Safety Audit
-npm run ai:test:manager  # Run 25-scenario Manager Test Suite
+npm run ai:audit         # Run 89-assertion Worker Safety Audit
+npm run ai:test:manager  # Run 30-scenario Manager Test Suite
 npm run ai:observe       # Run VPS health observability check
 npm run ai:verify        # Run full QA pipeline
 

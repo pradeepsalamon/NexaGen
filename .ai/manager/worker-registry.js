@@ -149,9 +149,9 @@ class WorkerRegistry {
   }
 
   /**
-   * Updates worker status and current task.
+   * Updates worker status, current task, branch, and worktree.
    */
-  updateWorkerStatus(workerId, status, currentTask = null) {
+  updateWorkerStatus(workerId, status, currentTask = null, branch = null, worktreePath = null) {
     if (!VALID_STATUSES.includes(status)) {
       throw new Error(`Invalid worker status '${status}'`);
     }
@@ -163,9 +163,13 @@ class WorkerRegistry {
       if (w.worker_id === workerId || w.id === workerId) {
         w.status = status;
         w.current_task = currentTask;
+        if (branch !== undefined) w.branch = branch;
+        if (worktreePath) w.worktree_path = worktreePath;
         w.heartbeat = new Date().toISOString();
-        if (status === 'COMPLETED' || (status === 'AVAILABLE' && w.current_task === null)) {
-          // Keep count
+        if (status === 'COMPLETED') {
+          w.tasks_completed = (w.tasks_completed || 0) + 1;
+        } else if (status === 'ERROR') {
+          w.tasks_failed = (w.tasks_failed || 0) + 1;
         }
         updated = true;
         break;

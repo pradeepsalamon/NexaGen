@@ -153,11 +153,14 @@ NexaGen/
 - **Chess**: Custom chessboard with drag/drop, PGN, FEN support
 - **Live Video**: LiveKit React SDK
 
-## AI Development System (Phase 6 Multi-Worker Filesystem Orchestration)
+## AI Development System (Phase 7 Git Worktree Parallelism)
 
 The repository features an autonomous pair-programming development system located under `.ai/`:
 
-> **AUTHORITATIVE DESIGN PRINCIPLE**: The filesystem remains the authoritative AI task transport. No Redis Streams, message queues, Kafka, RabbitMQ, or external database brokers are introduced.
+> **AUTHORITATIVE TRANSPORT & ORCHESTRATION INVARIANT**:
+> **Redis is NOT used for AI task orchestration. Filesystem task contracts remain authoritative.**
+> No Redis Streams, message queues, Kafka, RabbitMQ, BullMQ, external databases, or new servers are introduced.
+> Shared Redis and LiveKit instances remain dedicated to the NexaGen application within strictly isolated DEV namespaces.
 
 ```
                          HUMAN (USER)
@@ -181,6 +184,8 @@ The repository features an autonomous pair-programming development system locate
         Worker 01        Worker 02        Worker 03
       (Backend/API)     (Frontend/UI)    (QA/Testing)
              │                │                │
+     .worktrees/01    .worktrees/02    .worktrees/03
+             │                │                │
              └────────────────┼────────────────┘
                               │
                     .ai/tasks/completed/
@@ -197,22 +202,23 @@ The repository features an autonomous pair-programming development system locate
 
 1. **Main AI Manager & Control Plane** (`.ai/manager/`):
    - `ProjectContextEngine`: Real-time, safe inspection of git status, native dev services (Web :3010, API :3011, PostgreSQL `vps_dev`, Redis, LiveKit), monorepo workspace structure, and task history search with complete secret redaction.
-   - `WorkerRegistry`: Manages multi-worker pool (`nexa-dev-01`, `nexa-dev-02`, `nexa-dev-03`), capabilities matching, and heartbeat tracking in `.ai/workers/registry.json`.
-   - `DependencyGraph`: Validates Directed Acyclic Graphs (DAGs), rejects circular (`A -> B -> A`), self (`A -> A`), and missing dependencies, and evaluates runnable vs blocked tasks.
-   - `Scheduler` (`npm run ai:schedule`): Idempotent, CLI-driven scheduler that scans active queues, matches capable available workers, acquires atomic file locks (`.lock`), dispatches tasks, and recovers stale locks.
-   - `Planner`: Analyzes user intent, partitions affected areas (`known`, `inferred`, `unknown`), infers `required_capabilities`, and generates structured work orders (`NEXA-XXXX.json`).
-   - `Dispatcher`: Performs pre-dispatch environment health checks, routes work orders to matching capable workers, and prevents workspace collisions.
-   - `Reviewer`: Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, enforces `investigation` read-only constraints, and manages retries (`max_attempts: 2`).
+   - `WorktreeManager` (`worktree-manager.js`): Manages native Git worktrees (`.worktrees/nexa-dev-01`, `nexa-dev-02`, `nexa-dev-03`), symlinks workspace dependencies (`node_modules`, `.env`), enforces branch isolation, prevents dirty worktree overwrites, and performs non-destructive read-only merge readiness assessment (`--merge-check`).
+   - `WorkerRegistry` (`worker-registry.js`): Manages multi-worker pool, specializations, capability matching, assigned worktree paths, and heartbeat tracking in `.ai/workers/registry.json`.
+   - `DependencyGraph` (`dependency-graph.js`): Validates Directed Acyclic Graphs (DAGs), rejects circular, self, and missing dependencies, and evaluates runnable vs blocked tasks.
+   - `Scheduler` (`scheduler.js` / `npm run ai:schedule`): Idempotent, parallel scheduler that scans active queues, matches capable available workers, allocates isolated worktrees, acquires atomic file locks (`.lock`), dispatches tasks, and recovers stale locks.
+   - `Planner` (`planner.js`): Analyzes user intent, partitions affected areas (`known`, `inferred`, `unknown`), infers `required_capabilities`, and generates structured work orders (`NEXA-XXXX.json`).
+   - `Dispatcher` (`dispatcher.js`): Performs pre-dispatch health checks, verifies worktree cleanliness, checks out task branches, and dispatches workers inside dedicated worktrees.
+   - `Reviewer` (`reviewer.js`): Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, enforces `investigation` read-only constraints, and manages retries (`max_attempts: 2`).
 
 2. **Gemini Coding Workers** (`.ai/scripts/worker.js`):
+   - `Worktree Execution Boundary`: Operates strictly inside assigned `.worktrees/<worker_id>` directory. Refuses execution in shared root repository.
    - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, protects LiveKit production rooms, blocks destructive system and Redis commands.
-   - `Dirty Worktree Guard`: Protects uncommitted human modifications from being overwritten (`BLOCKED_USER_CHANGES`).
-   - `Task Branch Isolation`: Creates `ai/<TASK_ID>-<slug>` branch from base branch. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
+   - `Task Branch Isolation`: Checks out `ai/<TASK_ID>-<slug>` branch inside dedicated worktree. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
    - `State Machine`: Tracks complete task transitions (`CREATED` -> `PLANNED` -> `ASSIGNED` -> `CLAIMED` -> `PREFLIGHT` -> `RUNNING` -> `TESTING` -> `VERIFYING` -> `COMPLETED`).
-   - `Heartbeat & Pulse`: Continuously pulses runtime state (`pid`, `task_id`, `phase`, `elapsed_seconds`).
-   - `Crash Recovery`: Detects dead worker processes, preserves task branch without deleting, marks task `INTERRUPTED`.
-   - `QA Gate`: Executes `typecheck`, `lint`, and `unit tests` via `.ai/scripts/verify.sh`.
-   - `Completion Reporter`: Generates schema-compliant `.ai/tasks/completed/<TASK_ID>.json`.
+   - `Heartbeat & Pulse`: Continuously pulses runtime state per worker (`heartbeat_<worker_id>.json`).
+   - `Crash Recovery`: Detects dead worker processes, preserves task branch and worktree without deleting, marks task `INTERRUPTED`.
+   - `QA Gate`: Executes `typecheck`, `lint`, and `unit tests` via `.ai/scripts/verify.sh` inside isolated worktrees.
+   - `Completion Reporter`: Generates schema-compliant `.ai/tasks/completed/<TASK_ID>.json` with `worktree_path`, `task_branch`, and `commit_sha`.
 
 3. **Shared Infrastructure Safety**:
    - **PostgreSQL**: Logical database separation (`vps_dev` vs `nexa_chess`). AI worker is strictly whitelisted to `vps_dev`.
@@ -220,8 +226,9 @@ The repository features an autonomous pair-programming development system locate
    - **LiveKit**: Shared daemon isolated via test room naming convention (`dev-ai-<task-id>-<purpose>`).
 
 4. **Human Approval Boundaries**:
-   - Automated: Task planning, capability routing, DAG dispatch, execution, testing, branch commits, completion review.
+   - Automated: Task planning, capability routing, DAG dispatch, parallel worktree execution, testing, branch commits, completion review.
    - Requires Human Approval: Merging task branch into `dev`, merging into `main`, production deployments, production DB migrations.
+
 
 
 

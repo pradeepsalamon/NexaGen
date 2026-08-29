@@ -16,7 +16,7 @@ const os = require('os');
 // ============================================================
 // Constants & Configuration
 // ============================================================
-const WORKER_ID = 'nexa-dev-01';
+let WORKER_ID = 'nexa-dev-01';
 const EXPECTED_DEV_ROOT = '/opt/nexa-chess/NexaGen-dev';
 const DEV_ROOT = path.resolve(__dirname, '../..');
 const AI_DIR = path.join(DEV_ROOT, '.ai');
@@ -28,12 +28,17 @@ const REGISTRY_FILE = path.join(AI_DIR, 'workers', 'registry.json');
 const STATE_FILE = path.join(AI_DIR, 'workers', 'state.json');
 const HEARTBEAT_FILE = path.join(AI_DIR, 'workers', 'heartbeat.json');
 const VERIFY_SCRIPT = path.join(AI_DIR, 'scripts', 'verify.sh');
+const WORKTREES_DIR = path.join(DEV_ROOT, '.worktrees');
 
 const ALLOWED_DATABASES = ['vps_dev'];
 const BLOCKED_DATABASES = ['nexa_chess', 'postgres'];
 const ALLOWED_REDIS_NAMESPACES = ['nexa:dev:', 'nexa:ai:'];
 
 let heartbeatInterval = null;
+
+function setWorkerId(id) {
+  if (id) WORKER_ID = id;
+}
 
 // ============================================================
 // Safety Validator Module
@@ -516,7 +521,7 @@ function releaseLock(taskData) {
 // ============================================================
 // Preflight Safety & Environment Checks
 // ============================================================
-function runPreflight(taskData) {
+function runPreflight(taskData, workspaceRoot = DEV_ROOT) {
   console.log(`\n── [PREFLIGHT] Validating Task ${taskData.task_id} ──`);
   recordTaskStateTransition(taskData, 'PREFLIGHT');
   startHeartbeat(taskData.task_id, 'PREFLIGHT');
@@ -534,7 +539,7 @@ function runPreflight(taskData) {
   // 2. Safety: Path Restrictions & Traversal
   const safety = taskData.safety || {};
   const blockedPaths = safety.blocked_paths || [];
-  const allowedPaths = safety.allowed_paths || [DEV_ROOT];
+  const allowedPaths = safety.allowed_paths || [workspaceRoot];
 
   for (const aPath of allowedPaths) {
     const pathCheck = SafetyValidator.validatePath(aPath);
@@ -567,16 +572,68 @@ function runPreflight(taskData) {
     return { ok: false, code: 'BLOCKED_REQUIRES_APPROVAL', reason: 'Task requires explicit human approval before execution' };
   }
 
-  // 4. Dirty Worktree Protection
-  const dirtyCheck = SafetyValidator.checkDirtyWorktree(taskData);
-  if (!dirtyCheck.ok) {
-    return dirtyCheck;
+  // 4. Dedicated Git Worktree Validation
+  if (taskData.worktree_path) {
+    const expectedWt = path.resolve(taskData.worktree_path);
+    const actualWs = path.resolve(workspaceRoot);
+
+    if (expectedWt !== actualWs) {
+      return {
+        ok: false,
+        code: 'BLOCKED_WORKTREE_MISMATCH',
+        reason: `Assigned worktree path '${expectedWt}' does not match worker workspace '${actualWs}'`
+      };
+    }
+
+    if (!fs.existsSync(actualWs)) {
+      return {
+        ok: false,
+        code: 'BLOCKED_WORKTREE_NOT_FOUND',
+        reason: `Assigned worktree '${actualWs}' does not exist on filesystem`
+      };
+    }
+
+    // Verify worktree is registered in Git
+    try {
+      const wtList = execSync('git worktree list --porcelain', { cwd: DEV_ROOT, encoding: 'utf-8' });
+      if (!wtList.includes(actualWs)) {
+        return {
+          ok: false,
+          code: 'BLOCKED_WORKTREE_NOT_REGISTERED',
+          reason: `Worktree '${actualWs}' is not a registered Git worktree`
+        };
+      }
+    } catch (e) {
+      return { ok: false, code: 'BLOCKED_GIT_ERROR', reason: `Git worktree verification failed: ${e.message}` };
+    }
+
+    // Verify worktree is clean
+    try {
+      const wtStatus = execSync('git status --porcelain', { cwd: actualWs, encoding: 'utf-8' }).trim();
+      if (wtStatus.length > 0) {
+        return {
+          ok: false,
+          code: 'BLOCKED_WORKTREE_DIRTY',
+          reason: `Assigned worktree '${actualWs}' contains uncommitted modifications`
+        };
+      }
+    } catch (e) {
+      return { ok: false, code: 'BLOCKED_WORKTREE_UNSAFE', reason: `Failed to verify worktree clean status: ${e.message}` };
+    }
+
+    checks.push(`Isolated Git worktree verified: ${actualWs}`);
+  } else {
+    // Shared Worktree Conflict Protection
+    const dirtyCheck = SafetyValidator.checkDirtyWorktree(taskData);
+    if (!dirtyCheck.ok) {
+      return dirtyCheck;
+    }
+    checks.push(`Worktree verified (no conflicting user changes)`);
   }
-  checks.push(`Worktree verified (no conflicting user changes)`);
 
   // 5. Git State Validation
   try {
-    const gitBranch = execSync('git branch --show-current', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+    const gitBranch = execSync('git branch --show-current', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
     checks.push(`Git repo active (base branch: ${gitBranch})`);
   } catch (e) {
     return { ok: false, code: 'BLOCKED_GIT_ERROR', reason: `Git inspection failed: ${e.message}` };
@@ -584,36 +641,37 @@ function runPreflight(taskData) {
 
   // 6. Dev Runtime Check
   try {
-    const nodeVer = execSync('node -v', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+    const nodeVer = execSync('node -v', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
     checks.push(`Node runtime available (${nodeVer})`);
   } catch (e) {
     return { ok: false, code: 'BLOCKED_ENV_ERROR', reason: `Node execution failed: ${e.message}` };
   }
 
-  checks.forEach(c => console.log(`  ✅ ${c}`));
-  console.log(`── [PREFLIGHT] Passed ──\n`);
-  return { ok: true };
+  console.log(`✅ Preflight passed (${checks.length} checks succeeded):`);
+  checks.forEach(c => console.log(`   ✓ ${c}`));
+
+  return { ok: true, checks };
 }
 
 // ============================================================
-// Git Task Branch Management
+// Git Branch Isolation
 // ============================================================
-function prepareTaskBranch(taskData) {
-  const branchName = taskData.environment?.branch || `ai/${taskData.task_id}-${taskData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}`;
+function prepareTaskBranch(taskData, workspaceRoot = DEV_ROOT) {
+  const branchName = taskData.task_branch || taskData.environment?.branch || `ai/${taskData.task_id}-${taskData.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30)}`;
   
-  console.log(`\n── [GIT] Preparing Branch: ${branchName} ──`);
+  console.log(`\n── [GIT] Preparing Branch: ${branchName} inside workspace ──`);
   
-  const currentBranch = execSync('git branch --show-current', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+  const currentBranch = execSync('git branch --show-current', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
   taskData._base_branch = currentBranch;
 
   if (currentBranch !== branchName) {
-    const branchExists = execSync(`git branch --list "${branchName}"`, { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+    const branchExists = execSync(`git branch --list "${branchName}"`, { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
     if (branchExists) {
       console.log(`  Checking out existing task branch ${branchName}...`);
-      execSync(`git checkout "${branchName}"`, { cwd: DEV_ROOT, encoding: 'utf-8' });
+      execSync(`git checkout "${branchName}"`, { cwd: workspaceRoot, encoding: 'utf-8' });
     } else {
       console.log(`  Creating task branch ${branchName} from ${currentBranch}...`);
-      execSync(`git checkout -b "${branchName}"`, { cwd: DEV_ROOT, encoding: 'utf-8' });
+      execSync(`git checkout -b "${branchName}"`, { cwd: workspaceRoot, encoding: 'utf-8' });
     }
   } else {
     console.log(`  Already on branch ${branchName}`);
@@ -625,8 +683,8 @@ function prepareTaskBranch(taskData) {
 // ============================================================
 // QA Verification Runner
 // ============================================================
-function runVerification(taskData) {
-  console.log(`\n── [VERIFYING] Running QA Pipeline ──`);
+function runVerification(taskData, workspaceRoot = DEV_ROOT) {
+  console.log(`\n── [VERIFYING] Running QA Pipeline in ${workspaceRoot} ──`);
   recordTaskStateTransition(taskData, 'VERIFYING');
   startHeartbeat(taskData.task_id, 'VERIFYING');
 
@@ -641,7 +699,7 @@ function runVerification(taskData) {
   try {
     console.log('  Running typecheck...');
     const tStart = Date.now();
-    execSync('npm run typecheck', { cwd: DEV_ROOT, encoding: 'utf-8' });
+    execSync('npm run typecheck', { cwd: workspaceRoot, encoding: 'utf-8' });
     testResults.typecheck = { status: 'passed', duration_ms: Date.now() - tStart };
     console.log('  ✅ Typecheck passed');
   } catch (err) {
@@ -654,7 +712,7 @@ function runVerification(taskData) {
     console.log('  Running lint...');
     let lintOut = '';
     try {
-      lintOut = execSync('npm run lint', { cwd: DEV_ROOT, encoding: 'utf-8' });
+      lintOut = execSync('npm run lint', { cwd: workspaceRoot, encoding: 'utf-8' });
     } catch (lErr) {
       lintOut = lErr.stdout ? lErr.stdout.toString() : '';
     }
@@ -677,7 +735,7 @@ function runVerification(taskData) {
     console.log('  Running unit tests...');
     let testOut = '';
     try {
-      testOut = execSync('npm run test', { cwd: DEV_ROOT, encoding: 'utf-8' });
+      testOut = execSync('npm run test', { cwd: workspaceRoot, encoding: 'utf-8' });
     } catch (tErr) {
       testOut = tErr.stdout ? tErr.stdout.toString() : '';
     }
@@ -706,10 +764,10 @@ function runVerification(taskData) {
 // ============================================================
 // Diff Review & Commit
 // ============================================================
-function reviewDiffAndCommit(taskData, branchName) {
-  console.log(`\n── [DIFF REVIEW] Inspecting Changes ──`);
+function reviewDiffAndCommit(taskData, branchName, workspaceRoot = DEV_ROOT) {
+  console.log(`\n── [DIFF REVIEW] Inspecting Changes in ${workspaceRoot} ──`);
   
-  const statusOutput = execSync('git status --porcelain', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+  const statusOutput = execSync('git status --porcelain', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
   if (!statusOutput) {
     console.log('  ℹ No modified files detected to commit.');
     return { filesChanged: [], commitSha: null };
@@ -749,18 +807,18 @@ function reviewDiffAndCommit(taskData, branchName) {
 
   let diffSummary = '';
   try {
-    diffSummary = execSync('git diff --stat dev', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+    diffSummary = execSync('git diff --stat dev', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
   } catch {
     diffSummary = `${filesChanged.length} files changed`;
   }
 
   console.log('  Staging verified task files...');
-  filesChanged.forEach(f => execSync(`git add "${f.path}"`, { cwd: DEV_ROOT }));
+  filesChanged.forEach(f => execSync(`git add "${f.path}"`, { cwd: workspaceRoot }));
 
   const commitMsg = `${taskData.type.startsWith('bug') ? 'fix' : 'feat'}(${taskData.context?.relevant_files?.[0]?.split('/')[2] || 'src'}): ${taskData.title} [${taskData.task_id}]`;
   
-  execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: DEV_ROOT });
-  const commitSha = execSync('git rev-parse HEAD', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+  execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: workspaceRoot });
+  const commitSha = execSync('git rev-parse HEAD', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
   console.log(`  ✅ Commit created: ${commitSha.slice(0, 7)} — "${commitMsg}"`);
   console.log(`  🛑 Worker remaining on task branch: ${branchName} (NO MERGE TO DEV/MAIN)`);
 
@@ -770,10 +828,10 @@ function reviewDiffAndCommit(taskData, branchName) {
 // ============================================================
 // Completion Report Generation
 // ============================================================
-function generateCompletionReport(taskData, executionResult) {
+function generateCompletionReport(taskData, executionResult, workspaceRoot = DEV_ROOT) {
   const { filesChanged, commitSha, diffSummary, testResults, summary, verificationSteps, recommendations, durationMinutes } = executionResult;
 
-  const currentBranch = execSync('git branch --show-current', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+  const currentBranch = execSync('git branch --show-current', { cwd: workspaceRoot, encoding: 'utf-8' }).trim();
   const baseBranch = taskData._base_branch || 'dev';
 
   recordTaskStateTransition(taskData, 'COMPLETED');
@@ -781,7 +839,11 @@ function generateCompletionReport(taskData, executionResult) {
   const report = {
     task_id: taskData.task_id,
     status: 'completed',
-    worker_id: WORKER_ID,
+    worker_id: taskData.assigned_worker || WORKER_ID,
+    worktree_path: taskData.worktree_path || workspaceRoot,
+    task_branch: currentBranch,
+    commit_sha: commitSha || null,
+    worktree_status: 'COMPLETED',
     attempt: taskData.attempt || 1,
     max_attempts: taskData.max_attempts || 2,
     summary: summary || taskData.objective,
@@ -836,7 +898,7 @@ function generateCompletionReport(taskData, executionResult) {
   try {
     if (fs.existsSync(REGISTRY_FILE)) {
       const reg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
-      const worker = reg.workers.find(w => w.id === WORKER_ID);
+      const worker = reg.workers.find(w => w.id === (taskData.assigned_worker || WORKER_ID));
       if (worker) {
         worker.tasks_completed = (worker.tasks_completed || 0) + 1;
         fs.writeFileSync(REGISTRY_FILE, JSON.stringify(reg, null, 2), 'utf-8');
@@ -907,6 +969,19 @@ async function main() {
   validateEnvironment();
   const args = process.argv.slice(2);
 
+  // Extract worker-id if specified
+  const workerIdIdx = args.indexOf('--worker-id');
+  if (workerIdIdx !== -1 && args[workerIdIdx + 1]) {
+    setWorkerId(args[workerIdIdx + 1]);
+  }
+
+  // Extract workspace if specified
+  let workspaceRoot = DEV_ROOT;
+  const wsIdx = args.indexOf('--workspace');
+  if (wsIdx !== -1 && args[wsIdx + 1]) {
+    workspaceRoot = path.resolve(args[wsIdx + 1]);
+  }
+
   const recovered = checkAndRecoverInterrupted();
   if (recovered > 0) {
     console.log(`🔄 Interruption recovery: ${recovered} stale tasks recovered.\n`);
@@ -917,8 +992,10 @@ async function main() {
     console.log('── Worker Status ──');
     if (fs.existsSync(REGISTRY_FILE)) {
       const reg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
-      const worker = reg.workers.find(w => w.id === WORKER_ID);
+      const worker = reg.workers.find(w => w.id === WORKER_ID || w.worker_id === WORKER_ID);
+      console.log(`  Worker ID:       ${WORKER_ID}`);
       console.log(`  State:           ${worker?.status || 'AVAILABLE'}`);
+      console.log(`  Workspace:       ${workspaceRoot}`);
       console.log(`  Current Task:    ${worker?.current_task || 'None'}`);
       console.log(`  Tasks Completed: ${worker?.tasks_completed || 0}`);
       console.log(`  Tasks Failed:    ${worker?.tasks_failed || 0}`);
@@ -950,7 +1027,8 @@ async function main() {
       process.exit(1);
     }
     const taskData = JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
-    const result = runPreflight(taskData);
+    if (taskData.worktree_path) workspaceRoot = path.resolve(taskData.worktree_path);
+    const result = runPreflight(taskData, workspaceRoot);
     if (!result.ok) {
       console.error(`❌ Preflight failed: [${result.code}] ${result.reason}`);
       process.exit(1);
@@ -970,7 +1048,11 @@ async function main() {
   }
 
   const { taskData } = taskInfo;
+  if (taskData.assigned_worker) setWorkerId(taskData.assigned_worker);
+  if (taskData.worktree_path) workspaceRoot = path.resolve(taskData.worktree_path);
+
   console.log(`📋 Discovered Task: ${taskData.task_id} — "${taskData.title}" (${taskData.priority}) [Attempt ${taskData.attempt || 1}/${taskData.max_attempts || 2}]`);
+  console.log(`   Worker: ${WORKER_ID} | Workspace: ${workspaceRoot}`);
 
   // 1. Claim Task (Atomic Lock)
   try {
@@ -981,7 +1063,7 @@ async function main() {
   }
 
   // 2. Preflight Validation
-  const preflight = runPreflight(taskData);
+  const preflight = runPreflight(taskData, workspaceRoot);
   if (!preflight.ok) {
     console.error(`❌ Task blocked by preflight: [${preflight.code}] ${preflight.reason}`);
     generateFailureReport(taskData, preflight.code, { error: preflight.reason });
@@ -990,15 +1072,48 @@ async function main() {
   }
 
   // 3. Prepare Task Branch
-  const branchName = prepareTaskBranch(taskData);
+  const branchName = prepareTaskBranch(taskData, workspaceRoot);
 
   // 4. Update phase to RUNNING
   recordTaskStateTransition(taskData, 'RUNNING');
   startHeartbeat(taskData.task_id, 'RUNNING');
-  console.log(`\n🚀 [EXECUTION] Task ${taskData.task_id} ready for execution on branch ${branchName}.`);
+  console.log(`\n🚀 [EXECUTION] Task ${taskData.task_id} ready for execution on branch ${branchName} inside worktree.`);
   console.log(`   Instructions: ${taskData.instructions || 'Inspect existing implementation before modifying.'}`);
   console.log(`   Requirements:`);
   taskData.requirements.forEach((r, idx) => console.log(`     ${idx + 1}. ${r}`));
+
+  // 5. Run Verification & Tests
+  const qaResult = runVerification(taskData, workspaceRoot);
+  if (!qaResult.ok) {
+    console.error(`\n❌ QA Verification failed for task ${taskData.task_id}`);
+    generateFailureReport(taskData, 'QA_VERIFICATION_FAILED', { testResults: qaResult.testResults });
+    releaseLock(taskData);
+    return;
+  }
+
+  // 6. Review Diff & Commit
+  let diffResult = { filesChanged: [], commitSha: null, diffSummary: 'No changes required' };
+  try {
+    diffResult = reviewDiffAndCommit(taskData, branchName, workspaceRoot);
+  } catch (diffErr) {
+    console.error(`\n❌ Commit review error: ${diffErr.message}`);
+    generateFailureReport(taskData, 'COMMIT_FAILED', { error: diffErr.message });
+    releaseLock(taskData);
+    return;
+  }
+
+  // 7. Generate Completion Report
+  generateCompletionReport(taskData, {
+    filesChanged: diffResult.filesChanged,
+    commitSha: diffResult.commitSha,
+    diffSummary: diffResult.diffSummary,
+    testResults: qaResult.testResults,
+    summary: `Task ${taskData.task_id} completed successfully inside dedicated worktree ${workspaceRoot}`
+  }, workspaceRoot);
+
+  // 8. Release Lock
+  releaseLock(taskData);
+  console.log(`\n🎉 [SUCCESS] Task ${taskData.task_id} completed and verified.`);
 }
 
 process.on('SIGINT', () => {
