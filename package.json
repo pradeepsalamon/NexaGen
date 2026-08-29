@@ -37,7 +37,8 @@
     "ai:audit": "node .ai/scripts/safety-audit.js",
     "ai:test:manager": "node .ai/scripts/manager-test.js",
     "ai:observe": ".ai/scripts/observe.sh",
-    "ai:verify": ".ai/scripts/verify.sh"
+    "ai:verify": ".ai/scripts/verify.sh",
+    "ai:ui": "node .ai/ui/server.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
