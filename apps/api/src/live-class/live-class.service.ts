@@ -399,7 +399,7 @@ export class LiveClassService {
     }
 
     // Exclude the deeply nested batch details before returning to avoid over-fetching/leaking
-    const { batch, ...classWithoutBatch } = scheduledClass;
+    const { batch: _batch, ...classWithoutBatch } = scheduledClass;
 
     return classWithoutBatch;
   }
@@ -613,7 +613,7 @@ export class LiveClassService {
 
     await this.livekit.stopRecording(metadata.egressId);
 
-    const { egressId, ...restMetadata } = metadata;
+    const { egressId: _egressId, ...restMetadata } = metadata;
 
     // Keep `recordingFilepath`/`recordingStatus`; the `egress_ended` webhook
     // resolves the final state and sets `recordingUrl` on success (AUDIT M20).
@@ -628,11 +628,12 @@ export class LiveClassService {
   }
 
   /**
-   * Finalises a recording from the LiveKit `egress_ended` webhook (AUDIT M20):
-   * `recordingUrl` is only set when the egress actually completed, so a failed
-   * egress never leaves a dead Download button.
+   * Finalises or updates recording state from LiveKit egress webhooks:
+   * - `egress_started` / `egress_updated`: Marks status as RECORDING (or STOPPING).
+   * - `egress_ended`: Sets `recordingUrl` only on successful completion with normalized S3 key.
    */
   async handleEgressEnded(egressInfo: {
+    eventType?: string;
     egressId?: string;
     roomName?: string;
     status?: string | number;
@@ -640,27 +641,95 @@ export class LiveClassService {
     fileResults?: Array<{ location?: string; filename?: string }>;
   }) {
     const roomName = egressInfo.roomName;
-    if (!roomName) return;
+    const egressId = egressInfo.egressId;
 
-    const liveSession = await this.prisma.liveSession.findUnique({
-      where: { roomName },
-    });
+    let liveSession = roomName
+      ? await this.prisma.liveSession.findUnique({ where: { roomName } })
+      : null;
+
+    // Fall back to finding by active live session with matching egressId in metadata
+    if (!liveSession && egressId) {
+      const activeSessions = await this.prisma.liveSession.findMany({
+        where: {
+          status: { in: [LiveSessionStatus.LIVE, LiveSessionStatus.ENDED] },
+        },
+      });
+      liveSession =
+        activeSessions.find(
+          (s) => (s.metadata as Record<string, any>)?.egressId === egressId
+        ) || null;
+    }
+
     if (!liveSession) return;
 
     const metadata = (liveSession.metadata as Record<string, any>) || {};
-    const statusStr = String(egressInfo.status ?? "");
-    const completed = /complete/i.test(statusStr) || statusStr === "3";
+    const statusStr = String(egressInfo.status ?? "").toUpperCase();
+    const eventType = egressInfo.eventType || "";
+
+    // Egress active / starting
+    if (
+      eventType === "egress_started" ||
+      statusStr === "1" ||
+      statusStr === "EGRESS_ACTIVE" ||
+      statusStr === "0" ||
+      statusStr === "EGRESS_STARTING"
+    ) {
+      await this.prisma.liveSession.update({
+        where: { id: liveSession.id },
+        data: {
+          metadata: {
+            ...metadata,
+            ...(egressId ? { egressId } : {}),
+            recordingStatus: "RECORDING",
+          },
+        },
+      });
+      return;
+    }
+
+    // Egress ending / stopping
+    if (statusStr === "2" || statusStr === "EGRESS_ENDING") {
+      await this.prisma.liveSession.update({
+        where: { id: liveSession.id },
+        data: {
+          metadata: {
+            ...metadata,
+            recordingStatus: "STOPPING",
+          },
+        },
+      });
+      return;
+    }
+
+    // Egress ended / complete or failed
+    const completed =
+      statusStr === "3" ||
+      statusStr === "EGRESS_COMPLETE" ||
+      /complete/i.test(statusStr);
 
     const fileResult = egressInfo.fileResults?.[0] ?? egressInfo.file;
-    const location =
-      fileResult?.location || fileResult?.filename || metadata.recordingFilepath || null;
+    const rawLocation =
+      fileResult?.filename || fileResult?.location || metadata.recordingFilepath || null;
+
+    // Normalize S3 key to recordings/...
+    const normalizeRecordingKey = (raw: string | null): string | null => {
+      if (!raw) return null;
+      const match = raw.match(/(recordings\/[^\s?#]+)/);
+      if (match) return match[1];
+      return raw.startsWith("/") ? raw.slice(1) : raw;
+    };
+
+    const location = normalizeRecordingKey(rawLocation);
+
+    const { egressId: _activeEgressId, ...restMetadata } = metadata;
 
     await this.prisma.liveSession.update({
       where: { id: liveSession.id },
       data: {
         recordingUrl: completed ? location : null,
         metadata: {
-          ...metadata,
+          ...restMetadata,
+          recordingFilepath: location || metadata.recordingFilepath,
           recordingStatus: completed ? "COMPLETED" : "FAILED",
         },
       },
@@ -669,16 +738,25 @@ export class LiveClassService {
 
   async downloadRecording(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
-    
+
     const liveSession = await this.prisma.liveSession.findUnique({
       where: { classId },
       include: {
         batch: {
           include: {
             students: true,
-          }
-        }
-      }
+          },
+        },
+        class: {
+          include: {
+            batch: {
+              include: {
+                students: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!liveSession || !liveSession.recordingUrl) {
@@ -691,7 +769,11 @@ export class LiveClassService {
     } else if (user.role === UserRole.COACH && liveSession.coachId === user.id) {
       isAuthorized = true;
     } else if (user.role === UserRole.STUDENT) {
-      const isStudentInBatch = liveSession.batch?.students.some(s => s.studentId === user.id);
+      const batchStudents =
+        liveSession.batch?.students || liveSession.class?.batch?.students || [];
+      const isStudentInBatch = batchStudents.some(
+        (s) => s.studentId === user.id && !s.isDeleted
+      );
       if (isStudentInBatch) {
         isAuthorized = true;
       }

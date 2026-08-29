@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Mic,
@@ -23,6 +23,7 @@ import {
   useDisconnectButton,
   useParticipants,
   useLocalParticipant,
+  useIsRecording,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
@@ -59,9 +60,13 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     toggleFullscreen,
     isChessboardOpen,
     toggleChessboard,
-    isRecording,
+    isRecording: contextRecording,
     setIsRecording,
   } = useLiveClassState();
+
+  const lkRecording = useIsRecording();
+  const isRecording = lkRecording || contextRecording;
+  const [isTogglingRecording, setIsTogglingRecording] = useState(false);
 
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
@@ -108,7 +113,8 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   };
 
   const handleToggleRecording = async () => {
-    if (!roomId) return;
+    if (!roomId || isTogglingRecording) return;
+    setIsTogglingRecording(true);
     try {
       if (isRecording) {
         await stopRecording(roomId);
@@ -121,6 +127,8 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to toggle recording");
+    } finally {
+      setIsTogglingRecording(false);
     }
   };
 
@@ -193,9 +201,16 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
                 )}
               />
             }
-            label={isRecording ? "Stop Recording" : "Record Class"}
+            label={
+              isTogglingRecording
+                ? "Updating recording..."
+                : isRecording
+                ? "Stop Recording"
+                : "Record Class"
+            }
             variant={isRecording ? "active" : "default"}
             onClick={handleToggleRecording}
+            disabled={isTogglingRecording}
           />
         )}
 

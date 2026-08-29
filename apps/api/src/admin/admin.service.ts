@@ -411,6 +411,7 @@ export class AdminService {
       coachName: `${existingClass.coach.firstName} ${existingClass.coach.lastName || ''}`.trim(),
       actualStartsAt: existingClass.liveSession?.startedAt ? existingClass.liveSession.startedAt.toISOString() : null,
       actualEndsAt: existingClass.liveSession?.endedAt ? existingClass.liveSession.endedAt.toISOString() : null,
+      hasRecording: !!existingClass.liveSession?.recordingUrl,
       participants
     };
 

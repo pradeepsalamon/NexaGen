@@ -1,12 +1,35 @@
 import { test as base, type APIRequestContext, type Page } from "@playwright/test";
+import crypto from "crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "APIWLsbggsQnKdN";
+const LIVEKIT_API_SECRET =
+  process.env.LIVEKIT_API_SECRET || "juXmqj30DR0SRmcF3xfeLp6EilDxrUdtesUgWaNebZJB";
 
 export const TEST_USERS = {
   coach: { email: "coach@nexa.test", password: "Test@12345" },
   student: { email: "student@nexa.test", password: "Test@12345" },
   admin: { email: "superadmin@nexa.test", password: "Test@12345" },
 } as const;
+
+export function createWebhookSignature(body: string | Record<string, unknown>): string {
+  const rawBody = typeof body === "string" ? body : JSON.stringify(body);
+  const sha256 = crypto.createHash("sha256").update(rawBody).digest("hex");
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({
+      iss: LIVEKIT_API_KEY,
+      sub: LIVEKIT_API_KEY,
+      sha256,
+      exp: Math.floor(Date.now() / 1000) + 300,
+    })
+  ).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", LIVEKIT_API_SECRET)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+  return `${header}.${payload}.${signature}`;
+}
 
 /**
  * Login via the actual UI (navigates to /login, fills form, submits).
@@ -17,7 +40,7 @@ export async function loginViaUI(page: Page, email: string, password: string) {
   await page.waitForLoadState("networkidle");
 
   await page.getByLabel(/email/i).fill(email);
-  await page.getByLabel(/password/i).fill(password);
+  await page.locator('input[type="password"]').fill(password);
   await page.getByRole("button", { name: /sign in|log in|login/i }).click();
 
   // Wait for navigation away from login page

@@ -323,6 +323,7 @@ export class AttendanceWebhookController {
     const egressInfo = event.egressInfo ?? event.egress_info;
     if (!egressInfo) return;
     await this.liveClassService.handleEgressEnded({
+      eventType: typeof event.event === "string" ? event.event : undefined,
       egressId: egressInfo.egressId ?? egressInfo.egress_id,
       roomName: egressInfo.roomName ?? egressInfo.room_name,
       status: egressInfo.status,

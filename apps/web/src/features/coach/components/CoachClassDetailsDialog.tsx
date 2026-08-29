@@ -7,8 +7,11 @@ import {
 } from "@/components/ui/Dialog";
 import { useCoachClassDetailsQuery } from "../hooks/useCoachApi";
 import { Badge } from "@/components/ui/Badge";
-import { Clock, Users, User, Calendar, GraduationCap } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Clock, Users, User, Calendar, GraduationCap, Download, Video } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
+import { toast } from "sonner";
 
 interface CoachClassDetailsDialogProps {
   classId: string | null;
@@ -27,6 +30,19 @@ export function CoachClassDetailsDialog({
   );
 
   const coachClass = data?.class;
+
+  const handleDownload = async () => {
+    if (!classId) return;
+    try {
+      const data = await getRecordingDownloadUrl(classId);
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (error) {
+      console.error("Failed to download recording:", error);
+      toast.error("Failed to download recording. It may have expired or is unavailable.");
+    }
+  };
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
@@ -89,6 +105,24 @@ export function CoachClassDetailsDialog({
                   <span>{formatDate(coachClass.actualEndsAt)}</span>
                 </div>
               </div>
+
+              {coachClass.hasRecording && (
+                <div className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/10">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Video className="size-4 text-primary" />
+                    <span className="font-medium">Class Recording</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    onClick={handleDownload}
+                  >
+                    <Download className="size-3.5" />
+                    Download
+                  </Button>
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center justify-between mb-3">
