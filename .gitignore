@@ -19,3 +19,8 @@ web-dev.log
 *.log
 github-actions-key
 github-actions-key.pub
+
+# Nexa AI Worker dynamic state
+.ai/workers/state.json
+.ai/workers/heartbeat.json
+.ai/tasks/active/*.lock
