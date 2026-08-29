@@ -23,10 +23,10 @@
       "max_concurrency": 1,
       "current_task": null,
       "branch": null,
-      "heartbeat": "2026-08-29T13:17:23.510Z",
-      "tasks_completed": 8,
+      "heartbeat": "2026-08-29T13:44:03.479Z",
+      "tasks_completed": 9,
       "tasks_failed": 10,
-      "last_heartbeat": "2026-08-29T13:38:22.118Z"
+      "last_heartbeat": "2026-08-29T13:44:03.473Z"
     },
     {
       "worker_id": "nexa-dev-02",
@@ -51,10 +51,10 @@
       "max_concurrency": 1,
       "current_task": null,
       "branch": null,
-      "heartbeat": "2026-08-29T12:51:32.657Z",
-      "tasks_completed": 2,
+      "heartbeat": "2026-08-29T13:47:28.243Z",
+      "tasks_completed": 3,
       "tasks_failed": 0,
-      "last_heartbeat": "2026-08-29T12:51:32.651Z"
+      "last_heartbeat": "2026-08-29T13:47:28.237Z"
     },
     {
       "worker_id": "nexa-dev-03",
@@ -85,5 +85,5 @@
       "last_heartbeat": "2026-08-29T12:51:55.145Z"
     }
   ],
-  "updated_at": "2026-08-29T13:38:22.118Z"
+  "updated_at": "2026-08-29T13:47:28.243Z"
 }
