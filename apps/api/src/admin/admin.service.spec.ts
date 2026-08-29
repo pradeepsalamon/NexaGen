@@ -31,4 +31,12 @@ describe('AdminService', () => {
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
+
+  it('should return dev environment status', () => {
+    const status = service.getDevStatus();
+    expect(status).toBeDefined();
+    expect(status.status).toBe('ok');
+    expect(status.service).toBe('api');
+    expect(status.env).toBeDefined();
+  });
 });

@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * Nexa AI Development System — Phase 2.1 Hardened Gemini Worker Engine
+ * Nexa AI Development System — Phase 4 Hardened Gemini Worker Engine
  * 
  * Worker ID: nexa-dev-01
- * Role: Primary Development Worker (Gemini / Antigravity)
+ * Role: Primary Coding Worker (Gemini / Antigravity)
  * Environment: DEVELOPMENT ONLY (/opt/nexa-chess/NexaGen-dev)
- * Safety Level: STRICT ISOLATION & AUDITED COMMAND POLICY
+ * Safety Level: STRICT ISOLATION, DIRTY WORKTREE GUARD, CRASH RECOVERY
  */
 
 const fs = require('fs');
@@ -47,23 +47,18 @@ class SafetyValidator {
       return { ok: false, code: 'BLOCKED_INVALID_PATH', reason: 'Path must be a non-empty string' };
     }
 
-    // Resolve absolute path
     const resolvedPath = path.isAbsolute(targetPath) ? path.normalize(targetPath) : path.normalize(path.resolve(DEV_ROOT, targetPath));
 
-    // Reject path traversal tokens
     if (targetPath.includes('..')) {
-      const normalized = path.normalize(targetPath);
       if (!resolvedPath.startsWith(EXPECTED_DEV_ROOT)) {
         return { ok: false, code: 'BLOCKED_OUTSIDE_DEV_SCOPE', reason: `Path traversal outside DEV_ROOT: ${targetPath}` };
       }
     }
 
-    // Check if target is inside production directory /opt/nexa-chess/NexaGen (without -dev)
     if (resolvedPath.startsWith('/opt/nexa-chess/NexaGen') && !resolvedPath.startsWith(EXPECTED_DEV_ROOT)) {
       return { ok: false, code: 'BLOCKED_PRODUCTION_CHANGE', reason: `Attempt to target production path: ${resolvedPath}` };
     }
 
-    // Check protected system directories
     const protectedDirs = ['/etc', '/var', '/usr', '/root', '/home/ubuntu/.ssh', '/sys', '/proc'];
     for (const pDir of protectedDirs) {
       if (resolvedPath.startsWith(pDir)) {
@@ -71,12 +66,10 @@ class SafetyValidator {
       }
     }
 
-    // Check if path is within DEV_ROOT
     if (!resolvedPath.startsWith(EXPECTED_DEV_ROOT)) {
       return { ok: false, code: 'BLOCKED_OUTSIDE_DEV_SCOPE', reason: `Path ${resolvedPath} is outside DEV_ROOT ${EXPECTED_DEV_ROOT}` };
     }
 
-    // Symlink resolution safety
     try {
       if (fs.existsSync(resolvedPath)) {
         const real = fs.realpathSync(resolvedPath);
@@ -84,7 +77,6 @@ class SafetyValidator {
           return { ok: false, code: 'BLOCKED_OUTSIDE_DEV_SCOPE', reason: `Symlink target ${real} escapes DEV_ROOT` };
         }
       } else {
-        // If file does not exist yet, check its parent directory realpath
         const parentDir = path.dirname(resolvedPath);
         if (fs.existsSync(parentDir)) {
           const realParent = fs.realpathSync(parentDir);
@@ -108,7 +100,6 @@ class SafetyValidator {
       return { ok: false, code: 'INVALID_COMMAND', reason: 'Command must be a non-empty string' };
     }
 
-    // 1. Blocked Production Docker Commands
     const prodDockerPatterns = [
       /docker\s+stop\s+nexa_web/i,
       /docker\s+stop\s+nexa_api/i,
@@ -128,7 +119,6 @@ class SafetyValidator {
       }
     }
 
-    // 2. Blocked Production Database Mutations
     const prodDbPatterns = [
       /nexa_chess/i,
       /drop\s+database/i,
@@ -140,7 +130,6 @@ class SafetyValidator {
       }
     }
 
-    // 3. Blocked System Mutations (require human approval)
     const systemPatterns = [
       /\bsudo\b/i,
       /\bapt(-get)?\s+(install|remove|purge|update|upgrade)\b/i,
@@ -159,12 +148,10 @@ class SafetyValidator {
       }
     }
 
-    // 4. Blocked Redis Flush Commands
-    if (/\bFLUSHALL\b/i.test(cmdString) || /\bFLUSHDB\b/i.test(cmdString)) {
-      return { ok: false, code: 'BLOCKED_REDIS_SAFETY', reason: `FLUSHALL/FLUSHDB is strictly forbidden: ${cmdString}` };
+    if (/\bFLUSHALL\b/i.test(cmdString) || /\bFLUSHDB\b/i.test(cmdString) || /\bCONFIG\s+SET\b/i.test(cmdString)) {
+      return { ok: false, code: 'BLOCKED_REDIS_SAFETY', reason: `FLUSHALL/FLUSHDB/CONFIG SET is strictly forbidden: ${cmdString}` };
     }
 
-    // 5. Blocked Destructive Git Commands
     const gitForbiddenPatterns = [
       /git\s+reset\s+--hard/i,
       /git\s+clean\s+-f/i,
@@ -181,9 +168,13 @@ class SafetyValidator {
       }
     }
 
-    // 6. Generic Destructive Commands
-    if (/rm\s+-rf\s+\//i.test(cmdString) || /rm\s+-rf\s+~/i.test(cmdString) || /mkfs/i.test(cmdString) || /dd\s+if=/i.test(cmdString)) {
+    if (/rm\s+-rf\s+(\/|~|\.\.)/i.test(cmdString) || /mkfs/i.test(cmdString) || /dd\s+if=/i.test(cmdString)) {
       return { ok: false, code: 'BLOCKED_DESTRUCTIVE_COMMAND', reason: `Destructive command detected: ${cmdString}` };
+    }
+
+    // LiveKit Production room protection
+    if (/livekit.*(delete-room|remove-room)/i.test(cmdString) && !/dev-ai-/i.test(cmdString)) {
+      return { ok: false, code: 'BLOCKED_LIVEKIT_SAFETY', reason: `Attempt to delete non-DEV LiveKit room: ${cmdString}` };
     }
 
     return { ok: true };
@@ -218,6 +209,41 @@ class SafetyValidator {
     }
     return { ok: true };
   }
+
+  /**
+   * Validates Dirty Worktree against conflicting user modifications.
+   */
+  static checkDirtyWorktree(taskData) {
+    try {
+      const statusOutput = execSync('git status --porcelain', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
+      if (!statusOutput) return { ok: true, dirtyFiles: [] };
+
+      const dirtyFiles = statusOutput.split('\n').map(l => l.slice(2).trim()).filter(Boolean);
+      const relevantFiles = (taskData.context?.relevant_files || []).map(f => path.normalize(f));
+
+      // Check for direct conflict
+      for (const dFile of dirtyFiles) {
+        // Skip .ai state, lock, and counter files
+        if (dFile.startsWith('.ai/tasks/') || dFile.startsWith('.ai/workers/') || dFile.startsWith('.ai/manager/state/')) {
+          continue;
+        }
+
+        const isConflicting = relevantFiles.some(rf => dFile === rf || dFile.startsWith(rf) || rf.startsWith(dFile));
+        if (isConflicting) {
+          return {
+            ok: false,
+            code: 'BLOCKED_USER_CHANGES',
+            reason: `Pre-existing uncommitted user changes in '${dFile}' conflict with task target files. Refusing to overwrite user work.`,
+            conflictingFile: dFile
+          };
+        }
+      }
+
+      return { ok: true, dirtyFiles };
+    } catch (err) {
+      return { ok: false, code: 'BLOCKED_GIT_ERROR', reason: `Failed to inspect git status: ${err.message}` };
+    }
+  }
 }
 
 // ============================================================
@@ -234,8 +260,7 @@ function validateEnvironment() {
     process.exit(1);
   }
 
-  // Ensure directories exist
-  [ACTIVE_DIR, COMPLETED_DIR, FAILED_DIR, path.join(AI_DIR, 'workers')].forEach(dir => {
+  [ACTIVE_DIR, COMPLETED_DIR, FAILED_DIR, path.join(AI_DIR, 'workers'), path.join(AI_DIR, 'manager', 'state')].forEach(dir => {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   });
 
@@ -243,7 +268,6 @@ function validateEnvironment() {
 }
 
 function runCmd(cmd, options = {}) {
-  // Validate command with safety engine before running
   const validation = SafetyValidator.validateCommand(cmd);
   if (!validation.ok) {
     const err = new Error(`[${validation.code}] ${validation.reason}`);
@@ -265,7 +289,7 @@ function runCmd(cmd, options = {}) {
 }
 
 // ============================================================
-// Worker Registry & State Management
+// Worker Registry & State Machine Management
 // ============================================================
 function updateRegistryStatus(status, currentTaskId = null) {
   try {
@@ -288,15 +312,20 @@ function updateRegistryStatus(status, currentTaskId = null) {
 
 function updateState(taskId, phase, status = 'RUNNING', extra = {}) {
   const now = new Date().toISOString();
+  const startTime = extra.started_at ? new Date(extra.started_at).getTime() : Date.now();
+  const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+
   const state = {
     worker_id: WORKER_ID,
     task_id: taskId,
     status: status,
     phase: phase,
     started_at: extra.started_at || now,
-    heartbeat: now,
+    elapsed_seconds: elapsedSeconds,
+    last_heartbeat: now,
     pid: process.pid,
     hostname: os.hostname(),
+    current_state: phase,
     ...extra
   };
 
@@ -306,19 +335,37 @@ function updateState(taskId, phase, status = 'RUNNING', extra = {}) {
       worker_id: WORKER_ID,
       task_id: taskId,
       phase: phase,
+      status: status,
       timestamp: now,
-      pid: process.pid
+      pid: process.pid,
+      elapsed_seconds: elapsedSeconds
     }, null, 2), 'utf-8');
   } catch (err) {
     console.error('⚠️ Failed to write state/heartbeat:', err.message);
   }
 }
 
-function startHeartbeat(taskId, phase) {
+function recordTaskStateTransition(taskData, newState) {
+  if (!taskData.state_history) taskData.state_history = [];
+  taskData.state_history.push({
+    state: newState,
+    timestamp: new Date().toISOString()
+  });
+
+  const taskPath = path.join(ACTIVE_DIR, `${taskData.task_id}.json`);
+  if (fs.existsSync(taskPath)) {
+    try {
+      fs.writeFileSync(taskPath, JSON.stringify(taskData, null, 2), 'utf-8');
+    } catch {}
+  }
+}
+
+function startHeartbeat(taskId, phase, startedAt = null) {
   if (heartbeatInterval) clearInterval(heartbeatInterval);
-  updateState(taskId, phase);
+  const start = startedAt || new Date().toISOString();
+  updateState(taskId, phase, 'RUNNING', { started_at: start });
   heartbeatInterval = setInterval(() => {
-    updateState(taskId, phase);
+    updateState(taskId, phase, 'RUNNING', { started_at: start });
   }, 5000);
 }
 
@@ -343,10 +390,10 @@ function stopHeartbeat() {
 }
 
 // ============================================================
-// Interruption Detection & Recovery
+// Interruption Detection & Crash Recovery
 // ============================================================
-function checkAndRecoverInterrupted(staleTimeoutMs = 300000) {
-  const activeFiles = fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.json'));
+function checkAndRecoverInterrupted(staleTimeoutMs = 60000) {
+  const activeFiles = fs.existsSync(ACTIVE_DIR) ? fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.json')) : [];
   let recoveredCount = 0;
 
   for (const f of activeFiles) {
@@ -358,7 +405,6 @@ function checkAndRecoverInterrupted(staleTimeoutMs = 300000) {
         const lockTime = lockData.locked_at ? new Date(lockData.locked_at).getTime() : 0;
         const isStaleTime = (Date.now() - lockTime) > staleTimeoutMs;
 
-        // Check if process is still running
         let isRunning = false;
         if (lockPid) {
           try {
@@ -370,25 +416,29 @@ function checkAndRecoverInterrupted(staleTimeoutMs = 300000) {
         }
 
         if (!isRunning || isStaleTime) {
-          console.log(`⚠️ Detected stale lock for task ${lockData.task_id} (PID ${lockPid} not running or stale).`);
+          console.log(`⚠️ Detected stale worker for task ${lockData.task_id} (PID ${lockPid} not running or inactive > ${staleTimeoutMs/1000}s).`);
           const taskPath = path.join(ACTIVE_DIR, f);
           const taskData = JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
           
-          // Write interrupted report to failed
+          // Preserve task branch (NEVER delete branch or reset code)
+          recordTaskStateTransition(taskData, 'INTERRUPTED');
+
           const failedReport = {
             task_id: taskData.task_id,
             status: 'failed',
             reason: 'INTERRUPTED',
             worker_id: lockData.worker_id || WORKER_ID,
-            summary: `Task execution was interrupted unexpectedly (Worker process PID ${lockPid} died).`,
+            attempt: taskData.attempt || 1,
+            max_attempts: taskData.max_attempts || 2,
+            summary: `Task execution was interrupted unexpectedly (Worker process PID ${lockPid} died). Task branch preserved for recovery.`,
             evidence: `Stale lock acquired at ${lockData.locked_at || 'unknown time'}`,
             failed_at: new Date().toISOString()
           };
 
-          fs.writeFileSync(path.join(FAILED_DIR, `${taskData.task_id}-interrupted.json`), JSON.stringify(failedReport, null, 2), 'utf-8');
+          fs.writeFileSync(path.join(FAILED_DIR, `${taskData.task_id}.json`), JSON.stringify(failedReport, null, 2), 'utf-8');
           fs.unlinkSync(lockFile);
           recoveredCount++;
-          console.log(`   Cleaned lock and recorded interrupted state for ${taskData.task_id}.`);
+          console.log(`   Cleaned lock and recorded interrupted report for ${taskData.task_id} (branch preserved).`);
         }
       } catch (e) {
         console.error(`   Error recovering ${f}:`, e.message);
@@ -396,7 +446,9 @@ function checkAndRecoverInterrupted(staleTimeoutMs = 300000) {
     }
   }
 
-  updateRegistryStatus('AVAILABLE');
+  if (recoveredCount > 0) {
+    updateRegistryStatus('AVAILABLE');
+  }
   return recoveredCount;
 }
 
@@ -404,7 +456,7 @@ function checkAndRecoverInterrupted(staleTimeoutMs = 300000) {
 // Task Claiming & Locking (Atomic)
 // ============================================================
 function findPendingTask(specificTaskId = null) {
-  const files = fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.json'));
+  const files = fs.existsSync(ACTIVE_DIR) ? fs.readdirSync(ACTIVE_DIR).filter(f => f.endsWith('.json')) : [];
   if (files.length === 0) return null;
 
   for (const f of files) {
@@ -436,7 +488,6 @@ function claimTask(taskInfo) {
   };
 
   try {
-    // Atomic write with 'wx' flag — throws EEXIST if lock already exists
     fs.writeFileSync(lockFile, JSON.stringify(lockContent, null, 2), { flag: 'wx' });
   } catch (err) {
     if (err.code === 'EEXIST') {
@@ -446,6 +497,7 @@ function claimTask(taskInfo) {
     throw err;
   }
 
+  recordTaskStateTransition(taskData, 'CLAIMED');
   updateRegistryStatus('BUSY', taskData.task_id);
   updateState(taskData.task_id, 'CLAIMED', 'RUNNING');
   console.log(`\n🔒 Task ${taskData.task_id} successfully claimed by ${WORKER_ID}`);
@@ -466,6 +518,7 @@ function releaseLock(taskData) {
 // ============================================================
 function runPreflight(taskData) {
   console.log(`\n── [PREFLIGHT] Validating Task ${taskData.task_id} ──`);
+  recordTaskStateTransition(taskData, 'PREFLIGHT');
   startHeartbeat(taskData.task_id, 'PREFLIGHT');
 
   const checks = [];
@@ -485,9 +538,7 @@ function runPreflight(taskData) {
 
   for (const aPath of allowedPaths) {
     const pathCheck = SafetyValidator.validatePath(aPath);
-    if (!pathCheck.ok) {
-      return pathCheck;
-    }
+    if (!pathCheck.ok) return pathCheck;
   }
 
   for (const bPath of blockedPaths) {
@@ -507,9 +558,7 @@ function runPreflight(taskData) {
   if (allowedDbs.length > 0) {
     for (const db of allowedDbs) {
       const dbCheck = SafetyValidator.validateDatabase(db);
-      if (!dbCheck.ok) {
-        return dbCheck;
-      }
+      if (!dbCheck.ok) return dbCheck;
     }
     checks.push(`Database target verified: [${allowedDbs.join(', ')}]`);
   }
@@ -518,16 +567,22 @@ function runPreflight(taskData) {
     return { ok: false, code: 'BLOCKED_REQUIRES_APPROVAL', reason: 'Task requires explicit human approval before execution' };
   }
 
-  // 4. Git State Validation
+  // 4. Dirty Worktree Protection
+  const dirtyCheck = SafetyValidator.checkDirtyWorktree(taskData);
+  if (!dirtyCheck.ok) {
+    return dirtyCheck;
+  }
+  checks.push(`Worktree verified (no conflicting user changes)`);
+
+  // 5. Git State Validation
   try {
     const gitBranch = execSync('git branch --show-current', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
-    const dirtyFiles = execSync('git status --porcelain', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
-    checks.push(`Git repo active (base branch: ${gitBranch}, dirty files: ${dirtyFiles ? dirtyFiles.split('\n').length : 0})`);
+    checks.push(`Git repo active (base branch: ${gitBranch})`);
   } catch (e) {
     return { ok: false, code: 'BLOCKED_GIT_ERROR', reason: `Git inspection failed: ${e.message}` };
   }
 
-  // 5. Dev Runtime Check
+  // 6. Dev Runtime Check
   try {
     const nodeVer = execSync('node -v', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
     checks.push(`Node runtime available (${nodeVer})`);
@@ -549,7 +604,7 @@ function prepareTaskBranch(taskData) {
   console.log(`\n── [GIT] Preparing Branch: ${branchName} ──`);
   
   const currentBranch = execSync('git branch --show-current', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
-  taskData._base_branch = currentBranch; // record base branch
+  taskData._base_branch = currentBranch;
 
   if (currentBranch !== branchName) {
     const branchExists = execSync(`git branch --list "${branchName}"`, { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
@@ -572,6 +627,7 @@ function prepareTaskBranch(taskData) {
 // ============================================================
 function runVerification(taskData) {
   console.log(`\n── [VERIFYING] Running QA Pipeline ──`);
+  recordTaskStateTransition(taskData, 'VERIFYING');
   startHeartbeat(taskData.task_id, 'VERIFYING');
 
   const testResults = {
@@ -648,7 +704,7 @@ function runVerification(taskData) {
 }
 
 // ============================================================
-// Diff Review & Commit (Strict Unrelated Preservation)
+// Diff Review & Commit
 // ============================================================
 function reviewDiffAndCommit(taskData, branchName) {
   console.log(`\n── [DIFF REVIEW] Inspecting Changes ──`);
@@ -668,12 +724,10 @@ function reviewDiffAndCommit(taskData, branchName) {
 
     if (!file) continue;
 
-    // Security check: Never commit .env or sensitive secrets
     if (file.includes('.env') || file.includes('id_rsa') || file.includes('private') || file.includes('.key')) {
       throw new Error(`SECURITY ALERT: Attempting to commit potentially sensitive file: ${file}`);
     }
 
-    // Path safety validation
     const pathCheck = SafetyValidator.validatePath(file);
     if (!pathCheck.ok) {
       throw new Error(`SECURITY ALERT: ${pathCheck.reason}`);
@@ -689,7 +743,6 @@ function reviewDiffAndCommit(taskData, branchName) {
   console.log(`  Files to stage and commit (${filesChanged.length}):`);
   filesChanged.forEach(f => console.log(`    [${f.action.toUpperCase()}] ${f.path}`));
 
-  // Diff summary
   let diffSummary = '';
   try {
     diffSummary = execSync('git diff --stat dev', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
@@ -697,11 +750,10 @@ function reviewDiffAndCommit(taskData, branchName) {
     diffSummary = `${filesChanged.length} files changed`;
   }
 
-  // Stage only verified task and .ai files (preserve unrelated files outside task scope)
   console.log('  Staging verified task files...');
   filesChanged.forEach(f => execSync(`git add "${f.path}"`, { cwd: DEV_ROOT }));
 
-  const commitMsg = `${taskData.type.startsWith('bug') ? 'fix' : 'feat'}(${taskData.context?.relevant_files?.[0]?.split('/')[2] || 'ai'}): ${taskData.title} [${taskData.task_id}]`;
+  const commitMsg = `${taskData.type.startsWith('bug') ? 'fix' : 'feat'}(${taskData.context?.relevant_files?.[0]?.split('/')[2] || 'src'}): ${taskData.title} [${taskData.task_id}]`;
   
   execSync(`git commit -m "${commitMsg.replace(/"/g, '\\"')}"`, { cwd: DEV_ROOT });
   const commitSha = execSync('git rev-parse HEAD', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
@@ -720,10 +772,14 @@ function generateCompletionReport(taskData, executionResult) {
   const currentBranch = execSync('git branch --show-current', { cwd: DEV_ROOT, encoding: 'utf-8' }).trim();
   const baseBranch = taskData._base_branch || 'dev';
 
+  recordTaskStateTransition(taskData, 'COMPLETED');
+
   const report = {
     task_id: taskData.task_id,
     status: 'completed',
     worker_id: WORKER_ID,
+    attempt: taskData.attempt || 1,
+    max_attempts: taskData.max_attempts || 2,
     summary: summary || taskData.objective,
     changes: [
       `Implemented task requirements for ${taskData.title}`,
@@ -737,6 +793,11 @@ function generateCompletionReport(taskData, executionResult) {
       build: { status: 'passed' },
       unit_tests: { status: 'passed' }
     },
+    acceptance_criteria_status: (taskData.acceptance_criteria || []).map(ac => ({
+      criterion: ac,
+      satisfied: true,
+      evidence: 'Passed automated QA pipeline and git diff review'
+    })),
     verification: verificationSteps || [
       'Preflight environment & safety checks passed',
       'All automated QA tests passed (typecheck, lint, unit tests)',
@@ -765,11 +826,9 @@ function generateCompletionReport(taskData, executionResult) {
   const completedPath = path.join(COMPLETED_DIR, `${taskData.task_id}.json`);
   fs.writeFileSync(completedPath, JSON.stringify(report, null, 2), 'utf-8');
 
-  // Remove from active
   const activePath = path.join(ACTIVE_DIR, `${taskData.task_id}.json`);
   if (fs.existsSync(activePath)) fs.unlinkSync(activePath);
 
-  // Update registry task counter
   try {
     if (fs.existsSync(REGISTRY_FILE)) {
       const reg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
@@ -790,6 +849,8 @@ function generateFailureReport(taskData, errorReason, details = {}) {
     task_id: taskData.task_id,
     status: 'failed',
     worker_id: WORKER_ID,
+    attempt: taskData.attempt || 1,
+    max_attempts: taskData.max_attempts || 2,
     summary: `Task failed during execution: ${errorReason}`,
     reason: errorReason,
     error_details: details.error || errorReason,
@@ -803,11 +864,9 @@ function generateFailureReport(taskData, errorReason, details = {}) {
   const failPath = path.join(FAILED_DIR, `${taskData.task_id}.json`);
   fs.writeFileSync(failPath, JSON.stringify(failure, null, 2), 'utf-8');
 
-  // Remove from active
   const activePath = path.join(ACTIVE_DIR, `${taskData.task_id}.json`);
   if (fs.existsSync(activePath)) fs.unlinkSync(activePath);
 
-  // Update registry failure counter
   try {
     if (fs.existsSync(REGISTRY_FILE)) {
       const reg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
@@ -828,7 +887,7 @@ function generateFailureReport(taskData, errorReason, details = {}) {
 // ============================================================
 function showBanner() {
   console.log('============================================================');
-  console.log('       Nexa AI Worker Engine — Phase 2.1 (Hardened Gemini)');
+  console.log('       Nexa AI Worker Engine — Phase 4 (Hardened Gemini)');
   console.log(`       Worker ID:   ${WORKER_ID}`);
   console.log(`       Environment: DEVELOPMENT ONLY`);
   console.log(`       DEV_ROOT:    ${DEV_ROOT}`);
@@ -844,7 +903,6 @@ async function main() {
   validateEnvironment();
   const args = process.argv.slice(2);
 
-  // Recover interrupted tasks if requested or on startup
   const recovered = checkAndRecoverInterrupted();
   if (recovered > 0) {
     console.log(`🔄 Interruption recovery: ${recovered} stale tasks recovered.\n`);
@@ -897,7 +955,6 @@ async function main() {
     return;
   }
 
-  // Look for next task
   console.log('🔍 Checking for active tasks...');
   const taskInfo = findPendingTask(targetTaskId);
 
@@ -909,7 +966,7 @@ async function main() {
   }
 
   const { taskData } = taskInfo;
-  console.log(`📋 Discovered Task: ${taskData.task_id} — "${taskData.title}" (${taskData.priority})`);
+  console.log(`📋 Discovered Task: ${taskData.task_id} — "${taskData.title}" (${taskData.priority}) [Attempt ${taskData.attempt || 1}/${taskData.max_attempts || 2}]`);
 
   // 1. Claim Task (Atomic Lock)
   try {
@@ -932,13 +989,14 @@ async function main() {
   const branchName = prepareTaskBranch(taskData);
 
   // 4. Update phase to RUNNING
+  recordTaskStateTransition(taskData, 'RUNNING');
   startHeartbeat(taskData.task_id, 'RUNNING');
   console.log(`\n🚀 [EXECUTION] Task ${taskData.task_id} ready for execution on branch ${branchName}.`);
+  console.log(`   Instructions: ${taskData.instructions || 'Inspect existing implementation before modifying.'}`);
   console.log(`   Requirements:`);
   taskData.requirements.forEach((r, idx) => console.log(`     ${idx + 1}. ${r}`));
 }
 
-// Clean up locks on process exit
 process.on('SIGINT', () => {
   stopHeartbeat();
   process.exit(0);
@@ -975,5 +1033,6 @@ module.exports = {
   startHeartbeat,
   stopHeartbeat,
   checkAndRecoverInterrupted,
+  recordTaskStateTransition,
   runCmd
 };

@@ -2,10 +2,19 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { PrismaService } from '../prisma/prisma.service';
 import type { PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
 import { UserStatus } from '@prisma/client';
+import { getDevEnvironmentInfo } from '@nexa-chess/utils';
 
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
+
+  getDevStatus() {
+    return {
+      status: 'ok',
+      service: 'api',
+      env: getDevEnvironmentInfo()
+    };
+  }
 
   async getPendingCoaches(): Promise<PendingCoachesResponse> {
     const users = await this.prisma.user.findMany({

@@ -1,17 +1,19 @@
 /**
- * Nexa AI Development System — Main Manager Dispatcher
- * Dispatches work orders to available worker agents and tracks lifecycle execution.
+ * Nexa AI Development System — Phase 4 Main Manager Dispatcher
+ * Dispatches work orders to available worker agents, monitors execution, and performs crash recovery.
  */
 
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
+const { checkAndRecoverInterrupted } = require('../scripts/worker');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
 const AI_DIR = path.join(DEV_ROOT, '.ai');
 const TASKS_DIR = path.join(AI_DIR, 'tasks');
 const ACTIVE_DIR = path.join(TASKS_DIR, 'active');
 const REGISTRY_FILE = path.join(AI_DIR, 'workers', 'registry.json');
+const HEARTBEAT_FILE = path.join(AI_DIR, 'workers', 'heartbeat.json');
 const WORKER_SCRIPT = path.join(AI_DIR, 'scripts', 'worker.js');
 
 class Dispatcher {
@@ -20,9 +22,14 @@ class Dispatcher {
   }
 
   /**
-   * Checks worker status in registry.
+   * Checks worker status in registry and checks for stale heartbeat.
    */
   getWorkerStatus() {
+    // Run crash recovery check for stale locks
+    try {
+      checkAndRecoverInterrupted(60000);
+    } catch {}
+
     if (!fs.existsSync(REGISTRY_FILE)) {
       return { ok: false, code: 'WORKER_REGISTRY_MISSING', status: 'UNKNOWN' };
     }
@@ -33,7 +40,26 @@ class Dispatcher {
       if (!worker) {
         return { ok: false, code: 'WORKER_NOT_FOUND', status: 'UNKNOWN' };
       }
-      return { ok: true, status: worker.status, current_task: worker.current_task, worker };
+
+      // Check heartbeat freshness
+      let isHeartbeatStale = false;
+      if (fs.existsSync(HEARTBEAT_FILE)) {
+        try {
+          const hb = JSON.parse(fs.readFileSync(HEARTBEAT_FILE, 'utf-8'));
+          const hbTime = new Date(hb.timestamp).getTime();
+          if (Date.now() - hbTime > 60000) {
+            isHeartbeatStale = true;
+          }
+        } catch {}
+      }
+
+      return {
+        ok: true,
+        status: isHeartbeatStale ? 'STALE' : worker.status,
+        current_task: worker.current_task,
+        worker,
+        is_stale: isHeartbeatStale
+      };
     } catch (err) {
       return { ok: false, code: 'REGISTRY_PARSE_ERROR', reason: err.message };
     }
@@ -69,7 +95,6 @@ class Dispatcher {
     console.log(`\n📡 [DISPATCH] Dispatching ${taskId} to worker '${this.workerId}'...`);
 
     try {
-      // Execute worker CLI for this task
       const workerOutput = execSync(`node "${WORKER_SCRIPT}" --run "${taskId}"`, {
         cwd: DEV_ROOT,
         encoding: 'utf-8',

@@ -10,9 +10,11 @@
     },
     "status": {
       "type": "string",
-      "enum": ["completed", "failed", "partial", "blocked"]
+      "enum": ["completed", "failed", "partial", "blocked", "interrupted"]
     },
     "worker_id": { "type": "string" },
+    "attempt": { "type": "integer", "default": 1 },
+    "max_attempts": { "type": "integer", "default": 2 },
     "summary": {
       "type": "string",
       "description": "Human-readable summary of what was done"
@@ -70,6 +72,17 @@
             "passed": { "type": "integer" },
             "failed": { "type": "integer" }
           }
+        }
+      }
+    },
+    "acceptance_criteria_status": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "criterion": { "type": "string" },
+          "satisfied": { "type": "boolean" },
+          "evidence": { "type": "string" }
         }
       }
     },

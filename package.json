@@ -30,6 +30,7 @@
     "typecheck": "turbo typecheck",
     "ai:manager": "node .ai/manager/manager.js",
     "ai:worker": "node .ai/scripts/worker.js",
+    "ai:status": "node .ai/scripts/status.js",
     "ai:tasks": "node .ai/scripts/task-manager.js",
     "ai:finish": "node .ai/scripts/finish-task.js",
     "ai:audit": "node .ai/scripts/safety-audit.js",

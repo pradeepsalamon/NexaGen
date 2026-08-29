@@ -123,7 +123,12 @@ async function runTests() {
   // ------------------------------------------------------------
   console.log('\n── 6. Worker Already Busy ──');
   const originalReg = fs.readFileSync(REGISTRY_FILE, 'utf-8');
+  const busyTaskFile = path.join(ACTIVE_DIR, 'NEXA-8888.json');
+  const busyLockFile = path.join(ACTIVE_DIR, 'NEXA-8888.lock');
   try {
+    fs.writeFileSync(busyTaskFile, JSON.stringify({ task_id: 'NEXA-8888', title: 'Running Task' }));
+    fs.writeFileSync(busyLockFile, JSON.stringify({ task_id: 'NEXA-8888', pid: process.pid, locked_at: new Date().toISOString() }));
+
     const regData = JSON.parse(originalReg);
     regData.workers[0].status = 'BUSY';
     regData.workers[0].current_task = 'NEXA-8888';
@@ -137,6 +142,8 @@ async function runTests() {
 
     if (fs.existsSync(testActiveTask)) fs.unlinkSync(testActiveTask);
   } finally {
+    if (fs.existsSync(busyTaskFile)) fs.unlinkSync(busyTaskFile);
+    if (fs.existsSync(busyLockFile)) fs.unlinkSync(busyLockFile);
     fs.writeFileSync(REGISTRY_FILE, originalReg);
   }
 
@@ -236,7 +243,7 @@ async function runTests() {
   }
 
   // ------------------------------------------------------------
-  // 11. Failed Acceptance Criterion (Test Gates Failed)
+  // 11. Failed Acceptance Criterion (Failing QA)
   // ------------------------------------------------------------
   console.log('\n── 11. Failed Acceptance Criterion (Failing QA) ──');
   const mockGateFailTask = 'NEXA-7773';
@@ -245,12 +252,15 @@ async function runTests() {
     task_id: mockGateFailTask,
     status: 'completed',
     worker_id: 'nexa-dev-01',
+    summary: 'QA failure test',
+    changes: ['modified files'],
+    files_changed: [{ path: 'packages/utils/src/test.ts', action: 'modified' }],
     tests: {
       typecheck: { status: 'passed' },
       lint: { status: 'failed', errors: 4 }, // LINT FAILED
       unit_tests: { status: 'passed' }
     },
-    git: { commits: [{ sha: 'abc' }] }
+    git: { branch: 'ai/NEXA-7773-test', commits: [{ sha: 'abc' }] }
   };
 
   try {
@@ -316,6 +326,112 @@ async function runTests() {
     if (fs.existsSync(dupLockFile)) fs.unlinkSync(dupLockFile);
   }
 
+  // ------------------------------------------------------------
+  // 16. Reviewer: Missing Commit SHA Detection
+  // ------------------------------------------------------------
+  console.log('\n── 16. Missing Commit SHA Detection ──');
+  const mockNoCommitTask = 'NEXA-7771';
+  const mockNoCommitFile = path.join(COMPLETED_DIR, `${mockNoCommitTask}.json`);
+  try {
+    fs.writeFileSync(mockNoCommitFile, JSON.stringify({
+      task_id: mockNoCommitTask,
+      status: 'completed',
+      worker_id: 'nexa-dev-01',
+      summary: 'No commit test',
+      files_changed: [{ path: 'packages/utils/src/test.ts', action: 'modified' }],
+      tests: { typecheck: { status: 'passed' }, lint: { status: 'passed' }, unit_tests: { status: 'passed' } },
+      git: { branch: 'ai/NEXA-7771-test', commits: [] }
+    }));
+    const rev16 = await reviewer.review(mockNoCommitTask);
+    assert('Reviewer detects missing commit SHA', rev16.verdict === 'CRITERIA_UNMET');
+  } finally {
+    if (fs.existsSync(mockNoCommitFile)) fs.unlinkSync(mockNoCommitFile);
+  }
+
+  // ------------------------------------------------------------
+  // 17. Reviewer: Non-Isolated Branch Detection
+  // ------------------------------------------------------------
+  console.log('\n── 17. Non-Isolated Branch Detection ──');
+  const mockBadBranchTask = 'NEXA-7770';
+  const mockBadBranchFile = path.join(COMPLETED_DIR, `${mockBadBranchTask}.json`);
+  try {
+    fs.writeFileSync(mockBadBranchFile, JSON.stringify({
+      task_id: mockBadBranchTask,
+      status: 'completed',
+      worker_id: 'nexa-dev-01',
+      summary: 'Bad branch test',
+      files_changed: [{ path: 'packages/utils/src/test.ts', action: 'modified' }],
+      tests: { typecheck: { status: 'passed' }, lint: { status: 'passed' }, unit_tests: { status: 'passed' } },
+      git: { branch: 'main', commits: [{ sha: 'abc' }] }
+    }));
+    const rev17 = await reviewer.review(mockBadBranchTask);
+    assert('Reviewer blocks task not performed on ai/* branch', rev17.verdict === 'BLOCKED');
+  } finally {
+    if (fs.existsSync(mockBadBranchFile)) fs.unlinkSync(mockBadBranchFile);
+  }
+
+  // ------------------------------------------------------------
+  // 18. Reviewer: Secret Commit Prevention
+  // ------------------------------------------------------------
+  console.log('\n── 18. Secret Commit Prevention ──');
+  const mockSecretTask = 'NEXA-7769';
+  const mockSecretFile = path.join(COMPLETED_DIR, `${mockSecretTask}.json`);
+  try {
+    fs.writeFileSync(mockSecretFile, JSON.stringify({
+      task_id: mockSecretTask,
+      status: 'completed',
+      worker_id: 'nexa-dev-01',
+      summary: 'Secret leak test',
+      files_changed: [{ path: 'apps/api/.env', action: 'modified' }],
+      tests: { typecheck: { status: 'passed' }, lint: { status: 'passed' }, unit_tests: { status: 'passed' } },
+      git: { branch: 'ai/NEXA-7769-test', commits: [{ sha: 'abc' }] }
+    }));
+    const rev18 = await reviewer.review(mockSecretTask);
+    assert('Reviewer blocks commit containing sensitive secret file', rev18.verdict === 'BLOCKED');
+  } finally {
+    if (fs.existsSync(mockSecretFile)) fs.unlinkSync(mockSecretFile);
+  }
+
+  // ------------------------------------------------------------
+  // 19. Reviewer: Production Path Touch Prevention
+  // ------------------------------------------------------------
+  console.log('\n── 19. Production Path Touch Prevention ──');
+  const mockProdPathTask = 'NEXA-7768';
+  const mockProdPathFile = path.join(COMPLETED_DIR, `${mockProdPathTask}.json`);
+  try {
+    fs.writeFileSync(mockProdPathFile, JSON.stringify({
+      task_id: mockProdPathTask,
+      status: 'completed',
+      worker_id: 'nexa-dev-01',
+      summary: 'Prod touch test',
+      files_changed: [{ path: '/opt/nexa-chess/NexaGen/docker-compose.yml', action: 'modified' }],
+      tests: { typecheck: { status: 'passed' }, lint: { status: 'passed' }, unit_tests: { status: 'passed' } },
+      git: { branch: 'ai/NEXA-7768-test', commits: [{ sha: 'abc' }] }
+    }));
+    const rev19 = await reviewer.review(mockProdPathTask);
+    assert('Reviewer blocks report modifying production files', rev19.verdict === 'BLOCKED');
+  } finally {
+    if (fs.existsSync(mockProdPathFile)) fs.unlinkSync(mockProdPathFile);
+  }
+
+  // ------------------------------------------------------------
+  // 20. Controlled Retry Limit (Max 2 Attempts)
+  // ------------------------------------------------------------
+  console.log('\n── 20. Controlled Retry Limit Tests ──');
+  const mockRetryTask = 'NEXA-7767';
+  const mockRetryFile = path.join(COMPLETED_DIR, `${mockRetryTask}.json`);
+  try {
+    fs.writeFileSync(mockRetryFile, JSON.stringify({
+      task_id: mockRetryTask,
+      attempt: 2,
+      max_attempts: 2
+    }));
+    const retryResult = await reviewer.createFollowUp(mockRetryTask, 'Test retry', planner, true);
+    assert('Retry is blocked when max_attempts is reached (attempt 2/2)', retryResult === null);
+  } finally {
+    if (fs.existsSync(mockRetryFile)) fs.unlinkSync(mockRetryFile);
+  }
+
   // ============================================================
   // Summary
   // ============================================================
@@ -326,7 +442,7 @@ async function runTests() {
   if (failedTests > 0) {
     process.exit(1);
   } else {
-    console.log('🎉 ALL 15 MANAGER ORCHESTRATION SCENARIOS PASSED 100%!\n');
+    console.log('🎉 ALL 20 MANAGER ORCHESTRATION SCENARIOS PASSED 100%!\n');
     process.exit(0);
   }
 }

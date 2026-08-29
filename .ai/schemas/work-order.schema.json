@@ -29,6 +29,18 @@
       "type": "string",
       "enum": ["simple", "medium", "complex"]
     },
+    "attempt": {
+      "type": "integer",
+      "default": 1
+    },
+    "max_attempts": {
+      "type": "integer",
+      "default": 2
+    },
+    "dependencies": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "environment": {
       "type": "object",
       "properties": {
@@ -43,8 +55,24 @@
       "properties": {
         "relevant_files": { "type": "array", "items": { "type": "string" } },
         "related_models": { "type": "array", "items": { "type": "string" } },
+        "affected_apps": { "type": "array", "items": { "type": "string" } },
+        "affected_packages": { "type": "array", "items": { "type": "string" } },
         "architecture_notes": { "type": "string" }
       }
+    },
+    "impact_analysis": {
+      "type": "object",
+      "properties": {
+        "database_impact": { "type": "boolean" },
+        "redis_impact": { "type": "boolean" },
+        "livekit_impact": { "type": "boolean" },
+        "api_impact": { "type": "boolean" },
+        "frontend_impact": { "type": "boolean" }
+      }
+    },
+    "instructions": {
+      "type": "string",
+      "description": "Explicit instructions for coding worker regarding inspection, reuse, and pattern adherence"
     },
     "requirements": {
       "type": "array",
@@ -64,6 +92,10 @@
       "type": "array",
       "items": { "type": "string", "enum": ["typecheck", "lint", "build", "unit_tests", "e2e_tests", "api_smoke_test"] }
     },
+    "verification_commands": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
     "safety": {
       "type": "object",
       "properties": {
@@ -72,6 +104,16 @@
         "allowed_databases": { "type": "array", "items": { "type": "string" } },
         "blocked_databases": { "type": "array", "items": { "type": "string" } },
         "requires_approval": { "type": "boolean", "default": false }
+      }
+    },
+    "state_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "state": { "type": "string" },
+          "timestamp": { "type": "string" }
+        }
       }
     },
     "assigned_worker": { "type": "string" },

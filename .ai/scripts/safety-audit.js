@@ -200,7 +200,7 @@ try {
   assert('Stale dead-PID lock was identified and recovered', recoveredCount > 0);
   assert('Stale lock file was cleaned up', !fs.existsSync(crashLockFile));
 
-  const failedReportPath = path.join(DEV_ROOT, '.ai', 'tasks', 'failed', `${crashTaskId}-interrupted.json`);
+  const failedReportPath = path.join(DEV_ROOT, '.ai', 'tasks', 'failed', `${crashTaskId}.json`);
   assert('Interrupted task report was generated in .ai/tasks/failed/', fs.existsSync(failedReportPath));
 
   if (fs.existsSync(failedReportPath)) fs.unlinkSync(failedReportPath);
@@ -260,6 +260,32 @@ try {
 } finally {
   if (fs.existsSync(unrelatedFilePath)) fs.unlinkSync(unrelatedFilePath);
 }
+
+// ============================================================
+// 9. Dirty Worktree Conflict Detection Audit
+// ============================================================
+console.log('\n── 9. Dirty Worktree Conflict Tests ──');
+
+const dirtyConflictingFile = path.join(DEV_ROOT, 'packages/utils/src/conflict_test.ts');
+fs.writeFileSync(dirtyConflictingFile, 'export const dirtyTest = true;\n', 'utf-8');
+
+try {
+  const dirtyCheck = SafetyValidator.checkDirtyWorktree({
+    context: { relevant_files: ['packages/utils/src/conflict_test.ts'] }
+  });
+  assert('Dirty conflicting user file triggers BLOCKED_USER_CHANGES', dirtyCheck.ok === false && dirtyCheck.code === 'BLOCKED_USER_CHANGES');
+  assert('Conflicting filename identified in reason', dirtyCheck.conflictingFile.includes('conflict_test.ts'));
+} finally {
+  if (fs.existsSync(dirtyConflictingFile)) fs.unlinkSync(dirtyConflictingFile);
+}
+
+// ============================================================
+// 10. LiveKit Production Room Safety Audit
+// ============================================================
+console.log('\n── 10. LiveKit Production Room Safety Tests ──');
+
+assert('Dev LiveKit room deletion command is allowed', SafetyValidator.validateCommand('livekit-cli delete-room dev-ai-NEXA-0001-test').ok === true);
+assert('Production LiveKit room deletion command is blocked', SafetyValidator.validateCommand('livekit-cli delete-room prod-batch-101').code === 'BLOCKED_LIVEKIT_SAFETY');
 
 // ============================================================
 // Summary

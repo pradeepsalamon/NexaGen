@@ -1,0 +1,119 @@
+{
+  "task_id": "NEXA-0034",
+  "title": "Add getDevStatus diagnostic method to AdminService and Ad...",
+  "objective": "Add getDevStatus diagnostic method to AdminService and AdminController using dev-info helper",
+  "priority": "medium",
+  "type": "feature_implementation",
+  "complexity": "medium",
+  "attempt": 1,
+  "max_attempts": 2,
+  "dependencies": [],
+  "environment": {
+    "server": "nexa-vcn",
+    "environment": "development",
+    "project_path": "/opt/nexa-chess/NexaGen-dev",
+    "branch": "ai/NEXA-0034-add-getdevstatus-diagnostic-me"
+  },
+  "context": {
+    "relevant_files": [
+      "apps/api/src/admin/"
+    ],
+    "related_models": [
+      "User"
+    ],
+    "affected_apps": [
+      "apps/api"
+    ],
+    "affected_packages": [],
+    "architecture_notes": "NexaGen monorepo native development environment (/opt/nexa-chess/NexaGen-dev)"
+  },
+  "impact_analysis": {
+    "database_impact": false,
+    "redis_impact": false,
+    "livekit_impact": false,
+    "api_impact": true,
+    "frontend_impact": false
+  },
+  "instructions": "Inspect the existing implementation before modifying it. Reuse existing patterns/components/services whenever possible. Do not rebuild existing functionality unnecessarily.",
+  "requirements": [
+    "Implement solution for: Add getDevStatus diagnostic method to AdminService and AdminController using dev-info helper",
+    "Follow repository coding conventions and AGENTS.md rules",
+    "Ensure all TypeScript types, ESLint checks, and unit tests pass"
+  ],
+  "constraints": [
+    "Development environment ONLY (/opt/nexa-chess/NexaGen-dev)",
+    "Do not touch or target production (/opt/nexa-chess/NexaGen)",
+    "PostgreSQL target is vps_dev only (nexa_chess is strictly blocked)",
+    "Redis keys must use nexa:dev:* or nexa:ai:* namespaces",
+    "LiveKit rooms must follow dev-ai-<task-id>-<purpose> convention",
+    "Must pass QA verify.sh before marking completed",
+    "Do not auto-merge into dev/main; remain on task branch"
+  ],
+  "acceptance_criteria": [
+    "Code changes directly fulfill the requested objective",
+    "All automated QA checks pass (typecheck, lint, build, unit tests)",
+    "No regressions introduced in existing test suites"
+  ],
+  "required_tests": [
+    "typecheck",
+    "lint",
+    "unit_tests"
+  ],
+  "verification_commands": [
+    "npm run typecheck",
+    "npm run lint",
+    "npm test"
+  ],
+  "safety": {
+    "allowed_paths": [
+      "/opt/nexa-chess/NexaGen-dev/"
+    ],
+    "blocked_paths": [
+      "/opt/nexa-chess/NexaGen/",
+      "/etc/",
+      "/var/",
+      "/usr/",
+      "/root/"
+    ],
+    "allowed_databases": [
+      "vps_dev"
+    ],
+    "blocked_databases": [
+      "nexa_chess",
+      "postgres"
+    ],
+    "requires_approval": false
+  },
+  "state_history": [
+    {
+      "state": "CREATED",
+      "timestamp": "2026-08-29T11:58:09.324Z"
+    },
+    {
+      "state": "CLAIMED",
+      "timestamp": "2026-08-29T11:58:09.362Z"
+    },
+    {
+      "state": "PREFLIGHT",
+      "timestamp": "2026-08-29T11:58:09.363Z"
+    },
+    {
+      "state": "RUNNING",
+      "timestamp": "2026-08-29T11:58:09.403Z"
+    },
+    {
+      "state": "VERIFYING",
+      "timestamp": "2026-08-29T11:58:51.248Z"
+    },
+    {
+      "state": "VERIFYING",
+      "timestamp": "2026-08-29T12:00:05.139Z"
+    }
+  ],
+  "assigned_worker": "nexa-dev-01",
+  "provider": "gemini",
+  "model": "gemini-2.5-pro",
+  "created_at": "2026-08-29T11:58:09.324Z",
+  "timeout_minutes": 30,
+  "_base_branch": "ai/phase-4-manager-reliability"
+}

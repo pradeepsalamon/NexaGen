@@ -1,5 +1,5 @@
 /**
- * Nexa AI Development System — Main Manager Planner
+ * Nexa AI Development System — Phase 4 Main Manager Planner
  * Handles request analysis, safety pre-check, task decomposition, and work order creation.
  */
 
@@ -119,9 +119,8 @@ class Planner {
         console.log(`   Task ${i + 1}/${subPrompts.length}: [${taskId}] ${subPrompt}`);
 
         const plan = await this.provider.analyzeRequest(subPrompt, this.projectContext);
-        const workOrder = await this.provider.generateWorkOrder(plan, { taskId });
+        const workOrder = await this.provider.generateWorkOrder(plan, { taskId, attempt: 1, max_attempts: 2 });
         
-        // Add dependency to previous task if applicable
         if (i > 0) {
           workOrder.dependencies = [workOrders[i - 1].task_id];
         }
@@ -131,7 +130,7 @@ class Planner {
     } else {
       const taskId = this.getNextTaskId();
       const plan = await this.provider.analyzeRequest(userPrompt, this.projectContext);
-      const workOrder = await this.provider.generateWorkOrder(plan, { taskId });
+      const workOrder = await this.provider.generateWorkOrder(plan, { taskId, attempt: 1, max_attempts: 2 });
       workOrders.push(workOrder);
     }
 
