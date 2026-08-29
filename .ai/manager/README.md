@@ -66,7 +66,10 @@ The Manager never directly edits application files. It formulates rigorous speci
 ## CLI Commands
 
 ```bash
-# Check manager and worker status
+# Check complete AI Development System status & observability
+npm run ai:status
+
+# Check manager and worker queue status
 npm run ai:manager -- --status
 
 # Plan and generate a work order without executing
@@ -80,4 +83,11 @@ npm run ai:manager -- --review NEXA-0005
 
 # Full automated end-to-end orchestration
 npm run ai:manager -- "Fix coach profile rating display bug"
+
+# Run 52-assertion worker safety audit
+npm run ai:audit
+
+# Run 20-scenario manager test suite
+npm run ai:test:manager
 ```
+

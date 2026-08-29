@@ -153,7 +153,7 @@ NexaGen/
 - **Chess**: Custom chessboard with drag/drop, PGN, FEN support
 - **Live Video**: LiveKit React SDK
 
-## AI Development System (Phase 3 Orchestration)
+## AI Development System (Phase 4 Reliable Orchestration)
 
 The repository features an autonomous pair-programming development system located under `.ai/`:
 
@@ -168,14 +168,18 @@ User (Human) ──► Main AI Manager ──► Work Order ──► Gemini Wor
 ### Components
 
 1. **Main AI Manager** (`.ai/manager/`):
-   - `Planner`: Analyzes user intent, checks project memory docs, breaks complex requests into task sequences, creates work orders (`NEXA-XXXX.json`).
-   - `Dispatcher`: Checks worker availability (`registry.json`), verifies atomic locks, dispatches work orders to `nexa-dev-01`.
-   - `Reviewer`: Audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, generates follow-up tasks if criteria are unmet.
+   - `Planner`: Analyzes user intent, checks project memory docs, conducts impact analysis (apps, packages, DB, Redis, LiveKit), breaks complex requests into sequential tasks with dependency chaining, creates work orders (`NEXA-XXXX.json`).
+   - `Dispatcher`: Checks worker status, verifies stale worker heartbeat, checks atomic locks, dispatches work orders to `nexa-dev-01`.
+   - `Reviewer`: Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, verifies that no production files or secrets were modified, enforces retry limits (`max_attempts: 2`), and generates follow-ups.
    - `Provider Adapter`: Provider-independent interface (`base-provider.js`, `gemini-provider.js`).
 
 2. **Gemini Coding Worker** (`nexa-dev-01` in `.ai/scripts/worker.js`):
-   - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, checks command policy.
-   - `Task Branch Isolation`: Creates `ai/<TASK_ID>-<slug>` branch from `dev`. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
+   - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, protects LiveKit production rooms, blocks destructive commands.
+   - `Dirty Worktree Guard`: Protects uncommitted user modifications from being overwritten (`BLOCKED_USER_CHANGES`).
+   - `Task Branch Isolation`: Creates `ai/<TASK_ID>-<slug>` branch from base branch. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
+   - `State Machine`: Tracks complete task transitions (`CREATED` -> `PLANNED` -> `ASSIGNED` -> `CLAIMED` -> `PREFLIGHT` -> `RUNNING` -> `TESTING` -> `VERIFYING` -> `COMPLETED`).
+   - `Heartbeat & Pulse`: Continuously pulses runtime state (`pid`, `task_id`, `phase`, `elapsed_seconds`).
+   - `Crash Recovery`: Detects dead worker processes, preserves task branch without deleting, marks task `INTERRUPTED`.
    - `QA Gate`: Executes `typecheck`, `lint`, and `unit tests` via `.ai/scripts/verify.sh`.
    - `Completion Reporter`: Generates schema-compliant `.ai/tasks/completed/<TASK_ID>.json`.
 
@@ -187,4 +191,5 @@ User (Human) ──► Main AI Manager ──► Work Order ──► Gemini Wor
 4. **Human Approval Boundaries**:
    - Automated: Task planning, dispatch, execution, testing, branch commits, completion review.
    - Requires Human Approval: Merging task branch into `dev`, merging into `main`, production deployments, production DB migrations.
+
 
