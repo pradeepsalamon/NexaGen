@@ -23,3 +23,9 @@ export function getDevExecutionDuration(startTimeMs: number): number {
   if (!startTimeMs || typeof startTimeMs !== 'number') return 0;
   return Math.max(0, Date.now() - startTimeMs);
 }
+
+export function formatDevDiagnostics(info?: Partial<DevEnvironmentInfo>): string {
+  const current = info ? { ...getDevEnvironmentInfo(), ...info } : getDevEnvironmentInfo();
+  return `[DEV_DIAGNOSTIC] Environment: ${current.nodeEnv}, Uptime: ${current.uptimeSeconds}s, Timestamp: ${current.timestamp}`;
+}
+

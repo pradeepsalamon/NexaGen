@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { formatDevDiagnostics } from '@nexa-chess/utils';
 import { AdminService } from './admin.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -39,4 +40,13 @@ describe('AdminService', () => {
     expect(status.service).toBe('api');
     expect(status.env).toBeDefined();
   });
+
+  it('should format dev diagnostics string properly', () => {
+    const formatted = formatDevDiagnostics({ nodeEnv: 'test', uptimeSeconds: 42 });
+    expect(formatted).toContain('[DEV_DIAGNOSTIC]');
+    expect(formatted).toContain('Environment: test');
+    expect(formatted).toContain('Uptime: 42s');
+  });
 });
+
+

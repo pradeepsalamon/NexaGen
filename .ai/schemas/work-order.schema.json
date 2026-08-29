@@ -45,6 +45,11 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "required_capabilities": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Required worker capability tags (e.g. backend, nestjs, prisma, frontend, nextjs, testing)"
+    },
     "environment": {
       "type": "object",
       "properties": {

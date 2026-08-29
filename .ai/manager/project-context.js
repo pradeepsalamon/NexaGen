@@ -197,42 +197,62 @@ class ProjectContextEngine {
   }
 
   /**
-   * Collects worker status from registry and heartbeat.
+   * Collects worker pool status from registry and heartbeat.
    */
   getWorkerContext() {
-    let workerStatus = 'UNKNOWN';
-    let currentTask = null;
-    let pulseAgeSeconds = null;
+    let workersList = [];
+    let activeWorker = null;
 
     if (fs.existsSync(REGISTRY_FILE)) {
       try {
         const reg = JSON.parse(fs.readFileSync(REGISTRY_FILE, 'utf-8'));
-        const worker = reg.workers?.find(w => w.worker_id === 'nexa-dev-01') || reg.workers?.[0];
-        if (worker) {
-          workerStatus = worker.status;
-          currentTask = worker.current_task;
-        }
+        workersList = reg.workers || [];
       } catch {}
     }
 
-    if (fs.existsSync(HEARTBEAT_FILE)) {
-      try {
-        const hb = JSON.parse(fs.readFileSync(HEARTBEAT_FILE, 'utf-8'));
-        if (hb.timestamp) {
-          pulseAgeSeconds = Math.round((Date.now() - new Date(hb.timestamp).getTime()) / 1000);
-          if (pulseAgeSeconds > 60 && workerStatus === 'BUSY') {
-            workerStatus = 'STALE';
+    const pool = workersList.map(w => {
+      let pulseAgeSeconds = null;
+      let isStale = false;
+      const hbFile = path.join(path.dirname(REGISTRY_FILE), `heartbeat_${w.worker_id || w.id}.json`);
+      const checkFile = fs.existsSync(hbFile) ? hbFile : HEARTBEAT_FILE;
+
+      if (fs.existsSync(checkFile)) {
+        try {
+          const hb = JSON.parse(fs.readFileSync(checkFile, 'utf-8'));
+          if (hb.timestamp) {
+            pulseAgeSeconds = Math.round((Date.now() - new Date(hb.timestamp).getTime()) / 1000);
+            if (pulseAgeSeconds > 60 && w.status === 'BUSY') {
+              isStale = true;
+            }
           }
-        }
-      } catch {}
-    }
+        } catch {}
+      }
+
+      return {
+        worker_id: w.worker_id || w.id,
+        name: w.name,
+        status: isStale ? 'STALE' : w.status,
+        capabilities: w.capabilities || [],
+        current_task: w.current_task,
+        workspace: w.workspace || DEV_ROOT,
+        heartbeat: w.heartbeat,
+        pulse_age_seconds: pulseAgeSeconds
+      };
+    });
+
+    const primary = pool.find(w => w.worker_id === 'nexa-dev-01') || pool[0] || {
+      worker_id: 'nexa-dev-01',
+      status: 'AVAILABLE',
+      capabilities: ['backend', 'frontend', 'testing']
+    };
 
     return {
-      worker_id: 'nexa-dev-01',
       provider: 'GEMINI',
-      status: workerStatus,
-      current_task: currentTask,
-      pulse_age_seconds: pulseAgeSeconds
+      worker_id: primary.worker_id,
+      status: primary.status,
+      current_task: primary.current_task,
+      pulse_age_seconds: primary.pulse_age_seconds,
+      workers_pool: pool
     };
   }
 

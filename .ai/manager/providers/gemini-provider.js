@@ -174,6 +174,21 @@ class GeminiProvider extends BaseProvider {
       acceptanceCriteria.push('Prisma schema validates and client generates cleanly');
     }
 
+    // 5. Deduce Required Capabilities
+    const requiredCapabilities = ['typescript'];
+    if (affectedApps.includes('apps/api') || databaseImpact || promptLower.includes('api') || promptLower.includes('backend') || promptLower.includes('service')) {
+      requiredCapabilities.push('backend', 'nestjs', 'prisma');
+    }
+    if (affectedApps.includes('apps/web') || frontendImpact || promptLower.includes('component') || promptLower.includes('ui') || promptLower.includes('page') || promptLower.includes('frontend')) {
+      requiredCapabilities.push('frontend', 'nextjs', 'react', 'shadcn');
+    }
+    if (type === 'investigation') {
+      requiredCapabilities.push('investigation');
+    }
+    if (promptLower.includes('test') || promptLower.includes('spec') || promptLower.includes('qa')) {
+      requiredCapabilities.push('testing', 'jest');
+    }
+
     return {
       title: userPrompt.length > 60 ? userPrompt.slice(0, 57) + '...' : userPrompt,
       objective: userPrompt,
@@ -181,6 +196,7 @@ class GeminiProvider extends BaseProvider {
       type,
       priority,
       complexity,
+      required_capabilities: Array.from(new Set(requiredCapabilities)),
       context: {
         relevant_files: relevantFiles,
         related_models: Array.from(new Set(relatedModels)),
@@ -225,6 +241,7 @@ class GeminiProvider extends BaseProvider {
       priority: plan.priority || 'medium',
       type: plan.type || 'feature_implementation',
       complexity: plan.complexity || 'simple',
+      required_capabilities: plan.required_capabilities || ['typescript'],
       attempt: metadata.attempt || 1,
       max_attempts: metadata.max_attempts || 2,
       dependencies: plan.dependencies || [],

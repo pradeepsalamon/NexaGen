@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Nexa AI Development System — Phase 5 Main AI Manager
- * Project-Aware Development Control Plane, Planning, Dispatch, and Review.
+ * Nexa AI Development System — Phase 6 Main AI Manager
+ * Multi-Worker Development Control Plane, Planning, Capability Routing, DAG Orchestration, and Review.
  */
 
 const fs = require('fs');
@@ -9,21 +9,28 @@ const path = require('path');
 const Planner = require('./planner');
 const Dispatcher = require('./dispatcher');
 const Reviewer = require('./reviewer');
+const Scheduler = require('./scheduler');
+const WorkerRegistry = require('./worker-registry');
+const DependencyGraph = require('./dependency-graph');
 const GeminiProvider = require('./providers/gemini-provider');
 const ProjectContextEngine = require('./project-context');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
 const AI_DIR = path.join(DEV_ROOT, '.ai');
+const TASKS_DIR = path.join(AI_DIR, 'tasks');
+const ACTIVE_DIR = path.join(TASKS_DIR, 'active');
 const STATE_DIR = path.join(AI_DIR, 'manager', 'state');
 const SESSION_FILE = path.join(STATE_DIR, 'session.json');
 
 class MainManager {
   constructor() {
     this.contextEngine = new ProjectContextEngine(DEV_ROOT);
+    this.registry = new WorkerRegistry();
     this.provider = new GeminiProvider();
     this.planner = new Planner(this.provider, this.contextEngine);
-    this.dispatcher = new Dispatcher('nexa-dev-01');
+    this.dispatcher = new Dispatcher('nexa-dev-01', this.registry);
     this.reviewer = new Reviewer(this.provider);
+    this.scheduler = new Scheduler(this.registry);
 
     if (!fs.existsSync(STATE_DIR)) {
       fs.mkdirSync(STATE_DIR, { recursive: true });
@@ -52,7 +59,7 @@ class MainManager {
     console.log('============================================================');
     console.log('       Nexa AI Development System — Main AI Manager');
     console.log('       Role:        PLANNER • DISPATCHER • REVIEWER');
-    console.log('       Worker:      nexa-dev-01 (Gemini)');
+    console.log('       Worker Pool: Multi-Worker (Gemini)');
     console.log('       Environment: DEVELOPMENT ONLY (/opt/nexa-chess/NexaGen-dev)');
     console.log('============================================================\n');
   }
@@ -67,9 +74,14 @@ class MainManager {
     console.log('── Control Plane Status ──');
     console.log(`  Manager Status:   READY`);
     console.log(`  Provider:         ${summary.worker.provider}`);
-    console.log(`  Worker ID:        ${summary.worker.worker_id}`);
-    console.log(`  Worker State:     ${summary.worker.status}`);
-    console.log(`  Active Task:      ${summary.worker.current_task || 'None'}`);
+    console.log(`  Scheduler:        READY (CLI / Filesystem DAG)`);
+
+    console.log('\n── Worker Pool ──');
+    const pool = summary.worker.workers_pool || [];
+    for (const w of pool) {
+      const statusIcon = w.status === 'AVAILABLE' ? '🟢' : w.status === 'BUSY' ? '🟡' : '🔴';
+      console.log(`  ${statusIcon} ${w.worker_id}: ${w.status} [Caps: ${w.capabilities.join(', ')}]`);
+    }
 
     console.log('\n── DEV Environment Status ──');
     console.log(`  Branch:           ${summary.git.current_branch}`);
@@ -94,6 +106,47 @@ class MainManager {
     console.log(`  Production Docker: ${summary.safety_boundaries.production_docker}`);
     console.log(`  Redis Scope:       ${summary.safety_boundaries.redis_scope}`);
     console.log(`  LiveKit Scope:     ${summary.safety_boundaries.livekit_scope}\n`);
+  }
+
+  /**
+   * Displays registered workers in pool.
+   */
+  showWorkers() {
+    this.showBanner();
+    console.log('👷 Registered Multi-Worker Pool:\n');
+    const workers = this.registry.getWorkers();
+
+    if (workers.length === 0) {
+      console.log('  No workers registered.\n');
+      return;
+    }
+
+    for (const w of workers) {
+      const statusIcon = w.status === 'AVAILABLE' ? '🟢' : w.status === 'BUSY' ? '🟡' : '🔴';
+      console.log(`  ${statusIcon} [${w.worker_id || w.id}] ${w.name || 'Worker'}`);
+      console.log(`     Status:       ${w.status}`);
+      console.log(`     Capabilities: [${(w.capabilities || []).join(', ')}]`);
+      console.log(`     Workspace:    ${w.workspace || DEV_ROOT}`);
+      console.log(`     Current Task: ${w.current_task || 'None'}`);
+      console.log(`     Completed:    ${w.tasks_completed || 0}, Failed: ${w.tasks_failed || 0}\n`);
+    }
+  }
+
+  /**
+   * Displays dependency graph for active tasks or specific root task.
+   */
+  showGraph(rootTaskId = null) {
+    this.showBanner();
+    const activeTasks = this.scheduler.loadActiveTasks();
+
+    if (activeTasks.length === 0) {
+      console.log('ℹ️ No active tasks in queue to graph.\n');
+      return;
+    }
+
+    const graph = new DependencyGraph(activeTasks);
+    console.log(graph.renderAsciiGraph(rootTaskId));
+    console.log('');
   }
 
   /**
@@ -125,7 +178,7 @@ class MainManager {
 
   /**
    * Orchestrates a complete user request lifecycle:
-   * Request -> Plan -> Work Order -> Dispatch -> Review -> Summary
+   * Request -> Plan -> Work Orders -> Scheduler / DAG Execution -> Review -> Summary
    */
   async handleUserRequest(userPrompt) {
     this.showBanner();
@@ -143,43 +196,48 @@ class MainManager {
     const { workOrders } = planResult;
     console.log(`\n✅ Generated ${workOrders.length} work order(s).`);
 
+    // Show initial dependency graph
+    const graph = new DependencyGraph(workOrders);
+    console.log('\n' + graph.renderAsciiGraph() + '\n');
+
     const results = [];
 
-    // 2. Dispatch & Execution Phase
-    for (const wo of workOrders) {
-      console.log(`\n── [PHASE 2: DISPATCH] Task ${wo.task_id}: "${wo.title}" ──`);
-      
-      this.saveSession({
-        current_task_id: wo.task_id,
-        current_title: wo.title,
-        status: 'DISPATCHED'
-      });
+    // 2. Dispatch & Execution via Scheduler cycles
+    console.log('── [PHASE 2: DAG DISPATCH] Executing Work Orders with Capability Routing ──');
+    
+    // Execute scheduler cycles until all tasks are completed or blocked
+    let maxCycles = workOrders.length * 2 + 2;
+    while (maxCycles > 0) {
+      maxCycles--;
+      const activeBefore = this.scheduler.loadActiveTasks();
+      if (activeBefore.length === 0) break;
 
-      const dispatchResult = await this.dispatcher.dispatch(wo.task_id);
-      if (!dispatchResult.ok) {
-        console.error(`\n❌ Dispatch failed for ${wo.task_id}: ${dispatchResult.reason || dispatchResult.error}`);
-        return { ok: false, task_id: wo.task_id, code: dispatchResult.code, error: dispatchResult.error };
+      const schedResult = await this.scheduler.runCycle({ silent: false });
+      if (!schedResult.ok) {
+        console.error(`❌ Scheduling cycle failed: ${schedResult.code}`);
+        break;
       }
 
-      // Review Phase
-      console.log(`\n── [PHASE 3: REVIEW] Auditing Completion for ${wo.task_id} ──`);
+      if (schedResult.scheduled === 0 && activeBefore.length > 0) {
+        // Check if remaining tasks are blocked
+        console.log('ℹ️ No runnable tasks dispatched in this cycle.');
+        break;
+      }
+    }
+
+    // 3. Review Phase
+    console.log('\n── [PHASE 3: REVIEW] Auditing Completed Work Orders ──');
+    for (const wo of workOrders) {
       const reviewResult = await this.reviewer.review(wo.task_id);
       results.push(reviewResult);
 
       if (reviewResult.verdict === 'ACCEPTED') {
         console.log(`\n` + reviewResult.human_summary);
       } else if (reviewResult.verdict === 'FAILED') {
-        console.log(`\n### ❌ Task ${wo.task_id} Failed\n**Reason:** ${reviewResult.reason}\n**Details:** ${reviewResult.error_details}\n**Recommendation:** ${reviewResult.recommendation}`);
+        console.log(`\n### ❌ Task ${wo.task_id} Failed\n**Reason:** ${reviewResult.reason}\n**Details:** ${reviewResult.error_details}`);
       } else if (reviewResult.needs_follow_up) {
-        console.log(`\n⚠️ Task ${wo.task_id} completed with unmet criteria. Creating follow-up task...`);
-        const followUpOrder = await this.reviewer.createFollowUp(wo.task_id, reviewResult.reason, this.planner);
-        console.log(`   Follow-up queued: ${followUpOrder.task_id}`);
+        console.log(`\n⚠️ Task ${wo.task_id} completed with unmet criteria.`);
       }
-
-      this.saveSession({
-        last_task_id: wo.task_id,
-        status: reviewResult.verdict
-      });
     }
 
     return { ok: true, results };
@@ -194,18 +252,33 @@ async function main() {
   if (args.length === 0 || args.includes('--help')) {
     manager.showBanner();
     console.log('Usage:');
-    console.log('  npm run ai:manager -- "<user_request>"       Execute full planning & orchestration workflow');
+    console.log('  npm run ai:manager -- "<user_request>"       Execute full planning & DAG orchestration workflow');
     console.log('  npm run ai:manager -- --status               Display manager & worker queue status');
+    console.log('  npm run ai:manager -- --workers              List all registered workers in multi-worker pool');
+    console.log('  npm run ai:manager -- --graph [TASK_ID]      Render ASCII dependency tree for task(s)');
     console.log('  npm run ai:manager -- --history [query]      Query structured project development history');
     console.log('  npm run ai:manager -- --plan "<request>"     Plan and generate work order without executing');
     console.log('  npm run ai:manager -- --dispatch <TASK_ID>   Dispatch specific task to worker');
     console.log('  npm run ai:manager -- --review <TASK_ID>     Review completed task report');
+    console.log('  npm run ai:schedule                          Run one scheduler cycle across active tasks');
     console.log('');
     return;
   }
 
   if (args.includes('--status')) {
     manager.showStatus();
+    return;
+  }
+
+  if (args.includes('--workers')) {
+    manager.showWorkers();
+    return;
+  }
+
+  if (args.includes('--graph')) {
+    const graphIdx = args.indexOf('--graph') + 1;
+    const taskId = args[graphIdx] && !args[graphIdx].startsWith('--') ? args[graphIdx] : null;
+    manager.showGraph(taskId);
     return;
   }
 

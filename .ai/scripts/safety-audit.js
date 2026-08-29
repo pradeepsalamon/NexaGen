@@ -364,6 +364,70 @@ async function runQualityTests() {
   assert('Investigation instructions explicitly prohibit source code modification', invPlan.instructions.includes('DO NOT modify application source code'));
 }
 
+// ============================================================
+// 14. Multi-Worker & Dependency Graph Safety Audit
+// ============================================================
+console.log('\n── 14. Multi-Worker & DAG Dependency Safety Tests ──');
+
+const WorkerRegistry = require('../manager/worker-registry');
+const DependencyGraph = require('../manager/dependency-graph');
+
+const reg = new WorkerRegistry();
+const regCheck = reg.validateRegistry();
+assert('Worker registry validates cleanly', regCheck.ok === true);
+
+// Capability routing
+const backendWorker = reg.findCapableWorker(['backend', 'nestjs']);
+assert('Backend capabilities route to nexa-dev-01', backendWorker && (backendWorker.worker_id === 'nexa-dev-01' || backendWorker.id === 'nexa-dev-01'));
+
+const frontendWorker = reg.findCapableWorker(['frontend', 'react', 'nextjs']);
+assert('Frontend capabilities route to nexa-dev-02', frontendWorker && (frontendWorker.worker_id === 'nexa-dev-02' || frontendWorker.id === 'nexa-dev-02'));
+
+const qaWorker = reg.findCapableWorker(['testing', 'jest']);
+assert('Testing capabilities route to nexa-dev-03', qaWorker && (qaWorker.worker_id === 'nexa-dev-03' || qaWorker.id === 'nexa-dev-03'));
+
+const impossibleWorker = reg.findCapableWorker(['quantum_computing_supercomputer_rust']);
+assert('Unavailable capabilities return null', impossibleWorker === null);
+
+// DAG Validation
+const validDag = new DependencyGraph([
+  { task_id: 'NEXA-1001', dependencies: [] },
+  { task_id: 'NEXA-1002', dependencies: ['NEXA-1001'] },
+  { task_id: 'NEXA-1003', dependencies: ['NEXA-1002'] }
+]);
+assert('Valid linear DAG passes validation', validDag.validateGraph().ok === true);
+
+const circularDag = new DependencyGraph([
+  { task_id: 'NEXA-2001', dependencies: ['NEXA-2002'] },
+  { task_id: 'NEXA-2002', dependencies: ['NEXA-2001'] }
+]);
+const circularCheck = circularDag.validateGraph();
+assert('Circular dependency is detected and blocked', circularCheck.ok === false && circularCheck.errors[0]?.type === 'CIRCULAR_DEPENDENCY');
+
+const selfDepDag = new DependencyGraph([
+  { task_id: 'NEXA-3001', dependencies: ['NEXA-3001'] }
+]);
+const selfDepCheck = selfDepDag.validateGraph();
+assert('Self dependency is detected and blocked', selfDepCheck.ok === false && selfDepCheck.errors[0]?.type === 'SELF_DEPENDENCY');
+
+const missingDepDag = new DependencyGraph([
+  { task_id: 'NEXA-4001', dependencies: ['NEXA-NON-EXISTENT-9999'] }
+]);
+const missingDepCheck = missingDepDag.validateGraph();
+assert('Missing dependency is detected and blocked', missingDepCheck.ok === false && missingDepCheck.errors[0]?.type === 'MISSING_DEPENDENCY');
+
+// Runnable / Blocked evaluation
+const multiTasks = [
+  { task_id: 'NEXA-5001', dependencies: [] },
+  { task_id: 'NEXA-5002', dependencies: ['NEXA-5001'] }
+];
+const evalDag = new DependencyGraph(multiTasks);
+const runnable0 = evalDag.getRunnableTasks(new Set());
+assert('Task with no dependencies is immediately runnable', runnable0.length === 1 && runnable0[0].task_id === 'NEXA-5001');
+
+const runnable1 = evalDag.getRunnableTasks(new Set(['NEXA-5001']));
+assert('Task with satisfied dependency becomes runnable', runnable1.length === 2 && runnable1.some(r => r.task_id === 'NEXA-5002'));
+
 runQualityTests().then(() => {
   // Summary
   console.log('\n============================================================');
