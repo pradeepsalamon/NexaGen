@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const GeminiProvider = require('./providers/gemini-provider');
+const ProjectContextEngine = require('./project-context');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
 const AI_DIR = path.join(DEV_ROOT, '.ai');
@@ -14,16 +15,19 @@ const ACTIVE_DIR = path.join(TASKS_DIR, 'active');
 const COUNTER_FILE = path.join(TASKS_DIR, 'counter.txt');
 
 class Planner {
-  constructor(provider = null) {
+  constructor(provider = null, contextEngine = null) {
     this.provider = provider || new GeminiProvider();
+    this.contextEngine = contextEngine || new ProjectContextEngine();
     this.projectContext = this.loadProjectContext();
   }
 
   /**
-   * Loads high-level markdown context from .ai docs.
+   * Loads high-level markdown context from .ai docs and live workspace metadata.
    */
   loadProjectContext() {
-    const context = {};
+    const context = {
+      live_metadata: this.contextEngine.getProjectContextSummary()
+    };
     const docFiles = ['ARCHITECTURE.md', 'DATABASE.md', 'DEVELOPMENT.md', 'SECURITY.md', 'TESTING.md', 'VPS.md'];
     for (const doc of docFiles) {
       const docPath = path.join(AI_DIR, doc);

@@ -288,15 +288,92 @@ assert('Dev LiveKit room deletion command is allowed', SafetyValidator.validateC
 assert('Production LiveKit room deletion command is blocked', SafetyValidator.validateCommand('livekit-cli delete-room prod-batch-101').code === 'BLOCKED_LIVEKIT_SAFETY');
 
 // ============================================================
-// Summary
+// 11. Project Context Secret Redaction Audit
 // ============================================================
-console.log('\n============================================================');
-console.log(`  AUDIT RESULTS: ${passedTests}/${totalTests} passed (${failedTests} failures)`);
-console.log('============================================================\n');
+console.log('\n── 11. Project Context Secret Redaction Tests ──');
 
-if (failedTests > 0) {
-  process.exit(1);
-} else {
-  console.log('🎉 ALL SAFETY AUDIT CHECKS PASSED WITH ZERO VIOLATIONS.\n');
-  process.exit(0);
+const ProjectContextEngine = require('../manager/project-context');
+
+const sensitiveRawString = 'DATABASE_URL=postgres://user:super_secret_pw@127.0.0.1:5432/vps_dev?ssl=true JWT_SECRET=superjwt123 API_KEY=sk_live_999999999999999999';
+const redactedString = ProjectContextEngine.redactSecrets(sensitiveRawString);
+assert('Database URL password is redacted', !redactedString.includes('super_secret_pw') && redactedString.includes('[REDACTED]'));
+assert('JWT secret is redacted', !redactedString.includes('superjwt123'));
+assert('API key is redacted', !redactedString.includes('sk_live_999999999999999999'));
+
+const sensitiveObject = {
+  db_password: 'super_secret_password',
+  jwtSecret: 'top_secret_jwt_token',
+  apiKey: 'api_key_value',
+  nested: {
+    private_key: '-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgk...\n-----END PRIVATE KEY-----',
+    safe_info: 'NexaGen Dev'
+  }
+};
+const redactedObject = ProjectContextEngine.redactSecrets(sensitiveObject);
+assert('Object password key is redacted', redactedObject.db_password === '[REDACTED]');
+assert('Object jwtSecret key is redacted', redactedObject.jwtSecret === '[REDACTED]');
+assert('Object private_key is redacted', redactedObject.nested.private_key === '[REDACTED]');
+assert('Object safe property is preserved', redactedObject.nested.safe_info === 'NexaGen Dev');
+
+// ============================================================
+// 12. Investigation Task Code Modification Block Audit
+// ============================================================
+console.log('\n── 12. Investigation Code Modification Block Tests ──');
+
+const investigationMockFile = path.join(DEV_ROOT, 'packages/utils/src/investigation_mock.ts');
+fs.writeFileSync(investigationMockFile, 'export const invTest = true;\n', 'utf-8');
+
+try {
+  let threwInvestigationViolation = false;
+  try {
+    reviewDiffAndCommit({
+      task_id: 'NEXA-9995',
+      title: 'Investigation Code Audit',
+      type: 'investigation',
+      context: { relevant_files: [] }
+    }, 'ai/test-branch');
+  } catch (err) {
+    threwInvestigationViolation = err.message.includes('INVESTIGATION_POLICY_VIOLATION');
+  }
+  assert('Investigation task modifying source code is strictly blocked', threwInvestigationViolation === true);
+} finally {
+  if (fs.existsSync(investigationMockFile)) fs.unlinkSync(investigationMockFile);
 }
+
+// ============================================================
+// 13. Bug Fix & Feature Requirements Audit
+// ============================================================
+console.log('\n── 13. Bug Fix & Feature Quality Tests ──');
+
+const GeminiProvider = require('../manager/providers/gemini-provider');
+const geminiProvider = new GeminiProvider();
+
+async function runQualityTests() {
+  const bugFixPlan = await geminiProvider.analyzeRequest('Fix student attendance calculation error');
+  assert('Bug fix request classified as bug_fix', bugFixPlan.type === 'bug_fix');
+  assert('Bug fix requires regression unit testing', bugFixPlan.requirements.some(r => r.includes('unit test') || r.includes('regression')));
+  assert('Bug fix contains investigation instructions', Boolean(bugFixPlan.investigation_instructions));
+
+  const featurePlan = await geminiProvider.analyzeRequest('Add export attendance button to student dashboard');
+  assert('Feature request classified as feature_implementation', featurePlan.type === 'feature_implementation');
+  assert('Feature request has acceptance criteria', featurePlan.acceptance_criteria.length > 0);
+  assert('Feature request contains implementation guidance', Boolean(featurePlan.implementation_guidance));
+
+  const invPlan = await geminiProvider.analyzeRequest('Why is coach hourly rate not updating in profile?');
+  assert('Investigation request classified as investigation', invPlan.type === 'investigation');
+  assert('Investigation instructions explicitly prohibit source code modification', invPlan.instructions.includes('DO NOT modify application source code'));
+}
+
+runQualityTests().then(() => {
+  // Summary
+  console.log('\n============================================================');
+  console.log(`  AUDIT RESULTS: ${passedTests}/${totalTests} passed (${failedTests} failures)`);
+  console.log('============================================================\n');
+
+  if (failedTests > 0) {
+    process.exit(1);
+  } else {
+    console.log('🎉 ALL SAFETY AUDIT CHECKS PASSED WITH ZERO VIOLATIONS.\n');
+    process.exit(0);
+  }
+});

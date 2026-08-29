@@ -79,16 +79,17 @@ class Dispatcher {
       return { ok: false, code: 'TASK_ALREADY_LOCKED', reason: `Task ${taskId} is currently locked by another worker process` };
     }
 
-    const workerStatus = this.getWorkerStatus();
-    if (!workerStatus.ok) {
-      return workerStatus;
-    }
-
-    if (workerStatus.status === 'BUSY' && workerStatus.current_task !== taskId) {
+    // Environment check
+    const ProjectContextEngine = require('./project-context');
+    const ctxEngine = new ProjectContextEngine(DEV_ROOT);
+    const envHealth = ctxEngine.checkEnvironmentHealth();
+    if (!envHealth.ok) {
+      console.error(`\n❌ [DISPATCH BLOCKED] Development environment unhealthy: ${envHealth.reason}`);
       return {
         ok: false,
-        code: 'WORKER_BUSY',
-        reason: `Worker ${this.workerId} is currently busy executing task ${workerStatus.current_task}`
+        code: 'BLOCKED_ENVIRONMENT',
+        reason: envHealth.reason,
+        details: envHealth.details
       };
     }
 

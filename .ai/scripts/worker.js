@@ -724,6 +724,10 @@ function reviewDiffAndCommit(taskData, branchName) {
 
     if (!file) continue;
 
+    if (taskData.type === 'investigation' && !file.startsWith('.ai/')) {
+      throw new Error(`INVESTIGATION_POLICY_VIOLATION: Investigation tasks must not modify application source code (${file})`);
+    }
+
     if (file.includes('.env') || file.includes('id_rsa') || file.includes('private') || file.includes('.key')) {
       throw new Error(`SECURITY ALERT: Attempting to commit potentially sensitive file: ${file}`);
     }

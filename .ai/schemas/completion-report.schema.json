@@ -19,6 +19,20 @@
       "type": "string",
       "description": "Human-readable summary of what was done"
     },
+    "root_cause": {
+      "type": "string",
+      "description": "Root cause analysis for bug fix tasks"
+    },
+    "investigation_findings": {
+      "type": "object",
+      "properties": {
+        "observed_behavior": { "type": "string" },
+        "root_cause": { "type": "string" },
+        "affected_files": { "type": "array", "items": { "type": "string" } },
+        "evidence": { "type": "string" },
+        "recommended_fix": { "type": "string" }
+      }
+    },
     "changes": {
       "type": "array",
       "items": { "type": "string" },

@@ -153,7 +153,7 @@ NexaGen/
 - **Chess**: Custom chessboard with drag/drop, PGN, FEN support
 - **Live Video**: LiveKit React SDK
 
-## AI Development System (Phase 4 Reliable Orchestration)
+## AI Development System (Phase 5 Project-Aware Development Control Plane)
 
 The repository features an autonomous pair-programming development system located under `.ai/`:
 
@@ -167,19 +167,21 @@ User (Human) ──► Main AI Manager ──► Work Order ──► Gemini Wor
 
 ### Components
 
-1. **Main AI Manager** (`.ai/manager/`):
-   - `Planner`: Analyzes user intent, checks project memory docs, conducts impact analysis (apps, packages, DB, Redis, LiveKit), breaks complex requests into sequential tasks with dependency chaining, creates work orders (`NEXA-XXXX.json`).
-   - `Dispatcher`: Checks worker status, verifies stale worker heartbeat, checks atomic locks, dispatches work orders to `nexa-dev-01`.
-   - `Reviewer`: Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, verifies that no production files or secrets were modified, enforces retry limits (`max_attempts: 2`), and generates follow-ups.
+1. **Main AI Manager & Control Plane** (`.ai/manager/`):
+   - `ProjectContextEngine`: Real-time, safe inspection of git status, native dev services (Web :3010, API :3011, PostgreSQL `vps_dev`, Redis, LiveKit), monorepo workspace structure, and task history search with complete secret redaction.
+   - `Planner`: Analyzes user intent, partitions affected areas into `known` / `inferred` / `unknown`, categorizes task modes (`feature_implementation`, `bug_fix`, `investigation`, `refactor`), creates structured work orders (`NEXA-XXXX.json`), and breaks complex multi-step prompts into dependency-chained subtasks.
+   - `Dispatcher`: Performs pre-dispatch environment health checks (`checkEnvironmentHealth()`), verifies worker availability, detects stale heartbeats, and dispatches work orders to `nexa-dev-01`.
+   - `Reviewer`: Independently audits completion reports, validates test gates (typecheck, lint, unit tests), checks git commits, enforces `investigation` read-only constraints, verifies zero production or secret modifications, and manages controlled retries (`max_attempts: 2`).
    - `Provider Adapter`: Provider-independent interface (`base-provider.js`, `gemini-provider.js`).
 
 2. **Gemini Coding Worker** (`nexa-dev-01` in `.ai/scripts/worker.js`):
-   - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, protects LiveKit production rooms, blocks destructive commands.
-   - `Dirty Worktree Guard`: Protects uncommitted user modifications from being overwritten (`BLOCKED_USER_CHANGES`).
+   - `SafetyValidator`: Enforces filesystem realpath boundaries, whitelists database to `vps_dev`, protects LiveKit production rooms, blocks destructive system and Redis commands.
+   - `Dirty Worktree Guard`: Protects uncommitted human modifications from being overwritten (`BLOCKED_USER_CHANGES`).
    - `Task Branch Isolation`: Creates `ai/<TASK_ID>-<slug>` branch from base branch. Commits changes and stops. **Never auto-merges or pushes to `dev`/`main`.**
    - `State Machine`: Tracks complete task transitions (`CREATED` -> `PLANNED` -> `ASSIGNED` -> `CLAIMED` -> `PREFLIGHT` -> `RUNNING` -> `TESTING` -> `VERIFYING` -> `COMPLETED`).
    - `Heartbeat & Pulse`: Continuously pulses runtime state (`pid`, `task_id`, `phase`, `elapsed_seconds`).
    - `Crash Recovery`: Detects dead worker processes, preserves task branch without deleting, marks task `INTERRUPTED`.
+   - `Investigation Mode`: Strictly enforces read-only analysis without application code modification.
    - `QA Gate`: Executes `typecheck`, `lint`, and `unit tests` via `.ai/scripts/verify.sh`.
    - `Completion Reporter`: Generates schema-compliant `.ai/tasks/completed/<TASK_ID>.json`.
 
@@ -191,5 +193,6 @@ User (Human) ──► Main AI Manager ──► Work Order ──► Gemini Wor
 4. **Human Approval Boundaries**:
    - Automated: Task planning, dispatch, execution, testing, branch commits, completion review.
    - Requires Human Approval: Merging task branch into `dev`, merging into `main`, production deployments, production DB migrations.
+
 
 

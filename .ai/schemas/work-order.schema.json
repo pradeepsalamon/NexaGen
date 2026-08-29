@@ -23,11 +23,15 @@
     },
     "type": {
       "type": "string",
-      "enum": ["feature_implementation", "bug_fix", "refactor", "devops", "database", "research", "code_review", "testing", "documentation"]
+      "enum": ["feature_implementation", "bug_fix", "investigation", "refactor", "devops", "database", "research", "code_review", "testing", "documentation"]
     },
     "complexity": {
       "type": "string",
       "enum": ["simple", "medium", "complex"]
+    },
+    "problem_statement": {
+      "type": "string",
+      "description": "Precise formulation of the problem, bug, or feature request"
     },
     "attempt": {
       "type": "integer",
@@ -60,6 +64,14 @@
         "architecture_notes": { "type": "string" }
       }
     },
+    "affected_areas": {
+      "type": "object",
+      "properties": {
+        "known": { "type": "array", "items": { "type": "string" } },
+        "inferred": { "type": "array", "items": { "type": "string" } },
+        "unknown": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "impact_analysis": {
       "type": "object",
       "properties": {
@@ -73,6 +85,14 @@
     "instructions": {
       "type": "string",
       "description": "Explicit instructions for coding worker regarding inspection, reuse, and pattern adherence"
+    },
+    "investigation_instructions": {
+      "type": "string",
+      "description": "Step-by-step guidance for investigation and root cause analysis"
+    },
+    "implementation_guidance": {
+      "type": "string",
+      "description": "Implementation considerations, safety notes, and pattern reuse guidance"
     },
     "requirements": {
       "type": "array",

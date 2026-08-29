@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * Nexa AI Development System — Phase 3 Main AI Manager
- * Central orchestration, planning, task dispatch, and completion review coordinator.
+ * Nexa AI Development System — Phase 5 Main AI Manager
+ * Project-Aware Development Control Plane, Planning, Dispatch, and Review.
  */
 
 const fs = require('fs');
@@ -10,6 +10,7 @@ const Planner = require('./planner');
 const Dispatcher = require('./dispatcher');
 const Reviewer = require('./reviewer');
 const GeminiProvider = require('./providers/gemini-provider');
+const ProjectContextEngine = require('./project-context');
 
 const DEV_ROOT = path.resolve(__dirname, '../..');
 const AI_DIR = path.join(DEV_ROOT, '.ai');
@@ -18,8 +19,9 @@ const SESSION_FILE = path.join(STATE_DIR, 'session.json');
 
 class MainManager {
   constructor() {
+    this.contextEngine = new ProjectContextEngine(DEV_ROOT);
     this.provider = new GeminiProvider();
-    this.planner = new Planner(this.provider);
+    this.planner = new Planner(this.provider, this.contextEngine);
     this.dispatcher = new Dispatcher('nexa-dev-01');
     this.reviewer = new Reviewer(this.provider);
 
@@ -60,25 +62,65 @@ class MainManager {
    */
   showStatus() {
     this.showBanner();
-    const workerStatus = this.dispatcher.getWorkerStatus();
-    console.log('── Manager & Worker Status ──');
-    console.log(`  Manager Status:  READY`);
-    console.log(`  Worker ID:       ${this.dispatcher.workerId}`);
-    console.log(`  Worker State:    ${workerStatus.status || 'UNKNOWN'}`);
-    console.log(`  Active Task:     ${workerStatus.current_task || 'None'}`);
+    const summary = this.contextEngine.getProjectContextSummary();
 
-    const activeTasks = fs.existsSync(path.join(AI_DIR, 'tasks', 'active'))
-      ? fs.readdirSync(path.join(AI_DIR, 'tasks', 'active')).filter(f => f.endsWith('.json'))
-      : [];
-    console.log(`  Active Queue:    ${activeTasks.length} task(s)`);
+    console.log('── Control Plane Status ──');
+    console.log(`  Manager Status:   READY`);
+    console.log(`  Provider:         ${summary.worker.provider}`);
+    console.log(`  Worker ID:        ${summary.worker.worker_id}`);
+    console.log(`  Worker State:     ${summary.worker.status}`);
+    console.log(`  Active Task:      ${summary.worker.current_task || 'None'}`);
 
-    if (fs.existsSync(SESSION_FILE)) {
-      try {
-        const session = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf-8'));
-        console.log(`  Last Handled:    ${session.last_task_id || 'None'}`);
-      } catch {}
+    console.log('\n── DEV Environment Status ──');
+    console.log(`  Branch:           ${summary.git.current_branch}`);
+    console.log(`  Web (:3010):      ${summary.services.web_3010 ? 'UP ✅' : 'DOWN ❌'}`);
+    console.log(`  API (:3011):      ${summary.services.api_3011 ? 'UP ✅' : 'DOWN ❌'}`);
+    console.log(`  DB (vps_dev):     ${summary.services.postgres_dev ? 'UP ✅' : 'DOWN ❌'}`);
+    console.log(`  Redis (shared):   ${summary.services.redis_shared ? 'UP ✅' : 'DOWN ❌'}`);
+    console.log(`  LiveKit (shared): ${summary.services.livekit_shared ? 'UP ✅' : 'DOWN ❌'}`);
+
+    console.log('\n── Task Queue ──');
+    console.log(`  Active:           ${summary.tasks.active_count}`);
+    console.log(`  Completed:        ${summary.tasks.completed_count}`);
+    console.log(`  Failed:           ${summary.tasks.failed_count}`);
+
+    if (summary.tasks.last_task) {
+      console.log(`  Last Task:        [${summary.tasks.last_task.task_id}] ${summary.tasks.last_task.title}`);
     }
-    console.log('');
+
+    console.log('\n── Safety Boundaries ──');
+    console.log(`  Production Access: ${summary.safety_boundaries.production_access}`);
+    console.log(`  Production DB:     ${summary.safety_boundaries.production_db}`);
+    console.log(`  Production Docker: ${summary.safety_boundaries.production_docker}`);
+    console.log(`  Redis Scope:       ${summary.safety_boundaries.redis_scope}`);
+    console.log(`  LiveKit Scope:     ${summary.safety_boundaries.livekit_scope}\n`);
+  }
+
+  /**
+   * Displays historical tasks matching an optional search query.
+   */
+  showHistory(query = '') {
+    this.showBanner();
+    console.log(`📚 Task History Query: "${query || '*'}"\n`);
+    const history = this.contextEngine.searchTaskHistory(query);
+
+    if (history.length === 0) {
+      console.log('  No matching historical tasks found.\n');
+      return;
+    }
+
+    console.log(`Found ${history.length} historical task(s):\n`);
+    for (const item of history) {
+      const statusIcon = item.status === 'COMPLETED' ? '✅' : '❌';
+      console.log(`  ${statusIcon} [${item.task_id}] ${item.title}`);
+      console.log(`     Status:  ${item.status} (Attempt ${item.attempt})`);
+      console.log(`     Type:    ${item.type}`);
+      console.log(`     Date:    ${item.date}`);
+      if (item.files_changed && item.files_changed.length > 0) {
+        console.log(`     Files:   ${item.files_changed.slice(0, 3).join(', ')}${item.files_changed.length > 3 ? '...' : ''}`);
+      }
+      console.log(`     Summary: ${item.summary}\n`);
+    }
   }
 
   /**
@@ -119,7 +161,7 @@ class MainManager {
         return { ok: false, task_id: wo.task_id, code: dispatchResult.code, error: dispatchResult.error };
       }
 
-      // In Phase 3: Worker execution was triggered; now we perform the manager review
+      // Review Phase
       console.log(`\n── [PHASE 3: REVIEW] Auditing Completion for ${wo.task_id} ──`);
       const reviewResult = await this.reviewer.review(wo.task_id);
       results.push(reviewResult);
@@ -154,6 +196,7 @@ async function main() {
     console.log('Usage:');
     console.log('  npm run ai:manager -- "<user_request>"       Execute full planning & orchestration workflow');
     console.log('  npm run ai:manager -- --status               Display manager & worker queue status');
+    console.log('  npm run ai:manager -- --history [query]      Query structured project development history');
     console.log('  npm run ai:manager -- --plan "<request>"     Plan and generate work order without executing');
     console.log('  npm run ai:manager -- --dispatch <TASK_ID>   Dispatch specific task to worker');
     console.log('  npm run ai:manager -- --review <TASK_ID>     Review completed task report');
@@ -163,6 +206,13 @@ async function main() {
 
   if (args.includes('--status')) {
     manager.showStatus();
+    return;
+  }
+
+  if (args.includes('--history')) {
+    const histIdx = args.indexOf('--history') + 1;
+    const query = args[histIdx] && !args[histIdx].startsWith('--') ? args[histIdx] : '';
+    manager.showHistory(query);
     return;
   }
 

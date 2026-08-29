@@ -109,7 +109,7 @@ class Reviewer {
         };
       }
 
-      // 6. Security Boundary Validation
+      // 6. Security Boundary & Investigation Validation
       const files = report.files_changed || [];
       for (const f of files) {
         if (f.path.includes('.env') || f.path.includes('.key') || f.path.includes('id_rsa')) {
@@ -124,6 +124,18 @@ class Reviewer {
             verdict: 'BLOCKED',
             task_id: taskId,
             reason: `Production isolation violation: production path touched (${f.path})`
+          };
+        }
+      }
+
+      // Check investigation mode: no application source code modifications allowed
+      if (report.type === 'investigation') {
+        const appCodeChanges = files.filter(f => !f.path.startsWith('.ai/'));
+        if (appCodeChanges.length > 0) {
+          return {
+            verdict: 'BLOCKED',
+            task_id: taskId,
+            reason: `Investigation task violated constraint by modifying application source code: ${appCodeChanges.map(f => f.path).join(', ')}`
           };
         }
       }

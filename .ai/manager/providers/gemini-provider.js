@@ -1,6 +1,7 @@
 /**
- * Nexa AI Development System — Phase 4 Gemini Manager Provider
+ * Nexa AI Development System — Phase 5 Gemini Manager Provider
  * Planning, review, and orchestration provider for Gemini / Antigravity.
+ * Integrates Project Context, Bug-Fix, Feature, and Investigation modes.
  */
 
 const BaseProvider = require('./base-provider');
@@ -25,7 +26,10 @@ class GeminiProvider extends BaseProvider {
     let priority = 'medium';
     let complexity = 'simple';
 
-    if (/\b(fix|bug|error|broken|fail|crash|issue|patch)\b/i.test(promptLower)) {
+    if (/\b(why|investigate|trace|audit|debug|analyze|find root cause|check why)\b/i.test(promptLower) && !/\b(fix|implement|create|add|update|build)\b/i.test(promptLower)) {
+      type = 'investigation';
+      priority = 'medium';
+    } else if (/\b(fix|bug|error|broken|fail|crash|issue|patch|wrong|incorrect)\b/i.test(promptLower)) {
       type = 'bug_fix';
       priority = 'high';
     } else if (/\b(refactor|clean|cleanup|reorganize|restructure)\b/i.test(promptLower)) {
@@ -37,8 +41,6 @@ class GeminiProvider extends BaseProvider {
       type = 'devops';
     } else if (/\b(prisma|schema|database|table|migration|postgres|sql)\b/i.test(promptLower)) {
       type = 'database';
-    } else if (/\b(investigate|trace|audit|debug|analyze|find)\b/i.test(promptLower)) {
-      type = 'investigation';
     } else if (/\b(doc|readme|architecture|guide|explain)\b/i.test(promptLower)) {
       type = 'documentation';
     }
@@ -54,6 +56,10 @@ class GeminiProvider extends BaseProvider {
     }
 
     // 2. Identify Relevant Modules, Apps, and Packages
+    const knownAreas = [];
+    const inferredAreas = [];
+    const unknownAreas = [];
+
     const relevantFiles = [];
     const relatedModels = [];
     const affectedApps = [];
@@ -77,6 +83,7 @@ class GeminiProvider extends BaseProvider {
 
     for (const [mod, info] of Object.entries(moduleKeywords)) {
       if (promptLower.includes(mod) || promptLower.includes(mod.replace('-', ' '))) {
+        knownAreas.push(`${info.path}/`);
         relevantFiles.push(`${info.path}/`);
         if (info.models) relatedModels.push(...info.models);
         if (info.app && !affectedApps.includes(`apps/${info.app}`)) affectedApps.push(`apps/${info.app}`);
@@ -86,17 +93,23 @@ class GeminiProvider extends BaseProvider {
 
     if (promptLower.includes('api') || promptLower.includes('backend') || promptLower.includes('endpoint')) {
       if (!affectedApps.includes('apps/api')) affectedApps.push('apps/api');
+      inferredAreas.push('apps/api/src/');
     }
     if (promptLower.includes('frontend') || promptLower.includes('web') || promptLower.includes('ui') || promptLower.includes('page')) {
       if (!affectedApps.includes('apps/web')) affectedApps.push('apps/web');
+      inferredAreas.push('apps/web/src/');
     }
     if (promptLower.includes('package') || promptLower.includes('utils')) {
       if (!affectedPackages.includes('packages/utils')) affectedPackages.push('packages/utils');
+      inferredAreas.push('packages/utils/src/');
     }
 
     if (affectedApps.length === 0 && affectedPackages.length === 0) {
       affectedApps.push('apps/api');
+      inferredAreas.push('apps/api/src/');
     }
+
+    unknownAreas.push('Specific line-level logic, edge cases, and runtime behavior to inspect in DEV environment');
 
     // 3. Impact Analysis
     const databaseImpact = type === 'database' || /\b(db|prisma|schema|migration|table|postgres)\b/i.test(promptLower);
@@ -105,18 +118,56 @@ class GeminiProvider extends BaseProvider {
     const apiImpact = affectedApps.includes('apps/api');
     const frontendImpact = affectedApps.includes('apps/web');
 
-    // 4. Formulate Requirements & Acceptance Criteria
-    const requirements = [
-      `Implement solution for: ${userPrompt}`,
-      'Follow repository coding conventions and AGENTS.md rules',
-      'Ensure all TypeScript types, ESLint checks, and unit tests pass'
-    ];
+    // 4. Formulate Requirements, Guidance, and Acceptance Criteria based on Type
+    let instructions = 'Inspect the existing implementation before modifying it. Reuse existing patterns/components/services whenever possible. Do not rebuild existing functionality unnecessarily.';
+    let investigationInstructions = 'Inspect relevant code and documentation. Formulate an understanding of existing data flow.';
+    let implementationGuidance = 'Follow repository patterns and AGENTS.md rules.';
 
-    const acceptanceCriteria = [
-      'Code changes directly fulfill the requested objective',
-      'All automated QA checks pass (typecheck, lint, build, unit tests)',
-      'No regressions introduced in existing test suites'
-    ];
+    const requirements = [];
+    const acceptanceCriteria = [];
+
+    if (type === 'investigation') {
+      instructions = 'INVESTIGATION ONLY: Analyze code, logs, and schema metadata. DO NOT modify application source code.';
+      investigationInstructions = '1. Trace data flow and execution path. 2. Identify observed vs expected behavior. 3. Pinpoint root cause. 4. Detail recommended minimal fix in completion report.';
+      implementationGuidance = 'Read-only inspection. Zero source code modifications permitted.';
+      requirements.push(
+        `Investigate and analyze: ${userPrompt}`,
+        'Identify root cause and document evidence',
+        'Do not modify application source code'
+      );
+      acceptanceCriteria.push(
+        'Root cause clearly identified and explained with evidence',
+        'Affected files identified accurately',
+        'Recommended fix provided without altering application code files'
+      );
+    } else if (type === 'bug_fix') {
+      instructions = 'BUG FIX: Investigate root cause before implementing minimal fix. Add regression tests.';
+      investigationInstructions = '1. Reproduce issue mentally or via test. 2. Inspect relevant files. 3. Identify root cause. 4. Implement minimal targeted fix.';
+      implementationGuidance = 'Avoid symptom-only patching. Ensure regression tests are added in corresponding .spec.ts files.';
+      requirements.push(
+        `Investigate root cause and fix: ${userPrompt}`,
+        'Add or update unit test specs to cover regression scenario',
+        'Follow repository coding conventions and AGENTS.md rules',
+        'Ensure all TypeScript types, ESLint checks, and unit tests pass'
+      );
+      acceptanceCriteria.push(
+        'Root cause identified and minimal fix implemented',
+        'Regression unit test passes and prevents future occurrences',
+        'All automated QA checks pass (typecheck, lint, unit tests)',
+        'No regressions introduced in existing test suites'
+      );
+    } else {
+      requirements.push(
+        `Implement solution for: ${userPrompt}`,
+        'Follow repository coding conventions and AGENTS.md rules',
+        'Ensure all TypeScript types, ESLint checks, and unit tests pass'
+      );
+      acceptanceCriteria.push(
+        'Code changes directly fulfill the requested objective',
+        'All automated QA checks pass (typecheck, lint, build, unit tests)',
+        'No regressions introduced in existing test suites'
+      );
+    }
 
     if (databaseImpact) {
       requirements.push('Use explicit migration (npx prisma migrate dev) and update PrismaService getters');
@@ -126,6 +177,7 @@ class GeminiProvider extends BaseProvider {
     return {
       title: userPrompt.length > 60 ? userPrompt.slice(0, 57) + '...' : userPrompt,
       objective: userPrompt,
+      problem_statement: userPrompt,
       type,
       priority,
       complexity,
@@ -136,6 +188,11 @@ class GeminiProvider extends BaseProvider {
         affected_packages: affectedPackages,
         architecture_notes: 'NexaGen monorepo native development environment (/opt/nexa-chess/NexaGen-dev)'
       },
+      affected_areas: {
+        known: knownAreas,
+        inferred: inferredAreas,
+        unknown: unknownAreas
+      },
       impact_analysis: {
         database_impact: databaseImpact,
         redis_impact: redisImpact,
@@ -143,10 +200,12 @@ class GeminiProvider extends BaseProvider {
         api_impact: apiImpact,
         frontend_impact: frontendImpact
       },
-      instructions: 'Inspect the existing implementation before modifying it. Reuse existing patterns/components/services whenever possible. Do not rebuild existing functionality unnecessarily.',
+      instructions,
+      investigation_instructions: investigationInstructions,
+      implementation_guidance: implementationGuidance,
       requirements,
       acceptance_criteria: acceptanceCriteria,
-      required_tests: ['typecheck', 'lint', 'unit_tests']
+      required_tests: type === 'investigation' ? ['typecheck'] : ['typecheck', 'lint', 'unit_tests']
     };
   }
 
@@ -162,6 +221,7 @@ class GeminiProvider extends BaseProvider {
       task_id: taskId,
       title: plan.title || 'Untitled Task',
       objective: plan.objective || plan.title,
+      problem_statement: plan.problem_statement || plan.objective || plan.title,
       priority: plan.priority || 'medium',
       type: plan.type || 'feature_implementation',
       complexity: plan.complexity || 'simple',
@@ -181,6 +241,11 @@ class GeminiProvider extends BaseProvider {
         affected_packages: [],
         architecture_notes: 'NexaGen monorepo'
       },
+      affected_areas: plan.affected_areas || {
+        known: [],
+        inferred: ['apps/api/src/'],
+        unknown: ['Specific implementation logic']
+      },
       impact_analysis: plan.impact_analysis || {
         database_impact: false,
         redis_impact: false,
@@ -189,6 +254,8 @@ class GeminiProvider extends BaseProvider {
         frontend_impact: false
       },
       instructions: plan.instructions || 'Inspect the existing implementation before modifying it. Reuse existing patterns/components/services whenever possible. Do not rebuild existing functionality unnecessarily.',
+      investigation_instructions: plan.investigation_instructions || 'Inspect code and trace behavior.',
+      implementation_guidance: plan.implementation_guidance || 'Follow repository coding conventions and AGENTS.md rules.',
       requirements: plan.requirements || [plan.objective],
       constraints: [
         'Development environment ONLY (/opt/nexa-chess/NexaGen-dev)',
@@ -236,19 +303,34 @@ class GeminiProvider extends BaseProvider {
       };
     }
 
+    // Check investigation mode constraint: NO code modifications allowed
+    if (workOrder.type === 'investigation') {
+      const files = completionReport.files_changed || [];
+      const codeFilesChanged = files.filter(f => !f.path.startsWith('.ai/'));
+      if (codeFilesChanged.length > 0) {
+        return {
+          verdict: 'BLOCKED',
+          reason: `Investigation tasks must not modify application code. Modified: ${codeFilesChanged.map(f => f.path).join(', ')}`,
+          needs_follow_up: false
+        };
+      }
+    }
+
     const testResults = completionReport.tests || {};
     const typecheckPassed = testResults.typecheck?.status === 'passed';
     const lintPassed = testResults.lint?.status === 'passed';
     const testsPassed = testResults.unit_tests?.status === 'passed';
 
-    if (!typecheckPassed || !lintPassed || !testsPassed) {
-      return {
-        verdict: 'REJECTED',
-        reason: 'One or more required QA test gates failed',
-        details: { typecheck: testResults.typecheck, lint: testResults.lint, unit_tests: testResults.unit_tests },
-        needs_follow_up: true,
-        follow_up_reason: 'Fix failing QA checks and broken test specs'
-      };
+    if (workOrder.type !== 'investigation') {
+      if (!typecheckPassed || !lintPassed || !testsPassed) {
+        return {
+          verdict: 'REJECTED',
+          reason: 'One or more required QA test gates failed',
+          details: { typecheck: testResults.typecheck, lint: testResults.lint, unit_tests: testResults.unit_tests },
+          needs_follow_up: true,
+          follow_up_reason: 'Fix failing QA checks and broken test specs'
+        };
+      }
     }
 
     if (!completionReport.git?.commits || completionReport.git.commits.length === 0) {
@@ -282,7 +364,10 @@ class GeminiProvider extends BaseProvider {
       verdict: 'ACCEPTED',
       task_id: workOrder.task_id,
       title: workOrder.title,
+      type: workOrder.type,
       summary: completionReport.summary,
+      root_cause: completionReport.root_cause || completionReport.investigation_findings?.root_cause,
+      investigation_findings: completionReport.investigation_findings,
       files_changed: files,
       git: completionReport.git,
       tests: testResults,
@@ -315,6 +400,13 @@ ${reviewResult.recommendation ? `**Recommended Action:** ${reviewResult.recommen
     const commitSha = reviewResult.git?.commits?.[0]?.sha ? reviewResult.git.commits[0].sha.slice(0, 7) : 'None';
     const branch = reviewResult.git?.branch || 'unknown';
 
+    let extraSection = '';
+    if (reviewResult.root_cause) {
+      extraSection = `\nRoot cause:\n${reviewResult.root_cause}\n`;
+    } else if (reviewResult.investigation_findings?.observed_behavior) {
+      extraSection = `\nInvestigation Findings:\n- Observed: ${reviewResult.investigation_findings.observed_behavior}\n- Root Cause: ${reviewResult.investigation_findings.root_cause || 'N/A'}\n- Recommendation: ${reviewResult.investigation_findings.recommended_fix || 'N/A'}\n`;
+    }
+
     return `TASK: ${reviewResult.title} [${reviewResult.task_id}]
 
 STATUS: COMPLETED
@@ -323,18 +415,20 @@ Worker:
 Gemini / nexa-dev-01
 
 Implemented:
-${reviewResult.summary}
-
+${reviewResult.summary}${extraSection}
 Changed:
 ${files}
 
-Verification:
+Tests:
 - Typecheck: PASS
 - Lint: PASS (${reviewResult.tests?.lint?.errors || 0} errors, ${reviewResult.tests?.lint?.warnings || 0} warnings)
 - Tests: PASS (${reviewResult.tests?.unit_tests?.passed || 0} passed)
 
-Commit:
+Git:
 ${commitSha} on branch \`${branch}\`
+
+Production:
+UNCHANGED
 
 RECOMMENDATION:
 Ready for human review and merge into dev.`;
