@@ -92,6 +92,16 @@ export class AuthService {
     5_000
   );
   private readonly frontendUrl = getFrontendUrl(this.env);
+  /**
+   * Grace window after a refresh token is rotated during which the *previous*
+   * token is still honoured. Without it, two tabs (or a retried request)
+   * refreshing at the same instant race: the first rotates and revokes the
+   * session, the second presents the now-revoked token and gets logged out —
+   * and because the response also clears cookies, both tabs drop. Re-issuing a
+   * fresh session for a token revoked <30s ago keeps concurrent tabs alive
+   * while still catching genuine token reuse outside the window.
+   */
+  private readonly refreshRotationGraceMs = 30_000;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -318,10 +328,12 @@ export class AuthService {
     }
 
     const payload = await this.verifyRefreshToken(refreshToken);
-    const session = await this.prisma.authSession.findFirst({
-      include: {
-        user: { include: { coachProfile: true, studentProfile: true } }
-      },
+    const sessionInclude = {
+      user: { include: { coachProfile: true, studentProfile: true } }
+    } as const;
+
+    let session = await this.prisma.authSession.findFirst({
+      include: sessionInclude,
       where: {
         expiresAt: { gt: new Date() },
         id: payload.sessionId,
@@ -330,6 +342,29 @@ export class AuthService {
         user: { isDeleted: false }
       }
     });
+
+    // No live session for this token. If it was rotated moments ago (a
+    // concurrent refresh from another tab), honour it within the grace window
+    // instead of logging every tab out. The session is already revoked, so
+    // don't revoke it again below.
+    let alreadyRevoked = false;
+    if (!session) {
+      session = await this.prisma.authSession.findFirst({
+        include: sessionInclude,
+        where: {
+          expiresAt: { gt: new Date() },
+          id: payload.sessionId,
+          revokedAt: {
+            gt: new Date(Date.now() - this.refreshRotationGraceMs)
+          },
+          userId: payload.sub,
+          user: { isDeleted: false }
+        }
+      });
+      if (session) {
+        alreadyRevoked = true;
+      }
+    }
 
     if (!session) {
       throw new UnauthorizedException("Session expired.");
@@ -341,17 +376,21 @@ export class AuthService {
     );
 
     if (!refreshTokenMatches) {
+      if (!alreadyRevoked) {
+        await this.prisma.authSession.update({
+          data: { revokedAt: new Date() },
+          where: { id: session.id }
+        });
+      }
+      throw new UnauthorizedException("Invalid refresh token.");
+    }
+
+    if (!alreadyRevoked) {
       await this.prisma.authSession.update({
         data: { revokedAt: new Date() },
         where: { id: session.id }
       });
-      throw new UnauthorizedException("Invalid refresh token.");
     }
-
-    await this.prisma.authSession.update({
-      data: { revokedAt: new Date() },
-      where: { id: session.id }
-    });
 
     const refreshTokenMaxAge = Math.max(
       0,

@@ -4,7 +4,7 @@ import { ConnectionState } from "livekit-client";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardSyncMessage } from "../types/sync";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 import { toast } from "sonner";
 
@@ -45,7 +45,9 @@ function isCoachParticipant(from?: { metadata?: string }) {
 
 export function useBoardSync() {
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  // ADMIN was previously omitted here, leaving admins driving the board as if
+  // they were students (AUDIT L6).
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
   const liveClassState = useOptionalLiveClassState();
   

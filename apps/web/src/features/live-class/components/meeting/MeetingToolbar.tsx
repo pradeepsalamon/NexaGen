@@ -29,7 +29,7 @@ import { MeetingControlButton } from "./MeetingControlButton";
 import { RecordingBadge } from "./MeetingStatus";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { cn } from "@/lib/utils";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { useParams } from "next/navigation";
 import {
@@ -64,7 +64,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   } = useLiveClassState();
 
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   const { unreadCount } = useLiveClassChat();
 

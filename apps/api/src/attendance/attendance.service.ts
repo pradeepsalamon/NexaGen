@@ -13,6 +13,7 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import {
   AttendanceStatus,
   AttendanceEventType,
+  Prisma,
   UserRole,
   UserStatus,
   ClassStatus,
@@ -40,22 +41,40 @@ export class AttendanceService {
   ) {
     const now = new Date();
 
-    // Upsert the ClassAttendance record
-    const attendance = await this.prisma.classAttendance.upsert({
-      where: { classId_studentId: { classId, studentId: userId } },
-      update: {
-        status: AttendanceStatus.PRESENT,
-        lastActivity: now,
-        updatedAt: now,
-      },
-      create: {
-        classId,
-        studentId: userId,
-        status: AttendanceStatus.PRESENT,
-        joinedAt: now,
-        lastActivity: now,
-      },
-    });
+    // Upsert the ClassAttendance record. Two near-simultaneous joins (webhook +
+    // token-request, or LiveKit retries) can both miss the row and race on the
+    // create, throwing P2002 on the unique (classId, studentId). Retry once — by
+    // then the row exists and the upsert takes the update path.
+    const upsertAttendance = () =>
+      this.prisma.classAttendance.upsert({
+        where: { classId_studentId: { classId, studentId: userId } },
+        update: {
+          status: AttendanceStatus.PRESENT,
+          lastActivity: now,
+          updatedAt: now,
+        },
+        create: {
+          classId,
+          studentId: userId,
+          status: AttendanceStatus.PRESENT,
+          joinedAt: now,
+          lastActivity: now,
+        },
+      });
+
+    let attendance;
+    try {
+      attendance = await upsertAttendance();
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        attendance = await upsertAttendance();
+      } else {
+        throw error;
+      }
+    }
 
     // Append a JOIN log
     await this.prisma.attendanceLog.create({
@@ -1336,12 +1355,12 @@ export class AttendanceService {
 
     let totalTeachingSeconds = 0;
     let lateStarts = 0;
-    const earlyExits = 0;
+    let earlyExits = 0;
 
     // Use coach attendance records for accurate teaching hours
     const coachAttendances = await this.prisma.coachAttendance.findMany({
       where: { coachId, class: { status: ClassStatus.COMPLETED } },
-      include: { class: { select: { startsAt: true } } },
+      include: { class: { select: { startsAt: true, endsAt: true } } },
     });
 
     for (const ca of coachAttendances) {
@@ -1354,6 +1373,13 @@ export class AttendanceService {
         const lateBy =
           (ca.joinedAt.getTime() - ca.class.startsAt.getTime()) / 60000;
         if (lateBy > 5) lateStarts++;
+      }
+
+      // Early exit: left more than 5 minutes before the scheduled end
+      if (ca.leftAt && ca.class?.endsAt) {
+        const earlyBy =
+          (ca.class.endsAt.getTime() - ca.leftAt.getTime()) / 60000;
+        if (earlyBy > 5) earlyExits++;
       }
     }
 

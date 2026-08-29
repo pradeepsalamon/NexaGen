@@ -46,6 +46,11 @@ export const useAuthStore = create<AuthState>()(
   )
 );
 
+/** ADMIN and SUPER_ADMIN both have staff-level access to admin surfaces. */
+export function isStaffRole(role?: string): boolean {
+  return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
 export function getRoleDashboardHref(role?: string): string {
   if (role === "SUPER_ADMIN" || role === "ADMIN") {
     return "/admin";

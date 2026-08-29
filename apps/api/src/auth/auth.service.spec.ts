@@ -238,6 +238,67 @@ describe("AuthService", () => {
     });
   });
 
+  describe("refresh", () => {
+    const REFRESH_TOKEN = "refresh-token";
+
+    beforeEach(() => {
+      jwtService.verifyAsync.mockResolvedValue({
+        sessionId: "sess-1",
+        sub: "usr-123",
+        type: "refresh"
+      });
+      jwtService.signAsync.mockResolvedValue("mocked-token");
+      prismaService.authSession.create.mockResolvedValue({ id: "sess-2" });
+      prismaService.authSession.update.mockResolvedValue({ id: "sess-2" });
+    });
+
+    it("re-issues a session when the token was rotated within the grace window", async () => {
+      const graceSession = {
+        expiresAt: new Date(Date.now() + 86_400_000),
+        id: "sess-1",
+        refreshTokenHash: await hashSecret(REFRESH_TOKEN),
+        user: { ...activeUser }
+      };
+      // active lookup misses (session already revoked); grace lookup hits.
+      prismaService.authSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(graceSession);
+
+      const result = await service.refresh(REFRESH_TOKEN, {});
+
+      expect(result.refreshToken).toBe("mocked-token");
+      expect(prismaService.authSession.create).toHaveBeenCalledTimes(1);
+      // Only createSession's hash write — the already-revoked grace session is
+      // not revoked a second time.
+      expect(prismaService.authSession.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws when there is no live session and nothing rotated recently", async () => {
+      prismaService.authSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it("rotates normally when the session is still live", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce({
+        expiresAt: new Date(Date.now() + 86_400_000),
+        id: "sess-1",
+        refreshTokenHash: await hashSecret(REFRESH_TOKEN),
+        user: { ...activeUser }
+      });
+
+      const result = await service.refresh(REFRESH_TOKEN, {});
+
+      expect(result.refreshToken).toBe("mocked-token");
+      // revoke + createSession hash write.
+      expect(prismaService.authSession.update).toHaveBeenCalledTimes(2);
+    });
+  });
+
   describe("registerCoach", () => {
     const registerCoachPayload: RegisterCoachRequest = {
       coachName: "Ada Coach",

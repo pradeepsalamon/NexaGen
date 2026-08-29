@@ -6,7 +6,7 @@ import { useParticipants } from "@livekit/components-react";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -126,7 +126,7 @@ export function MeetingParticipants() {
   const [showSearch, setShowSearch] = useState(false);
   const { isChessboardOpen, boardControlStudentId, setBoardControlStudent } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   const filteredParticipants = useMemo(() => {
     if (!searchQuery.trim()) return participants;

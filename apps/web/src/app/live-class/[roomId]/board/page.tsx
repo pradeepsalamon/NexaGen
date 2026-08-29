@@ -20,12 +20,12 @@ const env = getWebEnv({
   NEXT_PUBLIC_LIVEKIT_URL: process.env.NEXT_PUBLIC_LIVEKIT_URL,
 });
 
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 function ForceOpenBoard() {
   const { isChessboardOpen, setIsChessboardOpen } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   
   // Force the local LiveClassProvider to think the board is open
   // so that LiveBoardSyncBridge properly broadcasts state and permissions.

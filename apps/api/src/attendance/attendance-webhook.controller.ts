@@ -11,6 +11,7 @@ import {
 import type { Request } from "express";
 import { Prisma } from "@prisma/client";
 import { WebhookReceiver } from "livekit-server-sdk";
+import { DisconnectReason } from "@livekit/protocol";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { AttendanceService } from "./attendance.service";
 import { LiveClassService } from "../live-class/live-class.service";
@@ -23,6 +24,37 @@ import { API_ROUTES } from "@nexa-chess/types";
  * connect gap and LiveKit's webhook retries.
  */
 const DUPLICATE_JOIN_WINDOW_MS = 2 * 60_000;
+
+/**
+ * Human-readable labels for LiveKit's `DisconnectReason` enum. Keyed by the enum
+ * member (not a hardcoded numeric index) so it stays correct if LiveKit renumbers
+ * or adds values — an unknown code falls back to its enum name, then `Reason N`.
+ */
+const DISCONNECT_REASON_LABELS: Partial<Record<DisconnectReason, string>> = {
+  [DisconnectReason.UNKNOWN_REASON]: "Unknown",
+  [DisconnectReason.CLIENT_INITIATED]: "Left voluntarily",
+  [DisconnectReason.DUPLICATE_IDENTITY]: "Duplicate identity",
+  [DisconnectReason.SERVER_SHUTDOWN]: "Server shutdown",
+  [DisconnectReason.PARTICIPANT_REMOVED]: "Removed by coach",
+  [DisconnectReason.ROOM_DELETED]: "Room ended",
+  [DisconnectReason.STATE_MISMATCH]: "State mismatch",
+  [DisconnectReason.JOIN_FAILURE]: "Join failure",
+  [DisconnectReason.MIGRATION]: "Migrating",
+  [DisconnectReason.SIGNAL_CLOSE]: "Signal connection closed",
+  [DisconnectReason.ROOM_CLOSED]: "Room closed",
+  [DisconnectReason.USER_UNAVAILABLE]: "User unavailable",
+  [DisconnectReason.USER_REJECTED]: "User rejected",
+  [DisconnectReason.SIP_TRUNK_FAILURE]: "SIP trunk failure",
+};
+
+function describeDisconnectReason(reason: DisconnectReason | undefined): string {
+  if (reason === undefined || reason === null) return "Left";
+  return (
+    DISCONNECT_REASON_LABELS[reason] ??
+    DisconnectReason[reason] ??
+    `Reason ${reason}`
+  );
+}
 
 @Controller()
 export class AttendanceWebhookController {
@@ -260,19 +292,9 @@ export class AttendanceWebhookController {
           break;
         }
 
-        // Map LiveKit DisconnectReason enum to human-readable string
-        const reasons: Record<string, string> = {
-          "0": "Unknown",
-          "1": "Left voluntarily",
-          "2": "Duplicate identity",
-          "3": "Server shutdown",
-          "4": "Removed by coach",
-          "5": "Room ended",
-          "6": "State mismatch",
-          "7": "Join failure",
-        };
-        const reasonCode = event.participant?.disconnectReason?.toString();
-        const reasonText = reasonCode ? (reasons[reasonCode] || `Reason ${reasonCode}`) : "Left";
+        const reasonText = describeDisconnectReason(
+          event.participant?.disconnectReason
+        );
 
         if (isCoach) {
           await this.attendanceService.recordCoachLeaveEvent(classId, userId, reasonText);

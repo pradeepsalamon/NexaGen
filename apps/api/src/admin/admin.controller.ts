@@ -30,19 +30,22 @@ export class AdminController {
   private async getAdminId(request: Request): Promise<string> {
     const token = request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
     if (!token) throw new UnauthorizedException();
-    
+
+    let payload: AccessTokenPayload;
     try {
-      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
+      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
         secret: getApiEnv().JWT_ACCESS_SECRET
       });
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!user || user.role !== 'SUPER_ADMIN') {
-        throw new UnauthorizedException('Only Super Admins can perform this action.');
-      }
-      return user.id;
     } catch {
       throw new UnauthorizedException();
     }
+
+    // Outside the try so this specific message reaches the client (AUDIT L10).
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || user.role !== 'SUPER_ADMIN') {
+      throw new UnauthorizedException('Only Super Admins can perform this action.');
+    }
+    return user.id;
   }
 
   @Get(API_ROUTES.admin.pendingCoaches)

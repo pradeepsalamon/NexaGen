@@ -19,7 +19,7 @@ import { PromotionDialog } from "@/features/chessboard/components/dialogs/Promot
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useParticipants } from "@livekit/components-react";
 
 // ─── Board Control Badge ─────────────────────────────────────
@@ -53,7 +53,7 @@ function BoardControlBadge() {
 
 const CompactBoardNav = memo(function CompactBoardNav() {
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   const {
     undo,
@@ -165,7 +165,7 @@ const CompactBoardNav = memo(function CompactBoardNav() {
 export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
   const { toggleChessboard } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   return (
     <motion.div
@@ -188,12 +188,7 @@ export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
           )}
           <button
             type="button"
-            onClick={() => {
-              toggleChessboard();
-              try {
-                window.close();
-              } catch {}
-            }}
+            onClick={() => toggleChessboard()}
             className="flex size-9 items-center justify-center rounded-xl border border-app-border bg-app-surface/80 text-app-muted shadow-sm backdrop-blur-md transition-all hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
             aria-label="Close chessboard"
             title="Close chessboard"

@@ -222,7 +222,7 @@ shape exactly to the `@nexa-chess/types` response type.
   reserved; that is intentional. Partial unique indexes were considered and
   rejected: Prisma cannot express them in `schema.prisma`, so adopting them
   would mean dropping `@unique`, converting every `findUnique` to `findFirst`,
-  and living with permanent `migrate dev` drift. See AUDIT.md C3.
+  and living with permanent `migrate dev` drift.
 - Adding a soft-deletable model: the 7-step checklist in `README.md`
   § "Trash And Soft Delete" — schema fields (`isDeleted`, `deletedAt`, `deletedById`
   + `deletedBy` relation) and indexes, add to `softDeleteModels` / `trashEntities` /

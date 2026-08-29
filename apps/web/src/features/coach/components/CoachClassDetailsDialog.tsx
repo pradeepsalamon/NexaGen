@@ -108,7 +108,7 @@ export function CoachClassDetailsDialog({
                           <User className="size-3 text-muted-foreground" /> {p.name}
                         </span>
                         <span className="text-muted-foreground text-xs">
-                          {format(new Date(p.joinedAt), "h:mm a")}
+                          {p.joinedAt ? format(new Date(p.joinedAt), "h:mm a") : "—"}
                         </span>
                       </li>
                     ))}

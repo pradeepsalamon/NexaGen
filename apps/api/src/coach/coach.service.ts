@@ -51,13 +51,15 @@ export class CoachService {
     // Real calendar day in the coach's timezone, not a rolling window (M7).
     const { start: startOfDay, end: endOfDay } = zonedDayBounds(coach.timezone);
 
-    const [batchCount, students, todayClasses, upcomingClasses, completedClasses] = await Promise.all([
+    const [batchCount, distinctStudents, todayClasses, upcomingClasses, completedClasses] = await Promise.all([
       this.prisma.batchCoach.count({
         where: { coachId, isDeleted: false, batch: { isDeleted: false } }
       }),
-      this.prisma.batchStudent.findMany({
-        where: { isDeleted: false, batch: { coaches: { some: { coachId, isDeleted: false } }, isDeleted: false } },
-        distinct: ["studentId"]
+      // Distinct student count only — group by id instead of materialising every
+      // BatchStudent row to `.length` it (AUDIT L9).
+      this.prisma.batchStudent.groupBy({
+        by: ["studentId"],
+        where: { isDeleted: false, batch: { coaches: { some: { coachId, isDeleted: false } }, isDeleted: false } }
       }),
       this.prisma.coachClass.count({
         where: {
@@ -80,7 +82,7 @@ export class CoachService {
 
     return {
       batchCount,
-      studentCount: students.length,
+      studentCount: distinctStudents.length,
       todayClasses,
       upcomingClasses,
       completedClasses
@@ -251,7 +253,8 @@ export class CoachService {
 
     const participants = existingClass.attendances.map(a => ({
       name: `${a.student.firstName} ${a.student.lastName || ''}`.trim(),
-      joinedAt: a.joinedAt ? a.joinedAt.toISOString() : existingClass.createdAt.toISOString()
+      // No attendance join recorded yet — null, not the class's creation time (AUDIT L8).
+      joinedAt: a.joinedAt ? a.joinedAt.toISOString() : null
     }));
 
     const coachClass = this.toCoachClass(existingClass);

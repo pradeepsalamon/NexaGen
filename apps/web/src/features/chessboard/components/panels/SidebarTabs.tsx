@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { uploadPgn } from "@/lib/uploadApi";
 import { toast } from "sonner";
 import { useBoardStore } from "../../context/BoardProvider";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { Chess } from "chess.js";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 import { useParticipants } from "@livekit/components-react";
@@ -15,7 +15,7 @@ import { useParticipants } from "@livekit/components-react";
 export function SidebarTabs() {
   const { pgn, reset, undo, pushHistory, historyIndex, setIsSetupPositionOpen, activeTab, setActiveTab } = useBoardStore();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   // Live class context (only defined when board is inside a live class)
   const liveClassState = useOptionalLiveClassState();

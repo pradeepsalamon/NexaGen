@@ -5,7 +5,7 @@ import { useBoardSync } from "@/features/chessboard/hooks/useBoardSync";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClassState } from "../providers/LiveClassProvider";
 
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 /**
  * Bridges the LiveClassProvider's `boardControlStudentId` with the
@@ -20,7 +20,7 @@ export function useLiveBoardSync() {
   const { broadcastState, broadcastPermissions } = useBoardSync();
   const hasInitialized = useRef(false);
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   // Sync boardControlStudentId → board store permission mode
   useEffect(() => {

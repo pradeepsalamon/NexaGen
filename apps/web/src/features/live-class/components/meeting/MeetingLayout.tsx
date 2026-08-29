@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { AnimatePresence } from "framer-motion";
 import { useParticipants } from "@livekit/components-react";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { MeetingHeader } from "./MeetingHeader";
 import { MeetingVideoGrid } from "./MeetingVideoGrid";
 import { MeetingToolbar } from "./MeetingToolbar";
@@ -51,7 +51,7 @@ export function MeetingLayout() {
 
   const { setIsChessboardOpen } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   const participants = useParticipants();
 
@@ -65,7 +65,7 @@ export function MeetingLayout() {
       try {
         if (p.metadata) {
           const meta = JSON.parse(p.metadata);
-          isCoachRole = meta.role === "COACH" || meta.role === "SUPER_ADMIN";
+          isCoachRole = meta.role === "COACH" || isStaffRole(meta.role);
         }
       } catch {}
       

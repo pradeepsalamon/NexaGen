@@ -387,7 +387,8 @@ export class AdminService {
 
     const participants = existingClass.attendances.map(a => ({
       name: `${a.student.firstName} ${a.student.lastName || ''}`.trim(),
-      joinedAt: a.joinedAt ? a.joinedAt.toISOString() : existingClass.createdAt.toISOString()
+      // No attendance join recorded yet — null, not the class's creation time (AUDIT L8).
+      joinedAt: a.joinedAt ? a.joinedAt.toISOString() : null
     }));
 
     const classDetails = {

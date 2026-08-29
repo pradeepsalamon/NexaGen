@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
 import { Timer, Wifi, WifiOff, Radio, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 
@@ -135,7 +135,7 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
 export function TimerBadge({ className, startedAt, endsAt }: { className?: string, startedAt?: string | null, endsAt?: string | null }) {
   const { formatted, isRunning, toggleMode, mode, remainingSeconds, isOvertime } = useMeetingTimer(startedAt, endsAt);
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const toastShownRef = useRef<{ fiveMin: boolean, oneMin: boolean }>({ fiveMin: false, oneMin: false });
 
   useEffect(() => {

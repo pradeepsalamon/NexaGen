@@ -16,7 +16,7 @@ import { ParticipantAvatar } from "./ParticipantAvatar";
 import { NetworkQualityIndicator } from "./MeetingStatus";
 import { EmptyMeetingState } from "./EmptyMeetingState";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
@@ -26,7 +26,7 @@ import { useBoardSync } from "@/features/chessboard/hooks/useBoardSync";
 
 function RequestControlButton() {
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { permissionMode, selectedStudentId } = useBoardStore();
   const { requestControl } = useBoardSync();
 
@@ -406,7 +406,7 @@ function FocusOverlay({
 export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
   const { pinnedParticipantSid, setPinnedParticipantSid, isChessboardOpen } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const showBoardTile = isChessboardOpen && !isCoach;
   const [isBoardFullscreen, setIsBoardFullscreen] = useState(false);
 

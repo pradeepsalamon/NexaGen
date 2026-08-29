@@ -4,7 +4,7 @@ import type { Api } from "chessground/api";
 import { Config } from "chessground/config";
 import { useBoardStore } from "../../context/BoardProvider";
 import { preloadSounds } from "../../audio/sounds";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 // Chessground CSS
 import "chessground/assets/chessground.base.css";
@@ -17,7 +17,7 @@ export function ChessgroundBoard() {
   const cgRef = useRef<any>(null);
   
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   // Warm the move-sound buffer cache so the first move isn't silent while the
   // asset downloads (AUDIT H5).

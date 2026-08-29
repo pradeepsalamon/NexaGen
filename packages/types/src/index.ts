@@ -482,7 +482,7 @@ export type CoachClassDetails = CoachClass & {
   actualEndsAt: string | null;
   participants: {
     name: string;
-    joinedAt: string;
+    joinedAt: string | null;
   }[];
 };
 
@@ -975,7 +975,7 @@ export type AdminBatchClassDetails = AdminBatchClass & {
   actualEndsAt: string | null;
   participants: {
     name: string;
-    joinedAt: string;
+    joinedAt: string | null;
   }[];
 };
 
