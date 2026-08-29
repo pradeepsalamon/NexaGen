@@ -1,0 +1,213 @@
+{
+  "task_id": "NEXA-0074",
+  "title": "Add a helper method in packages/utils for formatting task...",
+  "objective": "Add a helper method in packages/utils for formatting task durations",
+  "problem_statement": "Add a helper method in packages/utils for formatting task durations",
+  "priority": "medium",
+  "type": "feature_implementation",
+  "complexity": "simple",
+  "required_capabilities": [
+    "typescript"
+  ],
+  "attempt": 1,
+  "max_attempts": 2,
+  "dependencies": [],
+  "environment": {
+    "server": "nexa-vcn",
+    "environment": "development",
+    "project_path": "/opt/nexa-chess/NexaGen-dev",
+    "branch": "ai/NEXA-0074-add-a-helper-method-in-package"
+  },
+  "context": {
+    "relevant_files": [
+      "packages/utils/src/"
+    ],
+    "related_models": [],
+    "affected_apps": [],
+    "affected_packages": [
+      "packages/utils"
+    ],
+    "architecture_notes": "NexaGen monorepo native development environment (/opt/nexa-chess/NexaGen-dev)"
+  },
+  "affected_areas": {
+    "known": [
+      "packages/utils/src/"
+    ],
+    "inferred": [
+      "packages/utils/src/"
+    ],
+    "unknown": [
+      "Specific line-level logic, edge cases, and runtime behavior to inspect in DEV environment"
+    ]
+  },
+  "impact_analysis": {
+    "database_impact": false,
+    "redis_impact": false,
+    "livekit_impact": false,
+    "api_impact": false,
+    "frontend_impact": false
+  },
+  "instructions": "Inspect the existing implementation before modifying it. Reuse existing patterns/components/services whenever possible. Do not rebuild existing functionality unnecessarily.",
+  "investigation_instructions": "Inspect relevant code and documentation. Formulate an understanding of existing data flow.",
+  "implementation_guidance": "Follow repository patterns and AGENTS.md rules.",
+  "requirements": [
+    "Implement solution for: Add a helper method in packages/utils for formatting task durations",
+    "Follow repository coding conventions and AGENTS.md rules",
+    "Ensure all TypeScript types, ESLint checks, and unit tests pass"
+  ],
+  "constraints": [
+    "Development environment ONLY (/opt/nexa-chess/NexaGen-dev)",
+    "Do not touch or target production (/opt/nexa-chess/NexaGen)",
+    "PostgreSQL target is vps_dev only (nexa_chess is strictly blocked)",
+    "Redis keys must use nexa:dev:* or nexa:ai:* namespaces",
+    "LiveKit rooms must follow dev-ai-<task-id>-<purpose> convention",
+    "Must pass QA verify.sh before marking completed",
+    "Do not auto-merge into dev/main; remain on task branch"
+  ],
+  "acceptance_criteria": [
+    {
+      "id": "AC-001",
+      "description": "Code changes directly fulfill the requested objective",
+      "verification": "unit_test",
+      "mandatory": true
+    },
+    {
+      "id": "AC-002",
+      "description": "All automated QA checks pass (typecheck, lint, build, unit tests)",
+      "verification": "typecheck",
+      "mandatory": true
+    },
+    {
+      "id": "AC-003",
+      "description": "No regressions introduced in existing test suites",
+      "verification": "unit_test",
+      "mandatory": true
+    }
+  ],
+  "required_tests": [
+    "typecheck",
+    "lint",
+    "unit_tests"
+  ],
+  "verification_commands": [
+    "npm run typecheck",
+    "npm run lint",
+    "npm test"
+  ],
+  "safety": {
+    "allowed_paths": [
+      "/opt/nexa-chess/NexaGen-dev/"
+    ],
+    "blocked_paths": [
+      "/opt/nexa-chess/NexaGen/",
+      "/etc/",
+      "/var/",
+      "/usr/",
+      "/root/"
+    ],
+    "allowed_databases": [
+      "vps_dev"
+    ],
+    "blocked_databases": [
+      "nexa_chess",
+      "postgres"
+    ],
+    "requires_approval": false
+  },
+  "state_history": [
+    {
+      "state": "CREATED",
+      "timestamp": "2026-08-29T13:28:09.345Z"
+    },
+    {
+      "timestamp": "2026-08-29T13:28:09.346Z",
+      "previous_state": "CREATED",
+      "new_state": "AWAITING_APPROVAL",
+      "worker": "manager",
+      "attempt": 1,
+      "approver": null,
+      "reason": "Planned by Main Manager (Awaiting human approval)"
+    },
+    {
+      "timestamp": "2026-08-29T13:28:15.049Z",
+      "previous_state": "AWAITING_APPROVAL",
+      "new_state": "APPROVED",
+      "worker": "manager",
+      "attempt": 1,
+      "approver": "HUMAN_OPERATOR",
+      "reason": "Approved by human engineer"
+    },
+    {
+      "timestamp": "2026-08-29T13:28:22.507Z",
+      "previous_state": "APPROVED",
+      "new_state": "REJECTED",
+      "worker": "manager",
+      "attempt": 1,
+      "approver": "HUMAN_OPERATOR",
+      "reason": "Rejected by human engineer"
+    }
+  ],
+  "assigned_worker": "nexa-dev-01",
+  "provider": "gemini",
+  "model": "gemini-2.5-pro",
+  "created_at": "2026-08-29T13:28:09.345Z",
+  "timeout_minutes": 30,
+  "impact": "MEDIUM",
+  "risk": {
+    "level": "MEDIUM",
+    "is_blocked": false,
+    "requires_approval": true,
+    "factors": {
+      "production_target": false,
+      "production_db": false,
+      "destructive_operation": false,
+      "auth_security": false,
+      "database_schema": false,
+      "api_contract": false,
+      "livekit": false,
+      "redis": false,
+      "frontend": false,
+      "scope_size": "NORMAL"
+    },
+    "reasons": [
+      "Standard development feature within isolated development scope"
+    ],
+    "safety_rules": [
+      "Development environment ONLY (/opt/nexa-chess/NexaGen-dev)",
+      "Production environment (/opt/nexa-chess/NexaGen) is strictly BLOCKED",
+      "PostgreSQL target is vps_dev only (nexa_chess is strictly BLOCKED)",
+      "Redis keys must use nexa:dev:* or nexa:ai:* namespaces",
+      "LiveKit rooms must follow dev-ai-<task-id>-<purpose> convention",
+      "Human approval is mandatory before execution"
+    ]
+  },
+  "qa_tier": "backend_logic",
+  "test_plan": {
+    "qa_tier": "backend_logic",
+    "run_full_suite": false,
+    "run_build": false,
+    "targeted_commands": [
+      "npm run typecheck",
+      "npm run lint",
+      "npm test"
+    ],
+    "affected_modules": [],
+    "rationale": "Standard application test tier: monorepo typecheck, ESLint, and Jest unit tests."
+  },
+  "historical_context": {
+    "related_tasks": [
+      "NEXA-0034",
+      "NEXA-0015",
+      "NEXA-0001"
+    ],
+    "previous_learnings": "[NEXA-0034] (COMPLETED): Add getDevStatus diagnostic method to AdminService and AdminController using dev-info helper\n[NEXA-0015] (COMPLETED): Add task execution timing helper to packages/utils\n[NEXA-0001] (COMPLETED): Add a safe helper function getDevEnvironmentInfo in packages/utils for diagnostic reporting",
+    "past_root_causes": [],
+    "warnings": [],
+    "regression_risk": "LOW"
+  },
+  "status": "REJECTED",
+  "current_state": "REJECTED",
+  "updated_at": "2026-08-29T13:28:22.507Z",
+  "approved_by": "HUMAN_OPERATOR",
+  "approved_at": "2026-08-29T13:28:22.507Z"
+}

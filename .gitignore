@@ -14,5 +14,18 @@ bin/
 
 # Server-specific logs and keys
 backup.log
+api-dev.log
+web-dev.log
+*.log
 github-actions-key
 github-actions-key.pub
+
+# Nexa AI Worker dynamic state & worktrees
+.worktrees/
+.ai/workers/state.json
+.ai/workers/heartbeat.json
+.ai/workers/heartbeat_*.json
+.ai/tasks/active/*.lock
+.ai/manager/state/*
+!.ai/manager/state/.gitkeep
+
