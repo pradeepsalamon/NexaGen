@@ -170,20 +170,17 @@ class Dispatcher {
 
     const worktreePath = worktreeResult.worktree_path;
 
-    // 4. Update Task Work Order Metadata
+    // 4. Update Task Work Order Metadata via TaskLifecycle
     taskData.assigned_worker = workerId;
     taskData.worktree_path = worktreePath;
     taskData.task_branch = taskBranch;
     taskData.worktree_status = 'RUNNING';
     taskData.worktree_created_at = new Date().toISOString();
-    taskData.state_history = taskData.state_history || [];
-    taskData.state_history.push({
-      state: 'CLAIMED',
-      worker: workerId,
-      worktree: worktreePath,
-      branch: taskBranch,
-      timestamp: new Date().toISOString()
-    });
+
+    const TaskLifecycle = require('./task-lifecycle');
+    TaskLifecycle.transition(taskData, 'ASSIGNED', { worker: workerId, reason: `Assigned to worker ${workerId}` });
+    TaskLifecycle.transition(taskData, 'CLAIMED', { worker: workerId, reason: `Claimed for isolated execution in ${worktreePath}` });
+
     fs.writeFileSync(taskPath, JSON.stringify(taskData, null, 2), 'utf-8');
 
     // 5. Update Worker Registry to BUSY

@@ -283,7 +283,23 @@ class GeminiProvider extends BaseProvider {
         'Must pass QA verify.sh before marking completed',
         'Do not auto-merge into dev/main; remain on task branch'
       ],
-      acceptance_criteria: plan.acceptance_criteria || ['Objective completed and verified'],
+      acceptance_criteria: (plan.acceptance_criteria || ['Objective completed and verified']).map((ac, idx) => {
+        if (typeof ac === 'string') {
+          let verType = 'unit_test';
+          const acLower = ac.toLowerCase();
+          if (acLower.includes('typecheck')) verType = 'typecheck';
+          else if (acLower.includes('lint')) verType = 'lint';
+          else if (acLower.includes('build')) verType = 'build';
+          else if (plan.type === 'investigation' || acLower.includes('investigation') || acLower.includes('root cause')) verType = 'investigation';
+          return {
+            id: `AC-${String(idx + 1).padStart(3, '0')}`,
+            description: ac,
+            verification: verType,
+            mandatory: true
+          };
+        }
+        return ac;
+      }),
       required_tests: plan.required_tests || ['typecheck', 'lint', 'unit_tests'],
       verification_commands: [
         'npm run typecheck',

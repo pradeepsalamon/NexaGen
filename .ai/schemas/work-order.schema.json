@@ -125,9 +125,41 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "impact": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      "default": "MEDIUM"
+    },
+    "qa_tier": {
+      "type": "string",
+      "enum": ["docs_only", "backend_logic", "database_schema", "frontend_ui", "high_risk_full"],
+      "default": "backend_logic"
+    },
+    "historical_context": {
+      "type": "object",
+      "properties": {
+        "related_tasks": { "type": "array", "items": { "type": "string" } },
+        "previous_learnings": { "type": "string" },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
     "acceptance_criteria": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "anyOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "description": { "type": "string" },
+              "verification": { "type": "string", "enum": ["unit_test", "integration_test", "e2e_test", "typecheck", "lint", "build", "manual_review", "investigation"] },
+              "mandatory": { "type": "boolean", "default": true }
+            },
+            "required": ["description"]
+          }
+        ]
+      },
       "minItems": 1
     },
     "required_tests": {

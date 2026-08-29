@@ -345,16 +345,126 @@ async function runTests() {
   assert('WorktreeManager reconstructs worktree state from disk and Git', recoveredWts.length >= 3);
 
   // ------------------------------------------------------------
+  // 31. Natural language goal decomposition
+  // ------------------------------------------------------------
+  console.log('\n── 31. Natural Language Goal Decomposition ──');
+  const decompPrompts = planner.detectDecomposition('Build complete attendance analytics for students, coaches and admin');
+  assert('Broad feature request decomposed into multi-tier subtasks', decompPrompts.length === 3);
+
+  // ------------------------------------------------------------
+  // 32. Small task kept as single task
+  // ------------------------------------------------------------
+  console.log('\n── 32. Small Task Kept as Single Task ──');
+  const smallDecomp = planner.detectDecomposition('Fix coach hourly rate calculation in coach.service.ts');
+  assert('Focused small request remains single task', smallDecomp.length === 0);
+
+  // ------------------------------------------------------------
+  // 33. Machine-readable acceptance criteria generated
+  // ------------------------------------------------------------
+  console.log('\n── 33. Machine-Readable Acceptance Criteria Generated ──');
+  const planSample = await provider.analyzeRequest('Add student attendance percentage helper');
+  const woSample = await provider.generateWorkOrder(planSample, { taskId: 'NEXA-AC-TEST' });
+  assert('Work order generates structured acceptance criteria array', Array.isArray(woSample.acceptance_criteria) && woSample.acceptance_criteria.length > 0);
+  assert('Acceptance criteria have id, description, and verification type', Boolean(woSample.acceptance_criteria[0].id && woSample.acceptance_criteria[0].description && woSample.acceptance_criteria[0].verification));
+
+  // ------------------------------------------------------------
+  // 34. Change impact analysis flags CRITICAL vs HIGH vs LOW
+  // ------------------------------------------------------------
+  console.log('\n── 34. Change Impact Analysis ──');
+  const criticalImpact = contextEngine.analyzeImpact('Modify production docker config and drop database', []);
+  assert('Production and destructive keywords flagged as CRITICAL', criticalImpact.level === 'CRITICAL' && criticalImpact.requires_escalation === true);
+
+  const highImpact = contextEngine.analyzeImpact('Update schema.prisma and migrations', ['apps/api/prisma/schema.prisma']);
+  assert('Database schema changes flagged as HIGH', highImpact.level === 'HIGH');
+
+  const lowImpact = contextEngine.analyzeImpact('Update readme documentation and comments', ['README.md']);
+  assert('Documentation changes flagged as LOW', lowImpact.level === 'LOW');
+
+  // ------------------------------------------------------------
+  // 35. Task state transitions strictly enforce valid graph jumps
+  // ------------------------------------------------------------
+  console.log('\n── 35. Task State Machine Transition Validation ──');
+  const TaskLifecycle = require('../manager/task-lifecycle');
+  assert('Valid transition sequence allowed', TaskLifecycle.isValidTransition('ASSIGNED', 'CLAIMED') && TaskLifecycle.isValidTransition('CLAIMED', 'PREFLIGHT'));
+  assert('Invalid transition sequence rejected', !TaskLifecycle.isValidTransition('CREATED', 'COMPLETED') && !TaskLifecycle.isValidTransition('PLANNED', 'MERGE_READY'));
+
+  // ------------------------------------------------------------
+  // 36. Centralized QA Gate verification
+  // ------------------------------------------------------------
+  console.log('\n── 36. Centralized QA Gate Verification ──');
+  const QAGate = require('../manager/qa-gate');
+  const qaGate = new QAGate(DEV_ROOT);
+  const diffRes = qaGate.inspectDiff();
+  assert('QA Gate inspects git diff without errors', diffRes.ok === true && Array.isArray(diffRes.filesChanged));
+
+  // ------------------------------------------------------------
+  // 37. Failing mandatory acceptance criteria blocks acceptance
+  // ------------------------------------------------------------
+  console.log('\n── 37. Failing Mandatory Acceptance Criteria Block ──');
+  const mockTaskAC = {
+    acceptance_criteria: [
+      { id: 'AC-001', description: 'Unit test pass', verification: 'unit_test', mandatory: true }
+    ]
+  };
+  const evalFail = qaGate.evaluateAcceptanceCriteria(mockTaskAC, { unit_tests: { status: 'failed' } });
+  assert('Failing mandatory criterion returns ok: false', evalFail.ok === false);
+
+  // ------------------------------------------------------------
+  // 38. Human review package generation
+  // ------------------------------------------------------------
+  console.log('\n── 38. Human Review Package Generation ──');
+  const reviewPkg = reviewer.generateReviewPackage({
+    task_id: 'NEXA-9901',
+    summary: 'Test task completed',
+    worker_id: 'nexa-dev-01',
+    task_branch: 'ai/NEXA-9901-test',
+    impact: 'MEDIUM',
+    files_changed: [{ path: 'packages/utils/src/dev-info.ts' }],
+    tests: {
+      typecheck: { status: 'passed' },
+      lint: { status: 'passed' },
+      unit_tests: { status: 'passed' }
+    }
+  }, { verdict: 'ACCEPTED' });
+  assert('Human Review Package contains title, branch, and human guidance', reviewPkg.includes('HUMAN REVIEW PACKAGE: NEXA-9901') && reviewPkg.includes('Human Action:'));
+
+  // ------------------------------------------------------------
+  // 39. Enhanced non-destructive merge check
+  // ------------------------------------------------------------
+  console.log('\n── 39. Enhanced Non-Destructive Merge Check ──');
+  const mergeCheckPhase8 = wm.checkMergeReadiness('NEXA-9999', 'dev', 'dev');
+  assert('Merge check reports affected packages and production safety status', Array.isArray(mergeCheckPhase8.affected_packages) && mergeCheckPhase8.production_safety.includes('Development scope only'));
+
+  // ------------------------------------------------------------
+  // 40. Retry limit (max_attempts = 2) enforces ESCALATED
+  // ------------------------------------------------------------
+  console.log('\n── 40. Retry Limit Enforces Escalation ──');
+  const failTaskFile = path.join(FAILED_DIR, 'NEXA-ESCALATE-TEST.json');
+  try {
+    fs.writeFileSync(failTaskFile, JSON.stringify({
+      task_id: 'NEXA-ESCALATE-TEST',
+      status: 'failed',
+      attempt: 2,
+      max_attempts: 2,
+      reason: 'Repeated test failure'
+    }));
+    const revEscalate = await reviewer.review('NEXA-ESCALATE-TEST');
+    assert('Reviewer escalates to human after max attempts reached', revEscalate.verdict === 'ESCALATED' && revEscalate.recommendation.includes('Max retry limit reached'));
+  } finally {
+    if (fs.existsSync(failTaskFile)) fs.unlinkSync(failTaskFile);
+  }
+
+  // ------------------------------------------------------------
   // Final Summary
   // ------------------------------------------------------------
   console.log('\n============================================================');
-  console.log(`  PHASE 7 MANAGER TEST RESULTS: ${passedTests}/${totalTests} passed (${failedTests} failures)`);
+  console.log(`  PHASE 8 MANAGER TEST RESULTS: ${passedTests}/${totalTests} passed (${failedTests} failures)`);
   console.log('============================================================\n');
 
   if (failedTests > 0) {
     process.exit(1);
   } else {
-    console.log('🎉 ALL 30 MULTI-WORKER WORKTREE ORCHESTRATION SCENARIOS PASSED 100%!\n');
+    console.log('🎉 ALL PHASE 8 HUMAN-IN-THE-LOOP ORCHESTRATION SCENARIOS PASSED 100%!\n');
   }
 }
 
@@ -366,3 +476,4 @@ if (require.main === module) {
 }
 
 module.exports = { runTests };
+

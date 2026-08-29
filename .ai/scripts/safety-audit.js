@@ -466,6 +466,113 @@ assert('Merge check provides explicit recommendation', Boolean(mergeCheckNonExis
 // 6. Branch preservation guarantee
 assert('Worktree removal never deletes git branches', true);
 
+// ============================================================
+// 16. Task Lifecycle State Machine Safety Tests
+// ============================================================
+console.log('\n── 16. Task Lifecycle State Machine Safety Tests ──');
+
+const TaskLifecycle = require('../manager/task-lifecycle');
+
+// 1. Invalid jump rejection
+const invalidJump = TaskLifecycle.isValidTransition('CREATED', 'COMPLETED');
+assert('Invalid state jump (CREATED -> COMPLETED) is rejected', invalidJump === false);
+
+const invalidDirectMerge = TaskLifecycle.isValidTransition('CREATED', 'MERGE_READY');
+assert('Direct jump to MERGE_READY is rejected', invalidDirectMerge === false);
+
+// 2. Idempotent self-transition
+const idempotentRunning = TaskLifecycle.isValidTransition('RUNNING', 'RUNNING');
+assert('Self-transition (RUNNING -> RUNNING) is allowed and idempotent', idempotentRunning === true);
+
+// 3. Valid transition sequence
+let mockTask = { task_id: 'NEXA-STATE-01', status: 'CREATED' };
+const step1 = TaskLifecycle.transition(mockTask, 'PLANNED', { worker: 'manager', reason: 'Planned' });
+assert('Valid transition CREATED -> PLANNED succeeds', step1.ok === true && mockTask.status === 'PLANNED');
+
+const step2 = TaskLifecycle.transition(mockTask, 'ASSIGNED', { worker: 'nexa-dev-01', reason: 'Assigned' });
+assert('Valid transition PLANNED -> ASSIGNED succeeds', step2.ok === true && mockTask.status === 'ASSIGNED');
+
+const step3 = TaskLifecycle.transition(mockTask, 'CLAIMED', { worker: 'nexa-dev-01', reason: 'Claimed' });
+assert('Valid transition ASSIGNED -> CLAIMED succeeds', step3.ok === true && mockTask.status === 'CLAIMED');
+
+const step4 = TaskLifecycle.transition(mockTask, 'PREFLIGHT', { worker: 'nexa-dev-01', reason: 'Preflight' });
+assert('Valid transition CLAIMED -> PREFLIGHT succeeds', step4.ok === true && mockTask.status === 'PREFLIGHT');
+
+const step5 = TaskLifecycle.transition(mockTask, 'RUNNING', { worker: 'nexa-dev-01', reason: 'Running' });
+assert('Valid transition PREFLIGHT -> RUNNING succeeds', step5.ok === true && mockTask.status === 'RUNNING');
+
+const step6 = TaskLifecycle.transition(mockTask, 'TESTING', { worker: 'nexa-dev-01', reason: 'Testing' });
+assert('Valid transition RUNNING -> TESTING succeeds', step6.ok === true && mockTask.status === 'TESTING');
+
+const step7 = TaskLifecycle.transition(mockTask, 'VERIFYING', { worker: 'nexa-dev-01', reason: 'Verifying' });
+assert('Valid transition TESTING -> VERIFYING succeeds', step7.ok === true && mockTask.status === 'VERIFYING');
+
+const step8 = TaskLifecycle.transition(mockTask, 'COMPLETED', { worker: 'nexa-dev-01', reason: 'Completed' });
+assert('Valid transition VERIFYING -> COMPLETED succeeds', step8.ok === true && mockTask.status === 'COMPLETED');
+
+assert('Transition history captures all metadata entries', Array.isArray(mockTask.state_history) && mockTask.state_history.length === 8);
+assert('History records previous state, new state, and reason', mockTask.state_history[0].previous_state === 'CREATED' && mockTask.state_history[0].new_state === 'PLANNED');
+
+// ============================================================
+// 17. Human-in-the-Loop & QA Gate Safety Tests
+// ============================================================
+console.log('\n── 17. Human-in-the-Loop & QA Gate Safety Tests ──');
+
+const QAGate = require('../manager/qa-gate');
+const qaGate = new QAGate(DEV_ROOT);
+
+// 1. Secret Scanning in QA Gate
+const cleanSecrets = qaGate.scanSecrets(['packages/utils/src/dev-info.ts']);
+assert('Clean source files pass secret scanner', cleanSecrets.ok === true && cleanSecrets.leaks.length === 0);
+
+const dirtySecretFile = qaGate.scanSecrets(['.env', '.env.production']);
+assert('Dangerous .env files in diff are blocked by secret scanner', dirtySecretFile.ok === false && dirtySecretFile.leaks.length >= 1);
+
+// 2. Acceptance Criteria Evaluation
+const mockAcTask = {
+  task_id: 'NEXA-AC-01',
+  acceptance_criteria: [
+    { id: 'AC-001', description: 'Unit tests must pass', verification: 'unit_test', mandatory: true },
+    { id: 'AC-002', description: 'Typecheck must pass', verification: 'typecheck', mandatory: true }
+  ]
+};
+
+const passVerification = {
+  unit_tests: { status: 'passed' },
+  typecheck: { status: 'passed' }
+};
+const acEvalPass = qaGate.evaluateAcceptanceCriteria(mockAcTask, passVerification);
+assert('Satisfied acceptance criteria evaluate to passed', acEvalPass.ok === true && acEvalPass.evaluated.every(e => e.status === 'passed'));
+
+const failVerification = {
+  unit_tests: { status: 'failed' },
+  typecheck: { status: 'passed' }
+};
+const acEvalFail = qaGate.evaluateAcceptanceCriteria(mockAcTask, failVerification);
+assert('Failing mandatory criterion blocks acceptance', acEvalFail.ok === false && acEvalFail.evaluated.some(e => e.status === 'failed'));
+
+// 3. Human Review Package Generation
+const Reviewer = require('../manager/reviewer');
+const reviewer = new Reviewer();
+const mockReport = {
+  task_id: 'NEXA-REV-01',
+  title: 'Test Review Feature',
+  worker_id: 'nexa-dev-01',
+  task_branch: 'ai/NEXA-REV-01-test',
+  impact: 'LOW',
+  summary: 'Implemented test feature safely',
+  files_changed: [{ path: 'packages/utils/src/dev-info.ts' }],
+  tests: {
+    typecheck: { status: 'passed' },
+    lint: { status: 'passed' },
+    unit_tests: { status: 'passed' },
+    acceptance_criteria: { status: 'passed', evaluated: [{ id: 'AC-001', description: 'Passes', verification: 'unit_test', status: 'passed' }] }
+  }
+};
+const reviewPkg = reviewer.generateReviewPackage(mockReport, { verdict: 'ACCEPTED' });
+assert('Reviewer generates structured Human Review Package', Boolean(reviewPkg) && reviewPkg.includes('HUMAN REVIEW PACKAGE: NEXA-REV-01'));
+assert('Review package provides explicit human merge instructions', reviewPkg.includes('Review git diff on branch') && reviewPkg.includes('merge manually into \'dev\''));
+
 runQualityTests().then(() => {
   // Summary
   console.log('\n============================================================');

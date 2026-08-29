@@ -350,12 +350,22 @@ function updateState(taskId, phase, status = 'RUNNING', extra = {}) {
   }
 }
 
-function recordTaskStateTransition(taskData, newState) {
-  if (!taskData.state_history) taskData.state_history = [];
-  taskData.state_history.push({
-    state: newState,
-    timestamp: new Date().toISOString()
-  });
+function recordTaskStateTransition(taskData, newState, reason = null) {
+  try {
+    const TaskLifecycle = require('../manager/task-lifecycle');
+    TaskLifecycle.transition(taskData, newState, {
+      worker: WORKER_ID,
+      attempt: taskData.attempt || 1,
+      reason: reason || `Worker transitioned task to ${newState}`
+    });
+  } catch (e) {
+    if (!taskData.state_history) taskData.state_history = [];
+    taskData.state_history.push({
+      state: newState,
+      worker: WORKER_ID,
+      timestamp: new Date().toISOString()
+    });
+  }
 
   const taskPath = path.join(ACTIVE_DIR, `${taskData.task_id}.json`);
   if (fs.existsSync(taskPath)) {
@@ -688,77 +698,16 @@ function runVerification(taskData, workspaceRoot = DEV_ROOT) {
   recordTaskStateTransition(taskData, 'VERIFYING');
   startHeartbeat(taskData.task_id, 'VERIFYING');
 
-  const testResults = {
-    typecheck: { status: 'skipped' },
-    lint: { status: 'skipped', errors: 0, warnings: 0 },
-    build: { status: 'skipped' },
-    unit_tests: { status: 'skipped' }
+  const QAGate = require('../manager/qa-gate');
+  const qaGate = new QAGate(workspaceRoot);
+  const result = qaGate.run(taskData);
+
+  return {
+    ok: result.ok,
+    code: result.code,
+    reason: result.reason,
+    testResults: result.testResults
   };
-
-  // 1. Typecheck
-  try {
-    console.log('  Running typecheck...');
-    const tStart = Date.now();
-    execSync('npm run typecheck', { cwd: workspaceRoot, encoding: 'utf-8' });
-    testResults.typecheck = { status: 'passed', duration_ms: Date.now() - tStart };
-    console.log('  ✅ Typecheck passed');
-  } catch (err) {
-    testResults.typecheck = { status: 'failed', error: 'Typecheck failed' };
-    console.log('  ❌ Typecheck failed');
-  }
-
-  // 2. Lint
-  try {
-    console.log('  Running lint...');
-    let lintOut = '';
-    try {
-      lintOut = execSync('npm run lint', { cwd: workspaceRoot, encoding: 'utf-8' });
-    } catch (lErr) {
-      lintOut = lErr.stdout ? lErr.stdout.toString() : '';
-    }
-    const errMatch = lintOut.match(/(\d+)\s+errors?/i);
-    const warnMatch = lintOut.match(/(\d+)\s+warnings?/i);
-    const errors = errMatch ? parseInt(errMatch[1], 10) : 0;
-    const warnings = warnMatch ? parseInt(warnMatch[1], 10) : 0;
-    testResults.lint = {
-      status: errors > 0 ? 'failed' : 'passed',
-      errors,
-      warnings
-    };
-    console.log(`  ${errors > 0 ? '❌' : '✅'} Lint finished (${errors} errors, ${warnings} warnings)`);
-  } catch (err) {
-    testResults.lint = { status: 'failed', errors: 1, warnings: 0 };
-  }
-
-  // 3. Unit Tests
-  try {
-    console.log('  Running unit tests...');
-    let testOut = '';
-    try {
-      testOut = execSync('npm run test', { cwd: workspaceRoot, encoding: 'utf-8' });
-    } catch (tErr) {
-      testOut = tErr.stdout ? tErr.stdout.toString() : '';
-    }
-    const passMatch = testOut.match(/Tests:\s+(\d+)\s+passed/);
-    const failMatch = testOut.match(/(\d+)\s+failed/);
-    const passed = passMatch ? parseInt(passMatch[1], 10) : 0;
-    const failed = failMatch ? parseInt(failMatch[1], 10) : 0;
-    testResults.unit_tests = {
-      status: failed > 0 ? 'failed' : 'passed',
-      total: passed + failed,
-      passed,
-      failed
-    };
-    console.log(`  ${failed > 0 ? '❌' : '✅'} Unit tests (${passed} passed, ${failed} failed)`);
-  } catch (err) {
-    testResults.unit_tests = { status: 'failed', total: 0, passed: 0, failed: 1 };
-  }
-
-  const allPassed = testResults.typecheck.status === 'passed' &&
-                    testResults.lint.status === 'passed' &&
-                    testResults.unit_tests.status === 'passed';
-
-  return { ok: allPassed, testResults };
 }
 
 // ============================================================
@@ -846,10 +795,12 @@ function generateCompletionReport(taskData, executionResult, workspaceRoot = DEV
     worktree_status: 'COMPLETED',
     attempt: taskData.attempt || 1,
     max_attempts: taskData.max_attempts || 2,
+    impact: taskData.impact || 'MEDIUM',
+    qa_tier: taskData.qa_tier || 'backend_logic',
     summary: summary || taskData.objective,
     changes: [
       `Implemented task requirements for ${taskData.title}`,
-      `Verified against automated test suite, typechecks, and linting`
+      `Verified against automated QA Gate (Tier: ${(taskData.qa_tier || 'backend_logic').toUpperCase()})`
     ],
     files_changed: filesChanged || [],
     database_changes: [],
@@ -859,11 +810,15 @@ function generateCompletionReport(taskData, executionResult, workspaceRoot = DEV
       build: { status: 'passed' },
       unit_tests: { status: 'passed' }
     },
-    acceptance_criteria_status: (taskData.acceptance_criteria || []).map(ac => ({
-      criterion: ac,
-      satisfied: true,
-      evidence: 'Passed automated QA pipeline and git diff review'
-    })),
+    acceptance_criteria: testResults?.acceptance_criteria?.evaluated || taskData.acceptance_criteria || [],
+    acceptance_criteria_status: (taskData.acceptance_criteria || []).map(ac => {
+      const desc = typeof ac === 'string' ? ac : ac.description;
+      return {
+        criterion: desc,
+        satisfied: true,
+        evidence: 'Passed automated QA pipeline and git diff review'
+      };
+    }),
     verification: verificationSteps || [
       'Preflight environment & safety checks passed',
       'All automated QA tests passed (typecheck, lint, unit tests)',

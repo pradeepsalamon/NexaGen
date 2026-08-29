@@ -161,14 +161,10 @@ class Scheduler {
 
       log(`\n🚀 [SCHEDULE] Assigning task ${task.task_id} to worker '${workerId}'...`);
       
-      // Update task assignment in file
+      // Update task assignment in file via TaskLifecycle
       task.assigned_worker = workerId;
-      task.state_history = task.state_history || [];
-      task.state_history.push({
-        state: 'ASSIGNED',
-        worker: workerId,
-        timestamp: new Date().toISOString()
-      });
+      const TaskLifecycle = require('./task-lifecycle');
+      TaskLifecycle.transition(task, 'ASSIGNED', { worker: workerId, reason: `Assigned to capable worker ${workerId}` });
       fs.writeFileSync(path.join(ACTIVE_DIR, `${task.task_id}.json`), JSON.stringify(task, null, 2), 'utf-8');
 
       // Dispatch task

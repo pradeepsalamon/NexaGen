@@ -58,14 +58,16 @@ The Manager never directly edits application files. It formulates rigorous speci
 | Module | Purpose |
 |:---|:---|
 | `manager.js` | Main entrypoint, CLI coordinator, lifecycle manager |
+| `task-lifecycle.js` | 18-state deterministic task lifecycle state machine & transition auditor |
+| `qa-gate.js` | Centralized QA gate engine (tiered verification, secrets, diffs, types, tests, ACs) |
 | `worktree-manager.js` | Git worktree lifecycle management, dependency symlinking, read-only merge assessment |
-| `project-context.js` | Real-time environment inspection, service health checking, task history search |
+| `project-context.js` | Real-time environment inspection, change impact classification, historical task lookup |
 | `worker-registry.js` | Multi-worker pool management, capability matching, heartbeat tracking |
 | `dependency-graph.js` | DAG dependency validation, cycle detection, topological sorting, ASCII rendering |
 | `scheduler.js` | Idempotent task scheduling cycle, parallel worktree dispatching, lock acquisition |
-| `planner.js` | Intent analysis, safety pre-check, task decomposition, work order builder |
+| `planner.js` | Intent analysis, safety pre-check, smart task decomposition, acceptance criteria builder |
 | `dispatcher.js` | Pre-dispatch environment health checks, worktree validation, task invocation |
-| `reviewer.js` | Completion report validation, acceptance criteria verification, follow-up creator |
+| `reviewer.js` | Completion report validation, acceptance criteria verification, Human Review Package generator |
 | `providers/base-provider.js` | Abstract AI provider interface |
 | `providers/gemini-provider.js` | Gemini adapter for analysis, schema generation, and review |
 
@@ -110,15 +112,15 @@ npm run ai:manager -- --plan "Add student rating badge component"
 # Dispatch a specific work order to a capable worker
 npm run ai:manager -- --dispatch NEXA-0005
 
-# Review a completion report
+# Review a completion report and view Human Review Package
 npm run ai:manager -- --review NEXA-0005
 
 # Full automated end-to-end DAG orchestration
 npm run ai:manager -- "Fix coach profile rating display bug"
 
-# Run 89-assertion worker safety audit
+# Run 108-assertion worker safety audit
 npm run ai:audit
 
-# Run 30-scenario manager test suite
+# Run 48-scenario manager test suite
 npm run ai:test:manager
 ```

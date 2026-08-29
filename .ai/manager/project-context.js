@@ -367,6 +367,107 @@ class ProjectContextEngine {
   }
 
   /**
+   * Analyzes impact classification and coupled areas for a given prompt and file list.
+   */
+  analyzeImpact(prompt = '', affectedFiles = []) {
+    const pLower = prompt.toLowerCase();
+    const filesStr = affectedFiles.join(' ').toLowerCase();
+
+    // 1. Critical boundary check
+    if (
+      /\b(production|nexa_chess|docker\s+stop|drop\s+database|truncate|rm\s+-rf)\b/i.test(pLower) ||
+      /\b(jwt_secret|private_key|auth\.guard|credentials)\b/i.test(filesStr)
+    ) {
+      return {
+        level: 'CRITICAL',
+        requires_escalation: true,
+        reason: 'Touches critical security boundaries, production database, or deployment infrastructure',
+        database_impact: /\b(database|migration|prisma|schema)\b/i.test(pLower) || filesStr.includes('prisma'),
+        security_impact: true
+      };
+    }
+
+    // 2. High impact check
+    if (
+      filesStr.includes('schema.prisma') ||
+      filesStr.includes('migrations') ||
+      filesStr.includes('packages/types') ||
+      filesStr.includes('auth.service') ||
+      /\b(database migration|schema change|auth|payment|security)\b/i.test(pLower)
+    ) {
+      return {
+        level: 'HIGH',
+        requires_escalation: false,
+        reason: 'Modifies core database schema, shared types, or authentication services',
+        database_impact: filesStr.includes('prisma') || /\b(database|migration|prisma)\b/i.test(pLower),
+        security_impact: filesStr.includes('auth') || pLower.includes('auth')
+      };
+    }
+
+    // 3. Low impact check
+    if (
+      filesStr.endsWith('.md') ||
+      pLower.startsWith('docs:') ||
+      pLower.includes('readme') ||
+      pLower.includes('comment') ||
+      pLower.includes('format')
+    ) {
+      return {
+        level: 'LOW',
+        requires_escalation: false,
+        reason: 'Documentation, comment, formatting, or isolated utility helper',
+        database_impact: false,
+        security_impact: false
+      };
+    }
+
+    // 4. Default: Medium
+    return {
+      level: 'MEDIUM',
+      requires_escalation: false,
+      reason: 'Standard application feature, bug fix, or UI enhancement within development boundary',
+      database_impact: false,
+      security_impact: false
+    };
+  }
+
+  /**
+   * Retrieves relevant historical task context for a user prompt to prevent regression loops.
+   */
+  getRelevantHistoryForPrompt(prompt = '') {
+    const words = prompt.toLowerCase().replace(/[^a-z0-9_\-\s]/g, '').split(/\s+/).filter(w => w.length >= 4);
+    if (words.length === 0) return { matched: false, related_tasks: [] };
+
+    const history = this.searchTaskHistory();
+    const matches = [];
+
+    for (const item of history) {
+      const itemText = (item.title + ' ' + item.summary + ' ' + (item.files_changed || []).join(' ')).toLowerCase();
+      const matchedWords = words.filter(w => itemText.includes(w));
+      if (matchedWords.length > 0) {
+        matches.push({
+          task_id: item.task_id,
+          title: item.title,
+          status: item.status,
+          score: matchedWords.length,
+          files_changed: item.files_changed,
+          summary: item.summary
+        });
+      }
+    }
+
+    matches.sort((a, b) => b.score - a.score);
+    const topMatches = matches.slice(0, 3);
+
+    return {
+      matched: topMatches.length > 0,
+      related_tasks: topMatches.map(m => m.task_id),
+      top_matches: topMatches,
+      context_snippet: topMatches.map(m => `[${m.task_id}] (${m.status}): ${m.title}`).join('\n')
+    };
+  }
+
+  /**
    * Builds complete sanitized metadata summary for Main Manager.
    */
   getProjectContextSummary() {
@@ -389,3 +490,4 @@ class ProjectContextEngine {
 }
 
 module.exports = ProjectContextEngine;
+

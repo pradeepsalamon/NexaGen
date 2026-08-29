@@ -153,6 +153,60 @@ NexaGen/
 - **Chess**: Custom chessboard with drag/drop, PGN, FEN support
 - **Live Video**: LiveKit React SDK
 
+## AI Development System Architecture (Phase 8: Human-in-the-Loop Development Pipeline)
+
+```
+USER (Natural Language Request)
+  │
+  ▼
+MAIN MANAGER (Planner • Dispatcher • Reviewer) [DOES NOT CODE]
+  │  ├── 1. Preflight Safety Check & Impact Classification (LOW/MED/HIGH/CRITICAL)
+  │  ├── 2. Smart Task Decomposition (DAG with dependencies)
+  │  ├── 3. Historical Memory Lookup (Previous related tasks & learnings)
+  │  └── 4. TaskLifecycle State Machine (18 auditable states)
+  │
+  ├──► Filesystem Task Transport (.ai/tasks/active/)
+  │
+  ▼
+SCHEDULER (Capability Router & DAG Allocator)
+  ├── Assigns tasks to specialized workers based on capability tags
+  └── Dispatches parallel runnable tasks to dedicated worktrees
+  │
+  ├──► WORKER 01: nexa-dev-01 (Backend/API)  ──► .worktrees/nexa-dev-01
+  ├──► WORKER 02: nexa-dev-02 (Frontend/UI)   ──► .worktrees/nexa-dev-02
+  └──► WORKER 03: nexa-dev-03 (Testing/QA)    ──► .worktrees/nexa-dev-03
+        │
+        ├── 1. Branch checkout: ai/<TASK_ID>-<slug>
+        ├── 2. Implementation & Unit Testing
+        ├── 3. Centralized QA Gate (Types, Lint, Tests, Diff, Secrets)
+        ├── 4. Acceptance Criteria Verification ([x] AC-001 ...)
+        └── 5. Completion Report Generation (.ai/tasks/completed/)
+  │
+  ▼
+REVIEWER (Independent Audit Engine)
+  ├── 1. Audits completion report & QA gate test results
+  ├── 2. Checks mandatory acceptance criteria fulfillment
+  ├── 3. Formulates structured Human Review Package
+  └── 4. Non-Destructive Merge Check (git merge-tree / base)
+  │
+  ▼
+HUMAN ENGINEER (Final Merging & Deployment Authority)
+  └── Reviews diff on task branch and manually merges to dev/main
+```
+
+### Key Subsystems & State Machines
+1. **TaskLifecycle**: 18 auditable states (`CREATED` $\rightarrow$ `PLANNED` $\rightarrow$ `ASSIGNED` $\rightarrow$ `CLAIMED` $\rightarrow$ `PREFLIGHT` $\rightarrow$ `RUNNING` $\rightarrow$ `TESTING` $\rightarrow$ `VERIFYING` $\rightarrow$ `COMPLETED` $\rightarrow$ `REVIEW_REQUIRED` $\rightarrow$ `APPROVED` $\rightarrow$ `MERGE_READY` / `FAILED` / `ESCALATED`).
+2. **QAGate Engine**: Tiered verification (`docs_only`, `backend_logic`, `database_schema`, `frontend_ui`, `high_risk_full`).
+3. **Acceptance Criteria**: Structured objects with `id`, `description`, `verification`, `mandatory`, `status`, and `evidence`.
+4. **WorktreeManager**: Isolates Git worktrees (`.worktrees/nexa-dev-01`, `02`, `03`) to eliminate index collisions.
+5. **Historical Memory**: Automatically indexes and injects past task learnings and regression warnings into work orders.
+                            │
+             ┌────────────────┼────────────────┐
+             │                │                │
+             ▼                ▼                ▼
+        Worker 01        Worker 02        Worker 03
+      (Backend/API)     (Frontend/UI)    (QA/Testing)
+
 ## AI Development System (Phase 7 Git Worktree Parallelism)
 
 The repository features an autonomous pair-programming development system located under `.ai/`:

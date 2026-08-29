@@ -23,6 +23,16 @@
     },
     "attempt": { "type": "integer", "default": 1 },
     "max_attempts": { "type": "integer", "default": 2 },
+    "impact": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+      "default": "MEDIUM"
+    },
+    "qa_tier": {
+      "type": "string",
+      "enum": ["docs_only", "backend_logic", "database_schema", "frontend_ui", "high_risk_full"],
+      "default": "backend_logic"
+    },
     "summary": {
       "type": "string",
       "description": "Human-readable summary of what was done"

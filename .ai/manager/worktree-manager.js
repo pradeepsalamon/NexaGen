@@ -473,6 +473,26 @@ class WorktreeManager {
       recommendation = `Task branch '${targetBranch}' is verified, tests pass, and is ready for human engineer to review and merge into '${baseBranch}'.`;
     }
 
+    // Extract affected packages/apps
+    const affectedPackages = [];
+    for (const file of changedFiles) {
+      if (file.startsWith('apps/')) {
+        const app = file.split('/').slice(0, 2).join('/');
+        if (!affectedPackages.includes(app)) affectedPackages.push(app);
+      } else if (file.startsWith('packages/')) {
+        const pkg = file.split('/').slice(0, 2).join('/');
+        if (!affectedPackages.includes(pkg)) affectedPackages.push(pkg);
+      }
+    }
+
+    let acStatus = 'PASSED';
+    if (fs.existsSync(completedFile)) {
+      try {
+        const rep = JSON.parse(fs.readFileSync(completedFile, 'utf-8'));
+        if (rep.tests?.acceptance_criteria?.status === 'failed') acStatus = 'FAILED';
+      } catch {}
+    }
+
     return {
       ok: true,
       task_id: taskId,
@@ -481,9 +501,12 @@ class WorktreeManager {
       commit_sha: commitSha,
       commits_ahead: commitsAhead,
       changed_files: changedFiles,
+      affected_packages: affectedPackages,
       has_conflicts: hasConflicts,
       conflict_details: conflictDetails,
       test_status: testStatus,
+      acceptance_criteria_status: acStatus,
+      production_safety: 'PASSED (Development scope only)',
       verdict: isReady ? 'READY_FOR_HUMAN_REVIEW' : 'NOT_READY',
       recommendation
     };

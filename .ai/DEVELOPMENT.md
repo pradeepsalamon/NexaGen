@@ -128,3 +128,36 @@ test(module): description
 cd /opt/nexa-chess/NexaGen
 ./scripts/deploy-production.sh <commit-sha> web api
 ```
+
+## AI Development Workflow (Phase 8 Human-in-the-Loop Pipeline)
+
+### 1. Issue Natural Language Request
+```bash
+npm run ai:manager -- "Build student attendance percentage calculation endpoint with tests"
+```
+
+### 2. Multi-Worker Parallel Scheduling
+```bash
+npm run ai:schedule
+```
+
+### 3. Review Human Review Package
+```bash
+npm run ai:manager -- --review NEXA-0071
+```
+
+### 4. Non-Destructive Merge Readiness Check
+```bash
+npm run ai:manager -- --merge-check NEXA-0071
+```
+
+### 5. Human Merge Authority
+```bash
+# Verify diff on task branch
+git diff dev...ai/NEXA-0071-slug
+
+# Merge manually into dev when satisfied
+git checkout dev
+git merge ai/NEXA-0071-slug
+```
+

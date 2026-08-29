@@ -23,10 +23,10 @@
       "max_concurrency": 1,
       "current_task": null,
       "branch": null,
-      "heartbeat": "2026-08-29T12:53:19.673Z",
-      "tasks_completed": 6,
-      "tasks_failed": 3,
-      "last_heartbeat": "2026-08-29T12:53:19.639Z"
+      "heartbeat": "2026-08-29T13:06:46.712Z",
+      "tasks_completed": 7,
+      "tasks_failed": 5,
+      "last_heartbeat": "2026-08-29T13:06:46.676Z"
     },
     {
       "worker_id": "nexa-dev-02",
@@ -85,5 +85,5 @@
       "last_heartbeat": "2026-08-29T12:51:55.145Z"
     }
   ],
-  "updated_at": "2026-08-29T12:53:19.673Z"
+  "updated_at": "2026-08-29T13:06:46.712Z"
 }
