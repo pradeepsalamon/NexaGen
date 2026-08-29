@@ -11,7 +11,8 @@ import { LiveClassProvider } from "@/features/live-class/providers/LiveClassProv
 import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
 import { PreJoinCard } from "@/features/live-class/components/prejoin/PreJoinCard";
 import { LoadingMeeting } from "@/features/live-class/components/states/LoadingMeeting";
-import { ConnectionLost, PermissionDenied, RoomEnded, ClassNotStarted, WaitingForCoach } from "@/features/live-class/components/states/ErrorStates";
+import { ConnectionLost, PermissionDenied, ClassNotStarted, WaitingForCoach } from "@/features/live-class/components/states/ErrorStates";
+import { ClassSummary } from "@/features/live-class/components/summary/ClassSummary";
 import { Header } from "@/components/layout/Header";
 
 export default function LiveClassPage() {
@@ -88,14 +89,7 @@ export default function LiveClassPage() {
     }
 
     if (errorStr.includes("ended") || classStatus === "COMPLETED" || classStatus === "CANCELLED") {
-      return (
-        <div className="flex flex-col h-screen">
-          <Header centerSlot={headerCenter} />
-          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
-            <RoomEnded />
-          </div>
-        </div>
-      );
+      return <ClassSummary classId={roomId} />;
     }
 
     return (

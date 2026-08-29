@@ -42,8 +42,10 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
           if (classDetails.topic) {
             setTopic(classDetails.topic);
           }
-          if (classDetails.startsAt) {
-            setStartedAt(classDetails.startsAt);
+          // Timer elapsed runs from the actual session start, not the scheduled one (AUDIT H2).
+          const actualStart = classDetails.liveSession?.startedAt ?? classDetails.startsAt;
+          if (actualStart) {
+            setStartedAt(actualStart);
           }
           if (classDetails.endsAt) {
             setEndsAt(classDetails.endsAt);

@@ -10,10 +10,11 @@ import {
 import { ConnectionState, DisconnectReason } from "livekit-client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { getRoleDashboardHref, isStaffRole, useAuthStore } from "@/stores/authStore";
+import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { ChatProvider } from "../../providers/ChatProvider";
-import { ConnectionLost, RoomEnded } from "../states/ErrorStates";
+import { ConnectionLost } from "../states/ErrorStates";
+import { ClassSummary } from "../summary/ClassSummary";
 import { clearJoinedSession } from "../../lib/joinedSession";
 import { getWebEnv } from "@nexa-chess/config/web";
 
@@ -74,10 +75,9 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   const user = useAuthStore((state) => state.user);
 
   if (ended) {
-    // The coach ended the class (room deleted) while this tab was in the
-    // meeting. Show an explicit "class ended" screen instead of silently
-    // bouncing the student to their dashboard.
-    return <RoomEnded />;
+    // The class ended (room deleted) while this tab was in the meeting. Show the
+    // post-class summary instead of silently bouncing to the dashboard.
+    return <ClassSummary classId={classId} />;
   }
 
   if (error) {
@@ -107,16 +107,11 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       onDisconnected={(reason) => {
         toast.dismiss("lk-reconnecting");
         if (reason === DisconnectReason.ROOM_DELETED) {
-          // The coach ended the class. Clear the flag so a reload doesn't try to
-          // rejoin a room that no longer exists. Students land on an explicit
-          // "class ended" screen instead of a silent redirect; staff (who just
-          // clicked "End class") are sent straight back to their dashboard.
+          // The class ended. Clear the flag so a reload doesn't try to rejoin a
+          // room that no longer exists, then show everyone the post-class
+          // summary (coach/admin get the full report, students their own row).
           clearJoinedSession(classId);
-          if (isStaffRole(user?.role)) {
-            router.push(getRoleDashboardHref(user?.role));
-          } else {
-            setEnded(true);
-          }
+          setEnded(true);
           return;
         }
         if (!reason || reason === DisconnectReason.CLIENT_INITIATED) {

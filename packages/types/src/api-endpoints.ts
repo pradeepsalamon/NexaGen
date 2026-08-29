@@ -104,6 +104,7 @@ export const API_ROUTES = {
     coachById: (id: string = ":id") => `/attendance/coach/${id}`,
     class: (id: string = ":id") => `/attendance/class/${id}`,
     classDetail: (id: string = ":id") => `/attendance/class/${id}/detail`,
+    classSummary: (id: string = ":id") => `/attendance/class/${id}/summary`,
     classLive: (id: string = ":id") => `/attendance/class/${id}/live`,
     classLogs: (id: string = ":id", studentId: string = ":studentId") =>
       `/attendance/class/${id}/logs/${studentId}`,

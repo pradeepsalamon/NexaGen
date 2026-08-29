@@ -65,6 +65,22 @@ real class — then wire the YAML (needs the real key name, so likely via
 | **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
 | **Live-monitoring screen** | `GET /attendance/class/:id/live` (`classLive`) and `getLiveClassMonitoring` are fully implemented and unused — no frontend. Same one-sided-feature cause as the (now-wired) admin drill-downs: reuse the `StudentAttendanceView` / dialog pattern in `features/attendance/components/`. |
 
+## Resolved (2026-08-30)
+
+- **Post-class summary screen.** The "class ended" state was a dead-end
+  `<RoomEnded />`. Now `GET /attendance/class/:id/summary`
+  (`API_ROUTES.attendance.classSummary`, `AttendanceService.getClassSummary`)
+  returns a role-aware payload — coaches/admins get the full `ClassDetailReport`,
+  students get their own attendance row — plus a `finalized` flag the client
+  (`useClassSummary`) polls on. `LiveSession.attendanceFinalizedAt` marks
+  finalization; the endpoint lazy-re-runs the idempotent `finalizeClassAttendance`
+  if the class ended without the marker set. `ClassSummary` renders inside the
+  room's `ended` state and the `/live-class/[roomId]` ended branch; "Return to
+  Dashboard" is always available. Also fixed the coach-presence check in
+  `getToken` / `sweepStaleClasses` to tolerate the `_<clientId>` identity suffix
+  (students were stuck in the waiting room), and the meeting timer now counts
+  from `liveSession.startedAt` rather than the scheduled start.
+
 ## Resolved (2026-08-29)
 
 - **Board workspace — engine analysis, Load Game, Setup Position.**

@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import { API_ROUTES } from "@nexa-chess/types";
+import { API_ROUTES, type ClassSummaryResponse } from "@nexa-chess/types";
 import { CoachClass, LiveSession, LiveKitTokenResponse, ParticipantInfo } from "../types/live-class";
 
 export const getLiveClass = (roomId: string): Promise<CoachClass> => {
@@ -17,6 +17,10 @@ export const endLiveClass = (roomId: string): Promise<void> => {
 export const getLiveClassToken = (roomId: string, clientId?: string): Promise<LiveKitTokenResponse> => {
   const url = API_ROUTES.liveClass.token(roomId) + (clientId ? `?clientId=${clientId}` : "");
   return apiFetch<LiveKitTokenResponse>(url, { method: "POST" });
+};
+
+export const getClassSummary = (roomId: string): Promise<ClassSummaryResponse> => {
+  return apiFetch<ClassSummaryResponse>(API_ROUTES.attendance.classSummary(roomId));
 };
 
 export const getLiveClassParticipants = (roomId: string): Promise<{ participants: ParticipantInfo[] }> => {

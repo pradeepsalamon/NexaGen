@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { LiveClassService } from "./live-class.service";
@@ -141,5 +141,100 @@ describe("LiveClassService chat authorization", () => {
         })
       );
     });
+  });
+});
+
+describe("LiveClassService.getToken coach-presence gate", () => {
+  let service: LiveClassService;
+  let jwtService: { verifyAsync: jest.Mock };
+  let userFindUnique: jest.Mock;
+  let coachClassFindUnique: jest.Mock;
+  let liveSessionFindUnique: jest.Mock;
+  let listParticipants: jest.Mock;
+  let generateAccessToken: jest.Mock;
+  let recordJoinEvent: jest.Mock;
+
+  const authenticateAs = (id: string, role: UserRole) => {
+    jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
+    userFindUnique.mockResolvedValue({
+      id,
+      role,
+      status: UserStatus.ACTIVE,
+      firstName: "Test",
+      lastName: "User"
+    });
+  };
+
+  beforeEach(async () => {
+    jwtService = { verifyAsync: jest.fn() };
+    userFindUnique = jest.fn();
+    coachClassFindUnique = jest.fn().mockResolvedValue({ id: "class-1", status: "LIVE" });
+    liveSessionFindUnique = jest.fn().mockResolvedValue({
+      id: "session-1",
+      classId: "class-1",
+      coachId: "coach-1",
+      roomName: "room-1",
+      status: "LIVE",
+      batch: { students: [{ studentId: "student-1" }] },
+      class: { topic: "Endgames" }
+    });
+    listParticipants = jest.fn().mockResolvedValue([]);
+    generateAccessToken = jest.fn().mockResolvedValue("livekit-token");
+    recordJoinEvent = jest.fn().mockResolvedValue(undefined);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LiveClassService,
+        {
+          provide: PrismaService,
+          useValue: {
+            coachClass: { findUnique: coachClassFindUnique },
+            liveSession: { findUnique: liveSessionFindUnique },
+            user: { findUnique: userFindUnique }
+          }
+        },
+        { provide: JwtService, useValue: jwtService },
+        { provide: LiveKitService, useValue: { listParticipants, generateAccessToken } },
+        { provide: AttendanceService, useValue: { recordJoinEvent } },
+        { provide: BackupService, useValue: {} }
+      ]
+    }).compile();
+
+    service = module.get<LiveClassService>(LiveClassService);
+  });
+
+  it("keeps a student waiting when nobody is in the room", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
+      response: { code: "COACH_NOT_JOINED" }
+    });
+  });
+
+  it("admits the student when the coach is present with a tab-suffixed identity (AUDIT M23)", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1_tab-abc123" }]);
+
+    const res = await service.getToken(ACCESS_TOKEN, "class-1", "tab-xyz");
+
+    expect(res.token).toBe("livekit-token");
+    expect(recordJoinEvent).toHaveBeenCalled();
+  });
+
+  it("admits the student when the coach joined without a suffix", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({
+      token: "livekit-token"
+    });
+  });
+
+  it("does not treat another student as the coach", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "student-2_tab-abc" }]);
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(
+      BadRequestException
+    );
   });
 });

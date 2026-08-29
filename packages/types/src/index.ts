@@ -889,6 +889,37 @@ export type ClassDetailStudentLog = z.infer<typeof classDetailStudentLogSchema>;
 export type ClassDetailCoachAttendance = z.infer<typeof classDetailCoachAttendanceSchema>;
 export type ClassDetailReport = z.infer<typeof classDetailReportSchema>;
 
+// -- POST-CLASS SUMMARY TYPES --
+
+export const classSummaryMyAttendanceSchema = z.object({
+  status: attendanceStatusEnum,
+  attendancePercent: z.number(),
+  totalDuration: z.number(),
+  joinedAt: z.string().nullable(),
+  leftAt: z.string().nullable(),
+  reconnectCount: z.number(),
+});
+
+export const classSummaryResponseSchema = z.object({
+  classId: z.string(),
+  topic: z.string(),
+  batchName: z.string(),
+  coachName: z.string(),
+  scheduledStart: z.string(),
+  scheduledEnd: z.string(),
+  actualStart: z.string().nullable(),
+  actualEnd: z.string().nullable(),
+  actualDuration: z.number(),
+  status: z.string(),
+  finalized: z.boolean(),
+  viewerRole: z.enum(["COACH", "ADMIN", "STUDENT"]),
+  report: classDetailReportSchema.nullable(),
+  myAttendance: classSummaryMyAttendanceSchema.nullable(),
+});
+
+export type ClassSummaryMyAttendance = z.infer<typeof classSummaryMyAttendanceSchema>;
+export type ClassSummaryResponse = z.infer<typeof classSummaryResponseSchema>;
+
 // -- DEMO CLASS TYPES --
 
 export const createDemoClassRequestSchema = z.object({

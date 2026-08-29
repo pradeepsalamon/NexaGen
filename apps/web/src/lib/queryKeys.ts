@@ -33,6 +33,9 @@ export const queryKeys = {
   admin: {
     base: ["admin"] as const,
   },
+  attendance: {
+    classSummary: (id: string) => ["attendance", "class-summary", id] as const,
+  },
   assignments: {
     all: ["assignments"] as const,
     library: ["assignments", "library"] as const,
