@@ -130,6 +130,12 @@ export async function apiFetch<TResponse>(
 
     return response.data;
   } catch (error) {
+    // A caller-aborted request (e.g. a superseded engine-analysis call) is not
+    // a failure — rethrow it untouched so it never triggers the network toast.
+    if (axios.isCancel(error)) {
+      throw error;
+    }
+
     if (error instanceof AxiosError) {
       const message = getApiErrorMessage(error);
       

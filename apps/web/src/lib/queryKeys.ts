@@ -33,4 +33,13 @@ export const queryKeys = {
   admin: {
     base: ["admin"] as const,
   },
+  assignments: {
+    all: ["assignments"] as const,
+    library: ["assignments", "library"] as const,
+    libraryItem: (id: string) => ["assignments", "library", id] as const,
+    deployments: ["assignments", "deployments"] as const,
+    deployment: (id: string) => ["assignments", "deployments", id] as const,
+    mine: ["assignments", "mine"] as const,
+    mineItem: (id: string) => ["assignments", "mine", id] as const,
+  },
 } as const;

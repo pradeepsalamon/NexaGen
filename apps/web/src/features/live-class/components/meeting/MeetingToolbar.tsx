@@ -177,15 +177,13 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
             }
             label={isChessboardOpen ? "Close Board" : "Share Board"}
             variant={isChessboardOpen ? "active" : "default"}
-            onClick={async () => {
+            onClick={() => {
               const newState = !isChessboardOpen;
               toggleChessboard();
+              // Students watch this attribute to mirror the board open/close
+              // (MeetingLayout). The coach edits it in-meeting via
+              // LiveChessboardPanel; a dedicated window is opt-in from there.
               localParticipant?.setAttributes({ isChessboardOpen: newState.toString() }).catch(console.warn);
-              if (newState) {
-                const roomId = window.location.pathname.split("/").pop();
-                // Using a specific window name reuses the tab if it's already open
-                window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
-              }
             }}
           />
         )}

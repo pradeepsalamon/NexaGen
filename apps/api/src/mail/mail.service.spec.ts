@@ -43,6 +43,7 @@ describe("MailService", () => {
       SMTP_USER: "testuser",
       TRASH_RETENTION_DAYS: 30,
       STOCKFISH_POOL_SIZE: 1,
+      STOCKFISH_MOVETIME: 800,
       ...envMocks
     };
 

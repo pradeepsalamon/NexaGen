@@ -1,0 +1,159 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type {
+  CreateAssignmentRequest,
+  DeployAssignmentRequest,
+  UpdateAssignmentRequest,
+  UpdateAssignmentStatusRequest
+} from "@nexa-chess/types";
+import { queryKeys } from "@/lib/queryKeys";
+import { STUDENT_KEYS } from "@/features/student-dashboard/hooks/useStudentApi";
+import { useToast } from "@/providers/ToastProvider";
+import {
+  createAssignment,
+  deleteAssignment,
+  deployAssignment,
+  getAssignmentDeployment,
+  getAssignmentDeployments,
+  getAssignmentLibrary,
+  getMyAssignment,
+  getMyAssignments,
+  undeployAssignment,
+  updateAssignment,
+  updateMyAssignmentStatus
+} from "../api/assignmentApi";
+
+// ── Library ──
+
+export function useAssignmentLibrary() {
+  return useQuery({
+    queryKey: queryKeys.assignments.library,
+    queryFn: getAssignmentLibrary
+  });
+}
+
+export function useCreateAssignment() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (data: CreateAssignmentRequest) => createAssignment(data),
+    onSuccess: () => {
+      toast.success({ title: "Assignment saved" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Failed to save assignment", message: error.message })
+  });
+}
+
+export function useUpdateAssignment(id: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (data: UpdateAssignmentRequest) => updateAssignment(id, data),
+    onSuccess: () => {
+      toast.success({ title: "Assignment updated" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Failed to update assignment", message: error.message })
+  });
+}
+
+export function useDeleteAssignment() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteAssignment(id),
+    onSuccess: () => {
+      toast.success({ title: "Assignment deleted" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Failed to delete assignment", message: error.message })
+  });
+}
+
+// ── Deployments (coach) ──
+
+export function useAssignmentDeployments() {
+  return useQuery({
+    queryKey: queryKeys.assignments.deployments,
+    queryFn: getAssignmentDeployments
+  });
+}
+
+export function useAssignmentDeployment(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.assignments.deployment(id),
+    queryFn: () => getAssignmentDeployment(id),
+    enabled: !!id && enabled
+  });
+}
+
+export function useDeployAssignment() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (data: DeployAssignmentRequest) => deployAssignment(data),
+    onSuccess: () => {
+      toast.success({ title: "Assignment sent to your batch" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Failed to assign", message: error.message })
+  });
+}
+
+export function useUndeployAssignment() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => undeployAssignment(id),
+    onSuccess: () => {
+      toast.success({ title: "Assignment withdrawn" });
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Failed to withdraw assignment", message: error.message })
+  });
+}
+
+// ── Student ──
+
+export function useMyAssignments() {
+  return useQuery({
+    queryKey: queryKeys.assignments.mine,
+    queryFn: getMyAssignments
+  });
+}
+
+export function useMyAssignment(id: string) {
+  return useQuery({
+    queryKey: queryKeys.assignments.mineItem(id),
+    queryFn: () => getMyAssignment(id),
+    enabled: !!id
+  });
+}
+
+export function useUpdateMyAssignmentStatus(id: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (data: UpdateAssignmentStatusRequest) => updateMyAssignmentStatus(id, data),
+    onSuccess: (_data, variables) => {
+      if (variables.status === "COMPLETED") {
+        toast.success({ title: "Marked as complete" });
+      }
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+      queryClient.invalidateQueries({ queryKey: STUDENT_KEYS.dashboard });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Could not update assignment", message: error.message })
+  });
+}

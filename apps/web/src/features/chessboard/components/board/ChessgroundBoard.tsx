@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useMemo } from "react";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import { Config } from "chessground/config";
+import { useLocalParticipant } from "@livekit/components-react";
 import { useBoardStore } from "../../context/BoardProvider";
 import { preloadSounds } from "../../audio/sounds";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -11,13 +12,14 @@ import "chessground/assets/chessground.base.css";
 import "chessground/assets/chessground.brown.css";
 import "chessground/assets/chessground.cburnett.css";
 
-export function ChessgroundBoard() {
+export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const cgRef = useRef<any>(null);
   
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const { localParticipant } = useLocalParticipant();
 
   // Warm the move-sound buffer cache so the first move isn't silent while the
   // asset downloads (AUDIT H5).
@@ -25,23 +27,26 @@ export function ChessgroundBoard() {
     preloadSounds();
   }, []);
 
-  const { 
-    chess, fen, turn, orientation, boardTheme, pieceTheme, showCoordinates, 
+  const {
+    chess, fen, turn, orientation, boardTheme, pieceTheme, showCoordinates,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentId,
-    isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode
+    isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode, isDetached
   } = useBoardStore();
 
   const canMove = useMemo(() => {
+    if (readOnly) return false;
     if (isEditingPosition && isCoach) return true;
     if (isCoach) return true;
+    // A detached student explores their own line locally.
+    if (isDetached) return true;
     switch (permissionMode) {
       case "EVERYONE": return true;
-      case "SELECTED_STUDENT": return user?.id === selectedStudentId;
+      case "SELECTED_STUDENT": return !!localParticipant && localParticipant.identity === selectedStudentId;
       case "VIEW_ONLY":
       case "COACH_ONLY":
       default: return false;
     }
-  }, [isCoach, permissionMode, selectedStudentId, user?.id, isEditingPosition]);
+  }, [isCoach, permissionMode, selectedStudentId, localParticipant, isEditingPosition, isDetached, readOnly]);
 
   // Compute legal moves
   const dests = useMemo(() => {
@@ -173,7 +178,7 @@ export function ChessgroundBoard() {
         }
       },
       drawable: {
-        enabled: isCoach,
+        enabled: isCoach && !readOnly,
         visible: true,
         eraseOnClick: false,
         brushes: {
@@ -259,14 +264,14 @@ export function ChessgroundBoard() {
       coordinates: showCoordinates,
       animation: { enabled: !isEditingPosition },
       viewOnly: !canMove,
-      drawable: { enabled: isCoach },
+      drawable: { enabled: isCoach && !readOnly },
       movable: {
         color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
         free: isEditingPosition,
         dests
       }
     });
-  }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, isEditingPosition, isCoach]);
+  }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, isEditingPosition, isCoach, readOnly]);
   
   // Sync annotations (arrows)
   useEffect(() => {

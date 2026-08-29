@@ -11,12 +11,8 @@ import { MeetingSidebar } from "./MeetingSidebar";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { BoardProvider } from "@/features/chessboard/context/BoardProvider";
-import { lazy, Suspense } from "react";
-
-// Lazy-load board sync bridge for code splitting
-const LiveBoardSyncBridge = lazy(() =>
-  import("./LiveBoardSyncBridge").then((m) => ({ default: m.LiveBoardSyncBridge })),
-);
+import { LiveBoardSyncBridge } from "./LiveBoardSyncBridge";
+import { LiveChessboardPanel } from "./LiveChessboardPanel";
 
 /**
  * Main meeting layout orchestrator.
@@ -49,9 +45,10 @@ export function MeetingLayout() {
   // Register keyboard shortcuts (M, V, Escape)
   useKeyboardShortcuts();
 
-  const { setIsChessboardOpen } = useLiveClassState();
+  const { setIsChessboardOpen, isChessboardOpen } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const showCoachBoard = isChessboardOpen && isCoach;
 
   const participants = useParticipants();
 
@@ -86,16 +83,26 @@ export function MeetingLayout() {
       <main className="relative flex flex-1 overflow-hidden">
         {/* Content area — takes all available space */}
         <BoardProvider>
-          <Suspense fallback={null}>
-            <LiveBoardSyncBridge />
-          </Suspense>
-          <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative">
-            <AnimatePresence mode="wait">
-              <div key="video-grid" className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col relative">
-                <MeetingVideoGrid />
-              </div>
-            </AnimatePresence>
-          </div>
+          <LiveBoardSyncBridge>
+            <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative">
+              {showCoachBoard ? (
+                <>
+                  <div className="flex-1 min-h-0 relative">
+                    <LiveChessboardPanel />
+                  </div>
+                  <div className="shrink-0 border-t border-app-border bg-app-surface/40">
+                    <MeetingVideoGrid compact />
+                  </div>
+                </>
+              ) : (
+                <AnimatePresence mode="wait">
+                  <div key="video-grid" className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col relative">
+                    <MeetingVideoGrid />
+                  </div>
+                </AnimatePresence>
+              )}
+            </div>
+          </LiveBoardSyncBridge>
         </BoardProvider>
 
         {/* Sidebar — slides in from right */}

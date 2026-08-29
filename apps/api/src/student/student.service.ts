@@ -45,11 +45,19 @@ export class StudentService {
       take: 4
     });
 
-    // 3. Fetch Practices
+    // 3. Fetch Practices + coach-assigned PGN assignments (both feed the
+    //    "Assignments & Practice" card).
     const practices = await this.prisma.studentPractice.findMany({
       where: { studentId: user.id, status: { not: "COMPLETED" } },
       include: { practice: true },
       orderBy: { practice: { dueDate: "asc" } },
+      take: 5
+    });
+
+    const assignments = await this.prisma.studentAssignment.findMany({
+      where: { studentId: user.id, status: { not: "COMPLETED" } },
+      include: { assignmentBatch: { include: { assignment: true } } },
+      orderBy: { assignmentBatch: { dueDate: "asc" } },
       take: 5
     });
 
@@ -147,13 +155,24 @@ export class StudentService {
         progressPercent: cp.progressPercent,
         lastOpenedAt: cp.lastOpenedAt.toISOString()
       })),
-      practices: practices.map((p: any) => ({
-        id: p.practice.id,
-        title: p.practice.title,
-        difficulty: p.practice.difficulty,
-        dueDate: p.practice.dueDate.toISOString(),
-        status: p.status
-      })),
+      practices: [
+        ...assignments.map((a: any) => ({
+          id: a.id,
+          title: a.assignmentBatch.assignment.title,
+          difficulty: a.assignmentBatch.assignment.difficulty,
+          dueDate: a.assignmentBatch.dueDate.toISOString(),
+          status: a.status
+        })),
+        ...practices.map((p: any) => ({
+          id: p.practice.id,
+          title: p.practice.title,
+          difficulty: p.practice.difficulty,
+          dueDate: p.practice.dueDate.toISOString(),
+          status: p.status
+        }))
+      ]
+        .sort((x, y) => x.dueDate.localeCompare(y.dueDate))
+        .slice(0, 5),
       activities: activities.map((a: any) => ({
         id: a.id,
         type: a.type,

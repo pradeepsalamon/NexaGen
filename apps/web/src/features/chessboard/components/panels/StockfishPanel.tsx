@@ -29,9 +29,15 @@ export function StockfishPanel() {
       try {
         const result = await analyzePosition(fen, abortControllerRef.current.signal);
         setAnalysis(result);
+        setError(null);
       } catch (err: any) {
-        if (err.name !== 'AbortError' && err.message !== 'canceled') {
-          setError(err.message || 'Failed to fetch analysis');
+        const aborted =
+          err?.name === 'AbortError' ||
+          err?.name === 'CanceledError' ||
+          err?.code === 'ERR_CANCELED' ||
+          err?.message === 'canceled';
+        if (!aborted) {
+          setError(err?.message || 'Failed to fetch analysis');
         }
       } finally {
         setIsAnalyzing(false);

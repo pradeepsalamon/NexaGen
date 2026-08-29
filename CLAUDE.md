@@ -16,7 +16,6 @@ npm-workspaces monorepo driven by **Turborepo**.
 | `apps/api` | `@nexa-chess/api` | NestJS 10, Prisma 6 / PostgreSQL, JWT auth via HTTP-only cookies, `@nestjs/throttler`, `@nestjs/schedule`, LiveKit server SDK, Cloudinary, Nodemailer |
 | `packages/types` | `@nexa-chess/types` | Shared request/response types, Zod schemas, and `API_ROUTES` route registry |
 | `packages/config` | `@nexa-chess/config` | Env parsing/validation (`getApiEnv`, `getWebEnv`) with Zod |
-| `packages/ui` / `packages/utils` | — | Currently near-empty shells; do not assume they contain anything |
 | `packages/tsconfig` | `@nexa-chess/tsconfig` | Shared base tsconfig |
 
 Infra: `docker-compose.yml` (web, api, postgres, redis, livekit), self-hosted on an Oracle Cloud ARM64 Ubuntu box. CI in `.github/workflows/deploy-production.yml` SSHes to the VPS and runs `scripts/deploy-production.sh` on push to `main`.
@@ -78,6 +77,24 @@ The pre-commit hook (`.husky/pre-commit`) runs `npm run typecheck` + `npm run li
 ---
 
 ## 3. Architecture & the patterns you MUST follow
+
+### 3.0 Before implementing a new feature
+
+**Read [docs/BACKLOG.md](docs/BACKLOG.md) § "Root causes" first.** It records
+recurring traps found during the 2026-08-29 remediation. The two that will waste
+your time:
+
+- **The backend half may already exist.** Before designing an endpoint, grep
+  `API_ROUTES` in `packages/types/src/api-endpoints.ts` and the target route name
+  across `apps/web`. Multiple features shipped with the route + request/response
+  type + service authorization done and only the frontend missing. If so, your
+  job is `features/<x>/api/*Api.ts` + a hook + a component — not new contract.
+- **Orphaned code from the `.ai/` autonomous manager.** Code with no consumer and
+  an `NEXA-####` commit may be half-reverted autonomous output. Confirm it is
+  actually wanted before extending it — deleting it is often the fix.
+
+If the feature you are adding is listed in BACKLOG.md, update that entry (move it
+to "Resolved" or narrow it) in the same change.
 
 ### 3.1 Shared contract: `packages/types`
 
@@ -152,7 +169,7 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
 - Attendance is driven off LiveKit join/leave/disconnect events → `attendance` module → `class_attendance` / `attendance_logs` / `coach_attendance` tables, scored against the active `AttendancePolicy`.
-- Board sync: `apps/web/src/features/chessboard/` (chessground + chess.js, Zustand `boardStore`) bridged into the meeting via `useLiveBoardSync` / `LiveBoardSyncBridge`.
+- Board sync: `apps/web/src/features/chessboard/` (chessground + chess.js, Zustand `boardStore`) bridged into the meeting via `LiveBoardSyncBridge` (single sync engine + `BoardSyncContext`; consume with `useBoardSync()`) / `useLiveBoardSyncBridge`. Board control is keyed by full LiveKit participant identity; the shared chess clock and per-client detach live in `createBoardStore`. Sync-permission rule: `features/chessboard/lib/boardSyncRules.ts`.
 
 ---
 

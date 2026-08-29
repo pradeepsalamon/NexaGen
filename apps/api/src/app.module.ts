@@ -15,6 +15,7 @@ import { UploadModule } from "./upload/upload.module";
 import { StockfishModule } from "./stockfish/stockfish.module";
 import { AttendanceModule } from "./attendance/attendance.module";
 import { BackupModule } from "./backup/backup.module";
+import { AssignmentModule } from "./assignment/assignment.module";
 
 @Module({
   imports: [
@@ -35,7 +36,8 @@ import { BackupModule } from "./backup/backup.module";
     UploadModule,
     StockfishModule,
     AttendanceModule,
-    BackupModule
+    BackupModule,
+    AssignmentModule
   ],
   providers: [
     {

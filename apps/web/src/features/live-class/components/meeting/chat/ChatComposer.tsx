@@ -1,0 +1,111 @@
+"use client";
+
+import { memo, useCallback, useEffect, useRef } from "react";
+import { Send, Smile } from "lucide-react";
+import EmojiPicker, { Theme } from "emoji-picker-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { cn } from "@/lib/utils";
+
+interface ChatComposerProps {
+  draft: string;
+  isSending: boolean;
+  onDraftChange: (value: string) => void;
+  onSubmit: () => void;
+}
+
+export const ChatComposer = memo(function ChatComposer({
+  draft,
+  isSending,
+  onDraftChange,
+  onSubmit,
+}: ChatComposerProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustTextarea = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, []);
+
+  useEffect(() => {
+    adjustTextarea();
+  }, [draft, adjustTextarea]);
+
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      onSubmit();
+    },
+    [onSubmit],
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        onSubmit();
+      }
+    },
+    [onSubmit],
+  );
+
+  return (
+    <div className="shrink-0 border-t border-app-border/40 bg-app-surface/90 backdrop-blur-xl p-3 pb-[calc(12px+env(safe-area-inset-bottom))]">
+      <form
+        onSubmit={handleSubmit}
+        className={cn(
+          "flex items-end gap-2 rounded-full border bg-app-background px-3 py-1.5 transition-all duration-200 shadow-sm",
+          draft.trim() || isSending
+            ? "border-primary/40 ring-2 ring-primary/5 shadow-primary/5"
+            : "border-app-border/60 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/5 hover:border-app-border",
+        )}
+      >
+        <textarea
+          ref={textareaRef}
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Message room..."
+          className="max-h-[120px] min-h-[20px] w-full resize-none bg-transparent px-1 py-1 text-[13px] leading-relaxed text-app-text outline-none placeholder:text-app-muted/70 custom-scrollbar font-medium"
+          rows={1}
+        />
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="shrink-0 p-1 text-app-muted hover:text-primary transition-colors rounded-lg hover:bg-primary/10 group relative"
+              title="Add emoji"
+            >
+              <Smile className="size-5 transition-transform group-hover:scale-110" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent side="top" align="end" className="p-0 border-none shadow-xl w-auto">
+            <EmojiPicker
+              onEmojiClick={(emojiData) => {
+                onDraftChange(draft + emojiData.emoji);
+                textareaRef.current?.focus();
+              }}
+              theme={Theme.AUTO}
+              lazyLoadEmojis={true}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <button
+          type="submit"
+          disabled={!draft.trim() || isSending}
+          className={cn(
+            "flex size-8 shrink-0 items-center justify-center rounded-full transition-all duration-300",
+            draft.trim()
+              ? "bg-primary text-white shadow-lg shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95"
+              : "bg-app-border/40 text-app-muted/50 cursor-not-allowed",
+          )}
+        >
+          <Send className="size-3.5 ml-0.5" />
+        </button>
+      </form>
+    </div>
+  );
+});

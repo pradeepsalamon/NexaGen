@@ -12,14 +12,17 @@ import {
   FlipVertical2,
   Crown,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
+import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { useParams } from "next/navigation";
 import { useParticipants } from "@livekit/components-react";
 
 // ─── Board Control Badge ─────────────────────────────────────
@@ -41,9 +44,7 @@ function BoardControlBadge() {
       ) : (
         <Crown className="size-3.5 text-amber-500" />
       )}
-      <span className="text-xs font-semibold text-app-text">
-        {controllerName}
-      </span>
+      <span className="text-xs font-semibold text-app-text">{controllerName}</span>
       <span className="text-[10px] text-app-muted">has control</span>
     </div>
   );
@@ -51,7 +52,7 @@ function BoardControlBadge() {
 
 // ─── Compact Navigation Bar ──────────────────────────────────
 
-const CompactBoardNav = memo(function CompactBoardNav() {
+const CompactBoardNav = memo(function CompactBoardNav({ disabled }: { disabled?: boolean }) {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
@@ -74,8 +75,8 @@ const CompactBoardNav = memo(function CompactBoardNav() {
 
   if (!isCoach) return null;
 
-  const canUndo = historyIndex >= 0;
-  const canRedo = historyIndex < moveHistory.length - 1;
+  const canUndo = historyIndex >= 0 && !disabled;
+  const canRedo = historyIndex < moveHistory.length - 1 && !disabled;
 
   return (
     <>
@@ -135,7 +136,8 @@ const CompactBoardNav = memo(function CompactBoardNav() {
         <button
           type="button"
           onClick={() => setIsResetConfirmOpen(true)}
-          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+          disabled={disabled}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
           aria-label="New game"
           title="New game"
         >
@@ -164,8 +166,23 @@ const CompactBoardNav = memo(function CompactBoardNav() {
 
 export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
   const { toggleChessboard } = useLiveClassState();
+  const params = useParams();
+  const roomId = (params?.roomId as string) ?? "";
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const participants = useParticipants();
+
+  // The coach's own dedicated board window, if open, is authoritative — this
+  // in-meeting panel then mirrors it read-only.
+  const boardWindowOpen = useMemo(
+    () => !!user?.id && participants.some((p) => p.identity === `${user.id}_board`),
+    [participants, user?.id],
+  );
+
+  const openBoardWindow = () => {
+    if (!roomId) return;
+    window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
+  };
 
   return (
     <motion.div
@@ -181,10 +198,21 @@ export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
           <BoardControlBadge />
         </div>
         <div className="flex items-center gap-2 pointer-events-auto">
-          {isCoach && (
+          {isCoach && !boardWindowOpen && (
             <div className="bg-app-surface/80 border border-app-border rounded-xl backdrop-blur-md shadow-sm p-1">
               <DrawingToolbar />
             </div>
+          )}
+          {isCoach && (
+            <button
+              type="button"
+              onClick={openBoardWindow}
+              className="flex size-9 items-center justify-center rounded-xl border border-app-border bg-app-surface/80 text-app-muted shadow-sm backdrop-blur-md transition-all hover:bg-app-soft hover:text-app-text"
+              aria-label="Open board in a separate window"
+              title="Open board in a separate window"
+            >
+              <ExternalLink className="size-4" />
+            </button>
           )}
           <button
             type="button"
@@ -202,19 +230,26 @@ export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
       <PromotionDialog />
 
       {/* Board container — maintains square aspect ratio */}
-      <div
-        className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 relative min-h-0"
-      >
+      <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 relative min-h-0">
         <div className="flex flex-col items-center justify-center gap-3 w-full h-full min-h-0">
+          {boardWindowOpen && (
+            <div className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface/80 px-3 py-1.5 text-xs font-medium text-app-muted shadow-sm backdrop-blur-md">
+              <ExternalLink className="size-3.5" />
+              Board is open in a separate window — this is a live preview
+            </div>
+          )}
+
+          <ChessClock />
+
           {/* The board itself */}
-          <div className="aspect-square max-h-[85%] max-w-full rounded-xl shadow-lg overflow-hidden border border-app-border/50 bg-[#e0d8c8] flex-shrink-0">
-            <ChessgroundBoard />
+          <div className="aspect-square max-h-[80%] max-w-full rounded-xl shadow-lg overflow-hidden border border-app-border/50 bg-[#e0d8c8] flex-shrink-0">
+            <ChessgroundBoard readOnly={boardWindowOpen} />
           </div>
 
           {/* Navigation bar (coach-only) */}
           <div className="flex items-center justify-center shrink-0">
             <div className="bg-app-surface/80 border border-app-border rounded-xl backdrop-blur-md shadow-sm px-2 py-1">
-              <CompactBoardNav />
+              <CompactBoardNav disabled={boardWindowOpen} />
             </div>
           </div>
         </div>

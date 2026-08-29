@@ -12,9 +12,23 @@ interface PracticeItem {
   id: string;
   title: string;
   dueDate: string;
-  difficulty: "Beginner" | "Intermediate" | "Advanced";
-  status: "Pending" | "In Progress" | "Completed";
+  // Accept both the legacy Title Case values and the API enum casing.
+  difficulty: string;
+  status: string;
 }
+
+const DIFFICULTY_CLASS: Record<string, string> = {
+  beginner: "text-green-600 border-green-200 bg-green-50",
+  intermediate: "text-yellow-600 border-yellow-200 bg-yellow-50",
+  advanced: "text-red-600 border-red-200 bg-red-50"
+};
+
+function titleCase(value: string) {
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase().replace(/_/g, " ");
+}
+
+const isCompleted = (status: string) => status.toLowerCase().replace(/[ _]/g, "") === "completed";
+const isPending = (status: string) => status.toLowerCase() === "pending";
 
 interface PracticeSectionProps {
   practices?: PracticeItem[];
@@ -52,12 +66,14 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
                 <div className="space-y-2">
                   <h4 className="font-semibold text-app-text">{practice.title}</h4>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <Badge variant="outline" className={
-                      practice.difficulty === "Beginner" ? "text-green-600 border-green-200 bg-green-50" : 
-                      practice.difficulty === "Intermediate" ? "text-yellow-600 border-yellow-200 bg-yellow-50" : 
-                      "text-red-600 border-red-200 bg-red-50"
-                    }>
-                      {practice.difficulty}
+                    <Badge
+                      variant="outline"
+                      className={
+                        DIFFICULTY_CLASS[practice.difficulty.toLowerCase()] ??
+                        "text-app-muted border-app-border bg-app-background"
+                      }
+                    >
+                      {titleCase(practice.difficulty)}
                     </Badge>
                     <span className="text-app-muted font-medium bg-app-background px-2 py-0.5 rounded border border-app-border">
                       Due: {formatFullDate(practice.dueDate, timeZone)}
@@ -67,12 +83,12 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
                 
                 <div className="flex items-center">
                   <Link href={`/student/practice/${practice.id}`} className="w-full sm:w-auto">
-                    <Button 
-                      variant={practice.status === "Completed" ? "outline" : "primary"} 
-                      size="sm" 
-                      className={`w-full font-bold ${practice.status !== 'Completed' ? 'bg-primary text-white hover:opacity-90' : ''}`}
+                    <Button
+                      variant={isCompleted(practice.status) ? "outline" : "primary"}
+                      size="sm"
+                      className={`w-full font-bold ${!isCompleted(practice.status) ? "bg-primary text-white hover:opacity-90" : ""}`}
                     >
-                      {practice.status === "Pending" ? "Start" : practice.status === "In Progress" ? "Resume" : "View Result"}
+                      {isPending(practice.status) ? "Start" : isCompleted(practice.status) ? "View Result" : "Resume"}
                       <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
                     </Button>
                   </Link>
