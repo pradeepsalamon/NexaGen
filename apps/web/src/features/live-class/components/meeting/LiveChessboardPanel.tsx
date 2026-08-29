@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   X,
@@ -12,13 +12,17 @@ import {
   FlipVertical2,
   Crown,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
+import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { useParams } from "next/navigation";
 import { useParticipants } from "@livekit/components-react";
 
 // ─── Board Control Badge ─────────────────────────────────────
@@ -40,9 +44,7 @@ function BoardControlBadge() {
       ) : (
         <Crown className="size-3.5 text-amber-500" />
       )}
-      <span className="text-xs font-semibold text-app-text">
-        {controllerName}
-      </span>
+      <span className="text-xs font-semibold text-app-text">{controllerName}</span>
       <span className="text-[10px] text-app-muted">has control</span>
     </div>
   );
@@ -50,80 +52,113 @@ function BoardControlBadge() {
 
 // ─── Compact Navigation Bar ──────────────────────────────────
 
-const CompactBoardNav = memo(function CompactBoardNav() {
+const CompactBoardNav = memo(function CompactBoardNav({ disabled }: { disabled?: boolean }) {
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  const { undo, redo, reset, setOrientation, orientation, historyIndex, moveHistory } =
-    useBoardStore();
+  const {
+    undo,
+    redo,
+    reset,
+    jumpToStart,
+    jumpToEnd,
+    setOrientation,
+    orientation,
+    historyIndex,
+    moveHistory,
+  } = useBoardStore();
+
+  // AUDIT H8: "Go to start"/"Go to end" both called `reset`, wiping the game
+  // instead of navigating it. `reset` now lives only behind "New game", and is
+  // destructive enough to need a confirmation.
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   if (!isCoach) return null;
 
-  const canUndo = historyIndex >= 0;
-  const canRedo = historyIndex < moveHistory.length - 1;
+  const canUndo = historyIndex >= 0 && !disabled;
+  const canRedo = historyIndex < moveHistory.length - 1 && !disabled;
 
   return (
-    <div className="flex items-center gap-1">
-      <button
-        type="button"
-        onClick={reset}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="Reset board"
-        title="Reset"
-      >
-        <ChevronsLeft className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={undo}
-        disabled={!canUndo}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
-        aria-label="Undo"
-        title="Undo"
-      >
-        <ChevronLeft className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={redo}
-        disabled={!canRedo}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
-        aria-label="Redo"
-        title="Redo"
-      >
-        <ChevronRight className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={reset}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="Go to end"
-        title="Go to end"
-      >
-        <ChevronsRight className="size-4" />
-      </button>
+    <>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={jumpToStart}
+          disabled={!canUndo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Go to start"
+          title="Go to start"
+        >
+          <ChevronsLeft className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={undo}
+          disabled={!canUndo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Undo"
+          title="Undo"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={redo}
+          disabled={!canRedo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Redo"
+          title="Redo"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={jumpToEnd}
+          disabled={!canRedo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Go to end"
+          title="Go to end"
+        >
+          <ChevronsRight className="size-4" />
+        </button>
 
-      <div className="mx-1 h-5 w-px bg-app-border" aria-hidden="true" />
+        <div className="mx-1 h-5 w-px bg-app-border" aria-hidden="true" />
 
-      <button
-        type="button"
-        onClick={() => setOrientation(orientation === "white" ? "black" : "white")}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="Flip board"
-        title="Flip board"
+        <button
+          type="button"
+          onClick={() => setOrientation(orientation === "white" ? "black" : "white")}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+          aria-label="Flip board"
+          title="Flip board"
+        >
+          <FlipVertical2 className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsResetConfirmOpen(true)}
+          disabled={disabled}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="New game"
+          title="New game"
+        >
+          <RotateCcw className="size-4" />
+        </button>
+      </div>
+
+      <ConfirmationModal
+        isOpen={isResetConfirmOpen}
+        onCancel={() => setIsResetConfirmOpen(false)}
+        onConfirm={() => {
+          reset();
+          setIsResetConfirmOpen(false);
+        }}
+        title="Start a new game?"
+        confirmLabel="New game"
       >
-        <FlipVertical2 className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={reset}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="New game"
-        title="New game"
-      >
-        <RotateCcw className="size-4" />
-      </button>
-    </div>
+        This clears the board and move history for everyone in the class. This
+        cannot be undone.
+      </ConfirmationModal>
+    </>
   );
 });
 
@@ -131,8 +166,23 @@ const CompactBoardNav = memo(function CompactBoardNav() {
 
 export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
   const { toggleChessboard } = useLiveClassState();
+  const params = useParams();
+  const roomId = (params?.roomId as string) ?? "";
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const participants = useParticipants();
+
+  // The coach's own dedicated board window, if open, is authoritative — this
+  // in-meeting panel then mirrors it read-only.
+  const boardWindowOpen = useMemo(
+    () => !!user?.id && participants.some((p) => p.identity === `${user.id}_board`),
+    [participants, user?.id],
+  );
+
+  const openBoardWindow = () => {
+    if (!roomId) return;
+    window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
+  };
 
   return (
     <motion.div
@@ -148,19 +198,25 @@ export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
           <BoardControlBadge />
         </div>
         <div className="flex items-center gap-2 pointer-events-auto">
-          {isCoach && (
+          {isCoach && !boardWindowOpen && (
             <div className="bg-app-surface/80 border border-app-border rounded-xl backdrop-blur-md shadow-sm p-1">
               <DrawingToolbar />
             </div>
           )}
+          {isCoach && (
+            <button
+              type="button"
+              onClick={openBoardWindow}
+              className="flex size-9 items-center justify-center rounded-xl border border-app-border bg-app-surface/80 text-app-muted shadow-sm backdrop-blur-md transition-all hover:bg-app-soft hover:text-app-text"
+              aria-label="Open board in a separate window"
+              title="Open board in a separate window"
+            >
+              <ExternalLink className="size-4" />
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => {
-              toggleChessboard();
-              try {
-                window.close();
-              } catch {}
-            }}
+            onClick={() => toggleChessboard()}
             className="flex size-9 items-center justify-center rounded-xl border border-app-border bg-app-surface/80 text-app-muted shadow-sm backdrop-blur-md transition-all hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30"
             aria-label="Close chessboard"
             title="Close chessboard"
@@ -174,19 +230,26 @@ export const LiveChessboardPanel = memo(function LiveChessboardPanel() {
       <PromotionDialog />
 
       {/* Board container — maintains square aspect ratio */}
-      <div
-        className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 relative min-h-0"
-      >
+      <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-6 relative min-h-0">
         <div className="flex flex-col items-center justify-center gap-3 w-full h-full min-h-0">
+          {boardWindowOpen && (
+            <div className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface/80 px-3 py-1.5 text-xs font-medium text-app-muted shadow-sm backdrop-blur-md">
+              <ExternalLink className="size-3.5" />
+              Board is open in a separate window — this is a live preview
+            </div>
+          )}
+
+          <ChessClock />
+
           {/* The board itself */}
-          <div className="aspect-square max-h-[85%] max-w-full rounded-xl shadow-lg overflow-hidden border border-app-border/50 bg-[#e0d8c8] flex-shrink-0">
-            <ChessgroundBoard />
+          <div className="aspect-square max-h-[80%] max-w-full rounded-xl shadow-lg overflow-hidden border border-app-border/50 bg-[#e0d8c8] flex-shrink-0">
+            <ChessgroundBoard readOnly={boardWindowOpen} />
           </div>
 
           {/* Navigation bar (coach-only) */}
           <div className="flex items-center justify-center shrink-0">
             <div className="bg-app-surface/80 border border-app-border rounded-xl backdrop-blur-md shadow-sm px-2 py-1">
-              <CompactBoardNav />
+              <CompactBoardNav disabled={boardWindowOpen} />
             </div>
           </div>
         </div>

@@ -1,28 +1,38 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AdminService } from './admin.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TrashRepository } from '../trash/trash.repository';
 
 describe('AdminService', () => {
   let service: AdminService;
-  let prisma: Partial<PrismaService>;
 
   beforeEach(async () => {
-    prisma = {
-      user: {
+    const prismaService = {
+      user: { findMany: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
+      coachProfile: { update: jest.fn() },
+      coachClass: {
+        create: jest.fn(),
+        findFirst: jest.fn(),
         findMany: jest.fn(),
         findUnique: jest.fn(),
-        update: jest.fn(),
-      } as any,
-      coachProfile: {
-        update: jest.fn(),
-      } as any,
+        update: jest.fn()
+      },
+      $transaction: jest.fn()
     };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
-        { provide: PrismaService, useValue: prisma },
-      ],
+        { provide: PrismaService, useValue: prismaService },
+        {
+          provide: TrashRepository,
+          useValue: {
+            cascadeSoftDelete: jest.fn(),
+            log: jest.fn(),
+            softDelete: jest.fn()
+          }
+        }
+      ]
     }).compile();
 
     service = module.get<AdminService>(AdminService);

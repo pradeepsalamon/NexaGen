@@ -20,18 +20,23 @@ const env = getWebEnv({
   NEXT_PUBLIC_LIVEKIT_URL: process.env.NEXT_PUBLIC_LIVEKIT_URL,
 });
 
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 function ForceOpenBoard() {
   const { isChessboardOpen, setIsChessboardOpen } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   
   // Force the local LiveClassProvider to think the board is open
-  // so that LiveBoardSyncBridge properly broadcasts state and permissions
-  if (!isChessboardOpen && isCoach) {
-    setIsChessboardOpen(true);
-  }
+  // so that LiveBoardSyncBridge properly broadcasts state and permissions.
+  // Must run as an effect — calling setState during render triggers React's
+  // "Cannot update a component while rendering a different component" warning
+  // and can loop (AUDIT H22).
+  useEffect(() => {
+    if (!isChessboardOpen && isCoach) {
+      setIsChessboardOpen(true);
+    }
+  }, [isChessboardOpen, isCoach, setIsChessboardOpen]);
   return null;
 }
 
@@ -93,9 +98,10 @@ export default function LiveClassBoardPage() {
           {/* We wrap it in LiveClassProvider so LiveBoardSyncBridge can access useLiveClassState */}
           <LiveClassProvider topic="Board">
             <BoardProvider>
-              <ForceOpenBoard />
-              <LiveBoardSyncBridge />
-              <BoardWorkspace />
+              <LiveBoardSyncBridge>
+                <ForceOpenBoard />
+                <BoardWorkspace />
+              </LiveBoardSyncBridge>
             </BoardProvider>
           </LiveClassProvider>
         </LiveKitRoom>

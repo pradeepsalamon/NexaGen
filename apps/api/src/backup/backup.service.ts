@@ -88,8 +88,28 @@ export class BackupService {
     }
   }
 
+  /**
+   * Object keys arrive from query params and from `LiveSession.recordingUrl`.
+   * Without this an operator could sign, delete, or restore from *any* object
+   * in the bucket. See AUDIT.md C6.
+   */
+  private assertAllowedKey(key: string, allowedPrefixes: string[]) {
+    const isSafe =
+      typeof key === 'string' &&
+      key.length > 0 &&
+      !key.includes('..') &&
+      !key.startsWith('/') &&
+      allowedPrefixes.some((prefix) => key.startsWith(prefix));
+
+    if (!isSafe) {
+      throw new BadRequestException('Invalid object key.');
+    }
+  }
+
   async getDownloadUrl(key: string): Promise<{ url: string }> {
     const bucketName = this.validateConfig();
+    // Also reached via LiveClassService.downloadRecording.
+    this.assertAllowedKey(key, ['database/', 'recordings/']);
     try {
       const command = new GetObjectCommand({
         Bucket: bucketName,
@@ -105,6 +125,7 @@ export class BackupService {
 
   async deleteBackup(key: string): Promise<{ message: string }> {
     const bucketName = this.validateConfig();
+    this.assertAllowedKey(key, ['database/']);
     try {
       const command = new DeleteObjectCommand({
         Bucket: bucketName,
@@ -184,7 +205,20 @@ export class BackupService {
 
   async restoreBackup(key: string): Promise<{ message: string }> {
     const bucketName = this.validateConfig();
+    this.assertAllowedKey(key, ['database/']);
+
     const downloadPath = path.join('/tmp', `restore-${Date.now()}.sql.gz`);
+    const safetyDumpPath = path.join('/tmp', `pre-restore-${Date.now()}.sql.gz`);
+
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new BadRequestException('DATABASE_URL is not set.');
+    }
+    // pg_dump/psql (libpq) reject Prisma-specific query params like ?schema=public
+    const cleanDbUrl = dbUrl.split('?')[0];
+
+    let schemaWasDropped = false;
+    let restoreSucceeded = false;
 
     try {
       this.logger.log(`Downloading backup ${key} for restoration...`);
@@ -193,7 +227,7 @@ export class BackupService {
         Key: key,
       });
       const response = await this.s3Client.send(getCommand);
-      
+
       // Save stream to file
       const bodyStream = response.Body as NodeJS.ReadableStream;
       await new Promise<void>((resolve, reject) => {
@@ -203,31 +237,76 @@ export class BackupService {
         writeStream.on('finish', resolve);
       });
 
+      // Verify the archive is readable BEFORE destroying the live schema.
+      // Previously a corrupt download left the database empty. See AUDIT.md C6.
+      this.logger.log('Verifying downloaded archive integrity...');
+      await execAsync(`/bin/bash -c "gunzip -t ${downloadPath}"`);
+
+      if (fs.statSync(downloadPath).size === 0) {
+        throw new Error('Downloaded backup is empty.');
+      }
+
+      // Take a local safety dump so an operator can roll back a bad restore.
+      this.logger.log(`Taking pre-restore safety dump to ${safetyDumpPath}...`);
+      await execAsync(
+        `/bin/bash -c "set -o pipefail; pg_dump \\"${cleanDbUrl}\\" | gzip > ${safetyDumpPath}"`
+      );
+
       this.logger.log(`Restoring database from ${downloadPath}...`);
-      
-      const dbUrl = process.env.DATABASE_URL;
-      if (!dbUrl) throw new Error('DATABASE_URL is not set.');
-      
-      // Remove query parameters like ?schema=public
-      const cleanDbUrl = dbUrl.split('?')[0];
-      
-      // 1. Drop and recreate the public schema to ensure a perfectly clean slate
-      // This prevents "relation already exists" and "duplicate key" conflicts.
+
+      // Drop and recreate the public schema for a clean slate. This prevents
+      // "relation already exists" and "duplicate key" conflicts.
       const wipeCommand = `/bin/bash -c "set -o pipefail; psql \\"${cleanDbUrl}\\" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'"`;
       await execAsync(wipeCommand);
-      
-      // 2. Pipe the unzipped sql file into PostgreSQL
-      const restoreCommand = `/bin/bash -c "set -o pipefail; gunzip -c ${downloadPath} | psql \\"${cleanDbUrl}\\""`;
+      schemaWasDropped = true;
+
+      // Pipe the unzipped sql file into PostgreSQL
+      const restoreCommand = `/bin/bash -c "set -o pipefail; gunzip -c ${downloadPath} | psql \\"${cleanDbUrl}\\" -v ON_ERROR_STOP=1"`;
       await execAsync(restoreCommand);
-      
+
+      restoreSucceeded = true;
       this.logger.log(`Database successfully restored from ${key}.`);
       return { message: 'Database successfully restored from backup.' };
     } catch (error) {
       this.logger.error('Restore process failed:', error);
-      throw new InternalServerErrorException('Database restore failed. Check server logs.');
+
+      // The schema is already gone — try to put the previous state back.
+      if (schemaWasDropped && fs.existsSync(safetyDumpPath)) {
+        this.logger.warn('Restore failed after wipe — rolling back to the pre-restore dump...');
+        try {
+          await execAsync(
+            `/bin/bash -c "set -o pipefail; psql \\"${cleanDbUrl}\\" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'"`
+          );
+          await execAsync(
+            `/bin/bash -c "set -o pipefail; gunzip -c ${safetyDumpPath} | psql \\"${cleanDbUrl}\\" -v ON_ERROR_STOP=1"`
+          );
+          this.logger.log('Rollback to the pre-restore state succeeded.');
+          throw new InternalServerErrorException(
+            'Database restore failed. The previous state was rolled back successfully.'
+          );
+        } catch (rollbackError) {
+          if (rollbackError instanceof InternalServerErrorException) {
+            throw rollbackError;
+          }
+          this.logger.error('ROLLBACK FAILED — database may be empty:', rollbackError);
+          throw new InternalServerErrorException(
+            `Database restore failed AND rollback failed. A safety dump was written to ${safetyDumpPath} on the API host — restore it manually before restarting.`
+          );
+        }
+      }
+
+      throw new InternalServerErrorException(
+        'Database restore failed. The database was not modified.'
+      );
     } finally {
       if (fs.existsSync(downloadPath)) {
         fs.unlinkSync(downloadPath);
+      }
+      // Keep the safety dump when anything went wrong after the wipe — it is
+      // the only rollback artifact. Clean it up otherwise.
+      const keepSafetyDump = schemaWasDropped && !restoreSucceeded;
+      if (!keepSafetyDump && fs.existsSync(safetyDumpPath)) {
+        fs.unlinkSync(safetyDumpPath);
       }
     }
   }

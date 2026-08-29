@@ -8,9 +8,10 @@ import type {
 } from "@nexa-chess/types";
 import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
+import { toQueryString, type ListParams } from "@/lib/pagination";
 
-export function listBatches() {
-  return apiFetch<BatchListResponse>(API_ROUTES.batches.list);
+export function listBatches(params: ListParams = {}) {
+  return apiFetch<BatchListResponse>(API_ROUTES.batches.list + toQueryString(params));
 }
 
 export function getAssignableBatchUsers() {

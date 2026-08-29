@@ -1,20 +1,36 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getCurrentUser } from "../features/auth/api/authApi";
+import { queryKeys } from "../lib/queryKeys";
 import { useAuthStore } from "../stores/authStore";
+
+// The only surfaces an anonymous visitor routinely lands on. Everywhere else we
+// still probe the session so a returning user with a valid cookie but no
+// persisted store (e.g. cleared localStorage) is recovered.
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup"]);
 
 export function SessionBootstrap() {
   const router = useRouter();
+  const pathname = usePathname();
   const clearSession = useAuthStore((state) => state.clearSession);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
+  const hasUser = useAuthStore((state) => Boolean(state.user));
   const setSessionChecked = useAuthStore((state) => state.setSessionChecked);
   const setSessionLoading = useAuthStore((state) => state.setSessionLoading);
   const setUser = useAuthStore((state) => state.setUser);
+
+  // Skip the /auth/me call (and its 401 → refresh → 401) for anonymous visitors
+  // on public pages, unless we already hold a persisted user (AUDIT L5).
+  const onPublicPath = pathname != null && PUBLIC_PATHS.has(pathname);
+  const sessionEnabled = isHydrated && (hasUser || !onPublicPath);
+
   const sessionQuery = useQuery({
+    enabled: sessionEnabled,
     queryFn: getCurrentUser,
-    queryKey: ["auth", "me"],
+    queryKey: queryKeys.auth.session,
     retry: false
   });
 
@@ -30,8 +46,17 @@ export function SessionBootstrap() {
   }, [router]);
 
   useEffect(() => {
-    setSessionLoading(sessionQuery.isLoading || sessionQuery.isFetching);
-  }, [sessionQuery.isFetching, sessionQuery.isLoading, setSessionLoading]);
+    if (!isHydrated) return;
+    setSessionLoading(
+      sessionEnabled && (sessionQuery.isLoading || sessionQuery.isFetching)
+    );
+  }, [
+    isHydrated,
+    sessionEnabled,
+    sessionQuery.isFetching,
+    sessionQuery.isLoading,
+    setSessionLoading
+  ]);
 
   useEffect(() => {
     if (sessionQuery.data) {
@@ -46,11 +71,15 @@ export function SessionBootstrap() {
   }, [clearSession, sessionQuery.isError]);
 
   useEffect(() => {
-    if (sessionQuery.isError || sessionQuery.isSuccess) {
+    // Once hydrated, resolve the "checking session" gate as soon as the query
+    // settles — or immediately when it's disabled (anonymous visitor).
+    if (isHydrated && (!sessionEnabled || sessionQuery.isError || sessionQuery.isSuccess)) {
       setSessionChecked(true);
       setSessionLoading(false);
     }
   }, [
+    isHydrated,
+    sessionEnabled,
     sessionQuery.isError,
     sessionQuery.isSuccess,
     setSessionChecked,

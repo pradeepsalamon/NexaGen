@@ -26,6 +26,11 @@ type MockPrismaService = {
   coachProfile: {
     create: jest.Mock;
   };
+  withDeleted: {
+    user: {
+      findUnique: jest.Mock;
+    };
+  };
   $transaction: jest.Mock;
 };
 
@@ -33,18 +38,24 @@ describe("UserService", () => {
   let service: UserService;
   let prismaService: MockPrismaService;
   let jwtService: { verifyAsync: jest.Mock };
-  let trashRepository: { log: jest.Mock };
+  let trashRepository: { cascadeSoftDelete: jest.Mock; log: jest.Mock };
 
   beforeEach(async () => {
+    // `withDeleted` is the same Prisma client with the soft-delete filter
+    // removed, so the double shares one user mock: a test can arrange or assert
+    // through either path.
+    const userMock = {
+      count: jest.fn(),
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn()
+    };
+
     prismaService = {
-      user: {
-        count: jest.fn(),
-        create: jest.fn(),
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        findUniqueOrThrow: jest.fn(),
-        update: jest.fn()
-      },
+      user: userMock,
+      withDeleted: { user: userMock },
       studentProfile: {
         create: jest.fn()
       },
@@ -61,6 +72,7 @@ describe("UserService", () => {
     };
 
     trashRepository = {
+      cascadeSoftDelete: jest.fn(),
       log: jest.fn()
     };
 
@@ -121,13 +133,20 @@ describe("UserService", () => {
           username: null
         }
       ]);
+      prismaService.user.count.mockResolvedValueOnce(1);
 
       const result = await service.list("token");
 
       expect(result.users).toHaveLength(1);
       expect(result.users[0].id).toBe("user-1");
+      expect(result.pagination).toEqual({
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1
+      });
       expect(prismaService.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isDeleted: false } })
+        expect.objectContaining({ where: { isDeleted: false }, skip: 0, take: 20 })
       );
     });
 
@@ -321,7 +340,7 @@ describe("UserService", () => {
       );
     });
 
-    it("soft deletes a permitted user and logs trash metadata", async () => {
+    it("cascade soft deletes a permitted user with trash metadata", async () => {
       mockAuthContext();
       prismaService.user.findUnique.mockResolvedValueOnce({
         email: "student@example.com",
@@ -331,19 +350,12 @@ describe("UserService", () => {
 
       const result = await service.delete("token", "student-1");
 
-      expect(prismaService.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ isDeleted: true }),
-          where: { id: "student-1" }
-        })
-      );
-      expect(trashRepository.log).toHaveBeenCalledWith(
+      expect(trashRepository.cascadeSoftDelete).toHaveBeenCalledWith(
         prismaService,
-        expect.objectContaining({
-          entity: "User",
-          entityId: "student-1",
-          metadata: { title: "student@example.com" }
-        })
+        "User",
+        "student-1",
+        expect.any(String),
+        { metadata: { title: "student@example.com" } }
       );
       expect(result.ok).toBe(true);
     });

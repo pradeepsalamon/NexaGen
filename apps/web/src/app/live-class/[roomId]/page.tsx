@@ -3,14 +3,15 @@
 import "@livekit/components-styles";
 import "@livekit/components-styles/prefabs";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useLiveClass } from "@/features/live-class/hooks/useLiveClass";
+import { hasJoinedSession, markJoinedSession } from "@/features/live-class/lib/joinedSession";
 import { LiveClassProvider } from "@/features/live-class/providers/LiveClassProvider";
 import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
 import { PreJoinCard } from "@/features/live-class/components/prejoin/PreJoinCard";
 import { LoadingMeeting } from "@/features/live-class/components/states/LoadingMeeting";
-import { ConnectionLost, PermissionDenied, RoomEnded, ClassNotStarted } from "@/features/live-class/components/states/ErrorStates";
+import { ConnectionLost, PermissionDenied, RoomEnded, ClassNotStarted, WaitingForCoach } from "@/features/live-class/components/states/ErrorStates";
 import { Header } from "@/components/layout/Header";
 
 export default function LiveClassPage() {
@@ -18,7 +19,20 @@ export default function LiveClassPage() {
   const roomId = params.roomId as string;
 
   const [hasJoined, setHasJoined] = useState(false);
-  const { token, topic, error, isLoading, classStatus, startedAt, endsAt } = useLiveClass(roomId, hasJoined);
+  const { token, topic, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry } =
+    useLiveClass(roomId, hasJoined);
+
+  // Rehydrate the "already joined" flag so a mid-class refresh / reconnect
+  // reload skips PreJoin instead of forcing a full re-join (AUDIT H16). Done in
+  // an effect (not lazy init) to avoid an SSR/client hydration mismatch.
+  useEffect(() => {
+    if (hasJoinedSession(roomId)) setHasJoined(true);
+  }, [roomId]);
+
+  const join = () => {
+    markJoinedSession(roomId);
+    setHasJoined(true);
+  };
 
   const headerCenter = (
     <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
@@ -46,6 +60,17 @@ export default function LiveClassPage() {
           <Header centerSlot={headerCenter} />
           <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
             <ClassNotStarted roomId={roomId} onRetry={() => window.location.reload()} />
+          </div>
+        </div>
+      );
+    }
+
+    if (errorCode === "COACH_NOT_JOINED") {
+      return (
+        <div className="flex flex-col h-screen">
+          <Header centerSlot={headerCenter} />
+          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
+            <WaitingForCoach onRetry={retry} />
           </div>
         </div>
       );
@@ -88,7 +113,7 @@ export default function LiveClassPage() {
       <div className="flex flex-col h-screen">
         <Header centerSlot={headerCenter} />
         <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16">
-          <PreJoinCard topic={topic} status={classStatus as any} onJoin={() => setHasJoined(true)} />
+          <PreJoinCard topic={topic} status={classStatus as any} onJoin={join} />
         </div>
       </div>
     );

@@ -1,12 +1,17 @@
 "use client";
 
-import { useConnectionState, useConnectionQualityIndicator } from "@livekit/components-react";
+import {
+  useConnectionState,
+  useConnectionQualityIndicator,
+  useIsRecording,
+} from "@livekit/components-react";
 import { ConnectionState, ConnectionQuality, type Participant } from "livekit-client";
 import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
+import { useOptionalLiveClassState } from "../../providers/LiveClassProvider";
 import { Timer, Wifi, WifiOff, Radio, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 
@@ -135,7 +140,7 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
 export function TimerBadge({ className, startedAt, endsAt }: { className?: string, startedAt?: string | null, endsAt?: string | null }) {
   const { formatted, isRunning, toggleMode, mode, remainingSeconds, isOvertime } = useMeetingTimer(startedAt, endsAt);
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const toastShownRef = useRef<{ fiveMin: boolean, oneMin: boolean }>({ fiveMin: false, oneMin: false });
 
   useEffect(() => {
@@ -207,12 +212,17 @@ export function TimerBadge({ className, startedAt, endsAt }: { className?: strin
 // ─── Recording Badge ─────────────────────────────────────────
 
 export function RecordingBadge({
-  isRecording = false,
+  isRecording: isRecordingProp,
   className,
 }: {
   isRecording?: boolean;
   className?: string;
 }) {
+  const lkRecording = useIsRecording();
+  const contextState = useOptionalLiveClassState();
+  const isRecording =
+    isRecordingProp ?? (lkRecording || contextState?.isRecording || false);
+
   if (!isRecording) return null;
 
   return (

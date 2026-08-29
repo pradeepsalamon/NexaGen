@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateBatchRequest, UpdateBatchRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
+import type { ListParams } from "@/lib/pagination";
 import {
   archiveBatch,
   createBatch,
@@ -11,10 +12,11 @@ import {
   updateBatch
 } from "../api/batchApi";
 
-export function useBatchesQuery() {
+export function useBatchesQuery(params: ListParams = {}) {
   return useQuery({
-    queryFn: listBatches,
-    queryKey: queryKeys.batches.all
+    queryFn: () => listBatches(params),
+    queryKey: queryKeys.batches.list(params),
+    placeholderData: keepPreviousData
   });
 }
 

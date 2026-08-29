@@ -5,10 +5,12 @@ import {
   UnauthorizedException,
   ConflictException,
   BadRequestException,
+  ServiceUnavailableException,
   Logger,
   Inject,
   forwardRef
 } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
@@ -22,6 +24,9 @@ import { BackupService } from "../backup/backup.service";
 
 @Injectable()
 export class LiveClassService {
+  // Postgres advisory-lock key for the stale-class sweep (AUDIT M21).
+  private static readonly STALE_CLASS_LOCK_ID = 73002002;
+
   private readonly env = getApiEnv();
   private readonly logger = new Logger(LiveClassService.name);
 
@@ -57,6 +62,37 @@ export class LiveClassService {
     } catch (error) {
       throw new UnauthorizedException("Invalid or expired token.");
     }
+  }
+
+  /**
+   * Loads the live session for a class and asserts the caller may participate in
+   * it: the owning coach, a student enrolled in the batch, or an admin.
+   */
+  private async getAccessibleLiveSession(
+    user: { id: string; role: UserRole },
+    classId: string,
+    notFoundMessage = "Live session not found."
+  ) {
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+      include: { batch: { include: { students: { where: { isDeleted: false } } } } }
+    });
+
+    if (!liveSession) {
+      throw new NotFoundException(notFoundMessage);
+    }
+
+    const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
+    const isStudent =
+      user.role === UserRole.STUDENT &&
+      !!liveSession.batch?.students.some((s) => s.studentId === user.id);
+    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+
+    if (!isCoach && !isStudent && !isAdmin) {
+      throw new ForbiddenException("You do not have access to this class.");
+    }
+
+    return liveSession;
   }
 
   async startClass(accessToken: string | undefined, classId: string) {
@@ -116,16 +152,14 @@ export class LiveClassService {
       });
     }
 
-    const originalDurationMs = scheduledClass.endsAt.getTime() - scheduledClass.startsAt.getTime();
-    const now = new Date();
-
+    // Only the status changes. `startsAt`/`endsAt` are the *scheduled* window
+    // and must stay immutable — overwriting them destroyed the schedule, made
+    // "scheduled duration" equal the actual duration, and forced the coach
+    // late-start metric to always be zero. Actual times live on the
+    // LiveSession (`startedAt` / `endedAt`). See AUDIT.md H2.
     await this.prisma.coachClass.update({
       where: { id: classId },
-      data: { 
-        status: ClassStatus.LIVE,
-        startsAt: now,
-        endsAt: new Date(now.getTime() + originalDurationMs)
-      }
+      data: { status: ClassStatus.LIVE }
     });
 
     return { message: "Class started successfully", liveSession };
@@ -171,17 +205,31 @@ export class LiveClassService {
     }
 
     if (isStudent) {
+      const coachNotJoined = new BadRequestException({
+        // AUDIT H14: a structured `code` lets the web app branch on this
+        // specific, common, non-terminal condition instead of substring-
+        // matching `message` (which fell through to a generic "Connection
+        // Lost" screen with no retry).
+        message: "Coach has not joined the meeting yet. Please wait.",
+        code: "COACH_NOT_JOINED"
+      });
+
+      let participants: Awaited<ReturnType<typeof this.livekit.listParticipants>>;
       try {
-        const participants = await this.livekit.listParticipants(liveSession.roomName);
-        const hasCoach = participants.some(p => p.identity === liveSession.coachId);
-        
-        if (!hasCoach) {
-          throw new BadRequestException("Coach has not joined the meeting yet. Please wait.");
-        }
+        // `listParticipants` returns `[]` for a not-yet-created room and only
+        // throws on a real LiveKit outage, which must not be disguised as
+        // "coach hasn't joined" (AUDIT M22).
+        participants = await this.livekit.listParticipants(liveSession.roomName);
       } catch (error) {
-        if (error instanceof BadRequestException) throw error;
-        // If room doesn't exist yet or livekit api fails, assume coach isn't there
-        throw new BadRequestException("Coach has not joined the meeting yet. Please wait.");
+        this.logger.error(`LiveKit listParticipants failed for ${liveSession.roomName}`, error as Error);
+        throw new ServiceUnavailableException({
+          message: "The live class service is temporarily unavailable. Please try again.",
+          code: "LIVEKIT_UNAVAILABLE"
+        });
+      }
+
+      if (!participants.some(p => p.identity === liveSession.coachId)) {
+        throw coachNotJoined;
       }
     }
 
@@ -236,22 +284,32 @@ export class LiveClassService {
   }
 
   private async internalEndClass(classId: string, liveSessionId: string, roomName: string) {
-    await this.livekit.deleteRoom(roomName);
-
-    await this.prisma.liveSession.update({
-      where: { id: liveSessionId },
+    // Idempotent: only the run that actually flips LIVE -> ENDED does the work,
+    // so a retry (or the per-minute cron racing a manual end) can't double-
+    // finalize attendance or re-delete the room (AUDIT M21).
+    const { count } = await this.prisma.liveSession.updateMany({
+      where: { id: liveSessionId, status: LiveSessionStatus.LIVE },
       data: {
         status: LiveSessionStatus.ENDED,
         endedAt: new Date()
       }
     });
 
+    if (count === 0) {
+      return;
+    }
+
+    try {
+      await this.livekit.deleteRoom(roomName);
+    } catch (error) {
+      this.logger.warn(`Failed to delete LiveKit room ${roomName}`, error);
+    }
+
+    // `endsAt` stays as scheduled — the real end time is LiveSession.endedAt,
+    // which was just written above. See AUDIT.md H2.
     await this.prisma.coachClass.update({
       where: { id: classId },
-      data: { 
-        status: ClassStatus.COMPLETED,
-        endsAt: new Date()
-      }
+      data: { status: ClassStatus.COMPLETED }
     });
 
     // Finalize attendance calculations for all students
@@ -265,8 +323,29 @@ export class LiveClassService {
   @Cron(CronExpression.EVERY_MINUTE)
   async handleStaleClasses() {
     try {
+      // Only one instance should sweep stale classes per tick (AUDIT M21).
+      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
+        SELECT pg_try_advisory_lock(${LiveClassService.STALE_CLASS_LOCK_ID}) AS locked
+      `;
+      if (!lock?.locked) {
+        return;
+      }
+
+      try {
+        await this.sweepStaleClasses();
+      } finally {
+        await this.prisma.$queryRaw`
+          SELECT pg_advisory_unlock(${LiveClassService.STALE_CLASS_LOCK_ID})
+        `;
+      }
+    } catch (error) {
+      this.logger.error("Error in handleStaleClasses cron job", error);
+    }
+  }
+
+  private async sweepStaleClasses() {
       const now = new Date();
-      
+
       // Find all LIVE sessions whose scheduled end time has passed
       const activeSessions = await this.prisma.liveSession.findMany({
         where: {
@@ -295,9 +374,6 @@ export class LiveClassService {
           this.logger.error(`Failed to auto-end class ${session.classId}`, error);
         }
       }
-    } catch (error) {
-      this.logger.error("Error in handleStaleClasses cron job", error);
-    }
   }
 
   async getLiveClass(accessToken: string | undefined, classId: string) {
@@ -323,29 +399,18 @@ export class LiveClassService {
     }
 
     // Exclude the deeply nested batch details before returning to avoid over-fetching/leaking
-    const { batch, ...classWithoutBatch } = scheduledClass;
+    const { batch: _batch, ...classWithoutBatch } = scheduledClass;
 
     return classWithoutBatch;
   }
 
   async getParticipants(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
-    const liveSession = await this.prisma.liveSession.findUnique({
-      where: { classId },
-      include: { batch: { include: { students: { where: { isDeleted: false } } } } }
-    });
-
-    if (!liveSession) {
-      throw new NotFoundException("Live class not found.");
-    }
-
-    const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
-    const isStudent = user.role === UserRole.STUDENT && liveSession.batch?.students.some((s: any) => s.studentId === user.id);
-    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
-
-    if (!isCoach && !isStudent && !isAdmin) {
-      throw new ForbiddenException("You do not have access to this class's participants.");
-    }
+    const liveSession = await this.getAccessibleLiveSession(
+      user,
+      classId,
+      "Live class not found."
+    );
 
     const participants = await this.livekit.listParticipants(liveSession.roomName);
     return { participants };
@@ -399,7 +464,10 @@ export class LiveClassService {
       throw new ForbiddenException("This class is not a demo class.");
     }
 
-    const participantIdentity = `guest_${Math.random().toString(36).substring(7)}`;
+    // `crypto.randomUUID()` — the old `Math.random().toString(36).substring(7)`
+    // yielded ~4 chars, so two guests could collide and LiveKit would evict the
+    // earlier one for a duplicate identity (AUDIT M18).
+    const participantIdentity = `guest_${randomUUID()}`;
 
     const tokenOptions: LiveKitTokenOptions = {
       roomName: liveSession.roomName,
@@ -411,36 +479,48 @@ export class LiveClassService {
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
     const topic = liveSession.class?.topic || liveSession.class?.title || "Demo Class";
 
-    // Track guest participant in metadata
-    const metadata = (liveSession.metadata as Record<string, any>) || {};
-    const participants = metadata.participants || [];
-    participants.push({
-      name: body.guestName,
-      joinedAt: new Date().toISOString()
-    });
-    
-    await this.prisma.liveSession.update({
-      where: { id: liveSession.id },
-      data: { metadata: { ...metadata, participants } }
-    });
+    // Append the guest to metadata.participants with a single atomic JSONB
+    // update, so concurrent guest joins don't clobber each other's entries via
+    // a read-modify-write race (AUDIT M19).
+    const guestEntry = JSON.stringify([
+      { name: body.guestName, joinedAt: new Date().toISOString() }
+    ]);
+    await this.prisma.$executeRaw`
+      UPDATE "live_sessions"
+      SET "metadata" = jsonb_set(
+        COALESCE("metadata", '{}'::jsonb),
+        '{participants}',
+        COALESCE("metadata" -> 'participants', '[]'::jsonb) || ${guestEntry}::jsonb,
+        true
+      )
+      WHERE "id" = ${liveSession.id}
+    `;
 
     return { token: livekitToken, roomName: liveSession.roomName, topic };
   }
 
-  async saveChatMessage(accessToken: string | undefined, classId: string, message: string) {
+  async saveChatMessage(
+    accessToken: string | undefined,
+    classId: string,
+    message: string,
+    clientMessageId?: string
+  ) {
     const user = await this.getAuthenticatedUser(accessToken);
 
-    const liveSession = await this.prisma.liveSession.findUnique({
-      where: { classId },
-    });
-
-    if (!liveSession) {
-      throw new NotFoundException("Live session not found.");
+    const trimmed = typeof message === "string" ? message.trim() : "";
+    if (!trimmed) {
+      throw new BadRequestException("Message cannot be empty.");
+    }
+    if (trimmed.length > 2000) {
+      throw new BadRequestException("Message is too long (2000 characters max).");
     }
 
-    const name = user.role === UserRole.COACH 
-      ? `${user.firstName} ${user.lastName}` 
-      : `${user.firstName}`; // Could use identity logic if needed
+    const liveSession = await this.getAccessibleLiveSession(user, classId);
+
+    const name = [user.firstName, user.role === UserRole.COACH ? user.lastName : null]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
 
     return this.prisma.liveChatMessage.create({
       data: {
@@ -448,21 +528,15 @@ export class LiveClassService {
         senderId: user.id,
         senderName: name,
         senderRole: user.role,
-        message,
+        message: trimmed,
+        clientMessageId: clientMessageId ?? null,
       },
     });
   }
 
   async getChatHistory(accessToken: string | undefined, classId: string) {
-    await this.getAuthenticatedUser(accessToken); // Just to verify access
-
-    const liveSession = await this.prisma.liveSession.findUnique({
-      where: { classId },
-    });
-
-    if (!liveSession) {
-      throw new NotFoundException("Live session not found.");
-    }
+    const user = await this.getAuthenticatedUser(accessToken);
+    const liveSession = await this.getAccessibleLiveSession(user, classId);
 
     return this.prisma.liveChatMessage.findMany({
       where: { liveSessionId: liveSession.id },
@@ -500,11 +574,18 @@ export class LiveClassService {
 
     const egressId = await this.livekit.startRecording(liveSession.roomName, filepath);
 
+    // Do NOT set `recordingUrl` yet — a failed egress would leave a Download
+    // button that 404s. It's set from the `egress_ended` webhook only when the
+    // recording actually completes (AUDIT M20).
     await this.prisma.liveSession.update({
       where: { id: liveSession.id },
       data: {
-        metadata: { ...metadata, egressId },
-        recordingUrl: filepath,
+        metadata: {
+          ...metadata,
+          egressId,
+          recordingFilepath: filepath,
+          recordingStatus: "RECORDING",
+        },
       },
     });
 
@@ -532,30 +613,150 @@ export class LiveClassService {
 
     await this.livekit.stopRecording(metadata.egressId);
 
-    const { egressId, ...restMetadata } = metadata;
+    const { egressId: _egressId, ...restMetadata } = metadata;
 
+    // Keep `recordingFilepath`/`recordingStatus`; the `egress_ended` webhook
+    // resolves the final state and sets `recordingUrl` on success (AUDIT M20).
     await this.prisma.liveSession.update({
       where: { id: liveSession.id },
       data: {
-        metadata: restMetadata,
+        metadata: { ...restMetadata, recordingStatus: "STOPPING" },
       },
     });
 
     return { success: true };
   }
 
+  /**
+   * Finalises or updates recording state from LiveKit egress webhooks:
+   * - `egress_started` / `egress_updated`: Marks status as RECORDING (or STOPPING).
+   * - `egress_ended`: Sets `recordingUrl` only on successful completion with normalized S3 key.
+   */
+  async handleEgressEnded(egressInfo: {
+    eventType?: string;
+    egressId?: string;
+    roomName?: string;
+    status?: string | number;
+    file?: { location?: string; filename?: string };
+    fileResults?: Array<{ location?: string; filename?: string }>;
+  }) {
+    const roomName = egressInfo.roomName;
+    const egressId = egressInfo.egressId;
+
+    let liveSession = roomName
+      ? await this.prisma.liveSession.findUnique({ where: { roomName } })
+      : null;
+
+    // Fall back to finding by active live session with matching egressId in metadata
+    if (!liveSession && egressId) {
+      const activeSessions = await this.prisma.liveSession.findMany({
+        where: {
+          status: { in: [LiveSessionStatus.LIVE, LiveSessionStatus.ENDED] },
+        },
+      });
+      liveSession =
+        activeSessions.find(
+          (s) => (s.metadata as Record<string, any>)?.egressId === egressId
+        ) || null;
+    }
+
+    if (!liveSession) return;
+
+    const metadata = (liveSession.metadata as Record<string, any>) || {};
+    const statusStr = String(egressInfo.status ?? "").toUpperCase();
+    const eventType = egressInfo.eventType || "";
+
+    // Egress active / starting
+    if (
+      eventType === "egress_started" ||
+      statusStr === "1" ||
+      statusStr === "EGRESS_ACTIVE" ||
+      statusStr === "0" ||
+      statusStr === "EGRESS_STARTING"
+    ) {
+      await this.prisma.liveSession.update({
+        where: { id: liveSession.id },
+        data: {
+          metadata: {
+            ...metadata,
+            ...(egressId ? { egressId } : {}),
+            recordingStatus: "RECORDING",
+          },
+        },
+      });
+      return;
+    }
+
+    // Egress ending / stopping
+    if (statusStr === "2" || statusStr === "EGRESS_ENDING") {
+      await this.prisma.liveSession.update({
+        where: { id: liveSession.id },
+        data: {
+          metadata: {
+            ...metadata,
+            recordingStatus: "STOPPING",
+          },
+        },
+      });
+      return;
+    }
+
+    // Egress ended / complete or failed
+    const completed =
+      statusStr === "3" ||
+      statusStr === "EGRESS_COMPLETE" ||
+      /complete/i.test(statusStr);
+
+    const fileResult = egressInfo.fileResults?.[0] ?? egressInfo.file;
+    const rawLocation =
+      fileResult?.filename || fileResult?.location || metadata.recordingFilepath || null;
+
+    // Normalize S3 key to recordings/...
+    const normalizeRecordingKey = (raw: string | null): string | null => {
+      if (!raw) return null;
+      const match = raw.match(/(recordings\/[^\s?#]+)/);
+      if (match) return match[1];
+      return raw.startsWith("/") ? raw.slice(1) : raw;
+    };
+
+    const location = normalizeRecordingKey(rawLocation);
+
+    const { egressId: _activeEgressId, ...restMetadata } = metadata;
+
+    await this.prisma.liveSession.update({
+      where: { id: liveSession.id },
+      data: {
+        recordingUrl: completed ? location : null,
+        metadata: {
+          ...restMetadata,
+          recordingFilepath: location || metadata.recordingFilepath,
+          recordingStatus: completed ? "COMPLETED" : "FAILED",
+        },
+      },
+    });
+  }
+
   async downloadRecording(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
-    
+
     const liveSession = await this.prisma.liveSession.findUnique({
       where: { classId },
       include: {
         batch: {
           include: {
             students: true,
-          }
-        }
-      }
+          },
+        },
+        class: {
+          include: {
+            batch: {
+              include: {
+                students: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!liveSession || !liveSession.recordingUrl) {
@@ -568,7 +769,11 @@ export class LiveClassService {
     } else if (user.role === UserRole.COACH && liveSession.coachId === user.id) {
       isAuthorized = true;
     } else if (user.role === UserRole.STUDENT) {
-      const isStudentInBatch = liveSession.batch?.students.some(s => s.studentId === user.id);
+      const batchStudents =
+        liveSession.batch?.students || liveSession.class?.batch?.students || [];
+      const isStudentInBatch = batchStudents.some(
+        (s) => s.studentId === user.id && !s.isDeleted
+      );
       if (isStudentInBatch) {
         isAuthorized = true;
       }

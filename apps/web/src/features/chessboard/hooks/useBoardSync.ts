@@ -1,256 +1,436 @@
-import { useContext, useEffect, useCallback, useRef } from "react";
-import { useDataChannel, useLocalParticipant, useConnectionState } from "@livekit/components-react";
-import { ConnectionState } from "livekit-client";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+  useRef,
+} from "react";
+import {
+  useDataChannel,
+  useLocalParticipant,
+  useParticipants,
+  useConnectionState,
+} from "@livekit/components-react";
+import { ConnectionState, type DataPublishOptions } from "livekit-client";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardSyncMessage } from "../types/sync";
-import { useAuthStore } from "@/stores/authStore";
+import { senderMayMutateBoard } from "../lib/boardSyncRules";
+import { applyMoveToClock } from "../lib/clock";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 import { toast } from "sonner";
 
 const BOARD_SYNC_TOPIC = "board_sync";
 
-export function useBoardSync() {
+/**
+ * Role comes from LiveKit participant metadata, which the server signs into the
+ * access token. Students are issued `canUpdateOwnMetadata: false`, so this
+ * cannot be forged client-side.
+ */
+function isCoachParticipant(from?: { metadata?: string }) {
+  if (!from?.metadata) return false;
+  try {
+    return JSON.parse(from.metadata).role === "COACH";
+  } catch {
+    return false;
+  }
+}
+
+export interface BoardSyncActions {
+  broadcastState: (type?: BoardSyncMessage["type"]) => void;
+  broadcastAnnotations: () => void;
+  broadcastPermissions: () => void;
+  requestControl: () => void;
+  /** Student: stop following the coach and snap back later via "resync". */
+  requestResync: () => void;
+}
+
+/**
+ * Context so the sync engine runs exactly once per board (in
+ * `LiveBoardSyncBridge`) while any component can still call the actions.
+ * Registering the LiveKit data channel / store subscriber in multiple
+ * components duplicated every broadcast and played move sounds N times.
+ */
+export const BoardSyncContext = createContext<BoardSyncActions | null>(null);
+
+export function useBoardSync(): BoardSyncActions {
+  const ctx = useContext(BoardSyncContext);
+  if (!ctx) {
+    throw new Error("useBoardSync must be used within a <LiveBoardSyncBridge>");
+  }
+  return ctx;
+}
+
+/**
+ * The single sync engine. Call once, inside both `<BoardProvider>` and
+ * `<LiveKitRoom>`; provide the result through `BoardSyncContext`.
+ */
+export function useBoardSyncEngine(): BoardSyncActions {
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  // ADMIN was previously omitted here, leaving admins driving the board as if
+  // they were students (AUDIT L6).
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
+  const participants = useParticipants();
   const liveClassState = useOptionalLiveClassState();
-  
+
   const store = useContext(BoardContext);
-  
-  const { 
-    fen, pgn, orientation, arrows, squareStyles, permissionMode, selectedStudentId,
-    activeTab, pdfUrl,
-    syncFromRemote
-  } = useBoardStore();
 
-  const lastMoveType = usePersistedStore((state) => state.lastMoveType);
+  // `syncFromRemote` is a stable store action. Everything else is read via
+  // `store.getState()` inside the callbacks below rather than destructured
+  // reactively, so a board change doesn't re-render this hook (and re-register
+  // the LiveKit data channel) on every move (AUDIT M28).
+  const syncFromRemote = useBoardStore((state) => state.syncFromRemote);
 
-  const sendRef = useRef<any>(null);
-
+  const sendRef = useRef<
+    ((payload: Uint8Array, options: DataPublishOptions) => Promise<void>) | null
+  >(null);
   const connectionState = useConnectionState();
 
-  // Helper to send messages
-  const broadcastMsg = useCallback((msg: BoardSyncMessage) => {
-    if (!localParticipant || !sendRef.current || connectionState !== ConnectionState.Connected) return;
-    try {
-      const encoder = new TextEncoder();
-      const payload = encoder.encode(JSON.stringify(msg));
-      sendRef.current(payload, { reliable: true });
-    } catch (e) {
-      console.error("Failed to broadcast board sync message", e);
-    }
-  }, [localParticipant, connectionState]);
+  // The coach's board pop-out window (`${userId}_board`) is authoritative while
+  // it is open: the main meeting window then mirrors it read-only and must not
+  // also broadcast, or moves echo/reorder between the two coach participants.
+  const suppressBroadcast = useMemo(() => {
+    if (!isCoach || !user?.id || !localParticipant) return false;
+    const boardIdentity = `${user.id}_board`;
+    if (localParticipant.identity === boardIdentity) return false;
+    return participants.some((p) => p.identity === boardIdentity);
+  }, [isCoach, user?.id, localParticipant, participants]);
 
-  // High level actions for UI components to call
-  const broadcastState = useCallback((type: BoardSyncMessage["type"] = "MOVE") => {
-    broadcastMsg({
-      type,
-      payload: { fen, pgn, orientation, moveType: type === "MOVE" ? lastMoveType : undefined }
-    });
-  }, [broadcastMsg, fen, pgn, orientation, lastMoveType]);
+  const broadcastMsg = useCallback(
+    (msg: BoardSyncMessage) => {
+      if (
+        !localParticipant ||
+        !sendRef.current ||
+        connectionState !== ConnectionState.Connected
+      ) {
+        return;
+      }
+      try {
+        const encoder = new TextEncoder();
+        const payload = encoder.encode(JSON.stringify(msg));
+        sendRef.current(payload, { reliable: true });
+      } catch (e) {
+        console.error("Failed to broadcast board sync message", e);
+      }
+    },
+    [localParticipant, connectionState],
+  );
+
+  const snapshot = useCallback(() => {
+    const s = store?.getState();
+    if (!s) return null;
+    return {
+      fen: s.fen,
+      // Full mainline + the viewed ply so receivers step history with us
+      // instead of snapping to the end (AUDIT H21).
+      pgn: s.fullPgn || s.pgn,
+      historyIndex: s.historyIndex,
+      orientation: s.orientation,
+      arrows: s.arrows,
+      squares: s.squareStyles,
+      activeTab: s.activeTab,
+      pdfUrl: s.pdfUrl,
+      clock: s.clock,
+    };
+  }, [store]);
+
+  const broadcastState = useCallback(
+    (type: BoardSyncMessage["type"] = "MOVE") => {
+      const snap = snapshot();
+      if (!snap) return;
+      broadcastMsg({
+        type: type as "MOVE" | "UNDO" | "REDO" | "RESET" | "FORCE_SYNC",
+        payload: {
+          fen: snap.fen,
+          pgn: snap.pgn,
+          historyIndex: snap.historyIndex,
+          orientation: snap.orientation,
+          ...(type === "FORCE_SYNC"
+            ? {
+                arrows: snap.arrows,
+                squares: snap.squares,
+                activeTab: snap.activeTab,
+                pdfUrl: snap.pdfUrl,
+                clock: snap.clock,
+              }
+            : {}),
+          ...(type === "MOVE"
+            ? { moveType: usePersistedStore.getState().lastMoveType }
+            : {}),
+        },
+      });
+    },
+    [broadcastMsg, snapshot],
+  );
 
   const broadcastAnnotations = useCallback(() => {
+    const s = store?.getState();
+    if (!s) return;
     broadcastMsg({
       type: "UPDATE_ANNOTATIONS",
-      payload: { arrows, squares: squareStyles }
+      payload: { arrows: s.arrows, squares: s.squareStyles },
     });
-  }, [broadcastMsg, arrows, squareStyles]);
+  }, [broadcastMsg, store]);
 
   const broadcastPermissions = useCallback(() => {
+    const s = store?.getState();
+    if (!s) return;
     broadcastMsg({
       type: "UPDATE_PERMISSIONS",
-      payload: { mode: permissionMode, selectedStudentId }
+      payload: { mode: s.permissionMode, selectedStudentId: s.selectedStudentId },
     });
-  }, [broadcastMsg, permissionMode, selectedStudentId]);
+  }, [broadcastMsg, store]);
 
   const requestControl = useCallback(() => {
-    if (!user) return;
+    if (!user || !localParticipant) return;
     const name = `${user.firstName} ${user.lastName || ""}`.trim();
     broadcastMsg({
       type: "REQUEST_CONTROL",
-      payload: { studentId: user.id, studentName: name }
+      payload: { identity: localParticipant.identity, studentName: name },
     });
     toast.success("Requested board control from coach");
-  }, [broadcastMsg, user]);
+  }, [broadcastMsg, user, localParticipant]);
 
-  const isRemoteUpdateRef = useRef(false);
+  const requestResync = useCallback(() => {
+    store?.getState().resyncBoard();
+    broadcastMsg({ type: "REQUEST_SYNC" });
+  }, [broadcastMsg, store]);
 
-  // Mark the next store change as remote-originated so it isn't echoed back.
-  // The flag auto-expires because some remote messages (e.g. UPDATE_PERMISSIONS)
-  // don't produce a board change, and would otherwise suppress the following
-  // local move broadcast.
-  const markRemoteUpdate = useCallback(() => {
-    isRemoteUpdateRef.current = true;
-    setTimeout(() => {
-      isRemoteUpdateRef.current = false;
-    }, 0);
-  }, []);
+  const handleIncomingSync = useCallback(
+    (msg: BoardSyncMessage, isFromCoach: boolean, fromIdentity: string | undefined) => {
+      if (!store) return;
+      const current = store.getState();
 
-  const handleIncomingSync = useCallback((msg: BoardSyncMessage) => {
-    switch (msg.type) {
-      case "MOVE":
-      case "UNDO":
-      case "REDO":
-      case "RESET":
-      case "FORCE_SYNC":
-        if (msg.payload && msg.payload.fen) {
-          markRemoteUpdate();
-          syncFromRemote({
-            fen: msg.payload.fen,
-            pgn: msg.payload.pgn || "",
-            ...(msg.payload.orientation ? { orientation: msg.payload.orientation } : {}),
-            // FORCE_SYNC carries the full board snapshot, including annotations
-            ...(Array.isArray(msg.payload.arrows) ? { arrows: msg.payload.arrows } : {}),
-            ...(msg.payload.squares ? { squareStyles: msg.payload.squares } : {})
-          });
-        }
-        break;
-      case "UPDATE_ANNOTATIONS":
-        if (msg.payload) {
-          markRemoteUpdate();
-          syncFromRemote({
-            arrows: msg.payload.arrows || [],
-            squareStyles: msg.payload.squares || {}
-          });
-        }
-        break;
-      case "UPDATE_PERMISSIONS":
-        if (msg.payload && msg.payload.mode) {
-          markRemoteUpdate();
-          syncFromRemote({
-            permissionMode: msg.payload.mode,
-            selectedStudentId: msg.payload.selectedStudentId
-          });
-          if (liveClassState?.setBoardControlStudent) {
-            liveClassState.setBoardControlStudent(msg.payload.selectedStudentId || null);
-          }
-        }
-        break;
-      case "SET_UI_STATE":
-        if (msg.payload && (msg.payload.activeTab !== undefined || msg.payload.pdfUrl !== undefined)) {
-          markRemoteUpdate();
-          syncFromRemote({
-            ...(msg.payload.activeTab !== undefined ? { activeTab: msg.payload.activeTab } : {}),
-            ...(msg.payload.pdfUrl !== undefined ? { pdfUrl: msg.payload.pdfUrl } : {})
-          });
-        }
-        break;
-      case "REQUEST_SYNC":
-        // A late joiner requested a sync. If we are the coach, send full state.
-        if (isCoach) {
-          const snapshot = store?.getState();
-          broadcastMsg({
-            type: "FORCE_SYNC",
-            payload: {
-              fen: snapshot?.fen ?? fen,
-              pgn: snapshot?.pgn ?? pgn,
-              orientation: snapshot?.orientation ?? orientation,
-              arrows: snapshot?.arrows ?? arrows,
-              squares: snapshot?.squareStyles ?? squareStyles,
-              activeTab: snapshot?.activeTab ?? activeTab,
-              pdfUrl: snapshot?.pdfUrl ?? pdfUrl
+      if (
+        !senderMayMutateBoard({
+          type: msg.type,
+          fromIdentity,
+          isFromCoach,
+          permissionMode: current.permissionMode,
+          selectedStudentId: current.selectedStudentId,
+        })
+      ) {
+        console.warn(
+          `Ignored board sync message "${msg.type}" from a participant without board control`,
+        );
+        return;
+      }
+
+      switch (msg.type) {
+        case "MOVE":
+        case "UNDO":
+        case "REDO":
+        case "RESET":
+        case "FORCE_SYNC":
+          if (msg.payload && msg.payload.fen) {
+            syncFromRemote({
+              fen: msg.payload.fen,
+              pgn: msg.payload.pgn || "",
+              ...(typeof msg.payload.historyIndex === "number"
+                ? { historyIndex: msg.payload.historyIndex }
+                : {}),
+              ...(msg.payload.orientation
+                ? { orientation: msg.payload.orientation }
+                : {}),
+              // FORCE_SYNC carries the full board snapshot.
+              ...(Array.isArray(msg.payload.arrows)
+                ? { arrows: msg.payload.arrows }
+                : {}),
+              ...(msg.payload.squares ? { squareStyles: msg.payload.squares } : {}),
+              ...(msg.payload.clock ? { clock: msg.payload.clock } : {}),
+              // Only a MOVE carries a real move sound; the rest reposition the
+              // board rather than play a move (AUDIT H6).
+              ...(msg.type === "MOVE" && msg.payload.moveType
+                ? { moveType: msg.payload.moveType }
+                : {}),
+            });
+
+            // The coach is the clock authority. A controlling student's MOVE
+            // carries no clock update, so re-derive it here and broadcast.
+            if (msg.type === "MOVE" && isCoach && !isFromCoach && !suppressBroadcast) {
+              const after = store.getState();
+              const mover = after.turn === "white" ? "black" : "white";
+              const nextClock = applyMoveToClock(after.clock, mover, Date.now());
+              if (nextClock !== after.clock) after.setClock(nextClock);
             }
-          });
+          }
+          break;
+        case "UPDATE_ANNOTATIONS":
+          if (msg.payload) {
+            syncFromRemote({
+              arrows: msg.payload.arrows || [],
+              squareStyles: msg.payload.squares || {},
+            });
+          }
+          break;
+        case "UPDATE_PERMISSIONS":
+          if (msg.payload && msg.payload.mode) {
+            syncFromRemote({
+              permissionMode: msg.payload.mode,
+              selectedStudentId: msg.payload.selectedStudentId,
+            });
+            if (liveClassState?.setBoardControlStudent) {
+              liveClassState.setBoardControlStudent(
+                msg.payload.selectedStudentId || null,
+              );
+            }
+          }
+          break;
+        case "SET_CLOCK":
+          if (msg.payload?.clock) {
+            syncFromRemote({ clock: msg.payload.clock });
+          }
+          break;
+        case "SET_UI_STATE":
+          if (
+            msg.payload &&
+            (msg.payload.activeTab !== undefined || msg.payload.pdfUrl !== undefined)
+          ) {
+            syncFromRemote({
+              ...(msg.payload.activeTab !== undefined
+                ? { activeTab: msg.payload.activeTab }
+                : {}),
+              ...(msg.payload.pdfUrl !== undefined
+                ? { pdfUrl: msg.payload.pdfUrl }
+                : {}),
+            });
+          }
+          break;
+        case "REQUEST_SYNC": {
+          // A late joiner asked for a sync. If we are the coach, send full
+          // state. Read straight from the store so this callback doesn't close
+          // over ~10 reactive fields (AUDIT M28).
+          if (isCoach && !suppressBroadcast) {
+            const snap = snapshot();
+            if (!snap) break;
+            broadcastMsg({
+              type: "FORCE_SYNC",
+              payload: {
+                fen: snap.fen,
+                pgn: snap.pgn,
+                historyIndex: snap.historyIndex,
+                orientation: snap.orientation,
+                arrows: snap.arrows,
+                squares: snap.squares,
+                activeTab: snap.activeTab,
+                pdfUrl: snap.pdfUrl,
+                clock: snap.clock,
+              },
+            });
+          }
+          break;
         }
-        break;
-      case "REQUEST_CONTROL":
-        if (isCoach && msg.payload?.studentId) {
-          const studentId = msg.payload.studentId;
-          const studentName = msg.payload.studentName || "A student";
-          toast(`${studentName} requested board control`, {
-            id: `req-board-control-${studentId}`,
-            action: {
-              label: "Grant Control",
-              onClick: () => {
-                if (liveClassState?.setBoardControlStudent) {
-                  liveClassState.setBoardControlStudent(studentId);
-                  toast.success(`Granted board control to ${studentName}`, {
-                    id: `grant-board-control-${studentId}`,
-                  });
-                }
-              }
-            },
-            duration: 10000,
-          });
-        }
-        break;
-    }
-  }, [isCoach, store, syncFromRemote, broadcastState, broadcastMsg, fen, pgn, orientation, arrows, squareStyles, liveClassState, markRemoteUpdate]);
+        case "REQUEST_CONTROL":
+          if (isCoach && msg.payload?.identity) {
+            const identity = msg.payload.identity;
+            const studentName = msg.payload.studentName || "A student";
+            toast(`${studentName} requested board control`, {
+              id: `req-board-control-${identity}`,
+              action: {
+                label: "Grant Control",
+                onClick: () => {
+                  if (liveClassState?.setBoardControlStudent) {
+                    liveClassState.setBoardControlStudent(identity);
+                    toast.success(`Granted board control to ${studentName}`, {
+                      id: `grant-board-control-${identity}`,
+                    });
+                  }
+                },
+              },
+              duration: 10000,
+            });
+          }
+          break;
+      }
+    },
+    [isCoach, store, syncFromRemote, broadcastMsg, liveClassState, snapshot, suppressBroadcast],
+  );
 
-  // Zustand Store Subscription for Immediate Syncing
-  // This bypasses React's batching behavior, ensuring that rapidly consecutive moves
-  // are ALL broadcasted over LiveKit without skipping intermediate FENs.
+  // Zustand store subscription for immediate syncing. Bypasses React batching
+  // so rapid consecutive moves all broadcast without skipping intermediate FENs.
   useEffect(() => {
     if (!store) return;
-    
+
     const unsubscribe = store.subscribe((state, prevState) => {
-      const boardChanged = state.fen !== prevState.fen || state.pgn !== prevState.pgn || state.orientation !== prevState.orientation;
-      const annotationsChanged = state.arrows !== prevState.arrows || state.squareStyles !== prevState.squareStyles;
-      const uiChanged = state.activeTab !== prevState.activeTab || state.pdfUrl !== prevState.pdfUrl;
+      // A detached student's local exploration must never leave their board;
+      // the coach's mirror window (pop-out open) must stay quiet.
+      if (state.isDetached || suppressBroadcast) return;
 
-      if (boardChanged || annotationsChanged || uiChanged) {
-        // If the change came from a remote sync event, we don't broadcast it back.
-        if (isRemoteUpdateRef.current) {
-          isRemoteUpdateRef.current = false;
-          return;
-        }
+      const boardChanged =
+        state.fen !== prevState.fen ||
+        state.pgn !== prevState.pgn ||
+        state.orientation !== prevState.orientation;
+      const annotationsChanged =
+        state.arrows !== prevState.arrows ||
+        state.squareStyles !== prevState.squareStyles;
+      const uiChanged =
+        state.activeTab !== prevState.activeTab || state.pdfUrl !== prevState.pdfUrl;
+      const clockChanged = state.clock !== prevState.clock;
 
-        if (boardChanged) {
-          broadcastMsg({
-            type: "MOVE",
-            payload: { 
-              fen: state.fen, 
-              pgn: state.pgn, 
-              orientation: state.orientation, 
-              moveType: usePersistedStore.getState().lastMoveType 
-            }
-          });
-        }
+      if (!boardChanged && !annotationsChanged && !uiChanged && !clockChanged) return;
 
-        if (annotationsChanged) {
-          broadcastMsg({
-            type: "UPDATE_ANNOTATIONS",
-            payload: { arrows: state.arrows, squares: state.squareStyles }
-          });
-        }
+      // If this transition came from a remote sync, don't echo it back
+      // (`remoteSyncId` is bumped atomically inside `syncFromRemote`) (AUDIT H20).
+      if (state.remoteSyncId !== prevState.remoteSyncId) return;
 
-        if (uiChanged) {
-          broadcastMsg({
-            type: "SET_UI_STATE",
-            payload: { activeTab: state.activeTab, pdfUrl: state.pdfUrl }
-          });
-        }
+      if (boardChanged) {
+        broadcastMsg({
+          type: "MOVE",
+          payload: {
+            fen: state.fen,
+            pgn: state.fullPgn || state.pgn,
+            historyIndex: state.historyIndex,
+            orientation: state.orientation,
+            moveType: usePersistedStore.getState().lastMoveType,
+          },
+        });
+      }
+      if (annotationsChanged) {
+        broadcastMsg({
+          type: "UPDATE_ANNOTATIONS",
+          payload: { arrows: state.arrows, squares: state.squareStyles },
+        });
+      }
+      if (uiChanged) {
+        broadcastMsg({
+          type: "SET_UI_STATE",
+          payload: { activeTab: state.activeTab, pdfUrl: state.pdfUrl },
+        });
+      }
+      if (clockChanged) {
+        broadcastMsg({ type: "SET_CLOCK", payload: { clock: state.clock } });
       }
     });
-    
+
     return unsubscribe;
-  }, [store, broadcastMsg]);
+  }, [store, broadcastMsg, suppressBroadcast]);
 
-  const onMessageReceived = useCallback((msg: any) => {
-    try {
-      const decoder = new TextDecoder();
-      const messageStr = decoder.decode(msg.payload);
-      const data = JSON.parse(messageStr) as BoardSyncMessage;
-      
-      handleIncomingSync(data);
-    } catch (e) {
-      console.error("Failed to parse board sync message", e);
-    }
-  }, [handleIncomingSync]);
+  const onMessageReceived = useCallback(
+    (msg: { payload: Uint8Array; from?: { identity?: string; metadata?: string } }) => {
+      try {
+        const decoder = new TextDecoder();
+        const data = JSON.parse(decoder.decode(msg.payload)) as BoardSyncMessage;
+        handleIncomingSync(data, isCoachParticipant(msg.from), msg.from?.identity);
+      } catch (e) {
+        console.error("Failed to parse board sync message", e);
+      }
+    },
+    [handleIncomingSync],
+  );
 
-  // Setup receiving messages
   const { send } = useDataChannel(BOARD_SYNC_TOPIC, onMessageReceived);
-  
-  // Keep send function reference updated
+
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
 
-  // On mount, if student, request current state from coach
+  // On mount, if student, request current state from coach.
   useEffect(() => {
     if (!isCoach) {
-      broadcastMsg({ type: "REQUEST_SYNC" } as BoardSyncMessage);
+      broadcastMsg({ type: "REQUEST_SYNC" });
     }
   }, [isCoach, broadcastMsg]);
 
@@ -258,6 +438,7 @@ export function useBoardSync() {
     broadcastState,
     broadcastAnnotations,
     broadcastPermissions,
-    requestControl
+    requestControl,
+    requestResync,
   };
 }

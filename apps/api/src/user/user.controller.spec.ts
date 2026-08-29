@@ -65,9 +65,9 @@ describe("UserController", () => {
     const response: UserListResponse = { users: [] };
     userService.list.mockResolvedValueOnce(response);
 
-    await controller.list(mockRequest("token"));
+    await controller.list({}, mockRequest("token"));
 
-    expect(userService.list).toHaveBeenCalledWith("token");
+    expect(userService.list).toHaveBeenCalledWith("token", {});
   });
 
   it("calls getById", async () => {

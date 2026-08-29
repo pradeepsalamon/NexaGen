@@ -7,15 +7,15 @@ import { Button } from "@/components/ui/Button";
 import { uploadPgn } from "@/lib/uploadApi";
 import { toast } from "sonner";
 import { useBoardStore } from "../../context/BoardProvider";
-import { useAuthStore } from "@/stores/authStore";
-import { Chess } from "chess.js";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { loadPgnIntoBoard } from "../../lib/loadPgn";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 import { useParticipants } from "@livekit/components-react";
 
 export function SidebarTabs() {
   const { pgn, reset, undo, pushHistory, historyIndex, setIsSetupPositionOpen, activeTab, setActiveTab } = useBoardStore();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   // Live class context (only defined when board is inside a live class)
   const liveClassState = useOptionalLiveClassState();
@@ -49,14 +49,18 @@ export function SidebarTabs() {
   };
 
   const handlePastePGN = async () => {
+    let text = "";
     try {
-      const text = await navigator.clipboard.readText();
-      const chess = new Chess();
-      chess.loadPgn(text);
-      pushHistory(chess.fen(), chess.pgn());
+      text = await navigator.clipboard.readText();
+    } catch {
+      toast.error("Could not read the clipboard. Use Load Games/Positions to paste a PGN.");
+      return;
+    }
+    const result = loadPgnIntoBoard(text, pushHistory);
+    if (result.ok) {
       toast.success("PGN loaded successfully");
-    } catch (err) {
-      toast.error("Failed to load PGN from clipboard. Ensure it is a valid PGN.");
+    } else {
+      toast.error(result.error);
     }
   };
 
@@ -145,6 +149,8 @@ export function SidebarTabs() {
 function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
   const participants = useParticipants();
   const students = participants.filter(p => {
+    // The coach's own board pop-out (`${id}_board`) is a participant too.
+    if (p.identity.endsWith("_board")) return false;
     if (!p.metadata) return true;
     try {
       const meta = JSON.parse(p.metadata);
@@ -181,17 +187,15 @@ function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
                 name = meta.firstName ? `${meta.firstName} ${meta.lastName || ''}` : p.identity;
               }
             } catch {}
-            // strip _board suffix from identity if present
-            const actualIdentity = p.identity.replace('_board', '');
-            
-            const isSelected = liveClassState.boardControlStudentId === actualIdentity;
-            
+            // Board control is keyed by the full LiveKit participant identity.
+            const isSelected = liveClassState.boardControlStudentId === p.identity;
+
             return (
-              <Button 
+              <Button
                 key={p.identity}
                 variant={isSelected ? "primary" : "outline"}
                 className="w-full justify-start text-xs h-8 truncate"
-                onClick={() => liveClassState.setBoardControlStudent(actualIdentity)}
+                onClick={() => liveClassState.setBoardControlStudent(p.identity)}
               >
                 {name}
               </Button>

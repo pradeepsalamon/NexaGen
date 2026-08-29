@@ -4,7 +4,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import type { RegisterRequest } from "@nexa-chess/types";
+import type { RegisterCoachRequest, RegisterRequest } from "@nexa-chess/types";
 import { ExperienceLevel, UserRole, UserStatus } from "@prisma/client";
 import { AuthService } from "./auth.service";
 import { hashSecret } from "./auth.utils";
@@ -38,6 +38,11 @@ type MockPrismaService = {
     findUniqueOrThrow: jest.Mock;
     update: jest.Mock;
   };
+  withDeleted: {
+    user: {
+      findUnique: jest.Mock;
+    };
+  };
   $transaction: jest.Mock;
 };
 
@@ -55,6 +60,16 @@ describe("AuthService", () => {
 
     mailService = {
       sendPasswordResetLink: jest.fn()
+    };
+
+    // `withDeleted` is the same Prisma client with the soft-delete filter
+    // removed, so the double shares one user mock: a test can arrange or assert
+    // through either path.
+    const userMock = {
+      create: jest.fn(),
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn()
     };
 
     prismaService = {
@@ -78,12 +93,8 @@ describe("AuthService", () => {
         create: jest.fn(),
         update: jest.fn()
       },
-      user: {
-        create: jest.fn(),
-        findUnique: jest.fn(),
-        findUniqueOrThrow: jest.fn(),
-        update: jest.fn()
-      },
+      user: userMock,
+      withDeleted: { user: userMock },
       $transaction: jest.fn((operations: unknown) => operations)
     };
 
@@ -224,6 +235,168 @@ describe("AuthService", () => {
       expect(result.accessToken).toBe("mocked-token");
       expect(result.refreshToken).toBe("mocked-token");
       expect(result.refreshTokenMaxAge).toBeGreaterThan(0);
+    });
+  });
+
+  describe("refresh", () => {
+    const REFRESH_TOKEN = "refresh-token";
+
+    beforeEach(() => {
+      jwtService.verifyAsync.mockResolvedValue({
+        sessionId: "sess-1",
+        sub: "usr-123",
+        type: "refresh"
+      });
+      jwtService.signAsync.mockResolvedValue("mocked-token");
+      prismaService.authSession.create.mockResolvedValue({ id: "sess-2" });
+      prismaService.authSession.update.mockResolvedValue({ id: "sess-2" });
+    });
+
+    it("re-issues a session when the token was rotated within the grace window", async () => {
+      const graceSession = {
+        expiresAt: new Date(Date.now() + 86_400_000),
+        id: "sess-1",
+        refreshTokenHash: await hashSecret(REFRESH_TOKEN),
+        user: { ...activeUser }
+      };
+      // active lookup misses (session already revoked); grace lookup hits.
+      prismaService.authSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(graceSession);
+
+      const result = await service.refresh(REFRESH_TOKEN, {});
+
+      expect(result.refreshToken).toBe("mocked-token");
+      expect(prismaService.authSession.create).toHaveBeenCalledTimes(1);
+      // Only createSession's hash write — the already-revoked grace session is
+      // not revoked a second time.
+      expect(prismaService.authSession.update).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws when there is no live session and nothing rotated recently", async () => {
+      prismaService.authSession.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(
+        UnauthorizedException
+      );
+    });
+
+    it("rotates normally when the session is still live", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce({
+        expiresAt: new Date(Date.now() + 86_400_000),
+        id: "sess-1",
+        refreshTokenHash: await hashSecret(REFRESH_TOKEN),
+        user: { ...activeUser }
+      });
+
+      const result = await service.refresh(REFRESH_TOKEN, {});
+
+      expect(result.refreshToken).toBe("mocked-token");
+      // revoke + createSession hash write.
+      expect(prismaService.authSession.update).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("registerCoach", () => {
+    const registerCoachPayload: RegisterCoachRequest = {
+      coachName: "Ada Coach",
+      confirmPassword: "password123",
+      contactNumber: "1234567890",
+      email: "Coach@Example.com",
+      password: "password123",
+      title: "FM"
+    };
+
+    it("creates a PENDING application and issues no session", async () => {
+      prismaService.user.findUnique.mockResolvedValueOnce(null);
+      prismaService.user.create.mockResolvedValueOnce({
+        ...activeUser,
+        email: "coach@example.com",
+        role: UserRole.COACH,
+        status: UserStatus.PENDING
+      });
+
+      const result = await service.registerCoach(registerCoachPayload, {});
+
+      const createCall = prismaService.user.create.mock.calls[0][0];
+      expect(createCall.data.status).toBe(UserStatus.PENDING);
+      expect(createCall.data.coachProfile.create.approvalStatus).toBe(
+        UserStatus.PENDING
+      );
+
+      // No session may be created — the coach cannot be logged in yet.
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        email: "coach@example.com",
+        status: "PENDING_APPROVAL"
+      });
+    });
+
+    it("throws ConflictException if email is already in use", async () => {
+      prismaService.user.findUnique.mockResolvedValueOnce({ id: "usr-123" });
+
+      await expect(
+        service.registerCoach(registerCoachPayload, {})
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe("login (coach approval gate)", () => {
+    const coachUser = (approvalStatus: UserStatus, status: UserStatus) => ({
+      ...activeUser,
+      coachProfile: { approvalStatus, isDeleted: false, title: "FM" },
+      role: UserRole.COACH,
+      status,
+      studentProfile: null
+    });
+
+    it("rejects a coach whose application is still pending", async () => {
+      const password = "password123";
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...coachUser(UserStatus.PENDING, UserStatus.PENDING),
+        password: await hashSecret(password)
+      });
+
+      await expect(
+        service.login({ email: "test@example.com", password }, {})
+      ).rejects.toThrow(UnauthorizedException);
+
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a coach activated without an approved profile", async () => {
+      const password = "password123";
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...coachUser(UserStatus.PENDING, UserStatus.ACTIVE),
+        password: await hashSecret(password)
+      });
+
+      await expect(
+        service.login({ email: "test@example.com", password }, {})
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("lets an approved coach log in", async () => {
+      const password = "password123";
+      const approved = coachUser(UserStatus.ACTIVE, UserStatus.ACTIVE);
+
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...approved,
+        password: await hashSecret(password)
+      });
+      prismaService.user.update.mockResolvedValueOnce(approved);
+      prismaService.authSession.create.mockResolvedValueOnce({ id: "sess-1" });
+      prismaService.authSession.update.mockResolvedValueOnce({ id: "sess-1" });
+      jwtService.signAsync.mockResolvedValue("mocked-token");
+
+      const result = await service.login(
+        { email: "test@example.com", password },
+        {}
+      );
+
+      expect(result.accessToken).toBe("mocked-token");
     });
   });
 

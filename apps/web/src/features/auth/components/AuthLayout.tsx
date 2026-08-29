@@ -7,6 +7,7 @@ import { PageContainer } from "@/components/PageContainer";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queryKeys";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 
 type AuthLayoutProps = {
@@ -23,7 +24,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   useEffect(() => {
     if (searchParams.get("reason") === "unauthorized") {
       // Force a refetch to allow the interceptor to attempt a token refresh
-      queryClient.resetQueries({ queryKey: ["auth", "me"] });
+      queryClient.resetQueries({ queryKey: queryKeys.auth.session });
       router.replace("/login");
       return;
     }

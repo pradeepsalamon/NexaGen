@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useBoardStore } from "../../context/BoardProvider";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { uploadPdf } from "@/lib/uploadApi";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
@@ -9,7 +9,7 @@ import { FileText, Loader2, Trash2, ExternalLink, Upload } from "lucide-react";
 export function PdfPanel() {
   const { pdfUrl, setPdfUrl } = useBoardStore();
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);

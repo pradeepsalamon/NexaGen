@@ -1,20 +1,16 @@
+import { API_ROUTES } from "@nexa-chess/types";
+import type { StockfishAnalysisResult } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 
-export interface StockfishAnalysisResult {
-  evaluation: number | null;
-  mate: number | null;
-  bestMove: string;
-  depth: number;
-  pv: string[];
-}
+export type { StockfishAnalysisResult };
 
-export async function analyzePosition(fen: string, signal?: AbortSignal): Promise<StockfishAnalysisResult> {
-  return apiFetch<StockfishAnalysisResult>(
-    '/stockfish/analyze',
-    {
-      method: 'POST',
-      body: { fen },
-      signal
-    }
-  );
+export async function analyzePosition(
+  fen: string,
+  signal?: AbortSignal
+): Promise<StockfishAnalysisResult> {
+  return apiFetch<StockfishAnalysisResult>(API_ROUTES.stockfish.analyze, {
+    method: "POST",
+    body: { fen },
+    signal
+  });
 }

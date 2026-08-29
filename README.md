@@ -7,8 +7,6 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - `apps/web`: Next.js App Router frontend
 - `apps/api`: NestJS backend API
 - `packages/types`: Shared request/response/domain types
-- `packages/ui`: Shared UI package shell
-- `packages/utils`: Shared utilities package shell
 - `packages/config`: Shared configuration package shell
 
 ## Current Features
@@ -32,6 +30,10 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - Login timing protection for unknown-email and wrong-password attempts
 - Batch management with soft delete into the Super Admin Trash workspace
 - Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
+- PGN assignments: admin-authored shared library + coach-authored items, deployed
+  to batches with a due date; students replay the line on a read-only board and
+  mark it complete (`assignment` API module, `features/assignments` on web,
+  `/coach/assignments`, `/admin/assignments`, `/student/practice`)
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
 
 ## Development
@@ -71,8 +73,39 @@ npm run dev:api:clean
 
 Default local URLs:
 
-- Web: http://localhost:3000
-- API: http://localhost:3001
+- Web: http://localhost:3010 (Dev mode) or http://localhost:3000 (Production container)
+- API: http://localhost:3011 (Dev mode) or http://localhost:3001 (Production container)
+
+### Background Dev Server Scripts (`nexa` CLI)
+
+The project includes background management scripts using `tmux` so that servers continue running in the background even after closing the terminal session:
+
+```bash
+# Start dev servers in watch/hot-reload mode (background tmux session)
+nexa dev          # or: nexa start-dev / start-dev
+
+# Build & launch production-mode staging servers for testing
+nexa stage        # or: nexa start-stage / start-stage
+
+# Check status and health of dev servers
+nexa status       # or: nexa status-dev / status-dev
+
+# Stop all dev servers
+nexa stop         # or: nexa stop-dev / stop-dev
+
+# Quick restart dev servers
+nexa restart
+
+# View live logs
+nexa logs         # shows latest logs for both API & Web
+nexa logs api     # shows API logs
+nexa logs web     # shows Web logs
+
+# Attach to interactive tmux console
+nexa attach
+```
+
+*Note: These commands are available from anywhere in the system terminal (symlinked into `~/bin/`).*
 
 ## Environment
 
@@ -148,8 +181,8 @@ Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extensio
 
 When adding a new trash-enabled model:
 
-1. Add `isDeleted`, `deletedAt`, and `deletedById` fields in Prisma, plus supporting indexes and the deleted-by relation.
-2. Add the model to `softDeleteModels` and `trashEntities` in `soft-delete.extension.ts`.
+1. Add `isDeleted`, `deletedAt`, `deletedById`, and `deleteGroupId` fields in Prisma, plus supporting indexes and the deleted-by relation.
+2. Add the model to `softDeleteModels` and `trashEntities` in `soft-delete.extension.ts`. If the model is retired alongside a parent, add it to `CASCADE_CHILDREN` in `trash.repository.ts` so `cascadeSoftDelete` / `restore` move the whole group together.
 3. Add relation names to `relationToModel`, and add only list relations that support `where` to `filterableRelationNames`.
 4. Audit every `include` and `select` that can return the model. Singular relations cannot accept relation-level `where`, so filter through the parent query or response mapping.
 5. Add partial unique indexes for unique fields or composite unique indexes so deleted rows do not block reuse:
@@ -158,8 +191,12 @@ When adding a new trash-enabled model:
 CREATE UNIQUE INDEX "example_key" ON "table"("field") WHERE "isDeleted" = false;
 ```
 
-6. Wire feature-level delete routes, such as `DELETE /batches/:id`, through `TrashRepository.softDelete` so audit logging and retention behavior stay consistent.
+6. Wire feature-level delete routes, such as `DELETE /batches/:id`, through `TrashRepository.softDelete` (or `cascadeSoftDelete` when child rows must go with it) so audit logging and retention behavior stay consistent.
 7. Update shared types in `packages/types` and frontend entity filters in the Trash UI when a new entity should be visible to admins.
+
+A cascading delete (`cascadeSoftDelete`) tags the parent and its children with one `deleteGroupId`; `TrashRepository.restore` on any member of the group brings the whole group back. Deleting a User cascades to its student/coach profile; deleting a Batch cascades to its coach/student assignments.
+
+The Trash list merges rows from all six tables in memory. Sorting and paging stay exact within the newest `MAX_TRASH_SCAN` (500) deleted rows per entity; deeper offsets are not supported.
 
 Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally scaled API instances do not run the cleanup concurrently.
 
@@ -179,6 +216,30 @@ npm run typecheck -w apps/api
 npm run typecheck -w apps/web
 npm run build -w apps/api
 npm run build -w apps/web
+```
+
+### End-to-end (Playwright)
+
+```bash
+npx playwright test                 # e2e/ specs; needs api + web running
+```
+
+`e2e/live-board-sync.spec.ts` (shared live-class chessboard) is **opt-in** — it
+drives two real LiveKit participants:
+
+```bash
+docker compose up -d livekit postgres redis
+# run web with the board test harness enabled (apps/web/.env.local):
+#   NEXT_PUBLIC_E2E=1
+npm run dev
+RUN_LIVE_BOARD_E2E=1 npx playwright test live-board-sync
+```
+
+`e2e/analysis-board.spec.ts` (engine analysis, Load Game, Setup Position, Save) is
+opt-in the same way — additionally needs `STOCKFISH_PATH` set in `apps/api/.env`:
+
+```bash
+RUN_ANALYSIS_E2E=1 npx playwright test analysis-board
 ```
 
 ## UI Component Standards

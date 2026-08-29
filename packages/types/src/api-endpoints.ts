@@ -75,8 +75,27 @@ export const API_ROUTES = {
     downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`
   },
   student: {
-    dashboard: "/student/dashboard",
-    attendance: "/student/attendance"
+    dashboard: "/student/dashboard"
+  },
+  stockfish: {
+    analyze: "/stockfish/analyze"
+  },
+  assignments: {
+    // Library (admin: shared items; coach: shared + own)
+    library: "/assignments/library",
+    create: "/assignments/library",
+    get: (id: string = ":id") => `/assignments/library/${id}`,
+    update: (id: string = ":id") => `/assignments/library/${id}`,
+    delete: (id: string = ":id") => `/assignments/library/${id}`,
+    // Deployments to batches (coach)
+    deployments: "/assignments/deployments",
+    deploy: "/assignments/deployments",
+    deployment: (id: string = ":id") => `/assignments/deployments/${id}`,
+    undeploy: (id: string = ":id") => `/assignments/deployments/${id}`,
+    // Student's own assignments
+    mine: "/assignments/mine",
+    mineGet: (id: string = ":id") => `/assignments/mine/${id}`,
+    updateStatus: (id: string = ":id") => `/assignments/mine/${id}/status`
   },
   attendance: {
     student: "/attendance/student",

@@ -23,6 +23,7 @@ import type {
   LogoutResponse,
   RegisterRequest,
   RegisterCoachRequest,
+  RegisterCoachResponse,
   ResetPasswordRequest,
   UpdateProfileRequest
 } from "@nexa-chess/types";
@@ -91,6 +92,16 @@ export class AuthService {
     5_000
   );
   private readonly frontendUrl = getFrontendUrl(this.env);
+  /**
+   * Grace window after a refresh token is rotated during which the *previous*
+   * token is still honoured. Without it, two tabs (or a retried request)
+   * refreshing at the same instant race: the first rotates and revokes the
+   * session, the second presents the now-revoked token and gets logged out —
+   * and because the response also clears cookies, both tabs drop. Re-issuing a
+   * fresh session for a token revoked <30s ago keeps concurrent tabs alive
+   * while still catching genuine token reuse outside the window.
+   */
+  private readonly refreshRotationGraceMs = 30_000;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -113,7 +124,10 @@ export class AuthService {
       throw new BadRequestException("Passwords must match.");
     }
 
-    const existingUser = await this.prisma.user.findUnique({
+    // `withDeleted` bypasses the soft-delete filter. The unique constraint on
+    // users.email covers deleted rows too, so a filtered read would miss the
+    // conflict and the insert would fail with P2002 -> unhandled 500.
+    const existingUser = await this.prisma.withDeleted.user.findUnique({
       where: { email: payload.email.toLowerCase() }
     });
 
@@ -169,15 +183,21 @@ export class AuthService {
   }
 
   
+  /**
+   * Coach self-registration is an *application*, not a sign-up: the account is
+   * created PENDING and no session is issued. An admin must approve it from the
+   * Pending Coaches screen before the coach can log in (AUDIT H9).
+   */
   async registerCoach(
     payload: RegisterCoachRequest,
-    context: SessionContext
-  ): Promise<AuthResult> {
+    _context: SessionContext
+  ): Promise<RegisterCoachResponse> {
     if (payload.password !== payload.confirmPassword) {
       throw new BadRequestException("Passwords must match.");
     }
 
-    const existingUser = await this.prisma.user.findUnique({
+    // See register(): must include soft-deleted rows, the unique index does.
+    const existingUser = await this.prisma.withDeleted.user.findUnique({
       where: { email: payload.email.toLowerCase() }
     });
 
@@ -197,12 +217,13 @@ export class AuthService {
         lastName,
         phoneNumber: payload.contactNumber,
         role: UserRole.COACH,
-        status: UserStatus.ACTIVE,
+        status: UserStatus.PENDING,
         timezone: "Asia/Kolkata",
         isEmailVerified: true,
         emailVerifiedAt: new Date(),
         coachProfile: {
           create: {
+            approvalStatus: UserStatus.PENDING,
             title: this.toCoachTitle(payload.title),
             fideId: this.toNullableString(payload.fideId),
             fideRating: payload.fideRating ?? null,
@@ -226,18 +247,9 @@ export class AuthService {
     await this.mailService.sendEmailVerificationLink(user.email, verifyLink.toString()); 
     */
 
-    const tokenPair = await this.createSession(
-      user,
-      context,
-      this.refreshTokenShortMaxAge,
-      this.refreshTokenShortTtl
-    );
-
     return {
-      ...tokenPair,
-      accessTokenMaxAge: this.accessTokenMaxAge,
-      refreshTokenMaxAge: this.refreshTokenShortMaxAge,
-      user: this.toAuthUser(user)
+      email: user.email,
+      status: "PENDING_APPROVAL"
     };
   }
 
@@ -258,6 +270,20 @@ export class AuthService {
     if (!user || !passwordMatches) {
       await this.waitForLoginResponseDelay(startedAt);
       throw new UnauthorizedException("Invalid email or password.");
+    }
+
+    // A coach is only usable once an admin has approved the application; check
+    // both the account status and the profile's approval flag so an account
+    // flipped ACTIVE by another path still cannot teach (AUDIT H9).
+    const isUnapprovedCoach =
+      user.role === UserRole.COACH &&
+      user.coachProfile?.approvalStatus !== UserStatus.ACTIVE;
+
+    if (isUnapprovedCoach) {
+      await this.waitForLoginResponseDelay(startedAt);
+      throw new UnauthorizedException(
+        "Your coach application is awaiting admin approval."
+      );
     }
 
     if (user.status !== UserStatus.ACTIVE) {
@@ -302,10 +328,12 @@ export class AuthService {
     }
 
     const payload = await this.verifyRefreshToken(refreshToken);
-    const session = await this.prisma.authSession.findFirst({
-      include: {
-        user: { include: { coachProfile: true, studentProfile: true } }
-      },
+    const sessionInclude = {
+      user: { include: { coachProfile: true, studentProfile: true } }
+    } as const;
+
+    let session = await this.prisma.authSession.findFirst({
+      include: sessionInclude,
       where: {
         expiresAt: { gt: new Date() },
         id: payload.sessionId,
@@ -314,6 +342,29 @@ export class AuthService {
         user: { isDeleted: false }
       }
     });
+
+    // No live session for this token. If it was rotated moments ago (a
+    // concurrent refresh from another tab), honour it within the grace window
+    // instead of logging every tab out. The session is already revoked, so
+    // don't revoke it again below.
+    let alreadyRevoked = false;
+    if (!session) {
+      session = await this.prisma.authSession.findFirst({
+        include: sessionInclude,
+        where: {
+          expiresAt: { gt: new Date() },
+          id: payload.sessionId,
+          revokedAt: {
+            gt: new Date(Date.now() - this.refreshRotationGraceMs)
+          },
+          userId: payload.sub,
+          user: { isDeleted: false }
+        }
+      });
+      if (session) {
+        alreadyRevoked = true;
+      }
+    }
 
     if (!session) {
       throw new UnauthorizedException("Session expired.");
@@ -325,17 +376,21 @@ export class AuthService {
     );
 
     if (!refreshTokenMatches) {
+      if (!alreadyRevoked) {
+        await this.prisma.authSession.update({
+          data: { revokedAt: new Date() },
+          where: { id: session.id }
+        });
+      }
+      throw new UnauthorizedException("Invalid refresh token.");
+    }
+
+    if (!alreadyRevoked) {
       await this.prisma.authSession.update({
         data: { revokedAt: new Date() },
         where: { id: session.id }
       });
-      throw new UnauthorizedException("Invalid refresh token.");
     }
-
-    await this.prisma.authSession.update({
-      data: { revokedAt: new Date() },
-      where: { id: session.id }
-    });
 
     const refreshTokenMaxAge = Math.max(
       0,
@@ -743,9 +798,13 @@ export class AuthService {
     email: string,
     username: string | null
   ) {
+    // Must include soft-deleted rows — the unique indexes on email/username
+    // span them, so a filtered read would let the update fail with P2002.
     const [existingEmailUser, existingUsernameUser] = await Promise.all([
-      this.prisma.user.findUnique({ where: { email } }),
-      username ? this.prisma.user.findUnique({ where: { username } }) : null
+      this.prisma.withDeleted.user.findUnique({ where: { email } }),
+      username
+        ? this.prisma.withDeleted.user.findUnique({ where: { username } })
+        : null
     ]);
 
     if (existingEmailUser && existingEmailUser.id !== userId) {

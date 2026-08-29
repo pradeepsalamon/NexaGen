@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { RowSelectionState } from "@tanstack/react-table";
 import {
   Archive,
   Pencil,
@@ -35,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { useDataTable } from "@/hooks/useDataTable";
+import { useServerTable } from "@/hooks/useServerTable";
 
 import { UserForm } from "./UserForm";
 import { UserSettings } from "./UserSettings";
@@ -62,10 +64,15 @@ export function UserManagementClient() {
 
   const [activeTab, setActiveTab] = useState<UserManagementTab>("all");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  
-  const usersQuery = useUsersQuery();
+
+  // Server-side pagination / search / sort / status filter (AUDIT H26).
+  const serverTable = useServerTable({ pageSize: 10 });
+  const { clampToPageCount } = serverTable;
+  const usersQuery = useUsersQuery(serverTable.params);
+  const pageCount = usersQuery.data?.pagination?.totalPages ?? 1;
+  useEffect(() => {
+    clampToPageCount(pageCount);
+  }, [pageCount, clampToPageCount]);
   const deleteMutation = useDeleteUserMutation();
   const archiveMutation = useArchiveUserMutation();
   const restoreMutation = useRestoreUserMutation();
@@ -79,29 +86,12 @@ export function UserManagementClient() {
     [usersQuery.data?.users, editingUserId]
   );
 
-  const filteredUsers = useMemo(() => {
-    const users = usersQuery.data?.users ?? [];
-    return statusFilter === "ALL"
-      ? users
-      : users.filter((user) => user.status === statusFilter);
-  }, [usersQuery.data?.users, statusFilter]);
+  const users = usersQuery.data?.users ?? [];
 
-  const {
-    table,
-    globalFilter,
-    setGlobalFilter,
-    columnVisibility,
-    setColumnVisibility,
-    pagination,
-    setPagination,
-    setRowSelection,
-    setSorting,
-    setColumnFilters
-  } = useDataTable<AuthUser, unknown>({
-    columns: [],
-    data: filteredUsers,
-    initialPagination: { pageIndex: 0, pageSize: 10 }
-  });
+  // Row selection is owned here so the row handlers below can clear it while
+  // still being referenced by `columns`, which the table needs up front.
+  // See AUDIT.md H4.
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   const editUser = useCallback((user: AuthUser) => {
     setEditingUserId(user.id);
@@ -367,11 +357,23 @@ export function UserManagementClient() {
     ]
   );
 
-  table.setOptions((prev) => ({
-    ...prev,
-    data: filteredUsers,
+  const {
+    table,
+    columnVisibility,
+    setColumnVisibility,
+    setColumnFilters
+  } = useDataTable<AuthUser, unknown>({
     columns,
-  }));
+    data: users,
+    rowSelection,
+    setRowSelection,
+    pagination: serverTable.pagination,
+    setPagination: serverTable.setPagination,
+    sorting: serverTable.sorting,
+    setSorting: serverTable.setSorting,
+    pageCount,
+    ...serverTable.manual
+  });
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
@@ -423,14 +425,14 @@ export function UserManagementClient() {
                 filters={
                   <Select
                     className="w-40"
-                    onChange={(event) => setStatusFilter(event.target.value)}
+                    onChange={(event) => serverTable.setStatus(event.target.value)}
                     options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
-                    value={statusFilter}
+                    value={serverTable.status}
                   />
                 }
-                onSearchChange={setGlobalFilter}
-                searchPlaceholder="Filter users..."
-                searchValue={globalFilter}
+                onSearchChange={serverTable.setSearch}
+                searchPlaceholder="Search users..."
+                searchValue={serverTable.search}
               />
 
               <DataTable
@@ -449,7 +451,7 @@ export function UserManagementClient() {
 
               <DataTablePagination
                 table={table}
-                totalRows={table.getFilteredRowModel().rows.length}
+                totalRows={usersQuery.data?.pagination?.total ?? 0}
               />
             </Card>
           </TabsContent>
@@ -467,19 +469,19 @@ export function UserManagementClient() {
           <TabsContent value="settings" className="mt-6 outline-none">
             <UserSettings
               columnVisibility={columnVisibility}
-              pageSize={pagination.pageSize}
+              pageSize={serverTable.pagination.pageSize}
               resetTable={() => {
-                setGlobalFilter("");
-                setStatusFilter("ALL");
-                setSorting([]);
+                serverTable.setSearch("");
+                serverTable.setStatus("ALL");
+                serverTable.setSorting([]);
                 setColumnFilters([]);
                 setColumnVisibility({});
                 setRowSelection({});
-                setPagination({ pageIndex: 0, pageSize: 10 });
+                serverTable.setPagination({ pageIndex: 0, pageSize: 10 });
               }}
               setColumnVisibility={setColumnVisibility}
               setPageSize={(pageSize) =>
-                setPagination((current) => ({ ...current, pageIndex: 0, pageSize }))
+                serverTable.setPagination((current) => ({ ...current, pageIndex: 0, pageSize }))
               }
             />
           </TabsContent>

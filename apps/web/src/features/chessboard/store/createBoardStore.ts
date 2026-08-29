@@ -1,7 +1,12 @@
 import { createStore } from "zustand";
 import { Chess, Move } from "chess.js";
-import { BoardPermissionMode } from "../types/sync";
+import { BoardPermissionMode, ClockState } from "../types/sync";
 import { playSound, SoundType } from "../audio/sounds";
+import {
+  DEFAULT_CLOCK,
+  applyMoveToClock,
+  freezeClock,
+} from "../lib/clock";
 import { useBoardStore as usePersistedStore } from "./boardStore";
 
 export interface BoardState {
@@ -9,7 +14,12 @@ export interface BoardState {
   chess: Chess;
   fen: string;
   pgn: string;
-  
+  // The complete mainline PGN, independent of which ply is currently being
+  // viewed. `pgn` follows the navigation cursor (chess.js truncates on `undo`),
+  // so broadcasting `pgn` while stepped back loses the forward moves for
+  // receivers. Broadcasts send `fullPgn` + `historyIndex` instead (AUDIT H21).
+  fullPgn: string;
+
   // Game Status
   isGameOver: boolean;
   turn: "white" | "black";
@@ -47,6 +57,21 @@ export interface BoardState {
   // Workspace UI (synced across clients)
   activeTab: string;
   pdfUrl: string | null;
+
+  // Shared chess clock (synced across clients via SET_CLOCK; coach-controlled).
+  clock: ClockState;
+
+  // Per-client: a student who has "detached" to explore their own line. While
+  // true, incoming board-position syncs are ignored (permissions still apply)
+  // and local moves are not broadcast. Always false for the coach.
+  isDetached: boolean;
+
+  // Bumped by every `syncFromRemote` call, and only by it. `useBoardSync`'s
+  // store subscriber compares this against the previous state to tell whether
+  // a given transition was remote-originated, instead of a `setTimeout`-cleared
+  // ref — which raced when multiple remote messages landed close together
+  // (AUDIT H20).
+  remoteSyncId: number;
 }
 
 export interface BoardActions {
@@ -72,9 +97,23 @@ export interface BoardActions {
   
   // Permissions
   setPermissionMode: (mode: BoardPermissionMode, studentId?: string) => void;
-  
+
+  // Clock (coach-controlled)
+  setClock: (clock: ClockState) => void;
+  configureClock: (opts: { initialMs: number; incrementMs: number }) => void;
+  startClock: (color?: "white" | "black") => void;
+  pauseClock: () => void;
+  resetClock: () => void;
+
+  // Detach / resync (student-local)
+  detachBoard: () => void;
+  resyncBoard: () => void;
+
   // Sync
-  syncFromRemote: (payload: Partial<BoardState>) => void;
+  // `moveType` isn't board state to store — it's a one-shot cue for which sound
+  // to play on this incoming remote move — so it rides alongside the payload
+  // rather than living in `BoardState` (AUDIT H6).
+  syncFromRemote: (payload: Partial<BoardState> & { moveType?: SoundType }) => void;
   
   // Workspace interactions
   setActiveBrush: (brush: string) => void;
@@ -95,22 +134,31 @@ const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 export const createBoardStore = () => {
   const chess = new Chess();
-  
+
+  // AUDIT H7: this store is created fresh per meeting room and never persists
+  // itself, but `boardStore.ts` (the app-wide store) already does — with
+  // exactly these three fields in its `partialize`. Seed from it instead of
+  // hardcoding defaults, and write through to it below, so board theme /
+  // piece theme / coordinates survive a reload instead of resetting every time.
+  const persistedPreferences = usePersistedStore.getState();
+
   return createStore<BoardStore>((set, get) => ({
     chess,
     fen: INITIAL_FEN,
     pgn: "",
+    fullPgn: "",
     isGameOver: false,
     turn: "white",
-    
+
     moveHistory: [],
     historyIndex: -1,
-    
+
     orientation: "white",
-    boardTheme: "blue",
-    pieceTheme: "cburnett",
-    showCoordinates: true,
+    boardTheme: persistedPreferences.boardTheme,
+    pieceTheme: persistedPreferences.pieceTheme,
+    showCoordinates: persistedPreferences.showCoordinates,
     isDrawingMode: false,
+    remoteSyncId: 0,
     
     arrows: [],
     squareStyles: {},
@@ -128,7 +176,10 @@ export const createBoardStore = () => {
 
     activeTab: "moves",
     pdfUrl: null,
-    
+
+    clock: { ...DEFAULT_CLOCK },
+    isDetached: false,
+
     makeMove: (from, to, promotion = 'q') => {
       const state = get();
       try {
@@ -154,10 +205,16 @@ export const createBoardStore = () => {
           set({
             fen: state.chess.fen(),
             pgn: state.chess.pgn(),
+            fullPgn: state.chess.pgn(),
             isGameOver,
             turn: state.chess.turn() === 'w' ? 'white' : 'black',
             moveHistory: newHistory,
-            historyIndex: newHistory.length - 1
+            historyIndex: newHistory.length - 1,
+            clock: applyMoveToClock(
+              state.clock,
+              move.color === 'w' ? 'white' : 'black',
+              Date.now()
+            )
           });
           return true;
         }
@@ -265,12 +322,20 @@ export const createBoardStore = () => {
       set({
         fen: state.chess.fen(),
         pgn: "",
+        fullPgn: "",
         isGameOver: false,
         turn: "white",
         moveHistory: [],
         historyIndex: -1,
         arrows: [],
-        squareStyles: {}
+        squareStyles: {},
+        clock: {
+          ...state.clock,
+          whiteMs: state.clock.initialMs,
+          blackMs: state.clock.initialMs,
+          running: null,
+          updatedAt: Date.now()
+        }
       });
     },
     
@@ -281,6 +346,7 @@ export const createBoardStore = () => {
         set({
           fen: state.chess.fen(),
           pgn: state.chess.pgn(),
+          fullPgn: state.chess.pgn(),
           isGameOver: state.chess.isGameOver(),
           turn: state.chess.turn() === 'w' ? 'white' : 'black',
           moveHistory: [], // reset history for new puzzle FEN
@@ -298,6 +364,7 @@ export const createBoardStore = () => {
         set({
           fen: state.chess.fen(),
           pgn: state.chess.pgn(),
+          fullPgn: state.chess.pgn(),
           isGameOver: state.chess.isGameOver(),
           turn: state.chess.turn() === 'w' ? 'white' : 'black',
           moveHistory: state.chess.history({ verbose: true }),
@@ -320,6 +387,7 @@ export const createBoardStore = () => {
         set({
           fen: state.chess.fen(),
           pgn: state.chess.pgn(),
+          fullPgn: state.chess.pgn(),
           isGameOver: state.chess.isGameOver(),
           turn: state.chess.turn() === 'w' ? 'white' : 'black',
           moveHistory,
@@ -331,45 +399,134 @@ export const createBoardStore = () => {
     },
     
     setOrientation: (orientation) => set({ orientation }),
-    setTheme: (boardTheme, pieceTheme) => set({ boardTheme, pieceTheme }),
+    setTheme: (boardTheme, pieceTheme) => {
+      set({ boardTheme, pieceTheme });
+      // Write through to the persisted store (AUDIT H7).
+      usePersistedStore.setState({ boardTheme, pieceTheme });
+    },
     
     setAnnotations: (arrows, squares) => set({ arrows, squareStyles: squares }),
     clearAnnotations: () => set({ arrows: [], squareStyles: {} }),
     
     setPermissionMode: (mode, studentId) => set({ permissionMode: mode, selectedStudentId: studentId }),
-    
-    syncFromRemote: (payload) => {
+
+    setClock: (clock) => set({ clock }),
+    configureClock: ({ initialMs, incrementMs }) =>
+      set({
+        clock: {
+          enabled: true,
+          initialMs,
+          incrementMs,
+          whiteMs: initialMs,
+          blackMs: initialMs,
+          running: null,
+          updatedAt: Date.now()
+        }
+      }),
+    startClock: (color) => {
       const state = get();
+      const now = Date.now();
+      const frozen = freezeClock(state.clock, now);
+      set({
+        clock: {
+          ...frozen,
+          enabled: true,
+          running: color ?? state.turn,
+          updatedAt: now
+        }
+      });
+    },
+    pauseClock: () => set({ clock: freezeClock(get().clock, Date.now()) }),
+    resetClock: () => {
+      const state = get();
+      set({
+        clock: {
+          ...state.clock,
+          whiteMs: state.clock.initialMs,
+          blackMs: state.clock.initialMs,
+          running: null,
+          updatedAt: Date.now()
+        }
+      });
+    },
+
+    detachBoard: () => set({ isDetached: true }),
+    resyncBoard: () => set({ isDetached: false }),
+
+    syncFromRemote: ({ moveType, ...payload }) => {
+      const state = get();
+
+      // A detached student follows their own line: apply only permission
+      // changes and ignore board position / annotations / clock (Part D).
+      if (state.isDetached) {
+        if (!payload.permissionMode) return;
+        set({
+          permissionMode: payload.permissionMode,
+          selectedStudentId: payload.selectedStudentId,
+          remoteSyncId: state.remoteSyncId + 1
+        });
+        return;
+      }
+
+      // The ply the sender is viewing within their mainline (AUDIT H21).
+      const remotePly = payload.historyIndex;
       // If FEN is updated remotely, update local chess.js instance
       if (payload.fen && payload.fen !== state.fen) {
         try {
-          state.chess.load(payload.fen);
-          // If they also sent PGN, try to load that to get full history
           if (payload.pgn) {
-             state.chess.loadPgn(payload.pgn);
+            // Load the sender's *full* mainline so our move list keeps every
+            // ply, then step back to the ply they are actually viewing rather
+            // than snapping to the end (AUDIT H21).
+            state.chess.loadPgn(payload.pgn);
+            const fullHistory = state.chess.history({ verbose: true });
+            const remoteFullPgn = state.chess.pgn();
+            const targetPly =
+              typeof remotePly === "number"
+                ? Math.max(-1, Math.min(remotePly, fullHistory.length - 1))
+                : fullHistory.length - 1;
+            while (state.chess.history().length - 1 > targetPly) {
+              if (!state.chess.undo()) break;
+            }
+            payload.moveHistory = fullHistory;
+            payload.historyIndex = targetPly;
+            payload.fullPgn = remoteFullPgn;
+            payload.pgn = state.chess.pgn();
+          } else {
+            state.chess.load(payload.fen);
+            payload.moveHistory = state.chess.history({ verbose: true });
+            payload.historyIndex = payload.moveHistory.length - 1;
+            payload.pgn = state.chess.pgn();
+            payload.fullPgn = state.chess.pgn();
           }
+          payload.fen = state.chess.fen();
           payload.turn = state.chess.turn() === 'w' ? 'white' : 'black';
           payload.isGameOver = state.chess.isGameOver();
-          payload.moveHistory = state.chess.history({ verbose: true });
-          payload.historyIndex = payload.moveHistory.length - 1;
         } catch (e) {
           console.warn("Failed to load synced FEN", payload.fen);
         }
       }
-      
-      // Play sound for incoming remote move
-      if ((payload as any).moveType) {
-        playSound((payload as any).moveType);
+
+      // Play sound for incoming remote move (AUDIT H6: this branch was
+      // unreachable because the caller never sent `moveType`).
+      if (moveType) {
+        playSound(moveType);
       }
-      
-      set({ ...payload });
+
+      // Bumping `remoteSyncId` inside this same `set()` call is what lets the
+      // subscriber in `useBoardSync` recognise this transition as remote,
+      // atomically — no separate ref/timer to race against (AUDIT H20).
+      set({ ...payload, remoteSyncId: state.remoteSyncId + 1 });
     },
 
     
     setActiveBrush: (brush) => set({ activeBrush: brush }),
     setEditingPosition: (editing) => set({ isEditingPosition: editing }),
     setPendingPromotion: (promo) => set({ pendingPromotion: promo }),
-    setShowCoordinates: (show) => set({ showCoordinates: show }),
+    setShowCoordinates: (show) => {
+      set({ showCoordinates: show });
+      // Write through to the persisted store (AUDIT H7).
+      usePersistedStore.setState({ showCoordinates: show });
+    },
     setIsDrawingMode: (mode) => set({ isDrawingMode: mode }),
     setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open }),
     setActiveTab: (tab) => set({ activeTab: tab }),

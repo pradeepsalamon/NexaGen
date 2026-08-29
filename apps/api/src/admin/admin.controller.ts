@@ -1,7 +1,17 @@
-import { Controller, Get, Patch, Post, Param, Body, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { API_ROUTES } from '@nexa-chess/types';
-import type { UpdateCoachStatusRequest } from '@nexa-chess/types';
+import {
+  API_ROUTES,
+  createDemoClassRequestSchema,
+  updateDemoClassRequestSchema
+} from '@nexa-chess/types';
+import type {
+  CreateDemoClassRequest,
+  PaginatedQuery,
+  UpdateCoachStatusRequest,
+  UpdateDemoClassRequest
+} from '@nexa-chess/types';
+import { ZodBodyPipe } from './dto/demo-class.dto';
 import type { Request } from 'express';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { JwtService } from '@nestjs/jwt';
@@ -20,19 +30,22 @@ export class AdminController {
   private async getAdminId(request: Request): Promise<string> {
     const token = request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
     if (!token) throw new UnauthorizedException();
-    
+
+    let payload: AccessTokenPayload;
     try {
-      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
+      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
         secret: getApiEnv().JWT_ACCESS_SECRET
       });
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!user || user.role !== 'SUPER_ADMIN') {
-        throw new UnauthorizedException('Only Super Admins can perform this action.');
-      }
-      return user.id;
     } catch {
       throw new UnauthorizedException();
     }
+
+    // Outside the try so this specific message reaches the client (AUDIT L10).
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || user.role !== 'SUPER_ADMIN') {
+      throw new UnauthorizedException('Only Super Admins can perform this action.');
+    }
+    return user.id;
   }
 
   @Get(API_ROUTES.admin.pendingCoaches)
@@ -53,7 +66,8 @@ export class AdminController {
 
   @Post(API_ROUTES.admin.demoClasses)
   async createDemoClass(
-    @Body() body: any, // We will map this to the proper Zod schema in the route or service
+    @Body(new ZodBodyPipe(createDemoClassRequestSchema))
+    body: CreateDemoClassRequest,
     @Req() request: Request
   ) {
     const adminId = await this.getAdminId(request);
@@ -63,7 +77,8 @@ export class AdminController {
   @Patch(API_ROUTES.admin.updateDemoClass())
   async updateDemoClass(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body(new ZodBodyPipe(updateDemoClassRequestSchema))
+    body: UpdateDemoClassRequest,
     @Req() request: Request
   ) {
     const adminId = await this.getAdminId(request);
@@ -89,9 +104,12 @@ export class AdminController {
   }
 
   @Get(API_ROUTES.admin.demoClasses)
-  async listDemoClasses(@Req() request: Request) {
+  async listDemoClasses(
+    @Query() query: PaginatedQuery & { status?: string },
+    @Req() request: Request
+  ) {
     await this.getAdminId(request);
-    return this.adminService.listDemoClasses();
+    return this.adminService.listDemoClasses(query);
   }
 
   @Get(API_ROUTES.admin.demoClassDetails())
@@ -104,9 +122,12 @@ export class AdminController {
   }
 
   @Get(API_ROUTES.admin.batchClasses)
-  async listBatchClasses(@Req() request: Request) {
+  async listBatchClasses(
+    @Query() query: PaginatedQuery & { status?: string },
+    @Req() request: Request
+  ) {
     await this.getAdminId(request);
-    return this.adminService.listBatchClasses();
+    return this.adminService.listBatchClasses(query);
   }
 
   @Get(API_ROUTES.admin.batchClassDetails())

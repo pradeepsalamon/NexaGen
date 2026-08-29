@@ -10,12 +10,18 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   AuthUser,
   CreateUserRequest,
+  PaginatedQuery,
   UpdateUserRequest,
   UserListResponse,
   UserResponse
 } from "@nexa-chess/types";
 import { Prisma, User, UserRole, UserStatus } from "@prisma/client";
 import { hashSecret } from "../auth/auth.utils";
+import {
+  paginationMeta,
+  resolveOrderBy,
+  resolvePagination
+} from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
 import { TrashRepository } from "../trash/trash.repository";
@@ -38,17 +44,42 @@ export class UserService {
     private readonly trashRepository: TrashRepository
   ) { }
 
-  async list(accessToken: string | undefined): Promise<UserListResponse> {
+  async list(
+    accessToken: string | undefined,
+    query?: PaginatedQuery & { status?: string }
+  ): Promise<UserListResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageUsers(user);
 
-    const users = await this.prisma.user.findMany({
-      include: userInclude,
-      orderBy: [{ createdAt: "desc" }],
-      where: { isDeleted: false }
-    });
+    const { page, pageSize, skip, take, search } = resolvePagination(query);
 
-    return { users: users.map((u) => this.toAuthUser(u)) };
+    const where: Prisma.UserWhereInput = { isDeleted: false };
+    if (query?.status && query.status !== "ALL") {
+      where.status = query.status as UserStatus;
+    }
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } }
+      ];
+    }
+
+    const orderBy = resolveOrderBy(
+      query,
+      ["firstName", "email", "role", "status", "createdAt"] as const,
+      [{ createdAt: "desc" }]
+    ) as Prisma.UserOrderByWithRelationInput | Prisma.UserOrderByWithRelationInput[];
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({ include: userInclude, orderBy, where, skip, take }),
+      this.prisma.user.count({ where })
+    ]);
+
+    return {
+      users: users.map((u) => this.toAuthUser(u)),
+      pagination: paginationMeta(total, page, pageSize)
+    };
   }
 
   async getById(accessToken: string | undefined, id: string): Promise<UserResponse> {
@@ -76,7 +107,10 @@ export class UserService {
       throw new BadRequestException("Password is required.");
     }
 
-    const existingUser = await this.prisma.user.findUnique({
+    // `withDeleted` bypasses the soft-delete filter. users.email is uniquely
+    // indexed across deleted rows too, so a filtered read would miss the
+    // conflict and the insert would fail with P2002 -> unhandled 500.
+    const existingUser = await this.prisma.withDeleted.user.findUnique({
       where: { email: data.email }
     });
 
@@ -108,8 +142,13 @@ export class UserService {
           }
         });
       } else if ((data.role ?? UserRole.STUDENT) === UserRole.COACH) {
+        // An admin creating the account *is* the approval — otherwise the
+        // login gate on `approvalStatus` would lock them out (AUDIT H9).
         await tx.coachProfile.create({
           data: {
+            approvalStatus: UserStatus.ACTIVE,
+            approvedAt: new Date(),
+            approvedById: authUser.id,
             userId: created.id
           }
         });
@@ -146,7 +185,8 @@ export class UserService {
     }
 
     if (data.email && data.email !== userToUpdate.email) {
-      const existingUser = await this.prisma.user.findUnique({
+      // See create(): must include soft-deleted rows, the unique index does.
+      const existingUser = await this.prisma.withDeleted.user.findUnique({
         where: { email: data.email }
       });
       if (existingUser) {
@@ -173,13 +213,67 @@ export class UserService {
       });
 
       if (data.role && data.role !== userToUpdate.role) {
-        if (data.role === UserRole.STUDENT && !userToUpdate.studentProfile) {
-          await tx.studentProfile.create({
-            data: { userId: upd.id, parentName: upd.firstName + " Parent" }
-          });
+        // On a STUDENT<->COACH switch, retire the profile for the old role so
+        // the user isn't left holding both, and (re)activate the profile for
+        // the new role (AUDIT M16). Soft delete keeps rows for trash/audit;
+        // a previously-retired profile is un-deleted rather than re-created
+        // (its `userId` is uniquely indexed).
+        if (data.role === UserRole.STUDENT) {
+          if (userToUpdate.coachProfile && !userToUpdate.coachProfile.isDeleted) {
+            await this.trashRepository.softDelete(
+              tx,
+              "CoachProfile",
+              userToUpdate.coachProfile.id,
+              authUser.id
+            );
+          }
+          if (userToUpdate.studentProfile) {
+            if (userToUpdate.studentProfile.isDeleted) {
+              await tx.studentProfile.update({
+                where: { id: userToUpdate.studentProfile.id },
+                data: { isDeleted: false, deletedAt: null, deletedById: null }
+              });
+            }
+          } else {
+            await tx.studentProfile.create({
+              data: { userId: upd.id, parentName: upd.firstName + " Parent" }
+            });
+          }
         }
-        if (data.role === UserRole.COACH && !userToUpdate.coachProfile) {
-          await tx.coachProfile.create({ data: { userId: upd.id } });
+        if (data.role === UserRole.COACH) {
+          if (userToUpdate.studentProfile && !userToUpdate.studentProfile.isDeleted) {
+            await this.trashRepository.softDelete(
+              tx,
+              "StudentProfile",
+              userToUpdate.studentProfile.id,
+              authUser.id
+            );
+          }
+          if (userToUpdate.coachProfile) {
+            if (userToUpdate.coachProfile.isDeleted) {
+              await tx.coachProfile.update({
+                where: { id: userToUpdate.coachProfile.id },
+                data: {
+                  isDeleted: false,
+                  deletedAt: null,
+                  deletedById: null,
+                  approvalStatus: UserStatus.ACTIVE,
+                  approvedAt: new Date(),
+                  approvedById: authUser.id
+                }
+              });
+            }
+          } else {
+            // See create(): promoting a user to COACH is itself the approval.
+            await tx.coachProfile.create({
+              data: {
+                approvalStatus: UserStatus.ACTIVE,
+                approvedAt: new Date(),
+                approvedById: authUser.id,
+                userId: upd.id
+              }
+            });
+          }
         }
       }
 
@@ -262,24 +356,13 @@ export class UserService {
     this.assertCanModifyTarget(authUser, userToDelete);
     await this.assertCanDeleteSuperAdmin(userToDelete);
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id },
-        data: {
-          isDeleted: true,
-          deletedAt: new Date(),
-          deletedById: authUser.id
-        }
-      });
-
-      await this.trashRepository.log(tx, {
-        action: "SOFT_DELETE",
-        entity: "User",
-        entityId: id,
-        metadata: { title: userToDelete.email },
-        userId: authUser.id
-      });
-    });
+    // Retire the user together with their student/coach profile in one group so
+    // a trash restore brings the profile back too (AUDIT M13/M14).
+    await this.prisma.$transaction((tx) =>
+      this.trashRepository.cascadeSoftDelete(tx, "User", id, authUser.id, {
+        metadata: { title: userToDelete.email }
+      })
+    );
 
     return { ok: true };
   }
@@ -403,7 +486,8 @@ export class UserService {
             parentRelationship: user.studentProfile.parentRelationship
           }
         : null,
-      timezone: user.timezone
+      timezone: user.timezone,
+      username: user.username
     };
   }
 }

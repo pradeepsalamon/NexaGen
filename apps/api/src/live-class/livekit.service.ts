@@ -75,9 +75,23 @@ export class LiveKitService implements OnModuleInit {
       const participants = await this.roomClient.listParticipants(roomName);
       return participants;
     } catch (error) {
+      // A room that doesn't exist yet is an expected, benign state (nobody has
+      // joined) — return empty. Anything else is a real LiveKit failure and
+      // must propagate so callers don't mistake an outage for "room empty"
+      // (AUDIT M22).
+      if (LiveKitService.isRoomNotFoundError(error)) {
+        return [];
+      }
       this.logger.error(`Failed to list participants for room: ${roomName}`, error);
-      return [];
+      throw error;
     }
+  }
+
+  static isRoomNotFoundError(error: unknown): boolean {
+    const err = error as { code?: string; message?: string; status?: number } | null;
+    if (!err) return false;
+    if (err.code === "not_found" || err.status === 404) return true;
+    return /not[\s_-]?found|does not exist|no such room/i.test(err.message ?? "");
   }
 
   async generateAccessToken(options: LiveKitTokenOptions): Promise<string> {
@@ -106,7 +120,11 @@ export class LiveKitService implements OnModuleInit {
           canSubscribe: true,
           canPublishData: true,
           roomAdmin: false,
-          canUpdateOwnMetadata: true,
+          // Deliberately false: the client derives a participant's role from
+          // this metadata (chat badges, video grid, and the authoritative
+          // chessboard sync). Letting a student rewrite their own metadata
+          // would let them impersonate the coach. See AUDIT.md C7.
+          canUpdateOwnMetadata: false,
         });
       }
 

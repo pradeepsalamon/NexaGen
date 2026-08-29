@@ -68,6 +68,18 @@ enum AttendanceEventType {
   RECONNECT
 }
 
+enum AssignmentDifficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum AssignmentStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
 //
 // USER
 //
@@ -119,26 +131,31 @@ model User {
   liveSessions           LiveSession[]            @relation("LiveClassCoach")
   courseProgress         StudentCourseProgress[]  @relation("StudentCourseProgress")
   practices              StudentPractice[]        @relation("StudentPractice")
+  authoredAssignments    Assignment[]             @relation("AuthoredAssignments")
+  deployedAssignments    AssignmentBatch[]        @relation("DeployedAssignments")
+  studentAssignments     StudentAssignment[]      @relation("StudentAssignments")
   activities             StudentActivity[]        @relation("StudentActivity")
   classAttendances       ClassAttendance[]
-  attendanceLogs         AttendanceLog[]        @relation("UserAttendanceLogs")
-  coachAttendances       CoachAttendance[]      @relation("CoachClassAttendance")
-  coachAttendanceLogs    CoachAttendanceLog[]   @relation("UserCoachAttendanceLogs")
+  attendanceLogs         AttendanceLog[]          @relation("UserAttendanceLogs")
+  coachAttendances       CoachAttendance[]        @relation("CoachClassAttendance")
+  coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
 
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  isDeleted    Boolean   @default(false)
-  deletedAt    DateTime?
-  deletedById  String?
-  deletedBy    User?     @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  deletedUsers User[]    @relation("UserDeletedBy")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedUsers  User[]    @relation("UserDeletedBy")
+  deleteGroupId String?
 
   @@index([role])
   @@index([status])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("users")
 }
 
@@ -167,16 +184,18 @@ model StudentProfile {
 
   enrolledAt DateTime @default(now())
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  isDeleted   Boolean   @default(false)
-  deletedAt   DateTime?
-  deletedById String?
-  deletedBy   User?     @relation("StudentProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("StudentProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("student_profiles")
 }
 
@@ -212,16 +231,18 @@ model CoachProfile {
 
   approvedAt DateTime?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  isDeleted   Boolean   @default(false)
-  deletedAt   DateTime?
-  deletedById String?
-  deletedBy   User?     @relation("CoachProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("CoachProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("coach_profiles")
 }
 
@@ -304,23 +325,26 @@ model Batch {
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  coaches     BatchCoach[]
-  students    BatchStudent[]
-  classes     CoachClass[]
+  coaches      BatchCoach[]
+  students     BatchStudent[]
+  classes      CoachClass[]
   liveSessions LiveSession[]
+  assignments  AssignmentBatch[]
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  isDeleted   Boolean   @default(false)
-  deletedAt   DateTime?
-  deletedById String?
-  deletedBy   User?     @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@index([status])
   @@index([createdById])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("batches")
 }
 
@@ -333,17 +357,19 @@ model BatchCoach {
   coachId String
   coach   User   @relation("BatchCoaches", fields: [coachId], references: [id], onDelete: Cascade)
 
-  assignedAt  DateTime  @default(now())
-  isDeleted   Boolean   @default(false)
-  deletedAt   DateTime?
-  deletedById String?
-  deletedBy   User?     @relation("BatchCoachDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  assignedAt    DateTime  @default(now())
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("BatchCoachDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@unique([batchId, coachId])
   @@index([coachId])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("batch_coaches")
 }
 
@@ -356,17 +382,19 @@ model BatchStudent {
   studentId String
   student   User   @relation("BatchStudents", fields: [studentId], references: [id], onDelete: Cascade)
 
-  enrolledAt  DateTime  @default(now())
-  isDeleted   Boolean   @default(false)
-  deletedAt   DateTime?
-  deletedById String?
-  deletedBy   User?     @relation("BatchStudentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  enrolledAt    DateTime  @default(now())
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("BatchStudentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@unique([batchId, studentId])
   @@index([studentId])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("batch_students")
 }
 
@@ -400,7 +428,7 @@ model CoachClass {
   coachId String
   coach   User   @relation("ClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
 
-  isDemo  Boolean @default(false)
+  isDemo Boolean @default(false)
 
   title       String?
   topic       String?
@@ -420,39 +448,40 @@ model CoachClass {
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
 
-  liveSession LiveSession? @relation("LiveSessionSchedule")
-  attendances ClassAttendance[]
+  liveSession     LiveSession?      @relation("LiveSessionSchedule")
+  attendances     ClassAttendance[]
   coachAttendance CoachAttendance?
 
   @@index([batchId])
   @@index([coachId])
   @@index([status])
   @@index([startsAt])
+  @@index([isDemo])
   @@map("classes")
 }
 
 model ClassAttendance {
-  id        String   @id @default(cuid())
-  
-  classId   String
-  class     CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
+  id String @id @default(cuid())
+
+  classId String
+  class   CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
   studentId String
-  student   User       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
-  status            AttendanceStatus @default(PRESENT)
-  joinedAt          DateTime?  @default(now())
-  leftAt            DateTime?
-  
-  totalDuration     Int?       // Total seconds actually in class
-  attendancePercent Float?     // 0-100 calculated percentage
-  reconnectCount    Int        @default(0)
+  student   User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  status   AttendanceStatus @default(PRESENT)
+  joinedAt DateTime?        @default(now())
+  leftAt   DateTime?
+
+  totalDuration     Int? // Total seconds actually in class
+  attendancePercent Float? // 0-100 calculated percentage
+  reconnectCount    Int       @default(0)
   lastActivity      DateTime?
-  
-  logs              AttendanceLog[]
-  
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+
+  logs AttendanceLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([classId, studentId])
   @@index([studentId])
@@ -461,57 +490,59 @@ model ClassAttendance {
 }
 
 model AttendanceLog {
-  id              String   @id @default(cuid())
-  
-  attendanceId    String
-  attendance      ClassAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
-  
-  userId          String
-  user            User   @relation("UserAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
-  
-  eventType       AttendanceEventType
-  timestamp       DateTime @default(now())
-  
+  id String @id @default(cuid())
+
+  attendanceId String
+  attendance   ClassAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("UserAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
+
+  eventType AttendanceEventType
+  timestamp DateTime            @default(now())
+
   sessionStart    DateTime?
   sessionEnd      DateTime?
-  sessionDuration Int?      // seconds for this segment
-  
-  reason          String?   // disconnect reason from LiveKit
-  userAgent       String?
-  ipAddress       String?
-  source          String    @default("LIVEKIT") // LIVEKIT, MANUAL, SYSTEM
-  
-  createdAt       DateTime  @default(now())
-  
+  sessionDuration Int? // seconds for this segment
+
+  reason    String? // disconnect reason from LiveKit
+  userAgent String?
+  ipAddress String?
+  source    String  @default("LIVEKIT") // LIVEKIT, MANUAL, SYSTEM
+
+  createdAt DateTime @default(now())
+
   @@index([attendanceId])
   @@index([userId])
   @@index([timestamp])
   @@index([eventType])
+  // Serves the "find the still-open session" lookup on every join/leave webhook.
+  @@index([attendanceId, eventType, sessionEnd], map: "attendance_logs_open_session_idx")
   @@map("attendance_logs")
 }
 
 model CoachAttendance {
-  id              String   @id @default(cuid())
-  
-  classId         String   @unique
-  class           CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
-  
-  coachId         String
-  coach           User       @relation("CoachClassAttendance", fields: [coachId], references: [id], onDelete: Cascade)
-  
-  status          AttendanceStatus @default(PRESENT)
-  joinedAt        DateTime?  @default(now())
-  leftAt          DateTime?
-  
-  totalDuration   Int?       // Total seconds coach was in class
-  boardDuration   Int?       // Total seconds board was active in this class
-  reconnectCount  Int        @default(0)
-  lastActivity    DateTime?
-  
-  logs            CoachAttendanceLog[]
-  
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id String @id @default(cuid())
+
+  classId String     @unique
+  class   CoachClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  coachId String
+  coach   User   @relation("CoachClassAttendance", fields: [coachId], references: [id], onDelete: Cascade)
+
+  status   AttendanceStatus @default(PRESENT)
+  joinedAt DateTime?        @default(now())
+  leftAt   DateTime?
+
+  totalDuration  Int? // Total seconds coach was in class
+  boardDuration  Int? // Total seconds board was active in this class
+  reconnectCount Int       @default(0)
+  lastActivity   DateTime?
+
+  logs CoachAttendanceLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([coachId])
   @@index([status])
@@ -519,28 +550,28 @@ model CoachAttendance {
 }
 
 model CoachAttendanceLog {
-  id              String   @id @default(cuid())
-  
-  attendanceId    String
-  attendance      CoachAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
-  
-  userId          String
-  user            User   @relation("UserCoachAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
-  
-  eventType       String     // JOIN, LEAVE, DISCONNECT, RECONNECT, BOARD_JOIN, BOARD_LEAVE
-  timestamp       DateTime @default(now())
-  
+  id String @id @default(cuid())
+
+  attendanceId String
+  attendance   CoachAttendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("UserCoachAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
+
+  eventType String // JOIN, LEAVE, DISCONNECT, RECONNECT, BOARD_JOIN, BOARD_LEAVE
+  timestamp DateTime @default(now())
+
   sessionStart    DateTime?
   sessionEnd      DateTime?
-  sessionDuration Int?      // seconds for this segment
-  
-  reason          String?   // disconnect reason
-  userAgent       String?
-  ipAddress       String?
-  source          String    @default("LIVEKIT") // LIVEKIT, MANUAL, SYSTEM
-  
-  createdAt       DateTime  @default(now())
-  
+  sessionDuration Int? // seconds for this segment
+
+  reason    String? // disconnect reason
+  userAgent String?
+  ipAddress String?
+  source    String  @default("LIVEKIT") // LIVEKIT, MANUAL, SYSTEM
+
+  createdAt DateTime @default(now())
+
   @@index([attendanceId])
   @@index([userId])
   @@index([timestamp])
@@ -549,22 +580,22 @@ model CoachAttendanceLog {
 }
 
 model AttendancePolicy {
-  id                  String  @id @default(cuid())
-  
-  name                String  @default("Default Policy")
-  isActive            Boolean @default(true)
-  
-  presentThreshold    Float   @default(90)
-  lateThreshold       Float   @default(70)
-  partialThreshold    Float   @default(30)
-  
-  gracePeriodMinutes  Int     @default(5)
-  minDurationMinutes  Int     @default(5)
-  reconnectTolerance  Int     @default(3)
-  
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
+  id String @id @default(cuid())
+
+  name     String  @default("Default Policy")
+  isActive Boolean @default(true)
+
+  presentThreshold Float @default(90)
+  lateThreshold    Float @default(70)
+  partialThreshold Float @default(30)
+
+  gracePeriodMinutes Int @default(5)
+  minDurationMinutes Int @default(5)
+  reconnectTolerance Int @default(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@map("attendance_policies")
 }
 
@@ -584,14 +615,14 @@ model LiveSession {
   classId String     @unique
   class   CoachClass @relation("LiveSessionSchedule", fields: [classId], references: [id], onDelete: Cascade)
 
-  roomName String  @unique
-  livekitRoomName  String? @unique
+  roomName        String  @unique
+  livekitRoomName String? @unique
 
   status String @default("SCHEDULED") // SCHEDULED, WAITING, LIVE, ENDED, CANCELLED
 
-  scheduledAt DateTime
-  startedAt   DateTime?
-  endedAt     DateTime?
+  scheduledAt  DateTime
+  startedAt    DateTime?
+  endedAt      DateTime?
   recordingUrl String?
 
   createdAt DateTime @default(now())
@@ -613,20 +644,38 @@ model LiveChatMessage {
   liveSessionId String
   liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
 
-  senderId   String
-  sender     User   @relation("UserLiveChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  senderId String
+  sender   User   @relation("UserLiveChatMessages", fields: [senderId], references: [id], onDelete: Cascade)
 
   senderName String
   senderRole String?
-  
-  message    String @db.Text
 
-  createdAt  DateTime @default(now())
+  message String @db.Text
+
+  /// LiveKit's message id, so history reconciliation dedupes on identity
+  /// instead of senderName+text+timestamp — which dropped a legitimately
+  /// repeated short message (AUDIT M24).
+  clientMessageId String?
+
+  createdAt DateTime @default(now())
 
   @@index([liveSessionId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([clientMessageId])
   @@map("live_chat_messages")
+}
+
+/// Dedupe key for LiveKit webhook deliveries. LiveKit retries webhooks, and
+/// without this a retried `participant_joined` / `participant_left` produced
+/// duplicate RECONNECT logs and inflated durations (AUDIT M1).
+model ProcessedWebhookEvent {
+  id          String   @id
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+  @@map("processed_webhook_events")
 }
 
 //
@@ -634,7 +683,7 @@ model LiveChatMessage {
 //
 
 model Course {
-  id          String   @id @default(cuid())
+  id          String                  @id @default(cuid())
   title       String
   description String?
   modules     CourseModule[]
@@ -666,9 +715,9 @@ model StudentCourseProgress {
 //
 
 model Practice {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   title      String
-  difficulty String   // BEGINNER, INTERMEDIATE, ADVANCED
+  difficulty String // BEGINNER, INTERMEDIATE, ADVANCED
   dueDate    DateTime
   students   StudentPractice[]
 }
@@ -679,10 +728,72 @@ model StudentPractice {
   student    User     @relation("StudentPractice", fields: [studentId], references: [id], onDelete: Cascade)
   practiceId String
   practice   Practice @relation(fields: [practiceId], references: [id], onDelete: Cascade)
-  status     String   // PENDING, IN_PROGRESS, COMPLETED
+  status     String // PENDING, IN_PROGRESS, COMPLETED
 
   @@unique([studentId, practiceId])
   @@map("student_practices")
+}
+
+// A reusable PGN assignment in the library. Admins author shared items
+// (`isLibrary = true`, visible to every coach); coaches author private items
+// (`isLibrary = false`, visible only to the author). Not soft-deletable — a
+// delete cascades to every deployment + per-student row.
+model Assignment {
+  id          String               @id @default(cuid())
+  createdById String?
+  createdBy   User?                @relation("AuthoredAssignments", fields: [createdById], references: [id], onDelete: SetNull)
+  isLibrary   Boolean              @default(false)
+  title       String
+  description String?
+  pgn         String // raw PGN text (source of truth for the board viewer)
+  pgnUrl      String? // Cloudinary raw-file URL for download
+  difficulty  AssignmentDifficulty @default(BEGINNER)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  deployments AssignmentBatch[]
+
+  @@index([createdById])
+  @@index([isLibrary])
+  @@map("assignments")
+}
+
+// One deployment of a library assignment to a batch, with its own due date.
+model AssignmentBatch {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  batchId      String
+  batch        Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  assignedById String?
+  assignedBy   User?      @relation("DeployedAssignments", fields: [assignedById], references: [id], onDelete: SetNull)
+  dueDate      DateTime
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  students StudentAssignment[]
+
+  @@unique([assignmentId, batchId])
+  @@index([batchId])
+  @@index([assignedById])
+  @@map("assignment_batches")
+}
+
+model StudentAssignment {
+  id                String           @id @default(cuid())
+  assignmentBatchId String
+  assignmentBatch   AssignmentBatch  @relation(fields: [assignmentBatchId], references: [id], onDelete: Cascade)
+  studentId         String
+  student           User             @relation("StudentAssignments", fields: [studentId], references: [id], onDelete: Cascade)
+  status            AssignmentStatus @default(PENDING)
+  completedAt       DateTime?
+  note              String?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@unique([assignmentBatchId, studentId])
+  @@index([studentId])
+  @@map("student_assignments")
 }
 
 //
@@ -693,7 +804,7 @@ model StudentActivity {
   id        String   @id @default(cuid())
   studentId String
   student   User     @relation("StudentActivity", fields: [studentId], references: [id], onDelete: Cascade)
-  type      String   // CLASS_JOINED, LESSON_COMPLETED, PRACTICE_FINISHED, FEEDBACK
+  type      String // CLASS_JOINED, LESSON_COMPLETED, PRACTICE_FINISHED, FEEDBACK
   title     String
   createdAt DateTime @default(now())
 
@@ -705,7 +816,7 @@ model Announcement {
   id          String   @id @default(cuid())
   title       String
   description String
-  type        String   // BATCH, COURSE, PLATFORM
+  type        String // BATCH, COURSE, PLATFORM
   createdAt   DateTime @default(now())
 
   @@map("announcements")

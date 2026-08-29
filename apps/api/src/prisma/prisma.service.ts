@@ -89,6 +89,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.studentPractice;
   }
 
+  get assignment() {
+    return this.client.assignment;
+  }
+
+  get assignmentBatch() {
+    return this.client.assignmentBatch;
+  }
+
+  get studentAssignment() {
+    return this.client.studentAssignment;
+  }
+
   get studentActivity() {
     return this.client.studentActivity;
   }
@@ -121,6 +133,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.attendancePolicy;
   }
 
+  get processedWebhookEvent() {
+    return this.client.processedWebhookEvent;
+  }
+
   async $connect() {
     return this.client.$connect();
   }
@@ -130,6 +146,12 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   }
 
   $transaction: typeof this.client.$transaction = this.client.$transaction.bind(
+    this.client
+  );
+
+  $queryRaw: typeof this.client.$queryRaw = this.client.$queryRaw.bind(this.client);
+
+  $executeRaw: typeof this.client.$executeRaw = this.client.$executeRaw.bind(
     this.client
   );
 

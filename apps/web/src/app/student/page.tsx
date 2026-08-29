@@ -67,8 +67,8 @@ export default function StudentDashboardPage() {
             id={data?.todaysClass?.id}
             topic={data?.todaysClass?.topic}
             coachName={data?.todaysClass?.coachName}
-            time={data?.todaysClass?.time}
-            duration={data?.todaysClass?.duration}
+            startsAt={data?.todaysClass?.startsAt}
+            durationMinutes={data?.todaysClass?.durationMinutes}
             status={data?.todaysClass?.status as any}
           />
         </div>

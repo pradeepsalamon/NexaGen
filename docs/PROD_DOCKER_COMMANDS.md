@@ -78,9 +78,16 @@ docker exec -it nexa_redis redis-cli
 ## ⚙️ Prisma & Backend Operations
 
 **Manually run database migrations**
-*(Usually `entrypoint.sh` does this automatically, but if you ever need to run it manually)*
+*(A deploy already applies these before swapping the API, and `entrypoint.sh` runs
+them again on container start — you only need this after a manual restore or a
+container started outside the deploy script.)*
 ```bash
 docker exec -it nexa_api npx prisma migrate deploy
+```
+
+**Check migration state without applying anything**
+```bash
+docker exec -it nexa_api npx prisma migrate status
 ```
 
 **Open a bash shell inside the API container**

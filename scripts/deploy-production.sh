@@ -36,6 +36,44 @@ git checkout -f "$COMMIT_SHA"
 echo "Building services: ${SERVICES[*]}..."
 docker compose build "${SERVICES[@]}"
 
+# =========================================================
+# Migration Phase
+# =========================================================
+# New API code must never serve traffic against an un-migrated database, and a
+# migration that cannot apply must not take the running API down with it.
+#
+# `entrypoint.sh` also runs `migrate deploy` on container start, but by then the
+# old container is already gone: a failure there is only noticed ~75s later by
+# the health-check timeout below, after the swap. So apply migrations here
+# first, from a throwaway container built off the NEW image, while the current
+# API is still up. `migrate deploy` is idempotent, so the entrypoint's run
+# becomes a no-op and stays as a safety net for manual container starts.
+DEPLOYS_API=false
+for SERVICE in "${SERVICES[@]}"; do
+  if [ "$SERVICE" = "api" ]; then
+    DEPLOYS_API=true
+  fi
+done
+
+if [ "$DEPLOYS_API" = "true" ]; then
+  echo "Applying database migrations (before swapping the running API)..."
+
+  if ! docker compose run --rm api npx prisma migrate deploy; then
+    echo "========================================"
+    echo "DEPLOYMENT ABORTED: migrations failed"
+    echo "========================================"
+    echo "No containers were replaced — the previous API is still serving."
+    echo "The database is in whatever state Prisma reached; inspect it with:"
+    echo "  docker compose run --rm api npx prisma migrate status"
+    echo ""
+    echo "Restoring the working tree to $PREV_COMMIT to match the running containers..."
+    git checkout -f "$PREV_COMMIT"
+    exit 1
+  fi
+
+  echo "Migrations applied."
+fi
+
 # Start only the affected services
 echo "Starting services: ${SERVICES[*]}..."
 docker compose up -d "${SERVICES[@]}"

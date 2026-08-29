@@ -1,15 +1,19 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Clock, User, Calendar, Play } from "lucide-react";
 import Link from "next/link";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatTime } from "@/lib/datetime";
 
 interface TodaysClassProps {
   id?: string;
   topic?: string;
   coachName?: string;
-  time?: string;
-  duration?: string;
+  startsAt?: string;
+  durationMinutes?: number;
   status?: string;
 }
 
@@ -17,10 +21,11 @@ export function TodaysClass({
   id,
   topic,
   coachName,
-  time,
-  duration,
+  startsAt,
+  durationMinutes,
   status
 }: TodaysClassProps) {
+  const timeZone = useUserTimeZone();
   if (!topic) {
     return (
       <Card className="h-full border-app-border bg-app-surface shadow-sm">
@@ -56,7 +61,7 @@ export function TodaysClass({
             </div>
             <div className="flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
-              <span>{time} ({duration})</span>
+              <span>{formatTime(startsAt, timeZone)} ({durationMinutes} min)</span>
             </div>
           </div>
         </div>

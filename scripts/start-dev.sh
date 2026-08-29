@@ -1,11 +1,20 @@
 #!/bin/bash
 set -e
 
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$(cd -P "$(dirname "$SOURCE")/.." && pwd)"
 cd "$DIR"
 
-# Kill existing nexa-dev tmux session if running
+# Stop existing nexa-dev tmux session & free ports if running
+echo "Stopping any existing dev/staging processes..."
 tmux kill-session -t nexa-dev 2>/dev/null || true
+fuser -k 3010/tcp 3011/tcp 2>/dev/null || true
+sleep 1
 
 # Window 1: Dev API (Port 3011)
 tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd $DIR && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"

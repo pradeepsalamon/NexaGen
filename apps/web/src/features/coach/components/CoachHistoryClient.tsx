@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { History, Eye, Info, Download } from "lucide-react";
 import Link from "next/link";
-import { apiFetch } from "@/lib/api";
+import { toast } from "sonner";
 import type { CoachClass } from "@nexa-chess/types";
+import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { DataTable } from "@/components/ui/DataTable";
@@ -24,13 +25,13 @@ export function CoachHistoryClient() {
 
   const handleDownload = async (classId: string) => {
     try {
-      const data = await apiFetch<{ url: string }>(`/live-class/${classId}/recording/download`);
+      const data = await getRecordingDownloadUrl(classId);
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.open(data.url, "_blank");
       }
     } catch (error) {
       console.error("Failed to download recording:", error);
-      alert("Failed to download recording. It may have expired or is unavailable.");
+      toast.error("Failed to download recording. It may have expired or is unavailable.");
     }
   };
 

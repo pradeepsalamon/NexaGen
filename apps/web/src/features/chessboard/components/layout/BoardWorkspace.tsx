@@ -4,6 +4,7 @@ import { PromotionDialog } from "../dialogs/PromotionDialog";
 import { SetupPositionDialog } from "../dialogs/SetupPositionDialog";
 import { useBoardShortcuts } from "../../hooks/useBoardShortcuts";
 import { BoardNavigation } from "../toolbars/BoardNavigation";
+import { ChessClock } from "../panels/ChessClock";
 import { SidebarTabs } from "../panels/SidebarTabs";
 
 export function BoardWorkspace() {
@@ -34,8 +35,9 @@ export function BoardWorkspace() {
                 <ChessgroundBoard />
               </div>
               
-              {/* Board Navigation Row */}
-              <div className="w-full flex justify-center mt-4">
+              {/* Clock + Board Navigation Row */}
+              <div className="mt-4 flex w-full flex-col items-center gap-2">
+                <ChessClock />
                 <BoardNavigation />
               </div>
             </div>

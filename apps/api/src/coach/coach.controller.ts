@@ -1,29 +1,18 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
   Param,
   Patch,
-  PipeTransform,
   Post,
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
 import { API_ROUTES, createClassRequestSchema, updateClassRequestSchema, type CreateClassRequest, type UpdateClassRequest } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+// Field-level Zod validation (AUDIT M30) — was a bare "Validation failed".
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { CoachService } from "./coach.service";
-
-class ZodPipe implements PipeTransform {
-  constructor(private schema: any) {}
-  transform(value: any) {
-    try {
-      return this.schema.parse(value);
-    } catch (error) {
-      throw new BadRequestException("Validation failed");
-    }
-  }
-}
 
 @Controller()
 export class CoachController {
@@ -56,7 +45,7 @@ export class CoachController {
 
   @Post(API_ROUTES.coach.createClass)
   createClass(
-    @Body(new ZodPipe(createClassRequestSchema)) body: CreateClassRequest, 
+    @Body(new ZodBodyPipe(createClassRequestSchema)) body: CreateClassRequest, 
     @Req() request: Request
   ) {
     return this.coachService.createClass(this.getAccessToken(request), body);
@@ -83,7 +72,7 @@ export class CoachController {
   @Patch(API_ROUTES.coach.updateClass())
   async updateClass(
     @Param("id") id: string,
-    @Body(new ZodPipe(updateClassRequestSchema)) body: UpdateClassRequest,
+    @Body(new ZodBodyPipe(updateClassRequestSchema)) body: UpdateClassRequest,
     @Req() request: Request
   ) {
     return this.coachService.updateClass(this.getAccessToken(request), id, body);

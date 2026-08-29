@@ -16,6 +16,24 @@ async function upsertUser(email: string, createData: any, updateData: any) {
   return prisma.user.create({ data: createData });
 }
 
+/**
+ * Coach login is gated on `approvalStatus === ACTIVE`, so a seeded coach needs
+ * an already-approved profile or it cannot sign in.
+ */
+async function upsertApprovedCoachProfile(userId: string) {
+  const existing = await prisma.coachProfile.findFirst({
+    where: { userId, isDeleted: false }
+  });
+  const approval = {
+    approvalStatus: UserStatus.ACTIVE,
+    approvedAt: new Date()
+  };
+  if (existing) {
+    return prisma.coachProfile.update({ where: { id: existing.id }, data: approval });
+  }
+  return prisma.coachProfile.create({ data: { ...approval, userId } });
+}
+
 async function main() {
   console.log("Seeding base production users...");
   const password = await hashSecret(seedPassword);
@@ -70,7 +88,7 @@ async function main() {
   console.log("✅ Seeded admin@nexa.test");
 
   // 3. Example Coach
-  await upsertUser(
+  const coach = await upsertUser(
     "coach@nexa.test",
     {
       email: "coach@nexa.test",
@@ -90,6 +108,8 @@ async function main() {
       status: UserStatus.ACTIVE
     }
   );
+
+  await upsertApprovedCoachProfile(coach.id);
 
   console.log("✅ Seeded coach@nexa.test");
 

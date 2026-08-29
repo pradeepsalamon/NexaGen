@@ -14,6 +14,7 @@ import type {
   BatchResponse,
   BatchUserSummary,
   CreateBatchRequest,
+  PaginatedQuery,
   UpdateBatchRequest
 } from "@nexa-chess/types";
 import {
@@ -23,6 +24,11 @@ import {
   UserRole,
   UserStatus
 } from "@prisma/client";
+import {
+  paginationMeta,
+  resolveOrderBy,
+  resolvePagination
+} from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
 import { TrashRepository } from "../trash/trash.repository";
@@ -67,15 +73,44 @@ export class BatchService {
     private readonly trashRepository: TrashRepository
   ) { }
 
-  async list(accessToken: string | undefined): Promise<BatchListResponse> {
+  async list(
+    accessToken: string | undefined,
+    query?: PaginatedQuery & { status?: string }
+  ): Promise<BatchListResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
-    const batches = await this.prisma.batch.findMany({
-      include: batchInclude,
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-      where: this.getBatchVisibilityWhere(user)
-    });
+    const { page, pageSize, skip, take, search } = resolvePagination(query);
 
-    return { batches: batches.map((batch) => this.toBatch(batch)) };
+    const where: Prisma.BatchWhereInput = { ...this.getBatchVisibilityWhere(user) };
+    if (query?.status && query.status !== "ALL") {
+      where.status = query.status as BatchStatus;
+    }
+    if (search) {
+      // `AND` so this can't clobber an `OR` the visibility filter might add.
+      where.AND = [
+        {
+          OR: [
+            { name: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } }
+          ]
+        }
+      ];
+    }
+
+    const orderBy = resolveOrderBy(
+      query,
+      ["name", "status", "createdAt", "startsAt"] as const,
+      [{ status: "asc" }, { createdAt: "desc" }]
+    ) as Prisma.BatchOrderByWithRelationInput | Prisma.BatchOrderByWithRelationInput[];
+
+    const [batches, total] = await Promise.all([
+      this.prisma.batch.findMany({ include: batchInclude, orderBy, where, skip, take }),
+      this.prisma.batch.count({ where })
+    ]);
+
+    return {
+      batches: batches.map((batch) => this.toBatch(batch)),
+      pagination: paginationMeta(total, page, pageSize)
+    };
   }
 
   async getAssignableUsers(
@@ -295,8 +330,10 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    // Retire the batch together with its coach/student assignments in one group
+    // so a later restore brings the roster back too (AUDIT M13).
     await this.prisma.$transaction((transaction) =>
-      this.trashRepository.softDelete(transaction, "Batch", batchId, user.id)
+      this.trashRepository.cascadeSoftDelete(transaction, "Batch", batchId, user.id)
     );
 
     return { ok: true };

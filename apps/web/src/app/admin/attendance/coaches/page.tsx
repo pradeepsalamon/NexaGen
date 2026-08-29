@@ -12,6 +12,7 @@ import {
   type AdminCoachTeachingItem,
 } from "@nexa-chess/types";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
+import { CoachAttendanceDialog } from "@/features/attendance/components/CoachAttendanceDialog";
 import { BackButton } from "@/components/ui/BackButton";
 
 export default function AdminCoachTeachingPage() {
@@ -19,6 +20,7 @@ export default function AdminCoachTeachingPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [drilldownCoach, setDrilldownCoach] = useState<{ id: string; name: string } | null>(null);
 
   const loadReport = useCallback(async () => {
     try {
@@ -181,6 +183,9 @@ export default function AdminCoachTeachingPage() {
           {/* Table */}
           <Card className="border-app-border bg-app-surface shadow-sm overflow-hidden">
             <CardContent className="p-0">
+              <p className="px-3 pt-4 pb-2 text-xs text-app-muted md:px-6">
+                Click a row for that coach&apos;s full teaching history.
+              </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
                   <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
@@ -215,7 +220,19 @@ export default function AdminCoachTeachingPage() {
                     {coaches.map((coach: AdminCoachTeachingItem) => (
                       <tr
                         key={coach.coachId}
-                        className="hover:bg-app-soft/50 transition-colors"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`View teaching history for ${coach.coachName}`}
+                        onClick={() =>
+                          setDrilldownCoach({ id: coach.coachId, name: coach.coachName })
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            setDrilldownCoach({ id: coach.coachId, name: coach.coachName });
+                          }
+                        }}
+                        className="cursor-pointer hover:bg-app-soft/50 transition-colors focus:outline-none focus-visible:bg-app-soft focus-visible:ring-2 focus-visible:ring-app-focus focus-visible:ring-inset"
                       >
                         <td className="px-3 py-3 md:px-6 md:py-4 text-app-text font-medium">
                           {coach.coachName}
@@ -260,6 +277,15 @@ export default function AdminCoachTeachingPage() {
           </Card>
         </>
       )}
+
+      <CoachAttendanceDialog
+        open={drilldownCoach !== null}
+        onOpenChange={(open) => {
+          if (!open) setDrilldownCoach(null);
+        }}
+        coachId={drilldownCoach?.id ?? null}
+        coachName={drilldownCoach?.name}
+      />
     </div>
   );
 }

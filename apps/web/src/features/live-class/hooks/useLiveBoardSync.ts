@@ -1,30 +1,27 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useBoardSync } from "@/features/chessboard/hooks/useBoardSync";
+import type { BoardSyncActions } from "@/features/chessboard/hooks/useBoardSync";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClassState } from "../providers/LiveClassProvider";
-
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 /**
- * Bridges the LiveClassProvider's `boardControlStudentId` with the
- * chessboard store's permission system, and triggers sync broadcasts
- * when the chessboard is first opened.
- *
- * Must be used inside both <BoardProvider> and <LiveClassProvider>.
+ * Bridges the LiveClassProvider's `boardControlStudentId` with the chessboard
+ * store's permission system, and force-syncs full state when the board is first
+ * opened. Driven by the single sync engine in <LiveBoardSyncBridge>.
  */
-export function useLiveBoardSync() {
+export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
   const { boardControlStudentId, isChessboardOpen } = useLiveClassState();
   const { setPermissionMode, permissionMode, selectedStudentId } = useBoardStore();
-  const { broadcastState, broadcastPermissions } = useBoardSync();
+  const { broadcastState, broadcastPermissions } = actions;
   const hasInitialized = useRef(false);
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  // Sync boardControlStudentId → board store permission mode
+  // boardControlStudentId → board store permission mode (coach only).
   useEffect(() => {
-    if (!isCoach) return; // Only coach sets permissions from LiveClassState
+    if (!isCoach) return;
     if (boardControlStudentId) {
       setPermissionMode("SELECTED_STUDENT", boardControlStudentId);
     } else {
@@ -32,28 +29,23 @@ export function useLiveBoardSync() {
     }
   }, [boardControlStudentId, setPermissionMode, isCoach]);
 
-  // When the permission mode changes, broadcast to all participants
+  // Broadcast permission changes to all participants.
   useEffect(() => {
     if (!isChessboardOpen || !isCoach) return;
     broadcastPermissions();
   }, [permissionMode, selectedStudentId, isChessboardOpen, broadcastPermissions, isCoach]);
 
-  // When the board is first opened, force-sync full state to all
+  // Force-sync full state to everyone when the board first opens.
   useEffect(() => {
     if (isChessboardOpen && !hasInitialized.current) {
       hasInitialized.current = true;
       if (isCoach) {
-        // Small delay to ensure data channel is ready
-        const timer = setTimeout(() => {
-          broadcastState("FORCE_SYNC");
-        }, 300);
+        const timer = setTimeout(() => broadcastState("FORCE_SYNC"), 300);
         return () => clearTimeout(timer);
       }
     }
     if (!isChessboardOpen) {
       hasInitialized.current = false;
     }
-  }, [isChessboardOpen, broadcastState]);
-
-  return { broadcastState, broadcastPermissions };
+  }, [isChessboardOpen, isCoach, broadcastState]);
 }

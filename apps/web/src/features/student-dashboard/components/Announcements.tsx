@@ -1,11 +1,15 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Megaphone, Bell } from "lucide-react";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 
 interface Announcement {
   id: string;
   title: string;
-  date: string;
+  createdAt: string;
   description: string;
   type: "BATCH" | "COURSE" | "PLATFORM";
 }
@@ -15,6 +19,8 @@ interface AnnouncementsProps {
 }
 
 export function Announcements({ announcements = [] }: AnnouncementsProps) {
+  const timeZone = useUserTimeZone();
+
   return (
     <Card className="border-app-border bg-app-surface shadow-sm h-full flex flex-col">
       <CardHeader className="pb-4 border-b border-app-border/50">
@@ -46,7 +52,7 @@ export function Announcements({ announcements = [] }: AnnouncementsProps) {
                   {announcement.description}
                 </p>
                 <p className="text-xs text-app-muted font-medium mt-3">
-                  {announcement.date}
+                  {formatFullDate(announcement.createdAt, timeZone)}
                 </p>
               </div>
             ))}

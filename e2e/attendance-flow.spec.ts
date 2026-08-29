@@ -45,15 +45,45 @@ async function api(
   return res;
 }
 
+import crypto from "crypto";
+
+const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "APIWLsbggsQnKdN";
+const LIVEKIT_API_SECRET =
+  process.env.LIVEKIT_API_SECRET || "juXmqj30DR0SRmcF3xfeLp6EilDxrUdtesUgWaNebZJB";
+
+function createWebhookSignature(body: string | Record<string, unknown>): string {
+  const rawBody = typeof body === "string" ? body : JSON.stringify(body);
+  const sha256 = crypto.createHash("sha256").update(rawBody).digest("hex");
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(
+    JSON.stringify({
+      iss: LIVEKIT_API_KEY,
+      sub: LIVEKIT_API_KEY,
+      sha256,
+      exp: Math.floor(Date.now() / 1000) + 300,
+    })
+  ).toString("base64url");
+  const signature = crypto
+    .createHmac("sha256", LIVEKIT_API_SECRET)
+    .update(`${header}.${payload}`)
+    .digest("base64url");
+  return `${header}.${payload}.${signature}`;
+}
+
 // ─── Helper: Send LiveKit webhook event ──────────────────────────────────────
 
 async function sendWebhook(
   request: APIRequestContext,
   event: Record<string, unknown>
 ) {
+  const body = JSON.stringify(event);
+  const authHeader = createWebhookSignature(body);
   const res = await request.post(`${API_URL}/webhooks/livekit`, {
     data: event,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: authHeader,
+    },
   });
   return res;
 }
@@ -68,6 +98,7 @@ function livekitEvent(
 ) {
   return {
     event: eventType,
+    id: `evt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     room: { name: roomName },
     participant: {
       identity: participantIdentity,
@@ -86,7 +117,7 @@ async function loginViaUI(page: Page, email: string, password: string) {
   const emailInput = page.getByLabel(/email/i);
   await emailInput.fill(email);
 
-  const passwordInput = page.getByLabel(/password/i);
+  const passwordInput = page.locator('input[type="password"]');
   await passwordInput.fill(password);
 
   await page.getByRole("button", { name: /sign in|log in|login/i }).click();

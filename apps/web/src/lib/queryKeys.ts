@@ -2,7 +2,9 @@ import type { TrashListRequest } from "@nexa-chess/types";
 
 export const queryKeys = {
   auth: {
-    session: ["auth", "session"] as const,
+    // Must match the key SessionBootstrap / AuthLayout use, or invalidating it
+    // is a no-op (AUDIT L3).
+    session: ["auth", "me"] as const,
   },
   users: {
     all: ["users"] as const,
@@ -30,5 +32,14 @@ export const queryKeys = {
   },
   admin: {
     base: ["admin"] as const,
+  },
+  assignments: {
+    all: ["assignments"] as const,
+    library: ["assignments", "library"] as const,
+    libraryItem: (id: string) => ["assignments", "library", id] as const,
+    deployments: ["assignments", "deployments"] as const,
+    deployment: (id: string) => ["assignments", "deployments", id] as const,
+    mine: ["assignments", "mine"] as const,
+    mineItem: (id: string) => ["assignments", "mine", id] as const,
   },
 } as const;

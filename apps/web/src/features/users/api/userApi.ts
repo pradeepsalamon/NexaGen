@@ -7,9 +7,10 @@ import type {
 } from "@nexa-chess/types";
 import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
+import { toQueryString, type ListParams } from "@/lib/pagination";
 
-export function listUsers() {
-  return apiFetch<UserListResponse>(API_ROUTES.users.list);
+export function listUsers(params: ListParams = {}) {
+  return apiFetch<UserListResponse>(API_ROUTES.users.list + toQueryString(params));
 }
 
 export function getUser(userId: string) {

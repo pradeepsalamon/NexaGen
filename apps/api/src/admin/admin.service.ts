@@ -1,11 +1,17 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { assertNoSchedulingConflict, assertNotInPast } from '../coach/class-scheduling.util';
+import { paginationMeta, resolveOrderBy, resolvePagination } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
-import type { PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
-import { UserStatus } from '@prisma/client';
+import { TrashRepository } from '../trash/trash.repository';
+import type { PaginatedQuery, PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
+import { Prisma, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly trashRepository: TrashRepository
+  ) {}
 
   async getPendingCoaches(): Promise<PendingCoachesResponse> {
     const users = await this.prisma.user.findMany({
@@ -56,19 +62,6 @@ export class AdminService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      // Update the user's status globally
-      let userStatus: UserStatus = 'ACTIVE';
-      if (data.status === 'ARCHIVED') {
-        userStatus = 'ARCHIVED';
-      } else if (data.status === 'DELETED') {
-        userStatus = 'DELETED';
-      }
-
-      await tx.user.update({
-        where: { id: coachId },
-        data: { status: userStatus }
-      });
-
       // Update the coach profile specifically
       await tx.coachProfile.update({
         where: { userId: coachId },
@@ -77,6 +70,20 @@ export class AdminService {
           approvedById: adminId,
           approvedAt: new Date()
         }
+      });
+
+      if (data.status === 'DELETED') {
+        // Route a delete through the trash pipeline so the row is actually
+        // soft-deleted (isDeleted + audit log), not just a "DELETED" status
+        // zombie that still shows in user lists but can't log in (AUDIT M15).
+        // Cascades to the coach profile so it doesn't linger active (AUDIT M14).
+        await this.trashRepository.cascadeSoftDelete(tx, 'User', coachId, adminId);
+        return;
+      }
+
+      await tx.user.update({
+        where: { id: coachId },
+        data: { status: data.status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE' }
       });
     });
 
@@ -88,33 +95,16 @@ export class AdminService {
       where: { id: data.coachId }
     });
 
-    if (!coach || coach.role !== 'COACH') {
+    // An unapproved coach must not be schedulable (AUDIT H9).
+    if (!coach || coach.role !== 'COACH' || coach.status !== UserStatus.ACTIVE) {
       throw new NotFoundException("Coach not found");
     }
 
     const startsAt = new Date(data.startsAt);
     const endsAt = new Date(data.endsAt);
 
-    // Check for overlapping classes for this coach
-    const conflicting = await this.prisma.coachClass.findFirst({
-      where: {
-        coachId: data.coachId,
-        status: { in: ['SCHEDULED', 'LIVE'] },
-        // Two ranges overlap when: existingStart < newEnd AND existingEnd > newStart
-        startsAt: { lt: endsAt },
-        endsAt: { gt: startsAt },
-      },
-      select: { topic: true, startsAt: true, endsAt: true }
-    });
-
-    if (conflicting) {
-      const fmt = (d: Date) => d.toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-      });
-      throw new ConflictException(
-        `Coach already has a class "${conflicting.topic || 'Untitled'}" scheduled from ${fmt(conflicting.startsAt)} to ${fmt(conflicting.endsAt)}. Please choose a different time.`
-      );
-    }
+    assertNotInPast(startsAt);
+    await assertNoSchedulingConflict(this.prisma, { coachId: data.coachId, startsAt, endsAt });
 
     const demoClass = await this.prisma.coachClass.create({
       data: {
@@ -144,7 +134,7 @@ export class AdminService {
       const coach = await this.prisma.user.findUnique({
         where: { id: data.coachId }
       });
-      if (!coach || coach.role !== 'COACH') {
+      if (!coach || coach.role !== 'COACH' || coach.status !== UserStatus.ACTIVE) {
         throw new NotFoundException("Coach not found");
       }
     }
@@ -154,26 +144,15 @@ export class AdminService {
     const coachId = data.coachId || existingClass.coachId;
 
     if (data.startsAt || data.endsAt || data.coachId) {
-      // Check for overlapping classes for this coach, excluding the current class
-      const conflicting = await this.prisma.coachClass.findFirst({
-        where: {
-          id: { not: classId },
-          coachId: coachId,
-          status: { in: ['SCHEDULED', 'LIVE'] },
-          startsAt: { lt: endsAt },
-          endsAt: { gt: startsAt },
-        },
-        select: { topic: true, startsAt: true, endsAt: true }
-      });
-
-      if (conflicting) {
-        const fmt = (d: Date) => d.toLocaleString('en-US', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-        });
-        throw new ConflictException(
-          `Coach already has a class "${conflicting.topic || 'Untitled'}" scheduled from ${fmt(conflicting.startsAt)} to ${fmt(conflicting.endsAt)}. Please choose a different time.`
-        );
+      if (data.startsAt) {
+        assertNotInPast(startsAt);
       }
+      await assertNoSchedulingConflict(this.prisma, {
+        coachId,
+        startsAt,
+        endsAt,
+        excludeClassId: classId
+      });
     }
 
     const updatedClass = await this.prisma.coachClass.update({
@@ -224,28 +203,12 @@ export class AdminService {
     }
 
     // Check if restoring would cause a schedule conflict for the coach
-    const conflicting = await this.prisma.coachClass.findFirst({
-      where: {
-        coachId: existingClass.coachId,
-        id: { not: classId },
-        status: { in: ['SCHEDULED', 'LIVE'] },
-        OR: [
-          {
-            startsAt: { lt: existingClass.endsAt },
-            endsAt: { gt: existingClass.startsAt }
-          }
-        ]
-      }
+    await assertNoSchedulingConflict(this.prisma, {
+      coachId: existingClass.coachId,
+      startsAt: existingClass.startsAt,
+      endsAt: existingClass.endsAt,
+      excludeClassId: classId
     });
-
-    if (conflicting) {
-      const fmt = (d: Date) => d.toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-      });
-      throw new ConflictException(
-        `Cannot restore: Coach already has a class "${conflicting.topic || 'Untitled'}" scheduled from ${fmt(conflicting.startsAt)} to ${fmt(conflicting.endsAt)}.`
-      );
-    }
 
     const restoredClass = await this.prisma.coachClass.update({
       where: { id: classId },
@@ -258,12 +221,25 @@ export class AdminService {
     return { class: restoredClass };
   }
 
-  async listDemoClasses() {
-    const classes = await this.prisma.coachClass.findMany({
-      where: { isDemo: true },
-      include: { coach: true },
-      orderBy: { startsAt: 'desc' }
-    });
+  async listDemoClasses(query?: PaginatedQuery & { status?: string }) {
+    const { page, pageSize, skip, take, search } = resolvePagination(query);
+    const where = this.buildClassListWhere(true, query?.status, search);
+    const orderBy = resolveOrderBy(
+      query,
+      ['startsAt', 'status', 'topic', 'createdAt'] as const,
+      { startsAt: 'desc' }
+    ) as Prisma.CoachClassOrderByWithRelationInput;
+
+    const [classes, total] = await Promise.all([
+      this.prisma.coachClass.findMany({
+        where,
+        include: { coach: true },
+        orderBy,
+        skip,
+        take
+      }),
+      this.prisma.coachClass.count({ where })
+    ]);
 
     return {
       classes: classes.map(c => ({
@@ -274,8 +250,35 @@ export class AdminService {
         endsAt: c.endsAt.toISOString(),
         status: c.status,
         coachName: `${c.coach.firstName} ${c.coach.lastName || ''}`.trim()
-      }))
+      })),
+      pagination: paginationMeta(total, page, pageSize)
     };
+  }
+
+  /**
+   * Shared `where` for the admin demo/batch class lists (AUDIT H26): the
+   * `isDemo` discriminator plus optional status filter and a free-text search
+   * over the class fields and the assigned coach's name.
+   */
+  private buildClassListWhere(
+    isDemo: boolean,
+    status: string | undefined,
+    search: string
+  ): Prisma.CoachClassWhereInput {
+    const where: Prisma.CoachClassWhereInput = { isDemo };
+    if (status && status !== 'ALL') {
+      where.status = status as Prisma.CoachClassWhereInput['status'];
+    }
+    if (search) {
+      where.OR = [
+        { topic: { contains: search, mode: 'insensitive' } },
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+        { coach: { firstName: { contains: search, mode: 'insensitive' } } },
+        { coach: { lastName: { contains: search, mode: 'insensitive' } } }
+      ];
+    }
+    return where;
   }
 
   async getDemoClassDetails(_adminId: string, classId: string) {
@@ -310,20 +313,34 @@ export class AdminService {
     };
   }
 
-  async listBatchClasses() {
-    const classes = await this.prisma.coachClass.findMany({
-      where: { isDemo: false },
-      include: { 
-        coach: true,
-        batch: {
-          include: { students: true }
+  async listBatchClasses(query?: PaginatedQuery & { status?: string }) {
+    const { page, pageSize, skip, take, search } = resolvePagination(query);
+    const where = this.buildClassListWhere(false, query?.status, search);
+    const orderBy = resolveOrderBy(
+      query,
+      ['startsAt', 'status', 'topic', 'title', 'createdAt'] as const,
+      { startsAt: 'desc' }
+    ) as Prisma.CoachClassOrderByWithRelationInput;
+
+    const [classes, total] = await Promise.all([
+      this.prisma.coachClass.findMany({
+        where,
+        include: {
+          coach: true,
+          batch: {
+            include: { students: true }
+          },
+          liveSession: true
         },
-        liveSession: true
-      },
-      orderBy: { startsAt: 'desc' }
-    });
+        orderBy,
+        skip,
+        take
+      }),
+      this.prisma.coachClass.count({ where })
+    ]);
 
     return {
+      pagination: paginationMeta(total, page, pageSize),
       classes: classes.map(c => ({
         id: c.id,
         batchId: c.batchId!,
@@ -370,7 +387,8 @@ export class AdminService {
 
     const participants = existingClass.attendances.map(a => ({
       name: `${a.student.firstName} ${a.student.lastName || ''}`.trim(),
-      joinedAt: a.joinedAt ? a.joinedAt.toISOString() : existingClass.createdAt.toISOString()
+      // No attendance join recorded yet — null, not the class's creation time (AUDIT L8).
+      joinedAt: a.joinedAt ? a.joinedAt.toISOString() : null
     }));
 
     const classDetails = {
@@ -393,6 +411,7 @@ export class AdminService {
       coachName: `${existingClass.coach.firstName} ${existingClass.coach.lastName || ''}`.trim(),
       actualStartsAt: existingClass.liveSession?.startedAt ? existingClass.liveSession.startedAt.toISOString() : null,
       actualEndsAt: existingClass.liveSession?.endedAt ? existingClass.liveSession.endedAt.toISOString() : null,
+      hasRecording: !!existingClass.liveSession?.recordingUrl,
       participants
     };
 

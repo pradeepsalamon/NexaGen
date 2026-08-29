@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { type ColumnDef } from "@tanstack/react-table";
+import {
+  type ColumnDef,
+  type PaginationState,
+  type RowSelectionState,
+  type SortingState
+} from "@tanstack/react-table";
 import {
   FilterX,
   ListFilter,
@@ -56,17 +61,17 @@ export function TrashManagementClient() {
   const [, setPendingActions] = useState<Record<string, number>>({});
   const [hiddenItems, setHiddenItems] = useState<Record<string, boolean>>({});
 
-  const {
-    table,
-    rowSelection,
-    setRowSelection,
-    pagination,
-    setPagination,
-    sorting
-  } = useDataTable<TrashItem, unknown>({
-    columns: [],
-    data: [],
-    initialSorting: [{ id: "deletedAt", desc: true }]
+  // Pagination, sorting and row selection are owned here: the query is driven
+  // by pagination/sorting, and the row handlers referenced by `columns` clear
+  // the selection — both of which would otherwise create a cycle with the
+  // table. See AUDIT.md H4.
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "deletedAt", desc: true }
+  ]);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 10
   });
 
   const query = useTrashQuery({
@@ -308,18 +313,21 @@ export function TrashManagementClient() {
     [handleDelayedAction, restoreMutation.isPending, deleteMutation.isPending]
   );
 
-  // Re-initialize table with actual columns and data, maintaining state
-  // Because useDataTable uses useReactTable under the hood, we can't easily dynamically 
-  // update columns in useDataTable if it's memoized wrong, but useReactTable handles dynamic columns.
-  // Wait, useDataTable accepts data and columns! We just need to ensure useDataTable is called with the columns.
-  table.setOptions((prev) => ({
-    ...prev,
-    data: items,
+  // Trash pages and sorts on the server, so the table must not slice or
+  // re-sort the rows it is handed.
+  const { table } = useDataTable<TrashItem, unknown>({
     columns,
+    data: items,
     pageCount,
     manualPagination: true,
-    manualSorting: true
-  }));
+    manualSorting: true,
+    rowSelection,
+    setRowSelection,
+    pagination,
+    setPagination,
+    sorting,
+    setSorting
+  });
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;

@@ -1,6 +1,7 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type { PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse, DemoClassDetailsResponse } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
+import { toQueryString, type ListParams } from "@/lib/pagination";
 
 export async function getPendingCoaches(): Promise<PendingCoachesResponse> {
   return apiFetch<PendingCoachesResponse>(API_ROUTES.admin.pendingCoaches);
@@ -13,8 +14,8 @@ export async function updateCoachStatus({ id, ...body }: { id: string } & Update
   });
 }
 
-export async function getDemoClasses(): Promise<ListDemoClassesResponse> {
-  return apiFetch<ListDemoClassesResponse>(API_ROUTES.admin.demoClasses);
+export async function getDemoClasses(params: ListParams = {}): Promise<ListDemoClassesResponse> {
+  return apiFetch<ListDemoClassesResponse>(API_ROUTES.admin.demoClasses + toQueryString(params));
 }
 
 export async function createDemoClass(data: CreateDemoClassRequest): Promise<DemoClass> {

@@ -1,16 +1,21 @@
 "use client";
 
-import { useLiveBoardSync } from "../../hooks/useLiveBoardSync";
+import type { ReactNode } from "react";
+import {
+  BoardSyncContext,
+  useBoardSyncEngine,
+} from "@/features/chessboard/hooks/useBoardSync";
+import { useLiveBoardSyncBridge } from "../../hooks/useLiveBoardSync";
 
 /**
- * Invisible bridge component that activates the board sync hook.
- * Must be rendered inside both <BoardProvider> and <LiveClassProvider>.
- * 
- * We use a component instead of just calling the hook in LiveChessboardPanel
- * because the hook needs to be inside the BoardProvider's React tree to
- * access the board store via context.
+ * Runs the board sync engine exactly once and provides its actions to the
+ * subtree. Must be rendered inside both <BoardProvider> and <LiveKitRoom>
+ * (and, for the permission bridge, <LiveClassProvider>).
  */
-export function LiveBoardSyncBridge() {
-  useLiveBoardSync();
-  return null;
+export function LiveBoardSyncBridge({ children }: { children: ReactNode }) {
+  const actions = useBoardSyncEngine();
+  useLiveBoardSyncBridge(actions);
+  return (
+    <BoardSyncContext.Provider value={actions}>{children}</BoardSyncContext.Provider>
+  );
 }
