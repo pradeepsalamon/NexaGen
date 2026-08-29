@@ -75,8 +75,7 @@ export const API_ROUTES = {
     downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`
   },
   student: {
-    dashboard: "/student/dashboard",
-    attendance: "/student/attendance"
+    dashboard: "/student/dashboard"
   },
   attendance: {
     student: "/attendance/student",

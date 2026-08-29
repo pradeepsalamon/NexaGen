@@ -8,6 +8,10 @@ export interface SyncMessage {
 export interface MovePayload {
   fen: string;
   pgn: string;
+  // Ply the sender is currently viewing within `pgn`'s mainline (-1 = start
+  // position). Receivers replay to this ply instead of jumping to the end, so
+  // stepping through move history stays in sync (AUDIT H21).
+  historyIndex?: number;
   moveType?: "move" | "capture" | "check" | "gameEnd";
   move?: {
     from: string;

@@ -3,13 +3,11 @@ import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
 import { useAuthStore } from "@/stores/authStore";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
-import { useBoardSync } from "../../hooks/useBoardSync";
 
 export function DrawingToolbar() {
   const { activeBrush, setActiveBrush, clearAnnotations } = useBoardStore();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH";
-  const { broadcastAnnotations } = useBoardSync();
 
   // Only show drawing tools if coach or if everyone can draw (this can be expanded)
   if (!isCoach) return null; 
@@ -22,8 +20,10 @@ export function DrawingToolbar() {
   ];
 
   const handleClear = () => {
+    // The board store subscription in `useBoardSync` broadcasts on any
+    // annotation change, so an explicit broadcast here would send it twice
+    // (AUDIT M29).
     clearAnnotations();
-    setTimeout(() => broadcastAnnotations(), 0);
   };
 
   return (

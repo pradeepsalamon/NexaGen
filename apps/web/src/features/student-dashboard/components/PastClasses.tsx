@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Card,
   CardContent,
@@ -9,12 +11,14 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Download, PlayCircle, Clock } from "lucide-react";
 import { apiFetch } from "@/lib/api";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 
 type PastClass = {
   id: string;
   topic: string;
   coachName: string;
-  date: string;
+  startsAt: string;
   status: string;
   hasRecording: boolean;
 };
@@ -24,6 +28,7 @@ type PastClassesProps = {
 };
 
 export function PastClasses({ classes }: PastClassesProps) {
+  const timeZone = useUserTimeZone();
   if (!classes?.length) {
     return (
       <Card className="border-border/40 shadow-sm">
@@ -78,7 +83,7 @@ export function PastClasses({ classes }: PastClassesProps) {
                   <div className="flex items-center gap-2 mt-2">
                     <Badge variant="outline" className="text-xs font-normal">
                       <Clock className="mr-1 size-3" />
-                      {c.date}
+                      {formatFullDate(c.startsAt, timeZone)}
                     </Badge>
                     <Badge variant={c.status === "COMPLETED" ? "default" : "secondary"} className="text-xs">
                       {c.status.charAt(0) + c.status.slice(1).toLowerCase()}

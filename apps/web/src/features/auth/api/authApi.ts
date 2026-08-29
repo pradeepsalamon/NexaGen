@@ -8,6 +8,7 @@ import type {
   RefreshSessionResponse,
   RegisterRequest,
   RegisterCoachRequest,
+  RegisterCoachResponse,
   ResetPasswordRequest,
   UpdateProfileRequest,
   VerifyEmailRequest
@@ -23,7 +24,7 @@ export function register(payload: RegisterRequest) {
 }
 
 export function registerCoach(payload: RegisterCoachRequest) {
-  return apiFetch<AuthResponse>(API_ROUTES.auth.registerCoach, {
+  return apiFetch<RegisterCoachResponse>(API_ROUTES.auth.registerCoach, {
     body: payload,
     method: "POST"
   });

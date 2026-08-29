@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { Copy, Ban, CalendarDays, Plus, SlidersHorizontal, Pencil, RotateCcw, Info } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/DropdownMenu";
 import { useDataTable } from "@/hooks/useDataTable";
+import { useServerTable } from "@/hooks/useServerTable";
 import { useDemoClassesQuery, useCancelDemoClassMutation, useRestoreDemoClassMutation } from "../hooks/useAdminDemoClasses";
 import { DemoClassForm } from "./DemoClassForm";
 import { DemoClassDetailsDialog } from "./DemoClassDetailsDialog";
@@ -41,17 +42,24 @@ const statusOptions = [
 ];
 
 export function DemoClassesClient() {
-  const { data, isLoading } = useDemoClassesQuery();
+  const toast = useToast();
+
+  // Server-side pagination / search / sort / status filter (AUDIT H26).
+  const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "startsAt", desc: true }] });
+  const { clampToPageCount } = serverTable;
+  const { data, isLoading } = useDemoClassesQuery(serverTable.params);
   const cancelMutation = useCancelDemoClassMutation();
   const restoreMutation = useRestoreDemoClassMutation();
   const classes = data?.classes || [];
-  const toast = useToast();
+  const pageCount = data?.pagination?.totalPages ?? 1;
+  useEffect(() => {
+    clampToPageCount(pageCount);
+  }, [pageCount, clampToPageCount]);
 
   const [activeTab, setActiveTab] = useState<DemoClassManagementTab>("all");
   const [editingClassId, setEditingClassId] = useState<string | null>(null);
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("ALL");
 
   const selectedClass = useMemo(
     () =>
@@ -59,12 +67,6 @@ export function DemoClassesClient() {
       null,
     [classes, editingClassId]
   );
-
-  const filteredClasses = useMemo(() => {
-    return statusFilter === "ALL"
-      ? classes
-      : classes.filter((c) => c.status === statusFilter);
-  }, [classes, statusFilter]);
 
   const editClass = useCallback((demoClass: DemoClass) => {
     setEditingClassId(demoClass.id);
@@ -330,21 +332,16 @@ export function DemoClassesClient() {
     [cancelMutation.isPending, restoreMutation.isPending, editClass]
   );
 
-  const {
-    table,
-    globalFilter,
-    setGlobalFilter
-  } = useDataTable<DemoClass, unknown>({
-    columns: [],
-    data: filteredClasses,
-    initialPagination: { pageIndex: 0, pageSize: 10 }
-  });
-
-  table.setOptions((prev) => ({
-    ...prev,
-    data: filteredClasses,
+  const { table } = useDataTable<DemoClass, unknown>({
     columns,
-  }));
+    data: classes,
+    pagination: serverTable.pagination,
+    setPagination: serverTable.setPagination,
+    sorting: serverTable.sorting,
+    setSorting: serverTable.setSorting,
+    pageCount,
+    ...serverTable.manual
+  });
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
@@ -392,14 +389,14 @@ export function DemoClassesClient() {
                 filters={
                   <Select
                     className="w-40"
-                    onChange={(event) => setStatusFilter(event.target.value)}
+                    onChange={(event) => serverTable.setStatus(event.target.value)}
                     options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
-                    value={statusFilter}
+                    value={serverTable.status}
                   />
                 }
-                onSearchChange={setGlobalFilter}
-                searchPlaceholder="Filter demo classes..."
-                searchValue={globalFilter}
+                onSearchChange={serverTable.setSearch}
+                searchPlaceholder="Search demo classes..."
+                searchValue={serverTable.search}
               />
 
               <DataTable
@@ -418,7 +415,7 @@ export function DemoClassesClient() {
 
               <DataTablePagination
                 table={table}
-                totalRows={table.getFilteredRowModel().rows.length}
+                totalRows={data?.pagination?.total ?? 0}
               />
             </Card>
           </TabsContent>

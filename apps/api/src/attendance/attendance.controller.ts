@@ -11,6 +11,7 @@ import {
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { AttendanceService } from "./attendance.service";
+import { UpdateAttendancePolicyDto } from "./dto/attendance-policy.dto";
 import { API_ROUTES } from "@nexa-chess/types";
 
 @Controller()
@@ -192,12 +193,15 @@ export class AttendanceController {
   // ── Policy ──
 
   @Get(API_ROUTES.attendance.policy)
-  getPolicy() {
-    return this.attendanceService.getActivePolicy();
+  getPolicy(@Req() request: Request) {
+    return this.attendanceService.getPolicy(this.getAccessToken(request));
   }
 
   @Put(API_ROUTES.attendance.policy)
-  updatePolicy(@Req() request: Request, @Body() body: any) {
+  updatePolicy(
+    @Req() request: Request,
+    @Body() body: UpdateAttendancePolicyDto
+  ) {
     return this.attendanceService.updatePolicy(
       this.getAccessToken(request),
       body

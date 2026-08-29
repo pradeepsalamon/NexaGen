@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { SlidersHorizontal, Info, Download } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { apiFetch } from "@/lib/api";
+import { toast } from "sonner";
 import type { AdminBatchClass } from "@nexa-chess/types";
+import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
 
 import { Card } from "@/components/ui/Card";
 import { DataTable } from "@/components/ui/DataTable";
@@ -26,6 +27,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 
 import { useDataTable } from "@/hooks/useDataTable";
+import { useServerTable } from "@/hooks/useServerTable";
 import { useAdminBatchClassesQuery } from "../hooks/useAdminBatchClasses";
 import { BatchClassDetailsDialog } from "./BatchClassDetailsDialog";
 
@@ -37,29 +39,31 @@ const statusOptions = [
 ];
 
 export function BatchClassesClient() {
-  const { data, isLoading } = useAdminBatchClassesQuery();
+  // Server-side pagination / search / sort / status filter (AUDIT H26).
+  const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "startsAt", desc: true }] });
+  const { clampToPageCount } = serverTable;
+  const { data, isLoading } = useAdminBatchClassesQuery(serverTable.params);
   const classes = data?.classes || [];
+  const pageCount = data?.pagination?.totalPages ?? 1;
+  useEffect(() => {
+    clampToPageCount(pageCount);
+  }, [pageCount, clampToPageCount]);
 
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [statusFilter, setStatusFilter] = useState("ALL");
 
   const handleDownload = async (classId: string) => {
     try {
-      const data = await apiFetch<{ url: string }>(`/live-class/${classId}/recording/download`);
+      const data = await getRecordingDownloadUrl(classId);
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.open(data.url, "_blank");
       }
     } catch (error) {
       console.error("Failed to download recording:", error);
-      alert("Failed to download recording. It may have expired or is unavailable.");
+      toast.error("Failed to download recording. It may have expired or is unavailable.");
     }
   };
 
-  const filteredClasses = useMemo(() => {
-    if (statusFilter === "ALL") return classes;
-    return classes.filter(c => c.status === statusFilter);
-  }, [classes, statusFilter]);
 
   const columns = useMemo<ColumnDef<AdminBatchClass>[]>(
     () => [
@@ -216,17 +220,16 @@ export function BatchClassesClient() {
     []
   );
 
-  const { table, globalFilter, setGlobalFilter } = useDataTable<AdminBatchClass, unknown>({
-    data: filteredClasses,
+  const { table } = useDataTable<AdminBatchClass, unknown>({
+    data: classes,
     columns,
-    initialPagination: { pageIndex: 0, pageSize: 10 }
+    pagination: serverTable.pagination,
+    setPagination: serverTable.setPagination,
+    sorting: serverTable.sorting,
+    setSorting: serverTable.setSorting,
+    pageCount,
+    ...serverTable.manual
   });
-
-  table.setOptions((prev) => ({
-    ...prev,
-    data: filteredClasses,
-    columns,
-  }));
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
@@ -248,14 +251,14 @@ export function BatchClassesClient() {
             filters={
               <Select
                 className="w-40"
-                onChange={(event) => setStatusFilter(event.target.value)}
+                onChange={(event) => serverTable.setStatus(event.target.value)}
                 options={[{ label: "All Statuses", value: "ALL" }, ...statusOptions]}
-                value={statusFilter}
+                value={serverTable.status}
               />
             }
-            onSearchChange={setGlobalFilter}
-            searchPlaceholder="Filter batch classes..."
-            searchValue={globalFilter}
+            onSearchChange={serverTable.setSearch}
+            searchPlaceholder="Search batch classes..."
+            searchValue={serverTable.search}
           />
 
           <DataTable
@@ -267,7 +270,7 @@ export function BatchClassesClient() {
 
           <DataTablePagination
             table={table}
-            totalRows={table.getFilteredRowModel().rows.length}
+            totalRows={data?.pagination?.total ?? 0}
           />
         </Card>
       </div>

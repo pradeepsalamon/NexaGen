@@ -1,7 +1,17 @@
-import { Controller, Get, Patch, Post, Param, Body, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, Query, Req, UnauthorizedException } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import { API_ROUTES } from '@nexa-chess/types';
-import type { UpdateCoachStatusRequest } from '@nexa-chess/types';
+import {
+  API_ROUTES,
+  createDemoClassRequestSchema,
+  updateDemoClassRequestSchema
+} from '@nexa-chess/types';
+import type {
+  CreateDemoClassRequest,
+  PaginatedQuery,
+  UpdateCoachStatusRequest,
+  UpdateDemoClassRequest
+} from '@nexa-chess/types';
+import { ZodBodyPipe } from './dto/demo-class.dto';
 import type { Request } from 'express';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { JwtService } from '@nestjs/jwt';
@@ -53,7 +63,8 @@ export class AdminController {
 
   @Post(API_ROUTES.admin.demoClasses)
   async createDemoClass(
-    @Body() body: any, // We will map this to the proper Zod schema in the route or service
+    @Body(new ZodBodyPipe(createDemoClassRequestSchema))
+    body: CreateDemoClassRequest,
     @Req() request: Request
   ) {
     const adminId = await this.getAdminId(request);
@@ -63,7 +74,8 @@ export class AdminController {
   @Patch(API_ROUTES.admin.updateDemoClass())
   async updateDemoClass(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body(new ZodBodyPipe(updateDemoClassRequestSchema))
+    body: UpdateDemoClassRequest,
     @Req() request: Request
   ) {
     const adminId = await this.getAdminId(request);
@@ -89,9 +101,12 @@ export class AdminController {
   }
 
   @Get(API_ROUTES.admin.demoClasses)
-  async listDemoClasses(@Req() request: Request) {
+  async listDemoClasses(
+    @Query() query: PaginatedQuery & { status?: string },
+    @Req() request: Request
+  ) {
     await this.getAdminId(request);
-    return this.adminService.listDemoClasses();
+    return this.adminService.listDemoClasses(query);
   }
 
   @Get(API_ROUTES.admin.demoClassDetails())
@@ -104,9 +119,12 @@ export class AdminController {
   }
 
   @Get(API_ROUTES.admin.batchClasses)
-  async listBatchClasses(@Req() request: Request) {
+  async listBatchClasses(
+    @Query() query: PaginatedQuery & { status?: string },
+    @Req() request: Request
+  ) {
     await this.getAdminId(request);
-    return this.adminService.listBatchClasses();
+    return this.adminService.listBatchClasses(query);
   }
 
   @Get(API_ROUTES.admin.batchClassDetails())

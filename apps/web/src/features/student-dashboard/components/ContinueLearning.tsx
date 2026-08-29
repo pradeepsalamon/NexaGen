@@ -1,14 +1,18 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { PlayCircle, Clock } from "lucide-react";
 import Link from "next/link";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 
 interface CourseProgress {
   id: string;
   title: string;
   module: string;
   progressPercent: number;
-  lastOpened: string;
+  lastOpenedAt: string;
 }
 
 interface ContinueLearningProps {
@@ -16,6 +20,8 @@ interface ContinueLearningProps {
 }
 
 export function ContinueLearning({ courses = [] }: ContinueLearningProps) {
+  const timeZone = useUserTimeZone();
+
   if (courses.length === 0) {
     return (
       <Card className="border-app-border bg-app-surface shadow-sm h-full">
@@ -51,7 +57,7 @@ export function ContinueLearning({ courses = [] }: ContinueLearningProps) {
                       {course.module}
                     </span>
                     <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> {course.lastOpened}
+                      <Clock className="h-3 w-3" /> {formatFullDate(course.lastOpenedAt, timeZone)}
                     </span>
                   </p>
                 </div>

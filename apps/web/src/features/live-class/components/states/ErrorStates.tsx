@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/stores/authStore";
 import { getLiveClass, startLiveClass } from "../../api/live-class";
+
+const COACH_JOIN_POLL_INTERVAL_MS = 5000;
 
 interface ErrorStateProps {
   title: string;
@@ -164,3 +166,48 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
   );
 }
 
+/**
+ * AUDIT H14: the coach's LiveKit token comes up before the student's, and a
+ * student polling `getLiveClassToken` in that gap used to hit
+ * "Coach has not joined the meeting yet" — a message that matched none of
+ * `page.tsx`'s substring checks, so it fell through to the generic
+ * `ConnectionLost` screen with no retry. This is the dedicated, self-retrying
+ * screen for that specific (and common, and non-terminal) condition, wired off
+ * the API's `COACH_NOT_JOINED` error code instead of message-matching.
+ */
+export function WaitingForCoach({
+  onRetry
+}: {
+  onRetry: (options?: { silent?: boolean }) => void;
+}) {
+  const user = useAuthStore((state) => state.user);
+  const dashboardUrl = user?.role === "COACH" ? "/coach" : "/student";
+
+  const onRetryRef = useRef(onRetry);
+  onRetryRef.current = onRetry;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      onRetryRef.current({ silent: true });
+    }, COACH_JOIN_POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
+      <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+        <Loader2 className="absolute h-10 w-10 animate-spin text-primary" />
+      </div>
+      <h2 className="mb-2 text-2xl font-bold tracking-tight">Waiting for your coach</h2>
+      <p className="mb-8 max-w-md text-muted-foreground">
+        The class is live, but your coach hasn&apos;t joined the room yet.
+        You&apos;ll be connected automatically the moment they do — no need to
+        refresh.
+      </p>
+      <Button asChild variant="outline">
+        <a href={dashboardUrl}>Return to Dashboard</a>
+      </Button>
+    </div>
+  );
+}

@@ -1,13 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/providers/ToastProvider";
 import { queryKeys } from "@/lib/queryKeys";
+import type { ListParams } from "@/lib/pagination";
 import { getDemoClasses, createDemoClass, updateDemoClass, cancelDemoClass, restoreDemoClass, getDemoClassDetails } from "../api/adminApi";
 import type { CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse } from "@nexa-chess/types";
 
-export function useDemoClassesQuery() {
+export function useDemoClassesQuery(params: ListParams = {}) {
   return useQuery<ListDemoClassesResponse, Error>({
-    queryKey: [...queryKeys.admin.base, "demo-classes"],
-    queryFn: getDemoClasses
+    queryKey: [...queryKeys.admin.base, "demo-classes", params],
+    queryFn: () => getDemoClasses(params),
+    placeholderData: keepPreviousData
   });
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { RowSelectionState } from "@tanstack/react-table";
 import {
   Archive,
   Pencil,
@@ -34,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { useDataTable } from "@/hooks/useDataTable";
+import { useServerTable } from "@/hooks/useServerTable";
 import { queryKeys } from "@/lib/queryKeys";
 import { useRestoreTrashItemMutation } from "@/features/trash/hooks/useTrashApi";
 import { useQueryClient } from "@tanstack/react-query";
@@ -62,10 +64,15 @@ export function BatchManagementClient() {
 
   const [activeTab, setActiveTab] = useState<BatchManagementTab>("all");
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
-  
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  
-  const batchesQuery = useBatchesQuery();
+
+  // Server-side pagination / search / sort / status filter (AUDIT H26).
+  const serverTable = useServerTable({ pageSize: 10 });
+  const { clampToPageCount } = serverTable;
+  const batchesQuery = useBatchesQuery(serverTable.params);
+  const pageCount = batchesQuery.data?.pagination?.totalPages ?? 1;
+  useEffect(() => {
+    clampToPageCount(pageCount);
+  }, [pageCount, clampToPageCount]);
   const deleteMutation = useDeleteBatchMutation();
   const archiveMutation = useArchiveBatchMutation();
   const restoreMutation = useRestoreBatchMutation();
@@ -79,29 +86,12 @@ export function BatchManagementClient() {
     [batchesQuery.data?.batches, editingBatchId]
   );
 
-  const filteredBatches = useMemo(() => {
-    const batches = batchesQuery.data?.batches ?? [];
-    return statusFilter === "ALL"
-      ? batches
-      : batches.filter((batch) => batch.status === statusFilter);
-  }, [batchesQuery.data?.batches, statusFilter]);
+  const batches = batchesQuery.data?.batches ?? [];
 
-  const {
-    table,
-    globalFilter,
-    setGlobalFilter,
-    columnVisibility,
-    setColumnVisibility,
-    pagination,
-    setPagination,
-    setRowSelection,
-    setSorting,
-    setColumnFilters
-  } = useDataTable<Batch, unknown>({
-    columns: [],
-    data: filteredBatches,
-    initialPagination: { pageIndex: 0, pageSize: 10 }
-  });
+  // Row selection is owned here so the row handlers below can clear it while
+  // still being referenced by `columns`, which the table needs up front.
+  // See AUDIT.md H4.
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   const editBatch = useCallback((batch: Batch) => {
     setEditingBatchId(batch.id);
@@ -403,11 +393,23 @@ export function BatchManagementClient() {
     ]
   );
 
-  table.setOptions((prev) => ({
-    ...prev,
-    data: filteredBatches,
+  const {
+    table,
+    columnVisibility,
+    setColumnVisibility,
+    setColumnFilters
+  } = useDataTable<Batch, unknown>({
     columns,
-  }));
+    data: batches,
+    rowSelection,
+    setRowSelection,
+    pagination: serverTable.pagination,
+    setPagination: serverTable.setPagination,
+    sorting: serverTable.sorting,
+    setSorting: serverTable.setSorting,
+    pageCount,
+    ...serverTable.manual
+  });
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
@@ -459,14 +461,14 @@ export function BatchManagementClient() {
                 filters={
                   <Select
                     className="w-40"
-                    onChange={(event) => setStatusFilter(event.target.value)}
+                    onChange={(event) => serverTable.setStatus(event.target.value)}
                     options={[{ label: "All status", value: "ALL" }, ...statusOptions]}
-                    value={statusFilter}
+                    value={serverTable.status}
                   />
                 }
-                onSearchChange={setGlobalFilter}
-                searchPlaceholder="Filter batches..."
-                searchValue={globalFilter}
+                onSearchChange={serverTable.setSearch}
+                searchPlaceholder="Search batches..."
+                searchValue={serverTable.search}
               />
 
               <DataTable
@@ -485,7 +487,7 @@ export function BatchManagementClient() {
 
               <DataTablePagination
                 table={table}
-                totalRows={table.getFilteredRowModel().rows.length}
+                totalRows={batchesQuery.data?.pagination?.total ?? 0}
               />
             </Card>
           </TabsContent>
@@ -501,19 +503,19 @@ export function BatchManagementClient() {
           <TabsContent value="settings" className="mt-6 outline-none">
             <BatchSettings
               columnVisibility={columnVisibility}
-              pageSize={pagination.pageSize}
+              pageSize={serverTable.pagination.pageSize}
               resetTable={() => {
-                setGlobalFilter("");
-                setStatusFilter("ALL");
-                setSorting([]);
+                serverTable.setSearch("");
+                serverTable.setStatus("ALL");
+                serverTable.setSorting([]);
                 setColumnFilters([]);
                 setColumnVisibility({});
                 setRowSelection({});
-                setPagination({ pageIndex: 0, pageSize: 10 });
+                serverTable.setPagination({ pageIndex: 0, pageSize: 10 });
               }}
               setColumnVisibility={setColumnVisibility}
               setPageSize={(pageSize) =>
-                setPagination((current) => ({ ...current, pageIndex: 0, pageSize }))
+                serverTable.setPagination((current) => ({ ...current, pageIndex: 0, pageSize }))
               }
             />
           </TabsContent>

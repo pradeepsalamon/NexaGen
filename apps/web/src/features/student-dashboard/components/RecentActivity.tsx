@@ -1,11 +1,15 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Activity, MessageSquare, CheckCircle, Video, PlayCircle } from "lucide-react";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 
 interface ActivityItem {
   id: string;
   type: "CLASS_JOINED" | "LESSON_COMPLETED" | "PRACTICE_FINISHED" | "FEEDBACK";
   title: string;
-  time: string;
+  createdAt: string;
 }
 
 interface RecentActivityProps {
@@ -13,6 +17,8 @@ interface RecentActivityProps {
 }
 
 export function RecentActivity({ activities = [] }: RecentActivityProps) {
+  const timeZone = useUserTimeZone();
+
   const getIcon = (type: string) => {
     switch (type) {
       case "CLASS_JOINED": return <Video className="h-4 w-4 text-primary" />;
@@ -45,7 +51,7 @@ export function RecentActivity({ activities = [] }: RecentActivityProps) {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-app-text">{activity.title}</p>
-                  <p className="text-xs text-app-muted mt-1">{activity.time}</p>
+                  <p className="text-xs text-app-muted mt-1">{formatFullDate(activity.createdAt, timeZone)}</p>
                 </div>
               </div>
             ))}

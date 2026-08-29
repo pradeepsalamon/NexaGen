@@ -7,8 +7,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import {
-  adminNavItems,
   coachNavItems,
+  getAdminNavItems,
   studentNavItems,
   type NavItem
 } from "@/components/layout/navItems";
@@ -23,7 +23,7 @@ function getItemsForRole(role?: string): NavItem[] | null {
       return coachNavItems;
     case "ADMIN":
     case "SUPER_ADMIN":
-      return adminNavItems;
+      return getAdminNavItems(role);
     default:
       return null;
   }

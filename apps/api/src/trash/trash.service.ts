@@ -1,6 +1,7 @@
 import {
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -9,6 +10,8 @@ import { UserRole, UserStatus } from "@prisma/client";
 import { parseDurationMs } from "../auth/auth.utils";
 import type { AccessTokenPayload } from "../auth/types";
 import { PrismaService } from "../prisma/prisma.service";
+import type { TrashAction } from "../prisma/soft-delete.extension";
+import { UploadService } from "../upload/upload.service";
 import type { TrashBulkActionDto } from "./dto/trash-bulk-action.dto";
 import type { TrashQueryDto } from "./dto/trash-query.dto";
 import { TrashRepository } from "./trash.repository";
@@ -30,7 +33,8 @@ export class TrashService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly trashRepository: TrashRepository
+    private readonly trashRepository: TrashRepository,
+    private readonly uploadService: UploadService
   ) {}
 
   async list(accessToken: string | undefined, query: TrashQueryDto) {
@@ -102,9 +106,23 @@ export class TrashService {
   ) {
     const user = await this.getSuperAdmin(accessToken);
 
+    // A selection can contain both a User and a row that cascades from it (e.g.
+    // their StudentProfile). Delete child rows before their parents so the
+    // parent's cascade doesn't yank a row out from under a later statement and
+    // abort the whole transaction (AUDIT M10).
+    const items = [...payload.items].sort(
+      (a, b) => TrashService.deleteOrder(a.entity) - TrashService.deleteOrder(b.entity)
+    );
+
+    let deletedCount = 0;
     await this.prisma.$transaction(async (transaction) => {
-      for (const item of payload.items) {
-        await this.trashRepository.findDeleted(item.entity, item.id);
+      for (const item of items) {
+        try {
+          await this.trashRepository.findDeleted(item.entity, item.id);
+        } catch (error) {
+          if (error instanceof NotFoundException) continue; // already gone
+          throw error;
+        }
         await this.deleteExternalAssets(item.entity, item.id);
         await this.trashRepository.hardDelete(
           transaction,
@@ -112,59 +130,93 @@ export class TrashService {
           item.id,
           user.id
         );
+        deletedCount += 1;
       }
     });
 
-    return { ok: true };
+    return { ok: true, deletedCount };
+  }
+
+  /** Lower = delete earlier. Children before the parents that cascade to them. */
+  private static deleteOrder(entity: string): number {
+    switch (entity) {
+      case "BatchStudent":
+      case "BatchCoach":
+        return 0;
+      case "StudentProfile":
+      case "CoachProfile":
+        return 1;
+      case "Batch":
+        return 2;
+      case "User":
+        return 3;
+      default:
+        return 2;
+    }
   }
 
   async emptyTrash(accessToken: string | undefined) {
     const user = await this.getSuperAdmin(accessToken);
     const items = await this.trashRepository.findExpired(new Date());
-
-    await this.prisma.$transaction(async (transaction) => {
-      for (const item of items) {
-        await this.deleteExternalAssets(item.entity, item.id);
-        await this.trashRepository.hardDelete(
-          transaction,
-          item.entity,
-          item.id,
-          user.id
-        );
-      }
-    });
-
-    return { deletedCount: items.length, ok: true };
+    const deletedCount = await this.hardDeleteInChunks(items, user.id, "PERMANENT_DELETE");
+    return { deletedCount, ok: true };
   }
 
   async cleanupExpiredTrash() {
     const retentionMs = parseDurationMs(`${this.getRetentionDays()}d`, 30 * 86_400_000);
     const cutoff = new Date(Date.now() - retentionMs);
 
-    return this.prisma.$transaction(async (transaction) => {
-      const [lock] = await transaction.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_xact_lock(${cleanupExpiredTrashLockId}) AS locked
-      `;
+    // Session-scoped advisory lock so no other instance sweeps concurrently,
+    // held across all chunks (AUDIT M11 — the whole delete used to run in one
+    // long transaction, risking lock contention / timeouts at volume).
+    const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
+      SELECT pg_try_advisory_lock(${cleanupExpiredTrashLockId}) AS locked
+    `;
+    if (!lock?.locked) {
+      return 0;
+    }
 
-      if (!lock?.locked) {
-        return 0;
-      }
+    try {
+      const items = await this.trashRepository.findExpired(cutoff);
+      return await this.hardDeleteInChunks(items, null, "AUTOMATIC_CLEANUP");
+    } finally {
+      await this.prisma.$queryRaw`SELECT pg_advisory_unlock(${cleanupExpiredTrashLockId})`;
+    }
+  }
 
-      const items = await this.trashRepository.findExpired(cutoff, transaction);
+  /**
+   * Permanently delete trash items in bounded transactions (~500 rows each), so
+   * a large purge doesn't hold locks for the whole run (AUDIT M11). Child rows
+   * are deleted before the parents that cascade to them.
+   */
+  private async hardDeleteInChunks(
+    items: Array<{ entity: string; id: string }>,
+    userId: string | null,
+    action: TrashAction
+  ): Promise<number> {
+    const ordered = [...items].sort(
+      (a, b) => TrashService.deleteOrder(a.entity) - TrashService.deleteOrder(b.entity)
+    );
 
-      for (const item of items) {
-        await this.deleteExternalAssets(item.entity, item.id);
-        await this.trashRepository.hardDelete(
-          transaction,
-          item.entity,
-          item.id,
-          null,
-          "AUTOMATIC_CLEANUP"
-        );
-      }
-
-      return items.length;
-    });
+    const CHUNK = 500;
+    let deleted = 0;
+    for (let i = 0; i < ordered.length; i += CHUNK) {
+      const chunk = ordered.slice(i, i + CHUNK);
+      await this.prisma.$transaction(async (transaction) => {
+        for (const item of chunk) {
+          await this.deleteExternalAssets(item.entity, item.id);
+          await this.trashRepository.hardDelete(
+            transaction,
+            item.entity,
+            item.id,
+            userId,
+            action
+          );
+          deleted += 1;
+        }
+      });
+    }
+    return deleted;
   }
 
   private async getSuperAdmin(accessToken: string | undefined) {
@@ -196,8 +248,25 @@ export class TrashService {
     return user;
   }
 
+  /**
+   * Remove external assets owned by a row about to be permanently deleted
+   * (AUDIT M12 — this was a no-op stub). Currently just the Cloudinary avatar
+   * of a User; recordings live on `LiveSession`, which is not trash-enabled.
+   */
   private async deleteExternalAssets(entity: string, id: string) {
-    await Promise.resolve({ entity, id });
+    if (entity !== "User") return;
+    try {
+      const user = await this.prisma.withDeleted.user.findUnique({
+        where: { id },
+        select: { avatarUrl: true }
+      });
+      if (user?.avatarUrl) {
+        await this.uploadService.deleteImage(user.avatarUrl);
+      }
+    } catch (error) {
+      // Best-effort: a failed asset cleanup must not block the DB delete.
+      console.error(`Failed to delete external assets for User ${id}`, error);
+    }
   }
 
   private getRetentionDays() {

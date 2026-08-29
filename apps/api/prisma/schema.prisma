@@ -428,6 +428,7 @@ model CoachClass {
   @@index([coachId])
   @@index([status])
   @@index([startsAt])
+  @@index([isDemo])
   @@map("classes")
 }
 
@@ -487,6 +488,8 @@ model AttendanceLog {
   @@index([userId])
   @@index([timestamp])
   @@index([eventType])
+  // Serves the "find the still-open session" lookup on every join/leave webhook.
+  @@index([attendanceId, eventType, sessionEnd], map: "attendance_logs_open_session_idx")
   @@map("attendance_logs")
 }
 
@@ -618,15 +621,33 @@ model LiveChatMessage {
 
   senderName String
   senderRole String?
-  
+
   message    String @db.Text
+
+  /// LiveKit's message id, so history reconciliation dedupes on identity
+  /// instead of senderName+text+timestamp — which dropped a legitimately
+  /// repeated short message (AUDIT M24).
+  clientMessageId String?
 
   createdAt  DateTime @default(now())
 
   @@index([liveSessionId])
   @@index([senderId])
   @@index([createdAt])
+  @@index([clientMessageId])
   @@map("live_chat_messages")
+}
+
+/// Dedupe key for LiveKit webhook deliveries. LiveKit retries webhooks, and
+/// without this a retried `participant_joined` / `participant_left` produced
+/// duplicate RECONNECT logs and inflated durations (AUDIT M1).
+model ProcessedWebhookEvent {
+  id          String   @id
+  eventType   String
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
+  @@map("processed_webhook_events")
 }
 
 //

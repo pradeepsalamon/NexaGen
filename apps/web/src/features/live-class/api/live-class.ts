@@ -27,10 +27,16 @@ export const getChatHistory = (roomId: string): Promise<any[]> => {
   return apiFetch<any[]>(API_ROUTES.liveClass.chat(roomId));
 };
 
-export const saveChatMessage = (roomId: string, message: string): Promise<any> => {
+export const saveChatMessage = (
+  roomId: string,
+  message: string,
+  clientMessageId?: string
+): Promise<any> => {
+  // Pass the plain object — `apiFetch` (axios) serialises it. Passing a
+  // pre-stringified body made axios send a raw JSON string (AUDIT M27).
   return apiFetch<any>(API_ROUTES.liveClass.chat(roomId), {
     method: "POST",
-    body: JSON.stringify({ message }),
+    body: { message, ...(clientMessageId ? { clientMessageId } : {}) },
   });
 };
 
@@ -40,4 +46,8 @@ export const startRecording = (roomId: string): Promise<{ success: boolean, egre
 
 export const stopRecording = (roomId: string): Promise<{ success: boolean }> => {
   return apiFetch(API_ROUTES.liveClass.stopRecording(roomId), { method: "POST" });
+};
+
+export const getRecordingDownloadUrl = (roomId: string): Promise<{ url: string }> => {
+  return apiFetch<{ url: string }>(API_ROUTES.liveClass.downloadRecording(roomId));
 };

@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -17,6 +18,8 @@ import type {
   CoachClass
 } from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
+import { assertNoSchedulingConflict, assertNotInPast } from "./class-scheduling.util";
+import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
 
@@ -43,11 +46,10 @@ export class CoachService {
   ) {}
 
   async getDashboard(accessToken: string | undefined): Promise<CoachDashboardResponse> {
-    const coachId = await this.getAuthenticatedCoachId(accessToken);
-    const now = new Date();
-    // Use a rolling window rather than server-local midnight to prevent timezone drift
-    const startOfDay = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-    const endOfDay = new Date(now.getTime() + 20 * 60 * 60 * 1000);
+    const coach = await this.getAuthenticatedCoach(accessToken);
+    const coachId = coach.id;
+    // Real calendar day in the coach's timezone, not a rolling window (M7).
+    const { start: startOfDay, end: endOfDay } = zonedDayBounds(coach.timezone);
 
     const [batchCount, students, todayClasses, upcomingClasses, completedClasses] = await Promise.all([
       this.prisma.batchCoach.count({
@@ -116,10 +118,10 @@ export class CoachService {
   }
 
   async getTodayClasses(accessToken: string | undefined): Promise<CoachClassListResponse> {
-    const coachId = await this.getAuthenticatedCoachId(accessToken);
-    const now = new Date();
-    const startOfDay = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-    const endOfDay = new Date(now.getTime() + 20 * 60 * 60 * 1000);
+    const coach = await this.getAuthenticatedCoach(accessToken);
+    const coachId = coach.id;
+    // Real calendar day in the coach's timezone, not a rolling window (M7).
+    const { start: startOfDay, end: endOfDay } = zonedDayBounds(coach.timezone);
 
     const classes = await this.prisma.coachClass.findMany({
       where: { coachId, startsAt: { gte: startOfDay, lt: endOfDay } },
@@ -176,6 +178,15 @@ export class CoachService {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
     await this.assertCoachInBatch(coachId, payload.batchId);
 
+    const startsAt = new Date(payload.startsAt);
+    const endsAt = new Date(payload.endsAt);
+
+    // AUDIT H17: admin scheduling already enforced both of these; the coach's
+    // own scheduling path did not, so a coach could double-book or schedule
+    // into the past.
+    assertNotInPast(startsAt);
+    await assertNoSchedulingConflict(this.prisma, { coachId, startsAt, endsAt });
+
     const cls = await this.prisma.coachClass.create({
       data: {
         batchId: payload.batchId,
@@ -186,8 +197,8 @@ export class CoachService {
         objectives: this.toNullableString(payload.objectives),
         homework: this.toNullableString(payload.homework),
         notes: this.toNullableString(payload.notes),
-        startsAt: new Date(payload.startsAt),
-        endsAt: new Date(payload.endsAt)
+        startsAt,
+        endsAt
       },
       include: { 
         batch: { include: { students: { where: { isDeleted: false } } } },
@@ -267,8 +278,31 @@ export class CoachService {
       throw new NotFoundException("Class not found.");
     }
 
+    // AUDIT H18: a LIVE/COMPLETED/CANCELLED class must not be editable — most
+    // importantly, rewriting startsAt/endsAt on a COMPLETED class would
+    // retroactively change scheduledDuration and every attendance percentage
+    // computed against it.
+    this.assertClassIsEditable(existing);
+
     if (payload.batchId) {
       await this.assertCoachInBatch(coachId, payload.batchId);
+    }
+
+    const startsAt = payload.startsAt ? new Date(payload.startsAt) : existing.startsAt;
+    const endsAt = payload.endsAt ? new Date(payload.endsAt) : existing.endsAt;
+
+    if (payload.startsAt || payload.endsAt) {
+      // AUDIT H17: mirror createClass's checks so a reschedule can't double-book
+      // the coach or move the class into the past either.
+      if (payload.startsAt) {
+        assertNotInPast(startsAt);
+      }
+      await assertNoSchedulingConflict(this.prisma, {
+        coachId,
+        startsAt,
+        endsAt,
+        excludeClassId: classId
+      });
     }
 
     const cls = await this.prisma.coachClass.update({
@@ -281,8 +315,8 @@ export class CoachService {
         objectives: payload.objectives === undefined ? undefined : this.toNullableString(payload.objectives),
         homework: payload.homework === undefined ? undefined : this.toNullableString(payload.homework),
         notes: payload.notes === undefined ? undefined : this.toNullableString(payload.notes),
-        startsAt: payload.startsAt ? new Date(payload.startsAt) : undefined,
-        endsAt: payload.endsAt ? new Date(payload.endsAt) : undefined
+        startsAt: payload.startsAt ? startsAt : undefined,
+        endsAt: payload.endsAt ? endsAt : undefined
       },
       include: { 
         batch: { include: { students: { where: { isDeleted: false } } } },
@@ -299,6 +333,18 @@ export class CoachService {
 
     if (!existing || existing.coachId !== coachId) {
       throw new NotFoundException("Class not found.");
+    }
+
+    // AUDIT H18: a class that already ran (or is running) cannot be cancelled
+    // after the fact; an already-cancelled class is a no-op, not an error worth
+    // re-triggering `cancelledAt`.
+    if (existing.status === ClassStatus.COMPLETED || existing.status === ClassStatus.LIVE) {
+      throw new ConflictException(
+        `Cannot cancel a class that is ${existing.status.toLowerCase()}.`
+      );
+    }
+    if (existing.status === ClassStatus.CANCELLED) {
+      throw new ConflictException("Class is already cancelled.");
     }
 
     const cls = await this.prisma.coachClass.update({
@@ -353,6 +399,19 @@ export class CoachService {
     return { students: Array.from(studentsMap.values()) };
   }
 
+  /**
+   * AUDIT H18: a class that is LIVE, COMPLETED, or CANCELLED must not be
+   * editable — e.g. rewriting startsAt/endsAt on a COMPLETED class would
+   * retroactively rewrite every attendance percentage computed against it.
+   */
+  private assertClassIsEditable(cls: { status: ClassStatus }) {
+    if (cls.status !== ClassStatus.SCHEDULED) {
+      throw new ConflictException(
+        `Cannot edit a class that is ${cls.status.toLowerCase()}.`
+      );
+    }
+  }
+
   private async assertCoachInBatch(coachId: string, batchId: string) {
     const batch = await this.prisma.batch.findUnique({
       where: { id: batchId },
@@ -368,7 +427,7 @@ export class CoachService {
     }
   }
 
-  private async getAuthenticatedCoachId(accessToken: string | undefined) {
+  private async getAuthenticatedCoach(accessToken: string | undefined) {
     if (!accessToken) throw new UnauthorizedException("Access token is missing.");
 
     const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
@@ -382,7 +441,11 @@ export class CoachService {
       throw new UnauthorizedException("Unauthorized.");
     }
 
-    return user.id;
+    return user;
+  }
+
+  private async getAuthenticatedCoachId(accessToken: string | undefined) {
+    return (await this.getAuthenticatedCoach(accessToken)).id;
   }
 
   private toCoachClass(c: CoachClassWithRelations): CoachClass {

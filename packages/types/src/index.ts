@@ -2,6 +2,33 @@ import { z } from "zod";
 
 export * from "./api-endpoints";
 
+// ──────────────────────────────────────────────
+// Pagination (AUDIT H26)
+// ──────────────────────────────────────────────
+
+/** Query params accepted by server-paginated list endpoints. */
+export interface PaginatedQuery {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  sort?: string;
+  order?: "asc" | "desc";
+}
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export const paginationMetaSchema = z.object({
+  total: z.number(),
+  page: z.number(),
+  pageSize: z.number(),
+  totalPages: z.number()
+});
+
 export type UserRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT";
 
 export type UserStatus = "ACTIVE" | "PENDING" | "ARCHIVED" | "DELETED";
@@ -247,6 +274,7 @@ export type BatchAssignableUsersResponse = {
 
 export type BatchListResponse = {
   batches: Batch[];
+  pagination?: PaginationMeta;
 };
 
 export type BatchResponse = {
@@ -257,8 +285,19 @@ export type AuthResponse = {
   user: AuthUser;
 };
 
+/**
+ * Coach self-registration does NOT create a session: the account is created
+ * with `status: PENDING` and `coachProfile.approvalStatus: PENDING`, and stays
+ * unusable until an admin approves it from the Pending Coaches screen.
+ */
+export type RegisterCoachResponse = {
+  email: string;
+  status: "PENDING_APPROVAL";
+};
+
 export type UserListResponse = {
   users: AuthUser[];
+  pagination?: PaginationMeta;
 };
 
 export type UserResponse = {
@@ -900,7 +939,8 @@ export const demoClassSchema = z.object({
 });
 
 export const listDemoClassesResponseSchema = z.object({
-  classes: z.array(demoClassSchema)
+  classes: z.array(demoClassSchema),
+  pagination: paginationMetaSchema.optional()
 });
 
 export const demoClassDetailsSchema = demoClassSchema.extend({
@@ -941,6 +981,7 @@ export type AdminBatchClassDetails = AdminBatchClass & {
 
 export type ListAdminBatchClassesResponse = {
   classes: AdminBatchClass[];
+  pagination?: PaginationMeta;
 };
 
 export type AdminBatchClassDetailsResponse = {

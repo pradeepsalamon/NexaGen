@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -6,6 +7,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import { getApiEnv } from "@nexa-chess/config/api";
 import {
@@ -383,7 +385,9 @@ export class AttendanceService {
     await this.prisma.coachAttendanceLog.create({
       data: {
         attendanceId: attendance.id,
-        userId: `${coachId}_board`,
+        // userId is a foreign key to users.id — the board participant is the
+        // coach. The BOARD_JOIN event type is what distinguishes this log.
+        userId: coachId,
         eventType: "BOARD_JOIN",
         timestamp: now,
         sessionStart: now,
@@ -426,7 +430,7 @@ export class AttendanceService {
     await this.prisma.coachAttendanceLog.create({
       data: {
         attendanceId: attendance.id,
-        userId: `${coachId}_board`,
+        userId: coachId,
         eventType: "BOARD_LEAVE",
         timestamp: now,
         source: "LIVEKIT",
@@ -461,9 +465,26 @@ export class AttendanceService {
 
     if (!coachClass) return;
 
-    const scheduledDuration = Math.floor(
-      (coachClass.endsAt.getTime() - coachClass.startsAt.getTime()) / 1000
-    );
+    // Score attendance against how long the class ACTUALLY ran, falling back to
+    // the scheduled window. A coach ending early must not mark everyone partial.
+    // (`startsAt`/`endsAt` are the immutable schedule — see AUDIT.md H2.)
+    const session = coachClass.liveSession;
+    const effectiveDuration =
+      session?.startedAt && session?.endedAt
+        ? Math.floor(
+            (session.endedAt.getTime() - session.startedAt.getTime()) / 1000
+          )
+        : Math.floor(
+            (coachClass.endsAt.getTime() - coachClass.startsAt.getTime()) / 1000
+          );
+    const scheduledDuration = effectiveDuration;
+
+    // The instant the class stopped. Any session log still open when finalize
+    // runs (e.g. `room_finished` beat the last `participant_left`, or a webhook
+    // was dropped) is clamped to this, so finalize is re-runnable and a second
+    // pass can't keep growing durations against `new Date()` (AUDIT M2, M3).
+    const classEndTime = session?.endedAt ?? coachClass.endsAt ?? new Date();
+    await this.closeOpenAttendanceLogs(classId, classEndTime);
 
     // Get active policy
     const policy = await this.getActivePolicy();
@@ -478,7 +499,7 @@ export class AttendanceService {
 
     // Calculate duration and percentage for each attendee
     for (const attendance of attendances) {
-      const totalDuration = this.calculateTotalDuration(attendance.logs);
+      const totalDuration = this.calculateTotalDuration(attendance.logs, classEndTime);
       const attendancePercent =
         scheduledDuration > 0
           ? Math.min(100, (totalDuration / scheduledDuration) * 100)
@@ -532,7 +553,8 @@ export class AttendanceService {
 
     if (coachAttendance) {
       const coachTotalDuration = this.calculateTotalDuration(
-        coachAttendance.logs.filter((l) => l.eventType === "JOIN" || l.eventType === "RECONNECT" || l.eventType === "LEAVE")
+        coachAttendance.logs.filter((l) => l.eventType === "JOIN" || l.eventType === "RECONNECT" || l.eventType === "LEAVE"),
+        classEndTime
       );
       await this.prisma.coachAttendance.update({
         where: { id: coachAttendance.id },
@@ -549,19 +571,45 @@ export class AttendanceService {
   // QUERY METHODS
   // ──────────────────────────────────────────────
 
+  /**
+   * A coach may only read a student's data when the student is enrolled in a
+   * batch that coach is assigned to, or in a batch that coach teaches classes for.
+   */
+  private async assertCoachTeachesStudent(coachId: string, studentId: string) {
+    const enrolment = await this.prisma.batchStudent.findFirst({
+      where: {
+        studentId,
+        isDeleted: false,
+        batch: {
+          isDeleted: false,
+          OR: [
+            { coaches: { some: { coachId, isDeleted: false } } },
+            { classes: { some: { coachId } } },
+          ],
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!enrolment) {
+      throw new ForbiddenException("Not authorized to view this student's attendance.");
+    }
+  }
+
   async getStudentAttendance(
     accessToken: string | undefined,
     targetStudentId?: string
   ) {
     const user = await this.getAuthenticatedUser(accessToken);
 
-    // Students can only view own data; coaches/admins can view any
+    // Students can only view own data; admins any; coaches only their own students
     let studentId = user.id;
     if (targetStudentId) {
-      if (
+      if (user.role === UserRole.COACH) {
+        await this.assertCoachTeachesStudent(user.id, targetStudentId);
+      } else if (
         user.role !== UserRole.ADMIN &&
-        user.role !== UserRole.SUPER_ADMIN &&
-        user.role !== UserRole.COACH
+        user.role !== UserRole.SUPER_ADMIN
       ) {
         throw new ForbiddenException("Not authorized to view this student's attendance.");
       }
@@ -595,6 +643,7 @@ export class AttendanceService {
     let totalLearningSeconds = 0;
     let currentStreak = 0;
     let longestStreak = 0;
+    let runLength = 0;
     let streakBroken = false;
 
     const history = completedClasses.map((cls) => {
@@ -610,13 +659,17 @@ export class AttendanceService {
         totalLearningSeconds += att.totalDuration || 0;
       }
 
-      // Track streaks (classes ordered desc, so newest first)
+      // Classes are ordered desc, so `currentStreak` is the unbroken run back
+      // from the newest class. `longestStreak` is the longest run *anywhere* in
+      // the history, so it needs its own counter that resets on a miss —
+      // reusing `currentStreak` capped it at the most recent streak (AUDIT H15).
       if (isPresent || isPartial) {
+        runLength++;
         if (!streakBroken) currentStreak++;
-        longestStreak = Math.max(longestStreak, currentStreak);
+        longestStreak = Math.max(longestStreak, runLength);
       } else {
+        runLength = 0;
         streakBroken = true;
-        longestStreak = Math.max(longestStreak, currentStreak);
       }
 
       const scheduledDuration = Math.floor(
@@ -712,7 +765,7 @@ export class AttendanceService {
   ) {
     const user = await this.getAuthenticatedUser(accessToken);
 
-    // Authorization: student can view own, coach/admin can view any
+    // Authorization: student can view own only
     if (
       user.role === UserRole.STUDENT &&
       user.id !== studentId
@@ -730,6 +783,14 @@ export class AttendanceService {
 
     if (!attendance) {
       throw new NotFoundException("Attendance record not found.");
+    }
+
+    // Coaches may only read logs for classes they teach
+    if (
+      user.role === UserRole.COACH &&
+      attendance.class.coachId !== user.id
+    ) {
+      throw new ForbiddenException("Not authorized to view this student's logs.");
     }
 
     // Calculate interruption stats
@@ -832,23 +893,8 @@ export class AttendanceService {
       coachClass.attendances.map((a) => [a.studentId, a])
     );
 
-    const presentCount = coachClass.attendances.filter(
-      (a) =>
-        a.status === AttendanceStatus.PRESENT ||
-        a.status === AttendanceStatus.LATE
-    ).length;
-    const absentCount = totalStudents - presentCount;
-    const lateCount = coachClass.attendances.filter(
-      (a) => a.status === AttendanceStatus.LATE
-    ).length;
-    const partialCount = coachClass.attendances.filter(
-      (a) => a.status === AttendanceStatus.PARTIAL
-    ).length;
-
-    const overallPercent =
-      totalStudents > 0
-        ? Math.round((presentCount / totalStudents) * 100)
-        : 0;
+    const { presentCount, lateCount, partialCount, absentCount, overallPercent } =
+      this.tallyAttendance(coachClass.attendances, totalStudents);
 
     const students = (coachClass.batch?.students || []).map((bs) => {
       const att = attendanceMap.get(bs.studentId);
@@ -913,10 +959,12 @@ export class AttendanceService {
       status: { in: [ClassStatus.COMPLETED, ClassStatus.CANCELLED] },
     };
 
-    if (filters.dateFrom || filters.dateTo) {
+    const dateFrom = this.parseDateFilter(filters.dateFrom, "dateFrom");
+    const dateTo = this.parseDateFilter(filters.dateTo, "dateTo");
+    if (dateFrom || dateTo) {
       where.startsAt = {
-        ...(filters.dateFrom && { gte: new Date(filters.dateFrom) }),
-        ...(filters.dateTo && { lte: new Date(filters.dateTo) }),
+        ...(dateFrom && { gte: dateFrom }),
+        ...(dateTo && { lte: dateTo }),
       };
     }
     if (filters.coachId) where.coachId = filters.coachId;
@@ -1017,72 +1065,95 @@ export class AttendanceService {
       where: coachWhere,
       include: { coachProfile: true },
     });
+    const coachIds = coaches.map((c) => c.id);
 
-    const coachReports = await Promise.all(
-      coaches.map(async (coach) => {
-        const dateFilter =
-          filters.dateFrom || filters.dateTo
-            ? {
-                startsAt: {
-                  ...(filters.dateFrom && { gte: new Date(filters.dateFrom) }),
-                  ...(filters.dateTo && { lte: new Date(filters.dateTo) }),
-                },
-              }
-            : {};
+    const reportDateFrom = this.parseDateFilter(filters.dateFrom, "dateFrom");
+    const reportDateTo = this.parseDateFilter(filters.dateTo, "dateTo");
+    const dateFilter =
+      reportDateFrom || reportDateTo
+        ? {
+            startsAt: {
+              ...(reportDateFrom && { gte: reportDateFrom }),
+              ...(reportDateTo && { lte: reportDateTo }),
+            },
+          }
+        : {};
 
-        const [totalClasses, cancelledClasses, coachAttendances] =
-          await Promise.all([
-            this.prisma.coachClass.count({
-              where: { coachId: coach.id, ...dateFilter },
-            }),
-            this.prisma.coachClass.count({
-              where: { coachId: coach.id, status: ClassStatus.CANCELLED, ...dateFilter },
-            }),
-            this.prisma.coachAttendance.findMany({
-              where: {
-                coachId: coach.id,
-                class: { status: ClassStatus.COMPLETED, ...dateFilter },
-              },
-              include: { class: { select: { startsAt: true, endsAt: true } } },
-            }),
-          ]);
+    // Two aggregate queries for all coaches instead of 3 per coach (AUDIT M6).
+    const [classCounts, coachAttendances] = await Promise.all([
+      this.prisma.coachClass.groupBy({
+        by: ["coachId", "status"],
+        where: { coachId: { in: coachIds }, ...dateFilter },
+        _count: { _all: true },
+      }),
+      this.prisma.coachAttendance.findMany({
+        where: {
+          coachId: { in: coachIds },
+          class: { status: ClassStatus.COMPLETED, ...dateFilter },
+        },
+        include: { class: { select: { startsAt: true, endsAt: true } } },
+      }),
+    ]);
 
-        let totalScheduledSeconds = 0;
-        let totalActualSeconds = 0;
+    const totalByCoach = new Map<string, number>();
+    const cancelledByCoach = new Map<string, number>();
+    for (const row of classCounts) {
+      const n = row._count._all;
+      totalByCoach.set(row.coachId, (totalByCoach.get(row.coachId) ?? 0) + n);
+      if (row.status === ClassStatus.CANCELLED) {
+        cancelledByCoach.set(row.coachId, (cancelledByCoach.get(row.coachId) ?? 0) + n);
+      }
+    }
 
-        for (const ca of coachAttendances) {
-          totalScheduledSeconds += Math.floor(
-            (ca.class.endsAt.getTime() - ca.class.startsAt.getTime()) / 1000
-          );
-          totalActualSeconds += ca.totalDuration || 0;
-        }
+    const attendanceByCoach = new Map<
+      string,
+      { scheduledSeconds: number; actualSeconds: number; count: number }
+    >();
+    for (const ca of coachAttendances) {
+      const agg =
+        attendanceByCoach.get(ca.coachId) ?? {
+          scheduledSeconds: 0,
+          actualSeconds: 0,
+          count: 0,
+        };
+      agg.scheduledSeconds += Math.floor(
+        (ca.class.endsAt.getTime() - ca.class.startsAt.getTime()) / 1000
+      );
+      agg.actualSeconds += ca.totalDuration || 0;
+      agg.count += 1;
+      attendanceByCoach.set(ca.coachId, agg);
+    }
 
-        const completedClasses = coachAttendances.length;
-        const completionPercent =
+    const coachReports = coaches.map((coach) => {
+      const totalClasses = totalByCoach.get(coach.id) ?? 0;
+      const cancelledClasses = cancelledByCoach.get(coach.id) ?? 0;
+      const agg =
+        attendanceByCoach.get(coach.id) ?? {
+          scheduledSeconds: 0,
+          actualSeconds: 0,
+          count: 0,
+        };
+      const completedClasses = agg.count;
+
+      return {
+        coachId: coach.id,
+        coachName: `${coach.firstName} ${coach.lastName || ""}`.trim(),
+        email: coach.email,
+        totalClasses,
+        completedClasses,
+        cancelledClasses,
+        totalScheduledHours: Math.round((agg.scheduledSeconds / 3600) * 10) / 10,
+        totalActualHours: Math.round((agg.actualSeconds / 3600) * 10) / 10,
+        avgDurationMinutes:
+          completedClasses > 0
+            ? Math.round(agg.actualSeconds / completedClasses / 60)
+            : 0,
+        completionPercent:
           totalClasses > 0
             ? Math.round((completedClasses / totalClasses) * 100)
-            : 0;
-        const avgDurationMinutes =
-          completedClasses > 0
-            ? Math.round(totalActualSeconds / completedClasses / 60)
-            : 0;
-
-        return {
-          coachId: coach.id,
-          coachName: `${coach.firstName} ${coach.lastName || ""}`.trim(),
-          email: coach.email,
-          totalClasses,
-          completedClasses,
-          cancelledClasses,
-          totalScheduledHours:
-            Math.round((totalScheduledSeconds / 3600) * 10) / 10,
-          totalActualHours:
-            Math.round((totalActualSeconds / 3600) * 10) / 10,
-          avgDurationMinutes,
-          completionPercent,
-        };
-      })
-    );
+            : 0,
+      };
+    });
 
     return { coaches: coachReports };
   }
@@ -1137,19 +1208,8 @@ export class AttendanceService {
       coachClass.attendances.map((a) => [a.studentId, a])
     );
 
-    const presentCount = coachClass.attendances.filter(
-      (a) => a.status === AttendanceStatus.PRESENT || a.status === AttendanceStatus.LATE
-    ).length;
-    const absentCount = totalStudents - coachClass.attendances.length;
-    const lateCount = coachClass.attendances.filter(
-      (a) => a.status === AttendanceStatus.LATE
-    ).length;
-    const partialCount = coachClass.attendances.filter(
-      (a) => a.status === AttendanceStatus.PARTIAL
-    ).length;
-
-    const overallPercent =
-      totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
+    const { presentCount, lateCount, partialCount, absentCount, overallPercent } =
+      this.tallyAttendance(coachClass.attendances, totalStudents);
 
     const students = (coachClass.batch?.students || []).map((bs) => {
       const att = attendanceMap.get(bs.studentId);
@@ -1377,8 +1437,8 @@ export class AttendanceService {
     }
 
     const now = new Date();
-    const todayStart = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-    const todayEnd = new Date(now.getTime() + 20 * 60 * 60 * 1000);
+    // Real calendar day in the admin's timezone, not a rolling window (M7).
+    const { start: todayStart, end: todayEnd } = zonedDayBounds(user.timezone);
 
     const [
       todayClasses,
@@ -1423,52 +1483,52 @@ export class AttendanceService {
       (a) => a.status === AttendanceStatus.ABSENT
     ).length;
 
-    // Monthly trend (last 6 months)
+    // Monthly trend (last 6 months). Two range queries + in-memory bucketing
+    // instead of 18 sequential COUNTs (AUDIT M5).
+    const trendStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthKey = (d: Date) => `${d.getFullYear()}-${d.getMonth()}`;
+
+    const [trendClasses, trendAttendances] = await Promise.all([
+      this.prisma.coachClass.findMany({
+        where: { status: ClassStatus.COMPLETED, startsAt: { gte: trendStart } },
+        select: { startsAt: true },
+      }),
+      this.prisma.classAttendance.findMany({
+        where: { class: { startsAt: { gte: trendStart } } },
+        select: { status: true, class: { select: { startsAt: true } } },
+      }),
+    ]);
+
+    const classesByMonth = new Map<string, number>();
+    for (const c of trendClasses) {
+      classesByMonth.set(monthKey(c.startsAt), (classesByMonth.get(monthKey(c.startsAt)) ?? 0) + 1);
+    }
+    const attendedByMonth = new Map<string, number>();
+    const totalByMonth = new Map<string, number>();
+    for (const a of trendAttendances) {
+      const key = monthKey(a.class.startsAt);
+      totalByMonth.set(key, (totalByMonth.get(key) ?? 0) + 1);
+      if (a.status === AttendanceStatus.PRESENT || a.status === AttendanceStatus.LATE) {
+        attendedByMonth.set(key, (attendedByMonth.get(key) ?? 0) + 1);
+      }
+    }
+
     const monthlyTrend = [];
     for (let i = 5; i >= 0; i--) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonth = new Date(
-        now.getFullYear(),
-        now.getMonth() - i + 1,
-        1
-      );
-
-      const monthClasses = await this.prisma.coachClass.count({
-        where: {
-          status: ClassStatus.COMPLETED,
-          startsAt: { gte: monthDate, lt: nextMonth },
-        },
-      });
-
-      const monthAttended = await this.prisma.classAttendance.count({
-        where: {
-          status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.LATE] },
-          class: {
-            startsAt: { gte: monthDate, lt: nextMonth },
-          },
-        },
-      });
-
-      const monthTotal = await this.prisma.classAttendance.count({
-        where: {
-          class: {
-            startsAt: { gte: monthDate, lt: nextMonth },
-          },
-        },
-      });
+      const key = monthKey(monthDate);
+      const monthAttended = attendedByMonth.get(key) ?? 0;
+      const monthTotal = totalByMonth.get(key) ?? 0;
 
       monthlyTrend.push({
         month: monthDate.toLocaleDateString("en-US", {
           month: "short",
           year: "numeric",
         }),
-        classes: monthClasses,
+        classes: classesByMonth.get(key) ?? 0,
         attended: monthAttended,
         total: monthTotal,
-        percent:
-          monthTotal > 0
-            ? Math.round((monthAttended / monthTotal) * 100)
-            : 0,
+        percent: monthTotal > 0 ? Math.round((monthAttended / monthTotal) * 100) : 0,
       });
     }
 
@@ -1595,6 +1655,15 @@ export class AttendanceService {
     return policy;
   }
 
+  /**
+   * Authenticated read of the active policy. `getActivePolicy` is kept internal
+   * because it lazily creates a row, which must never be reachable anonymously.
+   */
+  async getPolicy(accessToken: string | undefined) {
+    await this.getAuthenticatedUser(accessToken);
+    return this.getActivePolicy();
+  }
+
   async updatePolicy(
     accessToken: string | undefined,
     data: {
@@ -1615,6 +1684,18 @@ export class AttendanceService {
     }
 
     const policy = await this.getActivePolicy();
+
+    // Thresholds are evaluated highest-first in determineStatus, so they must
+    // stay strictly descending or statuses become unreachable.
+    const presentThreshold = data.presentThreshold ?? policy.presentThreshold;
+    const lateThreshold = data.lateThreshold ?? policy.lateThreshold;
+    const partialThreshold = data.partialThreshold ?? policy.partialThreshold;
+
+    if (!(presentThreshold > lateThreshold && lateThreshold > partialThreshold)) {
+      throw new BadRequestException(
+        "Thresholds must be descending: present > late > partial."
+      );
+    }
 
     return this.prisma.attendancePolicy.update({
       where: { id: policy.id },
@@ -1646,11 +1727,13 @@ export class AttendanceService {
 
     const where: any = {};
 
-    if (filters.dateFrom || filters.dateTo) {
+    const exportDateFrom = this.parseDateFilter(filters.dateFrom, "dateFrom");
+    const exportDateTo = this.parseDateFilter(filters.dateTo, "dateTo");
+    if (exportDateFrom || exportDateTo) {
       where.class = {
         startsAt: {
-          ...(filters.dateFrom && { gte: new Date(filters.dateFrom) }),
-          ...(filters.dateTo && { lte: new Date(filters.dateTo) }),
+          ...(exportDateFrom && { gte: exportDateFrom }),
+          ...(exportDateTo && { lte: exportDateTo }),
         },
       };
     }
@@ -1711,9 +1794,9 @@ export class AttendanceService {
     ]);
 
     const csv =
-      headers.join(",") +
-      "\n" +
-      rows.map((row) => row.map((v) => `"${v}"`).join(",")).join("\n");
+      [headers, ...rows]
+        .map((row) => row.map((v) => this.toCsvCell(v)).join(","))
+        .join("\r\n");
 
     return { csv, count: records.length };
   }
@@ -1722,15 +1805,75 @@ export class AttendanceService {
   // HELPERS
   // ──────────────────────────────────────────────
 
+  /**
+   * Parse a date query param, rejecting garbage with a 400 instead of letting
+   * `new Date("junk")` → Invalid Date reach Prisma and surface as a 500
+   * (AUDIT M31).
+   */
+  private parseDateFilter(value: string | undefined, field: string): Date | undefined {
+    if (value === undefined || value === null || value === "") return undefined;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) {
+      throw new BadRequestException(`Invalid ${field}: expected an ISO date string.`);
+    }
+    return d;
+  }
+
+  /**
+   * One consistent attendance tally for the class-report endpoints (AUDIT M4).
+   * `absentCount` was computed two different ways (`total - presentCount` vs
+   * `total - attendances.length`) and could go negative when an attendee had
+   * since left the batch. Here "absent" = batch students with no PRESENT/LATE/
+   * PARTIAL record, clamped at 0.
+   */
+  private tallyAttendance(
+    attendances: Array<{ status: AttendanceStatus | string }>,
+    totalStudents: number
+  ) {
+    const has = (...statuses: AttendanceStatus[]) =>
+      attendances.filter((a) => statuses.includes(a.status as AttendanceStatus)).length;
+
+    const presentCount = has(AttendanceStatus.PRESENT, AttendanceStatus.LATE);
+    const lateCount = has(AttendanceStatus.LATE);
+    const partialCount = has(AttendanceStatus.PARTIAL);
+    const accountedFor = has(
+      AttendanceStatus.PRESENT,
+      AttendanceStatus.LATE,
+      AttendanceStatus.PARTIAL
+    );
+    const absentCount = Math.max(0, totalStudents - accountedFor);
+    const overallPercent =
+      totalStudents > 0 ? Math.round((presentCount / totalStudents) * 100) : 0;
+
+    return { presentCount, lateCount, partialCount, absentCount, overallPercent };
+  }
+
+  /**
+   * Render one CSV cell safely (AUDIT H25):
+   * - double embedded quotes and always wrap in quotes, so a value containing
+   *   `"`, `,` or a newline can't corrupt the row/column structure;
+   * - prefix a leading `=`, `+`, `-`, `@`, tab or CR with `'` so spreadsheet
+   *   apps don't evaluate it as a formula.
+   */
+  private toCsvCell(value: unknown): string {
+    let str = value === null || value === undefined ? "" : String(value);
+    if (/^[=+\-@\t\r]/.test(str)) {
+      str = `'${str}`;
+    }
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+
   private calculateTotalDuration(
     logs: Array<{
       eventType: string | AttendanceEventType;
       sessionStart: Date | null;
       sessionEnd: Date | null;
       sessionDuration: number | null;
-    }>
+    }>,
+    // Cap still-open sessions at this instant instead of `new Date()`, so the
+    // computation is stable across re-runs (AUDIT M3).
+    openSessionEnd: Date = new Date()
   ): number {
-    const now = new Date();
     let total = 0;
     for (const log of logs) {
       if (
@@ -1742,13 +1885,43 @@ export class AttendanceService {
         if (log.sessionDuration) {
           total += log.sessionDuration;
         } else if (log.sessionStart && !log.sessionEnd) {
-          total += Math.floor(
-            (now.getTime() - log.sessionStart.getTime()) / 1000
+          total += Math.max(
+            0,
+            Math.floor((openSessionEnd.getTime() - log.sessionStart.getTime()) / 1000)
           );
         }
       }
     }
     return total;
+  }
+
+  /**
+   * Clamp every still-open session log for a class to `endTime` and fill in its
+   * `sessionDuration`, so `finalizeClassAttendance` is idempotent and a late
+   * `participant_left` after `room_finished` can't leave a session open
+   * (AUDIT M2, M3).
+   */
+  private async closeOpenAttendanceLogs(classId: string, endTime: Date) {
+    await this.prisma.$executeRaw`
+      UPDATE "attendance_logs" l
+      SET "sessionEnd" = ${endTime},
+          "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${endTime}::timestamptz - l."sessionStart"))))::int
+      FROM "class_attendance" ca
+      WHERE l."attendanceId" = ca."id"
+        AND ca."classId" = ${classId}
+        AND l."sessionStart" IS NOT NULL
+        AND l."sessionEnd" IS NULL
+    `;
+    await this.prisma.$executeRaw`
+      UPDATE "coach_attendance_logs" l
+      SET "sessionEnd" = ${endTime},
+          "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${endTime}::timestamptz - l."sessionStart"))))::int
+      FROM "coach_attendance" ca
+      WHERE l."attendanceId" = ca."id"
+        AND ca."classId" = ${classId}
+        AND l."sessionStart" IS NOT NULL
+        AND l."sessionEnd" IS NULL
+    `;
   }
 
   private determineStatus(

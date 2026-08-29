@@ -1,8 +1,12 @@
+"use client";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Target, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 
 interface PracticeItem {
   id: string;
@@ -17,6 +21,8 @@ interface PracticeSectionProps {
 }
 
 export function PracticeSection({ practices = [] }: PracticeSectionProps) {
+  const timeZone = useUserTimeZone();
+
   return (
     <Card className="border-app-border bg-app-surface shadow-sm h-full flex flex-col">
       <CardHeader className="pb-4 border-b border-app-border/50 flex flex-row items-center justify-between">
@@ -54,7 +60,7 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
                       {practice.difficulty}
                     </Badge>
                     <span className="text-app-muted font-medium bg-app-background px-2 py-0.5 rounded border border-app-border">
-                      Due: {practice.dueDate}
+                      Due: {formatFullDate(practice.dueDate, timeZone)}
                     </span>
                   </div>
                 </div>

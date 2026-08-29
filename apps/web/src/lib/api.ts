@@ -97,6 +97,23 @@ type ApiFetchOptions = Omit<AxiosRequestConfig, "data" | "url"> & {
   body?: unknown;
 };
 
+/**
+ * Thrown by `apiFetch` on any non-2xx response. Carries `code` when the API
+ * sent a structured `{ message, code }` body — an addition for call sites
+ * that need to branch on a specific, known condition (e.g. "coach hasn't
+ * joined yet") instead of substring-matching `message` (AUDIT H14). Every
+ * existing `error.message` read keeps working unchanged.
+ */
+export class ApiError extends Error {
+  code?: string;
+
+  constructor(message: string, code?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.code = code;
+  }
+}
+
 import { toast } from "sonner";
 
 export async function apiFetch<TResponse>(
@@ -124,7 +141,8 @@ export async function apiFetch<TResponse>(
         });
       }
 
-      throw new Error(message);
+      const code = error.response?.data?.code;
+      throw new ApiError(message, typeof code === "string" ? code : undefined);
     }
 
     throw error;

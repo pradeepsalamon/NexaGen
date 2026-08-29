@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   X,
@@ -16,6 +16,7 @@ import {
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useAuthStore } from "@/stores/authStore";
@@ -54,8 +55,22 @@ const CompactBoardNav = memo(function CompactBoardNav() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
 
-  const { undo, redo, reset, setOrientation, orientation, historyIndex, moveHistory } =
-    useBoardStore();
+  const {
+    undo,
+    redo,
+    reset,
+    jumpToStart,
+    jumpToEnd,
+    setOrientation,
+    orientation,
+    historyIndex,
+    moveHistory,
+  } = useBoardStore();
+
+  // AUDIT H8: "Go to start"/"Go to end" both called `reset`, wiping the game
+  // instead of navigating it. `reset` now lives only behind "New game", and is
+  // destructive enough to need a confirmation.
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   if (!isCoach) return null;
 
@@ -63,67 +78,85 @@ const CompactBoardNav = memo(function CompactBoardNav() {
   const canRedo = historyIndex < moveHistory.length - 1;
 
   return (
-    <div className="flex items-center gap-1">
-      <button
-        type="button"
-        onClick={reset}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="Reset board"
-        title="Reset"
-      >
-        <ChevronsLeft className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={undo}
-        disabled={!canUndo}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
-        aria-label="Undo"
-        title="Undo"
-      >
-        <ChevronLeft className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={redo}
-        disabled={!canRedo}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
-        aria-label="Redo"
-        title="Redo"
-      >
-        <ChevronRight className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={reset}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="Go to end"
-        title="Go to end"
-      >
-        <ChevronsRight className="size-4" />
-      </button>
+    <>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={jumpToStart}
+          disabled={!canUndo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Go to start"
+          title="Go to start"
+        >
+          <ChevronsLeft className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={undo}
+          disabled={!canUndo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Undo"
+          title="Undo"
+        >
+          <ChevronLeft className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={redo}
+          disabled={!canRedo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Redo"
+          title="Redo"
+        >
+          <ChevronRight className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={jumpToEnd}
+          disabled={!canRedo}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-30 disabled:cursor-not-allowed"
+          aria-label="Go to end"
+          title="Go to end"
+        >
+          <ChevronsRight className="size-4" />
+        </button>
 
-      <div className="mx-1 h-5 w-px bg-app-border" aria-hidden="true" />
+        <div className="mx-1 h-5 w-px bg-app-border" aria-hidden="true" />
 
-      <button
-        type="button"
-        onClick={() => setOrientation(orientation === "white" ? "black" : "white")}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="Flip board"
-        title="Flip board"
+        <button
+          type="button"
+          onClick={() => setOrientation(orientation === "white" ? "black" : "white")}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+          aria-label="Flip board"
+          title="Flip board"
+        >
+          <FlipVertical2 className="size-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsResetConfirmOpen(true)}
+          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+          aria-label="New game"
+          title="New game"
+        >
+          <RotateCcw className="size-4" />
+        </button>
+      </div>
+
+      <ConfirmationModal
+        isOpen={isResetConfirmOpen}
+        onCancel={() => setIsResetConfirmOpen(false)}
+        onConfirm={() => {
+          reset();
+          setIsResetConfirmOpen(false);
+        }}
+        title="Start a new game?"
+        confirmLabel="New game"
       >
-        <FlipVertical2 className="size-4" />
-      </button>
-      <button
-        type="button"
-        onClick={reset}
-        className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-        aria-label="New game"
-        title="New game"
-      >
-        <RotateCcw className="size-4" />
-      </button>
-    </div>
+        This clears the board and move history for everyone in the class. This
+        cannot be undone.
+      </ConfirmationModal>
+    </>
   );
 });
 

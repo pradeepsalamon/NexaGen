@@ -15,7 +15,7 @@ import { ToastProvider } from "./ToastProvider";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isMeetingRoute = pathname?.startsWith("/live-class") || pathname?.startsWith("/test-board") || pathname?.startsWith("/demo");
+  const isMeetingRoute = pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
 
   const [queryClient] = useState(
     () =>

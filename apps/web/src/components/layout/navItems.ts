@@ -19,6 +19,12 @@ export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  /**
+   * Marks a destination whose API requires `SUPER_ADMIN`. Hidden from plain
+   * ADMIN users so they never navigate into a guaranteed 401.
+   * See AUDIT.md H1.
+   */
+  superAdminOnly?: boolean;
 };
 
 export const studentNavItems: NavItem[] = [
@@ -48,8 +54,17 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/batches", label: "Batches", icon: Layers3 },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/attendance", label: "Attendance", icon: UserRoundCheck },
-  { href: "/admin/trash", label: "Trash", icon: Trash2 },
-  { href: "/admin/coaches", label: "Coach Apps", icon: Users },
-  { href: "/admin/demo-classes", label: "Demo Classes", icon: Video },
-  { href: "/admin/classes", label: "Batch Classes", icon: Video }
+  { href: "/admin/trash", label: "Trash", icon: Trash2, superAdminOnly: true },
+  { href: "/admin/coaches", label: "Coach Apps", icon: Users, superAdminOnly: true },
+  { href: "/admin/demo-classes", label: "Demo Classes", icon: Video, superAdminOnly: true },
+  { href: "/admin/classes", label: "Batch Classes", icon: Video, superAdminOnly: true }
 ];
+
+/** Admin nav filtered to what the given role's API access actually permits. */
+export function getAdminNavItems(role?: string): NavItem[] {
+  if (role === "SUPER_ADMIN") {
+    return adminNavItems;
+  }
+
+  return adminNavItems.filter((item) => !item.superAdminOnly);
+}

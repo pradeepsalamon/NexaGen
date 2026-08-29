@@ -3,6 +3,7 @@ import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import { Config } from "chessground/config";
 import { useBoardStore } from "../../context/BoardProvider";
+import { preloadSounds } from "../../audio/sounds";
 import { useAuthStore } from "@/stores/authStore";
 
 // Chessground CSS
@@ -17,6 +18,12 @@ export function ChessgroundBoard() {
   
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
+
+  // Warm the move-sound buffer cache so the first move isn't silent while the
+  // asset downloads (AUDIT H5).
+  useEffect(() => {
+    preloadSounds();
+  }, []);
 
   const { 
     chess, fen, turn, orientation, boardTheme, pieceTheme, showCoordinates, 

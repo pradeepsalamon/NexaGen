@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getCurrentUser } from "../features/auth/api/authApi";
+import { queryKeys } from "../lib/queryKeys";
 import { useAuthStore } from "../stores/authStore";
 
 export function SessionBootstrap() {
@@ -14,7 +15,7 @@ export function SessionBootstrap() {
   const setUser = useAuthStore((state) => state.setUser);
   const sessionQuery = useQuery({
     queryFn: getCurrentUser,
-    queryKey: ["auth", "me"],
+    queryKey: queryKeys.auth.session,
     retry: false
   });
 

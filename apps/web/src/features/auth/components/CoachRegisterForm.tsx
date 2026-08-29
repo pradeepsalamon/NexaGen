@@ -1,8 +1,9 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { type FormEvent, useState } from "react";
+import { CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -10,7 +11,6 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
-import { useAuthStore } from "@/stores/authStore";
 import { registerCoach } from "../api/authApi";
 import type { RegisterCoachRequest } from "@nexa-chess/types";
 
@@ -32,11 +32,12 @@ const initialValues: RegisterCoachRequest = {
 };
 
 export function CoachRegisterForm() {
-  const router = useRouter();
   const toast = useToast();
-  const setUser = useAuthStore((state) => state.setUser);
   const [values, setValues] = useState<RegisterCoachRequest>(initialValues);
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
+  // Registration is an application, not a sign-in: the API issues no session
+  // until an admin approves the coach, so there is nothing to redirect to.
   const registerMutation = useMutation({
     mutationFn: registerCoach,
     onError: (error) => {
@@ -45,13 +46,12 @@ export function CoachRegisterForm() {
         title: "Registration failed"
       });
     },
-    onSuccess: ({ user }) => {
-      setUser(user);
+    onSuccess: ({ email }) => {
+      setSubmittedEmail(email);
       toast.success({
         message: "Your application is submitted and under review.",
-        title: "Registration successful"
+        title: "Application received"
       });
-      router.push("/");
     }
   });
 
@@ -78,6 +78,34 @@ export function CoachRegisterForm() {
     }
 
     registerMutation.mutate(values);
+  }
+
+  if (submittedEmail) {
+    return (
+      <div className="grid gap-4 text-center">
+        <CheckCircle2
+          aria-hidden="true"
+          className="mx-auto size-12 text-primary"
+          strokeWidth={2.5}
+        />
+        <div className="grid gap-1.5">
+          <h2 className="text-lg font-semibold text-app-text">
+            Application received
+          </h2>
+          <p className="text-sm text-app-muted">
+            We have your application for{" "}
+            <span className="font-medium text-app-text">{submittedEmail}</span>.
+            An admin reviews every coach account before it is activated — you
+            will be able to sign in once yours is approved.
+          </p>
+        </div>
+        <Link href="/login">
+          <Button fullWidth variant="outline">
+            Back to sign in
+          </Button>
+        </Link>
+      </div>
+    );
   }
 
   return (

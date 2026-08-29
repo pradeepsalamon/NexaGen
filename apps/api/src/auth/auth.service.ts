@@ -23,6 +23,7 @@ import type {
   LogoutResponse,
   RegisterRequest,
   RegisterCoachRequest,
+  RegisterCoachResponse,
   ResetPasswordRequest,
   UpdateProfileRequest
 } from "@nexa-chess/types";
@@ -113,7 +114,10 @@ export class AuthService {
       throw new BadRequestException("Passwords must match.");
     }
 
-    const existingUser = await this.prisma.user.findUnique({
+    // `withDeleted` bypasses the soft-delete filter. The unique constraint on
+    // users.email covers deleted rows too, so a filtered read would miss the
+    // conflict and the insert would fail with P2002 -> unhandled 500.
+    const existingUser = await this.prisma.withDeleted.user.findUnique({
       where: { email: payload.email.toLowerCase() }
     });
 
@@ -169,15 +173,21 @@ export class AuthService {
   }
 
   
+  /**
+   * Coach self-registration is an *application*, not a sign-up: the account is
+   * created PENDING and no session is issued. An admin must approve it from the
+   * Pending Coaches screen before the coach can log in (AUDIT H9).
+   */
   async registerCoach(
     payload: RegisterCoachRequest,
-    context: SessionContext
-  ): Promise<AuthResult> {
+    _context: SessionContext
+  ): Promise<RegisterCoachResponse> {
     if (payload.password !== payload.confirmPassword) {
       throw new BadRequestException("Passwords must match.");
     }
 
-    const existingUser = await this.prisma.user.findUnique({
+    // See register(): must include soft-deleted rows, the unique index does.
+    const existingUser = await this.prisma.withDeleted.user.findUnique({
       where: { email: payload.email.toLowerCase() }
     });
 
@@ -197,12 +207,13 @@ export class AuthService {
         lastName,
         phoneNumber: payload.contactNumber,
         role: UserRole.COACH,
-        status: UserStatus.ACTIVE,
+        status: UserStatus.PENDING,
         timezone: "Asia/Kolkata",
         isEmailVerified: true,
         emailVerifiedAt: new Date(),
         coachProfile: {
           create: {
+            approvalStatus: UserStatus.PENDING,
             title: this.toCoachTitle(payload.title),
             fideId: this.toNullableString(payload.fideId),
             fideRating: payload.fideRating ?? null,
@@ -226,18 +237,9 @@ export class AuthService {
     await this.mailService.sendEmailVerificationLink(user.email, verifyLink.toString()); 
     */
 
-    const tokenPair = await this.createSession(
-      user,
-      context,
-      this.refreshTokenShortMaxAge,
-      this.refreshTokenShortTtl
-    );
-
     return {
-      ...tokenPair,
-      accessTokenMaxAge: this.accessTokenMaxAge,
-      refreshTokenMaxAge: this.refreshTokenShortMaxAge,
-      user: this.toAuthUser(user)
+      email: user.email,
+      status: "PENDING_APPROVAL"
     };
   }
 
@@ -258,6 +260,20 @@ export class AuthService {
     if (!user || !passwordMatches) {
       await this.waitForLoginResponseDelay(startedAt);
       throw new UnauthorizedException("Invalid email or password.");
+    }
+
+    // A coach is only usable once an admin has approved the application; check
+    // both the account status and the profile's approval flag so an account
+    // flipped ACTIVE by another path still cannot teach (AUDIT H9).
+    const isUnapprovedCoach =
+      user.role === UserRole.COACH &&
+      user.coachProfile?.approvalStatus !== UserStatus.ACTIVE;
+
+    if (isUnapprovedCoach) {
+      await this.waitForLoginResponseDelay(startedAt);
+      throw new UnauthorizedException(
+        "Your coach application is awaiting admin approval."
+      );
     }
 
     if (user.status !== UserStatus.ACTIVE) {
@@ -743,9 +759,13 @@ export class AuthService {
     email: string,
     username: string | null
   ) {
+    // Must include soft-deleted rows — the unique indexes on email/username
+    // span them, so a filtered read would let the update fail with P2002.
     const [existingEmailUser, existingUsernameUser] = await Promise.all([
-      this.prisma.user.findUnique({ where: { email } }),
-      username ? this.prisma.user.findUnique({ where: { username } }) : null
+      this.prisma.withDeleted.user.findUnique({ where: { email } }),
+      username
+        ? this.prisma.withDeleted.user.findUnique({ where: { username } })
+        : null
     ]);
 
     if (existingEmailUser && existingEmailUser.id !== userId) {

@@ -10,6 +10,39 @@ import { toast } from "sonner";
 
 const BOARD_SYNC_TOPIC = "board_sync";
 
+/**
+ * Message types that mutate shared board state. They are only honoured from the
+ * coach — students hold `canPublishData`, so without this check any participant
+ * could push arbitrary positions or grant themselves control. See AUDIT.md C7.
+ *
+ * `REQUEST_SYNC` and `REQUEST_CONTROL` are intentionally excluded: they are
+ * requests, not commands, and students are expected to send them.
+ */
+const COACH_ONLY_MESSAGE_TYPES = new Set<BoardSyncMessage["type"]>([
+  "MOVE",
+  "UNDO",
+  "REDO",
+  "RESET",
+  "FORCE_SYNC",
+  "UPDATE_ANNOTATIONS",
+  "UPDATE_PERMISSIONS",
+  "SET_UI_STATE"
+]);
+
+/**
+ * Role comes from LiveKit participant metadata, which the server signs into the
+ * access token. Students are issued `canUpdateOwnMetadata: false`, so this
+ * cannot be forged client-side.
+ */
+function isCoachParticipant(from?: { metadata?: string }) {
+  if (!from?.metadata) return false;
+  try {
+    return JSON.parse(from.metadata).role === "COACH";
+  } catch {
+    return false;
+  }
+}
+
 export function useBoardSync() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
@@ -17,14 +50,12 @@ export function useBoardSync() {
   const liveClassState = useOptionalLiveClassState();
   
   const store = useContext(BoardContext);
-  
-  const { 
-    fen, pgn, orientation, arrows, squareStyles, permissionMode, selectedStudentId,
-    activeTab, pdfUrl,
-    syncFromRemote
-  } = useBoardStore();
 
-  const lastMoveType = usePersistedStore((state) => state.lastMoveType);
+  // `syncFromRemote` is a stable store action. Everything else is read via
+  // `store.getState()` inside the callbacks below rather than destructured
+  // reactively, so a board change doesn't re-render this hook (and re-register
+  // the LiveKit data channel) on every move (AUDIT M28).
+  const syncFromRemote = useBoardStore((state) => state.syncFromRemote);
 
   const sendRef = useRef<any>(null);
 
@@ -44,25 +75,39 @@ export function useBoardSync() {
 
   // High level actions for UI components to call
   const broadcastState = useCallback((type: BoardSyncMessage["type"] = "MOVE") => {
+    const s = store?.getState();
+    if (!s) return;
     broadcastMsg({
       type,
-      payload: { fen, pgn, orientation, moveType: type === "MOVE" ? lastMoveType : undefined }
+      payload: {
+        fen: s.fen,
+        // Send the complete mainline + the viewed ply so receivers can step
+        // history with us instead of snapping to the end (AUDIT H21).
+        pgn: s.fullPgn || s.pgn,
+        historyIndex: s.historyIndex,
+        orientation: s.orientation,
+        moveType: type === "MOVE" ? usePersistedStore.getState().lastMoveType : undefined
+      }
     });
-  }, [broadcastMsg, fen, pgn, orientation, lastMoveType]);
+  }, [broadcastMsg, store]);
 
   const broadcastAnnotations = useCallback(() => {
+    const s = store?.getState();
+    if (!s) return;
     broadcastMsg({
       type: "UPDATE_ANNOTATIONS",
-      payload: { arrows, squares: squareStyles }
+      payload: { arrows: s.arrows, squares: s.squareStyles }
     });
-  }, [broadcastMsg, arrows, squareStyles]);
+  }, [broadcastMsg, store]);
 
   const broadcastPermissions = useCallback(() => {
+    const s = store?.getState();
+    if (!s) return;
     broadcastMsg({
       type: "UPDATE_PERMISSIONS",
-      payload: { mode: permissionMode, selectedStudentId }
+      payload: { mode: s.permissionMode, selectedStudentId: s.selectedStudentId }
     });
-  }, [broadcastMsg, permissionMode, selectedStudentId]);
+  }, [broadcastMsg, store]);
 
   const requestControl = useCallback(() => {
     if (!user) return;
@@ -74,20 +119,18 @@ export function useBoardSync() {
     toast.success("Requested board control from coach");
   }, [broadcastMsg, user]);
 
-  const isRemoteUpdateRef = useRef(false);
+  const handleIncomingSync = useCallback((
+    msg: BoardSyncMessage,
+    isFromCoach: boolean
+  ) => {
+    // Drop state-mutating messages from non-coach participants.
+    if (COACH_ONLY_MESSAGE_TYPES.has(msg.type) && !isFromCoach) {
+      console.warn(
+        `Ignored board sync message "${msg.type}" from a non-coach participant`
+      );
+      return;
+    }
 
-  // Mark the next store change as remote-originated so it isn't echoed back.
-  // The flag auto-expires because some remote messages (e.g. UPDATE_PERMISSIONS)
-  // don't produce a board change, and would otherwise suppress the following
-  // local move broadcast.
-  const markRemoteUpdate = useCallback(() => {
-    isRemoteUpdateRef.current = true;
-    setTimeout(() => {
-      isRemoteUpdateRef.current = false;
-    }, 0);
-  }, []);
-
-  const handleIncomingSync = useCallback((msg: BoardSyncMessage) => {
     switch (msg.type) {
       case "MOVE":
       case "UNDO":
@@ -95,20 +138,26 @@ export function useBoardSync() {
       case "RESET":
       case "FORCE_SYNC":
         if (msg.payload && msg.payload.fen) {
-          markRemoteUpdate();
           syncFromRemote({
             fen: msg.payload.fen,
             pgn: msg.payload.pgn || "",
+            ...(typeof msg.payload.historyIndex === "number"
+              ? { historyIndex: msg.payload.historyIndex }
+              : {}),
             ...(msg.payload.orientation ? { orientation: msg.payload.orientation } : {}),
             // FORCE_SYNC carries the full board snapshot, including annotations
             ...(Array.isArray(msg.payload.arrows) ? { arrows: msg.payload.arrows } : {}),
-            ...(msg.payload.squares ? { squareStyles: msg.payload.squares } : {})
+            ...(msg.payload.squares ? { squareStyles: msg.payload.squares } : {}),
+            // Only a MOVE carries a real move sound; UNDO/REDO/RESET/FORCE_SYNC
+            // reposition the board rather than play a move (AUDIT H6).
+            ...(msg.type === "MOVE" && msg.payload.moveType
+              ? { moveType: msg.payload.moveType }
+              : {})
           });
         }
         break;
       case "UPDATE_ANNOTATIONS":
         if (msg.payload) {
-          markRemoteUpdate();
           syncFromRemote({
             arrows: msg.payload.arrows || [],
             squareStyles: msg.payload.squares || {}
@@ -117,7 +166,6 @@ export function useBoardSync() {
         break;
       case "UPDATE_PERMISSIONS":
         if (msg.payload && msg.payload.mode) {
-          markRemoteUpdate();
           syncFromRemote({
             permissionMode: msg.payload.mode,
             selectedStudentId: msg.payload.selectedStudentId
@@ -129,31 +177,36 @@ export function useBoardSync() {
         break;
       case "SET_UI_STATE":
         if (msg.payload && (msg.payload.activeTab !== undefined || msg.payload.pdfUrl !== undefined)) {
-          markRemoteUpdate();
           syncFromRemote({
             ...(msg.payload.activeTab !== undefined ? { activeTab: msg.payload.activeTab } : {}),
             ...(msg.payload.pdfUrl !== undefined ? { pdfUrl: msg.payload.pdfUrl } : {})
           });
         }
         break;
-      case "REQUEST_SYNC":
+      case "REQUEST_SYNC": {
         // A late joiner requested a sync. If we are the coach, send full state.
+        // Read straight from the store so this callback doesn't close over ~10
+        // reactive fields and re-register the data channel on every board
+        // change (AUDIT M28).
         if (isCoach) {
           const snapshot = store?.getState();
+          if (!snapshot) break;
           broadcastMsg({
             type: "FORCE_SYNC",
             payload: {
-              fen: snapshot?.fen ?? fen,
-              pgn: snapshot?.pgn ?? pgn,
-              orientation: snapshot?.orientation ?? orientation,
-              arrows: snapshot?.arrows ?? arrows,
-              squares: snapshot?.squareStyles ?? squareStyles,
-              activeTab: snapshot?.activeTab ?? activeTab,
-              pdfUrl: snapshot?.pdfUrl ?? pdfUrl
+              fen: snapshot.fen,
+              pgn: snapshot.fullPgn || snapshot.pgn,
+              historyIndex: snapshot.historyIndex,
+              orientation: snapshot.orientation,
+              arrows: snapshot.arrows,
+              squares: snapshot.squareStyles,
+              activeTab: snapshot.activeTab,
+              pdfUrl: snapshot.pdfUrl
             }
           });
         }
         break;
+      }
       case "REQUEST_CONTROL":
         if (isCoach && msg.payload?.studentId) {
           const studentId = msg.payload.studentId;
@@ -176,7 +229,7 @@ export function useBoardSync() {
         }
         break;
     }
-  }, [isCoach, store, syncFromRemote, broadcastState, broadcastMsg, fen, pgn, orientation, arrows, squareStyles, liveClassState, markRemoteUpdate]);
+  }, [isCoach, store, syncFromRemote, broadcastMsg, liveClassState]);
 
   // Zustand Store Subscription for Immediate Syncing
   // This bypasses React's batching behavior, ensuring that rapidly consecutive moves
@@ -190,20 +243,26 @@ export function useBoardSync() {
       const uiChanged = state.activeTab !== prevState.activeTab || state.pdfUrl !== prevState.pdfUrl;
 
       if (boardChanged || annotationsChanged || uiChanged) {
-        // If the change came from a remote sync event, we don't broadcast it back.
-        if (isRemoteUpdateRef.current) {
-          isRemoteUpdateRef.current = false;
+        // If this transition came from a remote sync, don't echo it back.
+        // `remoteSyncId` is bumped atomically inside `syncFromRemote`'s own
+        // `set()` call, so comparing it here can't race the way a
+        // `setTimeout`-cleared ref did when two remote messages landed close
+        // together (AUDIT H20).
+        if (state.remoteSyncId !== prevState.remoteSyncId) {
           return;
         }
 
         if (boardChanged) {
           broadcastMsg({
             type: "MOVE",
-            payload: { 
-              fen: state.fen, 
-              pgn: state.pgn, 
-              orientation: state.orientation, 
-              moveType: usePersistedStore.getState().lastMoveType 
+            payload: {
+              fen: state.fen,
+              // Full mainline + viewed ply, so stepping through history stays
+              // in sync for receivers (AUDIT H21).
+              pgn: state.fullPgn || state.pgn,
+              historyIndex: state.historyIndex,
+              orientation: state.orientation,
+              moveType: usePersistedStore.getState().lastMoveType
             }
           });
         }
@@ -232,8 +291,8 @@ export function useBoardSync() {
       const decoder = new TextDecoder();
       const messageStr = decoder.decode(msg.payload);
       const data = JSON.parse(messageStr) as BoardSyncMessage;
-      
-      handleIncomingSync(data);
+
+      handleIncomingSync(data, isCoachParticipant(msg.from));
     } catch (e) {
       console.error("Failed to parse board sync message", e);
     }

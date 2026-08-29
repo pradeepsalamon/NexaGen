@@ -4,6 +4,8 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
+import { AttendanceService } from "../attendance/attendance.service";
+import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
 import { UserStatus } from "@prisma/client";
@@ -14,16 +16,15 @@ export class StudentService {
   private readonly env = getApiEnv();
 
   constructor(
+    private readonly attendanceService: AttendanceService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService
   ) { }
 
   async getDashboard(accessToken: string | undefined) {
     const user = await this.getAuthenticatedUser(accessToken);
-    const now = new Date();
-    // Use a rolling 24h window to avoid server-timezone dependency
-    const todayStart = new Date(now.getTime() - 4 * 60 * 60 * 1000);
-    const todayEnd = new Date(now.getTime() + 20 * 60 * 60 * 1000);
+    // Real calendar day in the student's timezone, not a rolling window (M7).
+    const { start: todayStart, end: todayEnd } = zonedDayBounds(user.timezone);
 
     // 1. Fetch upcoming classes for batches the student is enrolled in
     const scheduledClasses = await this.prisma.coachClass.findMany({
@@ -69,8 +70,8 @@ export class StudentService {
     let todaysClass: typeof scheduledClasses[0] | null = null;
     const upcomingClasses = [];
 
-    const classesToday = scheduledClasses.filter(c => c.startsAt <= todayEnd);
-    const classesFuture = scheduledClasses.filter(c => c.startsAt > todayEnd);
+    const classesToday = scheduledClasses.filter(c => c.startsAt < todayEnd);
+    const classesFuture = scheduledClasses.filter(c => c.startsAt >= todayEnd);
 
     if (classesToday.length > 0) {
       const liveClass = classesToday.find(c => c.status === "LIVE");
@@ -103,24 +104,13 @@ export class StudentService {
       include: { coach: true, liveSession: true }
     });
 
-    // Calculate actual attendance percentage
-    const completedClassesCount = await this.prisma.coachClass.count({
-      where: {
-        batch: { students: { some: { studentId: user.id, isDeleted: false } } },
-        status: "COMPLETED"
-      }
-    });
-
-    const attendedClassesCount = await this.prisma.classAttendance.count({
-      where: {
-        studentId: user.id,
-        status: "PRESENT"
-      }
-    });
-
-    const attendancePercent = completedClassesCount > 0 
-      ? Math.round((attendedClassesCount / completedClassesCount) * 100) 
-      : 100;
+    // Attendance is owned by AttendanceService — the dashboard must not compute
+    // its own percentage, or /student and /student/attendance disagree (AUDIT H10).
+    const { stats: attendanceStats } = await this.attendanceService.getStudentAttendance(
+      accessToken
+    );
+    const attendedClassesCount = attendanceStats.attended;
+    const attendancePercent = attendanceStats.percentage;
 
     const progressMetrics = [
       { label: "Classes Attended", value: attendedClassesCount.toString(), trend: "" },
@@ -130,18 +120,22 @@ export class StudentService {
     ];
 
     return {
+      // Dates are returned as ISO-8601 only. Formatting them here would use the
+      // server's timezone, not the student's — the web app formats them with
+      // the user's `timezone` (AUDIT H11).
       todaysClass: todaysClass ? {
         id: todaysClass.id,
         topic: todaysClass.topic || "Untitled Class",
         coachName: todaysClass.coach.firstName,
-        time: todaysClass.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        duration: `${Math.round((todaysClass.endsAt.getTime() - todaysClass.startsAt.getTime()) / 60000)} min`,
+        startsAt: todaysClass.startsAt.toISOString(),
+        durationMinutes: Math.round(
+          (todaysClass.endsAt.getTime() - todaysClass.startsAt.getTime()) / 60000
+        ),
         status: todaysClass.status
       } : null,
       upcomingClasses: finalUpcoming.map(c => ({
         id: c.id,
-        date: c.startsAt.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-        time: c.startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        startsAt: c.startsAt.toISOString(),
         coach: c.coach.firstName,
         topic: c.topic || "Untitled Class",
         status: c.status
@@ -151,85 +145,37 @@ export class StudentService {
         title: cp.course.title,
         module: cp.course.description || "In Progress",
         progressPercent: cp.progressPercent,
-        lastOpened: cp.lastOpenedAt.toLocaleDateString()
+        lastOpenedAt: cp.lastOpenedAt.toISOString()
       })),
       practices: practices.map((p: any) => ({
         id: p.practice.id,
         title: p.practice.title,
         difficulty: p.practice.difficulty,
-        dueDate: p.practice.dueDate.toLocaleDateString(),
+        dueDate: p.practice.dueDate.toISOString(),
         status: p.status
       })),
       activities: activities.map((a: any) => ({
         id: a.id,
         type: a.type,
         title: a.title,
-        time: a.createdAt.toLocaleDateString()
+        createdAt: a.createdAt.toISOString()
       })),
       announcements: announcements.map((a: any) => ({
         id: a.id,
         title: a.title,
         description: a.description,
         type: a.type,
-        date: a.createdAt.toLocaleDateString()
+        createdAt: a.createdAt.toISOString()
       })),
       pastClasses: pastClasses.map((c: any) => ({
         id: c.id,
         topic: c.topic || "Untitled Class",
         coachName: c.coach.firstName,
-        date: c.startsAt.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+        startsAt: c.startsAt.toISOString(),
         status: c.status,
         hasRecording: !!c.liveSession?.recordingUrl,
       })),
       progressMetrics
-    };
-  }
-
-  async getAttendance(accessToken: string | undefined) {
-    const user = await this.getAuthenticatedUser(accessToken);
-
-    const completedClasses = await this.prisma.coachClass.findMany({
-      where: {
-        batch: { students: { some: { studentId: user.id, isDeleted: false } } },
-        status: "COMPLETED"
-      },
-      include: {
-        batch: true,
-        coach: true,
-        attendances: {
-          where: { studentId: user.id }
-        }
-      },
-      orderBy: { startsAt: "desc" }
-    });
-
-    const attendedClassesCount = completedClasses.filter(c => c.attendances.length > 0 && c.attendances[0].status === "PRESENT").length;
-    const totalClassesCount = completedClasses.length;
-    const attendancePercent = totalClassesCount > 0 
-      ? Math.round((attendedClassesCount / totalClassesCount) * 100) 
-      : 100;
-
-    const history = completedClasses.map(cls => {
-      const isPresent = cls.attendances.length > 0 && cls.attendances[0].status === "PRESENT";
-      return {
-        id: cls.id,
-        topic: cls.topic || "Untitled Class",
-        batchName: cls.batch?.name || "Demo Class",
-        coachName: `${cls.coach.firstName} ${cls.coach.lastName || ""}`.trim(),
-        date: cls.startsAt.toISOString(),
-        status: isPresent ? "PRESENT" : "ABSENT",
-        joinedAt: isPresent ? cls.attendances[0].joinedAt?.toISOString() : null
-      };
-    });
-
-    return {
-      stats: {
-        total: totalClassesCount,
-        attended: attendedClassesCount,
-        missed: totalClassesCount - attendedClassesCount,
-        percentage: attendancePercent
-      },
-      history
     };
   }
 

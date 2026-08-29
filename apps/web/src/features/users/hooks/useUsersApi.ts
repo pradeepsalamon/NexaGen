@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { CreateUserRequest, UpdateUserRequest } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
+import type { ListParams } from "@/lib/pagination";
 import {
   archiveUser,
   createUser,
@@ -10,10 +11,11 @@ import {
   updateUser
 } from "../api/userApi";
 
-export function useUsersQuery() {
+export function useUsersQuery(params: ListParams = {}) {
   return useQuery({
-    queryFn: listUsers,
-    queryKey: queryKeys.users.all
+    queryFn: () => listUsers(params),
+    queryKey: queryKeys.users.list(params),
+    placeholderData: keepPreviousData
   });
 }
 

@@ -26,6 +26,11 @@ type MockPrismaService = {
   coachProfile: {
     create: jest.Mock;
   };
+  withDeleted: {
+    user: {
+      findUnique: jest.Mock;
+    };
+  };
   $transaction: jest.Mock;
 };
 
@@ -36,15 +41,21 @@ describe("UserService", () => {
   let trashRepository: { log: jest.Mock };
 
   beforeEach(async () => {
+    // `withDeleted` is the same Prisma client with the soft-delete filter
+    // removed, so the double shares one user mock: a test can arrange or assert
+    // through either path.
+    const userMock = {
+      count: jest.fn(),
+      create: jest.fn(),
+      findMany: jest.fn(),
+      findUnique: jest.fn(),
+      findUniqueOrThrow: jest.fn(),
+      update: jest.fn()
+    };
+
     prismaService = {
-      user: {
-        count: jest.fn(),
-        create: jest.fn(),
-        findMany: jest.fn(),
-        findUnique: jest.fn(),
-        findUniqueOrThrow: jest.fn(),
-        update: jest.fn()
-      },
+      user: userMock,
+      withDeleted: { user: userMock },
       studentProfile: {
         create: jest.fn()
       },
@@ -121,13 +132,20 @@ describe("UserService", () => {
           username: null
         }
       ]);
+      prismaService.user.count.mockResolvedValueOnce(1);
 
       const result = await service.list("token");
 
       expect(result.users).toHaveLength(1);
       expect(result.users[0].id).toBe("user-1");
+      expect(result.pagination).toEqual({
+        total: 1,
+        page: 1,
+        pageSize: 20,
+        totalPages: 1
+      });
       expect(prismaService.user.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isDeleted: false } })
+        expect.objectContaining({ where: { isDeleted: false }, skip: 0, take: 20 })
       );
     });
 

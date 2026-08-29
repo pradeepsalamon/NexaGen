@@ -12,6 +12,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BackupManager } from "./_components/BackupManager";
+import { SuperAdminOnly } from "@/components/layout/SuperAdminOnly";
 
 const accessTokenCookieName = "nexa_access_token";
 
@@ -60,34 +61,36 @@ export default function SuperAdminDashboardPage() {
               <UserRoundCheck aria-hidden="true" className="size-4" />
               Attendance
             </Link>
-            <Link
-              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
-              href="/admin/trash"
-            >
-              <Trash2 aria-hidden="true" className="size-4" />
-              Trash
-            </Link>
-            <Link
-              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
-              href="/admin/coaches"
-            >
-              <Users aria-hidden="true" className="size-4" />
-              Coach Apps
-            </Link>
-            <Link
-              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
-              href="/admin/demo-classes"
-            >
-              <Video aria-hidden="true" className="size-4" />
-              Demo Classes
-            </Link>
-            <Link
-              className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
-              href="/admin/classes"
-            >
-              <Video aria-hidden="true" className="size-4" />
-              Batch Classes
-            </Link>
+            <SuperAdminOnly>
+              <Link
+                className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+                href="/admin/trash"
+              >
+                <Trash2 aria-hidden="true" className="size-4" />
+                Trash
+              </Link>
+              <Link
+                className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+                href="/admin/coaches"
+              >
+                <Users aria-hidden="true" className="size-4" />
+                Coach Apps
+              </Link>
+              <Link
+                className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+                href="/admin/demo-classes"
+              >
+                <Video aria-hidden="true" className="size-4" />
+                Demo Classes
+              </Link>
+              <Link
+                className="inline-flex min-h-11 items-center gap-2 rounded-control border border-app-border bg-app-surface px-3 py-2 text-sm font-extrabold text-app-text shadow-card transition hover:text-primary"
+                href="/admin/classes"
+              >
+                <Video aria-hidden="true" className="size-4" />
+                Batch Classes
+              </Link>
+            </SuperAdminOnly>
           </div>
         </header>
 
@@ -141,7 +144,9 @@ export default function SuperAdminDashboardPage() {
           })}
         </section>
         
-        <BackupManager />
+        <SuperAdminOnly>
+          <BackupManager />
+        </SuperAdminOnly>
       </div>
     </main>
   );

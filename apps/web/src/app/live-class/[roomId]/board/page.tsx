@@ -28,10 +28,15 @@ function ForceOpenBoard() {
   const isCoach = user?.role === "COACH" || user?.role === "SUPER_ADMIN";
   
   // Force the local LiveClassProvider to think the board is open
-  // so that LiveBoardSyncBridge properly broadcasts state and permissions
-  if (!isChessboardOpen && isCoach) {
-    setIsChessboardOpen(true);
-  }
+  // so that LiveBoardSyncBridge properly broadcasts state and permissions.
+  // Must run as an effect — calling setState during render triggers React's
+  // "Cannot update a component while rendering a different component" warning
+  // and can loop (AUDIT H22).
+  useEffect(() => {
+    if (!isChessboardOpen && isCoach) {
+      setIsChessboardOpen(true);
+    }
+  }, [isChessboardOpen, isCoach, setIsChessboardOpen]);
   return null;
 }
 

@@ -6,10 +6,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
 import { API_ROUTES } from "@nexa-chess/types";
+import type { PaginatedQuery } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { BatchService } from "./batch.service";
 import { CreateBatchDto, UpdateBatchDto } from "./dto/batch.dto";
@@ -19,8 +21,11 @@ export class BatchController {
   constructor(private readonly batchService: BatchService) { }
 
   @Get(API_ROUTES.batches.list)
-  list(@Req() request: Request) {
-    return this.batchService.list(this.getAccessToken(request));
+  list(
+    @Query() query: PaginatedQuery & { status?: string },
+    @Req() request: Request
+  ) {
+    return this.batchService.list(this.getAccessToken(request), query);
   }
 
   @Get(API_ROUTES.batches.assignableUsers)

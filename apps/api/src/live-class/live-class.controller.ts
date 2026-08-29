@@ -46,8 +46,17 @@ export class LiveClassController {
   }
 
   @Post(API_ROUTES.liveClass.chat())
-  saveChatMessage(@Param("id") id: string, @Req() request: Request, @Body() body: { message: string }) {
-    return this.liveClassService.saveChatMessage(this.getAccessToken(request), id, body.message);
+  saveChatMessage(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body() body: { message: string; clientMessageId?: string }
+  ) {
+    return this.liveClassService.saveChatMessage(
+      this.getAccessToken(request),
+      id,
+      body.message,
+      body.clientMessageId
+    );
   }
 
   @Get(API_ROUTES.liveClass.chat())

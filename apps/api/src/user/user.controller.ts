@@ -6,10 +6,12 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
 import { API_ROUTES } from "@nexa-chess/types";
+import type { PaginatedQuery } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { UserService } from "./user.service";
 import { CreateUserDto, UpdateUserDto } from "./dto/user.dto";
@@ -19,8 +21,11 @@ export class UserController {
   constructor(private readonly userService: UserService) { }
 
   @Get(API_ROUTES.users.list)
-  list(@Req() request: Request) {
-    return this.userService.list(this.getAccessToken(request));
+  list(
+    @Query() query: PaginatedQuery & { status?: string },
+    @Req() request: Request
+  ) {
+    return this.userService.list(this.getAccessToken(request), query);
   }
 
   @Get(API_ROUTES.users.get())
