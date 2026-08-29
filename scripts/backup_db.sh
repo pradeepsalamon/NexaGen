@@ -9,6 +9,9 @@ set -euo pipefail
 # using the S3 compatibility API. It also handles a 14-day retention policy.
 # ==============================================================================
 
+# Ensure standard and user bin paths (including oci cli location) are available in non-interactive cron shells
+export PATH="/home/ubuntu/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
+
 # Ensure script resolves its own location for proper environment loading in cron
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
