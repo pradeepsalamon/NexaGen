@@ -20,6 +20,24 @@ import {
 } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 
+const CLASS_DETAIL_INCLUDE = {
+  coach: true,
+  batch: {
+    include: {
+      students: { where: { isDeleted: false }, include: { student: true } },
+    },
+  },
+  liveSession: true,
+  coachAttendance: { include: { logs: { orderBy: { timestamp: "asc" } } } },
+  attendances: {
+    include: { student: true, logs: { orderBy: { timestamp: "asc" } } },
+  },
+} satisfies Prisma.CoachClassInclude;
+
+type ClassDetailPayload = Prisma.CoachClassGetPayload<{
+  include: typeof CLASS_DETAIL_INCLUDE;
+}>;
+
 @Injectable()
 export class AttendanceService {
   private readonly env = getApiEnv();
@@ -580,6 +598,13 @@ export class AttendanceService {
         data: { totalDuration: coachTotalDuration },
       });
     }
+
+    // Compare-and-set so the "finalized" marker is written exactly once. The
+    // post-class summary screen polls on this flag (AUDIT — see classSummary).
+    await this.prisma.liveSession.updateMany({
+      where: { classId, attendanceFinalizedAt: null },
+      data: { attendanceFinalizedAt: new Date() },
+    });
 
     this.logger.log(
       `Class attendance finalized: classId=${classId}, attendees=${attendances.length}`
@@ -1185,27 +1210,7 @@ export class AttendanceService {
 
     const coachClass = await this.prisma.coachClass.findUnique({
       where: { id: classId },
-      include: {
-        coach: true,
-        batch: {
-          include: {
-            students: {
-              where: { isDeleted: false },
-              include: { student: true },
-            },
-          },
-        },
-        liveSession: true,
-        coachAttendance: {
-          include: { logs: { orderBy: { timestamp: "asc" } } },
-        },
-        attendances: {
-          include: {
-            student: true,
-            logs: { orderBy: { timestamp: "asc" } },
-          },
-        },
-      },
+      include: CLASS_DETAIL_INCLUDE,
     });
 
     if (!coachClass) throw new NotFoundException("Class not found.");
@@ -1218,6 +1223,10 @@ export class AttendanceService {
       throw new ForbiddenException("Not authorized to view this class report.");
     }
 
+    return this.assembleClassDetailReport(coachClass);
+  }
+
+  private assembleClassDetailReport(coachClass: ClassDetailPayload) {
     const scheduledDuration = Math.floor(
       (coachClass.endsAt.getTime() - coachClass.startsAt.getTime()) / 1000
     );
@@ -1306,6 +1315,110 @@ export class AttendanceService {
       overallPercent,
       coachAttendance,
       students,
+    };
+  }
+
+  /**
+   * Post-class summary for the room's "class ended" screen. Coaches/admins get
+   * the full class report; students get their own attendance row. `finalized`
+   * is false while attendance is still being scored — the client polls on it.
+   */
+  async getClassSummary(accessToken: string | undefined, classId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    let coachClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
+      include: CLASS_DETAIL_INCLUDE,
+    });
+    if (!coachClass) throw new NotFoundException("Class not found.");
+
+    const isCoach =
+      user.role === UserRole.COACH && coachClass.coachId === user.id;
+    const isAdmin =
+      user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+    const isStudent =
+      user.role === UserRole.STUDENT &&
+      (coachClass.batch?.students.some((s) => s.studentId === user.id) ?? false);
+    if (!isCoach && !isAdmin && !isStudent) {
+      throw new ForbiddenException("You do not have access to this class.");
+    }
+
+    // Self-heal a dropped/failed finalize: re-run the idempotent finalize once
+    // the class has ended but the marker is still unset.
+    const hasEnded =
+      coachClass.status === ClassStatus.COMPLETED ||
+      coachClass.liveSession?.status === "ENDED";
+    if (hasEnded && !coachClass.liveSession?.attendanceFinalizedAt) {
+      try {
+        await this.finalizeClassAttendance(classId);
+        coachClass = await this.prisma.coachClass.findUnique({
+          where: { id: classId },
+          include: CLASS_DETAIL_INCLUDE,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `Lazy finalize failed for class ${classId}`,
+          error as Error
+        );
+      }
+    }
+    if (!coachClass) throw new NotFoundException("Class not found.");
+
+    // "Pending" only while an ended class has no finalize marker yet; a class
+    // that never ran (SCHEDULED / CANCELLED / still LIVE) has nothing to wait on.
+    const stillEnded =
+      coachClass.status === ClassStatus.COMPLETED ||
+      coachClass.liveSession?.status === "ENDED";
+    const finalized =
+      !!coachClass.liveSession?.attendanceFinalizedAt || !stillEnded;
+
+    const actualDuration =
+      coachClass.liveSession?.startedAt && coachClass.liveSession?.endedAt
+        ? Math.floor(
+            (coachClass.liveSession.endedAt.getTime() -
+              coachClass.liveSession.startedAt.getTime()) /
+              1000
+          )
+        : 0;
+
+    let myAttendance: {
+      status: AttendanceStatus;
+      attendancePercent: number;
+      totalDuration: number;
+      joinedAt: string | null;
+      leftAt: string | null;
+      reconnectCount: number;
+    } | null = null;
+    if (isStudent) {
+      const att = coachClass.attendances.find((a) => a.studentId === user.id);
+      myAttendance = {
+        status: att?.status ?? AttendanceStatus.ABSENT,
+        attendancePercent: att?.attendancePercent ?? 0,
+        totalDuration: att?.totalDuration ?? 0,
+        joinedAt: att?.joinedAt?.toISOString() ?? null,
+        leftAt: att?.leftAt?.toISOString() ?? null,
+        reconnectCount: att?.reconnectCount ?? 0,
+      };
+    }
+
+    return {
+      classId: coachClass.id,
+      topic: coachClass.topic || "Untitled Class",
+      batchName: coachClass.batch?.name || "Demo Class",
+      coachName: `${coachClass.coach.firstName} ${coachClass.coach.lastName || ""}`.trim(),
+      scheduledStart: coachClass.startsAt.toISOString(),
+      scheduledEnd: coachClass.endsAt.toISOString(),
+      actualStart: coachClass.liveSession?.startedAt?.toISOString() || null,
+      actualEnd: coachClass.liveSession?.endedAt?.toISOString() || null,
+      actualDuration,
+      status: coachClass.status,
+      finalized,
+      viewerRole: (isStudent ? "STUDENT" : isCoach ? "COACH" : "ADMIN") as
+        | "COACH"
+        | "ADMIN"
+        | "STUDENT",
+      report: isCoach || isAdmin ? this.assembleClassDetailReport(coachClass) : null,
+      myAttendance,
     };
   }
 

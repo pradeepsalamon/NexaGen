@@ -9,7 +9,8 @@ type MockPrismaService = {
   attendancePolicy: { findFirst: jest.Mock };
   batchStudent: { findFirst: jest.Mock };
   classAttendance: { findUnique: jest.Mock };
-  coachClass: { findMany: jest.Mock };
+  coachClass: { findMany: jest.Mock; findUnique: jest.Mock };
+  liveSession: { updateMany: jest.Mock };
 };
 
 const ACCESS_TOKEN = "access-token";
@@ -33,7 +34,8 @@ describe("AttendanceService authorization", () => {
       attendancePolicy: { findFirst: jest.fn() },
       batchStudent: { findFirst: jest.fn() },
       classAttendance: { findUnique: jest.fn() },
-      coachClass: { findMany: jest.fn() }
+      coachClass: { findMany: jest.fn(), findUnique: jest.fn() },
+      liveSession: { updateMany: jest.fn() }
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -135,6 +137,95 @@ describe("AttendanceService authorization", () => {
       ).rejects.toBeInstanceOf(ForbiddenException);
 
       expect(prismaService.classAttendance.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getClassSummary", () => {
+    const baseClass = (overrides: Record<string, unknown> = {}) => ({
+      id: "class-1",
+      coachId: "coach-1",
+      topic: "Endgames",
+      status: "COMPLETED",
+      startsAt: new Date("2026-01-01T10:00:00Z"),
+      endsAt: new Date("2026-01-01T11:00:00Z"),
+      coach: { firstName: "Coach", lastName: "One" },
+      batch: {
+        name: "Batch A",
+        students: [
+          { studentId: "student-1", student: { firstName: "Stu", lastName: "One", email: "s1@x.io" } }
+        ]
+      },
+      liveSession: {
+        status: "ENDED",
+        startedAt: new Date("2026-01-01T10:00:00Z"),
+        endedAt: new Date("2026-01-01T10:55:00Z"),
+        attendanceFinalizedAt: new Date("2026-01-01T10:56:00Z")
+      },
+      coachAttendance: null,
+      attendances: [
+        {
+          studentId: "student-1",
+          status: "PRESENT",
+          attendancePercent: 92,
+          totalDuration: 3000,
+          joinedAt: new Date("2026-01-01T10:01:00Z"),
+          leftAt: new Date("2026-01-01T10:55:00Z"),
+          reconnectCount: 1,
+          logs: [],
+          student: { firstName: "Stu", lastName: "One", email: "s1@x.io" }
+        }
+      ],
+      ...overrides
+    });
+
+    it("rejects a student not enrolled in the batch", async () => {
+      authenticateAs("student-2", UserRole.STUDENT);
+      prismaService.coachClass.findUnique.mockResolvedValue(baseClass());
+
+      await expect(
+        service.getClassSummary(ACCESS_TOKEN, "class-1")
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("returns the enrolled student's own attendance and no full report", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      prismaService.coachClass.findUnique.mockResolvedValue(baseClass());
+
+      const res = await service.getClassSummary(ACCESS_TOKEN, "class-1");
+
+      expect(res.viewerRole).toBe("STUDENT");
+      expect(res.report).toBeNull();
+      expect(res.finalized).toBe(true);
+      expect(res.myAttendance).toMatchObject({ status: "PRESENT", attendancePercent: 92 });
+    });
+
+    it("returns the full report for the owning coach", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      prismaService.coachClass.findUnique.mockResolvedValue(baseClass());
+
+      const res = await service.getClassSummary(ACCESS_TOKEN, "class-1");
+
+      expect(res.viewerRole).toBe("COACH");
+      expect(res.myAttendance).toBeNull();
+      expect(res.report).toMatchObject({ totalStudents: 1, presentCount: 1 });
+    });
+
+    it("lazy-finalizes when the class ended but the marker is unset", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      const unfinalized = baseClass({
+        liveSession: { status: "ENDED", startedAt: new Date(), endedAt: new Date(), attendanceFinalizedAt: null }
+      });
+      prismaService.coachClass.findUnique
+        .mockResolvedValueOnce(unfinalized)
+        .mockResolvedValue(baseClass());
+      const finalizeSpy = jest
+        .spyOn(service, "finalizeClassAttendance")
+        .mockResolvedValue(undefined);
+
+      const res = await service.getClassSummary(ACCESS_TOKEN, "class-1");
+
+      expect(finalizeSpy).toHaveBeenCalledWith("class-1");
+      expect(res.finalized).toBe(true);
     });
   });
 });

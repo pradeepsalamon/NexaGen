@@ -165,6 +165,19 @@ export class AttendanceController {
     );
   }
 
+  // ── Post-Class Summary (room "class ended" screen) ──
+
+  @Get(API_ROUTES.attendance.classSummary())
+  getClassSummary(
+    @Param("id") id: string,
+    @Req() request: Request
+  ) {
+    return this.attendanceService.getClassSummary(
+      this.getAccessToken(request),
+      id
+    );
+  }
+
   // ── Admin Export ──
 
   @Get(API_ROUTES.attendance.adminExport)

@@ -39,6 +39,11 @@ export class LiveClassService {
     private readonly backupService: BackupService
   ) { }
 
+  /** Matches the coach's participant regardless of the `_<clientId>` tab suffix (AUDIT M23). */
+  private static isCoachParticipant(identity: string | undefined, coachId: string) {
+    return identity === coachId || identity?.split("_")[0] === coachId;
+  }
+
   private async getAuthenticatedUser(accessToken: string | undefined) {
     if (!accessToken) {
       throw new UnauthorizedException("Access token is missing.");
@@ -228,7 +233,7 @@ export class LiveClassService {
         });
       }
 
-      if (!participants.some(p => p.identity === liveSession.coachId)) {
+      if (!participants.some(p => LiveClassService.isCoachParticipant(p.identity, liveSession.coachId))) {
         throw coachNotJoined;
       }
     }
@@ -364,7 +369,7 @@ export class LiveClassService {
       for (const session of activeSessions) {
         try {
           const participants = await this.livekit.listParticipants(session.roomName);
-          const coachParticipant = participants.find(p => p.identity === session.coachId);
+          const coachParticipant = participants.find(p => LiveClassService.isCoachParticipant(p.identity, session.coachId));
           
           if (!coachParticipant) {
             this.logger.log(`Automatically ending class ${session.classId} because coach left after scheduled end time.`);
