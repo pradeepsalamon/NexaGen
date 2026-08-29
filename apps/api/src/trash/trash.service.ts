@@ -26,6 +26,15 @@ type TrashListItem = {
 
 const cleanupExpiredTrashLockId = 73002001;
 
+// The trash list merges rows from six tables in memory, so a naive offset page
+// would scan `page * pageSize` rows per table (AUDIT M9). Cap the per-table scan:
+// sorting/paging stays exact within the newest MAX_TRASH_SCAN deleted rows per
+// entity, which comfortably covers the retention window at realistic volume.
+const MAX_TRASH_SCAN = 500;
+
+const TRASH_SORT_FIELDS = ["deletedAt", "deletedBy", "entity", "title"] as const;
+type TrashSortBy = (typeof TRASH_SORT_FIELDS)[number];
+
 @Injectable()
 export class TrashService {
   private readonly env = getApiEnv();
@@ -42,20 +51,20 @@ export class TrashService {
 
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
+    const sortBy = this.toSortBy(query.sortBy);
+    const sortOrder = query.sortOrder ?? "desc";
     const result = await this.trashRepository.list({
       deletedById: query.deletedById,
       deletedFrom: this.toDate(query.deletedFrom),
       deletedTo: this.toDate(query.deletedTo),
       entity: query.entity,
       page: 1,
-      pageSize: page * pageSize,
-      search: query.search?.trim() || undefined
+      pageSize: Math.min(page * pageSize, MAX_TRASH_SCAN),
+      search: query.search?.trim() || undefined,
+      sortBy,
+      sortOrder
     });
-    const sorted = this.sortItems(
-      result.items,
-      query.sortBy ?? "deletedAt",
-      query.sortOrder ?? "desc"
-    );
+    const sorted = this.sortItems(result.items, sortBy, sortOrder);
     const items = sorted.slice((page - 1) * pageSize, page * pageSize);
 
     return {
@@ -78,7 +87,14 @@ export class TrashService {
     const user = await this.getSuperAdmin(accessToken);
 
     for (const item of payload.items) {
-      await this.trashRepository.restore(item.entity, item.id, user.id);
+      try {
+        await this.trashRepository.restore(item.entity, item.id, user.id);
+      } catch (error) {
+        // A cascading restore (AUDIT M13) may have already brought this row back
+        // as part of an earlier item's group — that's success, not an error.
+        if (error instanceof NotFoundException) continue;
+        throw error;
+      }
     }
 
     return { ok: true };
@@ -271,6 +287,12 @@ export class TrashService {
 
   private getRetentionDays() {
     return this.env.TRASH_RETENTION_DAYS;
+  }
+
+  private toSortBy(value: string | undefined): TrashSortBy {
+    return TRASH_SORT_FIELDS.includes(value as TrashSortBy)
+      ? (value as TrashSortBy)
+      : "deletedAt";
   }
 
   private toDate(value: string | undefined) {

@@ -24,7 +24,14 @@ describe('AdminService', () => {
       providers: [
         AdminService,
         { provide: PrismaService, useValue: prismaService },
-        { provide: TrashRepository, useValue: { softDelete: jest.fn(), log: jest.fn() } }
+        {
+          provide: TrashRepository,
+          useValue: {
+            cascadeSoftDelete: jest.fn(),
+            log: jest.fn(),
+            softDelete: jest.fn()
+          }
+        }
       ]
     }).compile();
 

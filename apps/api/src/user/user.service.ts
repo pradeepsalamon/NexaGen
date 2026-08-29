@@ -356,24 +356,13 @@ export class UserService {
     this.assertCanModifyTarget(authUser, userToDelete);
     await this.assertCanDeleteSuperAdmin(userToDelete);
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id },
-        data: {
-          isDeleted: true,
-          deletedAt: new Date(),
-          deletedById: authUser.id
-        }
-      });
-
-      await this.trashRepository.log(tx, {
-        action: "SOFT_DELETE",
-        entity: "User",
-        entityId: id,
-        metadata: { title: userToDelete.email },
-        userId: authUser.id
-      });
-    });
+    // Retire the user together with their student/coach profile in one group so
+    // a trash restore brings the profile back too (AUDIT M13/M14).
+    await this.prisma.$transaction((tx) =>
+      this.trashRepository.cascadeSoftDelete(tx, "User", id, authUser.id, {
+        metadata: { title: userToDelete.email }
+      })
+    );
 
     return { ok: true };
   }

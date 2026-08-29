@@ -12,7 +12,7 @@
 
 **Headline counts:** 7 Critical · 26 High · 31 Medium · 12 Low
 
-**Remediation progress:** Critical 7/7 · High 26/26 · Medium 27/31 (+ M14 partial) · Low 4/12.
+**Remediation progress:** Critical 7/7 · High 26/26 · Medium 31/31 · Low 4/12.
 
 ## Remediation status
 
@@ -83,9 +83,12 @@
 | ✅ | **M22** — `LiveKitService.listParticipants` only swallows a genuine room-not-found; any other failure propagates and `getToken` returns a `LIVEKIT_UNAVAILABLE` 503 instead of a misleading "coach hasn't joined" |
 | ✅ | **M23** — `useLiveClass` falls back to a stable per-tab `clientId` (`sessionStorage`), so two tabs of the same user don't collide on the LiveKit identity |
 | ✅ | **M24** — chat rows store LiveKit's `clientMessageId` (new column/migration); history reconciliation dedupes on it instead of senderName+text+±2s |
-| ⏳ | **M14** — partially addressed: `StudentProfile`/`CoachProfile` are now soft-deleted on a role switch (M16) and coach removal (M15), so those Trash filters are no longer permanently empty. Cascading their delete/restore *with* the parent user is still open (see M13). |
+| ✅ | **M13** — cascading soft-delete groups: a new `deleteGroupId` column (migration `20260829160000_trash_delete_groups`) tags a parent and its children retired in the same operation; `TrashRepository.restore` on any group member `updateMany`-restores the whole group. Deleting a `Batch` now cascades to its `BatchCoach`/`BatchStudent` rows; deleting a `User` cascades to its profile — and restoring brings them back together. |
+| ✅ | **M14** — `UserService.delete`, `AdminService.updateCoachStatus` (DELETED) and `BatchService.delete` route through the new `TrashRepository.cascadeSoftDelete`, which soft-deletes the child profiles / assignments alongside the parent, so those Trash filters populate. Role-switch (M16) deletes stay standalone (no group) so a later user restore doesn't resurrect a profile for the wrong role. |
+| ✅ | **M8** — each entity's page is now ordered in SQL by the *requested* sort column (`title` → title field, `deletedBy` → `deletedBy.email`, else `deletedAt`) before the in-memory merge, so the merged result is the true global top-N instead of the top-N by `deletedAt` re-sorted. |
+| ✅ | **M9** — the per-entity offset scan is capped at `MAX_TRASH_SCAN` (500) rows, so a deep page can no longer fan out to `page × pageSize × 6` row reads. Sorting/paging is exact within the newest 500 deleted rows per entity (well inside the retention window at realistic volume); deeper offsets are documented as unsupported rather than a true keyset. |
 
-Verified after changes: `typecheck` 6/6 tasks · `lint` 0 errors · `test` 16/16 suites, 117/117 tests · `build -w apps/web` compiles successfully.
+Verified after changes: `typecheck` 6/6 tasks · `lint` 0 errors · `test` 19/19 suites, 134/134 tests · `build -w apps/web` compiles successfully.
 
 ### ⚠️ Open question found during H3: LiveKit webhooks may never fire
 
@@ -173,13 +176,13 @@ Everything else below is **outstanding**.
 | M5 ✅ | N+1: the admin dashboard's 6-month trend issues 18 sequential queries in a `for` loop. | [attendance.service.ts:1428-1473](apps/api/src/attendance/attendance.service.ts#L1428) | Replace with a single `groupBy` over the 6-month range. |
 | M6 ✅ | N+1: the coach teaching report issues 3 queries per coach inside `Promise.all` (150 queries at 50 coaches). | [attendance.service.ts:1021-1048](apps/api/src/attendance/attendance.service.ts#L1021) | Aggregate with `groupBy({ by: ['coachId'] })`. |
 | M7 ✅ | The "today" window is a rolling `now-4h … now+20h`, not a real day, in four places. At 11pm a class at 9am tomorrow counts as today. | [attendance.service.ts:1380-1381](apps/api/src/attendance/attendance.service.ts#L1380), [coach.service.ts:49-50,121-122](apps/api/src/coach/coach.service.ts#L49), [student.service.ts:25-26](apps/api/src/student/student.service.ts#L25) | Compute day bounds in the viewer's timezone. |
-| M8 | Trash sorting by `title`/`entity`/`deletedBy` is wrong: each entity is fetched ordered by `deletedAt` and only then re-sorted in memory, so the global top-N is not the true top-N. | [trash.repository.ts:60](apps/api/src/trash/trash.repository.ts#L60), [trash.service.ts:50-55](apps/api/src/trash/trash.service.ts#L50) | Sort in SQL per entity by the requested field, or move Trash to a single indexed view. |
-| M9 | Trash deep pagination is O(page × pageSize × 6) — page 100 fetches 6,000 rows to show 10. | [trash.service.ts:41-55](apps/api/src/trash/trash.service.ts#L41) | Keyset-paginate, or maintain a unified trash index table. |
+| M8 ✅ | Trash sorting by `title`/`entity`/`deletedBy` was wrong: each entity was fetched ordered by `deletedAt` and only re-sorted in memory. | [trash.repository.ts](apps/api/src/trash/trash.repository.ts), [trash.service.ts](apps/api/src/trash/trash.service.ts) | Per-entity SQL `orderBy` now matches the merge key. |
+| M9 ✅ | Trash deep pagination was O(page × pageSize × 6). | [trash.service.ts](apps/api/src/trash/trash.service.ts) | Per-entity scan capped at `MAX_TRASH_SCAN` (500); deeper offsets documented as unsupported. |
 | M10 ✅ | `bulkPermanentDelete` fails wholesale if the selection contains both a User and a row that cascades from it — the second delete throws and the whole transaction rolls back. | [trash.service.ts:99-119](apps/api/src/trash/trash.service.ts#L99) | Sort deletions parent-last, or tolerate `P2025` per item. |
 | M11 ✅ | `emptyTrash` / nightly cleanup delete every expired row in one long transaction — lock contention and timeout risk at volume. | [trash.service.ts:121-168](apps/api/src/trash/trash.service.ts#L121) | Batch in chunks of ~500 with the advisory lock held per chunk. |
 | M12 ✅ | `deleteExternalAssets` is a no-op stub — Cloudinary avatars and OCI recordings are never removed on permanent delete. | [trash.service.ts:199-201](apps/api/src/trash/trash.service.ts#L199) | Implement, or remove the stub and document the retention gap. |
-| M13 | Trash restore does not cascade: restoring a `Batch` leaves its `BatchStudent` rows deleted; restoring a `User` does not restore their profile. | [trash.repository.ts:115-137](apps/api/src/trash/trash.repository.ts#L115) | Restore dependent rows deleted in the same operation (group by a `deleteBatchId`). |
-| M14 ⏳ | `StudentProfile`/`CoachProfile` are registered as trash entities but nothing ever soft-deletes them — those Trash filters are always empty. | [soft-delete.extension.ts:39-50](apps/api/src/prisma/soft-delete.extension.ts#L39), [user.service.ts:265-282](apps/api/src/user/user.service.ts#L265) | Soft-delete child profiles with the user, or drop them from `trashEntities`. |
+| M13 ✅ | Trash restore did not cascade: restoring a `Batch` left its `BatchStudent` rows deleted; restoring a `User` did not restore their profile. | [trash.repository.ts](apps/api/src/trash/trash.repository.ts) | `deleteGroupId` column groups a cascading delete; `restore` brings the whole group back. |
+| M14 ✅ | `StudentProfile`/`CoachProfile` were registered as trash entities but nothing soft-deleted them on a user delete. | [trash.repository.ts](apps/api/src/trash/trash.repository.ts), [user.service.ts](apps/api/src/user/user.service.ts) | `cascadeSoftDelete` retires child profiles/assignments with the parent. |
 | M15 ✅ | `updateCoachStatus` sets `user.status = 'DELETED'` without soft-deleting — a zombie that still appears in user lists but cannot log in. | [admin.service.ts:63-70](apps/api/src/admin/admin.service.ts#L63) | Route through `TrashRepository.softDelete`. |
 | M16 ✅ | Changing a user's role STUDENT↔COACH creates the new profile but leaves the old one; the user ends up with both. | [user.service.ts:175-184](apps/api/src/user/user.service.ts#L175) | Soft-delete the obsolete profile in the same transaction. |
 | M17 ✅ | `UserService.toAuthUser` omits `username` (the auth-service version includes it) — usernames never render in the admin user list. | [user.service.ts:371-407](apps/api/src/user/user.service.ts#L371) | Add `username: user.username`. |
@@ -226,7 +229,7 @@ Everything else below is **outstanding**.
 |---|---|---|
 | User management | ✅ Working | Server-paginated + search + sort (H26). No `username` field (M17). |
 | Batch management | ✅ Working | Server-paginated + search + sort (H26). |
-| Trash | ⚠️ Partial | Sorting broken beyond `deletedAt` (M8); no cascade restore (M13); two of six entity filters are permanently empty (M14); external assets never cleaned (M12). |
+| Trash | ✅ Working | Cross-entity sort (M8) and cascade delete/restore via `deleteGroupId` (M13/M14) fixed; deep-offset scan bounded (M9). External assets cleaned on permanent delete (M12). |
 | Backups | ⚠️ Risky | Restore is a one-shot `DROP SCHEMA` with no rollback (C6). Long-running sync request will 504 behind Nginx. |
 | Demo classes | ✅ Working | No request validation (H19). |
 | Batch class oversight | ✅ Working | Server-paginated + search + sort (H26). |
@@ -353,7 +356,7 @@ Everything else below is **outstanding**.
 - Missing partial unique indexes (C3).
 - N+1 in the admin dashboard trend (M5) and coach teaching report (M6).
 - ✅ Pagination added to the 4 list endpoints (H26).
-- Trash list is O(page × pageSize × 6) (M9).
+- ✅ Trash list per-entity scan bounded at 500 rows (M9) — still an in-memory merge, not a keyset.
 - `coach.getDashboard` materializes rows to count them (L9).
 - No index on `CoachClass.isDemo` despite `where: { isDemo: true/false }` being the primary filter for two admin lists.
 - `AttendanceLog` has no composite index on `(attendanceId, eventType, sessionEnd)` — the "find open session" query runs on every join/leave.

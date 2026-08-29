@@ -330,8 +330,10 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    // Retire the batch together with its coach/student assignments in one group
+    // so a later restore brings the roster back too (AUDIT M13).
     await this.prisma.$transaction((transaction) =>
-      this.trashRepository.softDelete(transaction, "Batch", batchId, user.id)
+      this.trashRepository.cascadeSoftDelete(transaction, "Batch", batchId, user.id)
     );
 
     return { ok: true };

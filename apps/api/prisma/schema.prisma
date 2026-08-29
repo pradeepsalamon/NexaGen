@@ -133,12 +133,14 @@ model User {
   deletedById  String?
   deletedBy    User?     @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   deletedUsers User[]    @relation("UserDeletedBy")
+  deleteGroupId String?
 
   @@index([role])
   @@index([status])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("users")
 }
 
@@ -173,10 +175,12 @@ model StudentProfile {
   deletedAt   DateTime?
   deletedById String?
   deletedBy   User?     @relation("StudentProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("student_profiles")
 }
 
@@ -218,10 +222,12 @@ model CoachProfile {
   deletedAt   DateTime?
   deletedById String?
   deletedBy   User?     @relation("CoachProfileDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("coach_profiles")
 }
 
@@ -315,12 +321,14 @@ model Batch {
   deletedAt   DateTime?
   deletedById String?
   deletedBy   User?     @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@index([status])
   @@index([createdById])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("batches")
 }
 
@@ -338,12 +346,14 @@ model BatchCoach {
   deletedAt   DateTime?
   deletedById String?
   deletedBy   User?     @relation("BatchCoachDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@unique([batchId, coachId])
   @@index([coachId])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("batch_coaches")
 }
 
@@ -361,12 +371,14 @@ model BatchStudent {
   deletedAt   DateTime?
   deletedById String?
   deletedBy   User?     @relation("BatchStudentDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
 
   @@unique([batchId, studentId])
   @@index([studentId])
   @@index([isDeleted])
   @@index([deletedAt])
   @@index([deletedById])
+  @@index([deleteGroupId])
   @@map("batch_students")
 }
 

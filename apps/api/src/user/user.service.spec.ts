@@ -38,7 +38,7 @@ describe("UserService", () => {
   let service: UserService;
   let prismaService: MockPrismaService;
   let jwtService: { verifyAsync: jest.Mock };
-  let trashRepository: { log: jest.Mock };
+  let trashRepository: { cascadeSoftDelete: jest.Mock; log: jest.Mock };
 
   beforeEach(async () => {
     // `withDeleted` is the same Prisma client with the soft-delete filter
@@ -72,6 +72,7 @@ describe("UserService", () => {
     };
 
     trashRepository = {
+      cascadeSoftDelete: jest.fn(),
       log: jest.fn()
     };
 
@@ -339,7 +340,7 @@ describe("UserService", () => {
       );
     });
 
-    it("soft deletes a permitted user and logs trash metadata", async () => {
+    it("cascade soft deletes a permitted user with trash metadata", async () => {
       mockAuthContext();
       prismaService.user.findUnique.mockResolvedValueOnce({
         email: "student@example.com",
@@ -349,19 +350,12 @@ describe("UserService", () => {
 
       const result = await service.delete("token", "student-1");
 
-      expect(prismaService.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ isDeleted: true }),
-          where: { id: "student-1" }
-        })
-      );
-      expect(trashRepository.log).toHaveBeenCalledWith(
+      expect(trashRepository.cascadeSoftDelete).toHaveBeenCalledWith(
         prismaService,
-        expect.objectContaining({
-          entity: "User",
-          entityId: "student-1",
-          metadata: { title: "student@example.com" }
-        })
+        "User",
+        "student-1",
+        expect.any(String),
+        { metadata: { title: "student@example.com" } }
       );
       expect(result.ok).toBe(true);
     });

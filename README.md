@@ -148,8 +148,8 @@ Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extensio
 
 When adding a new trash-enabled model:
 
-1. Add `isDeleted`, `deletedAt`, and `deletedById` fields in Prisma, plus supporting indexes and the deleted-by relation.
-2. Add the model to `softDeleteModels` and `trashEntities` in `soft-delete.extension.ts`.
+1. Add `isDeleted`, `deletedAt`, `deletedById`, and `deleteGroupId` fields in Prisma, plus supporting indexes and the deleted-by relation.
+2. Add the model to `softDeleteModels` and `trashEntities` in `soft-delete.extension.ts`. If the model is retired alongside a parent, add it to `CASCADE_CHILDREN` in `trash.repository.ts` so `cascadeSoftDelete` / `restore` move the whole group together.
 3. Add relation names to `relationToModel`, and add only list relations that support `where` to `filterableRelationNames`.
 4. Audit every `include` and `select` that can return the model. Singular relations cannot accept relation-level `where`, so filter through the parent query or response mapping.
 5. Add partial unique indexes for unique fields or composite unique indexes so deleted rows do not block reuse:
@@ -158,8 +158,12 @@ When adding a new trash-enabled model:
 CREATE UNIQUE INDEX "example_key" ON "table"("field") WHERE "isDeleted" = false;
 ```
 
-6. Wire feature-level delete routes, such as `DELETE /batches/:id`, through `TrashRepository.softDelete` so audit logging and retention behavior stay consistent.
+6. Wire feature-level delete routes, such as `DELETE /batches/:id`, through `TrashRepository.softDelete` (or `cascadeSoftDelete` when child rows must go with it) so audit logging and retention behavior stay consistent.
 7. Update shared types in `packages/types` and frontend entity filters in the Trash UI when a new entity should be visible to admins.
+
+A cascading delete (`cascadeSoftDelete`) tags the parent and its children with one `deleteGroupId`; `TrashRepository.restore` on any member of the group brings the whole group back. Deleting a User cascades to its student/coach profile; deleting a Batch cascades to its coach/student assignments.
+
+The Trash list merges rows from all six tables in memory. Sorting and paging stay exact within the newest `MAX_TRASH_SCAN` (500) deleted rows per entity; deeper offsets are not supported.
 
 Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally scaled API instances do not run the cleanup concurrently.
 

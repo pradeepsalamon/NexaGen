@@ -76,7 +76,8 @@ export class AdminService {
         // Route a delete through the trash pipeline so the row is actually
         // soft-deleted (isDeleted + audit log), not just a "DELETED" status
         // zombie that still shows in user lists but can't log in (AUDIT M15).
-        await this.trashRepository.softDelete(tx, 'User', coachId, adminId);
+        // Cascades to the coach profile so it doesn't linger active (AUDIT M14).
+        await this.trashRepository.cascadeSoftDelete(tx, 'User', coachId, adminId);
         return;
       }
 
