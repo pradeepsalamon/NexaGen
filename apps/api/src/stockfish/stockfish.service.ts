@@ -239,7 +239,10 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     this.engines = [];
   }
 
-  async analyzePosition(fen: string): Promise<StockfishAnalysisResult> {
+  async analyzePosition(
+    fen: string,
+    opts: { movetimeMs?: number } = {},
+  ): Promise<StockfishAnalysisResult> {
     if (this.engines.length === 0) {
       throw new ServiceUnavailableException(
         'Engine analysis is not available on this server.',
@@ -247,7 +250,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     }
 
     const raw = await new Promise<RawAnalysis>((resolve, reject) => {
-      this.taskQueue.push({ fen, resolve, reject });
+      this.taskQueue.push({ fen, resolve, reject, movetimeMs: opts.movetimeMs });
       this.processQueue();
     });
 

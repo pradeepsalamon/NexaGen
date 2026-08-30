@@ -568,10 +568,14 @@ export const studentAttendanceHistorySchema = z.object({
   batchName: z.string(),
   coachName: z.string(),
   date: z.string(),
+  actualStart: z.string().nullable(),
+  actualEnd: z.string().nullable(),
   status: attendanceStatusEnum,
   joinedAt: z.string().nullable(),
   leftAt: z.string().nullable(),
   scheduledDuration: z.number(),
+  /** Actual class run length in seconds (falls back to scheduledDuration). */
+  classActualDuration: z.number(),
   actualDuration: z.number(),
   attendancePercent: z.number(),
   reconnectCount: z.number(),
@@ -1249,6 +1253,12 @@ export const requestEngineMoveRequestSchema = z.object({
   fen: z.string().min(1).max(120)
 });
 
+export const solveLineHintRequestSchema = z.object({
+  moves: z.array(attemptMoveSchema).max(400),
+  /** 1 = which piece, 2 = from-square, 3 = the full move. */
+  level: z.number().int().min(1).max(3)
+});
+
 export type CreateAssignmentRequest = z.infer<typeof createAssignmentRequestSchema>;
 export type UpdateAssignmentRequest = z.infer<typeof updateAssignmentRequestSchema>;
 export type DeployAssignmentRequest = z.infer<typeof deployAssignmentRequestSchema>;
@@ -1256,6 +1266,7 @@ export type UpdateAssignmentStatusRequest = z.infer<typeof updateAssignmentStatu
 export type SaveAttemptProgressRequest = z.infer<typeof saveAttemptProgressRequestSchema>;
 export type SubmitAttemptRequest = z.infer<typeof submitAttemptRequestSchema>;
 export type RequestEngineMoveRequest = z.infer<typeof requestEngineMoveRequestSchema>;
+export type SolveLineHintRequest = z.infer<typeof solveLineHintRequestSchema>;
 
 /** Configuration a client needs to render an interactive activity. */
 export type AssignmentActivityConfig = {
@@ -1471,6 +1482,27 @@ export type AttemptProgressResponse = {
   moveFeedback: SolveLineMoveFeedback | null;
 };
 
+/** Progressive hint for the next student move of a SOLVE_LINE attempt. */
+export type SolveLineHint = {
+  /** the level actually served (never exceeds what was requested). */
+  level: 1 | 2 | 3;
+  /** false when the moves played so far already diverge from the line. */
+  onTrack: boolean;
+  /** true when there is no further student move to hint. */
+  lineComplete: boolean;
+  /** chess.js piece letter of the piece to move. */
+  pieceType: "p" | "n" | "b" | "r" | "q" | "k" | null;
+  /** the origin square — populated at level >= 2. */
+  fromSquare: string | null;
+  /** the destination square — populated at level 3. */
+  toSquare: string | null;
+  /** the move in SAN / UCI — populated at level 3. */
+  san: string | null;
+  uci: string | null;
+  /** running hint count persisted on the attempt. */
+  hintsUsed: number;
+};
+
 export type RequestEngineMoveResponse = {
   available: boolean;
   gameOver: boolean;
@@ -1506,3 +1538,43 @@ export interface StockfishAnalysisResult {
   /** Principal variation in raw UCI. */
   pvUci: string[];
 }
+
+//
+// NOTIFICATIONS
+//
+// In-app notifications. `GET /notifications` returns the latest items + an
+// unread count; `POST /notifications/read` marks some (or all) read.
+
+export const notificationTypeSchema = z.enum([
+  "ASSIGNMENT_DUE_SOON",
+  "ASSIGNMENT_GRADED"
+]);
+export type NotificationType = z.infer<typeof notificationTypeSchema>;
+
+export type NotificationItem = {
+  id: string;
+  type: NotificationType;
+  title: string;
+  body: string;
+  /** in-app deep link, e.g. `/student/assignments/<id>`. */
+  linkPath: string | null;
+  readAt: string | null;
+  createdAt: string;
+};
+
+export type NotificationListResponse = {
+  notifications: NotificationItem[];
+  unreadCount: number;
+};
+
+export const markNotificationsReadRequestSchema = z.object({
+  /** specific ids to mark read; omit to mark every unread notification read. */
+  ids: z.array(z.string().min(1)).max(500).optional()
+});
+export type MarkNotificationsReadRequest = z.infer<
+  typeof markNotificationsReadRequestSchema
+>;
+
+export type MarkNotificationsReadResponse = {
+  unreadCount: number;
+};

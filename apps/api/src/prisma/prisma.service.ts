@@ -145,6 +145,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.recordingWatchProgress;
   }
 
+  get notification() {
+    return this.client.notification;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

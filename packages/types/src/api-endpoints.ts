@@ -104,7 +104,9 @@ export const API_ROUTES = {
     submitAttempt: (id: string = ":id", attemptId: string = ":attemptId") =>
       `/assignments/mine/${id}/attempts/${attemptId}/submit`,
     engineMove: (id: string = ":id", attemptId: string = ":attemptId") =>
-      `/assignments/mine/${id}/attempts/${attemptId}/engine-move`
+      `/assignments/mine/${id}/attempts/${attemptId}/engine-move`,
+    hint: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/assignments/mine/${id}/attempts/${attemptId}/hint`
   },
   attendance: {
     student: "/attendance/student",
@@ -123,5 +125,9 @@ export const API_ROUTES = {
     adminExport: "/attendance/admin/export",
     policy: "/attendance/policy",
     webhook: "/webhooks/livekit"
+  },
+  notifications: {
+    list: "/notifications",
+    markRead: "/notifications/read"
   }
 } as const;

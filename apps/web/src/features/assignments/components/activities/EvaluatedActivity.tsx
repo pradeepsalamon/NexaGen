@@ -6,6 +6,7 @@ import type {
   AssignmentEvaluationResult,
   AttemptMove,
   ChessColor,
+  SolveLineHint,
   StartAttemptResponse
 } from "@nexa-chess/types";
 import { Flag, Lightbulb, Send, Undo2 } from "lucide-react";
@@ -17,6 +18,7 @@ import {
   type PracticeBoardMove
 } from "@/features/chessboard/components/board/PracticeBoard";
 import {
+  getSolveLineHint,
   requestEngineMove,
   saveAttemptProgress
 } from "../../api/assignmentApi";
@@ -59,6 +61,24 @@ function replay(startFen: string, moves: AttemptMove[]): string {
   }
 }
 
+const PIECE_NAMES: Record<string, string> = {
+  p: "pawn",
+  n: "knight",
+  b: "bishop",
+  r: "rook",
+  q: "queen",
+  k: "king"
+};
+
+function hintText(h: SolveLineHint): string {
+  if (h.lineComplete) return "You've already played the whole line.";
+  if (!h.onTrack) return "Your line has drifted — take back to your last correct move, then ask again.";
+  const piece = PIECE_NAMES[h.pieceType ?? "p"] ?? "piece";
+  if (h.level >= 3 && h.san) return `Play ${h.san}.`;
+  if (h.level >= 2 && h.fromSquare) return `Move your ${piece} on ${h.fromSquare}.`;
+  return `Look for a ${piece} move.`;
+}
+
 export function EvaluatedActivity({ assignmentId, onBack }: Props) {
   const toast = useToast();
   const startMutation = useStartAttempt(assignmentId);
@@ -71,6 +91,7 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<AssignmentEvaluationResult | null>(null);
+  const [hint, setHint] = useState<SolveLineHint | null>(null);
 
   const startedAtRef = useRef(Date.now());
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,10 +107,19 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
     return m ? [m.uci.slice(0, 2), m.uci.slice(2, 4)] : null;
   }, [moves]);
 
+  const hintSquares = useMemo(
+    () =>
+      hint && hint.onTrack && !hint.lineComplete && hint.fromSquare
+        ? { from: hint.fromSquare, to: hint.toSquare }
+        : null,
+    [hint]
+  );
+
   const beginAttempt = useCallback(async () => {
     setPhase("loading");
     setFeedback(null);
     setResult(null);
+    setHint(null);
     try {
       const { attempt } = await startMutation.mutateAsync();
       startedAtRef.current = Date.now();
@@ -200,6 +230,7 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
         }
 
         setFeedback("Correct!");
+        setHint(null);
         let nextMoves = withMove;
         if (moveFeedback.opponentReply) {
           const reply = moveFeedback.opponentReply;
@@ -300,8 +331,27 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
     const next = moves.slice(0, -1);
     setMoves(next);
     setFen(replay(startFen, next));
+    setHint(null);
     persist(next);
   }, [moves, startFen, persist]);
+
+  const requestHint = useCallback(async () => {
+    if (!attemptId || busy) return;
+    const nextLevel = Math.min(3, (hint?.level ?? 0) + 1);
+    setBusy(true);
+    try {
+      const next = await getSolveLineHint(assignmentId, attemptId, {
+        moves,
+        level: nextLevel
+      });
+      setHint(next);
+      if (!next.onTrack) setFeedback(hintText(next));
+    } catch {
+      toast.error({ title: "Hint unavailable", message: "Try again in a moment." });
+    } finally {
+      setBusy(false);
+    }
+  }, [assignmentId, attemptId, busy, hint, moves, toast]);
 
   const onMove = useCallback(
     (mv: PracticeBoardMove) => {
@@ -360,6 +410,7 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
             playerColor={playerColor}
             interactive={!busy && yourTurn}
             lastMove={lastMove}
+            hintSquares={hintSquares}
             onMove={onMove}
           />
 
@@ -385,6 +436,16 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                 }
               >
                 {feedback}
+              </p>
+            )}
+
+            {hint && (
+              <p className="rounded-app border border-blue-200 bg-blue-50 p-2 text-sm text-blue-700">
+                <Lightbulb className="mr-1 inline size-4 align-text-bottom" strokeWidth={2.5} />
+                {hintText(hint)}
+                {hint.onTrack && !hint.lineComplete && hint.level < 3 && (
+                  <span className="ml-1 text-blue-500">Ask again for more.</span>
+                )}
               </p>
             )}
 
@@ -420,10 +481,15 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                   Submit
                 </Button>
               )}
-              {config.allowHints && (
-                <Button variant="ghost" size="sm" disabled title="Hints are not available yet">
+              {config.allowHints && activityType === "SOLVE_LINE" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy || hint?.level === 3}
+                  onClick={() => void requestHint()}
+                >
                   <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
-                  Hint
+                  {!hint ? "Hint" : hint.level === 3 ? "Hint shown" : "More hint"}
                 </Button>
               )}
             </div>

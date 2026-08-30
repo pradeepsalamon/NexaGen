@@ -1,6 +1,11 @@
 import { BadRequestException } from "@nestjs/common";
 import type { AttemptMove, SolutionMove } from "@nexa-chess/types";
-import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
+import {
+  AssignmentEvaluationService,
+  assertValidFen,
+  cpToWinPercent,
+  moveAccuracy
+} from "./assignment-evaluation.service";
 import { StockfishService } from "../stockfish/stockfish.service";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -22,11 +27,14 @@ describe("AssignmentEvaluationService", () => {
   let service: AssignmentEvaluationService;
   const stockfish = {
     isAvailable: jest.fn().mockReturnValue(false),
-    getBestMove: jest.fn()
+    getBestMove: jest.fn(),
+    analyzePosition: jest.fn()
   };
 
   beforeEach(() => {
     service = new AssignmentEvaluationService(stockfish as unknown as StockfishService);
+    stockfish.isAvailable.mockReturnValue(false);
+    stockfish.analyzePosition.mockReset();
   });
 
   describe("assertValidFen", () => {
@@ -107,6 +115,38 @@ describe("AssignmentEvaluationService", () => {
     });
   });
 
+  describe("solveLineHint", () => {
+    it("escalates from piece to origin square to full move", () => {
+      const l1 = service.solveLineHint(START, SCHOLARS, [], "white", 1);
+      expect(l1).toMatchObject({ level: 1, onTrack: true, pieceType: "p", fromSquare: null, toSquare: null });
+
+      const l2 = service.solveLineHint(START, SCHOLARS, [], "white", 2);
+      expect(l2).toMatchObject({ level: 2, fromSquare: "e2", toSquare: null, san: null });
+
+      const l3 = service.solveLineHint(START, SCHOLARS, [], "white", 3);
+      expect(l3).toMatchObject({ level: 3, fromSquare: "e2", toSquare: "e4", san: "e4", uci: "e2e4" });
+    });
+
+    it("hints the next student move after correct progress", () => {
+      const played = [move("e2e4"), move("e7e5")];
+      const hint = service.solveLineHint(START, SCHOLARS, played, "white", 3);
+      expect(hint).toMatchObject({ onTrack: true, san: "Qh5", fromSquare: "d1" });
+    });
+
+    it("flags a drifted line and gives nothing away", () => {
+      const hint = service.solveLineHint(START, SCHOLARS, [move("d2d4")], "white", 3);
+      expect(hint.onTrack).toBe(false);
+      expect(hint.san).toBeNull();
+      expect(hint.fromSquare).toBeNull();
+    });
+
+    it("reports lineComplete once every solution move is played", () => {
+      const played = SCHOLARS.map((m) => move(m.uci));
+      const hint = service.solveLineHint(START, SCHOLARS, played, "white", 1);
+      expect(hint.lineComplete).toBe(true);
+    });
+  });
+
   describe("evaluateEngineGame", () => {
     const foolsMate =
       "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3";
@@ -124,6 +164,51 @@ describe("AssignmentEvaluationService", () => {
     it("reports the game as unfinished when it is still in progress", () => {
       const result = service.evaluateEngineGame(START, "white", [move("e2e4")], false);
       expect(result.finished).toBe(false);
+    });
+  });
+
+  describe("accuracy helpers", () => {
+    it("maps centipawns to a win probability around 50% at equality", () => {
+      expect(cpToWinPercent(0)).toBeCloseTo(50, 5);
+      expect(cpToWinPercent(100_000)).toBeGreaterThan(99);
+      expect(cpToWinPercent(-100_000)).toBeLessThan(1);
+    });
+
+    it("rewards a move that holds the evaluation and punishes a blunder", () => {
+      expect(moveAccuracy(60, 60)).toBeGreaterThan(99);
+      expect(moveAccuracy(70, 20)).toBeLessThan(20);
+    });
+  });
+
+  describe("engineGameAccuracy", () => {
+    it("returns null when the engine pool is down", async () => {
+      stockfish.isAvailable.mockReturnValue(false);
+      const acc = await service.engineGameAccuracy(START, "white", [move("e2e4")]);
+      expect(acc).toBeNull();
+    });
+
+    it("scores a game high when the eval holds across the student's moves", async () => {
+      stockfish.isAvailable.mockReturnValue(true);
+      // Student stays ~+0.3 from their own perspective before and after each move.
+      stockfish.analyzePosition.mockImplementation((fen: string) => {
+        const whiteToMove = fen.includes(" w ");
+        return Promise.resolve({
+          evaluation: whiteToMove ? 0.3 : -0.3,
+          mate: null,
+          bestMove: "",
+          bestMoveUci: "",
+          depth: 12,
+          pv: [],
+          pvUci: []
+        });
+      });
+      const acc = await service.engineGameAccuracy(START, "white", [
+        move("e2e4"),
+        move("e7e5"),
+        move("g1f3")
+      ]);
+      expect(acc).not.toBeNull();
+      expect(acc as number).toBeGreaterThan(95);
     });
   });
 

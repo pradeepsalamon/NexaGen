@@ -95,9 +95,21 @@ interface Props {
   mode: "create" | "edit";
   assignment?: AssignmentLibraryItem | null;
   coachBatches?: CoachBatch[];
+  /** Prefill the starting position on create (e.g. from a live-class board). */
+  initialFen?: string;
+  /** Prefill the activity type on create. */
+  initialActivityType?: AssignmentActivityType;
 }
 
-export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coachBatches }: Props) {
+export function AssignmentFormDialog({
+  open,
+  onOpenChange,
+  mode,
+  assignment,
+  coachBatches,
+  initialFen,
+  initialActivityType
+}: Props) {
   const createMutation = useCreateAssignment();
   const updateMutation = useUpdateAssignment(assignment?.id ?? "");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,9 +139,14 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
         allowHints: assignment.allowHints
       });
     } else {
-      form.reset(DEFAULTS);
+      form.reset({
+        ...DEFAULTS,
+        activityType: initialActivityType ?? DEFAULTS.activityType,
+        startFen: initialFen ?? DEFAULTS.startFen,
+        studentColor: initialFen && initialFen.includes(" b ") ? "black" : "white"
+      });
     }
-  }, [open, mode, assignment, form]);
+  }, [open, mode, assignment, form, initialFen, initialActivityType]);
 
   const errors = form.formState.errors;
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -414,7 +431,7 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
                   render={({ field }) => (
                     <Checkbox
                       id="allowHints"
-                      label="Allow hints (coming soon)"
+                      label="Allow progressive hints (piece → square → move)"
                       checked={field.value}
                       onCheckedChange={(v) => field.onChange(v === true)}
                     />

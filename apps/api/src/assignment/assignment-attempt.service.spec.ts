@@ -1,9 +1,10 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import type { SolutionMove } from "@nexa-chess/types";
 import { AssignmentAttemptService } from "./assignment-attempt.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
+import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { StockfishService } from "../stockfish/stockfish.service";
 
@@ -115,10 +116,13 @@ describe("AssignmentAttemptService", () => {
       getBestMove: jest.fn()
     } as unknown as StockfishService);
 
+    const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
+
     service = new AssignmentAttemptService(
       jwt as unknown as JwtService,
       prisma as unknown as PrismaService,
-      evaluation
+      evaluation,
+      notifications as unknown as NotificationService
     );
   });
 
@@ -235,6 +239,61 @@ describe("AssignmentAttemptService", () => {
     expect(result.status).toBe("FAILED");
     expect(result.solutionMoves).toBeNull();
     expect(result.attemptsRemaining).toBe(2);
+  });
+
+  describe("hint", () => {
+    const openAttempt = (over: Record<string, unknown> = {}) => ({
+      id: "att-1",
+      attemptNumber: 1,
+      status: "IN_PROGRESS",
+      movesJson: [],
+      hintsUsed: 0,
+      durationSeconds: 0,
+      ...over
+    });
+
+    it("refuses when hints are disabled for the assignment", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        makeSa({ attempts: [openAttempt()] })
+      );
+      await expect(
+        service.hint(TOKEN, SA_ID, "att-1", { moves: [], level: 1 })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("returns a progressive hint and increments hintsUsed", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        makeSa({
+          attempts: [openAttempt()],
+          assignmentBatch: { assignment: makeAssignment({ allowHints: true }) }
+        })
+      );
+
+      const l1 = await service.hint(TOKEN, SA_ID, "att-1", { moves: [], level: 1 });
+      expect(l1).toMatchObject({ level: 1, onTrack: true, pieceType: "p", fromSquare: null });
+      expect(l1.hintsUsed).toBe(1);
+
+      const l3 = await service.hint(TOKEN, SA_ID, "att-1", { moves: [], level: 3 });
+      expect(l3).toMatchObject({ level: 3, fromSquare: "e2", toSquare: "e4", san: "e4" });
+      expect(prisma.studentAssignmentAttempt.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { hintsUsed: 1 } })
+      );
+    });
+
+    it("reports onTrack:false without spending a hint when the line has drifted", async () => {
+      prisma.studentAssignment.findUnique.mockResolvedValue(
+        makeSa({
+          attempts: [openAttempt()],
+          assignmentBatch: { assignment: makeAssignment({ allowHints: true }) }
+        })
+      );
+      prisma.studentAssignmentAttempt.update.mockClear();
+
+      const hint = await service.hint(TOKEN, SA_ID, "att-1", { moves: [move("d2d4")], level: 2 });
+      expect(hint.onTrack).toBe(false);
+      expect(hint.hintsUsed).toBe(0);
+      expect(prisma.studentAssignmentAttempt.update).not.toHaveBeenCalled();
+    });
   });
 
   it("rejects saving progress against an already-submitted attempt", async () => {

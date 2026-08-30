@@ -4,9 +4,11 @@ import type {
   AttemptReviewMove,
   ChessColor,
   SolutionMove,
-  SolveLineMoveFeedback
+  SolveLineHint,
+  SolveLineMoveFeedback,
+  StockfishAnalysisResult
 } from "@nexa-chess/types";
-import { Chess } from "chess.js";
+import { Chess, type Square } from "chess.js";
 import { StockfishService } from "../stockfish/stockfish.service";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -34,6 +36,17 @@ function colorChar(color: ChessColor): "w" | "b" {
   return color === "white" ? "w" : "b";
 }
 
+/** Win probability (0-100) for the side to move, from a centipawn score. */
+export function cpToWinPercent(cp: number): number {
+  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
+}
+
+/** Lichess-style per-move accuracy from the mover's win% before/after a move. */
+export function moveAccuracy(winBefore: number, winAfter: number): number {
+  const raw = 103.1668 * Math.exp(-0.04354 * (winBefore - winAfter)) - 3.1669;
+  return Math.max(0, Math.min(100, raw));
+}
+
 export type SolveLineEvaluation = {
   scorePercent: number;
   accuracyPercent: number;
@@ -53,6 +66,10 @@ export type EngineGameEvaluation = {
 @Injectable()
 export class AssignmentEvaluationService {
   private readonly logger = new Logger(AssignmentEvaluationService.name);
+
+  /** Cap on student moves analysed for accuracy — bounds the submit latency. */
+  private static readonly ACCURACY_MOVE_CAP = 40;
+  private static readonly ACCURACY_MOVETIME_MS = 200;
 
   constructor(private readonly stockfish: StockfishService) {}
 
@@ -233,6 +250,65 @@ export class AssignmentEvaluationService {
   }
 
   /**
+   * Progressive hint for the next student move of a SOLVE_LINE attempt. The
+   * caller supplies the moves played so far; the reply escalates with `level`
+   * (1 = which piece, 2 = origin square, 3 = the full move). `hintsUsed` is
+   * filled in by the attempt service.
+   */
+  solveLineHint(
+    startFen: string,
+    solution: SolutionMove[],
+    studentMoves: AttemptMove[],
+    _student: ChessColor,
+    level: number
+  ): Omit<SolveLineHint, "hintsUsed"> {
+    const fen = assertValidFen(startFen);
+    const prefix = this.matchedPrefix(solution, studentMoves);
+    const onTrack = prefix === studentMoves.length;
+    const lineComplete =
+      studentMoves.length >= solution.length ||
+      (prefix === solution.length && solution.length > 0);
+
+    const blank = {
+      level: 1 as const,
+      pieceType: null,
+      fromSquare: null,
+      toSquare: null,
+      san: null,
+      uci: null
+    };
+    if (!onTrack) return { ...blank, onTrack: false, lineComplete };
+    if (lineComplete) return { ...blank, onTrack: true, lineComplete: true };
+
+    const replay = new Chess(fen);
+    for (let i = 0; i < studentMoves.length; i += 1) {
+      try {
+        applyUci(replay, solution[i].uci);
+      } catch {
+        break;
+      }
+    }
+
+    const next = solution[studentMoves.length];
+    const uci = normalizeUci(next.uci);
+    const from = uci.slice(0, 2);
+    const to = uci.slice(2, 4);
+    const piece = replay.get(from as Square);
+    const capped = Math.max(1, Math.min(3, Math.round(level))) as 1 | 2 | 3;
+
+    return {
+      level: capped,
+      onTrack: true,
+      lineComplete: false,
+      pieceType: piece ? piece.type : null,
+      fromSquare: capped >= 2 ? from : null,
+      toSquare: capped >= 3 ? to : null,
+      san: capped >= 3 ? next.san : null,
+      uci: capped >= 3 ? uci : null
+    };
+  }
+
+  /**
    * Score a finished game against the engine purely from the board outcome.
    * Accuracy (centipawn-loss based) is intentionally not computed here — see
    * the assignment docs for the current limitation.
@@ -266,6 +342,78 @@ export class AssignmentEvaluationService {
     }
 
     return { scorePercent: 0, result: "LOSS", finished: false };
+  }
+
+  private analysisToCp(a: StockfishAnalysisResult): number {
+    if (a.mate !== null) return a.mate > 0 ? 100_000 : -100_000;
+    if (a.evaluation !== null) return Math.round(a.evaluation * 100);
+    return 0;
+  }
+
+  /**
+   * Move-accuracy (0-100) for a finished PLAY_VS_ENGINE game, from per-move
+   * Stockfish analysis. Returns `null` when the engine pool is down or analysis
+   * fails — callers then fall back to a result-only score. Bounded to the first
+   * `ACCURACY_MOVE_CAP` student moves at a short movetime.
+   */
+  async engineGameAccuracy(
+    startFen: string,
+    student: ChessColor,
+    studentMoves: AttemptMove[]
+  ): Promise<number | null> {
+    if (!this.stockfish.isAvailable()) return null;
+
+    const studentChar = colorChar(student);
+    const board = new Chess(assertValidFen(startFen));
+    const jobs: { fenBefore: string; fenAfter: string }[] = [];
+
+    for (const m of studentMoves) {
+      const fenBefore = board.fen();
+      const isStudentMove = board.turn() === studentChar;
+      let applied: ReturnType<typeof applyUci> | null;
+      try {
+        applied = applyUci(board, m.uci);
+      } catch {
+        break;
+      }
+      if (!applied) break;
+      if (isStudentMove && jobs.length < AssignmentEvaluationService.ACCURACY_MOVE_CAP) {
+        jobs.push({ fenBefore, fenAfter: board.fen() });
+      }
+    }
+
+    if (jobs.length === 0) return null;
+
+    try {
+      const fens = [...new Set(jobs.flatMap((j) => [j.fenBefore, j.fenAfter]))];
+      const analysed = new Map<string, StockfishAnalysisResult>();
+      await Promise.all(
+        fens.map(async (fen) => {
+          analysed.set(
+            fen,
+            await this.stockfish.analyzePosition(fen, {
+              movetimeMs: AssignmentEvaluationService.ACCURACY_MOVETIME_MS
+            })
+          );
+        })
+      );
+
+      const perMove = jobs.map((j) => {
+        const before = analysed.get(j.fenBefore);
+        const after = analysed.get(j.fenAfter);
+        if (!before || !after) return 100;
+        // `before` is scored from the student's perspective (student to move);
+        // `after` is from the opponent's — negate to keep the student's view.
+        const winBefore = cpToWinPercent(this.analysisToCp(before));
+        const winAfter = cpToWinPercent(-this.analysisToCp(after));
+        return moveAccuracy(winBefore, winAfter);
+      });
+
+      return Math.round(perMove.reduce((a, b) => a + b, 0) / perMove.length);
+    } catch (error) {
+      this.logger.warn(`Engine accuracy analysis failed: ${(error as Error).message}`);
+      return null;
+    }
   }
 
   /** The forced/best engine reply for a PLAY_VS_ENGINE position. */

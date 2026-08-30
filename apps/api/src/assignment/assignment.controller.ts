@@ -6,6 +6,7 @@ import {
   deployAssignmentRequestSchema,
   requestEngineMoveRequestSchema,
   saveAttemptProgressRequestSchema,
+  solveLineHintRequestSchema,
   submitAttemptRequestSchema,
   updateAssignmentRequestSchema,
   updateAssignmentStatusRequestSchema,
@@ -13,6 +14,7 @@ import {
   type DeployAssignmentRequest,
   type RequestEngineMoveRequest,
   type SaveAttemptProgressRequest,
+  type SolveLineHintRequest,
   type SubmitAttemptRequest,
   type UpdateAssignmentRequest,
   type UpdateAssignmentStatusRequest
@@ -129,6 +131,16 @@ export class AssignmentController {
     @Req() request: Request
   ) {
     return this.attemptService.engineMove(this.getAccessToken(request), id, attemptId, body);
+  }
+
+  @Post(API_ROUTES.assignments.hint())
+  solveLineHint(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Body(new ZodBodyPipe(solveLineHintRequestSchema)) body: SolveLineHintRequest,
+    @Req() request: Request
+  ) {
+    return this.attemptService.hint(this.getAccessToken(request), id, attemptId, body);
   }
 
   // ── Deployment detail / removal (coach) ──

@@ -20,12 +20,15 @@ import type {
   RequestEngineMoveResponse,
   SaveAttemptProgressRequest,
   SolutionMove,
+  SolveLineHint,
+  SolveLineHintRequest,
   StartAttemptResponse,
   SubmitAttemptRequest
 } from "@nexa-chess/types";
 import { Prisma, UserRole, UserStatus } from "@prisma/client";
 import { Chess } from "chess.js";
 import type { AccessTokenPayload } from "../auth/types";
+import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
 
@@ -46,7 +49,8 @@ export class AssignmentAttemptService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly evaluation: AssignmentEvaluationService
+    private readonly evaluation: AssignmentEvaluationService,
+    private readonly notifications: NotificationService
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -226,6 +230,13 @@ export class AssignmentAttemptService {
       scorePercent = evalResult.scorePercent;
       result = evalResult.result;
       engineUnavailable = !this.evaluation.isEngineAvailable();
+      if (dto.resign !== true) {
+        accuracyPercent = await this.evaluation.engineGameAccuracy(
+          assignment.startFen ?? "",
+          studentColor,
+          moves
+        );
+      }
     } else if (activityType === "FREE_ANALYSIS") {
       scorePercent = 100;
       result = "SUBMITTED";
@@ -276,6 +287,22 @@ export class AssignmentAttemptService {
       return savedAttempt;
     });
 
+    const coachId = sa.assignmentBatch.assignedById;
+    if (coachId) {
+      const studentName = `${student.firstName} ${student.lastName ?? ""}`.trim();
+      const accuracySuffix = accuracyPercent === null ? "" : ` · ${accuracyPercent}% accuracy`;
+      void this.notifications
+        .notify({
+          userId: coachId,
+          type: "ASSIGNMENT_GRADED",
+          title: `${studentName} finished "${assignment.title}"`,
+          body: `${result} — ${scorePercent}%${accuracySuffix}`,
+          linkPath: "/coach/assignments",
+          dedupeKey: `graded:${persisted.id}`
+        })
+        .catch(() => undefined);
+    }
+
     const alreadyComplete = sa.status === "COMPLETED" || sa.completedAt !== null;
     const canReview = passed || alreadyComplete || attemptsRemaining === 0;
 
@@ -313,6 +340,50 @@ export class AssignmentAttemptService {
     }
 
     return this.evaluation.engineReply(dto.fen, assignment.engineLevel);
+  }
+
+  async hint(
+    accessToken: string | undefined,
+    studentAssignmentId: string,
+    attemptId: string,
+    dto: SolveLineHintRequest
+  ): Promise<SolveLineHint> {
+    const student = await this.getStudent(accessToken);
+    const sa = await this.loadOwned(studentAssignmentId, student.id);
+    const assignment = sa.assignmentBatch.assignment;
+    const attempt = this.activeAttempt(sa, attemptId);
+
+    if (assignment.activityType !== "SOLVE_LINE") {
+      throw new BadRequestException("Hints are only available for solve-the-line assignments.");
+    }
+    if (!assignment.allowHints) {
+      throw new ForbiddenException("Hints are disabled for this assignment.");
+    }
+
+    const solution = this.solution(assignment);
+    if (!solution) throw new BadRequestException("This assignment has no solution configured.");
+
+    const moves = dto.moves as AttemptMove[];
+    this.evaluation.assertLegalLine(assignment.startFen ?? "", moves);
+
+    const hint = this.evaluation.solveLineHint(
+      assignment.startFen ?? "",
+      solution,
+      moves,
+      this.studentColor(assignment),
+      dto.level
+    );
+
+    let hintsUsed = attempt.hintsUsed;
+    if (hint.onTrack && !hint.lineComplete) {
+      hintsUsed = attempt.hintsUsed + 1;
+      await this.prisma.studentAssignmentAttempt.update({
+        where: { id: attempt.id },
+        data: { hintsUsed }
+      });
+    }
+
+    return { ...hint, hintsUsed };
   }
 
   // ── internals ──────────────────────────────────────────────

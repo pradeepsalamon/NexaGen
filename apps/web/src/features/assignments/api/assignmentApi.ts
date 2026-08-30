@@ -12,6 +12,8 @@ import type {
   RequestEngineMoveRequest,
   RequestEngineMoveResponse,
   SaveAttemptProgressRequest,
+  SolveLineHint,
+  SolveLineHintRequest,
   StartAttemptResponse,
   StudentAssignmentDetailResponse,
   StudentAssignmentListResponse,
@@ -125,6 +127,17 @@ export function requestEngineMove(
   data: RequestEngineMoveRequest
 ): Promise<RequestEngineMoveResponse> {
   return apiFetch(API_ROUTES.assignments.engineMove(assignmentId, attemptId), {
+    method: "POST",
+    body: data
+  });
+}
+
+export function getSolveLineHint(
+  assignmentId: string,
+  attemptId: string,
+  data: SolveLineHintRequest
+): Promise<SolveLineHint> {
+  return apiFetch(API_ROUTES.assignments.hint(assignmentId, attemptId), {
     method: "POST",
     body: data
   });

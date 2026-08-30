@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
+import type { DrawShape } from "chessground/draw";
 import type { Color, Key } from "chessground/types";
 import { Chess, type Square } from "chess.js";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,8 @@ export interface PracticeBoardProps {
   /** When false the board is view-only. */
   interactive?: boolean;
   lastMove?: [string, string] | null;
+  /** Hint overlay: circles the origin, and draws an arrow when `to` is known. */
+  hintSquares?: { from?: string | null; to?: string | null } | null;
   onMove?: (move: PracticeBoardMove) => void;
   className?: string;
 }
@@ -43,6 +46,7 @@ export function PracticeBoard({
   playerColor,
   interactive = true,
   lastMove,
+  hintSquares,
   onMove,
   className
 }: PracticeBoardProps) {
@@ -155,6 +159,17 @@ export function PracticeBoard({
       movable: { free: false, color: movableColor, dests, showDests: true }
     });
   }, [fen, orientation, turnColor, lastMove, movableColor, dests, game]);
+
+  useEffect(() => {
+    const shapes: DrawShape[] = [];
+    if (hintSquares?.from) {
+      shapes.push({ orig: hintSquares.from as Key, brush: "green" });
+      if (hintSquares.to) {
+        shapes.push({ orig: hintSquares.from as Key, dest: hintSquares.to as Key, brush: "green" });
+      }
+    }
+    apiRef.current?.setAutoShapes(shapes);
+  }, [hintSquares, fen]);
 
   return (
     <div className={cn("relative w-full max-w-[440px]", className)}>
