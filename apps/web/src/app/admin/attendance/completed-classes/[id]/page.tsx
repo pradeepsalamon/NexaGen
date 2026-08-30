@@ -87,18 +87,18 @@ export default function ClassDetailPage() {
           {data.batchName} &middot; {data.coachName}
         </p>
         <p className="text-app-muted text-sm mt-0.5">
-          {new Date(data.scheduledStart).toLocaleDateString(undefined, {
+          {new Date(data.actualStart ?? data.scheduledStart).toLocaleDateString(undefined, {
             weekday: "long",
             month: "long",
             day: "numeric",
             year: "numeric",
           })}{" "}
-          {new Date(data.scheduledStart).toLocaleTimeString(undefined, {
+          {new Date(data.actualStart ?? data.scheduledStart).toLocaleTimeString(undefined, {
             hour: "2-digit",
             minute: "2-digit",
           })}{" "}
           —{" "}
-          {new Date(data.scheduledEnd).toLocaleTimeString(undefined, {
+          {new Date(data.actualEnd ?? data.scheduledEnd).toLocaleTimeString(undefined, {
             hour: "2-digit",
             minute: "2-digit",
           })}

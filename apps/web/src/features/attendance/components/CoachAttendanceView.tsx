@@ -150,11 +150,11 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                               ))}
                           </td>
                           <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
-                            {new Date(record.date).toLocaleDateString(undefined, {
+                            {new Date(record.actualStart ?? record.date).toLocaleDateString(undefined, {
                               weekday: "short", month: "short", day: "numeric",
                             })}
                             <span className="text-app-muted block text-xs mt-0.5">
-                              {new Date(record.date).toLocaleTimeString(undefined, {
+                              {new Date(record.actualStart ?? record.date).toLocaleTimeString(undefined, {
                                 hour: "2-digit", minute: "2-digit",
                               })}
                             </span>

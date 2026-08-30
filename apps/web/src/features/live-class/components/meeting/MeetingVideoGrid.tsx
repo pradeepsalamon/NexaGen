@@ -10,7 +10,6 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
-import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
 import { getGridClasses, getTrackKey, useSortedTracks } from "./video-grid/videoGrid.utils";
 import { RequestControlButton } from "./video-grid/RequestControlButton";
 import { VideoTile } from "./video-grid/VideoTile";
@@ -109,29 +108,22 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                       </div>
                     )}
 
-                    {/* Clock (only renders when the coach has enabled one) */}
-                    <div className="absolute top-2 left-1/2 z-10 -translate-x-1/2">
-                      <ChessClock />
-                    </div>
-
-                    {/* Bottom-left name pill & request control button */}
-                    <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2">
-                      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
-                        <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
-                          <Crown className="size-3" />
-                        </span>
-                        <span className="max-w-[160px] flex items-center gap-1.5 truncate text-xs font-semibold text-white/90">
-                          <span className="truncate">Shared Board</span>
-                        </span>
+                    {/* Bottom-left name pill & request control button. The clock
+                        is intentionally not shown on this small tile — it lives
+                        in the full-screen board view. */}
+                    <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 shadow-sm backdrop-blur-md">
+                        <Crown className="size-3 text-amber-400" />
+                        <span className="text-[11px] font-semibold text-white/90">Shared Board</span>
                       </div>
                       <RequestControlButton />
                     </div>
 
                     {/* Top-right pin/fullscreen button — visible on hover */}
-                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end p-2.5">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end p-2">
                       <button
                         type="button"
-                        className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-sm"
+                        className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-sm"
                         onClick={() => setIsBoardFullscreen(true)}
                         aria-label="View board full screen"
                       >

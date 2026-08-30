@@ -200,13 +200,13 @@ export default function AdminCompletedClassesPage() {
                         className="hover:bg-app-soft/50 transition-colors"
                       >
                         <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
-                          {new Date(cls.date).toLocaleDateString(undefined, {
+                          {new Date(cls.actualStart ?? cls.date).toLocaleDateString(undefined, {
                             weekday: "short",
                             month: "short",
                             day: "numeric",
                           })}
                           <span className="text-app-muted block text-xs mt-0.5">
-                            {new Date(cls.scheduledStart).toLocaleTimeString(
+                            {new Date(cls.actualStart ?? cls.scheduledStart).toLocaleTimeString(
                               undefined,
                               { hour: "2-digit", minute: "2-digit" }
                             )}
