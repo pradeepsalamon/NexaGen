@@ -300,6 +300,23 @@ opt-in the same way — additionally needs `STOCKFISH_PATH` set in `apps/api/.en
 RUN_ANALYSIS_E2E=1 npx playwright test analysis-board
 ```
 
+### Responsive screenshots
+
+`scripts/responsive/` is a standalone dev tool (not a Playwright spec) that
+screenshots any route across a device matrix (phone / tablet / laptop / desktop,
+portrait + landscape), flags horizontal overflow, and writes an HTML gallery.
+
+```bash
+npx playwright install chromium            # once
+npm run dev                                # app must be running
+npm run shots -- --path login --devices all
+npm run shots -- --paths admin,admin/batches --login admin --devices mobile,tablet
+npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-landscape
+```
+
+Output → `scripts/responsive/shots/<timestamp>/` (git-ignored). Full docs and
+options: [`scripts/responsive/README.md`](scripts/responsive/README.md).
+
 ## UI Component Standards
 
 ### Primary UI Library

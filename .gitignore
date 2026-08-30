@@ -20,6 +20,9 @@ web-dev.log
 github-actions-key
 github-actions-key.pub
 
+# Responsive screenshot tool output
+scripts/responsive/shots/
+
 # Nexa AI Worker dynamic state & worktrees
 .worktrees/
 .ai/workers/state.json

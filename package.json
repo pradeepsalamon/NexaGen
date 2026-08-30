@@ -35,6 +35,7 @@
     "prepare": "husky",
     "precommit": "npm run typecheck && npm run lint && npm run test",
     "test": "npm run test -w apps/api -- --runInBand",
+    "shots": "node scripts/responsive/capture.mjs",
     "typecheck": "turbo typecheck",
     "ai:manager": "node .ai/manager/manager.js",
     "ai:worker": "node .ai/scripts/worker.js",
