@@ -16,7 +16,9 @@ export const MeetingHeader = memo(function MeetingHeader() {
   );
 
   const centerSlot = (
-    <h1 className="max-w-[46vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-[40vw] sm:text-base lg:max-w-[55vw]">
+    // The control cluster (timer + menu) crowds the centre on phones — the
+    // student already knows which class they joined, so the title is sm+ only.
+    <h1 className="hidden max-w-[40vw] truncate text-center text-sm font-extrabold text-app-text sm:block sm:text-base lg:max-w-[55vw]">
       {topic || "Live Class"}
     </h1>
   );

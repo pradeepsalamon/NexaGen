@@ -91,10 +91,10 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
       )}
 
       {/* Bottom-left name pill with mic status */}
-      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
+      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
         <span
           className={cn(
-            "flex size-5 items-center justify-center rounded-full",
+            "flex size-5 shrink-0 items-center justify-center rounded-full",
             isMuted ? "bg-red-500/20 text-red-500" : "bg-white/10 text-white/70",
           )}
           aria-label={isMuted ? "Microphone muted" : "Microphone on"}
@@ -102,7 +102,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
           {isMuted ? <MicOff className="size-3" /> : <Mic className="size-3" />}
         </span>
 
-        <span className="max-w-[160px] flex items-center gap-1.5 truncate text-xs font-semibold text-white/90">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-semibold text-white/90">
           <span className="truncate">
             {isLocal && !isScreenShare
               ? "You"
@@ -111,7 +111,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
                 : name}
           </span>
           {role && role.toUpperCase() === "COACH" && !isScreenShare && (
-            <span className="text-white/70 font-normal shrink-0">(Coach)</span>
+            <span className="hidden shrink-0 font-normal text-white/70 sm:inline">(Coach)</span>
           )}
         </span>
       </div>
