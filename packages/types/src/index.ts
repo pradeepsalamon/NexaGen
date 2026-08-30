@@ -650,6 +650,21 @@ export type ClassAttendanceReport = z.infer<typeof classAttendanceReportSchema>;
 
 // -- COACH TEACHING STATS TYPES --
 
+// Coach logs carry board events (BOARD_JOIN / BOARD_LEAVE) on top of the student
+// event set, so `eventType` stays a free string rather than the student enum.
+export const coachAttendanceLogEntrySchema = z.object({
+  id: z.string(),
+  eventType: z.string(),
+  timestamp: z.string(),
+  sessionStart: z.string().nullable(),
+  sessionEnd: z.string().nullable(),
+  sessionDuration: z.number().nullable(),
+  reason: z.string().nullable(),
+  source: z.string(),
+});
+
+export type CoachAttendanceLogEntry = z.infer<typeof coachAttendanceLogEntrySchema>;
+
 export const coachTeachingStatsSchema = z.object({
   totalClasses: z.number(),
   completedClasses: z.number(),
@@ -676,6 +691,8 @@ export const coachTeachingHistorySchema = z.object({
   studentsPresent: z.number(),
   totalStudents: z.number(),
   attendancePercent: z.number(),
+  reconnectCount: z.number().optional(),
+  logs: z.array(coachAttendanceLogEntrySchema).optional(),
 });
 
 export const coachTeachingResponseSchema = z.object({
@@ -851,16 +868,7 @@ export const classDetailCoachAttendanceSchema = z.object({
   totalDuration: z.number().nullable(),
   boardDuration: z.number().nullable(),
   reconnectCount: z.number(),
-  logs: z.array(z.object({
-    id: z.string(),
-    eventType: z.string(),
-    timestamp: z.string(),
-    sessionStart: z.string().nullable(),
-    sessionEnd: z.string().nullable(),
-    sessionDuration: z.number().nullable(),
-    reason: z.string().nullable(),
-    source: z.string(),
-  })),
+  logs: z.array(coachAttendanceLogEntrySchema),
 });
 
 export const classDetailReportSchema = z.object({

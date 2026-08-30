@@ -1,13 +1,21 @@
 "use client";
 
-import { memo } from "react";
-import { Users, Clock, History, AlertTriangle } from "lucide-react";
+import { Fragment, memo, useState } from "react";
+import {
+  Users,
+  Clock,
+  History,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import type {
   CoachTeachingHistory,
   CoachTeachingResponse,
 } from "@nexa-chess/types";
 import { AttendancePercentBar } from "./AttendancePercentBar";
+import { EventTimeline } from "./class-detail/EventTimeline";
 
 function formatDuration(seconds: number) {
   if (!seconds) return "0 min";
@@ -25,6 +33,10 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
   hideHeading,
 }: CoachAttendanceViewProps) {
   const { stats, history } = data;
+  const [expandedClass, setExpandedClass] = useState<string | null>(null);
+
+  const toggleClass = (id: string) =>
+    setExpandedClass((current) => (current === id ? null : id));
 
   return (
     <div className="space-y-6">
@@ -33,9 +45,6 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
           <h1 className="text-3xl font-bold tracking-tight text-app-text">
             Teaching Attendance
           </h1>
-          <p className="text-app-muted mt-1">
-            Track teaching hours and class attendance
-          </p>
         </div>
       )}
 
@@ -96,7 +105,12 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
       {/* History Table */}
       <Card className="border-app-border bg-app-surface shadow-sm overflow-hidden">
         <CardHeader className="bg-app-soft/50 border-b border-app-border">
-          <CardTitle className="text-lg">Recent Classes</CardTitle>
+          <CardTitle className="text-lg flex justify-between items-center">
+            Recent Classes
+            <span className="text-sm font-normal text-app-muted">
+              Click a row for event details
+            </span>
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {history.length === 0 ? (
@@ -105,9 +119,10 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
+              <table className="w-full text-sm">
                 <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
-                  <tr>
+                  <tr className="text-center">
+                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
                     <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Date &amp; Time</th>
                     <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Topic / Batch</th>
                     <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">Student Attendance</th>
@@ -116,46 +131,78 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                     <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Board Usage</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-app-border">
-                  {history.map((record: CoachTeachingHistory) => (
-                    <tr key={record.id} className="hover:bg-app-soft/50 transition-colors">
-                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
-                        {new Date(record.date).toLocaleDateString(undefined, {
-                          weekday: "short", month: "short", day: "numeric",
-                        })}
-                        <span className="text-app-muted block text-xs mt-0.5">
-                          {new Date(record.date).toLocaleTimeString(undefined, {
-                            hour: "2-digit", minute: "2-digit",
-                          })}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <div className="font-medium text-app-text">{record.topic}</div>
-                        <div className="text-xs text-app-muted mt-0.5">{record.batchName}</div>
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <div className="flex flex-col gap-1">
-                          <AttendancePercentBar percent={record.attendancePercent} />
-                          <span className="text-xs text-app-muted text-right">
-                            {record.studentsPresent} / {record.totalStudents} students
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted font-medium">
-                        {formatDuration(record.teachingDuration)}
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <div className="font-medium text-app-text">
-                          {formatDuration(record.coachTotalDuration || 0)}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <div className="font-medium text-blue-500">
-                          {formatDuration(record.boardDuration || 0)}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                <tbody className="divide-y divide-app-border text-center">
+                  {history.map((record: CoachTeachingHistory) => {
+                    const logs = record.logs ?? [];
+                    const isExpanded = expandedClass === record.id;
+                    return (
+                      <Fragment key={record.id}>
+                        <tr
+                          onClick={() => toggleClass(record.id)}
+                          className="hover:bg-app-soft/50 transition-colors cursor-pointer"
+                        >
+                          <td className="px-3 py-3 md:px-6 md:py-4 w-10">
+                            {logs.length > 0 &&
+                              (isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-app-muted" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-app-muted" />
+                              ))}
+                          </td>
+                          <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
+                            {new Date(record.date).toLocaleDateString(undefined, {
+                              weekday: "short", month: "short", day: "numeric",
+                            })}
+                            <span className="text-app-muted block text-xs mt-0.5">
+                              {new Date(record.date).toLocaleTimeString(undefined, {
+                                hour: "2-digit", minute: "2-digit",
+                              })}
+                            </span>
+                          </td>
+                          <td className="px-3 py-3 md:px-6 md:py-4">
+                            <div className="font-medium text-app-text">{record.topic}</div>
+                            <div className="text-xs text-app-muted mt-0.5">{record.batchName}</div>
+                          </td>
+                          <td className="px-3 py-3 md:px-6 md:py-4">
+                            <div className="flex flex-col gap-1">
+                              <AttendancePercentBar percent={record.attendancePercent} />
+                              <span className="text-xs text-app-muted text-right">
+                                {record.studentsPresent} / {record.totalStudents} students
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted font-medium">
+                            {formatDuration(record.teachingDuration)}
+                          </td>
+                          <td className="px-3 py-3 md:px-6 md:py-4">
+                            <div className="font-medium text-app-text">
+                              {formatDuration(record.coachTotalDuration || 0)}
+                            </div>
+                          </td>
+                          <td className="px-3 py-3 md:px-6 md:py-4">
+                            <div className="font-medium text-blue-500">
+                              {formatDuration(record.boardDuration || 0)}
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && logs.length > 0 && (
+                          <tr>
+                            <td colSpan={7} className="px-3 py-3 md:px-6 md:py-4 bg-app-soft/30 text-left">
+                              <div className="pl-4">
+                                <p className="text-xs font-semibold text-app-muted uppercase mb-2">
+                                  Event Timeline
+                                </p>
+                                <EventTimeline
+                                  logs={logs}
+                                  className="space-y-1.5"
+                                />
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -7,33 +7,33 @@ import { useLiveClassState } from "../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 /**
- * Bridges the LiveClassProvider's `boardControlStudentId` with the chessboard
+ * Bridges the LiveClassProvider's `boardControlStudentIds` with the chessboard
  * store's permission system, and force-syncs full state when the board is first
  * opened. Driven by the single sync engine in <LiveBoardSyncBridge>.
  */
 export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
-  const { boardControlStudentId, isChessboardOpen } = useLiveClassState();
-  const { setPermissionMode, permissionMode, selectedStudentId } = useBoardStore();
+  const { boardControlStudentIds, isChessboardOpen } = useLiveClassState();
+  const { setPermissionMode, permissionMode, selectedStudentIds } = useBoardStore();
   const { broadcastState, broadcastPermissions } = actions;
   const hasInitialized = useRef(false);
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  // boardControlStudentId → board store permission mode (coach only).
+  // boardControlStudentIds → board store permission mode (coach only).
   useEffect(() => {
     if (!isCoach) return;
-    if (boardControlStudentId) {
-      setPermissionMode("SELECTED_STUDENT", boardControlStudentId);
+    if (boardControlStudentIds.length > 0) {
+      setPermissionMode("SELECTED_STUDENT", boardControlStudentIds);
     } else {
       setPermissionMode("COACH_ONLY");
     }
-  }, [boardControlStudentId, setPermissionMode, isCoach]);
+  }, [boardControlStudentIds, setPermissionMode, isCoach]);
 
   // Broadcast permission changes to all participants.
   useEffect(() => {
     if (!isChessboardOpen || !isCoach) return;
     broadcastPermissions();
-  }, [permissionMode, selectedStudentId, isChessboardOpen, broadcastPermissions, isCoach]);
+  }, [permissionMode, selectedStudentIds, isChessboardOpen, broadcastPermissions, isCoach]);
 
   // Force-sync full state to everyone when the board first opens.
   useEffect(() => {

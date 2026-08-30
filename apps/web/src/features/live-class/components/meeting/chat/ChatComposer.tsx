@@ -75,6 +75,7 @@ export const ChatComposer = memo(function ChatComposer({
           <PopoverTrigger asChild>
             <button
               type="button"
+              aria-label="Add emoji"
               className="shrink-0 p-1 text-app-muted hover:text-primary transition-colors rounded-lg hover:bg-primary/10 group relative"
               title="Add emoji"
             >

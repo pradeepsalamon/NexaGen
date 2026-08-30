@@ -95,25 +95,6 @@ export class UploadController {
     return { url: result.secure_url };
   }
 
-  @Post('pdf')
-  @UseInterceptors(FileInterceptor('file'))
-  async uploadPdf(
-    @UploadedFile(
-      new ParseFilePipe({
-        validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 20 }), // 20MB
-          new FileTypeValidator({ fileType: 'application/pdf' }),
-        ],
-      }),
-    ) file: Express.Multer.File,
-    @Req() request: Request,
-  ) {
-    await this.getAuthenticatedUser(request);
-
-    const result = await this.uploadService.uploadPdf(file);
-    return { url: result.secure_url };
-  }
-
   private async getAuthenticatedUser(request: Request) {
     const accessToken = request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
 

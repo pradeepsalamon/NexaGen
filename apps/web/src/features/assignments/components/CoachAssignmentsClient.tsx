@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
+import { useToast } from "@/providers/ToastProvider";
 import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
 import {
   useAssignmentDeployments,
@@ -27,6 +28,7 @@ const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
 export function CoachAssignmentsClient() {
+  const toast = useToast();
   const timeZone = useUserTimeZone();
   const { data: libraryData, isLoading: libraryLoading } = useAssignmentLibrary();
   const { data: deploymentsData, isLoading: deploymentsLoading } = useAssignmentDeployments();
@@ -148,11 +150,13 @@ export function CoachAssignmentsClient() {
                           variant="outline"
                           size="icon"
                           className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
-                          onClick={() => {
-                            if (confirm(`Delete "${item.title}"? This removes it from every batch it was assigned to.`)) {
-                              deleteMutation.mutate(item.id);
-                            }
-                          }}
+                          onClick={() =>
+                            toast.undoable({
+                              title: `Deleting "${item.title}"`,
+                              message: "Removes it from every batch it was assigned to.",
+                              onCommit: () => deleteMutation.mutate(item.id),
+                            })
+                          }
                         >
                           <Trash2 className="size-4" strokeWidth={2.5} />
                         </Button>
@@ -209,11 +213,13 @@ export function CoachAssignmentsClient() {
                       variant="outline"
                       size="icon"
                       className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
-                      onClick={() => {
-                        if (confirm(`Withdraw "${d.title}" from ${d.batchName}? Student progress will be lost.`)) {
-                          undeployMutation.mutate(d.id);
-                        }
-                      }}
+                      onClick={() =>
+                        toast.undoable({
+                          title: `Withdrawing "${d.title}"`,
+                          message: `From ${d.batchName}. Student progress will be lost.`,
+                          onCommit: () => undeployMutation.mutate(d.id),
+                        })
+                      }
                     >
                       <Trash2 className="size-4" strokeWidth={2.5} />
                     </Button>

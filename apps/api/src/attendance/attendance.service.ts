@@ -544,12 +544,20 @@ export class AttendanceService {
 
       const status = this.determineStatus(attendancePercent, policy);
 
+      // A row can exist with no real presence: `getToken` opens attendance on
+      // TOKEN_REQUEST, so a student who loaded the class page but never connected
+      // (tab closed, connection failed, coach ended immediately) still has a row
+      // with `joinedAt` set. Once scored to zero time it is indistinguishable
+      // from a no-show — clear the join/leave stamps so it reads as ABSENT.
+      const neverPresent = totalDuration === 0;
+
       await this.prisma.classAttendance.update({
         where: { id: attendance.id },
         data: {
           totalDuration,
           attendancePercent: Math.round(attendancePercent * 10) / 10,
           status,
+          ...(neverPresent ? { joinedAt: null, leftAt: null } : {}),
         },
       });
     }
@@ -1510,7 +1518,7 @@ export class AttendanceService {
         batch: { include: { students: { where: { isDeleted: false } } } },
         liveSession: true,
         attendances: { where: { status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.LATE] } } },
-        coachAttendance: true,
+        coachAttendance: { include: { logs: { orderBy: { timestamp: "asc" } } } },
       },
       orderBy: { startsAt: "desc" },
       take: 50,
@@ -1538,6 +1546,17 @@ export class AttendanceService {
         teachingDuration: teachDuration,
         coachTotalDuration: cls.coachAttendance?.totalDuration || 0,
         boardDuration: cls.coachAttendance?.boardDuration || 0,
+        reconnectCount: cls.coachAttendance?.reconnectCount || 0,
+        logs: (cls.coachAttendance?.logs || []).map((log) => ({
+          id: log.id,
+          eventType: log.eventType,
+          timestamp: log.timestamp.toISOString(),
+          sessionStart: log.sessionStart?.toISOString() || null,
+          sessionEnd: log.sessionEnd?.toISOString() || null,
+          sessionDuration: log.sessionDuration,
+          reason: log.reason,
+          source: log.source,
+        })),
         studentsPresent: cls.attendances.length,
         totalStudents: cls.batch?.students?.length || 0,
         attendancePercent:

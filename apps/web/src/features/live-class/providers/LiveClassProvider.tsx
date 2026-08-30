@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
 export type SidebarTab = "chat" | "participants" | "settings" | "notes" | null;
-export type BoardControlStudentId = string | null;
 
 interface LiveClassContextValue {
   /** Which sidebar panel is currently open */
@@ -39,9 +38,18 @@ interface LiveClassContextValue {
   setIsChessboardOpen: (val: boolean) => void;
   toggleChessboard: () => void;
 
-  /** The participant identity currently given board control (null = coach only) */
-  boardControlStudentId: BoardControlStudentId;
-  setBoardControlStudent: (identity: BoardControlStudentId) => void;
+  /** Participant identities currently granted board control (empty = coach only) */
+  boardControlStudentIds: string[];
+  /** Add one student to the granted set. */
+  grantBoardControl: (identity: string) => void;
+  /** Remove one student from the granted set. */
+  revokeBoardControl: (identity: string) => void;
+  /** Grant if absent, revoke if present. */
+  toggleBoardControl: (identity: string) => void;
+  /** Replace the whole granted set (used when applying a remote permission sync). */
+  setBoardControlStudents: (identities: string[]) => void;
+  /** Revoke everyone — back to coach-only. */
+  clearBoardControl: () => void;
 
   /** Whether the class is currently being recorded */
   isRecording: boolean;
@@ -67,7 +75,7 @@ export function LiveClassProvider({
   const [handRaised, setHandRaised] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChessboardOpen, setIsChessboardOpen] = useState(false);
-  const [boardControlStudentId, setBoardControlStudentId] = useState<BoardControlStudentId>(null);
+  const [boardControlStudentIds, setBoardControlStudentIds] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
 
   const toggleSidebar = useCallback(
@@ -97,8 +105,32 @@ export function LiveClassProvider({
     setIsChessboardOpen((prev) => !prev);
   }, []);
 
-  const setBoardControlStudent = useCallback((identity: BoardControlStudentId) => {
-    setBoardControlStudentId(identity);
+  const grantBoardControl = useCallback((identity: string) => {
+    setBoardControlStudentIds((prev) =>
+      prev.includes(identity) ? prev : [...prev, identity],
+    );
+  }, []);
+
+  const revokeBoardControl = useCallback((identity: string) => {
+    setBoardControlStudentIds((prev) => prev.filter((id) => id !== identity));
+  }, []);
+
+  const toggleBoardControl = useCallback((identity: string) => {
+    setBoardControlStudentIds((prev) =>
+      prev.includes(identity) ? prev.filter((id) => id !== identity) : [...prev, identity],
+    );
+  }, []);
+
+  const setBoardControlStudents = useCallback((identities: string[]) => {
+    setBoardControlStudentIds((prev) => {
+      const same =
+        prev.length === identities.length && prev.every((id) => identities.includes(id));
+      return same ? prev : identities;
+    });
+  }, []);
+
+  const clearBoardControl = useCallback(() => {
+    setBoardControlStudentIds((prev) => (prev.length === 0 ? prev : []));
   }, []);
 
   const toggleRecording = useCallback(() => {
@@ -125,8 +157,12 @@ export function LiveClassProvider({
         isChessboardOpen,
         setIsChessboardOpen,
         toggleChessboard,
-        boardControlStudentId,
-        setBoardControlStudent,
+        boardControlStudentIds,
+        grantBoardControl,
+        revokeBoardControl,
+        toggleBoardControl,
+        setBoardControlStudents,
+        clearBoardControl,
         isRecording,
         setIsRecording,
         toggleRecording,

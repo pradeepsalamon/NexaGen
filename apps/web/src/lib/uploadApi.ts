@@ -26,15 +26,3 @@ export function uploadPgn(pgn: string, filename?: string) {
     method: "POST"
   });
 }
-export function uploadPdf(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  return apiFetch<{ url: string }>("/upload/pdf", {
-    body: formData,
-    method: "POST",
-    headers: {
-      "Content-Type": "multipart/form-data"
-    }
-  });
-}

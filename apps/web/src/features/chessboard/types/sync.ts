@@ -44,7 +44,6 @@ export interface MovePayload {
   arrows?: string[][];
   squares?: Record<string, string>;
   activeTab?: string;
-  pdfUrl?: string | null;
   clock?: ClockState;
 }
 
@@ -55,13 +54,12 @@ export interface AnnotationPayload {
 
 export interface PermissionPayload {
   mode: BoardPermissionMode;
-  /** Full LiveKit participant identity of the controlling student, if any. */
-  selectedStudentId?: string;
+  /** Full LiveKit participant identities of the students currently granted control. */
+  selectedStudentIds?: string[];
 }
 
 export interface UiStatePayload {
   activeTab?: string;
-  pdfUrl?: string | null;
 }
 
 export interface ClockPayload {

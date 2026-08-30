@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/providers/ToastProvider";
 import { useAssignmentLibrary, useDeleteAssignment } from "../hooks/useAssignmentsApi";
 import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
@@ -16,6 +17,7 @@ const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
 export function AdminAssignmentsClient() {
+  const toast = useToast();
   const { data, isLoading } = useAssignmentLibrary();
   const deleteMutation = useDeleteAssignment();
 
@@ -111,11 +113,13 @@ export function AdminAssignmentsClient() {
                         variant="outline"
                         size="icon"
                         className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
-                        onClick={() => {
-                          if (confirm(`Delete "${item.title}"? This removes it from every batch it was assigned to.`)) {
-                            deleteMutation.mutate(item.id);
-                          }
-                        }}
+                        onClick={() =>
+                          toast.undoable({
+                            title: `Deleting "${item.title}"`,
+                            message: "Removes it from every batch it was assigned to.",
+                            onCommit: () => deleteMutation.mutate(item.id),
+                          })
+                        }
                       >
                         <Trash2 className="size-4" strokeWidth={2.5} />
                       </Button>

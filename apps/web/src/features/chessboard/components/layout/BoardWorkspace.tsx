@@ -18,8 +18,9 @@ export function BoardWorkspace() {
       <div className="flex-1 flex flex-col items-center justify-center min-w-0 min-h-0 relative md:h-full">
         <PromotionDialog />
         
-        <div className="absolute right-4 top-4 z-10 flex gap-2">
+        <div className="absolute right-4 top-4 z-10 flex flex-col items-end gap-2">
            <DrawingToolbar />
+           <ChessClock className="rounded-lg border border-gray-200 bg-white/95 p-2 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95" />
         </div>
 
         <div className="w-full h-full flex flex-col justify-center max-w-4xl px-4 md:px-8 relative" style={{ containerType: "size" }}>
@@ -35,9 +36,8 @@ export function BoardWorkspace() {
                 <ChessgroundBoard />
               </div>
               
-              {/* Clock + Board Navigation Row */}
+              {/* Board Navigation Row */}
               <div className="mt-4 flex w-full flex-col items-center gap-2">
-                <ChessClock />
                 <BoardNavigation />
               </div>
             </div>

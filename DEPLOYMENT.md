@@ -37,7 +37,7 @@ sudo ufw enable
 
 3. Open the `.env` file (`nano .env`) and fill in your actual production values (database passwords, JWT secrets, Cloudinary keys, SMTP, etc.). 
    
-   **Important LiveKit Note:** Make sure `LIVEKIT_API_KEY` and `LIVEKIT_API_SECRET` match whatever you define inside `livekit.yaml`.
+   **Important LiveKit Note:** `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` from `.env` are the LiveKit credentials. The livekit-server config (including the `webhook` block that drives coach/board attendance) is passed inline as `LIVEKIT_CONFIG` in `docker-compose.yml` — Compose interpolates `${LIVEKIT_API_KEY}` into it, so there is no separate `livekit.yaml` to keep in sync.
 
 ## Step 3: Start the Docker Stack
 

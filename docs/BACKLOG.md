@@ -39,23 +39,23 @@ expect the *cause*, not just the symptom.
 
 ## Runtime open question — LiveKit webhooks
 
-`livekit.yaml` has no `webhook:` section. `docker-compose.yml` sets
-`LIVEKIT_WEBHOOK_API_KEY` / `LIVEKIT_WEBHOOK_URLS`, which livekit-server does not
-read — webhook config belongs in the YAML:
+**Wired 2026-08-30.** livekit-server config is now passed inline as
+`LIVEKIT_CONFIG` in `docker-compose.yml` (the old `livekit.yaml` file and the
+ineffective `LIVEKIT_WEBHOOK_*` env vars are gone). Compose interpolates
+`${LIVEKIT_API_KEY}` into the `webhook.api_key`, so the block references a real
+key in `LIVEKIT_KEYS`:
 
 ```yaml
 webhook:
-  api_key: <name of a key in `keys` / LIVEKIT_KEYS>
+  api_key: ${LIVEKIT_API_KEY}
   urls:
     - http://api:3001/webhooks/livekit
 ```
 
-If webhooks are not firing in production: no leave/disconnect events are
-recorded, durations are never computed from logs, `room_finished` never fires,
-and the `TOKEN_REQUEST` join in `getToken` is the only thing creating attendance
-rows. **Confirm first** — check API logs for `LiveKit webhook: event=…` during a
-real class — then wire the YAML (needs the real key name, so likely via
-`LIVEKIT_CONFIG` env or a templated config, not a committed literal).
+**Verify after deploy** — check API logs for `LiveKit webhook: event=…` during a
+real class. Until this was wired, no leave/disconnect events were recorded,
+coach/board durations were always 0, `room_finished` never fired, and the
+`TOKEN_REQUEST` join in `getToken` was the only thing creating attendance rows.
 
 ## Feature gaps
 
@@ -66,6 +66,31 @@ real class — then wire the YAML (needs the real key name, so likely via
 | **Live-monitoring screen** | `GET /attendance/class/:id/live` (`classLive`) and `getLiveClassMonitoring` are fully implemented and unused — no frontend. Same one-sided-feature cause as the (now-wired) admin drill-downs: reuse the `StudentAttendanceView` / dialog pattern in `features/attendance/components/`. |
 
 ## Resolved (2026-08-30)
+
+- **Phantom "Absent with a join time" in the post-class report.** `getToken`
+  opens a `ClassAttendance` row (`recordJoinEvent`, `source: "TOKEN_REQUEST"`)
+  the moment a student requests a LiveKit token. A student who loaded the class
+  page but never connected (tab closed, connection failed, coach ended the class
+  immediately) kept that row: `finalizeClassAttendance` scored it to 0s / ABSENT
+  but left `joinedAt` stamped — the summary table then showed "Absent · joined
+  07:24 PM" (the class end time, because the open session clamps there). Finalize
+  now nulls `joinedAt`/`leftAt` whenever a row scores to `totalDuration === 0`,
+  so it reads identically to a true no-show. The `Joined`/`Left` columns were
+  also removed from `ClassStudentTable` and the summary header collapsed to one
+  line. (Token-request join is kept, not removed — see the LiveKit-webhooks open
+  question above; it is the only attendance source if webhooks are not firing.)
+
+- **Board control is now multi-student; PDF tab removed.** The Live Class board
+  sidebar's "Board Control" panel and the Participants-panel Crown toggle went
+  from single-select (`boardControlStudentId: string | null`) to a granted set
+  (`boardControlStudentIds: string[]` with grant/revoke/toggle/clear in
+  `LiveClassProvider`). `createBoardStore` now holds `selectedStudentIds: string[]`,
+  `senderMayMutateBoard` checks `.includes`, and `UPDATE_PERMISSIONS` carries
+  `selectedStudentIds`. The sidebar panel lists every meeting participant (coaches
+  shown as "full control", students get a Grant/Revoke button). Separately, the
+  **PDF tab was removed entirely**: `PdfPanel`, the `pdf` tab, `pdfUrl`
+  store/sync fields, `SET_UI_STATE.pdfUrl`, the `uploadPdf` client helper, and the
+  API `POST /upload/pdf` route + `UploadService.uploadPdf`.
 
 - **Post-class summary screen.** The "class ended" state was a dead-end
   `<RoomEnded />`. Now `GET /attendance/class/:id/summary`
@@ -80,6 +105,15 @@ real class — then wire the YAML (needs the real key name, so likely via
   `getToken` / `sweepStaleClasses` to tolerate the `_<clientId>` identity suffix
   (students were stuck in the waiting room), and the meeting timer now counts
   from `liveSession.startedAt` rather than the scheduled start.
+
+- **Meeting countdown ignored a late start (2026-08-30).** Elapsed time already
+  ran from `liveSession.startedAt`, but the timer's default countdown mode still
+  targeted the scheduled `endsAt`, so a class started late silently lost the
+  late-start minutes (18:00–19:00 class begun at 18:15 showed 40 min left, not
+  55). `useLiveClass` now derives the countdown target as
+  `startedAt + (scheduledEnd − scheduledStart)` once the session is live, so the
+  class always gets its full planned duration from when it actually began. Falls
+  back to the scheduled end before the class starts or on bad schedule data.
 
 ## Resolved (2026-08-29)
 
@@ -98,6 +132,23 @@ real class — then wire the YAML (needs the real key name, so likely via
   `stockfish.service.spec.ts`, `upload.controller.spec.ts`, and opt-in
   `e2e/analysis-board.spec.ts`.
 
+- **Setup Position tab — blank board + broken palette (2026-08-30).** The Setup
+  Position board rendered as an empty rectangle: the spare-piece palette used
+  `<div class="pawn white">` which never matches the cburnett `.cg-wrap
+  piece.<role>.<color>` rules (needs a real `<piece>` element), and the board's
+  chessground instance initialised against a flex item that got stretched
+  non-square with no stable size / `overflow` containment, so squares and pieces
+  (sized as `12.5%`) collapsed and chessground DOM spilled over the castling
+  controls. Fixed by extracting a reusable, LiveKit-free
+  `features/chessboard/components/board/PositionEditor.tsx` (+ pure
+  `lib/fen.ts`): a controlled `{ value, onChange }` FEN editor with a
+  block-level `aspect-square` `overflow-hidden` board (the working
+  `PgnBoardViewer` pattern), a real `<piece>` palette, and themed side-to-move /
+  castling / en-passant / move-number / FEN controls. `SetupPositionDialog` is
+  now a thin consumer; the Load Game (PGN) tab is untouched. Admin Assignment
+  Creation can reuse `<PositionEditor>` directly. Coverage extended in
+  `e2e/analysis-board.spec.ts`.
+
 - **Coach live-class chessboard — sync fixes + clock + detach.** Fixed: a
   student granted board control could move locally but the move was dropped by
   every other client (all board-mutating messages were blanket coach-only);
@@ -107,8 +158,10 @@ real class — then wire the YAML (needs the real key name, so likely via
   the coach dependent on a popup window. Now: the receiver runs
   `senderMayMutateBoard` (`lib/boardSyncRules.ts`) keyed by the full LiveKit
   participant identity; one sync engine (`LiveBoardSyncBridge` → `BoardSyncContext`)
-  instead of one per `RequestControlButton`; `LiveChessboardPanel` is the primary
-  coach surface with `/live-class/:id/board` as an opt-in authoritative window.
+  instead of one per `RequestControlButton`. (Superseded 2026-08-30: the
+  in-meeting `LiveChessboardPanel` is removed — the coach's board is the
+  dedicated `/live-class/:id/board` tab only; the meeting screen stays a
+  meeting. Students still see a synced inline board tile in `MeetingVideoGrid`.)
   Added: a shared chess clock (`ClockState` in `createBoardStore`, `lib/clock.ts`,
   `ChessClock`, `SET_CLOCK` message, coach-authoritative) and per-student board
   detach / "resync to coach" (`isDetached` + `detachBoard`/`resyncBoard`).

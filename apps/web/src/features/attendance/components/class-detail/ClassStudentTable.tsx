@@ -12,7 +12,7 @@ import type { ClassDetailStudentLog } from "@nexa-chess/types";
 import { AttendanceStatusBadge } from "../AttendanceStatusBadge";
 import { AttendancePercentBar } from "../AttendancePercentBar";
 import { EventTimeline } from "./EventTimeline";
-import { formatDuration, formatTime } from "./classDetail.utils";
+import { formatDuration } from "./classDetail.utils";
 
 interface ClassStudentTableProps {
   students: ClassDetailStudentLog[];
@@ -46,8 +46,6 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                 <th className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
                 <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Name</th>
                 <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Status</th>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Joined</th>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Left</th>
                 <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Duration</th>
                 <th className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[160px]">
                   Attendance %
@@ -87,12 +85,6 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       <AttendanceStatusBadge status={student.status} />
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
-                      {formatTime(student.joinedAt)}
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
-                      {formatTime(student.leftAt)}
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
                       {formatDuration(student.duration)}
                     </td>
                     <td className="px-3 py-3 md:px-6 md:py-4">
@@ -126,7 +118,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                   {expandedStudent === student.id && student.logs.length > 0 && (
                     <tr>
                       <td
-                        colSpan={9}
+                        colSpan={7}
                         className="px-3 py-3 md:px-6 md:py-4 bg-app-soft/30"
                       >
                         <div className="pl-4">

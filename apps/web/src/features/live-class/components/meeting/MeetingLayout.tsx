@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-import { AnimatePresence } from "framer-motion";
 import { useParticipants } from "@livekit/components-react";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { MeetingHeader } from "./MeetingHeader";
@@ -12,12 +11,10 @@ import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { BoardProvider } from "@/features/chessboard/context/BoardProvider";
 import { LiveBoardSyncBridge } from "./LiveBoardSyncBridge";
-import { LiveChessboardPanel } from "./LiveChessboardPanel";
 
 /**
  * Main meeting layout orchestrator.
  *
- * Structure (normal mode):
  *  ┌─────────────────────────────────┐
  *  │  MeetingHeader                  │
  *  ├───────────────────────┬─────────┤
@@ -28,27 +25,17 @@ import { LiveChessboardPanel } from "./LiveChessboardPanel";
  *  │  MeetingToolbar (floating)      │
  *  └─────────────────────────────────┘
  *
- * Structure (chessboard mode):
- *  ┌─────────────────────────────────┐
- *  │  MeetingHeader                  │
- *  ├───────────────────────┬─────────┤
- *  │                       │         │
- *  │  LiveChessboardPanel  │ Sidebar │
- *  │                       │         │
- *  ├───────────────────────┤         │
- *  │  VideoFilmstrip       │         │
- *  ├───────────────────────┴─────────┤
- *  │  MeetingToolbar (floating)      │
- *  └─────────────────────────────────┘
+ * The coach's shared board opens in its own tab (`/live-class/:id/board`); the
+ * meeting screen stays a meeting. Students see a synced board tile inside
+ * `MeetingVideoGrid` while the coach has it open.
  */
 export function MeetingLayout() {
   // Register keyboard shortcuts (M, V, Escape)
   useKeyboardShortcuts();
 
-  const { setIsChessboardOpen, isChessboardOpen } = useLiveClassState();
+  const { setIsChessboardOpen } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const showCoachBoard = isChessboardOpen && isCoach;
 
   const participants = useParticipants();
 
@@ -85,22 +72,9 @@ export function MeetingLayout() {
         <BoardProvider>
           <LiveBoardSyncBridge>
             <div className="flex-1 min-w-0 overflow-hidden flex flex-col relative">
-              {showCoachBoard ? (
-                <>
-                  <div className="flex-1 min-h-0 relative">
-                    <LiveChessboardPanel />
-                  </div>
-                  <div className="shrink-0 border-t border-app-border bg-app-surface/40">
-                    <MeetingVideoGrid compact />
-                  </div>
-                </>
-              ) : (
-                <AnimatePresence mode="wait">
-                  <div key="video-grid" className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col relative">
-                    <MeetingVideoGrid />
-                  </div>
-                </AnimatePresence>
-              )}
+              <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar flex flex-col relative">
+                <MeetingVideoGrid />
+              </div>
             </div>
           </LiveBoardSyncBridge>
         </BoardProvider>

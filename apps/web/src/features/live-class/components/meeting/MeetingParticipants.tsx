@@ -4,6 +4,7 @@ import { useState, useMemo, memo } from "react";
 import { Users, Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, X } from "lucide-react";
 import { useParticipants } from "@livekit/components-react";
 import { ParticipantAvatar } from "./ParticipantAvatar";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -98,20 +99,21 @@ const ParticipantListItem = memo(function ParticipantListItem({
           <Mic className="size-4" aria-label="Microphone on" />
         )}
         {showBoardControl && onToggleBoardControl && (
-          <button
-            type="button"
-            onClick={() => onToggleBoardControl(participant.identity)}
-            className={cn(
-              "flex size-6 items-center justify-center rounded-md transition-all duration-150",
-              hasBoardControl
-                ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
-                : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
-            )}
-            aria-label={hasBoardControl ? "Revoke board control" : "Grant board control"}
-            title={hasBoardControl ? "Revoke board control" : "Grant board control"}
-          >
-            <Crown className="size-3.5" />
-          </button>
+          <SimpleTooltip label={hasBoardControl ? "Revoke board control" : "Grant board control"}>
+            <button
+              type="button"
+              onClick={() => onToggleBoardControl(participant.identity)}
+              className={cn(
+                "flex size-6 items-center justify-center rounded-md transition-all duration-150",
+                hasBoardControl
+                  ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
+                  : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
+              )}
+              aria-label={hasBoardControl ? "Revoke board control" : "Grant board control"}
+            >
+              <Crown className="size-3.5" />
+            </button>
+          </SimpleTooltip>
         )}
       </div>
     </div>
@@ -124,7 +126,7 @@ export function MeetingParticipants() {
   const participants = useParticipants().filter(p => !p.identity.endsWith('_board'));
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const { isChessboardOpen, boardControlStudentId, setBoardControlStudent } = useLiveClassState();
+  const { isChessboardOpen, boardControlStudentIds, toggleBoardControl } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
@@ -212,17 +214,7 @@ export function MeetingParticipants() {
             </h3>
             <div className="flex flex-col gap-0.5">
               {grouped.coaches.map((p) => (
-                <ParticipantListItem
-                key={p.identity}
-                participant={p}
-                showBoardControl={isChessboardOpen && isCoach}
-                hasBoardControl={boardControlStudentId === p.identity}
-                onToggleBoardControl={(identity) =>
-                  setBoardControlStudent(
-                    boardControlStudentId === identity ? null : identity
-                  )
-                }
-              />
+                <ParticipantListItem key={p.identity} participant={p} />
               ))}
             </div>
           </div>
@@ -241,12 +233,8 @@ export function MeetingParticipants() {
                 key={p.identity}
                 participant={p}
                 showBoardControl={isChessboardOpen && isCoach}
-                hasBoardControl={boardControlStudentId === p.identity}
-                onToggleBoardControl={(identity) =>
-                  setBoardControlStudent(
-                    boardControlStudentId === identity ? null : identity
-                  )
-                }
+                hasBoardControl={boardControlStudentIds.includes(p.identity)}
+                onToggleBoardControl={toggleBoardControl}
               />
             ))}
           </div>

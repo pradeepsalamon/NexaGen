@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { getEventIcon } from "./classDetail.utils";
+import { formatEventLabel, getEventIcon } from "./classDetail.utils";
 
 export interface TimelineLog {
   id: string;
@@ -29,7 +29,9 @@ export const EventTimeline = memo(function EventTimeline({
               second: "2-digit",
             })}
           </span>
-          <span className="font-medium text-app-text">{log.eventType}</span>
+          <span className="font-medium text-app-text">
+            {formatEventLabel(log.eventType)}
+          </span>
           {log.reason && (
             <span className="text-app-muted italic">— {log.reason}</span>
           )}

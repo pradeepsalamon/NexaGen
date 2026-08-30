@@ -132,7 +132,6 @@ export function useBoardSyncEngine(): BoardSyncActions {
       arrows: s.arrows,
       squares: s.squareStyles,
       activeTab: s.activeTab,
-      pdfUrl: s.pdfUrl,
       clock: s.clock,
     };
   }, [store]);
@@ -153,7 +152,6 @@ export function useBoardSyncEngine(): BoardSyncActions {
                 arrows: snap.arrows,
                 squares: snap.squares,
                 activeTab: snap.activeTab,
-                pdfUrl: snap.pdfUrl,
                 clock: snap.clock,
               }
             : {}),
@@ -180,7 +178,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
     if (!s) return;
     broadcastMsg({
       type: "UPDATE_PERMISSIONS",
-      payload: { mode: s.permissionMode, selectedStudentId: s.selectedStudentId },
+      payload: { mode: s.permissionMode, selectedStudentIds: s.selectedStudentIds },
     });
   }, [broadcastMsg, store]);
 
@@ -210,7 +208,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
           fromIdentity,
           isFromCoach,
           permissionMode: current.permissionMode,
-          selectedStudentId: current.selectedStudentId,
+          selectedStudentIds: current.selectedStudentIds,
         })
       ) {
         console.warn(
@@ -268,14 +266,13 @@ export function useBoardSyncEngine(): BoardSyncActions {
           break;
         case "UPDATE_PERMISSIONS":
           if (msg.payload && msg.payload.mode) {
+            const grantedIds = msg.payload.selectedStudentIds ?? [];
             syncFromRemote({
               permissionMode: msg.payload.mode,
-              selectedStudentId: msg.payload.selectedStudentId,
+              selectedStudentIds: grantedIds,
             });
-            if (liveClassState?.setBoardControlStudent) {
-              liveClassState.setBoardControlStudent(
-                msg.payload.selectedStudentId || null,
-              );
+            if (liveClassState?.setBoardControlStudents) {
+              liveClassState.setBoardControlStudents(grantedIds);
             }
           }
           break;
@@ -285,18 +282,8 @@ export function useBoardSyncEngine(): BoardSyncActions {
           }
           break;
         case "SET_UI_STATE":
-          if (
-            msg.payload &&
-            (msg.payload.activeTab !== undefined || msg.payload.pdfUrl !== undefined)
-          ) {
-            syncFromRemote({
-              ...(msg.payload.activeTab !== undefined
-                ? { activeTab: msg.payload.activeTab }
-                : {}),
-              ...(msg.payload.pdfUrl !== undefined
-                ? { pdfUrl: msg.payload.pdfUrl }
-                : {}),
-            });
+          if (msg.payload && msg.payload.activeTab !== undefined) {
+            syncFromRemote({ activeTab: msg.payload.activeTab });
           }
           break;
         case "REQUEST_SYNC": {
@@ -316,7 +303,6 @@ export function useBoardSyncEngine(): BoardSyncActions {
                 arrows: snap.arrows,
                 squares: snap.squares,
                 activeTab: snap.activeTab,
-                pdfUrl: snap.pdfUrl,
                 clock: snap.clock,
               },
             });
@@ -332,8 +318,8 @@ export function useBoardSyncEngine(): BoardSyncActions {
               action: {
                 label: "Grant Control",
                 onClick: () => {
-                  if (liveClassState?.setBoardControlStudent) {
-                    liveClassState.setBoardControlStudent(identity);
+                  if (liveClassState?.grantBoardControl) {
+                    liveClassState.grantBoardControl(identity);
                     toast.success(`Granted board control to ${studentName}`, {
                       id: `grant-board-control-${identity}`,
                     });
@@ -366,8 +352,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
       const annotationsChanged =
         state.arrows !== prevState.arrows ||
         state.squareStyles !== prevState.squareStyles;
-      const uiChanged =
-        state.activeTab !== prevState.activeTab || state.pdfUrl !== prevState.pdfUrl;
+      const uiChanged = state.activeTab !== prevState.activeTab;
       const clockChanged = state.clock !== prevState.clock;
 
       if (!boardChanged && !annotationsChanged && !uiChanged && !clockChanged) return;
@@ -397,7 +382,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
       if (uiChanged) {
         broadcastMsg({
           type: "SET_UI_STATE",
-          payload: { activeTab: state.activeTab, pdfUrl: state.pdfUrl },
+          payload: { activeTab: state.activeTab },
         });
       }
       if (clockChanged) {

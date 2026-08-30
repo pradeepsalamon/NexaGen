@@ -1,6 +1,5 @@
 import { MoveHistory } from "../panels/MoveHistory";
 import { StockfishPanel } from "./StockfishPanel";
-import { PdfPanel } from "./PdfPanel";
 import { MasterbasePanel } from "./MasterbasePanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
@@ -112,9 +111,6 @@ export function SidebarTabs() {
               Live Class
             </TabsTrigger>
           )}
-          <TabsTrigger value="pdf" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
-            PDF
-          </TabsTrigger>
           <TabsTrigger value="masterbase" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
             Masterbase
           </TabsTrigger>
@@ -135,9 +131,6 @@ export function SidebarTabs() {
             <LiveClassControlPanel liveClassState={liveClassState} />
           </TabsContent>
         )}
-        <TabsContent value="pdf" className="flex-1 min-h-0 mt-0">
-          <PdfPanel />
-        </TabsContent>
         <TabsContent value="masterbase" className="flex-1 min-h-0 overflow-y-auto mt-0">
           <MasterbasePanel />
         </TabsContent>
@@ -146,59 +139,85 @@ export function SidebarTabs() {
   );
 }
 
+function parseParticipantMeta(raw?: string) {
+  if (!raw) return {} as { role?: string; firstName?: string; lastName?: string };
+  try {
+    return JSON.parse(raw) as { role?: string; firstName?: string; lastName?: string };
+  } catch {
+    return {};
+  }
+}
+
 function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
   const participants = useParticipants();
-  const students = participants.filter(p => {
-    // The coach's own board pop-out (`${id}_board`) is a participant too.
-    if (p.identity.endsWith("_board")) return false;
-    if (!p.metadata) return true;
-    try {
-      const meta = JSON.parse(p.metadata);
-      return meta.role === "STUDENT";
-    } catch {
-      return true;
-    }
-  });
+  const grantedIds: string[] = liveClassState.boardControlStudentIds ?? [];
+
+  // Everyone in the meeting except the coach's own board pop-out (`${id}_board`).
+  const people = participants
+    .filter((p) => !p.identity.endsWith("_board"))
+    .map((p) => {
+      const meta = parseParticipantMeta(p.metadata);
+      const isCoachRole =
+        meta.role?.toUpperCase() === "COACH" || meta.role?.toUpperCase() === "TEACHER";
+      const name = meta.firstName
+        ? `${meta.firstName} ${meta.lastName || ""}`.trim()
+        : p.name || p.identity;
+      return { identity: p.identity, name, isCoachRole };
+    });
+
+  const students = people.filter((p) => !p.isCoachRole);
 
   return (
     <div className="flex flex-col h-full gap-4 p-2 text-sm">
-      <h3 className="font-bold border-b border-gray-200 dark:border-slate-800 pb-2">Board Control</h3>
-      <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">
-        Select a student below to grant them permission to move pieces on the shared board.
+      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 pb-2">
+        <h3 className="font-bold">Board Control</h3>
+        {grantedIds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => liveClassState.clearBoardControl()}
+            className="text-xs font-medium text-blue-500 hover:text-blue-600"
+          >
+            Revoke all
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-gray-500 dark:text-slate-400 -mt-2">
+        Grant any student permission to move pieces on the shared board. Several can hold
+        control at once; the coach always can.
       </p>
-      
+
       <div className="flex flex-col gap-2">
-        <Button 
-          variant={liveClassState.boardControlStudentId === null ? "primary" : "outline"}
-          className="w-full justify-start text-xs h-8"
-          onClick={() => liveClassState.setBoardControlStudent(null)}
-        >
-          Coach Only (No Student Control)
-        </Button>
-        
+        {people
+          .filter((p) => p.isCoachRole)
+          .map((p) => (
+            <div
+              key={p.identity}
+              className="flex items-center justify-between rounded-control border border-gray-200 dark:border-slate-800 px-3 h-8 text-xs text-gray-500 dark:text-slate-400"
+            >
+              <span className="truncate">{p.name}</span>
+              <span className="shrink-0 font-medium">Coach · full control</span>
+            </div>
+          ))}
+
         {students.length === 0 ? (
           <p className="text-xs text-gray-400 italic py-2">No students in room.</p>
         ) : (
-          students.map(p => {
-            let name = p.identity;
-            try {
-              if (p.metadata) {
-                const meta = JSON.parse(p.metadata);
-                name = meta.firstName ? `${meta.firstName} ${meta.lastName || ''}` : p.identity;
-              }
-            } catch {}
-            // Board control is keyed by the full LiveKit participant identity.
-            const isSelected = liveClassState.boardControlStudentId === p.identity;
-
+          students.map((p) => {
+            const hasControl = grantedIds.includes(p.identity);
             return (
-              <Button
+              <div
                 key={p.identity}
-                variant={isSelected ? "primary" : "outline"}
-                className="w-full justify-start text-xs h-8 truncate"
-                onClick={() => liveClassState.setBoardControlStudent(p.identity)}
+                className="flex items-center justify-between gap-2 rounded-control border border-gray-200 dark:border-slate-800 pl-3 pr-1 h-9"
               >
-                {name}
-              </Button>
+                <span className="truncate text-xs font-medium text-app-text">{p.name}</span>
+                <Button
+                  variant={hasControl ? "primary" : "outline"}
+                  className="shrink-0 text-xs h-7 px-2.5"
+                  onClick={() => liveClassState.toggleBoardControl(p.identity)}
+                >
+                  {hasControl ? "Revoke" : "Grant"}
+                </Button>
+              </div>
             );
           })
         )}

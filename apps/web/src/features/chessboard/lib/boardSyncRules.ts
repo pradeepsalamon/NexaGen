@@ -39,19 +39,19 @@ const CONTROL_MESSAGE_TYPES = new Set<BoardSyncMessage["type"]>([
  *   students are issued `canUpdateOwnMetadata: false`).
  * - A non-coach may only send piece moves, and only while they currently hold
  *   control per the last `UPDATE_PERMISSIONS` we processed: `EVERYONE`, or
- *   `SELECTED_STUDENT` where they are the selected identity.
+ *   `SELECTED_STUDENT` where they are one of the granted identities.
  *
- * `fromIdentity` and `selectedStudentId` are both **full LiveKit participant
- * identities** (`${userId}_${clientId}`).
+ * `fromIdentity` and every entry in `selectedStudentIds` are **full LiveKit
+ * participant identities** (`${userId}_${clientId}`).
  */
 export function senderMayMutateBoard(params: {
   type: BoardSyncMessage["type"];
   fromIdentity: string | undefined;
   isFromCoach: boolean;
   permissionMode: BoardPermissionMode;
-  selectedStudentId: string | undefined;
+  selectedStudentIds: string[];
 }): boolean {
-  const { type, fromIdentity, isFromCoach, permissionMode, selectedStudentId } = params;
+  const { type, fromIdentity, isFromCoach, permissionMode, selectedStudentIds } = params;
 
   if (!MUTATING_MESSAGE_TYPES.has(type)) return true;
   if (isFromCoach) return true;
@@ -60,7 +60,7 @@ export function senderMayMutateBoard(params: {
 
   if (permissionMode === "EVERYONE") return true;
   if (permissionMode === "SELECTED_STUDENT") {
-    return !!selectedStudentId && fromIdentity === selectedStudentId;
+    return selectedStudentIds.includes(fromIdentity);
   }
   return false;
 }

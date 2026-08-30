@@ -2,6 +2,7 @@
 
 import { Crown, Hand, Compass, RefreshCw } from "lucide-react";
 import { useLocalParticipant } from "@livekit/components-react";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useBoardSync } from "@/features/chessboard/hooks/useBoardSync";
@@ -14,7 +15,7 @@ export function RequestControlButton() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
-  const { permissionMode, selectedStudentId, isDetached, detachBoard } = useBoardStore();
+  const { permissionMode, selectedStudentIds, isDetached, detachBoard } = useBoardStore();
   const { requestControl, requestResync } = useBoardSync();
 
   if (isCoach) return null;
@@ -23,7 +24,7 @@ export function RequestControlButton() {
   const hasControl = Boolean(
     identity &&
       (permissionMode === "EVERYONE" ||
-        (permissionMode === "SELECTED_STUDENT" && selectedStudentId === identity)),
+        (permissionMode === "SELECTED_STUDENT" && selectedStudentIds.includes(identity))),
   );
 
   return (
@@ -54,15 +55,16 @@ export function RequestControlButton() {
               Request Control
             </button>
           )}
-          <button
-            type="button"
-            onClick={detachBoard}
-            title="Explore this position privately without affecting the class board"
-            className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/80 px-3 py-1.5 text-xs font-semibold text-white/80 shadow-md backdrop-blur-md transition-all hover:border-white/40 hover:text-white hover:scale-105 active:scale-95"
-          >
-            <Compass className="size-3.5" />
-            Explore on my own
-          </button>
+          <SimpleTooltip label="Explore this position privately without affecting the class board">
+            <button
+              type="button"
+              onClick={detachBoard}
+              className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/80 px-3 py-1.5 text-xs font-semibold text-white/80 shadow-md backdrop-blur-md transition-all hover:border-white/40 hover:text-white hover:scale-105 active:scale-95"
+            >
+              <Compass className="size-3.5" />
+              Explore on my own
+            </button>
+          </SimpleTooltip>
         </>
       )}
     </div>

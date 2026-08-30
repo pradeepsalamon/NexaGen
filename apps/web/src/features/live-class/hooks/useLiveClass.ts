@@ -32,9 +32,13 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
       try {
         if (!silent) {
           setIsLoading(true);
+          // A silent (background poll) retry keeps the current error on screen
+          // until it has a new result, so the "waiting for coach" screen stays
+          // mounted instead of flashing back to a spinner every poll (AUDIT H14
+          // follow-up).
+          setError(null);
+          setErrorCode(null);
         }
-        setError(null);
-        setErrorCode(null);
 
         const classDetails = await getLiveClass(roomId);
         if (mounted) {
@@ -47,7 +51,23 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
           if (actualStart) {
             setStartedAt(actualStart);
           }
-          if (classDetails.endsAt) {
+          // The countdown target respects a late start: once the class is
+          // actually live, it still gets its full planned duration measured from
+          // when it began, rather than being cut short at the scheduled end
+          // (AUDIT H2 follow-up).
+          if (classDetails.startsAt && classDetails.endsAt) {
+            const plannedMs =
+              new Date(classDetails.endsAt).getTime() - new Date(classDetails.startsAt).getTime();
+            if (classDetails.liveSession?.startedAt && plannedMs > 0) {
+              setEndsAt(
+                new Date(
+                  new Date(classDetails.liveSession.startedAt).getTime() + plannedMs,
+                ).toISOString(),
+              );
+            } else {
+              setEndsAt(classDetails.endsAt);
+            }
+          } else if (classDetails.endsAt) {
             setEndsAt(classDetails.endsAt);
           }
         }
@@ -70,6 +90,14 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
               setTopic(res.topic || classDetails.topic);
             }
           }
+        }
+
+        // Reached only when nothing above threw — clear any stale error so a
+        // silent retry that finally succeeds (coach joined) drops the waiting
+        // screen.
+        if (mounted) {
+          setError(null);
+          setErrorCode(null);
         }
       } catch (err) {
         if (mounted) {

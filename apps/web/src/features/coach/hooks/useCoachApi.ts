@@ -120,13 +120,13 @@ export function useUpdateClass(id: string) {
   });
 }
 
-export function useCancelClass(id: string) {
+export function useCancelClass() {
   const queryClient = useQueryClient();
   const toast = useToast();
 
   return useMutation({
-    mutationFn: () => cancelClass(id),
-    onSuccess: () => {
+    mutationFn: (id: string) => cancelClass(id),
+    onSuccess: (_data, id) => {
       toast.success({ title: "Class cancelled successfully" });
       queryClient.invalidateQueries({ queryKey: queryKeys.coach.classDetail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.coach.dashboard });
