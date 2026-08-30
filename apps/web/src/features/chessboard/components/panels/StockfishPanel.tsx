@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useBoardStore as usePersistedStore } from "../../context/BoardProvider";
 import { analyzePosition, StockfishAnalysisResult } from '../../api/stockfishApi';
 import { Loader2, Pause, Play } from 'lucide-react';
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 const ANALYSIS_DEBOUNCE_MS = 400;
 
@@ -71,14 +72,16 @@ export function StockfishPanel() {
       <div className="flex flex-col h-full text-sm p-4 text-app-text">
         <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
           <span className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase tracking-wider">Engine Analysis</span>
-          <button
-            type="button"
-            onClick={() => setIsEnabled(true)}
-            className="w-8 h-8 rounded-full border border-gray-300 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center shadow-sm transition-colors"
-            title="Resume analysis"
-          >
-            <Play size={14} />
-          </button>
+          <SimpleTooltip label="Resume analysis">
+            <button
+              type="button"
+              onClick={() => setIsEnabled(true)}
+              aria-label="Resume analysis"
+              className="w-8 h-8 rounded-full border border-gray-300 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center shadow-sm transition-colors"
+            >
+              <Play size={14} />
+            </button>
+          </SimpleTooltip>
         </div>
         <div className="flex flex-col items-center justify-center flex-1 text-gray-500 dark:text-slate-400 p-4 text-center">
           <p>Engine analysis is paused.</p>
@@ -111,14 +114,16 @@ export function StockfishPanel() {
         </div>
         <div className="flex items-center gap-2">
           {isAnalyzing && <Loader2 className="animate-spin text-primary" size={20} />}
-          <button
-            type="button"
-            onClick={() => setIsEnabled(false)}
-            className="w-8 h-8 rounded-full border border-gray-300 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center shadow-sm transition-colors"
-            title="Pause analysis"
-          >
-            <Pause size={14} />
-          </button>
+          <SimpleTooltip label="Pause analysis">
+            <button
+              type="button"
+              onClick={() => setIsEnabled(false)}
+              aria-label="Pause analysis"
+              className="w-8 h-8 rounded-full border border-gray-300 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center shadow-sm transition-colors"
+            >
+              <Pause size={14} />
+            </button>
+          </SimpleTooltip>
         </div>
       </div>
 

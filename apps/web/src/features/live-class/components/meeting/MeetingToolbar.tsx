@@ -178,12 +178,24 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
             label={isChessboardOpen ? "Close Board" : "Share Board"}
             variant={isChessboardOpen ? "active" : "default"}
             onClick={() => {
-              const newState = !isChessboardOpen;
+              const opening = !isChessboardOpen;
               toggleChessboard();
               // Students watch this attribute to mirror the board open/close
-              // (MeetingLayout). The coach edits it in-meeting via
-              // LiveChessboardPanel; a dedicated window is opt-in from there.
-              localParticipant?.setAttributes({ isChessboardOpen: newState.toString() }).catch(console.warn);
+              // (MeetingLayout) and render their inline board tile.
+              localParticipant?.setAttributes({ isChessboardOpen: opening.toString() }).catch(console.warn);
+              // The coach's board UI lives entirely in its own tab — the meeting
+              // screen stays a meeting.
+              if (opening) {
+                window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
+              } else {
+                try {
+                  const channel = new BroadcastChannel(`live-class-board-${roomId}`);
+                  channel.postMessage({ type: "CLOSE_BOARD_TAB" });
+                  channel.close();
+                } catch {
+                  /* BroadcastChannel unsupported — the coach can close the tab manually */
+                }
+              }
             }}
           />
         )}

@@ -30,7 +30,7 @@ packages/
   tsconfig/     shared base tsconfig
 e2e/            Playwright specs
 scripts/        deploy + db backup shell scripts
-docker-compose.yml, livekit.yaml
+docker-compose.yml  (livekit-server config is inline as LIVEKIT_CONFIG here)
 ```
 
 ### Tech stack

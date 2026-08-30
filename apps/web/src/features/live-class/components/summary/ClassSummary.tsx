@@ -92,10 +92,8 @@ export function ClassSummary({ classId }: { classId: string }) {
             {data.status}
           </span>
         </div>
-        <p className="text-app-muted">
-          {data.batchName} &middot; {data.coachName}
-        </p>
-        <p className="mt-0.5 text-sm text-app-muted">
+        <p className="text-sm text-app-muted">
+          {data.batchName} &middot; {data.coachName} &middot;{" "}
           {new Date(data.scheduledStart).toLocaleDateString(undefined, {
             weekday: "long",
             month: "long",

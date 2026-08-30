@@ -29,7 +29,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
 
   const {
     chess, fen, turn, orientation, boardTheme, pieceTheme, showCoordinates,
-    makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentId,
+    makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode, isDetached
   } = useBoardStore();
 
@@ -41,12 +41,12 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     if (isDetached) return true;
     switch (permissionMode) {
       case "EVERYONE": return true;
-      case "SELECTED_STUDENT": return !!localParticipant && localParticipant.identity === selectedStudentId;
+      case "SELECTED_STUDENT": return !!localParticipant && selectedStudentIds.includes(localParticipant.identity);
       case "VIEW_ONLY":
       case "COACH_ONLY":
       default: return false;
     }
-  }, [isCoach, permissionMode, selectedStudentId, localParticipant, isEditingPosition, isDetached, readOnly]);
+  }, [isCoach, permissionMode, selectedStudentIds, localParticipant, isEditingPosition, isDetached, readOnly]);
 
   // Compute legal moves
   const dests = useMemo(() => {

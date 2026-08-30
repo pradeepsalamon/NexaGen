@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, Download } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, Timer } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,12 @@ import { useMyAssignment, useUpdateMyAssignmentStatus } from "../hooks/useAssign
 import { PgnBoardViewer } from "./PgnBoardViewer";
 import { DifficultyBadge, DueBadge, StatusBadge } from "./assignmentBadges";
 
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export function StudentAssignmentDetailClient({ id }: { id: string }) {
   const router = useRouter();
   const timeZone = useUserTimeZone();
@@ -21,11 +27,20 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
   const assignment = data?.assignment;
 
   const [note, setNote] = useState("");
+  const noteRef = useRef(note);
   const startedRef = useRef(false);
+  const [timeSpentSeconds, setTimeSpentSeconds] = useState(0);
+
+  useEffect(() => {
+    noteRef.current = note;
+  }, [note]);
 
   useEffect(() => {
     if (assignment?.note) setNote(assignment.note);
-  }, [assignment?.note]);
+    if (assignment?.status === "COMPLETED") {
+      setTimeSpentSeconds(assignment.timeSpentSeconds ?? 0);
+    }
+  }, [assignment]);
 
   // First open marks it in progress so the coach sees the student engaged.
   useEffect(() => {
@@ -34,6 +49,30 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
       statusMutation.mutate({ status: "IN_PROGRESS" });
     }
   }, [assignment, statusMutation]);
+
+  // Timer logic
+  useEffect(() => {
+    if (!assignment || assignment.status === "COMPLETED") return;
+
+    const timer = setInterval(() => {
+      setTimeSpentSeconds((s) => s + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [assignment]);
+
+  // Auto-complete logic
+  useEffect(() => {
+    if (!assignment || assignment.status === "COMPLETED" || !assignment.timeLimitMinutes) return;
+    
+    if (timeSpentSeconds >= assignment.timeLimitMinutes * 60 && !statusMutation.isPending) {
+      statusMutation.mutate({
+        status: "COMPLETED",
+        note: noteRef.current.trim() || undefined,
+        timeSpentSeconds
+      });
+    }
+  }, [timeSpentSeconds, assignment, statusMutation]);
 
   if (isLoading) {
     return (
@@ -57,6 +96,8 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
   }
 
   const isDone = assignment.status === "COMPLETED";
+  const timeLimit = assignment.timeLimitMinutes ? assignment.timeLimitMinutes * 60 : null;
+  const displayTime = timeLimit ? Math.max(0, timeLimit - timeSpentSeconds) : timeSpentSeconds;
 
   return (
     <div className="space-y-5 pb-10 animate-fade-in">
@@ -65,17 +106,26 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
         Back to assignments
       </Button>
 
-      <div className="space-y-2">
-        <h1 className="text-2xl font-extrabold tracking-tight text-app-text">{assignment.title}</h1>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <DifficultyBadge difficulty={assignment.difficulty} />
-          <DueBadge dueDate={assignment.dueDate} formatted={formatFullDate(assignment.dueDate, timeZone)} />
-          <StatusBadge status={assignment.status} />
-          {assignment.coachName && <span className="text-app-muted">by {assignment.coachName}</span>}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-extrabold tracking-tight text-app-text">{assignment.title}</h1>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <DifficultyBadge difficulty={assignment.difficulty} />
+            <DueBadge dueDate={assignment.dueDate} formatted={formatFullDate(assignment.dueDate, timeZone)} />
+            <StatusBadge status={assignment.status} />
+            {assignment.coachName && <span className="text-app-muted">by {assignment.coachName}</span>}
+          </div>
+          {assignment.description && (
+            <p className="max-w-2xl text-sm text-app-muted">{assignment.description}</p>
+          )}
         </div>
-        {assignment.description && (
-          <p className="max-w-2xl text-sm text-app-muted">{assignment.description}</p>
-        )}
+        
+        <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-background/50 px-4 py-2 font-mono text-xl font-bold tracking-tight text-app-text">
+          <Timer className="size-5" />
+          <span className={timeLimit && displayTime <= 60 && !isDone ? "text-red-500 animate-pulse" : ""}>
+            {formatTime(displayTime)}
+          </span>
+        </div>
       </div>
 
       <Card className="p-4">
@@ -98,7 +148,11 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
           <Button
             disabled={isDone || statusMutation.isPending}
             onClick={() =>
-              statusMutation.mutate({ status: "COMPLETED", note: note.trim() || undefined })
+              statusMutation.mutate({
+                status: "COMPLETED",
+                note: note.trim() || undefined,
+                timeSpentSeconds
+              })
             }
           >
             <CheckCircle2 className="mr-2 size-4" strokeWidth={2.5} />

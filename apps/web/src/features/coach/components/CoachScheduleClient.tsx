@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/providers/ToastProvider";
 import { useUpcomingClasses, useCoachBatches, useCancelClass } from "../hooks/useCoachApi";
 import { ClassCard } from "./ClassCard";
 import { ScheduleClassDialog } from "./ScheduleClassDialog";
@@ -20,10 +21,10 @@ export function CoachScheduleClient() {
   const { data: upcomingData, isLoading: upcomingLoading } = useUpcomingClasses();
   const { data: batchesData, isLoading: batchesLoading } = useCoachBatches();
 
+  const toast = useToast();
   const [dialogOpen, setDialogOpen] = useState(openQuery);
   const [classToEdit, setClassToEdit] = useState<CoachClass | null>(null);
-  const [classToCancel, setClassToCancel] = useState<CoachClass | null>(null);
-  const cancelClassMutation = useCancelClass(classToCancel?.id || "");
+  const cancelClassMutation = useCancelClass();
 
   useEffect(() => {
     if (openQuery) {
@@ -38,12 +39,10 @@ export function CoachScheduleClient() {
   };
 
   const handleCancel = (classItem: CoachClass) => {
-    if (confirm(`Are you sure you want to cancel the class for ${classItem.batchName}?`)) {
-      setClassToCancel(classItem);
-      cancelClassMutation.mutate(undefined, {
-        onSuccess: () => setClassToCancel(null)
-      });
-    }
+    toast.undoable({
+      title: `Cancelling class for ${classItem.batchName}`,
+      onCommit: () => cancelClassMutation.mutate(classItem.id)
+    });
   };
 
   const openNewClassDialog = () => {

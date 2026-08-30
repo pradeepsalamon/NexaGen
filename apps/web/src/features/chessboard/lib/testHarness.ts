@@ -13,7 +13,7 @@ export interface BoardTestHarness {
   fen: () => string;
   turn: () => "white" | "black";
   clock: () => ClockState;
-  permission: () => { mode: string; selectedStudentId?: string };
+  permission: () => { mode: string; selectedStudentIds: string[] };
   detach: () => void;
   resync: () => void;
   isDetached: () => boolean;
@@ -39,7 +39,7 @@ export function installBoardTestHarness(store: StoreApi<BoardStore>): () => void
     clock: () => store.getState().clock,
     permission: () => ({
       mode: store.getState().permissionMode,
-      selectedStudentId: store.getState().selectedStudentId,
+      selectedStudentIds: store.getState().selectedStudentIds,
     }),
     detach: () => store.getState().detachBoard(),
     resync: () => store.getState().resyncBoard(),

@@ -479,6 +479,7 @@ export class UserService {
             chessRating: user.studentProfile.chessRating,
             dateOfBirth: user.studentProfile.dateOfBirth?.toISOString() ?? null,
             experienceLevel: user.studentProfile.experienceLevel,
+            referralSource: user.studentProfile.referralSource,
             fideId: user.studentProfile.fideId,
             parentEmail: user.studentProfile.parentEmail,
             parentName: user.studentProfile.parentName,

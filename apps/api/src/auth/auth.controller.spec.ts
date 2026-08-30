@@ -96,7 +96,7 @@ describe("AuthController", () => {
         confirmPassword: "password123",
         contactNumber: "1234567890",
         email: "test@example.com",
-        experienceLevel: "beginner",
+        referralSource: "friend",
         parentName: "Parent",
         password: "password123",
         studentAge: "10",

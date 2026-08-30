@@ -31,7 +31,8 @@ interface ChatContextValue {
 const ChatContext = createContext<ChatContextValue | undefined>(undefined);
 
 export function ChatProvider({ children, classId }: { children: ReactNode; classId: string }) {
-  const { send: livekitSend, chatMessages: rawChatMessages, isSending } = useChat();
+  const { send: livekitSend, chatMessages: rawChatMessages } = useChat();
+  const [isSending, setIsSending] = useState(false);
   const { activeSidebar } = useLiveClassState();
   const [unreadCount, setUnreadCount] = useState(0);
   const [draft, setDraft] = useState("");
@@ -147,24 +148,34 @@ export function ChatProvider({ children, classId }: { children: ReactNode; class
   const resetUnreadCount = () => setUnreadCount(0);
 
   const send = useCallback(async (msg: string) => {
-    // 1. Send via LiveKit for instant broadcast
-    const result = await livekitSend(msg);
-    // 2. Persist to DB with LiveKit's message id so history dedupe is exact
-    //    (AUDIT M24); retry once, then surface the failure instead of silently
-    //    losing the message on the next reload (AUDIT M26).
-    if (classId) {
-      const clientMessageId = result?.id;
-      import("../api/live-class").then(({ saveChatMessage }) => {
-        saveChatMessage(classId, msg, clientMessageId)
-          .catch(() => saveChatMessage(classId, msg, clientMessageId))
-          .catch((err) => {
-            console.error("Failed to persist chat message", err);
-            toast.error("Message sent but not saved — it may not appear after a reload.");
-          });
-      });
+    if (isSending) return undefined as any;
+    setIsSending(true);
+    try {
+      // 1. Send via LiveKit for instant broadcast
+      const result = await livekitSend(msg);
+      // 2. Persist to DB with LiveKit's message id so history dedupe is exact
+      //    (AUDIT M24); retry once, then surface the failure instead of silently
+      //    losing the message on the next reload (AUDIT M26).
+      if (classId) {
+        const clientMessageId = result?.id;
+        import("../api/live-class").then(({ saveChatMessage }) => {
+          saveChatMessage(classId, msg, clientMessageId)
+            .catch(() => saveChatMessage(classId, msg, clientMessageId))
+            .catch((err) => {
+              console.error("Failed to persist chat message", err);
+              toast.error("Message sent but not saved — it may not appear after a reload.");
+            });
+        });
+      }
+      return result;
+    } catch (err) {
+      console.error("LiveKit send failed:", err);
+      toast.error("Failed to send message. Please try again.");
+      throw err;
+    } finally {
+      setIsSending(false);
     }
-    return result;
-  }, [livekitSend, classId]);
+  }, [livekitSend, classId, isSending]);
 
   return (
     <ChatContext.Provider

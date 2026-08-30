@@ -116,7 +116,31 @@ test.describe("Analysis board", () => {
     await page.getByRole("button", { name: /Load Games\/Positions/i }).click();
     const fen = "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1";
     await page.getByRole("tab", { name: /Setup Position/i }).click();
-    await page.locator('input[value*="/"]').first().fill(fen);
+
+    const dialog = page.getByRole("dialog");
+    const boardPieces = dialog.locator('[data-testid="position-editor-board"] piece');
+
+    // Board actually renders (regression: the setup board used to be blank).
+    await expect.poll(() => boardPieces.count()).toBe(32);
+
+    // Spare-piece palette renders (6 roles x 2 colors).
+    await expect(dialog.locator("[data-spare-piece]")).toHaveCount(12);
+    await expect(dialog.locator('[data-spare-piece="white-queen"]')).toBeVisible();
+
+    // Castling controls are visible and clickable (regression: a stray bar used
+    // to overlap the black-castling row).
+    const blackKingside = dialog.getByRole("checkbox", { name: "Black kingside (O-O)" });
+    await expect(blackKingside).toBeVisible();
+    await blackKingside.uncheck();
+    await expect(blackKingside).not.toBeChecked();
+
+    // FEN field drives the board reactively.
+    await dialog.getByLabel("FEN").fill("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
+    await expect.poll(() => boardPieces.count()).toBe(2);
+
+    await dialog.getByLabel("FEN").fill(fen);
+    await expect.poll(() => boardPieces.count()).toBe(32);
+
     await page.getByRole("button", { name: /^Load Position$/ }).click();
 
     await expect

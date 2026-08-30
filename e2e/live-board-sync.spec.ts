@@ -30,7 +30,7 @@ interface NexaBoardHarness {
   fen: () => string;
   turn: () => "white" | "black";
   clock: () => { running: string | null; enabled: boolean };
-  permission: () => { mode: string; selectedStudentId?: string };
+  permission: () => { mode: string; selectedStudentIds: string[] };
   detach: () => void;
   resync: () => void;
   isDetached: () => boolean;

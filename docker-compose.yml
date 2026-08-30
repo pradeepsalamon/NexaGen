@@ -65,17 +65,30 @@ services:
     container_name: nexa_livekit
     restart: unless-stopped
 
-    command: --config /etc/livekit.yaml
-
+    # Config is passed inline via LIVEKIT_CONFIG (not a mounted file) so Docker
+    # Compose interpolates ${LIVEKIT_API_KEY} into webhook.api_key before the
+    # container starts — livekit-server does not expand env vars inside a config
+    # file, and the webhook block is what drives coach/board attendance events.
     environment:
       LIVEKIT_KEYS: "${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}"
       LIVEKIT_API_KEY: "${LIVEKIT_API_KEY}"
       LIVEKIT_API_SECRET: "${LIVEKIT_API_SECRET}"
-      LIVEKIT_WEBHOOK_API_KEY: "${LIVEKIT_API_KEY}"
-      LIVEKIT_WEBHOOK_URLS: "http://api:3001/webhooks/livekit"
-
-    volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+      LIVEKIT_CONFIG: |
+        port: 7880
+        bind_addresses:
+          - ""
+        rtc:
+          tcp_port: 7881
+          port_range_start: 50000
+          port_range_end: 50010
+          use_external_ip: true
+          node_ip: 146.56.55.170
+        redis:
+          address: redis:6379
+        webhook:
+          api_key: ${LIVEKIT_API_KEY}
+          urls:
+            - http://api:3001/webhooks/livekit
 
     depends_on:
       redis:

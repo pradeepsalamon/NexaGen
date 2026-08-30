@@ -30,6 +30,14 @@ type PromiseInput = {
   success: string;
 };
 
+type UndoableInput = {
+  actionLabel?: string;
+  delayMs?: number;
+  message?: string;
+  onCommit: () => void;
+  title: string;
+};
+
 type ToastContextValue = {
   dismissToast: (id: string | number) => void;
   error: (toast: Omit<ToastInput, "type">) => void;
@@ -38,6 +46,7 @@ type ToastContextValue = {
   promise: <T>(promise: Promise<T>, messages: PromiseInput) => void;
   showToast: (toast: ToastInput) => void;
   success: (toast: Omit<ToastInput, "type">) => void;
+  undoable: (toast: UndoableInput) => void;
   warning: (toast: Omit<ToastInput, "type">) => void;
 };
 
@@ -99,6 +108,27 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       },
       showToast,
       success: (toast) => showToast({ ...toast, type: "success" }),
+      undoable: ({ actionLabel, delayMs, message, onCommit, title }) => {
+        const duration = delayMs ?? 6000;
+        let committed = false;
+        const timer = setTimeout(() => {
+          committed = true;
+          onCommit();
+        }, duration);
+        showToast({
+          action: {
+            label: actionLabel ?? "Undo",
+            onClick: () => {
+              if (committed) return;
+              clearTimeout(timer);
+            }
+          },
+          durationMs: duration,
+          message,
+          title,
+          type: "info"
+        });
+      },
       warning: (toast) => showToast({ ...toast, type: "warning" })
     }),
     []

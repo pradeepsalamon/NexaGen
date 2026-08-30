@@ -26,4 +26,28 @@ const TooltipContent = React.forwardRef<
 ));
 TooltipContent.displayName = TooltipPrimitive.Content.displayName;
 
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
+type SimpleTooltipProps = {
+  children: React.ReactNode;
+  label: React.ReactNode;
+  side?: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>["side"];
+  align?: React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>["align"];
+  className?: string;
+};
+
+/**
+ * Reusable single-child tooltip. Prefer this over the native `title=` attribute
+ * on interactive elements — it is themed, keyboard-accessible, and consistent.
+ * The child must forward a ref and props (a DOM element or `asChild` primitive).
+ */
+function SimpleTooltip({ align, children, className, label, side = "top" }: SimpleTooltipProps) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent align={align} className={className} side={side}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+export { SimpleTooltip, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };

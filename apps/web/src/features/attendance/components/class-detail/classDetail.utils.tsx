@@ -1,5 +1,6 @@
 import {
   Clock,
+  LayoutGrid,
   LogIn,
   LogOut,
   RefreshCcw,
@@ -33,7 +34,23 @@ export function getEventIcon(eventType: string) {
       return <WifiOff className="h-4 w-4 text-orange-500" />;
     case "RECONNECT":
       return <RefreshCcw className="h-4 w-4 text-blue-500" />;
+    case "BOARD_JOIN":
+    case "BOARD_LEAVE":
+      return <LayoutGrid className="h-4 w-4 text-blue-500" />;
     default:
       return <Clock className="h-4 w-4 text-app-muted" />;
   }
+}
+
+const EVENT_LABELS: Record<string, string> = {
+  JOIN: "Joined",
+  LEAVE: "Left",
+  DISCONNECT: "Disconnected",
+  RECONNECT: "Reconnected",
+  BOARD_JOIN: "Started board sharing",
+  BOARD_LEAVE: "Stopped board sharing",
+};
+
+export function formatEventLabel(eventType: string) {
+  return EVENT_LABELS[eventType] ?? eventType;
 }

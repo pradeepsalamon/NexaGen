@@ -1,6 +1,6 @@
-import type { ExperienceLevel } from "@nexa-chess/types";
+import type { ReferralSource } from "@nexa-chess/types";
 
-export type { ExperienceLevel };
+export type { ReferralSource };
 
 export type LoginFormValues = {
   email: string;
@@ -12,7 +12,7 @@ export type RegisterFormValues = {
   confirmPassword: string;
   contactNumber: string;
   email: string;
-  experienceLevel: ExperienceLevel | "";
+  referralSource: ReferralSource | "";
   parentName: string;
   password: string;
   studentAge: string;

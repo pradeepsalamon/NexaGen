@@ -8,18 +8,18 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCoachDashboard, useTodayClasses } from "../hooks/useCoachApi";
 import { ClassCard } from "./ClassCard";
-import { useState } from "react";
 import type { CoachClass } from "@nexa-chess/types";
+import { useToast } from "@/providers/ToastProvider";
 import { useCancelClass } from "../hooks/useCoachApi";
 import { useRouter } from "next/navigation";
 
 export function CoachDashboardClient() {
   const router = useRouter();
+  const toast = useToast();
   const { data: dashboardData, isLoading: dashboardLoading } = useCoachDashboard();
   const { data: todayData, isLoading: todayLoading } = useTodayClasses();
 
-  const [classToCancel, setClassToCancel] = useState<CoachClass | null>(null);
-  const cancelClassMutation = useCancelClass(classToCancel?.id || "");
+  const cancelClassMutation = useCancelClass();
 
   const summaryCards = [
     {
@@ -73,12 +73,10 @@ export function CoachDashboardClient() {
   ];
 
   const handleCancelClass = (classItem: CoachClass) => {
-    if (confirm(`Are you sure you want to cancel the class for ${classItem.batchName}?`)) {
-      setClassToCancel(classItem);
-      cancelClassMutation.mutate(undefined, {
-        onSuccess: () => setClassToCancel(null)
-      });
-    }
+    toast.undoable({
+      title: `Cancelling class for ${classItem.batchName}`,
+      onCommit: () => cancelClassMutation.mutate(classItem.id)
+    });
   };
 
   return (

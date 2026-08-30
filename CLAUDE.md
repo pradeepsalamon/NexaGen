@@ -162,14 +162,16 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 - Styling: Tailwind with CSS-variable tokens. Use theme tokens (`bg-app-surface`, `text-app-text`, `text-app-muted`, `border-app-border`, `bg-primary`, `text-primary`, `bg-app-background`, `rounded-app`/`rounded-control`/`rounded-panel`, `shadow-card`/`shadow-soft`). Tokens are defined in `src/styles/globals.css` (`:root` and `:root[data-theme="dark"]`); Tailwind maps them in `tailwind.config.ts`. Dark mode = `[data-theme="dark"]` selector.
 - **Data-table action buttons** (Edit/Delete/Archive/Restore/Download) MUST be `rounded-full` icon buttons with `aria-label`, `size="icon"`, `className="size-8 rounded-full border-[color] p-0 ... hover:bg-[color] hover:text-white"`, and the Lucide icon needs `strokeWidth={2.5}`. Exact template in `.agents/AGENTS.md`.
 - Icon-only buttons always need an `aria-label` + a visible hover/focus label via Tooltip/Popover.
+- **Tooltips: use the reusable `SimpleTooltip` (`components/ui/Tooltip.tsx`), not the native `title=` attribute**, on interactive elements: `<SimpleTooltip label="Grant board control"><button aria-label="Grant board control">…</button></SimpleTooltip>`. `title=` is only acceptable on non-interactive nodes (decorative bars) and elements that are already an `asChild` trigger for another Radix primitive (e.g. a `PopoverTrigger` button) where double-wrapping breaks composition — keep the `aria-label` there. The global `TooltipProvider` lives in `AppProviders.tsx`.
+- **Confirmations: never use `window.confirm`. Use `useToast().undoable({ title, message?, onCommit })`** (`providers/ToastProvider.tsx`) — it fires the destructive action after a short delay and shows an "Undo" toast that cancels it. For actions with a real reverse endpoint, prefer the execute-immediately + `action: { label: "Undo", onClick }` pattern instead (see `DemoClassesClient.tsx`).
 - Button variants (CVA): `primary`, `destructive`, `ghost`, `outline`, `secondary`.
-- Toasts: `sonner`.
+- Toasts: `sonner`, wrapped by `useToast()` (`providers/ToastProvider.tsx`) — `success`/`error`/`warning`/`info`/`loading`/`promise`/`undoable`.
 
 ### 3.7 Live class / LiveKit
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
 - Attendance is driven off LiveKit join/leave/disconnect events → `attendance` module → `class_attendance` / `attendance_logs` / `coach_attendance` tables, scored against the active `AttendancePolicy`.
-- Board sync: `apps/web/src/features/chessboard/` (chessground + chess.js, Zustand `boardStore`) bridged into the meeting via `LiveBoardSyncBridge` (single sync engine + `BoardSyncContext`; consume with `useBoardSync()`) / `useLiveBoardSyncBridge`. Board control is keyed by full LiveKit participant identity; the shared chess clock and per-client detach live in `createBoardStore`. Sync-permission rule: `features/chessboard/lib/boardSyncRules.ts`.
+- Board sync: `apps/web/src/features/chessboard/` (chessground + chess.js, Zustand `boardStore`) bridged into the meeting via `LiveBoardSyncBridge` (single sync engine + `BoardSyncContext`; consume with `useBoardSync()`) / `useLiveBoardSyncBridge`. Board control is keyed by full LiveKit participant identity and is **multi-student**: `boardControlStudentIds: string[]` in `LiveClassProvider` (grant/revoke/toggle helpers) → `permissionMode` `SELECTED_STUDENT` + `selectedStudentIds: string[]` in `createBoardStore`, broadcast via `UPDATE_PERMISSIONS`. The shared chess clock and per-client detach also live in `createBoardStore`. Sync-permission rule: `features/chessboard/lib/boardSyncRules.ts`.
 
 ---
 

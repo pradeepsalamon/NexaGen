@@ -41,7 +41,8 @@ export interface BoardState {
   
   // Permissions
   permissionMode: BoardPermissionMode;
-  selectedStudentId?: string;
+  /** Full LiveKit identities granted control while `permissionMode` is SELECTED_STUDENT. */
+  selectedStudentIds: string[];
   
   // Settings
   animationDuration: number;
@@ -56,7 +57,6 @@ export interface BoardState {
 
   // Workspace UI (synced across clients)
   activeTab: string;
-  pdfUrl: string | null;
 
   // Shared chess clock (synced across clients via SET_CLOCK; coach-controlled).
   clock: ClockState;
@@ -96,7 +96,7 @@ export interface BoardActions {
   clearAnnotations: () => void;
   
   // Permissions
-  setPermissionMode: (mode: BoardPermissionMode, studentId?: string) => void;
+  setPermissionMode: (mode: BoardPermissionMode, studentIds?: string[]) => void;
 
   // Clock (coach-controlled)
   setClock: (clock: ClockState) => void;
@@ -125,7 +125,6 @@ export interface BoardActions {
 
   // Workspace UI (synced across clients)
   setActiveTab: (tab: string) => void;
-  setPdfUrl: (url: string | null) => void;
 }
 
 export type BoardStore = BoardState & BoardActions;
@@ -164,7 +163,7 @@ export const createBoardStore = () => {
     squareStyles: {},
     
     permissionMode: "COACH_ONLY",
-    selectedStudentId: undefined,
+    selectedStudentIds: [],
     
     animationDuration: 200,
     highlightLastMove: true,
@@ -175,7 +174,6 @@ export const createBoardStore = () => {
     isSetupPositionOpen: false,
 
     activeTab: "moves",
-    pdfUrl: null,
 
     clock: { ...DEFAULT_CLOCK },
     isDetached: false,
@@ -408,7 +406,7 @@ export const createBoardStore = () => {
     setAnnotations: (arrows, squares) => set({ arrows, squareStyles: squares }),
     clearAnnotations: () => set({ arrows: [], squareStyles: {} }),
     
-    setPermissionMode: (mode, studentId) => set({ permissionMode: mode, selectedStudentId: studentId }),
+    setPermissionMode: (mode, studentIds) => set({ permissionMode: mode, selectedStudentIds: studentIds ?? [] }),
 
     setClock: (clock) => set({ clock }),
     configureClock: ({ initialMs, incrementMs }) =>
@@ -462,7 +460,7 @@ export const createBoardStore = () => {
         if (!payload.permissionMode) return;
         set({
           permissionMode: payload.permissionMode,
-          selectedStudentId: payload.selectedStudentId,
+          selectedStudentIds: payload.selectedStudentIds ?? [],
           remoteSyncId: state.remoteSyncId + 1
         });
         return;
@@ -529,7 +527,6 @@ export const createBoardStore = () => {
     },
     setIsDrawingMode: (mode) => set({ isDrawingMode: mode }),
     setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open }),
-    setActiveTab: (tab) => set({ activeTab: tab }),
-    setPdfUrl: (pdfUrl) => set({ pdfUrl })
+    setActiveTab: (tab) => set({ activeTab: tab })
   }));
 };

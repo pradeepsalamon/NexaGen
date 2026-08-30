@@ -10,7 +10,7 @@ import {
   MinLength
 } from "class-validator";
 
-const experienceLevels = ["beginner", "intermediate", "advanced"] as const;
+const referralSources = ["ads", "friend", "school", "other"] as const;
 
 export class RegisterDto implements RegisterRequest {
   @IsString()
@@ -27,8 +27,8 @@ export class RegisterDto implements RegisterRequest {
   @Matches(/^\d+$/, { message: "Student age must be a number." })
   studentAge!: string;
 
-  @IsIn(experienceLevels)
-  experienceLevel!: RegisterRequest["experienceLevel"];
+  @IsIn(referralSources)
+  referralSource!: RegisterRequest["referralSource"];
 
   @IsString()
   @IsNotEmpty()

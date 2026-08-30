@@ -84,4 +84,17 @@ export class LiveClassController {
   downloadRecording(@Param("id") id: string, @Req() request: Request) {
     return this.liveClassService.downloadRecording(this.getAccessToken(request), id);
   }
+
+  @Post(API_ROUTES.liveClass.recordingProgress())
+  updateRecordingProgress(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body() body: { watchedSeconds: number }
+  ) {
+    return this.liveClassService.updateRecordingProgress(
+      this.getAccessToken(request),
+      id,
+      body.watchedSeconds
+    );
+  }
 }
