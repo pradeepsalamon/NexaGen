@@ -61,11 +61,27 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 | Item | Notes |
 |---|---|
-| **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**PGN assignments now have full authoring** — see the `assignment` module; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
+| **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
 | **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
 | **Live-monitoring screen** | `GET /attendance/class/:id/live` (`classLive`) and `getLiveClassMonitoring` are fully implemented and unused — no frontend. Same one-sided-feature cause as the (now-wired) admin drill-downs: reuse the `StudentAttendanceView` / dialog pattern in `features/attendance/components/`. |
 
 ## Resolved (2026-08-30)
+
+- **Assignments are now a full learning system, not just PGN replay.** Added an
+  `activityType` (`REPLAY` | `SOLVE_LINE` | `PLAY_VS_ENGINE` | `FREE_ANALYSIS`) to
+  `Assignment` plus interactive-activity config columns (all additive, `REPLAY`
+  default — every existing row and deployment is untouched). New
+  `StudentAssignmentAttempt` model + `bestScore/bestAccuracy/attemptCount` on
+  `StudentAssignment`. Server-authoritative `AssignmentEvaluationService` +
+  `AssignmentAttemptService` with the attempt-lifecycle endpoints under
+  `/assignments/mine/:id/attempts`. Frontend: reusable `PracticeBoard`,
+  `SolutionEditor`, activity-aware `AssignmentFormDialog` and
+  `StudentAssignmentDetailClient`, result/review views, coach score columns and
+  admin aggregate performance. Migration
+  `20260830152004_add_assignment_activities_and_attempts`. See README §Features.
+  Known limits: `PLAY_VS_ENGINE` accuracy (centipawn-loss) is not computed —
+  score is game-result only; hint UI is stubbed disabled; `FREE_ANALYSIS`
+  completion is manual-submit only (no move-count target).
 
 - **Phantom "Absent with a join time" in the post-class report.** `getToken`
   opens a `ClassAttendance` row (`recordJoinEvent`, `source: "TOKEN_REQUEST"`)

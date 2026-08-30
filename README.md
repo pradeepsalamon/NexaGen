@@ -30,10 +30,31 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - Login timing protection for unknown-email and wrong-password attempts
 - Batch management with soft delete into the Super Admin Trash workspace
 - Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
-- PGN assignments: admin-authored shared library + coach-authored items, deployed
-  to batches with a due date; students replay the line on a read-only board and
-  mark it complete (`assignment` API module, `features/assignments` on web,
-  `/coach/assignments`, `/admin/assignments`, `/student/practice`)
+- Assignments: admin-authored shared library + coach-authored items, deployed
+  to batches with a due date (`assignment` API module, `features/assignments` on
+  web, `/coach/assignments`, `/admin/assignments`, `/student/practice`). Each
+  assignment has an **activity type**:
+  - `REPLAY` (default; every legacy assignment) — read-only PGN replay, marked
+    complete manually or on the time limit.
+  - `SOLVE_LINE` — the student plays the expected line move-by-move on an
+    interactive board; forced replies are revealed one at a time and the server
+    scores `correct required moves / required moves`.
+  - `PLAY_VS_ENGINE` — the student plays a position out against the pooled
+    Stockfish engine (skill level configurable); scored from the game result.
+  - `FREE_ANALYSIS` — an open interactive board the student submits when done.
+
+  Evaluated activities (everything but `REPLAY`) record `StudentAssignmentAttempt`
+  rows. The server owns all evaluation (`AssignmentEvaluationService`): legal-move
+  validation, correctness, score, accuracy, completion and attempt limits. The
+  solution line is never sent to a student before completion. Attempt lifecycle:
+  `POST /assignments/mine/:id/attempts` (start/resume) → `PATCH .../:attemptId`
+  (save progress, returns per-move feedback for `SOLVE_LINE`) →
+  `POST .../:attemptId/submit` (authoritative evaluation) with
+  `POST .../:attemptId/engine-move` for `PLAY_VS_ENGINE`. Coaches see per-student
+  score/accuracy/attempts; admins see aggregate performance per library item.
+  Reusable board: `features/chessboard/components/board/PracticeBoard` (no LiveKit
+  coupling); admins build positions with the shared `PositionEditor` and record
+  solutions by playing them in `SolutionEditor`.
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
 
 ## Development

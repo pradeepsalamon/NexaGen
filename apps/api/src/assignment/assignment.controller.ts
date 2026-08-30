@@ -4,20 +4,30 @@ import {
   API_ROUTES,
   createAssignmentRequestSchema,
   deployAssignmentRequestSchema,
+  requestEngineMoveRequestSchema,
+  saveAttemptProgressRequestSchema,
+  submitAttemptRequestSchema,
   updateAssignmentRequestSchema,
   updateAssignmentStatusRequestSchema,
   type CreateAssignmentRequest,
   type DeployAssignmentRequest,
+  type RequestEngineMoveRequest,
+  type SaveAttemptProgressRequest,
+  type SubmitAttemptRequest,
   type UpdateAssignmentRequest,
   type UpdateAssignmentStatusRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { AssignmentAttemptService } from "./assignment-attempt.service";
 import { AssignmentService } from "./assignment.service";
 
 @Controller()
 export class AssignmentController {
-  constructor(private readonly assignmentService: AssignmentService) {}
+  constructor(
+    private readonly assignmentService: AssignmentService,
+    private readonly attemptService: AssignmentAttemptService
+  ) {}
 
   // ── Library (admin: shared items; coach: shared + own) ──
 
@@ -68,6 +78,57 @@ export class AssignmentController {
     @Req() request: Request
   ) {
     return this.assignmentService.updateStatus(this.getAccessToken(request), id, body);
+  }
+
+  // ── Attempts for evaluated activities (student) ──
+
+  @Post(API_ROUTES.assignments.attempts())
+  startAttempt(@Param("id") id: string, @Req() request: Request) {
+    return this.attemptService.start(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.assignments.attempts())
+  listAttempts(@Param("id") id: string, @Req() request: Request) {
+    return this.attemptService.history(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.assignments.attempt())
+  getAttempt(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Req() request: Request
+  ) {
+    return this.attemptService.get(this.getAccessToken(request), id, attemptId);
+  }
+
+  @Patch(API_ROUTES.assignments.attempt())
+  saveAttemptProgress(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Body(new ZodBodyPipe(saveAttemptProgressRequestSchema)) body: SaveAttemptProgressRequest,
+    @Req() request: Request
+  ) {
+    return this.attemptService.saveProgress(this.getAccessToken(request), id, attemptId, body);
+  }
+
+  @Post(API_ROUTES.assignments.submitAttempt())
+  submitAttempt(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Body(new ZodBodyPipe(submitAttemptRequestSchema)) body: SubmitAttemptRequest,
+    @Req() request: Request
+  ) {
+    return this.attemptService.submit(this.getAccessToken(request), id, attemptId, body);
+  }
+
+  @Post(API_ROUTES.assignments.engineMove())
+  engineMove(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Body(new ZodBodyPipe(requestEngineMoveRequestSchema)) body: RequestEngineMoveRequest,
+    @Req() request: Request
+  ) {
+    return this.attemptService.engineMove(this.getAccessToken(request), id, attemptId, body);
   }
 
   // ── Deployment detail / removal (coach) ──

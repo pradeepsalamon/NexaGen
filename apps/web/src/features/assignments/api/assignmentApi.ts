@@ -1,13 +1,21 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
+  AssignmentAttemptHistoryResponse,
   AssignmentDeploymentDetailResponse,
   AssignmentDeploymentListResponse,
+  AssignmentEvaluationResult,
   AssignmentLibraryResponse,
   AssignmentResponse,
+  AttemptProgressResponse,
   CreateAssignmentRequest,
   DeployAssignmentRequest,
+  RequestEngineMoveRequest,
+  RequestEngineMoveResponse,
+  SaveAttemptProgressRequest,
+  StartAttemptResponse,
   StudentAssignmentDetailResponse,
   StudentAssignmentListResponse,
+  SubmitAttemptRequest,
   UpdateAssignmentRequest,
   UpdateAssignmentStatusRequest
 } from "@nexa-chess/types";
@@ -17,6 +25,10 @@ import { apiFetch } from "@/lib/api";
 
 export function getAssignmentLibrary(): Promise<AssignmentLibraryResponse> {
   return apiFetch(API_ROUTES.assignments.library);
+}
+
+export function getAssignmentLibraryItem(id: string): Promise<AssignmentResponse> {
+  return apiFetch(API_ROUTES.assignments.get(id));
 }
 
 export function createAssignment(
@@ -73,4 +85,47 @@ export function updateMyAssignmentStatus(
   data: UpdateAssignmentStatusRequest
 ): Promise<StudentAssignmentDetailResponse> {
   return apiFetch(API_ROUTES.assignments.updateStatus(id), { method: "PATCH", body: data });
+}
+
+// ── Attempts (evaluated activities) ──
+
+export function startAttempt(assignmentId: string): Promise<{ attempt: StartAttemptResponse }> {
+  return apiFetch(API_ROUTES.assignments.attempts(assignmentId), { method: "POST" });
+}
+
+export function getAttemptHistory(assignmentId: string): Promise<AssignmentAttemptHistoryResponse> {
+  return apiFetch(API_ROUTES.assignments.attempts(assignmentId));
+}
+
+export function saveAttemptProgress(
+  assignmentId: string,
+  attemptId: string,
+  data: SaveAttemptProgressRequest
+): Promise<AttemptProgressResponse> {
+  return apiFetch(API_ROUTES.assignments.attempt(assignmentId, attemptId), {
+    method: "PATCH",
+    body: data
+  });
+}
+
+export function submitAttempt(
+  assignmentId: string,
+  attemptId: string,
+  data: SubmitAttemptRequest
+): Promise<AssignmentEvaluationResult> {
+  return apiFetch(API_ROUTES.assignments.submitAttempt(assignmentId, attemptId), {
+    method: "POST",
+    body: data
+  });
+}
+
+export function requestEngineMove(
+  assignmentId: string,
+  attemptId: string,
+  data: RequestEngineMoveRequest
+): Promise<RequestEngineMoveResponse> {
+  return apiFetch(API_ROUTES.assignments.engineMove(assignmentId, attemptId), {
+    method: "POST",
+    body: data
+  });
 }

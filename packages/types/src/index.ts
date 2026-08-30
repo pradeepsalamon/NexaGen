@@ -1070,40 +1070,155 @@ export const assignmentStatusSchema = z.enum(["PENDING", "IN_PROGRESS", "COMPLET
 export type AssignmentDifficulty = z.infer<typeof assignmentDifficultySchema>;
 export type AssignmentStatus = z.infer<typeof assignmentStatusSchema>;
 
+// The interactive activity an assignment asks the student to perform. Rows that
+// predate this field behave as REPLAY (the legacy PGN-replay viewer).
+export const assignmentActivityTypeSchema = z.enum([
+  "REPLAY",
+  "SOLVE_LINE",
+  "PLAY_VS_ENGINE",
+  "FREE_ANALYSIS"
+]);
+export type AssignmentActivityType = z.infer<typeof assignmentActivityTypeSchema>;
+
+export const assignmentAttemptStatusSchema = z.enum([
+  "IN_PROGRESS",
+  "COMPLETED",
+  "FAILED",
+  "ABANDONED"
+]);
+export type AssignmentAttemptStatus = z.infer<typeof assignmentAttemptStatusSchema>;
+
+export const chessColorSchema = z.enum(["white", "black"]);
+export type ChessColor = z.infer<typeof chessColorSchema>;
+
+const UCI_RE = /^[a-h][1-8][a-h][1-8][qrbnQRBN]?$/;
+
+/** One move of a stored solution line. `uci` is the source of truth for scoring. */
+export const solutionMoveSchema = z.object({
+  uci: z.string().regex(UCI_RE, "Invalid UCI move."),
+  san: z.string().min(1).max(12)
+});
+export type SolutionMove = z.infer<typeof solutionMoveSchema>;
+
+export const attemptMoveClassificationSchema = z.enum([
+  "CORRECT",
+  "INCORRECT",
+  "NEUTRAL",
+  "BOOK",
+  "GOOD",
+  "INACCURACY",
+  "MISTAKE",
+  "BLUNDER"
+]);
+
+/** One move a student played during an attempt. Sent by the client on save. */
+export const attemptMoveSchema = z.object({
+  ply: z.number().int().min(1).max(400),
+  uci: z.string().regex(UCI_RE, "Invalid UCI move."),
+  san: z.string().min(1).max(12),
+  fenAfter: z.string().min(1).max(120),
+  elapsedMs: z.number().int().min(0).max(86_400_000).optional()
+});
+export type AttemptMove = z.infer<typeof attemptMoveSchema> & {
+  correct?: boolean;
+  classification?: z.infer<typeof attemptMoveClassificationSchema>;
+  evalCp?: number | null;
+};
+
 /**
  * Create a library assignment. `batchIds` + `dueDate` are optional — when a coach
  * supplies them the item is created and immediately deployed to those batches in
  * one step. Admins omit them (library-only).
  */
+/**
+ * Fields that configure an interactive activity. All optional so existing
+ * REPLAY callers are unaffected; validated per `activityType` in a superRefine.
+ */
+const assignmentActivityConfigShape = {
+  activityType: assignmentActivityTypeSchema.optional(),
+  startFen: z.string().trim().max(120).optional(),
+  solutionMoves: z.array(solutionMoveSchema).max(80).optional(),
+  orientation: chessColorSchema.optional(),
+  studentColor: chessColorSchema.optional(),
+  engineLevel: z.number().int().min(0).max(20).optional(),
+  passThresholdPercent: z.number().int().min(1).max(100).optional(),
+  maxAttempts: z.number().int().min(1).max(50).nullable().optional(),
+  allowHints: z.boolean().optional(),
+  allowRetry: z.boolean().optional(),
+  requiredCompletionPercent: z.number().int().min(1).max(100).optional()
+};
+
+type ActivityConfigInput = {
+  activityType?: AssignmentActivityType;
+  pgn?: string;
+  startFen?: string;
+  solutionMoves?: SolutionMove[];
+};
+
+function refineActivityConfig(
+  v: ActivityConfigInput,
+  ctx: z.RefinementCtx,
+  { requirePgn }: { requirePgn: boolean }
+) {
+  const type = v.activityType ?? (requirePgn ? "REPLAY" : undefined);
+  if (type === undefined) return;
+
+  if (type === "REPLAY") {
+    if (requirePgn && !v.pgn?.trim()) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pgn"], message: "PGN is required." });
+    }
+    return;
+  }
+
+  if (!v.startFen?.trim()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["startFen"],
+      message: "A starting position is required for this activity."
+    });
+  }
+
+  if (type === "SOLVE_LINE" && (!v.solutionMoves || v.solutionMoves.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["solutionMoves"],
+      message: "Record at least one solution move."
+    });
+  }
+}
+
 export const createAssignmentRequestSchema = z
   .object({
     title: z.string().min(1, "Title is required.").max(200),
     description: z.string().max(2000).optional(),
-    pgn: z
-      .string()
-      .min(1, "PGN is required.")
-      .max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large."),
+    pgn: z.string().max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large.").optional(),
     difficulty: assignmentDifficultySchema.optional().default("BEGINNER"),
     timeLimitMinutes: z.number().int().min(1).optional(),
     batchIds: z.array(z.string().min(1)).optional(),
-    dueDate: z.string().datetime({ message: "A valid due date is required." }).optional()
+    dueDate: z.string().datetime({ message: "A valid due date is required." }).optional(),
+    ...assignmentActivityConfigShape
   })
-  .refine((v) => !v.batchIds || v.batchIds.length === 0 || Boolean(v.dueDate), {
-    message: "A due date is required when assigning to batches.",
-    path: ["dueDate"]
+  .superRefine((v, ctx) => {
+    if (v.batchIds && v.batchIds.length > 0 && !v.dueDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["dueDate"],
+        message: "A due date is required when assigning to batches."
+      });
+    }
+    refineActivityConfig(v, ctx, { requirePgn: true });
   });
 
-export const updateAssignmentRequestSchema = z.object({
-  title: z.string().min(1, "Title is required.").max(200).optional(),
-  description: z.string().max(2000).nullable().optional(),
-  pgn: z
-    .string()
-    .min(1, "PGN is required.")
-    .max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large.")
-    .optional(),
-  difficulty: assignmentDifficultySchema.optional(),
-  timeLimitMinutes: z.number().int().min(1).optional()
-});
+export const updateAssignmentRequestSchema = z
+  .object({
+    title: z.string().min(1, "Title is required.").max(200).optional(),
+    description: z.string().max(2000).nullable().optional(),
+    pgn: z.string().max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large.").optional(),
+    difficulty: assignmentDifficultySchema.optional(),
+    timeLimitMinutes: z.number().int().min(1).optional(),
+    ...assignmentActivityConfigShape
+  })
+  .superRefine((v, ctx) => refineActivityConfig(v, ctx, { requirePgn: false }));
 
 export const deployAssignmentRequestSchema = z.object({
   assignmentId: z.string().min(1, "Assignment is required."),
@@ -1117,12 +1232,46 @@ export const updateAssignmentStatusRequestSchema = z.object({
   timeSpentSeconds: z.number().int().min(0).optional()
 });
 
+// ── Attempt lifecycle (evaluated activities) ──
+
+export const saveAttemptProgressRequestSchema = z.object({
+  moves: z.array(attemptMoveSchema).max(400),
+  durationSeconds: z.number().int().min(0).max(86_400).optional(),
+  hintsUsed: z.number().int().min(0).max(200).optional()
+});
+
+export const submitAttemptRequestSchema = saveAttemptProgressRequestSchema.extend({
+  /** explicit end for PLAY_VS_ENGINE (resign) / FREE_ANALYSIS (submit). */
+  resign: z.boolean().optional()
+});
+
+export const requestEngineMoveRequestSchema = z.object({
+  fen: z.string().min(1).max(120)
+});
+
 export type CreateAssignmentRequest = z.infer<typeof createAssignmentRequestSchema>;
 export type UpdateAssignmentRequest = z.infer<typeof updateAssignmentRequestSchema>;
 export type DeployAssignmentRequest = z.infer<typeof deployAssignmentRequestSchema>;
 export type UpdateAssignmentStatusRequest = z.infer<typeof updateAssignmentStatusRequestSchema>;
+export type SaveAttemptProgressRequest = z.infer<typeof saveAttemptProgressRequestSchema>;
+export type SubmitAttemptRequest = z.infer<typeof submitAttemptRequestSchema>;
+export type RequestEngineMoveRequest = z.infer<typeof requestEngineMoveRequestSchema>;
 
-export type AssignmentLibraryItem = {
+/** Configuration a client needs to render an interactive activity. */
+export type AssignmentActivityConfig = {
+  activityType: AssignmentActivityType;
+  startFen: string | null;
+  orientation: ChessColor | null;
+  studentColor: ChessColor | null;
+  engineLevel: number | null;
+  passThresholdPercent: number;
+  maxAttempts: number | null;
+  allowHints: boolean;
+  allowRetry: boolean;
+  requiredCompletionPercent: number;
+};
+
+export type AssignmentLibraryItem = AssignmentActivityConfig & {
   id: string;
   title: string;
   description: string | null;
@@ -1137,7 +1286,22 @@ export type AssignmentLibraryItem = {
   /** the caller may edit/delete this item. */
   canManage: boolean;
   deploymentCount: number;
+  /** the expected line — staff-only, always present for SOLVE_LINE. */
+  solutionMoves: SolutionMove[] | null;
+  /** aggregate performance across every deployment (staff view). */
+  performance: AssignmentPerformanceSummary | null;
   createdAt: string;
+};
+
+export type AssignmentPerformanceSummary = {
+  assigned: number;
+  completed: number;
+  inProgress: number;
+  notStarted: number;
+  failed: number;
+  averageScorePercent: number | null;
+  averageAccuracyPercent: number | null;
+  averageAttempts: number | null;
 };
 
 export type AssignmentLibraryResponse = {
@@ -1179,12 +1343,17 @@ export type AssignmentSubmission = {
   completedAt: string | null;
   note: string | null;
   timeSpentSeconds: number | null;
+  bestScorePercent: number | null;
+  bestAccuracyPercent: number | null;
+  attemptCount: number;
+  lastAttemptAt: string | null;
 };
 
 export type AssignmentDeploymentDetail = AssignmentDeployment & {
   description: string | null;
   pgn: string;
   pgnUrl: string | null;
+  activityType: AssignmentActivityType;
   submissions: AssignmentSubmission[];
 };
 
@@ -1192,7 +1361,7 @@ export type AssignmentDeploymentDetailResponse = {
   deployment: AssignmentDeploymentDetail;
 };
 
-export type StudentAssignmentItem = {
+export type StudentAssignmentItem = AssignmentActivityConfig & {
   /** the StudentAssignment row id — used for the detail route + status updates. */
   id: string;
   assignmentId: string;
@@ -1209,6 +1378,14 @@ export type StudentAssignmentItem = {
   completedAt: string | null;
   note: string | null;
   timeSpentSeconds: number | null;
+  bestScorePercent: number | null;
+  bestAccuracyPercent: number | null;
+  attemptCount: number;
+  lastAttemptAt: string | null;
+  /** number of moves in the expected line — count only, never the moves. */
+  solutionLength: number | null;
+  /** the expected line — ONLY populated once the student has completed it. */
+  solutionMoves: SolutionMove[] | null;
 };
 
 export type StudentAssignmentListResponse = {
@@ -1217,6 +1394,89 @@ export type StudentAssignmentListResponse = {
 
 export type StudentAssignmentDetailResponse = {
   assignment: StudentAssignmentItem;
+};
+
+// ── Attempts ──
+
+export type AssignmentAttempt = {
+  id: string;
+  attemptNumber: number;
+  status: AssignmentAttemptStatus;
+  moves: AttemptMove[];
+  scorePercent: number | null;
+  accuracyPercent: number | null;
+  hintsUsed: number;
+  durationSeconds: number;
+  result: string | null;
+  startedAt: string;
+  completedAt: string | null;
+};
+
+export type StartAttemptResponse = {
+  attempt: AssignmentAttempt;
+  config: AssignmentActivityConfig;
+  /** resolved starting FEN (falls back to the standard position). */
+  startFen: string;
+  /** count of expected solution moves — never the moves themselves. */
+  solutionLength: number | null;
+  attemptCount: number;
+  attemptsRemaining: number | null;
+};
+
+export type AttemptReviewMove = {
+  ply: number;
+  fenBefore: string;
+  yourMove: string | null;
+  expectedMove: string | null;
+  correct: boolean | null;
+};
+
+export type AssignmentEvaluationResult = {
+  attempt: AssignmentAttempt;
+  scorePercent: number;
+  accuracyPercent: number | null;
+  passed: boolean;
+  status: AssignmentAttemptStatus;
+  result: string;
+  /** move-by-move comparison — safe to show once returned (attempt is over). */
+  review: AttemptReviewMove[];
+  /** the expected line — returned only when the assignment allows review. */
+  solutionMoves: SolutionMove[] | null;
+  assignmentStatus: AssignmentStatus;
+  bestScorePercent: number | null;
+  bestAccuracyPercent: number | null;
+  attemptCount: number;
+  attemptsRemaining: number | null;
+  /** true when engine scoring could not run (PLAY_VS_ENGINE, engine offline). */
+  engineUnavailable: boolean;
+};
+
+export type AssignmentAttemptHistoryResponse = {
+  attempts: AssignmentAttempt[];
+  bestScorePercent: number | null;
+  bestAccuracyPercent: number | null;
+};
+
+/** Immediate per-move feedback returned while saving SOLVE_LINE progress. */
+export type SolveLineMoveFeedback = {
+  ply: number;
+  correct: boolean;
+  /** the forced opponent reply to play now (only this move is revealed). */
+  opponentReply: { uci: string; san: string; fenAfter: string } | null;
+  lineComplete: boolean;
+};
+
+export type AttemptProgressResponse = {
+  attempt: AssignmentAttempt;
+  moveFeedback: SolveLineMoveFeedback | null;
+};
+
+export type RequestEngineMoveResponse = {
+  available: boolean;
+  gameOver: boolean;
+  uci: string | null;
+  san: string | null;
+  fenAfter: string | null;
 };
 
 //

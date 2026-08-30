@@ -44,5 +44,6 @@ export const queryKeys = {
     deployment: (id: string) => ["assignments", "deployments", id] as const,
     mine: ["assignments", "mine"] as const,
     mineItem: (id: string) => ["assignments", "mine", id] as const,
+    mineAttempts: (id: string) => ["assignments", "mine", id, "attempts"] as const,
   },
 } as const;

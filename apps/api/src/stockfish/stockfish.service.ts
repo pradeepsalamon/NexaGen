@@ -97,6 +97,10 @@ interface AnalysisTask {
   fen: string;
   resolve: (result: RawAnalysis) => void;
   reject: (error: Error) => void;
+  /** Stockfish `Skill Level` (0-20). Undefined = full strength. */
+  skillLevel?: number;
+  /** Override the pool's default movetime for this one task. */
+  movetimeMs?: number;
 }
 
 class EngineInstance {
@@ -177,8 +181,13 @@ class EngineInstance {
     this.currentTask = task;
     this.result = emptyRaw();
 
+    const skill =
+      task.skillLevel === undefined
+        ? 20
+        : Math.max(0, Math.min(20, Math.round(task.skillLevel)));
+    this.process.stdin?.write(`setoption name Skill Level value ${skill}\n`);
     this.process.stdin?.write(`position fen ${task.fen}\n`);
-    this.process.stdin?.write(`go movetime ${this.movetimeMs}\n`);
+    this.process.stdin?.write(`go movetime ${task.movetimeMs ?? this.movetimeMs}\n`);
   }
 
   kill() {
@@ -258,6 +267,42 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       pv,
       pvUci,
     };
+  }
+
+  /** True when at least one engine process is alive. */
+  isAvailable(): boolean {
+    return this.engines.length > 0;
+  }
+
+  /**
+   * Best move for `fen` at an optional reduced skill level. Returns UCI + SAN,
+   * or `null` when the position is terminal / the engine returns no move.
+   * Throws `ServiceUnavailableException` when the pool is not running.
+   */
+  async getBestMove(
+    fen: string,
+    opts: { skillLevel?: number; movetimeMs?: number } = {},
+  ): Promise<{ uci: string; san: string | null } | null> {
+    if (this.engines.length === 0) {
+      throw new ServiceUnavailableException(
+        'Engine play is not available on this server.',
+      );
+    }
+
+    const raw = await new Promise<RawAnalysis>((resolve, reject) => {
+      this.taskQueue.push({
+        fen,
+        resolve,
+        reject,
+        skillLevel: opts.skillLevel,
+        movetimeMs: opts.movetimeMs,
+      });
+      this.processQueue();
+    });
+
+    const uci = raw.bestMove || raw.pv[0] || '';
+    if (!uci || uci === '(none)') return null;
+    return { uci, san: uciLineToSan(fen, [uci])[0] ?? null };
   }
 
   private processQueue() {

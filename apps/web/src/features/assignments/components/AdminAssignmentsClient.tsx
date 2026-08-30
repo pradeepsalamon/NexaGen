@@ -11,7 +11,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { useAssignmentLibrary, useDeleteAssignment } from "../hooks/useAssignmentsApi";
 import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
-import { DifficultyBadge } from "./assignmentBadges";
+import { ActivityBadge, DifficultyBadge } from "./assignmentBadges";
 
 const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
@@ -79,6 +79,7 @@ export function AdminAssignmentsClient() {
                   {item.title}
                 </button>
                 <div className="flex flex-wrap items-center gap-2">
+                  <ActivityBadge activityType={item.activityType} />
                   <DifficultyBadge difficulty={item.difficulty} />
                   <span className="text-xs text-app-muted">
                     {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
