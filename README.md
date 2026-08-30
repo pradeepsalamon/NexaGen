@@ -69,6 +69,24 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   finishes an attempt. `NotificationBell` in the app header polls every 60s.
   `NotificationService.notify` / `notifyMany` (idempotent on `(userId, dedupeKey)`)
   is the entry point for future notification sources. No email delivery yet.
+- Batch class scheduler: admins define a recurring weekly schedule for a batch
+  (`BatchClassSchedule` + `BatchClassScheduleRule` + `BatchScheduleException`)
+  and NexaGen generates the full class plan as ordinary `CoachClass` rows —
+  `batch-schedule` API module, `features/batch-schedules` on web,
+  `/admin/schedule`. The recurrence engine (`recurrence.util.ts`) is
+  timezone-aware (Intl-based, DST-correct) and deterministic. Flow:
+  `POST /batch-schedules/preview` (occurrence list, class count, first/last date,
+  coach/batch conflict detection — no writes) → `POST /batch-schedules`
+  (transactional generate; `force` to accept conflicts). Future edits:
+  `PATCH /batch-schedules/:id` (`regenerate` rebuilds only not-yet-started
+  sessions; past/LIVE/COMPLETED classes are immutable), `POST .../:id/regenerate`
+  (idempotent top-up; session numbers stay stable), `DELETE /batch-schedules/:id`
+  (end schedule + cancel upcoming), `PATCH /batch-schedules/occurrences/:classId`
+  (`CANCEL` / `RESTORE` / `RESCHEDULE` one class without touching the rule).
+  `GET /batch-schedules/calendar?from=&to=&batchId=` is role-scoped and powers the
+  admin month calendar; generated classes flow through the existing live-class,
+  attendance and assignment systems unchanged. Idempotency key:
+  unique `(scheduleId, occurrenceDate, scheduleRuleId)` on `classes`.
 - Live class monitoring: coach/admin see a live roster (who's connected, join
   time, last seen, reconnect count) on `/classes/[id]` while a class is running,
   and via a "Monitor Live" action on the admin Batch Classes table

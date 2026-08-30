@@ -129,5 +129,17 @@ export const API_ROUTES = {
   notifications: {
     list: "/notifications",
     markRead: "/notifications/read"
+  },
+  batchSchedules: {
+    list: "/batch-schedules",
+    create: "/batch-schedules",
+    preview: "/batch-schedules/preview",
+    calendar: "/batch-schedules/calendar",
+    get: (id: string = ":id") => `/batch-schedules/${id}`,
+    update: (id: string = ":id") => `/batch-schedules/${id}`,
+    deactivate: (id: string = ":id") => `/batch-schedules/${id}`,
+    regenerate: (id: string = ":id") => `/batch-schedules/${id}/regenerate`,
+    occurrenceAction: (classId: string = ":classId") =>
+      `/batch-schedules/occurrences/${classId}`
   }
 } as const;

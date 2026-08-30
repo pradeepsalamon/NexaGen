@@ -50,4 +50,11 @@ export const queryKeys = {
   notifications: {
     all: ["notifications"] as const,
   },
+  batchSchedules: {
+    all: ["batch-schedules"] as const,
+    list: (batchId?: string) => ["batch-schedules", "list", batchId ?? null] as const,
+    detail: (id: string) => ["batch-schedules", "detail", id] as const,
+    calendar: (params: Record<string, unknown>) =>
+      ["batch-schedules", "calendar", params] as const,
+  },
 } as const;

@@ -149,6 +149,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.notification;
   }
 
+  get batchClassSchedule() {
+    return this.client.batchClassSchedule;
+  }
+
+  get batchClassScheduleRule() {
+    return this.client.batchClassScheduleRule;
+  }
+
+  get batchScheduleException() {
+    return this.client.batchScheduleException;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

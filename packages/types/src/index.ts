@@ -1578,3 +1578,197 @@ export type MarkNotificationsReadRequest = z.infer<
 export type MarkNotificationsReadResponse = {
   unreadCount: number;
 };
+
+//
+// BATCH RECURRING CLASS SCHEDULES
+//
+// A recurring weekly schedule for a batch. Generating it materialises real
+// `CoachClass` rows (one per occurrence) that behave exactly like manually
+// created classes for live-class, attendance and assignments.
+
+export type BatchScheduleStatus = "ACTIVE" | "PAUSED" | "ENDED";
+
+/** 0 = Sunday … 6 = Saturday. */
+export const scheduleRuleInputSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  startTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Expected HH:MM (24h)"),
+  endTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Expected HH:MM (24h)"),
+  coachId: z.string().min(1, "Coach is required"),
+  isEnabled: z.boolean().optional()
+});
+export type ScheduleRuleInput = z.infer<typeof scheduleRuleInputSchema>;
+
+const isoDateOnly = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
+
+export const previewBatchScheduleRequestSchema = z.object({
+  batchId: z.string().min(1),
+  courseId: z.string().min(1).nullable().optional(),
+  title: z.string().trim().min(1).max(160).optional(),
+  timezone: z.string().min(1),
+  startDate: isoDateOnly,
+  endDate: isoDateOnly,
+  rules: z.array(scheduleRuleInputSchema).min(1, "Add at least one weekly class"),
+  exceptions: z.array(isoDateOnly).optional()
+});
+export type PreviewBatchScheduleRequest = z.infer<
+  typeof previewBatchScheduleRequestSchema
+>;
+
+export const createBatchScheduleRequestSchema =
+  previewBatchScheduleRequestSchema.extend({
+    /** Proceed even though the preview reported coach/batch conflicts. */
+    force: z.boolean().optional()
+  });
+export type CreateBatchScheduleRequest = z.infer<
+  typeof createBatchScheduleRequestSchema
+>;
+
+export const updateBatchScheduleRequestSchema = z.object({
+  title: z.string().trim().min(1).max(160).optional(),
+  courseId: z.string().min(1).nullable().optional(),
+  endDate: isoDateOnly.optional(),
+  status: z.enum(["ACTIVE", "PAUSED", "ENDED"]).optional(),
+  rules: z.array(scheduleRuleInputSchema).min(1).optional(),
+  exceptions: z.array(isoDateOnly).optional(),
+  /** Regenerate future (not-yet-started) sessions from the new rules. */
+  regenerate: z.boolean().optional(),
+  force: z.boolean().optional()
+});
+export type UpdateBatchScheduleRequest = z.infer<
+  typeof updateBatchScheduleRequestSchema
+>;
+
+export const scheduleOccurrenceActionRequestSchema = z
+  .object({
+    action: z.enum(["CANCEL", "RESCHEDULE", "RESTORE"]),
+    startsAt: z.string().datetime().optional(),
+    endsAt: z.string().datetime().optional(),
+    coachId: z.string().min(1).optional()
+  })
+  .refine(
+    (v) =>
+      v.action !== "RESCHEDULE" ||
+      (Boolean(v.startsAt) && Boolean(v.endsAt)),
+    { message: "Reschedule requires startsAt and endsAt", path: ["startsAt"] }
+  );
+export type ScheduleOccurrenceActionRequest = z.infer<
+  typeof scheduleOccurrenceActionRequestSchema
+>;
+
+export type BatchScheduleRule = {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  coachId: string;
+  coachName: string;
+  isEnabled: boolean;
+};
+
+export type BatchScheduleException = {
+  id: string;
+  date: string;
+  reason: string | null;
+};
+
+export type ScheduleWeeklySlot = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  coachId: string;
+  coachName: string;
+};
+
+export type ScheduleConflict = {
+  type: "COACH" | "BATCH";
+  date: string;
+  startsAt: string;
+  endsAt: string;
+  coachId: string;
+  coachName: string;
+  conflictingClassId: string;
+  conflictingClassTitle: string;
+};
+
+export type ScheduleOccurrencePreview = {
+  ruleId: string;
+  date: string;
+  dayOfWeek: number;
+  startsAt: string;
+  endsAt: string;
+  coachId: string;
+  coachName: string;
+  isPast: boolean;
+  hasConflict: boolean;
+};
+
+export type PreviewBatchScheduleResponse = {
+  timezone: string;
+  totalCount: number;
+  futureCount: number;
+  pastCount: number;
+  firstClassAt: string | null;
+  lastClassAt: string | null;
+  weeklySummary: ScheduleWeeklySlot[];
+  occurrences: ScheduleOccurrencePreview[];
+  conflicts: ScheduleConflict[];
+};
+
+export type BatchScheduleSummary = {
+  id: string;
+  batchId: string;
+  batchName: string;
+  courseId: string | null;
+  courseTitle: string | null;
+  title: string;
+  timezone: string;
+  startDate: string;
+  endDate: string;
+  status: BatchScheduleStatus;
+  ruleCount: number;
+  totalClasses: number;
+  upcomingClasses: number;
+  completedClasses: number;
+  cancelledClasses: number;
+  createdAt: string;
+};
+
+export type BatchScheduleDetail = BatchScheduleSummary & {
+  rules: BatchScheduleRule[];
+  exceptions: BatchScheduleException[];
+};
+
+export type BatchScheduleListResponse = {
+  schedules: BatchScheduleSummary[];
+};
+
+export type BatchScheduleResponse = {
+  schedule: BatchScheduleDetail;
+  generatedCount?: number;
+  cancelledCount?: number;
+};
+
+export type ScheduleCalendarClass = {
+  id: string;
+  batchId: string;
+  batchName: string;
+  title: string;
+  coachId: string;
+  coachName: string;
+  startsAt: string;
+  endsAt: string;
+  status: ClassStatus;
+  scheduleId: string | null;
+  sessionNumber: number | null;
+  hasRecording: boolean;
+};
+
+export type ScheduleCalendarResponse = {
+  classes: ScheduleCalendarClass[];
+};
