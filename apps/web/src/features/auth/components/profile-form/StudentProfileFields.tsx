@@ -99,7 +99,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
         </FormField>
       </div>
       <div className="grid gap-4 md:grid-cols-2">
-        <FormField id="profile-referral-source" label="How you known nexa?">
+        <FormField id="profile-referral-source" label="How you known nexachess?">
           <Select
             id="profile-referral-source"
             onChange={(event) => onFieldChange("referralSource", event.target.value)}
