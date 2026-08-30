@@ -1,8 +1,8 @@
 import {
   BatchStatus,
   CoachTitle,
-  ExperienceLevel,
   PrismaClient,
+  ReferralSource,
   UserRole,
   UserStatus
 } from "@prisma/client";
@@ -136,7 +136,7 @@ async function main() {
     student.id,
     {
       chessRating: 950,
-      experienceLevel: ExperienceLevel.BEGINNER,
+      referralSource: ReferralSource.FRIEND,
       parentEmail: "parent@nexa.test",
       parentName: "Test Parent",
       parentPhone: "+919999999999",
@@ -145,7 +145,7 @@ async function main() {
     },
     {
       chessRating: 950,
-      experienceLevel: ExperienceLevel.BEGINNER,
+      referralSource: ReferralSource.FRIEND,
       parentEmail: "parent@nexa.test",
       parentName: "Test Parent",
       parentPhone: "+919999999999",

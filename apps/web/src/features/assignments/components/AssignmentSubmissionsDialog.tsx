@@ -1,5 +1,6 @@
 "use client";
 
+import { Timer } from "lucide-react";
 import { formatFullDate } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { Badge } from "@/components/ui/Badge";
@@ -18,6 +19,12 @@ const STATUS_LABEL: Record<string, string> = {
   IN_PROGRESS: "In progress",
   COMPLETED: "Completed"
 };
+
+function formatTime(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}m ${s}s`;
+}
 
 interface Props {
   open: boolean;
@@ -60,7 +67,13 @@ export function AssignmentSubmissionsDialog({ open, onOpenChange, deploymentId }
                   <p className="font-medium text-app-text">{s.studentName}</p>
                   {s.note && <p className="text-xs text-app-muted">&ldquo;{s.note}&rdquo;</p>}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {s.timeSpentSeconds != null && s.status === "COMPLETED" && (
+                    <span className="flex items-center gap-1 text-xs text-app-muted">
+                      <Timer className="size-3" />
+                      {formatTime(s.timeSpentSeconds)}
+                    </span>
+                  )}
                   {s.completedAt && (
                     <span className="text-xs text-app-muted">
                       {formatFullDate(s.completedAt, timeZone)}

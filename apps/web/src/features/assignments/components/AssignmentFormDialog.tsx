@@ -25,6 +25,7 @@ type FormValues = {
   title: string;
   description: string;
   difficulty: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+  timeLimitMinutes: string;
   pgn: string;
   batchIds: string[];
   dueDate: string;
@@ -56,6 +57,7 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
       title: "",
       description: "",
       difficulty: "BEGINNER",
+      timeLimitMinutes: "",
       pgn: "",
       batchIds: [],
       dueDate: ""
@@ -70,6 +72,7 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
         title: assignment.title,
         description: assignment.description ?? "",
         difficulty: assignment.difficulty,
+        timeLimitMinutes: assignment.timeLimitMinutes ? assignment.timeLimitMinutes.toString() : "",
         pgn: assignment.pgn,
         batchIds: [],
         dueDate: ""
@@ -79,6 +82,7 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
         title: "",
         description: "",
         difficulty: "BEGINNER",
+        timeLimitMinutes: "",
         pgn: "",
         batchIds: [],
         dueDate: ""
@@ -112,6 +116,7 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
           title: values.title.trim(),
           description: values.description.trim() || null,
           difficulty: values.difficulty,
+          timeLimitMinutes: values.timeLimitMinutes ? parseInt(values.timeLimitMinutes, 10) : undefined,
           pgn: values.pgn
         },
         { onSuccess: () => onOpenChange(false) }
@@ -135,6 +140,7 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
         title: values.title.trim(),
         description: values.description.trim() || undefined,
         difficulty: values.difficulty,
+        timeLimitMinutes: values.timeLimitMinutes ? parseInt(values.timeLimitMinutes, 10) : undefined,
         pgn: values.pgn,
         batchIds: deploying ? values.batchIds : undefined,
         dueDate: deploying ? values.dueDate : undefined
@@ -172,6 +178,22 @@ export function AssignmentFormDialog({ open, onOpenChange, mode, assignment, coa
                   onChange={(e) => field.onChange(e.target.value)}
                 />
               )}
+            />
+          </FormField>
+
+          <FormField
+            id="timeLimitMinutes"
+            label="Time limit (minutes, optional)"
+            error={errors.timeLimitMinutes?.message as string | undefined}
+          >
+            <Input
+              id="timeLimitMinutes"
+              type="number"
+              min="1"
+              max="180"
+              hasError={!!errors.timeLimitMinutes}
+              {...form.register("timeLimitMinutes")}
+              placeholder="e.g. 30"
             />
           </FormField>
 

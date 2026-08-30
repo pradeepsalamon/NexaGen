@@ -98,18 +98,33 @@ export const StudentProfileFields = memo(function StudentProfileFields({
           />
         </FormField>
       </div>
-      <FormField id="profile-experience-level" label="Experience Level">
-        <Select
-          id="profile-experience-level"
-          onChange={(event) => onFieldChange("experienceLevel", event.target.value)}
-          options={[
-            { label: "Beginner", value: "BEGINNER" },
-            { label: "Intermediate", value: "INTERMEDIATE" },
-            { label: "Advanced", value: "ADVANCED" }
-          ]}
-          value={values.experienceLevel}
-        />
-      </FormField>
+      <div className="grid gap-4 md:grid-cols-2">
+        <FormField id="profile-referral-source" label="How you known nexa?">
+          <Select
+            id="profile-referral-source"
+            onChange={(event) => onFieldChange("referralSource", event.target.value)}
+            options={[
+              { label: "Ads", value: "ADS" },
+              { label: "Friend", value: "FRIEND" },
+              { label: "School", value: "SCHOOL" },
+              { label: "Others", value: "OTHER" }
+            ]}
+            value={values.referralSource}
+          />
+        </FormField>
+        <FormField id="profile-experience-level" label="Experience Level">
+          <Select
+            id="profile-experience-level"
+            onChange={(event) => onFieldChange("experienceLevel", event.target.value)}
+            options={[
+              { label: "Beginner", value: "BEGINNER" },
+              { label: "Intermediate", value: "INTERMEDIATE" },
+              { label: "Advanced", value: "ADVANCED" }
+            ]}
+            value={values.experienceLevel}
+          />
+        </FormField>
+      </div>
     </section>
   );
 });

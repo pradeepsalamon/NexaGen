@@ -12,19 +12,20 @@ import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { useAuthStore } from "@/stores/authStore";
 import { register } from "../api/authApi";
-import type { ExperienceLevel, RegisterFormValues } from "../types/auth";
+import type { ReferralSource, RegisterFormValues } from "../types/auth";
 
-const experienceOptions: { label: string; value: ExperienceLevel }[] = [
-  { label: "Beginner", value: "beginner" },
-  { label: "Intermediate", value: "intermediate" },
-  { label: "Advanced", value: "advanced" }
+const referralOptions: { label: string; value: ReferralSource }[] = [
+  { label: "Ads", value: "ads" },
+  { label: "Friend", value: "friend" },
+  { label: "School", value: "school" },
+  { label: "Others", value: "other" }
 ];
 
 const initialValues: RegisterFormValues = {
   confirmPassword: "",
   contactNumber: "",
   email: "",
-  experienceLevel: "",
+  referralSource: "",
   parentName: "",
   password: "",
   studentAge: "",
@@ -77,13 +78,13 @@ export function RegisterForm() {
       return;
     }
 
-    if (!values.experienceLevel) {
+    if (!values.referralSource) {
       return;
     }
 
     registerMutation.mutate({
       ...values,
-      experienceLevel: values.experienceLevel
+      referralSource: values.referralSource
     });
   }
 
@@ -131,19 +132,19 @@ export function RegisterForm() {
                 value={values.studentAge}
               />
             </FormField>
-            <FormField id="experience-level" label="Experience Level">
+            <FormField id="referral-source" label="How you known nexa?">
               <Select
-                id="experience-level"
+                id="referral-source"
                 onChange={(event) =>
                   updateField(
-                    "experienceLevel",
-                    event.target.value as RegisterFormValues["experienceLevel"]
+                    "referralSource",
+                    event.target.value as RegisterFormValues["referralSource"]
                   )
                 }
-                options={experienceOptions}
-                placeholder="Choose level"
+                options={referralOptions}
+                placeholder="Choose option"
                 required
-                value={values.experienceLevel}
+                value={values.referralSource}
               />
             </FormField>
           </div>

@@ -5,7 +5,11 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type { RegisterCoachRequest, RegisterRequest } from "@nexa-chess/types";
-import { ExperienceLevel, UserRole, UserStatus } from "@prisma/client";
+import {
+  ReferralSource,
+  UserRole,
+  UserStatus
+} from "@prisma/client";
 import { AuthService } from "./auth.service";
 import { hashSecret } from "./auth.utils";
 import { MailService } from "../mail/mail.service";
@@ -118,7 +122,7 @@ describe("AuthService", () => {
     confirmPassword: "password123",
     contactNumber: "1234567890",
     email: "Test@Example.com",
-    experienceLevel: "beginner",
+    referralSource: "ads",
     parentName: "Jane Doe",
     password: "password123",
     studentAge: "10",
@@ -140,7 +144,7 @@ describe("AuthService", () => {
     studentProfile: {
       chessRating: null,
       dateOfBirth: null,
-      experienceLevel: ExperienceLevel.BEGINNER,
+      referralSource: ReferralSource.ADS,
       fideId: null,
       isDeleted: false,
       parentEmail: null,
@@ -186,8 +190,8 @@ describe("AuthService", () => {
       expect(createCall.data.firstName).toBe("John");
       expect(createCall.data.lastName).toBe("Doe");
       expect(createCall.data.phoneNumber).toBe(registerPayload.contactNumber);
-      expect(createCall.data.studentProfile.create.experienceLevel).toBe(
-        ExperienceLevel.BEGINNER
+      expect(createCall.data.studentProfile.create.referralSource).toBe(
+        ReferralSource.ADS
       );
 
       expect(result.user.email).toBe("test@example.com");

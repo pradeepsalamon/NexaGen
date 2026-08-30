@@ -38,10 +38,10 @@ export function validateRegisterForm(
       values.studentAge,
       "Student age is required."
     ),
-    experienceLevel: getFieldError(
-      Boolean(touched.experienceLevel),
-      values.experienceLevel,
-      "Choose an experience level."
+    referralSource: getFieldError(
+      Boolean(touched.referralSource),
+      values.referralSource,
+      "Choose an option."
     ),
     contactNumber: getFieldError(
       Boolean(touched.contactNumber),
