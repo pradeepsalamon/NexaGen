@@ -4,10 +4,11 @@ import {
   Param,
   Post,
   Req,
+  Res,
   Body,
   Query,
 } from "@nestjs/common";
-import type { Request } from "express";
+import type { Request, Response } from "express";
 import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { API_ROUTES } from "@nexa-chess/types";
@@ -83,6 +84,22 @@ export class LiveClassController {
   @Get(API_ROUTES.liveClass.downloadRecording())
   downloadRecording(@Param("id") id: string, @Req() request: Request) {
     return this.liveClassService.downloadRecording(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.liveClass.streamRecording())
+  streamRecording(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Res() response: Response,
+    @Query("token") queryToken?: string
+  ) {
+    const token = this.getAccessToken(request) || queryToken;
+    return this.liveClassService.streamRecording(token, id, request, response);
+  }
+
+  @Get(API_ROUTES.liveClass.storageUsage())
+  getStorageUsage(@Req() request: Request) {
+    return this.liveClassService.getRecordingStorageUsage(this.getAccessToken(request));
   }
 
   @Post(API_ROUTES.liveClass.recordingProgress())

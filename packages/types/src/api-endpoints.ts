@@ -73,6 +73,8 @@ export const API_ROUTES = {
     startRecording: (id: string = ":id") => `/live-class/${id}/recording/start`,
     stopRecording: (id: string = ":id") => `/live-class/${id}/recording/stop`,
     downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`,
+    streamRecording: (id: string = ":id") => `/live-class/${id}/recording/stream`,
+    storageUsage: () => `/live-class/recording/storage/usage`,
     recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`
   },
   student: {

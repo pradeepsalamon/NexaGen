@@ -29,3 +29,6 @@ github-actions-key.pub
 .ai/manager/state/*
 !.ai/manager/state/.gitkeep
 
+# Local Recordings storage
+recordings/
+
