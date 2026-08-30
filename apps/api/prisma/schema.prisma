@@ -25,6 +25,13 @@ enum UserStatus {
   DELETED
 }
 
+enum ReferralSource {
+  ADS
+  FRIEND
+  SCHOOL
+  OTHER
+}
+
 enum ExperienceLevel {
   BEGINNER
   INTERMEDIATE
@@ -141,14 +148,15 @@ model User {
   coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  isDeleted     Boolean   @default(false)
-  deletedAt     DateTime?
-  deletedById   String?
-  deletedBy     User?     @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  deletedUsers  User[]    @relation("UserDeletedBy")
-  deleteGroupId String?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  isDeleted                Boolean                  @default(false)
+  deletedAt                DateTime?
+  deletedById              String?
+  deletedBy                User?                    @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedUsers             User[]                   @relation("UserDeletedBy")
+  deleteGroupId            String?
+  recordingWatchProgresses RecordingWatchProgress[]
 
   @@index([role])
   @@index([status])
@@ -175,6 +183,7 @@ model StudentProfile {
   fideId      String?
 
   experienceLevel ExperienceLevel @default(BEGINNER)
+  referralSource  ReferralSource  @default(OTHER)
 
   parentName  String
   parentEmail String?
@@ -448,9 +457,10 @@ model CoachClass {
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
 
-  liveSession     LiveSession?      @relation("LiveSessionSchedule")
-  attendances     ClassAttendance[]
-  coachAttendance CoachAttendance?
+  liveSession              LiveSession?             @relation("LiveSessionSchedule")
+  attendances              ClassAttendance[]
+  coachAttendance          CoachAttendance?
+  recordingWatchProgresses RecordingWatchProgress[]
 
   @@index([batchId])
   @@index([coachId])
@@ -630,7 +640,8 @@ model LiveSession {
 
   metadata Json?
 
-  chatMessages LiveChatMessage[]
+  chatMessages             LiveChatMessage[]
+  recordingWatchProgresses RecordingWatchProgress[]
 
   @@index([batchId])
   @@index([coachId])
@@ -739,17 +750,18 @@ model StudentPractice {
 // (`isLibrary = false`, visible only to the author). Not soft-deletable — a
 // delete cascades to every deployment + per-student row.
 model Assignment {
-  id          String               @id @default(cuid())
-  createdById String?
-  createdBy   User?                @relation("AuthoredAssignments", fields: [createdById], references: [id], onDelete: SetNull)
-  isLibrary   Boolean              @default(false)
-  title       String
-  description String?
-  pgn         String // raw PGN text (source of truth for the board viewer)
-  pgnUrl      String? // Cloudinary raw-file URL for download
-  difficulty  AssignmentDifficulty @default(BEGINNER)
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  id               String               @id @default(cuid())
+  createdById      String?
+  createdBy        User?                @relation("AuthoredAssignments", fields: [createdById], references: [id], onDelete: SetNull)
+  isLibrary        Boolean              @default(false)
+  title            String
+  description      String?
+  pgn              String // raw PGN text (source of truth for the board viewer)
+  pgnUrl           String? // Cloudinary raw-file URL for download
+  difficulty       AssignmentDifficulty @default(BEGINNER)
+  timeLimitMinutes Int?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   deployments AssignmentBatch[]
 
@@ -786,7 +798,8 @@ model StudentAssignment {
   studentId         String
   student           User             @relation("StudentAssignments", fields: [studentId], references: [id], onDelete: Cascade)
   status            AssignmentStatus @default(PENDING)
-  completedAt       DateTime?
+  completedAt       DateTime?        @map("completed_at")
+  timeSpentSeconds  Int?             @map("time_spent_seconds")
   note              String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
@@ -820,4 +833,20 @@ model Announcement {
   createdAt   DateTime @default(now())
 
   @@map("announcements")
+}
+
+model RecordingWatchProgress {
+  id             String   @id @default(cuid())
+  studentId      String
+  classId        String
+  liveSessionId  String
+  watchedSeconds Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  student     User        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class       CoachClass  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  liveSession LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+  @@map("recording_watch_progress")
 }

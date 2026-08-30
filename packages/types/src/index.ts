@@ -37,10 +37,24 @@ export type CoachTitle = "NONE" | "CM" | "FM" | "IM" | "GM";
 
 export type BatchStatus = "UPCOMING" | "ACTIVE" | "COMPLETED" | "ARCHIVED";
 
+export const referralSourceSchema = z.enum([
+  "ads",
+  "friend",
+  "school",
+  "other"
+]);
+
 export const experienceLevelSchema = z.enum([
   "beginner",
   "intermediate",
   "advanced"
+]);
+
+export const prismaReferralSourceSchema = z.enum([
+  "ADS",
+  "FRIEND",
+  "SCHOOL",
+  "OTHER"
 ]);
 
 export const prismaExperienceLevelSchema = z.enum([
@@ -68,7 +82,7 @@ export const registerRequestSchema = z
     confirmPassword: z.string().min(8, "Confirm your password."),
     contactNumber: z.string().min(1, "Contact number is required.").max(30),
     email: z.string().email("Enter a valid email address.").max(255),
-    experienceLevel: experienceLevelSchema,
+    referralSource: referralSourceSchema,
     parentName: z.string().min(1, "Parent name is required.").max(120),
     password: passwordSchema,
     studentAge: z
@@ -125,6 +139,7 @@ export const updateProfileRequestSchema = z.object({
       chessRating: z.number().int().min(0).max(4000).optional(),
       dateOfBirth: z.string().optional(),
       experienceLevel: prismaExperienceLevelSchema.optional(),
+      referralSource: prismaReferralSourceSchema.optional(),
       fideId: z.string().max(80).optional(),
       parentEmail: z.string().email("Enter a valid parent email.").optional(),
       parentName: z.string().min(1).max(120).optional(),
@@ -183,6 +198,10 @@ export const createUserRequestSchema = z.object({
 
 export const updateUserRequestSchema = createUserRequestSchema.partial();
 
+export type ReferralSource = z.infer<typeof referralSourceSchema>;
+
+export type PrismaReferralSource = z.infer<typeof prismaReferralSourceSchema>;
+
 export type ExperienceLevel = z.infer<typeof experienceLevelSchema>;
 
 export type PrismaExperienceLevel = z.infer<typeof prismaExperienceLevelSchema>;
@@ -191,6 +210,7 @@ export type AuthStudentProfile = {
   chessRating?: number | null;
   dateOfBirth?: string | null;
   experienceLevel: PrismaExperienceLevel;
+  referralSource: PrismaReferralSource;
   fideId?: string | null;
   parentEmail?: string | null;
   parentName: string;
@@ -744,6 +764,12 @@ export const liveClassMonitoringSchema = z.object({
 export type LiveMonitoringStudent = z.infer<typeof liveMonitoringStudentSchema>;
 export type LiveClassMonitoring = z.infer<typeof liveClassMonitoringSchema>;
 
+export const recordingProgressRequestSchema = z.object({
+  watchedSeconds: z.number().int().min(0)
+});
+
+export type RecordingProgressRequest = z.infer<typeof recordingProgressRequestSchema>;
+
 // -- ATTENDANCE POLICY TYPES --
 
 export const attendancePolicySchema = z.object({
@@ -1019,6 +1045,7 @@ export const createAssignmentRequestSchema = z
       .min(1, "PGN is required.")
       .max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large."),
     difficulty: assignmentDifficultySchema.optional().default("BEGINNER"),
+    timeLimitMinutes: z.number().int().min(1).optional(),
     batchIds: z.array(z.string().min(1)).optional(),
     dueDate: z.string().datetime({ message: "A valid due date is required." }).optional()
   })
@@ -1035,7 +1062,8 @@ export const updateAssignmentRequestSchema = z.object({
     .min(1, "PGN is required.")
     .max(MAX_ASSIGNMENT_PGN_LENGTH, "PGN is too large.")
     .optional(),
-  difficulty: assignmentDifficultySchema.optional()
+  difficulty: assignmentDifficultySchema.optional(),
+  timeLimitMinutes: z.number().int().min(1).optional()
 });
 
 export const deployAssignmentRequestSchema = z.object({
@@ -1046,7 +1074,8 @@ export const deployAssignmentRequestSchema = z.object({
 
 export const updateAssignmentStatusRequestSchema = z.object({
   status: z.enum(["IN_PROGRESS", "COMPLETED"]),
-  note: z.string().max(1000).optional()
+  note: z.string().max(1000).optional(),
+  timeSpentSeconds: z.number().int().min(0).optional()
 });
 
 export type CreateAssignmentRequest = z.infer<typeof createAssignmentRequestSchema>;
@@ -1061,6 +1090,7 @@ export type AssignmentLibraryItem = {
   pgn: string;
   pgnUrl: string | null;
   difficulty: AssignmentDifficulty;
+  timeLimitMinutes: number | null;
   /** true = shared library item (admin), false = author-private (coach). */
   isLibrary: boolean;
   createdById: string | null;
@@ -1091,6 +1121,7 @@ export type AssignmentDeployment = {
   assignmentId: string;
   title: string;
   difficulty: AssignmentDifficulty;
+  timeLimitMinutes: number | null;
   batchId: string;
   batchName: string;
   dueDate: string;
@@ -1108,6 +1139,7 @@ export type AssignmentSubmission = {
   status: AssignmentStatus;
   completedAt: string | null;
   note: string | null;
+  timeSpentSeconds: number | null;
 };
 
 export type AssignmentDeploymentDetail = AssignmentDeployment & {
@@ -1130,12 +1162,14 @@ export type StudentAssignmentItem = {
   pgn: string;
   pgnUrl: string | null;
   difficulty: AssignmentDifficulty;
+  timeLimitMinutes: number | null;
   dueDate: string;
   coachName: string | null;
   batchName: string;
   status: AssignmentStatus;
   completedAt: string | null;
   note: string | null;
+  timeSpentSeconds: number | null;
 };
 
 export type StudentAssignmentListResponse = {

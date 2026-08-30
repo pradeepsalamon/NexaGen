@@ -137,6 +137,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.processedWebhookEvent;
   }
 
+  get recordingWatchProgress() {
+    return this.client.recordingWatchProgress;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

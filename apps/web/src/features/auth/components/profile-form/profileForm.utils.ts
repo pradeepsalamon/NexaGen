@@ -7,6 +7,7 @@ export type ProfileFormValues = {
   dateOfBirth: string;
   email: string;
   experienceLevel: string;
+  referralSource: string;
   firstName: string;
   fideId: string;
   fideRating: string;
@@ -32,6 +33,7 @@ export const emptyValues: ProfileFormValues = {
   dateOfBirth: "",
   email: "",
   experienceLevel: "BEGINNER",
+  referralSource: "OTHER",
   firstName: "",
   fideId: "",
   fideRating: "",
@@ -60,6 +62,7 @@ export function valuesFromUser(user: AuthUser): ProfileFormValues {
     dateOfBirth: formatDate(user.studentProfile?.dateOfBirth),
     email: user.email,
     experienceLevel: user.studentProfile?.experienceLevel ?? "BEGINNER",
+    referralSource: user.studentProfile?.referralSource ?? "OTHER",
     firstName: user.firstName,
     fideId: user.studentProfile?.fideId ?? user.coachProfile?.fideId ?? "",
     fideRating: formatNumber(user.coachProfile?.fideRating),
@@ -100,6 +103,9 @@ export function toProfilePayload(
       experienceLevel: values.experienceLevel as NonNullable<
         UpdateProfileRequest["studentProfile"]
       >["experienceLevel"],
+      referralSource: values.referralSource as NonNullable<
+        UpdateProfileRequest["studentProfile"]
+      >["referralSource"],
       fideId: optionalString(values.fideId),
       parentEmail: optionalString(values.parentEmail),
       parentName: optionalString(values.parentName),

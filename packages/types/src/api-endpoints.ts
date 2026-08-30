@@ -72,7 +72,8 @@ export const API_ROUTES = {
     demoJoin: (id: string = ":id") => `/live-class/demo/${id}/join`,
     startRecording: (id: string = ":id") => `/live-class/${id}/recording/start`,
     stopRecording: (id: string = ":id") => `/live-class/${id}/recording/stop`,
-    downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`
+    downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`,
+    recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`
   },
   student: {
     dashboard: "/student/dashboard"

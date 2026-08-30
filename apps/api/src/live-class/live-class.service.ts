@@ -785,4 +785,64 @@ export class LiveClassService {
 
     return this.backupService.getDownloadUrl(liveSession.recordingUrl);
   }
+
+  async updateRecordingProgress(accessToken: string | undefined, classId: string, watchedSeconds: number) {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+      include: {
+        batch: {
+          include: { students: true },
+        },
+        class: {
+          include: { batch: { include: { students: true } } },
+        },
+      },
+    });
+
+    if (!liveSession || !liveSession.recordingUrl) {
+      throw new NotFoundException("Recording not found.");
+    }
+
+    // Must be a student in the batch to track progress (coaches/admins don't need tracking)
+    if (user.role !== UserRole.STUDENT) {
+      return { success: true, ignored: true };
+    }
+
+    const batchStudents = liveSession.batch?.students || liveSession.class?.batch?.students || [];
+    const isStudentInBatch = batchStudents.some((s) => s.studentId === user.id && !s.isDeleted);
+    
+    if (!isStudentInBatch) {
+      throw new ForbiddenException("You are not authorized to view this recording.");
+    }
+
+    // Upsert tracking progress. We only want to increase watchedSeconds if it's higher
+    const existing = await this.prisma.recordingWatchProgress.findUnique({
+      where: {
+        studentId_classId: {
+          studentId: user.id,
+          classId: classId,
+        },
+      },
+    });
+
+    if (!existing) {
+      await this.prisma.recordingWatchProgress.create({
+        data: {
+          studentId: user.id,
+          classId: classId,
+          liveSessionId: liveSession.id,
+          watchedSeconds,
+        },
+      });
+    } else if (watchedSeconds > existing.watchedSeconds) {
+      await this.prisma.recordingWatchProgress.update({
+        where: { id: existing.id },
+        data: { watchedSeconds },
+      });
+    }
+
+    return { success: true };
+  }
 }

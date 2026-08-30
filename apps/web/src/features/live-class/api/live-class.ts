@@ -51,3 +51,10 @@ export const stopRecording = (roomId: string): Promise<{ success: boolean }> => 
 export const getRecordingDownloadUrl = (roomId: string): Promise<{ url: string }> => {
   return apiFetch<{ url: string }>(API_ROUTES.liveClass.downloadRecording(roomId));
 };
+
+export const updateRecordingProgress = (roomId: string, watchedSeconds: number): Promise<{ success: boolean }> => {
+  return apiFetch<{ success: boolean }>(API_ROUTES.liveClass.recordingProgress(roomId), {
+    method: "POST",
+    body: { watchedSeconds }
+  });
+};

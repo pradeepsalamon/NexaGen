@@ -14,7 +14,7 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 
-const experienceLevels = ["BEGINNER", "INTERMEDIATE", "ADVANCED"] as const;
+const referralSources = ["ADS", "FRIEND", "SCHOOL", "OTHER"] as const;
 const coachTitles = ["NONE", "CM", "FM", "IM", "GM"] as const;
 
 export class UpdateStudentProfileDto {
@@ -29,9 +29,9 @@ export class UpdateStudentProfileDto {
   dateOfBirth?: string;
 
   @IsOptional()
-  @IsIn(experienceLevels)
-  experienceLevel?: UpdateProfileRequest["studentProfile"] extends infer T
-    ? T extends { experienceLevel?: infer U }
+  @IsIn(referralSources)
+  referralSource?: UpdateProfileRequest["studentProfile"] extends infer T
+    ? T extends { referralSource?: infer U }
       ? U
       : never
     : never;

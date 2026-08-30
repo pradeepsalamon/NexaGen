@@ -125,7 +125,8 @@ export class AssignmentService {
           description: dto.description?.trim() || null,
           pgn: dto.pgn,
           pgnUrl,
-          difficulty: dto.difficulty
+          difficulty: dto.difficulty,
+          timeLimitMinutes: dto.timeLimitMinutes
         }
       });
 
@@ -167,7 +168,8 @@ export class AssignmentService {
           dto.description === undefined ? undefined : dto.description?.trim() || null,
         pgn: dto.pgn,
         pgnUrl,
-        difficulty: dto.difficulty
+        difficulty: dto.difficulty,
+        timeLimitMinutes: dto.timeLimitMinutes
       }
     });
 
@@ -326,7 +328,8 @@ export class AssignmentService {
       data: {
         status: dto.status,
         note: dto.note === undefined ? undefined : dto.note.trim() || null,
-        completedAt: dto.status === "COMPLETED" ? new Date() : null
+        completedAt: dto.status === "COMPLETED" ? new Date() : null,
+        timeSpentSeconds: dto.timeSpentSeconds
       },
       include: studentInclude
     });
@@ -444,6 +447,7 @@ export class AssignmentService {
       pgn: row.pgn,
       pgnUrl: row.pgnUrl,
       difficulty: row.difficulty as AssignmentDifficulty,
+      timeLimitMinutes: row.timeLimitMinutes,
       isLibrary: row.isLibrary,
       createdById: row.createdById,
       createdByName: this.fullName(row.createdBy),
@@ -459,7 +463,7 @@ export class AssignmentService {
     batchId: string;
     dueDate: Date;
     createdAt: Date;
-    assignment: { title: string; difficulty: string };
+    assignment: { title: string; difficulty: string; timeLimitMinutes: number | null };
     batch: { name: string };
     students: { status: string }[];
   }): AssignmentDeployment {
@@ -468,6 +472,7 @@ export class AssignmentService {
       assignmentId: row.assignmentId,
       title: row.assignment.title,
       difficulty: row.assignment.difficulty as AssignmentDifficulty,
+      timeLimitMinutes: row.assignment.timeLimitMinutes,
       batchId: row.batchId,
       batchName: row.batch.name,
       dueDate: row.dueDate.toISOString(),
@@ -494,6 +499,7 @@ export class AssignmentService {
         studentId: s.studentId,
         studentName: this.fullName(s.student) ?? "Unknown",
         status: s.status as AssignmentStatusType,
+        timeSpentSeconds: s.timeSpentSeconds,
         completedAt: s.completedAt ? s.completedAt.toISOString() : null,
         note: s.note
       }))
@@ -512,10 +518,12 @@ export class AssignmentService {
       pgn: assignment.pgn,
       pgnUrl: assignment.pgnUrl,
       difficulty: assignment.difficulty as AssignmentDifficulty,
+      timeLimitMinutes: assignment.timeLimitMinutes,
       dueDate: row.assignmentBatch.dueDate.toISOString(),
       coachName: this.fullName(assignment.createdBy),
       batchName: row.assignmentBatch.batch.name,
       status: row.status as AssignmentStatusType,
+      timeSpentSeconds: row.timeSpentSeconds,
       completedAt: row.completedAt ? row.completedAt.toISOString() : null,
       note: row.note
     };

@@ -10,6 +10,7 @@ import {
   CoachProfile,
   CoachTitle,
   ExperienceLevel,
+  ReferralSource,
   StudentProfile,
   User,
   UserRole,
@@ -159,7 +160,7 @@ export class AuthService {
         emailVerifiedAt: new Date(),
         studentProfile: {
           create: {
-            experienceLevel: this.toExperienceLevel(payload.experienceLevel),
+            referralSource: this.toReferralSource(payload.referralSource),
             parentName: payload.parentName,
             parentPhone: payload.contactNumber
           }
@@ -500,6 +501,9 @@ export class AuthService {
             experienceLevel: payload.studentProfile.experienceLevel
               ? this.toPrismaExperienceLevel(payload.studentProfile.experienceLevel)
               : user.studentProfile.experienceLevel,
+            referralSource: payload.studentProfile.referralSource
+              ? this.toPrismaReferralSource(payload.studentProfile.referralSource)
+              : user.studentProfile.referralSource,
             fideId: this.toNullableString(payload.studentProfile.fideId),
             parentEmail: this.toNullableString(payload.studentProfile.parentEmail),
             parentName:
@@ -781,6 +785,7 @@ export class AuthService {
             chessRating: user.studentProfile.chessRating,
             dateOfBirth: user.studentProfile.dateOfBirth?.toISOString() ?? null,
             experienceLevel: user.studentProfile.experienceLevel,
+            referralSource: user.studentProfile.referralSource,
             fideId: user.studentProfile.fideId,
             parentEmail: user.studentProfile.parentEmail,
             parentName: user.studentProfile.parentName,
@@ -853,31 +858,49 @@ export class AuthService {
     return titles[title as string] ?? CoachTitle.NONE;
   }
 
+  private toPrismaReferralSource(
+    source: UpdateProfileRequest["studentProfile"] extends infer T
+      ? T extends { referralSource?: infer U }
+        ? NonNullable<U>
+        : never
+      : never
+  ) {
+    const sources: Record<string, ReferralSource> = {
+      ADS: ReferralSource.ADS,
+      FRIEND: ReferralSource.FRIEND,
+      SCHOOL: ReferralSource.SCHOOL,
+      OTHER: ReferralSource.OTHER
+    };
+
+    return sources[source as string] ?? ReferralSource.OTHER;
+  }
+
   private toPrismaExperienceLevel(
     level: UpdateProfileRequest["studentProfile"] extends infer T
       ? T extends { experienceLevel?: infer U }
-        ? U
+        ? NonNullable<U>
         : never
       : never
   ) {
     const levels: Record<string, ExperienceLevel> = {
-      ADVANCED: ExperienceLevel.ADVANCED,
       BEGINNER: ExperienceLevel.BEGINNER,
-      INTERMEDIATE: ExperienceLevel.INTERMEDIATE
+      INTERMEDIATE: ExperienceLevel.INTERMEDIATE,
+      ADVANCED: ExperienceLevel.ADVANCED
     };
 
     return levels[level as string] ?? ExperienceLevel.BEGINNER;
   }
 
-  private toExperienceLevel(level: RegisterRequest["experienceLevel"]) {
-    const levels: Record<RegisterRequest["experienceLevel"], ExperienceLevel> =
+  private toReferralSource(source: RegisterRequest["referralSource"]) {
+    const sources: Record<RegisterRequest["referralSource"], ReferralSource> =
       {
-        advanced: ExperienceLevel.ADVANCED,
-        beginner: ExperienceLevel.BEGINNER,
-        intermediate: ExperienceLevel.INTERMEDIATE
+        ads: ReferralSource.ADS,
+        friend: ReferralSource.FRIEND,
+        school: ReferralSource.SCHOOL,
+        other: ReferralSource.OTHER
       };
 
-    return levels[level];
+    return sources[source];
   }
 
   private async waitForPasswordResetResponseDelay(startedAt: number) {
