@@ -72,6 +72,19 @@ npm run test -w apps/api           # if you touched API logic
 npm run build -w apps/web          # if you touched web (catches RSC/client boundary errors)
 ```
 
+For **UI / responsive / layout** changes, also screenshot the affected routes
+across a device matrix and confirm no horizontal overflow (needs web + api
+running; `npx playwright install chromium` once):
+
+```bash
+npm run shots -- --path <route> --devices all
+npm run shots -- --paths <a,b> --login <coach|student|admin> --devices mobile,tablet --theme both
+npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-landscape
+```
+
+Output + gallery in `scripts/responsive/shots/<timestamp>/`. Full docs:
+[`scripts/responsive/README.md`](scripts/responsive/README.md).
+
 The pre-commit hook (`.husky/pre-commit`) runs `npm run typecheck` + `npm run lint`. `package.json`'s `precommit` script additionally runs tests but the hook itself does not.
 
 ---
