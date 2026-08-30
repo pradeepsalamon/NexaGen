@@ -21,6 +21,8 @@ import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
+import { RecordingStorageService } from "./recording-storage.service";
+import type { Request, Response } from "express";
 
 @Injectable()
 export class LiveClassService {
@@ -36,7 +38,8 @@ export class LiveClassService {
     private readonly jwtService: JwtService,
     @Inject(forwardRef(() => AttendanceService))
     private readonly attendanceService: AttendanceService,
-    private readonly backupService: BackupService
+    private readonly backupService: BackupService,
+    private readonly recordingStorageService: RecordingStorageService
   ) { }
 
   /** Matches the coach's participant regardless of the `_<clientId>` tab suffix (AUDIT M23). */
@@ -577,6 +580,7 @@ export class LiveClassService {
     const timestamp = new Date().getTime();
     const filepath = `recordings/${roomName}-${timestamp}.mp4`;
 
+    await this.recordingStorageService.ensureStorageCapacity();
     const egressId = await this.livekit.startRecording(liveSession.roomName, filepath);
 
     // Do NOT set `recordingUrl` yet — a failed egress would leave a Download
@@ -788,7 +792,78 @@ export class LiveClassService {
       throw new ForbiddenException("You are not authorized to view this recording.");
     }
 
+    if (this.recordingStorageService.hasLocalFile(liveSession.recordingUrl)) {
+      return { url: `/live-class/${classId}/recording/stream` };
+    }
+
     return this.backupService.getDownloadUrl(liveSession.recordingUrl);
+  }
+
+  async streamRecording(
+    accessToken: string | undefined,
+    classId: string,
+    req: Request,
+    res: Response
+  ) {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+      include: {
+        batch: {
+          include: {
+            students: true,
+          },
+        },
+        class: {
+          include: {
+            batch: {
+              include: {
+                students: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!liveSession || !liveSession.recordingUrl) {
+      throw new NotFoundException("Recording not found.");
+    }
+
+    let isAuthorized = false;
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
+      isAuthorized = true;
+    } else if (user.role === UserRole.COACH && liveSession.coachId === user.id) {
+      isAuthorized = true;
+    } else if (user.role === UserRole.STUDENT) {
+      const batchStudents =
+        liveSession.batch?.students || liveSession.class?.batch?.students || [];
+      const isStudentInBatch = batchStudents.some(
+        (s) => s.studentId === user.id && !s.isDeleted
+      );
+      if (isStudentInBatch) {
+        isAuthorized = true;
+      }
+    }
+
+    if (!isAuthorized) {
+      throw new ForbiddenException("You are not authorized to view this recording.");
+    }
+
+    await this.recordingStorageService.streamVideoFile(
+      liveSession.recordingUrl,
+      req,
+      res
+    );
+  }
+
+  async getRecordingStorageUsage(accessToken: string | undefined) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException("Only admins can view recording storage metrics.");
+    }
+    return this.recordingStorageService.getStorageUsage();
   }
 
   async updateRecordingProgress(accessToken: string | undefined, classId: string, watchedSeconds: number) {

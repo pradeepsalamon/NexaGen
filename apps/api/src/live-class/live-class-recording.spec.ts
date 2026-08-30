@@ -7,6 +7,7 @@ import { LiveClassService } from "./live-class.service";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
+import { RecordingStorageService } from "./recording-storage.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "test-access-token";
@@ -16,6 +17,12 @@ describe("LiveClassService recording feature", () => {
   let jwtService: { verifyAsync: jest.Mock };
   let livekitService: { startRecording: jest.Mock; stopRecording: jest.Mock };
   let backupService: { getDownloadUrl: jest.Mock };
+  let recordingStorageService: {
+    ensureStorageCapacity: jest.Mock;
+    hasLocalFile: jest.Mock;
+    streamVideoFile: jest.Mock;
+    getStorageUsage: jest.Mock;
+  };
   let userFindUnique: jest.Mock;
   let liveSessionFindUnique: jest.Mock;
   let liveSessionFindMany: jest.Mock;
@@ -40,6 +47,12 @@ describe("LiveClassService recording feature", () => {
     };
     backupService = {
       getDownloadUrl: jest.fn().mockResolvedValue({ url: "https://signed.download.url" }),
+    };
+    recordingStorageService = {
+      ensureStorageCapacity: jest.fn().mockResolvedValue(undefined),
+      hasLocalFile: jest.fn().mockReturnValue(false),
+      streamVideoFile: jest.fn().mockResolvedValue(undefined),
+      getStorageUsage: jest.fn().mockResolvedValue({ usedGb: 10, limitGb: 130 }),
     };
     userFindUnique = jest.fn();
     liveSessionFindUnique = jest.fn();
@@ -66,6 +79,7 @@ describe("LiveClassService recording feature", () => {
         { provide: LiveKitService, useValue: livekitService },
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: backupService },
+        { provide: RecordingStorageService, useValue: recordingStorageService },
       ],
     }).compile();
 

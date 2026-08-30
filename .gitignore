@@ -32,3 +32,6 @@ scripts/responsive/shots/
 .ai/manager/state/*
 !.ai/manager/state/.gitkeep
 
+# Local Recordings storage
+recordings/
+
