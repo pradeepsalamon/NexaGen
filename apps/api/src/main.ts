@@ -14,7 +14,9 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ["error", "warn"]
   });
-  app.set("trust proxy", true);
+  // Trust exactly the number of proxy hops in front of us (nginx = 1). Trusting
+  // every hop lets a client spoof X-Forwarded-For and bypass IP rate limiting.
+  app.set("trust proxy", env.TRUST_PROXY_HOPS);
   const corsOrigins = getCorsOrigins(env);
 
   app.use((request: Request, response: Response, next: NextFunction) => {

@@ -82,8 +82,17 @@ export class LiveClassController {
   }
 
   @Get(API_ROUTES.liveClass.downloadRecording())
-  downloadRecording(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.downloadRecording(this.getAccessToken(request), id);
+  downloadRecording(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Query("download") download?: string
+  ) {
+    return this.liveClassService.downloadRecording(
+      this.getAccessToken(request),
+      id,
+      request,
+      download === "1" || download === "true"
+    );
   }
 
   @Get(API_ROUTES.liveClass.streamRecording())
@@ -91,10 +100,17 @@ export class LiveClassController {
     @Param("id") id: string,
     @Req() request: Request,
     @Res() response: Response,
-    @Query("token") queryToken?: string
+    @Query("st") streamToken?: string,
+    @Query("dl") download?: string
   ) {
-    const token = this.getAccessToken(request) || queryToken;
-    return this.liveClassService.streamRecording(token, id, request, response);
+    return this.liveClassService.streamRecording(
+      this.getAccessToken(request),
+      streamToken,
+      id,
+      request,
+      response,
+      download === "1" || download === "true"
+    );
   }
 
   @Get(API_ROUTES.liveClass.storageUsage())

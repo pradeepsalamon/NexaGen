@@ -120,7 +120,7 @@ services:
         redis:
           address: redis:6379
     volumes:
-      - ./recordings:/recordings
+      - ${RECORDING_STORAGE_HOST_DIR:-./recordings}:${RECORDING_STORAGE_DIR:-/recordings}
     cap_add:
       - SYS_ADMIN
     depends_on:
@@ -166,6 +166,8 @@ services:
 
       CORS_ORIGIN: ${CORS_ORIGIN}
       FRONTEND_URL: ${FRONTEND_URL}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 
       LIVEKIT_URL: ${LIVEKIT_URL}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
@@ -192,9 +194,18 @@ services:
 
       RECORDING_STORAGE_DIR: ${RECORDING_STORAGE_DIR:-/recordings}
       RECORDING_STORAGE_LIMIT_GB: ${RECORDING_STORAGE_LIMIT_GB:-130}
+      RECORDING_MIN_RETENTION_DAYS: ${RECORDING_MIN_RETENTION_DAYS:-14}
+
+      # OCI Object Storage — DB backups (backup module) and the download
+      # fallback for recordings not on local disk. Still required.
+      OCI_REGION: ${OCI_REGION}
+      OCI_NAMESPACE: ${OCI_NAMESPACE}
+      OCI_BUCKET_NAME: ${OCI_BUCKET_NAME}
+      OCI_ACCESS_KEY_ID: ${OCI_ACCESS_KEY_ID}
+      OCI_SECRET_ACCESS_KEY: ${OCI_SECRET_ACCESS_KEY}
 
     volumes:
-      - ./recordings:/recordings
+      - ${RECORDING_STORAGE_HOST_DIR:-./recordings}:${RECORDING_STORAGE_DIR:-/recordings}
 
     ports:
       - "3001:3001"

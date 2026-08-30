@@ -39,8 +39,10 @@ const apiEnvSchema = z.object({
   STOCKFISH_POOL_SIZE: z.coerce.number().int().positive().default(4),
   STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800),
   COOKIE_DOMAIN: z.string().optional(),
+  TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
-  RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130)
+  RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
+  RECORDING_MIN_RETENTION_DAYS: z.coerce.number().nonnegative().default(14)
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
@@ -76,12 +78,32 @@ export function getCookieDomain(
     if (hostname === "localhost" || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
       return undefined;
     }
-    const parts = hostname.split(".");
-    if (parts.length >= 2) {
-      return `.${parts.slice(-2).join(".")}`;
-    }
-    return `.${hostname}`;
+    return `.${registrableDomain(hostname)}`;
   } catch {
     return undefined;
   }
+}
+
+// Second-level labels that sit under a country-code TLD (e.g. "co" in
+// "example.co.uk"), where the registrable domain is the last THREE labels.
+const SECOND_LEVEL_TLDS = new Set([
+  "co",
+  "com",
+  "net",
+  "org",
+  "gov",
+  "edu",
+  "ac",
+  "or",
+  "ne",
+  "go",
+]);
+
+function registrableDomain(hostname: string): string {
+  const parts = hostname.split(".");
+  if (parts.length <= 2) return hostname;
+  const isCcSecondLevel =
+    parts[parts.length - 1].length === 2 &&
+    SECOND_LEVEL_TLDS.has(parts[parts.length - 2]);
+  return parts.slice(isCcSecondLevel ? -3 : -2).join(".");
 }

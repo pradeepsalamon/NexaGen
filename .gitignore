@@ -23,6 +23,12 @@ github-actions-key.pub
 # Responsive screenshot tool output
 scripts/responsive/shots/
 
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # Nexa AI Worker dynamic state & worktrees
 .worktrees/
 .ai/workers/state.json

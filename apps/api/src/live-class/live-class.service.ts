@@ -745,55 +745,111 @@ export class LiveClassService {
     });
   }
 
-  async downloadRecording(accessToken: string | undefined, classId: string) {
+  /** Prisma include that pulls the batch students needed for recording access checks. */
+  private static readonly recordingAccessInclude = {
+    batch: { include: { students: true } },
+    class: { include: { batch: { include: { students: true } } } },
+  } as const;
+
+  /**
+   * Recording visibility: admins always, the owning coach, or a student in the
+   * session's batch. Throws Forbidden otherwise.
+   */
+  private assertCanViewRecording(
+    user: { id: string; role: UserRole },
+    liveSession: {
+      coachId: string;
+      batch?: { students: { studentId: string; isDeleted: boolean }[] } | null;
+      class?: { batch?: { students: { studentId: string; isDeleted: boolean }[] } | null } | null;
+    }
+  ) {
+    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) return;
+    if (user.role === UserRole.COACH && liveSession.coachId === user.id) return;
+
+    if (user.role === UserRole.STUDENT) {
+      const batchStudents =
+        liveSession.batch?.students || liveSession.class?.batch?.students || [];
+      if (batchStudents.some((s) => s.studentId === user.id && !s.isDeleted)) return;
+    }
+
+    throw new ForbiddenException("You are not authorized to view this recording.");
+  }
+
+  /**
+   * Short-lived, single-purpose token that lets a `<video>` element (which can't
+   * send an Authorization header or, in some browsers, cookies) fetch one
+   * recording. It is NOT an account token — it only names a viewer + class and
+   * access is still re-checked against the batch on every request.
+   */
+  private mintRecordingStreamToken(userId: string, classId: string) {
+    return this.jwtService.signAsync(
+      { type: "recording-stream", sub: userId, classId },
+      { secret: this.env.JWT_ACCESS_SECRET, expiresIn: "15m" }
+    );
+  }
+
+  private async resolveRecordingViewer(
+    accessToken: string | undefined,
+    streamToken: string | undefined,
+    classId: string
+  ) {
+    if (accessToken) return this.getAuthenticatedUser(accessToken);
+
+    if (streamToken) {
+      let payload: { type?: string; sub?: string; classId?: string };
+      try {
+        payload = await this.jwtService.verifyAsync(streamToken, {
+          secret: this.env.JWT_ACCESS_SECRET,
+        });
+      } catch {
+        throw new UnauthorizedException("Invalid or expired stream token.");
+      }
+      if (
+        payload.type !== "recording-stream" ||
+        payload.classId !== classId ||
+        !payload.sub
+      ) {
+        throw new UnauthorizedException("Invalid stream token.");
+      }
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        include: { coachProfile: true, studentProfile: true },
+      });
+      if (!user || user.status !== UserStatus.ACTIVE) {
+        throw new UnauthorizedException("Invalid session.");
+      }
+      return user;
+    }
+
+    throw new UnauthorizedException("Access token is missing.");
+  }
+
+  async downloadRecording(
+    accessToken: string | undefined,
+    classId: string,
+    req: Request,
+    download = false
+  ) {
     const user = await this.getAuthenticatedUser(accessToken);
 
     const liveSession = await this.prisma.liveSession.findUnique({
       where: { classId },
-      include: {
-        batch: {
-          include: {
-            students: true,
-          },
-        },
-        class: {
-          include: {
-            batch: {
-              include: {
-                students: true,
-              },
-            },
-          },
-        },
-      },
+      include: LiveClassService.recordingAccessInclude,
     });
 
     if (!liveSession || !liveSession.recordingUrl) {
       throw new NotFoundException("Recording not found.");
     }
 
-    let isAuthorized = false;
-    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
-      isAuthorized = true;
-    } else if (user.role === UserRole.COACH && liveSession.coachId === user.id) {
-      isAuthorized = true;
-    } else if (user.role === UserRole.STUDENT) {
-      const batchStudents =
-        liveSession.batch?.students || liveSession.class?.batch?.students || [];
-      const isStudentInBatch = batchStudents.some(
-        (s) => s.studentId === user.id && !s.isDeleted
-      );
-      if (isStudentInBatch) {
-        isAuthorized = true;
-      }
-    }
-
-    if (!isAuthorized) {
-      throw new ForbiddenException("You are not authorized to view this recording.");
-    }
+    this.assertCanViewRecording(user, liveSession);
 
     if (this.recordingStorageService.hasLocalFile(liveSession.recordingUrl)) {
-      return { url: `/live-class/${classId}/recording/stream` };
+      const streamToken = await this.mintRecordingStreamToken(user.id, classId);
+      const base = `${req.protocol}://${req.get("host")}`;
+      const query = `st=${streamToken}${download ? "&dl=1" : ""}`;
+      return {
+        url: `${base}/live-class/${classId}/recording/stream?${query}`,
+      };
     }
 
     return this.backupService.getDownloadUrl(liveSession.recordingUrl);
@@ -801,60 +857,30 @@ export class LiveClassService {
 
   async streamRecording(
     accessToken: string | undefined,
+    streamToken: string | undefined,
     classId: string,
     req: Request,
-    res: Response
+    res: Response,
+    download = false
   ) {
-    const user = await this.getAuthenticatedUser(accessToken);
+    const user = await this.resolveRecordingViewer(accessToken, streamToken, classId);
 
     const liveSession = await this.prisma.liveSession.findUnique({
       where: { classId },
-      include: {
-        batch: {
-          include: {
-            students: true,
-          },
-        },
-        class: {
-          include: {
-            batch: {
-              include: {
-                students: true,
-              },
-            },
-          },
-        },
-      },
+      include: LiveClassService.recordingAccessInclude,
     });
 
     if (!liveSession || !liveSession.recordingUrl) {
       throw new NotFoundException("Recording not found.");
     }
 
-    let isAuthorized = false;
-    if (user.role === UserRole.SUPER_ADMIN || user.role === UserRole.ADMIN) {
-      isAuthorized = true;
-    } else if (user.role === UserRole.COACH && liveSession.coachId === user.id) {
-      isAuthorized = true;
-    } else if (user.role === UserRole.STUDENT) {
-      const batchStudents =
-        liveSession.batch?.students || liveSession.class?.batch?.students || [];
-      const isStudentInBatch = batchStudents.some(
-        (s) => s.studentId === user.id && !s.isDeleted
-      );
-      if (isStudentInBatch) {
-        isAuthorized = true;
-      }
-    }
-
-    if (!isAuthorized) {
-      throw new ForbiddenException("You are not authorized to view this recording.");
-    }
+    this.assertCanViewRecording(user, liveSession);
 
     await this.recordingStorageService.streamVideoFile(
       liveSession.recordingUrl,
       req,
-      res
+      res,
+      { attachment: download }
     );
   }
 

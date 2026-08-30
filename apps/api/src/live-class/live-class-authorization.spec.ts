@@ -6,6 +6,7 @@ import { LiveClassService } from "./live-class.service";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
+import { RecordingStorageService } from "./recording-storage.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -59,7 +60,8 @@ describe("LiveClassService chat authorization", () => {
         { provide: JwtService, useValue: jwtService },
         { provide: LiveKitService, useValue: {} },
         { provide: AttendanceService, useValue: {} },
-        { provide: BackupService, useValue: {} }
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} }
       ]
     }).compile();
 
@@ -196,7 +198,8 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: JwtService, useValue: jwtService },
         { provide: LiveKitService, useValue: { listParticipants, generateAccessToken } },
         { provide: AttendanceService, useValue: { recordJoinEvent } },
-        { provide: BackupService, useValue: {} }
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} }
       ]
     }).compile();
 

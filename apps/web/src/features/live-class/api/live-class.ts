@@ -52,8 +52,12 @@ export const stopRecording = (roomId: string): Promise<{ success: boolean }> => 
   return apiFetch(API_ROUTES.liveClass.stopRecording(roomId), { method: "POST" });
 };
 
-export const getRecordingDownloadUrl = (roomId: string): Promise<{ url: string }> => {
-  return apiFetch<{ url: string }>(API_ROUTES.liveClass.downloadRecording(roomId));
+export const getRecordingDownloadUrl = (
+  roomId: string,
+  opts: { download?: boolean } = {}
+): Promise<{ url: string }> => {
+  const path = API_ROUTES.liveClass.downloadRecording(roomId);
+  return apiFetch<{ url: string }>(opts.download ? `${path}?download=1` : path);
 };
 
 export const updateRecordingProgress = (roomId: string, watchedSeconds: number): Promise<{ success: boolean }> => {
