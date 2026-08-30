@@ -27,5 +27,5 @@ export const MeetingHeader = memo(function MeetingHeader() {
     </div>
   );
 
-  return <Header leftSlot={leftSlot} centerSlot={centerSlot} rightSlot={rightSlot} />;
+  return <Header compact leftSlot={leftSlot} centerSlot={centerSlot} rightSlot={rightSlot} />;
 });

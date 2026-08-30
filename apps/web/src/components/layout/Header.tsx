@@ -67,10 +67,17 @@ export function Header({
   centerSlot,
   rightSlot,
   leftSlot,
+  compact = false,
 }: {
   centerSlot?: React.ReactNode;
   rightSlot?: React.ReactNode;
   leftSlot?: React.ReactNode;
+  /**
+   * Trims the header for immersive screens (live class / summary): hides the
+   * Dashboard CTA and notification bell below `sm` so the bar doesn't overflow
+   * on a phone. No effect on `sm+` or when omitted.
+   */
+  compact?: boolean;
 } = {}) {
   const pathname = usePathname();
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -109,7 +116,8 @@ export function Header({
           {activeUser && (
             <Link
               className={cn(
-                "inline-flex min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
+                "min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
+                compact ? "hidden sm:inline-flex" : "inline-flex",
                 pathname.startsWith(dashboardHref) && dashboardHref !== "/"
                   ? "border-primary bg-primary text-white"
                   : "border-app-border bg-app-soft text-app-text hover:border-primary/50 hover:bg-app-soft/80"
@@ -120,7 +128,11 @@ export function Header({
               <span className="hidden sm:inline">Dashboard</span>
             </Link>
           )}
-          {activeUser && <NotificationBell />}
+          {activeUser && (
+            <span className={cn(compact && "hidden sm:block")}>
+              <NotificationBell />
+            </span>
+          )}
           <ThemeToggle />
           {isAuthPending ? (
             <div

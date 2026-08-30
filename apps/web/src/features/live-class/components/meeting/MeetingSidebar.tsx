@@ -92,7 +92,7 @@ const SidebarTabs = memo(function SidebarTabs({
           type="button"
           onClick={() => onTabChange(panel.id)}
           className={cn(
-            "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all duration-150",
+            "flex min-h-10 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150 sm:min-h-0 sm:py-1.5",
             active === panel.id
               ? "bg-primary/10 text-primary"
               : "text-app-muted hover:bg-app-soft hover:text-app-text",
@@ -130,7 +130,7 @@ export function MeetingSidebar() {
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: "100%", opacity: 0 }}
           transition={{ duration: 0.25, ease: [0.25, 0.1, 0.25, 1] }}
-          className="absolute right-0 top-0 bottom-0 z-40 flex h-full w-[380px] max-w-full flex-col border-l border-app-border/60 bg-app-background/95 shadow-[-8px_0_32px_rgba(0,0,0,0.05)] backdrop-blur-xl sm:relative"
+          className="fixed inset-0 z-50 flex h-full w-full max-w-full flex-col border-app-border/60 bg-app-background shadow-[-8px_0_32px_rgba(0,0,0,0.05)] sm:relative sm:inset-auto sm:z-40 sm:w-[380px] sm:border-l sm:bg-app-background/95 sm:backdrop-blur-xl"
           role="complementary"
           aria-label={`${activeSidebar} panel`}
         >

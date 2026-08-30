@@ -27,6 +27,7 @@ import {
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
+import { MoreControlsMenu } from "./MoreControlsMenu";
 import { RecordingBadge } from "./MeetingStatus";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { cn } from "@/lib/utils";
@@ -137,11 +138,16 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       initial={{ opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
-      className="absolute inset-x-0 bottom-6 z-40 flex justify-center px-4 pointer-events-none pb-[env(safe-area-inset-bottom)]"
+      className={cn(
+        "absolute inset-x-0 bottom-3 z-40 flex justify-center px-2 pointer-events-none pb-[env(safe-area-inset-bottom)] sm:bottom-6 sm:px-4",
+        // On a phone the sidebar is a full-screen panel with its own controls —
+        // keep the floating bar from covering the chat composer / close button.
+        activeSidebar && "hidden sm:flex",
+      )}
       role="toolbar"
       aria-label="Meeting controls"
     >
-      <div className="pointer-events-auto flex flex-wrap items-center justify-center max-w-full gap-1.5 rounded-2xl border border-app-border bg-app-surface/90 px-3 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:flex-nowrap sm:gap-2 sm:px-4 sm:py-3">
+      <div className="pointer-events-auto flex flex-wrap items-center justify-center max-w-full gap-0.5 rounded-2xl border border-app-border bg-app-surface/90 px-2 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:flex-nowrap sm:gap-2 sm:px-4 sm:py-3">
         {/* ── Media controls ────────────────── */}
         <MeetingControlButton
           icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
@@ -157,15 +163,19 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
           {...extractProps(camera.buttonProps)}
         />
 
-        <MeetingControlButton
-          icon={<MonitorUp className="size-5" />}
-          label={screen.enabled ? "Stop Share" : "Share Screen"}
-          variant={screen.enabled ? "active" : "default"}
-          {...extractProps(screen.buttonProps)}
-        />
+        {/* Screen share — unreliable on mobile browsers, desktop only */}
+        <div className="hidden sm:block">
+          <MeetingControlButton
+            icon={<MonitorUp className="size-5" />}
+            label={screen.enabled ? "Stop Share" : "Share Screen"}
+            variant={screen.enabled ? "active" : "default"}
+            {...extractProps(screen.buttonProps)}
+          />
+        </div>
 
-        {/* ── Chessboard share (coach only) ── */}
+        {/* ── Chessboard share (coach only, desktop/tablet only) ── */}
         {isCoach && (
+          <div className="hidden md:block">
           <MeetingControlButton
             icon={
               <Crown
@@ -198,34 +208,37 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
               }
             }}
           />
+          </div>
         )}
 
-        {/* ── Record (coach only) ── */}
+        {/* ── Record (coach only) — inline on desktop, in the ⋯ menu on mobile ── */}
         {isCoach && (
-          <MeetingControlButton
-            icon={
-              <Circle
-                className={cn(
-                  "size-5 transition-transform",
-                  isRecording && "fill-red-500 text-red-500 scale-110 animate-pulse",
-                )}
-              />
-            }
-            label={
-              isTogglingRecording
-                ? "Updating recording..."
-                : isRecording
-                ? "Stop Recording"
-                : "Record Class"
-            }
-            variant={isRecording ? "active" : "default"}
-            onClick={handleToggleRecording}
-            disabled={isTogglingRecording}
-          />
+          <div className="hidden sm:block">
+            <MeetingControlButton
+              icon={
+                <Circle
+                  className={cn(
+                    "size-5 transition-transform",
+                    isRecording && "fill-red-500 text-red-500 scale-110 animate-pulse",
+                  )}
+                />
+              }
+              label={
+                isTogglingRecording
+                  ? "Updating recording..."
+                  : isRecording
+                  ? "Stop Recording"
+                  : "Record Class"
+              }
+              variant={isRecording ? "active" : "default"}
+              onClick={handleToggleRecording}
+              disabled={isTogglingRecording}
+            />
+          </div>
         )}
 
-        {/* Divider */}
-        <div className="mx-1 h-8 w-px bg-app-border sm:mx-2" aria-hidden="true" />
+        {/* Divider — the media / utility split only reads on the wider desktop bar */}
+        <div className="mx-1 hidden h-8 w-px bg-app-border sm:mx-2 sm:block" aria-hidden="true" />
 
         {/* ── Utility controls ──────────────── */}
         <MeetingControlButton
@@ -258,12 +271,27 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
           onClick={toggleHandRaised}
         />
 
-        <MeetingControlButton
-          icon={<Settings className="size-5" />}
-          label="Settings"
-          variant={activeSidebar === "settings" ? "active" : "default"}
-          onClick={() => toggleSidebar("settings")}
-        />
+        {/* Settings — inline on desktop, in the ⋯ menu on mobile */}
+        <div className="hidden sm:block">
+          <MeetingControlButton
+            icon={<Settings className="size-5" />}
+            label="Settings"
+            variant={activeSidebar === "settings" ? "active" : "default"}
+            onClick={() => toggleSidebar("settings")}
+          />
+        </div>
+
+        {/* Overflow menu — mobile only */}
+        <div className="sm:hidden">
+          <MoreControlsMenu
+            isCoach={isCoach}
+            settingsActive={activeSidebar === "settings"}
+            onOpenSettings={() => toggleSidebar("settings")}
+            isRecording={isRecording}
+            isTogglingRecording={isTogglingRecording}
+            onToggleRecording={handleToggleRecording}
+          />
+        </div>
 
         {/* Fullscreen — hidden on mobile */}
         <div className="hidden sm:block">
@@ -281,7 +309,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
         </div>
 
         {/* Divider */}
-        <div className="mx-0.5 h-7 w-px bg-app-border sm:mx-1" aria-hidden="true" />
+        <div className="mx-0.5 hidden h-7 w-px bg-app-border sm:mx-1 sm:block" aria-hidden="true" />
 
         {/* Recording indicator (visible when recording) */}
         <RecordingBadge className="hidden sm:flex" />

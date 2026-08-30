@@ -73,7 +73,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
 
   return (
     <>
-      <div className="flex min-h-full w-full flex-col p-3 pb-20 sm:p-4 sm:pb-24">
+      <div className="flex min-h-full w-full flex-col p-3 pb-28 sm:p-4 sm:pb-24">
         <LayoutGroup>
           <div
             className={cn(

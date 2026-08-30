@@ -135,7 +135,7 @@
   }
 
   .custom-prejoin .lk-button-group {
-    @apply flex min-w-[10rem] flex-1 items-stretch overflow-hidden rounded-control border border-app-border bg-app-surface shadow-sm transition-all sm:flex-none;
+    @apply flex min-w-0 flex-1 items-stretch overflow-hidden rounded-control border border-app-border bg-app-surface shadow-sm transition-all sm:min-w-[10rem] sm:flex-none;
   }
 
   .custom-prejoin .lk-button-group:hover {
