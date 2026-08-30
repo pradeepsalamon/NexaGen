@@ -46,6 +46,11 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
 
   const gridClasses = useMemo(() => getGridClasses(totalItems), [totalItems]);
 
+  // For small counts, size the grid to the viewport so tiles fill the space
+  // (no whitespace, no scroll, works in landscape / short screens). Larger
+  // meetings keep the fixed-aspect + scroll layout.
+  const fitViewport = totalItems > 0 && totalItems <= 6;
+
   if (totalItems === 0 && !compact) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -73,12 +78,25 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
 
   return (
     <>
-      <div className="flex min-h-full w-full flex-col p-3 pb-28 sm:p-4 sm:pb-24">
+      <div
+        className={cn(
+          "flex w-full flex-col px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-24",
+          // Small/short screens with few tiles: size the grid to the viewport so
+          // tiles fill the space (no whitespace, no scroll, works in landscape).
+          // Desktop (lg+) keeps the original fixed-aspect + scroll layout.
+          fitViewport ? "max-lg:h-full max-lg:min-h-0 lg:min-h-full" : "min-h-full",
+        )}
+      >
         <LayoutGroup>
           <div
             className={cn(
-              "grid w-full gap-2.5 auto-rows-fr sm:gap-3 my-auto",
+              "grid w-full gap-2.5 auto-rows-fr sm:gap-3",
               gridClasses,
+              fitViewport ? "max-lg:min-h-0 max-lg:flex-1 lg:my-auto" : "my-auto",
+              // Landscape phones: pack more columns so tiles keep a usable size.
+              fitViewport &&
+                totalItems >= 3 &&
+                "[@media(orientation:landscape)_and_(max-height:600px)]:!grid-cols-3",
               totalItems <= 2 && "mx-auto max-w-5xl",
               totalItems <= 4 && totalItems > 2 && "mx-auto max-w-6xl",
             )}
@@ -93,11 +111,23 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.94 }}
                     transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                    className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200"
+                    className={cn(
+                      "group relative flex items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200",
+                      fitViewport
+                        ? "aspect-video max-lg:aspect-auto max-lg:h-full max-lg:w-full max-lg:min-h-0"
+                        : "aspect-video",
+                    )}
+                    style={{ containerType: "size" }}
                   >
                     {/* Only render ChessgroundBoard when NOT in fullscreen to avoid dual-instance conflicts */}
                     {!isBoardFullscreen && (
-                      <div className="absolute inset-y-0 aspect-square" style={{ left: "50%", transform: "translateX(-50%)" }}>
+                      <div
+                        className="relative"
+                        style={{
+                          width: "min(100cqw, 100cqh)",
+                          height: "min(100cqw, 100cqh)",
+                        }}
+                      >
                         <ChessgroundBoard />
                       </div>
                     )}
@@ -143,6 +173,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                   key={getTrackKey(trackRef)}
                   trackRef={trackRef}
                   onPin={setPinnedParticipantSid}
+                  fill={fitViewport}
                 />
               ))}
             </AnimatePresence>

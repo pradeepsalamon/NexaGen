@@ -40,7 +40,7 @@ export function MoreControlsMenu({
           type="button"
           aria-label="More controls"
           className={cn(
-            "relative flex size-10 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-muted transition-all duration-150 ease-out hover:bg-app-soft hover:text-app-text active:scale-95 sm:size-12",
+            "relative flex size-10 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-muted transition-all duration-150 ease-out hover:bg-app-soft hover:text-app-text active:scale-95 min-[360px]:size-11 sm:size-12",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
             open && "bg-primary text-white",
           )}

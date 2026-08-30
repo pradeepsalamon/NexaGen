@@ -31,9 +31,15 @@ export function BoardFocusOverlay({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        {/* Board container — square, centered, uses same BoardProvider context */}
-        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-2xl flex items-center justify-center">
-          <div className="aspect-square w-full sm:h-full sm:w-auto sm:max-w-full">
+        {/* Board container — largest square that fits, centered */}
+        <div
+          className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-app-border bg-app-surface shadow-2xl flex items-center justify-center"
+          style={{ containerType: "size" }}
+        >
+          <div
+            className="relative"
+            style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}
+          >
             <ChessgroundBoard />
           </div>
         </div>

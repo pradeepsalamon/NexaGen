@@ -100,7 +100,11 @@ export function Header({
             className="shrink-0 rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
             href={homeHref}
           >
-            <Logo compact size={40}/>
+            <Logo
+              compact
+              size={40}
+              wordmarkClassName={compact ? "hidden sm:block" : undefined}
+            />
           </Link>
           {leftSlot}
         </div>
@@ -117,7 +121,7 @@ export function Header({
             <Link
               className={cn(
                 "min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
-                compact ? "hidden sm:inline-flex" : "inline-flex",
+                compact ? "hidden lg:inline-flex" : "inline-flex",
                 pathname.startsWith(dashboardHref) && dashboardHref !== "/"
                   ? "border-primary bg-primary text-white"
                   : "border-app-border bg-app-soft text-app-text hover:border-primary/50 hover:bg-app-soft/80"
@@ -129,11 +133,13 @@ export function Header({
             </Link>
           )}
           {activeUser && (
-            <span className={cn(compact && "hidden sm:block")}>
+            <span className={cn(compact && "hidden lg:block")}>
               <NotificationBell />
             </span>
           )}
-          <ThemeToggle />
+          <span className={cn(compact && "hidden sm:block")}>
+            <ThemeToggle />
+          </span>
           {isAuthPending ? (
             <div
               aria-label="Checking session"

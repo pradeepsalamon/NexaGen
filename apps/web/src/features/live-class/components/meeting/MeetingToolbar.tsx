@@ -139,7 +139,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
       className={cn(
-        "absolute inset-x-0 bottom-3 z-40 flex justify-center px-2 pointer-events-none pb-[env(safe-area-inset-bottom)] sm:bottom-6 sm:px-4",
+        "absolute inset-x-0 bottom-3 z-40 flex justify-center px-1.5 pointer-events-none pb-[env(safe-area-inset-bottom)] sm:bottom-6 sm:px-4",
         // On a phone the sidebar is a full-screen panel with its own controls —
         // keep the floating bar from covering the chat composer / close button.
         activeSidebar && "hidden sm:flex",
@@ -147,7 +147,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       role="toolbar"
       aria-label="Meeting controls"
     >
-      <div className="pointer-events-auto flex flex-wrap items-center justify-center max-w-full gap-0.5 rounded-2xl border border-app-border bg-app-surface/90 px-2 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl sm:flex-nowrap sm:gap-2 sm:px-4 sm:py-3">
+      <div className="pointer-events-auto flex flex-wrap items-center justify-center max-w-full gap-0.5 rounded-2xl border border-app-border bg-app-surface/90 px-1 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl min-[360px]:gap-1 min-[360px]:px-2 sm:flex-nowrap sm:gap-2 sm:px-4 sm:py-3">
         {/* ── Media controls ────────────────── */}
         <MeetingControlButton
           icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
