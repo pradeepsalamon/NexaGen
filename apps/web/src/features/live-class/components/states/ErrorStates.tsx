@@ -16,7 +16,7 @@ interface ErrorStateProps {
 
 function ErrorState({ title, message, onRetry, actionText, actionHref }: ErrorStateProps) {
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
+    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 mb-6">
         <AlertCircle className="h-10 w-10 text-destructive" />
       </div>
@@ -73,7 +73,7 @@ export function RoomEnded() {
   const dashboardUrl = user?.role === "COACH" ? "/coach" : "/student";
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
+    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
       <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
         <span className="text-4xl">👋</span>
       </div>
@@ -129,7 +129,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
 
   if (isCoach) {
     return (
-      <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
+      <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mb-6">
           <span className="text-4xl">🚀</span>
         </div>
@@ -149,7 +149,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
 
   // Waiting Room for students
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
+    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
       <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mb-6 relative">
         <Loader2 className="absolute h-10 w-10 text-primary animate-spin" />
       </div>
@@ -195,7 +195,7 @@ export function WaitingForCoach({
   }, []);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
+    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
       <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
         <Loader2 className="absolute h-10 w-10 animate-spin text-primary" />
       </div>

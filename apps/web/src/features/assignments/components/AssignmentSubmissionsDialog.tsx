@@ -66,6 +66,13 @@ export function AssignmentSubmissionsDialog({ open, onOpenChange, deploymentId }
                 <div>
                   <p className="font-medium text-app-text">{s.studentName}</p>
                   {s.note && <p className="text-xs text-app-muted">&ldquo;{s.note}&rdquo;</p>}
+                  {(s.attemptCount > 0 || s.bestScorePercent !== null) && (
+                    <p className="text-xs text-app-muted">
+                      {s.bestScorePercent !== null && <>Score {s.bestScorePercent}% · </>}
+                      {s.bestAccuracyPercent !== null && <>Accuracy {s.bestAccuracyPercent}% · </>}
+                      {s.attemptCount} attempt{s.attemptCount === 1 ? "" : "s"}
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {s.timeSpentSeconds != null && s.status === "COMPLETED" && (

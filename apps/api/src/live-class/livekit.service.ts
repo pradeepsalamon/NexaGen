@@ -153,8 +153,12 @@ export class LiveKitService implements OnModuleInit {
         s3Output = { case: "s3", value: s3Upload };
       }
 
+      const egressFilepath = s3Output 
+        ? (filepath.startsWith("/") ? filepath.slice(1) : filepath)
+        : (filepath.startsWith("/") ? filepath : `/${filepath}`);
+
       const fileOutput = new EncodedFileOutput({
-        filepath,
+        filepath: egressFilepath,
         fileType: EncodedFileType.MP4,
         output: s3Output,
       });

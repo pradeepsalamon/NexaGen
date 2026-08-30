@@ -9,14 +9,16 @@ export const MeetingHeader = memo(function MeetingHeader() {
   const { topic, startedAt, endsAt } = useLiveClassState();
 
   const leftSlot = (
-    <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2">
       <LiveBadge className="hidden sm:flex shrink-0" />
       <RecordingBadge className="hidden sm:flex shrink-0" />
     </div>
   );
 
   const centerSlot = (
-    <h1 className="truncate text-center text-sm font-extrabold text-app-text sm:text-base">
+    // The control cluster (timer + menu) crowds the centre on phones — the
+    // student already knows which class they joined, so the title is sm+ only.
+    <h1 className="hidden max-w-[40vw] truncate text-center text-sm font-extrabold text-app-text sm:block sm:text-base lg:max-w-[55vw]">
       {topic || "Live Class"}
     </h1>
   );
@@ -27,5 +29,5 @@ export const MeetingHeader = memo(function MeetingHeader() {
     </div>
   );
 
-  return <Header leftSlot={leftSlot} centerSlot={centerSlot} rightSlot={rightSlot} />;
+  return <Header compact leftSlot={leftSlot} centerSlot={centerSlot} rightSlot={rightSlot} />;
 });

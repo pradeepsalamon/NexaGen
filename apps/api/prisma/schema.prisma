@@ -61,6 +61,12 @@ enum ClassStatus {
   IN_PROGRESS
 }
 
+enum BatchScheduleStatus {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
 enum AttendanceStatus {
   PRESENT
   LATE
@@ -85,6 +91,23 @@ enum AssignmentStatus {
   PENDING
   IN_PROGRESS
   COMPLETED
+}
+
+// The interactive activity an assignment asks the student to do. Existing rows
+// predate this column and default to REPLAY (the legacy PGN-viewer behaviour).
+enum AssignmentActivityType {
+  REPLAY
+  SOLVE_LINE
+  PLAY_VS_ENGINE
+  FREE_ANALYSIS
+}
+
+// Lifecycle of one StudentAssignmentAttempt.
+enum AssignmentAttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  ABANDONED
 }
 
 //
@@ -147,6 +170,9 @@ model User {
   coachAttendances       CoachAttendance[]        @relation("CoachClassAttendance")
   coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
+  notifications          Notification[]           @relation("UserNotifications")
+  createdBatchSchedules  BatchClassSchedule[]     @relation("BatchScheduleCreatedBy")
+  scheduleRules          BatchClassScheduleRule[] @relation("BatchScheduleRuleCoach")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -339,6 +365,7 @@ model Batch {
   classes      CoachClass[]
   liveSessions LiveSession[]
   assignments  AssignmentBatch[]
+  schedules    BatchClassSchedule[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -453,6 +480,16 @@ model CoachClass {
 
   meetingRoomId String?
 
+  // ── Recurring-schedule linkage (all nullable; manual classes leave them null) ──
+  scheduleId     String?
+  schedule       BatchClassSchedule?     @relation("BatchScheduleClasses", fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleRuleId String?
+  scheduleRule   BatchClassScheduleRule? @relation("BatchScheduleRuleClasses", fields: [scheduleRuleId], references: [id], onDelete: SetNull)
+  // Local calendar day of the occurrence in the schedule's timezone.
+  occurrenceDate DateTime? @db.Date
+  // Chronological class number within the owning schedule (stable once assigned).
+  sessionNumber  Int?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
@@ -462,12 +499,102 @@ model CoachClass {
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
 
+  @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@index([batchId])
   @@index([coachId])
   @@index([status])
   @@index([startsAt])
   @@index([isDemo])
+  @@index([scheduleId])
   @@map("classes")
+}
+
+//
+// BATCH RECURRING CLASS SCHEDULES
+//
+
+/// The recurrence template for a batch's weekly classes. Generating it produces
+/// real `CoachClass` rows (one per occurrence) that behave exactly like
+/// manually-created classes for live-class, attendance, assignments, etc.
+model BatchClassSchedule {
+  id String @id @default(cuid())
+
+  batchId String
+  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  title    String
+  /// IANA timezone the wall-clock rule times are interpreted in.
+  timezone String @default("Asia/Kolkata")
+
+  /// Local calendar days (inclusive) the recurrence spans.
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+
+  status BatchScheduleStatus @default(ACTIVE)
+
+  createdById String?
+  createdBy   User?   @relation("BatchScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rules      BatchClassScheduleRule[]
+  exceptions BatchScheduleException[]
+  classes    CoachClass[]            @relation("BatchScheduleClasses")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([batchId])
+  @@index([status])
+  @@map("batch_class_schedules")
+}
+
+/// One weekly slot in a schedule: "every <dayOfWeek> from <startTime> to
+/// <endTime> with <coach>".
+model BatchClassScheduleRule {
+  id String @id @default(cuid())
+
+  scheduleId String
+  schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  /// 0 = Sunday … 6 = Saturday (JS getUTCDay convention).
+  dayOfWeek Int
+  /// "HH:MM" 24h wall-clock in the schedule's timezone.
+  startTime String
+  endTime   String
+
+  coachId String
+  coach   User   @relation("BatchScheduleRuleCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
+  isEnabled Boolean @default(true)
+
+  classes CoachClass[] @relation("BatchScheduleRuleClasses")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scheduleId])
+  @@index([coachId])
+  @@map("batch_class_schedule_rules")
+}
+
+/// A single local date excluded from a schedule (holiday / batch break). The
+/// recurrence rule stays intact; only generation skips the date.
+model BatchScheduleException {
+  id String @id @default(cuid())
+
+  scheduleId String
+  schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  date   DateTime @db.Date
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([scheduleId, date])
+  @@index([scheduleId])
+  @@map("batch_schedule_exceptions")
 }
 
 model ClassAttendance {
@@ -701,6 +828,7 @@ model Course {
   description String?
   modules     CourseModule[]
   progress    StudentCourseProgress[]
+  schedules   BatchClassSchedule[]
 }
 
 model CourseModule {
@@ -758,12 +886,25 @@ model Assignment {
   isLibrary        Boolean              @default(false)
   title            String
   description      String?
-  pgn              String // raw PGN text (source of truth for the board viewer)
+  pgn              String // raw PGN text (source of truth for the REPLAY board viewer)
   pgnUrl           String? // Cloudinary raw-file URL for download
   difficulty       AssignmentDifficulty @default(BEGINNER)
   timeLimitMinutes Int?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
+
+  // ── Interactive-activity configuration (all additive; REPLAY ignores them) ──
+  activityType              AssignmentActivityType @default(REPLAY)
+  startFen                  String? // starting position for SOLVE_LINE / PLAY_VS_ENGINE / FREE_ANALYSIS
+  solutionMovesJson         Json? // [{ uci, san }] — expected line for SOLVE_LINE (never sent to students pre-completion)
+  orientation               String? // "white" | "black" — board orientation for the student
+  studentColor              String? // "white" | "black" — side the student plays (SOLVE_LINE / PLAY_VS_ENGINE)
+  engineLevel               Int? // Stockfish skill level 0-20 for PLAY_VS_ENGINE
+  passThresholdPercent      Int                    @default(100)
+  maxAttempts               Int? // null = unlimited
+  allowHints                Boolean                @default(false)
+  allowRetry                Boolean                @default(true)
+  requiredCompletionPercent Int                    @default(100)
 
   deployments AssignmentBatch[]
 
@@ -806,9 +947,70 @@ model StudentAssignment {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
+  // ── Evaluated-activity progress (null for legacy REPLAY rows) ──
+  bestScorePercent    Int?
+  bestAccuracyPercent Int?
+  attemptCount        Int       @default(0)
+  lastAttemptAt       DateTime?
+
+  attempts StudentAssignmentAttempt[]
+
   @@unique([assignmentBatchId, studentId])
   @@index([studentId])
   @@map("student_assignments")
+}
+
+// One execution of an evaluated assignment by a student. Progress is saved
+// incrementally (movesJson); the server evaluates authoritatively on submit.
+model StudentAssignmentAttempt {
+  id                  String                  @id @default(cuid())
+  studentAssignmentId String
+  studentAssignment   StudentAssignment       @relation(fields: [studentAssignmentId], references: [id], onDelete: Cascade)
+  attemptNumber       Int
+  status              AssignmentAttemptStatus @default(IN_PROGRESS)
+  movesJson           Json                    @default("[]") // [{ ply, uci, san, fenAfter, correct?, classification?, elapsedMs? }]
+  scorePercent        Int?
+  accuracyPercent     Int?
+  hintsUsed           Int                     @default(0)
+  durationSeconds     Int                     @default(0)
+  result              String? // "SOLVED" | "PARTIAL" | "WIN" | "LOSS" | "DRAW" | "SUBMITTED"
+  startedAt           DateTime                @default(now())
+  completedAt         DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@unique([studentAssignmentId, attemptNumber])
+  @@index([studentAssignmentId])
+  @@map("student_assignment_attempts")
+}
+
+//
+// NOTIFICATIONS
+//
+
+enum NotificationType {
+  ASSIGNMENT_DUE_SOON
+  ASSIGNMENT_GRADED
+}
+
+model Notification {
+  id       String           @id @default(cuid())
+  userId   String
+  user     User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type     NotificationType
+  title    String
+  body     String
+  /// in-app deep link, e.g. /student/assignments/<id>
+  linkPath String?
+  /// idempotency key so schedulers never double-send (null = always insert)
+  dedupeKey String?
+  readAt   DateTime?
+  createdAt DateTime        @default(now())
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 //

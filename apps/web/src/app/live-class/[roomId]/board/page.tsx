@@ -3,9 +3,11 @@
 import "@livekit/components-styles";
 import "@livekit/components-styles/prefabs";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { Crown } from "lucide-react";
 import { LiveKitRoom } from "@livekit/components-react";
+import { Button } from "@/components/ui/Button";
 import { BoardWorkspace } from "@/features/chessboard/components/layout/BoardWorkspace";
 import { BoardProvider } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClass } from "@/features/live-class/hooks/useLiveClass";
@@ -40,13 +42,40 @@ function ForceOpenBoard() {
   return null;
 }
 
+/**
+ * The shared board is a desktop/tablet authoring surface (chessground + engine
+ * panels). On phones we never mount `BoardWorkspace` or its LiveKit room — the
+ * coach gets a "use a larger screen" notice and students use the responsive
+ * inline board tile / full-screen view inside the meeting instead.
+ *
+ * `null` = not yet measured (matches the SSR output, so no hydration mismatch).
+ */
+function useIsBoardViewport() {
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 768px)");
+    const apply = () => setIsDesktop(mql.matches);
+    apply();
+    mql.addEventListener("change", apply);
+    return () => mql.removeEventListener("change", apply);
+  }, []);
+
+  return isDesktop;
+}
+
 export default function LiveClassBoardPage() {
   const params = useParams();
   const roomId = params.roomId as string;
+  const isDesktop = useIsBoardViewport();
 
   // We automatically set hasJoined to true because the coach is opening this from an active class
   // Pass "board" as clientId so the backend appends _board to the identity, preventing disconnects
-  const { token, error, isLoading, classStatus } = useLiveClass(roomId, true, "board");
+  const { token, error, isLoading, classStatus } = useLiveClass(
+    roomId,
+    isDesktop === true,
+    "board",
+  );
 
   useEffect(() => {
     if (typeof window === "undefined" || !roomId) return;
@@ -61,9 +90,36 @@ export default function LiveClassBoardPage() {
     } catch {}
   }, [roomId]);
 
+  if (isDesktop === null) {
+    return (
+      <div className="flex h-[100dvh] items-center justify-center bg-app-background">
+        <LoadingMeeting message="Loading Board..." />
+      </div>
+    );
+  }
+
+  if (!isDesktop) {
+    return (
+      <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 bg-app-background px-6 text-center text-app-text">
+        <span className="flex size-16 items-center justify-center rounded-2xl bg-amber-500/10">
+          <Crown className="size-8 text-amber-500" strokeWidth={2} />
+        </span>
+        <h1 className="text-lg font-bold">Shared Board</h1>
+        <p className="max-w-xs text-sm text-app-muted">
+          Please open the shared board on a laptop or desktop for the full teaching
+          experience. You can keep running the class from your phone in the meeting
+          tab.
+        </p>
+        <Button asChild variant="outline">
+          <a href={`/live-class/${roomId}`}>Back to Live Class</a>
+        </Button>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
-      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center h-screen">
+      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center h-[100dvh]">
         <LoadingMeeting message="Connecting to Board..." />
       </div>
     );
@@ -85,7 +141,7 @@ export default function LiveClassBoardPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-app-background text-foreground">
+    <div className="flex flex-col h-[100dvh] bg-app-background text-foreground">
       <main className="flex-1 min-h-0 relative">
         <LiveKitRoom
           token={token}

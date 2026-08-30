@@ -132,7 +132,7 @@ export function RegisterForm() {
                 value={values.studentAge}
               />
             </FormField>
-            <FormField id="referral-source" label="How you known nexa?">
+            <FormField id="referral-source" label="How you known nexachess?">
               <Select
                 id="referral-source"
                 onChange={(event) =>

@@ -5,9 +5,11 @@ type LogoProps = {
   compact?: boolean;
   stacked?: boolean;
   size?: number;
+  /** Extra classes for the wordmark wrapper — e.g. `"hidden sm:block"` to drop it on mobile. */
+  wordmarkClassName?: string;
 };
 
-export function Logo({ compact = false, stacked = false, size }: LogoProps) {
+export function Logo({ compact = false, stacked = false, size, wordmarkClassName }: LogoProps) {
   const imageWidth = size ?? (stacked ? 64 : compact ? 32 : 40);
   const imageHeight = size ?? (stacked ? 64 : compact ? 32 : 40);
 
@@ -23,7 +25,7 @@ export function Logo({ compact = false, stacked = false, size }: LogoProps) {
         src={logoImage}
         width={imageWidth}
       />
-      <div>
+      <div className={wordmarkClassName}>
         <span
           className={`${stacked ? "text-2xl sm:text-3xl tracking-tight" : compact ? "text-sm" : "text-base"} block font-extrabold leading-tight text-app-text`}
         >

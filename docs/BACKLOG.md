@@ -61,11 +61,78 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 | Item | Notes |
 |---|---|
-| **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**PGN assignments now have full authoring** — see the `assignment` module; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
+| **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
 | **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
-| **Live-monitoring screen** | `GET /attendance/class/:id/live` (`classLive`) and `getLiveClassMonitoring` are fully implemented and unused — no frontend. Same one-sided-feature cause as the (now-wired) admin drill-downs: reuse the `StudentAttendanceView` / dialog pattern in `features/attendance/components/`. |
 
 ## Resolved (2026-08-30)
+
+- **Board usage always 0 + reports showed scheduled, not actual, timing.**
+  `finalizeClassAttendance` recomputed the coach's `totalDuration` from the
+  session logs but never touched `boardDuration`, so a board tab still open at
+  class end (its `BOARD_LEAVE` never arrives, or lands after finalize) was never
+  counted — `recordBoardLeaveEvent`'s increment only fired on a clean close.
+  Finalize now recomputes `boardDuration` authoritatively from the `BOARD_JOIN`
+  logs (idempotent, like `totalDuration`). Separately, the student Attendance
+  History row measured "time present / **scheduled** length" and stamped the
+  **scheduled** start time; `getStudentAttendance` history now also returns
+  `actualStart` / `actualEnd` / `classActualDuration`, and the student + coach
+  history tables, the admin completed-classes list, and the class-detail header
+  render `actualStart ?? scheduled` and divide by the actual run length.
+
+- **Live class monitoring screen.** `GET /attendance/class/:id/live`
+  (`getLiveClassMonitoring`) had no frontend. Wired up: `LiveClassMonitor` +
+  `LiveClassMonitorDialog` (`features/attendance/components/`,
+  `useLiveClassMonitoring` polls every 10s while `isLive`). Shows online / left /
+  not-joined counts, elapsed time, and a per-student roster (connection state,
+  join time, last seen, reconnect count). Rendered on `/classes/[id]` for
+  coach/admin when the class is live, and behind a "Monitor Live" action on LIVE
+  rows in the admin Batch Classes table. No API/schema change.
+
+- **Assignments are now a full learning system, not just PGN replay.** Added an
+  `activityType` (`REPLAY` | `SOLVE_LINE` | `PLAY_VS_ENGINE` | `FREE_ANALYSIS`) to
+  `Assignment` plus interactive-activity config columns (all additive, `REPLAY`
+  default — every existing row and deployment is untouched). New
+  `StudentAssignmentAttempt` model + `bestScore/bestAccuracy/attemptCount` on
+  `StudentAssignment`. Server-authoritative `AssignmentEvaluationService` +
+  `AssignmentAttemptService` with the attempt-lifecycle endpoints under
+  `/assignments/mine/:id/attempts`. Frontend: reusable `PracticeBoard`,
+  `SolutionEditor`, activity-aware `AssignmentFormDialog` and
+  `StudentAssignmentDetailClient`, result/review views, coach score columns and
+  admin aggregate performance. Migration
+  `20260830152004_add_assignment_activities_and_attempts`. See README §Features.
+  Known limits: `FREE_ANALYSIS` completion is manual-submit only (no move-count
+  target).
+
+  - **PLAY_VS_ENGINE accuracy shipped.** `AssignmentEvaluationService.engineGameAccuracy`
+    runs per-move Stockfish analysis on the student's moves (win%-before vs
+    win%-after, Lichess per-move accuracy formula, averaged), called from
+    `submit` for non-resigned games. Bounded to the first 40 student moves at a
+    200 ms movetime; returns `null` (result-only score, as before) when the pool
+    is down or analysis throws. `analyzePosition` gained an optional
+    `{ movetimeMs }`. The result view already renders `accuracyPercent` when set.
+  - **In-app notifications.** New `Notification` model + `NotificationType`
+    (`ASSIGNMENT_DUE_SOON` | `ASSIGNMENT_GRADED`), prisma getter, migration
+    `add_notifications`. `NotificationModule` (token-auth): `GET /notifications`
+    (latest 50 + unread count), `POST /notifications/read` (ids or all).
+    `NotificationService.notify` / `notifyMany` (idempotent on
+    `(userId, dedupeKey)`) is exported for other modules. Triggers:
+    `NotificationScheduler` (daily 8am) → students with an unfinished assignment
+    due in <24h; `AssignmentAttemptService.submit` → the deploying coach when a
+    student finishes an attempt. Frontend: `features/notifications/*` +
+    `NotificationBell` in the app `Header` (polls every 60s). No email yet.
+  - **Author a SOLVE_LINE from the live-class board.** Coach-only
+    `SendPositionButton` in the shared-board header (`BoardWorkspace`) opens the
+    existing `AssignmentFormDialog` seeded with the current board FEN and
+    `activityType: "SOLVE_LINE"` (new optional `initialFen` / `initialActivityType`
+    props; `useCoachBatches` gained an `enabled` option). No API change — reuses
+    create + assign-now.
+  - **SOLVE_LINE hints shipped.** `POST /assignments/mine/:id/attempts/:attemptId/hint`
+    (`solveLineHintRequestSchema` → `SolveLineHint`). Progressive, derived from
+    the stored solution: level 1 = which piece, 2 = origin square, 3 = the full
+    move; each request bumps `hintsUsed` (only when the line is still on track).
+    `AssignmentEvaluationService.solveLineHint` + `AssignmentAttemptService.hint`.
+    Frontend: the `EvaluatedActivity` Hint button now works and `PracticeBoard`
+    gained a `hintSquares` overlay (circle + arrow). Gated on `allowHints`.
 
 - **Phantom "Absent with a join time" in the post-class report.** `getToken`
   opens a `ClassAttendance` row (`recordJoinEvent`, `source: "TOKEN_REQUEST"`)

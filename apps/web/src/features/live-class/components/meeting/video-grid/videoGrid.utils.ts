@@ -14,7 +14,8 @@ export function getGridClasses(count: number): string {
   if (count === 0) return "";
   if (count === 1) return "grid-cols-1";
   if (count === 2) return "grid-cols-1 sm:grid-cols-2";
-  if (count === 3) return "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
+  // 3 on a phone: two columns rather than a tall single-column scroll.
+  if (count === 3) return "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
   if (count === 4) return "grid-cols-2";
   if (count <= 6) return "grid-cols-2 lg:grid-cols-3";
   if (count <= 9) return "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";

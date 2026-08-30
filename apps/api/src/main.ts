@@ -1,6 +1,7 @@
 import cookieParser from "cookie-parser";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { getApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
 import type { NextFunction, Request, Response } from "express";
 import * as express from "express";
@@ -10,9 +11,12 @@ const HTTP_LOG_EXCLUDED_PREFIXES = ["/stockfish", "/health"];
 
 async function bootstrap() {
   const env = getApiEnv();
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ["error", "warn"]
   });
+  // Trust exactly the number of proxy hops in front of us (nginx = 1). Trusting
+  // every hop lets a client spoof X-Forwarded-For and bypass IP rate limiting.
+  app.set("trust proxy", env.TRUST_PROXY_HOPS);
   const corsOrigins = getCorsOrigins(env);
 
   app.use((request: Request, response: Response, next: NextFunction) => {

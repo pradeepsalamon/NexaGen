@@ -1,21 +1,19 @@
 "use client";
 
-import { Crown, Hand, Compass, RefreshCw } from "lucide-react";
+import { Crown, Hand, RefreshCw } from "lucide-react";
 import { useLocalParticipant } from "@livekit/components-react";
-import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useBoardSync } from "@/features/chessboard/hooks/useBoardSync";
 
 /**
- * Student-only cluster shown on the shared board: request/hold control, and
- * detach to explore a line privately then resync to the coach.
+ * Student-only cluster shown on the shared board: request/hold board control.
  */
 export function RequestControlButton() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
-  const { permissionMode, selectedStudentIds, isDetached, detachBoard } = useBoardStore();
+  const { permissionMode, selectedStudentIds, isDetached } = useBoardStore();
   const { requestControl, requestResync } = useBoardSync();
 
   if (isCoach) return null;
@@ -27,45 +25,34 @@ export function RequestControlButton() {
         (permissionMode === "SELECTED_STUDENT" && selectedStudentIds.includes(identity))),
   );
 
+  const pill =
+    "flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold shadow-md backdrop-blur-md transition-all active:scale-95";
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5">
       {isDetached ? (
         <button
           type="button"
           onClick={requestResync}
-          className="flex items-center gap-1.5 rounded-full border border-sky-500/40 bg-black/80 px-3 py-1.5 text-xs font-semibold text-sky-300 shadow-md backdrop-blur-md transition-all hover:border-sky-400 hover:text-sky-200 hover:scale-105 active:scale-95"
+          className={`${pill} border-sky-500/40 bg-black/80 text-sky-300 hover:border-sky-400 hover:text-sky-200`}
         >
-          <RefreshCw className="size-3.5" />
-          Resync to coach
+          <RefreshCw className="size-3" />
+          Resync
         </button>
+      ) : hasControl ? (
+        <span className={`${pill} border-emerald-500/40 bg-black/80 text-emerald-400`}>
+          <Crown className="size-3 text-emerald-400" />
+          You have control
+        </span>
       ) : (
-        <>
-          {hasControl ? (
-            <span className="flex items-center gap-1.5 rounded-full border border-emerald-500/40 bg-black/80 px-3 py-1.5 text-xs font-semibold text-emerald-400 shadow-md backdrop-blur-md">
-              <Crown className="size-3.5 text-emerald-400" />
-              You have control
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={requestControl}
-              className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-black/80 px-3 py-1.5 text-xs font-semibold text-amber-400 shadow-md backdrop-blur-md transition-all hover:bg-black/90 hover:border-amber-400 hover:text-amber-300 hover:scale-105 active:scale-95"
-            >
-              <Hand className="size-3.5 text-amber-400" />
-              Request Control
-            </button>
-          )}
-          <SimpleTooltip label="Explore this position privately without affecting the class board">
-            <button
-              type="button"
-              onClick={detachBoard}
-              className="flex items-center gap-1.5 rounded-full border border-white/20 bg-black/80 px-3 py-1.5 text-xs font-semibold text-white/80 shadow-md backdrop-blur-md transition-all hover:border-white/40 hover:text-white hover:scale-105 active:scale-95"
-            >
-              <Compass className="size-3.5" />
-              Explore on my own
-            </button>
-          </SimpleTooltip>
-        </>
+        <button
+          type="button"
+          onClick={requestControl}
+          className={`${pill} border-amber-500/40 bg-black/80 text-amber-400 hover:border-amber-400 hover:text-amber-300`}
+        >
+          <Hand className="size-3 text-amber-400" />
+          Request control
+        </button>
       )}
     </div>
   );

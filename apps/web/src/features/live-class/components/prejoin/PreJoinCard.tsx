@@ -21,7 +21,7 @@ export function PreJoinCard({ status, topic, onJoin }: PreJoinCardProps) {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-6">
+    <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-4 py-6">
       <Card className="w-full max-w-[720px] border-app-border/80 bg-app-surface/95 shadow-soft backdrop-blur">
         <CardHeader className="px-5 pb-4 pt-6 text-center sm:px-8">
           <CardTitle className="text-2xl font-extrabold tracking-normal sm:text-3xl">

@@ -37,7 +37,12 @@ const apiEnvSchema = z.object({
   LIVEKIT_API_SECRET: z.string().optional(),
   STOCKFISH_PATH: z.string().optional(),
   STOCKFISH_POOL_SIZE: z.coerce.number().int().positive().default(4),
-  STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800)
+  STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800),
+  COOKIE_DOMAIN: z.string().optional(),
+  TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
+  RECORDING_STORAGE_DIR: z.string().default("/recordings"),
+  RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
+  RECORDING_MIN_RETENTION_DAYS: z.coerce.number().nonnegative().default(14)
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
@@ -59,4 +64,46 @@ export function getFrontendUrl(
   env: Pick<ApiEnv, "CORS_ORIGIN" | "FRONTEND_URL">
 ) {
   return env.FRONTEND_URL ?? getCorsOrigins(env)[0] ?? "http://localhost:3000";
+}
+
+export function getCookieDomain(
+  env: Pick<ApiEnv, "CORS_ORIGIN" | "FRONTEND_URL"> & { COOKIE_DOMAIN?: string }
+): string | undefined {
+  if (env.COOKIE_DOMAIN) {
+    return env.COOKIE_DOMAIN;
+  }
+  try {
+    const frontendUrl = getFrontendUrl(env);
+    const hostname = new URL(frontendUrl).hostname;
+    if (hostname === "localhost" || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+      return undefined;
+    }
+    return `.${registrableDomain(hostname)}`;
+  } catch {
+    return undefined;
+  }
+}
+
+// Second-level labels that sit under a country-code TLD (e.g. "co" in
+// "example.co.uk"), where the registrable domain is the last THREE labels.
+const SECOND_LEVEL_TLDS = new Set([
+  "co",
+  "com",
+  "net",
+  "org",
+  "gov",
+  "edu",
+  "ac",
+  "or",
+  "ne",
+  "go",
+]);
+
+function registrableDomain(hostname: string): string {
+  const parts = hostname.split(".");
+  if (parts.length <= 2) return hostname;
+  const isCcSecondLevel =
+    parts[parts.length - 1].length === 2 &&
+    SECOND_LEVEL_TLDS.has(parts[parts.length - 2]);
+  return parts.slice(isCcSecondLevel ? -3 : -2).join(".");
 }

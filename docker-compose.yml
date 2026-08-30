@@ -108,6 +108,34 @@ services:
     networks:
       - nexa_network
 
+  egress:
+    image: livekit/egress:latest
+    container_name: nexa_egress
+    restart: unless-stopped
+    environment:
+      EGRESS_CONFIG_BODY: |
+        api_key: ${LIVEKIT_API_KEY}
+        api_secret: ${LIVEKIT_API_SECRET}
+        ws_url: ws://livekit:7880
+        redis:
+          address: redis:6379
+    volumes:
+      - ${RECORDING_STORAGE_HOST_DIR:-./recordings}:${RECORDING_STORAGE_DIR:-/recordings}
+    cap_add:
+      - SYS_ADMIN
+    depends_on:
+      redis:
+        condition: service_healthy
+      livekit:
+        condition: service_started
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - nexa_network
+
   api:
     build:
       context: .
@@ -138,6 +166,8 @@ services:
 
       CORS_ORIGIN: ${CORS_ORIGIN}
       FRONTEND_URL: ${FRONTEND_URL}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+      TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 
       LIVEKIT_URL: ${LIVEKIT_URL}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
@@ -162,11 +192,20 @@ services:
       STOCKFISH_PATH: ${STOCKFISH_PATH:-stockfish}
       STOCKFISH_POOL_SIZE: ${STOCKFISH_POOL_SIZE:-4}
 
+      RECORDING_STORAGE_DIR: ${RECORDING_STORAGE_DIR:-/recordings}
+      RECORDING_STORAGE_LIMIT_GB: ${RECORDING_STORAGE_LIMIT_GB:-130}
+      RECORDING_MIN_RETENTION_DAYS: ${RECORDING_MIN_RETENTION_DAYS:-14}
+
+      # OCI Object Storage — DB backups (backup module) and the download
+      # fallback for recordings not on local disk. Still required.
       OCI_REGION: ${OCI_REGION}
       OCI_NAMESPACE: ${OCI_NAMESPACE}
       OCI_BUCKET_NAME: ${OCI_BUCKET_NAME}
       OCI_ACCESS_KEY_ID: ${OCI_ACCESS_KEY_ID}
       OCI_SECRET_ACCESS_KEY: ${OCI_SECRET_ACCESS_KEY}
+
+    volumes:
+      - ${RECORDING_STORAGE_HOST_DIR:-./recordings}:${RECORDING_STORAGE_DIR:-/recordings}
 
     ports:
       - "3001:3001"

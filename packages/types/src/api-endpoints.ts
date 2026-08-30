@@ -73,6 +73,8 @@ export const API_ROUTES = {
     startRecording: (id: string = ":id") => `/live-class/${id}/recording/start`,
     stopRecording: (id: string = ":id") => `/live-class/${id}/recording/stop`,
     downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`,
+    streamRecording: (id: string = ":id") => `/live-class/${id}/recording/stream`,
+    storageUsage: () => `/live-class/recording/storage/usage`,
     recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`
   },
   student: {
@@ -96,7 +98,17 @@ export const API_ROUTES = {
     // Student's own assignments
     mine: "/assignments/mine",
     mineGet: (id: string = ":id") => `/assignments/mine/${id}`,
-    updateStatus: (id: string = ":id") => `/assignments/mine/${id}/status`
+    updateStatus: (id: string = ":id") => `/assignments/mine/${id}/status`,
+    // Attempts for evaluated activities (student)
+    attempts: (id: string = ":id") => `/assignments/mine/${id}/attempts`,
+    attempt: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/assignments/mine/${id}/attempts/${attemptId}`,
+    submitAttempt: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/assignments/mine/${id}/attempts/${attemptId}/submit`,
+    engineMove: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/assignments/mine/${id}/attempts/${attemptId}/engine-move`,
+    hint: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/assignments/mine/${id}/attempts/${attemptId}/hint`
   },
   attendance: {
     student: "/attendance/student",
@@ -115,5 +127,21 @@ export const API_ROUTES = {
     adminExport: "/attendance/admin/export",
     policy: "/attendance/policy",
     webhook: "/webhooks/livekit"
+  },
+  notifications: {
+    list: "/notifications",
+    markRead: "/notifications/read"
+  },
+  batchSchedules: {
+    list: "/batch-schedules",
+    create: "/batch-schedules",
+    preview: "/batch-schedules/preview",
+    calendar: "/batch-schedules/calendar",
+    get: (id: string = ":id") => `/batch-schedules/${id}`,
+    update: (id: string = ":id") => `/batch-schedules/${id}`,
+    deactivate: (id: string = ":id") => `/batch-schedules/${id}`,
+    regenerate: (id: string = ":id") => `/batch-schedules/${id}/regenerate`,
+    occurrenceAction: (classId: string = ":classId") =>
+      `/batch-schedules/occurrences/${classId}`
   }
 } as const;

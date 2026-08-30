@@ -27,8 +27,9 @@ function Shell({
 }) {
   const user = useAuthStore((state) => state.user);
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-[100dvh] flex-col">
       <Header
+        compact
         centerSlot={
           <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
             {topic}

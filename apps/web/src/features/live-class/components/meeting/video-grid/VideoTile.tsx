@@ -19,9 +19,12 @@ import { getHandRaised, getRole, getTrackKey } from "./videoGrid.utils";
 interface VideoTileProps {
   trackRef: TrackReferenceOrPlaceholder;
   onPin?: (key: string) => void;
+  /** Fill the grid cell instead of locking a 16:9 box (used when the grid is
+   *  sized to fit the viewport — small participant counts / short screens). */
+  fill?: boolean;
 }
 
-export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileProps) {
+export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: VideoTileProps) {
   const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
   const isSpeaking = useIsSpeaking(participant);
@@ -46,7 +49,8 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
       exit={{ opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-shadow duration-200",
+        "group relative flex items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-shadow duration-200",
+        fill ? "aspect-video max-lg:aspect-auto max-lg:h-full max-lg:w-full max-lg:min-h-0" : "aspect-video",
         isSpeaking
           ? "border-primary/60 shadow-[0_0_24px_rgba(66,120,206,0.25),0_0_48px_rgba(66,120,206,0.08)]"
           : "border-app-border hover:border-app-border/80",
@@ -64,22 +68,33 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
           )}
         />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-app-soft">
-          <ParticipantAvatar name={name} size="lg" />
-          <div className="text-center flex items-center justify-center gap-1.5">
-            <p className="text-sm font-medium text-app-text/80">{name}</p>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-app-soft p-2 sm:gap-3">
+          <ParticipantAvatar
+            name={name}
+            size="lg"
+            className={cn(fill && "size-12 text-base sm:size-16 lg:size-24 lg:text-3xl")}
+          />
+          {/* On small fill tiles the bottom-left pill already carries the name —
+              keep the placeholder from crowding it. */}
+          <div
+            className={cn(
+              "max-w-full items-center justify-center gap-1.5 text-center",
+              fill ? "hidden lg:flex" : "flex",
+            )}
+          >
+            <p className="truncate text-xs font-medium text-app-text/80 sm:text-sm">{name}</p>
             {role && role.toUpperCase() === "COACH" && (
-              <span className="text-app-muted text-xs font-normal">(Coach)</span>
+              <span className="shrink-0 text-app-muted text-xs font-normal">(Coach)</span>
             )}
           </div>
         </div>
       )}
 
       {/* Bottom-left name pill with mic status */}
-      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
+      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
         <span
           className={cn(
-            "flex size-5 items-center justify-center rounded-full",
+            "flex size-5 shrink-0 items-center justify-center rounded-full",
             isMuted ? "bg-red-500/20 text-red-500" : "bg-white/10 text-white/70",
           )}
           aria-label={isMuted ? "Microphone muted" : "Microphone on"}
@@ -87,7 +102,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
           {isMuted ? <MicOff className="size-3" /> : <Mic className="size-3" />}
         </span>
 
-        <span className="max-w-[160px] flex items-center gap-1.5 truncate text-xs font-semibold text-white/90">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-semibold text-white/90">
           <span className="truncate">
             {isLocal && !isScreenShare
               ? "You"
@@ -96,7 +111,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
                 : name}
           </span>
           {role && role.toUpperCase() === "COACH" && !isScreenShare && (
-            <span className="text-white/70 font-normal shrink-0">(Coach)</span>
+            <span className="hidden shrink-0 font-normal text-white/70 sm:inline">(Coach)</span>
           )}
         </span>
       </div>

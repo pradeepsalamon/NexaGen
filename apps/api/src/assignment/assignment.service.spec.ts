@@ -3,6 +3,7 @@ import { BadRequestException, ForbiddenException, NotFoundException } from "@nes
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { AssignmentService } from "./assignment.service";
+import { AssignmentEvaluationService } from "./assignment-evaluation.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
 
@@ -97,7 +98,15 @@ describe("AssignmentService", () => {
         AssignmentService,
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwt },
-        { provide: UploadService, useValue: upload }
+        { provide: UploadService, useValue: upload },
+        {
+          provide: AssignmentEvaluationService,
+          useValue: {
+            normalizeSolution: jest.fn((_fen: string, moves: unknown[]) => moves),
+            buildLinePgn: jest.fn(() => "1. e4 e5"),
+            positionPgn: jest.fn(() => "*")
+          }
+        }
       ]
     }).compile();
 
@@ -215,7 +224,11 @@ describe("AssignmentService", () => {
 
     beforeEach(() => {
       prisma.user.findUnique.mockResolvedValue(asRole(STUDENT_ID, UserRole.STUDENT));
-      prisma.studentAssignment.findUnique.mockResolvedValue({ id: "sa-1", studentId: STUDENT_ID });
+      prisma.studentAssignment.findUnique.mockResolvedValue({
+        id: "sa-1",
+        studentId: STUDENT_ID,
+        assignmentBatch: { assignment: { activityType: "REPLAY" } }
+      });
     });
 
     it("stamps completedAt when marking COMPLETED", async () => {

@@ -54,6 +54,7 @@ export const coachNavItems: NavItem[] = [
 export const adminNavItems: NavItem[] = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/batches", label: "Batches", icon: Layers3 },
+  { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays },
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/attendance", label: "Attendance", icon: UserRoundCheck },

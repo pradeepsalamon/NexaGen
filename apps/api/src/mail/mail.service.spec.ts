@@ -44,6 +44,11 @@ describe("MailService", () => {
       TRASH_RETENTION_DAYS: 30,
       STOCKFISH_POOL_SIZE: 1,
       STOCKFISH_MOVETIME: 800,
+      COOKIE_DOMAIN: undefined,
+      TRUST_PROXY_HOPS: 0,
+      RECORDING_STORAGE_DIR: "/recordings",
+      RECORDING_STORAGE_LIMIT_GB: 130,
+      RECORDING_MIN_RETENTION_DAYS: 14,
       ...envMocks
     };
 

@@ -2,6 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateAssignmentRequest,
   DeployAssignmentRequest,
+  SaveAttemptProgressRequest,
+  SubmitAttemptRequest,
   UpdateAssignmentRequest,
   UpdateAssignmentStatusRequest
 } from "@nexa-chess/types";
@@ -15,8 +17,13 @@ import {
   getAssignmentDeployment,
   getAssignmentDeployments,
   getAssignmentLibrary,
+  getAssignmentLibraryItem,
+  getAttemptHistory,
   getMyAssignment,
   getMyAssignments,
+  saveAttemptProgress,
+  startAttempt,
+  submitAttempt,
   undeployAssignment,
   updateAssignment,
   updateMyAssignmentStatus
@@ -28,6 +35,14 @@ export function useAssignmentLibrary() {
   return useQuery({
     queryKey: queryKeys.assignments.library,
     queryFn: getAssignmentLibrary
+  });
+}
+
+export function useAssignmentLibraryItem(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.assignments.libraryItem(id),
+    queryFn: () => getAssignmentLibraryItem(id),
+    enabled: !!id && enabled
   });
 }
 
@@ -155,5 +170,46 @@ export function useUpdateMyAssignmentStatus(id: string) {
     },
     onError: (error: Error) =>
       toast.error({ title: "Could not update assignment", message: error.message })
+  });
+}
+
+// ── Attempts (evaluated activities) ──
+
+export function useAttemptHistory(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.assignments.mineAttempts(id),
+    queryFn: () => getAttemptHistory(id),
+    enabled: !!id && enabled
+  });
+}
+
+export function useStartAttempt(id: string) {
+  const toast = useToast();
+  return useMutation({
+    mutationFn: () => startAttempt(id),
+    onError: (error: Error) =>
+      toast.error({ title: "Could not start the assignment", message: error.message })
+  });
+}
+
+export function useSaveAttemptProgress(id: string) {
+  return useMutation({
+    mutationFn: ({ attemptId, data }: { attemptId: string; data: SaveAttemptProgressRequest }) =>
+      saveAttemptProgress(id, attemptId, data)
+  });
+}
+
+export function useSubmitAttempt(id: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: ({ attemptId, data }: { attemptId: string; data: SubmitAttemptRequest }) =>
+      submitAttempt(id, attemptId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
+      queryClient.invalidateQueries({ queryKey: STUDENT_KEYS.dashboard });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Could not submit your attempt", message: error.message })
   });
 }

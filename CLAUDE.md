@@ -72,6 +72,19 @@ npm run test -w apps/api           # if you touched API logic
 npm run build -w apps/web          # if you touched web (catches RSC/client boundary errors)
 ```
 
+For **UI / responsive / layout** changes, also screenshot the affected routes
+across a device matrix and confirm no horizontal overflow (needs web + api
+running; `npx playwright install chromium` once):
+
+```bash
+npm run shots -- --path <route> --devices all
+npm run shots -- --paths <a,b> --login <coach|student|admin> --devices mobile,tablet --theme both
+npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-landscape
+```
+
+Output + gallery in `scripts/responsive/shots/<timestamp>/`. Full docs:
+[`scripts/responsive/README.md`](scripts/responsive/README.md).
+
 The pre-commit hook (`.husky/pre-commit`) runs `npm run typecheck` + `npm run lint`. `package.json`'s `precommit` script additionally runs tests but the hook itself does not.
 
 ---
@@ -229,5 +242,6 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 | Web: unstyled HTML or missing `.next/server` chunk | `npm run dev:web:clean` |
 | API: missing module from `dist` | `npm run dev:api:clean` |
 | Live class attendance wrong | `attendance` module calc + `AttendancePolicy` row, LiveKit webhook parsing in `main.ts` |
-| CORS / cookie not set in prod | `CORS_ORIGIN` (comma-separated), `FRONTEND_URL` must be https for `secure` cookies |
+| Recording won't play / download | `nexa_egress` container up + `./recordings` volume mounted on `api` and `egress`; local files stream via `/live-class/:id/recording/stream` (signed `st` token, 15m), otherwise fall back to OCI (`OCI_*` env still required); `RECORDING_MIN_RETENTION_DAYS` guards auto-prune |
+| CORS / cookie not set in prod | `CORS_ORIGIN` (comma-separated), `FRONTEND_URL` must be https for `secure` cookies; `COOKIE_DOMAIN` (auto-derives `.registrable.tld` from `FRONTEND_URL`) shares the session across `api.`/`www.` subdomains; `TRUST_PROXY_HOPS` (nginx = 1) for X-Forwarded-* |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { SlidersHorizontal, Info, Download } from "lucide-react";
+import { SlidersHorizontal, Info, Download, Radio } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import type { AdminBatchClass } from "@nexa-chess/types";
@@ -30,6 +30,7 @@ import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 import { useAdminBatchClassesQuery } from "../hooks/useAdminBatchClasses";
 import { BatchClassDetailsDialog } from "./BatchClassDetailsDialog";
+import { LiveClassMonitorDialog } from "@/features/attendance/components/LiveClassMonitor";
 
 const statusOptions = [
   { label: "Scheduled", value: "SCHEDULED" },
@@ -51,10 +52,11 @@ export function BatchClassesClient() {
 
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [monitorClassId, setMonitorClassId] = useState<string | null>(null);
 
   const handleDownload = async (classId: string) => {
     try {
-      const data = await getRecordingDownloadUrl(classId);
+      const data = await getRecordingDownloadUrl(classId, { download: true });
       if (data?.url) {
         window.open(data.url, "_blank");
       }
@@ -174,6 +176,23 @@ export function BatchClassesClient() {
           return (
             <TooltipProvider>
               <div className="flex items-center gap-2 justify-center">
+                {(row.original.status === "LIVE" || row.original.status === "IN_PROGRESS") && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        aria-label="Monitor live class"
+                        className="size-8 rounded-full border-green-500 p-0 text-app-text transition-colors hover:border-green-500 hover:bg-green-500 hover:text-white"
+                        onClick={() => setMonitorClassId(row.original.id)}
+                        size="icon"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Radio aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Monitor Live</TooltipContent>
+                  </Tooltip>
+                )}
                 {row.original.status === "COMPLETED" && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -281,6 +300,14 @@ export function BatchClassesClient() {
         onOpenChange={(open) => {
           setIsDetailsOpen(open);
           if (!open) setTimeout(() => setDetailsClassId(null), 300);
+        }}
+      />
+
+      <LiveClassMonitorDialog
+        classId={monitorClassId}
+        open={!!monitorClassId}
+        onOpenChange={(open) => {
+          if (!open) setMonitorClassId(null);
         }}
       />
     </main>

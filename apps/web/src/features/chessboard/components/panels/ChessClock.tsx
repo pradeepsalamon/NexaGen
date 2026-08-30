@@ -127,8 +127,16 @@ function CoachClockControls() {
 /**
  * Shared chess clock display. Coaches also get a settings/start/pause control.
  * Time is derived from the store's `clock` slice on every frame while running.
+ * `layout="horizontal"` places the two time chips side by side (used in the
+ * full-screen board header so they don't stack over the board).
  */
-export function ChessClock({ className }: { className?: string }) {
+export function ChessClock({
+  className,
+  layout = "vertical",
+}: {
+  className?: string;
+  layout?: "vertical" | "horizontal";
+}) {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { clock, orientation } = useBoardStore();
@@ -149,7 +157,7 @@ export function ChessClock({ className }: { className?: string }) {
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="flex flex-col gap-1">
+      <div className={cn("flex gap-1", layout === "horizontal" ? "flex-row" : "flex-col")}>
         <TimeChip color={top} ms={remainingMs(clock, top, now)} active={clock.running === top} />
         <TimeChip color={bottom} ms={remainingMs(clock, bottom, now)} active={clock.running === bottom} />
       </div>

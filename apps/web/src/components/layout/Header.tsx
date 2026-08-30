@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 
@@ -66,10 +67,17 @@ export function Header({
   centerSlot,
   rightSlot,
   leftSlot,
+  compact = false,
 }: {
   centerSlot?: React.ReactNode;
   rightSlot?: React.ReactNode;
   leftSlot?: React.ReactNode;
+  /**
+   * Trims the header for immersive screens (live class / summary): hides the
+   * Dashboard CTA and notification bell below `sm` so the bar doesn't overflow
+   * on a phone. No effect on `sm+` or when omitted.
+   */
+  compact?: boolean;
 } = {}) {
   const pathname = usePathname();
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -92,7 +100,11 @@ export function Header({
             className="shrink-0 rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
             href={homeHref}
           >
-            <Logo compact size={40}/>
+            <Logo
+              compact
+              size={40}
+              wordmarkClassName={compact ? "hidden sm:block" : undefined}
+            />
           </Link>
           {leftSlot}
         </div>
@@ -108,7 +120,8 @@ export function Header({
           {activeUser && (
             <Link
               className={cn(
-                "inline-flex min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
+                "min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
+                compact ? "hidden lg:inline-flex" : "inline-flex",
                 pathname.startsWith(dashboardHref) && dashboardHref !== "/"
                   ? "border-primary bg-primary text-white"
                   : "border-app-border bg-app-soft text-app-text hover:border-primary/50 hover:bg-app-soft/80"
@@ -119,7 +132,14 @@ export function Header({
               <span className="hidden sm:inline">Dashboard</span>
             </Link>
           )}
-          <ThemeToggle />
+          {activeUser && (
+            <span className={cn(compact && "hidden lg:block")}>
+              <NotificationBell />
+            </span>
+          )}
+          <span className={cn(compact && "hidden sm:block")}>
+            <ThemeToggle />
+          </span>
           {isAuthPending ? (
             <div
               aria-label="Checking session"

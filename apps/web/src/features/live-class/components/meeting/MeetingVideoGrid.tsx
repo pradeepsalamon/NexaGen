@@ -10,7 +10,6 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
-import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
 import { getGridClasses, getTrackKey, useSortedTracks } from "./video-grid/videoGrid.utils";
 import { RequestControlButton } from "./video-grid/RequestControlButton";
 import { VideoTile } from "./video-grid/VideoTile";
@@ -47,6 +46,11 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
 
   const gridClasses = useMemo(() => getGridClasses(totalItems), [totalItems]);
 
+  // For small counts, size the grid to the viewport so tiles fill the space
+  // (no whitespace, no scroll, works in landscape / short screens). Larger
+  // meetings keep the fixed-aspect + scroll layout.
+  const fitViewport = totalItems > 0 && totalItems <= 6;
+
   if (totalItems === 0 && !compact) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -74,12 +78,25 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
 
   return (
     <>
-      <div className="flex min-h-full w-full flex-col p-3 pb-20 sm:p-4 sm:pb-24">
+      <div
+        className={cn(
+          "flex w-full flex-col px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-24",
+          // Small/short screens with few tiles: size the grid to the viewport so
+          // tiles fill the space (no whitespace, no scroll, works in landscape).
+          // Desktop (lg+) keeps the original fixed-aspect + scroll layout.
+          fitViewport ? "max-lg:h-full max-lg:min-h-0 lg:min-h-full" : "min-h-full",
+        )}
+      >
         <LayoutGroup>
           <div
             className={cn(
-              "grid w-full gap-2.5 auto-rows-fr sm:gap-3 my-auto",
+              "grid w-full gap-2.5 auto-rows-fr sm:gap-3",
               gridClasses,
+              fitViewport ? "max-lg:min-h-0 max-lg:flex-1 lg:my-auto" : "my-auto",
+              // Landscape phones: pack more columns so tiles keep a usable size.
+              fitViewport &&
+                totalItems >= 3 &&
+                "[@media(orientation:landscape)_and_(max-height:600px)]:!grid-cols-3",
               totalItems <= 2 && "mx-auto max-w-5xl",
               totalItems <= 4 && totalItems > 2 && "mx-auto max-w-6xl",
             )}
@@ -94,11 +111,23 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.94 }}
                     transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                    className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200"
+                    className={cn(
+                      "group relative flex items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200",
+                      fitViewport
+                        ? "aspect-video max-lg:aspect-auto max-lg:h-full max-lg:w-full max-lg:min-h-0"
+                        : "aspect-video",
+                    )}
+                    style={{ containerType: "size" }}
                   >
                     {/* Only render ChessgroundBoard when NOT in fullscreen to avoid dual-instance conflicts */}
                     {!isBoardFullscreen && (
-                      <div className="absolute inset-y-0 aspect-square" style={{ left: "50%", transform: "translateX(-50%)" }}>
+                      <div
+                        className="relative"
+                        style={{
+                          width: "min(100cqw, 100cqh)",
+                          height: "min(100cqw, 100cqh)",
+                        }}
+                      >
                         <ChessgroundBoard />
                       </div>
                     )}
@@ -109,29 +138,22 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                       </div>
                     )}
 
-                    {/* Clock (only renders when the coach has enabled one) */}
-                    <div className="absolute top-2 left-1/2 z-10 -translate-x-1/2">
-                      <ChessClock />
-                    </div>
-
-                    {/* Bottom-left name pill & request control button */}
-                    <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2">
-                      <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
-                        <span className="flex size-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
-                          <Crown className="size-3" />
-                        </span>
-                        <span className="max-w-[160px] flex items-center gap-1.5 truncate text-xs font-semibold text-white/90">
-                          <span className="truncate">Shared Board</span>
-                        </span>
+                    {/* Bottom-left name pill & request control button. The clock
+                        is intentionally not shown on this small tile — it lives
+                        in the full-screen board view. */}
+                    <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 shadow-sm backdrop-blur-md">
+                        <Crown className="size-3 text-amber-400" />
+                        <span className="text-[11px] font-semibold text-white/90">Shared Board</span>
                       </div>
                       <RequestControlButton />
                     </div>
 
                     {/* Top-right pin/fullscreen button — visible on hover */}
-                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end p-2.5">
+                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end p-2">
                       <button
                         type="button"
-                        className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-sm"
+                        className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-sm"
                         onClick={() => setIsBoardFullscreen(true)}
                         aria-label="View board full screen"
                       >
@@ -151,6 +173,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                   key={getTrackKey(trackRef)}
                   trackRef={trackRef}
                   onPin={setPinnedParticipantSid}
+                  fill={fitViewport}
                 />
               ))}
             </AnimatePresence>
