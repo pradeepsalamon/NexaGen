@@ -30,10 +30,50 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - Login timing protection for unknown-email and wrong-password attempts
 - Batch management with soft delete into the Super Admin Trash workspace
 - Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
-- PGN assignments: admin-authored shared library + coach-authored items, deployed
-  to batches with a due date; students replay the line on a read-only board and
-  mark it complete (`assignment` API module, `features/assignments` on web,
-  `/coach/assignments`, `/admin/assignments`, `/student/practice`)
+- Assignments: admin-authored shared library + coach-authored items, deployed
+  to batches with a due date (`assignment` API module, `features/assignments` on
+  web, `/coach/assignments`, `/admin/assignments`, `/student/practice`). Each
+  assignment has an **activity type**:
+  - `REPLAY` (default; every legacy assignment) — read-only PGN replay, marked
+    complete manually or on the time limit.
+  - `SOLVE_LINE` — the student plays the expected line move-by-move on an
+    interactive board; forced replies are revealed one at a time and the server
+    scores `correct required moves / required moves`. When the assignment allows
+    hints, `POST .../:attemptId/hint` returns a progressive hint derived from the
+    stored line (piece → origin square → full move) and counts against
+    `hintsUsed`.
+  - `PLAY_VS_ENGINE` — the student plays a position out against the pooled
+    Stockfish engine (skill level configurable); scored from the game result,
+    with move accuracy computed from per-move engine analysis (falls back to
+    result-only when the engine pool is offline or the student resigned).
+  - `FREE_ANALYSIS` — an open interactive board the student submits when done.
+
+  Evaluated activities (everything but `REPLAY`) record `StudentAssignmentAttempt`
+  rows. The server owns all evaluation (`AssignmentEvaluationService`): legal-move
+  validation, correctness, score, accuracy, completion and attempt limits. The
+  solution line is never sent to a student before completion. Attempt lifecycle:
+  `POST /assignments/mine/:id/attempts` (start/resume) → `PATCH .../:attemptId`
+  (save progress, returns per-move feedback for `SOLVE_LINE`) →
+  `POST .../:attemptId/submit` (authoritative evaluation) with
+  `POST .../:attemptId/engine-move` for `PLAY_VS_ENGINE` and
+  `POST .../:attemptId/hint` for `SOLVE_LINE`. Coaches see per-student
+  score/accuracy/attempts; admins see aggregate performance per library item.
+  Reusable board: `features/chessboard/components/board/PracticeBoard` (no LiveKit
+  coupling); admins build positions with the shared `PositionEditor` and record
+  solutions by playing them in `SolutionEditor`. A coach can also turn the live
+  shared board into a `SOLVE_LINE` assignment from the board header
+  ("Send as assignment" → the same form, position pre-seeded).
+- In-app notifications: `Notification` model + `GET /notifications` /
+  `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
+  assignments due within 24h; the deploying coach is notified when a student
+  finishes an attempt. `NotificationBell` in the app header polls every 60s.
+  `NotificationService.notify` / `notifyMany` (idempotent on `(userId, dedupeKey)`)
+  is the entry point for future notification sources. No email delivery yet.
+- Live class monitoring: coach/admin see a live roster (who's connected, join
+  time, last seen, reconnect count) on `/classes/[id]` while a class is running,
+  and via a "Monitor Live" action on the admin Batch Classes table
+  (`features/attendance/components/LiveClassMonitor`, polls
+  `GET /attendance/class/:id/live` every 10s)
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
 
 ## Development

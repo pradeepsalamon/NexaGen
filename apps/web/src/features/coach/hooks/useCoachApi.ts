@@ -22,10 +22,11 @@ export function useCoachDashboard() {
   });
 }
 
-export function useCoachBatches() {
+export function useCoachBatches(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.coach.batches,
-    queryFn: getCoachBatches
+    queryFn: getCoachBatches,
+    enabled: options?.enabled ?? true
   });
 }
 

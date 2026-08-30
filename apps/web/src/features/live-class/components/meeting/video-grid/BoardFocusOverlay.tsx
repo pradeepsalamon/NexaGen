@@ -11,13 +11,13 @@ export function BoardFocusOverlay({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-background/95 p-4 backdrop-blur-md">
       <div className="relative flex h-full w-full max-w-7xl flex-col gap-3">
         {/* Header bar */}
-        <div className="flex shrink-0 items-center justify-between">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm text-app-text font-semibold">
             <Crown className="size-4 text-amber-500" />
             <span>Shared Board</span>
           </div>
-          <div className="flex items-center gap-2">
-            <ChessClock />
+          <div className="flex flex-wrap items-center gap-2">
+            <ChessClock layout="horizontal" />
             <RequestControlButton />
             <button
               type="button"

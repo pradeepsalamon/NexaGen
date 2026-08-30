@@ -35,6 +35,7 @@ export const queryKeys = {
   },
   attendance: {
     classSummary: (id: string) => ["attendance", "class-summary", id] as const,
+    classLive: (id: string) => ["attendance", "class-live", id] as const,
   },
   assignments: {
     all: ["assignments"] as const,
@@ -44,5 +45,9 @@ export const queryKeys = {
     deployment: (id: string) => ["assignments", "deployments", id] as const,
     mine: ["assignments", "mine"] as const,
     mineItem: (id: string) => ["assignments", "mine", id] as const,
+    mineAttempts: (id: string) => ["assignments", "mine", id, "attempts"] as const,
+  },
+  notifications: {
+    all: ["notifications"] as const,
   },
 } as const;

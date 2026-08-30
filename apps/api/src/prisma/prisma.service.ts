@@ -101,6 +101,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.studentAssignment;
   }
 
+  get studentAssignmentAttempt() {
+    return this.client.studentAssignmentAttempt;
+  }
+
   get studentActivity() {
     return this.client.studentActivity;
   }
@@ -139,6 +143,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get recordingWatchProgress() {
     return this.client.recordingWatchProgress;
+  }
+
+  get notification() {
+    return this.client.notification;
   }
 
   async $connect() {

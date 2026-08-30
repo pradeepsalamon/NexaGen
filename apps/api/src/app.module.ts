@@ -16,6 +16,7 @@ import { StockfishModule } from "./stockfish/stockfish.module";
 import { AttendanceModule } from "./attendance/attendance.module";
 import { BackupModule } from "./backup/backup.module";
 import { AssignmentModule } from "./assignment/assignment.module";
+import { NotificationModule } from "./notification/notification.module";
 
 @Module({
   imports: [
@@ -37,7 +38,8 @@ import { AssignmentModule } from "./assignment/assignment.module";
     StockfishModule,
     AttendanceModule,
     BackupModule,
-    AssignmentModule
+    AssignmentModule,
+    NotificationModule
   ],
   providers: [
     {

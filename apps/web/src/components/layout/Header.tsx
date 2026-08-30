@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
+import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 
@@ -119,6 +120,7 @@ export function Header({
               <span className="hidden sm:inline">Dashboard</span>
             </Link>
           )}
+          {activeUser && <NotificationBell />}
           <ThemeToggle />
           {isAuthPending ? (
             <div

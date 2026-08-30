@@ -1,6 +1,32 @@
-import type { AssignmentDifficulty, AssignmentStatus } from "@nexa-chess/types";
+import type {
+  AssignmentActivityType,
+  AssignmentDifficulty,
+  AssignmentStatus
+} from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
+
+export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
+  REPLAY: "Study PGN",
+  SOLVE_LINE: "Solve position",
+  PLAY_VS_ENGINE: "Play vs engine",
+  FREE_ANALYSIS: "Free analysis"
+};
+
+const ACTIVITY_STYLE: Record<AssignmentActivityType, string> = {
+  REPLAY: "border-sky-200 bg-sky-50 text-sky-700",
+  SOLVE_LINE: "border-violet-200 bg-violet-50 text-violet-700",
+  PLAY_VS_ENGINE: "border-amber-200 bg-amber-50 text-amber-700",
+  FREE_ANALYSIS: "border-slate-200 bg-slate-50 text-slate-700"
+};
+
+export function ActivityBadge({ activityType }: { activityType: AssignmentActivityType }) {
+  return (
+    <Badge variant="outline" className={ACTIVITY_STYLE[activityType]}>
+      {ACTIVITY_LABEL[activityType]}
+    </Badge>
+  );
+}
 
 const DIFFICULTY_STYLE: Record<AssignmentDifficulty, string> = {
   BEGINNER: "border-green-200 bg-green-50 text-green-700",

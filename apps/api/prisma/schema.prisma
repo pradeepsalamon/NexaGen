@@ -87,6 +87,23 @@ enum AssignmentStatus {
   COMPLETED
 }
 
+// The interactive activity an assignment asks the student to do. Existing rows
+// predate this column and default to REPLAY (the legacy PGN-viewer behaviour).
+enum AssignmentActivityType {
+  REPLAY
+  SOLVE_LINE
+  PLAY_VS_ENGINE
+  FREE_ANALYSIS
+}
+
+// Lifecycle of one StudentAssignmentAttempt.
+enum AssignmentAttemptStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  ABANDONED
+}
+
 //
 // USER
 //
@@ -147,6 +164,7 @@ model User {
   coachAttendances       CoachAttendance[]        @relation("CoachClassAttendance")
   coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
+  notifications          Notification[]           @relation("UserNotifications")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -758,12 +776,25 @@ model Assignment {
   isLibrary        Boolean              @default(false)
   title            String
   description      String?
-  pgn              String // raw PGN text (source of truth for the board viewer)
+  pgn              String // raw PGN text (source of truth for the REPLAY board viewer)
   pgnUrl           String? // Cloudinary raw-file URL for download
   difficulty       AssignmentDifficulty @default(BEGINNER)
   timeLimitMinutes Int?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
+
+  // ── Interactive-activity configuration (all additive; REPLAY ignores them) ──
+  activityType              AssignmentActivityType @default(REPLAY)
+  startFen                  String? // starting position for SOLVE_LINE / PLAY_VS_ENGINE / FREE_ANALYSIS
+  solutionMovesJson         Json? // [{ uci, san }] — expected line for SOLVE_LINE (never sent to students pre-completion)
+  orientation               String? // "white" | "black" — board orientation for the student
+  studentColor              String? // "white" | "black" — side the student plays (SOLVE_LINE / PLAY_VS_ENGINE)
+  engineLevel               Int? // Stockfish skill level 0-20 for PLAY_VS_ENGINE
+  passThresholdPercent      Int                    @default(100)
+  maxAttempts               Int? // null = unlimited
+  allowHints                Boolean                @default(false)
+  allowRetry                Boolean                @default(true)
+  requiredCompletionPercent Int                    @default(100)
 
   deployments AssignmentBatch[]
 
@@ -806,9 +837,70 @@ model StudentAssignment {
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
 
+  // ── Evaluated-activity progress (null for legacy REPLAY rows) ──
+  bestScorePercent    Int?
+  bestAccuracyPercent Int?
+  attemptCount        Int       @default(0)
+  lastAttemptAt       DateTime?
+
+  attempts StudentAssignmentAttempt[]
+
   @@unique([assignmentBatchId, studentId])
   @@index([studentId])
   @@map("student_assignments")
+}
+
+// One execution of an evaluated assignment by a student. Progress is saved
+// incrementally (movesJson); the server evaluates authoritatively on submit.
+model StudentAssignmentAttempt {
+  id                  String                  @id @default(cuid())
+  studentAssignmentId String
+  studentAssignment   StudentAssignment       @relation(fields: [studentAssignmentId], references: [id], onDelete: Cascade)
+  attemptNumber       Int
+  status              AssignmentAttemptStatus @default(IN_PROGRESS)
+  movesJson           Json                    @default("[]") // [{ ply, uci, san, fenAfter, correct?, classification?, elapsedMs? }]
+  scorePercent        Int?
+  accuracyPercent     Int?
+  hintsUsed           Int                     @default(0)
+  durationSeconds     Int                     @default(0)
+  result              String? // "SOLVED" | "PARTIAL" | "WIN" | "LOSS" | "DRAW" | "SUBMITTED"
+  startedAt           DateTime                @default(now())
+  completedAt         DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@unique([studentAssignmentId, attemptNumber])
+  @@index([studentAssignmentId])
+  @@map("student_assignment_attempts")
+}
+
+//
+// NOTIFICATIONS
+//
+
+enum NotificationType {
+  ASSIGNMENT_DUE_SOON
+  ASSIGNMENT_GRADED
+}
+
+model Notification {
+  id       String           @id @default(cuid())
+  userId   String
+  user     User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type     NotificationType
+  title    String
+  body     String
+  /// in-app deep link, e.g. /student/assignments/<id>
+  linkPath String?
+  /// idempotency key so schedulers never double-send (null = always insert)
+  dedupeKey String?
+  readAt   DateTime?
+  createdAt DateTime        @default(now())
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 //

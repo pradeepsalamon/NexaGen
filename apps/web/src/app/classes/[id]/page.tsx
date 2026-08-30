@@ -12,12 +12,15 @@ import { BackButton } from "@/components/ui/BackButton";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { useAuthStore } from "@/stores/authStore";
 import { useStartLiveClass } from "../../../features/live-class/hooks/useLiveClassApi";
+import { LiveClassMonitor } from "@/features/attendance/components/LiveClassMonitor";
 
 export default function ClassDetailsPage() {
   const { id } = useParams() as { id: string };
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH";
+  const isStaff =
+    user?.role === "COACH" || user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const startLiveClassMutation = useStartLiveClass(id);
   const { data, isLoading } = useClassDetail(id, { refetchInterval: 20000 });
   const cls = data?.class;
@@ -162,6 +165,10 @@ export default function ClassDetailsPage() {
             )}
           </div>
         </Card>
+
+        {isStaff && (cls.status === "IN_PROGRESS" || cls.status === "LIVE") && (
+          <LiveClassMonitor classId={id} />
+        )}
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="p-6">

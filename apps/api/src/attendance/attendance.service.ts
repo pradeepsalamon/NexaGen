@@ -601,9 +601,33 @@ export class AttendanceService {
         coachAttendance.logs.filter((l) => l.eventType === "JOIN" || l.eventType === "RECONNECT" || l.eventType === "LEAVE"),
         classEndTime
       );
+
+      // Board usage is its own session series (BOARD_JOIN → BOARD_LEAVE).
+      // Recompute it authoritatively from the logs so a board tab still open
+      // when the class ends — its BOARD_LEAVE never arrives, or lands after
+      // finalize — is still counted. `closeOpenAttendanceLogs` above has
+      // already stamped `sessionEnd`/`sessionDuration` on any open BOARD_JOIN.
+      const boardDuration = coachAttendance.logs
+        .filter((l) => l.eventType === "BOARD_JOIN")
+        .reduce((sum, l) => {
+          if (l.sessionDuration) return sum + l.sessionDuration;
+          if (l.sessionStart && !l.sessionEnd) {
+            return (
+              sum +
+              Math.max(
+                0,
+                Math.floor(
+                  (classEndTime.getTime() - l.sessionStart.getTime()) / 1000
+                )
+              )
+            );
+          }
+          return sum;
+        }, 0);
+
       await this.prisma.coachAttendance.update({
         where: { id: coachAttendance.id },
-        data: { totalDuration: coachTotalDuration },
+        data: { totalDuration: coachTotalDuration, boardDuration },
       });
     }
 
@@ -727,6 +751,17 @@ export class AttendanceService {
       const scheduledDuration = Math.floor(
         (cls.endsAt.getTime() - cls.startsAt.getTime()) / 1000
       );
+      // How long the class ACTUALLY ran, falling back to the scheduled window.
+      // Attendance % is already scored against this; the history row should
+      // measure "time present / class length", not "time present / schedule".
+      const classActualDuration =
+        cls.liveSession?.startedAt && cls.liveSession?.endedAt
+          ? Math.floor(
+              (cls.liveSession.endedAt.getTime() -
+                cls.liveSession.startedAt.getTime()) /
+                1000
+            )
+          : scheduledDuration;
 
       return {
         id: cls.id,
@@ -734,10 +769,13 @@ export class AttendanceService {
         batchName: cls.batch?.name || "Demo Class",
         coachName: `${cls.coach.firstName} ${cls.coach.lastName || ""}`.trim(),
         date: cls.startsAt.toISOString(),
+        actualStart: cls.liveSession?.startedAt?.toISOString() || null,
+        actualEnd: cls.liveSession?.endedAt?.toISOString() || null,
         status: att?.status || "ABSENT",
         joinedAt: att?.joinedAt?.toISOString() || null,
         leftAt: att?.leftAt?.toISOString() || null,
         scheduledDuration,
+        classActualDuration,
         actualDuration: att?.totalDuration || 0,
         attendancePercent: att?.attendancePercent ?? 0,
         reconnectCount: att?.reconnectCount || 0,

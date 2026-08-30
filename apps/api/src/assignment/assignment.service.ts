@@ -9,6 +9,8 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
 import type {
+  AssignmentActivityConfig,
+  AssignmentActivityType,
   AssignmentDeployment,
   AssignmentDeploymentDetail,
   AssignmentDeploymentDetailResponse,
@@ -17,10 +19,13 @@ import type {
   AssignmentDifficulty,
   AssignmentLibraryItem,
   AssignmentLibraryResponse,
+  AssignmentPerformanceSummary,
   AssignmentResponse,
   AssignmentStatus as AssignmentStatusType,
+  ChessColor,
   CreateAssignmentRequest,
   DeployAssignmentRequest,
+  SolutionMove,
   StudentAssignmentDetailResponse,
   StudentAssignmentItem,
   StudentAssignmentListResponse,
@@ -32,6 +37,7 @@ import { Chess } from "chess.js";
 import type { AccessTokenPayload } from "../auth/types";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
+import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
 
 /**
  * The interactive-transaction client as seen inside `prisma.$transaction(cb)`.
@@ -42,6 +48,51 @@ import { UploadService } from "../upload/upload.service";
 type Tx = Pick<PrismaService, "assignment" | "assignmentBatch" | "batchStudent" | "studentAssignment">;
 
 type AuthedUser = { id: string; role: UserRole };
+
+interface ActivityData {
+  activityType: AssignmentActivityType;
+  pgn: string;
+  startFen: string | null;
+  solutionMovesJson: Prisma.InputJsonValue | typeof Prisma.DbNull;
+  orientation: string | null;
+  studentColor: string | null;
+  engineLevel: number | null;
+  passThresholdPercent: number;
+  maxAttempts: number | null;
+  allowHints: boolean;
+  allowRetry: boolean;
+  requiredCompletionPercent: number;
+}
+
+type ActivityInput = {
+  activityType?: AssignmentActivityType;
+  pgn?: string;
+  startFen?: string;
+  solutionMoves?: SolutionMove[];
+  orientation?: ChessColor;
+  studentColor?: ChessColor;
+  engineLevel?: number;
+  passThresholdPercent?: number;
+  maxAttempts?: number | null;
+  allowHints?: boolean;
+  allowRetry?: boolean;
+  requiredCompletionPercent?: number;
+};
+
+type ActivityDefaults = {
+  activityType: AssignmentActivityType;
+  pgn: string;
+  startFen: string | null;
+  solutionMovesJson: Prisma.JsonValue;
+  orientation: string | null;
+  studentColor: string | null;
+  engineLevel: number | null;
+  passThresholdPercent: number;
+  maxAttempts: number | null;
+  allowHints: boolean;
+  allowRetry: boolean;
+  requiredCompletionPercent: number;
+};
 
 const studentInclude = {
   assignmentBatch: {
@@ -57,7 +108,8 @@ export class AssignmentService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly uploadService: UploadService
+    private readonly uploadService: UploadService,
+    private readonly evaluation: AssignmentEvaluationService
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -94,7 +146,12 @@ export class AssignmentService {
       throw new NotFoundException("Assignment not found.");
     }
 
-    return { assignment: this.toLibraryItem(row, user) };
+    const performance =
+      row._count.deployments > 0
+        ? await this.computePerformance(row.id, row.maxAttempts)
+        : null;
+
+    return { assignment: this.toLibraryItem(row, user, performance) };
   }
 
   async create(
@@ -102,7 +159,7 @@ export class AssignmentService {
     dto: CreateAssignmentRequest
   ): Promise<AssignmentResponse> {
     const user = await this.getStaffOrCoach(accessToken);
-    this.assertValidPgn(dto.pgn);
+    const activity = this.buildActivityData(dto);
 
     const batchIds = [...new Set(dto.batchIds ?? [])];
     if (batchIds.length > 0) {
@@ -114,7 +171,7 @@ export class AssignmentService {
       await this.assertCoachOwnsBatches(user.id, batchIds);
     }
 
-    const pgnUrl = await this.uploadPgn(dto.title, dto.pgn);
+    const pgnUrl = await this.uploadPgn(dto.title, activity.pgn);
 
     const created = await this.prisma.$transaction(async (tx) => {
       const assignment = await tx.assignment.create({
@@ -123,10 +180,10 @@ export class AssignmentService {
           isLibrary: this.isAdmin(user.role),
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
-          pgn: dto.pgn,
           pgnUrl,
           difficulty: dto.difficulty,
-          timeLimitMinutes: dto.timeLimitMinutes
+          timeLimitMinutes: dto.timeLimitMinutes,
+          ...activity
         }
       });
 
@@ -153,11 +210,24 @@ export class AssignmentService {
       throw new ForbiddenException("You cannot edit this assignment.");
     }
 
-    if (dto.pgn !== undefined) this.assertValidPgn(dto.pgn);
+    const activity = this.buildActivityData(dto, {
+      activityType: existing.activityType,
+      pgn: existing.pgn,
+      startFen: existing.startFen,
+      solutionMovesJson: existing.solutionMovesJson,
+      orientation: existing.orientation,
+      studentColor: existing.studentColor,
+      engineLevel: existing.engineLevel,
+      passThresholdPercent: existing.passThresholdPercent,
+      maxAttempts: existing.maxAttempts,
+      allowHints: existing.allowHints,
+      allowRetry: existing.allowRetry,
+      requiredCompletionPercent: existing.requiredCompletionPercent
+    });
 
-    const pgnChanged = dto.pgn !== undefined && dto.pgn !== existing.pgn;
+    const pgnChanged = activity.pgn !== existing.pgn;
     const pgnUrl = pgnChanged
-      ? await this.uploadPgn(dto.title ?? existing.title, dto.pgn as string)
+      ? await this.uploadPgn(dto.title ?? existing.title, activity.pgn)
       : undefined;
 
     await this.prisma.assignment.update({
@@ -166,10 +236,10 @@ export class AssignmentService {
         title: dto.title?.trim(),
         description:
           dto.description === undefined ? undefined : dto.description?.trim() || null,
-        pgn: dto.pgn,
         pgnUrl,
         difficulty: dto.difficulty,
-        timeLimitMinutes: dto.timeLimitMinutes
+        timeLimitMinutes: dto.timeLimitMinutes,
+        ...activity
       }
     });
 
@@ -318,9 +388,21 @@ export class AssignmentService {
   ): Promise<StudentAssignmentDetailResponse> {
     const student = await this.getStudent(accessToken);
 
-    const row = await this.prisma.studentAssignment.findUnique({ where: { id } });
+    const row = await this.prisma.studentAssignment.findUnique({
+      where: { id },
+      include: { assignmentBatch: { include: { assignment: { select: { activityType: true } } } } }
+    });
     if (!row || row.studentId !== student.id) {
       throw new NotFoundException("Assignment not found.");
+    }
+
+    if (
+      row.assignmentBatch.assignment.activityType !== "REPLAY" &&
+      dto.status === "COMPLETED"
+    ) {
+      throw new BadRequestException(
+        "This assignment is completed by finishing an attempt, not marked manually."
+      );
     }
 
     const updated = await this.prisma.studentAssignment.update({
@@ -372,8 +454,8 @@ export class AssignmentService {
     }
   }
 
-  private assertValidPgn(pgn: string) {
-    const trimmed = pgn.trim();
+  private assertValidPgn(pgn: string | undefined) {
+    const trimmed = (pgn ?? "").trim();
     if (!trimmed) throw new BadRequestException("PGN is required.");
 
     try {
@@ -383,6 +465,93 @@ export class AssignmentService {
         "The PGN could not be parsed. Paste a valid game or line."
       );
     }
+  }
+
+  /**
+   * Resolve the full interactive-activity column set from a create/update DTO,
+   * falling back to `current` values for a partial update. Legacy callers that
+   * pass only `pgn` produce a REPLAY row identical to the old behaviour.
+   */
+  private buildActivityData(input: ActivityInput, current?: ActivityDefaults): ActivityData {
+    const type: AssignmentActivityType =
+      input.activityType ?? current?.activityType ?? "REPLAY";
+
+    const scalar = {
+      passThresholdPercent:
+        input.passThresholdPercent ?? current?.passThresholdPercent ?? 100,
+      maxAttempts:
+        input.maxAttempts !== undefined ? input.maxAttempts : current?.maxAttempts ?? null,
+      allowHints: input.allowHints ?? current?.allowHints ?? false,
+      allowRetry: input.allowRetry ?? current?.allowRetry ?? true,
+      requiredCompletionPercent:
+        input.requiredCompletionPercent ?? current?.requiredCompletionPercent ?? 100
+    };
+
+    if (type === "REPLAY") {
+      const pgn = input.pgn ?? current?.pgn;
+      this.assertValidPgn(pgn);
+      return {
+        activityType: "REPLAY",
+        pgn: pgn as string,
+        startFen: null,
+        solutionMovesJson: Prisma.DbNull,
+        orientation: null,
+        studentColor: null,
+        engineLevel: null,
+        ...scalar,
+        maxAttempts: null,
+        allowHints: false,
+        allowRetry: true
+      };
+    }
+
+    const startFen = assertValidFen(input.startFen ?? current?.startFen ?? undefined);
+    const turnColor: ChessColor = (() => {
+      try {
+        return new Chess(startFen).turn() === "w" ? "white" : "black";
+      } catch {
+        return "white";
+      }
+    })();
+    const studentColor: ChessColor =
+      input.studentColor ?? (current?.studentColor as ChessColor | undefined) ?? turnColor;
+    const orientation: ChessColor =
+      input.orientation ?? (current?.orientation as ChessColor | undefined) ?? studentColor;
+
+    let pgn: string;
+    let solutionMovesJson: ActivityData["solutionMovesJson"] = Prisma.DbNull;
+
+    if (type === "SOLVE_LINE") {
+      const rawMoves =
+        input.solutionMoves ??
+        (Array.isArray(current?.solutionMovesJson)
+          ? (current?.solutionMovesJson as unknown as SolutionMove[])
+          : []);
+      const solution = this.evaluation.normalizeSolution(startFen, rawMoves);
+      if (solution.length === 0) {
+        throw new BadRequestException("Record at least one solution move.");
+      }
+      pgn = this.evaluation.buildLinePgn(startFen, solution);
+      solutionMovesJson = solution as unknown as Prisma.InputJsonValue;
+    } else {
+      pgn = this.evaluation.positionPgn(startFen);
+    }
+
+    const engineLevel =
+      type === "PLAY_VS_ENGINE"
+        ? input.engineLevel ?? current?.engineLevel ?? 5
+        : null;
+
+    return {
+      activityType: type,
+      pgn,
+      startFen,
+      solutionMovesJson,
+      orientation,
+      studentColor,
+      engineLevel,
+      ...scalar
+    };
   }
 
   private async uploadPgn(title: string, pgn: string): Promise<string | null> {
@@ -434,11 +603,92 @@ export class AssignmentService {
     return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
   }
 
+  private toActivityConfig(row: {
+    activityType: AssignmentActivityType;
+    startFen: string | null;
+    orientation: string | null;
+    studentColor: string | null;
+    engineLevel: number | null;
+    passThresholdPercent: number;
+    maxAttempts: number | null;
+    allowHints: boolean;
+    allowRetry: boolean;
+    requiredCompletionPercent: number;
+  }): AssignmentActivityConfig {
+    const studentColor =
+      row.studentColor === "white" || row.studentColor === "black" ? row.studentColor : null;
+    const orientation =
+      row.orientation === "white" || row.orientation === "black"
+        ? row.orientation
+        : studentColor;
+    return {
+      activityType: row.activityType,
+      startFen: row.startFen,
+      orientation,
+      studentColor,
+      engineLevel: row.engineLevel,
+      passThresholdPercent: row.passThresholdPercent,
+      maxAttempts: row.maxAttempts,
+      allowHints: row.allowHints,
+      allowRetry: row.allowRetry,
+      requiredCompletionPercent: row.requiredCompletionPercent
+    };
+  }
+
+  private solutionFromRow(json: Prisma.JsonValue): SolutionMove[] | null {
+    return Array.isArray(json) ? (json as unknown as SolutionMove[]) : null;
+  }
+
+  private async computePerformance(
+    assignmentId: string,
+    maxAttempts: number | null
+  ): Promise<AssignmentPerformanceSummary> {
+    const rows = await this.prisma.studentAssignment.findMany({
+      where: { assignmentBatch: { assignmentId } },
+      select: {
+        status: true,
+        bestScorePercent: true,
+        bestAccuracyPercent: true,
+        attemptCount: true
+      }
+    });
+
+    const avg = (nums: number[]) =>
+      nums.length === 0 ? null : Math.round(nums.reduce((a, b) => a + b, 0) / nums.length);
+
+    const completed = rows.filter((r) => r.status === "COMPLETED").length;
+    const inProgress = rows.filter((r) => r.status === "IN_PROGRESS").length;
+    const notStarted = rows.filter((r) => r.status === "PENDING").length;
+    const failed = rows.filter(
+      (r) =>
+        r.status !== "COMPLETED" &&
+        r.attemptCount > 0 &&
+        maxAttempts !== null &&
+        r.attemptCount >= maxAttempts
+    ).length;
+
+    return {
+      assigned: rows.length,
+      completed,
+      inProgress,
+      notStarted,
+      failed,
+      averageScorePercent: avg(
+        rows.map((r) => r.bestScorePercent).filter((n): n is number => n !== null)
+      ),
+      averageAccuracyPercent: avg(
+        rows.map((r) => r.bestAccuracyPercent).filter((n): n is number => n !== null)
+      ),
+      averageAttempts: avg(rows.map((r) => r.attemptCount).filter((n) => n > 0))
+    };
+  }
+
   private toLibraryItem(
     row: Prisma.AssignmentGetPayload<{
       include: { createdBy: true; _count: { select: { deployments: true } } };
     }>,
-    viewer: AuthedUser
+    viewer: AuthedUser,
+    performance: AssignmentPerformanceSummary | null = null
   ): AssignmentLibraryItem {
     return {
       id: row.id,
@@ -453,6 +703,9 @@ export class AssignmentService {
       createdByName: this.fullName(row.createdBy),
       canManage: this.canManage(row, viewer),
       deploymentCount: row._count.deployments,
+      solutionMoves: this.solutionFromRow(row.solutionMovesJson),
+      performance,
+      ...this.toActivityConfig(row),
       createdAt: row.createdAt.toISOString()
     };
   }
@@ -495,13 +748,18 @@ export class AssignmentService {
       description: row.assignment.description,
       pgn: row.assignment.pgn,
       pgnUrl: row.assignment.pgnUrl,
+      activityType: row.assignment.activityType,
       submissions: row.students.map((s) => ({
         studentId: s.studentId,
         studentName: this.fullName(s.student) ?? "Unknown",
         status: s.status as AssignmentStatusType,
         timeSpentSeconds: s.timeSpentSeconds,
         completedAt: s.completedAt ? s.completedAt.toISOString() : null,
-        note: s.note
+        note: s.note,
+        bestScorePercent: s.bestScorePercent,
+        bestAccuracyPercent: s.bestAccuracyPercent,
+        attemptCount: s.attemptCount,
+        lastAttemptAt: s.lastAttemptAt ? s.lastAttemptAt.toISOString() : null
       }))
     };
   }
@@ -510,6 +768,8 @@ export class AssignmentService {
     row: Prisma.StudentAssignmentGetPayload<{ include: typeof studentInclude }>
   ): StudentAssignmentItem {
     const assignment = row.assignmentBatch.assignment;
+    const solution = this.solutionFromRow(assignment.solutionMovesJson);
+    const revealSolution = row.status === "COMPLETED" || row.completedAt !== null;
     return {
       id: row.id,
       assignmentId: assignment.id,
@@ -525,7 +785,14 @@ export class AssignmentService {
       status: row.status as AssignmentStatusType,
       timeSpentSeconds: row.timeSpentSeconds,
       completedAt: row.completedAt ? row.completedAt.toISOString() : null,
-      note: row.note
+      note: row.note,
+      bestScorePercent: row.bestScorePercent,
+      bestAccuracyPercent: row.bestAccuracyPercent,
+      attemptCount: row.attemptCount,
+      lastAttemptAt: row.lastAttemptAt ? row.lastAttemptAt.toISOString() : null,
+      solutionLength: solution ? solution.length : null,
+      solutionMoves: revealSolution ? solution : null,
+      ...this.toActivityConfig(assignment)
     };
   }
 
