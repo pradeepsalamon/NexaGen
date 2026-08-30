@@ -1,6 +1,7 @@
 import cookieParser from "cookie-parser";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { getApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
 import type { NextFunction, Request, Response } from "express";
 import * as express from "express";
@@ -10,9 +11,10 @@ const HTTP_LOG_EXCLUDED_PREFIXES = ["/stockfish", "/health"];
 
 async function bootstrap() {
   const env = getApiEnv();
-  const app = await NestFactory.create(AppModule, {
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ["error", "warn"]
   });
+  app.set("trust proxy", true);
   const corsOrigins = getCorsOrigins(env);
 
   app.use((request: Request, response: Response, next: NextFunction) => {

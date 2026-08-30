@@ -37,7 +37,8 @@ const apiEnvSchema = z.object({
   LIVEKIT_API_SECRET: z.string().optional(),
   STOCKFISH_PATH: z.string().optional(),
   STOCKFISH_POOL_SIZE: z.coerce.number().int().positive().default(4),
-  STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800)
+  STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800),
+  COOKIE_DOMAIN: z.string().optional()
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
@@ -59,4 +60,26 @@ export function getFrontendUrl(
   env: Pick<ApiEnv, "CORS_ORIGIN" | "FRONTEND_URL">
 ) {
   return env.FRONTEND_URL ?? getCorsOrigins(env)[0] ?? "http://localhost:3000";
+}
+
+export function getCookieDomain(
+  env: Pick<ApiEnv, "CORS_ORIGIN" | "FRONTEND_URL"> & { COOKIE_DOMAIN?: string }
+): string | undefined {
+  if (env.COOKIE_DOMAIN) {
+    return env.COOKIE_DOMAIN;
+  }
+  try {
+    const frontendUrl = getFrontendUrl(env);
+    const hostname = new URL(frontendUrl).hostname;
+    if (hostname === "localhost" || /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname)) {
+      return undefined;
+    }
+    const parts = hostname.split(".");
+    if (parts.length >= 2) {
+      return `.${parts.slice(-2).join(".")}`;
+    }
+    return `.${hostname}`;
+  } catch {
+    return undefined;
+  }
 }
