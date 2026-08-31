@@ -82,8 +82,10 @@ npm run shots -- --paths <a,b> --login <coach|student|admin> --devices mobile,ta
 npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-landscape
 ```
 
-Output + gallery in `scripts/responsive/shots/<timestamp>/`. Full docs:
-[`scripts/responsive/README.md`](scripts/responsive/README.md).
+Output + gallery in `scripts/responsive/shots/<timestamp>/`. Tool docs:
+[`scripts/responsive/README.md`](scripts/responsive/README.md). Breakpoint
+system, per-area responsive spec, full device test matrix and checklist:
+[`docs/RESPONSIVE.md`](docs/RESPONSIVE.md).
 
 The pre-commit hook (`.husky/pre-commit`) runs `npm run typecheck` + `npm run lint`. `package.json`'s `precommit` script additionally runs tests but the hook itself does not.
 

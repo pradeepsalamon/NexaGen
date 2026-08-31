@@ -352,6 +352,10 @@ npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-l
 Output → `scripts/responsive/shots/<timestamp>/` (git-ignored). Full docs and
 options: [`scripts/responsive/README.md`](scripts/responsive/README.md).
 
+For the breakpoint system, per-screen responsive behaviour, the full
+device × route × theme test matrix and a per-device checklist, see
+[`docs/RESPONSIVE.md`](docs/RESPONSIVE.md).
+
 ## UI Component Standards
 
 ### Primary UI Library
