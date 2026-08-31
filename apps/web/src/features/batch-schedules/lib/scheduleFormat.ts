@@ -61,3 +61,49 @@ export function addMonthsISO(dateISO: string, months: number): string {
   const dt = new Date(Date.UTC(y, m - 1 + months, d));
   return dt.toISOString().slice(0, 10);
 }
+
+/** Parse a "YYYY-MM-DD" string into a local-midnight Date (undefined if blank/invalid). */
+export function isoDateToLocalDate(dateISO: string): Date | undefined {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return undefined;
+  const [y, m, d] = dateISO.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/** Local Date → "YYYY-MM-DD" using local calendar parts. */
+export function localDateToISODate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+    date.getDate()
+  ).padStart(2, "0")}`;
+}
+
+type CountRule = { dayOfWeek: number };
+
+/**
+ * Walk forward from `startISO` counting rule occurrences (one per matching rule
+ * per day, skipping `exceptions`) and return the "YYYY-MM-DD" of the day the
+ * `target`-th class lands on. Returns "" if the rules never match or the target
+ * is not reached within ~4 years.
+ */
+export function endDateForClassCount(
+  startISO: string,
+  rules: CountRule[],
+  exceptions: string[],
+  target: number
+): string {
+  const start = isoDateToLocalDate(startISO);
+  if (!start || !Number.isInteger(target) || target < 1 || rules.length === 0) {
+    return "";
+  }
+  const excluded = new Set(exceptions);
+  const cursor = new Date(start);
+  let counted = 0;
+  for (let i = 0; i < 366 * 4; i += 1) {
+    const iso = localDateToISODate(cursor);
+    if (!excluded.has(iso)) {
+      counted += rules.filter((r) => r.dayOfWeek === cursor.getDay()).length;
+      if (counted >= target) return iso;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return "";
+}

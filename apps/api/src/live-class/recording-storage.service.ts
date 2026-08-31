@@ -85,6 +85,20 @@ export class RecordingStorageService {
   }
 
   /**
+   * Size in bytes of a single local recording file, or null when it does not
+   * exist / cannot be read. Used to backfill `LiveSession.recordingBytes`.
+   */
+  async getFileBytes(filenameOrKey: string | null | undefined): Promise<number | null> {
+    if (!filenameOrKey) return null;
+    try {
+      const stat = await fs.promises.stat(this.resolveFilePath(filenameOrKey));
+      return stat.isFile() ? stat.size : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Calculates the total bytes consumed by files in the recordings directory.
    */
   async getStorageUsageBytes(): Promise<number> {
@@ -205,6 +219,8 @@ export class RecordingStorageService {
             where: { id: session.id },
             data: {
               recordingUrl: null,
+              recordingStatus: "PURGED_STORAGE_LIMIT",
+              recordingBytes: null,
               metadata: {
                 ...existingMetadata,
                 recordingStatus: "PURGED_STORAGE_LIMIT",

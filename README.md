@@ -92,6 +92,27 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   and via a "Monitor Live" action on the admin Batch Classes table
   (`features/attendance/components/LiveClassMonitor`, polls
   `GET /attendance/class/:id/live` every 10s)
+- **Admin analytics dashboard** (`/admin` and `/admin/analytics/*`): a
+  production analytics system for Super Admin / Admin. `analytics` API module
+  (21 admin-only `GET` endpoints under `/analytics/*` + CSV export) →
+  `features/analytics` on web (recharts, themed chart wrappers, KPI cards,
+  shareable URL date-range/filter state). Sections: executive overview (16 KPIs),
+  user growth, acquisition ("how users discover NexaChess" — normalized
+  `User.acquisitionSource` + optional UTM capture at registration), students,
+  coach performance + teaching hours, live classes (demo vs batch vs status),
+  attendance (trend / by batch / by coach / low-attendance), batches, recordings
+  & storage (usage gauge + growth + linear forecast), engagement (DAU/WAU/MAU
+  from `analytics_events`), today's operations, and an actionable alert feed.
+  Drill-down sub-pages with paginated tables for users / coaches / classes /
+  recordings / batches, plus `coaches/:id` and `batches/:id` detail views.
+  Every metric's calculation is surfaced in a "How is this calculated?" tooltip.
+  New infra: `AnalyticsEvent` + `StorageSnapshot` models, a global
+  `ActivityTrackingInterceptor` (throttled `User.lastActiveAt`), a daily
+  storage-snapshot cron (`AnalyticsScheduler`, advisory lock `73002050`), and an
+  in-process 5-minute cache for the heavier sections (`?fresh=1` bypasses).
+  Config: `ANALYTICS_STORAGE_WARN_PERCENT` (70), `ANALYTICS_STORAGE_CRITICAL_PERCENT`
+  (85), `ANALYTICS_LOW_ATTENDANCE_PERCENT` (75), `ANALYTICS_INACTIVE_DAYS` (30),
+  `ANALYTICS_CACHE_TTL_SECONDS` (300).
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
 
 ## Development
@@ -188,9 +209,23 @@ SMTP_SECURE=false
 SMTP_USER=...
 SMTP_PASS=...
 SMTP_FROM=...
+
+# Recording storage + analytics thresholds (all optional, defaults shown)
+RECORDING_STORAGE_LIMIT_GB=130
+RECORDING_MIN_RETENTION_DAYS=14
+ANALYTICS_STORAGE_WARN_PERCENT=70
+ANALYTICS_STORAGE_CRITICAL_PERCENT=85
+ANALYTICS_LOW_ATTENDANCE_PERCENT=75
+ANALYTICS_INACTIVE_DAYS=30
+ANALYTICS_CACHE_TTL_SECONDS=300   # 0 disables the analytics in-process cache
 ```
 
 For production, replace JWT secrets with long random values and set `FRONTEND_URL` / `CORS_ORIGIN` to the live frontend origin.
+
+`recharts` is a `apps/web` runtime dependency (charts on the admin analytics
+dashboard). After `main`-branch deploys the daily `AnalyticsScheduler` cron
+starts recording `storage_snapshots`; the storage growth chart + forecast need
+~14 days of history before they render.
 
 ## Prisma
 
@@ -316,6 +351,10 @@ npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-l
 
 Output → `scripts/responsive/shots/<timestamp>/` (git-ignored). Full docs and
 options: [`scripts/responsive/README.md`](scripts/responsive/README.md).
+
+For the breakpoint system, per-screen responsive behaviour, the full
+device × route × theme test matrix and a per-device checklist, see
+[`docs/RESPONSIVE.md`](docs/RESPONSIVE.md).
 
 ## UI Component Standards
 

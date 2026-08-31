@@ -7,13 +7,15 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { JwtModule } from "@nestjs/jwt";
 import { AttendanceModule } from "../attendance/attendance.module";
 import { BackupModule } from "../backup/backup.module";
+import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 
 @Module({
   imports: [
-    PrismaModule, 
+    PrismaModule,
     JwtModule.register({}),
     forwardRef(() => AttendanceModule),
-    BackupModule
+    BackupModule,
+    AnalyticsEventModule
   ],
   controllers: [LiveClassController],
   providers: [LiveClassService, LiveKitService, RecordingStorageService],

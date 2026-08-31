@@ -161,6 +161,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.batchScheduleException;
   }
 
+  get analyticsEvent() {
+    return this.client.analyticsEvent;
+  }
+
+  get storageSnapshot() {
+    return this.client.storageSnapshot;
+  }
+
   async $connect() {
     return this.client.$connect();
   }
@@ -174,6 +182,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   );
 
   $queryRaw: typeof this.client.$queryRaw = this.client.$queryRaw.bind(this.client);
+
+  $queryRawUnsafe: typeof this.client.$queryRawUnsafe =
+    this.client.$queryRawUnsafe.bind(this.client);
 
   $executeRaw: typeof this.client.$executeRaw = this.client.$executeRaw.bind(
     this.client

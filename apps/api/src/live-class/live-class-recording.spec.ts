@@ -8,6 +8,7 @@ import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
+import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "test-access-token";
@@ -22,6 +23,7 @@ describe("LiveClassService recording feature", () => {
     hasLocalFile: jest.Mock;
     streamVideoFile: jest.Mock;
     getStorageUsage: jest.Mock;
+    getFileBytes: jest.Mock;
   };
   let userFindUnique: jest.Mock;
   let liveSessionFindUnique: jest.Mock;
@@ -61,6 +63,7 @@ describe("LiveClassService recording feature", () => {
       hasLocalFile: jest.fn().mockReturnValue(false),
       streamVideoFile: jest.fn().mockResolvedValue(undefined),
       getStorageUsage: jest.fn().mockResolvedValue({ usedGb: 10, limitGb: 130 }),
+      getFileBytes: jest.fn().mockResolvedValue(null),
     };
     userFindUnique = jest.fn();
     liveSessionFindUnique = jest.fn();
@@ -80,7 +83,7 @@ describe("LiveClassService recording feature", () => {
             },
             user: { findUnique: userFindUnique },
             liveChatMessage: { create: jest.fn(), findMany: jest.fn() },
-            coachClass: { update: jest.fn() },
+            coachClass: { update: jest.fn(), findUnique: jest.fn().mockResolvedValue(null) },
           },
         },
         { provide: JwtService, useValue: jwtService },
@@ -88,6 +91,13 @@ describe("LiveClassService recording feature", () => {
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: backupService },
         { provide: RecordingStorageService, useValue: recordingStorageService },
+        {
+          provide: AnalyticsEventService,
+          useValue: {
+            record: jest.fn().mockResolvedValue(undefined),
+            recordRecordingWatchOncePerDay: jest.fn().mockResolvedValue(undefined)
+          }
+        },
       ],
     }).compile();
 
@@ -169,12 +179,13 @@ describe("LiveClassService recording feature", () => {
       expect(liveSessionUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "session-1" },
-          data: {
+          data: expect.objectContaining({
+            recordingStatus: "RECORDING",
             metadata: expect.objectContaining({
               egressId: "egress_test_123",
               recordingStatus: "RECORDING",
             }),
-          },
+          }),
         })
       );
     });
@@ -245,12 +256,13 @@ describe("LiveClassService recording feature", () => {
       expect(liveSessionUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: "session-1" },
-          data: {
+          data: expect.objectContaining({
+            recordingStatus: "STOPPING",
             metadata: {
               recordingFilepath: "recordings/class_class-1-123.mp4",
               recordingStatus: "STOPPING",
             },
-          },
+          }),
         })
       );
     });
@@ -274,15 +286,18 @@ describe("LiveClassService recording feature", () => {
         status: 1, // EGRESS_ACTIVE
       });
 
-      expect(liveSessionUpdate).toHaveBeenCalledWith({
-        where: { id: "session-1" },
-        data: {
-          metadata: {
-            egressId: "egress-123",
+      expect(liveSessionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "session-1" },
+          data: expect.objectContaining({
             recordingStatus: "RECORDING",
-          },
-        },
-      });
+            metadata: {
+              egressId: "egress-123",
+              recordingStatus: "RECORDING",
+            },
+          }),
+        })
+      );
     });
 
     it("updates metadata to STOPPING when egress_updated has ending status", async () => {
@@ -299,14 +314,17 @@ describe("LiveClassService recording feature", () => {
         status: 2, // EGRESS_ENDING
       });
 
-      expect(liveSessionUpdate).toHaveBeenCalledWith({
-        where: { id: "session-1" },
-        data: {
-          metadata: {
+      expect(liveSessionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "session-1" },
+          data: expect.objectContaining({
             recordingStatus: "STOPPING",
-          },
-        },
-      });
+            metadata: {
+              recordingStatus: "STOPPING",
+            },
+          }),
+        })
+      );
     });
 
     it("finalizes recording on successful egress completion and normalizes key", async () => {
@@ -333,16 +351,19 @@ describe("LiveClassService recording feature", () => {
         ],
       });
 
-      expect(liveSessionUpdate).toHaveBeenCalledWith({
-        where: { id: "session-1" },
-        data: {
-          recordingUrl: "recordings/class_class-1-100.mp4",
-          metadata: {
-            recordingFilepath: "recordings/class_class-1-100.mp4",
+      expect(liveSessionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "session-1" },
+          data: expect.objectContaining({
+            recordingUrl: "recordings/class_class-1-100.mp4",
             recordingStatus: "COMPLETED",
-          },
-        },
-      });
+            metadata: {
+              recordingFilepath: "recordings/class_class-1-100.mp4",
+              recordingStatus: "COMPLETED",
+            },
+          }),
+        })
+      );
     });
 
     it("marks recording FAILED when egress status is failed or aborted", async () => {
@@ -363,16 +384,19 @@ describe("LiveClassService recording feature", () => {
         status: 4, // EGRESS_FAILED
       });
 
-      expect(liveSessionUpdate).toHaveBeenCalledWith({
-        where: { id: "session-1" },
-        data: {
-          recordingUrl: null,
-          metadata: {
-            recordingFilepath: "recordings/class_class-1-100.mp4",
+      expect(liveSessionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "session-1" },
+          data: expect.objectContaining({
+            recordingUrl: null,
             recordingStatus: "FAILED",
-          },
-        },
-      });
+            metadata: {
+              recordingFilepath: "recordings/class_class-1-100.mp4",
+              recordingStatus: "FAILED",
+            },
+          }),
+        })
+      );
     });
 
     it("finds session by metadata egressId if roomName is not in the webhook payload", async () => {
@@ -392,16 +416,19 @@ describe("LiveClassService recording feature", () => {
         file: { filename: "recordings/matched.mp4" },
       });
 
-      expect(liveSessionUpdate).toHaveBeenCalledWith({
-        where: { id: "session-matched" },
-        data: {
-          recordingUrl: "recordings/matched.mp4",
-          metadata: {
-            recordingFilepath: "recordings/matched.mp4",
+      expect(liveSessionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "session-matched" },
+          data: expect.objectContaining({
+            recordingUrl: "recordings/matched.mp4",
             recordingStatus: "COMPLETED",
-          },
-        },
-      });
+            metadata: {
+              recordingFilepath: "recordings/matched.mp4",
+              recordingStatus: "COMPLETED",
+            },
+          }),
+        })
+      );
     });
   });
 

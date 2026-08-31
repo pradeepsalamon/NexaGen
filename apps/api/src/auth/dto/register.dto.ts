@@ -12,6 +12,21 @@ import {
 
 const referralSources = ["ads", "friend", "school", "other"] as const;
 
+const acquisitionSources = [
+  "website",
+  "google",
+  "instagram",
+  "facebook",
+  "youtube",
+  "whatsapp",
+  "referral",
+  "school",
+  "coach_referral",
+  "advertisement",
+  "other",
+  "unknown"
+] as const;
+
 export class RegisterDto implements RegisterRequest {
   @IsString()
   @IsNotEmpty()
@@ -27,8 +42,48 @@ export class RegisterDto implements RegisterRequest {
   @Matches(/^\d+$/, { message: "Student age must be a number." })
   studentAge!: string;
 
+  @IsOptional()
   @IsIn(referralSources)
-  referralSource!: RegisterRequest["referralSource"];
+  referralSource?: RegisterRequest["referralSource"];
+
+  @IsOptional()
+  @IsIn(acquisitionSources)
+  acquisitionSource?: RegisterRequest["acquisitionSource"];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  acquisitionDetail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmSource?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmMedium?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmCampaign?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmContent?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmTerm?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  landingReferrer?: string;
 
   @IsString()
   @IsNotEmpty()

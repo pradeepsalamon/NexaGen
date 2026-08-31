@@ -32,6 +32,24 @@ enum ReferralSource {
   OTHER
 }
 
+// Normalized acquisition channel captured at registration (User.acquisitionSource).
+// UNKNOWN covers legacy rows and anyone who skipped the question — analytics never
+// fabricates a source, it reports UNKNOWN.
+enum AcquisitionSource {
+  WEBSITE
+  GOOGLE
+  INSTAGRAM
+  FACEBOOK
+  YOUTUBE
+  WHATSAPP
+  REFERRAL
+  SCHOOL
+  COACH_REFERRAL
+  ADVERTISEMENT
+  OTHER
+  UNKNOWN
+}
+
 enum ExperienceLevel {
   BEGINNER
   INTERMEDIATE
@@ -137,6 +155,19 @@ model User {
 
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
+  // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
+  // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
+  lastActiveAt    DateTime?
+
+  // ── Acquisition attribution (captured at registration; see analytics module) ──
+  acquisitionSource AcquisitionSource @default(UNKNOWN)
+  acquisitionDetail String? // free text for OTHER / referring coach name for COACH_REFERRAL
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  utmContent        String?
+  utmTerm           String?
+  landingReferrer   String?
 
   createdById  String?
   createdBy    User?   @relation("UserCreatedUsers", fields: [createdById], references: [id])
@@ -173,6 +204,7 @@ model User {
   notifications          Notification[]           @relation("UserNotifications")
   createdBatchSchedules  BatchClassSchedule[]     @relation("BatchScheduleCreatedBy")
   scheduleRules          BatchClassScheduleRule[] @relation("BatchScheduleRuleCoach")
+  analyticsEvents        AnalyticsEvent[]         @relation("UserAnalyticsEvents")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -190,6 +222,9 @@ model User {
   @@index([deletedAt])
   @@index([deletedById])
   @@index([deleteGroupId])
+  @@index([createdAt])
+  @@index([lastActiveAt])
+  @@index([acquisitionSource])
   @@map("users")
 }
 
@@ -506,6 +541,7 @@ model CoachClass {
   @@index([startsAt])
   @@index([isDemo])
   @@index([scheduleId])
+  @@index([batchId, startsAt])
   @@map("classes")
 }
 
@@ -623,6 +659,7 @@ model ClassAttendance {
   @@unique([classId, studentId])
   @@index([studentId])
   @@index([status])
+  @@index([createdAt])
   @@map("class_attendance")
 }
 
@@ -762,6 +799,13 @@ model LiveSession {
   endedAt      DateTime?
   recordingUrl String?
 
+  // ── Recording metadata (promoted out of `metadata` JSON for analytics) ──
+  recordingBytes           BigInt? // file size in bytes; null = unknown / file pruned
+  recordingDurationSeconds Int?
+  recordingStatus          String? // RECORDING | STOPPING | COMPLETED | FAILED | PURGED_STORAGE_LIMIT
+  recordingStartedAt       DateTime?
+  recordingCompletedAt     DateTime?
+
   attendanceFinalizedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -775,6 +819,8 @@ model LiveSession {
   @@index([batchId])
   @@index([coachId])
   @@index([status])
+  @@index([startedAt])
+  @@index([endedAt])
   @@map("live_sessions")
 }
 
@@ -957,6 +1003,7 @@ model StudentAssignment {
 
   @@unique([assignmentBatchId, studentId])
   @@index([studentId])
+  @@index([completedAt])
   @@map("student_assignments")
 }
 
@@ -1053,4 +1100,39 @@ model RecordingWatchProgress {
 
   @@unique([studentId, classId])
   @@map("recording_watch_progress")
+}
+
+//
+// ANALYTICS
+//
+
+/// One meaningful product action by a user. Powers DAU/WAU/MAU, new-vs-returning,
+/// and the engagement section. Written fire-and-forget by AnalyticsEventService —
+/// a failed insert never breaks the originating request.
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserAnalyticsEvents", fields: [userId], references: [id], onDelete: Cascade)
+  type       String // LOGIN | CLASS_JOIN | ASSIGNMENT_ATTEMPT | RECORDING_WATCH | DASHBOARD_VIEW
+  entityId   String? // class id / assignment id / etc.
+  occurredAt DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([occurredAt])
+  @@map("analytics_events")
+}
+
+/// Daily rollup of recording-storage usage. One row per business-timezone day,
+/// written by AnalyticsScheduler. Drives the storage growth chart and forecast.
+model StorageSnapshot {
+  id             String   @id @default(cuid())
+  capturedAt     DateTime @default(now())
+  capturedDate   DateTime @unique @db.Date
+  recordingBytes BigInt
+  recordingCount Int
+  limitBytes     BigInt
+
+  @@index([capturedAt])
+  @@map("storage_snapshots")
 }

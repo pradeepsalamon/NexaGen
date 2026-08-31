@@ -82,8 +82,10 @@ npm run shots -- --paths <a,b> --login <coach|student|admin> --devices mobile,ta
 npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-landscape
 ```
 
-Output + gallery in `scripts/responsive/shots/<timestamp>/`. Full docs:
-[`scripts/responsive/README.md`](scripts/responsive/README.md).
+Output + gallery in `scripts/responsive/shots/<timestamp>/`. Tool docs:
+[`scripts/responsive/README.md`](scripts/responsive/README.md). Breakpoint
+system, per-area responsive spec, full device test matrix and checklist:
+[`docs/RESPONSIVE.md`](docs/RESPONSIVE.md).
 
 The pre-commit hook (`.husky/pre-commit`) runs `npm run typecheck` + `npm run lint`. `package.json`'s `precommit` script additionally runs tests but the hook itself does not.
 
@@ -245,3 +247,7 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 | Recording won't play / download | `nexa_egress` container up + `./recordings` volume mounted on `api` and `egress`; local files stream via `/live-class/:id/recording/stream` (signed `st` token, 15m), otherwise fall back to OCI (`OCI_*` env still required); `RECORDING_MIN_RETENTION_DAYS` guards auto-prune |
 | CORS / cookie not set in prod | `CORS_ORIGIN` (comma-separated), `FRONTEND_URL` must be https for `secure` cookies; `COOKIE_DOMAIN` (auto-derives `.registrable.tld` from `FRONTEND_URL`) shares the session across `api.`/`www.` subdomains; `TRUST_PROXY_HOPS` (nginx = 1) for X-Forwarded-* |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
+| Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
+| Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |
+| `DAU/WAU/MAU` shows "Data unavailable" | no `analytics_events` rows yet — they accrue from deploy (login / class-join / assignment-attempt / recording-watch) |
+| Analytics timezone off by a day | all bucketing goes through `zonedDayBounds`/`zonedMonthBounds` + `date_trunc(... AT TIME ZONE tz)` using the requesting admin's `User.timezone`; check that column |

@@ -12,7 +12,17 @@ import { cn } from "@/lib/utils";
 
 const pageTitles: Record<string, string> = {
   "/": "Nexa Chess",
-  "/admin": "Overview",
+  "/admin": "Admin Analytics",
+  "/admin/analytics/users": "User Analytics",
+  "/admin/analytics/acquisition": "Acquisition Analytics",
+  "/admin/analytics/coaches": "Coach Analytics",
+  "/admin/analytics/classes": "Class Analytics",
+  "/admin/analytics/attendance": "Attendance Analytics",
+  "/admin/analytics/batches": "Batch Analytics",
+  "/admin/analytics/recordings": "Recordings & Storage",
+  "/admin/analytics/engagement": "Engagement Analytics",
+  "/admin/analytics/operations": "Operations",
+  "/admin/backups": "Database Backups",
   "/admin/batches": "Batch management",
   "/admin/coaches": "Coach applications",
   "/admin/trash": "Trash",

@@ -18,6 +18,7 @@ import { AttendanceModule } from "./attendance/attendance.module";
 import { BackupModule } from "./backup/backup.module";
 import { AssignmentModule } from "./assignment/assignment.module";
 import { NotificationModule } from "./notification/notification.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
 
 @Module({
   imports: [
@@ -41,7 +42,8 @@ import { NotificationModule } from "./notification/notification.module";
     AttendanceModule,
     BackupModule,
     AssignmentModule,
-    NotificationModule
+    NotificationModule,
+    AnalyticsModule
   ],
   providers: [
     {

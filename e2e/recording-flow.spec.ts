@@ -49,7 +49,7 @@ const LIVEKIT_API_SECRET =
 
 function createWebhookSignature(body: string | Record<string, unknown>): string {
   const rawBody = typeof body === "string" ? body : JSON.stringify(body);
-  const sha256 = crypto.createHash("sha256").update(rawBody).digest("hex");
+  const sha256 = crypto.createHash("sha256").update(rawBody).digest("base64");
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({
@@ -73,9 +73,9 @@ async function sendWebhook(
   const body = JSON.stringify(event);
   const authHeader = createWebhookSignature(body);
   const res = await request.post(`${API_URL}/webhooks/livekit`, {
-    data: event,
+    data: body,
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/webhook+json",
       Authorization: authHeader,
     },
   });
@@ -83,6 +83,7 @@ async function sendWebhook(
 }
 
 test.describe("Full Recording Lifecycle & Download Flow", () => {
+  const uniqueTopic = `Recording E2E Test Class - Endgame Strategy - ${Date.now()}`;
   test("recording start → egress webhook → stop → egress ended → download across roles", async ({
     request,
     browser,
@@ -101,12 +102,12 @@ test.describe("Full Recording Lifecycle & Download Flow", () => {
 
     // 3. Create a class
     const now = new Date();
-    const startsAt = new Date(now.getTime() + 2 * 60 * 1000).toISOString();
-    const endsAt = new Date(now.getTime() + 62 * 60 * 1000).toISOString();
+    const startsAt = new Date(now.getTime() + 120 * 60 * 1000).toISOString();
+    const endsAt = new Date(now.getTime() + 180 * 60 * 1000).toISOString();
 
     const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
       batchId,
-      topic: "Recording E2E Test Class - Endgame Strategy",
+      topic: uniqueTopic,
       title: "Recording Flow E2E Test",
       description: "Class to test recording start, stop, webhook, and download",
       startsAt,
@@ -200,21 +201,82 @@ test.describe("Full Recording Lifecycle & Download Flow", () => {
 
     // 11. Verify Coach History Page displays class with recording
     const coachCtx = await browser.newContext();
+    const coachPage = await coachCtx.newPage();
     for (const cookieStr of coachCookies.split("; ")) {
       const [name, value] = cookieStr.split("=");
       await coachCtx.addCookies([
-        { name, value, domain: "localhost", path: "/", httpOnly: true },
+        { name, value, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax", secure: false },
+        { name, value, domain: "api.nexachess.in", path: "/", httpOnly: true, sameSite: "None", secure: true },
       ]);
     }
-    const coachPage = await coachCtx.newPage();
+    await coachCtx.route("https://api.nexachess.in/**", async (route) => {
+      const req = route.request();
+      const originalUrl = new URL(req.url());
+      const response = await route.fetch({
+        url: `http://localhost:3001${originalUrl.pathname}${originalUrl.search}`,
+        method: req.method(),
+        headers: req.headers(),
+        postData: req.postDataBuffer() || undefined,
+      });
+      await route.fulfill({ response });
+    });
     await coachPage.goto("/coach/history");
     await coachPage.waitForLoadState("networkidle");
 
     // The created class should appear in history
-    await expect(coachPage.getByText("Recording E2E Test Class - Endgame Strategy")).toBeVisible({ timeout: 10000 });
+    await expect(coachPage.getByText(uniqueTopic)).toBeVisible({ timeout: 10000 });
     // The download button should be rendered for this row
     await expect(coachPage.getByRole("button", { name: /download recording/i }).first()).toBeVisible({ timeout: 10000 });
 
     await coachCtx.close();
+
+    // 12. Verify Student Dashboard Past Classes and Video Player
+    const studentCtx = await browser.newContext();
+    const studentPage = await studentCtx.newPage();
+    for (const cookieStr of studentCookies.split("; ")) {
+      const [name, value] = cookieStr.split("=");
+      await studentCtx.addCookies([
+        { name, value, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax", secure: false },
+        { name, value, domain: "api.nexachess.in", path: "/", httpOnly: true, sameSite: "None", secure: true },
+      ]);
+    }
+    await studentCtx.route("https://api.nexachess.in/**", async (route) => {
+      const req = route.request();
+      const originalUrl = new URL(req.url());
+      const response = await route.fetch({
+        url: `http://localhost:3001${originalUrl.pathname}${originalUrl.search}`,
+        method: req.method(),
+        headers: req.headers(),
+        postData: req.postDataBuffer() || undefined,
+      });
+      await route.fulfill({ response });
+    });
+    await studentPage.goto("/student");
+    await studentPage.waitForLoadState("networkidle");
+
+    // The created class should appear in Past Classes
+    await expect(studentPage.getByText(uniqueTopic)).toBeVisible({ timeout: 10000 });
+    
+    // The Watch button should be rendered
+    const watchButton = studentPage.getByRole("button", { name: /watch/i }).first();
+    await expect(watchButton).toBeVisible({ timeout: 10000 });
+    
+    // Click Watch button
+    await watchButton.click();
+
+    // Verify Recording Player Dialog opens
+    await expect(studentPage.getByRole("dialog")).toBeVisible();
+    await expect(studentPage.getByRole("heading", { name: new RegExp(uniqueTopic) })).toBeVisible();
+    
+    // Verify Video element is present
+    const video = studentPage.locator("video");
+    await expect(video).toBeVisible();
+    await expect(video).toHaveAttribute("src", /mock-oci-storage\.test/);
+    
+    // Close dialog
+    await studentPage.keyboard.press("Escape");
+    await expect(studentPage.getByRole("dialog")).toBeHidden();
+
+    await studentCtx.close();
   });
 });

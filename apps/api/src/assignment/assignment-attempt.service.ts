@@ -28,6 +28,7 @@ import type {
 import { Prisma, UserRole, UserStatus } from "@prisma/client";
 import { Chess } from "chess.js";
 import type { AccessTokenPayload } from "../auth/types";
+import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
@@ -50,7 +51,8 @@ export class AssignmentAttemptService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly evaluation: AssignmentEvaluationService,
-    private readonly notifications: NotificationService
+    private readonly notifications: NotificationService,
+    private readonly analyticsEvents: AnalyticsEventService
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -305,6 +307,8 @@ export class AssignmentAttemptService {
 
     const alreadyComplete = sa.status === "COMPLETED" || sa.completedAt !== null;
     const canReview = passed || alreadyComplete || attemptsRemaining === 0;
+
+    void this.analyticsEvents.record(student.id, "ASSIGNMENT_ATTEMPT", assignment.id);
 
     return {
       attempt: this.toAttempt(persisted),
