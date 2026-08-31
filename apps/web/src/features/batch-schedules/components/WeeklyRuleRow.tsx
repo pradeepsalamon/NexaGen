@@ -2,8 +2,8 @@
 
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { TimePicker } from "@/components/ui/TimePicker";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { DAY_LABELS } from "../lib/scheduleFormat";
 
@@ -37,20 +37,18 @@ export function WeeklyRuleRow({ rule, coaches, onChange, onRemove, canRemove }: 
       </label>
       <label className="grid gap-1 text-xs font-bold text-app-muted">
         Start
-        <Input
+        <TimePicker
           aria-label="Start time"
-          type="time"
           value={rule.startTime}
-          onChange={(e) => onChange({ startTime: e.target.value })}
+          onChange={(startTime) => onChange({ startTime })}
         />
       </label>
       <label className="grid gap-1 text-xs font-bold text-app-muted">
         End
-        <Input
+        <TimePicker
           aria-label="End time"
-          type="time"
           value={rule.endTime}
-          onChange={(e) => onChange({ endTime: e.target.value })}
+          onChange={(endTime) => onChange({ endTime })}
         />
       </label>
       <label className="grid gap-1 text-xs font-bold text-app-muted">
@@ -63,18 +61,20 @@ export function WeeklyRuleRow({ rule, coaches, onChange, onRemove, canRemove }: 
           options={coaches.map((c) => ({ label: c.name, value: c.id }))}
         />
       </label>
-      <SimpleTooltip label="Remove this weekly class">
-        <Button
-          aria-label="Remove weekly class"
-          variant="outline"
-          size="icon"
-          className="size-10 rounded-full border-app-danger p-0 text-app-danger hover:bg-app-danger hover:text-white disabled:opacity-40"
-          disabled={!canRemove}
-          onClick={onRemove}
-        >
-          <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
-        </Button>
-      </SimpleTooltip>
+      <div className="flex sm:justify-center sm:pb-0.5">
+        <SimpleTooltip label="Remove this weekly class">
+          <Button
+            aria-label="Remove weekly class"
+            variant="outline"
+            size="icon"
+            className="size-8 rounded-full border-app-danger p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white disabled:opacity-40"
+            disabled={!canRemove}
+            onClick={onRemove}
+          >
+            <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+          </Button>
+        </SimpleTooltip>
+      </div>
     </div>
   );
 }

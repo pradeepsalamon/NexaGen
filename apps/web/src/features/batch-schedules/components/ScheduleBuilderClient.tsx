@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CalendarPlus, Eye, Plus, X } from "lucide-react";
 import type {
@@ -11,8 +11,10 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
 import { useAssignableUsersQuery, useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import {
@@ -21,7 +23,14 @@ import {
 } from "../hooks/useBatchScheduleApi";
 import { WeeklyRuleRow, type RuleDraft } from "./WeeklyRuleRow";
 import { SchedulePreviewPanel } from "./SchedulePreviewPanel";
-import { addMonthsISO, TIMEZONE_OPTIONS, todayISODate } from "../lib/scheduleFormat";
+import {
+  addMonthsISO,
+  endDateForClassCount,
+  isoDateToLocalDate,
+  localDateToISODate,
+  TIMEZONE_OPTIONS,
+  todayISODate
+} from "../lib/scheduleFormat";
 
 let ruleCounter = 0;
 const newRule = (coachId = ""): RuleDraft => ({
@@ -65,6 +74,8 @@ export function ScheduleBuilderClient() {
   const [timezone, setTimezone] = useState("Asia/Kolkata");
   const [startDate, setStartDate] = useState(todayISODate());
   const [endDate, setEndDate] = useState(addMonthsISO(todayISODate(), 3));
+  const [endMode, setEndMode] = useState<"date" | "count">("date");
+  const [classCount, setClassCount] = useState("12");
   const [rules, setRules] = useState<RuleDraft[]>([newRule()]);
   const [exceptions, setExceptions] = useState<string[]>([]);
   const [exceptionDraft, setExceptionDraft] = useState("");
@@ -86,10 +97,33 @@ export function ScheduleBuilderClient() {
     exceptions: exceptions.length ? exceptions : undefined
   });
 
+  const parsedCount = Number.parseInt(classCount, 10);
+  const computedEndDate = useMemo(
+    () =>
+      endDateForClassCount(
+        startDate,
+        rules.map((r) => ({ dayOfWeek: r.dayOfWeek })),
+        exceptions,
+        parsedCount
+      ),
+    [startDate, rules, exceptions, parsedCount]
+  );
+
+  useEffect(() => {
+    if (endMode !== "count") return;
+    setPreview(null);
+    if (computedEndDate) setEndDate(computedEndDate);
+  }, [endMode, computedEndDate]);
+
+  const countModeValid =
+    endMode !== "count" ||
+    (parsedCount >= 1 && parsedCount <= 500 && Boolean(computedEndDate));
+
   const canPreview =
     Boolean(batchId) &&
     Boolean(startDate) &&
     Boolean(endDate) &&
+    countModeValid &&
     rules.length > 0 &&
     rules.every((r) => r.coachId && r.startTime && r.endTime);
 
@@ -178,30 +212,73 @@ export function ScheduleBuilderClient() {
                 options={TIMEZONE_OPTIONS.map((tz) => ({ label: tz, value: tz }))}
               />
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid content-start gap-3">
               <label className="grid gap-1 text-xs font-bold text-app-muted">
                 Start date
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => {
-                    setStartDate(e.target.value);
+                <DatePicker
+                  className="w-full"
+                  value={isoDateToLocalDate(startDate)}
+                  onChange={(date) => {
+                    setStartDate(date ? localDateToISODate(date) : "");
                     setPreview(null);
                   }}
                 />
               </label>
-              <label className="grid gap-1 text-xs font-bold text-app-muted">
-                End date
-                <Input
-                  type="date"
-                  value={endDate}
-                  min={startDate}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                    setPreview(null);
-                  }}
-                />
-              </label>
+              <div className="grid gap-1 text-xs font-bold text-app-muted">
+                <div className="flex items-center justify-between gap-2">
+                  <span>Ends</span>
+                  <div className="flex rounded-control border border-app-border p-0.5">
+                    {(["date", "count"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setEndMode(mode)}
+                        className={cn(
+                          "rounded-[6px] px-2 py-0.5 text-[11px] font-bold transition",
+                          endMode === mode
+                            ? "bg-primary text-white"
+                            : "text-app-muted hover:text-app-text"
+                        )}
+                      >
+                        {mode === "date" ? "By date" : "By count"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {endMode === "date" ? (
+                  <DatePicker
+                    className="w-full"
+                    value={isoDateToLocalDate(endDate)}
+                    onChange={(date) => {
+                      setEndDate(date ? localDateToISODate(date) : "");
+                      setPreview(null);
+                    }}
+                  />
+                ) : (
+                  <div className="grid gap-1">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={500}
+                      value={classCount}
+                      placeholder="Total number of classes"
+                      onChange={(e) => {
+                        setClassCount(e.target.value);
+                        setPreview(null);
+                      }}
+                    />
+                    <span className="font-normal text-app-muted">
+                      {computedEndDate
+                        ? `Ends ${isoDateToLocalDate(computedEndDate)?.toLocaleDateString(undefined, {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric"
+                          })}`
+                        : "Add a weekly class to estimate the end date"}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -243,11 +320,13 @@ export function ScheduleBuilderClient() {
               Excluded dates <span className="font-normal text-app-muted">(holidays / breaks)</span>
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Input
-                type="date"
-                className="w-44"
-                value={exceptionDraft}
-                onChange={(e) => setExceptionDraft(e.target.value)}
+              <DatePicker
+                className="w-52"
+                placeholder="Pick a date"
+                value={isoDateToLocalDate(exceptionDraft)}
+                onChange={(date) =>
+                  setExceptionDraft(date ? localDateToISODate(date) : "")
+                }
               />
               <Button variant="outline" size="sm" onClick={addException}>
                 Add
