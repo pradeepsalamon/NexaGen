@@ -64,6 +64,41 @@ coach/board durations were always 0, `room_finished` never fired, and the
 | **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
 | **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
 
+## Resolved (2026-08-31)
+
+- **Admin analytics dashboard.** The `/admin` landing page was a placeholder with
+  hardcoded metric cards. Replaced with a full analytics system: `analytics` API
+  module (21 admin-only endpoints + CSV export under `/analytics/*`),
+  `features/analytics` on web (recharts, KPI cards, shareable URL date-range
+  state), an `AdminSidebar` + gated `admin/layout.tsx` shell, and grouped admin
+  nav in `navItems.ts` (kills the old 4-place-edit problem — `Header.tsx`
+  `pageTitles`, the hardcoded chip row, and `adminNavItems` were all
+  hand-maintained). Sections: executive overview, user growth, acquisition,
+  students, coaches, classes, attendance, batches, recordings & storage,
+  engagement, operations + alerts; drill-down sub-pages under
+  `/admin/analytics/*` with paginated tables and `coaches/:id` / `batches/:id`
+  detail. Migration `20260831050015_analytics_foundations` (all additive):
+  `AnalyticsEvent` + `StorageSnapshot` models, `User.acquisitionSource`
+  (enum, backfilled from the legacy `StudentProfile.referralSource`) + UTM
+  columns, `LiveSession` recording size/duration/status columns, and analytics
+  indexes. New: global `ActivityTrackingInterceptor`, `AnalyticsScheduler` daily
+  storage snapshot, in-process analytics cache.
+
+- **Acquisition tracking beyond the 4-value student enum.** `registerRequestSchema`
+  / `registerCoachRequestSchema` now take `acquisitionSource` (12 normalized
+  slugs) + optional `acquisitionDetail` + UTM fields; `features/auth`
+  `AcquisitionSourceSelect` replaces the old dropdown on both register forms, and
+  `lib/acquisition.ts` captures first-touch UTM params / external referrer into
+  `localStorage` (mounted via `<AcquisitionCapture>` in `AppProviders`). Coaches
+  now answer the question too. Legacy `StudentProfile.referralSource` is kept
+  for back-compat.
+
+- **No user-activity signal.** Added `User.lastActiveAt` (throttled by
+  `ActivityTrackingInterceptor`, ≤1 write / 10 min / user) + an `analytics_events`
+  table written fire-and-forget by `AnalyticsEventService` on login, student
+  class-join, assignment submit, and recording watch. Powers real DAU/WAU/MAU +
+  new-vs-returning in the engagement section (history accrues from deploy).
+
 ## Resolved (2026-08-30)
 
 - **Board usage always 0 + reports showed scheduled, not actual, timing.**

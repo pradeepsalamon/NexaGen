@@ -33,6 +33,13 @@ export const queryKeys = {
   admin: {
     base: ["admin"] as const,
   },
+  analytics: {
+    all: ["analytics"] as const,
+    section: (name: string, params?: Record<string, unknown>) =>
+      ["analytics", name, params ?? null] as const,
+    table: (name: string, params?: Record<string, unknown>) =>
+      ["analytics", "table", name, params ?? null] as const,
+  },
   attendance: {
     classSummary: (id: string) => ["attendance", "class-summary", id] as const,
     classLive: (id: string) => ["attendance", "class-live", id] as const,

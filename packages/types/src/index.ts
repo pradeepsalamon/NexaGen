@@ -63,6 +63,57 @@ export const prismaExperienceLevelSchema = z.enum([
   "ADVANCED"
 ]);
 
+// ── Acquisition attribution ──
+// Lowercase slugs on the wire; the API maps them to the Prisma `AcquisitionSource`
+// enum. `unknown` is explicit and always valid — the UI never forces a guess.
+export const acquisitionSourceSchema = z.enum([
+  "website",
+  "google",
+  "instagram",
+  "facebook",
+  "youtube",
+  "whatsapp",
+  "referral",
+  "school",
+  "coach_referral",
+  "advertisement",
+  "other",
+  "unknown"
+]);
+
+export const prismaAcquisitionSourceSchema = z.enum([
+  "WEBSITE",
+  "GOOGLE",
+  "INSTAGRAM",
+  "FACEBOOK",
+  "YOUTUBE",
+  "WHATSAPP",
+  "REFERRAL",
+  "SCHOOL",
+  "COACH_REFERRAL",
+  "ADVERTISEMENT",
+  "OTHER",
+  "UNKNOWN"
+]);
+
+/** First-touch acquisition data captured at registration (all optional). */
+export const acquisitionCaptureSchema = z.object({
+  acquisitionSource: acquisitionSourceSchema.optional(),
+  acquisitionDetail: z.string().max(200).optional(),
+  utmSource: z.string().max(200).optional(),
+  utmMedium: z.string().max(200).optional(),
+  utmCampaign: z.string().max(200).optional(),
+  utmContent: z.string().max(200).optional(),
+  utmTerm: z.string().max(200).optional(),
+  landingReferrer: z.string().max(500).optional()
+});
+
+export type AcquisitionSourceValue = z.infer<typeof acquisitionSourceSchema>;
+export type PrismaAcquisitionSource = z.infer<
+  typeof prismaAcquisitionSourceSchema
+>;
+export type AcquisitionCapture = z.infer<typeof acquisitionCaptureSchema>;
+
 export const coachTitleSchema = z.enum(["NONE", "CM", "FM", "IM", "GM"]);
 
 export const batchStatusSchema = z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARCHIVED"]);
@@ -82,7 +133,17 @@ export const registerRequestSchema = z
     confirmPassword: z.string().min(8, "Confirm your password."),
     contactNumber: z.string().min(1, "Contact number is required.").max(30),
     email: z.string().email("Enter a valid email address.").max(255),
-    referralSource: referralSourceSchema,
+    // Legacy field — kept optional for older clients. New clients send
+    // `acquisitionSource` (+ optional detail / UTM) instead.
+    referralSource: referralSourceSchema.optional(),
+    acquisitionSource: acquisitionSourceSchema.optional(),
+    acquisitionDetail: z.string().max(200).optional(),
+    utmSource: z.string().max(200).optional(),
+    utmMedium: z.string().max(200).optional(),
+    utmCampaign: z.string().max(200).optional(),
+    utmContent: z.string().max(200).optional(),
+    utmTerm: z.string().max(200).optional(),
+    landingReferrer: z.string().max(500).optional(),
     parentName: z.string().min(1, "Parent name is required.").max(120),
     password: passwordSchema,
     studentAge: z
@@ -410,7 +471,15 @@ export const registerCoachRequestSchema = z
     title: coachTitleSchema.optional().default("NONE"),
     fideId: z.string().max(80).optional(),
     fideRating: z.number().int().min(0).max(4000).optional(),
-    yearsOfExperience: z.number().int().min(0).max(80).optional()
+    yearsOfExperience: z.number().int().min(0).max(80).optional(),
+    acquisitionSource: acquisitionSourceSchema.optional(),
+    acquisitionDetail: z.string().max(200).optional(),
+    utmSource: z.string().max(200).optional(),
+    utmMedium: z.string().max(200).optional(),
+    utmCampaign: z.string().max(200).optional(),
+    utmContent: z.string().max(200).optional(),
+    utmTerm: z.string().max(200).optional(),
+    landingReferrer: z.string().max(500).optional()
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: "Passwords must match.",
@@ -1772,3 +1841,8 @@ export type ScheduleCalendarClass = {
 export type ScheduleCalendarResponse = {
   classes: ScheduleCalendarClass[];
 };
+
+// ──────────────────────────────────────────────
+// Admin Analytics contract (large — kept in its own module)
+// ──────────────────────────────────────────────
+export * from "./analytics";

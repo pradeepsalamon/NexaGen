@@ -22,6 +22,7 @@ import type { AccessTokenPayload } from "../auth/types";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
+import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import type { Request, Response } from "express";
 
 @Injectable()
@@ -39,7 +40,8 @@ export class LiveClassService {
     @Inject(forwardRef(() => AttendanceService))
     private readonly attendanceService: AttendanceService,
     private readonly backupService: BackupService,
-    private readonly recordingStorageService: RecordingStorageService
+    private readonly recordingStorageService: RecordingStorageService,
+    private readonly analyticsEvents: AnalyticsEventService
   ) { }
 
   /** Matches the coach's participant regardless of the `_<clientId>` tab suffix (AUDIT M23). */
@@ -262,6 +264,7 @@ export class LiveClassService {
       } catch (error) {
         this.logger.warn(`Failed to record attendance for student ${user.id}`, error);
       }
+      void this.analyticsEvents.record(user.id, "CLASS_JOIN", liveSession.classId);
     }
 
     return { token: livekitToken, roomName: liveSession.roomName, topic };
@@ -589,6 +592,8 @@ export class LiveClassService {
     await this.prisma.liveSession.update({
       where: { id: liveSession.id },
       data: {
+        recordingStatus: "RECORDING",
+        recordingStartedAt: new Date(),
         metadata: {
           ...metadata,
           egressId,
@@ -629,6 +634,7 @@ export class LiveClassService {
     await this.prisma.liveSession.update({
       where: { id: liveSession.id },
       data: {
+        recordingStatus: "STOPPING",
         metadata: { ...restMetadata, recordingStatus: "STOPPING" },
       },
     });
@@ -686,6 +692,8 @@ export class LiveClassService {
       await this.prisma.liveSession.update({
         where: { id: liveSession.id },
         data: {
+          recordingStatus: "RECORDING",
+          recordingStartedAt: liveSession.recordingStartedAt ?? new Date(),
           metadata: {
             ...metadata,
             ...(egressId ? { egressId } : {}),
@@ -701,6 +709,7 @@ export class LiveClassService {
       await this.prisma.liveSession.update({
         where: { id: liveSession.id },
         data: {
+          recordingStatus: "STOPPING",
           metadata: {
             ...metadata,
             recordingStatus: "STOPPING",
@@ -732,10 +741,36 @@ export class LiveClassService {
 
     const { egressId: _activeEgressId, ...restMetadata } = metadata;
 
+    // Promote recording metadata onto dedicated columns for analytics. Size is
+    // read from disk (egress webhooks don't carry it); duration falls back to the
+    // class's actual run length.
+    let recordingBytes: bigint | null = null;
+    let recordingDurationSeconds: number | null = null;
+    if (completed && location) {
+      const bytes = await this.recordingStorageService.getFileBytes(location);
+      recordingBytes = bytes === null ? null : BigInt(bytes);
+
+      const cls = await this.prisma.coachClass.findUnique({
+        where: { id: liveSession.classId },
+        select: { startsAt: true, endsAt: true },
+      });
+      const actualMs =
+        liveSession.startedAt && liveSession.endedAt
+          ? liveSession.endedAt.getTime() - liveSession.startedAt.getTime()
+          : cls
+            ? cls.endsAt.getTime() - cls.startsAt.getTime()
+            : 0;
+      recordingDurationSeconds = actualMs > 0 ? Math.round(actualMs / 1000) : null;
+    }
+
     await this.prisma.liveSession.update({
       where: { id: liveSession.id },
       data: {
         recordingUrl: completed ? location : null,
+        recordingStatus: completed ? "COMPLETED" : "FAILED",
+        recordingCompletedAt: completed ? new Date() : null,
+        ...(recordingBytes !== null ? { recordingBytes } : {}),
+        ...(recordingDurationSeconds !== null ? { recordingDurationSeconds } : {}),
         metadata: {
           ...restMetadata,
           recordingFilepath: location || metadata.recordingFilepath,
@@ -948,6 +983,8 @@ export class LiveClassService {
         data: { watchedSeconds },
       });
     }
+
+    void this.analyticsEvents.recordRecordingWatchOncePerDay(user.id, classId);
 
     return { success: true };
   }

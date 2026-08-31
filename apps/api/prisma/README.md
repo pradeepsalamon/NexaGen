@@ -64,3 +64,18 @@ npm run migrate:deploy -w apps/api
 
 prod prisma studio
 ssh -L 5433:127.0.0.1:5432 ubuntu@146.56.55.170
+
+## Analytics recording-size backfill (one-off, manual)
+
+Migration `20260831050015_analytics_foundations` added `LiveSession.recordingBytes`
+/ `recordingDurationSeconds` / `recordingStatus`. New recordings populate these
+from the egress webhook automatically; older rows stay null (→ "unknown" in the
+analytics UI). To backfill from files still on disk / in object storage, run
+`apps/api/prisma/scripts/backfill-recording-sizes.ts` on the VPS:
+
+```bash
+docker compose exec api node dist/prisma/scripts/backfill-recording-sizes.js
+```
+
+It only touches rows where `recordingUrl` is set and `recordingBytes` is null;
+missing files are left null. Safe to re-run.

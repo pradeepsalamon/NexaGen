@@ -42,7 +42,16 @@ const apiEnvSchema = z.object({
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
-  RECORDING_MIN_RETENTION_DAYS: z.coerce.number().nonnegative().default(14)
+  RECORDING_MIN_RETENTION_DAYS: z.coerce.number().nonnegative().default(14),
+  ANALYTICS_STORAGE_WARN_PERCENT: z.coerce.number().min(1).max(100).default(70),
+  ANALYTICS_STORAGE_CRITICAL_PERCENT: z.coerce
+    .number()
+    .min(1)
+    .max(100)
+    .default(85),
+  ANALYTICS_LOW_ATTENDANCE_PERCENT: z.coerce.number().min(1).max(100).default(75),
+  ANALYTICS_INACTIVE_DAYS: z.coerce.number().int().positive().default(30),
+  ANALYTICS_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(300)
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

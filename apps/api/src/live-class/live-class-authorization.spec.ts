@@ -7,6 +7,7 @@ import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
+import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -61,7 +62,14 @@ describe("LiveClassService chat authorization", () => {
         { provide: LiveKitService, useValue: {} },
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: {} },
-        { provide: RecordingStorageService, useValue: {} }
+        { provide: RecordingStorageService, useValue: {} },
+        {
+          provide: AnalyticsEventService,
+          useValue: {
+            record: jest.fn().mockResolvedValue(undefined),
+            recordRecordingWatchOncePerDay: jest.fn().mockResolvedValue(undefined)
+          }
+        }
       ]
     }).compile();
 
@@ -199,7 +207,14 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: LiveKitService, useValue: { listParticipants, generateAccessToken } },
         { provide: AttendanceService, useValue: { recordJoinEvent } },
         { provide: BackupService, useValue: {} },
-        { provide: RecordingStorageService, useValue: {} }
+        { provide: RecordingStorageService, useValue: {} },
+        {
+          provide: AnalyticsEventService,
+          useValue: {
+            record: jest.fn().mockResolvedValue(undefined),
+            recordRecordingWatchOncePerDay: jest.fn().mockResolvedValue(undefined)
+          }
+        }
       ]
     }).compile();
 

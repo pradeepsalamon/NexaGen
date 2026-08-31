@@ -1,14 +1,19 @@
 import {
+  Activity,
+  BarChart3,
   BookOpen,
   CalendarDays,
   ClipboardList,
+  Clock,
+  Database,
   History,
   Layers3,
   LayoutDashboard,
+  LineChart,
   Settings,
   Target,
-  Trash2,
   TrendingUp,
+  Trash2,
   UserCheck,
   UserRoundCheck,
   Users,
@@ -20,6 +25,8 @@ export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Sidebar group heading. Items without one render before the first group. */
+  group?: string;
   /**
    * Marks a destination whose API requires `SUPER_ADMIN`. Hidden from plain
    * ADMIN users so they never navigate into a guaranteed 401.
@@ -52,16 +59,29 @@ export const coachNavItems: NavItem[] = [
 ];
 
 export const adminNavItems: NavItem[] = [
-  { href: "/admin", label: "Overview", icon: LayoutDashboard },
-  { href: "/admin/batches", label: "Batches", icon: Layers3 },
-  { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays },
-  { href: "/admin/assignments", label: "Assignments", icon: ClipboardList },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/attendance", label: "Attendance", icon: UserRoundCheck },
-  { href: "/admin/trash", label: "Trash", icon: Trash2, superAdminOnly: true },
-  { href: "/admin/coaches", label: "Coach Apps", icon: Users, superAdminOnly: true },
-  { href: "/admin/demo-classes", label: "Demo Classes", icon: Video, superAdminOnly: true },
-  { href: "/admin/classes", label: "Batch Classes", icon: Video, superAdminOnly: true }
+  // Analytics
+  { href: "/admin", label: "Overview", icon: LayoutDashboard, group: "Analytics" },
+  { href: "/admin/analytics/users", label: "Users", icon: Users, group: "Analytics" },
+  { href: "/admin/analytics/acquisition", label: "Acquisition", icon: TrendingUp, group: "Analytics" },
+  { href: "/admin/analytics/coaches", label: "Coaches", icon: UserRoundCheck, group: "Analytics" },
+  { href: "/admin/analytics/classes", label: "Classes", icon: Video, group: "Analytics" },
+  { href: "/admin/analytics/attendance", label: "Attendance", icon: UserCheck, group: "Analytics" },
+  { href: "/admin/analytics/batches", label: "Batches", icon: Layers3, group: "Analytics" },
+  { href: "/admin/analytics/recordings", label: "Recordings & Storage", icon: Database, group: "Analytics" },
+  { href: "/admin/analytics/engagement", label: "Engagement", icon: Activity, group: "Analytics" },
+  { href: "/admin/analytics/operations", label: "Operations", icon: Clock, group: "Analytics" },
+  // Manage
+  { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Manage" },
+  { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Manage" },
+  { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Manage" },
+  { href: "/admin/users", label: "Users", icon: Users, group: "Manage" },
+  { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Manage" },
+  // Super Admin
+  { href: "/admin/backups", label: "DB Backups", icon: Database, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/coaches", label: "Coach Apps", icon: Users, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/demo-classes", label: "Demo Classes", icon: Video, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/classes", label: "Batch Classes", icon: LineChart, group: "Super Admin", superAdminOnly: true }
 ];
 
 /** Admin nav filtered to what the given role's API access actually permits. */
@@ -71,4 +91,21 @@ export function getAdminNavItems(role?: string): NavItem[] {
   }
 
   return adminNavItems.filter((item) => !item.superAdminOnly);
+}
+
+/** Admin nav bucketed by `group`, preserving declaration order. */
+export function getAdminNavGroups(
+  role?: string
+): { group: string; items: NavItem[] }[] {
+  const groups: { group: string; items: NavItem[] }[] = [];
+  for (const item of getAdminNavItems(role)) {
+    const key = item.group ?? "";
+    let bucket = groups.find((g) => g.group === key);
+    if (!bucket) {
+      bucket = { group: key, items: [] };
+      groups.push(bucket);
+    }
+    bucket.items.push(item);
+  }
+  return groups;
 }

@@ -7,6 +7,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
+  AcquisitionSource,
   CoachProfile,
   CoachTitle,
   ExperienceLevel,
@@ -28,6 +29,7 @@ import type {
   ResetPasswordRequest,
   UpdateProfileRequest
 } from "@nexa-chess/types";
+import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type {
@@ -107,7 +109,8 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly analyticsEvents: AnalyticsEventService
   ) {}
 
   getCookieMaxAges() {
@@ -144,6 +147,7 @@ export class AuthService {
 
     const { firstName, lastName } = splitStudentName(payload.studentName);
     const passwordHash = await hashSecret(payload.password);
+    const acquisition = this.resolveAcquisitionData(payload);
 
     const user = await this.prisma.user.create({
       include: { coachProfile: true, studentProfile: true },
@@ -158,6 +162,7 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: true,
         emailVerifiedAt: new Date(),
+        ...acquisition,
         studentProfile: {
           create: {
             referralSource: this.toReferralSource(payload.referralSource),
@@ -208,6 +213,7 @@ export class AuthService {
 
     const { firstName, lastName } = splitStudentName(payload.coachName);
     const passwordHash = await hashSecret(payload.password);
+    const acquisition = this.resolveAcquisitionData(payload);
 
     const user = await this.prisma.user.create({
       include: { coachProfile: true, studentProfile: true },
@@ -222,6 +228,7 @@ export class AuthService {
         timezone: "Asia/Kolkata",
         isEmailVerified: true,
         emailVerifiedAt: new Date(),
+        ...acquisition,
         coachProfile: {
           create: {
             approvalStatus: UserStatus.PENDING,
@@ -296,6 +303,8 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
       where: { id: user.id }
     });
+
+    void this.analyticsEvents.record(user.id, "LOGIN");
 
     const refreshTokenMaxAge = payload.rememberMe
       ? this.refreshTokenMaxAge
@@ -891,16 +900,89 @@ export class AuthService {
     return levels[level as string] ?? ExperienceLevel.BEGINNER;
   }
 
-  private toReferralSource(source: RegisterRequest["referralSource"]) {
-    const sources: Record<RegisterRequest["referralSource"], ReferralSource> =
-      {
-        ads: ReferralSource.ADS,
-        friend: ReferralSource.FRIEND,
-        school: ReferralSource.SCHOOL,
-        other: ReferralSource.OTHER
-      };
+  private toReferralSource(
+    source: RegisterRequest["referralSource"] | undefined
+  ): ReferralSource | undefined {
+    if (!source) return undefined;
+    const sources: Record<
+      NonNullable<RegisterRequest["referralSource"]>,
+      ReferralSource
+    > = {
+      ads: ReferralSource.ADS,
+      friend: ReferralSource.FRIEND,
+      school: ReferralSource.SCHOOL,
+      other: ReferralSource.OTHER
+    };
 
     return sources[source];
+  }
+
+  /**
+   * Normalises the acquisition payload from a register request into the Prisma
+   * `User` columns. Falls back to the legacy `referralSource` when the new
+   * `acquisitionSource` is absent, and to UNKNOWN when neither is given — the
+   * analytics layer never fabricates a source.
+   */
+  private resolveAcquisitionData(payload: {
+    acquisitionSource?: RegisterRequest["acquisitionSource"];
+    acquisitionDetail?: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    utmContent?: string;
+    utmTerm?: string;
+    landingReferrer?: string;
+    referralSource?: RegisterRequest["referralSource"];
+  }) {
+    const map: Record<
+      NonNullable<RegisterRequest["acquisitionSource"]>,
+      AcquisitionSource
+    > = {
+      website: AcquisitionSource.WEBSITE,
+      google: AcquisitionSource.GOOGLE,
+      instagram: AcquisitionSource.INSTAGRAM,
+      facebook: AcquisitionSource.FACEBOOK,
+      youtube: AcquisitionSource.YOUTUBE,
+      whatsapp: AcquisitionSource.WHATSAPP,
+      referral: AcquisitionSource.REFERRAL,
+      school: AcquisitionSource.SCHOOL,
+      coach_referral: AcquisitionSource.COACH_REFERRAL,
+      advertisement: AcquisitionSource.ADVERTISEMENT,
+      other: AcquisitionSource.OTHER,
+      unknown: AcquisitionSource.UNKNOWN
+    };
+    const legacy: Record<
+      NonNullable<RegisterRequest["referralSource"]>,
+      AcquisitionSource
+    > = {
+      ads: AcquisitionSource.ADVERTISEMENT,
+      friend: AcquisitionSource.REFERRAL,
+      school: AcquisitionSource.SCHOOL,
+      other: AcquisitionSource.OTHER
+    };
+
+    let acquisitionSource: AcquisitionSource = AcquisitionSource.UNKNOWN;
+    if (payload.acquisitionSource) {
+      acquisitionSource = map[payload.acquisitionSource] ?? AcquisitionSource.UNKNOWN;
+    } else if (payload.referralSource) {
+      acquisitionSource = legacy[payload.referralSource];
+    }
+
+    const clean = (value: string | undefined, max: number) => {
+      const trimmed = value?.trim();
+      return trimmed ? trimmed.slice(0, max) : null;
+    };
+
+    return {
+      acquisitionSource,
+      acquisitionDetail: clean(payload.acquisitionDetail, 200),
+      utmSource: clean(payload.utmSource, 200),
+      utmMedium: clean(payload.utmMedium, 200),
+      utmCampaign: clean(payload.utmCampaign, 200),
+      utmContent: clean(payload.utmContent, 200),
+      utmTerm: clean(payload.utmTerm, 200),
+      landingReferrer: clean(payload.landingReferrer, 500)
+    };
   }
 
   private async waitForPasswordResetResponseDelay(startedAt: number) {
