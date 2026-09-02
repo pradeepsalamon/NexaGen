@@ -230,18 +230,25 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 
 ### 6.8 Live class meeting (`/live-class/[roomId]`)
 - [`MeetingLayout.tsx`](../apps/web/src/features/live-class/components/meeting/MeetingLayout.tsx):
-  `h-[100dvh] flex flex-col overflow-hidden pt-16` — uses **`dvh`**, not `vh`, so
+  `h-[100dvh] flex flex-col overflow-hidden pt-14` — uses **`dvh`**, not `vh`, so
   mobile browser chrome doesn't crop the toolbar.
-- `MeetingHeader` uses `compact` Header (icon-only below `sm`).
+- `MeetingTopBar` (not the global `Header`): a trimmed classroom bar via
+  [`ClassroomTopBar.tsx`](../apps/web/src/features/live-class/components/meeting/ClassroomTopBar.tsx)
+  — Logo + class title + LIVE/REC + connection pill + timer + Leave. `h-14`, fixed.
+  The same bar (no live widgets) fronts the pre-join / error screens through
+  [`ClassroomStateShell.tsx`](../apps/web/src/features/live-class/components/states/ClassroomStateShell.tsx).
 - Video grid: column math in
   [`videoGrid.utils.ts`](../apps/web/src/features/live-class/components/meeting/video-grid/videoGrid.utils.ts);
   tiles keep `aspect-video`, grid reflows by count and viewport.
-- `MeetingSidebar` (chat / participants / settings): **overlay drawer on
-  mobile**, docked panel on desktop.
-- `MeetingToolbar`: floating, centered, wraps; must stay above the `dvh` bottom
-  edge in phone landscape (`iphone-14-landscape` is the stress case).
-- Pre-join card: `.custom-prejoin` overrides, `max-w-[480px]`, `aspect-video`
-  preview.
+- `MeetingSidebar` (chat / people / settings): **full-screen drawer on
+  mobile**, docked `w-[360px]` panel on desktop. Panels share `PanelHeader`.
+- `MeetingToolbar`: floating, centered, **single row (never wraps)** — ~6 primary
+  controls + a `More` popover for the rest, at every width. Must stay above the
+  `dvh` bottom edge in phone landscape (`iphone-14-landscape` is the stress case).
+- Layer order is centralised in
+  [`lib/meetingUi.ts`](../apps/web/src/features/live-class/lib/meetingUi.ts) (`Z`).
+- Pre-join card: class-info column + `.custom-prejoin` device preview, two-column
+  `md+`, stacked below.
 - Verify: `mobile`, `mobile-landscape`, `tablet`, `laptop-15` — with
   `--live-class <roomId>`.
 

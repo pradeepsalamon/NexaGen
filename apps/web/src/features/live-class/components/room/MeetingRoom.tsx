@@ -73,6 +73,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   const [ended, setEnded] = useState(false);
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const joinToastShown = useRef(false);
 
   if (ended) {
     // The class ended (room deleted) while this tab was in the meeting. Show the
@@ -103,7 +104,13 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       video={false}
       className="flex h-[100dvh] flex-col overflow-hidden"
       data-lk-theme="default"
-      onConnected={() => setError(null)}
+      onConnected={() => {
+        setError(null);
+        if (!joinToastShown.current) {
+          joinToastShown.current = true;
+          toast.success("You joined the class", { duration: 2500 });
+        }
+      }}
       onDisconnected={(reason) => {
         toast.dismiss("lk-reconnecting");
         if (reason === DisconnectReason.ROOM_DELETED) {
