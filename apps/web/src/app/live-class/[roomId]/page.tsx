@@ -11,9 +11,14 @@ import { LiveClassProvider } from "@/features/live-class/providers/LiveClassProv
 import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
 import { PreJoinCard } from "@/features/live-class/components/prejoin/PreJoinCard";
 import { LoadingMeeting } from "@/features/live-class/components/states/LoadingMeeting";
-import { ConnectionLost, PermissionDenied, ClassNotStarted, WaitingForCoach } from "@/features/live-class/components/states/ErrorStates";
+import { ClassroomStateShell } from "@/features/live-class/components/states/ClassroomStateShell";
+import {
+  ConnectionLost,
+  PermissionDenied,
+  ClassNotStarted,
+  WaitingForCoach,
+} from "@/features/live-class/components/states/ErrorStates";
 import { ClassSummary } from "@/features/live-class/components/summary/ClassSummary";
-import { Header } from "@/components/layout/Header";
 
 export default function LiveClassPage() {
   const params = useParams();
@@ -35,20 +40,11 @@ export default function LiveClassPage() {
     setHasJoined(true);
   };
 
-  const headerCenter = (
-    <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
-      {topic || "Live Class"}
-    </h1>
-  );
-
   if (isLoading) {
     return (
-      <div className="flex flex-col h-[100dvh]">
-        <Header centerSlot={headerCenter} compact />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
-          <LoadingMeeting message="Preparing your Live Class..." />
-        </div>
-      </div>
+      <ClassroomStateShell topic={topic}>
+        <LoadingMeeting message="Preparing your Live Class…" />
+      </ClassroomStateShell>
     );
   }
 
@@ -57,34 +53,25 @@ export default function LiveClassPage() {
 
     if (errorStr.includes("not been started") || classStatus === "SCHEDULED") {
       return (
-        <div className="flex flex-col h-[100dvh]">
-          <Header centerSlot={headerCenter} compact />
-          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
-            <ClassNotStarted roomId={roomId} onRetry={() => window.location.reload()} />
-          </div>
-        </div>
+        <ClassroomStateShell topic={topic}>
+          <ClassNotStarted roomId={roomId} onRetry={() => window.location.reload()} />
+        </ClassroomStateShell>
       );
     }
 
     if (errorCode === "COACH_NOT_JOINED") {
       return (
-        <div className="flex flex-col h-[100dvh]">
-          <Header centerSlot={headerCenter} compact />
-          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
-            <WaitingForCoach onRetry={retry} />
-          </div>
-        </div>
+        <ClassroomStateShell topic={topic}>
+          <WaitingForCoach onRetry={retry} />
+        </ClassroomStateShell>
       );
     }
 
     if (errorStr.includes("not authorized") || errorStr.includes("permission")) {
       return (
-        <div className="flex flex-col h-[100dvh]">
-          <Header centerSlot={headerCenter} compact />
-          <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
-            <PermissionDenied />
-          </div>
-        </div>
+        <ClassroomStateShell topic={topic}>
+          <PermissionDenied />
+        </ClassroomStateShell>
       );
     }
 
@@ -93,34 +80,31 @@ export default function LiveClassPage() {
     }
 
     return (
-      <div className="flex flex-col h-[100dvh]">
-        <Header centerSlot={headerCenter} compact />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
-          <ConnectionLost onRetry={() => window.location.reload()} />
-        </div>
-      </div>
+      <ClassroomStateShell topic={topic}>
+        <ConnectionLost onRetry={() => window.location.reload()} />
+      </ClassroomStateShell>
     );
   }
 
   if (!hasJoined) {
     return (
-      <div className="flex flex-col h-[100dvh]">
-        <Header centerSlot={headerCenter} compact />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16">
-          <PreJoinCard topic={topic} status={classStatus as any} onJoin={join} />
-        </div>
-      </div>
+      <ClassroomStateShell topic={topic}>
+        <PreJoinCard
+          topic={topic}
+          startedAt={startedAt}
+          endsAt={endsAt}
+          status={classStatus as never}
+          onJoin={join}
+        />
+      </ClassroomStateShell>
     );
   }
 
   if (!token) {
     return (
-      <div className="flex flex-col h-[100dvh]">
-        <Header centerSlot={headerCenter} compact />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
-          <LoadingMeeting message="Connecting..." />
-        </div>
-      </div>
+      <ClassroomStateShell topic={topic}>
+        <LoadingMeeting message="Connecting…" />
+      </ClassroomStateShell>
     );
   }
 

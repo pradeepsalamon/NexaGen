@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -16,6 +17,10 @@ interface MeetingControlButtonProps
   label: string;
   variant?: ControlVariant;
   badge?: number;
+  /** Optional keyboard hint rendered as a <kbd> inside the tooltip. */
+  shortcut?: string;
+  /** Shows a spinner and disables the button. */
+  loading?: boolean;
 }
 
 const variantStyles: Record<ControlVariant, string> = {
@@ -24,16 +29,18 @@ const variantStyles: Record<ControlVariant, string> = {
   active:
     "bg-primary text-white hover:bg-primary/90 shadow-sm",
   danger:
-    "bg-red-500 text-white hover:bg-red-600 border border-red-500 shadow-sm",
+    "bg-app-danger text-white hover:opacity-90 border border-app-danger shadow-sm",
 };
 
 export const MeetingControlButton = forwardRef<
   HTMLButtonElement,
   MeetingControlButtonProps
 >(function MeetingControlButton(
-  { icon, label, variant = "default", badge, className, ...props },
+  { icon, label, variant = "default", badge, shortcut, loading, disabled, className, ...props },
   ref
 ) {
+  const isDisabled = disabled || loading;
+
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -41,16 +48,18 @@ export const MeetingControlButton = forwardRef<
           ref={ref}
           type="button"
           className={cn(
-            "relative flex size-10 items-center justify-center rounded-full transition-all duration-150 ease-out min-[360px]:size-11 sm:size-12",
-            "hover:scale-105 active:scale-95",
+            "relative flex size-11 items-center justify-center rounded-full transition-all duration-150 ease-out sm:size-12",
+            "hover:scale-105 active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
             variantStyles[variant],
+            isDisabled && "pointer-events-none opacity-50",
             className
           )}
           aria-label={label}
+          disabled={isDisabled}
           {...props}
         >
-          {icon}
+          {loading ? <Loader2 className="size-5 animate-spin" /> : icon}
           {badge !== undefined && badge > 0 && (
             <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-md">
               {badge > 9 ? "9+" : badge}
@@ -58,7 +67,14 @@ export const MeetingControlButton = forwardRef<
           )}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="top">{label}</TooltipContent>
+      <TooltipContent side="top" className="flex items-center gap-1.5">
+        <span>{label}</span>
+        {shortcut && (
+          <kbd className="rounded border border-white/20 px-1 text-[10px] font-mono font-semibold dark:border-neutral-950/20">
+            {shortcut}
+          </kbd>
+        )}
+      </TooltipContent>
     </Tooltip>
   );
 });
