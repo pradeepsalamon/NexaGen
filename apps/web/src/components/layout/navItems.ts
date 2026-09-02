@@ -11,6 +11,8 @@ import {
   LayoutDashboard,
   LineChart,
   Settings,
+  ShieldCheck,
+  SlidersHorizontal,
   Target,
   TrendingUp,
   Trash2,
@@ -93,16 +95,23 @@ export function getAdminNavItems(role?: string): NavItem[] {
   return adminNavItems.filter((item) => !item.superAdminOnly);
 }
 
+export type NavGroup = { group: string; icon?: LucideIcon; items: NavItem[] };
+
+/** Icon shown on each admin sidebar group box. */
+const ADMIN_GROUP_ICONS: Record<string, LucideIcon> = {
+  Analytics: BarChart3,
+  Manage: SlidersHorizontal,
+  "Super Admin": ShieldCheck
+};
+
 /** Admin nav bucketed by `group`, preserving declaration order. */
-export function getAdminNavGroups(
-  role?: string
-): { group: string; items: NavItem[] }[] {
-  const groups: { group: string; items: NavItem[] }[] = [];
+export function getAdminNavGroups(role?: string): NavGroup[] {
+  const groups: NavGroup[] = [];
   for (const item of getAdminNavItems(role)) {
     const key = item.group ?? "";
     let bucket = groups.find((g) => g.group === key);
     if (!bucket) {
-      bucket = { group: key, items: [] };
+      bucket = { group: key, icon: ADMIN_GROUP_ICONS[key], items: [] };
       groups.push(bucket);
     }
     bucket.items.push(item);

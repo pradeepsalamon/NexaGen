@@ -118,11 +118,16 @@ ipad-mini, ipad-air-landscape, laptop-13, laptop-15, desktop-1080`.
 ┌───────────────────────────────────────────────┐
 │ Header  fixed inset-x-0 top-0 z-40 h-16        │  ← always fixed, 64 px
 ├──────────┬────────────────────────────────────┤
-│ Sidebar  │  main                              │
-│ w-60/64  │  p-4 → md:p-6 → lg:p-8             │
-│ hidden   │  pb-24 on mobile (clears the FAB)  │
-│ md:block │  mx-auto max-w-6xl / 7xl           │
-│          │  overflow-x-hidden  min-w-0        │
+│ Rail     │  main                              │
+│ w-[4.75  │  p-4 → md:p-6 → lg:p-8             │
+│  rem]    │  pb-24 on mobile (clears the FAB)  │
+│ hidden   │  mx-auto max-w-6xl / 7xl           │
+│ md:block │  overflow-x-hidden  min-w-0        │
+│  (fixed; │                                    │
+│  expands │                                    │
+│  to w-60 │                                    │
+│  as an   │                                    │
+│  overlay)│                                    │
 └──────────┴────────────────────────────────────┘
        └─ MobileNavDrawer: FAB bottom-right, md:hidden,
           Radix Dialog sliding sheet (w-[280px] max-w-[85vw])
@@ -134,10 +139,11 @@ Key files:
 |---|---|---|
 | App wrapper | [`AppShell.tsx`](../apps/web/src/components/layout/AppShell.tsx) | Renders children + `<MobileNavDrawer/>` |
 | Top bar | [`Header.tsx`](../apps/web/src/components/layout/Header.tsx) | `fixed h-16`; 3-col grid `minmax(0,1fr) auto minmax(0,1fr)`; title `truncate max-w-[42vw] sm:max-w-none`; `compact` prop hides Dashboard CTA / bell / theme toggle on small screens for immersive pages |
-| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | `hidden md:block w-60`; **collapsible groups** (Analytics / Manage / Super Admin), state in `localStorage` `nexa-admin-nav-open-groups`, active group auto-expands |
-| Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | `hidden md:block w-64`, flat list |
-| Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | `hidden md:block w-64`, flat list |
-| Mobile nav | [`MobileNavDrawer.tsx`](../apps/web/src/components/layout/MobileNavDrawer.tsx) | `md:hidden` FAB → right-side sheet; **admin gets the same collapsible groups**, coach/student flat; closes on route change |
+| Sidebar shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | Shared `SidebarContainer` — layout reserves only the `w-[4.75rem]` rail; the panel is `fixed top-16 z-30` and expands to `w-60` as an **overlay** above the content (click-outside / Escape collapses it). Plus `SidebarToggle`, `SidebarLink` (icon-only + tooltip when collapsed), `SidebarGroupBox` (admin boxed group: inline nested panel expanded, flyout `Popover` when collapsed). Rail defaults collapsed; pinned choice in `localStorage` `nexa-sidebar-collapsed` via [`useSidebarCollapse.ts`](../apps/web/src/components/layout/useSidebarCollapse.ts) |
+| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | `hidden md:block`; **collapsible overlay rail** + **boxed collapsible groups** (Analytics / Manage / Super Admin) with per-group icons, open state in `localStorage` `nexa-admin-nav-open-groups`, active group auto-expands |
+| Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | `hidden md:block`, flat list, collapsible rail |
+| Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | `hidden md:block`, flat list, collapsible rail |
+| Mobile nav | [`MobileNavDrawer.tsx`](../apps/web/src/components/layout/MobileNavDrawer.tsx) | `md:hidden` FAB → right-side sheet; **admin gets the same boxed collapsible groups**, coach/student flat; closes on route change |
 | Page heading | [`PageHeader.tsx`](../apps/web/src/components/layout/PageHeader.tsx) | `flex-col gap-4 sm:flex-row sm:items-center sm:justify-between` — title stacks above actions on phone |
 
 Because `Header` is `fixed`, every routed layout offsets content by 64 px

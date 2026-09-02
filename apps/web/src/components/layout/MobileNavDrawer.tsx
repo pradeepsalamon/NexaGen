@@ -1,11 +1,12 @@
 "use client";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Logo } from "@/components/Logo";
+import { SidebarGroupBox } from "@/components/layout/Sidebar";
 import {
   coachNavItems,
   getAdminNavGroups,
@@ -167,37 +168,20 @@ export function MobileNavDrawer() {
                     );
                   }
 
-                  const expanded = isGroupOpen(group.group);
-                  const hasActive = group.items.some((item) =>
-                    isItemActive(item.href)
-                  );
-
                   return (
-                    <div key={group.group}>
-                      <button
-                        aria-expanded={expanded}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-control px-4 py-2.5 text-[11px] font-bold uppercase tracking-widest transition hover:bg-app-soft hover:text-app-text",
-                          hasActive ? "text-primary" : "text-app-muted"
-                        )}
-                        onClick={() => toggleGroup(group.group)}
-                        type="button"
-                      >
-                        {group.group}
-                        <ChevronDown
-                          className={cn(
-                            "size-4 shrink-0 transition-transform",
-                            expanded ? "" : "-rotate-90"
-                          )}
-                          strokeWidth={2.5}
-                        />
-                      </button>
-                      {expanded ? (
-                        <div className="mb-1 mt-1 space-y-1 border-l border-app-border pl-2">
-                          {group.items.map(renderLink)}
-                        </div>
-                      ) : null}
-                    </div>
+                    <SidebarGroupBox
+                      collapsed={false}
+                      group={group.group}
+                      hasActive={group.items.some((item) =>
+                        isItemActive(item.href)
+                      )}
+                      icon={group.icon}
+                      isItemActive={isItemActive}
+                      items={group.items}
+                      key={group.group}
+                      onToggle={() => toggleGroup(group.group)}
+                      open={isGroupOpen(group.group)}
+                    />
                   );
                 })
               : (flatItems ?? []).map(renderLink)}
