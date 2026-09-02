@@ -64,4 +64,12 @@ export const queryKeys = {
     calendar: (params: Record<string, unknown>) =>
       ["batch-schedules", "calendar", params] as const,
   },
+  liveClassSettings: {
+    policy: ["live-class-settings", "policy"] as const,
+    forClass: (classId: string) => ["live-class-settings", "class", classId] as const,
+    forBatch: (batchId: string) => ["live-class-settings", "batch", batchId] as const,
+  },
+  liveClassPresets: {
+    all: ["live-class-presets"] as const,
+  },
 } as const;

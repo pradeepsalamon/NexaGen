@@ -1,7 +1,15 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { createClassRequestSchema, type CreateClassRequest, type CoachClass, type CoachBatch } from "@nexa-chess/types";
+import { ChevronDown, SlidersHorizontal } from "lucide-react";
+import {
+  DEFAULT_LIVE_CLASS_SETTINGS,
+  createClassRequestSchema,
+  type CreateClassRequest,
+  type CoachClass,
+  type CoachBatch,
+  type LiveClassSettingsOverride,
+} from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -17,6 +25,13 @@ import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
 import { FormSelect } from "@/components/forms/FormSelect";
+import { cn } from "@/lib/utils";
+import { ClassSettingsPanel } from "@/features/live-class/settings/ClassSettingsPanel";
+import {
+  useBatchLiveClassSettings,
+  useClassLiveSettings,
+  useLiveClassPresets,
+} from "@/features/live-class/settings/hooks";
 import { useCreateClass, useUpdateClass } from "../hooks/useCoachApi";
 
 import { useState } from "react";
@@ -38,6 +53,8 @@ export function ScheduleClassDialog({
 }: ScheduleClassDialogProps) {
   const [duration, setDuration] = useState("60");
   const [isDurationDropdownOpen, setIsDurationDropdownOpen] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [settingsOverride, setSettingsOverride] = useState<LiveClassSettingsOverride>({});
   const createClassMutation = useCreateClass();
   const updateClassMutation = useUpdateClass(classToEdit?.id || "");
 
@@ -53,6 +70,21 @@ export function ScheduleClassDialog({
       endsAt: ""
     }
   });
+
+  const selectedBatchId = form.watch("batchId");
+  const { data: batchSettings } = useBatchLiveClassSettings(selectedBatchId || undefined, open);
+  const { data: presetData } = useLiveClassPresets(open);
+  const { data: classSettings } = useClassLiveSettings(
+    classToEdit?.id ?? "",
+    open && !!classToEdit,
+  );
+
+  // Seed the override from the class's saved config once it loads (edit mode).
+  useEffect(() => {
+    if (classToEdit && open && classSettings) {
+      setSettingsOverride(classSettings.classOverride ?? {});
+    }
+  }, [classToEdit, open, classSettings]);
 
   useEffect(() => {
     if (classToEdit && open) {
@@ -92,6 +124,8 @@ export function ScheduleClassDialog({
         endsAt: endLocal
       });
       setDuration("60");
+      setSettingsOverride({});
+      setShowSettings(false);
     }
   }, [classToEdit, open, form, batches, defaultBatchId]);
 
@@ -104,7 +138,9 @@ export function ScheduleClassDialog({
     const submitData = {
       ...data,
       startsAt: startObj.toISOString(),
-      endsAt: endsAtObj.toISOString()
+      endsAt: endsAtObj.toISOString(),
+      liveClassSettings:
+        Object.keys(settingsOverride).length > 0 ? settingsOverride : undefined
     };
 
     if (classToEdit) {
@@ -212,6 +248,46 @@ export function ScheduleClassDialog({
             label="Homework (Optional)"
             placeholder="Assignments for the students"
           />
+
+          <div className="rounded-app border border-app-border">
+            <button
+              type="button"
+              onClick={() => setShowSettings((v) => !v)}
+              className="flex w-full items-center justify-between gap-2 px-3.5 py-3 text-left"
+              aria-expanded={showSettings}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold text-app-text">
+                <SlidersHorizontal className="size-4 text-app-muted" strokeWidth={2.5} />
+                Class settings
+                {Object.keys(settingsOverride).length > 0 && (
+                  <span className="rounded-full bg-app-soft px-2 py-0.5 text-[10px] font-bold text-primary">
+                    {Object.keys(settingsOverride).length} customised
+                  </span>
+                )}
+              </span>
+              <ChevronDown
+                className={cn(
+                  "size-4 shrink-0 text-app-muted transition-transform",
+                  showSettings && "rotate-180",
+                )}
+              />
+            </button>
+            {showSettings && (
+              <div className="border-t border-app-border p-3.5">
+                {selectedBatchId ? (
+                  <ClassSettingsPanel
+                    system={batchSettings?.system ?? DEFAULT_LIVE_CLASS_SETTINGS}
+                    batchOverride={batchSettings?.batchOverride ?? null}
+                    value={settingsOverride}
+                    onChange={setSettingsOverride}
+                    presets={presetData?.presets ?? []}
+                  />
+                ) : (
+                  <p className="text-sm text-app-muted">Select a batch to configure class settings.</p>
+                )}
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button

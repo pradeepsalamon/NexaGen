@@ -59,6 +59,11 @@ export function ClassCard({ classItem, onEdit, onCancel }: ClassCardProps) {
                 Edit Schedule
               </DropdownMenuItem>
             )}
+            {(classItem.status === "SCHEDULED" || classItem.status === "LIVE") && (
+              <DropdownMenuItem asChild>
+                <Link href={`/coach/classes/${classItem.id}/settings`}>Class settings</Link>
+              </DropdownMenuItem>
+            )}
             {classItem.status === "SCHEDULED" && onCancel && (
               <DropdownMenuItem onClick={() => onCancel(classItem)} className="text-destructive">
                 Cancel Class
