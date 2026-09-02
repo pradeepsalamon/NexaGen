@@ -1,6 +1,10 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { LiveClassController } from "./live-class.controller";
 import { LiveClassService } from "./live-class.service";
+import { LiveClassSettingsController } from "./live-class-settings.controller";
+import { LiveClassSettingsService } from "./live-class-settings.service";
+import { LiveClassPresetController } from "./live-class-preset.controller";
+import { LiveClassPresetService } from "./live-class-preset.service";
 import { LiveKitService } from "./livekit.service";
 import { RecordingStorageService } from "./recording-storage.service";
 import { PrismaModule } from "../prisma/prisma.module";
@@ -17,8 +21,14 @@ import { AnalyticsEventModule } from "../analytics/analytics-event.module";
     BackupModule,
     AnalyticsEventModule
   ],
-  controllers: [LiveClassController],
-  providers: [LiveClassService, LiveKitService, RecordingStorageService],
-  exports: [LiveClassService, LiveKitService, RecordingStorageService]
+  controllers: [LiveClassController, LiveClassSettingsController, LiveClassPresetController],
+  providers: [
+    LiveClassService,
+    LiveClassSettingsService,
+    LiveClassPresetService,
+    LiveKitService,
+    RecordingStorageService
+  ],
+  exports: [LiveClassService, LiveClassSettingsService, LiveKitService, RecordingStorageService]
 })
 export class LiveClassModule {}

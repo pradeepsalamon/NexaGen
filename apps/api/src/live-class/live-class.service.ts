@@ -22,6 +22,7 @@ import type { AccessTokenPayload } from "../auth/types";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
+import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import type { Request, Response } from "express";
 
@@ -41,6 +42,7 @@ export class LiveClassService {
     private readonly attendanceService: AttendanceService,
     private readonly backupService: BackupService,
     private readonly recordingStorageService: RecordingStorageService,
+    private readonly settingsService: LiveClassSettingsService,
     private readonly analyticsEvents: AnalyticsEventService
   ) { }
 
@@ -160,6 +162,22 @@ export class LiveClassService {
           startedAt: new Date()
         }
       });
+    }
+
+    // Freeze the effective pre-class settings onto the session (§38). Once
+    // written it is never recomputed from batch/system here — a later change to
+    // a preset or batch default cannot disturb a class that is already running.
+    // Best-effort: a resolver failure must not block starting the class.
+    if (!liveSession.settingsSnapshotAt) {
+      try {
+        const { resolved } = await this.settingsService.resolveForClass(classId);
+        liveSession = await this.prisma.liveSession.update({
+          where: { id: liveSession.id },
+          data: { effectiveSettings: resolved as object, settingsSnapshotAt: new Date() }
+        });
+      } catch (error) {
+        this.logger.error(`Failed to snapshot live-class settings for ${classId}`, error as Error);
+      }
     }
 
     // Only the status changes. `startsAt`/`endsAt` are the *scheduled* window

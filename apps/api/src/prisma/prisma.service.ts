@@ -141,6 +141,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.processedWebhookEvent;
   }
 
+  get liveClassPolicy() {
+    return this.client.liveClassPolicy;
+  }
+
+  get liveClassPreset() {
+    return this.client.liveClassPreset;
+  }
+
   get recordingWatchProgress() {
     return this.client.recordingWatchProgress;
   }

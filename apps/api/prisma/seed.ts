@@ -6,10 +6,65 @@ import {
   UserRole,
   UserStatus
 } from "@prisma/client";
+import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 import { hashSecret } from "../src/auth/auth.utils";
 
 const prisma = new PrismaClient();
 const seedPassword = "Test@12345";
+
+// Layer 4 system presets (visible to every coach, managed by admins). The
+// Layer 1 policy row is lazily created by LiveClassSettingsService, not seeded.
+const SYSTEM_PRESETS: Array<{ name: string; description: string; settings: LiveClassSettingsOverride }> = [
+  {
+    name: "Standard Batch Class",
+    description: "Students muted, camera off, chat on, coach records manually.",
+    settings: {
+      student: { mic: "JOIN_MUTED", camera: "JOIN_OFF", screenShare: "DISABLED", chat: "ENABLED", board: "VIEW_ONLY" },
+      recording: "MANUAL"
+    }
+  },
+  {
+    name: "Interactive Lesson",
+    description: "Students can unmute, cameras on, board interaction enabled.",
+    settings: {
+      student: { mic: "JOIN_MUTED", camera: "JOIN_ON", screenShare: "DISABLED", chat: "ENABLED", board: "INTERACTIVE" },
+      recording: "MANUAL"
+    }
+  },
+  {
+    name: "Demo Class",
+    description: "Camera on, chat on, recording starts automatically.",
+    settings: {
+      student: { mic: "JOIN_MUTED", camera: "JOIN_ON", screenShare: "DISABLED", chat: "ENABLED", board: "VIEW_ONLY" },
+      recording: "AUTO_START"
+    }
+  }
+];
+
+async function seedSystemPresets() {
+  for (const preset of SYSTEM_PRESETS) {
+    const existing = await prisma.liveClassPreset.findFirst({
+      where: { name: preset.name, isSystem: true }
+    });
+    if (existing) {
+      await prisma.liveClassPreset.update({
+        where: { id: existing.id },
+        data: { description: preset.description, settings: preset.settings as object }
+      });
+    } else {
+      await prisma.liveClassPreset.create({
+        data: {
+          name: preset.name,
+          description: preset.description,
+          scope: "ORG",
+          isSystem: true,
+          settings: preset.settings as object
+        }
+      });
+    }
+  }
+  console.log(`- live-class presets: ${SYSTEM_PRESETS.length} system presets`);
+}
 
 async function upsertUser(email: string, createData: any, updateData: any) {
   const existing = await prisma.user.findFirst({ where: { email, isDeleted: false } });
@@ -45,6 +100,8 @@ async function main() {
 
   const password = await hashSecret(seedPassword);
   const verifiedAt = new Date();
+
+  await seedSystemPresets();
 
   const superAdmin = await upsertUser(
     "superadmin@nexa.test",

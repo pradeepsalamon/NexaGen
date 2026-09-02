@@ -1,6 +1,13 @@
 import { z } from "zod";
 
+import {
+  liveClassSettingsOverrideSchema,
+  type LiveClassSettings,
+  type LiveClassSettingsOverride
+} from "./live-class-settings";
+
 export * from "./api-endpoints";
+export * from "./live-class-settings";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -558,6 +565,94 @@ export type CoachBatchesResponse = {
   batches: CoachBatch[];
 };
 
+//
+// LIVE CLASS PRE-CLASS SETTINGS & PRESETS
+//
+
+/** Layer 1 system defaults (singleton), admin-managed. */
+export type LiveClassPolicyResponse = {
+  id: string;
+  name: string;
+  settings: LiveClassSettings;
+  updatedAt: string;
+};
+
+export const updateLiveClassPolicyRequestSchema = z.object({
+  settings: liveClassSettingsOverrideSchema
+});
+export type UpdateLiveClassPolicyRequest = z.infer<typeof updateLiveClassPolicyRequestSchema>;
+
+/**
+ * Resolved config for one class plus each contributing layer, so the UI can
+ * label a field "inherited from batch" vs "custom for this class".
+ */
+export type LiveClassSettingsForClassResponse = {
+  classId: string;
+  system: LiveClassSettings;
+  batchOverride: LiveClassSettingsOverride | null;
+  classOverride: LiveClassSettingsOverride | null;
+  resolved: LiveClassSettings;
+  /** Frozen effective config if the class has already started, else null (§38). */
+  snapshot: LiveClassSettings | null;
+  canEdit: boolean;
+};
+
+export const updateLiveClassSettingsRequestSchema = z.object({
+  liveClassSettings: liveClassSettingsOverrideSchema.nullable(),
+  presetId: z.string().optional()
+});
+export type UpdateLiveClassSettingsRequest = z.infer<typeof updateLiveClassSettingsRequestSchema>;
+
+export type BatchLiveClassSettingsResponse = {
+  batchId: string;
+  system: LiveClassSettings;
+  batchOverride: LiveClassSettingsOverride | null;
+  resolved: LiveClassSettings;
+  canEdit: boolean;
+};
+
+export const updateBatchLiveClassSettingsRequestSchema = z.object({
+  liveClassSettings: liveClassSettingsOverrideSchema.nullable()
+});
+export type UpdateBatchLiveClassSettingsRequest = z.infer<
+  typeof updateBatchLiveClassSettingsRequestSchema
+>;
+
+export const liveClassPresetScopeSchema = z.enum(["PERSONAL", "ORG"]);
+export type LiveClassPresetScope = z.infer<typeof liveClassPresetScopeSchema>;
+
+export type LiveClassPreset = {
+  id: string;
+  name: string;
+  description: string | null;
+  scope: LiveClassPresetScope;
+  isSystem: boolean;
+  isDefault: boolean;
+  settings: LiveClassSettingsOverride;
+  ownerId: string | null;
+  ownerName: string | null;
+  /** True when the requesting user may edit/delete this preset. */
+  canManage: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LiveClassPresetsResponse = {
+  presets: LiveClassPreset[];
+};
+
+export const createLiveClassPresetRequestSchema = z.object({
+  name: z.string().min(1, "Name is required.").max(80),
+  description: z.string().max(500).optional(),
+  scope: liveClassPresetScopeSchema.default("PERSONAL"),
+  settings: liveClassSettingsOverrideSchema,
+  isDefault: z.boolean().optional()
+});
+export type CreateLiveClassPresetRequest = z.infer<typeof createLiveClassPresetRequestSchema>;
+
+export const updateLiveClassPresetRequestSchema = createLiveClassPresetRequestSchema.partial();
+export type UpdateLiveClassPresetRequest = z.infer<typeof updateLiveClassPresetRequestSchema>;
+
 export type CoachClassListResponse = {
   classes: CoachClass[];
 };
@@ -607,7 +702,11 @@ const createClassRequestBaseSchema = z.object({
   homework: z.string().max(2000).optional(),
   notes: z.string().max(2000).optional(),
   startsAt: z.string(),
-  endsAt: z.string()
+  endsAt: z.string(),
+  // Pre-class configuration (partial override on top of batch/system defaults).
+  // `presetId` is resolved server-side into `liveClassSettings` at create time.
+  liveClassSettings: liveClassSettingsOverrideSchema.optional(),
+  presetId: z.string().optional()
 });
 
 export const createClassRequestSchema = createClassRequestBaseSchema.refine(classDateRefinement, classDateRefinementOptions);
