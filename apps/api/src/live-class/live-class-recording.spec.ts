@@ -8,6 +8,7 @@ import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
+import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -91,6 +92,10 @@ describe("LiveClassService recording feature", () => {
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: backupService },
         { provide: RecordingStorageService, useValue: recordingStorageService },
+        {
+          provide: LiveClassSettingsService,
+          useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
+        },
         {
           provide: AnalyticsEventService,
           useValue: {

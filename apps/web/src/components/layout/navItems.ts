@@ -11,6 +11,8 @@ import {
   LayoutDashboard,
   LineChart,
   Settings,
+  ShieldCheck,
+  SlidersHorizontal,
   Target,
   TrendingUp,
   Trash2,
@@ -55,6 +57,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/students", label: "Students", icon: Users },
   { href: "/coach/history", label: "Class History", icon: History },
   { href: "/coach/attendance", label: "Attendance", icon: UserCheck },
+  { href: "/coach/presets", label: "Class Presets", icon: SlidersHorizontal },
   { href: "/profile", label: "Settings", icon: Settings }
 ];
 
@@ -76,6 +79,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Manage" },
   { href: "/admin/users", label: "Users", icon: Users, group: "Manage" },
   { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Manage" },
+  { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Manage" },
   // Super Admin
   { href: "/admin/backups", label: "DB Backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
@@ -93,16 +97,23 @@ export function getAdminNavItems(role?: string): NavItem[] {
   return adminNavItems.filter((item) => !item.superAdminOnly);
 }
 
+export type NavGroup = { group: string; icon?: LucideIcon; items: NavItem[] };
+
+/** Icon shown on each admin sidebar group box. */
+const ADMIN_GROUP_ICONS: Record<string, LucideIcon> = {
+  Analytics: BarChart3,
+  Manage: SlidersHorizontal,
+  "Super Admin": ShieldCheck
+};
+
 /** Admin nav bucketed by `group`, preserving declaration order. */
-export function getAdminNavGroups(
-  role?: string
-): { group: string; items: NavItem[] }[] {
-  const groups: { group: string; items: NavItem[] }[] = [];
+export function getAdminNavGroups(role?: string): NavGroup[] {
+  const groups: NavGroup[] = [];
   for (const item of getAdminNavItems(role)) {
     const key = item.group ?? "";
     let bucket = groups.find((g) => g.group === key);
     if (!bucket) {
-      bucket = { group: key, items: [] };
+      bucket = { group: key, icon: ADMIN_GROUP_ICONS[key], items: [] };
       groups.push(bucket);
     }
     bucket.items.push(item);

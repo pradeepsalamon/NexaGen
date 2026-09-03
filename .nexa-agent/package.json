@@ -1,0 +1,11 @@
+{
+  "name": "nexa-agent",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Multi-agent orchestrator v2 for NexaChess. Not an npm workspace member -- root workspaces globs are apps/* and packages/* only.",
+  "type": "commonjs",
+  "scripts": {
+    "agent": "../node_modules/.bin/ts-node --project tsconfig.json orchestrator/cli.ts",
+    "typecheck": "../node_modules/.bin/tsc --noEmit --project tsconfig.json"
+  }
+}

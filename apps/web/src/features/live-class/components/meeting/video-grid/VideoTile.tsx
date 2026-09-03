@@ -14,6 +14,7 @@ import { ParticipantAvatar } from "../ParticipantAvatar";
 import { NetworkQualityIndicator } from "../MeetingStatus";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { useReducedMotion } from "../../../lib/meetingUi";
 import { getHandRaised, getRole, getTrackKey } from "./videoGrid.utils";
 
 interface VideoTileProps {
@@ -37,22 +38,20 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
   const role = useMemo(() => getRole(participant), [participant]);
   const handRaised = getHandRaised(participant);
   const isLocal = participant.isLocal;
+  const reducedMotion = useReducedMotion();
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.94 }}
-      animate={{
-        opacity: 1,
-        scale: isSpeaking ? 1.01 : 1,
-      }}
-      exit={{ opacity: 0, scale: 0.94 }}
+      layout={!reducedMotion}
+      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "group relative flex items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-shadow duration-200",
+        "group relative flex items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-[box-shadow,border-color] duration-200",
         fill ? "aspect-video max-lg:aspect-auto max-lg:h-full max-lg:w-full max-lg:min-h-0" : "aspect-video",
         isSpeaking
-          ? "border-primary/60 shadow-[0_0_24px_rgba(66,120,206,0.25),0_0_48px_rgba(66,120,206,0.08)]"
+          ? "border-primary ring-2 ring-primary/60"
           : "border-app-border hover:border-app-border/80",
       )}
     >
@@ -148,20 +147,6 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
         )}
       </div>
 
-      {/* Active speaker animated ring */}
-      {isSpeaking && (
-        <motion.div
-          className="pointer-events-none absolute inset-0 rounded-2xl"
-          animate={{
-            boxShadow: [
-              "inset 0 0 0 2px rgba(66,120,206,0.4)",
-              "inset 0 0 0 2px rgba(66,120,206,0.7)",
-              "inset 0 0 0 2px rgba(66,120,206,0.4)",
-            ],
-          }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
     </motion.div>
   );
 });

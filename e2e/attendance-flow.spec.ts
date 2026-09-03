@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { sendLiveKitWebhook } from "./fixtures";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
@@ -45,47 +46,17 @@ async function api(
   return res;
 }
 
-import crypto from "crypto";
-
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "APIWLsbggsQnKdN";
-const LIVEKIT_API_SECRET =
-  process.env.LIVEKIT_API_SECRET || "juXmqj30DR0SRmcF3xfeLp6EilDxrUdtesUgWaNebZJB";
-
-function createWebhookSignature(body: string | Record<string, unknown>): string {
-  const rawBody = typeof body === "string" ? body : JSON.stringify(body);
-  const sha256 = crypto.createHash("sha256").update(rawBody).digest("hex");
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(
-    JSON.stringify({
-      iss: LIVEKIT_API_KEY,
-      sub: LIVEKIT_API_KEY,
-      sha256,
-      exp: Math.floor(Date.now() / 1000) + 300,
-    })
-  ).toString("base64url");
-  const signature = crypto
-    .createHmac("sha256", LIVEKIT_API_SECRET)
-    .update(`${header}.${payload}`)
-    .digest("base64url");
-  return `${header}.${payload}.${signature}`;
-}
-
 // ─── Helper: Send LiveKit webhook event ──────────────────────────────────────
 
+/**
+ * Signed LiveKit webhook delivery. Shared with the recording suite so both send
+ * the same base64 digest over the same raw bytes the API verifies.
+ */
 async function sendWebhook(
   request: APIRequestContext,
   event: Record<string, unknown>
 ) {
-  const body = JSON.stringify(event);
-  const authHeader = createWebhookSignature(body);
-  const res = await request.post(`${API_URL}/webhooks/livekit`, {
-    data: event,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: authHeader,
-    },
-  });
-  return res;
+  return sendLiveKitWebhook(request, event);
 }
 
 // ─── Helper: Build webhook event ─────────────────────────────────────────────

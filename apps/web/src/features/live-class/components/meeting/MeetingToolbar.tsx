@@ -20,37 +20,27 @@ import {
 } from "lucide-react";
 import {
   useTrackToggle,
-  useDisconnectButton,
   useParticipants,
   useLocalParticipant,
   useIsRecording,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
-import { MoreControlsMenu } from "./MoreControlsMenu";
-import { RecordingBadge } from "./MeetingStatus";
+import { MoreControlsMenu, type MoreControlItem } from "./MoreControlsMenu";
+import { LeaveClassControl } from "./LeaveClassControl";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../providers/ChatProvider";
+import { Z, useReducedMotion } from "../../lib/meetingUi";
 import { useParams } from "next/navigation";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogClose,
-} from "@/components/ui/Dialog";
-import { Button } from "@/components/ui/Button";
-import { endLiveClass, startRecording, stopRecording } from "../../api/live-class";
+import { startRecording, stopRecording } from "../../api/live-class";
 import { toast } from "sonner";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
   const params = useParams();
   const roomId = params?.roomId as string;
+  const reducedMotion = useReducedMotion();
 
   const {
     activeSidebar,
@@ -63,6 +53,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     toggleChessboard,
     isRecording: contextRecording,
     setIsRecording,
+    settings,
   } = useLiveClassState();
 
   const lkRecording = useIsRecording();
@@ -72,45 +63,53 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  const { unreadCount } = useLiveClassChat();
+  // Pre-class settings enforcement (students only; the LiveKit token already
+  // withholds the capability — this just makes the button reflect that).
+  const micLocked = !isCoach && settings?.student.mic === "FORCED_OFF";
+  const cameraLocked = !isCoach && settings?.student.camera === "FORCED_OFF";
+  const screenShareLocked =
+    !isCoach && !!settings && settings.student.screenShare !== "ALLOWED";
 
+  const { unreadCount } = useLiveClassChat();
   const { localParticipant } = useLocalParticipant();
 
   useEffect(() => {
     if (!localParticipant) return;
-    
-    // Use attributes instead of metadata so the client has permission to update it
     const currentHandRaised = localParticipant.attributes?.handRaised === "true";
     if (currentHandRaised !== handRaised) {
-      localParticipant.setAttributes({ handRaised: handRaised.toString() })
+      localParticipant
+        .setAttributes({ handRaised: handRaised.toString() })
         .catch((err) => {
           console.warn("Failed to update local attributes for hand raise:", err);
         });
     }
   }, [handRaised, localParticipant, localParticipant?.attributes]);
 
-
   const mic = useTrackToggle({ source: Track.Source.Microphone });
   const camera = useTrackToggle({ source: Track.Source.Camera });
-  const screen = useTrackToggle({ source: Track.Source.ScreenShare });
-  const { buttonProps: leaveProps } = useDisconnectButton({ stopTracks: true });
+  const screen = useTrackToggle({
+    source: Track.Source.ScreenShare,
+    captureOptions: { audio: true, selfBrowserSurface: "include" },
+    onDeviceError: (error) => {
+      const dismissed =
+        error.name === "NotAllowedError" &&
+        /permission denied by (system|user)/i.test(error.message);
+      if (dismissed) return;
+      console.error("Screen share failed:", error);
+      toast.error(
+        error.name === "NotAllowedError"
+          ? "Screen sharing is blocked by your browser or OS settings."
+          : error.name === "NotSupportedError" || error.name === "DeviceUnsupportedError"
+            ? "This browser doesn't support screen sharing."
+            : `Couldn't start screen share: ${error.message}`,
+      );
+    },
+  });
   const participants = useParticipants();
 
-  // Extract button props without className (we use our own styling)
   const extractProps = <T extends { className?: string }>(props: T) => {
     const { className: _cls, ...rest } = props;
     return rest;
-  };
-
-  const handleEndClass = async () => {
-    if (!roomId) return;
-    try {
-      await endLiveClass(roomId);
-      toast.success("Class ended successfully");
-      // The disconnect webhook will automatically handle redirecting the coach
-    } catch (error) {
-      toast.error("Failed to end class");
-    }
   };
 
   const handleToggleRecording = async () => {
@@ -126,255 +125,168 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
         setIsRecording(true);
         toast.success("Recording started successfully.");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to toggle recording");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to toggle recording");
     } finally {
       setIsTogglingRecording(false);
     }
   };
 
+  const handleToggleBoard = () => {
+    const opening = !isChessboardOpen;
+    toggleChessboard();
+    // Students watch this attribute to mirror the board open/close.
+    localParticipant?.setAttributes({ isChessboardOpen: opening.toString() }).catch(console.warn);
+    if (opening) {
+      window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
+    } else {
+      try {
+        const channel = new BroadcastChannel(`live-class-board-${roomId}`);
+        channel.postMessage({ type: "CLOSE_BOARD_TAB" });
+        channel.close();
+      } catch {
+        /* BroadcastChannel unsupported — the coach can close the tab manually */
+      }
+    }
+  };
+
+  const participantCount = participants.filter((p) => !p.identity.endsWith("_board")).length;
+
+  const moreItems: MoreControlItem[] = [
+    {
+      icon: <Hand className={cn("size-5", handRaised && "text-amber-500")} />,
+      label: handRaised ? "Lower hand" : "Raise hand",
+      onClick: toggleHandRaised,
+      active: handRaised,
+    },
+    {
+      icon: <Settings className="size-5" />,
+      label: "Settings",
+      onClick: () => toggleSidebar("settings"),
+      active: activeSidebar === "settings",
+    },
+    {
+      icon: isFullscreen ? <Minimize className="size-5" /> : <Maximize className="size-5" />,
+      label: isFullscreen ? "Exit fullscreen" : "Fullscreen",
+      onClick: toggleFullscreen,
+    },
+  ];
+
+  if (isCoach) {
+    moreItems.splice(1, 0, {
+      icon: (
+        <Circle className={cn("size-5", isRecording && "fill-app-danger text-app-danger")} />
+      ),
+      label: isTogglingRecording
+        ? "Updating recording…"
+        : isRecording
+          ? "Stop recording"
+          : "Record class",
+      onClick: handleToggleRecording,
+      disabled: isTogglingRecording,
+    });
+  }
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 24 }}
+      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1], delay: 0.2 }}
+      transition={{ duration: 0.3, ease: [0.25, 0.1, 0.25, 1], delay: 0.15 }}
       className={cn(
-        "absolute inset-x-0 bottom-3 z-40 flex justify-center px-1.5 pointer-events-none pb-[env(safe-area-inset-bottom)] sm:bottom-6 sm:px-4",
-        // On a phone the sidebar is a full-screen panel with its own controls —
-        // keep the floating bar from covering the chat composer / close button.
+        "pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-1.5 pb-[env(safe-area-inset-bottom)] sm:bottom-6 sm:px-4",
+        Z.toolbar,
+        // On a phone the sidebar is a full-screen panel with its own controls.
         activeSidebar && "hidden sm:flex",
       )}
       role="toolbar"
       aria-label="Meeting controls"
     >
-      <div className="pointer-events-auto flex flex-wrap items-center justify-center max-w-full gap-0.5 rounded-2xl border border-app-border bg-app-surface/90 px-1 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.15)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-2xl min-[360px]:gap-1 min-[360px]:px-2 sm:flex-nowrap sm:gap-2 sm:px-4 sm:py-3">
-        {/* ── Media controls ────────────────── */}
+      <div className="pointer-events-auto flex max-w-full items-center gap-1 rounded-2xl border border-app-border bg-app-surface/90 px-2 py-2 shadow-card backdrop-blur-xl sm:gap-1.5 sm:px-3 sm:py-2.5">
         <MeetingControlButton
           icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-          label={mic.enabled ? "Mute (M)" : "Unmute (M)"}
+          label={micLocked ? "Microphone disabled by the coach" : mic.enabled ? "Mute" : "Unmute"}
+          shortcut="M"
           variant={mic.enabled ? "default" : "danger"}
           {...extractProps(mic.buttonProps)}
+          disabled={micLocked || mic.buttonProps.disabled}
         />
 
         <MeetingControlButton
           icon={camera.enabled ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-          label={camera.enabled ? "Stop Video (V)" : "Start Video (V)"}
+          label={
+            cameraLocked ? "Camera disabled by the coach" : camera.enabled ? "Stop video" : "Start video"
+          }
+          shortcut="V"
           variant={camera.enabled ? "default" : "danger"}
           {...extractProps(camera.buttonProps)}
+          disabled={cameraLocked || camera.buttonProps.disabled}
         />
 
         {/* Screen share — unreliable on mobile browsers, desktop only */}
         <div className="hidden sm:block">
           <MeetingControlButton
             icon={<MonitorUp className="size-5" />}
-            label={screen.enabled ? "Stop Share" : "Share Screen"}
+            label={
+              screenShareLocked
+                ? "Screen sharing is off for this class"
+                : screen.enabled
+                  ? "Stop sharing"
+                  : "Share screen"
+            }
             variant={screen.enabled ? "active" : "default"}
             {...extractProps(screen.buttonProps)}
+            disabled={screenShareLocked || screen.buttonProps.disabled}
           />
         </div>
 
-        {/* ── Chessboard share (coach only, desktop/tablet only) ── */}
+        {/* Shared board — coach, large screens (the board page needs a desktop) */}
         {isCoach && (
-          <div className="hidden md:block">
-          <MeetingControlButton
-            icon={
-              <Crown
-                className={cn(
-                  "size-5 transition-transform",
-                  isChessboardOpen && "text-amber-400 scale-110",
-                )}
-              />
-            }
-            label={isChessboardOpen ? "Close Board" : "Share Board"}
-            variant={isChessboardOpen ? "active" : "default"}
-            onClick={() => {
-              const opening = !isChessboardOpen;
-              toggleChessboard();
-              // Students watch this attribute to mirror the board open/close
-              // (MeetingLayout) and render their inline board tile.
-              localParticipant?.setAttributes({ isChessboardOpen: opening.toString() }).catch(console.warn);
-              // The coach's board UI lives entirely in its own tab — the meeting
-              // screen stays a meeting.
-              if (opening) {
-                window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
-              } else {
-                try {
-                  const channel = new BroadcastChannel(`live-class-board-${roomId}`);
-                  channel.postMessage({ type: "CLOSE_BOARD_TAB" });
-                  channel.close();
-                } catch {
-                  /* BroadcastChannel unsupported — the coach can close the tab manually */
-                }
-              }
-            }}
-          />
-          </div>
-        )}
-
-        {/* ── Record (coach only) — inline on desktop, in the ⋯ menu on mobile ── */}
-        {isCoach && (
-          <div className="hidden sm:block">
+          <div className="hidden lg:block">
             <MeetingControlButton
               icon={
-                <Circle
-                  className={cn(
-                    "size-5 transition-transform",
-                    isRecording && "fill-red-500 text-red-500 scale-110 animate-pulse",
-                  )}
+                <Crown
+                  className={cn("size-5", isChessboardOpen && "text-amber-500")}
                 />
               }
-              label={
-                isTogglingRecording
-                  ? "Updating recording..."
-                  : isRecording
-                  ? "Stop Recording"
-                  : "Record Class"
-              }
-              variant={isRecording ? "active" : "default"}
-              onClick={handleToggleRecording}
-              disabled={isTogglingRecording}
+              label={isChessboardOpen ? "Close board" : "Share board"}
+              variant={isChessboardOpen ? "active" : "default"}
+              onClick={handleToggleBoard}
             />
           </div>
         )}
 
-        {/* Divider — the media / utility split only reads on the wider desktop bar */}
-        <div className="mx-1 hidden h-8 w-px bg-app-border sm:mx-2 sm:block" aria-hidden="true" />
+        <span className="mx-0.5 hidden h-7 w-px bg-app-border sm:block" aria-hidden="true" />
 
-        {/* ── Utility controls ──────────────── */}
+        <MeetingControlButton
+          icon={<MessageSquareText className="size-5" />}
+          label={activeSidebar === "chat" ? "Close chat" : "Open chat"}
+          badge={unreadCount}
+          variant={activeSidebar === "chat" ? "active" : "default"}
+          onClick={() => toggleSidebar("chat")}
+        />
+
         <MeetingControlButton
           icon={<Users className="size-5" />}
           label="Participants"
-          badge={participants.filter(p => !p.identity.endsWith('_board')).length}
+          badge={participantCount}
           variant={activeSidebar === "participants" ? "active" : "default"}
           onClick={() => toggleSidebar("participants")}
         />
 
-        <MeetingControlButton
-          icon={<MessageSquareText className="size-5" />}
-          label={activeSidebar === "chat" ? "Close Chat" : "Open Chat"}
-          variant={activeSidebar === "chat" ? "active" : "default"}
-          onClick={() => toggleSidebar("chat")}
-          badge={unreadCount}
-        />
+        <MoreControlsMenu items={moreItems} />
 
-        <MeetingControlButton
-          icon={
-            <Hand
-              className={cn(
-                "size-5 transition-transform",
-                handRaised && "text-amber-400 scale-110",
-              )}
+        <span className="mx-0.5 hidden h-7 w-px bg-app-border sm:block" aria-hidden="true" />
+
+        <LeaveClassControl>
+          {(open) => (
+            <MeetingControlButton
+              icon={<LogOut className="size-5" />}
+              label="Leave class"
+              variant="danger"
+              onClick={open}
             />
-          }
-          label={handRaised ? "Lower Hand" : "Raise Hand"}
-          variant={handRaised ? "active" : "default"}
-          onClick={toggleHandRaised}
-        />
-
-        {/* Settings — inline on desktop, in the ⋯ menu on mobile */}
-        <div className="hidden sm:block">
-          <MeetingControlButton
-            icon={<Settings className="size-5" />}
-            label="Settings"
-            variant={activeSidebar === "settings" ? "active" : "default"}
-            onClick={() => toggleSidebar("settings")}
-          />
-        </div>
-
-        {/* Overflow menu — mobile only */}
-        <div className="sm:hidden">
-          <MoreControlsMenu
-            isCoach={isCoach}
-            settingsActive={activeSidebar === "settings"}
-            onOpenSettings={() => toggleSidebar("settings")}
-            isRecording={isRecording}
-            isTogglingRecording={isTogglingRecording}
-            onToggleRecording={handleToggleRecording}
-          />
-        </div>
-
-        {/* Fullscreen — hidden on mobile */}
-        <div className="hidden sm:block">
-          <MeetingControlButton
-            icon={
-              isFullscreen ? (
-                <Minimize className="size-5" />
-              ) : (
-                <Maximize className="size-5" />
-              )
-            }
-            label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-            onClick={toggleFullscreen}
-          />
-        </div>
-
-        {/* Divider */}
-        <div className="mx-0.5 hidden h-7 w-px bg-app-border sm:mx-1 sm:block" aria-hidden="true" />
-
-        {/* Recording indicator (visible when recording) */}
-        <RecordingBadge className="hidden sm:flex" />
-
-        {/* ── Leave ─────────────────────────── */}
-        {isCoach ? (
-          <Dialog>
-            <DialogTrigger asChild>
-              <MeetingControlButton
-                icon={<LogOut className="size-5" />}
-                label="Leave Meeting"
-                variant="danger"
-              />
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md" hideCloseButton>
-              <DialogHeader>
-                <DialogTitle>Leave Meeting?</DialogTitle>
-                <DialogDescription>
-                  Are you leaving the room temporarily, or would you like to end the class for everyone?
-                </DialogDescription>
-              </DialogHeader>
-              <div className="flex flex-col gap-3 py-4">
-                <DialogClose asChild>
-                  <Button
-                    variant="outline"
-                    className="justify-start gap-3 h-auto py-3 px-4 text-left"
-                    onClick={(e) => leaveProps.onClick?.(e as any)}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-app-text">Leave Quietly</span>
-                      <span className="text-sm text-app-muted font-normal">The room will stay open for students.</span>
-                    </div>
-                  </Button>
-                </DialogClose>
-                
-                <DialogClose asChild>
-                  <Button
-                    variant="destructive"
-                    className="justify-start gap-3 h-auto py-3 px-4 text-left"
-                    onClick={handleEndClass}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-white">End class for everyone</span>
-                      <span className="text-sm text-white/80 font-normal">Finalizes attendance immediately.</span>
-                    </div>
-                  </Button>
-                </DialogClose>
-              </div>
-              <DialogFooter>
-                <DialogClose asChild>
-                  <Button variant="secondary">
-                    Cancel
-                  </Button>
-                </DialogClose>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        ) : (
-          <MeetingControlButton
-            icon={<LogOut className="size-5" />}
-            label="Leave Meeting"
-            variant="danger"
-            {...extractProps(leaveProps)}
-          />
-        )}
+          )}
+        </LeaveClassControl>
       </div>
     </motion.div>
   );

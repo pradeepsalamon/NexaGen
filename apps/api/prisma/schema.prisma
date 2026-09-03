@@ -128,6 +128,12 @@ enum AssignmentAttemptStatus {
   ABANDONED
 }
 
+// Visibility of a reusable pre-class settings preset.
+enum LiveClassPresetScope {
+  PERSONAL // visible only to ownerId
+  ORG // visible to every coach; managed by admins
+}
+
 //
 // USER
 //
@@ -205,6 +211,7 @@ model User {
   createdBatchSchedules  BatchClassSchedule[]     @relation("BatchScheduleCreatedBy")
   scheduleRules          BatchClassScheduleRule[] @relation("BatchScheduleRuleCoach")
   analyticsEvents        AnalyticsEvent[]         @relation("UserAnalyticsEvents")
+  liveClassPresets       LiveClassPreset[]        @relation("UserLiveClassPresets")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -392,6 +399,11 @@ model Batch {
   startsAt DateTime? @db.Date
   endsAt   DateTime? @db.Date
 
+  // Layer 3 pre-class defaults (partial LiveClassSettingsOverride blob; null =
+  // inherit system defaults). Validated by the shared Zod schema in
+  // `@nexa-chess/types`, never queried by key.
+  liveClassSettings Json?
+
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -514,6 +526,10 @@ model CoachClass {
   endsAt   DateTime
 
   meetingRoomId String?
+
+  // Layer 2 pre-class config (partial LiveClassSettingsOverride blob; null =
+  // inherit batch/system). Resolved + frozen onto LiveSession at class start.
+  liveClassSettings Json?
 
   // ── Recurring-schedule linkage (all nullable; manual classes leave them null) ──
   scheduleId     String?
@@ -808,6 +824,12 @@ model LiveSession {
 
   attendanceFinalizedAt DateTime?
 
+  // Frozen fully-resolved LiveClassSettings captured at class start (§38). Null
+  // for sessions started before this feature — token grants fall back to the
+  // pre-feature logic for those.
+  effectiveSettings  Json?
+  settingsSnapshotAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -862,6 +884,54 @@ model ProcessedWebhookEvent {
 
   @@index([processedAt])
   @@map("processed_webhook_events")
+}
+
+//
+// PRE-CLASS SETTINGS (Layer 1 defaults + Layer 4 presets)
+//
+
+/// Singleton row holding the global default LiveClassSettings blob (Layer 1).
+/// Mirrors AttendancePolicy: lazily created, admin-managed. `isActive` selects
+/// the live row if more than one ever exists.
+model LiveClassPolicy {
+  id       String  @id @default(cuid())
+  name     String  @default("Default Live Class Policy")
+  isActive Boolean @default(true)
+
+  /// Full LiveClassSettings JSON (validated by @nexa-chess/types).
+  settings Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("live_class_policies")
+}
+
+/// A reusable pre-class configuration a coach (PERSONAL) or admin (ORG) can
+/// apply while creating/editing a class. Applying copies `settings` into the
+/// class — never a live reference (§23). Not soft-deletable (like Assignment).
+model LiveClassPreset {
+  id String @id @default(cuid())
+
+  ownerId String?
+  owner   User?   @relation("UserLiveClassPresets", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  scope    LiveClassPresetScope @default(PERSONAL)
+  isSystem Boolean              @default(false)
+  isDefault Boolean             @default(false)
+
+  /// Partial LiveClassSettingsOverride JSON (validated by @nexa-chess/types).
+  settings Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([scope])
+  @@map("live_class_presets")
 }
 
 //

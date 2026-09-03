@@ -1,90 +1,93 @@
 import { useEffect, useRef, useState } from "react";
-import { AlertCircle, Loader2 } from "lucide-react";
+import { CircleAlert, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { useAuthStore } from "@/stores/authStore";
+import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { getLiveClass, startLiveClass } from "../../api/live-class";
 
 const COACH_JOIN_POLL_INTERVAL_MS = 5000;
 
-interface ErrorStateProps {
+interface StateLayoutProps {
+  icon: React.ReactNode;
+  tone?: "neutral" | "danger";
   title: string;
   message: string;
-  onRetry?: () => void;
-  actionText?: string;
-  actionHref?: string;
+  children?: React.ReactNode;
 }
 
-function ErrorState({ title, message, onRetry, actionText, actionHref }: ErrorStateProps) {
+/** Bare content block — the surrounding full-height chrome comes from
+ *  `ClassroomStateShell`, so this only lays out the icon / copy / actions. */
+function StateLayout({ icon, tone = "neutral", title, message, children }: StateLayoutProps) {
   return (
-    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10 mb-6">
-        <AlertCircle className="h-10 w-10 text-destructive" />
+    <div className="mx-auto flex w-full max-w-md flex-col items-center py-12 text-center">
+      <div
+        className={
+          "mb-6 flex size-16 items-center justify-center rounded-2xl " +
+          (tone === "danger" ? "bg-app-danger/10 text-app-danger" : "bg-primary/10 text-primary")
+        }
+      >
+        {icon}
       </div>
-      <h2 className="mb-2 text-2xl font-bold tracking-tight">{title}</h2>
-      <p className="mb-8 max-w-md text-muted-foreground">{message}</p>
-
-      <div className="flex gap-4">
-        {onRetry && (
-          <Button onClick={onRetry} variant="outline">
-            Try Again
-          </Button>
-        )}
-        {actionHref && (
-          <Button asChild>
-            <a href={actionHref}>{actionText || "Go Back"}</a>
-          </Button>
-        )}
-      </div>
+      <h2 className="mb-2 text-xl font-bold tracking-tight text-app-text">{title}</h2>
+      <p className="mb-7 text-sm leading-relaxed text-app-muted">{message}</p>
+      {children && <div className="flex flex-wrap items-center justify-center gap-3">{children}</div>}
     </div>
   );
 }
 
-export function ConnectionLost({ onRetry }: { onRetry?: () => void }) {
+function useDashboardHref() {
   const user = useAuthStore((state) => state.user);
-  const dashboardUrl = user?.role === "COACH" ? "/coach" : "/student";
+  return getRoleDashboardHref(user?.role);
+}
 
+export function ConnectionLost({ onRetry }: { onRetry?: () => void }) {
+  const dashboardUrl = useDashboardHref();
   return (
-    <ErrorState
-      title="Connection Lost"
-      message="We lost connection to the class room. Please check your internet connection and try again."
-      onRetry={onRetry}
-      actionText="Return to Dashboard"
-      actionHref={dashboardUrl}
-    />
+    <StateLayout
+      icon={<WifiOff className="size-8" />}
+      tone="danger"
+      title="Connection lost"
+      message="We lost the connection to the classroom. Check your internet and try again."
+    >
+      {onRetry && (
+        <Button onClick={onRetry} variant="outline">
+          Try again
+        </Button>
+      )}
+      <Button asChild>
+        <a href={dashboardUrl}>Return to dashboard</a>
+      </Button>
+    </StateLayout>
   );
 }
 
 export function PermissionDenied() {
-  const user = useAuthStore((state) => state.user);
-  const dashboardUrl = user?.role === "COACH" ? "/coach" : "/student";
-
+  const dashboardUrl = useDashboardHref();
   return (
-    <ErrorState
-      title="Access Denied"
-      message="You don't have permission to join this class. Please ensure you are logged in with the correct account."
-      actionText="Return to Dashboard"
-      actionHref={dashboardUrl}
-    />
+    <StateLayout
+      icon={<LockKeyhole className="size-8" />}
+      tone="danger"
+      title="Access denied"
+      message="You don't have permission to join this class. Make sure you're signed in with the right account."
+    >
+      <Button asChild>
+        <a href={dashboardUrl}>Return to dashboard</a>
+      </Button>
+    </StateLayout>
   );
 }
 
 export function RoomEnded() {
-  const user = useAuthStore((state) => state.user);
-  const dashboardUrl = user?.role === "COACH" ? "/coach" : "/student";
-
+  const dashboardUrl = useDashboardHref();
   return (
-    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
-      <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-        <span className="text-4xl">👋</span>
-      </div>
-      <h2 className="mb-2 text-2xl font-bold tracking-tight">Class Ended</h2>
-      <p className="mb-8 max-w-md text-muted-foreground">
-        This live class has concluded. Thank you for participating.
-      </p>
+    <StateLayout
+      icon={<CircleAlert className="size-8" />}
+      title="Class ended"
+      message="This live class has concluded. Thank you for participating."
+    >
       <Button asChild>
-        <a href={dashboardUrl}>Return to Dashboard</a>
+        <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
-    </div>
+    </StateLayout>
   );
 }
 
@@ -92,8 +95,9 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH";
   const [isStarting, setIsStarting] = useState(false);
+  const dashboardUrl = getRoleDashboardHref(user?.role);
 
-  // For students, silently poll to check if class started
+  // Students silently poll for the class to go live.
   useEffect(() => {
     if (isCoach || !roomId || !onRetry) return;
 
@@ -102,10 +106,10 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
       try {
         const classDetails = await getLiveClass(roomId);
         if (classDetails.status === "LIVE" && mounted) {
-          onRetry(); // Trigger the main hook to connect
+          onRetry();
         }
-      } catch (err) {
-        // Still not started or errored, ignore
+      } catch {
+        // still not started
       }
     }, 5000);
 
@@ -129,60 +133,43 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
 
   if (isCoach) {
     return (
-      <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mb-6">
-          <span className="text-4xl">🚀</span>
-        </div>
-        <h2 className="mb-2 text-2xl font-bold tracking-tight">Ready to begin?</h2>
-        <p className="mb-8 max-w-md text-muted-foreground">
-          Students are waiting in the waiting room. Start the class when you are ready.
-        </p>
+      <StateLayout
+        icon={<Rocket className="size-8" />}
+        title="Ready to begin?"
+        message="Students are waiting in the waiting room. Start the class when you're ready."
+      >
         <Button onClick={handleStartClass} disabled={isStarting} size="lg">
-          {isStarting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Start Class Now
+          {isStarting && <Loader2 className="mr-2 size-4 animate-spin" />}
+          Start class now
         </Button>
-      </div>
+      </StateLayout>
     );
   }
 
-  const dashboardUrl = user?.role === "COACH" ? "/coach" : "/student";
-
-  // Waiting Room for students
   return (
-    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 mb-6 relative">
-        <Loader2 className="absolute h-10 w-10 text-primary animate-spin" />
-      </div>
-      <h2 className="mb-2 text-2xl font-bold tracking-tight">Waiting Room</h2>
-      <p className="mb-8 max-w-md text-muted-foreground">
-        Waiting for the coach to start the class. You will join automatically once it begins.
-      </p>
-      <div className="flex gap-4">
-        <Button asChild variant="outline">
-          <a href={dashboardUrl}>Return to Dashboard</a>
-        </Button>
-      </div>
-    </div>
+    <StateLayout
+      icon={<Loader2 className="size-8 animate-spin" />}
+      title="Waiting room"
+      message="Waiting for the coach to start the class. You'll join automatically once it begins."
+    >
+      <Button asChild variant="outline">
+        <a href={dashboardUrl}>Return to dashboard</a>
+      </Button>
+    </StateLayout>
   );
 }
 
 /**
- * AUDIT H14: the coach's LiveKit token comes up before the student's, and a
- * student polling `getLiveClassToken` in that gap used to hit
- * "Coach has not joined the meeting yet" — a message that matched none of
- * `page.tsx`'s substring checks, so it fell through to the generic
- * `ConnectionLost` screen with no retry. This is the dedicated, self-retrying
- * screen for that specific (and common, and non-terminal) condition, wired off
- * the API's `COACH_NOT_JOINED` error code instead of message-matching.
+ * AUDIT H14: the coach's LiveKit token comes up before the student's; a student
+ * polling in that gap hits `COACH_NOT_JOINED`. This is the dedicated,
+ * self-retrying screen for that (common, non-terminal) condition.
  */
 export function WaitingForCoach({
-  onRetry
+  onRetry,
 }: {
   onRetry: (options?: { silent?: boolean }) => void;
 }) {
-  const user = useAuthStore((state) => state.user);
-  const dashboardUrl = user?.role === "COACH" ? "/coach" : "/student";
-
+  const dashboardUrl = useDashboardHref();
   const onRetryRef = useRef(onRetry);
   onRetryRef.current = onRetry;
 
@@ -190,24 +177,18 @@ export function WaitingForCoach({
     const interval = setInterval(() => {
       onRetryRef.current({ silent: true });
     }, COACH_JOIN_POLL_INTERVAL_MS);
-
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] w-full flex-col items-center justify-center p-4 text-center">
-      <div className="relative mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
-        <Loader2 className="absolute h-10 w-10 animate-spin text-primary" />
-      </div>
-      <h2 className="mb-2 text-2xl font-bold tracking-tight">Waiting for your coach</h2>
-      <p className="mb-8 max-w-md text-muted-foreground">
-        The class is live, but your coach hasn&apos;t joined the room yet.
-        You&apos;ll be connected automatically the moment they do — no need to
-        refresh.
-      </p>
+    <StateLayout
+      icon={<PlugZap className="size-8" />}
+      title="Waiting for your coach"
+      message="The class is live, but your coach hasn't joined the room yet. You'll be connected automatically the moment they do — no need to refresh."
+    >
       <Button asChild variant="outline">
-        <a href={dashboardUrl}>Return to Dashboard</a>
+        <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
-    </div>
+    </StateLayout>
   );
 }

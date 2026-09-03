@@ -7,6 +7,7 @@ import { useLiveClassChat } from "../../providers/ChatProvider";
 import { ChatMessage } from "./chat/ChatMessage";
 import { ChatEmptyState } from "./chat/ChatEmptyState";
 import { ChatComposer } from "./chat/ChatComposer";
+import { PanelHeader } from "./PanelHeader";
 
 export function MeetingChat() {
   const { send, chatMessages, isSending, draft, setDraft } = useLiveClassChat();
@@ -48,20 +49,13 @@ export function MeetingChat() {
 
   return (
     <div className="flex h-full flex-col">
-      {/* Header bar */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-app-border/40 px-4 bg-app-surface/60 backdrop-blur-md">
-        <div className="flex-1 min-w-0 mr-2">
-          <span className="text-xs font-bold text-app-text uppercase tracking-wider opacity-80">
-            {messages.length} messages
-          </span>
-        </div>
-      </div>
+      <PanelHeader title="Chat" count={messages.length} />
 
       {/* Messages Area */}
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative flex-1 overflow-y-auto overscroll-contain px-4 py-4 custom-scrollbar bg-gradient-to-b from-transparent to-app-surface/20"
+        className="custom-scrollbar relative flex-1 overflow-y-auto overscroll-contain px-4 py-4"
       >
         {messages.length === 0 ? (
           <ChatEmptyState />

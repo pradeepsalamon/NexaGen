@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import type { LiveClassSettings } from "@nexa-chess/types";
 
 export type SidebarTab = "chat" | "participants" | "settings" | "notes" | null;
 
@@ -55,6 +56,20 @@ interface LiveClassContextValue {
   isRecording: boolean;
   setIsRecording: (val: boolean) => void;
   toggleRecording: () => void;
+
+  /**
+   * Resolved pre-class settings enforced for this session (null = legacy class
+   * with no policy). The mic/camera/screen-share locks and the default board
+   * interaction level are derived from this; it matches the LiveKit token
+   * grants, so the UI never shows an action the SFU would reject.
+   */
+  settings: LiveClassSettings | null;
+  /**
+   * Replace the live settings after a mid-class coach change (driven by the
+   * `SETTINGS_UPDATE` LiveKit data message). The token grants are pushed
+   * server-side in the same operation.
+   */
+  applySettingsUpdate: (next: LiveClassSettings) => void;
 }
 
 const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefined);
@@ -64,11 +79,13 @@ export function LiveClassProvider({
   topic,
   startedAt,
   endsAt,
+  settings: initialSettings = null,
 }: {
   children: ReactNode;
   topic?: string | null;
   startedAt?: string | null;
   endsAt?: string | null;
+  settings?: LiveClassSettings | null;
 }) {
   const [activeSidebar, setActiveSidebar] = useState<SidebarTab>(null);
   const [pinnedParticipantSid, setPinnedParticipantSid] = useState<string | null>(null);
@@ -77,6 +94,17 @@ export function LiveClassProvider({
   const [isChessboardOpen, setIsChessboardOpen] = useState(false);
   const [boardControlStudentIds, setBoardControlStudentIds] = useState<string[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
+
+  // Adopt a fresh snapshot from the token response (e.g. after a reconnect /
+  // token refresh) without clobbering a newer mid-class update.
+  useEffect(() => {
+    if (initialSettings) setSettings(initialSettings);
+  }, [initialSettings]);
+
+  const applySettingsUpdate = useCallback((next: LiveClassSettings) => {
+    setSettings(next);
+  }, []);
 
   const toggleSidebar = useCallback(
     (tab: Exclude<SidebarTab, null>) => {
@@ -166,6 +194,8 @@ export function LiveClassProvider({
         isRecording,
         setIsRecording,
         toggleRecording,
+        settings,
+        applySettingsUpdate,
       }}
     >
       {children}

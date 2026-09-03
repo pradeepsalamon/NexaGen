@@ -315,6 +315,8 @@ npm run build -w apps/web
 
 ```bash
 npx playwright test                 # e2e/ specs; needs api + web running
+npx playwright test pre-class-settings   # live-class pre-class settings: layered
+                                         # resolution, preset authz, audit, admin UI
 ```
 
 `e2e/live-board-sync.spec.ts` (shared live-class chessboard) is **opt-in** — it

@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { Send, Smile } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
 
 interface ChatComposerProps {
@@ -20,6 +21,7 @@ export const ChatComposer = memo(function ChatComposer({
   onSubmit,
 }: ChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { mode } = useTheme();
 
   const adjustTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -88,7 +90,7 @@ export const ChatComposer = memo(function ChatComposer({
                 onDraftChange(draft + emojiData.emoji);
                 textareaRef.current?.focus();
               }}
-              theme={Theme.AUTO}
+              theme={mode === "dark" ? Theme.DARK : Theme.LIGHT}
               lazyLoadEmojis={true}
             />
           </PopoverContent>

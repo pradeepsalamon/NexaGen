@@ -1,7 +1,15 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException } from "@nestjs/common";
-import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload } from "livekit-server-sdk";
+import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload, TrackSource, DataPacket_Kind } from "livekit-server-sdk";
+import type { DerivedLiveKitGrants, LiveKitTrackSource } from "@nexa-chess/types";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
+
+const TRACK_SOURCE_MAP: Record<LiveKitTrackSource, TrackSource> = {
+  camera: TrackSource.CAMERA,
+  microphone: TrackSource.MICROPHONE,
+  screen_share: TrackSource.SCREEN_SHARE,
+  screen_share_audio: TrackSource.SCREEN_SHARE_AUDIO,
+};
 
 @Injectable()
 export class LiveKitService implements OnModuleInit {
@@ -102,7 +110,22 @@ export class LiveKitService implements OnModuleInit {
         metadata: JSON.stringify({ role: options.isCoach ? 'COACH' : 'STUDENT' }),
       });
 
-      if (options.isCoach) {
+      if (options.grants) {
+        // Policy-derived grants (pre-class settings). This is the server-side
+        // enforcement point: a forbidden source is simply absent from
+        // `canPublishSources`, so the SFU rejects the publish.
+        const g = options.grants;
+        at.addGrant({
+          roomJoin: true,
+          room: options.roomName,
+          canPublish: g.canPublish,
+          canPublishSources: g.canPublishSources.map((s) => TRACK_SOURCE_MAP[s]),
+          canSubscribe: g.canSubscribe,
+          canPublishData: g.canPublishData,
+          roomAdmin: g.roomAdmin,
+          canUpdateOwnMetadata: g.canUpdateOwnMetadata,
+        });
+      } else if (options.isCoach) {
         at.addGrant({
           roomJoin: true,
           room: options.roomName,
@@ -133,6 +156,49 @@ export class LiveKitService implements OnModuleInit {
       this.logger.error("Failed to generate LiveKit token", error);
       throw new InternalServerErrorException("Failed to generate LiveKit access token");
     }
+  }
+
+  /** Reverse of `TRACK_SOURCE_MAP` — LiveKit enum value back to our string label. */
+  private static readonly TRACK_SOURCE_LABEL: Partial<Record<number, LiveKitTrackSource>> = {
+    [TrackSource.CAMERA]: "camera",
+    [TrackSource.MICROPHONE]: "microphone",
+    [TrackSource.SCREEN_SHARE]: "screen_share",
+    [TrackSource.SCREEN_SHARE_AUDIO]: "screen_share_audio",
+  };
+
+  static trackSourceLabel(source: number | undefined): LiveKitTrackSource | null {
+    return (source !== undefined && LiveKitService.TRACK_SOURCE_LABEL[source]) || null;
+  }
+
+  /**
+   * Push a fresh set of publish permissions to a participant already in the
+   * room (mid-class policy change). LiveKit replaces the permission set
+   * atomically, so every field must be supplied.
+   */
+  async updateParticipantPermissions(
+    roomName: string,
+    identity: string,
+    grants: DerivedLiveKitGrants,
+  ): Promise<void> {
+    await this.roomClient.updateParticipant(roomName, identity, {
+      permission: {
+        canSubscribe: grants.canSubscribe,
+        canPublish: grants.canPublish,
+        canPublishData: grants.canPublishData,
+        canPublishSources: grants.canPublishSources.map((s) => TRACK_SOURCE_MAP[s]),
+        canUpdateMetadata: grants.canUpdateOwnMetadata,
+      },
+    });
+  }
+
+  /** Force-mute one already-published track (used when a source is revoked live). */
+  async muteParticipantTrack(roomName: string, identity: string, trackSid: string): Promise<void> {
+    await this.roomClient.mutePublishedTrack(roomName, identity, trackSid, true);
+  }
+
+  /** Server-inject a data packet onto a topic every participant can listen on. */
+  async broadcastData(roomName: string, payload: Uint8Array, topic: string): Promise<void> {
+    await this.roomClient.sendData(roomName, payload, DataPacket_Kind.RELIABLE, { topic });
   }
 
   async startRecording(roomName: string, filepath: string): Promise<string> {

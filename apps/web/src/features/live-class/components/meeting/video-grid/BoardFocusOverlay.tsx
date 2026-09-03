@@ -4,11 +4,13 @@ import { createPortal } from "react-dom";
 import { Crown, Minimize2 } from "lucide-react";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
+import { cn } from "@/lib/utils";
+import { Z } from "../../../lib/meetingUi";
 import { RequestControlButton } from "./RequestControlButton";
 
 export function BoardFocusOverlay({ onClose }: { onClose: () => void }) {
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-background/95 p-2 backdrop-blur-md sm:p-4">
+    <div className={cn("fixed inset-0 flex items-center justify-center bg-app-background/95 p-2 backdrop-blur-md sm:p-4", Z.overlay)}>
       <div className="relative flex h-full w-full max-w-7xl flex-col gap-2 sm:gap-3">
         {/* Header bar — stays a single compact row on phones */}
         <div className="flex shrink-0 items-center justify-between gap-1.5">

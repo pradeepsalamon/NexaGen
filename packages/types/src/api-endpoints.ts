@@ -75,7 +75,30 @@ export const API_ROUTES = {
     downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`,
     streamRecording: (id: string = ":id") => `/live-class/${id}/recording/stream`,
     storageUsage: () => `/live-class/recording/storage/usage`,
-    recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`
+    recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`,
+    // Mid-class policy change (coach/admin) — re-resolves the snapshot and
+    // pushes new LiveKit grants to affected participants.
+    liveSettings: (id: string = ":id") => `/live-class/${id}/live-settings`
+  },
+  liveClassSettings: {
+    // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.
+    policy: "/live-class-settings/policy",
+    // Recent LIVE_SETTINGS_CHANGE audit rows — admin only.
+    audit: "/live-class-settings/audit",
+    // Layer 2 class config — GET coach/admin, PUT owning coach / admin.
+    forClass: (id: string = ":id") => `/live-class-settings/class/${id}`,
+    // Layer 3 batch default — GET coach in batch / admin, PUT admin / authorised coach.
+    forBatch: (id: string = ":id") => `/live-class-settings/batch/${id}`
+  },
+  liveClassPresets: {
+    // Layer 4 presets. List returns own PERSONAL + all ORG/system.
+    list: "/live-class-presets",
+    create: "/live-class-presets",
+    get: (id: string = ":id") => `/live-class-presets/${id}`,
+    update: (id: string = ":id") => `/live-class-presets/${id}`,
+    delete: (id: string = ":id") => `/live-class-presets/${id}`,
+    duplicate: (id: string = ":id") => `/live-class-presets/${id}/duplicate`,
+    setDefault: (id: string = ":id") => `/live-class-presets/${id}/default`
   },
   student: {
     dashboard: "/student/dashboard"

@@ -118,11 +118,16 @@ ipad-mini, ipad-air-landscape, laptop-13, laptop-15, desktop-1080`.
 ┌───────────────────────────────────────────────┐
 │ Header  fixed inset-x-0 top-0 z-40 h-16        │  ← always fixed, 64 px
 ├──────────┬────────────────────────────────────┤
-│ Sidebar  │  main                              │
-│ w-60/64  │  p-4 → md:p-6 → lg:p-8             │
-│ hidden   │  pb-24 on mobile (clears the FAB)  │
-│ md:block │  mx-auto max-w-6xl / 7xl           │
-│          │  overflow-x-hidden  min-w-0        │
+│ Rail     │  main                              │
+│ w-[4.75  │  p-4 → md:p-6 → lg:p-8             │
+│  rem]    │  pb-24 on mobile (clears the FAB)  │
+│ hidden   │  mx-auto max-w-6xl / 7xl           │
+│ md:block │  overflow-x-hidden  min-w-0        │
+│  (fixed; │                                    │
+│  expands │                                    │
+│  to w-60 │                                    │
+│  as an   │                                    │
+│  overlay)│                                    │
 └──────────┴────────────────────────────────────┘
        └─ MobileNavDrawer: FAB bottom-right, md:hidden,
           Radix Dialog sliding sheet (w-[280px] max-w-[85vw])
@@ -134,10 +139,11 @@ Key files:
 |---|---|---|
 | App wrapper | [`AppShell.tsx`](../apps/web/src/components/layout/AppShell.tsx) | Renders children + `<MobileNavDrawer/>` |
 | Top bar | [`Header.tsx`](../apps/web/src/components/layout/Header.tsx) | `fixed h-16`; 3-col grid `minmax(0,1fr) auto minmax(0,1fr)`; title `truncate max-w-[42vw] sm:max-w-none`; `compact` prop hides Dashboard CTA / bell / theme toggle on small screens for immersive pages |
-| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | `hidden md:block w-60`; **collapsible groups** (Analytics / Manage / Super Admin), state in `localStorage` `nexa-admin-nav-open-groups`, active group auto-expands |
-| Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | `hidden md:block w-64`, flat list |
-| Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | `hidden md:block w-64`, flat list |
-| Mobile nav | [`MobileNavDrawer.tsx`](../apps/web/src/components/layout/MobileNavDrawer.tsx) | `md:hidden` FAB → right-side sheet; **admin gets the same collapsible groups**, coach/student flat; closes on route change |
+| Sidebar shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | Shared `SidebarContainer` — layout reserves only the `w-[4.75rem]` rail; the panel is `fixed top-16 z-30` and expands to `w-60` as an **overlay** above the content (click-outside / Escape collapses it). Plus `SidebarToggle`, `SidebarLink` (icon-only + tooltip when collapsed), `SidebarGroupBox` (admin boxed group: inline nested panel expanded, flyout `Popover` when collapsed). Rail defaults collapsed; pinned choice in `localStorage` `nexa-sidebar-collapsed` via [`useSidebarCollapse.ts`](../apps/web/src/components/layout/useSidebarCollapse.ts) |
+| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | `hidden md:block`; **collapsible overlay rail** + **boxed collapsible groups** (Analytics / Manage / Super Admin) with per-group icons, open state in `localStorage` `nexa-admin-nav-open-groups`, active group auto-expands |
+| Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | `hidden md:block`, flat list, collapsible rail |
+| Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | `hidden md:block`, flat list, collapsible rail |
+| Mobile nav | [`MobileNavDrawer.tsx`](../apps/web/src/components/layout/MobileNavDrawer.tsx) | `md:hidden` FAB → right-side sheet; **admin gets the same boxed collapsible groups**, coach/student flat; closes on route change |
 | Page heading | [`PageHeader.tsx`](../apps/web/src/components/layout/PageHeader.tsx) | `flex-col gap-4 sm:flex-row sm:items-center sm:justify-between` — title stacks above actions on phone |
 
 Because `Header` is `fixed`, every routed layout offsets content by 64 px
@@ -230,18 +236,25 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 
 ### 6.8 Live class meeting (`/live-class/[roomId]`)
 - [`MeetingLayout.tsx`](../apps/web/src/features/live-class/components/meeting/MeetingLayout.tsx):
-  `h-[100dvh] flex flex-col overflow-hidden pt-16` — uses **`dvh`**, not `vh`, so
+  `h-[100dvh] flex flex-col overflow-hidden pt-14` — uses **`dvh`**, not `vh`, so
   mobile browser chrome doesn't crop the toolbar.
-- `MeetingHeader` uses `compact` Header (icon-only below `sm`).
+- `MeetingTopBar` (not the global `Header`): a trimmed classroom bar via
+  [`ClassroomTopBar.tsx`](../apps/web/src/features/live-class/components/meeting/ClassroomTopBar.tsx)
+  — Logo + class title + LIVE/REC + connection pill + timer + Leave. `h-14`, fixed.
+  The same bar (no live widgets) fronts the pre-join / error screens through
+  [`ClassroomStateShell.tsx`](../apps/web/src/features/live-class/components/states/ClassroomStateShell.tsx).
 - Video grid: column math in
   [`videoGrid.utils.ts`](../apps/web/src/features/live-class/components/meeting/video-grid/videoGrid.utils.ts);
   tiles keep `aspect-video`, grid reflows by count and viewport.
-- `MeetingSidebar` (chat / participants / settings): **overlay drawer on
-  mobile**, docked panel on desktop.
-- `MeetingToolbar`: floating, centered, wraps; must stay above the `dvh` bottom
-  edge in phone landscape (`iphone-14-landscape` is the stress case).
-- Pre-join card: `.custom-prejoin` overrides, `max-w-[480px]`, `aspect-video`
-  preview.
+- `MeetingSidebar` (chat / people / settings): **full-screen drawer on
+  mobile**, docked `w-[360px]` panel on desktop. Panels share `PanelHeader`.
+- `MeetingToolbar`: floating, centered, **single row (never wraps)** — ~6 primary
+  controls + a `More` popover for the rest, at every width. Must stay above the
+  `dvh` bottom edge in phone landscape (`iphone-14-landscape` is the stress case).
+- Layer order is centralised in
+  [`lib/meetingUi.ts`](../apps/web/src/features/live-class/lib/meetingUi.ts) (`Z`).
+- Pre-join card: class-info column + `.custom-prejoin` device preview, two-column
+  `md+`, stacked below.
 - Verify: `mobile`, `mobile-landscape`, `tablet`, `laptop-15` — with
   `--live-class <roomId>`.
 

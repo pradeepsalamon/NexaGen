@@ -62,7 +62,25 @@ coach/board durations were always 0, `room_finished` never fired, and the
 | Item | Notes |
 |---|---|
 | **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
-| **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
+| **Waiting room / lobby** | Deferred sub-feature of pre-class settings. The `waitingRoom` enum exists in `LiveClassSettings` (`@nexa-chess/types`) but v1 only allows `DISABLED`; the "coach hasn't joined" polling gate in `useLiveClass.ts` / `getToken` still stands. An app-level admit flow is the eventual implementation. |
+| **Screen-share request → coach approval** | Deferred. v1 pre-class settings expose screen-share as allowed/disallowed per role only; the request/approve handshake is not built. |
+
+## Resolved (2026-09-03)
+
+- **Live-class pre-class settings, permissions & presets.** Live classes had no
+  pre-class configuration — every class was hard-coded (all students
+  `canPublish`, board `COACH_ONLY`, no auto-join, no presets). Now four
+  inheriting layers (`LiveClassPolicy` → `Batch` → `CoachClass` →
+  `LiveClassPreset`) resolved by a shared engine in `@nexa-chess/types`, enforced
+  at the LiveKit token layer (`deriveLiveKitGrants`) and mid-class
+  (`PUT /live-class/:id/live-settings` → `updateParticipant`/`mutePublishedTrack`
+  + `SETTINGS_UPDATE` data packet). Config surfaces: class start page, coach
+  `/coach/presets`, admin `/admin/live-class` (platform defaults + org presets +
+  change history), batch "Class Settings" tab. Student pre-join previews the
+  policy and honours `autoJoin`. Audit via `TrashAuditLog`
+  `action: "LIVE_SETTINGS_CHANGE"`. Waiting room + screen-share
+  request/approve handshake remain deferred (see Feature gaps). See
+  CLAUDE.md §3.7.
 
 ## Resolved (2026-08-31)
 

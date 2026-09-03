@@ -15,6 +15,7 @@ import { LoadingMeeting } from "@/features/live-class/components/states/LoadingM
 import { ConnectionLost, PermissionDenied, ClassNotStarted } from "@/features/live-class/components/states/ErrorStates";
 import { getWebEnv } from "@nexa-chess/config/web";
 import { LiveBoardSyncBridge } from "@/features/live-class/components/meeting/LiveBoardSyncBridge";
+import { LiveClassSettingsBridge } from "@/features/live-class/components/meeting/LiveClassSettingsBridge";
 import { LiveClassProvider, useLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 
 const env = getWebEnv({
@@ -71,7 +72,7 @@ export default function LiveClassBoardPage() {
 
   // We automatically set hasJoined to true because the coach is opening this from an active class
   // Pass "board" as clientId so the backend appends _board to the identity, preventing disconnects
-  const { token, error, isLoading, classStatus } = useLiveClass(
+  const { token, settings, error, isLoading, classStatus } = useLiveClass(
     roomId,
     isDesktop === true,
     "board",
@@ -119,8 +120,8 @@ export default function LiveClassBoardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 flex items-center justify-center h-[100dvh]">
-        <LoadingMeeting message="Connecting to Board..." />
+      <div className="flex h-[100dvh] items-center justify-center bg-app-background">
+        <LoadingMeeting message="Connecting to board…" />
       </div>
     );
   }
@@ -141,8 +142,8 @@ export default function LiveClassBoardPage() {
   }
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-app-background text-foreground">
-      <main className="flex-1 min-h-0 relative">
+    <div className="flex h-[100dvh] flex-col bg-app-background text-app-text">
+      <main className="relative min-h-0 flex-1">
         <LiveKitRoom
           token={token}
           serverUrl={env.NEXT_PUBLIC_LIVEKIT_URL}
@@ -151,8 +152,9 @@ export default function LiveClassBoardPage() {
           video={false}
           className="h-full w-full"
         >
-          {/* We wrap it in LiveClassProvider so LiveBoardSyncBridge can access useLiveClassState */}
-          <LiveClassProvider topic="Board">
+          {/* LiveClassProvider so LiveBoardSyncBridge can access useLiveClassState */}
+          <LiveClassProvider topic="Board" settings={settings}>
+            <LiveClassSettingsBridge />
             <BoardProvider>
               <LiveBoardSyncBridge>
                 <ForceOpenBoard />

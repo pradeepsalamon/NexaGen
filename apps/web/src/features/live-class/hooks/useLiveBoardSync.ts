@@ -16,7 +16,7 @@ function permissionSignature(mode: string, ids: string[]) {
 }
 
 export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
-  const { boardControlStudentIds, isChessboardOpen } = useLiveClassState();
+  const { boardControlStudentIds, isChessboardOpen, settings } = useLiveClassState();
   const { setPermissionMode, permissionMode, selectedStudentIds } = useBoardStore();
   const { broadcastState, broadcastPermissions } = actions;
   const hasInitialized = useRef(false);
@@ -26,15 +26,19 @@ export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
 
   // boardControlStudentIds → board store permission mode (coach only). Guarded
   // against no-op writes so an echoed permission sync doesn't churn the store.
+  // With no explicit grants the mode follows the pre-class policy: a class
+  // configured for INTERACTIVE board opens with EVERYONE able to move.
+  const policyBoardMode = settings?.student.board === "INTERACTIVE" ? "EVERYONE" : "COACH_ONLY";
   useEffect(() => {
     if (!isCoach) return;
-    const desiredMode = boardControlStudentIds.length > 0 ? "SELECTED_STUDENT" : "COACH_ONLY";
+    const desiredMode =
+      boardControlStudentIds.length > 0 ? "SELECTED_STUDENT" : policyBoardMode;
     const sameIds =
       selectedStudentIds.length === boardControlStudentIds.length &&
       boardControlStudentIds.every((id) => selectedStudentIds.includes(id));
     if (permissionMode === desiredMode && sameIds) return;
     setPermissionMode(desiredMode, boardControlStudentIds);
-  }, [boardControlStudentIds, selectedStudentIds, permissionMode, setPermissionMode, isCoach]);
+  }, [boardControlStudentIds, selectedStudentIds, permissionMode, setPermissionMode, isCoach, policyBoardMode]);
 
   // Broadcast permission changes to all participants — only when the value
   // actually changed. `syncFromRemote` reassigns `selectedStudentIds` on every

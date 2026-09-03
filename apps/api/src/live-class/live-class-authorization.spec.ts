@@ -2,11 +2,13 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
+import { liveClassSettingsSchema } from "@nexa-chess/types";
 import { LiveClassService } from "./live-class.service";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
+import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -63,6 +65,10 @@ describe("LiveClassService chat authorization", () => {
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
+        {
+          provide: LiveClassSettingsService,
+          useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
+        },
         {
           provide: AnalyticsEventService,
           useValue: {
@@ -209,6 +215,10 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
         {
+          provide: LiveClassSettingsService,
+          useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
+        },
+        {
           provide: AnalyticsEventService,
           useValue: {
             record: jest.fn().mockResolvedValue(undefined),
@@ -253,6 +263,190 @@ describe("LiveClassService.getToken coach-presence gate", () => {
 
     await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(
       BadRequestException
+    );
+  });
+
+  describe("pre-class settings enforcement", () => {
+    const withSnapshot = (settings: unknown) => {
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        roomName: "room-1",
+        status: "LIVE",
+        batch: { students: [{ studentId: "student-1" }] },
+        class: { topic: "Endgames" },
+        effectiveSettings: settings
+      });
+    };
+
+    it("withholds the microphone source from a FORCED_OFF student's token", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+      withSnapshot(
+        liveClassSettingsSchema.parse({
+          student: { mic: "FORCED_OFF", screenShare: "DISABLED" }
+        })
+      );
+
+      const res = await service.getToken(ACCESS_TOKEN, "class-1");
+
+      const grants = generateAccessToken.mock.calls[0][0].grants;
+      expect(grants.canPublishSources).not.toContain("microphone");
+      expect(grants.canPublishSources).not.toContain("screen_share");
+      expect(grants.canPublishSources).toContain("camera");
+      expect(grants.roomAdmin).toBe(false);
+      expect(res.settings?.student.mic).toBe("FORCED_OFF");
+    });
+
+    it("gives the owning coach full grants regardless of the snapshot", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      withSnapshot(liveClassSettingsSchema.parse({ student: { mic: "FORCED_OFF" } }));
+
+      await service.getToken(ACCESS_TOKEN, "class-1");
+
+      const grants = generateAccessToken.mock.calls[0][0].grants;
+      expect(grants.roomAdmin).toBe(true);
+      expect(grants.canPublishSources).toEqual(
+        expect.arrayContaining(["microphone", "camera", "screen_share"])
+      );
+    });
+
+    it("falls back to default grants (no policy) for a class started before the feature", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+      // default liveSession from the outer beforeEach has no effectiveSettings
+
+      const res = await service.getToken(ACCESS_TOKEN, "class-1");
+
+      expect(generateAccessToken.mock.calls[0][0].grants).toBeUndefined();
+      expect(res.settings).toBeNull();
+    });
+  });
+});
+
+describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
+  let service: LiveClassService;
+  let jwtService: { verifyAsync: jest.Mock };
+  let userFindUnique: jest.Mock;
+  let liveSessionFindUnique: jest.Mock;
+  let liveSessionUpdate: jest.Mock;
+  let listParticipants: jest.Mock;
+  let updateParticipantPermissions: jest.Mock;
+  let muteParticipantTrack: jest.Mock;
+  let broadcastData: jest.Mock;
+  let updateSettingsForClass: jest.Mock;
+  let resolveForClass: jest.Mock;
+  let getSettingsForClass: jest.Mock;
+
+  const authenticateAs = (id: string, role: UserRole) => {
+    jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
+    userFindUnique.mockResolvedValue({ id, role, status: UserStatus.ACTIVE, firstName: "T", lastName: "U" });
+  };
+
+  const forcedOffMic = liveClassSettingsSchema.parse({ student: { mic: "FORCED_OFF" } });
+
+  beforeEach(async () => {
+    jwtService = { verifyAsync: jest.fn() };
+    userFindUnique = jest.fn();
+    liveSessionFindUnique = jest.fn().mockResolvedValue({
+      id: "session-1",
+      classId: "class-1",
+      coachId: "coach-1",
+      roomName: "room-1",
+      status: "LIVE",
+    });
+    liveSessionUpdate = jest.fn().mockResolvedValue({});
+    listParticipants = jest.fn().mockResolvedValue([
+      { identity: "coach-1", metadata: JSON.stringify({ role: "COACH" }), tracks: [] },
+      {
+        identity: "student-1_tab-a",
+        metadata: JSON.stringify({ role: "STUDENT" }),
+        tracks: [{ sid: "TR_mic", source: 2, muted: false }],
+      },
+    ]);
+    updateParticipantPermissions = jest.fn().mockResolvedValue(undefined);
+    muteParticipantTrack = jest.fn().mockResolvedValue(undefined);
+    broadcastData = jest.fn().mockResolvedValue(undefined);
+    updateSettingsForClass = jest.fn().mockResolvedValue(undefined);
+    resolveForClass = jest.fn().mockResolvedValue({ resolved: forcedOffMic });
+    getSettingsForClass = jest.fn().mockResolvedValue({ resolved: forcedOffMic });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LiveClassService,
+        {
+          provide: PrismaService,
+          useValue: {
+            liveSession: { findUnique: liveSessionFindUnique, update: liveSessionUpdate },
+            user: { findUnique: userFindUnique },
+          },
+        },
+        { provide: JwtService, useValue: jwtService },
+        {
+          provide: LiveKitService,
+          useValue: { listParticipants, updateParticipantPermissions, muteParticipantTrack, broadcastData },
+        },
+        { provide: AttendanceService, useValue: {} },
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} },
+        {
+          provide: LiveClassSettingsService,
+          useValue: { updateSettingsForClass, resolveForClass, getSettingsForClass },
+        },
+        {
+          provide: AnalyticsEventService,
+          useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() },
+        },
+      ],
+    }).compile();
+
+    service = module.get<LiveClassService>(LiveClassService);
+  });
+
+  it("rejects a coach who does not own the class", async () => {
+    authenticateAs("coach-2", UserRole.COACH);
+    await expect(
+      service.updateLiveSettings(ACCESS_TOKEN, "class-1", { liveClassSettings: null }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(updateSettingsForClass).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the class is not live", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    liveSessionFindUnique.mockResolvedValue({
+      id: "session-1", classId: "class-1", coachId: "coach-1", roomName: "room-1", status: "ENDED",
+    });
+    await expect(
+      service.updateLiveSettings(ACCESS_TOKEN, "class-1", { liveClassSettings: null }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("refreezes the snapshot, re-pushes student grants, mutes a now-forbidden track and broadcasts", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+
+    await service.updateLiveSettings(ACCESS_TOKEN, "class-1", {
+      liveClassSettings: { student: { mic: "FORCED_OFF" } },
+    });
+
+    expect(updateSettingsForClass).toHaveBeenCalledWith(
+      ACCESS_TOKEN,
+      "class-1",
+      { liveClassSettings: { student: { mic: "FORCED_OFF" } } },
+    );
+    expect(liveSessionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ effectiveSettings: forcedOffMic }) }),
+    );
+    // Only the student is clamped, not the coach.
+    expect(updateParticipantPermissions).toHaveBeenCalledTimes(1);
+    expect(updateParticipantPermissions.mock.calls[0][1]).toBe("student-1_tab-a");
+    expect(updateParticipantPermissions.mock.calls[0][2].canPublishSources).not.toContain("microphone");
+    // The live, unmuted mic track is force-muted.
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_mic");
+    expect(broadcastData).toHaveBeenCalledWith(
+      "room-1",
+      expect.any(Uint8Array),
+      "live_class_settings",
     );
   });
 });

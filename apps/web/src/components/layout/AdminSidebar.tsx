@@ -1,10 +1,15 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { getAdminNavGroups, type NavItem } from "@/components/layout/navItems";
+import { usePathname } from "next/navigation";
+import {
+  SidebarContainer,
+  SidebarGroupBox,
+  SidebarLink,
+  SidebarToggle
+} from "@/components/layout/Sidebar";
+import { getAdminNavGroups } from "@/components/layout/navItems";
+import { useSidebarCollapse } from "@/components/layout/useSidebarCollapse";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +19,7 @@ export function AdminSidebar() {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.user?.role);
   const groups = useMemo(() => getAdminNavGroups(role), [role]);
+  const { collapse, collapsed, toggle } = useSidebarCollapse();
 
   const isItemActive = (href: string) =>
     pathname === href || (href !== "/admin" && pathname.startsWith(href));
@@ -60,69 +66,39 @@ export function AdminSidebar() {
       return next;
     });
 
-  const renderLink = (item: NavItem) => {
-    const Icon = item.icon;
-    return (
-      <Link
-        className={cn(
-          "flex items-center gap-2.5 rounded-control px-3 py-2 text-sm font-semibold transition",
-          isItemActive(item.href)
-            ? "bg-secondary text-black shadow-card"
-            : "text-app-muted hover:bg-app-soft hover:text-primary"
-        )}
-        href={item.href}
-        key={item.href}
-      >
-        <Icon className="size-4 shrink-0" strokeWidth={2.25} />
-        <span className="truncate">{item.label}</span>
-      </Link>
-    );
-  };
-
   return (
-    <aside className="hidden w-60 flex-shrink-0 border-r border-app-border bg-app-surface md:block">
-      <nav className="space-y-1 p-3">
-        {groups.map((group) => {
-          if (!group.group) {
-            return (
-              <div className="space-y-0.5 pb-1" key="top">
-                {group.items.map(renderLink)}
-              </div>
-            );
-          }
-
-          const expanded = isGroupOpen(group.group);
-          const hasActive = group.items.some((item) => isItemActive(item.href));
-
+    <SidebarContainer collapsed={collapsed} onDismiss={collapse}>
+      <SidebarToggle collapsed={collapsed} onToggle={toggle} />
+      {groups.map((group) => {
+        if (!group.group) {
           return (
-            <div key={group.group}>
-              <button
-                aria-expanded={expanded}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-control px-3 py-2 text-[10px] font-bold uppercase tracking-widest transition hover:bg-app-soft hover:text-app-text",
-                  hasActive ? "text-primary" : "text-app-muted"
-                )}
-                onClick={() => toggleGroup(group.group)}
-                type="button"
-              >
-                {group.group}
-                <ChevronDown
-                  className={cn(
-                    "size-3.5 shrink-0 transition-transform",
-                    expanded ? "" : "-rotate-90"
-                  )}
-                  strokeWidth={2.5}
+            <div className={cn("pb-1", collapsed ? "space-y-1" : "space-y-0.5")} key="top">
+              {group.items.map((item) => (
+                <SidebarLink
+                  active={isItemActive(item.href)}
+                  collapsed={collapsed}
+                  item={item}
+                  key={item.href}
                 />
-              </button>
-              {expanded ? (
-                <div className="mb-1 mt-0.5 space-y-0.5 border-l border-app-border pl-2">
-                  {group.items.map(renderLink)}
-                </div>
-              ) : null}
+              ))}
             </div>
           );
-        })}
-      </nav>
-    </aside>
+        }
+
+        return (
+          <SidebarGroupBox
+            collapsed={collapsed}
+            group={group.group}
+            hasActive={group.items.some((item) => isItemActive(item.href))}
+            icon={group.icon}
+            isItemActive={isItemActive}
+            items={group.items}
+            key={group.group}
+            onToggle={() => toggleGroup(group.group)}
+            open={isGroupOpen(group.group)}
+          />
+        );
+      })}
+    </SidebarContainer>
   );
 }
