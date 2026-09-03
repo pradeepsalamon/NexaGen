@@ -13,6 +13,7 @@ import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormSelect } from "@/components/forms/FormSelect";
 import { AddMemberDialog } from "./AddMemberDialog";
+import { BatchLiveClassSettingsTab } from "@/features/live-class/settings/BatchLiveClassSettingsTab";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -118,6 +119,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                 <TabsList>
                   <TabsTrigger value="details">Details</TabsTrigger>
                   <TabsTrigger value="members">Manage Members</TabsTrigger>
+                  <TabsTrigger value="liveClass">Class Settings</TabsTrigger>
                 </TabsList>
               )}
               <Button disabled={isSaving} isLoading={isSaving} type="submit">
@@ -374,6 +376,12 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               />
             </div>
           </TabsContent>
+          )}
+
+          {selectedBatch && (
+            <TabsContent value="liveClass">
+              <BatchLiveClassSettingsTab batchId={selectedBatch.id} />
+            </TabsContent>
           )}
         </Tabs>
       </Form>

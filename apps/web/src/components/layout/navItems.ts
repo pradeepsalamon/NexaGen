@@ -79,6 +79,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Manage" },
   { href: "/admin/users", label: "Users", icon: Users, group: "Manage" },
   { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Manage" },
+  { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Manage" },
   // Super Admin
   { href: "/admin/backups", label: "DB Backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },

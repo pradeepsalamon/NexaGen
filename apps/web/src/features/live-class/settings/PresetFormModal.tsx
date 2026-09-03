@@ -6,6 +6,7 @@ import {
   liveClassSettingsSchema,
   resolveLiveClassSettings,
   type LiveClassPreset,
+  type LiveClassPresetScope,
   type LiveClassSettings,
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
@@ -28,9 +29,18 @@ interface PresetFormModalProps {
   onOpenChange: (open: boolean) => void;
   /** Editing an existing preset, or null to create a new one. */
   preset?: LiveClassPreset | null;
+  /** Scope for a newly-created preset (ignored when editing). "ORG" is admin-only. */
+  scope?: LiveClassPresetScope;
 }
 
-export function PresetFormModal({ open, onOpenChange, preset }: PresetFormModalProps) {
+export function PresetFormModal({
+  open,
+  onOpenChange,
+  preset,
+  scope = "PERSONAL",
+}: PresetFormModalProps) {
+  const effectiveScope: LiveClassPresetScope = preset ? preset.scope : scope;
+  const isOrg = effectiveScope === "ORG";
   const create = useCreateLiveClassPreset();
   const update = useUpdateLiveClassPreset();
 
@@ -64,7 +74,7 @@ export function PresetFormModal({ open, onOpenChange, preset }: PresetFormModalP
     const body = {
       name: trimmed,
       description: description.trim() || undefined,
-      scope: "PERSONAL" as const,
+      scope: effectiveScope,
       settings,
     };
     const onSuccess = () => onOpenChange(false);
@@ -76,10 +86,15 @@ export function PresetFormModal({ open, onOpenChange, preset }: PresetFormModalP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
-          <DialogTitle>{preset ? "Edit preset" : "New live class preset"}</DialogTitle>
+          <DialogTitle>
+            {preset
+              ? `Edit ${isOrg ? "organisation " : ""}preset`
+              : `New ${isOrg ? "organisation" : "live class"} preset`}
+          </DialogTitle>
           <DialogDescription>
-            A reusable set of class settings you can apply when starting a class. Changing a preset
-            later never affects classes you already configured with it.
+            {isOrg
+              ? "Shared with every coach in the organisation. Changing it later never affects classes already configured with it."
+              : "A reusable set of class settings you can apply when starting a class. Changing a preset later never affects classes you already configured with it."}
           </DialogDescription>
         </DialogHeader>
 
