@@ -218,6 +218,24 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 
 ---
 
+## 7b. The autonomous agent system (`.nexa-agent/`)
+
+Not a workspace member (the npm globs are `apps/*` / `packages/*`), and not part
+of `npm test`. It orchestrates worker CLI agents that develop this repo on
+isolated `agent/<task-id>` branches cut from `dev_vps`.
+
+You will not normally run it, but two things matter if you touch this repo:
+
+- **`dev_vps` is the base branch** those tasks branch from and merge back into,
+  and `vps_dev` is the database. The names are near-anagrams of each other and
+  are easy to swap by accident.
+- **A merge into `dev_vps` only ever happens on explicit human approval**
+  (`npm run agent -- approve`). Passing tests are not permission.
+
+Talk to it with `cd .nexa-agent && npm run agent -- chat`. Its own docs are
+`.nexa-agent/README.md`; the safety boundary that all of it enforces is
+`.nexa-agent/config/SAFETY.md`.
+
 ## 8. Where to look first when debugging
 
 | Symptom | Start here |
