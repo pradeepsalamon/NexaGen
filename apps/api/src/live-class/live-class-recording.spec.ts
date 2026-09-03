@@ -371,6 +371,79 @@ describe("LiveClassService recording feature", () => {
       );
     });
 
+    it("takes size and duration from the egress file result", async () => {
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        roomName: "class_class-1",
+        startedAt: new Date("2026-01-01T10:00:00Z"),
+        endedAt: new Date("2026-01-01T11:00:00Z"),
+        metadata: {
+          egressId: "egress-123",
+          recordingFilepath: "recordings/class_class-1-100.mp4",
+          recordingStatus: "STOPPING",
+        },
+      });
+
+      await service.handleEgressEnded({
+        eventType: "egress_ended",
+        egressId: "egress-123",
+        roomName: "class_class-1",
+        status: 3,
+        // Protobuf 64-bit fields arrive as strings; duration is nanoseconds.
+        fileResults: [
+          {
+            filename: "/recordings/class_class-1-100.mp4",
+            location: "/recordings/class_class-1-100.mp4",
+            size: "7875852",
+            duration: "1920000000000",
+          },
+        ],
+      });
+
+      // 1920s of captured video, NOT the 3600s the class was scheduled for.
+      expect(liveSessionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            recordingBytes: BigInt(7875852),
+            recordingDurationSeconds: 1920,
+          }),
+        })
+      );
+      expect(recordingStorageService.getFileBytes).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the file on disk and the class run length when the result omits them", async () => {
+      recordingStorageService.getFileBytes.mockResolvedValue(4096);
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        roomName: "class_class-1",
+        startedAt: new Date("2026-01-01T10:00:00Z"),
+        endedAt: new Date("2026-01-01T10:30:00Z"),
+        metadata: {
+          egressId: "egress-123",
+          recordingFilepath: "recordings/class_class-1-100.mp4",
+          recordingStatus: "STOPPING",
+        },
+      });
+
+      await service.handleEgressEnded({
+        eventType: "egress_ended",
+        egressId: "egress-123",
+        roomName: "class_class-1",
+        status: 3,
+        fileResults: [{ filename: "recordings/class_class-1-100.mp4" }],
+      });
+
+      expect(liveSessionUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            recordingBytes: BigInt(4096),
+            recordingDurationSeconds: 1800,
+          }),
+        })
+      );
+    });
+
     it("marks recording FAILED when egress status is failed or aborted", async () => {
       liveSessionFindUnique.mockResolvedValue({
         id: "session-1",

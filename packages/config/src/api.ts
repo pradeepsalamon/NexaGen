@@ -43,6 +43,11 @@ const apiEnvSchema = z.object({
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
   RECORDING_MIN_RETENTION_DAYS: z.coerce.number().nonnegative().default(14),
+  // Where LiveKit egress writes a class recording. "local" (the default) writes
+  // to RECORDING_STORAGE_DIR, which is what the quota, retention prune, storage
+  // analytics and the signed stream endpoint all read. "oci" makes egress
+  // upload straight to the OCI bucket instead and requires the OCI_* vars.
+  RECORDING_STORAGE_TARGET: z.enum(["local", "oci"]).default("local"),
   ANALYTICS_STORAGE_WARN_PERCENT: z.coerce.number().min(1).max(100).default(70),
   ANALYTICS_STORAGE_CRITICAL_PERCENT: z.coerce
     .number()

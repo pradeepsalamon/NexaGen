@@ -34,6 +34,18 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import type { Request, Response } from "express";
 
+/**
+ * One entry of an egress `fileResults` array as it arrives on the webhook.
+ * `size` and `duration` are protobuf 64-bit fields, so they cross the wire as
+ * strings; `duration` is in nanoseconds.
+ */
+type EgressFileResult = {
+  location?: string;
+  filename?: string;
+  size?: string | number;
+  duration?: string | number;
+};
+
 @Injectable()
 export class LiveClassService {
   // Postgres advisory-lock key for the stale-class sweep (AUDIT M21).
@@ -53,6 +65,13 @@ export class LiveClassService {
     private readonly settingsService: LiveClassSettingsService,
     private readonly analyticsEvents: AnalyticsEventService
   ) { }
+
+  /** Parses a protobuf 64-bit field, which may arrive as a string, or null. */
+  private static toNumber(value: string | number | undefined | null): number | null {
+    if (value === undefined || value === null) return null;
+    const parsed = typeof value === "number" ? value : Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
 
   /** Matches the coach's participant regardless of the `_<clientId>` tab suffix (AUDIT M23). */
   private static isCoachParticipant(identity: string | undefined, coachId: string) {
@@ -819,8 +838,8 @@ export class LiveClassService {
     egressId?: string;
     roomName?: string;
     status?: string | number;
-    file?: { location?: string; filename?: string };
-    fileResults?: Array<{ location?: string; filename?: string }>;
+    file?: EgressFileResult;
+    fileResults?: EgressFileResult[];
   }) {
     const roomName = egressInfo.roomName;
     const egressId = egressInfo.egressId;
@@ -908,26 +927,39 @@ export class LiveClassService {
 
     const { egressId: _activeEgressId, ...restMetadata } = metadata;
 
-    // Promote recording metadata onto dedicated columns for analytics. Size is
-    // read from disk (egress webhooks don't carry it); duration falls back to the
-    // class's actual run length.
+    // Promote recording metadata onto dedicated columns for analytics. The
+    // egress file result carries the authoritative size and duration (duration
+    // in nanoseconds) — use those, and only fall back to reading the file off
+    // disk / the class's run length when a result omits them. Without this
+    // every recording reported the scheduled class length rather than how much
+    // video was actually captured.
     let recordingBytes: bigint | null = null;
     let recordingDurationSeconds: number | null = null;
     if (completed && location) {
-      const bytes = await this.recordingStorageService.getFileBytes(location);
-      recordingBytes = bytes === null ? null : BigInt(bytes);
+      const reportedBytes = LiveClassService.toNumber(fileResult?.size);
+      recordingBytes =
+        reportedBytes !== null && reportedBytes > 0
+          ? BigInt(Math.round(reportedBytes))
+          : await this.recordingStorageService
+              .getFileBytes(location)
+              .then((bytes) => (bytes === null ? null : BigInt(bytes)));
 
-      const cls = await this.prisma.coachClass.findUnique({
-        where: { id: liveSession.classId },
-        select: { startsAt: true, endsAt: true },
-      });
-      const actualMs =
-        liveSession.startedAt && liveSession.endedAt
-          ? liveSession.endedAt.getTime() - liveSession.startedAt.getTime()
-          : cls
-            ? cls.endsAt.getTime() - cls.startsAt.getTime()
-            : 0;
-      recordingDurationSeconds = actualMs > 0 ? Math.round(actualMs / 1000) : null;
+      const reportedDurationNs = LiveClassService.toNumber(fileResult?.duration);
+      if (reportedDurationNs !== null && reportedDurationNs > 0) {
+        recordingDurationSeconds = Math.round(reportedDurationNs / 1e9);
+      } else {
+        const cls = await this.prisma.coachClass.findUnique({
+          where: { id: liveSession.classId },
+          select: { startsAt: true, endsAt: true },
+        });
+        const actualMs =
+          liveSession.startedAt && liveSession.endedAt
+            ? liveSession.endedAt.getTime() - liveSession.startedAt.getTime()
+            : cls
+              ? cls.endsAt.getTime() - cls.startsAt.getTime()
+              : 0;
+        recordingDurationSeconds = actualMs > 0 ? Math.round(actualMs / 1000) : null;
+      }
     }
 
     await this.prisma.liveSession.update({
