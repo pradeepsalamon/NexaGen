@@ -1,0 +1,11 @@
+# Volatile orchestrator data -- must never land in a task branch diff.
+# Mirrors the existing .ai/ precedent in the repo root .gitignore.
+state/
+logs/
+reports/
+tasks/pending/
+tasks/running/
+tasks/completed/
+tasks/failed/
+
+# Tracked: config/, agents/, orchestrator/, control/, README.md

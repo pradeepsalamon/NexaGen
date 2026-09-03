@@ -1,0 +1,44 @@
+{
+  "_note": "Roles are the fixed contract; agents are swappable per role. A task may override any role's agent at creation time, after which the choice is frozen in state/tasks/<id>/state.json.",
+  "roles": {
+    "backend-dev": {
+      "default_agent": "claude",
+      "description": "Implements NestJS/Prisma work in apps/api and shared contract in packages/types.",
+      "must_commit": true
+    },
+    "frontend-dev": {
+      "default_agent": "claude",
+      "description": "Implements Next.js work in apps/web, mobile-first.",
+      "must_commit": true
+    },
+    "tester-e2e": {
+      "default_agent": "opencode",
+      "description": "Independent tester. Reads the cumulative diff, runs validation, never edits application source.",
+      "must_commit": false,
+      "requires_test_report": true,
+      "read_only_source": true
+    },
+    "bug-fixer": {
+      "default_agent": "antigravity",
+      "description": "Fixes defects listed in the tester's failure report.",
+      "must_commit": true
+    },
+    "reviewer": {
+      "default_agent": "claude",
+      "description": "Reviews the cumulative diff for correctness, security and regressions.",
+      "must_commit": false
+    }
+  },
+  "chains": {
+    "feature": ["backend-dev", "frontend-dev", "tester-e2e"],
+    "backend-only": ["backend-dev", "tester-e2e"],
+    "frontend-only": ["frontend-dev", "tester-e2e"],
+    "test-only": ["tester-e2e"],
+    "review-only": ["reviewer"]
+  },
+  "fix_loop": {
+    "fixer_role": "bug-fixer",
+    "verifier_role": "tester-e2e",
+    "max_attempts": 5
+  }
+}
