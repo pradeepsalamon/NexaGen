@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Download, PlayCircle, Clock } from "lucide-react";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -71,7 +72,7 @@ export function PastClasses({ classes }: PastClassesProps) {
 
   return (
     <>
-      <Card className="border-border/40 shadow-sm relative overflow-hidden">
+      <Card className="border-border/40 shadow-sm relative overflow-hidden" data-testid="past-classes">
         {/* Decorative gradient blob */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-app-accent/5 rounded-full blur-3xl -z-10 translate-x-1/3 -translate-y-1/3 pointer-events-none" />
         
@@ -84,6 +85,7 @@ export function PastClasses({ classes }: PastClassesProps) {
             {classes.map((c) => (
               <div
                 key={c.id}
+                data-testid={`past-class-${c.id}`}
                 className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl border border-border/40 bg-card/50 hover:bg-card/80 transition-colors gap-4"
               >
                 <div className="flex items-start gap-4">
@@ -118,14 +120,17 @@ export function PastClasses({ classes }: PastClassesProps) {
                         <PlayCircle className="size-4" />
                         Watch
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        title="Download Recording"
-                        onClick={() => handleDownload(c.id)}
-                      >
-                        <Download className="size-4" />
-                      </Button>
+                      <SimpleTooltip label="Download recording">
+                        <Button
+                          aria-label={`Download recording for ${c.topic}`}
+                          className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                          onClick={() => handleDownload(c.id)}
+                          size="icon"
+                          variant="outline"
+                        >
+                          <Download className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                        </Button>
+                      </SimpleTooltip>
                     </>
                   ) : (
                     <span className="text-xs text-muted-foreground italic mr-2">No recording</span>

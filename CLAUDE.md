@@ -245,6 +245,7 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 | Web: unstyled HTML or missing `.next/server` chunk | `npm run dev:web:clean` |
 | API: missing module from `dist` | `npm run dev:api:clean` |
 | Live class attendance wrong | `attendance` module calc + `AttendancePolicy` row, LiveKit webhook parsing in `main.ts` |
+| LiveKit webhook rejected (401) | signature check in `attendance-webhook.controller.ts` — every payload is verified, there is no bypass header; the `sha256` claim must be **base64** (see `e2e/fixtures.ts#createWebhookSignature`) |
 | Recording won't play / download | `nexa_egress` container up + `./recordings` volume mounted on `api` and `egress`; local files stream via `/live-class/:id/recording/stream` (signed `st` token, 15m), otherwise fall back to OCI (`OCI_*` env still required); `RECORDING_MIN_RETENTION_DAYS` guards auto-prune |
 | CORS / cookie not set in prod | `CORS_ORIGIN` (comma-separated), `FRONTEND_URL` must be https for `secure` cookies; `COOKIE_DOMAIN` (auto-derives `.registrable.tld` from `FRONTEND_URL`) shares the session across `api.`/`www.` subdomains; `TRUST_PROXY_HOPS` (nginx = 1) for X-Forwarded-* |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
