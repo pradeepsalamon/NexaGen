@@ -13,10 +13,10 @@ describe("LiveClassSettingsService", () => {
   let prisma: {
     user: { findUnique: jest.Mock };
     liveClassPolicy: { findFirst: jest.Mock; create: jest.Mock; update: jest.Mock };
-    coachClass: { findUnique: jest.Mock; update: jest.Mock };
-    batch: { findFirst: jest.Mock; update: jest.Mock };
+    coachClass: { findUnique: jest.Mock; update: jest.Mock; findMany: jest.Mock };
+    batch: { findFirst: jest.Mock; update: jest.Mock; findMany: jest.Mock };
     liveClassPreset: { findUnique: jest.Mock };
-    trashAuditLog: { create: jest.Mock };
+    trashAuditLog: { create: jest.Mock; findMany: jest.Mock };
   };
 
   const authAs = (id: string, role: UserRole) => {
@@ -43,10 +43,18 @@ describe("LiveClassSettingsService", () => {
           updatedAt: new Date("2026-01-02T00:00:00Z"),
         })),
       },
-      coachClass: { findUnique: jest.fn(), update: jest.fn().mockResolvedValue({}) },
-      batch: { findFirst: jest.fn(), update: jest.fn().mockResolvedValue({}) },
+      coachClass: {
+        findUnique: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      batch: {
+        findFirst: jest.fn(),
+        update: jest.fn().mockResolvedValue({}),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
       liveClassPreset: { findUnique: jest.fn() },
-      trashAuditLog: { create: jest.fn().mockResolvedValue({}) },
+      trashAuditLog: { create: jest.fn().mockResolvedValue({}), findMany: jest.fn().mockResolvedValue([]) },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -148,6 +156,47 @@ describe("LiveClassSettingsService", () => {
           data: { liveClassSettings: { student: { camera: "JOIN_ON" } } },
         }),
       );
+    });
+  });
+
+  describe("audit log", () => {
+    it("rejects a non-admin", async () => {
+      authAs("coach-1", UserRole.COACH);
+      await expect(service.getAuditLog(TOKEN)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("returns recent LIVE_SETTINGS_CHANGE rows with resolved names and a field diff", async () => {
+      authAs("admin-1", UserRole.ADMIN);
+      prisma.trashAuditLog.findMany.mockResolvedValue([
+        {
+          id: "audit-1",
+          entity: "CoachClass",
+          entityId: "class-1",
+          createdAt: new Date("2026-02-01T00:00:00Z"),
+          user: { firstName: "Ada", lastName: "Coach" },
+          metadata: {
+            scope: "CLASS",
+            before: { student: { mic: "JOIN_MUTED" } },
+            after: { student: { mic: "FORCED_OFF" } },
+          },
+        },
+      ]);
+      prisma.coachClass.findMany.mockResolvedValue([{ id: "class-1", title: "Endgames", topic: null }]);
+
+      const { entries } = await service.getAuditLog(TOKEN);
+
+      expect(prisma.trashAuditLog.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { action: "LIVE_SETTINGS_CHANGE" } }),
+      );
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({
+        entity: "CoachClass",
+        entityName: "Endgames",
+        actorName: "Ada Coach",
+        scope: "CLASS",
+        before: { student: { mic: "JOIN_MUTED" } },
+        after: { student: { mic: "FORCED_OFF" } },
+      });
     });
   });
 

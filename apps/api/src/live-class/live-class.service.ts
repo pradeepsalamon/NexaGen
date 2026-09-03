@@ -565,7 +565,21 @@ export class LiveClassService {
     // Exclude the deeply nested batch details before returning to avoid over-fetching/leaking
     const { batch: _batch, ...classWithoutBatch } = scheduledClass;
 
-    return classWithoutBatch;
+    // Resolved pre-class settings so the pre-join screen can show the policy
+    // summary and lock its device toggles *before* a token is minted. Uses the
+    // frozen snapshot once the class is live, else the current layer resolution.
+    // Best-effort — a resolver failure must not break loading the class.
+    let preClassSettings: LiveClassSettings | null = null;
+    try {
+      const snapshot = scheduledClass.liveSession?.effectiveSettings;
+      preClassSettings = snapshot
+        ? liveClassSettingsSchema.parse(snapshot)
+        : (await this.settingsService.resolveForClass(classId)).resolved;
+    } catch (error) {
+      this.logger.warn(`Failed to resolve pre-class settings for ${classId}`, error as Error);
+    }
+
+    return { ...classWithoutBatch, preClassSettings };
   }
 
   async getParticipants(accessToken: string | undefined, classId: string) {

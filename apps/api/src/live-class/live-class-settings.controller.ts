@@ -26,6 +26,11 @@ export class LiveClassSettingsController {
     return this.settingsService.getPolicy(this.getAccessToken(request));
   }
 
+  @Get(API_ROUTES.liveClassSettings.audit)
+  getAuditLog(@Req() request: Request) {
+    return this.settingsService.getAuditLog(this.getAccessToken(request));
+  }
+
   @Put(API_ROUTES.liveClassSettings.policy)
   updatePolicy(
     @Req() request: Request,

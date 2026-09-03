@@ -66,6 +66,7 @@ export const queryKeys = {
   },
   liveClassSettings: {
     policy: ["live-class-settings", "policy"] as const,
+    audit: ["live-class-settings", "audit"] as const,
     forClass: (classId: string) => ["live-class-settings", "class", classId] as const,
     forBatch: (batchId: string) => ["live-class-settings", "batch", batchId] as const,
   },

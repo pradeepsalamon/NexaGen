@@ -5,6 +5,7 @@ import {
   type LiveClassPolicyResponse,
   type LiveClassPreset,
   type LiveClassPresetsResponse,
+  type LiveClassSettingsAuditResponse,
   type LiveClassSettingsForClassResponse,
   type UpdateBatchLiveClassSettingsRequest,
   type UpdateLiveClassPolicyRequest,
@@ -23,6 +24,10 @@ export function updateLiveClassPolicy(
   body: UpdateLiveClassPolicyRequest,
 ): Promise<LiveClassPolicyResponse> {
   return apiFetch(API_ROUTES.liveClassSettings.policy, { method: "PUT", body });
+}
+
+export function getLiveClassSettingsAudit(): Promise<LiveClassSettingsAuditResponse> {
+  return apiFetch(API_ROUTES.liveClassSettings.audit);
 }
 
 export function getClassLiveSettings(

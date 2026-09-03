@@ -611,6 +611,27 @@ export type BatchLiveClassSettingsResponse = {
   canEdit: boolean;
 };
 
+/** One `LIVE_SETTINGS_CHANGE` audit row, admin-facing. */
+export type LiveClassSettingsAuditEntry = {
+  id: string;
+  /** "LiveClassPolicy" | "Batch" | "CoachClass" */
+  entity: string;
+  entityId: string;
+  /** "SYSTEM" | "BATCH" | "CLASS" */
+  scope: string;
+  /** Human label for the target (batch/class name), or null for the singleton policy. */
+  entityName: string | null;
+  actorName: string | null;
+  createdAt: string;
+  /** Override blobs (or full settings for the policy) before/after the change. */
+  before: LiveClassSettingsOverride | null;
+  after: LiveClassSettingsOverride | null;
+};
+
+export type LiveClassSettingsAuditResponse = {
+  entries: LiveClassSettingsAuditEntry[];
+};
+
 export const updateBatchLiveClassSettingsRequestSchema = z.object({
   liveClassSettings: liveClassSettingsOverrideSchema.nullable()
 });

@@ -16,6 +16,8 @@ import {
   validateLiveClassSettings,
   type BatchLiveClassSettingsResponse,
   type LiveClassPolicyResponse,
+  type LiveClassSettingsAuditEntry,
+  type LiveClassSettingsAuditResponse,
   type LiveClassSettings,
   type LiveClassSettingsForClassResponse,
   type LiveClassSettingsOverride,
@@ -134,6 +136,64 @@ export class LiveClassSettingsService {
       settings: next,
       updatedAt: updated.updatedAt.toISOString(),
     };
+  }
+
+  // ── Audit surfacing (admin) ──
+
+  async getAuditLog(accessToken: string | undefined): Promise<LiveClassSettingsAuditResponse> {
+    const user = await this.getAuthenticatedUser(accessToken);
+    this.assertAdmin(user);
+
+    const rows = await this.prisma.trashAuditLog.findMany({
+      where: { action: "LIVE_SETTINGS_CHANGE" },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { user: { select: { firstName: true, lastName: true } } },
+    });
+
+    // Batch-resolve target names in two queries rather than N.
+    const classIds = rows.filter((r) => r.entity === "CoachClass").map((r) => r.entityId);
+    const batchIds = rows.filter((r) => r.entity === "Batch").map((r) => r.entityId);
+    const [classes, batches] = await Promise.all([
+      classIds.length
+        ? this.prisma.coachClass.findMany({
+            where: { id: { in: classIds } },
+            select: { id: true, title: true, topic: true },
+          })
+        : Promise.resolve([]),
+      batchIds.length
+        ? this.prisma.batch.findMany({
+            where: { id: { in: batchIds } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+    ]);
+    const classNames = new Map(classes.map((c) => [c.id, c.title || c.topic || "Untitled class"]));
+    const batchNames = new Map(batches.map((b) => [b.id, b.name]));
+
+    const entries: LiveClassSettingsAuditEntry[] = rows.map((row) => {
+      const meta = (row.metadata ?? {}) as { before?: unknown; after?: unknown; scope?: unknown };
+      return {
+        id: row.id,
+        entity: row.entity,
+        entityId: row.entityId,
+        scope: typeof meta.scope === "string" ? meta.scope : "",
+        entityName:
+          row.entity === "CoachClass"
+            ? classNames.get(row.entityId) ?? null
+            : row.entity === "Batch"
+              ? batchNames.get(row.entityId) ?? null
+              : null,
+        actorName: row.user
+          ? [row.user.firstName, row.user.lastName].filter(Boolean).join(" ").trim() || null
+          : null,
+        createdAt: row.createdAt.toISOString(),
+        before: this.parseOverride(meta.before),
+        after: this.parseOverride(meta.after),
+      };
+    });
+
+    return { entries };
   }
 
   // ── Layer 2: per-class config ──

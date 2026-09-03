@@ -83,6 +83,8 @@ export const API_ROUTES = {
   liveClassSettings: {
     // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.
     policy: "/live-class-settings/policy",
+    // Recent LIVE_SETTINGS_CHANGE audit rows — admin only.
+    audit: "/live-class-settings/audit",
     // Layer 2 class config — GET coach/admin, PUT owning coach / admin.
     forClass: (id: string = ":id") => `/live-class-settings/class/${id}`,
     // Layer 3 batch default — GET coach in batch / admin, PUT admin / authorised coach.

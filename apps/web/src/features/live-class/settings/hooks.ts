@@ -16,6 +16,7 @@ import {
   getClassLiveSettings,
   getLiveClassPolicy,
   getLiveClassPresets,
+  getLiveClassSettingsAudit,
   setDefaultLiveClassPreset,
   updateBatchLiveClassSettings,
   updateClassLiveSettings,
@@ -34,6 +35,14 @@ export function useLiveClassPolicy(enabled = true) {
   });
 }
 
+export function useLiveClassSettingsAudit(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.liveClassSettings.audit,
+    queryFn: getLiveClassSettingsAudit,
+    enabled,
+  });
+}
+
 export function useUpdateLiveClassPolicy() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -42,6 +51,7 @@ export function useUpdateLiveClassPolicy() {
     onSuccess: () => {
       toast.success({ title: "Live class defaults updated" });
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.policy });
+      qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.audit });
     },
     onError: (error: Error) =>
       toast.error({ title: "Couldn't update defaults", message: error.message }),
@@ -106,6 +116,7 @@ export function useUpdateBatchLiveClassSettings(batchId: string) {
     onSuccess: () => {
       toast.success({ title: "Batch defaults updated" });
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.forBatch(batchId) });
+      qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.audit });
     },
     onError: (error: Error) =>
       toast.error({ title: "Couldn't update batch defaults", message: error.message }),

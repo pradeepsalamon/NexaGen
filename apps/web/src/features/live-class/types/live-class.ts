@@ -23,6 +23,8 @@ export interface CoachClass {
   startsAt: string;
   endsAt: string;
   liveSession?: LiveSession;
+  /** Resolved pre-class settings, so the pre-join screen can preview the policy. */
+  preClassSettings?: import("@nexa-chess/types").LiveClassSettings | null;
 }
 
 export interface LiveKitTokenResponse {

@@ -48,6 +48,12 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
           if (classDetails.topic) {
             setTopic(classDetails.topic);
           }
+          // Available before joining, so the pre-join screen can preview the
+          // policy and lock its toggles. The token response refines this with
+          // the participant-specific resolution once the user joins.
+          if (classDetails.preClassSettings) {
+            setSettings(classDetails.preClassSettings);
+          }
           // Timer elapsed runs from the actual session start, not the scheduled one (AUDIT H2).
           const actualStart = classDetails.liveSession?.startedAt ?? classDetails.startsAt;
           if (actualStart) {
