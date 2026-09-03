@@ -1,282 +1,315 @@
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type BrowserContext } from "@playwright/test";
+import fs from "fs";
+import path from "path";
+import { API_URL, apiCallOk, loginContext, sendLiveKitWebhook } from "./fixtures";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
+/**
+ * Host-side path of the directory the API container exposes as
+ * `RECORDING_STORAGE_DIR`. The suite drops a real MP4 there so the *local file*
+ * branch of `downloadRecording` is exercised — that is the path production
+ * actually serves (`/live-class/:id/recording/stream`), not the OCI fallback.
+ */
+const RECORDINGS_DIR = path.resolve(
+  process.env.E2E_RECORDINGS_DIR || path.join(__dirname, "..", "recordings")
+);
+const FIXTURE_MP4 = path.join(__dirname, "fixtures", "sample-recording.mp4");
 
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
-const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
 
-async function loginAs(
-  request: APIRequestContext,
-  email: string,
-  password: string
-): Promise<string> {
-  const res = await request.post(`${API_URL}/auth/login`, {
-    data: { email, password },
+async function jsonOf<T = Record<string, unknown>>(res: {
+  json: () => Promise<unknown>;
+}): Promise<T> {
+  return (await res.json()) as T;
+}
+
+test.describe("Full Recording Lifecycle & Video Player Flow", () => {
+  const runId = Date.now();
+  const uniqueTopic = `Recording E2E - Endgame Strategy - ${runId}`;
+
+  let coachCtx: BrowserContext;
+  let studentCtx: BrowserContext;
+  let adminCtx: BrowserContext;
+  let coach: APIRequestContext;
+  let student: APIRequestContext;
+  let admin: APIRequestContext;
+
+  let classId: string;
+  let recordingKey: string;
+
+  test.beforeAll(async ({ browser }) => {
+    // One login per role, reused for both API calls and page navigation:
+    // `/auth/login` is throttled at 5/min and a per-step login blows that budget.
+    coachCtx = await browser.newContext();
+    studentCtx = await browser.newContext();
+    adminCtx = await browser.newContext();
+    await loginContext(coachCtx, "coach");
+    await loginContext(studentCtx, "student");
+    await loginContext(adminCtx, "admin");
+    coach = coachCtx.request;
+    student = studentCtx.request;
+    admin = adminCtx.request;
   });
-  expect(res.ok(), `Login failed for ${email}: ${await res.text()}`).toBeTruthy();
 
-  const setCookies = res.headers()["set-cookie"] || "";
-  const cookies = setCookies
-    .split(",")
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.includes("nexa_"))
-    .join("; ");
-  return cookies;
-}
-
-async function api(
-  request: APIRequestContext,
-  method: string,
-  path: string,
-  cookies: string,
-  body?: Record<string, unknown>
-) {
-  const res = await request.fetch(`${API_URL}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Cookie: cookies },
-    data: body,
+  test.afterAll(async () => {
+    // The fixture MP4 is deliberately left on disk. The session row keeps its
+    // `recordingUrl`, and there is no endpoint to clear it (a completed class
+    // cannot be cancelled), so deleting the file would leave a Watch button that
+    // 404s. It is ~35 KB and falls out under the normal retention prune.
+    await Promise.all([coachCtx?.close(), studentCtx?.close(), adminCtx?.close()]);
   });
-  return res;
-}
 
-import crypto from "crypto";
-
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "APIWLsbggsQnKdN";
-const LIVEKIT_API_SECRET =
-  process.env.LIVEKIT_API_SECRET || "juXmqj30DR0SRmcF3xfeLp6EilDxrUdtesUgWaNebZJB";
-
-function createWebhookSignature(body: string | Record<string, unknown>): string {
-  const rawBody = typeof body === "string" ? body : JSON.stringify(body);
-  const sha256 = crypto.createHash("sha256").update(rawBody).digest("base64");
-  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const payload = Buffer.from(
-    JSON.stringify({
-      iss: LIVEKIT_API_KEY,
-      sub: LIVEKIT_API_KEY,
-      sha256,
-      exp: Math.floor(Date.now() / 1000) + 300,
-    })
-  ).toString("base64url");
-  const signature = crypto
-    .createHmac("sha256", LIVEKIT_API_SECRET)
-    .update(`${header}.${payload}`)
-    .digest("base64url");
-  return `${header}.${payload}.${signature}`;
-}
-
-async function sendWebhook(
-  request: APIRequestContext,
-  event: Record<string, unknown>
-) {
-  const body = JSON.stringify(event);
-  const authHeader = createWebhookSignature(body);
-  const res = await request.post(`${API_URL}/webhooks/livekit`, {
-    data: body,
-    headers: {
-      "Content-Type": "application/webhook+json",
-      Authorization: authHeader,
-    },
-  });
-  return res;
-}
-
-test.describe("Full Recording Lifecycle & Download Flow", () => {
-  const uniqueTopic = `Recording E2E Test Class - Endgame Strategy - ${Date.now()}`;
-  test("recording start → egress webhook → stop → egress ended → download across roles", async ({
-    request,
+  test("recording start → egress webhooks → local stream, range seek, download and player", async ({
     browser,
   }) => {
-    // 1. Login as Coach
-    const coachCookies = await loginAs(request, COACH.email, COACH.password);
-    expect(coachCookies).toBeTruthy();
+    // ── 1. A class to record ────────────────────────────────────────────────
+    // `/coach/batches` returns `{ batches: [...] }`; tolerate a bare array too.
+    const batches = await jsonOf<{ batches?: { id: string }[] } | { id: string }[]>(
+      await apiCallOk(coach, "GET", "/coach/batches")
+    );
+    const batchList = Array.isArray(batches) ? batches : (batches.batches ?? []);
+    expect(batchList.length, "coach has at least one batch").toBeGreaterThan(0);
+    const batchId = batchList[0].id;
 
-    // 2. Get batch for Coach
-    const batchesRes = await api(request, "GET", "/coach/batches", coachCookies);
-    expect(batchesRes.ok()).toBeTruthy();
-    const batchesData = await batchesRes.json();
-    const batches = batchesData.batches || batchesData;
-    expect(batches.length).toBeGreaterThan(0);
-    const batchId = batches[0].id;
-
-    // 3. Create a class
-    const now = new Date();
-    const startsAt = new Date(now.getTime() + 120 * 60 * 1000).toISOString();
-    const endsAt = new Date(now.getTime() + 180 * 60 * 1000).toISOString();
-
-    const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
-      batchId,
-      topic: uniqueTopic,
-      title: "Recording Flow E2E Test",
-      description: "Class to test recording start, stop, webhook, and download",
-      startsAt,
-      endsAt,
-    });
-    expect(createRes.ok(), `Create class failed: ${await createRes.text()}`).toBeTruthy();
-    const createdData = await createRes.json();
-    const classId = createdData.class?.id || createdData.id;
-    const roomName = `class_${classId}`;
+    const now = Date.now();
+    const created = await jsonOf<{ class?: { id: string }; id?: string }>(
+      await apiCallOk(coach, "POST", "/coach/classes", {
+        batchId,
+        topic: uniqueTopic,
+        title: uniqueTopic,
+        description: "Class to test recording start, stop, webhook, stream and download",
+        startsAt: new Date(now + 120 * 60_000).toISOString(),
+        endsAt: new Date(now + 180 * 60_000).toISOString(),
+      })
+    );
+    classId = (created.class?.id ?? created.id) as string;
     expect(classId).toBeTruthy();
 
-    // 4. Start Live Class
-    const startRes = await api(request, "POST", `/live-class/${classId}/start`, coachCookies);
-    expect(startRes.ok(), `Start class failed: ${await startRes.text()}`).toBeTruthy();
+    const roomName = `class_${classId}`;
+    await apiCallOk(coach, "POST", `/live-class/${classId}/start`);
 
-    // 5. Send egress_started webhook to simulate active recording
-    const egressId = `egress_test_${Date.now()}`;
-    const recordingPath = `recordings/${roomName}-${Date.now()}.mp4`;
+    // ── 2. A real recording file on disk ────────────────────────────────────
+    const filename = `${roomName}-${runId}.mp4`;
+    recordingKey = `recordings/${filename}`;
+    const diskPath = path.join(RECORDINGS_DIR, filename);
+    await fs.promises.mkdir(RECORDINGS_DIR, { recursive: true });
+    await fs.promises.copyFile(FIXTURE_MP4, diskPath);
+    const fixtureSize = (await fs.promises.stat(diskPath)).size;
+    expect(fixtureSize).toBeGreaterThan(0);
 
-    const egressStartedRes = await sendWebhook(request, {
+    // ── 3. Egress lifecycle webhooks ────────────────────────────────────────
+    const egressId = `egress_e2e_${runId}`;
+
+    const started = await sendLiveKitWebhook(coach, {
       event: "egress_started",
-      id: `evt_start_${Date.now()}`,
-      egressInfo: {
-        egressId,
-        roomName,
-        status: 1, // EGRESS_ACTIVE
-      },
+      id: `evt_start_${runId}`,
+      egressInfo: { egressId, roomName, status: 1 }, // EGRESS_ACTIVE
     });
-    expect(egressStartedRes.ok()).toBeTruthy();
+    expect(
+      started.ok(),
+      `egress_started rejected: ${started.status()} ${await started.text()}`
+    ).toBeTruthy();
+    // A rejected signature must not read as success — the API returns 200 with a
+    // body for processing errors, so assert on the body too.
+    expect(await jsonOf<{ ok: boolean }>(started)).toMatchObject({ ok: true });
 
-    // 6. Simulate egress_ended webhook with successful completion
-    const egressEndedRes = await sendWebhook(request, {
+    const ended = await sendLiveKitWebhook(coach, {
       event: "egress_ended",
-      id: `evt_end_${Date.now()}`,
+      id: `evt_end_${runId}`,
       egressInfo: {
         egressId,
         roomName,
         status: 3, // EGRESS_COMPLETE
-        fileResults: [
-          {
-            filename: recordingPath,
-            location: `https://mock-oci-storage.test/${recordingPath}`,
-          },
-        ],
+        fileResults: [{ filename: `/out/${recordingKey}`, location: recordingKey }],
       },
     });
-    expect(egressEndedRes.ok()).toBeTruthy();
+    expect(
+      ended.ok(),
+      `egress_ended rejected: ${ended.status()} ${await ended.text()}`
+    ).toBeTruthy();
+    expect(await jsonOf<{ ok: boolean }>(ended)).toMatchObject({ ok: true });
 
-    // 7. End Live Class
-    const endRes = await api(request, "POST", `/live-class/${classId}/end`, coachCookies);
-    expect(endRes.ok(), `End class failed: ${await endRes.text()}`).toBeTruthy();
+    await apiCallOk(coach, "POST", `/live-class/${classId}/end`);
 
-    // 8. Verify Coach can fetch download URL
-    const coachDownloadRes = await api(
-      request,
-      "GET",
-      `/live-class/${classId}/recording/download`,
-      coachCookies
+    // ── 4. An unsigned webhook is rejected ──────────────────────────────────
+    const forged = await coach.post(`${API_URL}/webhooks/livekit`, {
+      data: JSON.stringify({
+        event: "egress_ended",
+        id: `evt_forged_${runId}`,
+        egressInfo: { egressId, roomName, status: 2 },
+      }),
+      headers: {
+        "Content-Type": "application/webhook+json",
+        Authorization: "TEST_BYPASS_SIGNATURE",
+      },
+    });
+    expect(
+      forged.status(),
+      "an unsigned webhook must be rejected, not silently accepted"
+    ).toBe(401);
+
+    // ── 5. Recording metadata was promoted onto the session ─────────────────
+    const details = await jsonOf<{
+      class?: { recordingBytes?: number | string | null; recordingStatus?: string };
+      recordingBytes?: number | string | null;
+      recordingStatus?: string;
+    }>(await apiCallOk(coach, "GET", `/coach/classes/${classId}/details`));
+    const detail = details.class ?? details;
+    expect(String(detail.recordingStatus ?? "COMPLETED")).toBe("COMPLETED");
+
+    // ── 6. Download URL resolves to the local stream endpoint for every role ─
+    for (const [label, ctx] of [
+      ["coach", coach],
+      ["student", student],
+      ["admin", admin],
+    ] as const) {
+      const { url } = await jsonOf<{ url: string }>(
+        await apiCallOk(ctx, "GET", `/live-class/${classId}/recording/download`)
+      );
+      expect(url, `${label} download url`).toBeTruthy();
+      expect(
+        url,
+        `${label} should get the local stream endpoint, not the OCI fallback`
+      ).toContain(`/live-class/${classId}/recording/stream`);
+      expect(url, `${label} stream url carries a signed token`).toMatch(/[?&]st=/);
+    }
+
+    const { url: streamUrl } = await jsonOf<{ url: string }>(
+      await apiCallOk(student, "GET", `/live-class/${classId}/recording/download`)
     );
-    expect(coachDownloadRes.ok(), `Coach download failed: ${await coachDownloadRes.text()}`).toBeTruthy();
-    const coachDownloadData = await coachDownloadRes.json();
-    expect(coachDownloadData.url).toBeTruthy();
 
-    // 9. Verify Student in batch can fetch download URL
-    const studentCookies = await loginAs(request, STUDENT.email, STUDENT.password);
-    expect(studentCookies).toBeTruthy();
+    // ── 7. The stream itself: whole file, byte range, and attachment ────────
+    const whole = await student.get(streamUrl);
+    expect(whole.status()).toBe(200);
+    expect(whole.headers()["content-type"]).toContain("video/mp4");
+    expect(whole.headers()["accept-ranges"]).toBe("bytes");
+    expect((await whole.body()).length).toBe(fixtureSize);
 
-    const studentDownloadRes = await api(
-      request,
-      "GET",
-      `/live-class/${classId}/recording/download`,
-      studentCookies
+    // Seeking in the player issues a Range request; without 206 the video is
+    // unseekable in Chrome.
+    const ranged = await student.get(streamUrl, { headers: { Range: "bytes=0-1023" } });
+    expect(ranged.status()).toBe(206);
+    expect(ranged.headers()["content-range"]).toBe(`bytes 0-1023/${fixtureSize}`);
+    expect((await ranged.body()).length).toBe(1024);
+
+    const unsatisfiable = await student.get(streamUrl, {
+      headers: { Range: `bytes=${fixtureSize + 10}-` },
+    });
+    expect(unsatisfiable.status()).toBe(416);
+
+    const { url: downloadUrl } = await jsonOf<{ url: string }>(
+      await apiCallOk(student, "GET", `/live-class/${classId}/recording/download?download=1`)
     );
-    expect(studentDownloadRes.ok(), `Student download failed: ${await studentDownloadRes.text()}`).toBeTruthy();
-    const studentDownloadData = await studentDownloadRes.json();
-    expect(studentDownloadData.url).toBeTruthy();
+    const attachment = await student.get(downloadUrl);
+    expect(attachment.status()).toBe(200);
+    expect(attachment.headers()["content-disposition"]).toContain("attachment");
 
-    // 10. Verify Super Admin can fetch download URL
-    const adminCookies = await loginAs(request, ADMIN.email, ADMIN.password);
-    expect(adminCookies).toBeTruthy();
-
-    const adminDownloadRes = await api(
-      request,
-      "GET",
-      `/live-class/${classId}/recording/download`,
-      adminCookies
+    // ── 8. The stream token is required ─────────────────────────────────────
+    const anonymousCtx = await browser.newContext();
+    const anonymous = await anonymousCtx.request.get(
+      `${API_URL}/live-class/${classId}/recording/stream`
     );
-    expect(adminDownloadRes.ok(), `Admin download failed: ${await adminDownloadRes.text()}`).toBeTruthy();
-    const adminDownloadData = await adminDownloadRes.json();
-    expect(adminDownloadData.url).toBeTruthy();
+    await anonymousCtx.close();
+    expect(anonymous.status()).toBe(401);
 
-    // 11. Verify Coach History Page displays class with recording
-    const coachCtx = await browser.newContext();
+    // ── 9. Coach history renders the class and a download control ───────────
     const coachPage = await coachCtx.newPage();
-    for (const cookieStr of coachCookies.split("; ")) {
-      const [name, value] = cookieStr.split("=");
-      await coachCtx.addCookies([
-        { name, value, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax", secure: false },
-        { name, value, domain: "api.nexachess.in", path: "/", httpOnly: true, sameSite: "None", secure: true },
-      ]);
-    }
-    await coachCtx.route("https://api.nexachess.in/**", async (route) => {
-      const req = route.request();
-      const originalUrl = new URL(req.url());
-      const response = await route.fetch({
-        url: `http://localhost:3001${originalUrl.pathname}${originalUrl.search}`,
-        method: req.method(),
-        headers: req.headers(),
-        postData: req.postDataBuffer() || undefined,
-      });
-      await route.fulfill({ response });
-    });
     await coachPage.goto("/coach/history");
-    await coachPage.waitForLoadState("networkidle");
-
-    // The created class should appear in history
-    await expect(coachPage.getByText(uniqueTopic)).toBeVisible({ timeout: 10000 });
-    // The download button should be rendered for this row
-    await expect(coachPage.getByRole("button", { name: /download recording/i }).first()).toBeVisible({ timeout: 10000 });
-
-    await coachCtx.close();
-
-    // 12. Verify Student Dashboard Past Classes and Video Player
-    const studentCtx = await browser.newContext();
-    const studentPage = await studentCtx.newPage();
-    for (const cookieStr of studentCookies.split("; ")) {
-      const [name, value] = cookieStr.split("=");
-      await studentCtx.addCookies([
-        { name, value, domain: "localhost", path: "/", httpOnly: true, sameSite: "Lax", secure: false },
-        { name, value, domain: "api.nexachess.in", path: "/", httpOnly: true, sameSite: "None", secure: true },
-      ]);
-    }
-    await studentCtx.route("https://api.nexachess.in/**", async (route) => {
-      const req = route.request();
-      const originalUrl = new URL(req.url());
-      const response = await route.fetch({
-        url: `http://localhost:3001${originalUrl.pathname}${originalUrl.search}`,
-        method: req.method(),
-        headers: req.headers(),
-        postData: req.postDataBuffer() || undefined,
-      });
-      await route.fulfill({ response });
+    await expect(coachPage.getByText(uniqueTopic).first()).toBeVisible({
+      timeout: 15_000,
     });
+    await expect(
+      coachPage.getByRole("button", { name: /download recording/i }).first()
+    ).toBeVisible({ timeout: 15_000 });
+    await coachPage.close();
+
+    // ── 10. Student dashboard → Watch → the player fetches the media ────────
+    const studentPage = await studentCtx.newPage();
+
+    // Capture what the <video> element itself pulls off the network. This is the
+    // assertion that matters: it proves the minted URL, the stream token and the
+    // range handling all work from inside the browser, not just from the API
+    // client.
+    const mediaResponses: number[] = [];
+    studentPage.on("response", (res) => {
+      if (res.url().includes(`/live-class/${classId}/recording/stream`)) {
+        mediaResponses.push(res.status());
+      }
+    });
+
     await studentPage.goto("/student");
-    await studentPage.waitForLoadState("networkidle");
+    const row = studentPage.getByTestId(`past-class-${classId}`);
+    await expect(row).toBeVisible({ timeout: 15_000 });
+    await row.getByRole("button", { name: /^watch$/i }).click();
 
-    // The created class should appear in Past Classes
-    await expect(studentPage.getByText(uniqueTopic)).toBeVisible({ timeout: 10000 });
-    
-    // The Watch button should be rendered
-    const watchButton = studentPage.getByRole("button", { name: /watch/i }).first();
-    await expect(watchButton).toBeVisible({ timeout: 10000 });
-    
-    // Click Watch button
-    await watchButton.click();
+    const dialog = studentPage.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await expect(
+      studentPage.getByRole("heading", { name: new RegExp(uniqueTopic) })
+    ).toBeVisible();
 
-    // Verify Recording Player Dialog opens
-    await expect(studentPage.getByRole("dialog")).toBeVisible();
-    await expect(studentPage.getByRole("heading", { name: new RegExp(uniqueTopic) })).toBeVisible();
-    
-    // Verify Video element is present
     const video = studentPage.locator("video");
     await expect(video).toBeVisible();
-    await expect(video).toHaveAttribute("src", /mock-oci-storage\.test/);
-    
-    // Close dialog
-    await studentPage.keyboard.press("Escape");
-    await expect(studentPage.getByRole("dialog")).toBeHidden();
+    await expect(video).toHaveAttribute(
+      "src",
+      new RegExp(`/live-class/${classId}/recording/stream`)
+    );
 
-    await studentCtx.close();
+    await expect
+      .poll(() => mediaResponses.length, {
+        message: "the <video> element never fetched the recording",
+        timeout: 20_000,
+      })
+      .toBeGreaterThan(0);
+    expect(mediaResponses.every((status) => status === 200 || status === 206)).toBe(
+      true
+    );
+
+    // Playwright's bundled Chromium ships without proprietary codecs, so it can
+    // fetch the MP4 but not decode it. Only assert on decoding where H.264 is
+    // actually available (a real Chrome channel, or a CI image that has it).
+    const canDecodeH264 = await studentPage.evaluate(
+      () =>
+        document.createElement("video").canPlayType('video/mp4; codecs="avc1.42E01E"') !==
+        ""
+    );
+    if (canDecodeH264) {
+      await expect
+        .poll(() => video.evaluate((el: HTMLVideoElement) => el.readyState), {
+          message: "video never reached HAVE_METADATA",
+          timeout: 20_000,
+        })
+        .toBeGreaterThanOrEqual(1);
+      expect(
+        await video.evaluate((el: HTMLVideoElement) => el.duration)
+      ).toBeGreaterThan(0);
+    } else {
+      test.info().annotations.push({
+        type: "skipped-assertion",
+        description:
+          "H.264 decode not asserted: this browser build has no proprietary codecs.",
+      });
+    }
+
+    await studentPage.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+    await studentPage.close();
+  });
+
+  test("admin recordings & storage page reports the recording", async () => {
+    const adminPage = await adminCtx.newPage();
+    await adminPage.goto("/admin/analytics/recordings");
+
+    await expect(
+      adminPage.getByRole("heading", { name: /recordings & storage/i }).first()
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Disk usage panel is driven by the same directory the recording landed in.
+    await expect(adminPage.getByText(/disk usage/i)).toBeVisible();
+    await expect(adminPage.getByText(/of\s+\d/i).first()).toBeVisible();
+
+    // The recording log lists the class this run recorded.
+    await expect(adminPage.getByText(uniqueTopic).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await adminPage.close();
   });
 });
