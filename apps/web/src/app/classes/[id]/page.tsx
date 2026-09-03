@@ -13,6 +13,7 @@ import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { useAuthStore } from "@/stores/authStore";
 import { useStartLiveClass } from "../../../features/live-class/hooks/useLiveClassApi";
 import { LiveClassMonitor } from "@/features/attendance/components/LiveClassMonitor";
+import { LiveClassSettingsSection } from "@/features/live-class/settings/LiveClassSettingsSection";
 
 export default function ClassDetailsPage() {
   const { id } = useParams() as { id: string };
@@ -169,6 +170,13 @@ export default function ClassDetailsPage() {
         {isStaff && (cls.status === "IN_PROGRESS" || cls.status === "LIVE") && (
           <LiveClassMonitor classId={id} />
         )}
+
+        {isStaff &&
+          (cls.status === "SCHEDULED" ||
+            cls.status === "IN_PROGRESS" ||
+            cls.status === "LIVE") && (
+            <LiveClassSettingsSection classId={id} defaultOpen={cls.status === "SCHEDULED"} />
+          )}
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card className="p-6">

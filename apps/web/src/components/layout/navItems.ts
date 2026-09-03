@@ -57,6 +57,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/students", label: "Students", icon: Users },
   { href: "/coach/history", label: "Class History", icon: History },
   { href: "/coach/attendance", label: "Attendance", icon: UserCheck },
+  { href: "/coach/presets", label: "Class Presets", icon: SlidersHorizontal },
   { href: "/profile", label: "Settings", icon: Settings }
 ];
 
