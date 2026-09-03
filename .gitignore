@@ -38,6 +38,10 @@ blob-report/
 .ai/manager/state/*
 !.ai/manager/state/.gitkeep
 
-# Local Recordings storage
-recordings/
+# Local Recordings storage. Anchored to the repo root: an unanchored
+# `recordings/` matches a directory of that name at ANY depth, which silently
+# swallowed apps/web/src/app/admin/analytics/recordings/ — the page was written,
+# `git add -A` skipped it, `git status` stayed clean, and the route 404'd in
+# production because it never reached the repo.
+/recordings/
 
