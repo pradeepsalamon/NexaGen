@@ -1,0 +1,102 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NexaAgentResult",
+  "description": "The only output contract every agent must satisfy, regardless of CLI or role.",
+  "type": "object",
+  "required": [
+    "status",
+    "diff_summary",
+    "files_changed",
+    "notes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "done",
+        "blocked"
+      ],
+      "description": "done = work finished and committed. blocked = could not proceed; explain in notes."
+    },
+    "diff_summary": {
+      "type": "string",
+      "description": "Short prose summary of what changed and why."
+    },
+    "files_changed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Repo-relative paths touched."
+    },
+    "commit_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "SHA of the commit this agent made on the task branch. Null is valid when status is blocked, and for the non-committing roles tester-e2e and reviewer (see roles.json must_commit). Any other role reporting status done must supply a real SHA."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Anything the next agent in the chain needs to know."
+    },
+    "handoff_summary": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Set only when the session was checkpointed for context budget: what is done, what remains, key paths, open issues."
+    },
+    "test_report": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Required for role tester-e2e, omitted or null otherwise.",
+      "required": [
+        "pass",
+        "failures"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pass": {
+          "type": "boolean"
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "title",
+              "detail"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "critical",
+                  "major",
+                  "minor"
+                ]
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
