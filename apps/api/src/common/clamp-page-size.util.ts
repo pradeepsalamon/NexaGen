@@ -8,6 +8,10 @@
  * - otherwise the value is floored to an integer
  */
 export function clampPageSize(requested: number, max: number): number {
+  if (!Number.isFinite(requested) || requested < 1) {
+    return 1;
+  }
+
   if (requested > max) {
     return max;
   }
