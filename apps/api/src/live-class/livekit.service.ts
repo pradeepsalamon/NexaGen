@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException } from "@nestjs/common";
-import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload } from "livekit-server-sdk";
+import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, EncodingOptionsPreset, S3Upload } from "livekit-server-sdk";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
 
@@ -135,25 +135,49 @@ export class LiveKitService implements OnModuleInit {
     }
   }
 
+  /**
+   * Direct-to-OCI upload is opt-in. The rest of the recording stack — the
+   * storage quota (`ensureStorageCapacity`), retention pruning, the storage
+   * analytics and the signed `/recording/stream` endpoint — all read the local
+   * volume the `egress` container shares with the API. Keying the upload off
+   * "are OCI credentials present" instead sent every recording to object
+   * storage the moment DB backups were configured, leaving that whole subsystem
+   * looking at an empty directory.
+   */
+  private buildS3Output(): { case: "s3"; value: S3Upload } | undefined {
+    const env = getApiEnv();
+    if (env.RECORDING_STORAGE_TARGET !== "oci") return undefined;
+
+    const { OCI_ACCESS_KEY_ID, OCI_SECRET_ACCESS_KEY, OCI_REGION, OCI_NAMESPACE, OCI_BUCKET_NAME } = process.env;
+    if (!OCI_ACCESS_KEY_ID || !OCI_SECRET_ACCESS_KEY || !OCI_REGION || !OCI_NAMESPACE || !OCI_BUCKET_NAME) {
+      this.logger.error(
+        "RECORDING_STORAGE_TARGET=oci but the OCI_* credentials are incomplete — recording to the local volume instead."
+      );
+      return undefined;
+    }
+
+    return {
+      case: "s3",
+      value: new S3Upload({
+        accessKey: OCI_ACCESS_KEY_ID,
+        secret: OCI_SECRET_ACCESS_KEY,
+        region: OCI_REGION,
+        endpoint: `https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oci.customer-oci.com`,
+        bucket: OCI_BUCKET_NAME,
+        forcePathStyle: true,
+      }),
+    };
+  }
+
   async startRecording(roomName: string, filepath: string): Promise<string> {
     try {
       this.logger.log(`Starting LiveKit room composite egress for room: ${roomName}`);
-      let s3Output: { case: "s3", value: S3Upload } | undefined = undefined;
-      const { OCI_ACCESS_KEY_ID, OCI_SECRET_ACCESS_KEY, OCI_REGION, OCI_NAMESPACE, OCI_BUCKET_NAME } = process.env;
-      
-      if (OCI_ACCESS_KEY_ID && OCI_SECRET_ACCESS_KEY && OCI_REGION && OCI_NAMESPACE && OCI_BUCKET_NAME) {
-        const s3Upload = new S3Upload({
-          accessKey: OCI_ACCESS_KEY_ID,
-          secret: OCI_SECRET_ACCESS_KEY,
-          region: OCI_REGION,
-          endpoint: `https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oci.customer-oci.com`,
-          bucket: OCI_BUCKET_NAME,
-          forcePathStyle: true,
-        });
-        s3Output = { case: "s3", value: s3Upload };
-      }
+      const s3Output = this.buildS3Output();
 
-      const egressFilepath = s3Output 
+      // An S3 key has no leading slash; a local path is absolute inside the
+      // egress container, which mounts the same volume as the API at
+      // `RECORDING_STORAGE_DIR`.
+      const egressFilepath = s3Output
         ? (filepath.startsWith("/") ? filepath.slice(1) : filepath)
         : (filepath.startsWith("/") ? filepath : `/${filepath}`);
 
@@ -169,6 +193,11 @@ export class LiveKitService implements OnModuleInit {
         },
         {
           layout: "grid",
+          // Pinned rather than left at the 1080p30 default: the single-node
+          // egress deployment runs on a 2-vCPU box, where a 720p30 grid
+          // composite peaks around 1.35 CPU and 1080p cannot keep up. Must stay
+          // within `cpu_cost.room_composite_cpu_cost` in docker-compose.yml.
+          encodingOptions: EncodingOptionsPreset.H264_720P_30,
         }
       );
       this.logger.log(`Started recording ${roomName}, egressId: ${info.egressId}`);

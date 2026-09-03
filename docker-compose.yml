@@ -119,6 +119,21 @@ services:
         ws_url: ws://livekit:7880
         redis:
           address: redis:6379
+        # This VPS has 2 vCPUs. Egress' default room-composite cost is 4, so the
+        # node advertised itself as unable to run *any* composite egress and
+        # every StartRoomCompositeEgress request timed out with no node picking
+        # it up ("not enough cpu for some egress types" on boot). Costs are a
+        # scheduling budget, not a limit — lowering them lets this single-node
+        # deployment accept one class recording at a time. The API pins the
+        # 720p30 preset so the job fits in what the box can actually encode.
+        cpu_cost:
+          room_composite_cpu_cost: 1.5
+          web_cpu_cost: 1.5
+          audio_room_composite_cpu_cost: 0.5
+          audio_web_cpu_cost: 0.5
+          participant_cpu_cost: 1.0
+          track_composite_cpu_cost: 1.0
+          track_cpu_cost: 0.5
     volumes:
       - ${RECORDING_STORAGE_HOST_DIR:-./recordings}:${RECORDING_STORAGE_DIR:-/recordings}
     cap_add:
@@ -195,6 +210,7 @@ services:
       RECORDING_STORAGE_DIR: ${RECORDING_STORAGE_DIR:-/recordings}
       RECORDING_STORAGE_LIMIT_GB: ${RECORDING_STORAGE_LIMIT_GB:-130}
       RECORDING_MIN_RETENTION_DAYS: ${RECORDING_MIN_RETENTION_DAYS:-14}
+      RECORDING_STORAGE_TARGET: ${RECORDING_STORAGE_TARGET:-local}
 
       # OCI Object Storage — DB backups (backup module) and the download
       # fallback for recordings not on local disk. Still required.

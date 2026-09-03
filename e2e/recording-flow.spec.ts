@@ -21,7 +21,25 @@ async function jsonOf<T = Record<string, unknown>>(res: {
   return (await res.json()) as T;
 }
 
+/**
+ * This suite forges signed egress webhooks and drops a fixture MP4 into the
+ * recordings volume, so the rows and files it leaves behind are indistinguishable
+ * from real class recordings. Pointed at a deployment it therefore fills the
+ * Watch/Download UI with a 35 KB stand-in video — which is exactly what happened
+ * once, and why the guard exists. Local API only, unless the operator explicitly
+ * opts in with `E2E_ALLOW_RECORDING_WRITES=1`.
+ */
+const API_IS_LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(API_URL);
+const RECORDING_WRITES_ALLOWED =
+  API_IS_LOCAL || process.env.E2E_ALLOW_RECORDING_WRITES === "1";
+
 test.describe("Full Recording Lifecycle & Video Player Flow", () => {
+  test.skip(
+    !RECORDING_WRITES_ALLOWED,
+    `Refusing to write recording fixtures to a non-local API (${API_URL}). ` +
+      "Set E2E_ALLOW_RECORDING_WRITES=1 to override."
+  );
+
   const runId = Date.now();
   const uniqueTopic = `Recording E2E - Endgame Strategy - ${runId}`;
 
