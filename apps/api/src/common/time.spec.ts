@@ -1,4 +1,4 @@
-import { zonedDayBounds, DEFAULT_TIME_ZONE } from "./time";
+import { formatDuration, zonedDayBounds, DEFAULT_TIME_ZONE } from "./time";
 
 describe("zonedDayBounds", () => {
   it("returns a 24h span aligned to local midnight in the given zone", () => {
@@ -23,5 +23,46 @@ describe("zonedDayBounds", () => {
 
   it("handles a null timezone", () => {
     expect(() => zonedDayBounds(null)).not.toThrow();
+  });
+});
+
+describe("formatDuration", () => {
+  it("formats minutes and seconds, largest unit first", () => {
+    expect(formatDuration(125000)).toBe("2m 5s");
+  });
+
+  it("returns '0s' for zero", () => {
+    expect(formatDuration(0)).toBe("0s");
+  });
+
+  it("returns '0s' for sub-second values", () => {
+    expect(formatDuration(400)).toBe("0s");
+  });
+
+  it("emits every non-zero unit and does not truncate to the largest", () => {
+    // Task packet's pinned string "1h 1m 1s" corresponds to 3661000ms
+    // (1h + 1m + 1s). The packet's "90061000" is 25h 1m 1s — hours are not
+    // capped at 24 since there is no day unit.
+    expect(formatDuration(3661000)).toBe("1h 1m 1s");
+    expect(formatDuration(90061000)).toBe("25h 1m 1s");
+  });
+
+  it("omits units that are zero", () => {
+    expect(formatDuration(3600000)).toBe("1h");
+    expect(formatDuration(3601000)).toBe("1h 1s");
+  });
+
+  it("prefixes negative input with '-' and formats the absolute value", () => {
+    expect(formatDuration(-125000)).toBe("-2m 5s");
+  });
+
+  it("returns '0s' for negative sub-second values", () => {
+    expect(formatDuration(-400)).toBe("0s");
+  });
+
+  it("returns '0s' for non-finite input", () => {
+    expect(formatDuration(NaN)).toBe("0s");
+    expect(formatDuration(Infinity)).toBe("0s");
+    expect(formatDuration(-Infinity)).toBe("0s");
   });
 });
