@@ -44,6 +44,8 @@ describe("MailService", () => {
       TRASH_RETENTION_DAYS: 30,
       STOCKFISH_POOL_SIZE: 1,
       STOCKFISH_MOVETIME: 800,
+      RECORDING_STORAGE_DIR: "/recordings",
+      RECORDING_STORAGE_LIMIT_GB: 130,
       ...envMocks
     };
 
