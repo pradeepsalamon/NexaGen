@@ -20,7 +20,10 @@ import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types
 import {
   deriveLiveKitGrants,
   liveClassSettingsSchema,
+  LIVE_CLASS_SETTINGS_TOPIC,
   type LiveClassSettings,
+  type LiveClassSettingsMessage,
+  type UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
 import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
@@ -318,6 +321,106 @@ export class LiveClassService {
       // its permissive defaults, matching the token.
       settings: effectiveSettings
     };
+  }
+
+  /**
+   * Coach/admin changes the class settings while the class is running. Persists
+   * the class-layer override (with audit), refreezes `LiveSession.effectiveSettings`
+   * so tokens minted from here on match, then pushes the new publish grants to
+   * every student already in the room and broadcasts a `SETTINGS_UPDATE` so
+   * their UI re-locks.
+   */
+  async updateLiveSettings(
+    accessToken: string | undefined,
+    classId: string,
+    body: UpdateLiveClassSettingsRequest,
+  ) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+    if (user.role !== UserRole.COACH && !isAdmin) {
+      throw new ForbiddenException("You do not have permission to change class settings.");
+    }
+
+    const liveSession = await this.prisma.liveSession.findUnique({ where: { classId } });
+    if (!liveSession) {
+      throw new NotFoundException("Live class not found.");
+    }
+    if (user.role === UserRole.COACH && liveSession.coachId !== user.id) {
+      throw new ForbiddenException("You can only change settings for your own classes.");
+    }
+    if (liveSession.status !== LiveSessionStatus.LIVE) {
+      throw new BadRequestException("Class is not currently live.");
+    }
+
+    // Persist the class-layer override + audit row (reuses the settings service
+    // authorization and validation).
+    await this.settingsService.updateSettingsForClass(accessToken, classId, body);
+
+    // Refreeze the snapshot so newly-minted tokens match the running room.
+    const { resolved } = await this.settingsService.resolveForClass(classId);
+    await this.prisma.liveSession.update({
+      where: { id: liveSession.id },
+      data: { effectiveSettings: resolved as object, settingsSnapshotAt: new Date() },
+    });
+
+    await this.applyLiveSettingsToRoom(liveSession.roomName, liveSession.coachId, resolved);
+
+    return this.settingsService.getSettingsForClass(accessToken, classId);
+  }
+
+  /** Push refreshed grants to connected students and broadcast the new config. */
+  private async applyLiveSettingsToRoom(
+    roomName: string,
+    coachId: string,
+    resolved: LiveClassSettings,
+  ) {
+    let participants: Awaited<ReturnType<typeof this.livekit.listParticipants>> = [];
+    try {
+      participants = await this.livekit.listParticipants(roomName);
+    } catch (error) {
+      this.logger.error(`Failed to list participants for ${roomName} on live-settings change`, error as Error);
+    }
+
+    const studentGrants = deriveLiveKitGrants(resolved, "STUDENT");
+    const allowedSources = new Set(studentGrants.canPublishSources);
+
+    for (const participant of participants) {
+      if (LiveClassService.isCoachParticipant(participant.identity, coachId)) continue;
+      if (participant.identity.startsWith("guest_")) continue;
+      // Role is signed into participant metadata; only real students are clamped
+      // (admins join with a coach-equivalent token).
+      let role: string | undefined;
+      try {
+        role = participant.metadata ? JSON.parse(participant.metadata).role : undefined;
+      } catch {
+        role = undefined;
+      }
+      if (role && role !== "STUDENT") continue;
+
+      try {
+        await this.livekit.updateParticipantPermissions(roomName, participant.identity, studentGrants);
+        for (const track of participant.tracks ?? []) {
+          if (track.muted) continue;
+          const label = LiveKitService.trackSourceLabel(track.source);
+          if (label && !allowedSources.has(label)) {
+            await this.livekit.muteParticipantTrack(roomName, participant.identity, track.sid);
+          }
+        }
+      } catch (error) {
+        this.logger.warn(`Failed to apply live settings to ${participant.identity}`, error as Error);
+      }
+    }
+
+    try {
+      const message: LiveClassSettingsMessage = { type: "SETTINGS_UPDATE", settings: resolved };
+      await this.livekit.broadcastData(
+        roomName,
+        new TextEncoder().encode(JSON.stringify(message)),
+        LIVE_CLASS_SETTINGS_TOPIC,
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to broadcast live-settings update for ${roomName}`, error as Error);
+    }
   }
 
   async endClass(accessToken: string | undefined, classId: string) {

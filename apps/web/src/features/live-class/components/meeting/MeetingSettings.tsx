@@ -1,8 +1,10 @@
 "use client";
 
 import { useMediaDeviceSelect } from "@livekit/components-react";
-import { Camera, Mic, Volume2 } from "lucide-react";
+import { Camera, Mic, SlidersHorizontal, Volume2 } from "lucide-react";
 import { Select } from "@/components/ui/Select";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { InRoomClassControls } from "../../settings/InRoomClassControls";
 import { PanelHeader } from "./PanelHeader";
 
 interface DeviceSelectorProps {
@@ -42,6 +44,9 @@ function DeviceSelector({ kind, icon, label }: DeviceSelectorProps) {
 }
 
 export function MeetingSettings() {
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+
   return (
     <div className="flex h-full flex-col">
       <PanelHeader title="Settings" />
@@ -50,6 +55,16 @@ export function MeetingSettings() {
         <DeviceSelector kind="audioinput" icon={<Mic className="size-4" />} label="Microphone" />
         <DeviceSelector kind="videoinput" icon={<Camera className="size-4" />} label="Camera" />
         <DeviceSelector kind="audiooutput" icon={<Volume2 className="size-4" />} label="Speaker" />
+
+        {isCoach && (
+          <div className="rounded-app border border-app-border bg-app-soft/30 p-4">
+            <h4 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-app-muted">
+              <SlidersHorizontal className="size-4" />
+              Class settings
+            </h4>
+            <InRoomClassControls />
+          </div>
+        )}
 
         <div className="rounded-app border border-app-border bg-app-soft/30 p-4">
           <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-app-muted">

@@ -226,6 +226,24 @@ export function deriveLiveKitGrants(
 }
 
 // ──────────────────────────────────────────────
+// Mid-class settings broadcast (LiveKit data channel)
+// ──────────────────────────────────────────────
+
+/**
+ * LiveKit data-channel topic the API server-injects a `SETTINGS_UPDATE` on when
+ * a coach changes the class settings mid-session. Every client re-locks its UI
+ * and re-seeds the board default from the payload — the token grants are also
+ * pushed via `updateParticipant`, so the message only keeps the UI honest.
+ */
+export const LIVE_CLASS_SETTINGS_TOPIC = "live_class_settings";
+
+export const liveClassSettingsMessageSchema = z.object({
+  type: z.literal("SETTINGS_UPDATE"),
+  settings: liveClassSettingsSchema,
+});
+export type LiveClassSettingsMessage = z.infer<typeof liveClassSettingsMessageSchema>;
+
+// ──────────────────────────────────────────────
 // Join-time state (pre-join screen + auto-join)
 // ──────────────────────────────────────────────
 

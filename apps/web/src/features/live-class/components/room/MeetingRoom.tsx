@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
+import { LiveClassSettingsBridge } from "../meeting/LiveClassSettingsBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionLost } from "../states/ErrorStates";
 import { ClassSummary } from "../summary/ClassSummary";
@@ -137,6 +138,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       }}
     >
       <ReconnectToaster />
+      <LiveClassSettingsBridge />
       <ChatProvider classId={classId}>
         <MeetingLayout />
       </ChatProvider>

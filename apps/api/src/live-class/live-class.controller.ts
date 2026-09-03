@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Req,
   Res,
   Body,
@@ -11,7 +12,12 @@ import {
 import type { Request, Response } from "express";
 import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { API_ROUTES } from "@nexa-chess/types";
+import {
+  API_ROUTES,
+  updateLiveClassSettingsRequestSchema,
+  type UpdateLiveClassSettingsRequest,
+} from "@nexa-chess/types";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 
 @Controller()
 export class LiveClassController {
@@ -34,6 +40,15 @@ export class LiveClassController {
   @Post(API_ROUTES.liveClass.end())
   endClass(@Param("id") id: string, @Req() request: Request) {
     return this.liveClassService.endClass(this.getAccessToken(request), id);
+  }
+
+  @Put(API_ROUTES.liveClass.liveSettings())
+  updateLiveSettings(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(updateLiveClassSettingsRequestSchema)) body: UpdateLiveClassSettingsRequest,
+  ) {
+    return this.liveClassService.updateLiveSettings(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.get())

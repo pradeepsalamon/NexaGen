@@ -15,6 +15,7 @@ import { LoadingMeeting } from "@/features/live-class/components/states/LoadingM
 import { ConnectionLost, PermissionDenied, ClassNotStarted } from "@/features/live-class/components/states/ErrorStates";
 import { getWebEnv } from "@nexa-chess/config/web";
 import { LiveBoardSyncBridge } from "@/features/live-class/components/meeting/LiveBoardSyncBridge";
+import { LiveClassSettingsBridge } from "@/features/live-class/components/meeting/LiveClassSettingsBridge";
 import { LiveClassProvider, useLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 
 const env = getWebEnv({
@@ -153,6 +154,7 @@ export default function LiveClassBoardPage() {
         >
           {/* LiveClassProvider so LiveBoardSyncBridge can access useLiveClassState */}
           <LiveClassProvider topic="Board" settings={settings}>
+            <LiveClassSettingsBridge />
             <BoardProvider>
               <LiveBoardSyncBridge>
                 <ForceOpenBoard />

@@ -38,6 +38,14 @@ export function updateClassLiveSettings(
   return apiFetch(API_ROUTES.liveClassSettings.forClass(classId), { method: "PUT", body });
 }
 
+/** Mid-class change: applies immediately to the running session. */
+export function updateLiveSettingsMidClass(
+  classId: string,
+  body: UpdateLiveClassSettingsRequest,
+): Promise<LiveClassSettingsForClassResponse> {
+  return apiFetch(API_ROUTES.liveClass.liveSettings(classId), { method: "PUT", body });
+}
+
 export function getBatchLiveClassSettings(
   batchId: string,
 ): Promise<BatchLiveClassSettingsResponse> {

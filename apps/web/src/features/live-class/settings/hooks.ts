@@ -21,6 +21,7 @@ import {
   updateClassLiveSettings,
   updateLiveClassPolicy,
   updateLiveClassPreset,
+  updateLiveSettingsMidClass,
 } from "./api";
 
 // ── Policy ──
@@ -68,6 +69,21 @@ export function useUpdateClassLiveSettings(classId: string) {
     },
     onError: (error: Error) =>
       toast.error({ title: "Couldn't save class settings", message: error.message }),
+  });
+}
+
+export function useUpdateLiveSettingsMidClass(classId: string) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (body: UpdateLiveClassSettingsRequest) =>
+      updateLiveSettingsMidClass(classId, body),
+    onSuccess: () => {
+      toast.success({ title: "Class settings applied" });
+      qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.forClass(classId) });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Couldn't apply settings", message: error.message }),
   });
 }
 
