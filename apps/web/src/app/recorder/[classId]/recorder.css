@@ -5,10 +5,19 @@
  * Deliberately dark and chrome-free — no app header, nav or theme tokens,
  * because this page is only ever seen as video.
  */
+/*
+ * A fixed, full-viewport overlay rather than a 1280x720 block in the normal
+ * flow. The app shell (header, theme toggle, a Login button for the cookie-less
+ * egress browser) renders around every route via AppProviders, and it was both
+ * appearing on camera and pushing the board down until rank 1 fell off the
+ * bottom of the frame. Covering the viewport outright is robust to whatever the
+ * shell decides to render, and egress sizes its viewport to the encoding preset
+ * so `inset: 0` *is* the 1280x720 frame.
+ */
 .recorder-stage {
-  width: 1280px;
-  height: 720px;
-  margin: 0;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
   display: flex;
   gap: 16px;
   padding: 16px;
@@ -19,10 +28,11 @@
   overflow: hidden;
 }
 
+/* Square, and never taller than the frame — the board must not be clipped. */
 .recorder-board-wrap {
   flex: 0 0 auto;
-  width: 688px;
-  height: 688px;
+  height: 100%;
+  aspect-ratio: 1 / 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -31,8 +41,8 @@
 /* Chessground sizes itself from its container. */
 .recorder-board,
 .recorder-board .cg-wrap {
-  width: 688px;
-  height: 688px;
+  width: 100%;
+  height: 100%;
 }
 
 .recorder-rail {
@@ -90,8 +100,9 @@
 }
 
 .recorder-error {
-  width: 1280px;
-  height: 720px;
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
   display: flex;
   align-items: center;
   justify-content: center;
