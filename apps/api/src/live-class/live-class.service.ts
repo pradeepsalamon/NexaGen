@@ -742,6 +742,32 @@ export class LiveClassService {
     });
   }
 
+  /** Data-channel topic the live class broadcasts board state on. */
+  private static readonly BOARD_SYNC_TOPIC = "board_sync";
+
+  /**
+   * Nudge the coach's client to re-broadcast the full board snapshot so the
+   * recording template starts on the current position rather than the initial
+   * one. Best-effort: a failure here costs the board's opening state, never the
+   * recording itself.
+   */
+  private async requestBoardSyncForRecorder(roomName: string) {
+    const payload = new TextEncoder().encode(JSON.stringify({ type: "REQUEST_SYNC" }));
+    for (const delayMs of [4000, 9000]) {
+      setTimeout(() => {
+        this.livekit
+          .broadcastData(roomName, payload, LiveClassService.BOARD_SYNC_TOPIC)
+          .catch((error) =>
+            this.logger.warn(
+              `Failed to request a board sync for the recorder in ${roomName}: ${
+                error instanceof Error ? error.message : String(error)
+              }`
+            )
+          );
+      }, delayMs).unref?.();
+    }
+  }
+
   async startRecording(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
     if (user.role !== UserRole.COACH && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
@@ -770,7 +796,16 @@ export class LiveClassService {
     const filepath = `recordings/${roomName}-${timestamp}.mp4`;
 
     await this.recordingStorageService.ensureStorageCapacity();
-    const egressId = await this.livekit.startRecording(liveSession.roomName, filepath);
+    const egressId = await this.livekit.startRecording(liveSession.roomName, filepath, classId);
+
+    // The recording template joins as a hidden, subscribe-only participant, so
+    // it cannot ask for the board state itself the way a late-joining student
+    // does. Inject the request server-side instead: the coach answers with a
+    // FORCE_SYNC carrying the full snapshot, which reaches the recorder like
+    // any other board packet. Repeated because the template needs a few
+    // seconds to launch Chrome and connect, and a request sent before it is in
+    // the room is simply missed.
+    void this.requestBoardSyncForRecorder(liveSession.roomName);
 
     // Do NOT set `recordingUrl` yet — a failed egress would leave a Download
     // button that 404s. It's set from the `egress_ended` webhook only when the

@@ -211,6 +211,9 @@ services:
       RECORDING_STORAGE_LIMIT_GB: ${RECORDING_STORAGE_LIMIT_GB:-130}
       RECORDING_MIN_RETENTION_DAYS: ${RECORDING_MIN_RETENTION_DAYS:-14}
       RECORDING_STORAGE_TARGET: ${RECORDING_STORAGE_TARGET:-local}
+      # Reached by the egress container over the compose network, so this is the
+      # `web` service, not the public hostname.
+      RECORDING_TEMPLATE_BASE_URL: ${RECORDING_TEMPLATE_BASE_URL:-http://web:3000}
 
       # OCI Object Storage — DB backups (backup module) and the download
       # fallback for recordings not on local disk. Still required.
