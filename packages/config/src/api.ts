@@ -48,6 +48,11 @@ const apiEnvSchema = z.object({
   // analytics and the signed stream endpoint all read. "oci" makes egress
   // upload straight to the OCI bucket instead and requires the OCI_* vars.
   RECORDING_STORAGE_TARGET: z.enum(["local", "oci"]).default("local"),
+  // Base URL of the egress recording template, as reachable *from the egress
+  // container* — the compose service name on the internal network, not the
+  // public site. Unset falls back to LiveKit's built-in grid, which records
+  // participant video only and no chessboard.
+  RECORDING_TEMPLATE_BASE_URL: z.string().url().optional(),
   ANALYTICS_STORAGE_WARN_PERCENT: z.coerce.number().min(1).max(100).default(70),
   ANALYTICS_STORAGE_CRITICAL_PERCENT: z.coerce
     .number()

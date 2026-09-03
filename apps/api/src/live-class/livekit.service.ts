@@ -235,7 +235,20 @@ export class LiveKitService implements OnModuleInit {
     };
   }
 
-  async startRecording(roomName: string, filepath: string): Promise<string> {
+  /**
+   * Base URL of the egress recording template. Egress' headless Chrome loads
+   * `<base>/<classId>?url=&token=&layout=` and films it, so this must be a URL
+   * *the egress container* can reach — it defaults to the compose service name
+   * on the internal network, not the public site.
+   */
+  private recorderTemplateUrl(classId: string): string | undefined {
+    const env = getApiEnv();
+    const base = env.RECORDING_TEMPLATE_BASE_URL?.replace(/\/+$/, "");
+    if (!base) return undefined;
+    return `${base}/recorder/${classId}`;
+  }
+
+  async startRecording(roomName: string, filepath: string, classId: string): Promise<string> {
     try {
       this.logger.log(`Starting LiveKit room composite egress for room: ${roomName}`);
       const s3Output = this.buildS3Output();
@@ -252,6 +265,17 @@ export class LiveKitService implements OnModuleInit {
         fileType: EncodedFileType.MP4,
         output: s3Output,
       });
+      // Without a custom template egress falls back to LiveKit's built-in grid,
+      // which renders only published video tracks — a recorded lesson then
+      // contains webcam tiles and no chessboard, because the board is synced as
+      // data packets rather than video. The template renders the real class.
+      const customBaseUrl = this.recorderTemplateUrl(classId);
+      if (!customBaseUrl) {
+        this.logger.warn(
+          "RECORDING_TEMPLATE_BASE_URL is unset — falling back to the built-in grid layout, which does NOT capture the chessboard."
+        );
+      }
+
       const info = await this.egressClient.startRoomCompositeEgress(
         roomName,
         {
@@ -263,7 +287,9 @@ export class LiveKitService implements OnModuleInit {
           // egress deployment runs on a 2-vCPU box, where a 720p30 grid
           // composite peaks around 1.35 CPU and 1080p cannot keep up. Must stay
           // within `cpu_cost.room_composite_cpu_cost` in docker-compose.yml.
+          // The template lays out against this exact 1280x720 frame.
           encodingOptions: EncodingOptionsPreset.H264_720P_30,
+          ...(customBaseUrl ? { customBaseUrl } : {}),
         }
       );
       this.logger.log(`Started recording ${roomName}, egressId: ${info.egressId}`);

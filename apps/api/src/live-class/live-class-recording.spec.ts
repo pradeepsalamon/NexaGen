@@ -17,7 +17,11 @@ const ACCESS_TOKEN = "test-access-token";
 describe("LiveClassService recording feature", () => {
   let service: LiveClassService;
   let jwtService: { verifyAsync: jest.Mock; signAsync: jest.Mock };
-  let livekitService: { startRecording: jest.Mock; stopRecording: jest.Mock };
+  let livekitService: {
+    startRecording: jest.Mock;
+    stopRecording: jest.Mock;
+    broadcastData: jest.Mock;
+  };
   let backupService: { getDownloadUrl: jest.Mock };
   let recordingStorageService: {
     ensureStorageCapacity: jest.Mock;
@@ -55,6 +59,7 @@ describe("LiveClassService recording feature", () => {
     livekitService = {
       startRecording: jest.fn().mockResolvedValue("egress_test_123"),
       stopRecording: jest.fn().mockResolvedValue(undefined),
+      broadcastData: jest.fn().mockResolvedValue(undefined),
     };
     backupService = {
       getDownloadUrl: jest.fn().mockResolvedValue({ url: "https://signed.download.url" }),
@@ -179,7 +184,8 @@ describe("LiveClassService recording feature", () => {
       expect(result.filepath).toMatch(/^recordings\/class_class-1-\d+\.mp4$/);
       expect(livekitService.startRecording).toHaveBeenCalledWith(
         "class_class-1",
-        expect.stringMatching(/^recordings\/class_class-1-\d+\.mp4$/)
+        expect.stringMatching(/^recordings\/class_class-1-\d+\.mp4$/),
+        "class-1"
       );
       expect(liveSessionUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -193,6 +199,38 @@ describe("LiveClassService recording feature", () => {
           }),
         })
       );
+    });
+
+    it("asks the coach to re-broadcast the board so the recorder starts on the current position", async () => {
+      jest.useFakeTimers();
+      try {
+        authenticateAs("coach-1", UserRole.COACH);
+        liveSessionFindUnique.mockResolvedValue({
+          id: "session-1",
+          classId: "class-1",
+          coachId: "coach-1",
+          roomName: "class_class-1",
+          status: "LIVE",
+          metadata: {},
+        });
+
+        await service.startRecording(ACCESS_TOKEN, "class-1");
+
+        // The template joins hidden and subscribe-only, so it cannot request a
+        // sync itself the way a late-joining student does — the server does it.
+        expect(livekitService.broadcastData).not.toHaveBeenCalled();
+        jest.advanceTimersByTime(10_000);
+
+        expect(livekitService.broadcastData).toHaveBeenCalledTimes(2);
+        const [roomName, payload, topic] = livekitService.broadcastData.mock.calls[0];
+        expect(roomName).toBe("class_class-1");
+        expect(topic).toBe("board_sync");
+        expect(JSON.parse(new TextDecoder().decode(payload))).toEqual({
+          type: "REQUEST_SYNC",
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it("starts recording successfully for an admin", async () => {
