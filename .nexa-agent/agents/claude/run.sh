@@ -73,7 +73,10 @@ if jq -e '.usage' "$RAW_FILE" >/dev/null 2>&1; then
     num_turns:               (.num_turns // null),
     duration_ms:             (.duration_ms // null),
     session_id:              (.session_id // null),
-    is_error:                (.is_error // false)
+    is_error:                (.is_error // false),
+    terminal_reason:         (.terminal_reason // null),
+    api_error_status:        (.api_error_status // null),
+    error_text:              (if (.is_error // false) then ((.result // "") | tostring | .[0:400]) else null end)
   }' "$RAW_FILE" > "$USAGE_FILE"
   echo "[$AGENT] usage -> $USAGE_FILE" >&2
 else

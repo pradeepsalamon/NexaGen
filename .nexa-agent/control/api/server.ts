@@ -10,6 +10,8 @@ import { listTasks, readState, createTask } from '../../orchestrator/state';
 import { approveTask, rejectTask } from '../../orchestrator/orchestrator';
 import { loadAgents, loadRoles } from '../../orchestrator/paths';
 import * as git from '../../orchestrator/git';
+import { listThreads, readThread, threadExists } from '../../orchestrator/chat/thread';
+import { sendMessage } from '../../orchestrator/chat/supervisor';
 
 const app = express();
 const port = process.env.API_PORT || 3011;
@@ -122,15 +124,89 @@ app.get('/api/agents', (_req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Supervisor chat. This is the primary surface: the human talks here, and the
+// supervisor decides whether a message is a question (answer it) or a work
+// request (propose it, then create a task once they agree). Creating a task
+// through POST /api/tasks still works, but it is the raw lever -- it is what
+// turned "hi" into a git branch.
+// ---------------------------------------------------------------------------
+
+// 7. GET /api/chat - list conversations, newest first
+app.get('/api/chat', (_req, res) => {
+  try {
+    res.json(
+      listThreads().map((t) => ({
+        thread_id: t.thread_id,
+        title: t.title,
+        updated_at: t.updated_at,
+        message_count: t.messages.length,
+      })),
+    );
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 8. GET /api/chat/:id - full transcript
+app.get('/api/chat/:id', (req, res) => {
+  try {
+    if (!threadExists(req.params.id)) return res.status(404).json({ error: 'Thread not found' });
+    res.json(readThread(req.params.id));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * 9. POST /api/chat - send one message and get the reply.
+ *
+ * Synchronous, and it can take up to a couple of minutes: the supervisor may
+ * read files and run orchestrator commands before answering. The client should
+ * show a pending state rather than time out. It never blocks on an agent RUN --
+ * the supervisor starts those detached.
+ */
+app.post('/api/chat', async (req, res) => {
+  const { message, thread_id: threadId } = req.body ?? {};
+  if (!message || typeof message !== 'string' || !message.trim()) {
+    return res.status(400).json({ error: 'message is required' });
+  }
+  if (threadId && !threadExists(threadId)) {
+    return res.status(404).json({ error: 'Thread not found' });
+  }
+  try {
+    const { thread, reply } = sendMessage(threadId ?? null, message);
+    res.json({ thread_id: thread.thread_id, title: thread.title, reply });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 10. POST /api/tasks/:id/resume - restart a step a usage limit cut short
+app.post('/api/tasks/:id/resume', (req, res) => {
+  try {
+    const state = readState(req.params.id);
+    if (state.status !== 'BLOCKED_RETRY') {
+      return res.status(409).json({ error: `task is ${state.status}, not BLOCKED_RETRY` });
+    }
+    startTaskAsync(req.params.id, true);
+    res.json({ resuming: req.params.id, branch: state.branch });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Background task runner helper
 const runningTasks = new Set<string>();
 
-async function startTaskAsync(taskId: string) {
+async function startTaskAsync(taskId: string, resume = false) {
   if (runningTasks.has(taskId)) return;
   runningTasks.add(taskId);
 
   const workerPath = path.join(__dirname, 'worker.ts');
-  const child = spawn('npx', ['ts-node', workerPath, taskId], {
+  const args = ['ts-node', workerPath, taskId];
+  if (resume) args.push('--resume');
+  const child = spawn('npx', args, {
     cwd: __dirname,
     detached: true,
     stdio: 'inherit',

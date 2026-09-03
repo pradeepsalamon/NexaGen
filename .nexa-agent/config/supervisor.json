@@ -1,0 +1,14 @@
+{
+  "_comment": "The supervisor is not a worker agent and is deliberately NOT in agents.json: no role may be assigned to it, and it must not appear in the agent picker. It is the conversational layer that drives the orchestrator on the human's behalf.",
+  "cli": "claude",
+  "runner": "supervisor/run.sh",
+  "role": "conversational supervisor -- talks to the human, drives the orchestrator, never edits code",
+  "invoke": "claude -p --output-format json --resume <session> --permission-prompts none --allowedTools <read-only set>",
+  "session_mode": "resumed",
+  "supports_token_accounting": true,
+  "context_window_tokens": 200000,
+  "model": null,
+  "max_budget_usd": 3,
+  "timeout_seconds": 300,
+  "permission_flag": "--permission-prompts none (allowlist, NOT bypassPermissions -- the supervisor has no write tools at all)"
+}

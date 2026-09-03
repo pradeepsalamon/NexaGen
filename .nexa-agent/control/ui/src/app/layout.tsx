@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { Bot, PlusCircle, LayoutDashboard } from "lucide-react";
+import { Bot, LayoutDashboard, MessageSquare } from "lucide-react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,17 +40,20 @@ export default function RootLayout({
           {children}
         </main>
 
+        {/*
+          Chat is the primary tab, not "new task". The raw create form is still
+          reachable at /new, but it is the lever that turned a greeting into a
+          git branch -- the conversation is the safe way in.
+        */}
         <nav className="fixed bottom-0 left-0 w-full glass-panel border-t border-app-border z-50">
           <div className="flex items-center justify-around p-3 max-w-md mx-auto">
             <Link href="/" className="flex flex-col items-center gap-1 text-app-text-muted hover:text-app-text transition-colors">
+              <MessageSquare className="size-6" />
+              <span className="text-xs font-medium">Chat</span>
+            </Link>
+            <Link href="/tasks" className="flex flex-col items-center gap-1 text-app-text-muted hover:text-app-text transition-colors">
               <LayoutDashboard className="size-6" />
               <span className="text-xs font-medium">Tasks</span>
-            </Link>
-            <Link href="/new" className="flex flex-col items-center gap-1 text-app-text-muted hover:text-app-text transition-colors">
-              <div className="bg-app-primary text-white p-2 rounded-full shadow-lg shadow-app-primary/30 -mt-6 border-4 border-app-bg">
-                <PlusCircle className="size-6" />
-              </div>
-              <span className="text-xs font-medium">New</span>
             </Link>
           </div>
         </nav>

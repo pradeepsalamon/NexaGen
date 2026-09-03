@@ -16,7 +16,7 @@ import type { AgentResult, RoleName, StepRecord, TaskState } from "./types";
 import * as git from "./git";
 import { appendStep, bumpSession, lastStep, lastStepForRole, readState, sessionsUsed, writeState } from "./state";
 import { buildPacket, sessionFor, writeHandoff, writePacket } from "./task-packet";
-import { evaluateBudget, maxBudgetUsd } from "./context-budget";
+import { MAX_SESSIONS_PER_STEP, evaluateBudget, maxBudgetUsd } from "./context-budget";
 
 export class DispatchError extends Error {}
 
@@ -39,6 +39,36 @@ function readUsage(taskId: string, agent: string, role: string, attempt: number,
   } catch {
     return null;
   }
+}
+
+/**
+ * Did the CLI die on something external rather than finish?
+ *
+ * Claude reports this as `is_error: true` with `terminal_reason: "api_error"`
+ * and the human-readable cause in `result` (e.g. "You've hit your session limit
+ * - resets 9:30am"). Observed live: a 14-turn session was severed mid-task, yet
+ * exited 0 with a valid result file. Only this flag distinguishes it from a
+ * genuine completion.
+ */
+function isTruncated(usage: Record<string, unknown> | null): boolean {
+  return Boolean(usage && usage.is_error === true);
+}
+
+/** Why it died, for the human reading `show`. */
+export function truncationReason(usage: Record<string, unknown> | null): string | null {
+  if (!isTruncated(usage)) return null;
+  const text = typeof usage?.error_text === "string" ? usage.error_text.trim() : "";
+  const reason = typeof usage?.terminal_reason === "string" ? usage.terminal_reason : "unknown";
+  return text ? `${reason}: ${text}` : reason;
+}
+
+/** Transient causes are worth resuming; anything else needs a human. */
+const TRANSIENT_TERMINAL_REASONS = new Set(["api_error", "rate_limit", "overloaded"]);
+
+export function isTransient(usage: Record<string, unknown> | null): boolean {
+  if (!isTruncated(usage)) return false;
+  const reason = typeof usage?.terminal_reason === "string" ? usage.terminal_reason : "";
+  return TRANSIENT_TERMINAL_REASONS.has(reason);
 }
 
 function readResult(file: string): AgentResult | null {
@@ -103,8 +133,15 @@ export function dispatchStep(
   const exitCode = proc.status;
   const result = readResult(packet.result_path);
 
+  const usage = readUsage(state.task_id, agentName, role, state.attempt, session);
+
   let outcome = classifyExit(exitCode);
   if (outcome === "ok" && result?.status === "blocked") outcome = "blocked";
+  // A CLI that reported is_error was CUT OFF -- account usage limit, API 5xx.
+  // It may still have written a well-formed result file before dying, and that
+  // file will validate and exit 0. Trusting it would present a truncated run as
+  // finished work awaiting merge. The CLI's own error flag wins.
+  if (isTruncated(usage)) outcome = "agent_error";
 
   // Safety net: an agent that did the work but forgot to commit must not strand
   // changes for the next one. Roles that shouldn't commit are left untouched.
@@ -140,7 +177,7 @@ export function dispatchStep(
     test_pass: result?.test_report ? result.test_report.pass : null,
     failure_count: result?.test_report ? result.test_report.failures.length : null,
     handoff_summary: result?.handoff_summary ?? null,
-    usage: readUsage(state.task_id, agentName, role, state.attempt, session),
+    usage,
   };
 
   appendStep(state, step);
@@ -182,6 +219,8 @@ export function dispatchNext(taskId: string): StepRecord {
 
 export type NextAction =
   | { kind: "dispatch"; role: RoleName; bumpAttempt: boolean }
+  /** Stop the run loop and stay put: recoverable, waiting on a human resume. */
+  | { kind: "halt"; status: TaskState["status"]; reason: string | null }
   | { kind: "terminal"; status: TaskState["status"]; reason: string | null };
 
 const TERMINAL: ReadonlySet<TaskState["status"]> = new Set([
@@ -202,9 +241,35 @@ export function nextAction(state: TaskState): NextAction {
     return { kind: "terminal", status: state.status, reason: state.failure_reason };
   }
 
+  const last = lastStep(state);
+
+  // A session severed by an account usage limit or an API error is NOT bad work
+  // -- it is unfinished work. It keeps its attempt and resumes the same
+  // role-step, carrying whatever it managed to commit, once a human says go.
+  if (last && last.outcome === "agent_error") {
+    if (state.resume_requested) {
+      return { kind: "dispatch", role: last.role, bumpAttempt: false };
+    }
+    const why = truncationReason(last.usage) ?? "the agent CLI reported an error";
+    if (isTransient(last.usage) && sessionsUsed(state, last.role, state.attempt) < MAX_SESSIONS_PER_STEP) {
+      return {
+        kind: "halt",
+        status: "BLOCKED_RETRY",
+        reason:
+          `step ${last.index} (${last.role}/${last.agent}) was cut short -- ${why}. ` +
+          `Partial work is committed on ${state.branch}. ` +
+          `Resume with: npm run agent -- run ${state.task_id} --resume`,
+      };
+    }
+    return {
+      kind: "terminal",
+      status: "FAILED",
+      reason: `step ${last.index} (${last.role}/${last.agent}) ended with an unrecoverable agent error -- ${why}`,
+    };
+  }
+
   // A step that failed on infrastructure (timeout, guard abort, bad result) or
   // an agent that reported itself blocked stops the chain: a human should look.
-  const last = lastStep(state);
   if (last && last.outcome !== "ok") {
     return {
       kind: "terminal",
@@ -258,13 +323,44 @@ export function nextAction(state: TaskState): NextAction {
   return { kind: "dispatch", role: fixer, bumpAttempt: true };
 }
 
+/**
+ * A severed session leaves no handoff summary -- it never got the chance to
+ * write one. Rebuild a minimal baton from what it did manage to record, so the
+ * continuation session knows it is resuming rather than starting over. The full
+ * git diff of the partial work reaches it through the packet regardless.
+ */
+export function synthesizeHandoff(step: StepRecord): string {
+  if (step.outcome !== "agent_error") return "";
+  const why = truncationReason(step.usage) ?? "the CLI reported an error";
+  const lines = [
+    `The previous session of this same role-step was CUT SHORT (${why}).`,
+    "It did not finish, and it did not get to write a handoff summary.",
+    "",
+    "What it recorded before it was severed:",
+  ];
+  lines.push(step.diff_summary ? `- summary: ${step.diff_summary}` : "- summary: (none recorded)");
+  lines.push(
+    step.files_changed.length
+      ? `- files touched: ${step.files_changed.join(", ")}`
+      : "- files touched: (none recorded)",
+  );
+  lines.push(step.commit_sha ? `- committed as: ${step.commit_sha}` : "- committed: nothing");
+  if (step.notes) lines.push(`- notes: ${step.notes}`);
+  lines.push(
+    "",
+    "Treat the diff below as work in progress that YOU wrote. Verify it is",
+    "complete and correct before building on it, then finish the remaining work.",
+  );
+  return lines.join("\n");
+}
+
 /** Perform exactly one transition. Returns the state after it. */
 export function advanceOnce(taskId: string): { state: TaskState; action: NextAction; step: StepRecord | null } {
   const state = readState(taskId);
   const action = nextAction(state);
 
-  if (action.kind === "terminal") {
-    if (state.status !== action.status) {
+  if (action.kind === "terminal" || action.kind === "halt") {
+    if (state.status !== action.status || state.failure_reason !== action.reason) {
       state.status = action.status;
       state.failure_reason = action.reason;
       writeState(state);
@@ -272,6 +368,8 @@ export function advanceOnce(taskId: string): { state: TaskState; action: NextAct
     return { state, action, step: null };
   }
 
+  // A resume is one-shot: consume it here so a stale flag cannot re-dispatch.
+  if (state.resume_requested) state.resume_requested = false;
   if (action.bumpAttempt) state.attempt += 1;
   state.status = action.role === loadRoles().fix_loop.verifier_role ? "TESTING" : action.bumpAttempt ? "FIXING" : "RUNNING";
   writeState(state);
@@ -282,17 +380,19 @@ export function advanceOnce(taskId: string): { state: TaskState; action: NextAct
   // place of prior_report, plus the git diff so far (built into the packet).
   const previous = lastStep(state);
   const carry =
-    previous && previous.role === action.role && previous.handoff_summary
-      ? previous.handoff_summary
+    previous && previous.role === action.role
+      ? previous.handoff_summary || synthesizeHandoff(previous)
       : undefined;
 
-  const step = dispatchStep(state, action.role, { handoffSummary: carry });
+  const step = dispatchStep(state, action.role, { handoffSummary: carry || undefined });
 
-  // Only advance the chain when the role-step actually finished. A checkpointed
-  // step stays put so the next dispatch continues the same role.
+  // Only advance the chain when the role-step actually finished. A step that
+  // checkpointed on budget, or was severed mid-run, stays put so the next
+  // dispatch continues the same role rather than handing incomplete work on.
   const agent = loadAgents()[step.agent];
   const verdict = evaluateBudget(step, agent, sessionsUsed(state, step.role, state.attempt));
-  if (inChain && !verdict.continueInNewSession) state.step_index += 1;
+  const finished = step.outcome !== "agent_error" && !verdict.continueInNewSession;
+  if (inChain && finished) state.step_index += 1;
   writeState(state);
 
   return { state, action, step };
@@ -301,6 +401,8 @@ export function advanceOnce(taskId: string): { state: TaskState; action: NextAct
 export interface RunOptions {
   /** Hard ceiling on dispatches, so a bug cannot spin forever. */
   maxSteps?: number;
+  /** Re-dispatch a role-step that a usage limit or API error cut short. */
+  resume?: boolean;
   onStep?: (step: StepRecord, state: TaskState) => void;
 }
 
@@ -312,11 +414,20 @@ export function runTask(taskId: string, opts: RunOptions = {}): TaskState {
   const maxSteps = opts.maxSteps ?? 20;
   let state = readState(taskId);
 
+  if (opts.resume) {
+    if (state.status !== "BLOCKED_RETRY") {
+      throw new DispatchError(`task ${taskId} is ${state.status}, not BLOCKED_RETRY -- nothing to resume`);
+    }
+    state.resume_requested = true;
+    state.failure_reason = null;
+    writeState(state);
+  }
+
   for (let i = 0; i < maxSteps; i += 1) {
     const result = advanceOnce(taskId);
     state = result.state;
     if (result.step && opts.onStep) opts.onStep(result.step, state);
-    if (result.action.kind === "terminal") return state;
+    if (result.action.kind === "terminal" || result.action.kind === "halt") return state;
   }
 
   state = readState(taskId);

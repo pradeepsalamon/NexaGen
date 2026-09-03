@@ -10,11 +10,15 @@
  *   npm run agent -- show <task-id>
  *   npm run agent -- list
  */
-import { loadRoles } from "./paths";
+import { spawn } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import { AGENT_DIR, loadRoles } from "./paths";
 import type { AgentName, RoleName } from "./types";
 import { createTask, listTasks, readState } from "./state";
 import { approveTask, dispatchNext, isTerminal, nextAction, rejectTask, runTask } from "./orchestrator";
 import * as git from "./git";
+import { chat, listChats } from "./chat/repl";
 
 function parseArgs(argv: string[]): { cmd: string; flags: Record<string, string[]>; positional: string[] } {
   const [cmd = "help", ...rest] = argv;
@@ -47,13 +51,22 @@ function usage(): void {
 
 Commands:
   create --summary "<prompt>" --chain <chain|role,role> [--agent role=agent]... [--paths a,b] [--id <task-id>]
-  run <task-id>          drive the task to a terminal state (full auto-handoff chain)
+  run <task-id> [--resume]  drive the task to a terminal state (full auto-handoff chain)
+                            --resume restarts a role-step a usage limit cut short
   dispatch <task-id>     run the next role in the chain (one step only)
   approve <task-id> --by <name>    merge the approved branch into dev_vps
   reject <task-id> --reason "..."  send it back to the bug-fixer
+  start <task-id> [--resume]  run it in a detached background worker (returns at once)
   show <task-id>         print task state
-  list                   list all tasks
+  list [--json]          list all tasks
+  status                 compact overview of every task, grouped by status
   roles                  list roles, chains and default agents
+
+  chat [--new] [--thread <id>] [--once "..."]
+                         talk to the supervisor: it answers questions and drives
+                         the orchestrator for you. Default resumes your last
+                         conversation.
+  chats                  list saved conversations
 
 Chains:   ${Object.keys(roles.chains).join(", ")}
 Roles:    ${Object.keys(roles.roles).join(", ")}
@@ -106,13 +119,17 @@ function cmdDispatch(positional: string[]): void {
 }
 
 
-function cmdRun(positional: string[]): void {
+function cmdRun(positional: string[], flags: Record<string, string[]>): void {
   const id = positional[0];
   if (!id) throw new Error("run requires a task id");
+  const resume = Boolean(flags.resume);
   const start = readState(id);
-  console.log(`running ${id}  chain=${start.chain.join(" -> ")}  max_attempts=${start.max_attempts}`);
+  console.log(
+    `${resume ? "resuming" : "running"} ${id}  chain=${start.chain.join(" -> ")}  max_attempts=${start.max_attempts}`,
+  );
 
   const final = runTask(id, {
+    resume,
     onStep: (step, state) => {
       const verdict =
         step.test_pass === null ? "" : step.test_pass ? "  PASS" : `  FAIL (${step.failure_count} defects)`;
@@ -127,6 +144,10 @@ function cmdRun(positional: string[]): void {
 
   console.log(`\nfinal status: ${final.status}`);
   if (final.failure_reason) console.log(`reason: ${final.failure_reason}`);
+  if (final.status === "BLOCKED_RETRY") {
+    console.log(`\nnot finished -- the run was cut short, not rejected. Partial work is on ${final.branch}.`);
+    console.log(`  npm run agent -- run ${id} --resume`);
+  }
   if (final.status === "PASS_AWAITING_APPROVAL") {
     console.log(`\nawaiting human approval. Review with:`);
     console.log(`  git diff ${final.base_sha.slice(0, 8)}..${final.branch}`);
@@ -173,8 +194,85 @@ function cmdShow(positional: string[]): void {
   }
 }
 
-function cmdList(): void {
+/**
+ * Start a task in a detached worker and return immediately.
+ *
+ * `run` blocks for as long as the agents take, which is minutes. The supervisor
+ * chat agent must never block a conversation turn on that, so it uses this.
+ */
+function cmdStart(positional: string[], flags: Record<string, string[]>): void {
+  const id = positional[0];
+  if (!id) throw new Error("start requires a task id");
+  const state = readState(id);
+  const args = [
+    "--project",
+    path.join(AGENT_DIR, "tsconfig.json"),
+    path.join(AGENT_DIR, "control", "api", "worker.ts"),
+    id,
+  ];
+  if (flags.resume) args.push("--resume");
+
+  const out = fs.openSync(path.join(AGENT_DIR, "logs", `worker_${id}.log`), "a");
+  const child = spawn(path.join(AGENT_DIR, "..", "node_modules", ".bin", "ts-node"), args, {
+    cwd: AGENT_DIR,
+    detached: true,
+    stdio: ["ignore", out, out],
+  });
+  child.unref();
+
+  console.log(
+    JSON.stringify(
+      {
+        started: id,
+        pid: child.pid,
+        branch: state.branch,
+        chain: state.chain,
+        log: path.join(AGENT_DIR, "logs", `worker_${id}.log`),
+        note: "running in the background; poll with: npm run agent -- show " + id,
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+/** One compact picture of everything in flight. The supervisor's opening look. */
+function cmdStatus(): void {
   const tasks = listTasks();
+  const buckets: Record<string, { id: string; summary: string; branch: string; next: string }[]> = {};
+  for (const t of tasks) {
+    (buckets[t.status] ??= []).push({
+      id: t.task_id,
+      summary: t.feature_summary.slice(0, 80),
+      branch: t.branch,
+      next: t.chain[t.step_index] ?? "-",
+    });
+  }
+  console.log(JSON.stringify({ total: tasks.length, by_status: buckets }, null, 2));
+}
+
+function cmdList(flags: Record<string, string[]>): void {
+  const tasks = listTasks();
+  if (flags.json) {
+    return console.log(
+      JSON.stringify(
+        tasks.map((t) => ({
+          task_id: t.task_id,
+          status: t.status,
+          summary: t.feature_summary,
+          branch: t.branch,
+          chain: t.chain,
+          step_index: t.step_index,
+          attempt: t.attempt,
+          max_attempts: t.max_attempts,
+          failure_reason: t.failure_reason,
+          updated_at: t.updated_at,
+        })),
+        null,
+        2,
+      ),
+    );
+  }
   if (!tasks.length) return console.log("no tasks");
   for (const t of tasks) {
     const role = t.chain[t.step_index] ?? "-";
@@ -200,14 +298,23 @@ function main(): void {
   const { cmd, flags, positional } = parseArgs(process.argv.slice(2));
   switch (cmd) {
     case "create": return cmdCreate(flags);
-    case "run": return cmdRun(positional);
+    case "run": return cmdRun(positional, flags);
     case "dispatch": return cmdDispatch(positional);
     case "approve": return cmdApprove(positional, flags);
     case "reject": return cmdReject(positional, flags);
     case "next": return cmdNext(positional);
     case "show": return cmdShow(positional);
-    case "list": return cmdList();
+    case "start": return cmdStart(positional, flags);
+    case "status": return cmdStatus();
+    case "list": return cmdList(flags);
     case "roles": return cmdRoles();
+    case "chat":
+      return chat({
+        fresh: Boolean(flags.new),
+        threadId: one(flags, "thread"),
+        once: one(flags, "once"),
+      });
+    case "chats": return listChats();
     default: return usage();
   }
 }

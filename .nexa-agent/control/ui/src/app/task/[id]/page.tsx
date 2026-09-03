@@ -95,8 +95,18 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
   const getStatusColor = (status: string) => {
     if (status === "PASS_AWAITING_APPROVAL" || status === "MERGED") return "text-app-success";
     if (status === "FAILED" || status === "REJECTED") return "text-app-error";
-    if (status === "PENDING") return "text-app-warning";
+    // Cut short, not failed -- the work is fine, the session was interrupted.
+    if (status === "PENDING" || status === "BLOCKED_RETRY") return "text-app-warning";
     return "text-app-primary";
+  };
+
+  const handleResume = async () => {
+    setActionLoading(true);
+    try {
+      await fetch(`/api/tasks/${task.task_id}/resume`, { method: "POST" });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -153,6 +163,29 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
           </div>
         </div>
       </div>
+
+      {task.status === "BLOCKED_RETRY" && (
+        <div className="glass-panel rounded-2xl p-4 border-app-warning/30 flex flex-col gap-3 bg-app-warning/5">
+          <h2 className="text-lg font-semibold text-app-warning">Interrupted, not failed</h2>
+          <p className="text-sm text-app-text-muted">
+            The agent session was cut short before it finished — usually an account usage limit or an
+            API error. Whatever it had already committed is safe on <code className="font-mono">{task.branch}</code>.
+            Resuming starts a fresh session for the same step and hands it that work to continue from.
+          </p>
+          {task.failure_reason && (
+            <p className="bg-app-surface/90 border border-app-border rounded-xl p-3 text-xs font-mono whitespace-pre-wrap">
+              {task.failure_reason}
+            </p>
+          )}
+          <button
+            onClick={handleResume}
+            disabled={actionLoading}
+            className="rounded-xl bg-app-warning px-4 py-3 font-medium text-app-bg transition-opacity disabled:opacity-50"
+          >
+            {actionLoading ? "Resuming…" : "Resume this step"}
+          </button>
+        </div>
+      )}
 
       {task.status === "PASS_AWAITING_APPROVAL" && (() => {
         const totalFilesChanged = task.steps?.reduce((acc: number, s: any) => acc + (s.files_changed?.length || 0), 0) || 0;

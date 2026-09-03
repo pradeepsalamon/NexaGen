@@ -10,6 +10,13 @@ export type TaskStatus =
   | "TESTING"
   | "FIXING"
   | "PASS_AWAITING_APPROVAL"
+  /**
+   * Non-terminal. The agent CLI died on something transient and external -- an
+   * account usage limit, a 5xx from the API. The work is not wrong, it was cut
+   * short, so the task keeps its attempt and resumes the same role-step when
+   * `run` is called again. Distinct from FAILED, which means the work is bad.
+   */
+  | "BLOCKED_RETRY"
   | "FAILED"
   | "MERGED"
   | "REJECTED";
@@ -34,8 +41,20 @@ export interface StepRecord {
   session: number;
   started_at: string;
   ended_at: string | null;
-  /** ok = agent returned a valid result. The result's own status may still be "blocked". */
-  outcome: "ok" | "blocked" | "invalid_result" | "timeout" | "guard_abort" | "cli_error";
+  /**
+   * ok = agent returned a valid result. The result's own status may still be "blocked".
+   * agent_error = the CLI reported is_error (usage limit / API error): the session
+   * was TRUNCATED, so a result file that happens to parse must not be trusted as
+   * finished work.
+   */
+  outcome:
+    | "ok"
+    | "blocked"
+    | "agent_error"
+    | "invalid_result"
+    | "timeout"
+    | "guard_abort"
+    | "cli_error";
   exit_code: number | null;
   packet_path: string;
   result_path: string;
@@ -85,6 +104,13 @@ export interface TaskState {
   sessions_used: Record<string, number>;
 
   steps: StepRecord[];
+  /**
+   * Set by an explicit human resume of a BLOCKED_RETRY task. `nextAction` reads
+   * it to decide whether to re-dispatch the truncated role-step; `advanceOnce`
+   * clears it as soon as it does, so a resume is one-shot and the machine stays
+   * a pure function of state.json.
+   */
+  resume_requested?: boolean;
   /** Human-readable reason for FAILED / REJECTED. */
   failure_reason: string | null;
   approved_by: string | null;

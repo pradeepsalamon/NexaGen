@@ -12,6 +12,8 @@ export const AGENT_DIR = path.join(DEV_ROOT, ".nexa-agent");
 export const CONFIG_DIR = path.join(AGENT_DIR, "config");
 export const STATE_DIR = path.join(AGENT_DIR, "state", "tasks");
 export const HANDOFF_DIR = path.join(AGENT_DIR, "reports", "handoffs");
+/** Supervisor conversation threads. One JSON file per thread. */
+export const CHAT_DIR = path.join(AGENT_DIR, "state", "chat");
 export const LOG_DIR = path.join(AGENT_DIR, "logs");
 export const RESULT_SCHEMA = path.join(AGENT_DIR, "orchestrator", "result-schema.json");
 
