@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
+import { liveClassSettingsSchema } from "@nexa-chess/types";
 import { LiveClassService } from "./live-class.service";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
@@ -263,5 +264,63 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(
       BadRequestException
     );
+  });
+
+  describe("pre-class settings enforcement", () => {
+    const withSnapshot = (settings: unknown) => {
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        roomName: "room-1",
+        status: "LIVE",
+        batch: { students: [{ studentId: "student-1" }] },
+        class: { topic: "Endgames" },
+        effectiveSettings: settings
+      });
+    };
+
+    it("withholds the microphone source from a FORCED_OFF student's token", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+      withSnapshot(
+        liveClassSettingsSchema.parse({
+          student: { mic: "FORCED_OFF", screenShare: "DISABLED" }
+        })
+      );
+
+      const res = await service.getToken(ACCESS_TOKEN, "class-1");
+
+      const grants = generateAccessToken.mock.calls[0][0].grants;
+      expect(grants.canPublishSources).not.toContain("microphone");
+      expect(grants.canPublishSources).not.toContain("screen_share");
+      expect(grants.canPublishSources).toContain("camera");
+      expect(grants.roomAdmin).toBe(false);
+      expect(res.settings?.student.mic).toBe("FORCED_OFF");
+    });
+
+    it("gives the owning coach full grants regardless of the snapshot", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      withSnapshot(liveClassSettingsSchema.parse({ student: { mic: "FORCED_OFF" } }));
+
+      await service.getToken(ACCESS_TOKEN, "class-1");
+
+      const grants = generateAccessToken.mock.calls[0][0].grants;
+      expect(grants.roomAdmin).toBe(true);
+      expect(grants.canPublishSources).toEqual(
+        expect.arrayContaining(["microphone", "camera", "screen_share"])
+      );
+    });
+
+    it("falls back to default grants (no policy) for a class started before the feature", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+      // default liveSession from the outer beforeEach has no effectiveSettings
+
+      const res = await service.getToken(ACCESS_TOKEN, "class-1");
+
+      expect(generateAccessToken.mock.calls[0][0].grants).toBeUndefined();
+      expect(res.settings).toBeNull();
+    });
   });
 });

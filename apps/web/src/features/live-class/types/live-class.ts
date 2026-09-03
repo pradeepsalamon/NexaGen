@@ -29,6 +29,8 @@ export interface LiveKitTokenResponse {
   token: string;
   roomName: string;
   topic?: string;
+  /** Resolved pre-class settings for this participant; null for legacy classes. */
+  settings?: import("@nexa-chess/types").LiveClassSettings | null;
 }
 
 export interface ParticipantInfo {

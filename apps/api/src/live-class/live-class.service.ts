@@ -17,6 +17,11 @@ import { LiveKitService } from "./livekit.service";
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
+import {
+  deriveLiveKitGrants,
+  liveClassSettingsSchema,
+  type LiveClassSettings,
+} from "@nexa-chess/types";
 import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 import { AttendanceService } from "../attendance/attendance.service";
@@ -261,11 +266,30 @@ export class LiveClassService {
       }
     }
 
+    // Pre-class settings enforcement: derive LiveKit publish grants from the
+    // frozen snapshot (§38). A class started before this feature has no
+    // snapshot → `grants` stays undefined and the pre-feature grant logic runs.
+    let effectiveSettings: LiveClassSettings | null = null;
+    let grants: LiveKitTokenOptions["grants"];
+    if (liveSession.effectiveSettings) {
+      try {
+        effectiveSettings = liveClassSettingsSchema.parse(liveSession.effectiveSettings);
+        grants = deriveLiveKitGrants(
+          effectiveSettings,
+          isStudent ? "STUDENT" : "COACH"
+        );
+      } catch (error) {
+        this.logger.warn(`Invalid effectiveSettings for class ${classId}; using default grants`, error as Error);
+        effectiveSettings = null;
+      }
+    }
+
     const tokenOptions: LiveKitTokenOptions = {
       roomName: liveSession.roomName,
       participantIdentity: clientId ? `${user.id}_${clientId}` : user.id,
       participantName: `${user.firstName} ${user.lastName || ""}`.trim(),
-      isCoach: isCoach || isAdmin
+      isCoach: isCoach || isAdmin,
+      grants
     };
 
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
@@ -285,7 +309,15 @@ export class LiveClassService {
       void this.analyticsEvents.record(user.id, "CLASS_JOIN", liveSession.classId);
     }
 
-    return { token: livekitToken, roomName: liveSession.roomName, topic };
+    return {
+      token: livekitToken,
+      roomName: liveSession.roomName,
+      topic,
+      // The resolved policy for this participant's UI (lock the mic button etc.).
+      // Null when the class predates pre-class settings — the client then keeps
+      // its permissive defaults, matching the token.
+      settings: effectiveSettings
+    };
   }
 
   async endClass(accessToken: string | undefined, classId: string) {

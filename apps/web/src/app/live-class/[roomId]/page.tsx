@@ -25,7 +25,7 @@ export default function LiveClassPage() {
   const roomId = params.roomId as string;
 
   const [hasJoined, setHasJoined] = useState(false);
-  const { token, topic, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry } =
+  const { token, topic, settings, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry } =
     useLiveClass(roomId, hasJoined);
 
   // Rehydrate the "already joined" flag so a mid-class refresh / reconnect
@@ -109,7 +109,7 @@ export default function LiveClassPage() {
   }
 
   return (
-    <LiveClassProvider topic={topic} startedAt={startedAt} endsAt={endsAt}>
+    <LiveClassProvider topic={topic} startedAt={startedAt} endsAt={endsAt} settings={settings}>
       <MeetingRoom token={token} classId={roomId} />
     </LiveClassProvider>
   );

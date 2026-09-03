@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useTrackToggle } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { useLiveClassState } from "../providers/LiveClassProvider";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 /**
  * Registers global keyboard shortcuts for the meeting room.
@@ -14,7 +15,12 @@ import { useLiveClassState } from "../providers/LiveClassProvider";
 export function useKeyboardShortcuts() {
   const mic = useTrackToggle({ source: Track.Source.Microphone });
   const camera = useTrackToggle({ source: Track.Source.Camera });
-  const { activeSidebar, setActiveSidebar, isFullscreen, toggleFullscreen } = useLiveClassState();
+  const { activeSidebar, setActiveSidebar, isFullscreen, toggleFullscreen, settings } =
+    useLiveClassState();
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const micLocked = !isCoach && settings?.student.mic === "FORCED_OFF";
+  const cameraLocked = !isCoach && settings?.student.camera === "FORCED_OFF";
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -26,6 +32,7 @@ export function useKeyboardShortcuts() {
       switch (e.key.toLowerCase()) {
         case "m": {
           e.preventDefault();
+          if (micLocked) break;
           const clickEvent = new MouseEvent("click", { bubbles: true });
           // Trigger the toggle through the button's onClick
           if (mic.buttonProps.onClick) {
@@ -35,6 +42,7 @@ export function useKeyboardShortcuts() {
         }
         case "v": {
           e.preventDefault();
+          if (cameraLocked) break;
           const clickEvent = new MouseEvent("click", { bubbles: true });
           if (camera.buttonProps.onClick) {
             (camera.buttonProps.onClick as (e: unknown) => void)(clickEvent);
@@ -54,5 +62,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mic.buttonProps, camera.buttonProps, activeSidebar, setActiveSidebar, isFullscreen, toggleFullscreen]);
+  }, [mic.buttonProps, camera.buttonProps, micLocked, cameraLocked, activeSidebar, setActiveSidebar, isFullscreen, toggleFullscreen]);
 }

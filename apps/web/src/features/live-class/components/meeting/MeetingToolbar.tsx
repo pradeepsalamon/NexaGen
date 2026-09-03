@@ -53,6 +53,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     toggleChessboard,
     isRecording: contextRecording,
     setIsRecording,
+    settings,
   } = useLiveClassState();
 
   const lkRecording = useIsRecording();
@@ -61,6 +62,13 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
 
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+
+  // Pre-class settings enforcement (students only; the LiveKit token already
+  // withholds the capability — this just makes the button reflect that).
+  const micLocked = !isCoach && settings?.student.mic === "FORCED_OFF";
+  const cameraLocked = !isCoach && settings?.student.camera === "FORCED_OFF";
+  const screenShareLocked =
+    !isCoach && !!settings && settings.student.screenShare !== "ALLOWED";
 
   const { unreadCount } = useLiveClassChat();
   const { localParticipant } = useLocalParticipant();
@@ -196,27 +204,38 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       <div className="pointer-events-auto flex max-w-full items-center gap-1 rounded-2xl border border-app-border bg-app-surface/90 px-2 py-2 shadow-card backdrop-blur-xl sm:gap-1.5 sm:px-3 sm:py-2.5">
         <MeetingControlButton
           icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
-          label={mic.enabled ? "Mute" : "Unmute"}
+          label={micLocked ? "Microphone disabled by the coach" : mic.enabled ? "Mute" : "Unmute"}
           shortcut="M"
           variant={mic.enabled ? "default" : "danger"}
           {...extractProps(mic.buttonProps)}
+          disabled={micLocked || mic.buttonProps.disabled}
         />
 
         <MeetingControlButton
           icon={camera.enabled ? <Video className="size-5" /> : <VideoOff className="size-5" />}
-          label={camera.enabled ? "Stop video" : "Start video"}
+          label={
+            cameraLocked ? "Camera disabled by the coach" : camera.enabled ? "Stop video" : "Start video"
+          }
           shortcut="V"
           variant={camera.enabled ? "default" : "danger"}
           {...extractProps(camera.buttonProps)}
+          disabled={cameraLocked || camera.buttonProps.disabled}
         />
 
         {/* Screen share — unreliable on mobile browsers, desktop only */}
         <div className="hidden sm:block">
           <MeetingControlButton
             icon={<MonitorUp className="size-5" />}
-            label={screen.enabled ? "Stop sharing" : "Share screen"}
+            label={
+              screenShareLocked
+                ? "Screen sharing is off for this class"
+                : screen.enabled
+                  ? "Stop sharing"
+                  : "Share screen"
+            }
             variant={screen.enabled ? "active" : "default"}
             {...extractProps(screen.buttonProps)}
+            disabled={screenShareLocked || screen.buttonProps.disabled}
           />
         </div>
 

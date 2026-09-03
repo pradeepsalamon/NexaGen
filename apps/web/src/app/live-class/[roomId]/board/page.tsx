@@ -71,7 +71,7 @@ export default function LiveClassBoardPage() {
 
   // We automatically set hasJoined to true because the coach is opening this from an active class
   // Pass "board" as clientId so the backend appends _board to the identity, preventing disconnects
-  const { token, error, isLoading, classStatus } = useLiveClass(
+  const { token, settings, error, isLoading, classStatus } = useLiveClass(
     roomId,
     isDesktop === true,
     "board",
@@ -152,7 +152,7 @@ export default function LiveClassBoardPage() {
           className="h-full w-full"
         >
           {/* LiveClassProvider so LiveBoardSyncBridge can access useLiveClassState */}
-          <LiveClassProvider topic="Board">
+          <LiveClassProvider topic="Board" settings={settings}>
             <BoardProvider>
               <LiveBoardSyncBridge>
                 <ForceOpenBoard />
