@@ -16,7 +16,7 @@ import type { AgentName, RoleName } from "./types";
 import { createTask, listTasks, readState, writeState } from "./state";
 import { approveTask, dispatchNext, isTerminal, nextAction, rejectTask, revertTask, runTask } from "./orchestrator";
 import { enqueue, ensureRunnerRunning, nextRunnable, queue, runQueue } from "./runner";
-import { breakLock, currentLock } from "./runner-lock";
+import { breakLock, currentLock, runnerPid } from "./runner-lock";
 import * as git from "./git";
 import { chat, listChats } from "./chat/repl";
 
@@ -229,7 +229,7 @@ function cmdStart(positional: string[], flags: Record<string, string[]>): void {
   const spawned = ensureRunnerRunning();
   const runner = spawned.started
     ? `runner started (pid ${spawned.pid})`
-    : `already running ${spawned.holding}`;
+    : `runner pid ${spawned.pid} — ${spawned.holding}`;
 
   const position = queue().findIndex((q) => q.task_id === id) + 1;
   console.log(
@@ -260,6 +260,7 @@ function cmdQueue(): void {
   console.log(
     JSON.stringify(
       {
+        runner_pid: runnerPid(),
         running: held ? { task_id: held.task_id, pid: held.pid, since: held.acquired_at } : null,
         next: nextRunnable(),
         queue: entries,
@@ -359,6 +360,7 @@ function main(): void {
     case "unlock": {
       const lock = breakLock();
       console.log(lock ? `released lock held by ${lock.task_id} (pid ${lock.pid})` : "no lock held");
+      console.log("runner pid file cleared; start a task to spawn a fresh runner");
       return;
     }
     case "revert": {

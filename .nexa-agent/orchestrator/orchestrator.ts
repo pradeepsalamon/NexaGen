@@ -172,6 +172,7 @@ export function dispatchStep(
     packet_path: packetPath,
     result_path: packet.result_path,
     commit_sha: commitSha,
+    commits: git.commitShasBetween(shaBefore),
     files_changed: result?.files_changed ?? [],
     diff_summary: result?.diff_summary ?? null,
     notes: result?.notes ?? null,
@@ -465,6 +466,22 @@ export function runTask(taskId: string, opts: RunOptions = {}): TaskState {
 // --- human approval gate ----------------------------------------------------
 
 /**
+ * The commits this task -- and only this task -- created.
+ *
+ * Falls back to base_sha..branch for tasks recorded before per-step shas were
+ * tracked; those ran on their own branch, where the range genuinely was the
+ * task's own work.
+ */
+export function taskCommitShas(state: TaskState): string[] {
+  const fromSteps = state.steps.flatMap((s) => s.commits ?? []);
+  if (fromSteps.length) return [...new Set(fromSteps)];
+  if (state.branch !== state.base_branch) {
+    return git.commitsSince(state.base_sha, state.branch).map((c) => c.sha);
+  }
+  return [];
+}
+
+/**
  * Accept a task's work.
  *
  * There is nothing to merge -- the commits are already on dev_vps. What this
@@ -481,8 +498,7 @@ export function approveTask(taskId: string, approver: string): TaskState {
   state.approved_at = nowIso();
   state.failure_reason = null;
   writeState(state);
-  const commits = git.commitsSince(state.base_sha, state.branch);
-  console.error(`accepted ${commits.length} commit(s) on ${state.branch} (not pushed)`);
+  console.error(`accepted ${taskCommitShas(state).length} commit(s) on ${state.branch} (not pushed)`);
   return state;
 }
 
@@ -496,10 +512,10 @@ export function approveTask(taskId: string, approver: string): TaskState {
  */
 export function revertTask(taskId: string, by: string): TaskState {
   const state = readState(taskId);
-  const commits = git.commitsSince(state.base_sha, state.branch);
-  if (!commits.length) throw new DispatchError(`task ${taskId} has no commits to revert`);
+  const shas = taskCommitShas(state);
+  if (!shas.length) throw new DispatchError(`task ${taskId} has no commits to revert`);
 
-  const { reverted, conflicted } = git.revertCommits(commits.map((c) => c.sha));
+  const { reverted, conflicted } = git.revertCommits(shas);
   if (conflicted) {
     throw new DispatchError(
       `revert of ${conflicted.slice(0, 8)} conflicts with later work -- nothing was changed. ` +

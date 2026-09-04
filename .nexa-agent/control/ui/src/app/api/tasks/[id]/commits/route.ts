@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { readState } from "@orchestrator/state";
+import { taskCommitShas } from "@orchestrator/orchestrator";
 import * as git from "@orchestrator/git";
 import { fail } from "../../../_lib";
 
@@ -14,7 +15,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({
       branch: state.branch,
       base_sha: state.base_sha,
-      commits: git.commitsSince(state.base_sha, state.branch),
+      // This task's own commits, not everything since its base -- other tasks
+      // and human commits land on the same branch in between.
+      commits: git.describeCommits(taskCommitShas(state)),
     });
   } catch (e) {
     return fail(e);

@@ -64,6 +64,16 @@ export interface StepRecord {
   packet_path: string;
   result_path: string;
   commit_sha: string | null;
+  /**
+   * Every commit this step actually created.
+   *
+   * base_sha..HEAD is no longer a safe answer to "what did this task change".
+   * Tasks run sequentially on one branch, so that range also contains later
+   * tasks' commits and any human commit in between -- reverting it would undo
+   * other people's work. These shas are recorded from the step's own before/
+   * after, so they are exactly its own.
+   */
+  commits?: string[];
   files_changed: string[];
   diff_summary: string | null;
   notes: string | null;

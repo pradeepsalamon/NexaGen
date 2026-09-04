@@ -25,11 +25,25 @@ guard_workspace() {
 
 # 2. Nothing handed to an agent may reference the production root.
 #    Matches /opt/nexa-chess/NexaGen only when NOT followed by -dev.
+# The fields that INSTRUCT the agent. Deliberately not the whole packet.
+#
+# `prior_diff` is a verbatim git diff and `prior_report` is the previous agent's
+# write-up -- both are evidence of what already happened, not orders. Scanning
+# them made the guard fire on its own safety documentation: once .nexa-agent
+# source began landing on dev_vps, any cumulative diff touching SAFETY.md or
+# SUPERVISOR.md carried the very container names the guard looks for, and every
+# dispatch aborted. Instructions are what can direct an agent at production; a
+# diff cannot.
+guard_instruction_fields() {
+  local file="$1"
+  jq -r '[.feature_summary, .relevant_paths[]?, .constraints[]?, .repo_path, .branch, .result_path] | join("\n")' "$file" 2>/dev/null
+}
+
 guard_no_prod_reference() {
   local file="$1"
   [ -f "$file" ] || guard_die "packet file not found: $file"
-  if grep -Pq '/opt/nexa-chess/NexaGen(?!-dev)' "$file"; then
-    guard_die "packet $file references production root $NEXA_PROD_ROOT"
+  if guard_instruction_fields "$file" | grep -Pq '/opt/nexa-chess/NexaGen(?!-dev)'; then
+    guard_die "packet $file instructs the agent to work in production root $NEXA_PROD_ROOT"
   fi
 }
 
@@ -48,8 +62,8 @@ guard_database() {
 # 4. Production containers must never be in our control path.
 guard_no_prod_containers() {
   local file="$1"
-  if grep -Eq 'nexa_(web|api|postgres|redis|livekit|egress)' "$file"; then
-    guard_die "packet $file references a production container"
+  if guard_instruction_fields "$file" | grep -Eq 'nexa_(web|api|postgres|redis|livekit|egress)'; then
+    guard_die "packet $file instructs the agent to act on a production container"
   fi
 }
 

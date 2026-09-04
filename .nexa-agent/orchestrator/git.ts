@@ -113,6 +113,21 @@ export function fileDiff(baseSha: string, branch: string, file: string): string 
 }
 
 /** Commits on the branch since base, newest first. */
+/** Shas created between two points, oldest first. */
+export function commitShasBetween(from: string, to = "HEAD"): string[] {
+  if (from === to) return [];
+  const out = git(["rev-list", "--reverse", `${from}..${to}`]);
+  return out ? out.split("\n").filter(Boolean) : [];
+}
+
+/** Subjects for specific shas, in the order given. */
+export function describeCommits(shas: string[]): Array<{ sha: string; subject: string }> {
+  return shas.map((sha) => ({
+    sha,
+    subject: git(["log", "-1", "--format=%s", sha], { quiet: true }),
+  }));
+}
+
 export function commitsSince(baseSha: string, branch: string): Array<{ sha: string; subject: string }> {
   const out = git(["log", "--format=%H%x09%s", `${baseSha}..${branch}`]);
   if (!out) return [];

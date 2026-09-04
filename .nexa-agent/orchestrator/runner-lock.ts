@@ -19,6 +19,14 @@ import { AGENT_DIR, ensureDir, nowIso, readJson, writeJson } from "./paths";
 
 const LOCK_FILE = path.join(AGENT_DIR, "state", "runner.lock");
 
+/**
+ * Which process is draining the queue, as distinct from which task holds the
+ * lock. An idle daemon holds no task lock, so "is a runner alive?" cannot be
+ * answered from the lock alone -- without this, every `start` while the runner
+ * sat idle between tasks spawned another one.
+ */
+const RUNNER_PID_FILE = path.join(AGENT_DIR, "state", "runner.pid");
+
 export interface RunnerLock {
   task_id: string;
   pid: number;
@@ -93,9 +101,45 @@ export function releaseLock(taskId: string): void {
   }
 }
 
+/** The live runner's pid, or null. Clears the file if the process is gone. */
+export function runnerPid(): number | null {
+  if (!fs.existsSync(RUNNER_PID_FILE)) return null;
+  const pid = Number(fs.readFileSync(RUNNER_PID_FILE, "utf8").trim());
+  if (!Number.isFinite(pid) || !processAlive(pid)) {
+    fs.rmSync(RUNNER_PID_FILE, { force: true });
+    return null;
+  }
+  return pid;
+}
+
+/** Claim the runner role for this process, and give it up on exit. */
+export function markRunnerAlive(): void {
+  ensureDir(path.dirname(RUNNER_PID_FILE));
+  fs.writeFileSync(RUNNER_PID_FILE, String(process.pid), "utf8");
+  const clear = () => {
+    try {
+      if (runnerPidRaw() === process.pid) fs.rmSync(RUNNER_PID_FILE, { force: true });
+    } catch {
+      /* exiting anyway */
+    }
+  };
+  process.on("exit", clear);
+  process.on("SIGINT", () => (clear(), process.exit(0)));
+  process.on("SIGTERM", () => (clear(), process.exit(0)));
+}
+
+function runnerPidRaw(): number | null {
+  try {
+    return Number(fs.readFileSync(RUNNER_PID_FILE, "utf8").trim());
+  } catch {
+    return null;
+  }
+}
+
 /** Force-release, for a human digging out of a wedged state. */
 export function breakLock(): RunnerLock | null {
   const lock = currentLock();
   fs.rmSync(LOCK_FILE, { force: true });
+  fs.rmSync(RUNNER_PID_FILE, { force: true });
   return lock;
 }
