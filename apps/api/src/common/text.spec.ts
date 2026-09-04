@@ -1,4 +1,26 @@
-import { isBlank } from "./text";
+import { isBlank, titleCase } from "./text";
+
+describe("titleCase", () => {
+  it("returns an empty string for empty input", () => {
+    expect(titleCase("")).toBe("");
+  });
+
+  it("uppercases the first letter of each word and lowercases the rest", () => {
+    expect(titleCase("hello world")).toBe("Hello World");
+    expect(titleCase("HELLO WORLD")).toBe("Hello World");
+    expect(titleCase("mIxEd CaSe")).toBe("Mixed Case");
+  });
+
+  it("preserves runs of whitespace, tabs, and newlines", () => {
+    expect(titleCase("  foo   bar ")).toBe("  Foo   Bar ");
+    expect(titleCase("foo\tbar\nbaz")).toBe("Foo\tBar\nBaz");
+  });
+
+  it("handles single words and leaves whitespace-only input untouched", () => {
+    expect(titleCase("nexa")).toBe("Nexa");
+    expect(titleCase("   ")).toBe("   ");
+  });
+});
 
 describe("isBlank", () => {
   it("treats null and undefined as blank", () => {
