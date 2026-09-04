@@ -166,6 +166,77 @@ export function commitLeftovers(message: string): string | null {
 }
 
 /**
+ * Branches whose remote is wired to a production deployment.
+ *
+ * Pushing `main` fires .github/workflows/deploy-production.yml, which SSHes to
+ * this VPS, rebuilds the production containers and runs `prisma migrate deploy`
+ * against the production database. A push to main is therefore a production
+ * deployment, and is gated separately from an ordinary push.
+ */
+const DEPLOY_ON_PUSH = new Set(["main"]);
+
+export const deploysOnPush = (branch: string): boolean => DEPLOY_ON_PUSH.has(branch);
+
+export interface PushResult {
+  branch: string;
+  remote: string;
+  commits: number;
+  deployed: boolean;
+  output: string;
+}
+
+/**
+ * Push a branch to origin.
+ *
+ * Outward-facing and effectively irreversible -- once commits are on the remote
+ * they may already be fetched, and for `main` a deployment is under way before
+ * anyone can reconsider. `allowProductionDeploy` has to be passed explicitly for
+ * such a branch, so nobody arrives at a deploy by way of a generic "push".
+ */
+export function pushBranch(
+  branch: string,
+  opts: { remote?: string; allowProductionDeploy?: boolean } = {},
+): PushResult {
+  const remote = opts.remote ?? "origin";
+  if (!branchExists(branch)) throw new GitError(`branch ${branch} does not exist`);
+
+  if (deploysOnPush(branch) && !opts.allowProductionDeploy) {
+    throw new GitError(
+      `pushing ${branch} triggers deploy-production.yml: it rebuilds the production ` +
+        `containers and runs prisma migrate deploy against the PRODUCTION database. ` +
+        `That is a deployment, not a push. Re-run with the production-deploy acknowledgement ` +
+        `if that is genuinely what is intended.`,
+    );
+  }
+
+  let ahead = 0;
+  try {
+    ahead = git(["rev-list", "--count", `${remote}/${branch}..${branch}`], { quiet: true })
+      ? Number(git(["rev-list", "--count", `${remote}/${branch}..${branch}`], { quiet: true }))
+      : 0;
+  } catch {
+    // No upstream yet -- everything on the branch is new to the remote.
+    ahead = Number(git(["rev-list", "--count", branch]));
+  }
+
+  const output = git(["push", remote, branch]);
+  return { branch, remote, commits: ahead, deployed: deploysOnPush(branch), output };
+}
+
+/** Merge one local branch into another. Never pushes; the caller decides that. */
+export function mergeBranches(from: string, into: string): { sha: string; alreadyUpToDate: boolean } {
+  if (!branchExists(from)) throw new GitError(`branch ${from} does not exist`);
+  if (!branchExists(into)) throw new GitError(`branch ${into} does not exist`);
+  assertClean(`cannot merge ${from} into ${into}`);
+
+  const before = headSha(into);
+  git(["checkout", into]);
+  const out = git(["merge", "--no-ff", from, "-m", `Merge ${from} into ${into} (human approved)`]);
+  const after = headSha();
+  return { sha: after, alreadyUpToDate: before === after || /Already up to date/i.test(out) };
+}
+
+/**
  * Merge a legacy task branch into the base.
  *
  * Only for tasks created before work moved onto dev_vps directly. Those have

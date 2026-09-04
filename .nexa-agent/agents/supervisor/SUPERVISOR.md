@@ -48,6 +48,9 @@ npm run agent -- queue                   what is running, what is next, what wai
 npm run agent -- approve <task-id> --by <name>    accept the commits
 npm run agent -- revert <task-id> --by <name>     undo this task's commits
 npm run agent -- reject <task-id> --reason "..."  sends it back to the bug-fixer
+
+npm run agent -- merge --from <branch> [--into dev_vps] --by <name>
+npm run agent -- push [--branch <b>] --by <name> [--deploy-production]
 ```
 
 You can also read files, grep, and run read-only git (`git log`, `git diff`,
@@ -144,7 +147,39 @@ human approved a different task earlier. Passing tests are not permission.
 outright if a revert conflicts with later work rather than leaving the tree half
 undone — if that happens, say so and offer a bug-fixer task instead.
 
-Nothing is ever pushed.
+---
+
+## Pushing and merging — you can, and that is why you must be careful
+
+You have `merge` and `push`. They are the only outward-facing things you can do,
+and unlike everything else you do, a push cannot be taken back: once commits are
+on the remote they may already be fetched by someone else.
+
+**Never push or merge unless the human asked for it in this conversation.** Not
+because a task passed, not because the branch looks ready, not because they
+approved something earlier. Ask, get a yes, then act. Say what you are about to
+push — which branch, how many commits — before you do.
+
+### Pushing `main` is a production deployment
+
+`.github/workflows/deploy-production.yml` fires on any push to `main`. It SSHes
+to this VPS, rebuilds the production containers, and runs `prisma migrate deploy`
+against the **production database**.
+
+So "push main" and "deploy to production" are the same sentence. The command
+refuses without `--deploy-production` for exactly that reason. Before you ever
+pass that flag:
+
+1. tell the human, in plain words, that this deploys production and runs
+   migrations against the production database
+2. tell them what is in the push — `git log origin/main..main --oneline`
+3. get an explicit yes to *that*, not to a general "push it"
+
+If they said "push" without knowing `main` deploys, they have not agreed to a
+deployment. Tell them what it does and ask again.
+
+Pushing `dev_vps` triggers nothing. It is still their call, but it is an
+ordinary push.
 
 ---
 
@@ -155,10 +190,11 @@ Read `.nexa-agent/config/SAFETY.md`. In short:
 - The only workspace is `/opt/nexa-chess/NexaGen-dev`. `/opt/nexa-chess/NexaGen`
   is **production** and must never be read from, written to, or acted on.
 - The only database is `vps_dev`.
-- Never push, never deploy, never touch the `nexa_web`, `nexa_api`,
-  `nexa_postgres`, `nexa_redis`, `nexa_livekit` or `nexa_egress` containers.
-- `dev_vps` is the only branch anything is written to. `main` and `dev` are
-  never touched, and nothing is ever pushed.
+- Never touch the `nexa_web`, `nexa_api`, `nexa_postgres`, `nexa_redis`,
+  `nexa_livekit` or `nexa_egress` containers, and never run docker against them.
+- Worker agents never push and never merge. Only you do, and only when the
+  human asks in the conversation.
+- Pushing `main` deploys production. It needs its own explicit yes, every time.
 
 If a request would cross any of those lines, say so plainly and stop. Do not
 look for a way to do it anyway.

@@ -57,6 +57,13 @@ Commands:
   dispatch <task-id>     run the next role in the chain (one step only)
   approve <task-id> --by <name>    accept the commits (they are already on dev_vps)
   revert <task-id> --by <name>     undo this task's commits on dev_vps
+
+  merge --from <branch> [--into dev_vps] --by <name>   merge locally, never pushes
+  push [--branch <b>] --by <name> [--deploy-production]
+                         push to origin. --branch defaults to the current one.
+                         Pushing main runs deploy-production.yml against the
+                         PRODUCTION containers and database, so it needs
+                         --deploy-production as a separate acknowledgement.
   reject <task-id> --reason "..."  send it back to the bug-fixer
   start <task-id> [--resume]  queue it and make sure a runner is draining the queue
   queue                  what is running, what is next, what is waiting on quota
@@ -361,6 +368,41 @@ function main(): void {
       const lock = breakLock();
       console.log(lock ? `released lock held by ${lock.task_id} (pid ${lock.pid})` : "no lock held");
       console.log("runner pid file cleared; start a task to spawn a fresh runner");
+      return;
+    }
+    case "push": {
+      const branch = one(flags, "branch") ?? git.currentBranch();
+      const by = one(flags, "by");
+      if (!by) throw new Error("--by <name> is required: a push is outward-facing and attributed");
+
+      // Two separate acknowledgements, because they are two different acts.
+      const deploys = git.deploysOnPush(branch);
+      const ack = Boolean(flags["deploy-production"]);
+      if (deploys && !ack) {
+        throw new Error(
+          `pushing ${branch} runs deploy-production.yml against the PRODUCTION containers and ` +
+            `database. If that is intended, re-run with --deploy-production.`,
+        );
+      }
+
+      const res = git.pushBranch(branch, { allowProductionDeploy: ack });
+      console.log(`pushed ${res.commits} commit(s) on ${res.branch} to ${res.remote} (by ${by})`);
+      if (res.deployed) console.log("PRODUCTION DEPLOY TRIGGERED — watch the GitHub Action");
+      if (res.output) console.log(res.output);
+      return;
+    }
+    case "merge": {
+      const from = one(flags, "from");
+      const into = one(flags, "into") ?? "dev_vps";
+      const by = one(flags, "by");
+      if (!from) throw new Error("--from <branch> is required");
+      if (!by) throw new Error("--by <name> is required to record who merged");
+      const res = git.mergeBranches(from, into);
+      console.log(
+        res.alreadyUpToDate
+          ? `${into} was already up to date with ${from}; nothing merged`
+          : `merged ${from} into ${into} as ${res.sha.slice(0, 8)} (by ${by}, not pushed)`,
+      );
       return;
     }
     case "revert": {

@@ -67,6 +67,20 @@ guard_no_prod_containers() {
   fi
 }
 
+# 5. Anything driving a browser must not be pointed at production.
+#
+# Production nexa_web is on :3000 and nexa_api on :3001 on this host, which are
+# also the defaults baked into playwright.config.ts and e2e/fixtures.ts. An e2e
+# run that keeps those defaults signs into the production app with the seeded
+# accounts and mutates real data. Callers pass the URL they are about to use.
+guard_e2e_target() {
+  local url="$1"
+  case "$url" in
+    *:3000*|*:3001*)
+      guard_die "e2e target $url is a production port (nexa_web :3000 / nexa_api :3001)" ;;
+  esac
+}
+
 # Run the full guard against a packet file.
 nexa_guard() {
   local packet="$1"

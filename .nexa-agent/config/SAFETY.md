@@ -125,3 +125,39 @@ vps_dev
 If the target cannot be verified as `vps_dev`:
 
 STOP and request human approval.
+
+
+---
+
+## Amendment 2026-09-04: the supervisor may push and merge
+
+Granted explicitly by the maintainer. This narrows, rather than removes, the
+previous blanket "never push".
+
+- **Worker agents still never push and never merge.** They commit to `dev_vps`
+  and stop. Nothing in the autonomous loop reaches a remote on its own.
+- **The supervisor may `merge` and `push`,** and only when the human asks for it
+  in conversation. A passing task is not a request.
+- **Pushing `main` is a production deployment.**
+  `.github/workflows/deploy-production.yml` fires on push to `main`: it SSHes to
+  this VPS, rebuilds the production containers, and runs `prisma migrate deploy`
+  against the production database. The CLI refuses without an explicit
+  `--deploy-production` acknowledgement so that no one arrives at a deployment
+  by way of a generic "push".
+
+Everything else stands: the workspace is still `/opt/nexa-chess/NexaGen-dev`
+only, the database is still `vps_dev` only, and the production containers are
+still untouchable.
+
+## Amendment 2026-09-04: e2e runs against the dev server, never production
+
+`playwright.config.ts` defaults to `http://localhost:3000` and
+`e2e/fixtures.ts` to `:3001`. On this host those are **nexa_web and nexa_api --
+production**. The e2e specs sign in with the seeded accounts and create batches,
+join classes and post messages, so a default-configured run is a production data
+incident rather than a test.
+
+All e2e goes through `.nexa-agent/scripts/e2e-dev.sh`, which targets the dev
+stack (web `:3010`, api `:3011`, database `vps_dev`), sets `E2E_BASE_URL` and
+`NEXT_PUBLIC_API_URL` explicitly, and aborts via `guard_e2e_target` if either
+resolves to a production port.
