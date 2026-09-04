@@ -83,12 +83,14 @@ Defaults live in [config/roles.json](config/roles.json).
 |---|---|---|
 | `backend-dev` | claude | yes |
 | `frontend-dev` | claude | yes |
+| `fullstack-architect` | claude | yes |
 | `tester-e2e` | opencode | no |
 | `bug-fixer` | antigravity | yes |
 | `reviewer` | claude | no |
 
-Chains: `feature` (backend → frontend → tester), `backend-only`,
-`frontend-only`, `test-only`, `review-only`.
+Chains: `feature` (backend → frontend → tester), `architected-feature`
+(architect → backend → frontend → tester), `backend-only`, `frontend-only`,
+`test-only`, `review-only`, `architect-only`.
 
 Override per task: `--agent backend-dev=antigravity --model backend-dev=gemini-3.1-pro-high`,
 or per role in the control UI's `/new` form.
@@ -99,20 +101,33 @@ or per role in the control UI's `/new` form.
 
 | Where | Scope | How |
 |---|---|---|
-| `config/roles.json` → `default_agent` | permanent, per role | which agent fills the role |
-| `config/agents.json` → `default_model` | permanent, per agent | used when a task names no model |
+| **Team tab** in the UI | permanent | agent + model for the supervisor and every role. Writes the two config files below |
+| `config/roles.json` → `default_agent`, `default_model` | permanent, per role | who fills the role |
+| `config/agents.json` → `default_model` | permanent, per agent | used when nothing more specific applies |
 | `--agent` / `--model` on `create` | one task | frozen into `state.json` at creation |
 | `/new` in the UI | one task | per-role Agent + Model dropdowns |
-| `NEXA_CLAUDE_MODEL`, `NEXA_ANTIGRAVITY_MODEL`, `NEXA_OPENCODE_MODEL`, `NEXA_SUPERVISOR_MODEL` | one run | env override, beats `default_model` |
+| `NEXA_CLAUDE_MODEL`, `NEXA_ANTIGRAVITY_MODEL`, `NEXA_OPENCODE_MODEL` | one run | env override |
 
-Precedence is task → environment → `default_model` → the CLI's own account
-default. Leaving `default_model` unset is not the same as pinning a model: it
+Precedence is task → environment → role `default_model` → agent
+`default_model` → the CLI's own account default. Leaving `default_model` unset is not the same as pinning a model: it
 means whatever the CLI account currently defaults to, which can change under
 you.
 
-The supervisor is configured separately in `config/supervisor.json` (`model`,
-`max_budget_usd`, `timeout_seconds`). It is deliberately not in `agents.json`
-so no role can be assigned to it and it never appears in the agent picker.
+The supervisor is configured separately in `config/supervisor.json` (`agent`,
+`model`, `max_budget_usd`, `timeout_seconds`). It is deliberately not in
+`agents.json` so no worker role can be assigned to it.
+
+### Switching supervisor
+
+Any of the three CLIs can be the supervisor — pick one in the chat header, the
+Team tab, or `npm run agent -- chat --agent opencode`. Each is confined to
+read-only: Claude by an explicit `--allowedTools` allowlist plus
+`--permission-prompts none`, antigravity by `--mode plan`, opencode by its
+`plan` agent. None of them can edit a file.
+
+CLI sessions are not portable between agents, so switching mid-conversation
+starts a fresh session and replays a trimmed transcript to the new supervisor,
+which then continues rather than greeting you again.
 
 Registered agents are in [config/agents.json](config/agents.json), including a
 `_corrections` block recording where each CLI's real invocation differs from what
@@ -126,6 +141,7 @@ mode, which is why it hung silently in v1.
 
 ```bash
 npm run agent -- chat [--new] [--thread <id>] [--once "..."]
+                      [--agent claude|antigravity|opencode] [--model <model>]
 npm run agent -- chats                        saved conversations
 
 npm run agent -- status                       everything, grouped by status
@@ -134,7 +150,8 @@ npm run agent -- show <task-id>
 npm run agent -- next <task-id>               what the state machine would do, and why
 npm run agent -- roles
 
-npm run agent -- create --summary "..." --chain <chain|role,role> [--paths a,b]
+npm run agent -- create --summary "..." --chain <chain|role,role>
+                        [--agent role=agent]... [--model role=model]... [--paths a,b]
 npm run agent -- start <task-id> [--resume]   background worker, returns immediately
 npm run agent -- run <task-id> [--resume]     blocking, prints each step
 npm run agent -- dispatch <task-id>           one step only
@@ -162,13 +179,19 @@ why a parseable result file is not proof of completion.
 ## Control UI
 
 ```bash
-cd control/api && npm install && npm start     # port 3011
-cd control/ui  && npm install && npm run dev   # port 3010
+cd control/ui && npm install && npm run dev   # http://localhost:3010
 ```
 
-Mobile-first. Three surfaces: **Chat** (the home screen — same supervisor as the
-CLI), **Tasks** (list and detail, with diffs, per-step results, approve/reject
-and resume), and `/new` (the raw create form).
+**One process, one port.** The orchestrator is called directly from Next.js
+route handlers under `src/app/api/`; there is no separate API server. That is
+why `.nexa-agent/package.json` carries no `"type"` field — ts-node needs
+CommonJS, and Turbopack refuses to bundle ESM-syntax `.ts` from a package that
+declares it explicitly. Absent satisfies both.
+
+Mobile-first. Four surfaces: **Chat** (the home screen — same supervisor as the
+CLI, with the agent/model picker in its header), **Tasks** (list and detail,
+with diffs, per-step results, approve/reject and resume), **Team** (agent and
+model for the supervisor and every role), and `/new` (the raw create form).
 
 `/new` is the lever that once turned a plain "hi" into a git branch and a merge,
 because a bare text box cannot tell a greeting from a work request. It is kept
@@ -188,9 +211,10 @@ orchestrator/
   cli.ts         command surface
   orchestrator.ts state machine + dispatch
   state.ts git.ts task-packet.ts context-budget.ts paths.ts types.ts
-  chat/          thread.ts supervisor.ts repl.ts
-control/api/     express control API + detached task worker
-control/ui/      Next.js mobile UI
+  chat/          thread.ts supervisor.ts repl.ts config.ts
+  worker.ts      drives one task to a stopping point, detached
+control/ui/      Next.js app -- UI and API in one process
+  src/app/api/   route handlers calling the orchestrator directly
 state/           tasks/<id>/state.json, chat/<thread>.json   (gitignored)
 logs/ reports/   per-agent logs, handoff records              (gitignored)
 ```

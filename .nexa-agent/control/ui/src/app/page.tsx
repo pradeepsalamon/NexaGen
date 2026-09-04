@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, ArrowUp, Bot, MessagesSquare, Plus, Terminal, User } from "lucide-react";
+import { AlertTriangle, ArrowUp, Bot, MessagesSquare, Plus, Terminal, Trash2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
@@ -22,6 +22,8 @@ interface ChatMessage {
   actions?: string[];
   task_ids?: string[];
   error?: string | null;
+  agent?: string;
+  model?: string | null;
 }
 
 interface ThreadSummary {
@@ -29,6 +31,14 @@ interface ThreadSummary {
   title: string;
   updated_at: string;
   message_count: number;
+  agent?: string;
+}
+
+interface AgentInfo {
+  name: string;
+  cli: string;
+  default_model: string | null;
+  models: { id: string; label: string }[];
 }
 
 const STORAGE_KEY = "nexa-agent-thread";
@@ -117,6 +127,9 @@ export default function ChatPage() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showThreads, setShowThreads] = useState(false);
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
+  const [agent, setAgent] = useState<string>("");
+  const [model, setModel] = useState<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const loadThread = useCallback(async (id: string) => {
@@ -129,6 +142,9 @@ export default function ChatPage() {
     const data = await res.json();
     setThreadId(data.thread_id);
     setMessages(data.messages ?? []);
+    // The thread remembers who it is talking to; the picker follows it.
+    if (data.agent) setAgent(data.agent);
+    setModel(data.model ?? "");
   }, []);
 
   const loadThreads = useCallback(async () => {
@@ -140,6 +156,14 @@ export default function ChatPage() {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) void loadThread(saved);
     void loadThreads();
+    void fetch("/api/team")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((t) => {
+        if (!t) return;
+        setAgents(t.agents ?? []);
+        // Only seed from config when no thread has already set it.
+        setAgent((current) => current || t.supervisor.agent);
+      });
   }, [loadThread, loadThreads]);
 
   useEffect(() => {
@@ -161,7 +185,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, thread_id: threadId }),
+        body: JSON.stringify({ message: text, thread_id: threadId, agent, model: model || null }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? `request failed (${res.status})`);
@@ -169,6 +193,7 @@ export default function ChatPage() {
       setThreadId(data.thread_id);
       localStorage.setItem(STORAGE_KEY, data.thread_id);
       setMessages((prev) => [...prev, data.reply]);
+      if (data.agent) setAgent(data.agent);
       void loadThreads();
     } catch (err) {
       setError((err as Error).message);
@@ -182,6 +207,12 @@ export default function ChatPage() {
     setThreadId(null);
     setMessages([]);
     setShowThreads(false);
+  }
+
+  async function removeThread(id: string) {
+    await fetch(`/api/chat/${id}`, { method: "DELETE" });
+    if (id === threadId) startNew();
+    void loadThreads();
   }
 
   return (
@@ -211,26 +242,75 @@ export default function ChatPage() {
         </div>
       </div>
 
+      {agents.length > 0 && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-app-border bg-app-surface px-3 py-2">
+          <Bot className="size-4 shrink-0 text-app-primary" />
+          <select
+            aria-label="Supervisor agent"
+            value={agent}
+            onChange={(e) => {
+              setAgent(e.target.value);
+              setModel("");
+            }}
+            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+          >
+            {agents.map((a) => (
+              <option key={a.name} value={a.name}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Supervisor model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            className="min-w-0 flex-1 bg-transparent text-right text-sm text-app-text-muted outline-none"
+          >
+            <option value="">default model</option>
+            {(agents.find((a) => a.name === agent)?.models ?? []).map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {showThreads && (
         <div className="mb-3 overflow-hidden rounded-xl border border-app-border bg-app-surface">
           {threads.length === 0 && <p className="p-3 text-sm text-app-text-muted">No conversations yet.</p>}
           {threads.map((t) => (
-            <button
+            <div
               key={t.thread_id}
-              type="button"
-              onClick={() => {
-                localStorage.setItem(STORAGE_KEY, t.thread_id);
-                void loadThread(t.thread_id);
-                setShowThreads(false);
-              }}
               className={cn(
-                "flex w-full items-center justify-between gap-2 border-b border-app-border p-3 text-left last:border-b-0 transition-colors hover:bg-app-surface-hover",
+                "flex items-center border-b border-app-border last:border-b-0",
                 t.thread_id === threadId && "bg-app-surface-hover",
               )}
             >
-              <span className="truncate text-sm">{t.title}</span>
-              <span className="shrink-0 text-xs text-app-text-muted">{t.message_count}</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  localStorage.setItem(STORAGE_KEY, t.thread_id);
+                  void loadThread(t.thread_id);
+                  setShowThreads(false);
+                }}
+                className="flex min-w-0 flex-1 items-center justify-between gap-2 p-3 text-left transition-colors hover:bg-app-surface-hover"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-sm">{t.title}</span>
+                  {t.agent && <span className="text-[10px] text-app-text-muted">{t.agent}</span>}
+                </span>
+                <span className="shrink-0 text-xs text-app-text-muted">{t.message_count}</span>
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete conversation: ${t.title}`}
+                onClick={() => void removeThread(t.thread_id)}
+                className="mr-2 rounded-full border border-app-border p-1.5 text-app-text-muted transition-colors hover:bg-app-error hover:text-white"
+              >
+                <Trash2 className="size-3.5" strokeWidth={2.5} />
+              </button>
+            </div>
           ))}
         </div>
       )}
@@ -243,6 +323,8 @@ export default function ChatPage() {
               Ask what is running, or describe what you want built.
               <br />
               I will propose a plan before anything is started.
+              <br />
+              <span className="text-xs">Switch supervisor above — the conversation carries over.</span>
             </p>
           </div>
         )}
@@ -280,6 +362,13 @@ export default function ChatPage() {
               )}
 
               <Markdown text={m.content} />
+
+              {m.role === "assistant" && m.agent && (
+                <div className="mt-1 text-[10px] text-app-text-muted">
+                  {m.agent}
+                  {m.model ? ` · ${m.model}` : ""}
+                </div>
+              )}
 
               {/* What it actually ran, not what it said it ran. */}
               {m.actions && m.actions.length > 0 && (

@@ -4,7 +4,7 @@
  * failed, merged) OR halted -- a task cut short by a usage limit stops here and
  * waits for an explicit resume rather than hammering the limit.
  */
-import { runTask } from '../../orchestrator/orchestrator';
+import { runTask } from './orchestrator';
 
 const taskId = process.argv[2];
 if (!taskId) {

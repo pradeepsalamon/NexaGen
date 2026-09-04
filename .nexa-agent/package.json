@@ -3,9 +3,9 @@
   "private": true,
   "version": "2.0.0",
   "description": "Multi-agent orchestrator v2 for NexaChess. Not an npm workspace member -- root workspaces globs are apps/* and packages/* only.",
-  "type": "commonjs",
   "scripts": {
     "agent": "../node_modules/.bin/ts-node --project tsconfig.json orchestrator/cli.ts",
     "typecheck": "../node_modules/.bin/tsc --noEmit --project tsconfig.json"
-  }
+  },
+  "_type_note": "Deliberately no \"type\" field: ts-node needs CommonJS (tsconfig sets module:commonjs, and Node defaults to CommonJS without this field), while Turbopack refuses to bundle ESM-syntax .ts from a package that explicitly declares commonjs. Absent satisfies both."
 }

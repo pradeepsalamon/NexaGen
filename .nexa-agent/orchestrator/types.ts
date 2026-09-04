@@ -24,6 +24,7 @@ export type TaskStatus =
 export type RoleName =
   | "backend-dev"
   | "frontend-dev"
+  | "fullstack-architect"
   | "tester-e2e"
   | "bug-fixer"
   | "reviewer";
@@ -187,6 +188,8 @@ export interface AgentConfig {
 
 export interface RoleConfig {
   default_agent: AgentName;
+  /** Set by the Team tab. Absent means the agent's own default_model. */
+  default_model?: string;
   description: string;
   must_commit: boolean;
   requires_test_report?: boolean;

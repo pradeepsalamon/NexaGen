@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
-import { Bot, LayoutDashboard, MessageSquare } from "lucide-react";
+import { Bot, LayoutDashboard, MessageSquare, Users } from "lucide-react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -54,6 +54,10 @@ export default function RootLayout({
             <Link href="/tasks" className="flex flex-col items-center gap-1 text-app-text-muted hover:text-app-text transition-colors">
               <LayoutDashboard className="size-6" />
               <span className="text-xs font-medium">Tasks</span>
+            </Link>
+            <Link href="/team" className="flex flex-col items-center gap-1 text-app-text-muted hover:text-app-text transition-colors">
+              <Users className="size-6" />
+              <span className="text-xs font-medium">Team</span>
             </Link>
           </div>
         </nav>

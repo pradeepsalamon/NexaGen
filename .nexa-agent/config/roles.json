@@ -1,5 +1,5 @@
 {
-  "_note": "Roles are the fixed contract; agents are swappable per role. A task may override any role's agent at creation time, after which the choice is frozen in state/tasks/<id>/state.json.",
+  "_note": "Roles are the fixed contract; agents and models are swappable per role. The control UI's Team tab writes default_agent/default_model here. A task may override either at creation, after which the choice is frozen in state/tasks/<id>/state.json.",
   "roles": {
     "backend-dev": {
       "default_agent": "claude",
@@ -9,6 +9,11 @@
     "frontend-dev": {
       "default_agent": "claude",
       "description": "Implements Next.js work in apps/web, mobile-first.",
+      "must_commit": true
+    },
+    "fullstack-architect": {
+      "default_agent": "claude",
+      "description": "Designs the change across api + web + packages/types before anyone codes it: the shared contract, the data model, and which files each dev touches. Commits the contract, not the implementation.",
       "must_commit": true
     },
     "tester-e2e": {
@@ -30,11 +35,34 @@
     }
   },
   "chains": {
-    "feature": ["backend-dev", "frontend-dev", "tester-e2e"],
-    "backend-only": ["backend-dev", "tester-e2e"],
-    "frontend-only": ["frontend-dev", "tester-e2e"],
-    "test-only": ["tester-e2e"],
-    "review-only": ["reviewer"]
+    "feature": [
+      "backend-dev",
+      "frontend-dev",
+      "tester-e2e"
+    ],
+    "backend-only": [
+      "backend-dev",
+      "tester-e2e"
+    ],
+    "frontend-only": [
+      "frontend-dev",
+      "tester-e2e"
+    ],
+    "test-only": [
+      "tester-e2e"
+    ],
+    "review-only": [
+      "reviewer"
+    ],
+    "architected-feature": [
+      "fullstack-architect",
+      "backend-dev",
+      "frontend-dev",
+      "tester-e2e"
+    ],
+    "architect-only": [
+      "fullstack-architect"
+    ]
   },
   "fix_loop": {
     "fixer_role": "bug-fixer",

@@ -10,7 +10,9 @@
  * testable without a browser.
  */
 import * as readline from "readline";
+import type { AgentName } from "../types";
 import { listThreads, readThread } from "./thread";
+import type { SendOptions } from "./supervisor";
 import { sendMessage } from "./supervisor";
 
 const DIM = "\x1b[2m";
@@ -29,16 +31,19 @@ function renderReply(content: string, actions: string[] | undefined, error: stri
 }
 
 /** One message, no REPL. Used by scripts and by `--once`. */
-export function chatOnce(threadId: string | null, message: string): void {
-  const { thread, reply } = sendMessage(threadId, message);
+export function chatOnce(threadId: string | null, message: string, opts: SendOptions = {}): void {
+  const { thread, reply } = sendMessage(threadId, message, opts);
   renderReply(reply.content, reply.actions, reply.error);
-  console.log(`${DIM}thread ${thread.thread_id}${OFF}`);
+  console.log(`${DIM}thread ${thread.thread_id}  (${thread.agent}${thread.model ? `/${thread.model}` : ""})${OFF}`);
 }
 
 export interface ChatOptions {
   threadId?: string;
   fresh?: boolean;
   once?: string;
+  /** Hand this conversation to a different CLI. */
+  agent?: AgentName;
+  model?: string;
 }
 
 export function chat(opts: ChatOptions = {}): void {
@@ -50,7 +55,8 @@ export function chat(opts: ChatOptions = {}): void {
     threadId = listThreads()[0]?.thread_id ?? null;
   }
 
-  if (opts.once) return chatOnce(threadId, opts.once);
+  const switchTo: SendOptions = { agent: opts.agent, model: opts.model };
+  if (opts.once) return chatOnce(threadId, opts.once, switchTo);
 
   if (threadId) {
     const thread = readThread(threadId);
@@ -82,7 +88,7 @@ export function chat(opts: ChatOptions = {}): void {
 
     process.stdout.write(`${DIM}thinking...${OFF}\r`);
     try {
-      const { thread, reply } = sendMessage(threadId, text);
+      const { thread, reply } = sendMessage(threadId, text, threadId ? {} : switchTo);
       threadId = thread.thread_id;
       process.stdout.write(" ".repeat(20) + "\r");
       renderReply(reply.content, reply.actions, reply.error);
@@ -103,6 +109,7 @@ export function listChats(): void {
   const threads = listThreads();
   if (!threads.length) return console.log("no conversations yet");
   for (const t of threads) {
-    console.log(`${t.thread_id}  ${String(t.messages.length).padStart(3)} msgs  ${t.title}`);
+    const who = `${t.agent}${t.model ? `/${t.model}` : ""}`;
+    console.log(`${t.thread_id}  ${String(t.messages.length).padStart(3)} msgs  ${who.padEnd(28)} ${t.title}`);
   }
 }

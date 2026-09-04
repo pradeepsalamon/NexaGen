@@ -63,7 +63,7 @@ Commands:
   status                 compact overview of every task, grouped by status
   roles                  list roles, chains and default agents
 
-  chat [--new] [--thread <id>] [--once "..."]
+  chat [--new] [--thread <id>] [--once "..."] [--agent <agent>] [--model <model>]
                          talk to the supervisor: it answers questions and drives
                          the orchestrator for you. Default resumes your last
                          conversation.
@@ -217,7 +217,7 @@ function cmdStart(positional: string[], flags: Record<string, string[]>): void {
   const args = [
     "--project",
     path.join(AGENT_DIR, "tsconfig.json"),
-    path.join(AGENT_DIR, "control", "api", "worker.ts"),
+    path.join(AGENT_DIR, "orchestrator", "worker.ts"),
     id,
   ];
   if (flags.resume) args.push("--resume");
@@ -338,6 +338,8 @@ function main(): void {
         fresh: Boolean(flags.new),
         threadId: one(flags, "thread"),
         once: one(flags, "once"),
+        agent: one(flags, "agent") as AgentName | undefined,
+        model: one(flags, "model"),
       });
     case "chats": return listChats();
     default: return usage();
