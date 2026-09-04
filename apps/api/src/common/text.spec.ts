@@ -1,4 +1,4 @@
-import { isBlank, titleCase } from "./text";
+import { isBlank, stripAccents, titleCase } from "./text";
 
 describe("titleCase", () => {
   it("returns an empty string for empty input", () => {
@@ -48,5 +48,33 @@ describe("isBlank", () => {
   it("treats objects and arrays as not blank", () => {
     expect(isBlank({})).toBe(false);
     expect(isBlank([])).toBe(false);
+  });
+});
+
+describe("stripAccents", () => {
+  it("returns an empty string for empty input", () => {
+    expect(stripAccents("")).toBe("");
+  });
+
+  it("removes diacritics while keeping the base letters", () => {
+    expect(stripAccents("Crème Brûlée")).toBe("Creme Brulee");
+    expect(stripAccents("naïve façade")).toBe("naive facade");
+    expect(stripAccents("Zürich, Málaga, São Paulo")).toBe(
+      "Zurich, Malaga, Sao Paulo",
+    );
+  });
+
+  it("preserves casing, spacing, and non-accented text", () => {
+    expect(stripAccents("Hello World")).toBe("Hello World");
+    expect(stripAccents("  spaced\tout\n")).toBe("  spaced\tout\n");
+  });
+
+  it("works on pre-composed and already-decomposed input alike", () => {
+    expect(stripAccents("é")).toBe("e");
+    expect(stripAccents("é")).toBe("e");
+  });
+
+  it("leaves characters without combining marks untouched", () => {
+    expect(stripAccents("日本語 123 ß")).toBe("日本語 123 ß");
   });
 });
