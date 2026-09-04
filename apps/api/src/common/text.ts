@@ -28,16 +28,3 @@ export function isBlank(value: unknown): boolean {
   }
   return false;
 }
-
-/**
- * Strips accents/diacritics from `value` by normalising to NFD and removing
- * combining diacritical marks (U+0300–U+036F), so `"Crème Brûlée"` becomes
- * `"Creme Brulee"`. Non-Latin characters and casing are otherwise preserved.
- * Returns `""` for an empty string.
- */
-export function stripAccents(value: string): string {
-  if (value.length === 0) {
-    return "";
-  }
-  return value.normalize("NFD").replace(/[̀-ͯ]/g, "");
-}
