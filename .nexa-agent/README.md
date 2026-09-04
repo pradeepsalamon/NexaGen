@@ -34,21 +34,35 @@ version, see [Control UI](#control-ui) below.
 ## How it works
 
 ```
-  you ──chat──> supervisor ──creates──> task ──> branch off dev_vps
+  you ──chat──> supervisor ──creates──> task ──> QUEUED
                                                     │
-                            ┌───────────────────────┘
-                            ▼
+                                    one at a time, on dev_vps
+                                                    ▼
                     backend-dev ──> frontend-dev ──> tester-e2e
                                                         │
                                           pass ─────────┴───────── fail
                                             │                        │
                               PASS_AWAITING_APPROVAL            bug-fixer
                                             │                        │
-                                   you approve                  re-test ──┐
-                                            │                     ▲      │
-                                            ▼                     └──────┘
-                                   merged into dev_vps          (max 5 attempts)
+                              ┌─────────────┴──────────┐        re-test ──┐
+                              ▼                        ▼          ▲      │
+                       approve (keep)           revert (undo)     └──────┘
+                                                              (max 5 attempts)
 ```
+
+**There are no task branches.** Agents commit straight to `dev_vps`, so the
+human's decision is *keep* or *undo*, not *merge or not*. Nothing is ever
+pushed.
+
+Two things follow from that, and both are load-bearing:
+
+- **Exactly one task runs at a time.** Two tasks committing to one branch would
+  interleave, and `commitLeftovers` (the net that rescues work an agent forgot
+  to commit) would sweep the other task's files into the wrong commit. The
+  runner lock in `runner-lock.ts` enforces it; `start` means "get in line".
+- **A task's commits are recorded per step**, not derived from `base..HEAD`.
+  That range now also contains later tasks' commits and any human commit in
+  between — reverting it would undo other people's work.
 
 Every step is a **fresh CLI session**. No agent ever continues another agent's
 conversation. The only input a worker receives is a task packet: the goal, the
@@ -163,16 +177,31 @@ npm run agent -- reject <task-id> --reason "..."
 
 | Status | Meaning |
 |---|---|
+| `QUEUED` | waiting its turn; another task holds the runner |
 | `RUNNING` / `TESTING` / `FIXING` | agents are working |
-| `PASS_AWAITING_APPROVAL` | tester passed; waiting on your merge decision |
-| `BLOCKED_RETRY` | **interrupted, not failed** — a usage limit or API error cut the session short; partial work is committed. `run --resume` continues it |
-| `FAILED` | the work is genuinely wrong, or attempts ran out. Branch left intact |
-| `MERGED` | merged into `dev_vps` locally. Never pushed |
+| `PASS_AWAITING_APPROVAL` | tester passed; the commits are on `dev_vps` awaiting your keep-or-undo |
+| `BLOCKED_RETRY` | **interrupted, not failed** — the agent ran out of quota. Work so far is committed, and the runner retries it automatically when the quota resets |
+| `FAILED` | the work is genuinely wrong, or attempts ran out |
+| `MERGED` | you accepted the commits |
+| `REVERTED` | the task's commits were undone |
 
 `BLOCKED_RETRY` is the one that is easy to misread. It does not mean the agent
 did bad work — it means it was severed mid-flight. See
 [CONTEXT_BUDGET.md](CONTEXT_BUDGET.md) for how that failure mode was found and
 why a parseable result file is not proof of completion.
+
+### Quota, and waiting it out
+
+When a CLI reports it is out of quota, the runner reads the reset time out of
+the error prose — `"resets 9:30am (UTC)"`, `"try again in 42 minutes"` — records
+it as `retry_at`, and picks the task up again when it passes. Nothing else is
+needed; `npm run agent -- queue` shows the countdown.
+
+The parsing is necessarily approximate, so an unrecognised message still yields
+a usable answer (a conservative 30-minute wait) rather than nothing. Waiting a
+little too long costs time; retrying too early burns the retry and can re-trip
+the limit. A task waiting on quota does not block the queue — the runner moves
+on to anything else that is ready.
 
 ---
 
@@ -209,6 +238,8 @@ agents/
   supervisor/    run.sh + SUPERVISOR.md (the conversational system prompt)
 orchestrator/
   cli.ts         command surface
+  runner.ts      the serial queue; runner-lock.ts, runner-cli.ts
+  quota.ts       reads reset times out of CLI error prose
   orchestrator.ts state machine + dispatch
   state.ts git.ts task-packet.ts context-budget.ts paths.ts types.ts
   chat/          thread.ts supervisor.ts repl.ts config.ts
@@ -236,6 +267,11 @@ orchestrator's own source never leaks into a feature diff.
   before it can corrupt task state.
 - Only the orchestrator touches git. Agents commit; they never branch, merge or
   push.
-- `approveTask` is the only merge path, it is `--no-ff`, and it never pushes.
+- `revertTask` is the undo path. It reverts each of the task's own commits
+  rather than resetting, so later work survives, and it aborts cleanly rather
+  than leaving the tree half-undone if a revert conflicts.
+- Tasks created before this model, on their own `agent/*` branch, are refused
+  by the runner: running one would check that branch out and silently move HEAD
+  off `dev_vps`.
 - Production deployment always requires a human. Passing tests are not
   permission.
