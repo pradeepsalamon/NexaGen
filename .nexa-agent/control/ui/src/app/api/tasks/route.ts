@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createTask, listTasks } from "@orchestrator/state";
-import { fail, startTaskAsync } from "../_lib";
+import { fail, queueTask } from "../_lib";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,8 +25,8 @@ export async function POST(req: Request) {
       agentOverrides: overrides ?? {},
       modelOverrides: models ?? {},
     });
-    startTaskAsync(state.task_id);
-    return NextResponse.json(state, { status: 201 });
+    const { runner } = queueTask(state.task_id);
+    return NextResponse.json({ ...state, runner }, { status: 201 });
   } catch (e) {
     return fail(e);
   }

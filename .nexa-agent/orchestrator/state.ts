@@ -98,8 +98,10 @@ export function createTask(input: CreateTaskInput): TaskState {
     roleModels[role] = modelOverride || roleModel || agentCfg?.default_model || "";
   }
 
-  const branch = `agent/${id}`;
-  const baseSha = git.createTaskBranch(branch, BASE_BRANCH);
+  // No task branch: work lands directly on dev_vps. base_sha is therefore the
+  // only record of where this task's changes begin.
+  const branch = BASE_BRANCH;
+  const baseSha = git.startOnBase(BASE_BRANCH);
 
   const state: TaskState = {
     task_id: id,

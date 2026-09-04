@@ -17,6 +17,7 @@ import * as git from "./git";
 import { appendStep, bumpSession, lastStep, lastStepForRole, readState, sessionsUsed, writeState } from "./state";
 import { buildPacket, sessionFor, writeHandoff, writePacket } from "./task-packet";
 import { MAX_SESSIONS_PER_STEP, evaluateBudget, maxBudgetUsd } from "./context-budget";
+import { describeWait, isDue, quotaWaitFor } from "./quota";
 
 export class DispatchError extends Error {}
 
@@ -180,6 +181,17 @@ export function dispatchStep(
     usage,
   };
 
+  // Schedule the retry as soon as the quota error is seen, so the decision is
+  // recorded next to the evidence rather than recomputed later from prose.
+  if (step.outcome === "agent_error" && isTransient(step.usage)) {
+    const wait = quotaWaitFor(typeof step.usage?.error_text === "string" ? step.usage.error_text : null);
+    state.retry_at = wait.retryAt;
+    state.retry_basis = wait.basis;
+  } else if (step.outcome === "ok") {
+    state.retry_at = null;
+    state.retry_basis = null;
+  }
+
   appendStep(state, step);
   writeState(state);
   writeHandoff(state, packet, step, result);
@@ -227,6 +239,7 @@ const TERMINAL: ReadonlySet<TaskState["status"]> = new Set([
   "PASS_AWAITING_APPROVAL",
   "FAILED",
   "MERGED",
+  "REVERTED",
   "REJECTED",
 ]);
 
@@ -247,19 +260,31 @@ export function nextAction(state: TaskState): NextAction {
   // -- it is unfinished work. It keeps its attempt and resumes the same
   // role-step, carrying whatever it managed to commit, once a human says go.
   if (last && last.outcome === "agent_error") {
-    if (state.resume_requested) {
-      return { kind: "dispatch", role: last.role, bumpAttempt: false };
-    }
     const why = truncationReason(last.usage) ?? "the agent CLI reported an error";
-    if (isTransient(last.usage) && sessionsUsed(state, last.role, state.attempt) < MAX_SESSIONS_PER_STEP) {
+    const recoverable =
+      isTransient(last.usage) && sessionsUsed(state, last.role, state.attempt) < MAX_SESSIONS_PER_STEP;
+
+    if (recoverable) {
+      // An explicit human resume overrides the timer.
+      if (state.resume_requested) {
+        return { kind: "dispatch", role: last.role, bumpAttempt: false };
+      }
+      // Quota is a clock problem, not a work problem: wait it out rather than
+      // burning retries against a limit that has not lifted.
+      if (isDue(state.retry_at)) {
+        return { kind: "dispatch", role: last.role, bumpAttempt: false };
+      }
       return {
         kind: "halt",
         status: "BLOCKED_RETRY",
         reason:
-          `step ${last.index} (${last.role}/${last.agent}) was cut short -- ${why}. ` +
-          `Partial work is committed on ${state.branch}. ` +
-          `Resume with: npm run agent -- run ${state.task_id} --resume`,
+          `step ${last.index} (${last.role}/${last.agent}) ran out of quota -- ${why}. ` +
+          `Work so far is committed on ${state.branch}. ` +
+          `Retrying automatically ${describeWait(state.retry_at!)} (${state.retry_basis ?? "scheduled"}).`,
       };
+    }
+    if (state.resume_requested) {
+      return { kind: "dispatch", role: last.role, bumpAttempt: false };
     }
     return {
       kind: "terminal",
@@ -439,19 +464,54 @@ export function runTask(taskId: string, opts: RunOptions = {}): TaskState {
 
 // --- human approval gate ----------------------------------------------------
 
-/** Merge an approved task branch into dev_vps. Agents never do this. */
+/**
+ * Accept a task's work.
+ *
+ * There is nothing to merge -- the commits are already on dev_vps. What this
+ * records is that a human looked at them and is keeping them, which is the
+ * whole point of the gate. Nothing is ever pushed.
+ */
 export function approveTask(taskId: string, approver: string): TaskState {
   const state = readState(taskId);
   if (state.status !== "PASS_AWAITING_APPROVAL") {
     throw new DispatchError(`task ${taskId} is ${state.status}, not PASS_AWAITING_APPROVAL`);
   }
-  const mergeSha = git.mergeToBase(state.branch, state.base_branch);
   state.status = "MERGED";
   state.approved_by = approver;
   state.approved_at = nowIso();
   state.failure_reason = null;
   writeState(state);
-  console.error(`merged ${state.branch} into ${state.base_branch} as ${mergeSha.slice(0, 8)} (not pushed)`);
+  const commits = git.commitsSince(state.base_sha, state.branch);
+  console.error(`accepted ${commits.length} commit(s) on ${state.branch} (not pushed)`);
+  return state;
+}
+
+/**
+ * Undo a task's commits on dev_vps.
+ *
+ * This is the escape hatch that abandoning a branch used to provide. It reverts
+ * rather than resets, so anything committed after the task survives, and it is
+ * all-or-nothing: a conflict aborts cleanly rather than leaving the tree half
+ * undone.
+ */
+export function revertTask(taskId: string, by: string): TaskState {
+  const state = readState(taskId);
+  const commits = git.commitsSince(state.base_sha, state.branch);
+  if (!commits.length) throw new DispatchError(`task ${taskId} has no commits to revert`);
+
+  const { reverted, conflicted } = git.revertCommits(commits.map((c) => c.sha));
+  if (conflicted) {
+    throw new DispatchError(
+      `revert of ${conflicted.slice(0, 8)} conflicts with later work -- nothing was changed. ` +
+        `Undo it by hand, or ask a bug-fixer task to remove the behaviour instead.`,
+    );
+  }
+
+  state.status = "REVERTED";
+  state.approved_by = by;
+  state.approved_at = nowIso();
+  state.failure_reason = `${reverted.length} commit(s) reverted by ${by}`;
+  writeState(state);
   return state;
 }
 

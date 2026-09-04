@@ -10,13 +10,13 @@
  *   npm run agent -- show <task-id>
  *   npm run agent -- list
  */
-import { spawn } from "child_process";
-import * as fs from "fs";
 import * as path from "path";
 import { AGENT_DIR, loadAgents, loadRoles } from "./paths";
 import type { AgentName, RoleName } from "./types";
-import { createTask, listTasks, readState } from "./state";
-import { approveTask, dispatchNext, isTerminal, nextAction, rejectTask, runTask } from "./orchestrator";
+import { createTask, listTasks, readState, writeState } from "./state";
+import { approveTask, dispatchNext, isTerminal, nextAction, rejectTask, revertTask, runTask } from "./orchestrator";
+import { enqueue, ensureRunnerRunning, nextRunnable, queue, runQueue } from "./runner";
+import { breakLock, currentLock } from "./runner-lock";
 import * as git from "./git";
 import { chat, listChats } from "./chat/repl";
 
@@ -55,9 +55,13 @@ Commands:
   run <task-id> [--resume]  drive the task to a terminal state (full auto-handoff chain)
                             --resume restarts a role-step a usage limit cut short
   dispatch <task-id>     run the next role in the chain (one step only)
-  approve <task-id> --by <name>    merge the approved branch into dev_vps
+  approve <task-id> --by <name>    accept the commits (they are already on dev_vps)
+  revert <task-id> --by <name>     undo this task's commits on dev_vps
   reject <task-id> --reason "..."  send it back to the bug-fixer
-  start <task-id> [--resume]  run it in a detached background worker (returns at once)
+  start <task-id> [--resume]  queue it and make sure a runner is draining the queue
+  queue                  what is running, what is next, what is waiting on quota
+  runner [--daemon]      drain the queue here; --daemon keeps waiting for new work
+  unlock                 force-release a stuck runner lock
   show <task-id>         print task state
   list [--json]          list all tasks
   status                 compact overview of every task, grouped by status
@@ -205,40 +209,60 @@ function cmdShow(positional: string[]): void {
 }
 
 /**
- * Start a task in a detached worker and return immediately.
+ * Queue a task and make sure a runner is draining the queue.
  *
- * `run` blocks for as long as the agents take, which is minutes. The supervisor
- * chat agent must never block a conversation turn on that, so it uses this.
+ * This no longer spawns a worker per task. Everything commits to dev_vps, so
+ * only one task may run at a time; `start` therefore means "get in line", and a
+ * single background runner works through the line in order.
  */
 function cmdStart(positional: string[], flags: Record<string, string[]>): void {
   const id = positional[0];
   if (!id) throw new Error("start requires a task id");
-  const state = readState(id);
-  const args = [
-    "--project",
-    path.join(AGENT_DIR, "tsconfig.json"),
-    path.join(AGENT_DIR, "orchestrator", "worker.ts"),
-    id,
-  ];
-  if (flags.resume) args.push("--resume");
+  const state = enqueue(id);
 
-  const out = fs.openSync(path.join(AGENT_DIR, "logs", `worker_${id}.log`), "a");
-  const child = spawn(path.join(AGENT_DIR, "..", "node_modules", ".bin", "ts-node"), args, {
-    cwd: AGENT_DIR,
-    detached: true,
-    stdio: ["ignore", out, out],
-  });
-  child.unref();
+  if (flags.resume) {
+    const s = readState(id);
+    s.resume_requested = true;
+    writeState(s);
+  }
 
+  const spawned = ensureRunnerRunning();
+  const runner = spawned.started
+    ? `runner started (pid ${spawned.pid})`
+    : `already running ${spawned.holding}`;
+
+  const position = queue().findIndex((q) => q.task_id === id) + 1;
   console.log(
     JSON.stringify(
       {
-        started: id,
-        pid: child.pid,
+        queued: id,
+        status: state.status,
+        position,
         branch: state.branch,
         chain: state.chain,
-        log: path.join(AGENT_DIR, "logs", `worker_${id}.log`),
-        note: "running in the background; poll with: npm run agent -- show " + id,
+        runner,
+        log: path.join(AGENT_DIR, "logs", "runner.log"),
+        note:
+          position > 1
+            ? `${position - 1} task(s) ahead of it; only one runs at a time so commits on ${state.branch} stay untangled`
+            : "next up",
+      },
+      null,
+      2,
+    ),
+  );
+}
+
+/** What is waiting to run, and what is waiting on a clock. */
+function cmdQueue(): void {
+  const held = currentLock();
+  const entries = queue();
+  console.log(
+    JSON.stringify(
+      {
+        running: held ? { task_id: held.task_id, pid: held.pid, since: held.acquired_at } : null,
+        next: nextRunnable(),
+        queue: entries,
       },
       null,
       2,
@@ -330,6 +354,22 @@ function main(): void {
     case "next": return cmdNext(positional);
     case "show": return cmdShow(positional);
     case "start": return cmdStart(positional, flags);
+    case "queue": return cmdQueue();
+    case "runner": return void runQueue({ daemon: Boolean(flags.daemon) });
+    case "unlock": {
+      const lock = breakLock();
+      console.log(lock ? `released lock held by ${lock.task_id} (pid ${lock.pid})` : "no lock held");
+      return;
+    }
+    case "revert": {
+      const id = positional[0];
+      if (!id) throw new Error("revert requires a task id");
+      const by = one(flags, "by");
+      if (!by) throw new Error("--by <name> is required to record who reverted");
+      const state = revertTask(id, by);
+      console.log(`${id} -> ${state.status}. ${state.failure_reason}`);
+      return;
+    }
     case "status": return cmdStatus();
     case "list": return cmdList(flags);
     case "roles": return cmdRoles();

@@ -54,16 +54,23 @@ export function assertClean(context: string): void {
 }
 
 /**
- * Create the task branch off the base branch. Base is dev_vps by decision --
+ * Put the repo on the working branch and return the sha the task starts from.
+ *
+ * Tasks commit DIRECTLY to dev_vps -- there is no per-task branch. That makes
+ * the recorded base sha the only thing anchoring "what this task changed", and
+ * it makes serialisation mandatory rather than merely tidy: two tasks committing
+ * to one branch at once would interleave their commits and `commitLeftovers`
+ * would sweep the other's work into the wrong task. The runner lock in
+ * state.ts is what guarantees only one is ever in flight.
+ *
  * main and dev are never touched by the autonomous loop.
  */
-export function createTaskBranch(branch: string, base = BASE_BRANCH): string {
-  if (branchExists(branch)) throw new GitError(`branch ${branch} already exists`);
-  assertClean("cannot create task branch");
-  git(["checkout", base]);
-  const baseSha = headSha();
-  git(["checkout", "-b", branch, base]);
-  return baseSha;
+export function startOnBase(base = BASE_BRANCH): string {
+  if (currentBranch() !== base) {
+    assertClean(`cannot switch to ${base}`);
+    git(["checkout", base]);
+  }
+  return headSha();
 }
 
 export function checkoutBranch(branch: string): void {
@@ -76,7 +83,7 @@ export function checkoutBranch(branch: string): void {
  * Cumulative diff for the whole task: base..branch. This is the real diff the
  * tester and bug-fixer read -- never a description of the change.
  */
-export function cumulativeDiff(baseSha: string, branch: string): string {
+export function cumulativeDiff(baseSha: string, branch = "HEAD"): string {
   return git(["diff", `${baseSha}..${branch}`]);
 }
 
@@ -143,10 +150,30 @@ export function commitLeftovers(message: string): string | null {
   return headSha();
 }
 
-/** Merge the approved task branch back into dev_vps. Never pushes. */
-export function mergeToBase(branch: string, base = BASE_BRANCH): string {
-  assertClean("cannot merge");
-  git(["checkout", base]);
-  git(["merge", "--no-ff", branch, "-m", `Merge ${branch} into ${base} (human approved)`]);
-  return headSha();
+/**
+ * Undo a task's commits.
+ *
+ * With work landing straight on dev_vps, this replaces "abandon the branch" as
+ * the escape hatch, so it has to be safe by construction. It reverts each
+ * commit individually, newest first, rather than resetting: a reset would also
+ * discard anything committed after the task, and the history of what was tried
+ * is worth keeping. If any single revert conflicts the whole thing is aborted
+ * and nothing is left half-undone.
+ */
+export function revertCommits(shas: string[]): { reverted: string[]; conflicted: string | null } {
+  assertClean("cannot revert");
+  const reverted: string[] = [];
+  for (const sha of [...shas].reverse()) {
+    try {
+      git(["revert", "--no-edit", "--no-commit", sha]);
+      git(["commit", "-m", `Revert ${sha.slice(0, 8)} (task rejected)`]);
+      reverted.push(sha);
+    } catch {
+      git(["revert", "--abort"], { quiet: true });
+      // Undo the reverts already made, so the tree is exactly as it was.
+      for (const done of reverted) git(["reset", "--hard", `${done}~0`], { quiet: true });
+      return { reverted: [], conflicted: sha };
+    }
+  }
+  return { reverted, conflicted: null };
 }

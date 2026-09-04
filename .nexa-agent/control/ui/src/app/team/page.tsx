@@ -48,6 +48,16 @@ const ROLE_LABEL: Record<string, string> = {
   reviewer: "Reviewer",
 };
 
+/**
+ * A labelled select that survives a 360px screen.
+ *
+ * Three things are load-bearing here. `min-w-0` lets the flex item shrink below
+ * its content width -- without it a long option like "Gemini 3.8 Flash (Ultra
+ * Fast ~15s)" forces the row wider than the viewport and the page scrolls
+ * sideways. `w-full` plus `truncate` keeps the closed select inside that box.
+ * And the pickers stack on narrow screens rather than sitting side by side,
+ * because two selects sharing 360px leaves neither readable.
+ */
 function Picker({
   label,
   value,
@@ -60,12 +70,12 @@ function Picker({
   onChange: (v: string) => void;
 }) {
   return (
-    <label className="flex flex-1 flex-col gap-1">
+    <label className="flex min-w-0 flex-1 flex-col gap-1">
       <span className="text-[10px] font-semibold uppercase tracking-wide text-app-text-muted">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="rounded-lg border border-app-border bg-app-bg px-2 py-2 text-sm outline-none focus:border-app-primary"
+        className="w-full min-w-0 truncate rounded-lg border border-app-border bg-app-bg px-2 py-2.5 text-sm outline-none focus:border-app-primary"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
@@ -165,7 +175,7 @@ export default function TeamPage() {
   const agentOptions = team.agents.map((a) => ({ value: a.name, label: `${a.name} (${a.cli})` }));
 
   return (
-    <div className="flex flex-col gap-5 pb-24">
+    <div className="flex w-full max-w-full flex-col gap-5 overflow-x-hidden pb-24">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Team</h1>
         <p className="mt-1 text-sm text-app-text-muted">
@@ -183,7 +193,7 @@ export default function TeamPage() {
           tools at all — switching it mid-conversation carries a transcript recap across, since CLI
           sessions are not portable.
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 min-[400px]:flex-row">
           <Picker
             label="Agent"
             value={team.supervisor.agent}
@@ -206,8 +216,8 @@ export default function TeamPage() {
 
         {team.roles.map((role) => (
           <div key={role.name} className="rounded-2xl border border-app-border bg-app-surface p-4">
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <span className="font-medium">{ROLE_LABEL[role.name] ?? role.name}</span>
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+              <span className="min-w-0 truncate font-medium">{ROLE_LABEL[role.name] ?? role.name}</span>
               <span
                 className={cn(
                   "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px]",
@@ -222,7 +232,7 @@ export default function TeamPage() {
               </span>
             </div>
             <p className="mb-3 text-xs leading-relaxed text-app-text-muted">{role.description}</p>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 min-[400px]:flex-row">
               <Picker
                 label="Agent"
                 value={role.agent}
@@ -247,16 +257,18 @@ export default function TeamPage() {
         </p>
         <div className="flex flex-col gap-2">
           {Object.entries(team.chains).map(([name, chain]) => (
-            <div key={name} className="flex flex-wrap items-center gap-1 text-xs">
-              <span className="mr-1 w-40 shrink-0 font-mono text-app-text-muted">{name}</span>
-              {chain.map((r, i) => (
-                <span key={r} className="flex items-center gap-1">
-                  {i > 0 && <span className="text-app-text-muted">→</span>}
-                  <span className="rounded-full border border-app-border bg-app-bg px-2 py-0.5">
-                    {ROLE_LABEL[r] ?? r}
+            <div key={name} className="flex flex-col gap-1 text-xs">
+              <span className="font-mono text-app-text-muted">{name}</span>
+              <div className="flex flex-wrap items-center gap-1">
+                {chain.map((r, i) => (
+                  <span key={r} className="flex items-center gap-1">
+                    {i > 0 && <span className="text-app-text-muted">→</span>}
+                    <span className="rounded-full border border-app-border bg-app-bg px-2 py-0.5">
+                      {ROLE_LABEL[r] ?? r}
+                    </span>
                   </span>
-                </span>
-              ))}
+                ))}
+              </div>
             </div>
           ))}
         </div>

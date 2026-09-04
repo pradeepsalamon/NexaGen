@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { rejectTask } from "@orchestrator/orchestrator";
-import { fail, startTaskAsync } from "../../../_lib";
+import { fail, queueTask } from "../../../_lib";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ error: "reason is required -- the fixer reads it" }, { status: 400 });
     }
     const state = rejectTask(id, reason);
-    startTaskAsync(id);
+    queueTask(id);
     return NextResponse.json(state);
   } catch (e) {
     return fail(e);

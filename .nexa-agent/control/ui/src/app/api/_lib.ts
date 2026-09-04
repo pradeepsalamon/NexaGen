@@ -2,13 +2,11 @@
  * Shared helpers for the route handlers.
  *
  * Every route runs in the Node runtime and calls the orchestrator directly --
- * there is no separate API process any more. That is why the handlers are thin:
- * all the real logic already lives in ../../../../../orchestrator.
+ * there is no separate API process. That is why the handlers are thin: the real
+ * logic lives in the orchestrator modules they import.
  */
 import { NextResponse } from "next/server";
-import { spawn } from "child_process";
-import * as path from "path";
-import { AGENT_DIR } from "@orchestrator/paths";
+import { ensureRunnerRunning, enqueue } from "@orchestrator/runner";
 
 export const runtime = "nodejs";
 
@@ -18,24 +16,18 @@ export function fail(error: unknown, status = 500) {
 }
 
 /**
- * Run a task in a detached worker.
+ * Put a task in the queue and make sure a runner is draining it.
  *
- * A task run takes minutes; holding the HTTP request open for it would tie the
- * response to the browser staying connected. The worker outlives this process.
+ * Deliberately NOT "spawn a worker for this task". Everything commits straight
+ * to dev_vps, so exactly one task may run at a time; starting a second process
+ * would interleave commits on a single branch with no way to untangle them
+ * afterwards. The runner serialises that.
  */
-export function startTaskAsync(taskId: string, resume = false): void {
-  const args = [
-    "--project",
-    path.join(AGENT_DIR, "tsconfig.json"),
-    path.join(AGENT_DIR, "orchestrator", "worker.ts"),
-    taskId,
-  ];
-  if (resume) args.push("--resume");
-
-  const child = spawn(path.join(AGENT_DIR, "..", "node_modules", ".bin", "ts-node"), args, {
-    cwd: AGENT_DIR,
-    detached: true,
-    stdio: "ignore",
-  });
-  child.unref();
+export function queueTask(taskId: string): { position: number; runner: string } {
+  enqueue(taskId);
+  const spawned = ensureRunnerRunning();
+  return {
+    position: 0,
+    runner: spawned.started ? `runner started (pid ${spawned.pid})` : `busy with ${spawned.holding}`,
+  };
 }

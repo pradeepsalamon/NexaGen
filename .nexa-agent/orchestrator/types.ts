@@ -6,6 +6,8 @@
 /** Task lifecycle. The state machine in orchestrator.ts owns transitions. */
 export type TaskStatus =
   | "PENDING"
+  /** Waiting for the runner lock: another task is committing to dev_vps. */
+  | "QUEUED"
   | "RUNNING"
   | "TESTING"
   | "FIXING"
@@ -18,6 +20,8 @@ export type TaskStatus =
    */
   | "BLOCKED_RETRY"
   | "FAILED"
+  /** The task's commits were undone on dev_vps. */
+  | "REVERTED"
   | "MERGED"
   | "REJECTED";
 
@@ -112,6 +116,16 @@ export interface TaskState {
    * a pure function of state.json.
    */
   resume_requested?: boolean;
+  /**
+   * Set when an agent ran out of quota: the runner will not touch this task
+   * again until this time. Parsed from the CLI's prose error, so approximate --
+   * see quota.ts for why erring late is the right side to err on.
+   */
+  retry_at?: string | null;
+  /** How that time was arrived at, so a human can sanity-check it. */
+  retry_basis?: string | null;
+  /** Position in the queue when this task was enqueued; lower runs first. */
+  queued_at?: string | null;
   /** Human-readable reason for FAILED / REJECTED. */
   failure_reason: string | null;
   approved_by: string | null;
