@@ -32,3 +32,4 @@ github-actions-key.pub
 # Local Recordings storage
 recordings/
 
+test-results/

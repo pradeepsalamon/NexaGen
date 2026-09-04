@@ -151,6 +151,52 @@ mode, which is why it hung silently in v1.
 
 ---
 
+## E2E means a real browser
+
+`tester-e2e` does not stop at typecheck and jest. It drives the running
+application with Playwright:
+
+```bash
+.nexa-agent/scripts/e2e-dev.sh                          # whole suite
+.nexa-agent/scripts/e2e-dev.sh e2e/attendance-flow.spec.ts
+```
+
+The script reuses the dev stack if it is already up and starts it if not,
+leaving it running afterwards — a warm dev server is the normal state of this
+box, and tearing it down after each run would make every run pay Nest's and
+Next's cold start.
+
+**Never run `npx playwright test` directly.** Four things about this host make
+the defaults wrong, and three of them fail quietly:
+
+| | Default | Why it breaks |
+|---|---|---|
+| base URL | `localhost:3000` | that is **production** `nexa_web`. The specs sign in with the seeded accounts and create batches and messages — against the production database |
+| API URL | `localhost:3001` | **production** `nexa_api` |
+| `next dev` port | 3000, then 3001, then 3002 | it ignores `PORT` in `.env.local` and walks *up* into the production ports; `--port` is passed explicitly for that reason |
+| `NEXT_PUBLIC_API_URL` | `http://146.56.55.170:3011` | baked into the client bundle, but this box is behind NAT and cannot reach its own public IP. The page loads, every API call fails, and it looks like a broken login |
+
+The script pins web `:3010` / api `:3011` / database `vps_dev`, overrides
+`NEXT_PUBLIC_API_URL` for the web process, and `guard_e2e_target` aborts if
+anything still resolves to a production port.
+
+## Pushing and merging
+
+The supervisor can `merge` and `push`; worker agents still cannot, and never
+reach a remote on their own.
+
+```bash
+npm run agent -- merge --from <branch> [--into dev_vps] --by <name>
+npm run agent -- push [--branch <b>] --by <name> [--deploy-production]
+```
+
+**Pushing `main` is a production deployment.**
+`.github/workflows/deploy-production.yml` fires on push to `main`: it SSHes to
+this VPS, rebuilds the production containers, and runs `prisma migrate deploy`
+against the production database. `push` refuses without `--deploy-production`
+so nobody arrives at a deploy by way of a generic "push". Pushing `dev_vps`
+triggers nothing.
+
 ## Commands
 
 ```bash
@@ -232,6 +278,7 @@ for deliberate use; the conversation is the safe way in.
 
 ```
 config/          agents.json, roles.json, supervisor.json, SAFETY.md
+scripts/         e2e-dev.sh -- Playwright against the dev stack, never production
 agents/
   _lib/          guard.sh (safety, exit 90), build-prompt.sh, validate-result.sh (exit 91)
   claude/ antigravity/ opencode/    worker wrappers, one per CLI
