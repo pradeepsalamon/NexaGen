@@ -174,7 +174,14 @@ export interface AgentConfig {
   max_budget_usd?: number;
   timeout_seconds: number;
   enforces_json_schema: boolean;
-  model?: string;
+  /**
+   * Model used when a task does not name one. The runner falls back to the
+   * CLI's own account default when this is absent -- it is NOT the same as
+   * pinning a model, which matters when an account default changes underneath.
+   */
+  default_model?: string;
+  /** Choices offered by the per-role picker in the control UI. */
+  models?: { id: string; label: string }[];
   permission_flag?: string;
 }
 

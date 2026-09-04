@@ -90,7 +90,29 @@ Defaults live in [config/roles.json](config/roles.json).
 Chains: `feature` (backend → frontend → tester), `backend-only`,
 `frontend-only`, `test-only`, `review-only`.
 
-Override per task: `--agent backend-dev=antigravity`.
+Override per task: `--agent backend-dev=antigravity --model backend-dev=gemini-3.1-pro-high`,
+or per role in the control UI's `/new` form.
+
+### Choosing models
+
+`npm run agent -- roles` prints every agent, its models and which is default.
+
+| Where | Scope | How |
+|---|---|---|
+| `config/roles.json` → `default_agent` | permanent, per role | which agent fills the role |
+| `config/agents.json` → `default_model` | permanent, per agent | used when a task names no model |
+| `--agent` / `--model` on `create` | one task | frozen into `state.json` at creation |
+| `/new` in the UI | one task | per-role Agent + Model dropdowns |
+| `NEXA_CLAUDE_MODEL`, `NEXA_ANTIGRAVITY_MODEL`, `NEXA_OPENCODE_MODEL`, `NEXA_SUPERVISOR_MODEL` | one run | env override, beats `default_model` |
+
+Precedence is task → environment → `default_model` → the CLI's own account
+default. Leaving `default_model` unset is not the same as pinning a model: it
+means whatever the CLI account currently defaults to, which can change under
+you.
+
+The supervisor is configured separately in `config/supervisor.json` (`model`,
+`max_budget_usd`, `timeout_seconds`). It is deliberately not in `agents.json`
+so no role can be assigned to it and it never appears in the agent picker.
 
 Registered agents are in [config/agents.json](config/agents.json), including a
 `_corrections` block recording where each CLI's real invocation differs from what

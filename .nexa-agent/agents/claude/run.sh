@@ -24,7 +24,7 @@ BRANCH="$(jq -r '.branch' "$PACKET")"
 BUDGET="${NEXA_MAX_BUDGET_USD:-$(jq -r '.claude.max_budget_usd // 8' "$CFG")}"
 TIMEOUT="$(jq -r '.claude.timeout_seconds // 2400' "$CFG")"
 PACKET_MODEL="$(jq -r '.model // empty' "$PACKET")"
-MODEL="${PACKET_MODEL:-${NEXA_CLAUDE_MODEL:-$(jq -r '.claude.model // empty' "$CFG")}}"
+MODEL="${PACKET_MODEL:-${NEXA_CLAUDE_MODEL:-$(jq -r '.claude.default_model // empty' "$CFG")}}"
 
 LOGDIR="$NEXA_AGENT_DIR/logs/$AGENT"
 mkdir -p "$LOGDIR" "$(dirname "$RESULT_PATH")"

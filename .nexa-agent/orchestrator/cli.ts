@@ -13,7 +13,7 @@
 import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
-import { AGENT_DIR, loadRoles } from "./paths";
+import { AGENT_DIR, loadAgents, loadRoles } from "./paths";
 import type { AgentName, RoleName } from "./types";
 import { createTask, listTasks, readState } from "./state";
 import { approveTask, dispatchNext, isTerminal, nextAction, rejectTask, runTask } from "./orchestrator";
@@ -50,7 +50,8 @@ function usage(): void {
   console.log(`nexa-agent orchestrator (Phase 2)
 
 Commands:
-  create --summary "<prompt>" --chain <chain|role,role> [--agent role=agent]... [--paths a,b] [--id <task-id>]
+  create --summary "<prompt>" --chain <chain|role,role>
+         [--agent role=agent]... [--model role=model]... [--paths a,b] [--id <task-id>]
   run <task-id> [--resume]  drive the task to a terminal state (full auto-handoff chain)
                             --resume restarts a role-step a usage limit cut short
   dispatch <task-id>     run the next role in the chain (one step only)
@@ -86,10 +87,18 @@ function cmdCreate(flags: Record<string, string[]>): void {
     agentOverrides[role as RoleName] = agent as AgentName;
   }
 
+  const modelOverrides: Partial<Record<RoleName, string>> = {};
+  for (const pair of flags.model ?? []) {
+    const [role, model] = pair.split("=");
+    if (!role || !model) throw new Error(`--model expects role=model, got "${pair}"`);
+    modelOverrides[role as RoleName] = model;
+  }
+
   const state = createTask({
     summary,
     chain: resolveChain(chainRaw),
     agentOverrides,
+    modelOverrides,
     relevantPaths: one(flags, "paths")?.split(",").map((p) => p.trim()).filter(Boolean) ?? [],
     taskId: one(flags, "id"),
   });
@@ -98,7 +107,8 @@ function cmdCreate(flags: Record<string, string[]>): void {
   console.log(`  branch  ${state.branch}  (off ${state.base_branch} @ ${state.base_sha.slice(0, 8)})`);
   console.log(`  chain   ${state.chain.join(" -> ")}`);
   for (const [role, agent] of Object.entries(state.role_agents)) {
-    console.log(`    ${role.padEnd(14)} ${agent}`);
+    const model = state.role_models?.[role];
+    console.log(`    ${role.padEnd(14)} ${agent}${model ? `  (${model})` : ""}`);
   }
 }
 
@@ -285,13 +295,28 @@ function cmdList(flags: Record<string, string[]>): void {
 
 function cmdRoles(): void {
   const roles = loadRoles();
+  const agents = loadAgents();
+
+  console.log("ROLES (default agent from config/roles.json)\n");
   for (const [name, cfg] of Object.entries(roles.roles)) {
-    console.log(`${name.padEnd(14)} -> ${cfg.default_agent.padEnd(12)} ${cfg.description}`);
+    console.log(`  ${name.padEnd(14)} -> ${cfg.default_agent.padEnd(12)} ${cfg.description}`);
   }
-  console.log();
+
+  console.log("\nCHAINS\n");
   for (const [name, chain] of Object.entries(roles.chains)) {
-    console.log(`chain ${name.padEnd(16)} ${chain.join(" -> ")}`);
+    console.log(`  ${name.padEnd(16)} ${chain.join(" -> ")}`);
   }
+
+  console.log("\nAGENTS AND MODELS (config/agents.json)\n");
+  for (const [name, cfg] of Object.entries(agents)) {
+    const models = cfg.models ?? [];
+    console.log(`  ${name}  (cli: ${cfg.cli}, default model: ${cfg.default_model ?? "the CLI's own default"})`);
+    for (const m of models) {
+      console.log(`      ${m.id === cfg.default_model ? "*" : " "} ${m.id.padEnd(24)} ${m.label}`);
+    }
+  }
+
+  console.log("\nOverride per task:  --agent backend-dev=antigravity --model backend-dev=gemini-3.1-pro-high");
 }
 
 function main(): void {

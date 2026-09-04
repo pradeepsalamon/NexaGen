@@ -21,7 +21,11 @@ RESULT_PATH="$(jq -r '.result_path' "$PACKET")"
 BRANCH="$(jq -r '.branch' "$PACKET")"
 
 TIMEOUT="$(jq -r '.opencode.timeout_seconds // 2400' "$CFG")"
-MODEL="${NEXA_OPENCODE_MODEL:-$(jq -r '.opencode.model // empty' "$CFG")}"
+PACKET_MODEL="$(jq -r '.model // empty' "$PACKET")"
+MODEL="${PACKET_MODEL:-${NEXA_OPENCODE_MODEL:-$(jq -r '.opencode.default_model // empty' "$CFG")}}"
+# "default" is the placeholder the UI picker shows, not a real model id -- passing
+# it through as --model would be worse than passing nothing at all.
+[ "$MODEL" = "default" ] && MODEL=""
 AUTO_FLAG="$(jq -r '.opencode.permission_flag // "--auto"' "$CFG")"
 
 LOGDIR="$NEXA_AGENT_DIR/logs/$AGENT"
