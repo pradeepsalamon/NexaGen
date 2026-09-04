@@ -6,17 +6,29 @@
 /** Task lifecycle. The state machine in orchestrator.ts owns transitions. */
 export type TaskStatus =
   | "PENDING"
+  /** Waiting for the runner lock: another task is committing to dev_vps. */
+  | "QUEUED"
   | "RUNNING"
   | "TESTING"
   | "FIXING"
   | "PASS_AWAITING_APPROVAL"
+  /**
+   * Non-terminal. The agent CLI died on something transient and external -- an
+   * account usage limit, a 5xx from the API. The work is not wrong, it was cut
+   * short, so the task keeps its attempt and resumes the same role-step when
+   * `run` is called again. Distinct from FAILED, which means the work is bad.
+   */
+  | "BLOCKED_RETRY"
   | "FAILED"
+  /** The task's commits were undone on dev_vps. */
+  | "REVERTED"
   | "MERGED"
   | "REJECTED";
 
 export type RoleName =
   | "backend-dev"
   | "frontend-dev"
+  | "fullstack-architect"
   | "tester-e2e"
   | "bug-fixer"
   | "reviewer";
@@ -34,12 +46,34 @@ export interface StepRecord {
   session: number;
   started_at: string;
   ended_at: string | null;
-  /** ok = agent returned a valid result. The result's own status may still be "blocked". */
-  outcome: "ok" | "blocked" | "invalid_result" | "timeout" | "guard_abort" | "cli_error";
+  /**
+   * ok = agent returned a valid result. The result's own status may still be "blocked".
+   * agent_error = the CLI reported is_error (usage limit / API error): the session
+   * was TRUNCATED, so a result file that happens to parse must not be trusted as
+   * finished work.
+   */
+  outcome:
+    | "ok"
+    | "blocked"
+    | "agent_error"
+    | "invalid_result"
+    | "timeout"
+    | "guard_abort"
+    | "cli_error";
   exit_code: number | null;
   packet_path: string;
   result_path: string;
   commit_sha: string | null;
+  /**
+   * Every commit this step actually created.
+   *
+   * base_sha..HEAD is no longer a safe answer to "what did this task change".
+   * Tasks run sequentially on one branch, so that range also contains later
+   * tasks' commits and any human commit in between -- reverting it would undo
+   * other people's work. These shas are recorded from the step's own before/
+   * after, so they are exactly its own.
+   */
+  commits?: string[];
   files_changed: string[];
   diff_summary: string | null;
   notes: string | null;
@@ -85,6 +119,23 @@ export interface TaskState {
   sessions_used: Record<string, number>;
 
   steps: StepRecord[];
+  /**
+   * Set by an explicit human resume of a BLOCKED_RETRY task. `nextAction` reads
+   * it to decide whether to re-dispatch the truncated role-step; `advanceOnce`
+   * clears it as soon as it does, so a resume is one-shot and the machine stays
+   * a pure function of state.json.
+   */
+  resume_requested?: boolean;
+  /**
+   * Set when an agent ran out of quota: the runner will not touch this task
+   * again until this time. Parsed from the CLI's prose error, so approximate --
+   * see quota.ts for why erring late is the right side to err on.
+   */
+  retry_at?: string | null;
+  /** How that time was arrived at, so a human can sanity-check it. */
+  retry_basis?: string | null;
+  /** Position in the queue when this task was enqueued; lower runs first. */
+  queued_at?: string | null;
   /** Human-readable reason for FAILED / REJECTED. */
   failure_reason: string | null;
   approved_by: string | null;
@@ -148,12 +199,21 @@ export interface AgentConfig {
   max_budget_usd?: number;
   timeout_seconds: number;
   enforces_json_schema: boolean;
-  model?: string;
+  /**
+   * Model used when a task does not name one. The runner falls back to the
+   * CLI's own account default when this is absent -- it is NOT the same as
+   * pinning a model, which matters when an account default changes underneath.
+   */
+  default_model?: string;
+  /** Choices offered by the per-role picker in the control UI. */
+  models?: { id: string; label: string }[];
   permission_flag?: string;
 }
 
 export interface RoleConfig {
   default_agent: AgentName;
+  /** Set by the Team tab. Absent means the agent's own default_model. */
+  default_model?: string;
   description: string;
   must_commit: boolean;
   requires_test_report?: boolean;

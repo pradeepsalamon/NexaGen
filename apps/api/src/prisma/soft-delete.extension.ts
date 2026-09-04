@@ -1,3 +1,22 @@
+/**
+ * Soft-delete query extension.
+ *
+ * Read operations (`findMany`, `findFirst`, `findUnique`, `count`, `aggregate`,
+ * `groupBy`, ...) on the models listed in `softDeleteModels` get
+ * `isDeleted: false` injected into `where`, and the relations listed in
+ * `filterableRelationNames` get the same filter applied to their nested
+ * `include`/`select` args. Writes are never touched.
+ *
+ * Escape hatch: pass `includeDeleted: true` in the query args to skip the
+ * injection for that single call. The flag is stripped before the query reaches
+ * Prisma, so it never appears in the generated SQL. For a client where every
+ * call bypasses the filter, use `prisma.withDeleted` (`PrismaService`) instead.
+ *
+ * Uniqueness pre-checks MUST use `prisma.withDeleted`. Columns such as
+ * `users.email` and `users.username` are uniquely indexed across soft-deleted
+ * rows, so a filtered read misses a conflicting deleted row and the subsequent
+ * write fails with P2002 as an unhandled 500. See `docs/PROJECT_RULES.md` §4.6.
+ */
 import { Prisma } from "@prisma/client";
 
 type QueryArgs = {

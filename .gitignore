@@ -45,3 +45,4 @@ blob-report/
 # production because it never reached the repo.
 /recordings/
 
+test-results/
