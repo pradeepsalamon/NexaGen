@@ -63,6 +63,7 @@ coach/board durations were always 0, `room_finished` never fired, and the
 |---|---|
 | **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
 | **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
+| **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Most of the reliability surface already exists and is tested — webhook idempotency, ghost-drop reconciliation, coach-hour reconciliation, per-class live monitoring, multi-tab-safe LiveKit identities, board state recovery protocol. Genuinely missing: a heartbeat channel independent of LiveKit webhooks (`AttendanceService.recordDisconnectEvent` is dead code waiting for exactly this), staleness timeout on `getLiveClassMonitoring`'s online/offline signal, a frontend `ConnectionStateManager`/`ClassroomSessionManager` to consolidate five separate reconnect/identity call sites, chat history re-fetch on reconnect, and a cross-class admin reliability view. See the design doc's §6 phased plan before picking this up. |
 
 ## Resolved (2026-08-30)
 
