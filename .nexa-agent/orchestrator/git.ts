@@ -166,6 +166,22 @@ export function commitLeftovers(message: string): string | null {
 }
 
 /**
+ * Merge a legacy task branch into the base.
+ *
+ * Only for tasks created before work moved onto dev_vps directly. Those have
+ * real commits sitting on their own branch, and accepting one has to actually
+ * bring the work in -- otherwise "approved" would mean the code stays stranded
+ * where nobody sees it. Never pushes.
+ */
+export function mergeToBase(branch: string, base = BASE_BRANCH): string {
+  assertClean("cannot merge");
+  const wasOn = currentBranch();
+  if (wasOn !== base) git(["checkout", base]);
+  git(["merge", "--no-ff", branch, "-m", `Merge ${branch} into ${base} (human approved)`]);
+  return headSha();
+}
+
+/**
  * Undo a task's commits.
  *
  * With work landing straight on dev_vps, this replaces "abandon the branch" as

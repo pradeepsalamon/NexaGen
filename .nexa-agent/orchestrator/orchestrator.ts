@@ -493,12 +493,25 @@ export function approveTask(taskId: string, approver: string): TaskState {
   if (state.status !== "PASS_AWAITING_APPROVAL") {
     throw new DispatchError(`task ${taskId} is ${state.status}, not PASS_AWAITING_APPROVAL`);
   }
+  // A task from before work moved onto dev_vps still has its commits on its own
+  // branch, so accepting it has to actually merge them -- otherwise "approved"
+  // would leave the code stranded where nothing reads it.
+  let merged: string | null = null;
+  if (state.branch !== state.base_branch && git.branchExists(state.branch)) {
+    merged = git.mergeToBase(state.branch, state.base_branch);
+  }
+
   state.status = "MERGED";
   state.approved_by = approver;
   state.approved_at = nowIso();
   state.failure_reason = null;
   writeState(state);
-  console.error(`accepted ${taskCommitShas(state).length} commit(s) on ${state.branch} (not pushed)`);
+
+  console.error(
+    merged
+      ? `merged legacy branch ${state.branch} into ${state.base_branch} as ${merged.slice(0, 8)} (not pushed)`
+      : `accepted ${taskCommitShas(state).length} commit(s) on ${state.branch} (not pushed)`,
+  );
   return state;
 }
 
