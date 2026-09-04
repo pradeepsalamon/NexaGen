@@ -254,7 +254,7 @@ on to anything else that is ready.
 ## Control UI
 
 ```bash
-cd control/ui && npm install && npm run dev   # http://localhost:3010
+cd control/ui && npm install && npm run dev   # http://localhost:8080
 ```
 
 **One process, one port.** The orchestrator is called directly from Next.js
