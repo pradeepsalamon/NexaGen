@@ -16,7 +16,8 @@ import type { AgentResult, RoleName, StepRecord, TaskState } from "./types";
 import * as git from "./git";
 import { appendStep, bumpSession, lastStep, lastStepForRole, readState, sessionsUsed, writeState } from "./state";
 import { buildPacket, sessionFor, writeHandoff, writePacket } from "./task-packet";
-import { evaluateBudget, maxBudgetUsd } from "./context-budget";
+import { MAX_SESSIONS_PER_STEP, evaluateBudget, maxBudgetUsd } from "./context-budget";
+import { describeWait, isDue, quotaWaitFor } from "./quota";
 
 export class DispatchError extends Error {}
 
@@ -39,6 +40,36 @@ function readUsage(taskId: string, agent: string, role: string, attempt: number,
   } catch {
     return null;
   }
+}
+
+/**
+ * Did the CLI die on something external rather than finish?
+ *
+ * Claude reports this as `is_error: true` with `terminal_reason: "api_error"`
+ * and the human-readable cause in `result` (e.g. "You've hit your session limit
+ * - resets 9:30am"). Observed live: a 14-turn session was severed mid-task, yet
+ * exited 0 with a valid result file. Only this flag distinguishes it from a
+ * genuine completion.
+ */
+function isTruncated(usage: Record<string, unknown> | null): boolean {
+  return Boolean(usage && usage.is_error === true);
+}
+
+/** Why it died, for the human reading `show`. */
+export function truncationReason(usage: Record<string, unknown> | null): string | null {
+  if (!isTruncated(usage)) return null;
+  const text = typeof usage?.error_text === "string" ? usage.error_text.trim() : "";
+  const reason = typeof usage?.terminal_reason === "string" ? usage.terminal_reason : "unknown";
+  return text ? `${reason}: ${text}` : reason;
+}
+
+/** Transient causes are worth resuming; anything else needs a human. */
+const TRANSIENT_TERMINAL_REASONS = new Set(["api_error", "rate_limit", "overloaded"]);
+
+export function isTransient(usage: Record<string, unknown> | null): boolean {
+  if (!isTruncated(usage)) return false;
+  const reason = typeof usage?.terminal_reason === "string" ? usage.terminal_reason : "";
+  return TRANSIENT_TERMINAL_REASONS.has(reason);
 }
 
 function readResult(file: string): AgentResult | null {
@@ -103,8 +134,15 @@ export function dispatchStep(
   const exitCode = proc.status;
   const result = readResult(packet.result_path);
 
+  const usage = readUsage(state.task_id, agentName, role, state.attempt, session);
+
   let outcome = classifyExit(exitCode);
   if (outcome === "ok" && result?.status === "blocked") outcome = "blocked";
+  // A CLI that reported is_error was CUT OFF -- account usage limit, API 5xx.
+  // It may still have written a well-formed result file before dying, and that
+  // file will validate and exit 0. Trusting it would present a truncated run as
+  // finished work awaiting merge. The CLI's own error flag wins.
+  if (isTruncated(usage)) outcome = "agent_error";
 
   // Safety net: an agent that did the work but forgot to commit must not strand
   // changes for the next one. Roles that shouldn't commit are left untouched.
@@ -134,14 +172,26 @@ export function dispatchStep(
     packet_path: packetPath,
     result_path: packet.result_path,
     commit_sha: commitSha,
+    commits: git.commitShasBetween(shaBefore),
     files_changed: result?.files_changed ?? [],
     diff_summary: result?.diff_summary ?? null,
     notes: result?.notes ?? null,
     test_pass: result?.test_report ? result.test_report.pass : null,
     failure_count: result?.test_report ? result.test_report.failures.length : null,
     handoff_summary: result?.handoff_summary ?? null,
-    usage: readUsage(state.task_id, agentName, role, state.attempt, session),
+    usage,
   };
+
+  // Schedule the retry as soon as the quota error is seen, so the decision is
+  // recorded next to the evidence rather than recomputed later from prose.
+  if (step.outcome === "agent_error" && isTransient(step.usage)) {
+    const wait = quotaWaitFor(typeof step.usage?.error_text === "string" ? step.usage.error_text : null);
+    state.retry_at = wait.retryAt;
+    state.retry_basis = wait.basis;
+  } else if (step.outcome === "ok") {
+    state.retry_at = null;
+    state.retry_basis = null;
+  }
 
   appendStep(state, step);
   writeState(state);
@@ -182,12 +232,15 @@ export function dispatchNext(taskId: string): StepRecord {
 
 export type NextAction =
   | { kind: "dispatch"; role: RoleName; bumpAttempt: boolean }
+  /** Stop the run loop and stay put: recoverable, waiting on a human resume. */
+  | { kind: "halt"; status: TaskState["status"]; reason: string | null }
   | { kind: "terminal"; status: TaskState["status"]; reason: string | null };
 
 const TERMINAL: ReadonlySet<TaskState["status"]> = new Set([
   "PASS_AWAITING_APPROVAL",
   "FAILED",
   "MERGED",
+  "REVERTED",
   "REJECTED",
 ]);
 
@@ -202,9 +255,47 @@ export function nextAction(state: TaskState): NextAction {
     return { kind: "terminal", status: state.status, reason: state.failure_reason };
   }
 
+  const last = lastStep(state);
+
+  // A session severed by an account usage limit or an API error is NOT bad work
+  // -- it is unfinished work. It keeps its attempt and resumes the same
+  // role-step, carrying whatever it managed to commit, once a human says go.
+  if (last && last.outcome === "agent_error") {
+    const why = truncationReason(last.usage) ?? "the agent CLI reported an error";
+    const recoverable =
+      isTransient(last.usage) && sessionsUsed(state, last.role, state.attempt) < MAX_SESSIONS_PER_STEP;
+
+    if (recoverable) {
+      // An explicit human resume overrides the timer.
+      if (state.resume_requested) {
+        return { kind: "dispatch", role: last.role, bumpAttempt: false };
+      }
+      // Quota is a clock problem, not a work problem: wait it out rather than
+      // burning retries against a limit that has not lifted.
+      if (isDue(state.retry_at)) {
+        return { kind: "dispatch", role: last.role, bumpAttempt: false };
+      }
+      return {
+        kind: "halt",
+        status: "BLOCKED_RETRY",
+        reason:
+          `step ${last.index} (${last.role}/${last.agent}) ran out of quota -- ${why}. ` +
+          `Work so far is committed on ${state.branch}. ` +
+          `Retrying automatically ${describeWait(state.retry_at!)} (${state.retry_basis ?? "scheduled"}).`,
+      };
+    }
+    if (state.resume_requested) {
+      return { kind: "dispatch", role: last.role, bumpAttempt: false };
+    }
+    return {
+      kind: "terminal",
+      status: "FAILED",
+      reason: `step ${last.index} (${last.role}/${last.agent}) ended with an unrecoverable agent error -- ${why}`,
+    };
+  }
+
   // A step that failed on infrastructure (timeout, guard abort, bad result) or
   // an agent that reported itself blocked stops the chain: a human should look.
-  const last = lastStep(state);
   if (last && last.outcome !== "ok") {
     return {
       kind: "terminal",
@@ -258,13 +349,44 @@ export function nextAction(state: TaskState): NextAction {
   return { kind: "dispatch", role: fixer, bumpAttempt: true };
 }
 
+/**
+ * A severed session leaves no handoff summary -- it never got the chance to
+ * write one. Rebuild a minimal baton from what it did manage to record, so the
+ * continuation session knows it is resuming rather than starting over. The full
+ * git diff of the partial work reaches it through the packet regardless.
+ */
+export function synthesizeHandoff(step: StepRecord): string {
+  if (step.outcome !== "agent_error") return "";
+  const why = truncationReason(step.usage) ?? "the CLI reported an error";
+  const lines = [
+    `The previous session of this same role-step was CUT SHORT (${why}).`,
+    "It did not finish, and it did not get to write a handoff summary.",
+    "",
+    "What it recorded before it was severed:",
+  ];
+  lines.push(step.diff_summary ? `- summary: ${step.diff_summary}` : "- summary: (none recorded)");
+  lines.push(
+    step.files_changed.length
+      ? `- files touched: ${step.files_changed.join(", ")}`
+      : "- files touched: (none recorded)",
+  );
+  lines.push(step.commit_sha ? `- committed as: ${step.commit_sha}` : "- committed: nothing");
+  if (step.notes) lines.push(`- notes: ${step.notes}`);
+  lines.push(
+    "",
+    "Treat the diff below as work in progress that YOU wrote. Verify it is",
+    "complete and correct before building on it, then finish the remaining work.",
+  );
+  return lines.join("\n");
+}
+
 /** Perform exactly one transition. Returns the state after it. */
 export function advanceOnce(taskId: string): { state: TaskState; action: NextAction; step: StepRecord | null } {
   const state = readState(taskId);
   const action = nextAction(state);
 
-  if (action.kind === "terminal") {
-    if (state.status !== action.status) {
+  if (action.kind === "terminal" || action.kind === "halt") {
+    if (state.status !== action.status || state.failure_reason !== action.reason) {
       state.status = action.status;
       state.failure_reason = action.reason;
       writeState(state);
@@ -272,6 +394,8 @@ export function advanceOnce(taskId: string): { state: TaskState; action: NextAct
     return { state, action, step: null };
   }
 
+  // A resume is one-shot: consume it here so a stale flag cannot re-dispatch.
+  if (state.resume_requested) state.resume_requested = false;
   if (action.bumpAttempt) state.attempt += 1;
   state.status = action.role === loadRoles().fix_loop.verifier_role ? "TESTING" : action.bumpAttempt ? "FIXING" : "RUNNING";
   writeState(state);
@@ -282,17 +406,19 @@ export function advanceOnce(taskId: string): { state: TaskState; action: NextAct
   // place of prior_report, plus the git diff so far (built into the packet).
   const previous = lastStep(state);
   const carry =
-    previous && previous.role === action.role && previous.handoff_summary
-      ? previous.handoff_summary
+    previous && previous.role === action.role
+      ? previous.handoff_summary || synthesizeHandoff(previous)
       : undefined;
 
-  const step = dispatchStep(state, action.role, { handoffSummary: carry });
+  const step = dispatchStep(state, action.role, { handoffSummary: carry || undefined });
 
-  // Only advance the chain when the role-step actually finished. A checkpointed
-  // step stays put so the next dispatch continues the same role.
+  // Only advance the chain when the role-step actually finished. A step that
+  // checkpointed on budget, or was severed mid-run, stays put so the next
+  // dispatch continues the same role rather than handing incomplete work on.
   const agent = loadAgents()[step.agent];
   const verdict = evaluateBudget(step, agent, sessionsUsed(state, step.role, state.attempt));
-  if (inChain && !verdict.continueInNewSession) state.step_index += 1;
+  const finished = step.outcome !== "agent_error" && !verdict.continueInNewSession;
+  if (inChain && finished) state.step_index += 1;
   writeState(state);
 
   return { state, action, step };
@@ -301,6 +427,8 @@ export function advanceOnce(taskId: string): { state: TaskState; action: NextAct
 export interface RunOptions {
   /** Hard ceiling on dispatches, so a bug cannot spin forever. */
   maxSteps?: number;
+  /** Re-dispatch a role-step that a usage limit or API error cut short. */
+  resume?: boolean;
   onStep?: (step: StepRecord, state: TaskState) => void;
 }
 
@@ -312,11 +440,20 @@ export function runTask(taskId: string, opts: RunOptions = {}): TaskState {
   const maxSteps = opts.maxSteps ?? 20;
   let state = readState(taskId);
 
+  if (opts.resume) {
+    if (state.status !== "BLOCKED_RETRY") {
+      throw new DispatchError(`task ${taskId} is ${state.status}, not BLOCKED_RETRY -- nothing to resume`);
+    }
+    state.resume_requested = true;
+    state.failure_reason = null;
+    writeState(state);
+  }
+
   for (let i = 0; i < maxSteps; i += 1) {
     const result = advanceOnce(taskId);
     state = result.state;
     if (result.step && opts.onStep) opts.onStep(result.step, state);
-    if (result.action.kind === "terminal") return state;
+    if (result.action.kind === "terminal" || result.action.kind === "halt") return state;
   }
 
   state = readState(taskId);
@@ -328,19 +465,82 @@ export function runTask(taskId: string, opts: RunOptions = {}): TaskState {
 
 // --- human approval gate ----------------------------------------------------
 
-/** Merge an approved task branch into dev_vps. Agents never do this. */
+/**
+ * The commits this task -- and only this task -- created.
+ *
+ * Falls back to base_sha..branch for tasks recorded before per-step shas were
+ * tracked; those ran on their own branch, where the range genuinely was the
+ * task's own work.
+ */
+export function taskCommitShas(state: TaskState): string[] {
+  const fromSteps = state.steps.flatMap((s) => s.commits ?? []);
+  if (fromSteps.length) return [...new Set(fromSteps)];
+  if (state.branch !== state.base_branch) {
+    return git.commitsSince(state.base_sha, state.branch).map((c) => c.sha);
+  }
+  return [];
+}
+
+/**
+ * Accept a task's work.
+ *
+ * There is nothing to merge -- the commits are already on dev_vps. What this
+ * records is that a human looked at them and is keeping them, which is the
+ * whole point of the gate. Nothing is ever pushed.
+ */
 export function approveTask(taskId: string, approver: string): TaskState {
   const state = readState(taskId);
   if (state.status !== "PASS_AWAITING_APPROVAL") {
     throw new DispatchError(`task ${taskId} is ${state.status}, not PASS_AWAITING_APPROVAL`);
   }
-  const mergeSha = git.mergeToBase(state.branch, state.base_branch);
+  // A task from before work moved onto dev_vps still has its commits on its own
+  // branch, so accepting it has to actually merge them -- otherwise "approved"
+  // would leave the code stranded where nothing reads it.
+  let merged: string | null = null;
+  if (state.branch !== state.base_branch && git.branchExists(state.branch)) {
+    merged = git.mergeToBase(state.branch, state.base_branch);
+  }
+
   state.status = "MERGED";
   state.approved_by = approver;
   state.approved_at = nowIso();
   state.failure_reason = null;
   writeState(state);
-  console.error(`merged ${state.branch} into ${state.base_branch} as ${mergeSha.slice(0, 8)} (not pushed)`);
+
+  console.error(
+    merged
+      ? `merged legacy branch ${state.branch} into ${state.base_branch} as ${merged.slice(0, 8)} (not pushed)`
+      : `accepted ${taskCommitShas(state).length} commit(s) on ${state.branch} (not pushed)`,
+  );
+  return state;
+}
+
+/**
+ * Undo a task's commits on dev_vps.
+ *
+ * This is the escape hatch that abandoning a branch used to provide. It reverts
+ * rather than resets, so anything committed after the task survives, and it is
+ * all-or-nothing: a conflict aborts cleanly rather than leaving the tree half
+ * undone.
+ */
+export function revertTask(taskId: string, by: string): TaskState {
+  const state = readState(taskId);
+  const shas = taskCommitShas(state);
+  if (!shas.length) throw new DispatchError(`task ${taskId} has no commits to revert`);
+
+  const { reverted, conflicted } = git.revertCommits(shas);
+  if (conflicted) {
+    throw new DispatchError(
+      `revert of ${conflicted.slice(0, 8)} conflicts with later work -- nothing was changed. ` +
+        `Undo it by hand, or ask a bug-fixer task to remove the behaviour instead.`,
+    );
+  }
+
+  state.status = "REVERTED";
+  state.approved_by = by;
+  state.approved_at = nowIso();
+  state.failure_reason = `${reverted.length} commit(s) reverted by ${by}`;
+  writeState(state);
   return state;
 }
 

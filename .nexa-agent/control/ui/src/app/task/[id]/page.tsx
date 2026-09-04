@@ -63,6 +63,29 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
   if (loading && !task) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-app-primary" /></div>;
   if (!task) return <div className="p-8 text-center text-app-error">Task not found</div>;
 
+  const [commits, setCommits] = useState<{ sha: string; subject: string }[]>([]);
+
+  useEffect(() => {
+    if (!task?.task_id) return;
+    void fetch(`/api/tasks/${task.task_id}/commits`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setCommits(d.commits ?? []));
+  }, [task?.task_id, task?.status]);
+
+  const handleRevert = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/tasks/${task.task_id}/revert`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ by: "Human (UI)" }),
+      });
+      if (!res.ok) alert((await res.json()).error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleApprove = async () => {
     setActionLoading(true);
     try {
@@ -95,8 +118,18 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
   const getStatusColor = (status: string) => {
     if (status === "PASS_AWAITING_APPROVAL" || status === "MERGED") return "text-app-success";
     if (status === "FAILED" || status === "REJECTED") return "text-app-error";
-    if (status === "PENDING") return "text-app-warning";
+    // Cut short, not failed -- the work is fine, the session was interrupted.
+    if (status === "PENDING" || status === "BLOCKED_RETRY") return "text-app-warning";
     return "text-app-primary";
+  };
+
+  const handleResume = async () => {
+    setActionLoading(true);
+    try {
+      await fetch(`/api/tasks/${task.task_id}/resume`, { method: "POST" });
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -154,6 +187,29 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
         </div>
       </div>
 
+      {task.status === "BLOCKED_RETRY" && (
+        <div className="glass-panel rounded-2xl p-4 border-app-warning/30 flex flex-col gap-3 bg-app-warning/5">
+          <h2 className="text-lg font-semibold text-app-warning">Interrupted, not failed</h2>
+          <p className="text-sm text-app-text-muted">
+            The agent session was cut short before it finished — usually an account usage limit or an
+            API error. Whatever it had already committed is safe on <code className="font-mono">{task.branch}</code>.
+            Resuming starts a fresh session for the same step and hands it that work to continue from.
+          </p>
+          {task.failure_reason && (
+            <p className="bg-app-surface/90 border border-app-border rounded-xl p-3 text-xs font-mono whitespace-pre-wrap">
+              {task.failure_reason}
+            </p>
+          )}
+          <button
+            onClick={handleResume}
+            disabled={actionLoading}
+            className="rounded-xl bg-app-warning px-4 py-3 font-medium text-app-bg transition-opacity disabled:opacity-50"
+          >
+            {actionLoading ? "Resuming…" : "Resume this step"}
+          </button>
+        </div>
+      )}
+
       {task.status === "PASS_AWAITING_APPROVAL" && (() => {
         const totalFilesChanged = task.steps?.reduce((acc: number, s: any) => acc + (s.files_changed?.length || 0), 0) || 0;
         const lastNotes = task.steps?.slice().reverse().find((s: any) => s.notes)?.notes;
@@ -162,12 +218,12 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
           <div className="glass-panel rounded-2xl p-4 border-app-success/30 flex flex-col gap-4 bg-app-success/5">
             <h2 className="text-lg font-semibold text-app-success flex items-center gap-2">
               <CheckCircle2 className="size-5" /> 
-              {totalFilesChanged > 0 ? "Ready for Approval" : "Response Ready"}
+              {totalFilesChanged > 0 ? "Committed — your call" : "Response Ready"}
             </h2>
             <p className="text-sm text-app-text-muted">
-              {totalFilesChanged > 0 
-                ? "The agents have completed the task and tests have passed. Review the changes before merging." 
-                : "The agent has completed the analysis/question without modifying any source files."}
+              {totalFilesChanged > 0
+                ? `The tests passed and the work is already committed on ${task.branch} — there is no branch to merge. Keep it, or revert the commits below.`
+                : "The agent completed the analysis without modifying any source files."}
             </p>
 
             {lastNotes && (
@@ -179,7 +235,30 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
             
             {!showReject ? (
               <div className="flex gap-3 mt-2">
-                <button 
+                {commits.length > 0 && (
+              <div className="rounded-xl border border-app-border bg-app-surface/90 p-3">
+                <p className="mb-2 text-[10px] font-semibold uppercase text-app-text-muted">
+                  {commits.length} commit{commits.length === 1 ? "" : "s"} on {task.branch}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {commits.map((c) => (
+                    <div key={c.sha} className="flex gap-2 text-xs">
+                      <code className="shrink-0 font-mono text-app-primary">{c.sha.slice(0, 8)}</code>
+                      <span className="min-w-0 break-words">{c.subject}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={handleRevert}
+                  disabled={actionLoading}
+                  className="mt-3 w-full rounded-lg border border-app-error/40 py-2 text-xs font-medium text-app-error transition-colors hover:bg-app-error hover:text-white disabled:opacity-50"
+                >
+                  Revert these commits
+                </button>
+              </div>
+            )}
+
+            <button 
                   onClick={handleApprove}
                   disabled={actionLoading}
                   className="flex-1 bg-app-success hover:bg-app-success/90 text-white py-2.5 rounded-xl font-medium transition-colors flex justify-center items-center gap-2"

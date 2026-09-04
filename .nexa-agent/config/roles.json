@@ -1,5 +1,5 @@
 {
-  "_note": "Roles are the fixed contract; agents are swappable per role. A task may override any role's agent at creation time, after which the choice is frozen in state/tasks/<id>/state.json.",
+  "_note": "Roles are the fixed contract; agents and models are swappable per role. The control UI's Team tab writes default_agent/default_model here. A task may override either at creation, after which the choice is frozen in state/tasks/<id>/state.json.",
   "roles": {
     "backend-dev": {
       "default_agent": "claude",
@@ -11,9 +11,14 @@
       "description": "Implements Next.js work in apps/web, mobile-first.",
       "must_commit": true
     },
+    "fullstack-architect": {
+      "default_agent": "claude",
+      "description": "Designs the change across api + web + packages/types before anyone codes it: the shared contract, the data model, and which files each dev touches. Commits the contract, not the implementation.",
+      "must_commit": true
+    },
     "tester-e2e": {
       "default_agent": "opencode",
-      "description": "Independent tester. Reads the cumulative diff, runs validation, never edits application source.",
+      "description": "Independent tester. Runs the real app in a browser with Playwright against vps_dev (via .nexa-agent/scripts/e2e-dev.sh on :3100/:3101, never production's :3000/:3001), plus typecheck/lint/jest. Never edits application source.",
       "must_commit": false,
       "requires_test_report": true,
       "read_only_source": true
@@ -30,11 +35,34 @@
     }
   },
   "chains": {
-    "feature": ["backend-dev", "frontend-dev", "tester-e2e"],
-    "backend-only": ["backend-dev", "tester-e2e"],
-    "frontend-only": ["frontend-dev", "tester-e2e"],
-    "test-only": ["tester-e2e"],
-    "review-only": ["reviewer"]
+    "feature": [
+      "backend-dev",
+      "frontend-dev",
+      "tester-e2e"
+    ],
+    "backend-only": [
+      "backend-dev",
+      "tester-e2e"
+    ],
+    "frontend-only": [
+      "frontend-dev",
+      "tester-e2e"
+    ],
+    "test-only": [
+      "tester-e2e"
+    ],
+    "review-only": [
+      "reviewer"
+    ],
+    "architected-feature": [
+      "fullstack-architect",
+      "backend-dev",
+      "frontend-dev",
+      "tester-e2e"
+    ],
+    "architect-only": [
+      "fullstack-architect"
+    ]
   },
   "fix_loop": {
     "fixer_role": "bug-fixer",

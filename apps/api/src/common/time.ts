@@ -106,3 +106,33 @@ export function zonedYearBounds(
     end: zonedDateToUtc(timeZone, year + 1, 1, 1)
   };
 }
+
+/**
+ * Formats a millisecond duration as a human-readable string, largest unit
+ * first, space-separated (e.g. `125000` -> `"2m 5s"`).
+ *
+ * - Every non-zero unit is emitted, largest first (`90061000` -> `"1h 1m 1s"`).
+ * - Zero units are omitted; if that would leave an empty string (0, sub-second
+ *   values) the result is `"0s"`.
+ * - Negative input is prefixed with `"-"` and the absolute value is formatted.
+ * - Non-finite input (NaN, Infinity) yields `"0s"`.
+ * - Units are h, m, s only — no days, no sub-second component.
+ */
+export function formatDuration(ms: number): string {
+  if (!Number.isFinite(ms)) return "0s";
+
+  const sign = ms < 0 ? "-" : "";
+  const totalSeconds = Math.floor(Math.abs(ms) / 1000);
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours}h`);
+  if (minutes > 0) parts.push(`${minutes}m`);
+  if (seconds > 0) parts.push(`${seconds}s`);
+
+  if (parts.length === 0) return "0s";
+  return `${sign}${parts.join(" ")}`;
+}

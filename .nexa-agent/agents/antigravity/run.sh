@@ -27,7 +27,7 @@ RESULT_PATH="$(jq -r '.result_path' "$PACKET")"
 BRANCH="$(jq -r '.branch' "$PACKET")"
 
 PACKET_MODEL="$(jq -r '.model // empty' "$PACKET")"
-MODEL="${PACKET_MODEL:-$(jq -r '.antigravity.model // "gemini-3.1-pro-high"' "$CFG")}"
+MODEL="${PACKET_MODEL:-${NEXA_ANTIGRAVITY_MODEL:-$(jq -r '.antigravity.default_model // "gemini-3.1-pro-high"' "$CFG")}}"
 TIMEOUT="$(jq -r '.antigravity.timeout_seconds // 2700' "$CFG")"
 SKIP_PERMS="$(jq -r '.antigravity.permission_flag // "--dangerously-skip-permissions"' "$CFG")"
 

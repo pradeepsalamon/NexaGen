@@ -54,16 +54,23 @@ export function assertClean(context: string): void {
 }
 
 /**
- * Create the task branch off the base branch. Base is dev_vps by decision --
+ * Put the repo on the working branch and return the sha the task starts from.
+ *
+ * Tasks commit DIRECTLY to dev_vps -- there is no per-task branch. That makes
+ * the recorded base sha the only thing anchoring "what this task changed", and
+ * it makes serialisation mandatory rather than merely tidy: two tasks committing
+ * to one branch at once would interleave their commits and `commitLeftovers`
+ * would sweep the other's work into the wrong task. The runner lock in
+ * state.ts is what guarantees only one is ever in flight.
+ *
  * main and dev are never touched by the autonomous loop.
  */
-export function createTaskBranch(branch: string, base = BASE_BRANCH): string {
-  if (branchExists(branch)) throw new GitError(`branch ${branch} already exists`);
-  assertClean("cannot create task branch");
-  git(["checkout", base]);
-  const baseSha = headSha();
-  git(["checkout", "-b", branch, base]);
-  return baseSha;
+export function startOnBase(base = BASE_BRANCH): string {
+  if (currentBranch() !== base) {
+    assertClean(`cannot switch to ${base}`);
+    git(["checkout", base]);
+  }
+  return headSha();
 }
 
 export function checkoutBranch(branch: string): void {
@@ -76,7 +83,7 @@ export function checkoutBranch(branch: string): void {
  * Cumulative diff for the whole task: base..branch. This is the real diff the
  * tester and bug-fixer read -- never a description of the change.
  */
-export function cumulativeDiff(baseSha: string, branch: string): string {
+export function cumulativeDiff(baseSha: string, branch = "HEAD"): string {
   return git(["diff", `${baseSha}..${branch}`]);
 }
 
@@ -106,6 +113,21 @@ export function fileDiff(baseSha: string, branch: string, file: string): string 
 }
 
 /** Commits on the branch since base, newest first. */
+/** Shas created between two points, oldest first. */
+export function commitShasBetween(from: string, to = "HEAD"): string[] {
+  if (from === to) return [];
+  const out = git(["rev-list", "--reverse", `${from}..${to}`]);
+  return out ? out.split("\n").filter(Boolean) : [];
+}
+
+/** Subjects for specific shas, in the order given. */
+export function describeCommits(shas: string[]): Array<{ sha: string; subject: string }> {
+  return shas.map((sha) => ({
+    sha,
+    subject: git(["log", "-1", "--format=%s", sha], { quiet: true }),
+  }));
+}
+
 export function commitsSince(baseSha: string, branch: string): Array<{ sha: string; subject: string }> {
   const out = git(["log", "--format=%H%x09%s", `${baseSha}..${branch}`]);
   if (!out) return [];
@@ -143,10 +165,117 @@ export function commitLeftovers(message: string): string | null {
   return headSha();
 }
 
-/** Merge the approved task branch back into dev_vps. Never pushes. */
+/**
+ * Branches whose remote is wired to a production deployment.
+ *
+ * Pushing `main` fires .github/workflows/deploy-production.yml, which SSHes to
+ * this VPS, rebuilds the production containers and runs `prisma migrate deploy`
+ * against the production database. A push to main is therefore a production
+ * deployment, and is gated separately from an ordinary push.
+ */
+const DEPLOY_ON_PUSH = new Set(["main"]);
+
+export const deploysOnPush = (branch: string): boolean => DEPLOY_ON_PUSH.has(branch);
+
+export interface PushResult {
+  branch: string;
+  remote: string;
+  commits: number;
+  deployed: boolean;
+  output: string;
+}
+
+/**
+ * Push a branch to origin.
+ *
+ * Outward-facing and effectively irreversible -- once commits are on the remote
+ * they may already be fetched, and for `main` a deployment is under way before
+ * anyone can reconsider. `allowProductionDeploy` has to be passed explicitly for
+ * such a branch, so nobody arrives at a deploy by way of a generic "push".
+ */
+export function pushBranch(
+  branch: string,
+  opts: { remote?: string; allowProductionDeploy?: boolean } = {},
+): PushResult {
+  const remote = opts.remote ?? "origin";
+  if (!branchExists(branch)) throw new GitError(`branch ${branch} does not exist`);
+
+  if (deploysOnPush(branch) && !opts.allowProductionDeploy) {
+    throw new GitError(
+      `pushing ${branch} triggers deploy-production.yml: it rebuilds the production ` +
+        `containers and runs prisma migrate deploy against the PRODUCTION database. ` +
+        `That is a deployment, not a push. Re-run with the production-deploy acknowledgement ` +
+        `if that is genuinely what is intended.`,
+    );
+  }
+
+  let ahead = 0;
+  try {
+    ahead = git(["rev-list", "--count", `${remote}/${branch}..${branch}`], { quiet: true })
+      ? Number(git(["rev-list", "--count", `${remote}/${branch}..${branch}`], { quiet: true }))
+      : 0;
+  } catch {
+    // No upstream yet -- everything on the branch is new to the remote.
+    ahead = Number(git(["rev-list", "--count", branch]));
+  }
+
+  const output = git(["push", remote, branch]);
+  return { branch, remote, commits: ahead, deployed: deploysOnPush(branch), output };
+}
+
+/** Merge one local branch into another. Never pushes; the caller decides that. */
+export function mergeBranches(from: string, into: string): { sha: string; alreadyUpToDate: boolean } {
+  if (!branchExists(from)) throw new GitError(`branch ${from} does not exist`);
+  if (!branchExists(into)) throw new GitError(`branch ${into} does not exist`);
+  assertClean(`cannot merge ${from} into ${into}`);
+
+  const before = headSha(into);
+  git(["checkout", into]);
+  const out = git(["merge", "--no-ff", from, "-m", `Merge ${from} into ${into} (human approved)`]);
+  const after = headSha();
+  return { sha: after, alreadyUpToDate: before === after || /Already up to date/i.test(out) };
+}
+
+/**
+ * Merge a legacy task branch into the base.
+ *
+ * Only for tasks created before work moved onto dev_vps directly. Those have
+ * real commits sitting on their own branch, and accepting one has to actually
+ * bring the work in -- otherwise "approved" would mean the code stays stranded
+ * where nobody sees it. Never pushes.
+ */
 export function mergeToBase(branch: string, base = BASE_BRANCH): string {
   assertClean("cannot merge");
-  git(["checkout", base]);
+  const wasOn = currentBranch();
+  if (wasOn !== base) git(["checkout", base]);
   git(["merge", "--no-ff", branch, "-m", `Merge ${branch} into ${base} (human approved)`]);
   return headSha();
+}
+
+/**
+ * Undo a task's commits.
+ *
+ * With work landing straight on dev_vps, this replaces "abandon the branch" as
+ * the escape hatch, so it has to be safe by construction. It reverts each
+ * commit individually, newest first, rather than resetting: a reset would also
+ * discard anything committed after the task, and the history of what was tried
+ * is worth keeping. If any single revert conflicts the whole thing is aborted
+ * and nothing is left half-undone.
+ */
+export function revertCommits(shas: string[]): { reverted: string[]; conflicted: string | null } {
+  assertClean("cannot revert");
+  const reverted: string[] = [];
+  for (const sha of [...shas].reverse()) {
+    try {
+      git(["revert", "--no-edit", "--no-commit", sha]);
+      git(["commit", "-m", `Revert ${sha.slice(0, 8)} (task rejected)`]);
+      reverted.push(sha);
+    } catch {
+      git(["revert", "--abort"], { quiet: true });
+      // Undo the reverts already made, so the tree is exactly as it was.
+      for (const done of reverted) git(["reset", "--hard", `${done}~0`], { quiet: true });
+      return { reverted: [], conflicted: sha };
+    }
+  }
+  return { reverted, conflicted: null };
 }

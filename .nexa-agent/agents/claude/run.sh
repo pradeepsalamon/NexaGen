@@ -24,7 +24,7 @@ BRANCH="$(jq -r '.branch' "$PACKET")"
 BUDGET="${NEXA_MAX_BUDGET_USD:-$(jq -r '.claude.max_budget_usd // 8' "$CFG")}"
 TIMEOUT="$(jq -r '.claude.timeout_seconds // 2400' "$CFG")"
 PACKET_MODEL="$(jq -r '.model // empty' "$PACKET")"
-MODEL="${PACKET_MODEL:-${NEXA_CLAUDE_MODEL:-$(jq -r '.claude.model // empty' "$CFG")}}"
+MODEL="${PACKET_MODEL:-${NEXA_CLAUDE_MODEL:-$(jq -r '.claude.default_model // empty' "$CFG")}}"
 
 LOGDIR="$NEXA_AGENT_DIR/logs/$AGENT"
 mkdir -p "$LOGDIR" "$(dirname "$RESULT_PATH")"
@@ -73,7 +73,10 @@ if jq -e '.usage' "$RAW_FILE" >/dev/null 2>&1; then
     num_turns:               (.num_turns // null),
     duration_ms:             (.duration_ms // null),
     session_id:              (.session_id // null),
-    is_error:                (.is_error // false)
+    is_error:                (.is_error // false),
+    terminal_reason:         (.terminal_reason // null),
+    api_error_status:        (.api_error_status // null),
+    error_text:              (if (.is_error // false) then ((.result // "") | tostring | .[0:400]) else null end)
   }' "$RAW_FILE" > "$USAGE_FILE"
   echo "[$AGENT] usage -> $USAGE_FILE" >&2
 else

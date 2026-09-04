@@ -1,0 +1,25 @@
+{
+  "_comment": "The supervisor is the conversational layer, deliberately NOT in agents.json: no worker role may be assigned to it and it must not appear in the role agent picker. `agent` and `model` are what the UI's Team tab edits.",
+  "agent": "claude",
+  "model": null,
+  "max_budget_usd": 3,
+  "timeout_seconds": 300,
+  "_session_note": "Every supported CLI can continue a conversation, but only Claude lets us choose the id up front. For antigravity and opencode the id is captured from the first run's output and stored on the thread.",
+  "supported": {
+    "claude": {
+      "cli": "claude",
+      "resume": "--resume <id>, with --session-id <uuid> chosen by us on the first turn",
+      "permission_flag": "--permission-prompts none plus an explicit --allowedTools allowlist"
+    },
+    "antigravity": {
+      "cli": "agy",
+      "resume": "--conversation <id>, captured from conversation_id in the first run's JSON",
+      "permission_flag": "--mode plan (read-only; agy has no allowlist equivalent)"
+    },
+    "opencode": {
+      "cli": "opencode",
+      "resume": "--session <id>, captured from sessionID in the first run's JSONL",
+      "permission_flag": "no allowlist available -- confined by --agent plan"
+    }
+  }
+}

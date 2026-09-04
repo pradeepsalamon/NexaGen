@@ -89,13 +89,19 @@ export function createTask(input: CreateTaskInput): TaskState {
     const agent = override ?? roles.roles[role].default_agent;
     roleAgents[role] = agent;
 
+    // Precedence: what this task asked for, then what the Team tab pinned for
+    // this role, then the agent's own default. An empty string means "let the
+    // CLI pick", which is not the same as pinning a model.
     const modelOverride = input.modelOverrides?.[role];
-    const agentCfg = (agents as any)[agent];
-    roleModels[role] = modelOverride || agentCfg?.default_model || agentCfg?.model || "";
+    const roleModel = roles.roles[role].default_model;
+    const agentCfg = agents[agent];
+    roleModels[role] = modelOverride || roleModel || agentCfg?.default_model || "";
   }
 
-  const branch = `agent/${id}`;
-  const baseSha = git.createTaskBranch(branch, BASE_BRANCH);
+  // No task branch: work lands directly on dev_vps. base_sha is therefore the
+  // only record of where this task's changes begin.
+  const branch = BASE_BRANCH;
+  const baseSha = git.startOnBase(BASE_BRANCH);
 
   const state: TaskState = {
     task_id: id,
