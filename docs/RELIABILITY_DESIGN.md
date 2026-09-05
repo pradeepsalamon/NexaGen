@@ -248,7 +248,7 @@ so it also covers the coach's standalone board pop-out window
 (`/live-class/[roomId]/board/page.tsx`), which has its own `LiveKitRoom` and
 no `ConnectionStateManager` — that page was out of scope to modify further.
 
-### 2.7 Chat recovery — PARTIAL
+### 2.7 Chat recovery — EXISTS (as implemented)
 
 `LiveChatMessage` (`schema.prisma:672`) persists every message server-side
 with a `clientMessageId` for dedupe (added specifically because
@@ -274,7 +274,13 @@ needed since `chatMessages`'s existing `clientMessageId` merge already
 handles a message appearing in both the re-fetched history and the live
 LiveKit feed.
 
-### 2.8 Duplicate-tab handling — PARTIAL
+**Verification (2026-09-05, tester-e2e):** `ChatProvider` mounts inside
+`ConnectionStateManager` (verified via module inspection and browser run);
+chat-recovery behavior itself is exercised only indirectly, since no permanent
+spec drives a mid-class reconnection, so this stays a code-inspection +
+smoke-verified item.
+
+### 2.8 Duplicate-tab handling — EXISTS (product-layer warning; attendance ordering → Phase 4)
 
 `joinedSession.ts`: `getTabClientId()` gives each browser tab a stable,
 `sessionStorage`-scoped id, appended to the LiveKit participant identity as
@@ -308,7 +314,11 @@ path, or the ClassAttendance unique constraint, so the ordering-misfire
 question this section raises is unaffected and still needs Phase 4's
 dedicated test.
 
-### 2.9 Frontend session/connection state — NET-NEW (as a coordinating layer)
+**Verification (2026-09-05, tester-e2e):** duplicate-tab toast observed in
+browser (second tab of the same room shows "This class is already open in
+another tab.") — `ClassroomSessionManager` BroadcastChannel path works.
+
+### 2.9 Frontend session/connection state — EXISTS (as implemented)
 
 No `ClassroomSessionManager` or `ConnectionStateManager` exists. The relevant
 pieces live independently in:
@@ -345,6 +355,19 @@ per the task brief), and `useBoardSync.ts` keeps its own call too (it must
 also run inside the coach's standalone board pop-out window, `/live-class/
 [roomId]/board`, which has no `ConnectionStateManager` and was out of scope to
 wire one into).
+
+**Verification (2026-09-05, tester-e2e):** browser-run smoke of all four
+Phase-3 frontend deliverables passed against the dev stack — demo-class join
+no longer crashes (`POST /demo/:id/join` → meeting toolbar renders, was the
+e382077 crash regression); `ConnectionBadge` (`role="status"`, desktop) and
+`NetworkStatusIcon` (mobile 390px) both mount in the meeting header; the
+heartbeat ping fires from the browser and populates
+`lastHeartbeatAt`/`presence=ONLINE` in `getLiveClassMonitoring`; the standalone
+coach board pop-out `/live-class/[roomId]/board` loads its harness. The two
+touched e2e specs themselves still do not pass — see §6 note — for spec-hygiene
+reasons (impossible FEN assertions at `e2e/live-board-sync.spec.ts:162,170`;
+stale `meData.id`/`/total students/i` assertions at `e2e/attendance-flow
+.spec.ts:198,441`) rather than app-code defects.
 
 ---
 
@@ -583,7 +606,7 @@ section, not a component that already exists to extend.
 |---|---|---|
 | **1. Schema + heartbeat backbone — DONE (2026-09-05)** | `LiveSessionStatus` enum, `AttendanceEventType` +BOARD_*, `CoachAttendanceLog.eventType` migration, `lastHeartbeatAt` column(s) or new session-scoped model (decide after resolving §2.8's multi-tab question), `POST /live-class/:id/heartbeat`, wire `recordDisconnectEvent` via new grace-period cron. Check row counts for `ClassStatus.IN_PROGRESS` in `vps_dev` before deciding whether to drop it (query-only — do not run destructive schema/data changes as part of this check). | This doc |
 | **2. `getLiveClassMonitoring` presence — DONE (2026-09-05)** | Derive `presence`/`lastHeartbeatAt` in the response; update `LiveClassMonitor` UI to show `RECONNECTING` distinctly from `OFFLINE`. | Phase 1 |
-| **3. Frontend `ConnectionStateManager`/`ClassroomSessionManager` — DONE (2026-09-05)** | Consolidate `joinedSession.ts`, `getTabClientId`, `useConnectionState` call sites; wire heartbeat ping; trigger board `REQUEST_SYNC` and chat re-fetch on reconnect; duplicate-tab product-layer warning. | Phase 1 (needs the heartbeat endpoint) |
+| **3. Frontend `ConnectionStateManager`/`ClassroomSessionManager` — DONE (2026-09-05), e2e specs still red** | Consolidate `joinedSession.ts`, `getTabClientId`, `useConnectionState` call sites; wire heartbeat ping; trigger board `REQUEST_SYNC` and chat re-fetch on reconnect; duplicate-tab product-layer warning. Browser smoke of all four deliverables passed (2026-09-05, tester-e2e). The two touched specs remain failing on stale/impossible assertions (`live-board-sync.spec.ts:162,170` `" e3 "/" e6 "`; `attendance-flow.spec.ts:198` `meData.id` vs `/auth/me`'s `{user}` shape, `:441` `/total students/i`) — spec fixes required before the Phase-3 gate can be marked green. | Phase 1 (needs the heartbeat endpoint) |
 | **4. Multi-tab attendance correctness** | Dedicated test (unit or `e2e/`) for two simultaneous tabs of one student; fix ghost-drop misfire if confirmed (§2.8). | Can start in parallel with Phase 1 |
 | **5. Admin cross-class reliability view** | New endpoint + admin page per §4.5. | Phase 2 |
 | **6. Coach-hour reconciliation audit** | Compare heartbeat-backstopped totals against pre-heartbeat historical data on a sample of classes to confirm Phase 1 didn't change existing numbers unexpectedly; add reliability metrics (webhook-loss rate, heartbeat-fallback trigger rate) to the admin dashboard. | Phases 1–5 |

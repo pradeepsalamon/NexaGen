@@ -158,8 +158,11 @@ test.describe("Live board sync", () => {
     await student.waitReady();
 
     // ── coach move propagates to the student ───────────────────
+    // chess.js >=1 emits a lazy en-passant field ("-" unless a capture is
+    // actually available), so assert on the piece placement: a white pawn
+    // reaching e4 is "4P3" on the 4th rank, which only exists post-e4.
     await coach.move("e2", "e4");
-    await expect.poll(() => student.fen(), { timeout: 10_000 }).toContain(" e3 ");
+    await expect.poll(() => student.fen(), { timeout: 10_000 }).toContain("8/8/4P3/8/PPPP1PPP");
 
     // ── grant control; the student's move propagates BACK ──────
     await coachPage.getByRole("button", { name: /^participants$/i }).click();
@@ -167,7 +170,8 @@ test.describe("Live board sync", () => {
     await expect.poll(() => student.permissionMode(), { timeout: 10_000 }).toBe("SELECTED_STUDENT");
 
     await student.move("e7", "e5");
-    await expect.poll(() => coach.fen(), { timeout: 10_000 }).toContain(" e6 ");
+    // both e-pawns advanced: "4p3/4P3" (black e5 over white e4) is unique to this position.
+    await expect.poll(() => coach.fen(), { timeout: 10_000 }).toContain("4p3/4P3");
 
     // ── coach starts a clock; the student sees it running ──────
     await coachPage.getByRole("button", { name: /clock settings/i }).click();
