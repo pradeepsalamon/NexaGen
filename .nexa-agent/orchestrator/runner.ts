@@ -11,14 +11,14 @@
  * it up like any other. There is no separate timer process to keep alive, and
  * nothing is lost if the machine restarts -- the times live in state.json.
  */
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import * as git from "./git";
 import { AGENT_DIR, BASE_BRANCH, ensureDir } from "./paths";
 import { listTasks, readState, writeState } from "./state";
 import { approveTask, isTerminal, runTask } from "./orchestrator";
-import { LockedError, acquireLock, currentLock, markRunnerAlive, releaseLock, runnerPid } from "./runner-lock";
+import { LockedError, acquireLock, breakLock, currentLock, markRunnerAlive, releaseLock, runnerPid } from "./runner-lock";
 import { describeWait, isDue } from "./quota";
 import { nowIso } from "./paths";
 import { notify, taskUrl } from "./notify";
@@ -59,6 +59,106 @@ export interface QueueEntry {
   queued_at: string | null;
   retry_at?: string | null;
   waiting: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Pause switch.
+//
+// `stop` writes this file and kills the running process group; `resume` deletes
+// it and spawns a fresh runner. While it exists, nextRunnable() yields nothing
+// and ensureRunnerRunning() refuses to spawn, so an `approve` or `start` that
+// happens in the meantime queues the work without draining it. Nothing about
+// task state changes -- the in-flight task stays mid-flight and resumes cleanly
+// (dispatchStep only records a step once the agent returns, so a killed step
+// simply re-dispatches). State lives on disk, so a reboot is the same as a stop.
+// ---------------------------------------------------------------------------
+const PAUSE_FILE = path.join(AGENT_DIR, "state", "runner.paused");
+
+export interface PauseInfo {
+  reason: string;
+  since: string;
+}
+
+export function isPaused(): boolean {
+  return fs.existsSync(PAUSE_FILE);
+}
+
+export function pauseInfo(): PauseInfo | null {
+  try {
+    return JSON.parse(fs.readFileSync(PAUSE_FILE, "utf8")) as PauseInfo;
+  } catch {
+    return null;
+  }
+}
+
+function writePause(reason: string): void {
+  ensureDir(path.dirname(PAUSE_FILE));
+  fs.writeFileSync(PAUSE_FILE, JSON.stringify({ reason, since: nowIso() }, null, 2), "utf8");
+}
+
+function clearPause(): void {
+  fs.rmSync(PAUSE_FILE, { force: true });
+}
+
+export interface StopResult {
+  runnerPid: number | null;
+  inFlight: string | null;
+  killed: boolean;
+  dirty: string[];
+}
+
+/**
+ * Stop everything now, keep all state, be resumable.
+ *
+ * Kills the whole runner process group (the daemon plus whatever agent CLI and
+ * browser it currently has as children -- ensureRunnerRunning spawns it
+ * detached, so it is its own group leader), sets the pause switch, and clears
+ * the lock. The in-flight task is left exactly where it was.
+ */
+export function stopRunner(reason = "stopped by hand"): StopResult {
+  writePause(reason);
+  const held = currentLock();
+  const pid = runnerPid() ?? held?.pid ?? null;
+  let killed = false;
+
+  const kill = (target: number, sig: NodeJS.Signals): void => {
+    try {
+      process.kill(target, sig);
+      killed = true;
+    } catch {
+      /* already gone */
+    }
+  };
+
+  if (pid) {
+    // SIGKILL the runner itself FIRST, uncatchable, so it cannot grind through
+    // recording a bogus step for the agent we are about to kill under it -- the
+    // runner's work between dispatches is synchronous, a graceful signal would
+    // not be serviced until it finished anyway.
+    kill(pid, "SIGKILL");
+    // Then the whole process group (negative pid): the agent CLI, its browser,
+    // any grandchildren. spawn(..., {detached:true}) made the runner a group
+    // leader, so this reaches everything it started.
+    kill(-pid, "SIGKILL");
+    // Belt and braces for a runner that was NOT started detached (a foreground
+    // `agent -- runner --daemon`): reap anything still parented to it.
+    spawnSync("pkill", ["-9", "-P", String(pid)], { stdio: "ignore" });
+  }
+
+  breakLock();
+
+  const dirty = git
+    .statusPorcelain()
+    .filter((l) => !l.includes(".nexa-agent/"))
+    .map((l) => l.trim());
+
+  return { runnerPid: pid, inFlight: held?.task_id ?? null, killed, dirty };
+}
+
+/** Lift the pause and start draining again. */
+export function resumeRunner(): { started: boolean; pid?: number; holding?: string } {
+  clearPause();
+  return ensureRunnerRunning();
 }
 
 /** Mark a task as wanting to run. The runner picks it up when the lock frees. */
@@ -110,6 +210,7 @@ export function queue(now = new Date()): QueueEntry[] {
  * that a different agent could be getting on with.
  */
 export function nextRunnable(now = new Date()): string | null {
+  if (isPaused()) return null;
   for (const entry of queue(now)) {
     if (entry.status === "BLOCKED_RETRY" && !isDue(entry.retry_at, now)) continue;
     return entry.task_id;
@@ -124,7 +225,9 @@ export function nextRunnable(now = new Date()): string | null {
  * CLI and the HTTP API call it after enqueuing, so neither has to know whether
  * a runner happens to be alive.
  */
-export function ensureRunnerRunning(): { started: boolean; pid?: number; holding?: string } {
+export function ensureRunnerRunning(): { started: boolean; pid?: number; holding?: string; paused?: boolean } {
+  if (isPaused()) return { started: false, paused: true };
+
   const alive = runnerPid();
   if (alive) {
     const held = currentLock();
@@ -296,7 +399,19 @@ export async function runQueue(opts: RunnerOptions = {}): Promise<void> {
   const pollMs = (opts.pollSeconds ?? 60) * 1000;
   if (opts.daemon) markRunnerAlive();
 
+  let announcedPause = false;
   for (;;) {
+    if (isPaused()) {
+      if (!announcedPause) {
+        log(`runner paused (${pauseInfo()?.reason ?? "no reason"}); \`npm run agent -- resume\` to drain`);
+        announcedPause = true;
+      }
+      if (!opts.daemon) return;
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+      continue;
+    }
+    announcedPause = false;
+
     const held = currentLock();
     if (held) {
       if (!opts.daemon) {

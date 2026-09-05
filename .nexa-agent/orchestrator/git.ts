@@ -44,6 +44,12 @@ export function isDirty(): boolean {
   ]).length > 0;
 }
 
+/** Raw `git status --porcelain` lines (tracked changes only), for reporting. */
+export function statusPorcelain(): string[] {
+  const out = git(["status", "--porcelain", "--untracked-files=no"]);
+  return out ? out.split("\n") : [];
+}
+
 export function assertClean(context: string): void {
   if (isDirty()) {
     throw new GitError(
