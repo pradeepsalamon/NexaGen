@@ -236,6 +236,18 @@ Gaps against the spec's "admin reliability view":
 contained fix inside `useBoardSync.ts` / `LiveBoardSyncBridge.tsx` — not a new
 protocol message.
 
+**Phase 3 answer (2026-09-05):** confirmed not auto-triggered — the only
+existing dispatch was a one-time `if (!isCoach) broadcastMsg({type:
+"REQUEST_SYNC"})` on mount (`useBoardSync.ts`, now the earlier of two effects).
+Fixed by adding a second effect in the same hook that tracks
+`connectionState` via a ref and fires the identical `REQUEST_SYNC` broadcast
+the first time it observes a `Reconnecting`/`SignalReconnecting` →
+`Connected` transition. This lives directly in `useBoardSyncEngine` (chessboard
+feature) rather than being driven by the new `ConnectionStateManager` (§4.3)
+so it also covers the coach's standalone board pop-out window
+(`/live-class/[roomId]/board/page.tsx`), which has its own `LiveKitRoom` and
+no `ConnectionStateManager` — that page was out of scope to modify further.
+
 ### 2.7 Chat recovery — PARTIAL
 
 `LiveChatMessage` (`schema.prisma:672`) persists every message server-side
@@ -252,6 +264,15 @@ missed during a `Reconnecting` window, nothing re-fetches history to catch up
 — unlike the board's `REQUEST_SYNC` pattern. This is a frontend-only fix
 (re-fetch `getChatHistory` on `Connected` after having been `Reconnecting`),
 no schema/API change required since the persisted history already exists.
+
+**Phase 3 status: DONE (2026-09-05).** `ChatProvider`'s history-fetch effect
+now also depends on `reconnectEpoch` from `ConnectionStateManager` (§4.3),
+which increments exactly once per `Reconnecting`/`SignalReconnecting` →
+`Connected` transition — so the same `getChatHistory` call that ran on mount
+now also re-runs after a recovered connection, no new endpoint or dedupe logic
+needed since `chatMessages`'s existing `clientMessageId` merge already
+handles a message appearing in both the re-fetched history and the live
+LiveKit feed.
 
 ### 2.8 Duplicate-tab handling — PARTIAL
 
@@ -273,6 +294,19 @@ ghost-drop logic (§2.2) may misfire here: tab A's clean `LEAVE` while tab B is
 still open would currently read as the student leaving, then tab B's next
 heartbeat-less event would read as a "reconnect." This needs a dedicated test
 in Phase 1 (`e2e/` or a `.spec.ts`) before assuming it's fine, not a rewrite.
+
+**Phase 3 status: product-layer warning DONE (2026-09-05); the attendance
+question above is still open, deferred to Phase 4 as originally planned.**
+`ClassroomSessionManager` (§4.3) opens a `BroadcastChannel` per `roomId`
+(`nexa:live-class-tabs:${roomId}`) and shows a toast — "This class is already
+open in another tab." — to both tabs when a second tab for the same room
+mounts (each tab announces its `clientId` on mount; a tab that receives an
+announcement from a different `clientId` warns and echoes once, so a tab that
+was already open before the second one mounted also finds out). This is
+purely informational — it does not touch attendance recording, the ghost-drop
+path, or the ClassAttendance unique constraint, so the ordering-misfire
+question this section raises is unaffected and still needs Phase 4's
+dedicated test.
 
 ### 2.9 Frontend session/connection state — NET-NEW (as a coordinating layer)
 
@@ -299,6 +333,18 @@ makes a server-side heartbeat, a UI grace-period countdown, or a
 "reconnecting — do not mark absent" signal to `getLiveClassMonitoring`
 impossible to implement cleanly today. This is the real net-new frontend
 architecture piece.
+
+**Phase 3 status: DONE (2026-09-05).** See §4.3 for what landed. In short:
+`ConnectionStateManager` now owns the `useConnectionState()` read for
+`useMeetingTimer`/`MeetingStatus`'s badges and pings the heartbeat endpoint;
+`ClassroomSessionManager` now owns `getTabClientId`/`joinedSession`. Two of
+the five call sites deliberately were **not** folded in, on purpose rather
+than by oversight: `MeetingRoom.tsx`'s `ReconnectToaster` keeps its own
+`useConnectionState()` call (it is LiveKit's own reconnect UX, out of scope
+per the task brief), and `useBoardSync.ts` keeps its own call too (it must
+also run inside the coach's standalone board pop-out window, `/live-class/
+[roomId]/board`, which has no `ConnectionStateManager` and was out of scope to
+wire one into).
 
 ---
 
@@ -430,6 +476,11 @@ Not done in this phase (left for Phase 3, since it needs the
 will only start appearing once Phase 3 wires up the ping. This phase's job was
 making the backend/UI ready to show it, not making the signal fire yet.
 
+**Phase 3 closed this:** `ConnectionStateManager` (§4.3) now calls
+`pingHeartbeat` every 15s while connected, so `lastHeartbeatAt` starts getting
+populated and the `RECONNECTING`/`OFFLINE` branches above will actually be
+reachable in a live class from this point on.
+
 ### 4.3 Frontend `ConnectionStateManager` + `ClassroomSessionManager`
 
 - `ConnectionStateManager` (new, `features/live-class/`): wraps
@@ -447,6 +498,49 @@ making the backend/UI ready to show it, not making the signal fire yet.
 - This is a consolidation of five existing call sites, not a rewrite of
   LiveKit connection handling — `LiveKitRoom`'s own reconnect logic in
   `MeetingRoom.tsx` stays as-is.
+
+**Phase 3 status: DONE (2026-09-05).**
+
+- `ConnectionStateManager`
+  (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`):
+  a context provider rendered inside `<LiveKitRoom>` in `MeetingRoom.tsx`,
+  wrapping `<ChatProvider>`/`<MeetingLayout>`. Wraps `useConnectionState()`,
+  pings `POST /live-class/:id/heartbeat` (`pingHeartbeat`, new function in
+  `features/live-class/api/live-class.ts`) every 15s while `Connected` using
+  the `clientId` from `ClassroomSessionManager`, and exposes `connectionState`
+  / `presenceState` (`connected|connecting|reconnecting|disconnected`) /
+  `lastHeartbeatAckAt` / `reconnectEpoch` (incremented once per
+  `Reconnecting`/`SignalReconnecting` → `Connected` transition).
+  `useMeetingTimer.ts` and `MeetingStatus.tsx`'s `ConnectionBadge`/
+  `NetworkStatusIcon` now read `connectionState` from this context instead of
+  calling `useConnectionState()` directly. `ChatProvider` now re-fetches chat
+  history on `reconnectEpoch` change (§2.7).
+- `ClassroomSessionManager`
+  (`apps/web/src/features/live-class/providers/ClassroomSessionManager.tsx`):
+  wraps the whole room page (`app/live-class/[roomId]/page.tsx`, above
+  `LiveClassProvider`/`MeetingRoom`) since `useLiveClass.ts` needs the
+  `clientId` before the LiveKit room even connects. Exposes `clientId`
+  (`getTabClientId()`, called once via `useMemo`), `hasJoined`/`markJoined`
+  (replaces the page's local `useState` + `hasJoinedSession`/
+  `markJoinedSession` calls), and `clearJoined` (replaces `MeetingRoom.tsx`'s
+  two `clearJoinedSession(classId)` call sites). Also runs the new
+  duplicate-tab `BroadcastChannel` warning (§2.8).
+- Two of the original five `useConnectionState()` call sites were
+  deliberately left alone, not missed: `MeetingRoom.tsx`'s `ReconnectToaster`
+  (explicitly out of scope per the task — it's `LiveKitRoom`'s own reconnect
+  UX) and `useBoardSync.ts` in `features/chessboard/` (must also work inside
+  the coach's standalone board pop-out window, `/live-class/[roomId]/board`,
+  which has its own separate `LiveKitRoom` and no `ConnectionStateManager`).
+  `useBoardSync.ts` instead grew its own local Reconnecting→Connected
+  transition tracker (a ref, mirroring `ConnectionStateManager`'s internal
+  logic) to fire `REQUEST_SYNC` — see §2.6's Phase 3 answer above. This means
+  the transition-detection logic now exists in two places
+  (`ConnectionStateManager` and `useBoardSync.ts`) rather than one; that
+  duplication is intentional given the pop-out window constraint, not an
+  oversight, and should not be "cleaned up" into a single shared instance
+  without first deciding whether the pop-out window gets its own
+  `ConnectionStateManager` (it currently has no `ClassroomSessionManager`
+  either, so that would be a larger change than a dedup).
 
 ### 4.4 Shared event-type enum (backend, low-risk cleanup)
 
@@ -489,7 +583,7 @@ section, not a component that already exists to extend.
 |---|---|---|
 | **1. Schema + heartbeat backbone — DONE (2026-09-05)** | `LiveSessionStatus` enum, `AttendanceEventType` +BOARD_*, `CoachAttendanceLog.eventType` migration, `lastHeartbeatAt` column(s) or new session-scoped model (decide after resolving §2.8's multi-tab question), `POST /live-class/:id/heartbeat`, wire `recordDisconnectEvent` via new grace-period cron. Check row counts for `ClassStatus.IN_PROGRESS` in `vps_dev` before deciding whether to drop it (query-only — do not run destructive schema/data changes as part of this check). | This doc |
 | **2. `getLiveClassMonitoring` presence — DONE (2026-09-05)** | Derive `presence`/`lastHeartbeatAt` in the response; update `LiveClassMonitor` UI to show `RECONNECTING` distinctly from `OFFLINE`. | Phase 1 |
-| **3. Frontend `ConnectionStateManager`/`ClassroomSessionManager`** | Consolidate `joinedSession.ts`, `getTabClientId`, `useConnectionState` call sites; wire heartbeat ping; trigger board `REQUEST_SYNC` and chat re-fetch on reconnect; duplicate-tab product-layer warning. | Phase 1 (needs the heartbeat endpoint) |
+| **3. Frontend `ConnectionStateManager`/`ClassroomSessionManager` — DONE (2026-09-05)** | Consolidate `joinedSession.ts`, `getTabClientId`, `useConnectionState` call sites; wire heartbeat ping; trigger board `REQUEST_SYNC` and chat re-fetch on reconnect; duplicate-tab product-layer warning. | Phase 1 (needs the heartbeat endpoint) |
 | **4. Multi-tab attendance correctness** | Dedicated test (unit or `e2e/`) for two simultaneous tabs of one student; fix ghost-drop misfire if confirmed (§2.8). | Can start in parallel with Phase 1 |
 | **5. Admin cross-class reliability view** | New endpoint + admin page per §4.5. | Phase 2 |
 | **6. Coach-hour reconciliation audit** | Compare heartbeat-backstopped totals against pre-heartbeat historical data on a sample of classes to confirm Phase 1 didn't change existing numbers unexpectedly; add reliability metrics (webhook-loss rate, heartbeat-fallback trigger rate) to the admin dashboard. | Phases 1–5 |

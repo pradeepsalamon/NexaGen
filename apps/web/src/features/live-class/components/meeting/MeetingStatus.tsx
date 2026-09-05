@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  useConnectionState,
   useConnectionQualityIndicator,
   useIsRecording,
 } from "@livekit/components-react";
@@ -9,6 +8,7 @@ import { ConnectionState, ConnectionQuality, type Participant } from "livekit-cl
 import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
 import { useOptionalLiveClassState } from "../../providers/LiveClassProvider";
+import { useConnectionStateManager } from "../../providers/ConnectionStateManager";
 import { Timer, Wifi, WifiOff, Radio, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -54,7 +54,7 @@ const connectionConfig: Record<
 };
 
 export function ConnectionBadge({ compact = false }: { compact?: boolean }) {
-  const connectionState = useConnectionState();
+  const { connectionState } = useConnectionStateManager();
   const config = connectionConfig[connectionState];
 
   return (
@@ -261,7 +261,7 @@ export function LiveBadge({ className }: { className?: string }) {
 // ─── Network Status Icon ─────────────────────────────────────
 
 export function NetworkStatusIcon({ className }: { className?: string }) {
-  const connectionState = useConnectionState();
+  const { connectionState } = useConnectionStateManager();
   const isConnected = connectionState === ConnectionState.Connected;
 
   return isConnected ? (

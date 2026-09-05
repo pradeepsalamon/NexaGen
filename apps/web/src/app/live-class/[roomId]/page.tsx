@@ -3,10 +3,12 @@
 import "@livekit/components-styles";
 import "@livekit/components-styles/prefabs";
 
-import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useLiveClass } from "@/features/live-class/hooks/useLiveClass";
-import { hasJoinedSession, markJoinedSession } from "@/features/live-class/lib/joinedSession";
+import {
+  ClassroomSessionManager,
+  useClassroomSession,
+} from "@/features/live-class/providers/ClassroomSessionManager";
 import { LiveClassProvider } from "@/features/live-class/providers/LiveClassProvider";
 import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
 import { PreJoinCard } from "@/features/live-class/components/prejoin/PreJoinCard";
@@ -19,20 +21,23 @@ export default function LiveClassPage() {
   const params = useParams();
   const roomId = params.roomId as string;
 
-  const [hasJoined, setHasJoined] = useState(false);
-  const { token, topic, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry } =
-    useLiveClass(roomId, hasJoined);
+  return (
+    <ClassroomSessionManager roomId={roomId}>
+      <LiveClassPageContent roomId={roomId} />
+    </ClassroomSessionManager>
+  );
+}
 
-  // Rehydrate the "already joined" flag so a mid-class refresh / reconnect
-  // reload skips PreJoin instead of forcing a full re-join (AUDIT H16). Done in
-  // an effect (not lazy init) to avoid an SSR/client hydration mismatch.
-  useEffect(() => {
-    if (hasJoinedSession(roomId)) setHasJoined(true);
-  }, [roomId]);
+function LiveClassPageContent({ roomId }: { roomId: string }) {
+  // `hasJoined`/`join` now live in ClassroomSessionManager (sessionStorage-backed
+  // PreJoin flag, AUDIT H16) — relocated, not rewritten, so a mid-class refresh
+  // still skips PreJoin instead of forcing a full re-join.
+  const { clientId, hasJoined, markJoined } = useClassroomSession();
+  const { token, topic, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry } =
+    useLiveClass(roomId, hasJoined, clientId);
 
   const join = () => {
-    markJoinedSession(roomId);
-    setHasJoined(true);
+    markJoined();
   };
 
   const headerCenter = (
