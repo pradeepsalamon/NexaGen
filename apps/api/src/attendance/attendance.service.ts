@@ -21,6 +21,7 @@ import {
   LiveSessionStatus,
 } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
+import type { ParticipantPresence } from "@nexa-chess/types";
 
 const CLASS_DETAIL_INCLUDE = {
   coach: true,
@@ -45,6 +46,15 @@ export class AttendanceService {
   // Postgres advisory-lock key for the heartbeat-timeout sweep (P0 reliability
   // Phase 1). Distinct from LiveClassService.STALE_CLASS_LOCK_ID (73002002).
   private static readonly HEARTBEAT_SWEEP_LOCK_ID = 73002003;
+
+  // Presence classification for getLiveClassMonitoring (P0 reliability Phase
+  // 2). A heartbeat younger than this is ONLINE; older but still inside the
+  // active policy's gracePeriodMinutes is RECONNECTING; beyond that is
+  // OFFLINE (sweepStaleHeartbeats will soon convert it to a real LEAVE log).
+  // No AttendancePolicy field exists for the ping cadence itself, so this
+  // mirrors the frontend's intended ~15s heartbeat interval (RELIABILITY_
+  // DESIGN.md §4.1) rather than reading it from policy.
+  private static readonly HEARTBEAT_FRESH_MS = 30_000;
 
   private readonly env = getApiEnv();
   private readonly logger = new Logger(AttendanceService.name);
@@ -1943,6 +1953,10 @@ export class AttendanceService {
       coachClass.attendances.map((a) => [a.studentId, a])
     );
 
+    const policy = await this.getActivePolicy();
+    const graceMs = policy.gracePeriodMinutes * 60_000;
+    const now = Date.now();
+
     const students = enrolledStudents.map((bs) => {
       const att = attendanceMap.get(bs.studentId);
       const lastLog = att?.logs?.[0];
@@ -1951,10 +1965,31 @@ export class AttendanceService {
         (lastLog.eventType === AttendanceEventType.JOIN ||
           lastLog.eventType === AttendanceEventType.RECONNECT);
 
+      // presence refines isOnline using lastHeartbeatAt when it's been
+      // populated (RELIABILITY_DESIGN.md §3.2/§4.2). A class/session with no
+      // heartbeat data yet (predates Phase 1, or the frontend hasn't started
+      // pinging) falls back to the webhook-only ONLINE/LEFT/OFFLINE split.
+      let presence: ParticipantPresence;
+      if (!isOnline) {
+        presence = lastLog ? "LEFT" : "OFFLINE";
+      } else if (!att?.lastHeartbeatAt) {
+        presence = "ONLINE";
+      } else {
+        const ageMs = now - att.lastHeartbeatAt.getTime();
+        presence =
+          ageMs <= AttendanceService.HEARTBEAT_FRESH_MS
+            ? "ONLINE"
+            : ageMs <= graceMs
+              ? "RECONNECTING"
+              : "OFFLINE";
+      }
+
       return {
         id: bs.studentId,
         name: `${bs.student.firstName} ${bs.student.lastName || ""}`.trim(),
         isOnline: !!isOnline,
+        presence,
+        lastHeartbeatAt: att?.lastHeartbeatAt?.toISOString() || null,
         joinedAt: att?.joinedAt?.toISOString() || null,
         lastActivity: att?.lastActivity?.toISOString() || null,
         reconnectCount: att?.reconnectCount || 0,

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { LiveClassMonitoring, LiveMonitoringStudent } from "@nexa-chess/types";
-import { Radio, RefreshCw, Users, Wifi, WifiOff } from "lucide-react";
+import { Radio, RefreshCw, Users, Wifi, WifiOff, AlertTriangle } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatTime } from "@/lib/datetime";
 import { Card } from "@/components/ui/Card";
@@ -17,14 +17,36 @@ import {
 import { cn } from "@/lib/utils";
 import { useLiveClassMonitoring } from "../hooks/useLiveClassMonitoring";
 
-type Connection = "online" | "left" | "absent";
+type Connection = "online" | "reconnecting" | "offline" | "left" | "absent";
 
+// `presence` is the richer, heartbeat-derived signal (RELIABILITY_DESIGN.md
+// §3.2/§4.2). Fall back to the old `isOnline`-only split when it's missing --
+// either a class predating Phase 1's heartbeat column, or an API build from
+// mid-rollout that hasn't shipped the field yet.
 function connectionOf(s: LiveMonitoringStudent): Connection {
-  if (s.isOnline) return "online";
-  return s.joinedAt ? "left" : "absent";
+  if (!s.presence) {
+    if (s.isOnline) return "online";
+    return s.joinedAt ? "left" : "absent";
+  }
+  switch (s.presence) {
+    case "ONLINE":
+      return "online";
+    case "RECONNECTING":
+      return "reconnecting";
+    case "OFFLINE":
+      return s.joinedAt ? "offline" : "absent";
+    case "LEFT":
+      return "left";
+  }
 }
 
-const ORDER: Record<Connection, number> = { online: 0, left: 1, absent: 2 };
+const ORDER: Record<Connection, number> = {
+  online: 0,
+  reconnecting: 1,
+  offline: 2,
+  left: 3,
+  absent: 4,
+};
 
 function useElapsed(startedAt: string | null): string | null {
   const [, tick] = useState(0);
@@ -87,6 +109,10 @@ function MonitorBody({
   });
 
   const online = students.filter((s) => connectionOf(s) === "online").length;
+  const atRisk = students.filter((s) => {
+    const conn = connectionOf(s);
+    return conn === "reconnecting" || conn === "offline";
+  }).length;
   const left = students.filter((s) => connectionOf(s) === "left").length;
   const absent = students.filter((s) => connectionOf(s) === "absent").length;
 
@@ -115,8 +141,9 @@ function MonitorBody({
         )}
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-app-border/60 border-b border-app-border/60">
+      <div className="grid grid-cols-4 divide-x divide-app-border/60 border-b border-app-border/60">
         <Stat icon={<Wifi className="size-4 text-green-600" />} label="Online" value={online} />
+        <Stat icon={<AlertTriangle className="size-4 text-amber-500" />} label="Reconnecting" value={atRisk} />
         <Stat icon={<WifiOff className="size-4 text-app-muted" />} label="Left" value={left} />
         <Stat icon={<Users className="size-4 text-app-muted" />} label="Not joined" value={absent} />
       </div>
@@ -146,12 +173,28 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
   );
 }
 
+const DOT_CLASS: Record<Connection, string> = {
+  online: "bg-green-500",
+  reconnecting: "bg-amber-500 animate-pulse",
+  offline: "bg-orange-500",
+  left: "bg-slate-400",
+  absent: "bg-app-border",
+};
+
+const CONN_LABEL: Record<Connection, string> = {
+  online: "Online",
+  reconnecting: "Reconnecting",
+  offline: "Offline",
+  left: "Left",
+  absent: "Not joined",
+};
+
 function StudentRow({ student, timeZone }: { student: LiveMonitoringStudent; timeZone: string }) {
   const conn = connectionOf(student);
-  const dot =
-    conn === "online" ? "bg-green-500" : conn === "left" ? "bg-amber-500" : "bg-app-border";
-  const label =
-    conn === "online" ? "Online" : conn === "left" ? "Left" : "Not joined";
+  const dot = DOT_CLASS[conn];
+  const label = CONN_LABEL[conn];
+  const showLastHeartbeat =
+    (conn === "reconnecting" || conn === "offline") && !!student.lastHeartbeatAt;
 
   return (
     <li className="flex items-center justify-between gap-3 px-4 py-2.5">
@@ -164,6 +207,9 @@ function StudentRow({ student, timeZone }: { student: LiveMonitoringStudent; tim
             {student.joinedAt && <> · joined {formatTime(student.joinedAt, timeZone)}</>}
             {conn === "left" && student.lastActivity && (
               <> · last seen {formatTime(student.lastActivity, timeZone)}</>
+            )}
+            {showLastHeartbeat && (
+              <> · last ping {formatTime(student.lastHeartbeatAt as string, timeZone)}</>
             )}
           </p>
         </div>

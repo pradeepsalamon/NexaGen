@@ -179,7 +179,7 @@ that today's inputs (webhook-derived logs) can be incomplete if a webhook is
 lost — which is exactly what heartbeat data (§4.1) would backstop, making
 reconciliation more *accurate*, not restructuring how it works.
 
-### 2.5 Admin/coach reliability visibility — PARTIAL
+### 2.5 Admin/coach reliability visibility — PARTIAL (staleness gap closed in Phase 2)
 
 `getLiveClassMonitoring` (`attendance.service.ts:1748`, route
 `API_ROUTES.attendance.classLive`) + frontend `LiveClassMonitor`/
@@ -189,8 +189,22 @@ BACKLOG.md. Coach/admin only, one class at a time, shown on `/classes/[id]`
 and via a "Monitor Live" action on the admin batch-classes table.
 
 Gaps against the spec's "admin reliability view":
-- **No staleness/heartbeat check** — `isOnline` is purely
-  `lastLog.eventType IN (JOIN, RECONNECT)` with no timeout (§1.3).
+- ~~**No staleness/heartbeat check**~~ **Closed in Phase 2 (2026-09-05).**
+  `getLiveClassMonitoring` now derives `presence`
+  (`ONLINE|RECONNECTING|OFFLINE|LEFT`) and returns `lastHeartbeatAt` per
+  student, computed at read time from `lastHeartbeatAt` +
+  `AttendancePolicy.gracePeriodMinutes` rather than trusting `lastLog
+  .eventType` with no timeout. `isOnline` is kept as-is for backward
+  compatibility (existing `onlineCount`/`offlineCount` still derive from it,
+  unchanged); `presence` is additive. See §4.2 for the exact classification
+  and `AttendanceService.HEARTBEAT_FRESH_MS`/`sweepStaleHeartbeats` in
+  `attendance.service.ts` for the two thresholds (fresh-heartbeat window,
+  policy grace period). `LiveClassMonitor` (`features/attendance/components/`)
+  now shows "Reconnecting" and "Offline" as distinct row states instead of
+  both reading as solid-green "online"; it falls back to the old 3-state
+  (`online`/`left`/`absent`) split when `presence` is `undefined` — a class
+  with no heartbeat data yet, or an API response from a build that predates
+  this field.
 - **No cross-class view** — can't see "which live classes right now have
   reliability problems" without opening each one.
 - **No webhook-health signal** — nothing surfaces `ProcessedWebhookEvent`
@@ -378,6 +392,44 @@ from the new heartbeat column instead of purely `lastLog.eventType`. No new
 endpoint — same route, richer payload. Existing `LiveClassMonitor` UI degrades
 gracefully during rollout since it currently only reads `isOnline`.
 
+**Phase 2 status: DONE (2026-09-05).** `participantPresenceSchema` (new enum
+type, `ONLINE|RECONNECTING|OFFLINE|LEFT`) and `lastHeartbeatAt` added to
+`liveMonitoringStudentSchema` in `packages/types/src/index.ts`, both
+`.optional()`/nullable so a response from an API build mid-rollout (no
+`presence` yet) still parses. `AttendanceService.getLiveClassMonitoring`
+(`attendance.service.ts`) computes presence per student:
+
+- last log not open (`JOIN`/`RECONNECT`) → `LEFT` if any log exists, else
+  `OFFLINE` (never joined — no heartbeat/log data to call it anything else).
+- last log open, no `lastHeartbeatAt` yet → `ONLINE` (trusts the webhook path
+  as-is; this is the "predates heartbeat data" fallback case).
+- last log open, heartbeat age ≤ `HEARTBEAT_FRESH_MS` (30s, a fixed constant —
+  no `AttendancePolicy` field exists for the ping cadence itself, only
+  `gracePeriodMinutes`) → `ONLINE`.
+- heartbeat age between `HEARTBEAT_FRESH_MS` and `policy.gracePeriodMinutes`
+  → `RECONNECTING`.
+- heartbeat age beyond `gracePeriodMinutes` → `OFFLINE` (transient: the
+  `EVERY_30_SECONDS` `sweepStaleHeartbeats` cron from Phase 1 will close the
+  log within one tick, at which point this same student reads as `LEFT`).
+
+`isOnline`/`onlineCount`/`offlineCount` are unchanged (still purely
+`lastLog.eventType`-derived) so no existing consumer's contract shifted.
+`LiveClassMonitor.tsx` (`features/attendance/components/`) now has a 5-state
+`Connection` (`online|reconnecting|offline|left|absent`) instead of 3, a 4th
+stat tile ("Reconnecting", counting both `RECONNECTING` and `OFFLINE` as
+"at risk"), and per-row distinct dot color + label for `reconnecting` (amber,
+pulsing) vs `offline` (orange) vs `left` (slate) vs `absent` (gray), plus a
+"last ping" timestamp on reconnecting/offline rows. `connectionOf()` falls
+back to the pre-Phase-2 `isOnline`-only 3-state logic when `student.presence`
+is `undefined`.
+
+Not done in this phase (left for Phase 3, since it needs the
+`ConnectionStateManager`): the frontend never actually calls `POST
+/live-class/:id/heartbeat` yet, so today every live class hits the "no
+`lastHeartbeatAt` yet → `ONLINE`" fallback branch — `RECONNECTING`/`OFFLINE`
+will only start appearing once Phase 3 wires up the ping. This phase's job was
+making the backend/UI ready to show it, not making the signal fire yet.
+
 ### 4.3 Frontend `ConnectionStateManager` + `ClassroomSessionManager`
 
 - `ConnectionStateManager` (new, `features/live-class/`): wraps
@@ -436,7 +488,7 @@ section, not a component that already exists to extend.
 | Phase | Work | Depends on |
 |---|---|---|
 | **1. Schema + heartbeat backbone — DONE (2026-09-05)** | `LiveSessionStatus` enum, `AttendanceEventType` +BOARD_*, `CoachAttendanceLog.eventType` migration, `lastHeartbeatAt` column(s) or new session-scoped model (decide after resolving §2.8's multi-tab question), `POST /live-class/:id/heartbeat`, wire `recordDisconnectEvent` via new grace-period cron. Check row counts for `ClassStatus.IN_PROGRESS` in `vps_dev` before deciding whether to drop it (query-only — do not run destructive schema/data changes as part of this check). | This doc |
-| **2. `getLiveClassMonitoring` presence** | Derive `presence`/`lastHeartbeatAt` in the response; update `LiveClassMonitor` UI to show `RECONNECTING` distinctly from `OFFLINE`. | Phase 1 |
+| **2. `getLiveClassMonitoring` presence — DONE (2026-09-05)** | Derive `presence`/`lastHeartbeatAt` in the response; update `LiveClassMonitor` UI to show `RECONNECTING` distinctly from `OFFLINE`. | Phase 1 |
 | **3. Frontend `ConnectionStateManager`/`ClassroomSessionManager`** | Consolidate `joinedSession.ts`, `getTabClientId`, `useConnectionState` call sites; wire heartbeat ping; trigger board `REQUEST_SYNC` and chat re-fetch on reconnect; duplicate-tab product-layer warning. | Phase 1 (needs the heartbeat endpoint) |
 | **4. Multi-tab attendance correctness** | Dedicated test (unit or `e2e/`) for two simultaneous tabs of one student; fix ghost-drop misfire if confirmed (§2.8). | Can start in parallel with Phase 1 |
 | **5. Admin cross-class reliability view** | New endpoint + admin page per §4.5. | Phase 2 |
