@@ -74,6 +74,22 @@ export interface QueueEntry {
 // ---------------------------------------------------------------------------
 const PAUSE_FILE = path.join(AGENT_DIR, "state", "runner.paused");
 
+/**
+ * `pkill -f` patterns for `stop` to sweep once the runner and its process group
+ * are dead. Worker CLIs re-parent their subprocesses into their own
+ * session/group, so a group kill does not reach them. Kept deliberately narrow:
+ * the agent-CLI invocations, their run.sh wrappers, and the scratch dirs each
+ * writes throwaway browser-driver scripts into (which is what keeps a headless
+ * Chromium alive after the CLI is gone).
+ */
+const AGENT_PROCESS_PATTERNS = [
+  "opencode run --format json",
+  String.raw`\.nexa-agent/agents/[a-z]+/run\.sh`,
+  "/tmp/opencode/",
+  "/tmp/antigravity/",
+  "ms-playwright/chromium_headless_shell",
+];
+
 export interface PauseInfo {
   reason: string;
   since: string;
@@ -143,6 +159,17 @@ export function stopRunner(reason = "stopped by hand"): StopResult {
     // Belt and braces for a runner that was NOT started detached (a foreground
     // `agent -- runner --daemon`): reap anything still parented to it.
     spawnSync("pkill", ["-9", "-P", String(pid)], { stdio: "ignore" });
+  }
+
+  // The worker CLIs (opencode especially) re-parent their tool subprocess into a
+  // NEW process group/session, and the tester writes throwaway .cjs scripts that
+  // drive a headless browser -- none of that is reachable from the runner's
+  // group, so it outlives the kills above. Sweep it by pattern. These are all
+  // specific to this agent system on a box dedicated to it; the e2e dev servers
+  // (:3010/:3011) are deliberately left up, warm for the next run.
+  for (const pat of AGENT_PROCESS_PATTERNS) {
+    const r = spawnSync("pkill", ["-9", "-f", pat], { stdio: "ignore" });
+    if (r.status === 0) killed = true;
   }
 
   breakLock();
