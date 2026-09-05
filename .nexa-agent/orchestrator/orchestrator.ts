@@ -14,12 +14,25 @@ import * as path from "path";
 import { AGENT_DIR, LOG_DIR, ensureDir, loadAgents, loadRoles, nowIso, readJson } from "./paths";
 import type { AgentResult, RoleName, StepRecord, TaskState } from "./types";
 import * as git from "./git";
-import { appendStep, bumpSession, lastStep, lastStepForRole, readState, sessionsUsed, writeState } from "./state";
+import {
+  appendStep,
+  bumpSession,
+  createTask,
+  lastStep,
+  lastStepForRole,
+  readState,
+  resolveChain,
+  sessionsUsed,
+  writeState,
+} from "./state";
 import { buildPacket, sessionFor, writeHandoff, writePacket } from "./task-packet";
 import { MAX_SESSIONS_PER_STEP, evaluateBudget, maxBudgetUsd } from "./context-budget";
 import { describeWait, isDue, quotaWaitFor } from "./quota";
 
 export class DispatchError extends Error {}
+
+/** Fixed retry delay after a discarded safety-net commit -- see nextAction(). */
+const COMMIT_FAILURE_RETRY_MS = 2 * 60_000;
 
 /** Exit codes the wrappers use, from agents/_lib. */
 const EXIT_GUARD_ABORT = 90;
@@ -147,17 +160,36 @@ export function dispatchStep(
   // Safety net: an agent that did the work but forgot to commit must not strand
   // changes for the next one. Roles that shouldn't commit are left untouched.
   let commitSha = result?.commit_sha ?? null;
+  let commitFailure: string | null = null;
   if (roles.roles[role].must_commit && git.isDirty()) {
-    const rescued = git.commitLeftovers(
-      `chore(${role}): commit uncommitted work from ${agentName} [${state.task_id} a${state.attempt} s${session}]`,
-    );
-    if (rescued) commitSha = rescued;
+    try {
+      const rescued = git.commitLeftovers(
+        `chore(${role}): commit uncommitted work from ${agentName} [${state.task_id} a${state.attempt} s${session}]`,
+      );
+      if (rescued) commitSha = rescued;
+    } catch (err) {
+      // The leftover work fails its own pre-commit checks (e.g. a budget
+      // cutoff mid-edit left the build broken -- see context-budget.ts).
+      // Committing it would poison every later step's git.assertClean(), and
+      // letting this throw propagate used to crash the whole runner daemon:
+      // the task was found stuck at RUNNING forever with zero steps recorded,
+      // because the crash happened before the step below could even be built.
+      // Discard back to a clean base instead, so the retry below has
+      // something to actually retry.
+      commitFailure = err instanceof Error ? err.message : String(err);
+      git.discardLeftovers();
+    }
   }
   if (commitSha && !git.commitExists(commitSha)) commitSha = null;
   if (!commitSha) {
     const head = git.headSha();
     if (head !== shaBefore) commitSha = head;
   }
+
+  // A discarded safety-net commit means nothing landed for this step, whatever
+  // the CLI itself reported -- it must not be presented as "ok" or trusted for
+  // a checkpoint continuation.
+  if (commitFailure) outcome = "commit_failed";
 
   const step: StepRecord = {
     index: state.steps.length,
@@ -175,7 +207,9 @@ export function dispatchStep(
     commits: git.commitShasBetween(shaBefore),
     files_changed: result?.files_changed ?? [],
     diff_summary: result?.diff_summary ?? null,
-    notes: result?.notes ?? null,
+    notes: commitFailure
+      ? `Safety-net commit failed and leftover work was discarded: ${commitFailure}`
+      : result?.notes ?? null,
     test_pass: result?.test_report ? result.test_report.pass : null,
     failure_count: result?.test_report ? result.test_report.failures.length : null,
     handoff_summary: result?.handoff_summary ?? null,
@@ -188,9 +222,22 @@ export function dispatchStep(
     const wait = quotaWaitFor(typeof step.usage?.error_text === "string" ? step.usage.error_text : null);
     state.retry_at = wait.retryAt;
     state.retry_basis = wait.basis;
+  } else if (step.outcome === "commit_failed") {
+    // Not a quota problem -- a fresh session just needs to redo the step from
+    // a clean base. Short fixed delay rather than an immediate re-dispatch, so
+    // a persistently broken packet does not spin the daemon in a tight loop.
+    state.retry_at = new Date(Date.now() + COMMIT_FAILURE_RETRY_MS).toISOString();
+    state.retry_basis = "leftover work failed its own pre-commit checks; short fixed retry, not a quota wait";
   } else if (step.outcome === "ok") {
     state.retry_at = null;
     state.retry_basis = null;
+  }
+
+  // A step may propose the epic's next phase(s). Keep only the latest
+  // declaration -- normally just the final role in the chain sets this, but if
+  // an earlier one did too, the most recent view of the plan wins.
+  if (result?.next_phases?.length) {
+    state.next_phases = result.next_phases;
   }
 
   appendStep(state, step);
@@ -291,6 +338,36 @@ export function nextAction(state: TaskState): NextAction {
       kind: "terminal",
       status: "FAILED",
       reason: `step ${last.index} (${last.role}/${last.agent}) ended with an unrecoverable agent error -- ${why}`,
+    };
+  }
+
+  // The safety-net commit itself failed (leftover work didn't pass its own
+  // pre-commit checks) and was discarded back to a clean base -- see
+  // dispatchStep. Nothing landed on the branch, so this is a code-defect
+  // retry, not a quota wait: redo the same role-step in a fresh session after
+  // a short fixed delay, capped like any other checkpoint restart so a
+  // packet that is broken on every attempt still surfaces to a human instead
+  // of looping forever.
+  if (last && last.outcome === "commit_failed") {
+    if (sessionsUsed(state, last.role, state.attempt) >= MAX_SESSIONS_PER_STEP) {
+      return {
+        kind: "terminal",
+        status: "FAILED",
+        reason:
+          `step ${last.index} (${last.role}/${last.agent}) left broken, uncommittable work ` +
+          `${MAX_SESSIONS_PER_STEP} sessions in a row -- ${last.notes ?? "see step notes"}`,
+      };
+    }
+    if (state.resume_requested || isDue(state.retry_at)) {
+      return { kind: "dispatch", role: last.role, bumpAttempt: false };
+    }
+    return {
+      kind: "halt",
+      status: "BLOCKED_RETRY",
+      reason:
+        `step ${last.index} (${last.role}/${last.agent})'s leftover work failed its own pre-commit ` +
+        `checks and was discarded -- ${last.notes ?? ""}. ` +
+        `Retrying automatically ${describeWait(state.retry_at!)}.`,
     };
   }
 
@@ -481,14 +558,30 @@ export function taskCommitShas(state: TaskState): string[] {
   return [];
 }
 
+export interface ApproveResult {
+  state: TaskState;
+  /**
+   * Set when this task had a declared next_phases plan: the id of the new
+   * PENDING task created for phase[0]. The caller (CLI / control UI) is
+   * responsible for enqueueing it -- creation and execution stay decoupled
+   * here the same way `create` and `start` always have.
+   */
+  nextPhaseTaskId: string | null;
+}
+
 /**
  * Accept a task's work.
  *
  * There is nothing to merge -- the commits are already on dev_vps. What this
  * records is that a human looked at them and is keeping them, which is the
  * whole point of the gate. Nothing is ever pushed.
+ *
+ * If the task declared a next_phases plan (see PhasePlanEntry), approving it
+ * also creates the next phase as a new task so a multi-phase feature does not
+ * need a human to hand-type each follow-up task -- but the gate itself is
+ * untouched: that new task still stops at its own PASS_AWAITING_APPROVAL.
  */
-export function approveTask(taskId: string, approver: string): TaskState {
+export function approveTask(taskId: string, approver: string): ApproveResult {
   const state = readState(taskId);
   if (state.status !== "PASS_AWAITING_APPROVAL") {
     throw new DispatchError(`task ${taskId} is ${state.status}, not PASS_AWAITING_APPROVAL`);
@@ -512,7 +605,28 @@ export function approveTask(taskId: string, approver: string): TaskState {
       ? `merged legacy branch ${state.branch} into ${state.base_branch} as ${merged.slice(0, 8)} (not pushed)`
       : `accepted ${taskCommitShas(state).length} commit(s) on ${state.branch} (not pushed)`,
   );
-  return state;
+
+  let nextPhaseTaskId: string | null = null;
+  const plan = state.next_phases;
+  if (plan && plan.length) {
+    const [phase, ...rest] = plan;
+    const epicId = state.epic_id ?? state.task_id;
+    const child = createTask({
+      summary: phase.summary,
+      chain: resolveChain(phase.chain),
+      relevantPaths: phase.relevant_paths ?? state.relevant_paths,
+      epicId,
+      phaseNumber: (state.phase_number ?? 1) + 1,
+      nextPhases: rest.length ? rest : null,
+    });
+    nextPhaseTaskId = child.task_id;
+    console.error(
+      `epic ${epicId}: phase ${child.phase_number} created as ${child.task_id} ` +
+        `(${rest.length} phase(s) queued after it)`,
+    );
+  }
+
+  return { state, nextPhaseTaskId };
 }
 
 /**

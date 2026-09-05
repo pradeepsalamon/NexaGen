@@ -166,6 +166,22 @@ export function commitLeftovers(message: string): string | null {
 }
 
 /**
+ * Discard leftover work `commitLeftovers` could not commit (its own pre-commit
+ * checks rejected it -- typically a budget cutoff mid-edit, see
+ * context-budget.ts). Committing broken code would poison the next dispatch's
+ * `assertClean()` forever, so this reverts back to HEAD instead.
+ *
+ * Scoped identically to `isDirty`/`commitLeftovers` -- `.nexa-agent/**` is
+ * never touched, so this can never wipe out concurrent orchestrator
+ * development sitting untracked/uncommitted in the same working tree.
+ */
+export function discardLeftovers(): void {
+  git(["reset", "--", ".", ":(exclude).nexa-agent/**"]);
+  git(["checkout", "--", ".", ":(exclude).nexa-agent/**"]);
+  git(["clean", "-fd", "--", ".", ":(exclude).nexa-agent/**"]);
+}
+
+/**
  * Branches whose remote is wired to a production deployment.
  *
  * Pushing `main` fires .github/workflows/deploy-production.yml, which SSHes to

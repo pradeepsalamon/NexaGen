@@ -9,7 +9,7 @@
     "supports_token_accounting": true,
     "context_window_tokens": 200000,
     "context_budget_pct": 50,
-    "max_budget_usd": 8,
+    "max_budget_usd": 15,
     "timeout_seconds": 2400,
     "enforces_json_schema": false,
     "default_model": "sonnet",

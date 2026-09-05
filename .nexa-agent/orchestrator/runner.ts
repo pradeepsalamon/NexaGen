@@ -16,10 +16,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { AGENT_DIR, BASE_BRANCH, ensureDir } from "./paths";
 import { listTasks, readState, writeState } from "./state";
-import { isTerminal, runTask } from "./orchestrator";
+import { approveTask, isTerminal, runTask } from "./orchestrator";
 import { LockedError, acquireLock, currentLock, markRunnerAlive, releaseLock, runnerPid } from "./runner-lock";
 import { describeWait, isDue } from "./quota";
 import { nowIso } from "./paths";
+import { notify, taskUrl } from "./notify";
 import type { TaskState } from "./types";
 
 /**
@@ -178,8 +179,68 @@ function runOne(taskId: string, log: (m: string) => void): void {
         ),
     });
     log(`${taskId} stopped at ${final.status}${final.failure_reason ? `: ${final.failure_reason}` : ""}`);
+
+    if (final.status === "PASS_AWAITING_APPROVAL" && final.next_phases?.length) {
+      autoContinue(taskId, final, log);
+    } else {
+      notifyOnHalt(final);
+    }
   } finally {
     releaseLock(taskId);
+  }
+}
+
+/**
+ * A task that declared more phases is a mid-epic checkpoint, not a place a
+ * human needs to stand in the way: auto-accept it -- its commits are already
+ * on dev_vps either way, see approveTask -- and immediately queue the phase it
+ * named next, so a multi-phase feature runs start to finish unattended. Only
+ * the LAST phase of a plan (next_phases empty once it finishes) still stops at
+ * PASS_AWAITING_APPROVAL for a real human look, same as any standalone task --
+ * see notifyOnHalt. Nothing here is pushed; a bad phase is still `revert`-able.
+ */
+function autoContinue(taskId: string, state: TaskState, log: (m: string) => void): void {
+  const { nextPhaseTaskId } = approveTask(taskId, "Nexa Agent (auto-continue)");
+  if (!nextPhaseTaskId) return; // defensive -- next_phases was non-empty, so approveTask always creates one
+  enqueue(nextPhaseTaskId);
+  log(`${taskId}: auto-continued to ${nextPhaseTaskId}`);
+  void notify(
+    `phase ${state.phase_number ?? 1} done, continuing — ${state.epic_id ?? taskId}`,
+    `${state.feature_summary}\n\n` +
+      `Committed on dev_vps and auto-accepted -- no action needed. More phases are queued, so this ` +
+      `continued straight to ${nextPhaseTaskId} instead of waiting on a review.\n\n` +
+      `Diff so far: git diff ${state.base_sha.slice(0, 8)}..${state.branch}\n` +
+      `Undo this phase if needed: npm run agent -- revert ${taskId} --by <name>\n` +
+      `Details: ${taskUrl(taskId)}`,
+  );
+}
+
+/**
+ * Page the human for the two states nothing downstream can resolve on its
+ * own: the FINAL approval of a plan (or any standalone task with no plan), or
+ * work that stopped bad rather than just cut short. BLOCKED_RETRY is
+ * deliberately excluded -- the runner already resumes it by itself once the
+ * quota window reopens, so emailing it would just be noise.
+ * Fire-and-forget: a notification failure must never affect the run's outcome.
+ */
+function notifyOnHalt(state: TaskState): void {
+  if (state.status === "PASS_AWAITING_APPROVAL") {
+    void notify(
+      `approval needed — ${state.task_id}`,
+      `${state.feature_summary}\n\n` +
+        `Phase ${state.phase_number ?? 1}${state.epic_id ? ` of epic ${state.epic_id}` : ""} finished and is ` +
+        `waiting on dev_vps for review.\n\n` +
+        `Review:  ${taskUrl(state.task_id)}\n` +
+        `Approve: npm run agent -- approve ${state.task_id} --by <name>\n` +
+        `Reject:  npm run agent -- reject ${state.task_id} --reason "..."`,
+    );
+  } else if (state.status === "FAILED") {
+    void notify(
+      `stuck — ${state.task_id}`,
+      `${state.feature_summary}\n\n` +
+        `Stopped at FAILED and cannot proceed on its own: ${state.failure_reason ?? "no reason recorded"}\n\n` +
+        `Details: ${taskUrl(state.task_id)}`,
+    );
   }
 }
 

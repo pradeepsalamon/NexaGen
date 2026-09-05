@@ -48,6 +48,38 @@
       ],
       "description": "Set only when the session was checkpointed for context budget: what is done, what remains, key paths, open issues."
     },
+    "next_phases": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "description": "Optional. Follow-up phases to auto-create and queue once this task is approved -- most tasks should leave this unset. See build-prompt.sh's 'OPTIONAL: DECLARING FOLLOW-UP PHASES' section.",
+      "items": {
+        "type": "object",
+        "required": [
+          "summary",
+          "chain"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "summary": {
+            "type": "string",
+            "description": "Becomes the next task's feature_summary. Self-contained -- the receiving agent sees no chat history."
+          },
+          "chain": {
+            "type": "string",
+            "description": "A named chain from roles.json, or an explicit \"role,role\" list."
+          },
+          "relevant_paths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Defaults to this task's own relevant_paths when omitted."
+          }
+        }
+      }
+    },
     "test_report": {
       "type": [
         "object",

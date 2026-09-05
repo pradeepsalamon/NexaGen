@@ -197,6 +197,46 @@ against the production database. `push` refuses without `--deploy-production`
 so nobody arrives at a deploy by way of a generic "push". Pushing `dev_vps`
 triggers nothing.
 
+## Multi-phase features and email notifications
+
+`PASS_AWAITING_APPROVAL` still always requires calling `approveTask` before
+anything is treated as accepted — but WHO calls it differs by path. Run
+manually (`dispatch`/`resume`), a human runs `approve` themselves. Run via
+`start`/the daemon (`runner.ts#runOne`), the runner calls `approveTask` on the
+task's behalf **without waiting for a human** whenever the task declared
+`next_phases` — see below. The one thing this never skips is the *last* phase
+of a plan (or any standalone task with no plan): once `next_phases` is empty,
+the daemon stops and emails instead of approving, because there is nothing
+left after that decision for a human to review as a whole.
+
+A task's result may declare `next_phases`: a list of follow-up phases (see
+`agents/_lib/build-prompt.sh`'s "OPTIONAL: DECLARING FOLLOW-UP PHASES" for the
+exact shape an agent writes). This is how a design/audit task hands off to
+implementation without a human re-typing the next `create` command by hand:
+approving a task that declared `next_phases` creates phase[0] as a new task,
+carries the rest of the plan onto it, and queues it. Via the daemon this
+happens automatically and immediately — phases 1 through N-1 of a plan chain
+straight through with no human checkpoint in between, since nothing is ever
+pushed or deployed by any of this (commits just land on `dev_vps` locally, and
+`revert` undoes any phase). Only phase N (the one that declares no further
+`next_phases`) actually halts at `PASS_AWAITING_APPROVAL` for a human look.
+Tasks in the same plan share an `epic_id` (the first phase's task id) and an
+incrementing `phase_number`; `show`/`list --json` surface both. Most tasks
+should leave `next_phases` unset — it is for when a task's own output makes
+the next phase concrete, not a default to reach for.
+
+Because a chain like this can run for a while unattended, the runner emails
+`salamonffp@gmail.com` (override with `NEXA_AGENT_NOTIFY_EMAIL`) at the two
+points a human can actually act: a "phase done, continuing" notice on each
+auto-continued intermediate phase (FYI only — no action needed), and an
+"approval needed" email when a task started via `start`/the daemon actually
+lands on `PASS_AWAITING_APPROVAL` (the final phase, or any standalone task) or
+on `FAILED`. `BLOCKED_RETRY` is deliberately silent: the runner already
+resumes it itself once the quota window reopens. SMTP credentials are read
+from `apps/api/.env` (`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`/...), the same
+account the app's own mailer uses; if that file has no SMTP config,
+notification is skipped and logged, never thrown.
+
 ## Commands
 
 ```bash

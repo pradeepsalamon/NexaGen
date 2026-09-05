@@ -13,7 +13,7 @@
 import * as path from "path";
 import { AGENT_DIR, loadAgents, loadRoles } from "./paths";
 import type { AgentName, RoleName } from "./types";
-import { createTask, listTasks, readState, writeState } from "./state";
+import { createTask, listTasks, readState, resolveChain, writeState } from "./state";
 import { approveTask, dispatchNext, isTerminal, nextAction, rejectTask, revertTask, runTask } from "./orchestrator";
 import { enqueue, ensureRunnerRunning, nextRunnable, queue, runQueue } from "./runner";
 import { breakLock, currentLock, runnerPid } from "./runner-lock";
@@ -39,12 +39,6 @@ function parseArgs(argv: string[]): { cmd: string; flags: Record<string, string[
 
 const one = (flags: Record<string, string[]>, key: string): string | undefined => flags[key]?.[0];
 
-function resolveChain(value: string): RoleName[] {
-  const roles = loadRoles();
-  if (roles.chains[value]) return roles.chains[value];
-  return value.split(",").map((r) => r.trim()) as RoleName[];
-}
-
 function usage(): void {
   const roles = loadRoles();
   console.log(`nexa-agent orchestrator (Phase 2)
@@ -56,6 +50,7 @@ Commands:
                             --resume restarts a role-step a usage limit cut short
   dispatch <task-id>     run the next role in the chain (one step only)
   approve <task-id> --by <name>    accept the commits (they are already on dev_vps)
+                                    -- auto-queues the next phase if the task declared one
   revert <task-id> --by <name>     undo this task's commits on dev_vps
 
   merge --from <branch> [--into dev_vps] --by <name>   merge locally, never pushes
@@ -181,8 +176,17 @@ function cmdApprove(positional: string[], flags: Record<string, string[]>): void
   if (!id) throw new Error("approve requires a task id");
   const by = one(flags, "by");
   if (!by) throw new Error("--by <name> is required to record who approved");
-  const state = approveTask(id, by);
+  const { state, nextPhaseTaskId } = approveTask(id, by);
   console.log(`${id} -> ${state.status} (approved by ${by})`);
+
+  if (nextPhaseTaskId) {
+    enqueue(nextPhaseTaskId);
+    const spawned = ensureRunnerRunning();
+    console.log(
+      `  next phase queued: ${nextPhaseTaskId} ` +
+        `(${spawned.started ? `runner started, pid ${spawned.pid}` : `runner pid ${spawned.pid} — ${spawned.holding}`})`,
+    );
+  }
 }
 
 function cmdReject(positional: string[], flags: Record<string, string[]>): void {
