@@ -82,6 +82,16 @@ new enum. Converting `LiveSession.status` to a real Prisma enum
 (`LiveSessionStatus`) is a low-risk additive-migration cleanup worth bundling
 in.
 
+**Phase 1 update (2026-09-05):** `LiveSession.status` is now `LiveSessionStatus`
+(real Prisma enum, additive migration
+`20260904200047_p0_reliability_enum_values`). `ClassStatus.IN_PROGRESS` row
+count on `vps_dev` (`coachClass.groupBy(["status"])`): **0** — only
+`SCHEDULED`/`COMPLETED` rows exist in this environment. That confirms it's
+safe to drop *here*, but `vps_dev` is this box's dev database, not the
+production database backing the real VPS deployment — the same check still
+needs to run there before actually dropping the enum value. Left as-is (not
+dropped) pending that; `IN_PROGRESS` remains defined but unused.
+
 ### 2.2 Webhook handling & idempotency — EXISTS
 
 `apps/api/src/attendance/attendance-webhook.controller.ts` (334 lines, no
@@ -131,6 +141,17 @@ recorders (`recordJoinEvent`, `recordLeaveEvent`, `recordReconnectEvent`,
 implemented, never called from anywhere in `apps/api/src`.** Confirmed via
 repo-wide grep. This is exactly the shape of function a heartbeat-timeout
 sweep needs; wire it in rather than writing a new one (§4.1).
+
+**Phase 1 update (2026-09-05):** `recordDisconnectEvent` is now called from
+`AttendanceService.sweepStaleHeartbeats` (`@Cron(EVERY_30_SECONDS)`,
+`handleStaleHeartbeats`, same advisory-lock pattern as `handleStaleClasses`,
+distinct lock id `73002003`). A new symmetric `recordCoachDisconnectEvent` was
+added alongside it — the spec named only the student-side function, but since
+`CoachAttendance.lastHeartbeatAt` also went in this phase (below), leaving the
+coach side unswept would make half the new column dead weight. Both recorders
+require the participant's last open `JOIN`/`RECONNECT` log to still be
+unclosed, which is what keeps the sweep from re-firing every tick on an
+already-disconnected row.
 
 ### 2.4 Coach teaching-hour calc & reconciliation — EXISTS
 
@@ -333,6 +354,22 @@ the append-only log stays the source of truth for scoring; presence is what
   checking current readers first — grep showed it's read by scoring code;
   confirm exact usage in Phase 1 before repurposing it for grace-period math.
 
+**Phase 1 status: DONE (2026-09-05).** Multi-tab question resolved by
+inspecting `pg_indexes` on `live_sessions`/`coach_attendance_logs` on
+`vps_dev`: neither table carries any existing per-tab structure, so there was
+no signal pushing toward a new session-scoped model — went with the nullable
+`lastHeartbeatAt` columns as the default said to prefer. `clientId` is
+accepted by the endpoint and `AttendanceService.recordHeartbeat` but not
+persisted per-tab: any of a student's open tabs pinging keeps the single
+column fresh, which is the conservative choice for §2.8 (multiple tabs =
+still present) until Phase 4's dedicated test either confirms that's correct
+or finds a ghost-drop misfire. `reconnectTolerance` was left untouched —
+repo-wide grep found it is stored and admin-editable
+(`attendance-policy.dto.ts`, `AttendancePolicy` schema) but has **zero
+readers anywhere in `apps/api` or `apps/web`**, so there was nothing to check
+compatibility against. That's a separate, pre-existing gap (a policy field
+that does nothing), not something this phase needed to fix.
+
 ### 4.2 `getLiveClassMonitoring` staleness (backend, additive)
 
 Extend the response (already typed in `@nexa-chess/types`, update there first)
@@ -398,7 +435,7 @@ section, not a component that already exists to extend.
 
 | Phase | Work | Depends on |
 |---|---|---|
-| **1. Schema + heartbeat backbone** | `LiveSessionStatus` enum, `AttendanceEventType` +BOARD_*, `CoachAttendanceLog.eventType` migration, `lastHeartbeatAt` column(s) or new session-scoped model (decide after resolving §2.8's multi-tab question), `POST /live-class/:id/heartbeat`, wire `recordDisconnectEvent` via new grace-period cron. Check row counts for `ClassStatus.IN_PROGRESS` in `vps_dev` before deciding whether to drop it (query-only — do not run destructive schema/data changes as part of this check). | This doc |
+| **1. Schema + heartbeat backbone — DONE (2026-09-05)** | `LiveSessionStatus` enum, `AttendanceEventType` +BOARD_*, `CoachAttendanceLog.eventType` migration, `lastHeartbeatAt` column(s) or new session-scoped model (decide after resolving §2.8's multi-tab question), `POST /live-class/:id/heartbeat`, wire `recordDisconnectEvent` via new grace-period cron. Check row counts for `ClassStatus.IN_PROGRESS` in `vps_dev` before deciding whether to drop it (query-only — do not run destructive schema/data changes as part of this check). | This doc |
 | **2. `getLiveClassMonitoring` presence** | Derive `presence`/`lastHeartbeatAt` in the response; update `LiveClassMonitor` UI to show `RECONNECTING` distinctly from `OFFLINE`. | Phase 1 |
 | **3. Frontend `ConnectionStateManager`/`ClassroomSessionManager`** | Consolidate `joinedSession.ts`, `getTabClientId`, `useConnectionState` call sites; wire heartbeat ping; trigger board `REQUEST_SYNC` and chat re-fetch on reconnect; duplicate-tab product-layer warning. | Phase 1 (needs the heartbeat endpoint) |
 | **4. Multi-tab attendance correctness** | Dedicated test (unit or `e2e/`) for two simultaneous tabs of one student; fix ghost-drop misfire if confirmed (§2.8). | Can start in parallel with Phase 1 |

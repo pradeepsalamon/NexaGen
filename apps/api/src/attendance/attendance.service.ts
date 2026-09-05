@@ -7,6 +7,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { Cron, CronExpression } from "@nestjs/schedule";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import { getApiEnv } from "@nexa-chess/config/api";
@@ -17,6 +18,7 @@ import {
   UserRole,
   UserStatus,
   ClassStatus,
+  LiveSessionStatus,
 } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 
@@ -40,6 +42,10 @@ type ClassDetailPayload = Prisma.CoachClassGetPayload<{
 
 @Injectable()
 export class AttendanceService {
+  // Postgres advisory-lock key for the heartbeat-timeout sweep (P0 reliability
+  // Phase 1). Distinct from LiveClassService.STALE_CLASS_LOCK_ID (73002002).
+  private static readonly HEARTBEAT_SWEEP_LOCK_ID = 73002003;
+
   private readonly env = getApiEnv();
   private readonly logger = new Logger(AttendanceService.name);
 
@@ -278,6 +284,99 @@ export class AttendanceService {
     return attendance;
   }
 
+  /**
+   * Fallback presence signal, called from POST /live-class/:id/heartbeat.
+   * Webhooks stay primary; this only backstops a lost webhook via
+   * `sweepStaleHeartbeats` below. `clientId` (the tab id) is accepted but not
+   * persisted per-tab -- any tab's heartbeat resets the single lastHeartbeatAt
+   * column, which is the deliberate nullable-column design for the multi-tab
+   * case (P0 reliability Phase 1, RELIABILITY_DESIGN.md §2.8): the participant
+   * is considered alive as long as any of their tabs is pinging.
+   */
+  async recordHeartbeat(
+    classId: string,
+    userId: string,
+    isCoach: boolean,
+    _clientId?: string
+  ) {
+    const now = new Date();
+    if (isCoach) {
+      await this.prisma.coachAttendance.updateMany({
+        where: { classId, coachId: userId },
+        data: { lastHeartbeatAt: now, lastActivity: now },
+      });
+    } else {
+      await this.prisma.classAttendance.updateMany({
+        where: { classId, studentId: userId },
+        data: { lastHeartbeatAt: now, lastActivity: now },
+      });
+    }
+  }
+
+  /**
+   * Backstop for a lost LiveKit disconnect webhook: a participant whose last
+   * heartbeat is older than the active policy's grace period, in a still-LIVE
+   * class, with no LEAVE/DISCONNECT closing their session yet, is treated as
+   * disconnected. The "open JOIN/RECONNECT log" condition is what makes this
+   * self-limiting -- recordDisconnectEvent/recordCoachDisconnectEvent close
+   * that log's sessionEnd, so the same row cannot match again on the next
+   * tick without a genuine reconnect creating a new open log first.
+   */
+  @Cron(CronExpression.EVERY_30_SECONDS)
+  async handleStaleHeartbeats() {
+    try {
+      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
+        SELECT pg_try_advisory_lock(${AttendanceService.HEARTBEAT_SWEEP_LOCK_ID}) AS locked
+      `;
+      if (!lock?.locked) {
+        return;
+      }
+
+      try {
+        await this.sweepStaleHeartbeats();
+      } finally {
+        await this.prisma.$queryRaw`
+          SELECT pg_advisory_unlock(${AttendanceService.HEARTBEAT_SWEEP_LOCK_ID})
+        `;
+      }
+    } catch (error) {
+      this.logger.error("Error in handleStaleHeartbeats cron job", error);
+    }
+  }
+
+  private async sweepStaleHeartbeats() {
+    const policy = await this.getActivePolicy();
+    const cutoff = new Date(Date.now() - policy.gracePeriodMinutes * 60_000);
+    const openLogFilter = {
+      eventType: { in: [AttendanceEventType.JOIN, AttendanceEventType.RECONNECT] },
+      sessionEnd: null,
+    };
+
+    const staleStudents = await this.prisma.classAttendance.findMany({
+      where: {
+        lastHeartbeatAt: { lt: cutoff },
+        class: { liveSession: { status: LiveSessionStatus.LIVE } },
+        logs: { some: openLogFilter },
+      },
+      select: { classId: true, studentId: true },
+    });
+    for (const row of staleStudents) {
+      await this.recordDisconnectEvent(row.classId, row.studentId, "heartbeat_timeout");
+    }
+
+    const staleCoaches = await this.prisma.coachAttendance.findMany({
+      where: {
+        lastHeartbeatAt: { lt: cutoff },
+        class: { liveSession: { status: LiveSessionStatus.LIVE } },
+        logs: { some: openLogFilter },
+      },
+      select: { classId: true, coachId: true },
+    });
+    for (const row of staleCoaches) {
+      await this.recordCoachDisconnectEvent(row.classId, row.coachId, "heartbeat_timeout");
+    }
+  }
+
   // ──────────────────────────────────────────────
   // COACH & BOARD EVENT RECORDING
   // ──────────────────────────────────────────────
@@ -309,7 +408,7 @@ export class AttendanceService {
       data: {
         attendanceId: attendance.id,
         userId: coachId,
-        eventType: "JOIN",
+        eventType: AttendanceEventType.JOIN,
         timestamp: now,
         sessionStart: now,
         source: metadata?.source || "LIVEKIT",
@@ -332,7 +431,7 @@ export class AttendanceService {
       data: {
         attendanceId: attendance.id,
         userId: coachId,
-        eventType: "RECONNECT",
+        eventType: AttendanceEventType.RECONNECT,
         timestamp: now,
         sessionStart: now,
         source: "LIVEKIT",
@@ -367,7 +466,7 @@ export class AttendanceService {
     const openSession = await this.prisma.coachAttendanceLog.findFirst({
       where: {
         attendanceId: attendance.id,
-        eventType: { in: ["JOIN", "RECONNECT"] },
+        eventType: { in: [AttendanceEventType.JOIN, AttendanceEventType.RECONNECT] },
         sessionEnd: null,
       },
       orderBy: { timestamp: "desc" },
@@ -388,7 +487,7 @@ export class AttendanceService {
       data: {
         attendanceId: attendance.id,
         userId: coachId,
-        eventType: "LEAVE",
+        eventType: AttendanceEventType.LEAVE,
         timestamp: now,
         reason,
         source: "LIVEKIT",
@@ -401,6 +500,55 @@ export class AttendanceService {
     });
 
     this.logger.log(`COACH LEAVE recorded: coach=${coachId} class=${classId}`);
+    return attendance;
+  }
+
+  /** Coach counterpart of recordDisconnectEvent; see sweepStaleHeartbeats. */
+  async recordCoachDisconnectEvent(classId: string, coachId: string, reason?: string) {
+    const now = new Date();
+
+    const attendance = await this.prisma.coachAttendance.findUnique({
+      where: { classId },
+    });
+    if (!attendance) return null;
+
+    const openSession = await this.prisma.coachAttendanceLog.findFirst({
+      where: {
+        attendanceId: attendance.id,
+        eventType: { in: [AttendanceEventType.JOIN, AttendanceEventType.RECONNECT] },
+        sessionEnd: null,
+      },
+      orderBy: { timestamp: "desc" },
+    });
+
+    const sessionDuration = openSession?.sessionStart
+      ? Math.floor((now.getTime() - openSession.sessionStart.getTime()) / 1000)
+      : 0;
+
+    if (openSession) {
+      await this.prisma.coachAttendanceLog.update({
+        where: { id: openSession.id },
+        data: { sessionEnd: now, sessionDuration },
+      });
+    }
+
+    await this.prisma.coachAttendanceLog.create({
+      data: {
+        attendanceId: attendance.id,
+        userId: coachId,
+        eventType: AttendanceEventType.DISCONNECT,
+        timestamp: now,
+        reason,
+        source: "LIVEKIT",
+      },
+    });
+
+    await this.prisma.coachAttendance.update({
+      where: { id: attendance.id },
+      data: { lastActivity: now },
+    });
+
+    this.logger.log(`COACH DISCONNECT recorded: coach=${coachId} class=${classId} reason=${reason}`);
     return attendance;
   }
 
@@ -425,7 +573,7 @@ export class AttendanceService {
         // userId is a foreign key to users.id — the board participant is the
         // coach. The BOARD_JOIN event type is what distinguishes this log.
         userId: coachId,
-        eventType: "BOARD_JOIN",
+        eventType: AttendanceEventType.BOARD_JOIN,
         timestamp: now,
         sessionStart: now,
         source: "LIVEKIT",
@@ -447,7 +595,7 @@ export class AttendanceService {
     const openBoardSession = await this.prisma.coachAttendanceLog.findFirst({
       where: {
         attendanceId: attendance.id,
-        eventType: "BOARD_JOIN",
+        eventType: AttendanceEventType.BOARD_JOIN,
         sessionEnd: null,
       },
       orderBy: { timestamp: "desc" },
@@ -468,7 +616,7 @@ export class AttendanceService {
       data: {
         attendanceId: attendance.id,
         userId: coachId,
-        eventType: "BOARD_LEAVE",
+        eventType: AttendanceEventType.BOARD_LEAVE,
         timestamp: now,
         source: "LIVEKIT",
       },
@@ -598,7 +746,12 @@ export class AttendanceService {
 
     if (coachAttendance) {
       const coachTotalDuration = this.calculateTotalDuration(
-        coachAttendance.logs.filter((l) => l.eventType === "JOIN" || l.eventType === "RECONNECT" || l.eventType === "LEAVE"),
+        coachAttendance.logs.filter(
+          (l) =>
+            l.eventType === AttendanceEventType.JOIN ||
+            l.eventType === AttendanceEventType.RECONNECT ||
+            l.eventType === AttendanceEventType.LEAVE
+        ),
         classEndTime
       );
 
@@ -608,7 +761,7 @@ export class AttendanceService {
       // finalize — is still counted. `closeOpenAttendanceLogs` above has
       // already stamped `sessionEnd`/`sessionDuration` on any open BOARD_JOIN.
       const boardDuration = coachAttendance.logs
-        .filter((l) => l.eventType === "BOARD_JOIN")
+        .filter((l) => l.eventType === AttendanceEventType.BOARD_JOIN)
         .reduce((sum, l) => {
           if (l.sessionDuration) return sum + l.sessionDuration;
           if (l.sessionStart && !l.sessionEnd) {

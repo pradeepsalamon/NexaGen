@@ -69,6 +69,7 @@ export const API_ROUTES = {
     get: (id: string = ":id") => `/live-class/${id}`,
     participants: (id: string = ":id") => `/live-class/${id}/participants`,
     chat: (id: string = ":id") => `/live-class/${id}/chat`,
+    heartbeat: (id: string = ":id") => `/live-class/${id}/heartbeat`,
     demoJoin: (id: string = ":id") => `/live-class/demo/${id}/join`,
     startRecording: (id: string = ":id") => `/live-class/${id}/recording/start`,
     stopRecording: (id: string = ":id") => `/live-class/${id}/recording/stop`,

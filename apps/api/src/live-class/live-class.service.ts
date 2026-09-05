@@ -267,6 +267,16 @@ export class LiveClassService {
     return { token: livekitToken, roomName: liveSession.roomName, topic };
   }
 
+  async heartbeat(accessToken: string | undefined, classId: string, clientId?: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    const liveSession = await this.getAccessibleLiveSession(user, classId);
+    const isCoach = user.role === UserRole.COACH && liveSession.coachId === user.id;
+
+    await this.attendanceService.recordHeartbeat(classId, user.id, isCoach, clientId);
+
+    return { ok: true };
+  }
+
   async endClass(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
 
