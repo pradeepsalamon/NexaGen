@@ -67,7 +67,7 @@
     "supports_token_accounting": false,
     "context_window_tokens": null,
     "context_budget_pct": null,
-    "timeout_seconds": 2400,
+    "timeout_seconds": 4800,
     "enforces_json_schema": false,
     "permission_flag": "--auto",
     "default_model": "default",
