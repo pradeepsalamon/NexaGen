@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { TimerBadge, LiveBadge, RecordingBadge } from "./MeetingStatus";
+import { TimerBadge, LiveBadge, RecordingBadge, ConnectionBadge, NetworkStatusIcon } from "./MeetingStatus";
 import { Header } from "@/components/layout/Header";
 
 export const MeetingHeader = memo(function MeetingHeader() {
@@ -12,6 +12,7 @@ export const MeetingHeader = memo(function MeetingHeader() {
     <div className="flex items-center gap-2">
       <LiveBadge className="hidden sm:flex shrink-0" />
       <RecordingBadge className="hidden sm:flex shrink-0" />
+      <ConnectionBadge compact className="hidden sm:flex shrink-0" />
     </div>
   );
 
@@ -23,6 +24,7 @@ export const MeetingHeader = memo(function MeetingHeader() {
 
   const rightSlot = (
     <div className="flex items-center gap-2 mr-1">
+      <NetworkStatusIcon className="sm:hidden shrink-0" />
       <TimerBadge startedAt={startedAt} endsAt={endsAt} />
     </div>
   );

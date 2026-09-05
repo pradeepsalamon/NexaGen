@@ -53,13 +53,13 @@ const connectionConfig: Record<
   },
 };
 
-export function ConnectionBadge({ compact = false }: { compact?: boolean }) {
+export function ConnectionBadge({ compact = false, className }: { compact?: boolean; className?: string }) {
   const { connectionState } = useConnectionStateManager();
   const config = connectionConfig[connectionState];
 
   return (
     <div
-      className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface/80 px-3 py-1.5 shadow-sm backdrop-blur-sm"
+      className={cn("flex items-center gap-2 rounded-full border border-app-border bg-app-surface/80 px-3 py-1.5 shadow-sm backdrop-blur-sm", className)}
       role="status"
       aria-label={`Connection status: ${config.label}`}
     >

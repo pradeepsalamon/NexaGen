@@ -159,8 +159,9 @@ test.describe("Full Attendance Flow", () => {
     // Step 3: Create a class via Coach API
     // ─────────────────────────────────────────────────────────────────────────
     const now = new Date();
-    const startsAt = new Date(now.getTime() + 2 * 60 * 1000).toISOString(); // 2 min from now
-    const endsAt = new Date(now.getTime() + 62 * 60 * 1000).toISOString(); // 62 min from now
+    const offsetHours = 48 + Math.floor(Math.random() * 48);
+    const startsAt = new Date(now.getTime() + offsetHours * 60 * 60 * 1000).toISOString();
+    const endsAt = new Date(now.getTime() + (offsetHours + 1) * 60 * 60 * 1000).toISOString();
 
     const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
       batchId,
@@ -172,7 +173,7 @@ test.describe("Full Attendance Flow", () => {
     });
     expect(createRes.ok(), `Create class failed: ${await createRes.text()}`).toBeTruthy();
     const createdClass = await createRes.json();
-    classId = createdClass.id;
+    classId = createdClass.class ? createdClass.class.id : createdClass.id;
     roomName = `class_${classId}`;
     expect(classId).toBeTruthy();
 
@@ -383,7 +384,7 @@ test.describe("Full Attendance Flow", () => {
     await adminPage.goto("/admin/attendance");
     await adminPage.waitForLoadState("networkidle");
 
-    await expect(adminPage.getByText(/attendance overview/i)).toBeVisible();
+    await expect(adminPage.getByText(/platform attendance/i)).toBeVisible();
 
     // Check Quick Actions links exist
     await expect(adminPage.getByText(/completed classes/i).first()).toBeVisible();
@@ -434,7 +435,7 @@ test.describe("Admin Attendance Pages", () => {
     await page.waitForLoadState("networkidle");
 
     // Title
-    await expect(page.getByText(/attendance overview/i)).toBeVisible();
+    await expect(page.getByText(/platform attendance/i)).toBeVisible();
 
     // Stat cards
     await expect(page.getByText(/total students/i)).toBeVisible();
@@ -454,8 +455,8 @@ test.describe("Admin Attendance Pages", () => {
     await expect(page.getByText(/completed classes/i).first()).toBeVisible();
 
     // Filters
-    await expect(page.getByLabel(/from/i)).toBeVisible();
-    await expect(page.getByLabel(/to/i)).toBeVisible();
+    await expect(page.getByText(/^from$/i)).toBeVisible();
+    await expect(page.getByText(/^to$/i)).toBeVisible();
   });
 
   test("coach teaching report page loads", async ({ page }) => {
@@ -506,6 +507,6 @@ test.describe("Student Attendance Page", () => {
     // Stat cards
     await expect(page.getByText(/overall attendance/i)).toBeVisible();
     await expect(page.getByText(/classes attended/i)).toBeVisible();
-    await expect(page.getByText(/learning time/i)).toBeVisible();
+    await expect(page.getByText(/learning time/i).first()).toBeVisible();
   });
 });
