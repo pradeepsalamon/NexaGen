@@ -257,7 +257,24 @@ npm run agent -- run <task-id> [--resume]     blocking, prints each step
 npm run agent -- dispatch <task-id>           one step only
 npm run agent -- approve <task-id> --by <name>
 npm run agent -- reject <task-id> --reason "..."
+
+npm run agent -- queue                        what's running / next / waiting on quota
+npm run agent -- stop [--reason "..."]        halt everything NOW, keep all state
+npm run agent -- resume                       lift the pause, start draining again
+npm run agent -- unlock                       force-release a stuck runner lock
 ```
+
+### Stopping and continuing later
+
+`npm run agent -- stop` is the clean "pull over" button. It SIGKILLs the runner
+and every process under it (the agent CLI, its headless browser) and sets a
+pause switch. **No task state changes** — a step is only recorded once its agent
+returns, so the task that was mid-flight just re-runs that one step when you
+come back. While paused, `approve`/`start` still queue work but nothing drains;
+each tells you it's paused. `npm run agent -- resume` lifts the pause and spawns
+a fresh runner that picks the queue up where it left off. Because all state is
+on disk, a reboot (or a killed VPS) is just a `stop` you didn't type — `resume`
+recovers it the same way.
 
 ### Task statuses
 
