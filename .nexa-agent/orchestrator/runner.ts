@@ -14,6 +14,7 @@
 import { spawn } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import * as git from "./git";
 import { AGENT_DIR, BASE_BRANCH, ensureDir } from "./paths";
 import { listTasks, readState, writeState } from "./state";
 import { approveTask, isTerminal, runTask } from "./orchestrator";
@@ -185,9 +186,48 @@ function runOne(taskId: string, log: (m: string) => void): void {
     } else {
       notifyOnHalt(final);
     }
+  } catch (err) {
+    // One task throwing must never take the whole runner daemon down with it --
+    // every other queued task would stall behind a dead process until someone
+    // noticed. Record the failure ON THE TASK, page the human, and let the loop
+    // move on to the next task. Recovering the working tree here keeps a
+    // mid-dispatch throw (e.g. a stale lock or a dirty tree) from blocking the
+    // next task's git.assertClean().
+    const reason = err instanceof Error ? err.message : String(err);
+    log(`${taskId} threw and was quarantined: ${reason}`);
+    try {
+      recoverWorkingTree();
+    } catch (cleanupErr) {
+      log(`  working-tree recovery also failed: ${(cleanupErr as Error).message}`);
+    }
+    try {
+      const state = readState(taskId);
+      if (!isTerminal(state)) {
+        state.status = "FAILED";
+        state.failure_reason = `runner caught an unhandled error: ${reason}`;
+        writeState(state);
+        notifyOnHalt(state);
+      }
+    } catch (stateErr) {
+      log(`  could not mark ${taskId} FAILED: ${(stateErr as Error).message}`);
+    }
   } finally {
     releaseLock(taskId);
   }
+}
+
+/**
+ * Best-effort return to a clean BASE_BRANCH checkout after a task threw
+ * mid-flight. Mirrors git.ts's own `.nexa-agent/**`-excluded scoping so the
+ * agent system's own volatile state is never touched.
+ */
+function recoverWorkingTree(): void {
+  try {
+    git.discardLeftovers();
+  } catch {
+    /* fall through to the checkout below */
+  }
+  git.checkoutBranch(BASE_BRANCH);
 }
 
 /**

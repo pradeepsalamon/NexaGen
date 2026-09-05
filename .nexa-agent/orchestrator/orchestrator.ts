@@ -158,15 +158,24 @@ export function dispatchStep(
   if (isTruncated(usage)) outcome = "agent_error";
 
   // Safety net: an agent that did the work but forgot to commit must not strand
-  // changes for the next one. Roles that shouldn't commit are left untouched.
+  // changes for the next one. This runs for EVERY role, committing or not: a
+  // non-committing role (tester-e2e, reviewer) that touches a tracked file --
+  // e.g. its packet asks it to tick a status table in a design doc -- otherwise
+  // leaves the tree dirty, and the very next step's git.assertClean() throws a
+  // DispatchError that used to kill the whole runner daemon ("runner died: ...
+  // working tree has uncommitted changes"). Committing-or-discarding here means
+  // the tree is always clean for the next dispatch, whatever the agent did.
+  const mustCommit = roles.roles[role].must_commit;
   let commitSha = result?.commit_sha ?? null;
   let commitFailure: string | null = null;
-  if (roles.roles[role].must_commit && git.isDirty()) {
+  if (git.isDirty()) {
     try {
       const rescued = git.commitLeftovers(
-        `chore(${role}): commit uncommitted work from ${agentName} [${state.task_id} a${state.attempt} s${session}]`,
+        mustCommit
+          ? `chore(${role}): commit uncommitted work from ${agentName} [${state.task_id} a${state.attempt} s${session}]`
+          : `docs(${role}): ${agentName} leftover edits [${state.task_id} a${state.attempt} s${session}]`,
       );
-      if (rescued) commitSha = rescued;
+      if (rescued && mustCommit) commitSha = rescued;
     } catch (err) {
       // The leftover work fails its own pre-commit checks (e.g. a budget
       // cutoff mid-edit left the build broken -- see context-budget.ts).
@@ -175,8 +184,10 @@ export function dispatchStep(
       // the task was found stuck at RUNNING forever with zero steps recorded,
       // because the crash happened before the step below could even be built.
       // Discard back to a clean base instead, so the retry below has
-      // something to actually retry.
-      commitFailure = err instanceof Error ? err.message : String(err);
+      // something to actually retry. A non-committing role was never expected
+      // to land a commit, so a failed rescue of its stray edits is not a step
+      // failure -- just discard and carry on.
+      if (mustCommit) commitFailure = err instanceof Error ? err.message : String(err);
       git.discardLeftovers();
     }
   }
