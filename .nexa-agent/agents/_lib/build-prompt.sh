@@ -133,6 +133,38 @@ Rules for the result file:
 - Write raw JSON only -- no markdown fences, no commentary around it.
 OUT
 
+cat <<'PHASES'
+
+## OPTIONAL: DECLARING FOLLOW-UP PHASES
+
+Most tasks should NOT set this. Only use it when finishing this task's own job
+makes the shape of further work concrete -- the clearest case is a design/audit
+task whose output is a phased plan for follow-up implementation. If so, you may
+add "next_phases" to your result instead of only describing the plan in prose:
+once a human approves THIS task, each phase you list is created and queued
+automatically, one at a time, in order -- and each one still stops at its own
+PASS_AWAITING_APPROVAL for a human to review before the next one starts. This
+does not skip anyone's review; it only saves them re-typing the next task by
+hand.
+
+  "next_phases": [
+    { "summary": "Phase 1: <a self-contained instruction, written the way you
+       would write this TASK section -- the agent that receives it has no chat
+       history and no memory of this session, only this string plus whatever
+       relevant_paths you give it>",
+      "chain": "feature",
+      "relevant_paths": ["apps/api/src/...", "apps/web/src/..."] }
+  ]
+
+"chain" is a name from roles.json's chains (feature, architected-feature,
+backend-only, frontend-only, test-only, review-only, ...) or an explicit
+"role,role" list. "relevant_paths" is optional; omitted, the new task inherits
+this one's. Only declare phases you are actually confident about -- a vague or
+premature plan burns a full task run worse than writing an accurate one once
+you have the information, which is a perfectly fine reason to leave this unset
+and let a human create the next task by hand instead.
+PHASES
+
 if [ "$ROLE" = "tester-e2e" ]; then
 cat <<'TEST'
 

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { LiveClassProvider } from "@/features/live-class/providers/LiveClassProvider";
 import { MeetingRoom } from "@/features/live-class/components/room/MeetingRoom";
+import { ClassroomSessionManager } from "@/features/live-class/providers/ClassroomSessionManager";
 import { LoadingMeeting } from "@/features/live-class/components/states/LoadingMeeting";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -112,7 +113,9 @@ export default function DemoClassPage() {
 
   return (
     <LiveClassProvider topic={topic}>
-      <MeetingRoom token={token} classId={classId} />
+      <ClassroomSessionManager roomId={classId}>
+        <MeetingRoom token={token} classId={classId} />
+      </ClassroomSessionManager>
     </LiveClassProvider>
   );
 }

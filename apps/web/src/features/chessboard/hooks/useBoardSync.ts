@@ -419,6 +419,27 @@ export function useBoardSyncEngine(): BoardSyncActions {
     }
   }, [isCoach, broadcastMsg]);
 
+  // A student's LiveKit connection recovering from a drop does not replay
+  // whatever MOVE/annotation broadcasts it missed while Reconnecting — the
+  // data channel has no backlog. Re-request state on that transition the same
+  // way a late joiner does on mount (design doc §2.6/§4.3: this was the open
+  // question of whether REQUEST_SYNC auto-fires on reconnect — confirmed it
+  // did not, so this closes that gap without a new protocol message).
+  const wasRecoveringRef = useRef(false);
+  useEffect(() => {
+    const recovering =
+      connectionState === ConnectionState.Reconnecting ||
+      connectionState === ConnectionState.SignalReconnecting;
+    if (recovering) {
+      wasRecoveringRef.current = true;
+    } else if (connectionState === ConnectionState.Connected && wasRecoveringRef.current) {
+      wasRecoveringRef.current = false;
+      if (!isCoach) {
+        broadcastMsg({ type: "REQUEST_SYNC" });
+      }
+    }
+  }, [connectionState, isCoach, broadcastMsg]);
+
   return {
     broadcastState,
     broadcastAnnotations,

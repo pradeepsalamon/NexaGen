@@ -5,6 +5,7 @@ import { useChat } from "@livekit/components-react";
 import type { ChatMessage } from "@livekit/components-core";
 import { toast } from "sonner";
 import { useLiveClassState } from "./LiveClassProvider";
+import { useConnectionStateManager } from "./ConnectionStateManager";
 import { useAuthStore } from "@/stores/authStore";
 
 export interface ChatMessageData {
@@ -38,8 +39,12 @@ export function ChatProvider({ children, classId }: { children: ReactNode; class
   const [draft, setDraft] = useState("");
   const [lastMessageCount, setLastMessageCount] = useState(0); // We will manage this manually now
   const [dbHistory, setDbHistory] = useState<ChatMessageData[]>([]);
+  const { reconnectEpoch } = useConnectionStateManager();
 
-  // Fetch history on mount
+  // Fetch history on mount, and again after a Reconnecting -> Connected
+  // transition (design doc §2.7/§4.3): a LiveKit data-channel chat message
+  // missed during the drop never arrives any other way, unlike the board's
+  // REQUEST_SYNC pattern, so this re-fetch is what catches it up.
   useEffect(() => {
     if (!classId) return;
     let isMounted = true;
@@ -64,7 +69,7 @@ export function ChatProvider({ children, classId }: { children: ReactNode; class
         .catch(console.error);
     });
     return () => { isMounted = false; };
-  }, [classId]);
+  }, [classId, reconnectEpoch]);
 
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? null;

@@ -4,9 +4,17 @@
  */
 import * as fs from "fs";
 import { BASE_BRANCH, STATE_DIR, ensureDir, nowIso, readJson, statePath, taskDir, writeJson } from "./paths";
-import type { AgentName, RoleName, StepRecord, TaskState } from "./types";
+import type { AgentName, PhasePlanEntry, RoleName, StepRecord, TaskState } from "./types";
 import { loadAgents, loadRoles } from "./paths";
 import * as git from "./git";
+
+/** A named chain from roles.json, or an explicit "role,role" list -- the same
+ *  syntax the CLI's --chain flag and a declared PhasePlanEntry.chain accept. */
+export function resolveChain(value: string): RoleName[] {
+  const roles = loadRoles();
+  if (roles.chains[value]) return roles.chains[value];
+  return value.split(",").map((r) => r.trim()) as RoleName[];
+}
 
 /** Slug a human prompt into a stable, filesystem-safe task id. */
 export function makeTaskId(summary: string, when = new Date()): string {
@@ -63,6 +71,12 @@ export interface CreateTaskInput {
   modelOverrides?: Partial<Record<RoleName, string>>;
   relevantPaths?: string[];
   taskId?: string;
+  /** Set when this task is a phase of a larger feature. See TaskState.epic_id. */
+  epicId?: string | null;
+  /** 1-based position within the epic. Defaults to 1 (a standalone task, or the first phase). */
+  phaseNumber?: number;
+  /** Phases still to come after this one. See TaskState.next_phases. */
+  nextPhases?: PhasePlanEntry[] | null;
 }
 
 /**
@@ -124,6 +138,9 @@ export function createTask(input: CreateTaskInput): TaskState {
     failure_reason: null,
     approved_by: null,
     approved_at: null,
+    epic_id: input.epicId ?? null,
+    phase_number: input.phaseNumber ?? 1,
+    next_phases: input.nextPhases ?? null,
   };
 
   ensureDir(taskDir(id));

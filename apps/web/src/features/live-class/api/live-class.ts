@@ -27,6 +27,13 @@ export const getLiveClassParticipants = (roomId: string): Promise<{ participants
   return apiFetch<{ participants: ParticipantInfo[] }>(API_ROUTES.liveClass.participants(roomId));
 };
 
+export const pingHeartbeat = (roomId: string, clientId?: string): Promise<{ ok: boolean }> => {
+  return apiFetch<{ ok: boolean }>(API_ROUTES.liveClass.heartbeat(roomId), {
+    method: "POST",
+    body: clientId ? { clientId } : {},
+  });
+};
+
 export const getChatHistory = (roomId: string): Promise<any[]> => {
   return apiFetch<any[]>(API_ROUTES.liveClass.chat(roomId));
 };

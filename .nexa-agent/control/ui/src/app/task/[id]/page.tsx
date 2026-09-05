@@ -17,6 +17,7 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
   const [resolvedParams, setResolvedParams] = useState<{ id: string } | null>(null);
+  const [commits, setCommits] = useState<{ sha: string; subject: string }[]>([]);
 
   useEffect(() => {
     params.then(setResolvedParams);
@@ -60,17 +61,15 @@ export default function TaskDetail({ params }: { params: Promise<{ id: string }>
     return () => clearInterval(interval);
   }, [resolvedParams]);
 
-  if (loading && !task) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-app-primary" /></div>;
-  if (!task) return <div className="p-8 text-center text-app-error">Task not found</div>;
-
-  const [commits, setCommits] = useState<{ sha: string; subject: string }[]>([]);
-
   useEffect(() => {
     if (!task?.task_id) return;
     void fetch(`/api/tasks/${task.task_id}/commits`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d && setCommits(d.commits ?? []));
   }, [task?.task_id, task?.status]);
+
+  if (loading && !task) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-app-primary" /></div>;
+  if (!task) return <div className="p-8 text-center text-app-error">Task not found</div>;
 
   const handleRevert = async () => {
     setActionLoading(true);

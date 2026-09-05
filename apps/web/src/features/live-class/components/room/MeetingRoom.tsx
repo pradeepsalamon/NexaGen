@@ -14,9 +14,10 @@ import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { LiveClassSettingsBridge } from "../meeting/LiveClassSettingsBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
+import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
+import { useClassroomSession } from "../../providers/ClassroomSessionManager";
 import { ConnectionLost } from "../states/ErrorStates";
 import { ClassSummary } from "../summary/ClassSummary";
-import { clearJoinedSession } from "../../lib/joinedSession";
 import { getWebEnv } from "@nexa-chess/config/web";
 
 const env = getWebEnv({
@@ -75,6 +76,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const joinToastShown = useRef(false);
+  const { clearJoined } = useClassroomSession();
 
   if (ended) {
     // The class ended (room deleted) while this tab was in the meeting. Show the
@@ -118,13 +120,13 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
           // The class ended. Clear the flag so a reload doesn't try to rejoin a
           // room that no longer exists, then show everyone the post-class
           // summary (coach/admin get the full report, students their own row).
-          clearJoinedSession(classId);
+          clearJoined();
           setEnded(true);
           return;
         }
         if (!reason || reason === DisconnectReason.CLIENT_INITIATED) {
           // Intentional leave — this tab is done with the room.
-          clearJoinedSession(classId);
+          clearJoined();
           // getRoleDashboardHref handles ADMIN too (AUDIT L6).
           router.push(getRoleDashboardHref(user?.role));
           return;
@@ -139,9 +141,11 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
     >
       <ReconnectToaster />
       <LiveClassSettingsBridge />
-      <ChatProvider classId={classId}>
-        <MeetingLayout />
-      </ChatProvider>
+      <ConnectionStateManager classId={classId}>
+        <ChatProvider classId={classId}>
+          <MeetingLayout />
+        </ChatProvider>
+      </ConnectionStateManager>
       <RoomAudioRenderer />
       <StartAudio label="Click to allow audio playback" />
     </LiveKitRoom>

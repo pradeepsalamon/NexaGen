@@ -13,9 +13,19 @@
 import * as path from "path";
 import { AGENT_DIR, loadAgents, loadRoles } from "./paths";
 import type { AgentName, RoleName } from "./types";
-import { createTask, listTasks, readState, writeState } from "./state";
+import { createTask, listTasks, readState, resolveChain, writeState } from "./state";
 import { approveTask, dispatchNext, isTerminal, nextAction, rejectTask, revertTask, runTask } from "./orchestrator";
-import { enqueue, ensureRunnerRunning, nextRunnable, queue, runQueue } from "./runner";
+import {
+  enqueue,
+  ensureRunnerRunning,
+  isPaused,
+  nextRunnable,
+  pauseInfo,
+  queue,
+  resumeRunner,
+  runQueue,
+  stopRunner,
+} from "./runner";
 import { breakLock, currentLock, runnerPid } from "./runner-lock";
 import * as git from "./git";
 import { chat, listChats } from "./chat/repl";
@@ -39,12 +49,6 @@ function parseArgs(argv: string[]): { cmd: string; flags: Record<string, string[
 
 const one = (flags: Record<string, string[]>, key: string): string | undefined => flags[key]?.[0];
 
-function resolveChain(value: string): RoleName[] {
-  const roles = loadRoles();
-  if (roles.chains[value]) return roles.chains[value];
-  return value.split(",").map((r) => r.trim()) as RoleName[];
-}
-
 function usage(): void {
   const roles = loadRoles();
   console.log(`nexa-agent orchestrator (Phase 2)
@@ -56,6 +60,7 @@ Commands:
                             --resume restarts a role-step a usage limit cut short
   dispatch <task-id>     run the next role in the chain (one step only)
   approve <task-id> --by <name>    accept the commits (they are already on dev_vps)
+                                    -- auto-queues the next phase if the task declared one
   revert <task-id> --by <name>     undo this task's commits on dev_vps
 
   merge --from <branch> [--into dev_vps] --by <name>   merge locally, never pushes
@@ -68,6 +73,10 @@ Commands:
   start <task-id> [--resume]  queue it and make sure a runner is draining the queue
   queue                  what is running, what is next, what is waiting on quota
   runner [--daemon]      drain the queue here; --daemon keeps waiting for new work
+  stop [--reason "..."]  stop everything NOW and pause the queue: kills the runner
+                         and whatever agent it is running, keeps all state. The
+                         in-flight task resumes cleanly. Safe across reboots.
+  resume                 lift the pause and start draining again
   unlock                 force-release a stuck runner lock
   show <task-id>         print task state
   list [--json]          list all tasks
@@ -181,8 +190,19 @@ function cmdApprove(positional: string[], flags: Record<string, string[]>): void
   if (!id) throw new Error("approve requires a task id");
   const by = one(flags, "by");
   if (!by) throw new Error("--by <name> is required to record who approved");
-  const state = approveTask(id, by);
+  const { state, nextPhaseTaskId } = approveTask(id, by);
   console.log(`${id} -> ${state.status} (approved by ${by})`);
+
+  if (nextPhaseTaskId) {
+    enqueue(nextPhaseTaskId);
+    const spawned = ensureRunnerRunning();
+    const how = spawned.paused
+      ? "PAUSED — `npm run agent -- resume` to run it"
+      : spawned.started
+        ? `runner started, pid ${spawned.pid}`
+        : `runner pid ${spawned.pid} — ${spawned.holding}`;
+    console.log(`  next phase queued: ${nextPhaseTaskId} (${how})`);
+  }
 }
 
 function cmdReject(positional: string[], flags: Record<string, string[]>): void {
@@ -234,9 +254,11 @@ function cmdStart(positional: string[], flags: Record<string, string[]>): void {
   }
 
   const spawned = ensureRunnerRunning();
-  const runner = spawned.started
-    ? `runner started (pid ${spawned.pid})`
-    : `runner pid ${spawned.pid} — ${spawned.holding}`;
+  const runner = spawned.paused
+    ? "PAUSED — task is queued but nothing will run until `npm run agent -- resume`"
+    : spawned.started
+      ? `runner started (pid ${spawned.pid})`
+      : `runner pid ${spawned.pid} — ${spawned.holding}`;
 
   const position = queue().findIndex((q) => q.task_id === id) + 1;
   console.log(
@@ -267,6 +289,7 @@ function cmdQueue(): void {
   console.log(
     JSON.stringify(
       {
+        paused: isPaused() ? pauseInfo() ?? true : false,
         runner_pid: runnerPid(),
         running: held ? { task_id: held.task_id, pid: held.pid, since: held.acquired_at } : null,
         next: nextRunnable(),
@@ -368,6 +391,50 @@ function main(): void {
       const lock = breakLock();
       console.log(lock ? `released lock held by ${lock.task_id} (pid ${lock.pid})` : "no lock held");
       console.log("runner pid file cleared; start a task to spawn a fresh runner");
+      return;
+    }
+    case "stop": {
+      const reason = one(flags, "reason") ?? "stopped by hand";
+      const res = stopRunner(reason);
+      if (!res.runnerPid) {
+        console.log("no runner was running.");
+      } else {
+        console.log(
+          `stopped runner pid ${res.runnerPid}${res.killed ? "" : " (was already gone)"}.` +
+            (res.inFlight ? ` in-flight task ${res.inFlight} left mid-flight -- it resumes cleanly.` : ""),
+        );
+      }
+      console.log("everything is paused. queued work stays queued; task state is untouched.");
+      if (res.dirty.length) {
+        console.log(
+          `\nthe killed agent left the working tree dirty:\n${res.dirty.map((l) => "  " + l).join("\n")}\n` +
+            `resume handles this, but you can inspect it with \`git -C ${
+              "/opt/nexa-chess/NexaGen-dev"
+            } diff\` first.`,
+        );
+      }
+      console.log("\nresume later with:  npm run agent -- resume");
+      return;
+    }
+    case "resume": {
+      if (!isPaused()) {
+        console.log("not paused. runner state:");
+        const spawned = ensureRunnerRunning();
+        console.log(
+          spawned.started
+            ? `  runner started (pid ${spawned.pid})`
+            : `  runner pid ${spawned.pid ?? "?"} — ${spawned.holding ?? "running"}`,
+        );
+        return;
+      }
+      const spawned = resumeRunner();
+      console.log(
+        spawned.started
+          ? `resumed. runner started (pid ${spawned.pid}); it will pick the queue back up.`
+          : `resumed. runner pid ${spawned.pid ?? "?"} — ${spawned.holding ?? "running"}.`,
+      );
+      const n = nextRunnable();
+      console.log(n ? `next up: ${n}` : "queue is empty right now.");
       return;
     }
     case "push": {

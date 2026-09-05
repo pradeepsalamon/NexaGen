@@ -35,6 +35,20 @@ export type RoleName =
 
 export type AgentName = "claude" | "antigravity" | "opencode";
 
+/**
+ * A follow-up phase an agent proposes queuing automatically once the task
+ * that declared it is approved. See AgentResult.next_phases.
+ */
+export interface PhasePlanEntry {
+  /** Becomes the next task's feature_summary -- write it as you would a task
+   *  packet's TASK section: the next agent sees no chat history, only this. */
+  summary: string;
+  /** A named chain from roles.json, or an explicit "role,role" list. */
+  chain: string;
+  /** Defaults to the declaring task's own relevant_paths when omitted. */
+  relevant_paths?: string[];
+}
+
 /** One agent invocation. Appended to state.steps, never mutated afterwards. */
 export interface StepRecord {
   index: number;
@@ -59,7 +73,8 @@ export interface StepRecord {
     | "invalid_result"
     | "timeout"
     | "guard_abort"
-    | "cli_error";
+    | "cli_error"
+    | "commit_failed";
   exit_code: number | null;
   packet_path: string;
   result_path: string;
@@ -140,6 +155,22 @@ export interface TaskState {
   failure_reason: string | null;
   approved_by: string | null;
   approved_at: string | null;
+
+  /**
+   * Groups a chain of phase tasks under one feature: set to the FIRST phase's
+   * task_id, including on that first task itself. Absent/null for a
+   * standalone task with no phase plan.
+   */
+  epic_id?: string | null;
+  /** 1-based position of this task within its epic. */
+  phase_number?: number;
+  /**
+   * Phases still queued for this epic, most recently declared by one of this
+   * task's steps (see AgentResult.next_phases). approveTask() consumes
+   * phases[0] into a new queued task and carries the rest forward onto it;
+   * the epic ends once this is empty or was never set.
+   */
+  next_phases?: PhasePlanEntry[] | null;
 }
 
 /** The packet handed to an agent. Its entire input -- no chat history, ever. */
@@ -177,6 +208,8 @@ export interface AgentResult {
   commit_sha: string | null;
   notes: string;
   handoff_summary?: string | null;
+  /** Optional -- see PhasePlanEntry. Most tasks should leave this unset. */
+  next_phases?: PhasePlanEntry[] | null;
   test_report?: {
     pass: boolean;
     failures: Array<{

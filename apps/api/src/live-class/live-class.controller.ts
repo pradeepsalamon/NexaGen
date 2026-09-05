@@ -61,6 +61,15 @@ export class LiveClassController {
     return this.liveClassService.getParticipants(this.getAccessToken(request), id);
   }
 
+  @Post(API_ROUTES.liveClass.heartbeat())
+  heartbeat(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body() body: { clientId?: string }
+  ) {
+    return this.liveClassService.heartbeat(this.getAccessToken(request), id, body?.clientId);
+  }
+
   @Post(API_ROUTES.liveClass.chat())
   saveChatMessage(
     @Param("id") id: string,
