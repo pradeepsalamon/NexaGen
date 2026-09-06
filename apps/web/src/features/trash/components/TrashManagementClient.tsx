@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import type { TrashEntity, TrashItem } from "@nexa-chess/types";
 
-import { useToast } from "@/providers/ToastProvider";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -32,6 +31,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { useDataTable } from "@/hooks/useDataTable";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
 import {
   useBulkDeleteTrashItemsPermanentlyMutation,
   useBulkRestoreTrashItemsMutation,
@@ -52,13 +53,11 @@ const entityOptions = [
 ];
 
 export function TrashManagementClient() {
-  const toast = useToast();
   const [search, setSearch] = useState("");
   const [entity, setEntity] = useState<TrashEntity | "ALL">("ALL");
   const [deletedFrom, setDeletedFrom] = useState("");
   const [deletedTo, setDeletedTo] = useState("");
 
-  const [, setPendingActions] = useState<Record<string, number>>({});
   const [hiddenItems, setHiddenItems] = useState<Record<string, boolean>>({});
 
   // Pagination, sorting and row selection are owned here: the query is driven
@@ -106,76 +105,59 @@ export function TrashManagementClient() {
   const bulkDeleteMutation = useBulkDeleteTrashItemsPermanentlyMutation();
   const emptyMutation = useEmptyTrashMutation();
 
-  const handleDelayedAction = useCallback((
-    itemsToActOn: TrashItem[],
-    action: "restore" | "delete",
-    title: string
-  ) => {
+  const hideItems = useCallback((itemsToActOn: TrashItem[]) => {
     const keys = itemsToActOn.map(getItemKey);
-
     setHiddenItems((prev) => {
       const next = { ...prev };
-      for (const key of keys) {
-        next[key] = true;
-      }
+      for (const key of keys) next[key] = true;
       return next;
     });
+  }, []);
 
-    const timeoutId = window.setTimeout(() => {
-      if (action === "restore") {
-        if (itemsToActOn.length === 1) {
-          restoreMutation.mutate(itemsToActOn[0] as TrashItem);
-        } else {
-          bulkRestoreMutation.mutate({ items: itemsToActOn.map(toRef) });
-        }
-      } else {
-        if (itemsToActOn.length === 1) {
-          deleteMutation.mutate(itemsToActOn[0] as TrashItem);
-        } else {
-          bulkDeleteMutation.mutate({ items: itemsToActOn.map(toRef) });
-        }
-      }
-
-      setPendingActions((prev) => {
-        const next = { ...prev };
-        delete next[timeoutId];
-        return next;
-      });
-    }, 5000);
-
-    setPendingActions((prev) => ({ ...prev, [timeoutId]: timeoutId }));
-
-    toast.showToast({
-      type: "success",
-      title,
-      durationMs: 5000,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          window.clearTimeout(timeoutId);
-          setPendingActions((prev) => {
-            const next = { ...prev };
-            delete next[timeoutId];
-            return next;
-          });
-          setHiddenItems((prev) => {
-            const next = { ...prev };
-            for (const key of keys) {
-              delete next[key];
-            }
-            return next;
-          });
-          toast.info({ title: "Action undone." });
-        }
-      }
+  const unhideItems = useCallback((itemsToActOn: TrashItem[]) => {
+    const keys = itemsToActOn.map(getItemKey);
+    setHiddenItems((prev) => {
+      const next = { ...prev };
+      for (const key of keys) delete next[key];
+      return next;
     });
-  }, [
-    restoreMutation,
-    bulkRestoreMutation,
-    deleteMutation,
-    bulkDeleteMutation,
-    toast
-  ]);
+  }, []);
+
+  const { run: runRestore } = useUndoableMutation<TrashItem[], void>({
+    strategy: "defer",
+    mutationFn: async (itemsToActOn) => {
+      if (itemsToActOn.length === 1) {
+        await restoreMutation.mutateAsync(itemsToActOn[0]);
+      } else {
+        await bulkRestoreMutation.mutateAsync({ items: itemsToActOn.map(toRef) });
+      }
+    },
+    undo: async () => {},
+    onSchedule: hideItems,
+    onCancel: unhideItems,
+    toast: (itemsToActOn) => ({
+      title: itemsToActOn.length === 1 ? "Item restored." : "Selected items restored."
+    }),
+    invalidates: [queryKeys.trash.all]
+  });
+
+  const { run: runDelete } = useUndoableMutation<TrashItem[], void>({
+    strategy: "defer",
+    mutationFn: async (itemsToActOn) => {
+      if (itemsToActOn.length === 1) {
+        await deleteMutation.mutateAsync(itemsToActOn[0]);
+      } else {
+        await bulkDeleteMutation.mutateAsync({ items: itemsToActOn.map(toRef) });
+      }
+    },
+    undo: async () => {},
+    onSchedule: hideItems,
+    onCancel: unhideItems,
+    toast: (itemsToActOn) => ({
+      title: itemsToActOn.length === 1 ? "Item permanently deleted." : "Selected items permanently deleted."
+    }),
+    invalidates: [queryKeys.trash.all]
+  });
 
   function resetFilters() {
     setSearch("");
@@ -279,7 +261,7 @@ export function TrashManagementClient() {
                     aria-label={`Restore ${row.original.title}`}
                     className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
-                    onClick={() => handleDelayedAction([row.original], "restore", "Item restored.")}
+                    onClick={() => runRestore([row.original])}
                     size="icon"
                     type="button"
                     variant="outline"
@@ -295,7 +277,7 @@ export function TrashManagementClient() {
                     aria-label={`Delete ${row.original.title} permanently`}
                     className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
-                    onClick={() => handleDelayedAction([row.original], "delete", "Item permanently deleted.")}
+                    onClick={() => runDelete([row.original])}
                     size="icon"
                     type="button"
                     variant="outline"
@@ -310,7 +292,7 @@ export function TrashManagementClient() {
         )
       }
     ],
-    [handleDelayedAction, restoreMutation.isPending, deleteMutation.isPending]
+    [runRestore, runDelete, restoreMutation.isPending, deleteMutation.isPending]
   );
 
   // Trash pages and sorts on the server, so the table must not slice or
@@ -336,7 +318,7 @@ export function TrashManagementClient() {
 
   const confirmAction = () => {
     if (confirmModal.action === "delete-selected") {
-      handleDelayedAction(selectedItems, "delete", "Selected items permanently deleted.");
+      runDelete(selectedItems);
     } else if (confirmModal.action === "empty") {
       emptyMutation.mutate();
     }
@@ -354,7 +336,7 @@ export function TrashManagementClient() {
               <Button
                 disabled={!selectedItems.length}
                 isLoading={bulkRestoreMutation.isPending}
-                onClick={() => handleDelayedAction(selectedItems, "restore", "Selected items restored.")}
+                onClick={() => runRestore(selectedItems)}
                 type="button"
                 variant="primary"
               >
@@ -366,7 +348,7 @@ export function TrashManagementClient() {
                 disabled={!selectedItems.length}
                 isLoading={bulkDeleteMutation.isPending}
                 onClick={() => {
-                  handleDelayedAction(selectedItems, "delete", "Selected items permanently deleted.");
+                  runDelete(selectedItems);
                   table.toggleAllPageRowsSelected(false);
                 }}
                 type="button"

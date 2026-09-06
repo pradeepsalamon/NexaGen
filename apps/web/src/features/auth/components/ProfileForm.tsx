@@ -25,6 +25,9 @@ export function ProfileForm() {
   const [values, setValues] = useState<ProfileFormValues>(emptyValues);
   const [isUploading, setIsUploading] = useState(false);
 
+  // undo: intentionally excluded — self-service account settings form with an
+  // explicit Save button, not a row action; may also change the password
+  // field, which undo should never silently revert (see docs/UNDO_ARCHITECTURE.md §4).
   const profileMutation = useMutation({
     mutationFn: updateProfile,
     onSuccess: ({ user: updatedUser }) => {

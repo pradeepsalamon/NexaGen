@@ -30,12 +30,16 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/providers/ToastProvider";
 import {
   useBatchScheduleQuery,
-  useDeactivateScheduleMutation,
-  useOccurrenceActionMutation,
   useRegenerateScheduleMutation,
-  useScheduleCalendarQuery,
-  useUpdateScheduleMutation
+  useScheduleCalendarQuery
 } from "../hooks/useBatchScheduleApi";
+import {
+  deactivateBatchSchedule,
+  scheduleOccurrenceAction,
+  updateBatchSchedule
+} from "../api/batchScheduleApi";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
 import { BatchScheduleCalendar } from "./BatchScheduleCalendar";
 import { DAY_LABELS, formatInZone, formatWallTime } from "../lib/scheduleFormat";
 
@@ -62,9 +66,63 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
   const schedule = data?.schedule;
 
   const regenerate = useRegenerateScheduleMutation();
-  const deactivate = useDeactivateScheduleMutation();
-  const updateSchedule = useUpdateScheduleMutation();
-  const occurrenceAction = useOccurrenceActionMutation();
+
+  const { run: runDeactivate } = useUndoableMutation({
+    strategy: "defer",
+    mutationFn: (id: string) => deactivateBatchSchedule(id),
+    undo: async () => {},
+    onCommitSuccess: (_id, res) => {
+      toast.success({
+        title: "Schedule ended",
+        message: `${res.cancelledCount ?? 0} upcoming classes cancelled.`
+      });
+    },
+    toast: () => ({ title: "Ending schedule — future classes will be cancelled" }),
+    invalidates: [queryKeys.batchSchedules.all, queryKeys.batchSchedules.detail(scheduleId)]
+  });
+
+  const { run: runOccurrenceAction, isPending: isActingOnOccurrence } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (vars: {
+      classId: string;
+      payload: ScheduleOccurrenceActionRequest;
+      previous?: { startsAt: string; endsAt: string };
+    }) => {
+      const result = await scheduleOccurrenceAction(vars.classId, vars.payload);
+      if (vars.payload.action === "RESCHEDULE") setRescheduleTarget(null);
+      return result;
+    },
+    undo: (vars) => {
+      if (vars.payload.action === "RESCHEDULE") {
+        return scheduleOccurrenceAction(vars.classId, {
+          action: "RESCHEDULE",
+          startsAt: vars.previous!.startsAt,
+          endsAt: vars.previous!.endsAt
+        });
+      }
+      return scheduleOccurrenceAction(vars.classId, {
+        action: vars.payload.action === "CANCEL" ? "RESTORE" : "CANCEL"
+      });
+    },
+    toast: (vars) => ({
+      title:
+        vars.payload.action === "CANCEL"
+          ? "Class cancelled"
+          : vars.payload.action === "RESTORE"
+            ? "Class restored"
+            : "Class rescheduled"
+    }),
+    invalidates: [queryKeys.batchSchedules.all]
+  });
+
+  const { run: runSetStatus } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: (status: "ACTIVE" | "PAUSED") => updateBatchSchedule(scheduleId, { status }),
+    undo: (status) =>
+      updateBatchSchedule(scheduleId, { status: status === "PAUSED" ? "ACTIVE" : "PAUSED" }),
+    toast: (status) => ({ title: status === "PAUSED" ? "Schedule paused" : "Schedule resumed" }),
+    invalidates: [queryKeys.batchSchedules.all, queryKeys.batchSchedules.detail(scheduleId)]
+  });
 
   const [rescheduleTarget, setRescheduleTarget] = useState<ScheduleCalendarClass | null>(null);
 
@@ -105,29 +163,6 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
       </main>
     );
   }
-
-  const runAction = async (
-    classId: string,
-    payload: ScheduleOccurrenceActionRequest,
-    successMsg: string
-  ) => {
-    try {
-      await occurrenceAction.mutateAsync({ classId, payload });
-      toast.success({ title: successMsg });
-      setRescheduleTarget(null);
-    } catch (error) {
-      toast.error({ title: "Action failed", message: getErrorMessage(error) });
-    }
-  };
-
-  const setStatus = async (status: "ACTIVE" | "PAUSED") => {
-    try {
-      await updateSchedule.mutateAsync({ id: scheduleId, payload: { status } });
-      toast.success({ title: status === "PAUSED" ? "Schedule paused" : "Schedule resumed" });
-    } catch (error) {
-      toast.error({ title: "Update failed", message: getErrorMessage(error) });
-    }
-  };
 
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
@@ -199,12 +234,12 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
               Regenerate future classes
             </Button>
             {schedule.status === "ACTIVE" ? (
-              <Button variant="outline" size="sm" onClick={() => setStatus("PAUSED")}>
+              <Button variant="outline" size="sm" onClick={() => runSetStatus("PAUSED")}>
                 <PauseCircle className="size-4" aria-hidden="true" />
                 Pause
               </Button>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => setStatus("ACTIVE")}>
+              <Button variant="outline" size="sm" onClick={() => runSetStatus("ACTIVE")}>
                 <PlayCircle className="size-4" aria-hidden="true" />
                 Resume
               </Button>
@@ -213,22 +248,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
               variant="outline"
               size="sm"
               className="border-app-danger text-app-danger hover:bg-app-danger hover:text-white"
-              onClick={() =>
-                toast.undoable({
-                  title: "Ending schedule — future classes will be cancelled",
-                  onCommit: async () => {
-                    try {
-                      const res = await deactivate.mutateAsync(scheduleId);
-                      toast.success({
-                        title: "Schedule ended",
-                        message: `${res.cancelledCount ?? 0} upcoming classes cancelled.`
-                      });
-                    } catch (error) {
-                      toast.error({ title: "Failed", message: getErrorMessage(error) });
-                    }
-                  }
-                })
-              }
+              onClick={() => runDeactivate(scheduleId)}
             >
               <Ban className="size-4" aria-hidden="true" />
               End schedule
@@ -307,7 +327,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
                           size="sm"
                           className="text-app-danger"
                           onClick={() =>
-                            runAction(cls.id, { action: "CANCEL" }, "Class cancelled")
+                            runOccurrenceAction({ classId: cls.id, payload: { action: "CANCEL" } })
                           }
                         >
                           Cancel
@@ -318,7 +338,9 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => runAction(cls.id, { action: "RESTORE" }, "Class restored")}
+                        onClick={() =>
+                          runOccurrenceAction({ classId: cls.id, payload: { action: "RESTORE" } })
+                        }
                       >
                         <RotateCcw className="size-3.5" aria-hidden="true" />
                         Restore
@@ -338,15 +360,15 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
       <RescheduleDialog
         target={rescheduleTarget}
         timezone={schedule.timezone}
-        isPending={occurrenceAction.isPending}
+        isPending={isActingOnOccurrence}
         onClose={() => setRescheduleTarget(null)}
         onSubmit={(startsAt, endsAt) =>
           rescheduleTarget &&
-          runAction(
-            rescheduleTarget.id,
-            { action: "RESCHEDULE", startsAt, endsAt },
-            "Class rescheduled"
-          )
+          runOccurrenceAction({
+            classId: rescheduleTarget.id,
+            payload: { action: "RESCHEDULE", startsAt, endsAt },
+            previous: { startsAt: rescheduleTarget.startsAt, endsAt: rescheduleTarget.endsAt }
+          })
         }
       />
     </main>

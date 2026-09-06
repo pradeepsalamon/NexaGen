@@ -8,8 +8,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useToast } from "@/providers/ToastProvider";
-import { useUpcomingClasses, useCoachBatches, useCancelClass } from "../hooks/useCoachApi";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { useUpcomingClasses, useCoachBatches } from "../hooks/useCoachApi";
+import { cancelClass } from "../api/coachApi";
 import { ClassCard } from "./ClassCard";
 import { ScheduleClassDialog } from "./ScheduleClassDialog";
 
@@ -21,10 +23,21 @@ export function CoachScheduleClient() {
   const { data: upcomingData, isLoading: upcomingLoading } = useUpcomingClasses();
   const { data: batchesData, isLoading: batchesLoading } = useCoachBatches();
 
-  const toast = useToast();
   const [dialogOpen, setDialogOpen] = useState(openQuery);
   const [classToEdit, setClassToEdit] = useState<CoachClass | null>(null);
-  const cancelClassMutation = useCancelClass();
+
+  const { run: handleCancel } = useUndoableMutation({
+    strategy: "defer",
+    mutationFn: (classItem: CoachClass) => cancelClass(classItem.id),
+    undo: async () => {},
+    toast: (classItem) => ({ title: `Cancelling class for ${classItem.batchName}` }),
+    invalidates: [
+      queryKeys.coach.dashboard,
+      queryKeys.coach.classes,
+      queryKeys.coach.upcomingClasses,
+      queryKeys.coach.classHistory
+    ]
+  });
 
   useEffect(() => {
     if (openQuery) {
@@ -36,13 +49,6 @@ export function CoachScheduleClient() {
   const handleEdit = (classItem: CoachClass) => {
     setClassToEdit(classItem);
     setDialogOpen(true);
-  };
-
-  const handleCancel = (classItem: CoachClass) => {
-    toast.undoable({
-      title: `Cancelling class for ${classItem.batchName}`,
-      onCommit: () => cancelClassMutation.mutate(classItem.id)
-    });
   };
 
   const openNewClassDialog = () => {

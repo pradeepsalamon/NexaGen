@@ -4,27 +4,36 @@ import { useState } from "react";
 import { Copy, Pencil, Star, Trash2 } from "lucide-react";
 import { resolveLiveClassSettings, type LiveClassPreset } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
-import { useToast } from "@/providers/ToastProvider";
 import { cn } from "@/lib/utils";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { summaryRows } from "./fields";
-import {
-  useDeleteLiveClassPreset,
-  useDuplicateLiveClassPreset,
-  useSetDefaultLiveClassPreset,
-} from "./hooks";
+import { useSetDefaultLiveClassPreset } from "./hooks";
+import { deleteLiveClassPreset, duplicateLiveClassPreset } from "./api";
 import { PresetFormModal } from "./PresetFormModal";
 
-const ICON_BTN =
-  "grid size-8 shrink-0 place-items-center rounded-full border border-app-border text-app-muted transition-colors hover:bg-app-soft hover:text-app-text disabled:opacity-40";
-
 export function PresetCard({ preset }: { preset: LiveClassPreset }) {
-  const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const duplicate = useDuplicateLiveClassPreset();
-  const remove = useDeleteLiveClassPreset();
   const setDefault = useSetDefaultLiveClassPreset();
+
+  const { run: runDuplicate, isPending: isDuplicating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: (id: string) => duplicateLiveClassPreset(id),
+    undo: (_vars, result) => deleteLiveClassPreset(result.id),
+    toast: () => ({ title: "Preset duplicated" }),
+    invalidates: [queryKeys.liveClassPresets.all]
+  });
+
+  const { run: runDelete, isPending: isDeleting } = useUndoableMutation({
+    strategy: "defer",
+    mutationFn: (id: string) => deleteLiveClassPreset(id),
+    undo: async () => {},
+    toast: () => ({ title: `Deleting "${preset.name}"` }),
+    invalidates: [queryKeys.liveClassPresets.all]
+  });
 
   const resolved = resolveLiveClassSettings({ system: {}, class: preset.settings });
   const rows = summaryRows(resolved).slice(0, 4);
@@ -58,60 +67,65 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
         <div className="flex shrink-0 items-center gap-1.5">
           {preset.canManage && !preset.isSystem && (
             <SimpleTooltip label={preset.isDefault ? "Default preset" : "Set as default"}>
-              <button
-                type="button"
+              <Button
                 aria-label={preset.isDefault ? "Default preset" : "Set as default"}
-                className={cn(ICON_BTN, preset.isDefault && "border-emerald-400 text-emerald-500")}
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "size-8 rounded-full p-0 text-app-text transition-colors",
+                  preset.isDefault
+                    ? "border-emerald-400 text-emerald-500"
+                    : "border-secondary hover:border-secondary hover:bg-secondary hover:text-black"
+                )}
                 disabled={setDefault.isPending || preset.isDefault}
                 onClick={() => setDefault.mutate(preset.id)}
               >
                 <Star
+                  aria-hidden="true"
                   className="size-4"
                   strokeWidth={2.5}
                   fill={preset.isDefault ? "currentColor" : "none"}
                 />
-              </button>
+              </Button>
             </SimpleTooltip>
           )}
           <SimpleTooltip label="Duplicate">
-            <button
-              type="button"
+            <Button
               aria-label="Duplicate preset"
-              className={ICON_BTN}
-              disabled={duplicate.isPending}
-              onClick={() => duplicate.mutate(preset.id)}
+              variant="outline"
+              size="icon"
+              className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+              disabled={isDuplicating}
+              onClick={() => runDuplicate(preset.id)}
             >
-              <Copy className="size-4" strokeWidth={2.5} />
-            </button>
+              <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            </Button>
           </SimpleTooltip>
           {preset.canManage && (
             <SimpleTooltip label="Edit">
-              <button
-                type="button"
+              <Button
                 aria-label="Edit preset"
-                className={ICON_BTN}
+                variant="outline"
+                size="icon"
+                className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
                 onClick={() => setEditing(true)}
               >
-                <Pencil className="size-4" strokeWidth={2.5} />
-              </button>
+                <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              </Button>
             </SimpleTooltip>
           )}
           {preset.canManage && !preset.isSystem && (
             <SimpleTooltip label="Delete">
-              <button
-                type="button"
+              <Button
                 aria-label="Delete preset"
-                className={cn(ICON_BTN, "hover:border-app-danger hover:bg-app-danger hover:text-white")}
-                disabled={remove.isPending}
-                onClick={() =>
-                  toast.undoable({
-                    title: `Deleting "${preset.name}"`,
-                    onCommit: () => remove.mutate(preset.id),
-                  })
-                }
+                variant="outline"
+                size="icon"
+                className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
+                disabled={isDeleting}
+                onClick={() => runDelete(preset.id)}
               >
-                <Trash2 className="size-4" strokeWidth={2.5} />
-              </button>
+                <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              </Button>
             </SimpleTooltip>
           )}
         </div>

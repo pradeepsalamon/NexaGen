@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { AssignmentLibraryItem } from "@nexa-chess/types";
+import type { AssignmentDeployment, AssignmentLibraryItem } from "@nexa-chess/types";
 import { Eye, Pencil, Plus, Send, Trash2, Users } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
@@ -10,14 +10,11 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import { useToast } from "@/providers/ToastProvider";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
-import {
-  useAssignmentDeployments,
-  useAssignmentLibrary,
-  useDeleteAssignment,
-  useUndeployAssignment
-} from "../hooks/useAssignmentsApi";
+import { useAssignmentDeployments, useAssignmentLibrary } from "../hooks/useAssignmentsApi";
+import { deleteAssignment, undeployAssignment } from "../api/assignmentApi";
 import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { AssignmentSubmissionsDialog } from "./AssignmentSubmissionsDialog";
@@ -28,13 +25,32 @@ const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
 export function CoachAssignmentsClient() {
-  const toast = useToast();
   const timeZone = useUserTimeZone();
   const { data: libraryData, isLoading: libraryLoading } = useAssignmentLibrary();
   const { data: deploymentsData, isLoading: deploymentsLoading } = useAssignmentDeployments();
   const { data: batchesData } = useCoachBatches();
-  const deleteMutation = useDeleteAssignment();
-  const undeployMutation = useUndeployAssignment();
+
+  const { run: runDelete } = useUndoableMutation({
+    strategy: "defer",
+    mutationFn: (item: AssignmentLibraryItem) => deleteAssignment(item.id),
+    undo: async () => {},
+    toast: (item) => ({
+      title: `Deleting "${item.title}"`,
+      message: "Removes it from every batch it was assigned to."
+    }),
+    invalidates: [queryKeys.assignments.all]
+  });
+
+  const { run: runWithdraw } = useUndoableMutation({
+    strategy: "defer",
+    mutationFn: (d: AssignmentDeployment) => undeployAssignment(d.id),
+    undo: async () => {},
+    toast: (d) => ({
+      title: `Withdrawing "${d.title}"`,
+      message: `From ${d.batchName}. Student progress will be lost.`
+    }),
+    invalidates: [queryKeys.assignments.all]
+  });
 
   const batches = batchesData?.batches ?? [];
   const library = libraryData?.assignments ?? [];
@@ -150,13 +166,7 @@ export function CoachAssignmentsClient() {
                           variant="outline"
                           size="icon"
                           className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
-                          onClick={() =>
-                            toast.undoable({
-                              title: `Deleting "${item.title}"`,
-                              message: "Removes it from every batch it was assigned to.",
-                              onCommit: () => deleteMutation.mutate(item.id),
-                            })
-                          }
+                          onClick={() => runDelete(item)}
                         >
                           <Trash2 className="size-4" strokeWidth={2.5} />
                         </Button>
@@ -213,13 +223,7 @@ export function CoachAssignmentsClient() {
                       variant="outline"
                       size="icon"
                       className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
-                      onClick={() =>
-                        toast.undoable({
-                          title: `Withdrawing "${d.title}"`,
-                          message: `From ${d.batchName}. Student progress will be lost.`,
-                          onCommit: () => undeployMutation.mutate(d.id),
-                        })
-                      }
+                      onClick={() => runWithdraw(d)}
                     >
                       <Trash2 className="size-4" strokeWidth={2.5} />
                     </Button>

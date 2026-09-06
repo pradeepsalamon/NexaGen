@@ -1,21 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   CreateBatchScheduleRequest,
-  PreviewBatchScheduleRequest,
-  ScheduleOccurrenceActionRequest,
-  UpdateBatchScheduleRequest
+  PreviewBatchScheduleRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import {
   createBatchSchedule,
-  deactivateBatchSchedule,
   getBatchSchedule,
   getScheduleCalendar,
   listBatchSchedules,
   previewBatchSchedule,
-  regenerateBatchSchedule,
-  scheduleOccurrenceAction,
-  updateBatchSchedule
+  regenerateBatchSchedule
 } from "../api/batchScheduleApi";
 
 export function useBatchSchedulesQuery(batchId?: string) {
@@ -53,6 +48,9 @@ export function usePreviewScheduleMutation() {
   });
 }
 
+// undo: intentionally excluded — generates potentially hundreds of classes at
+// once and navigates away on success (see docs/UNDO_ARCHITECTURE.md §4); no
+// delete endpoint exists to revert to anyway.
 export function useCreateScheduleMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -61,41 +59,12 @@ export function useCreateScheduleMutation() {
   });
 }
 
-export function useUpdateScheduleMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: UpdateBatchScheduleRequest }) =>
-      updateBatchSchedule(id, payload),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.batchSchedules.all })
-  });
-}
-
-export function useDeactivateScheduleMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => deactivateBatchSchedule(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.batchSchedules.all })
-  });
-}
-
+// undo: intentionally excluded — complex bulk/recurring operation, regenerates
+// every future class in the schedule (see docs/UNDO_ARCHITECTURE.md §4).
 export function useRegenerateScheduleMutation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => regenerateBatchSchedule(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.batchSchedules.all })
-  });
-}
-
-export function useOccurrenceActionMutation() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      classId,
-      payload
-    }: {
-      classId: string;
-      payload: ScheduleOccurrenceActionRequest;
-    }) => scheduleOccurrenceAction(classId, payload),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.batchSchedules.all })
   });
 }
