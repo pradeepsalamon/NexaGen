@@ -99,6 +99,21 @@
   white-space: nowrap;
 }
 
+/*
+ * Holds the <audio> elements for each remote participant. Kept in the DOM and
+ * playing (not display:none, which some browsers treat as a reason to pause
+ * media) but pushed off-screen and zero-size so it never affects the frame.
+ */
+.recorder-audio-sink {
+  position: fixed;
+  left: -9999px;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .recorder-error {
   position: fixed;
   inset: 0;
