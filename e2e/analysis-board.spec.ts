@@ -18,7 +18,12 @@ const COACH = { email: "coach@nexa.test", password: "Test@12345" };
 type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
 
 async function login(request: APIRequestContext, email: string, password: string): Promise<Cookie[]> {
-  const res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  // /auth/login is throttled 5/60s; back off on 429 during a full-suite run.
+  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
+    await new Promise((r) => setTimeout(r, 12_000));
+    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  }
   expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
   const raw = res.headers()["set-cookie"] || "";
   return raw
@@ -47,6 +52,29 @@ async function api(
   });
 }
 
+/**
+ * Sweep the coach's leftover E2E classes (stuck SCHEDULED/LIVE from earlier
+ * runs on the shared dev DB) so the scheduling-conflict check doesn't 409 the
+ * `POST /coach/classes` below.
+ */
+async function clearCoachSchedule(request: APIRequestContext, cookies: Cookie[]) {
+  for (const path of ["/coach/classes/upcoming", "/coach/classes"]) {
+    const res = await api(request, "GET", path, cookies);
+    if (!res.ok()) continue;
+    const data = await res.json();
+    const list: Array<{ id: string; topic?: string; status?: string }> = Array.isArray(data?.classes)
+      ? data.classes
+      : Array.isArray(data)
+        ? data
+        : [];
+    for (const c of list) {
+      if (!/E2E/i.test(c.topic || "")) continue;
+      if (c.status === "LIVE") await api(request, "POST", `/live-class/${c.id}/end`, cookies).catch(() => {});
+      else await api(request, "PATCH", `/coach/classes/${c.id}/cancel`, cookies).catch(() => {});
+    }
+  }
+}
+
 test.describe("Analysis board", () => {
   test.skip(!RUN, "opt-in: RUN_ANALYSIS_E2E=1 + LiveKit + NEXT_PUBLIC_E2E=1 web + Stockfish");
 
@@ -68,6 +96,8 @@ test.describe("Analysis board", () => {
     const batchesData = await batchesRes.json();
     const batchId = (batchesData.batches || batchesData)[0].id;
 
+    await clearCoachSchedule(request, coachCookies);
+
     const now = Date.now();
     const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
       batchId,
@@ -77,8 +107,9 @@ test.describe("Analysis board", () => {
       startsAt: new Date(now + 60_000).toISOString(),
       endsAt: new Date(now + 3_660_000).toISOString(),
     });
-    classId = (await createRes.json()).id;
-    expect(classId).toBeTruthy();
+    const createdClass = await createRes.json();
+    classId = createdClass.class ? createdClass.class.id : createdClass.id;
+    expect(classId, `create class: ${JSON.stringify(createdClass)}`).toBeTruthy();
 
     const startRes = await api(request, "POST", `/live-class/${classId}/start`, coachCookies);
     expect(startRes.ok(), `start: ${await startRes.text()}`).toBeTruthy();

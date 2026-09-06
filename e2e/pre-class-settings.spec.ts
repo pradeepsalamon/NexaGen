@@ -11,7 +11,13 @@ async function loginAs(
   email: string,
   password: string,
 ): Promise<string> {
-  const res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  // /auth/login is throttled 5/60s. These specs do 2 logins per test across
+  // several tests, so a burst run trips the limiter — back off and retry on 429.
+  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
+    await new Promise((r) => setTimeout(r, 12_000));
+    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  }
   expect(res.ok(), `Login failed for ${email}: ${await res.text()}`).toBeTruthy();
   return (res.headers()["set-cookie"] || "")
     .split(",")
@@ -32,6 +38,29 @@ function api(
     headers: { "Content-Type": "application/json", Cookie: cookies },
     data: body,
   });
+}
+
+/**
+ * Cancel/end the coach's leftover E2E classes (stuck SCHEDULED/LIVE from earlier
+ * runs on the shared dev DB) so `POST /coach/classes` doesn't 409 on the
+ * scheduling-conflict check.
+ */
+async function clearCoachSchedule(request: APIRequestContext, cookies: string) {
+  for (const path of ["/coach/classes/upcoming", "/coach/classes"]) {
+    const res = await api(request, "GET", path, cookies);
+    if (!res.ok()) continue;
+    const data = await res.json();
+    const list: Array<{ id: string; topic?: string; status?: string }> = Array.isArray(data?.classes)
+      ? data.classes
+      : Array.isArray(data)
+        ? data
+        : [];
+    for (const c of list) {
+      if (!/E2E/i.test(c.topic || "")) continue;
+      if (c.status === "LIVE") await api(request, "POST", `/live-class/${c.id}/end`, cookies);
+      else await api(request, "PATCH", `/coach/classes/${c.id}/cancel`, cookies);
+    }
+  }
 }
 
 test.describe("Pre-class settings — layered resolution & authz", () => {
@@ -120,6 +149,7 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
     expect(adminBatchWrite.status()).toBe(200);
 
     // New class in that batch inherits the batch default until overridden.
+    await clearCoachSchedule(request, coach);
     const now = Date.now();
     const created = await api(request, "POST", "/coach/classes", coach, {
       batchId,
@@ -130,7 +160,9 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
       liveClassSettings: { student: { mic: "FORCED_OFF" } },
     });
     expect(created.status()).toBe(201);
-    const classId = (await created.json()).id;
+    const createdBody = await created.json();
+    const classId = createdBody.class ? createdBody.class.id : createdBody.id;
+    expect(classId, `create class: ${JSON.stringify(createdBody)}`).toBeTruthy();
 
     const forClass = await (
       await api(request, "GET", `/live-class-settings/class/${classId}`, coach)
@@ -178,8 +210,12 @@ test.describe("Pre-class settings — admin UI", () => {
 
     await page.goto("/admin/live-class");
     await expect(page.getByRole("heading", { name: /Live class settings/i })).toBeVisible();
-    await expect(page.getByText(/Platform defaults/i)).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Organisation presets/i })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Platform defaults", exact: true })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Organisation presets", exact: true })
+    ).toBeVisible();
     await expect(page.getByRole("heading", { name: /Recent changes/i })).toBeVisible();
   });
 });

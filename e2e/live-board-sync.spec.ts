@@ -44,7 +44,12 @@ declare global {
 type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
 
 async function login(request: APIRequestContext, email: string, password: string): Promise<Cookie[]> {
-  const res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  // /auth/login is throttled 5/60s; back off on 429 during a full-suite run.
+  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
+    await new Promise((r) => setTimeout(r, 12_000));
+    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  }
   expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
   const raw = res.headers()["set-cookie"] || "";
   return raw
@@ -71,6 +76,29 @@ async function api(
     headers: { "Content-Type": "application/json", Cookie: cookieHeader },
     data: body,
   });
+}
+
+/**
+ * The shared dev DB carries leftover E2E classes stuck SCHEDULED/LIVE from
+ * earlier runs; they overlap "now" and make `POST /coach/classes` 409 on the
+ * coach's scheduling-conflict check. Sweep the coach's own upcoming/live ones.
+ */
+async function clearCoachSchedule(request: APIRequestContext, cookies: Cookie[]) {
+  for (const path of ["/coach/classes/upcoming", "/coach/classes"]) {
+    const res = await api(request, "GET", path, cookies);
+    if (!res.ok()) continue;
+    const data = await res.json();
+    const list: Array<{ id: string; topic?: string; status?: string }> = Array.isArray(data?.classes)
+      ? data.classes
+      : Array.isArray(data)
+        ? data
+        : [];
+    for (const c of list) {
+      if (!/E2E/i.test(c.topic || "")) continue;
+      if (c.status === "LIVE") await api(request, "POST", `/live-class/${c.id}/end`, cookies).catch(() => {});
+      else await api(request, "PATCH", `/coach/classes/${c.id}/cancel`, cookies).catch(() => {});
+    }
+  }
 }
 
 async function joinMeeting(context: BrowserContext, classId: string): Promise<Page> {
@@ -124,6 +152,8 @@ test.describe("Live board sync", () => {
     const batchesRes = await api(request, "GET", "/coach/batches", coachCookies);
     const batchesData = await batchesRes.json();
     const batchId = (batchesData.batches || batchesData)[0].id;
+
+    await clearCoachSchedule(request, coachCookies);
 
     const now = Date.now();
     const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
