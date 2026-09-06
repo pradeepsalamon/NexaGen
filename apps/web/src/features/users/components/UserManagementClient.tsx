@@ -15,7 +15,6 @@ import {
 import type { ColumnDef } from "@tanstack/react-table";
 import type { AuthUser, UserRole, UserStatus } from "@nexa-chess/types";
 
-import { useToast } from "@/providers/ToastProvider";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -41,13 +40,11 @@ import { useServerTable } from "@/hooks/useServerTable";
 import { UserForm } from "./UserForm";
 import { UserSettings } from "./UserSettings";
 import {
-  useArchiveUserMutation,
-  useDeleteUserMutation,
-  useRestoreUserMutation,
   useUsersQuery
 } from "../hooks/useUsersApi";
-import { useRestoreTrashItemMutation } from "@/features/trash/hooks/useTrashApi";
-import { useQueryClient } from "@tanstack/react-query";
+import { archiveUser, restoreUser, deleteUser } from "../api/userApi";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { restoreTrashItem } from "@/features/trash/api/trashApi";
 import { queryKeys } from "@/lib/queryKeys";
 
 type UserManagementTab = "all" | "create" | "settings";
@@ -60,8 +57,6 @@ const statusOptions = [
 ];
 
 export function UserManagementClient() {
-  const { showToast, error, success, info } = useToast();
-
   const [activeTab, setActiveTab] = useState<UserManagementTab>("all");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
@@ -73,11 +68,29 @@ export function UserManagementClient() {
   useEffect(() => {
     clampToPageCount(pageCount);
   }, [pageCount, clampToPageCount]);
-  const deleteMutation = useDeleteUserMutation();
-  const archiveMutation = useArchiveUserMutation();
-  const restoreMutation = useRestoreUserMutation();
-  const restoreTrashItemMutation = useRestoreTrashItemMutation();
-  const queryClient = useQueryClient();
+  const { run: handleArchive, isPending: isArchiving } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: (id: string) => archiveUser(id),
+    undo: (id) => restoreUser(id),
+    toast: () => ({ title: "User archived" }),
+    invalidates: [queryKeys.users.all, queryKeys.trash.all]
+  });
+
+  const { run: handleRestore, isPending: isRestoring } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: (id: string) => restoreUser(id),
+    undo: (id) => archiveUser(id),
+    toast: () => ({ title: "User unarchived" }),
+    invalidates: [queryKeys.users.all, queryKeys.trash.all]
+  });
+
+  const { run: handleDelete, isPending: isDeleting } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: (id: string) => deleteUser(id),
+    undo: (id) => restoreTrashItem("User", id),
+    toast: () => ({ title: "User deleted" }),
+    invalidates: [queryKeys.users.all, queryKeys.trash.all]
+  });
 
   const selectedUser = useMemo(
     () =>
@@ -103,98 +116,7 @@ export function UserManagementClient() {
     setActiveTab("create");
   }
 
-  const handleArchive = useCallback((id: string, isUndo?: boolean) => {
-    archiveMutation.mutate({ id, isUndo }, {
-      onSuccess: () => {
-        setRowSelection({});
-        queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
-        showToast({
-          type: isUndo ? "info" : "success",
-          title: isUndo ? "Action undone." : "User archived",
-          durationMs: 5000,
-          ...(isUndo ? {} : {
-            action: {
-              label: "Undo",
-              onClick: () => {
-                restoreMutation.mutate(
-                  { id, isUndo: true },
-                  {
-                    onError: () => error({ title: "Failed to undo archive" }),
-                    onSuccess: () => info({ title: "Action undone." })
-                  }
-                );
-              }
-            }
-          })
-        });
-      },
-      onError: () => error({ title: "Failed to archive user" })
-    });
-  }, [archiveMutation, error, info, queryClient, restoreMutation, setRowSelection, showToast]);
 
-  const handleRestore = useCallback((id: string, isUndo?: boolean) => {
-    restoreMutation.mutate({ id, isUndo }, {
-      onSuccess: () => {
-        showToast({
-          type: isUndo ? "info" : "success",
-          title: isUndo ? "Action undone." : "User unarchived",
-          durationMs: 5000,
-          ...(isUndo ? {} : {
-            action: {
-              label: "Undo",
-              onClick: () => {
-                archiveMutation.mutate(
-                  { id, isUndo: true },
-                  {
-                    onError: () => error({ title: "Failed to undo unarchive" }),
-                    onSuccess: () => info({ title: "Action undone." })
-                  }
-                );
-              }
-            }
-          })
-        });
-      },
-      onError: () => error({ title: "Failed to unarchive user" })
-    });
-  }, [archiveMutation, error, info, restoreMutation, showToast]);
-
-  const handleDelete = useCallback((id: string) => {
-    deleteMutation.mutate(id, {
-      onSuccess: () => {
-        setRowSelection({});
-        queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
-        success({
-          title: "User deleted",
-          action: {
-              label: "Undo",
-              onClick: () => {
-                restoreTrashItemMutation.mutate(
-                { entity: "User", id },
-                {
-                  onSuccess: () => {
-                    info({ title: "Action undone." });
-                    queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
-                    queryClient.invalidateQueries({ queryKey: queryKeys.trash.all });
-                  },
-                  onError: () => error({ title: "Failed to undo delete" })
-                }
-              );
-            }
-          }
-        });
-      },
-      onError: () => error({ title: "Failed to delete user" })
-    });
-  }, [
-    deleteMutation,
-    error,
-    info,
-    queryClient,
-    restoreTrashItemMutation,
-    setRowSelection,
-    success
-  ]);
 
   const columns = useMemo<ColumnDef<AuthUser>[]>(
     () => [
@@ -308,7 +230,7 @@ export function UserManagementClient() {
                     <Button
                       aria-label={isArchived ? `Restore ${row.original.firstName}` : `Archive ${row.original.firstName}`}
                       className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:border-secondary hover:bg-secondary hover:text-black"
-                      disabled={archiveMutation.isPending || restoreMutation.isPending}
+                      disabled={isArchiving || isRestoring}
                       onClick={() => isArchived ? handleRestore(row.original.id) : handleArchive(row.original.id)}
                       size="icon"
                       type="button"
@@ -329,7 +251,7 @@ export function UserManagementClient() {
                     <Button
                       aria-label={`Delete ${row.original.firstName}`}
                       className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
-                      disabled={deleteMutation.isPending}
+                      disabled={isDeleting}
                       onClick={() => handleDelete(row.original.id)}
                       size="icon"
                       type="button"
@@ -347,13 +269,13 @@ export function UserManagementClient() {
       }
     ],
     [
-      archiveMutation.isPending,
-      deleteMutation.isPending,
+      isArchiving,
+      isDeleting,
       editUser,
       handleArchive,
       handleDelete,
       handleRestore,
-      restoreMutation.isPending
+      isRestoring
     ]
   );
 

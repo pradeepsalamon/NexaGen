@@ -10,6 +10,7 @@ import {
   Track,
   type Participant,
   type RemoteParticipant,
+  type RemoteTrackPublication,
 } from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BoardSyncMessage, BoardColor } from "@/features/chessboard/types/sync";
@@ -149,6 +150,35 @@ export function RecorderClient({ classId }: { classId: string }) {
   const [error, setError] = useState<string | null>(null);
   const roomRef = useRef<Room | null>(null);
   const startedRef = useRef(false);
+  /**
+   * Room-composite egress records the headless tab's audio output, so every
+   * remote mic / screen-share audio track has to actually be *playing* in the
+   * page — otherwise the recording is silent. The camera <video> tiles stay
+   * muted (they would double up); audio rides these dedicated elements instead.
+   */
+  const audioSinkRef = useRef<HTMLDivElement>(null);
+  const audioElsRef = useRef<Map<string, HTMLMediaElement[]>>(new Map());
+
+  const attachAudio = useCallback((track: RemoteTrack) => {
+    const sid = track.sid;
+    if (track.kind !== Track.Kind.Audio || !sid || audioElsRef.current.has(sid)) return;
+    const el = track.attach();
+    el.autoplay = true;
+    (el as HTMLAudioElement).muted = false;
+    el.setAttribute("data-lk-recorder-audio", "");
+    audioSinkRef.current?.appendChild(el);
+    audioElsRef.current.set(sid, [el]);
+    void (el as HTMLAudioElement).play?.().catch(() => {
+      /* egress Chrome autoplays; a failure here must not stop the recording */
+    });
+  }, []);
+
+  const detachAudio = useCallback((track: RemoteTrack) => {
+    const sid = track.sid;
+    if (track.kind !== Track.Kind.Audio || !sid) return;
+    for (const el of track.detach()) el.remove();
+    audioElsRef.current.delete(sid);
+  }, []);
 
   /** Board state only ever comes from the coach or a student holding control. */
   const applyMessage = useCallback((msg: BoardSyncMessage) => {
@@ -201,6 +231,7 @@ export function RecorderClient({ classId }: { classId: string }) {
   }, []);
 
   useEffect(() => {
+    const audioEls = audioElsRef.current;
     const params = new URLSearchParams(window.location.search);
     const url = params.get("url");
     const token = params.get("token");
@@ -213,10 +244,18 @@ export function RecorderClient({ classId }: { classId: string }) {
     roomRef.current = room;
 
     const onChanged = () => refreshTiles(room);
+    const onSubscribed = (track: RemoteTrack, _pub: RemoteTrackPublication) => {
+      attachAudio(track);
+      onChanged();
+    };
+    const onUnsubscribed = (track: RemoteTrack, _pub: RemoteTrackPublication) => {
+      detachAudio(track);
+      onChanged();
+    };
 
     room
-      .on(RoomEvent.TrackSubscribed, onChanged)
-      .on(RoomEvent.TrackUnsubscribed, onChanged)
+      .on(RoomEvent.TrackSubscribed, onSubscribed)
+      .on(RoomEvent.TrackUnsubscribed, onUnsubscribed)
       .on(RoomEvent.TrackMuted, onChanged)
       .on(RoomEvent.TrackUnmuted, onChanged)
       .on(RoomEvent.ParticipantConnected, onChanged)
@@ -239,6 +278,13 @@ export function RecorderClient({ classId }: { classId: string }) {
       .connect(url, token)
       .then(() => {
         if (cancelled) return;
+        // Play any audio tracks that were already subscribed before the
+        // listener was wired (autoSubscribe races the `connect()` resolve).
+        for (const p of room.remoteParticipants.values()) {
+          for (const pub of p.trackPublications.values()) {
+            if (pub.track && pub.kind === Track.Kind.Audio) attachAudio(pub.track as RemoteTrack);
+          }
+        }
         refreshTiles(room);
         // Give the first video frames and the board a moment to paint before
         // telling egress to roll, otherwise the recording opens on a blank page.
@@ -255,9 +301,13 @@ export function RecorderClient({ classId }: { classId: string }) {
 
     return () => {
       cancelled = true;
+      for (const els of audioEls.values()) {
+        for (const el of els) el.remove();
+      }
+      audioEls.clear();
       void room.disconnect();
     };
-  }, [applyMessage, refreshTiles]);
+  }, [applyMessage, refreshTiles, attachAudio, detachAudio]);
 
   const connectionLost = useMemo(
     () => roomRef.current?.state === ConnectionState.Disconnected,
@@ -281,6 +331,8 @@ export function RecorderClient({ classId }: { classId: string }) {
           <VideoTile key={t.participant.identity} participant={t.participant} track={t.track} />
         ))}
       </div>
+      {/* Off-screen: carries the live audio egress records from the tab. */}
+      <div ref={audioSinkRef} className="recorder-audio-sink" aria-hidden />
     </div>
   );
 }

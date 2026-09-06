@@ -14,11 +14,13 @@ import { FormInput } from "@/components/forms/FormInput";
 import { FormSelect } from "@/components/forms/FormSelect";
 import { AddMemberDialog } from "./AddMemberDialog";
 import { BatchLiveClassSettingsTab } from "@/features/live-class/settings/BatchLiveClassSettingsTab";
-import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
-import { useAssignableUsersQuery, useCreateBatchMutation, useUpdateBatchMutation } from "../hooks/useBatchesApi";
+import { useAssignableUsersQuery } from "../hooks/useBatchesApi";
+import { createBatch, updateBatch, deleteBatch } from "../api/batchApi";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
 
 const batchFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -45,10 +47,46 @@ type BatchFormProps = {
   selectedBatch?: Batch | null;
 };
 
+function toUpdatePayload(batch: Batch): UpdateBatchRequest {
+  return {
+    name: batch.name,
+    description: batch.description || undefined,
+    startsAt: batch.startsAt || "",
+    endsAt: batch.endsAt || undefined,
+    scheduleNotes: batch.scheduleNotes || undefined,
+    status: batch.status,
+    coachIds: batch.coaches.map(c => c.id),
+    studentIds: batch.students.map(s => s.id),
+  };
+}
+
 export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
-  const { error, success, info } = useToast();
-  const createMutation = useCreateBatchMutation();
-  const updateMutation = useUpdateBatchMutation();
+  const { success, info } = useToast();
+  const { run: runCreate, isPending: isCreating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (payload: CreateBatchRequest) => {
+      const result = await createBatch(payload);
+      form.reset();
+      onSuccess?.();
+      return result;
+    },
+    undo: (_vars, result) => deleteBatch(result.batch.id),
+    toast: (vars) => ({ title: `"${vars.name}" created` }),
+    invalidates: [queryKeys.batches.all]
+  });
+
+  const { run: runUpdate, isPending: isUpdating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (vars: { id: string; payload: UpdateBatchRequest; previous: Batch }) => {
+      const result = await updateBatch(vars.id, vars.payload);
+      form.reset();
+      onSuccess?.();
+      return result;
+    },
+    undo: (vars) => updateBatch(vars.id, toUpdatePayload(vars.previous)),
+    toast: () => ({ title: "Batch updated successfully" }),
+    invalidates: [queryKeys.batches.all]
+  });
   const assignableUsersQuery = useAssignableUsersQuery();
   
   const coaches = assignableUsersQuery.data?.coaches ?? [];
@@ -68,36 +106,24 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
     },
   });
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const isSaving = isCreating || isUpdating;
 
   function onSubmit(values: BatchFormValues) {
-    const payload = {
-      ...values,
+    const payload: Partial<CreateBatchRequest | UpdateBatchRequest> = {
+      name: values.name,
+      description: values.description || undefined,
+      startsAt: values.startsAt || "",
       endsAt: values.endsAt || undefined,
+      scheduleNotes: values.scheduleNotes || undefined,
+      status: values.status,
+      coachIds: values.coachIds,
+      studentIds: values.studentIds,
     };
 
     if (selectedBatch) {
-      updateMutation.mutate({ id: selectedBatch.id, payload: payload as UpdateBatchRequest }, {
-        onError: (mutationError) => {
-          error({ title: "Failed to save batch", message: getErrorMessage(mutationError) });
-        },
-        onSuccess: () => {
-          success({ title: "Batch updated successfully" });
-          form.reset();
-          onSuccess?.();
-        }
-      });
+      runUpdate({ id: selectedBatch.id, payload: payload as UpdateBatchRequest, previous: selectedBatch });
     } else {
-      createMutation.mutate(payload as CreateBatchRequest, {
-        onError: (mutationError) => {
-          error({ title: "Failed to create batch", message: getErrorMessage(mutationError) });
-        },
-        onSuccess: () => {
-          success({ title: "Batch created successfully" });
-          form.reset();
-          onSuccess?.();
-        }
-      });
+      runCreate(payload as CreateBatchRequest);
     }
   }
 

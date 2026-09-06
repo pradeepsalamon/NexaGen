@@ -1,9 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
-  CreateLiveClassPresetRequest,
   UpdateBatchLiveClassSettingsRequest,
   UpdateLiveClassPolicyRequest,
-  UpdateLiveClassPresetRequest,
   UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -11,9 +9,6 @@ import { useToast } from "@/providers/ToastProvider";
 import { useAuthStore } from "@/stores/authStore";
 import { writeLastUsedClassSettings } from "./lastUsed";
 import {
-  createLiveClassPreset,
-  deleteLiveClassPreset,
-  duplicateLiveClassPreset,
   getBatchLiveClassSettings,
   getClassLiveSettings,
   getLiveClassPolicy,
@@ -23,7 +18,6 @@ import {
   updateBatchLiveClassSettings,
   updateClassLiveSettings,
   updateLiveClassPolicy,
-  updateLiveClassPreset,
   updateLiveSettingsMidClass,
 } from "./api";
 
@@ -45,6 +39,9 @@ export function useLiveClassSettingsAudit(enabled = true) {
   });
 }
 
+// undo: intentionally excluded — singleton settings-form Save action (system
+// defaults), not a row action; reverting silently would fight the multi-layer
+// inheritance system these settings feed into (see docs/UNDO_ARCHITECTURE.md §4).
 export function useUpdateLiveClassPolicy() {
   const qc = useQueryClient();
   const toast = useToast();
@@ -70,6 +67,8 @@ export function useClassLiveSettings(classId: string, enabled = true) {
   });
 }
 
+// undo: intentionally excluded — singleton settings-form Save action, same
+// reasoning as useUpdateLiveClassPolicy (see docs/UNDO_ARCHITECTURE.md §4).
 export function useUpdateClassLiveSettings(classId: string) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -88,6 +87,9 @@ export function useUpdateClassLiveSettings(classId: string) {
   });
 }
 
+// undo: intentionally excluded — reaches every connected participant's grants
+// instantly via a server broadcast; a silent client-side revert would not
+// re-broadcast correctly (see docs/UNDO_ARCHITECTURE.md §4).
 export function useUpdateLiveSettingsMidClass(classId: string) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -115,6 +117,8 @@ export function useBatchLiveClassSettings(batchId: string | undefined, enabled =
   });
 }
 
+// undo: intentionally excluded — singleton settings-form Save action, same
+// reasoning as useUpdateLiveClassPolicy (see docs/UNDO_ARCHITECTURE.md §4).
 export function useUpdateBatchLiveClassSettings(batchId: string) {
   const qc = useQueryClient();
   const toast = useToast();
@@ -146,63 +150,9 @@ function usePresetInvalidator() {
   return () => qc.invalidateQueries({ queryKey: queryKeys.liveClassPresets.all });
 }
 
-export function useCreateLiveClassPreset() {
-  const toast = useToast();
-  const invalidate = usePresetInvalidator();
-  return useMutation({
-    mutationFn: (body: CreateLiveClassPresetRequest) => createLiveClassPreset(body),
-    onSuccess: () => {
-      toast.success({ title: "Preset created" });
-      invalidate();
-    },
-    onError: (error: Error) =>
-      toast.error({ title: "Couldn't create preset", message: error.message }),
-  });
-}
-
-export function useUpdateLiveClassPreset() {
-  const toast = useToast();
-  const invalidate = usePresetInvalidator();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: UpdateLiveClassPresetRequest }) =>
-      updateLiveClassPreset(id, body),
-    onSuccess: () => {
-      toast.success({ title: "Preset updated" });
-      invalidate();
-    },
-    onError: (error: Error) =>
-      toast.error({ title: "Couldn't update preset", message: error.message }),
-  });
-}
-
-export function useDeleteLiveClassPreset() {
-  const toast = useToast();
-  const invalidate = usePresetInvalidator();
-  return useMutation({
-    mutationFn: (id: string) => deleteLiveClassPreset(id),
-    onSuccess: () => {
-      toast.success({ title: "Preset deleted" });
-      invalidate();
-    },
-    onError: (error: Error) =>
-      toast.error({ title: "Couldn't delete preset", message: error.message }),
-  });
-}
-
-export function useDuplicateLiveClassPreset() {
-  const toast = useToast();
-  const invalidate = usePresetInvalidator();
-  return useMutation({
-    mutationFn: (id: string) => duplicateLiveClassPreset(id),
-    onSuccess: () => {
-      toast.success({ title: "Preset duplicated" });
-      invalidate();
-    },
-    onError: (error: Error) =>
-      toast.error({ title: "Couldn't duplicate preset", message: error.message }),
-  });
-}
-
+// undo: intentionally excluded — no single reverse target: an unknown other
+// preset (or none) held the default before, so there is nothing specific to
+// revert back to (see docs/UNDO_ARCHITECTURE.md §4).
 export function useSetDefaultLiveClassPreset() {
   const toast = useToast();
   const invalidate = usePresetInvalidator();

@@ -1,7 +1,24 @@
-import { test, expect, type APIRequestContext, type BrowserContext } from "@playwright/test";
+import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 import fs from "fs";
 import path from "path";
 import { API_URL, apiCallOk, loginContext, sendLiveKitWebhook } from "./fixtures";
+
+/**
+ * Locate a row by text in a client-paginated DataTable, walking pages with the
+ * "Next" button. The shared dev DB carries hundreds of leftover E2E classes, so
+ * a freshly-created one is rarely on page 1 of a date-sorted history list.
+ */
+async function findInDataTable(page: Page, text: string, maxPages = 15) {
+  for (let i = 0; i < maxPages; i += 1) {
+    const cell = page.getByText(text).first();
+    if (await cell.isVisible().catch(() => false)) return cell;
+    const next = page.getByRole("button", { name: /^next$/i });
+    if (!(await next.isEnabled().catch(() => false))) break;
+    await next.click();
+    await page.waitForTimeout(150);
+  }
+  return page.getByText(text).first();
+}
 
 /**
  * Host-side path of the directory the API container exposes as
@@ -231,7 +248,8 @@ test.describe("Full Recording Lifecycle & Video Player Flow", () => {
     // ── 9. Coach history renders the class and a download control ───────────
     const coachPage = await coachCtx.newPage();
     await coachPage.goto("/coach/history");
-    await expect(coachPage.getByText(uniqueTopic).first()).toBeVisible({
+    await coachPage.waitForLoadState("networkidle");
+    await expect(await findInDataTable(coachPage, uniqueTopic)).toBeVisible({
       timeout: 15_000,
     });
     await expect(
@@ -321,11 +339,14 @@ test.describe("Full Recording Lifecycle & Video Player Flow", () => {
     ).toBeVisible({ timeout: 15_000 });
 
     // Disk usage panel is driven by the same directory the recording landed in.
-    await expect(adminPage.getByText(/disk usage/i)).toBeVisible();
+    // ("disk usage" also appears in two panel descriptions, so match the label.)
+    await expect(
+      adminPage.getByText("Disk usage", { exact: true }).first()
+    ).toBeVisible();
     await expect(adminPage.getByText(/of\s+\d/i).first()).toBeVisible();
 
     // The recording log lists the class this run recorded.
-    await expect(adminPage.getByText(uniqueTopic).first()).toBeVisible({
+    await expect(await findInDataTable(adminPage, uniqueTopic)).toBeVisible({
       timeout: 15_000,
     });
     await adminPage.close();

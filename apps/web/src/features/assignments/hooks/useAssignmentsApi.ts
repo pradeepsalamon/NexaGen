@@ -4,7 +4,6 @@ import type {
   DeployAssignmentRequest,
   SaveAttemptProgressRequest,
   SubmitAttemptRequest,
-  UpdateAssignmentRequest,
   UpdateAssignmentStatusRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -12,7 +11,6 @@ import { STUDENT_KEYS } from "@/features/student-dashboard/hooks/useStudentApi";
 import { useToast } from "@/providers/ToastProvider";
 import {
   createAssignment,
-  deleteAssignment,
   deployAssignment,
   getAssignmentDeployment,
   getAssignmentDeployments,
@@ -24,8 +22,6 @@ import {
   saveAttemptProgress,
   startAttempt,
   submitAttempt,
-  undeployAssignment,
-  updateAssignment,
   updateMyAssignmentStatus
 } from "../api/assignmentApi";
 
@@ -61,36 +57,6 @@ export function useCreateAssignment() {
   });
 }
 
-export function useUpdateAssignment(id: string) {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-
-  return useMutation({
-    mutationFn: (data: UpdateAssignmentRequest) => updateAssignment(id, data),
-    onSuccess: () => {
-      toast.success({ title: "Assignment updated" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
-    },
-    onError: (error: Error) =>
-      toast.error({ title: "Failed to update assignment", message: error.message })
-  });
-}
-
-export function useDeleteAssignment() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-
-  return useMutation({
-    mutationFn: (id: string) => deleteAssignment(id),
-    onSuccess: () => {
-      toast.success({ title: "Assignment deleted" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
-    },
-    onError: (error: Error) =>
-      toast.error({ title: "Failed to delete assignment", message: error.message })
-  });
-}
-
 // ── Deployments (coach) ──
 
 export function useAssignmentDeployments() {
@@ -120,21 +86,6 @@ export function useDeployAssignment() {
     },
     onError: (error: Error) =>
       toast.error({ title: "Failed to assign", message: error.message })
-  });
-}
-
-export function useUndeployAssignment() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-
-  return useMutation({
-    mutationFn: (id: string) => undeployAssignment(id),
-    onSuccess: () => {
-      toast.success({ title: "Assignment withdrawn" });
-      queryClient.invalidateQueries({ queryKey: queryKeys.assignments.all });
-    },
-    onError: (error: Error) =>
-      toast.error({ title: "Failed to withdraw assignment", message: error.message })
   });
 }
 

@@ -14,6 +14,8 @@ export function useNotifications(enabled = true) {
   });
 }
 
+// undo: intentionally excluded — no reverse endpoint, and marking read carries
+// no real risk of an unwanted "oops" (see docs/UNDO_ARCHITECTURE.md §4).
 export function useMarkNotificationsRead() {
   const queryClient = useQueryClient();
   return useMutation({

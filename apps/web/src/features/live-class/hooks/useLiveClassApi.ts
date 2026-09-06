@@ -3,6 +3,8 @@ import { startLiveClass } from "../api/live-class";
 import { useToast } from "@/providers/ToastProvider";
 import { queryKeys } from "@/lib/queryKeys";
 
+// undo: intentionally excluded — opens the LiveKit room and admits
+// participants, an external one-way side effect (see docs/UNDO_ARCHITECTURE.md §4).
 export function useStartLiveClass(roomId: string) {
   const toast = useToast();
   const queryClient = useQueryClient();

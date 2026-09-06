@@ -5,9 +5,11 @@ import {
   DEFAULT_LIVE_CLASS_SETTINGS,
   liveClassSettingsSchema,
   resolveLiveClassSettings,
+  type CreateLiveClassPresetRequest,
   type LiveClassPreset,
   type LiveClassPresetScope,
   type LiveClassSettings,
+  type UpdateLiveClassPresetRequest,
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -22,7 +24,19 @@ import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { LiveClassSettingsForm } from "./LiveClassSettingsForm";
-import { useCreateLiveClassPreset, useUpdateLiveClassPreset } from "./hooks";
+import { createLiveClassPreset, deleteLiveClassPreset, updateLiveClassPreset } from "./api";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
+
+function toUpdatePayload(preset: LiveClassPreset): UpdateLiveClassPresetRequest {
+  return {
+    name: preset.name,
+    description: preset.description ?? undefined,
+    scope: preset.scope,
+    settings: preset.settings,
+    isDefault: preset.isDefault
+  };
+}
 
 interface PresetFormModalProps {
   open: boolean;
@@ -41,8 +55,30 @@ export function PresetFormModal({
 }: PresetFormModalProps) {
   const effectiveScope: LiveClassPresetScope = preset ? preset.scope : scope;
   const isOrg = effectiveScope === "ORG";
-  const create = useCreateLiveClassPreset();
-  const update = useUpdateLiveClassPreset();
+
+  const { run: runCreate, isPending: isCreating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (body: CreateLiveClassPresetRequest) => {
+      const result = await createLiveClassPreset(body);
+      onOpenChange(false);
+      return result;
+    },
+    undo: (_vars, result) => deleteLiveClassPreset(result.id),
+    toast: (vars) => ({ title: `"${vars.name}" created` }),
+    invalidates: [queryKeys.liveClassPresets.all]
+  });
+
+  const { run: runUpdate, isPending: isUpdating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (vars: { id: string; body: UpdateLiveClassPresetRequest; previous: LiveClassPreset }) => {
+      const result = await updateLiveClassPreset(vars.id, vars.body);
+      onOpenChange(false);
+      return result;
+    },
+    undo: (vars) => updateLiveClassPreset(vars.id, toUpdatePayload(vars.previous)),
+    toast: () => ({ title: "Preset updated" }),
+    invalidates: [queryKeys.liveClassPresets.all]
+  });
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -63,7 +99,7 @@ export function PresetFormModal({
     }
   }, [open, preset]);
 
-  const isPending = create.isPending || update.isPending;
+  const isPending = isCreating || isUpdating;
 
   const submit = () => {
     const trimmed = name.trim();
@@ -77,9 +113,8 @@ export function PresetFormModal({
       scope: effectiveScope,
       settings,
     };
-    const onSuccess = () => onOpenChange(false);
-    if (preset) update.mutate({ id: preset.id, body }, { onSuccess });
-    else create.mutate(body, { onSuccess });
+    if (preset) runUpdate({ id: preset.id, body, previous: preset });
+    else runCreate(body);
   };
 
   return (
