@@ -54,6 +54,16 @@ export const queryKeys = {
     mineItem: (id: string) => ["assignments", "mine", id] as const,
     mineAttempts: (id: string) => ["assignments", "mine", id, "attempts"] as const,
   },
+  puzzles: {
+    all: ["puzzles"] as const,
+    list: (params?: Record<string, unknown>) => ["puzzles", "list", params ?? null] as const,
+    detail: (id: string) => ["puzzles", "detail", id] as const,
+    stats: ["puzzles", "stats"] as const,
+    topics: ["puzzles", "topics"] as const,
+    mine: (params?: Record<string, unknown>) => ["puzzles", "mine", params ?? null] as const,
+    mineDetail: (id: string) => ["puzzles", "mine", id] as const,
+    attempts: (id: string) => ["puzzles", "attempts", id] as const,
+  },
   notifications: {
     all: ["notifications"] as const,
   },

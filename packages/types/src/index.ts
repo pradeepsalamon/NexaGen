@@ -414,7 +414,9 @@ export type TrashEntity =
   | "CoachProfile"
   | "Batch"
   | "BatchCoach"
-  | "BatchStudent";
+  | "BatchStudent"
+  | "Puzzle"
+  | "PuzzleTopic";
 
 export type TrashDeletedBy = {
   email: string;
@@ -1977,3 +1979,8 @@ export type ScheduleCalendarResponse = {
 // Admin Analytics contract (large — kept in its own module)
 // ──────────────────────────────────────────────
 export * from "./analytics";
+
+// ──────────────────────────────────────────────
+// Puzzle library contract (kept in its own module)
+// ──────────────────────────────────────────────
+export * from "./puzzle";

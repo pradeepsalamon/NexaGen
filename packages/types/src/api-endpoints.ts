@@ -136,6 +136,35 @@ export const API_ROUTES = {
     hint: (id: string = ":id", attemptId: string = ":attemptId") =>
       `/assignments/mine/${id}/attempts/${attemptId}/hint`
   },
+  puzzles: {
+    // ── Topics (admin authors; staff + coach read) ──
+    topics: "/puzzles/topics",
+    topic: (id: string = ":id") => `/puzzles/topics/${id}`,
+    archiveTopic: (id: string = ":id") => `/puzzles/topics/${id}/archive`,
+    reassignTopic: (id: string = ":id") => `/puzzles/topics/${id}/reassign`,
+    // ── Library (admin: all; coach: GLOBAL + own) ──
+    list: "/puzzles",
+    create: "/puzzles",
+    stats: "/puzzles/stats",
+    validate: "/puzzles/validate",
+    bulk: "/puzzles/bulk",
+    get: (id: string = ":id") => `/puzzles/${id}`,
+    update: (id: string = ":id") => `/puzzles/${id}`,
+    delete: (id: string = ":id") => `/puzzles/${id}`,
+    publish: (id: string = ":id") => `/puzzles/${id}/publish`,
+    archive: (id: string = ":id") => `/puzzles/${id}/archive`,
+    duplicate: (id: string = ":id") => `/puzzles/${id}/duplicate`,
+    // ── Student practice ──
+    mine: "/puzzles/mine",
+    mineGet: (id: string = ":id") => `/puzzles/mine/${id}`,
+    attempts: (id: string = ":id") => `/puzzles/${id}/attempts`,
+    attempt: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/puzzles/${id}/attempts/${attemptId}`,
+    submitAttempt: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/puzzles/${id}/attempts/${attemptId}/submit`,
+    hint: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/puzzles/${id}/attempts/${attemptId}/hint`
+  },
   attendance: {
     student: "/attendance/student",
     studentById: (id: string = ":id") => `/attendance/student/${id}`,

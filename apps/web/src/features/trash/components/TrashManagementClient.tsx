@@ -49,7 +49,9 @@ const entityOptions = [
   { label: "Coach profiles", value: "CoachProfile" },
   { label: "Batches", value: "Batch" },
   { label: "Batch coaches", value: "BatchCoach" },
-  { label: "Batch students", value: "BatchStudent" }
+  { label: "Batch students", value: "BatchStudent" },
+  { label: "Puzzles", value: "Puzzle" },
+  { label: "Puzzle topics", value: "PuzzleTopic" }
 ];
 
 export function TrashManagementClient() {
