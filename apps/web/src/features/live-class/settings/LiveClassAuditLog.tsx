@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { formatFullDate } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { SETTINGS_FIELDS, getAtPath, optionLabel } from "./fields";
 import { useLiveClassSettingsAudit } from "./hooks";
 
@@ -19,7 +21,7 @@ const SCOPE_LABEL: Record<string, string> = {
   CLASS: "Class",
 };
 
-function relativeTime(iso: string) {
+function relativeTime(iso: string, timeZone: string) {
   const diffMs = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diffMs / 60000);
   if (mins < 1) return "just now";
@@ -28,7 +30,7 @@ function relativeTime(iso: string) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.round(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+  return formatFullDate(iso, timeZone);
 }
 
 /** Field-level diff between two override blobs, rendered with human labels. */
@@ -51,6 +53,7 @@ function changedFields(
 }
 
 function AuditRow({ entry }: { entry: LiveClassSettingsAuditEntry }) {
+  const tz = useUserTimeZone();
   const changes = changedFields(entry.before, entry.after);
   return (
     <li className="flex flex-col gap-2 border-b border-app-border py-3 last:border-0">
@@ -62,7 +65,7 @@ function AuditRow({ entry }: { entry: LiveClassSettingsAuditEntry }) {
           {entry.entityName ?? "Platform defaults"}
         </span>
         <span className="text-app-muted">
-          · {entry.actorName ?? "Unknown"} · {relativeTime(entry.createdAt)}
+          · {entry.actorName ?? "Unknown"} · {relativeTime(entry.createdAt, tz)}
         </span>
       </div>
       {changes.length > 0 ? (

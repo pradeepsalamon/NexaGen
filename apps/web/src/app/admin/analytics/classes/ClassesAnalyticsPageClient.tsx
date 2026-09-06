@@ -8,8 +8,10 @@ import { AnalyticsFilters } from "@/features/analytics/components/AnalyticsFilte
 import { AnalyticsPageShell } from "@/features/analytics/components/AnalyticsPageShell";
 import { ClassAnalyticsSection } from "@/features/analytics/components/sections/ClassAnalyticsSection";
 import { formatDateTime, formatPercent } from "@/features/analytics/lib/format";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 export function ClassesAnalyticsPageClient() {
+  const tz = useUserTimeZone();
   return (
     <AnalyticsPageShell
       description="Demo vs batch, lifecycle status, and the full class log."
@@ -24,7 +26,7 @@ export function ClassesAnalyticsPageClient() {
             <h2 className="mb-2 text-base font-extrabold text-app-text">Class log</h2>
             <AnalyticsDrillTable<AnalyticsClassRow>
               columns={[
-                { key: "date", header: "When", sortable: true, align: "right", render: (r) => formatDateTime(r.date) },
+                { key: "date", header: "When", sortable: true, align: "right", render: (r) => formatDateTime(r.date, tz) },
                 {
                   key: "topic",
                   header: "Class",

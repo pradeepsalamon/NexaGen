@@ -12,12 +12,15 @@ import type { PrismaService } from "../prisma/prisma.service";
 
 const CONFLICTING_STATUSES = ["SCHEDULED", "LIVE"] as const;
 
-function formatRange(d: Date) {
+/** `timeZone` is the acting user's `User.timezone` so the conflict message
+ *  reads in their local time; `"UTC"` is the safe fallback. */
+function formatRange(d: Date, timeZone: string) {
   return d.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    timeZone
   });
 }
 
@@ -25,6 +28,7 @@ function formatRange(d: Date) {
  * Throws `ConflictException` if the coach already has a SCHEDULED/LIVE class
  * whose time range overlaps `[startsAt, endsAt)`. Pass `excludeClassId` when
  * checking an update, so the class being edited doesn't conflict with itself.
+ * `timeZone` (the acting user's) localizes the conflict message.
  */
 export async function assertNoSchedulingConflict(
   prisma: PrismaService,
@@ -33,9 +37,10 @@ export async function assertNoSchedulingConflict(
     startsAt: Date;
     endsAt: Date;
     excludeClassId?: string;
+    timeZone?: string;
   }
 ): Promise<void> {
-  const { coachId, startsAt, endsAt, excludeClassId } = params;
+  const { coachId, startsAt, endsAt, excludeClassId, timeZone = "UTC" } = params;
 
   const conflicting = await prisma.coachClass.findFirst({
     where: {
@@ -51,7 +56,7 @@ export async function assertNoSchedulingConflict(
 
   if (conflicting) {
     throw new ConflictException(
-      `Coach already has a class "${conflicting.topic || "Untitled"}" scheduled from ${formatRange(conflicting.startsAt)} to ${formatRange(conflicting.endsAt)}. Please choose a different time.`
+      `Coach already has a class "${conflicting.topic || "Untitled"}" scheduled from ${formatRange(conflicting.startsAt, timeZone)} to ${formatRange(conflicting.endsAt, timeZone)}. Please choose a different time.`
     );
   }
 }

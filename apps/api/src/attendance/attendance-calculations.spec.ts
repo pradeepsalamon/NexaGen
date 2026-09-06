@@ -9,22 +9,20 @@ function calculateTotalDuration(
     sessionStart: Date | null;
     sessionEnd: Date | null;
     sessionDuration: number | null;
-  }>
+  }>,
+  openSessionEnd: Date = new Date()
 ): number {
-  const now = new Date();
+  const cap = openSessionEnd.getTime();
   let total = 0;
   for (const log of logs) {
-    if (
-      log.eventType === 'JOIN' ||
-      log.eventType === 'RECONNECT'
-    ) {
-      if (log.sessionDuration) {
-        total += log.sessionDuration;
-      } else if (log.sessionStart && !log.sessionEnd) {
-        total += Math.floor(
-          (now.getTime() - log.sessionStart.getTime()) / 1000
-        );
-      }
+    const isSession = log.eventType === 'JOIN' || log.eventType === 'RECONNECT';
+    if (!isSession) continue;
+
+    if (log.sessionStart) {
+      const end = Math.min(log.sessionEnd?.getTime() ?? cap, cap);
+      total += Math.max(0, Math.floor((end - log.sessionStart.getTime()) / 1000));
+    } else if (log.sessionDuration) {
+      total += log.sessionDuration;
     }
   }
   return total;
@@ -142,6 +140,52 @@ describe('Attendance Calculations', () => {
       // Should be approximately 300 seconds (5 minutes), allow 5s tolerance
       expect(result).toBeGreaterThanOrEqual(295);
       expect(result).toBeLessThanOrEqual(310);
+    });
+
+    it('clamps an open session to the class end, not the wall clock', () => {
+      const logs = [
+        {
+          eventType: 'JOIN',
+          sessionStart: new Date('2026-01-01T10:00:00Z'),
+          sessionEnd: null,
+          sessionDuration: null,
+        },
+      ];
+      // Class ended at 10:20; "now" is hours later. Duration is the 20 minutes
+      // inside the class, never the time since.
+      expect(
+        calculateTotalDuration(logs, new Date('2026-01-01T10:20:00Z')),
+      ).toBe(1200);
+    });
+
+    it('clamps a closed session whose sessionEnd runs past the class end', () => {
+      // A stale DISCONNECT webhook (or a timezone-corrupted write) left a
+      // 20-minute class scored with a 5h50m session. Finalize must clamp it.
+      const logs = [
+        {
+          eventType: 'JOIN',
+          sessionStart: new Date('2026-01-01T10:00:00Z'),
+          sessionEnd: new Date('2026-01-01T15:50:00Z'),
+          sessionDuration: 21000,
+        },
+      ];
+      expect(
+        calculateTotalDuration(logs, new Date('2026-01-01T10:20:00Z')),
+      ).toBe(1200);
+    });
+
+    it('recomputes from timestamps rather than trusting an inflated sessionDuration', () => {
+      const logs = [
+        {
+          eventType: 'JOIN',
+          sessionStart: new Date('2026-01-01T10:00:00Z'),
+          sessionEnd: new Date('2026-01-01T10:10:00Z'),
+          sessionDuration: 999999,
+        },
+      ];
+      expect(
+        calculateTotalDuration(logs, new Date('2026-01-01T10:30:00Z')),
+      ).toBe(600);
     });
   });
 

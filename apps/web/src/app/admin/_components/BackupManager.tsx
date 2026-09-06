@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { HardDriveDownload, Loader2, Download, ShieldAlert, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
+import { formatDateTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { Button } from "@/components/ui/Button";
 import {
   Table,
@@ -35,6 +37,7 @@ export interface BackupItem {
 }
 
 export function BackupManager() {
+  const tz = useUserTimeZone();
   const [backups, setBackups] = useState<BackupItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -148,7 +151,7 @@ export function BackupManager() {
                 ✓ Verified
               </Badge>
               <span className="text-sm font-medium text-app-text">
-                {new Date(latestBackup.date).toLocaleString()}
+                {formatDateTime(latestBackup.date, tz)}
               </span>
               <span className="text-sm text-app-muted border-l border-app-border pl-3">
                 {formatSize(latestBackup.size)} ({latestBackup.type})
@@ -200,7 +203,7 @@ export function BackupManager() {
                   </TableCell>
                   <TableCell className="text-app-muted">{formatSize(backup.size)}</TableCell>
                   <TableCell className="text-app-muted">
-                    {new Date(backup.date).toLocaleString()}
+                    {formatDateTime(backup.date, tz)}
                   </TableCell>
                   <TableCell className="text-right pr-5">
                     <div className="flex justify-end gap-2">
@@ -245,7 +248,7 @@ export function BackupManager() {
                 {restoreItem && (
                   <div className="rounded-control bg-app-soft p-3 text-sm">
                     <strong>Target Backup:</strong> {restoreItem.filename} <br />
-                    <strong>Date:</strong> {new Date(restoreItem.date).toLocaleString()}
+                    <strong>Date:</strong> {formatDateTime(restoreItem.date, tz)}
                   </div>
                 )}
                 <p className="font-medium text-app-text">

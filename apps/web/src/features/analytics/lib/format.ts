@@ -33,26 +33,42 @@ export function formatBytes(bytes: number | null | undefined): string {
   return `${v.toFixed(v < 10 && i > 0 ? 1 : 0)} ${units[i]}`;
 }
 
-export function formatDate(iso: string | null | undefined): string {
+/**
+ * Pass the requesting admin's timezone (`useUserTimeZone()`) — the analytics
+ * API already buckets every series in it, so the labels must match. Omitting it
+ * falls back to the browser zone.
+ */
+export function formatDate(
+  iso: string | null | undefined,
+  timeZone?: string
+): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString(undefined, {
+  return new Date(iso).toLocaleDateString("en-US", {
     day: "numeric",
     month: "short",
-    year: "numeric"
+    year: "numeric",
+    ...(timeZone ? { timeZone } : {})
   });
 }
 
-export function formatDateTime(iso: string | null | undefined): string {
+export function formatDateTime(
+  iso: string | null | undefined,
+  timeZone?: string
+): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleString(undefined, {
+  return new Date(iso).toLocaleString("en-US", {
     day: "numeric",
     month: "short",
     hour: "2-digit",
-    minute: "2-digit"
+    minute: "2-digit",
+    ...(timeZone ? { timeZone } : {})
   });
 }
 
-export function relativeTime(iso: string | null | undefined): string {
+export function relativeTime(
+  iso: string | null | undefined,
+  timeZone?: string
+): string {
   if (!iso) return "Never";
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diff / 60000);
@@ -62,7 +78,7 @@ export function relativeTime(iso: string | null | undefined): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.round(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return formatDate(iso);
+  return formatDate(iso, timeZone);
 }
 
 export function formatDuration(seconds: number | null | undefined): string {

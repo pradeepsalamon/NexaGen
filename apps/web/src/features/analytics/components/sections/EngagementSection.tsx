@@ -9,10 +9,13 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useEngagementAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, relativeTime } from "../../lib/format";
+import { formatDayMonth } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 
 export function EngagementSection({ query }: { query: AnalyticsRangeQuery }) {
   const { data, isLoading, isError, refetch } = useEngagementAnalyticsQuery(query);
+  const tz = useUserTimeZone();
 
   return (
     <SectionCard
@@ -52,7 +55,7 @@ export function EngagementSection({ query }: { query: AnalyticsRangeQuery }) {
                 <AreaChartCard
                   data={data?.trend.points ?? []}
                   series={[{ key: "value", label: "Active users" }]}
-                  xFormat={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  xFormat={(d) => formatDayMonth(d, tz)}
                   xKey="date"
                 />
               </ChartContainer>
@@ -82,7 +85,7 @@ export function EngagementSection({ query }: { query: AnalyticsRangeQuery }) {
                     <span className="text-xs text-app-muted">({u.role.toLowerCase()})</span>
                   </span>
                   <span className="shrink-0 text-app-muted">
-                    {relativeTime(u.lastActiveAt)}
+                    {relativeTime(u.lastActiveAt, tz)}
                   </span>
                 </li>
               ))}

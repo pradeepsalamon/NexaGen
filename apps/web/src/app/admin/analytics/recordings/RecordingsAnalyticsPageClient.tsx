@@ -13,6 +13,7 @@ import {
   formatDateTime,
   formatDuration
 } from "@/features/analytics/lib/format";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 /** Recording lifecycle states, mapped to the badge that reads best for each. */
 const STATUS_VARIANTS: Record<string, "success" | "destructive" | "secondary"> = {
@@ -24,6 +25,7 @@ const STATUS_VARIANTS: Record<string, "success" | "destructive" | "secondary"> =
 };
 
 export function RecordingsAnalyticsPageClient() {
+  const tz = useUserTimeZone();
   return (
     <AnalyticsPageShell
       description="Recording volume, disk usage and the capacity forecast, plus the full recording log."
@@ -48,7 +50,7 @@ export function RecordingsAnalyticsPageClient() {
                   header: "Recorded",
                   sortable: true,
                   align: "right",
-                  render: (r) => formatDateTime(r.createdAt)
+                  render: (r) => formatDateTime(r.createdAt, tz)
                 },
                 {
                   key: "topic",

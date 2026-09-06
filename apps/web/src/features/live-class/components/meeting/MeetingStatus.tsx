@@ -26,9 +26,8 @@ interface ConnectionSummary {
   state: ConnState;
   /** Pill text. Reads "Live" whenever we are actually in the room. */
   label: string;
-  /** Human name for the current network strength, used in the tooltip. */
+  /** Human name for the current network strength, shown in the tooltip. */
   quality: string;
-  tip: string;
   /** Dot + text + chrome colours, so the pill itself carries the signal. */
   dot: string;
   text: string;
@@ -51,7 +50,6 @@ function useConnectionSummary(): ConnectionSummary {
       state: "reconnecting",
       label: "Reconnecting",
       quality: "Reconnecting",
-      tip: "Trying to restore your connection…",
       dot: "bg-amber-500",
       text: "text-amber-600 dark:text-amber-400",
       ring: "border-amber-500/40 bg-amber-500/10",
@@ -63,7 +61,6 @@ function useConnectionSummary(): ConnectionSummary {
       state: "offline",
       label: "Offline",
       quality: "Offline",
-      tip: "You are disconnected from the class.",
       dot: "bg-app-danger",
       text: "text-app-danger",
       ring: "border-app-danger/40 bg-app-danger/10",
@@ -75,7 +72,6 @@ function useConnectionSummary(): ConnectionSummary {
       state: "weak",
       label: "Live",
       quality: "Weak network",
-      tip: "Weak network — video may blur or freeze. Try turning your camera off.",
       dot: "bg-app-danger",
       text: "text-app-danger",
       ring: "border-app-danger/40 bg-app-danger/10",
@@ -87,7 +83,6 @@ function useConnectionSummary(): ConnectionSummary {
       state: "good",
       label: "Live",
       quality: "Good network",
-      tip: "Good network — the class is running normally.",
       dot: "bg-amber-500",
       text: "text-amber-600 dark:text-amber-400",
       ring: "border-amber-500/40 bg-amber-500/10",
@@ -99,7 +94,6 @@ function useConnectionSummary(): ConnectionSummary {
       state: "good",
       label: "Live",
       quality: "Measuring…",
-      tip: "Measuring your network quality…",
       dot: "bg-app-muted",
       text: "text-app-muted",
       ring: "border-app-border bg-app-surface",
@@ -110,7 +104,6 @@ function useConnectionSummary(): ConnectionSummary {
     state: "excellent",
     label: "Live",
     quality: "Excellent network",
-    tip: "Excellent network — audio and video are at full quality.",
     dot: "bg-emerald-500",
     text: "text-emerald-600 dark:text-emerald-400",
     ring: "border-emerald-500/40 bg-emerald-500/10",
@@ -125,10 +118,10 @@ function useConnectionSummary(): ConnectionSummary {
  * spelled out in the tooltip. Full label on `sm+`, dot only below.
  */
 export function ConnectionPill({ className }: { className?: string }) {
-  const { dot, label, pulse, quality, ring, text, tip } = useConnectionSummary();
+  const { dot, label, pulse, quality, ring, text } = useConnectionSummary();
 
   return (
-    <SimpleTooltip label={`${quality} — ${tip}`} side="bottom">
+    <SimpleTooltip label={quality} side="bottom">
       <div
         className={cn(
           "flex h-9 items-center gap-1.5 rounded-full border px-2 text-xs font-bold sm:px-2.5",
@@ -137,7 +130,7 @@ export function ConnectionPill({ className }: { className?: string }) {
           className,
         )}
         role="status"
-        aria-label={`${label}. ${quality}. ${tip}`}
+        aria-label={quality}
       >
         <span
           className={cn(
@@ -170,7 +163,7 @@ export function ConnectionBanner() {
           exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            "pointer-events-none fixed inset-x-0 top-14 flex justify-center px-3",
+            "pointer-events-none fixed inset-x-0 top-16 flex justify-center px-3",
             Z.banner,
           )}
           role="status"

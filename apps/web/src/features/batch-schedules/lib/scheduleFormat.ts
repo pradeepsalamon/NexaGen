@@ -62,6 +62,17 @@ export function addMonthsISO(dateISO: string, months: number): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/** Format a date-only "YYYY-MM-DD" as e.g. "Sep 6, 2026" — no timezone, no drift. */
+export function formatISODate(dateISO: string): string {
+  const [y, m, d] = dateISO.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(new Date(Date.UTC(y, m - 1, d)));
+}
+
 /** Parse a "YYYY-MM-DD" string into a local-midnight Date (undefined if blank/invalid). */
 export function isoDateToLocalDate(dateISO: string): Date | undefined {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return undefined;

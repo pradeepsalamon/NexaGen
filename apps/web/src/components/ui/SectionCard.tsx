@@ -5,6 +5,8 @@ import { ChevronDown, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+import { formatFullDate } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 interface SectionCardProps {
   title: string;
@@ -20,7 +22,7 @@ interface SectionCardProps {
   className?: string;
 }
 
-function relative(iso?: string): string | null {
+function relative(iso: string | undefined, timeZone: string): string | null {
   if (!iso) return null;
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diff / 60000);
@@ -28,7 +30,7 @@ function relative(iso?: string): string | null {
   if (mins < 60) return `${mins}m ago`;
   const hrs = Math.round(mins / 60);
   if (hrs < 24) return `${hrs}h ago`;
-  return new Date(iso).toLocaleDateString();
+  return formatFullDate(iso, timeZone);
 }
 
 export function SectionCard({
@@ -43,7 +45,8 @@ export function SectionCard({
   className
 }: SectionCardProps) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const updated = relative(updatedAt);
+  const tz = useUserTimeZone();
+  const updated = relative(updatedAt, tz);
 
   return (
     <section

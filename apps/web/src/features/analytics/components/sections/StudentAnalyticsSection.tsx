@@ -7,6 +7,7 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useStudentAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent, relativeTime } from "../../lib/format";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 export function StudentAnalyticsSection({
   query
@@ -75,6 +76,7 @@ function StudentTable({
   isLoading: boolean;
   danger?: boolean;
 }) {
+  const tz = useUserTimeZone();
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[420px] text-left text-sm">
@@ -99,7 +101,7 @@ function StudentTable({
               </td>
               <td className="py-2 text-right">{formatHours(s.learningHours)}</td>
               <td className="py-2 text-right text-app-muted">
-                {relativeTime(s.lastActiveAt)}
+                {relativeTime(s.lastActiveAt, tz)}
               </td>
             </tr>
           ))}

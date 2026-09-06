@@ -7,6 +7,7 @@ import type {
 import { CalendarDays, Check } from "lucide-react";
 import { useState } from "react";
 import type { DateRange } from "react-day-picker";
+import { formatFullDate } from "@/lib/datetime";
 import { Button } from "@/components/ui/Button";
 import { Calendar } from "@/components/ui/Calendar";
 import {
@@ -47,9 +48,9 @@ function labelFor(value: DateRangeValue): string {
     return RANGE_PRESETS.find((p) => p.value === value.preset)?.label ?? "Custom";
   }
   if (value.from && value.to) {
-    const f = new Date(value.from).toLocaleDateString();
-    const t = new Date(value.to).toLocaleDateString();
-    return `${f} – ${t}`;
+    // `from`/`to` are date-only ("YYYY-MM-DD") — render the calendar date as-is
+    // (UTC), never shifted into a viewer zone.
+    return `${formatFullDate(value.from, "UTC")} – ${formatFullDate(value.to, "UTC")}`;
   }
   return "Last 30 days";
 }

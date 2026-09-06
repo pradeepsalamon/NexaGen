@@ -12,6 +12,8 @@ import {
 import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { cn } from "@/lib/utils";
+import { formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
   useAlertsQuery,
   useOperationsQuery,
@@ -41,6 +43,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
   const today = useTodayQuery(query);
   const alerts = useAlertsQuery(query);
   const t = today.data;
+  const tz = useUserTimeZone();
 
   return (
     <>
@@ -111,10 +114,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
                     {t.schedule.map((c) => (
                       <tr key={c.classId}>
                         <td className="py-2 text-app-muted">
-                          {new Date(c.time).toLocaleTimeString(undefined, {
-                            hour: "2-digit",
-                            minute: "2-digit"
-                          })}
+                          {formatTime(c.time, tz)}
                         </td>
                         <td className="py-2">
                           <Link className="text-primary hover:underline" href={`/classes/${c.classId}`}>

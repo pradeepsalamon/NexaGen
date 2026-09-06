@@ -185,16 +185,30 @@ export function PipProvider({
   }, [mode]);
 
   // Chrome's automatic PiP for video calls: register this Media Session action
-  // and the browser fires it itself when the user switches away from a tab that
-  // is capturing camera or microphone. This is the only path that opens a mini
-  // player without a click — a bare request on `visibilitychange` has no user
-  // activation and is rejected. Safari has no equivalent, so there the user
-  // taps the toolbar control first and the window then survives the tab switch.
+  // and the browser fires it itself when the user switches away from the tab.
+  // This is the only path that opens a mini player without a click — a bare
+  // request on `visibilitychange` has no user activation and is rejected.
+  //
+  // Chrome only offers automatic PiP to a tab that is actively capturing camera
+  // or microphone — `PipMicCaptureBridge` holds a muted mic open for exactly
+  // this reason. The metadata / `playing` state here just make the session look
+  // real so the action is delivered. Safari has no equivalent, so there the
+  // user taps the toolbar control once and the window survives the tab switch.
   useEffect(() => {
     if (!mode || !autoEnabled) return;
     if (typeof navigator === "undefined" || !navigator.mediaSession) return;
+
+    const session = navigator.mediaSession;
+
     try {
-      navigator.mediaSession.setActionHandler(
+      session.metadata = new MediaMetadata({ title: "Live class", artist: "Nexa Chess" });
+      session.playbackState = "playing";
+    } catch {
+      /* MediaMetadata / playbackState unsupported — the capture path still works */
+    }
+
+    try {
+      session.setActionHandler(
         "enterpictureinpicture" as MediaSessionAction,
         () => {
           if (dismissedRef.current) return;
@@ -205,14 +219,18 @@ export function PipProvider({
       // Older Chromium without the action — the manual control still works.
       return;
     }
+
     return () => {
       try {
-        navigator.mediaSession.setActionHandler(
-          "enterpictureinpicture" as MediaSessionAction,
-          null,
-        );
+        session.setActionHandler("enterpictureinpicture" as MediaSessionAction, null);
       } catch {
         /* nothing to unregister */
+      }
+      try {
+        session.playbackState = "none";
+        session.metadata = null;
+      } catch {
+        /* nothing to reset */
       }
     };
   }, [mode, autoEnabled, open]);

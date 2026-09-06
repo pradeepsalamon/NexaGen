@@ -18,6 +18,28 @@ The `PrismaService` manually defines getters for each model (e.g., `get classAtt
 # Prisma Migration Rule
 
 **CRITICAL RULE:** Whenever you modify the Prisma schema (`schema.prisma`), you MUST explicitly run `npx prisma migrate dev --name <migration_name>` to generate the corresponding SQL migration file. Never rely solely on `db push` for schema changes, as this will result in missing tables during production deployment.
+
+# Date & Time Rule
+
+**CRITICAL RULE:** All timestamps are stored and moved as **UTC**, and localized
+**only in the browser, per viewer**.
+
+- **DB**: `DateTime` columns (Prisma default = `timestamp WITHOUT time zone`,
+  holding UTC wall-clock). Only ever read/write them through the Prisma ORM. Raw
+  SQL that puts a JS `Date` / `timestamptz` next to one of these columns shifts it
+  by the DB server's offset on any non-UTC box — bind `${d.toISOString()}::timestamp`
+  instead (see `attendance.service.ts#closeOpenAttendanceLogs`).
+- **API**: services return ISO-8601 strings via `.toISOString()`. **Never**
+  pre-format a date to words/local time on the server — Node uses the *server's*
+  zone (AUDIT H11).
+- **Web**: never `new Date(iso).toLocaleDateString/toLocaleTimeString/toLocaleString`
+  in a component (an ESLint rule blocks it). Format with `lib/datetime.ts`
+  (`formatTime`, `formatFullDate`, `formatLongDate`, `formatDateTime`,
+  `formatRelativeDay`, `formatDuration`, or `formatDate(iso, tz, opts)`), passing
+  the zone from `useUserTimeZone()`. Analytics uses `features/analytics/lib/format.ts`
+  with an optional `timeZone` arg — pass `useUserTimeZone()`. Duration helpers take
+  seconds and carry no zone. Date-only `"YYYY-MM-DD"` values format with `"UTC"`.
+
 # UI Consistency Rule
 
 **CRITICAL RULE:** For UI consistency across the Nexa application, all action buttons inside Data Tables (such as Edit, Delete, Archive, Restore, Download) MUST be styled as rounded-full icons.

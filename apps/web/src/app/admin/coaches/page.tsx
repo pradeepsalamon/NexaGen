@@ -7,10 +7,13 @@ import { getPendingCoaches, updateCoachStatus } from "@/features/admin/api/admin
 import { BackButton } from "@/components/ui/BackButton";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
+import { formatFullDate } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 export default function PendingCoachesPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
+  const tz = useUserTimeZone();
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "pending-coaches"],
@@ -89,7 +92,7 @@ export default function PendingCoachesPage() {
                     )}
                   </div>
                   <div className="mt-2 text-xs text-app-muted opacity-75">
-                    Applied on {new Date(coach.createdAt).toLocaleDateString()}
+                    Applied on {formatFullDate(coach.createdAt, tz)}
                   </div>
                 </div>
                 

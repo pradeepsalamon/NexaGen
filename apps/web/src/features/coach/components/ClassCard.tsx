@@ -10,6 +10,8 @@ import {
 } from "@/components/ui/DropdownMenu";
 import type { CoachClass } from "@nexa-chess/types";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
+import { formatFullDate, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 interface ClassCardProps {
   classItem: CoachClass;
@@ -18,14 +20,14 @@ interface ClassCardProps {
 }
 
 export function ClassCard({ classItem, onEdit, onCancel }: ClassCardProps) {
-  const start = new Date(classItem.startsAt);
-  const end = new Date(classItem.endsAt);
-  
-  const startTime = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const endTime = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const dateStr = start.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  const tz = useUserTimeZone();
 
-  const durationMs = end.getTime() - start.getTime();
+  const startTime = formatTime(classItem.startsAt, tz);
+  const endTime = formatTime(classItem.endsAt, tz);
+  const dateStr = formatFullDate(classItem.startsAt, tz);
+
+  const durationMs =
+    new Date(classItem.endsAt).getTime() - new Date(classItem.startsAt).getTime();
   const durationMins = Math.round(durationMs / 60000);
 
   return (

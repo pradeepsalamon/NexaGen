@@ -10,6 +10,8 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useAttendanceAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatPercent, relativeTime } from "../../lib/format";
+import { formatDayMonth } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { RankBarList } from "../RankBarList";
 
 export function AttendanceAnalyticsSection({
@@ -18,6 +20,7 @@ export function AttendanceAnalyticsSection({
   query: AnalyticsRangeQuery;
 }) {
   const { data, isLoading, isError, refetch } = useAttendanceAnalyticsQuery(query);
+  const tz = useUserTimeZone();
   const k = data?.kpis;
 
   return (
@@ -51,7 +54,7 @@ export function AttendanceAnalyticsSection({
                 data={data?.trend.points ?? []}
                 format={(v) => `${v}%`}
                 series={[{ key: "value", label: "Attendance %" }]}
-                xFormat={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                xFormat={(d) => formatDayMonth(d, tz)}
                 xKey="date"
               />
             </ChartContainer>
@@ -115,7 +118,7 @@ export function AttendanceAnalyticsSection({
                         {s.classesAttended}/{s.classesAttended + s.classesMissed}
                       </td>
                       <td className="py-2 text-right text-app-muted">
-                        {relativeTime(s.lastActiveAt)}
+                        {relativeTime(s.lastActiveAt, tz)}
                       </td>
                     </tr>
                   ))}
