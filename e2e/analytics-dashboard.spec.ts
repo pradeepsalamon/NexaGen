@@ -10,9 +10,14 @@ async function loginCookies(
   email: string,
   password: string
 ): Promise<string> {
-  const res = await request.post(`${API_URL}/auth/login`, {
+  // /auth/login is throttled 5/60s; a full-suite run trips it — back off on 429.
+  let res = await request.post(`${API_URL}/auth/login`, {
     data: { email, password }
   });
+  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
+    await new Promise((r) => setTimeout(r, 12_000));
+    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  }
   expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
   const setCookies = res.headers()["set-cookie"] || "";
   return setCookies
@@ -131,8 +136,9 @@ test.describe("Admin analytics dashboard UI", () => {
     // drill down from the sidebar into the coach analytics sub-page
     await page.getByRole("link", { name: "Coaches" }).first().click();
     await page.waitForURL(/\/admin\/analytics\/coaches/);
+    // "Coach Analytics" appears both in the mobile header bar and the page body.
     await expect(
-      page.getByRole("heading", { name: /Coach Analytics/i })
+      page.getByRole("main").getByRole("heading", { name: /Coach Analytics/i })
     ).toBeVisible();
   });
 

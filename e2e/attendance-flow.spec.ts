@@ -76,7 +76,7 @@ async function cleanupLeftoverE2EClasses(
     if (cls.status === "LIVE") {
       await api(request, "POST", `/live-class/${cls.id}/end`, coachCookies);
     } else {
-      await api(request, "POST", `/coach/classes/${cls.id}/cancel`, coachCookies);
+      await api(request, "PATCH", `/coach/classes/${cls.id}/cancel`, coachCookies);
     }
   }
 }
@@ -254,18 +254,27 @@ test.describe("Full Attendance Flow", () => {
     const studentId = studentMeData.user.id;
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Step 7: Get a LiveKit token for the student (triggers auto-attendance)
+    // Step 7: Student requests a LiveKit token.
     // ─────────────────────────────────────────────────────────────────────────
+    // This flow simulates every join over signed webhooks — there is no real
+    // LiveKit room — so `getToken` sees no live participants and correctly
+    // withholds the token with a structured `COACH_NOT_JOINED` (the coach is
+    // "present" only in the webhook-driven attendance tables, not on the SFU).
+    // Assert the endpoint responds sanely either way; attendance itself is
+    // driven by the webhooks below, not by this call.
     const tokenRes = await api(
       request,
       "POST",
       `/live-class/${classId}/token`,
       studentCookies
     );
-    expect(
-      tokenRes.ok(),
-      `Token failed: ${await tokenRes.text()}`
-    ).toBeTruthy();
+    if (!tokenRes.ok()) {
+      const body = await tokenRes.json().catch(() => ({}));
+      expect(
+        body?.code,
+        `Unexpected token failure: ${JSON.stringify(body)}`
+      ).toBe("COACH_NOT_JOINED");
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Step 8: Simulate student joining via webhook
@@ -361,8 +370,9 @@ test.describe("Full Attendance Flow", () => {
     await expect(coachPage.getByText(/total teaching hours/i)).toBeVisible();
     await expect(coachPage.getByText(/classes completed/i)).toBeVisible();
 
-    // Check the table has our class
-    await expect(coachPage.getByText("E2E Test Class - Pawn Structures")).toBeVisible({ timeout: 10000 });
+    // Check the table has our class (the shared dev DB carries many rows with
+    // this topic from earlier runs, so match the first).
+    await expect(coachPage.getByText(E2E_CLASS_TOPIC).first()).toBeVisible({ timeout: 10000 });
     await coachCtx.close();
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -386,19 +396,23 @@ test.describe("Full Attendance Flow", () => {
     await studentPage.goto("/student/attendance");
     await studentPage.waitForLoadState("networkidle");
 
-    await expect(studentPage.getByText(/attendance/i).first()).toBeVisible();
+    await expect(
+      studentPage.getByRole("heading", { name: /attendance & participation/i })
+    ).toBeVisible();
 
     // Check stat cards
-    await expect(studentPage.getByText(/overall attendance/i)).toBeVisible();
+    await expect(studentPage.getByText(/^overall$/i)).toBeVisible();
 
     // Check the table shows our class
-    await expect(studentPage.getByText("E2E Test Class - Pawn Structures")).toBeVisible({ timeout: 10000 });
+    await expect(studentPage.getByText(E2E_CLASS_TOPIC).first()).toBeVisible({ timeout: 10000 });
 
-    // Click the row to open the attendance detail dialog
-    const classRow = studentPage.getByText("E2E Test Class - Pawn Structures");
+    // Click the row to open the session-logs dialog
+    const classRow = studentPage.getByText(E2E_CLASS_TOPIC).first();
     await classRow.click();
-    // Dialog should appear with attendance details
-    await expect(studentPage.getByText(/event timeline|session details|attendance details/i).first()).toBeVisible({ timeout: 10000 });
+    // Dialog appears — titled "Session Logs" with a "Connection Timeline" section.
+    await expect(
+      studentPage.getByRole("dialog").getByText(/session logs|connection timeline/i).first()
+    ).toBeVisible({ timeout: 10000 });
     await studentCtx.close();
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -433,16 +447,21 @@ test.describe("Full Attendance Flow", () => {
     await expect(adminPage.getByText(/completed classes/i).first()).toBeVisible();
 
     // Our class should appear
-    await expect(adminPage.getByText("E2E Test Class - Pawn Structures")).toBeVisible({ timeout: 10000 });
+    await expect(adminPage.getByText(E2E_CLASS_TOPIC).first()).toBeVisible({ timeout: 10000 });
 
-    // Click View to go to class detail
-    const viewBtn = adminPage.getByRole("link", { name: /view/i }).first();
-    await viewBtn.click();
+    // Open the class detail via the row's "Details" button.
+    await adminPage
+      .getByRole("row", { name: new RegExp(E2E_CLASS_TOPIC) })
+      .first()
+      .getByRole("button", { name: /details/i })
+      .click();
+    await adminPage.waitForURL(/\/admin\/attendance\/completed-classes\/[^/]+$/);
     await adminPage.waitForLoadState("networkidle");
 
-    // Should see class detail info
-    await expect(adminPage.getByText(/class details/i).first()).toBeVisible();
-    await expect(adminPage.getByText("E2E Test Class - Pawn Structures")).toBeVisible();
+    // The detail page is headed by the class topic.
+    await expect(
+      adminPage.getByRole("heading", { name: E2E_CLASS_TOPIC }).first()
+    ).toBeVisible();
 
     // ─────────────────────────────────────────────────────────────────────────
     // Step 19: Verify Admin Coach Teaching Report
@@ -537,11 +556,19 @@ test.describe("Student Attendance Page", () => {
     await page.waitForLoadState("networkidle");
 
     // Title
-    await expect(page.getByText(/attendance/i).first()).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /attendance & participation/i })
+    ).toBeVisible();
 
-    // Stat cards
-    await expect(page.getByText(/overall attendance/i)).toBeVisible();
-    await expect(page.getByText(/classes attended/i)).toBeVisible();
-    await expect(page.getByText(/learning time/i).first()).toBeVisible();
+    // KPI cards (labels were shortened from the original "Overall Attendance" /
+    // "Classes Attended" / "Total Learning Time" copy).
+    await expect(page.getByText(/^overall$/i)).toBeVisible();
+    await expect(page.getByText(/^attended$/i)).toBeVisible();
+    await expect(page.getByText(/^total time$/i)).toBeVisible();
+
+    // Class history section
+    await expect(
+      page.getByRole("heading", { name: /class history/i })
+    ).toBeVisible();
   });
 });
