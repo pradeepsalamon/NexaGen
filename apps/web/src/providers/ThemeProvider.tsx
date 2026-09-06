@@ -11,6 +11,7 @@ import {
 } from "react";
 import {
   DEFAULT_THEME_COLORS,
+  hexToRgbChannels,
   type CustomThemeColors,
   type ThemeMode
 } from "../constants/theme";
@@ -80,9 +81,17 @@ function getStoredTheme(): {
 function applyTheme(mode: ThemeMode, colors: CustomThemeColors) {
   const root = document.documentElement;
   root.dataset.theme = mode;
-  root.style.setProperty("--color-primary", colors.primary);
-  root.style.setProperty("--color-secondary", colors.secondary);
-  root.style.setProperty("--color-accent", colors.accent);
+
+  (Object.keys(colors) as (keyof CustomThemeColors)[]).forEach((name) => {
+    const channels = hexToRgbChannels(colors[name]);
+
+    // --color-<name> is derived from --rgb-<name>, so only the channels are set.
+    if (channels) {
+      root.style.setProperty(`--rgb-${name}`, channels);
+    } else {
+      root.style.setProperty(`--color-${name}`, colors[name]);
+    }
+  });
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

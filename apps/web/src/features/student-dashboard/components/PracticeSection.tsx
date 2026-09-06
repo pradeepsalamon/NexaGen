@@ -1,10 +1,11 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { Target, ArrowRight } from "lucide-react";
+import { ArrowRight, Target } from "lucide-react";
 import Link from "next/link";
+import type { VariantProps } from "class-variance-authority";
+import { Badge, type badgeVariants } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { Panel, PanelEmpty, PanelHeader, PanelList, PanelRow } from "@/components/ui/Panel";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 
@@ -17,17 +18,20 @@ interface PracticeItem {
   status: string;
 }
 
-const DIFFICULTY_CLASS: Record<string, string> = {
-  beginner: "text-green-600 border-green-200 bg-green-50",
-  intermediate: "text-yellow-600 border-yellow-200 bg-yellow-50",
-  advanced: "text-red-600 border-red-200 bg-red-50"
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
+const DIFFICULTY_VARIANT: Record<string, BadgeVariant> = {
+  beginner: "success",
+  intermediate: "warning",
+  advanced: "info"
 };
 
 function titleCase(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase().replace(/_/g, " ");
 }
 
-const isCompleted = (status: string) => status.toLowerCase().replace(/[ _]/g, "") === "completed";
+const isCompleted = (status: string) =>
+  status.toLowerCase().replace(/[ _]/g, "") === "completed";
 const isPending = (status: string) => status.toLowerCase() === "pending";
 
 interface PracticeSectionProps {
@@ -38,67 +42,71 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
   const timeZone = useUserTimeZone();
 
   return (
-    <Card className="border-app-border bg-app-surface shadow-sm h-full flex flex-col">
-      <CardHeader className="pb-4 border-b border-app-border/50 flex flex-row items-center justify-between">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Target className="h-5 w-5 text-secondary" />
-          Assignments & Practice
-        </CardTitle>
-        <Link href="/student/practice">
-          <Button variant="ghost" size="sm" className="text-primary hover:bg-primary/10">
-            View All
+    <Panel className="h-full">
+      <PanelHeader
+        actions={
+          <Button asChild size="sm" variant="ghost">
+            <Link href="/student/practice">View all</Link>
           </Button>
-        </Link>
-      </CardHeader>
-      <CardContent className="p-0 flex-1 overflow-auto">
-        {practices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-            <div className="bg-app-background p-4 rounded-full mb-3 border border-app-border">
-              <Target className="h-8 w-8 text-app-muted" />
-            </div>
-            <p className="text-app-text font-medium">No pending practice assigned.</p>
-            <p className="text-sm text-app-muted mt-1">Check back later for new exercises.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-app-border/50">
-            {practices.map((practice) => (
-              <div key={practice.id} className="p-5 flex flex-col sm:flex-row justify-between gap-4 hover:bg-app-background/50 transition-colors">
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-app-text">{practice.title}</h4>
-                  <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <Badge
-                      variant="outline"
-                      className={
-                        DIFFICULTY_CLASS[practice.difficulty.toLowerCase()] ??
-                        "text-app-muted border-app-border bg-app-background"
-                      }
-                    >
-                      {titleCase(practice.difficulty)}
-                    </Badge>
-                    <span className="text-app-muted font-medium bg-app-background px-2 py-0.5 rounded border border-app-border">
-                      Due: {formatFullDate(practice.dueDate, timeZone)}
-                    </span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center">
-                  <Link href={`/student/practice/${practice.id}`} className="w-full sm:w-auto">
-                    <Button
-                      variant={isCompleted(practice.status) ? "outline" : "primary"}
-                      size="sm"
-                      className={`w-full font-bold ${!isCompleted(practice.status) ? "bg-primary text-white hover:opacity-90" : ""}`}
-                    >
-                      {isPending(practice.status) ? "Start" : isCompleted(practice.status) ? "View Result" : "Resume"}
-                      <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
-                    </Button>
-                  </Link>
+        }
+        icon={Target}
+        title="Assignments & Practice"
+        tone="secondary"
+      />
+      {practices.length === 0 ? (
+        <PanelEmpty
+          icon={Target}
+          message="New exercises from your coach will land here."
+          title="Nothing to practice"
+          tone="secondary"
+        />
+      ) : (
+        <PanelList>
+          {practices.map((practice) => (
+            <PanelRow
+              className="sm:flex-row sm:items-center"
+              key={practice.id}
+              tone="secondary"
+            >
+              <div className="min-w-0 space-y-2">
+                <h3 className="font-extrabold tracking-tight text-app-text">
+                  {practice.title}
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={DIFFICULTY_VARIANT[practice.difficulty.toLowerCase()] ?? "outline"}
+                  >
+                    {titleCase(practice.difficulty)}
+                  </Badge>
+                  <span className="text-xs font-bold text-app-muted">
+                    Due {formatFullDate(practice.dueDate, timeZone)}
+                  </span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+              <Button
+                asChild
+                className="group/cta w-full sm:w-auto"
+                size="sm"
+                variant={isCompleted(practice.status) ? "outline" : "primary"}
+              >
+                <Link href={`/student/practice/${practice.id}`}>
+                  {isPending(practice.status)
+                    ? "Start"
+                    : isCompleted(practice.status)
+                      ? "View result"
+                      : "Resume"}
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="size-3.5 transition-transform duration-200 group-hover/cta:translate-x-0.5"
+                    strokeWidth={2.5}
+                  />
+                </Link>
+              </Button>
+            </PanelRow>
+          ))}
+        </PanelList>
+      )}
+    </Panel>
   );
 }
-

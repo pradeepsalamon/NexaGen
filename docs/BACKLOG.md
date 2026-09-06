@@ -64,6 +64,7 @@ coach/board durations were always 0, `room_finished` never fired, and the
 | **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
 | **Waiting room / lobby** | Deferred sub-feature of pre-class settings. The `waitingRoom` enum exists in `LiveClassSettings` (`@nexa-chess/types`) but v1 only allows `DISABLED`; the "coach hasn't joined" polling gate in `useLiveClass.ts` / `getToken` still stands. An app-level admit flow is the eventual implementation. |
 | **Screen-share request → coach approval** | Deferred. v1 pre-class settings expose screen-share as allowed/disallowed per role only; the request/approve handshake is not built. |
+| **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
 
 ## Resolved (2026-09-03)
 
@@ -207,7 +208,12 @@ coach/board durations were always 0, `room_finished` never fired, and the
   `LiveClassProvider`). `createBoardStore` now holds `selectedStudentIds: string[]`,
   `senderMayMutateBoard` checks `.includes`, and `UPDATE_PERMISSIONS` carries
   `selectedStudentIds`. The sidebar panel lists every meeting participant (coaches
-  shown as "full control", students get a Grant/Revoke button). Separately, the
+  shown as "full control"). **Grants are now per colour**: `LiveClassProvider`
+  keeps `boardControlStudents: Record<identity, "white" | "black" | "both">`, the
+  store mirrors it as `selectedStudentSides`, `UPDATE_PERMISSIONS` carries it, and
+  both coach surfaces use the shared `BoardControlSideToggle`
+  (Off / White / Black / Both) — so two students can play each other on the
+  shared board. Separately, the
   **PDF tab was removed entirely**: `PdfPanel`, the `pdf` tab, `pdfUrl`
   store/sync fields, `SET_UI_STATE.pdfUrl`, the `uploadPdf` client helper, and the
   API `POST /upload/pdf` route + `UploadService.uploadPdf`.

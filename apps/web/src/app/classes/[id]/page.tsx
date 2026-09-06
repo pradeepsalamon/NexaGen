@@ -175,7 +175,7 @@ export default function ClassDetailsPage() {
           (cls.status === "SCHEDULED" ||
             cls.status === "IN_PROGRESS" ||
             cls.status === "LIVE") && (
-            <LiveClassSettingsSection classId={id} defaultOpen={cls.status === "SCHEDULED"} />
+            <LiveClassSettingsSection classId={id} />
           )}
 
         <div className="grid gap-6 md:grid-cols-2">

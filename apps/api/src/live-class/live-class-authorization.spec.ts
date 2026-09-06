@@ -22,24 +22,39 @@ describe("LiveClassService chat authorization", () => {
   let chatFindMany: jest.Mock;
   let chatCreate: jest.Mock;
 
+  // Who exists in the test world. `user.findUnique` answers by id so a private
+  // message's recipient resolves to a different role than its sender.
+  const DIRECTORY: Record<string, UserRole> = {
+    "coach-1": UserRole.COACH,
+    "coach-2": UserRole.COACH,
+    "student-1": UserRole.STUDENT,
+    "student-2": UserRole.STUDENT,
+    "student-3": UserRole.STUDENT,
+    "admin-1": UserRole.SUPER_ADMIN
+  };
+
   const authenticateAs = (id: string, role: UserRole) => {
     jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
-    userFindUnique.mockResolvedValue({
-      id,
-      role,
-      status: UserStatus.ACTIVE,
-      firstName: "Test",
-      lastName: "User"
+    userFindUnique.mockImplementation(({ where }: { where: { id: string } }) => {
+      const found = where.id === id ? role : DIRECTORY[where.id];
+      if (!found) return Promise.resolve(null);
+      return Promise.resolve({
+        id: where.id,
+        role: found,
+        status: UserStatus.ACTIVE,
+        firstName: "Test",
+        lastName: "User"
+      });
     });
   };
 
-  // A session owned by coach-1, for a batch containing student-1 only.
+  // A session owned by coach-1, for a batch containing student-1 and student-3.
   const session = {
     id: "session-1",
     classId: "class-1",
     coachId: "coach-1",
     roomName: "room-1",
-    batch: { students: [{ studentId: "student-1" }] }
+    batch: { students: [{ studentId: "student-1" }, { studentId: "student-3" }] }
   };
 
   beforeEach(async () => {
@@ -47,7 +62,17 @@ describe("LiveClassService chat authorization", () => {
     userFindUnique = jest.fn();
     liveSessionFindUnique = jest.fn().mockResolvedValue(session);
     chatFindMany = jest.fn().mockResolvedValue([]);
-    chatCreate = jest.fn().mockResolvedValue({ id: 1 });
+    chatCreate = jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+      Promise.resolve({
+        id: "msg-1",
+        senderName: "Test",
+        senderRole: UserRole.STUDENT,
+        recipientId: null,
+        clientMessageId: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        ...data
+      })
+    );
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -152,11 +177,255 @@ describe("LiveClassService chat authorization", () => {
           data: expect.objectContaining({
             liveSessionId: "session-1",
             message: "hello",
-            senderId: "student-1"
+            senderId: "student-1",
+            recipientId: null
           })
         })
       );
     });
+  });
+
+  describe("private messages (student <-> coach only)", () => {
+    it("lets a student message the coach", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+
+      await service.saveChatMessage(ACCESS_TOKEN, "class-1", "psst", undefined, "coach-1");
+
+      expect(chatCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ senderId: "student-1", recipientId: "coach-1" })
+        })
+      );
+    });
+
+    it("lets the coach message a student back", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+
+      await service.saveChatMessage(ACCESS_TOKEN, "class-1", "sure", undefined, "student-1");
+
+      expect(chatCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ senderId: "coach-1", recipientId: "student-1" })
+        })
+      );
+    });
+
+    it("refuses one student messaging another, even in the same batch", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+
+      await expect(
+        service.saveChatMessage(ACCESS_TOKEN, "class-1", "hey", undefined, "student-3")
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(chatCreate).not.toHaveBeenCalled();
+    });
+
+    it("refuses a recipient who is not in this class", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+
+      await expect(
+        service.saveChatMessage(ACCESS_TOKEN, "class-1", "hey", undefined, "student-2")
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(chatCreate).not.toHaveBeenCalled();
+    });
+
+    it("refuses messaging yourself", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+
+      await expect(
+        service.saveChatMessage(ACCESS_TOKEN, "class-1", "hey", undefined, "student-1")
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("only reads back the threads the caller is party to", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+
+      await service.getChatHistory(ACCESS_TOKEN, "class-1");
+
+      expect(chatFindMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            liveSessionId: "session-1",
+            OR: [
+              { recipientId: null },
+              { recipientId: "student-1" },
+              { senderId: "student-1", recipientId: { not: null } }
+            ]
+          })
+        })
+      );
+    });
+  });
+});
+
+describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
+  let service: LiveClassService;
+  let jwtService: { verifyAsync: jest.Mock };
+  let userFindUnique: jest.Mock;
+  let liveSessionFindUnique: jest.Mock;
+  let listParticipants: jest.Mock;
+  let muteParticipantTrack: jest.Mock;
+  let broadcastData: jest.Mock;
+
+  const authenticateAs = (id: string, role: UserRole) => {
+    jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
+    userFindUnique.mockResolvedValue({
+      id,
+      role,
+      status: UserStatus.ACTIVE,
+      firstName: "Ada",
+      lastName: "Coach"
+    });
+  };
+
+  beforeEach(async () => {
+    jwtService = { verifyAsync: jest.fn() };
+    userFindUnique = jest.fn();
+    liveSessionFindUnique = jest.fn().mockResolvedValue({
+      id: "session-1",
+      classId: "class-1",
+      coachId: "coach-1",
+      roomName: "room-1",
+      status: "LIVE"
+    });
+    // source 1 = CAMERA, 2 = MICROPHONE in the LiveKit TrackSource enum.
+    listParticipants = jest.fn().mockResolvedValue([
+      { identity: "coach-1", metadata: JSON.stringify({ role: "COACH" }), tracks: [] },
+      {
+        identity: "student-1_tab-a",
+        metadata: JSON.stringify({ role: "STUDENT" }),
+        tracks: [
+          { sid: "TR_mic", source: 2, muted: false },
+          { sid: "TR_cam", source: 1, muted: false }
+        ]
+      }
+    ]);
+    muteParticipantTrack = jest.fn().mockResolvedValue(undefined);
+    broadcastData = jest.fn().mockResolvedValue(undefined);
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LiveClassService,
+        {
+          provide: PrismaService,
+          useValue: {
+            liveSession: { findUnique: liveSessionFindUnique },
+            user: { findUnique: userFindUnique }
+          }
+        },
+        { provide: JwtService, useValue: jwtService },
+        { provide: LiveKitService, useValue: { listParticipants, muteParticipantTrack, broadcastData } },
+        { provide: AttendanceService, useValue: {} },
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} },
+        { provide: LiveClassSettingsService, useValue: {} },
+        {
+          provide: AnalyticsEventService,
+          useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() }
+        }
+      ]
+    }).compile();
+
+    service = module.get<LiveClassService>(LiveClassService);
+  });
+
+  it("mutes only the requested source and announces it", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+
+    const result = await service.moderateParticipant(ACCESS_TOKEN, "class-1", {
+      identity: "student-1_tab-a",
+      source: "microphone"
+    });
+
+    expect(result).toEqual({ muted: true, identity: "student-1_tab-a", source: "microphone" });
+    expect(muteParticipantTrack).toHaveBeenCalledTimes(1);
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_mic");
+    expect(broadcastData).toHaveBeenCalledWith("room-1", expect.any(Uint8Array), "moderation");
+  });
+
+  it("reports no-op rather than failing when the source is already off", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    listParticipants.mockResolvedValue([
+      {
+        identity: "student-1_tab-a",
+        metadata: JSON.stringify({ role: "STUDENT" }),
+        tracks: [{ sid: "TR_mic", source: 2, muted: true }]
+      }
+    ]);
+
+    const result = await service.moderateParticipant(ACCESS_TOKEN, "class-1", {
+      identity: "student-1_tab-a",
+      source: "microphone"
+    });
+
+    expect(result.muted).toBe(false);
+    expect(muteParticipantTrack).not.toHaveBeenCalled();
+    expect(broadcastData).not.toHaveBeenCalled();
+  });
+
+  it("rejects a student trying to mute someone", async () => {
+    authenticateAs("student-2", UserRole.STUDENT);
+
+    await expect(
+      service.moderateParticipant(ACCESS_TOKEN, "class-1", {
+        identity: "student-1_tab-a",
+        source: "microphone"
+      })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+
+    expect(muteParticipantTrack).not.toHaveBeenCalled();
+  });
+
+  it("rejects a coach who does not own the class", async () => {
+    authenticateAs("coach-2", UserRole.COACH);
+
+    await expect(
+      service.moderateParticipant(ACCESS_TOKEN, "class-1", {
+        identity: "student-1_tab-a",
+        source: "microphone"
+      })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("rejects when the class is not live", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    liveSessionFindUnique.mockResolvedValue({
+      id: "session-1",
+      classId: "class-1",
+      coachId: "coach-1",
+      roomName: "room-1",
+      status: "ENDED"
+    });
+
+    await expect(
+      service.moderateParticipant(ACCESS_TOKEN, "class-1", {
+        identity: "student-1_tab-a",
+        source: "microphone"
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("refuses to target the coach's own participant", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+
+    await expect(
+      service.moderateParticipant(ACCESS_TOKEN, "class-1", {
+        identity: "coach-1",
+        source: "microphone"
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("404s for a participant who has already left", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+
+    await expect(
+      service.moderateParticipant(ACCESS_TOKEN, "class-1", {
+        identity: "student-9_tab-z",
+        source: "microphone"
+      })
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
 

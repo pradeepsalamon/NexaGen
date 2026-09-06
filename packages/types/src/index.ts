@@ -8,6 +8,7 @@ import {
 
 export * from "./api-endpoints";
 export * from "./live-class-settings";
+export * from "./live-class-moderation";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -951,10 +952,20 @@ export type AdminAttendanceDashboard = z.infer<typeof adminAttendanceDashboardSc
 
 // -- LIVE CLASS MONITORING TYPES --
 
+// Read-time derived presence (RELIABILITY_DESIGN.md §3.2), not a persisted
+// column: ONLINE/RECONNECTING/OFFLINE split further what `isOnline` used to
+// collapse into a single boolean, using lastHeartbeatAt + AttendancePolicy
+// .gracePeriodMinutes. `.optional()` so a response from an API build that
+// predates this field (rolling deploy) still parses.
+export const participantPresenceSchema = z.enum(["ONLINE", "RECONNECTING", "OFFLINE", "LEFT"]);
+export type ParticipantPresence = z.infer<typeof participantPresenceSchema>;
+
 export const liveMonitoringStudentSchema = z.object({
   id: z.string(),
   name: z.string(),
   isOnline: z.boolean(),
+  presence: participantPresenceSchema.optional(),
+  lastHeartbeatAt: z.string().nullable().optional(),
   joinedAt: z.string().nullable(),
   lastActivity: z.string().nullable(),
   reconnectCount: z.number(),

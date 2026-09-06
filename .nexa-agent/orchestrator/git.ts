@@ -44,6 +44,12 @@ export function isDirty(): boolean {
   ]).length > 0;
 }
 
+/** Raw `git status --porcelain` lines (tracked changes only), for reporting. */
+export function statusPorcelain(): string[] {
+  const out = git(["status", "--porcelain", "--untracked-files=no"]);
+  return out ? out.split("\n") : [];
+}
+
 export function assertClean(context: string): void {
   if (isDirty()) {
     throw new GitError(
@@ -163,6 +169,22 @@ export function commitLeftovers(message: string): string | null {
   if (git(["diff", "--cached", "--name-only"]).length === 0) return null;
   git(["commit", "-m", message]);
   return headSha();
+}
+
+/**
+ * Discard leftover work `commitLeftovers` could not commit (its own pre-commit
+ * checks rejected it -- typically a budget cutoff mid-edit, see
+ * context-budget.ts). Committing broken code would poison the next dispatch's
+ * `assertClean()` forever, so this reverts back to HEAD instead.
+ *
+ * Scoped identically to `isDirty`/`commitLeftovers` -- `.nexa-agent/**` is
+ * never touched, so this can never wipe out concurrent orchestrator
+ * development sitting untracked/uncommitted in the same working tree.
+ */
+export function discardLeftovers(): void {
+  git(["reset", "--", ".", ":(exclude).nexa-agent/**"]);
+  git(["checkout", "--", ".", ":(exclude).nexa-agent/**"]);
+  git(["clean", "-fd", "--", ".", ":(exclude).nexa-agent/**"]);
 }
 
 /**

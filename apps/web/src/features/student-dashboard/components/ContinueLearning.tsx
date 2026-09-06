@@ -1,9 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { PlayCircle, Clock } from "lucide-react";
+import { Clock, GraduationCap, PlayCircle } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
+import { Panel, PanelEmpty, PanelHeader, PanelList, PanelRow } from "@/components/ui/Panel";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 
@@ -22,69 +22,71 @@ interface ContinueLearningProps {
 export function ContinueLearning({ courses = [] }: ContinueLearningProps) {
   const timeZone = useUserTimeZone();
 
-  if (courses.length === 0) {
-    return (
-      <Card className="border-app-border bg-app-surface shadow-sm h-full">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold">Continue Learning</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center text-center py-12">
-          <PlayCircle className="h-10 w-10 text-app-border mb-3" />
-          <p className="text-app-text font-medium">Your learning activity will appear here.</p>
-          <p className="text-sm text-app-muted mt-1">Enroll in a course to get started.</p>
-          <Link href="/student/courses" className="mt-4">
-            <Button variant="outline" className="font-semibold">Browse Courses</Button>
-          </Link>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
-    <Card className="border-app-border bg-app-surface shadow-sm h-full">
-      <CardHeader className="pb-4 border-b border-app-border/50">
-        <CardTitle className="text-lg font-semibold">Continue Learning</CardTitle>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="divide-y divide-app-border/50">
+    <Panel className="h-full">
+      <PanelHeader icon={GraduationCap} title="Continue Learning" tone="warm" />
+      {courses.length === 0 ? (
+        <PanelEmpty
+          action={
+            <Button asChild variant="outline">
+              <Link href="/student/courses">Browse courses</Link>
+            </Button>
+          }
+          icon={GraduationCap}
+          message="Enroll in a course and your progress will show up here."
+          title="No courses yet"
+          tone="warm"
+        />
+      ) : (
+        <PanelList>
           {courses.map((course) => (
-            <div key={course.id} className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:bg-app-background/50 transition-colors">
+            <PanelRow className="md:flex-row md:items-center" key={course.id} tone="warm">
               <div className="flex-1 space-y-3">
                 <div>
-                  <h4 className="font-semibold text-app-text">{course.title}</h4>
-                  <p className="text-sm text-app-muted flex items-center gap-2 mt-1">
-                    <span className="bg-app-background px-2 py-0.5 rounded text-xs border border-app-border font-medium">
+                  <h3 className="font-extrabold tracking-tight text-app-text">
+                    {course.title}
+                  </h3>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-app-muted">
+                    <span className="rounded-full bg-warm/25 px-2 py-0.5 text-xs font-extrabold text-warm-ink">
                       {course.module}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> {formatFullDate(course.lastOpenedAt, timeZone)}
+                    <span className="inline-flex items-center gap-1">
+                      <Clock aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+                      {formatFullDate(course.lastOpenedAt, timeZone)}
                     </span>
-                  </p>
+                  </div>
                 </div>
-                
-                {/* Progress bar */}
+
                 <div className="flex items-center gap-3">
-                  <div className="h-2 flex-1 bg-app-background border border-app-border rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full transition-all duration-500" 
-                      style={{ width: `${course.progressPercent}%` }} 
+                  <div
+                    aria-label={`${course.progressPercent}% complete`}
+                    aria-valuemax={100}
+                    aria-valuemin={0}
+                    aria-valuenow={course.progressPercent}
+                    className="h-2 flex-1 overflow-hidden rounded-full bg-app-soft"
+                    role="progressbar"
+                  >
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-warm to-primary transition-[width] duration-700 ease-out"
+                      style={{ width: `${course.progressPercent}%` }}
                     />
                   </div>
-                  <span className="text-xs font-bold text-app-text w-9">{course.progressPercent}%</span>
+                  <span className="w-10 shrink-0 text-right text-xs font-extrabold text-app-text">
+                    {course.progressPercent}%
+                  </span>
                 </div>
               </div>
-              
-              <Link href={`/student/courses/${course.id}`}>
-                <Button size="sm" className="w-full md:w-auto font-bold bg-primary text-white shadow-sm hover:opacity-90">
-                  <PlayCircle className="h-4 w-4 mr-1.5" />
+
+              <Button asChild className="w-full md:w-auto" size="sm">
+                <Link href={`/student/courses/${course.id}`}>
+                  <PlayCircle aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   Continue
-                </Button>
-              </Link>
-            </div>
+                </Link>
+              </Button>
+            </PanelRow>
           ))}
-        </div>
-      </CardContent>
-    </Card>
+        </PanelList>
+      )}
+    </Panel>
   );
 }
-

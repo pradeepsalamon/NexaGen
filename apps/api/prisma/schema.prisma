@@ -97,6 +97,19 @@ enum AttendanceEventType {
   LEAVE
   DISCONNECT
   RECONNECT
+  BOARD_JOIN
+  BOARD_LEAVE
+}
+
+// Same value set as the pre-existing TS enum in
+// apps/api/src/live-class/types/live-class.types.ts, which now re-exports
+// this. Replaces LiveSession.status's untyped String (P0 reliability Phase 1).
+enum LiveSessionStatus {
+  SCHEDULED
+  WAITING
+  LIVE
+  ENDED
+  CANCELLED
 }
 
 enum AssignmentDifficulty {
@@ -207,6 +220,7 @@ model User {
   coachAttendances       CoachAttendance[]        @relation("CoachClassAttendance")
   coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
+  directChatMessages     LiveChatMessage[]        @relation("UserLiveChatDirectMessages")
   notifications          Notification[]           @relation("UserNotifications")
   createdBatchSchedules  BatchClassSchedule[]     @relation("BatchScheduleCreatedBy")
   scheduleRules          BatchClassScheduleRule[] @relation("BatchScheduleRuleCoach")
@@ -666,6 +680,11 @@ model ClassAttendance {
   attendancePercent Float? // 0-100 calculated percentage
   reconnectCount    Int       @default(0)
   lastActivity      DateTime?
+  // Last heartbeat ping from the client (POST /live-class/:id/heartbeat),
+  // fallback presence signal when a LiveKit webhook is lost. Null until the
+  // client starts sending heartbeats; the timeout sweep only ever acts on
+  // non-null values (P0 reliability Phase 1).
+  lastHeartbeatAt   DateTime?
 
   logs AttendanceLog[]
 
@@ -728,6 +747,8 @@ model CoachAttendance {
   boardDuration  Int? // Total seconds board was active in this class
   reconnectCount Int       @default(0)
   lastActivity   DateTime?
+  // See ClassAttendance.lastHeartbeatAt.
+  lastHeartbeatAt DateTime?
 
   logs CoachAttendanceLog[]
 
@@ -748,7 +769,7 @@ model CoachAttendanceLog {
   userId String
   user   User   @relation("UserCoachAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
 
-  eventType String // JOIN, LEAVE, DISCONNECT, RECONNECT, BOARD_JOIN, BOARD_LEAVE
+  eventType AttendanceEventType
   timestamp DateTime @default(now())
 
   sessionStart    DateTime?
@@ -808,7 +829,7 @@ model LiveSession {
   roomName        String  @unique
   livekitRoomName String? @unique
 
-  status String @default("SCHEDULED") // SCHEDULED, WAITING, LIVE, ENDED, CANCELLED
+  status LiveSessionStatus @default(SCHEDULED)
 
   scheduledAt  DateTime
   startedAt    DateTime?
@@ -858,6 +879,11 @@ model LiveChatMessage {
   senderName String
   senderRole String?
 
+  /// One-to-one private message when set; null is a room-wide message. The
+  /// student <-> student case is rejected by the API, never merely hidden.
+  recipientId String?
+  recipient   User?   @relation("UserLiveChatDirectMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+
   message String @db.Text
 
   /// LiveKit's message id, so history reconciliation dedupes on identity
@@ -869,6 +895,7 @@ model LiveChatMessage {
 
   @@index([liveSessionId])
   @@index([senderId])
+  @@index([recipientId])
   @@index([createdAt])
   @@index([clientMessageId])
   @@map("live_chat_messages")

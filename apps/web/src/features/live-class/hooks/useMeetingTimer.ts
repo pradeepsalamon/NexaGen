@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useConnectionState } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
+import { useConnectionStateManager } from "../providers/ConnectionStateManager";
 
 /**
  * Tracks elapsed time and remaining time.
  * Returns a formatted string like "00:05:32" depending on the mode.
  */
 export function useMeetingTimer(startedAt?: string | null, endsAt?: string | null) {
-  const connectionState = useConnectionState();
+  const { connectionState } = useConnectionStateManager();
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const [overtimeSeconds, setOvertimeSeconds] = useState(0);

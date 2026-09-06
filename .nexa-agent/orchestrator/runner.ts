@@ -11,15 +11,17 @@
  * it up like any other. There is no separate timer process to keep alive, and
  * nothing is lost if the machine restarts -- the times live in state.json.
  */
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
+import * as git from "./git";
 import { AGENT_DIR, BASE_BRANCH, ensureDir } from "./paths";
 import { listTasks, readState, writeState } from "./state";
-import { isTerminal, runTask } from "./orchestrator";
-import { LockedError, acquireLock, currentLock, markRunnerAlive, releaseLock, runnerPid } from "./runner-lock";
+import { approveTask, isTerminal, runTask } from "./orchestrator";
+import { LockedError, acquireLock, breakLock, currentLock, markRunnerAlive, releaseLock, runnerPid } from "./runner-lock";
 import { describeWait, isDue } from "./quota";
 import { nowIso } from "./paths";
+import { notify, taskUrl } from "./notify";
 import type { TaskState } from "./types";
 
 /**
@@ -57,6 +59,133 @@ export interface QueueEntry {
   queued_at: string | null;
   retry_at?: string | null;
   waiting: string | null;
+}
+
+// ---------------------------------------------------------------------------
+// Pause switch.
+//
+// `stop` writes this file and kills the running process group; `resume` deletes
+// it and spawns a fresh runner. While it exists, nextRunnable() yields nothing
+// and ensureRunnerRunning() refuses to spawn, so an `approve` or `start` that
+// happens in the meantime queues the work without draining it. Nothing about
+// task state changes -- the in-flight task stays mid-flight and resumes cleanly
+// (dispatchStep only records a step once the agent returns, so a killed step
+// simply re-dispatches). State lives on disk, so a reboot is the same as a stop.
+// ---------------------------------------------------------------------------
+const PAUSE_FILE = path.join(AGENT_DIR, "state", "runner.paused");
+
+/**
+ * `pkill -f` patterns for `stop` to sweep once the runner and its process group
+ * are dead. Worker CLIs re-parent their subprocesses into their own
+ * session/group, so a group kill does not reach them. Kept deliberately narrow:
+ * the agent-CLI invocations, their run.sh wrappers, and the scratch dirs each
+ * writes throwaway browser-driver scripts into (which is what keeps a headless
+ * Chromium alive after the CLI is gone).
+ */
+const AGENT_PROCESS_PATTERNS = [
+  "opencode run --format json",
+  String.raw`\.nexa-agent/agents/[a-z]+/run\.sh`,
+  "/tmp/opencode/",
+  "/tmp/antigravity/",
+  "ms-playwright/chromium_headless_shell",
+];
+
+export interface PauseInfo {
+  reason: string;
+  since: string;
+}
+
+export function isPaused(): boolean {
+  return fs.existsSync(PAUSE_FILE);
+}
+
+export function pauseInfo(): PauseInfo | null {
+  try {
+    return JSON.parse(fs.readFileSync(PAUSE_FILE, "utf8")) as PauseInfo;
+  } catch {
+    return null;
+  }
+}
+
+function writePause(reason: string): void {
+  ensureDir(path.dirname(PAUSE_FILE));
+  fs.writeFileSync(PAUSE_FILE, JSON.stringify({ reason, since: nowIso() }, null, 2), "utf8");
+}
+
+function clearPause(): void {
+  fs.rmSync(PAUSE_FILE, { force: true });
+}
+
+export interface StopResult {
+  runnerPid: number | null;
+  inFlight: string | null;
+  killed: boolean;
+  dirty: string[];
+}
+
+/**
+ * Stop everything now, keep all state, be resumable.
+ *
+ * Kills the whole runner process group (the daemon plus whatever agent CLI and
+ * browser it currently has as children -- ensureRunnerRunning spawns it
+ * detached, so it is its own group leader), sets the pause switch, and clears
+ * the lock. The in-flight task is left exactly where it was.
+ */
+export function stopRunner(reason = "stopped by hand"): StopResult {
+  writePause(reason);
+  const held = currentLock();
+  const pid = runnerPid() ?? held?.pid ?? null;
+  let killed = false;
+
+  const kill = (target: number, sig: NodeJS.Signals): void => {
+    try {
+      process.kill(target, sig);
+      killed = true;
+    } catch {
+      /* already gone */
+    }
+  };
+
+  if (pid) {
+    // SIGKILL the runner itself FIRST, uncatchable, so it cannot grind through
+    // recording a bogus step for the agent we are about to kill under it -- the
+    // runner's work between dispatches is synchronous, a graceful signal would
+    // not be serviced until it finished anyway.
+    kill(pid, "SIGKILL");
+    // Then the whole process group (negative pid): the agent CLI, its browser,
+    // any grandchildren. spawn(..., {detached:true}) made the runner a group
+    // leader, so this reaches everything it started.
+    kill(-pid, "SIGKILL");
+    // Belt and braces for a runner that was NOT started detached (a foreground
+    // `agent -- runner --daemon`): reap anything still parented to it.
+    spawnSync("pkill", ["-9", "-P", String(pid)], { stdio: "ignore" });
+  }
+
+  // The worker CLIs (opencode especially) re-parent their tool subprocess into a
+  // NEW process group/session, and the tester writes throwaway .cjs scripts that
+  // drive a headless browser -- none of that is reachable from the runner's
+  // group, so it outlives the kills above. Sweep it by pattern. These are all
+  // specific to this agent system on a box dedicated to it; the e2e dev servers
+  // (:3010/:3011) are deliberately left up, warm for the next run.
+  for (const pat of AGENT_PROCESS_PATTERNS) {
+    const r = spawnSync("pkill", ["-9", "-f", pat], { stdio: "ignore" });
+    if (r.status === 0) killed = true;
+  }
+
+  breakLock();
+
+  const dirty = git
+    .statusPorcelain()
+    .filter((l) => !l.includes(".nexa-agent/"))
+    .map((l) => l.trim());
+
+  return { runnerPid: pid, inFlight: held?.task_id ?? null, killed, dirty };
+}
+
+/** Lift the pause and start draining again. */
+export function resumeRunner(): { started: boolean; pid?: number; holding?: string } {
+  clearPause();
+  return ensureRunnerRunning();
 }
 
 /** Mark a task as wanting to run. The runner picks it up when the lock frees. */
@@ -108,6 +237,7 @@ export function queue(now = new Date()): QueueEntry[] {
  * that a different agent could be getting on with.
  */
 export function nextRunnable(now = new Date()): string | null {
+  if (isPaused()) return null;
   for (const entry of queue(now)) {
     if (entry.status === "BLOCKED_RETRY" && !isDue(entry.retry_at, now)) continue;
     return entry.task_id;
@@ -122,7 +252,9 @@ export function nextRunnable(now = new Date()): string | null {
  * CLI and the HTTP API call it after enqueuing, so neither has to know whether
  * a runner happens to be alive.
  */
-export function ensureRunnerRunning(): { started: boolean; pid?: number; holding?: string } {
+export function ensureRunnerRunning(): { started: boolean; pid?: number; holding?: string; paused?: boolean } {
+  if (isPaused()) return { started: false, paused: true };
+
   const alive = runnerPid();
   if (alive) {
     const held = currentLock();
@@ -178,8 +310,107 @@ function runOne(taskId: string, log: (m: string) => void): void {
         ),
     });
     log(`${taskId} stopped at ${final.status}${final.failure_reason ? `: ${final.failure_reason}` : ""}`);
+
+    if (final.status === "PASS_AWAITING_APPROVAL" && final.next_phases?.length) {
+      autoContinue(taskId, final, log);
+    } else {
+      notifyOnHalt(final);
+    }
+  } catch (err) {
+    // One task throwing must never take the whole runner daemon down with it --
+    // every other queued task would stall behind a dead process until someone
+    // noticed. Record the failure ON THE TASK, page the human, and let the loop
+    // move on to the next task. Recovering the working tree here keeps a
+    // mid-dispatch throw (e.g. a stale lock or a dirty tree) from blocking the
+    // next task's git.assertClean().
+    const reason = err instanceof Error ? err.message : String(err);
+    log(`${taskId} threw and was quarantined: ${reason}`);
+    try {
+      recoverWorkingTree();
+    } catch (cleanupErr) {
+      log(`  working-tree recovery also failed: ${(cleanupErr as Error).message}`);
+    }
+    try {
+      const state = readState(taskId);
+      if (!isTerminal(state)) {
+        state.status = "FAILED";
+        state.failure_reason = `runner caught an unhandled error: ${reason}`;
+        writeState(state);
+        notifyOnHalt(state);
+      }
+    } catch (stateErr) {
+      log(`  could not mark ${taskId} FAILED: ${(stateErr as Error).message}`);
+    }
   } finally {
     releaseLock(taskId);
+  }
+}
+
+/**
+ * Best-effort return to a clean BASE_BRANCH checkout after a task threw
+ * mid-flight. Mirrors git.ts's own `.nexa-agent/**`-excluded scoping so the
+ * agent system's own volatile state is never touched.
+ */
+function recoverWorkingTree(): void {
+  try {
+    git.discardLeftovers();
+  } catch {
+    /* fall through to the checkout below */
+  }
+  git.checkoutBranch(BASE_BRANCH);
+}
+
+/**
+ * A task that declared more phases is a mid-epic checkpoint, not a place a
+ * human needs to stand in the way: auto-accept it -- its commits are already
+ * on dev_vps either way, see approveTask -- and immediately queue the phase it
+ * named next, so a multi-phase feature runs start to finish unattended. Only
+ * the LAST phase of a plan (next_phases empty once it finishes) still stops at
+ * PASS_AWAITING_APPROVAL for a real human look, same as any standalone task --
+ * see notifyOnHalt. Nothing here is pushed; a bad phase is still `revert`-able.
+ */
+function autoContinue(taskId: string, state: TaskState, log: (m: string) => void): void {
+  const { nextPhaseTaskId } = approveTask(taskId, "Nexa Agent (auto-continue)");
+  if (!nextPhaseTaskId) return; // defensive -- next_phases was non-empty, so approveTask always creates one
+  enqueue(nextPhaseTaskId);
+  log(`${taskId}: auto-continued to ${nextPhaseTaskId}`);
+  void notify(
+    `phase ${state.phase_number ?? 1} done, continuing — ${state.epic_id ?? taskId}`,
+    `${state.feature_summary}\n\n` +
+      `Committed on dev_vps and auto-accepted -- no action needed. More phases are queued, so this ` +
+      `continued straight to ${nextPhaseTaskId} instead of waiting on a review.\n\n` +
+      `Diff so far: git diff ${state.base_sha.slice(0, 8)}..${state.branch}\n` +
+      `Undo this phase if needed: npm run agent -- revert ${taskId} --by <name>\n` +
+      `Details: ${taskUrl(taskId)}`,
+  );
+}
+
+/**
+ * Page the human for the two states nothing downstream can resolve on its
+ * own: the FINAL approval of a plan (or any standalone task with no plan), or
+ * work that stopped bad rather than just cut short. BLOCKED_RETRY is
+ * deliberately excluded -- the runner already resumes it by itself once the
+ * quota window reopens, so emailing it would just be noise.
+ * Fire-and-forget: a notification failure must never affect the run's outcome.
+ */
+function notifyOnHalt(state: TaskState): void {
+  if (state.status === "PASS_AWAITING_APPROVAL") {
+    void notify(
+      `approval needed — ${state.task_id}`,
+      `${state.feature_summary}\n\n` +
+        `Phase ${state.phase_number ?? 1}${state.epic_id ? ` of epic ${state.epic_id}` : ""} finished and is ` +
+        `waiting on dev_vps for review.\n\n` +
+        `Review:  ${taskUrl(state.task_id)}\n` +
+        `Approve: npm run agent -- approve ${state.task_id} --by <name>\n` +
+        `Reject:  npm run agent -- reject ${state.task_id} --reason "..."`,
+    );
+  } else if (state.status === "FAILED") {
+    void notify(
+      `stuck — ${state.task_id}`,
+      `${state.feature_summary}\n\n` +
+        `Stopped at FAILED and cannot proceed on its own: ${state.failure_reason ?? "no reason recorded"}\n\n` +
+        `Details: ${taskUrl(state.task_id)}`,
+    );
   }
 }
 
@@ -195,7 +426,19 @@ export async function runQueue(opts: RunnerOptions = {}): Promise<void> {
   const pollMs = (opts.pollSeconds ?? 60) * 1000;
   if (opts.daemon) markRunnerAlive();
 
+  let announcedPause = false;
   for (;;) {
+    if (isPaused()) {
+      if (!announcedPause) {
+        log(`runner paused (${pauseInfo()?.reason ?? "no reason"}); \`npm run agent -- resume\` to drain`);
+        announcedPause = true;
+      }
+      if (!opts.daemon) return;
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+      continue;
+    }
+    announcedPause = false;
+
     const held = currentLock();
     if (held) {
       if (!opts.daemon) {

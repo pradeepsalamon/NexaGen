@@ -18,10 +18,13 @@ import { cn } from "@/lib/utils";
 export function SidebarContainer({
   children,
   collapsed,
+  footer,
   onDismiss
 }: {
   children: ReactNode;
   collapsed: boolean;
+  /** Pinned below the scrolling nav; hidden on the collapsed rail. */
+  footer?: ReactNode;
   onDismiss: () => void;
 }) {
   const asideRef = useRef<HTMLElement>(null);
@@ -50,13 +53,16 @@ export function SidebarContainer({
       <div aria-hidden className="hidden w-[4.75rem] flex-shrink-0 md:block" />
       <aside
         className={cn(
-          "fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden border-r border-app-border bg-app-surface transition-[width] duration-200 ease-out md:block",
+          "fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] flex-col overflow-x-hidden border-r border-app-border bg-app-surface transition-[width] duration-200 ease-out md:flex",
           collapsed ? "w-[4.75rem]" : "w-60 shadow-soft"
         )}
         data-collapsed={collapsed}
         ref={asideRef}
       >
-        <nav className="space-y-1 p-3">{children}</nav>
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">{children}</nav>
+        {footer && !collapsed ? (
+          <div className="shrink-0 space-y-3 border-t border-app-border p-3">{footer}</div>
+        ) : null}
       </aside>
     </>
   );
@@ -87,6 +93,67 @@ export function SidebarToggle({
   );
 }
 
+const BADGE_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
+  accent: "border-accent/50 bg-accent/20 text-accent-ink",
+  danger: "border-app-danger/25 bg-app-danger/10 text-app-danger",
+  primary: "border-app-border bg-app-soft text-primary",
+  secondary: "border-secondary/40 bg-secondary/20 text-secondary-ink",
+  warm: "border-warm/50 bg-warm/25 text-warm-ink"
+};
+
+const DOT_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
+  accent: "bg-accent",
+  danger: "bg-app-danger",
+  primary: "bg-primary",
+  secondary: "bg-secondary",
+  warm: "bg-warm"
+};
+
+/** Trailing chip/dot on a nav link. On the collapsed rail it shrinks to a dot. */
+function SidebarBadge({
+  badge,
+  collapsed
+}: {
+  badge: NonNullable<NavItem["badge"]>;
+  collapsed: boolean;
+}) {
+  if (collapsed || badge.variant === "dot" || !badge.label) {
+    return (
+      <span
+        aria-hidden="true"
+        className={cn(
+          "size-2 shrink-0 rounded-full",
+          DOT_TONE[badge.tone],
+          collapsed && "absolute right-1 top-1",
+          badge.pulse && "motion-safe:animate-pulse"
+        )}
+      />
+    );
+  }
+
+  return (
+    // Capped and truncating: a real batch name is far longer than a mock's
+    // "Batch A" and would otherwise squeeze the link's own label away.
+    <span
+      className={cn(
+        "inline-flex max-w-[6.5rem] items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold",
+        BADGE_TONE[badge.tone]
+      )}
+    >
+      {badge.pulse ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            "size-1.5 shrink-0 rounded-full motion-safe:animate-pulse",
+            DOT_TONE[badge.tone]
+          )}
+        />
+      ) : null}
+      <span className="truncate">{badge.label}</span>
+    </span>
+  );
+}
+
 export function SidebarLink({
   active,
   collapsed,
@@ -101,16 +168,21 @@ export function SidebarLink({
     <Link
       aria-label={collapsed ? item.label : undefined}
       className={cn(
-        "flex items-center rounded-control text-sm font-semibold transition",
-        collapsed ? "size-10 justify-center" : "gap-2.5 px-3 py-2",
+        "relative flex items-center rounded-control text-sm font-semibold transition",
+        collapsed ? "size-10 justify-center" : "justify-between gap-2.5 px-3 py-2",
         active
           ? "bg-secondary text-black shadow-card"
           : "text-app-muted hover:bg-app-soft hover:text-primary"
       )}
       href={item.href}
     >
-      <Icon className="size-4 shrink-0" strokeWidth={2.25} />
-      {collapsed ? null : <span className="truncate">{item.label}</span>}
+      <span
+        className={cn("flex min-w-0 items-center", collapsed ? "" : "gap-2.5")}
+      >
+        <Icon className="size-4 shrink-0" strokeWidth={2.25} />
+        {collapsed ? null : <span className="truncate">{item.label}</span>}
+      </span>
+      {item.badge ? <SidebarBadge badge={item.badge} collapsed={collapsed} /> : null}
     </Link>
   );
 

@@ -1,7 +1,9 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
 import type { LiveClassSettings } from "@nexa-chess/types";
+import type { BoardControlSide } from "@/features/chessboard/types/sync";
+import type { RaisedHand } from "../lib/handRaise";
 
 export type SidebarTab = "chat" | "participants" | "settings" | "notes" | null;
 
@@ -19,6 +21,18 @@ interface LiveClassContextValue {
   handRaised: boolean;
   setHandRaised: (raised: boolean) => void;
   toggleHandRaised: () => void;
+
+  /**
+   * Everyone currently holding a hand up, keyed by full LiveKit identity — the
+   * local participant included. Fed by `<HandRaiseBridge>` off the
+   * `hand_raise` data channel; see `lib/handRaise.ts` for why it is a data
+   * packet and not a participant attribute.
+   */
+  raisedHands: Record<string, RaisedHand>;
+  /** Record (or clear) one participant's raised hand. */
+  applyHandRaise: (hand: RaisedHand, raised: boolean) => void;
+  /** Drop hands belonging to participants who have left the room. */
+  pruneRaisedHands: (presentIdentities: string[]) => void;
 
   /** Whether the meeting is in browser fullscreen */
   isFullscreen: boolean;
@@ -39,16 +53,24 @@ interface LiveClassContextValue {
   setIsChessboardOpen: (val: boolean) => void;
   toggleChessboard: () => void;
 
-  /** Participant identities currently granted board control (empty = coach only) */
+  /**
+   * Participant identity -> the side that student may move (empty = coach
+   * only). A student can be handed white, black, or both, so two students can
+   * play each other on the shared board while the coach watches.
+   */
+  boardControlStudents: Record<string, BoardControlSide>;
+  /** Identities currently granted board control (the keys above). */
   boardControlStudentIds: string[];
-  /** Add one student to the granted set. */
-  grantBoardControl: (identity: string) => void;
+  /** Add one student to the granted set, or change the side they control. */
+  grantBoardControl: (identity: string, side?: BoardControlSide) => void;
   /** Remove one student from the granted set. */
   revokeBoardControl: (identity: string) => void;
-  /** Grant if absent, revoke if present. */
-  toggleBoardControl: (identity: string) => void;
+  /** Grant `side` if absent, revoke if already granted that same side. */
+  toggleBoardControl: (identity: string, side?: BoardControlSide) => void;
+  /** Grant `side`, or revoke when `side` is null. */
+  setBoardControlSide: (identity: string, side: BoardControlSide | null) => void;
   /** Replace the whole granted set (used when applying a remote permission sync). */
-  setBoardControlStudents: (identities: string[]) => void;
+  setBoardControlStudents: (students: Record<string, BoardControlSide>) => void;
   /** Revoke everyone — back to coach-only. */
   clearBoardControl: () => void;
 
@@ -90,9 +112,12 @@ export function LiveClassProvider({
   const [activeSidebar, setActiveSidebar] = useState<SidebarTab>(null);
   const [pinnedParticipantSid, setPinnedParticipantSid] = useState<string | null>(null);
   const [handRaised, setHandRaised] = useState(false);
+  const [raisedHands, setRaisedHands] = useState<Record<string, RaisedHand>>({});
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isChessboardOpen, setIsChessboardOpen] = useState(false);
-  const [boardControlStudentIds, setBoardControlStudentIds] = useState<string[]>([]);
+  const [boardControlStudents, setBoardControlStudentsState] = useState<
+    Record<string, BoardControlSide>
+  >({});
   const [isRecording, setIsRecording] = useState(false);
   const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
 
@@ -117,6 +142,30 @@ export function LiveClassProvider({
     setHandRaised((prev) => !prev);
   }, []);
 
+  const applyHandRaise = useCallback((hand: RaisedHand, raised: boolean) => {
+    setRaisedHands((prev) => {
+      if (!raised) {
+        if (!(hand.identity in prev)) return prev;
+        const { [hand.identity]: _removed, ...rest } = prev;
+        return rest;
+      }
+      // Keep the original `at` so re-announcements (a late joiner's query)
+      // don't reorder who asked first.
+      const existing = prev[hand.identity];
+      if (existing && existing.at === hand.at && existing.name === hand.name) return prev;
+      return { ...prev, [hand.identity]: existing ? { ...hand, at: existing.at } : hand };
+    });
+  }, []);
+
+  const pruneRaisedHands = useCallback((presentIdentities: string[]) => {
+    setRaisedHands((prev) => {
+      const present = new Set(presentIdentities);
+      const kept = Object.keys(prev).filter((id) => present.has(id));
+      if (kept.length === Object.keys(prev).length) return prev;
+      return Object.fromEntries(kept.map((id) => [id, prev[id]]));
+    });
+  }, []);
+
   const toggleFullscreen = useCallback(() => {
     if (!document.fullscreenElement) {
       document.documentElement.requestFullscreen().catch(() => {
@@ -133,32 +182,68 @@ export function LiveClassProvider({
     setIsChessboardOpen((prev) => !prev);
   }, []);
 
-  const grantBoardControl = useCallback((identity: string) => {
-    setBoardControlStudentIds((prev) =>
-      prev.includes(identity) ? prev : [...prev, identity],
-    );
-  }, []);
+  const boardControlStudentIds = useMemo(
+    () => Object.keys(boardControlStudents),
+    [boardControlStudents],
+  );
+
+  const grantBoardControl = useCallback(
+    (identity: string, side: BoardControlSide = "both") => {
+      setBoardControlStudentsState((prev) =>
+        prev[identity] === side ? prev : { ...prev, [identity]: side },
+      );
+    },
+    [],
+  );
 
   const revokeBoardControl = useCallback((identity: string) => {
-    setBoardControlStudentIds((prev) => prev.filter((id) => id !== identity));
+    setBoardControlStudentsState((prev) => {
+      if (!(identity in prev)) return prev;
+      const { [identity]: _removed, ...rest } = prev;
+      return rest;
+    });
   }, []);
 
-  const toggleBoardControl = useCallback((identity: string) => {
-    setBoardControlStudentIds((prev) =>
-      prev.includes(identity) ? prev.filter((id) => id !== identity) : [...prev, identity],
-    );
-  }, []);
+  const setBoardControlSide = useCallback(
+    (identity: string, side: BoardControlSide | null) => {
+      setBoardControlStudentsState((prev) => {
+        if (side === null) {
+          if (!(identity in prev)) return prev;
+          const { [identity]: _removed, ...rest } = prev;
+          return rest;
+        }
+        return prev[identity] === side ? prev : { ...prev, [identity]: side };
+      });
+    },
+    [],
+  );
 
-  const setBoardControlStudents = useCallback((identities: string[]) => {
-    setBoardControlStudentIds((prev) => {
+  const toggleBoardControl = useCallback(
+    (identity: string, side: BoardControlSide = "both") => {
+      setBoardControlStudentsState((prev) => {
+        if (prev[identity] === side) {
+          const { [identity]: _removed, ...rest } = prev;
+          return rest;
+        }
+        return { ...prev, [identity]: side };
+      });
+    },
+    [],
+  );
+
+  const setBoardControlStudents = useCallback((students: Record<string, BoardControlSide>) => {
+    setBoardControlStudentsState((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(students);
       const same =
-        prev.length === identities.length && prev.every((id) => identities.includes(id));
-      return same ? prev : identities;
+        prevKeys.length === nextKeys.length &&
+        nextKeys.every((id) => prev[id] === students[id]);
+      return same ? prev : students;
     });
   }, []);
 
   const clearBoardControl = useCallback(() => {
-    setBoardControlStudentIds((prev) => (prev.length === 0 ? prev : []));
+    setBoardControlStudentsState((prev) => (Object.keys(prev).length === 0 ? prev : {}));
   }, []);
 
   const toggleRecording = useCallback(() => {
@@ -176,6 +261,9 @@ export function LiveClassProvider({
         handRaised,
         setHandRaised,
         toggleHandRaised,
+        raisedHands,
+        applyHandRaise,
+        pruneRaisedHands,
         isFullscreen,
         setIsFullscreen,
         toggleFullscreen,
@@ -185,10 +273,12 @@ export function LiveClassProvider({
         isChessboardOpen,
         setIsChessboardOpen,
         toggleChessboard,
+        boardControlStudents,
         boardControlStudentIds,
         grantBoardControl,
         revokeBoardControl,
         toggleBoardControl,
+        setBoardControlSide,
         setBoardControlStudents,
         clearBoardControl,
         isRecording,

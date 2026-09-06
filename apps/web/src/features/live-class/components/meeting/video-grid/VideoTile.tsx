@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import {
   isTrackReference,
@@ -15,17 +15,17 @@ import { NetworkQualityIndicator } from "../MeetingStatus";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "../../../lib/meetingUi";
-import { getHandRaised, getRole, getTrackKey } from "./videoGrid.utils";
+import { getRole, getTrackKey } from "./videoGrid.utils";
+import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 
 interface VideoTileProps {
   trackRef: TrackReferenceOrPlaceholder;
   onPin?: (key: string) => void;
-  /** Fill the grid cell instead of locking a 16:9 box (used when the grid is
-   *  sized to fit the viewport — small participant counts / short screens). */
-  fill?: boolean;
+  /** Grid placement, e.g. indenting the first tile of a partial last row. */
+  style?: CSSProperties;
 }
 
-export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: VideoTileProps) {
+export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: VideoTileProps) {
   const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
   const isSpeaking = useIsSpeaking(participant);
@@ -36,7 +36,11 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const trackKey = useMemo(() => getTrackKey(trackRef), [trackRef]);
   const role = useMemo(() => getRole(participant), [participant]);
-  const handRaised = getHandRaised(participant);
+  // Raised hands ride a data channel, not participant attributes — see
+  // `lib/handRaise.ts`. Optional: the recorder template renders tiles outside
+  // the provider stack.
+  const liveClassState = useOptionalLiveClassState();
+  const handRaised = !!liveClassState?.raisedHands[participant.identity];
   const isLocal = participant.isLocal;
   const reducedMotion = useReducedMotion();
 
@@ -48,12 +52,12 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
       exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "group relative flex items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-[box-shadow,border-color] duration-200",
-        fill ? "aspect-video max-lg:aspect-auto max-lg:h-full max-lg:w-full max-lg:min-h-0" : "aspect-video",
+        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-[box-shadow,border-color] duration-200",
         isSpeaking
           ? "border-primary ring-2 ring-primary/60"
           : "border-app-border hover:border-app-border/80",
       )}
+      style={{ containerType: "size", ...style }}
     >
       {/* Video layer */}
       {hasVideo ? (
@@ -68,19 +72,14 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, fill }: Vide
         />
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-app-soft p-2 sm:gap-3">
+          {/* Tiles are sized in px by the grid, so the placeholder scales off
+              the tile itself (cqw) rather than off viewport breakpoints. */}
           <ParticipantAvatar
             name={name}
             size="lg"
-            className={cn(fill && "size-12 text-base sm:size-16 lg:size-24 lg:text-3xl")}
+            className="size-[clamp(2rem,18cqw,6rem)] text-[clamp(0.7rem,6cqw,1.875rem)]"
           />
-          {/* On small fill tiles the bottom-left pill already carries the name —
-              keep the placeholder from crowding it. */}
-          <div
-            className={cn(
-              "max-w-full items-center justify-center gap-1.5 text-center",
-              fill ? "hidden lg:flex" : "flex",
-            )}
-          >
+          <div className="flex max-w-full items-center justify-center gap-1.5 text-center">
             <p className="truncate text-xs font-medium text-app-text/80 sm:text-sm">{name}</p>
             {role && role.toUpperCase() === "COACH" && (
               <span className="shrink-0 text-app-muted text-xs font-normal">(Coach)</span>

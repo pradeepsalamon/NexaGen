@@ -101,13 +101,29 @@ export function pctOfWindow(u: UsageSnapshot, agent: AgentConfig): number | null
   return (contextTokens(u) / agent.context_window_tokens) * 100;
 }
 
-/** Dollar ceiling handed to the CLI, derived from the token budget. */
+/**
+ * Dollar ceiling handed to the CLI.
+ *
+ * `configured` (an agent's max_budget_usd in agents.json) is the real cost
+ * policy and now wins outright whenever it is set. It used to be clamped by
+ * `min(derived, configured)`, but for any agent with a 200k context_window_tokens
+ * (i.e. "claude"), `derived` tops out at 200,000 * 100% * USD_PER_TOKEN = $0.70
+ * -- always below MIN_BUDGET_USD -- so `derived` was always exactly the $2
+ * floor and min() silently discarded every configured value above $2. Observed
+ * live: a backend-dev step doing two migrations + a live-DB index inspection +
+ * an endpoint wired end to end was hard-killed by the CLI's own
+ * --max-budget-usd at $2 mid-implementation (86 turns, cost compounding with
+ * turn count as the growing conversation is re-sent each turn -- something one
+ * token-budget snapshot never captures), even though agents.json already said
+ * max_budget_usd: 8. `derived` is now only a fallback for an agent with no
+ * configured value at all.
+ */
 export function maxBudgetUsd(agent: AgentConfig): number {
-  const tokens = budgetTokens(agent);
-  const derived = tokens ? Math.max(tokens * USD_PER_TOKEN, MIN_BUDGET_USD) : null;
   const configured = agent.max_budget_usd ?? null;
-  if (derived && configured) return Math.min(derived, configured);
-  return derived ?? configured ?? 8;
+  if (configured) return Math.max(configured, MIN_BUDGET_USD);
+  const tokens = budgetTokens(agent);
+  const derived = tokens ? tokens * USD_PER_TOKEN : null;
+  return Math.max(derived ?? 8, MIN_BUDGET_USD);
 }
 
 export interface BudgetVerdict {

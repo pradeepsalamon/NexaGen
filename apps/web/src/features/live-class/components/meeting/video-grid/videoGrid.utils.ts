@@ -1,6 +1,31 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { isTrackReference, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
+
+/** Live content-box size of an element, so layout can follow the real container. */
+export function useElementSize<T extends HTMLElement>(ref: RefObject<T | null>) {
+  const [size, setSize] = useState({ height: 0, width: 0 });
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+
+    const observer = new ResizeObserver((entries) => {
+      const box = entries[0]?.contentRect;
+      if (!box) return;
+      setSize((previous) =>
+        previous.width === box.width && previous.height === box.height
+          ? previous
+          : { height: box.height, width: box.width }
+      );
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return size;
+}
 
 export function getTrackKey(trackRef: TrackReferenceOrPlaceholder) {
   return [
@@ -10,16 +35,78 @@ export function getTrackKey(trackRef: TrackReferenceOrPlaceholder) {
   ].join(":");
 }
 
-export function getGridClasses(count: number): string {
-  if (count === 0) return "";
-  if (count === 1) return "grid-cols-1";
-  if (count === 2) return "grid-cols-1 sm:grid-cols-2";
-  // 3 on a phone: two columns rather than a tall single-column scroll.
-  if (count === 3) return "grid-cols-2 sm:grid-cols-2 lg:grid-cols-3";
-  if (count === 4) return "grid-cols-2";
-  if (count <= 6) return "grid-cols-2 lg:grid-cols-3";
-  if (count <= 9) return "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
-  return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5";
+export type GridLayout = {
+  cols: number;
+  rows: number;
+  /** Exact tile width in px; height follows from the 16:9 aspect. */
+  tileWidth: number;
+};
+
+/** Smallest tile we will shrink to before allowing the grid to scroll. */
+const MIN_TILE_WIDTH = 132;
+
+/**
+ * Choose the row/column split that makes every tile as large as possible inside
+ * the measured container.
+ *
+ * This replaces a table of hardcoded breakpoint column counts, which could not
+ * know the container's actual shape: it stranded orphans (7 tiles on a wide
+ * screen laid out 3/3/1) and picked portrait-phone columns that forced a scroll.
+ * Driving off the real box means every count lays out correctly on every device,
+ * including landscape phones and the ultrawide desktop, with no special cases.
+ */
+export function computeGridLayout(
+  count: number,
+  width: number,
+  height: number,
+  gap: number,
+  aspect = 16 / 9
+): GridLayout {
+  if (count <= 0 || width <= 0 || height <= 0) {
+    return { cols: 1, rows: 1, tileWidth: 0 };
+  }
+
+  let best: GridLayout = { cols: 1, rows: count, tileWidth: 0 };
+
+  for (let cols = 1; cols <= count; cols += 1) {
+    const rows = Math.ceil(count / cols);
+    const cellWidth = (width - (cols - 1) * gap) / cols;
+    const cellHeight = (height - (rows - 1) * gap) / rows;
+
+    if (cellWidth <= 0 || cellHeight <= 0) continue;
+
+    // The largest 16:9 tile that fits this cell.
+    const tileWidth = Math.min(cellWidth, cellHeight * aspect);
+
+    if (tileWidth > best.tileWidth) {
+      best = { cols, rows, tileWidth };
+    }
+  }
+
+  // Every split overflowed (very small container, many people): fall back to the
+  // widest layout that keeps tiles legible and let the grid scroll.
+  if (best.tileWidth < MIN_TILE_WIDTH) {
+    const cols = Math.max(1, Math.floor((width + gap) / (MIN_TILE_WIDTH + gap)));
+    const tileWidth = (width - (cols - 1) * gap) / cols;
+    return { cols, rows: Math.ceil(count / cols), tileWidth };
+  }
+
+  return best;
+}
+
+/**
+ * Indent for the final row, in HALF columns, so a partial row sits centred
+ * under the full ones instead of hugging the left edge.
+ *
+ * Half columns because whole ones cannot centre every case: 7 tiles in 4
+ * columns leaves 3 orphans needing half a column of indent on each side, which
+ * rounds to zero and strands the row on the left. The grid is therefore built
+ * with `2 * cols` tracks and each tile spans 2, making every offset an integer.
+ */
+export function lastRowIndent(count: number, cols: number): number {
+  const orphans = count % cols;
+
+  return orphans === 0 ? 0 : cols - orphans;
 }
 
 export function getRole(
@@ -32,12 +119,6 @@ export function getRole(
     // ignore parse errors
   }
   return null;
-}
-
-export function getHandRaised(
-  participant: TrackReferenceOrPlaceholder["participant"]
-): boolean {
-  return participant.attributes?.handRaised === "true";
 }
 
 export function useSortedTracks(tracks: TrackReferenceOrPlaceholder[]) {

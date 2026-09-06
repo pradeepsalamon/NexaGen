@@ -52,23 +52,24 @@ export function InRoomClassControls() {
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(data?.classOverride ?? {});
 
-  if (isLoading) return <Skeleton className="h-64 w-full" />;
+  if (isLoading) return <Skeleton className="h-56 w-full" />;
   if (isError || !data || !inheritedFrom || !resolvedWithDraft) {
     return <WidgetError message="Couldn't load class settings." onRetry={() => refetch()} />;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-2.5 rounded-control border border-app-border bg-app-soft/40 p-3 text-xs text-app-muted">
+    <div className="min-w-0 space-y-3">
+      <div className="flex gap-2.5 rounded-control border border-app-border bg-app-soft/40 p-3 text-xs leading-snug text-app-muted">
         <RadioTower className="mt-0.5 size-4 shrink-0" strokeWidth={2.5} />
         <span>
-          Changes apply to the live class immediately — participants&apos; controls lock or unlock
-          without rejoining.
+          Changes apply immediately — participants&apos; controls lock or unlock without
+          rejoining.
         </span>
       </div>
 
       <LiveClassSettingsForm
         scope="class"
+        layout="stacked"
         showAdvanced={false}
         override={draft}
         onOverrideChange={setDraft}
@@ -78,7 +79,7 @@ export function InRoomClassControls() {
         disabled={apply.isPending}
       />
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Button
           type="button"
           variant="outline"

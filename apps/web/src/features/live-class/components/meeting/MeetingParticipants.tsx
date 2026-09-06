@@ -1,21 +1,30 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
-import { Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, X } from "lucide-react";
+import { useCallback, useState, useMemo, memo } from "react";
+import { useParams } from "next/navigation";
+import { Lock, Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, X } from "lucide-react";
 import { useConnectionQualityIndicator, useParticipants } from "@livekit/components-react";
 import { ConnectionQuality } from "livekit-client";
+import type { ModeratableSource } from "@nexa-chess/types";
+import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { PanelHeader } from "./PanelHeader";
+import { BoardControlSideToggle, boardControlSideLabel } from "./BoardControlSideToggle";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import type { BoardControlSide } from "@/features/chessboard/types/sync";
 import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useLiveClassChat } from "../../providers/ChatProvider";
+import { isHumanParticipant } from "../../lib/participants";
+import { moderateParticipant } from "../../api/live-class";
+import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 type LkParticipant = ReturnType<typeof useParticipants>[number];
 
 interface ParticipantMeta {
   role?: string;
-  handRaised?: boolean;
 }
 
 function parseMeta(participant: LkParticipant): ParticipantMeta {
@@ -27,8 +36,6 @@ function parseMeta(participant: LkParticipant): ParticipantMeta {
       // ignore
     }
   }
-  if (participant.attributes?.handRaised === "true") meta.handRaised = true;
-  else if (participant.attributes?.handRaised === "false") meta.handRaised = false;
   return meta;
 }
 
@@ -47,20 +54,69 @@ function ConnectionDot({ participant }: { participant: LkParticipant }) {
   );
 }
 
+/**
+ * A track control in a participant row.
+ *
+ * For everyone it is a status icon. For a coach looking at a student whose
+ * track is live it is also a button that switches that track off at the SFU —
+ * mute only, since re-opening someone's microphone for them is a privacy hole
+ * (`moderateParticipant` on the API side refuses to do it either).
+ */
+function TrackStateControl({
+  activeIcon,
+  idleIcon,
+  isActive,
+  moderateLabel,
+  onModerate,
+}: {
+  activeIcon: React.ReactNode;
+  idleIcon: React.ReactNode;
+  isActive: boolean;
+  moderateLabel: string;
+  onModerate?: () => void;
+}) {
+  if (!isActive || !onModerate) {
+    return <>{isActive ? activeIcon : idleIcon}</>;
+  }
+
+  return (
+    <SimpleTooltip label={moderateLabel}>
+      <button
+        type="button"
+        onClick={onModerate}
+        aria-label={moderateLabel}
+        className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+      >
+        {activeIcon}
+      </button>
+    </SimpleTooltip>
+  );
+}
+
 interface ParticipantItemProps {
   participant: LkParticipant;
   isCoachRow?: boolean;
   showBoardControl?: boolean;
-  hasBoardControl?: boolean;
-  onToggleBoardControl?: (identity: string) => void;
+  handRaised?: boolean;
+  /** Coach/admin viewing a student: enables the force-mute + private-message actions. */
+  canModerate?: boolean;
+  onModerate?: (identity: string, source: ModeratableSource, name: string) => void;
+  onMessagePrivately?: (userId: string, name: string) => void;
+  /** Side this student may move, or null when they hold no control. */
+  boardControlSide?: BoardControlSide | null;
+  onSetBoardControlSide?: (identity: string, side: BoardControlSide | null) => void;
 }
 
 const ParticipantListItem = memo(function ParticipantListItem({
   participant,
   isCoachRow,
   showBoardControl,
-  hasBoardControl,
-  onToggleBoardControl,
+  handRaised,
+  canModerate,
+  onModerate,
+  onMessagePrivately,
+  boardControlSide = null,
+  onSetBoardControlSide,
 }: ParticipantItemProps) {
   const user = useAuthStore((state) => state.user);
   const isMuted = !participant.isMicrophoneEnabled;
@@ -68,7 +124,9 @@ const ParticipantListItem = memo(function ParticipantListItem({
   const isScreenSharing = participant.isScreenShareEnabled;
   const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
   const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
-  const meta = parseMeta(participant);
+  // Identity is `<userId>` or `<userId>_<clientId>`; cuids carry no underscore.
+  const participantUserId = participant.identity.split("_")[0];
+  const canAct = !!canModerate && !participant.isLocal;
 
   return (
     <div
@@ -91,37 +149,93 @@ const ParticipantListItem = memo(function ParticipantListItem({
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 text-app-muted">
-        {meta.handRaised && <Hand className="size-4 text-amber-500" aria-label="Hand raised" />}
-        {isScreenSharing && (
-          <MonitorUp className="size-4 text-primary" aria-label="Sharing screen" />
-        )}
-        {isCameraEnabled ? (
-          <Video className="size-4" aria-label="Camera on" />
-        ) : (
-          <VideoOff className="size-4 opacity-40" aria-label="Camera off" />
-        )}
-        {isMuted ? (
-          <MicOff className="size-4 text-app-danger/80" aria-label="Muted" />
-        ) : (
-          <Mic className="size-4" aria-label="Microphone on" />
-        )}
-        {showBoardControl && onToggleBoardControl && (
-          <SimpleTooltip label={hasBoardControl ? "Revoke board control" : "Grant board control"}>
+      <div className="flex shrink-0 items-center gap-1.5 text-app-muted">
+        {handRaised && <Hand className="size-4 text-amber-500" aria-label="Hand raised" />}
+
+        {canAct && onMessagePrivately && (
+          <SimpleTooltip label={`Message ${name} privately`}>
             <button
               type="button"
-              onClick={() => onToggleBoardControl(participant.identity)}
-              className={cn(
-                "flex size-6 items-center justify-center rounded-md transition-colors",
-                hasBoardControl
-                  ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
-                  : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
-              )}
-              aria-label={hasBoardControl ? "Revoke board control" : "Grant board control"}
+              onClick={() => onMessagePrivately(participantUserId, name)}
+              aria-label={`Message ${name} privately`}
+              className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-primary hover:text-white"
             >
-              <Crown className="size-3.5" />
+              <Lock className="size-3.5" />
             </button>
           </SimpleTooltip>
+        )}
+
+        <TrackStateControl
+          isActive={isScreenSharing}
+          activeIcon={<MonitorUp className="size-4 text-primary" aria-label="Sharing screen" />}
+          idleIcon={null}
+          moderateLabel={`Stop ${name}'s screen share`}
+          onModerate={
+            canAct && onModerate
+              ? () => onModerate(participant.identity, "screen_share", name)
+              : undefined
+          }
+        />
+
+        <TrackStateControl
+          isActive={isCameraEnabled}
+          activeIcon={<Video className="size-4" aria-label="Camera on" />}
+          idleIcon={<VideoOff className="size-4 opacity-40" aria-label="Camera off" />}
+          moderateLabel={`Turn off ${name}'s camera`}
+          onModerate={
+            canAct && onModerate
+              ? () => onModerate(participant.identity, "camera", name)
+              : undefined
+          }
+        />
+
+        <TrackStateControl
+          isActive={!isMuted}
+          activeIcon={<Mic className="size-4" aria-label="Microphone on" />}
+          idleIcon={<MicOff className="size-4 text-app-danger/80" aria-label="Muted" />}
+          moderateLabel={`Turn off ${name}'s microphone`}
+          onModerate={
+            canAct && onModerate
+              ? () => onModerate(participant.identity, "microphone", name)
+              : undefined
+          }
+        />
+        {showBoardControl && onSetBoardControlSide && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                // `title` rather than SimpleTooltip: this is already an
+                // `asChild` Radix trigger, and double-wrapping breaks it.
+                title={`Board control: ${boardControlSideLabel(boardControlSide)}`}
+                className={cn(
+                  "flex h-6 items-center gap-0.5 rounded-md px-1 transition-colors",
+                  boardControlSide
+                    ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
+                    : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
+                )}
+                aria-label={`Board control for ${name}: ${boardControlSideLabel(boardControlSide)}`}
+              >
+                <Crown className="size-3.5" />
+                {(boardControlSide === "white" || boardControlSide === "black") && (
+                  <span className="text-[10px] font-bold leading-none">
+                    {boardControlSide === "white" ? "W" : "B"}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-3">
+              <p className="mb-2 text-xs font-semibold text-app-text">Board control</p>
+              <p className="mb-2 max-w-[15rem] text-[11px] leading-snug text-app-muted">
+                Which pieces {name} may move on the shared board.
+              </p>
+              <BoardControlSideToggle
+                studentName={name}
+                value={boardControlSide}
+                onChange={(side) => onSetBoardControlSide(participant.identity, side)}
+              />
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     </div>
@@ -129,12 +243,55 @@ const ParticipantListItem = memo(function ParticipantListItem({
 });
 
 export function MeetingParticipants() {
-  const participants = useParticipants().filter((p) => !p.identity.endsWith("_board"));
+  const participants = useParticipants().filter(isHumanParticipant);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const { isChessboardOpen, boardControlStudentIds, toggleBoardControl } = useLiveClassState();
+  const {
+    boardControlStudents,
+    isChessboardOpen,
+    raisedHands,
+    setActiveSidebar,
+    setBoardControlSide,
+  } = useLiveClassState();
+  const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
+  const params = useParams();
+  const roomId = params?.roomId as string | undefined;
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+
+  const handleModerate = useCallback(
+    async (identity: string, source: ModeratableSource, name: string) => {
+      if (!roomId) return;
+      const label = MODERATED_SOURCE_LABEL[source];
+      try {
+        const result = await moderateParticipant(roomId, { identity, source });
+        meetingToast({
+          tone: result.muted ? "success" : "info",
+          title: result.muted
+            ? `Turned off ${name}'s ${label}`
+            : `${name}'s ${label} was already off`,
+          description: result.muted
+            ? `${name} can turn it back on unless the class settings lock it off.`
+            : undefined,
+        });
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't turn off ${name}'s ${label}`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId],
+  );
+
+  const handleMessagePrivately = useCallback(
+    (targetUserId: string) => {
+      openPrivateThread(targetUserId);
+      setActiveSidebar("chat");
+    },
+    [openPrivateThread, setActiveSidebar],
+  );
 
   const filteredParticipants = useMemo(() => {
     if (!searchQuery.trim()) return participants;
@@ -199,7 +356,18 @@ export function MeetingParticipants() {
             </h3>
             <div className="flex flex-col gap-0.5">
               {grouped.coaches.map((p) => (
-                <ParticipantListItem key={p.identity} participant={p} isCoachRow />
+                <ParticipantListItem
+                  key={p.identity}
+                  participant={p}
+                  isCoachRow
+                  handRaised={!!raisedHands[p.identity]}
+                  onMessagePrivately={
+                    canMessagePrivately(p.identity.split("_")[0])
+                      ? handleMessagePrivately
+                      : undefined
+                  }
+                  canModerate={canMessagePrivately(p.identity.split("_")[0])}
+                />
               ))}
             </div>
           </div>
@@ -216,9 +384,17 @@ export function MeetingParticipants() {
               <ParticipantListItem
                 key={p.identity}
                 participant={p}
+                handRaised={!!raisedHands[p.identity]}
+                canModerate={isCoach}
+                onModerate={isCoach ? handleModerate : undefined}
+                onMessagePrivately={
+                  canMessagePrivately(p.identity.split("_")[0])
+                    ? handleMessagePrivately
+                    : undefined
+                }
                 showBoardControl={isChessboardOpen && isCoach}
-                hasBoardControl={boardControlStudentIds.includes(p.identity)}
-                onToggleBoardControl={toggleBoardControl}
+                boardControlSide={boardControlStudents[p.identity] ?? null}
+                onSetBoardControlSide={setBoardControlSide}
               />
             ))}
           </div>

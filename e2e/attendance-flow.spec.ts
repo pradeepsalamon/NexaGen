@@ -1,4 +1,10 @@
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import {
+  test,
+  expect,
+  request as playwrightRequest,
+  type APIRequestContext,
+  type Page,
+} from "@playwright/test";
 import { sendLiveKitWebhook } from "./fixtures";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -15,9 +21,13 @@ async function loginAs(
   email: string,
   password: string
 ): Promise<string> {
-  const res = await request.post(`${API_URL}/auth/login`, {
-    data: { email, password },
-  });
+  // /auth/login is throttled 5/60s. A full suite run does far more than 5
+  // logins/min, so back off and retry on 429 instead of failing the test.
+  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt++) {
+    await new Promise((r) => setTimeout(r, 12_000));
+    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
+  }
   expect(res.ok(), `Login failed for ${email}: ${await res.text()}`).toBeTruthy();
 
   const setCookies = res.headers()["set-cookie"] || "";
@@ -46,6 +56,30 @@ async function api(
   return res;
 }
 
+const E2E_CLASS_TOPIC = "E2E Test Class - Pawn Structures";
+
+// ─── Helper: end/cancel any leftover E2E classes for the coach ───────────────
+// A prior run that failed between "start" and "end" leaves a class stuck LIVE.
+// Those rows keep matching the coach's time-overlap conflict check, so a later
+// run's create-class call 409s. Sweep them before/after every full-flow run.
+async function cleanupLeftoverE2EClasses(
+  request: APIRequestContext,
+  coachCookies: string
+): Promise<void> {
+  const res = await api(request, "GET", "/coach/classes/upcoming", coachCookies);
+  if (!res.ok()) return;
+  const data = await res.json();
+  const classes: Array<{ id: string; topic?: string; status?: string }> =
+    Array.isArray(data?.classes) ? data.classes : Array.isArray(data) ? data : [];
+  for (const cls of classes) {
+    if (cls.topic !== E2E_CLASS_TOPIC) continue;
+    if (cls.status === "LIVE") {
+      await api(request, "POST", `/live-class/${cls.id}/end`, coachCookies);
+    } else {
+      await api(request, "POST", `/coach/classes/${cls.id}/cancel`, coachCookies);
+    }
+  }
+}
 // ─── Helper: Send LiveKit webhook event ──────────────────────────────────────
 
 /**
@@ -82,20 +116,26 @@ function livekitEvent(
 // ─── Helper: Login via browser UI ────────────────────────────────────────────
 
 async function loginViaUI(page: Page, email: string, password: string) {
-  await page.goto("/login");
-  await page.waitForLoadState("networkidle");
+  for (let attempt = 0; attempt < 6; attempt++) {
+    await page.goto("/login");
+    await page.waitForLoadState("networkidle");
 
-  const emailInput = page.getByLabel(/email/i);
-  await emailInput.fill(email);
+    await page.getByLabel(/email/i).fill(email);
+    await page.locator('input[type="password"]').fill(password);
+    await page.getByRole("button", { name: /sign in|log in|login/i }).click();
 
-  const passwordInput = page.locator('input[type="password"]');
-  await passwordInput.fill(password);
-
-  await page.getByRole("button", { name: /sign in|log in|login/i }).click();
-
-  await page.waitForURL((url) => !url.pathname.includes("/login"), {
-    timeout: 30_000,
-  });
+    try {
+      await page.waitForURL((url) => !url.pathname.includes("/login"), {
+        timeout: 15_000,
+      });
+      return;
+    } catch {
+      // /auth/login is throttled 5/60s; on a busy suite run the redirect
+      // never happens because login 429s. Wait out the window and retry.
+      await page.waitForTimeout(12_000);
+    }
+  }
+  throw new Error(`loginViaUI: still on /login after retries for ${email}`);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -105,6 +145,30 @@ async function loginViaUI(page: Page, email: string, password: string) {
 test.describe("Full Attendance Flow", () => {
   let classId: string;
   let roomName: string;
+
+  test.beforeAll(async () => {
+    const ctx = await playwrightRequest.newContext();
+    try {
+      const coachCookies = await loginAs(ctx, COACH.email, COACH.password);
+      await cleanupLeftoverE2EClasses(ctx, coachCookies);
+    } finally {
+      await ctx.dispose();
+    }
+  });
+
+  test.afterAll(async () => {
+    const ctx = await playwrightRequest.newContext();
+    try {
+      const coachCookies = await loginAs(ctx, COACH.email, COACH.password);
+      if (classId) {
+        // best-effort: end it if the test bailed before Step 12
+        await api(ctx, "POST", `/live-class/${classId}/end`, coachCookies);
+      }
+      await cleanupLeftoverE2EClasses(ctx, coachCookies);
+    } finally {
+      await ctx.dispose();
+    }
+  });
 
   test("complete flow: create class → start → student joins → end → verify", async ({
     request,
@@ -130,8 +194,9 @@ test.describe("Full Attendance Flow", () => {
     // Step 3: Create a class via Coach API
     // ─────────────────────────────────────────────────────────────────────────
     const now = new Date();
-    const startsAt = new Date(now.getTime() + 2 * 60 * 1000).toISOString(); // 2 min from now
-    const endsAt = new Date(now.getTime() + 62 * 60 * 1000).toISOString(); // 62 min from now
+    const offsetHours = 48 + Math.floor(Math.random() * 48);
+    const startsAt = new Date(now.getTime() + offsetHours * 60 * 60 * 1000).toISOString();
+    const endsAt = new Date(now.getTime() + (offsetHours + 1) * 60 * 60 * 1000).toISOString();
 
     const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
       batchId,
@@ -143,7 +208,7 @@ test.describe("Full Attendance Flow", () => {
     });
     expect(createRes.ok(), `Create class failed: ${await createRes.text()}`).toBeTruthy();
     const createdClass = await createRes.json();
-    classId = createdClass.id;
+    classId = createdClass.class ? createdClass.class.id : createdClass.id;
     roomName = `class_${classId}`;
     expect(classId).toBeTruthy();
 
@@ -165,7 +230,7 @@ test.describe("Full Attendance Flow", () => {
     // Get the coach user ID from the auth/me endpoint
     const meRes = await api(request, "GET", "/auth/me", coachCookies);
     const meData = await meRes.json();
-    const coachId = meData.id;
+    const coachId = meData.user.id;
 
     const coachJoinRes = await sendWebhook(
       request,
@@ -186,7 +251,7 @@ test.describe("Full Attendance Flow", () => {
     // Get student user ID
     const studentMeRes = await api(request, "GET", "/auth/me", studentCookies);
     const studentMeData = await studentMeRes.json();
-    const studentId = studentMeData.id;
+    const studentId = studentMeData.user.id;
 
     // ─────────────────────────────────────────────────────────────────────────
     // Step 7: Get a LiveKit token for the student (triggers auto-attendance)
@@ -354,7 +419,7 @@ test.describe("Full Attendance Flow", () => {
     await adminPage.goto("/admin/attendance");
     await adminPage.waitForLoadState("networkidle");
 
-    await expect(adminPage.getByText(/attendance overview/i)).toBeVisible();
+    await expect(adminPage.getByText(/platform attendance/i)).toBeVisible();
 
     // Check Quick Actions links exist
     await expect(adminPage.getByText(/completed classes/i).first()).toBeVisible();
@@ -405,10 +470,10 @@ test.describe("Admin Attendance Pages", () => {
     await page.waitForLoadState("networkidle");
 
     // Title
-    await expect(page.getByText(/attendance overview/i)).toBeVisible();
+    await expect(page.getByText(/platform attendance/i)).toBeVisible();
 
     // Stat cards
-    await expect(page.getByText(/total students/i)).toBeVisible();
+    await expect(page.getByText(/total active students/i)).toBeVisible();
 
     // Quick actions
     await expect(page.getByText(/completed classes/i).first()).toBeVisible();
@@ -425,8 +490,8 @@ test.describe("Admin Attendance Pages", () => {
     await expect(page.getByText(/completed classes/i).first()).toBeVisible();
 
     // Filters
-    await expect(page.getByLabel(/from/i)).toBeVisible();
-    await expect(page.getByLabel(/to/i)).toBeVisible();
+    await expect(page.getByText(/^from$/i)).toBeVisible();
+    await expect(page.getByText(/^to$/i)).toBeVisible();
   });
 
   test("coach teaching report page loads", async ({ page }) => {
@@ -477,6 +542,6 @@ test.describe("Student Attendance Page", () => {
     // Stat cards
     await expect(page.getByText(/overall attendance/i)).toBeVisible();
     await expect(page.getByText(/classes attended/i)).toBeVisible();
-    await expect(page.getByText(/learning time/i)).toBeVisible();
+    await expect(page.getByText(/learning time/i).first()).toBeVisible();
   });
 });

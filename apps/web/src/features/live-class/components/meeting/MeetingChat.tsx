@@ -2,15 +2,28 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { ChevronDown } from "lucide-react";
-import { useLiveClassChat } from "../../providers/ChatProvider";
+import { ChevronDown, Lock } from "lucide-react";
+import { ROOM_THREAD, useLiveClassChat } from "../../providers/ChatProvider";
 import { ChatMessage } from "./chat/ChatMessage";
 import { ChatEmptyState } from "./chat/ChatEmptyState";
 import { ChatComposer } from "./chat/ChatComposer";
+import { ChatThreadBar } from "./chat/ChatThreadBar";
 import { PanelHeader } from "./PanelHeader";
 
 export function MeetingChat() {
-  const { send, chatMessages, isSending, draft, setDraft } = useLiveClassChat();
+  const {
+    activeThread,
+    chatEnabled,
+    draft,
+    isSending,
+    send,
+    setDraft,
+    threadMessages,
+    threads,
+  } = useLiveClassChat();
+
+  const isPrivate = activeThread !== ROOM_THREAD;
+  const threadLabel = threads.find((t) => t.id === activeThread)?.label ?? "Everyone";
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -27,7 +40,7 @@ export function MeetingChat() {
     if (!isScrolledUp) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
-  }, [chatMessages, isScrolledUp]);
+  }, [threadMessages, isScrolledUp]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,11 +58,22 @@ export function MeetingChat() {
     }
   }, [draft, isSending, send, scrollToBottom, setDraft]);
 
-  const messages = chatMessages;
+  const messages = threadMessages;
 
   return (
     <div className="flex h-full flex-col">
       <PanelHeader title="Chat" count={messages.length} />
+
+      <ChatThreadBar />
+
+      {isPrivate && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-app-border/40 bg-secondary/10 px-4 py-2 text-[11px] font-semibold text-app-text">
+          <Lock className="size-3.5 shrink-0 text-app-text/70" />
+          <span className="min-w-0 truncate">
+            Private — only you and {threadLabel} can see this.
+          </span>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div
@@ -101,7 +125,15 @@ export function MeetingChat() {
       {/* Composer */}
       <ChatComposer
         draft={draft}
+        disabled={!chatEnabled}
         isSending={isSending}
+        placeholder={
+          chatEnabled
+            ? isPrivate
+              ? `Message ${threadLabel} privately...`
+              : "Message room..."
+            : "Chat is turned off for this class"
+        }
         onDraftChange={setDraft}
         onSubmit={handleSubmit}
       />

@@ -54,6 +54,9 @@ export const liveClassSettingsSchema = z
         camera: studentCameraModeSchema.default("JOIN_OFF"),
         screenShare: screenShareModeSchema.default("DISABLED"),
         chat: toggleModeSchema.default("ENABLED"),
+        // Student <-> coach direct messages. There is deliberately no
+        // student <-> student option: see `privateChatRecipientAllowed`.
+        privateChat: toggleModeSchema.default("ENABLED"),
         board: boardInteractionModeSchema.default("VIEW_ONLY"),
       })
       .prefault({}),
@@ -90,6 +93,7 @@ export const liveClassSettingsOverrideSchema = z.object({
       camera: studentCameraModeSchema.optional(),
       screenShare: screenShareModeSchema.optional(),
       chat: toggleModeSchema.optional(),
+      privateChat: toggleModeSchema.optional(),
       board: boardInteractionModeSchema.optional(),
     })
     .optional(),
@@ -333,6 +337,9 @@ export function getLiveClassSettingsWarnings(settings: LiveClassSettings): strin
   }
   if (settings.student.chat === "DISABLED") {
     warnings.push("Students will not be able to send chat messages.");
+  }
+  if (settings.student.privateChat === "DISABLED") {
+    warnings.push("Students will not be able to message the coach privately.");
   }
   return warnings;
 }

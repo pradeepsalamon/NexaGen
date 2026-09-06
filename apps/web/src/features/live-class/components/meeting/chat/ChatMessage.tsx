@@ -70,9 +70,9 @@ export const ChatMessage = memo(function ChatMessage({
       return prefix + `${quotedMessage}\n@${msg.senderName} `;
     });
     setTimeout(() => {
-      document
-        .querySelector<HTMLTextAreaElement>('textarea[placeholder="Message room..."]')
-        ?.focus();
+      // Keyed off a data attribute, not the placeholder — that now changes
+      // with the active thread.
+      document.querySelector<HTMLTextAreaElement>("textarea[data-chat-composer]")?.focus();
     }, 10);
   }, [msg.message, msg.senderName, setDraft]);
 

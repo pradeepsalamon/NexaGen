@@ -14,7 +14,11 @@ import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import {
   API_ROUTES,
+  moderateParticipantRequestSchema,
+  saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
+  type ModerateParticipantRequest,
+  type SaveLiveChatMessageRequest,
   type UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
@@ -61,18 +65,37 @@ export class LiveClassController {
     return this.liveClassService.getParticipants(this.getAccessToken(request), id);
   }
 
+  @Post(API_ROUTES.liveClass.heartbeat())
+  heartbeat(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body() body: { clientId?: string }
+  ) {
+    return this.liveClassService.heartbeat(this.getAccessToken(request), id, body?.clientId);
+  }
+
   @Post(API_ROUTES.liveClass.chat())
   saveChatMessage(
     @Param("id") id: string,
     @Req() request: Request,
-    @Body() body: { message: string; clientMessageId?: string }
+    @Body(new ZodBodyPipe(saveLiveChatMessageRequestSchema)) body: SaveLiveChatMessageRequest
   ) {
     return this.liveClassService.saveChatMessage(
       this.getAccessToken(request),
       id,
       body.message,
-      body.clientMessageId
+      body.clientMessageId,
+      body.recipientId
     );
+  }
+
+  @Post(API_ROUTES.liveClass.moderate())
+  moderateParticipant(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(moderateParticipantRequestSchema)) body: ModerateParticipantRequest
+  ) {
+    return this.liveClassService.moderateParticipant(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.chat())

@@ -59,3 +59,57 @@ export function formatMonthShort(iso: string | null | undefined, timeZone: strin
 export function formatDayOfMonth(iso: string | null | undefined, timeZone: string): string {
   return formatIso(iso, timeZone, { day: "numeric" });
 }
+
+/** Calendar days from today to `iso`, counted in `timeZone` (negative = past). */
+function daysFromToday(iso: string, timeZone: string): number | null {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  // Compare calendar dates, not elapsed hours: 11pm → 1am is "tomorrow", and
+  // 26 hours out on the same weekday is not "today".
+  const key = (value: Date) =>
+    formatIso(value.toISOString(), timeZone, {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+  const target = key(date);
+  const today = new Date();
+
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const ahead = new Date(today.getTime() + offset * 86400000);
+    if (key(ahead) === target) {
+      return offset;
+    }
+    const behind = new Date(today.getTime() - offset * 86400000);
+    if (key(behind) === target) {
+      return -offset;
+    }
+  }
+
+  return null;
+}
+
+/** "Today" / "Tomorrow" / "Friday" within the week, else "Mar 5". */
+export function formatRelativeDay(
+  iso: string | null | undefined,
+  timeZone: string
+): string {
+  if (!iso) {
+    return "";
+  }
+  const offset = daysFromToday(iso, timeZone);
+
+  if (offset === 0) {
+    return "Today";
+  }
+  if (offset === 1) {
+    return "Tomorrow";
+  }
+  if (offset !== null && offset > 1 && offset <= 6) {
+    return formatIso(iso, timeZone, { weekday: "long" });
+  }
+
+  return formatDayMonth(iso, timeZone);
+}

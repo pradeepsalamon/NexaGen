@@ -15,8 +15,8 @@ import {
 import { ConnectionState, type DataPublishOptions } from "livekit-client";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
-import { BoardSyncMessage } from "../types/sync";
-import { senderMayMutateBoard } from "../lib/boardSyncRules";
+import { BoardControlSide, BoardSyncMessage } from "../types/sync";
+import { moverColorFromFen, senderMayMutateBoard } from "../lib/boardSyncRules";
 import { applyMoveToClock } from "../lib/clock";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
@@ -178,7 +178,11 @@ export function useBoardSyncEngine(): BoardSyncActions {
     if (!s) return;
     broadcastMsg({
       type: "UPDATE_PERMISSIONS",
-      payload: { mode: s.permissionMode, selectedStudentIds: s.selectedStudentIds },
+      payload: {
+        mode: s.permissionMode,
+        selectedStudentIds: s.selectedStudentIds,
+        selectedStudentSides: s.selectedStudentSides,
+      },
     });
   }, [broadcastMsg, store]);
 
@@ -209,6 +213,10 @@ export function useBoardSyncEngine(): BoardSyncActions {
           isFromCoach,
           permissionMode: current.permissionMode,
           selectedStudentIds: current.selectedStudentIds,
+          selectedStudentSides: current.selectedStudentSides,
+          // Per-side grants are enforced on the colour that actually played:
+          // a white-only student's packet moving a black piece is dropped.
+          moverColor: msg.type === "MOVE" ? moverColorFromFen(msg.payload?.fen) : undefined,
         })
       ) {
         console.warn(
@@ -267,12 +275,23 @@ export function useBoardSyncEngine(): BoardSyncActions {
         case "UPDATE_PERMISSIONS":
           if (msg.payload && msg.payload.mode) {
             const grantedIds = msg.payload.selectedStudentIds ?? [];
+            const remoteSides = msg.payload.selectedStudentSides ?? {};
+            // A grant with no recorded side means "both" — that is what
+            // clients predating per-side control send.
+            const grantedSides = grantedIds.reduce<Record<string, BoardControlSide>>(
+              (acc, id) => {
+                acc[id] = remoteSides[id] ?? "both";
+                return acc;
+              },
+              {},
+            );
             syncFromRemote({
               permissionMode: msg.payload.mode,
               selectedStudentIds: grantedIds,
+              selectedStudentSides: grantedSides,
             });
             if (liveClassState?.setBoardControlStudents) {
-              liveClassState.setBoardControlStudents(grantedIds);
+              liveClassState.setBoardControlStudents(grantedSides);
             }
           }
           break;
@@ -313,14 +332,17 @@ export function useBoardSyncEngine(): BoardSyncActions {
           if (isCoach && msg.payload?.identity) {
             const identity = msg.payload.identity;
             const studentName = msg.payload.studentName || "A student";
+            const side = msg.payload.side ?? "both";
+            const sideLabel = side === "both" ? "both sides" : side;
             toast(`${studentName} requested board control`, {
               id: `req-board-control-${identity}`,
+              description: "Pick a side for them in the board's Class panel.",
               action: {
-                label: "Grant Control",
+                label: side === "both" ? "Grant Control" : `Grant ${sideLabel}`,
                 onClick: () => {
                   if (liveClassState?.grantBoardControl) {
-                    liveClassState.grantBoardControl(identity);
-                    toast.success(`Granted board control to ${studentName}`, {
+                    liveClassState.grantBoardControl(identity, side);
+                    toast.success(`Granted ${sideLabel} to ${studentName}`, {
                       id: `grant-board-control-${identity}`,
                     });
                   }
@@ -418,6 +440,27 @@ export function useBoardSyncEngine(): BoardSyncActions {
       broadcastMsg({ type: "REQUEST_SYNC" });
     }
   }, [isCoach, broadcastMsg]);
+
+  // A student's LiveKit connection recovering from a drop does not replay
+  // whatever MOVE/annotation broadcasts it missed while Reconnecting — the
+  // data channel has no backlog. Re-request state on that transition the same
+  // way a late joiner does on mount (design doc §2.6/§4.3: this was the open
+  // question of whether REQUEST_SYNC auto-fires on reconnect — confirmed it
+  // did not, so this closes that gap without a new protocol message).
+  const wasRecoveringRef = useRef(false);
+  useEffect(() => {
+    const recovering =
+      connectionState === ConnectionState.Reconnecting ||
+      connectionState === ConnectionState.SignalReconnecting;
+    if (recovering) {
+      wasRecoveringRef.current = true;
+    } else if (connectionState === ConnectionState.Connected && wasRecoveringRef.current) {
+      wasRecoveringRef.current = false;
+      if (!isCoach) {
+        broadcastMsg({ type: "REQUEST_SYNC" });
+      }
+    }
+  }, [connectionState, isCoach, broadcastMsg]);
 
   return {
     broadcastState,
