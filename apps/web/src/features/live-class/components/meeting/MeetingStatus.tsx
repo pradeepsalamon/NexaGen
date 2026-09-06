@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
 import { useOptionalLiveClassState } from "../../providers/LiveClassProvider";
 import { Z, useReducedMotion } from "../../lib/meetingUi";
-import { Timer, Radio, TriangleAlert } from "lucide-react";
+import { Timer, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
@@ -22,12 +22,22 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 type ConnState = "excellent" | "good" | "weak" | "reconnecting" | "offline";
 
-function useConnectionSummary(): {
+interface ConnectionSummary {
   state: ConnState;
+  /** Pill text. Reads "Live" whenever we are actually in the room. */
   label: string;
+  /** Human name for the current network strength, used in the tooltip. */
+  quality: string;
   tip: string;
+  /** Dot + text + chrome colours, so the pill itself carries the signal. */
   dot: string;
-} {
+  text: string;
+  ring: string;
+  /** Reconnecting is the only state worth animating. */
+  pulse: boolean;
+}
+
+function useConnectionSummary(): ConnectionSummary {
   const connectionState = useConnectionState();
   const { localParticipant } = useLocalParticipant();
   const { quality } = useConnectionQualityIndicator({ participant: localParticipant });
@@ -40,52 +50,102 @@ function useConnectionSummary(): {
     return {
       state: "reconnecting",
       label: "Reconnecting",
+      quality: "Reconnecting",
       tip: "Trying to restore your connection…",
       dot: "bg-amber-500",
+      text: "text-amber-600 dark:text-amber-400",
+      ring: "border-amber-500/40 bg-amber-500/10",
+      pulse: true,
     };
   }
   if (connectionState === ConnectionState.Disconnected) {
     return {
       state: "offline",
       label: "Offline",
+      quality: "Offline",
       tip: "You are disconnected from the class.",
       dot: "bg-app-danger",
+      text: "text-app-danger",
+      ring: "border-app-danger/40 bg-app-danger/10",
+      pulse: false,
     };
   }
   if (quality === ConnectionQuality.Poor) {
     return {
       state: "weak",
-      label: "Weak",
-      tip: "Connection is unstable — video quality may drop.",
-      dot: "bg-amber-500",
+      label: "Live",
+      quality: "Weak network",
+      tip: "Weak network — video may blur or freeze. Try turning your camera off.",
+      dot: "bg-app-danger",
+      text: "text-app-danger",
+      ring: "border-app-danger/40 bg-app-danger/10",
+      pulse: false,
     };
   }
   if (quality === ConnectionQuality.Good) {
-    return { state: "good", label: "Good", tip: "Connection is stable.", dot: "bg-emerald-500" };
+    return {
+      state: "good",
+      label: "Live",
+      quality: "Good network",
+      tip: "Good network — the class is running normally.",
+      dot: "bg-amber-500",
+      text: "text-amber-600 dark:text-amber-400",
+      ring: "border-amber-500/40 bg-amber-500/10",
+      pulse: false,
+    };
+  }
+  if (quality === ConnectionQuality.Unknown) {
+    return {
+      state: "good",
+      label: "Live",
+      quality: "Measuring…",
+      tip: "Measuring your network quality…",
+      dot: "bg-app-muted",
+      text: "text-app-muted",
+      ring: "border-app-border bg-app-surface",
+      pulse: false,
+    };
   }
   return {
     state: "excellent",
-    label: "Excellent",
-    tip: "Connection is stable.",
+    label: "Live",
+    quality: "Excellent network",
+    tip: "Excellent network — audio and video are at full quality.",
     dot: "bg-emerald-500",
+    text: "text-emerald-600 dark:text-emerald-400",
+    ring: "border-emerald-500/40 bg-emerald-500/10",
+    pulse: false,
   };
 }
 
-/** Connection pill for the classroom top bar. Full label on `sm+`, dot only below. */
+/**
+ * The classroom's single "are we live, and is the network holding up?" chip.
+ * The word stays "Live" while connected — the colour is what carries network
+ * strength (green excellent / amber good / red weak), with the precise state
+ * spelled out in the tooltip. Full label on `sm+`, dot only below.
+ */
 export function ConnectionPill({ className }: { className?: string }) {
-  const { label, tip, dot } = useConnectionSummary();
+  const { dot, label, pulse, quality, ring, text, tip } = useConnectionSummary();
 
   return (
-    <SimpleTooltip label={tip} side="bottom">
+    <SimpleTooltip label={`${quality} — ${tip}`} side="bottom">
       <div
         className={cn(
-          "flex items-center gap-1.5 rounded-full border border-app-border bg-app-surface px-2 py-1 text-xs font-semibold text-app-muted sm:px-2.5",
+          "flex h-9 items-center gap-1.5 rounded-full border px-2 text-xs font-bold sm:px-2.5",
+          ring,
+          text,
           className,
         )}
         role="status"
-        aria-label={`Connection: ${label}`}
+        aria-label={`${label}. ${quality}. ${tip}`}
       >
-        <span className={cn("size-2 rounded-full", dot)} />
+        <span
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            dot,
+            pulse && "motion-safe:animate-pulse",
+          )}
+        />
         <span className="hidden sm:inline">{label}</span>
       </div>
     </SimpleTooltip>
@@ -238,7 +298,7 @@ export function TimerBadge({
       <button
         onClick={toggleMode}
         className={cn(
-          "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums transition-colors",
+          "flex h-9 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold tabular-nums transition-colors",
           colorClass,
           className,
         )}
@@ -278,24 +338,6 @@ export function RecordingBadge({
     >
       <span className="size-1.5 rounded-full bg-app-danger motion-safe:animate-pulse" />
       Rec
-    </span>
-  );
-}
-
-// ─── Live Badge ──────────────────────────────────────────────
-
-export function LiveBadge({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-600 dark:text-emerald-400",
-        className,
-      )}
-      role="status"
-      aria-label="Live class in session"
-    >
-      <Radio className="size-3" />
-      Live
     </span>
   );
 }

@@ -23,10 +23,20 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+/** Trailing status chip on a sidebar link. `dot` is a bare unread marker. */
+export type NavBadge = {
+  label?: string;
+  pulse?: boolean;
+  tone: "accent" | "danger" | "primary" | "secondary" | "warm";
+  variant?: "chip" | "dot";
+};
+
 export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Live status chip; supplied per-render by the role sidebar, not static. */
+  badge?: NavBadge;
   /** Sidebar group heading. Items without one render before the first group. */
   group?: string;
   /**

@@ -37,6 +37,20 @@ export class StudentService {
       include: { coach: true, liveSession: true }
     });
 
+    // 1b. Profile + batch identity for the dashboard/sidebar chrome. The
+    //     soft-delete extension already filters deleted batch enrolments.
+    const [studentProfile, batchEnrolment] = await Promise.all([
+      this.prisma.studentProfile.findUnique({
+        where: { userId: user.id },
+        select: { chessRating: true }
+      }),
+      this.prisma.batchStudent.findFirst({
+        where: { studentId: user.id },
+        orderBy: { enrolledAt: "desc" },
+        include: { batch: true }
+      })
+    ]);
+
     // 2. Fetch Course Progress
     const courses = await this.prisma.studentCourseProgress.findMany({
       where: { studentId: user.id },
@@ -128,6 +142,8 @@ export class StudentService {
     ];
 
     return {
+      batchName: batchEnrolment?.batch.name ?? null,
+      chessRating: studentProfile?.chessRating ?? null,
       // Dates are returned as ISO-8601 only. Formatting them here would use the
       // server's timezone, not the student's — the web app formats them with
       // the user's `timezone` (AUDIT H11).

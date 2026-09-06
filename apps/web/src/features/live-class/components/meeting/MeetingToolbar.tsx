@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { memo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Mic,
@@ -17,6 +17,7 @@ import {
   Minimize,
   Crown,
   Circle,
+  PictureInPicture2,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -27,8 +28,10 @@ import {
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
 import { MoreControlsMenu, type MoreControlItem } from "./MoreControlsMenu";
+import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { isHumanParticipant } from "../../lib/participants";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../providers/ChatProvider";
@@ -72,18 +75,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
 
   const { unreadCount } = useLiveClassChat();
   const { localParticipant } = useLocalParticipant();
-
-  useEffect(() => {
-    if (!localParticipant) return;
-    const currentHandRaised = localParticipant.attributes?.handRaised === "true";
-    if (currentHandRaised !== handRaised) {
-      localParticipant
-        .setAttributes({ handRaised: handRaised.toString() })
-        .catch((err) => {
-          console.warn("Failed to update local attributes for hand raise:", err);
-        });
-    }
-  }, [handRaised, localParticipant, localParticipant?.attributes]);
+  const pip = useOptionalPip();
 
   const mic = useTrackToggle({ source: Track.Source.Microphone });
   const camera = useTrackToggle({ source: Track.Source.Camera });
@@ -150,7 +142,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     }
   };
 
-  const participantCount = participants.filter((p) => !p.identity.endsWith("_board")).length;
+  const participantCount = participants.filter(isHumanParticipant).length;
 
   const moreItems: MoreControlItem[] = [
     {
@@ -171,6 +163,17 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       onClick: toggleFullscreen,
     },
   ];
+
+  // Hidden where no Picture-in-Picture mechanism exists at all (Firefox),
+  // rather than offering a control that silently does nothing.
+  if (pip?.supported) {
+    moreItems.push({
+      icon: <PictureInPicture2 className={cn("size-5", pip.active && "text-primary")} />,
+      label: pip.active ? "Close mini player" : "Mini player",
+      onClick: pip.toggle,
+      active: pip.active,
+    });
+  }
 
   if (isCoach) {
     moreItems.splice(1, 0, {

@@ -223,6 +223,20 @@ export class AttendanceWebhookController {
     // Skip guest participants (those with identity starting with "guest_")
     if (participantIdentity?.startsWith("guest_")) return;
 
+    // Skip the recording bot. Egress' headless Chrome joins the room to compose
+    // the recording (see LiveKitService.startRecording) with identity
+    // `EG_<egressId>`, which the `split("_")[0]` above turns into a "EG" userId
+    // — that lands in the student branch below and tries to write attendance for
+    // a user that does not exist. It is not an attendee.
+    const participantKind = event.participant?.kind;
+    if (
+      participantIdentity?.startsWith("EG_") ||
+      participantKind === 2 || // ParticipantInfo_Kind.EGRESS
+      participantKind === "EGRESS"
+    ) {
+      return;
+    }
+
     const isCoach = userId === liveSession.coachId;
     const isBoard = participantIdentity?.endsWith("_board");
 

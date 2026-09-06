@@ -1,36 +1,50 @@
 "use client";
 
-import { WelcomeCard } from "@/features/student-dashboard/components/WelcomeCard";
-import { TodaysClass } from "@/features/student-dashboard/components/TodaysClass";
-import { ProgressOverview } from "@/features/student-dashboard/components/ProgressOverview";
-import { UpcomingClasses } from "@/features/student-dashboard/components/UpcomingClasses";
-import { ContinueLearning } from "@/features/student-dashboard/components/ContinueLearning";
-import { PracticeSection } from "@/features/student-dashboard/components/PracticeSection";
-import { RecentActivity } from "@/features/student-dashboard/components/RecentActivity";
-import { Announcements } from "@/features/student-dashboard/components/Announcements";
-import { PastClasses } from "@/features/student-dashboard/components/PastClasses";
-import { PageHeader } from "@/components/layout/PageHeader";
-import { useAuthStore } from "@/stores/authStore";
-import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
+import type { ReactNode } from "react";
+import { AlertTriangle } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Announcements } from "@/features/student-dashboard/components/Announcements";
+import { ContinueLearning } from "@/features/student-dashboard/components/ContinueLearning";
+import { PastClasses } from "@/features/student-dashboard/components/PastClasses";
+import { PracticeSection } from "@/features/student-dashboard/components/PracticeSection";
+import { ProgressOverview } from "@/features/student-dashboard/components/ProgressOverview";
+import { RecentActivity } from "@/features/student-dashboard/components/RecentActivity";
+import { TodaysClass } from "@/features/student-dashboard/components/TodaysClass";
+import { UpcomingClasses } from "@/features/student-dashboard/components/UpcomingClasses";
+import { WelcomeCard } from "@/features/student-dashboard/components/WelcomeCard";
+import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
+import { useAuthStore } from "@/stores/authStore";
+
+/** Rows fade in one after another so the page assembles rather than snapping in. */
+function Row({ children, delay }: { children: ReactNode; delay: number }) {
+  return (
+    <div className="animate-slide-up" style={{ animationDelay: `${delay}ms` }}>
+      {children}
+    </div>
+  );
+}
 
 export default function StudentDashboardPage() {
   const { user } = useAuthStore();
-  const { data, isLoading, error } = useStudentDashboard();
+  const { data, error, isLoading, refetch } = useStudentDashboard();
 
   if (isLoading) {
     return (
-      <div className="space-y-6 md:space-y-8 animate-pulse pb-10">
-        <PageHeader title="Student Dashboard" description="Loading your dashboard..." />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <Skeleton className="h-64 lg:col-span-2 rounded-xl" />
-          <Skeleton className="h-64 lg:col-span-1 rounded-xl" />
+      <div className="space-y-6 pb-10">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Skeleton className="h-60 rounded-panel lg:col-span-2" />
+          <Skeleton className="h-60 rounded-panel" />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Skeleton className="h-32 rounded-xl" />
-          <Skeleton className="h-32 rounded-xl" />
-          <Skeleton className="h-32 rounded-xl" />
-          <Skeleton className="h-32 rounded-xl" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <Skeleton className="h-44 rounded-app" key={i} />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-panel" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <Skeleton className="h-72 rounded-panel" />
+          <Skeleton className="h-72 rounded-panel" />
         </div>
       </div>
     );
@@ -38,66 +52,82 @@ export default function StudentDashboardPage() {
 
   if (error) {
     return (
-      <div className="py-10 text-center">
-        <p className="text-red-500 font-bold">Failed to load dashboard data. Please try again.</p>
+      <div className="pb-10">
+        <div className="flex flex-col items-center justify-center rounded-panel border border-app-danger/30 bg-app-danger/5 px-6 py-16 text-center">
+          <span className="mb-4 flex size-16 items-center justify-center rounded-full bg-app-danger/[0.12]">
+            <AlertTriangle
+              aria-hidden="true"
+              className="size-7 text-app-danger-ink"
+              strokeWidth={2.5}
+            />
+          </span>
+          <h1 className="text-lg font-extrabold text-app-text">
+            Couldn&apos;t load your dashboard
+          </h1>
+          <p className="mt-1 max-w-sm text-sm text-app-muted">
+            Something went wrong while fetching your classes and progress.
+          </p>
+          <Button className="mt-6" onClick={() => refetch()} variant="outline">
+            Try again
+          </Button>
+        </div>
       </div>
     );
   }
 
+  const todaysClass = data?.todaysClass;
+  const isTodayLive =
+    todaysClass?.status === "IN_PROGRESS" || todaysClass?.status === "LIVE";
+
   return (
-    <div className="space-y-6 md:space-y-8 animate-in fade-in duration-500 pb-10">
-      <PageHeader
-        title="Student Dashboard"
-        description="Track your progress and continue learning."
-      />
-
-      {/* Row 1: Welcome & Today's Class */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <WelcomeCard
-            studentName={user?.firstName || "Student"}
-            courseName={data?.courses?.[0]?.title || "Explore Courses"}
-            batchName="Your Batch"
-            memberSince="Recently"
-            liveClassId={(data?.todaysClass?.status === "IN_PROGRESS" || data?.todaysClass?.status === "LIVE") ? data.todaysClass.id : undefined}
-          />
-        </div>
-        <div className="lg:col-span-1">
+    <div className="space-y-6 pb-10">
+      <Row delay={0}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <WelcomeCard
+              studentName={user?.firstName || "Student"}
+              courseName={data?.courses?.[0]?.title || "Explore Courses"}
+              batchName={data?.batchName || "Your Batch"}
+              memberSince="Recently"
+              liveClassId={isTodayLive ? todaysClass.id : undefined}
+            />
+          </div>
           <TodaysClass
-            id={data?.todaysClass?.id}
-            topic={data?.todaysClass?.topic}
-            coachName={data?.todaysClass?.coachName}
-            startsAt={data?.todaysClass?.startsAt}
-            durationMinutes={data?.todaysClass?.durationMinutes}
-            status={data?.todaysClass?.status as any}
+            id={todaysClass?.id}
+            topic={todaysClass?.topic}
+            coachName={todaysClass?.coachName}
+            startsAt={todaysClass?.startsAt}
+            durationMinutes={todaysClass?.durationMinutes}
+            status={todaysClass?.status}
           />
         </div>
-      </div>
+      </Row>
 
-      {/* Row 2: Progress */}
-      <ProgressOverview metrics={data?.progressMetrics} />
+      <Row delay={70}>
+        <ProgressOverview metrics={data?.progressMetrics} />
+      </Row>
 
-      {/* Row 3: Upcoming Classes */}
-      <div>
+      <Row delay={140}>
         <UpcomingClasses classes={data?.upcomingClasses || []} />
-      </div>
+      </Row>
 
-      {/* Row 4: Continue Learning & Practice */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ContinueLearning courses={data?.courses || []} />
-        <PracticeSection practices={data?.practices || []} />
-      </div>
+      <Row delay={210}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <ContinueLearning courses={data?.courses || []} />
+          <PracticeSection practices={data?.practices || []} />
+        </div>
+      </Row>
 
-      {/* Row 5: Activity & Announcements */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentActivity activities={data?.activities || []} />
-        <Announcements announcements={data?.announcements || []} />
-      </div>
+      <Row delay={280}>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <RecentActivity activities={data?.activities || []} />
+          <Announcements announcements={data?.announcements || []} />
+        </div>
+      </Row>
 
-      {/* Row 6: Past Classes */}
-      <div>
+      <Row delay={350}>
         <PastClasses classes={data?.pastClasses || []} />
-      </div>
+      </Row>
     </div>
   );
 }

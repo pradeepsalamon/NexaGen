@@ -9,6 +9,9 @@ import { useBoardStore } from "../../context/BoardProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { loadPgnIntoBoard } from "../../lib/loadPgn";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
+import { isHumanParticipant } from "@/features/live-class/lib/participants";
+import { BoardControlSideToggle } from "@/features/live-class/components/meeting/BoardControlSideToggle";
+import type { BoardControlSide } from "../../types/sync";
 import { useParticipants } from "@livekit/components-react";
 
 export function SidebarTabs() {
@@ -150,11 +153,13 @@ function parseParticipantMeta(raw?: string) {
 
 function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
   const participants = useParticipants();
-  const grantedIds: string[] = liveClassState.boardControlStudentIds ?? [];
+  const granted: Record<string, BoardControlSide> = liveClassState.boardControlStudents ?? {};
+  const grantedIds = Object.keys(granted);
 
-  // Everyone in the meeting except the coach's own board pop-out (`${id}_board`).
+  // Everyone in the meeting except the coach's own board pop-out and the
+  // recording bot — neither is a person who can be granted board control.
   const people = participants
-    .filter((p) => !p.identity.endsWith("_board"))
+    .filter(isHumanParticipant)
     .map((p) => {
       const meta = parseParticipantMeta(p.metadata);
       const isCoachRole =
@@ -182,8 +187,8 @@ function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
         )}
       </div>
       <p className="text-xs text-gray-500 dark:text-slate-400 -mt-2">
-        Grant any student permission to move pieces on the shared board. Several can hold
-        control at once; the coach always can.
+        Choose which pieces each student may move — white, black, or both. Several can hold
+        control at once, so two students can play each other; the coach always has full control.
       </p>
 
       <div className="flex flex-col gap-2">
@@ -202,24 +207,19 @@ function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
         {students.length === 0 ? (
           <p className="text-xs text-gray-400 italic py-2">No students in room.</p>
         ) : (
-          students.map((p) => {
-            const hasControl = grantedIds.includes(p.identity);
-            return (
-              <div
-                key={p.identity}
-                className="flex items-center justify-between gap-2 rounded-control border border-gray-200 dark:border-slate-800 pl-3 pr-1 h-9"
-              >
-                <span className="truncate text-xs font-medium text-app-text">{p.name}</span>
-                <Button
-                  variant={hasControl ? "primary" : "outline"}
-                  className="shrink-0 text-xs h-7 px-2.5"
-                  onClick={() => liveClassState.toggleBoardControl(p.identity)}
-                >
-                  {hasControl ? "Revoke" : "Grant"}
-                </Button>
-              </div>
-            );
-          })
+          students.map((p) => (
+            <div
+              key={p.identity}
+              className="flex items-center justify-between gap-2 rounded-control border border-gray-200 dark:border-slate-800 pl-3 pr-1 h-9"
+            >
+              <span className="truncate text-xs font-medium text-app-text">{p.name}</span>
+              <BoardControlSideToggle
+                studentName={p.name}
+                value={granted[p.identity] ?? null}
+                onChange={(side) => liveClassState.setBoardControlSide(p.identity, side)}
+              />
+            </div>
+          ))
         )}
       </div>
     </div>

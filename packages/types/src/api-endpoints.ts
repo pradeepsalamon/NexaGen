@@ -79,7 +79,9 @@ export const API_ROUTES = {
     recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`,
     // Mid-class policy change (coach/admin) — re-resolves the snapshot and
     // pushes new LiveKit grants to affected participants.
-    liveSettings: (id: string = ":id") => `/live-class/${id}/live-settings`
+    liveSettings: (id: string = ":id") => `/live-class/${id}/live-settings`,
+    // Force-mute one participant's mic / camera / screen share (coach-owner or admin).
+    moderate: (id: string = ":id") => `/live-class/${id}/moderate`
   },
   liveClassSettings: {
     // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.

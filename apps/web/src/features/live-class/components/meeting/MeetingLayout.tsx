@@ -9,6 +9,10 @@ import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useCoachBoardOpen } from "../../hooks/useCoachBoardOpen";
 import { BoardProvider } from "@/features/chessboard/context/BoardProvider";
 import { LiveBoardSyncBridge } from "./LiveBoardSyncBridge";
+import { BoardControlToasts } from "./BoardControlToasts";
+import { MiniPlayer } from "./MiniPlayer";
+import { VideoPipSurface } from "./VideoPipSurface";
+import { PipProvider } from "../../providers/PipProvider";
 
 /**
  * Main meeting layout orchestrator.
@@ -30,25 +34,32 @@ export function MeetingLayout() {
   useCoachBoardOpen();
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-14 text-app-text">
-      <MeetingTopBar />
-      <ConnectionBanner />
+    <PipProvider>
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-14 text-app-text">
+        <MeetingTopBar />
+        <ConnectionBanner />
 
-      <main className="relative flex flex-1 overflow-hidden">
-        <BoardProvider>
-          <LiveBoardSyncBridge>
-            <div className="relative flex flex-1 flex-col overflow-hidden">
-              <div className="custom-scrollbar relative flex flex-1 flex-col overflow-y-auto">
-                <MeetingVideoGrid />
+        <main className="relative flex flex-1 overflow-hidden">
+          <BoardProvider>
+            <LiveBoardSyncBridge>
+              <BoardControlToasts />
+              <div className="relative flex flex-1 flex-col overflow-hidden">
+                <div className="custom-scrollbar relative flex flex-1 flex-col overflow-y-auto">
+                  <MeetingVideoGrid />
+                </div>
               </div>
-            </div>
-          </LiveBoardSyncBridge>
-        </BoardProvider>
+            </LiveBoardSyncBridge>
+          </BoardProvider>
 
-        <MeetingSidebar />
-      </main>
+          <MeetingSidebar />
+        </main>
 
-      <MeetingToolbar />
-    </div>
+        <MeetingToolbar />
+      </div>
+
+      {/* Whichever mini player this browser supports; each no-ops otherwise. */}
+      <MiniPlayer />
+      <VideoPipSurface />
+    </PipProvider>
   );
 }

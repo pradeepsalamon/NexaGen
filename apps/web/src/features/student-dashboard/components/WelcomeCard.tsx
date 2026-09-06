@@ -1,14 +1,12 @@
-import { Card, CardContent } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
-import { Play } from "lucide-react";
+import { ArrowRight, BookOpen, CalendarDays, Play, Users } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 
 interface WelcomeCardProps {
   studentName: string;
   batchName?: string;
   courseName?: string;
   memberSince?: string;
-  avatarUrl?: string;
   liveClassId?: string; // If there's an active live class
 }
 
@@ -17,56 +15,70 @@ export function WelcomeCard({
   batchName = "Unassigned Batch",
   courseName = "No active course",
   memberSince = "Recently",
-  avatarUrl,
   liveClassId
 }: WelcomeCardProps) {
   return (
-    <Card className="bg-gradient-to-r from-primary/10 to-transparent border-primary/20 shadow-sm overflow-hidden">
-      <CardContent className="p-6 md:p-8 flex flex-col md:flex-row items-center gap-6">
-        <div className="h-24 w-24 rounded-full border-4 border-white shadow-md overflow-hidden bg-primary flex items-center justify-center text-3xl text-white font-bold">
-          {avatarUrl ? (
-            /* eslint-disable-next-line @next/next/no-img-element */
-            <img src={avatarUrl} alt={studentName} className="h-full w-full object-cover" />
-          ) : (
-            studentName.charAt(0).toUpperCase()
-          )}
+    <section className="relative h-full overflow-hidden rounded-panel border border-app-border bg-app-surface p-6 shadow-card sm:p-8">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-10 -right-10 size-64 rounded-full bg-primary/5 blur-3xl"
+      />
+
+      <div className="relative flex h-full flex-col justify-between gap-6">
+        <div>
+          <span className="inline-flex items-center rounded-full border border-secondary/40 bg-secondary/25 px-2.5 py-0.5 text-xs font-extrabold text-secondary-ink">
+            {batchName}
+          </span>
+          <h1 className="mt-2 flex items-center gap-3 text-2xl font-extrabold tracking-tight text-app-text sm:text-3xl">
+            <span>Welcome back, {studentName}!</span>
+            <span aria-hidden="true" className="inline-block motion-safe:animate-bounce">
+              👋
+            </span>
+          </h1>
+          <p className="mt-1 max-w-xl text-sm text-app-muted">
+            Track your progress, join interactive batches, analyze tactic puzzles, and
+            continue mastering your chess openings.
+          </p>
         </div>
 
-        <div className="flex-1 text-center md:text-left space-y-2">
-          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-app-text">
-            Welcome back, {studentName}! 👋
-          </h2>
-          <div className="flex flex-wrap justify-center md:justify-start gap-3 text-sm text-app-muted">
-            <span className="bg-app-surface px-3 py-1 rounded-full border border-app-border">
-              📚 {courseName}
-            </span>
-            <span className="bg-app-surface px-3 py-1 rounded-full border border-app-border">
-              👥 {batchName}
-            </span>
-            <span className="bg-app-surface px-3 py-1 rounded-full border border-app-border">
-              📅 Member since {memberSince}
-            </span>
-          </div>
-        </div>
+        <div className="flex flex-wrap items-center gap-3 pt-2">
+          {/* Informational, not links — /student/courses and /student/batches
+              are in studentNavItems but have no page yet. */}
+          <span className="inline-flex items-center gap-2 rounded-control border border-app-border bg-app-soft px-3.5 py-2 text-xs font-bold text-app-text">
+            <BookOpen aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            {courseName}
+          </span>
+          <span className="inline-flex items-center gap-2 rounded-control border border-app-border bg-app-soft px-3.5 py-2 text-xs font-bold text-app-text">
+            <Users aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            Your Batch
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-control border border-app-border bg-app-surface px-3.5 py-2 text-xs font-medium text-app-muted">
+            <CalendarDays aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            Member since
+            <span className="font-bold text-app-text">{memberSince}</span>
+          </span>
 
-        <div className="flex flex-col gap-3 w-full md:w-auto">
           {liveClassId ? (
-            <Link href={`/live-class/${liveClassId}`}>
-              <Button className="w-full md:w-auto font-bold bg-secondary text-black hover:bg-secondary/90 shadow-md">
-                <Play className="mr-2 h-4 w-4" />
+            <Button asChild className="ml-auto" variant="destructive">
+              <Link href={`/live-class/${liveClassId}`}>
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-white opacity-75 motion-reduce:animate-none" />
+                  <span className="relative inline-flex size-2 rounded-full bg-white" />
+                </span>
                 Join Live Class
-              </Button>
-            </Link>
+                <Play aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              </Link>
+            </Button>
           ) : (
-            <Link href="/student/schedule">
-              <Button variant="outline" className="w-full md:w-auto font-bold border-primary text-primary hover:bg-primary/10">
-                View Schedule
-              </Button>
-            </Link>
+            <Button asChild className="ml-auto" variant="primary">
+              <Link href="/student/schedule">
+                View Full Schedule
+                <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              </Link>
+            </Button>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }
-

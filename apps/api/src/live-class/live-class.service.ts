@@ -20,9 +20,15 @@ import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types
 import {
   deriveLiveKitGrants,
   liveClassSettingsSchema,
+  privateChatRecipientAllowed,
+  LIVE_CLASS_MODERATION_TOPIC,
   LIVE_CLASS_SETTINGS_TOPIC,
+  type LiveChatMessageResponse,
   type LiveClassSettings,
   type LiveClassSettingsMessage,
+  type ModerateParticipantRequest,
+  type ModerateParticipantResponse,
+  type ModerationNotice,
   type UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
 import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
@@ -710,8 +716,9 @@ export class LiveClassService {
     accessToken: string | undefined,
     classId: string,
     message: string,
-    clientMessageId?: string
-  ) {
+    clientMessageId?: string,
+    recipientId?: string | null
+  ): Promise<LiveChatMessageResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
 
     const trimmed = typeof message === "string" ? message.trim() : "";
@@ -724,12 +731,16 @@ export class LiveClassService {
 
     const liveSession = await this.getAccessibleLiveSession(user, classId);
 
+    if (recipientId) {
+      await this.assertPrivateChatAllowed(user, liveSession, recipientId);
+    }
+
     const name = [user.firstName, user.role === UserRole.COACH ? user.lastName : null]
       .filter(Boolean)
       .join(" ")
       .trim();
 
-    return this.prisma.liveChatMessage.create({
+    const row = await this.prisma.liveChatMessage.create({
       data: {
         liveSessionId: liveSession.id,
         senderId: user.id,
@@ -737,19 +748,172 @@ export class LiveClassService {
         senderRole: user.role,
         message: trimmed,
         clientMessageId: clientMessageId ?? null,
+        recipientId: recipientId ?? null,
       },
     });
+
+    return LiveClassService.toChatMessage(row);
   }
 
-  async getChatHistory(accessToken: string | undefined, classId: string) {
+  /**
+   * Private chat is deliberately one-to-one **with the coach**: a student may
+   * only address staff, and staff may address anyone in the class. This is the
+   * write-side enforcement -- the web client hides the option and drops inbound
+   * packets that break the same rule, but neither of those binds an attacker.
+   */
+  private async assertPrivateChatAllowed(
+    user: { id: string; role: UserRole },
+    liveSession: { id: string; coachId: string; batch?: { students: { studentId: string }[] } | null },
+    recipientId: string
+  ) {
+    if (recipientId === user.id) {
+      throw new BadRequestException("You cannot send a private message to yourself.");
+    }
+
+    const recipient = await this.prisma.user.findUnique({
+      where: { id: recipientId },
+      select: { id: true, role: true, status: true },
+    });
+    if (!recipient || recipient.status !== UserStatus.ACTIVE) {
+      throw new NotFoundException("Recipient not found.");
+    }
+
+    if (!privateChatRecipientAllowed(user.role, recipient.role)) {
+      throw new ForbiddenException(
+        "Private messages are only allowed between a student and the coach."
+      );
+    }
+
+    // The recipient must actually belong to this class, whichever side they are on.
+    const inClass =
+      recipient.id === liveSession.coachId ||
+      recipient.role === UserRole.ADMIN ||
+      recipient.role === UserRole.SUPER_ADMIN ||
+      !!liveSession.batch?.students.some((s) => s.studentId === recipient.id);
+    if (!inClass) {
+      throw new ForbiddenException("That person is not in this class.");
+    }
+  }
+
+  async getChatHistory(
+    accessToken: string | undefined,
+    classId: string
+  ): Promise<LiveChatMessageResponse[]> {
     const user = await this.getAuthenticatedUser(accessToken);
     const liveSession = await this.getAccessibleLiveSession(user, classId);
 
-    return this.prisma.liveChatMessage.findMany({
-      where: { liveSessionId: liveSession.id },
+    // Room-wide messages, plus only the private threads this user is party to --
+    // filtering client-side would ship other people's DMs down the wire.
+    const rows = await this.prisma.liveChatMessage.findMany({
+      where: {
+        liveSessionId: liveSession.id,
+        OR: [
+          { recipientId: null },
+          { recipientId: user.id },
+          { senderId: user.id, recipientId: { not: null } },
+        ],
+      },
       orderBy: { createdAt: "asc" },
       take: 500, // Limit to last 500 messages
     });
+
+    return rows.map(LiveClassService.toChatMessage);
+  }
+
+  private static toChatMessage(row: {
+    id: string;
+    senderId: string;
+    senderName: string;
+    senderRole: string | null;
+    recipientId: string | null;
+    message: string;
+    clientMessageId: string | null;
+    createdAt: Date;
+  }): LiveChatMessageResponse {
+    return {
+      id: row.id,
+      senderId: row.senderId,
+      senderName: row.senderName,
+      senderRole: row.senderRole,
+      recipientId: row.recipientId,
+      message: row.message,
+      clientMessageId: row.clientMessageId,
+      createdAt: row.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Switch off one participant's already-published mic, camera or screen share.
+   *
+   * Mute only -- there is no server-side "unmute": re-opening someone's
+   * microphone without them touching it is a privacy hole, and LiveKit would
+   * need the client to republish anyway. The participant turns it back on
+   * themselves (unless the class policy locks that source off).
+   */
+  async moderateParticipant(
+    accessToken: string | undefined,
+    classId: string,
+    body: ModerateParticipantRequest
+  ): Promise<ModerateParticipantResponse> {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    if (
+      user.role !== UserRole.COACH &&
+      user.role !== UserRole.ADMIN &&
+      user.role !== UserRole.SUPER_ADMIN
+    ) {
+      throw new ForbiddenException("Only a coach can turn off someone else's microphone or camera.");
+    }
+
+    const liveSession = await this.prisma.liveSession.findUnique({ where: { classId } });
+    if (!liveSession) {
+      throw new NotFoundException("Live class not found.");
+    }
+    if (user.role === UserRole.COACH && liveSession.coachId !== user.id) {
+      throw new ForbiddenException("You can only moderate your own classes.");
+    }
+    if (liveSession.status !== LiveSessionStatus.LIVE) {
+      throw new BadRequestException("Class is not currently live.");
+    }
+    if (LiveClassService.isCoachParticipant(body.identity, liveSession.coachId)) {
+      throw new BadRequestException("Use your own controls to mute yourself.");
+    }
+
+    const participants = await this.livekit.listParticipants(liveSession.roomName);
+    const participant = participants.find((p) => p.identity === body.identity);
+    if (!participant) {
+      throw new NotFoundException("That participant is no longer in the class.");
+    }
+
+    let muted = false;
+    for (const track of participant.tracks ?? []) {
+      if (track.muted) continue;
+      if (LiveKitService.trackSourceLabel(track.source) !== body.source) continue;
+      await this.livekit.muteParticipantTrack(liveSession.roomName, participant.identity, track.sid);
+      muted = true;
+    }
+
+    if (muted) {
+      // Best-effort explanation for a track that just went dead. The mute is
+      // already enforced at the SFU, so a dropped packet costs a toast only.
+      try {
+        const notice: ModerationNotice = {
+          type: "FORCE_MUTE",
+          identity: participant.identity,
+          source: body.source,
+          byName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || "The coach",
+        };
+        await this.livekit.broadcastData(
+          liveSession.roomName,
+          new TextEncoder().encode(JSON.stringify(notice)),
+          LIVE_CLASS_MODERATION_TOPIC
+        );
+      } catch (error) {
+        this.logger.warn(`Failed to announce force-mute in ${liveSession.roomName}`, error as Error);
+      }
+    }
+
+    return { muted, identity: participant.identity, source: body.source };
   }
 
   /** Data-channel topic the live class broadcasts board state on. */

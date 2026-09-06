@@ -196,9 +196,21 @@ export class LiveKitService implements OnModuleInit {
     await this.roomClient.mutePublishedTrack(roomName, identity, trackSid, true);
   }
 
-  /** Server-inject a data packet onto a topic every participant can listen on. */
-  async broadcastData(roomName: string, payload: Uint8Array, topic: string): Promise<void> {
-    await this.roomClient.sendData(roomName, payload, DataPacket_Kind.RELIABLE, { topic });
+  /**
+   * Server-inject a data packet onto a topic every participant can listen on.
+   * Pass `destinationIdentities` to address it to specific participants only —
+   * LiveKit then never puts the packet on anyone else's wire.
+   */
+  async broadcastData(
+    roomName: string,
+    payload: Uint8Array,
+    topic: string,
+    destinationIdentities?: string[],
+  ): Promise<void> {
+    await this.roomClient.sendData(roomName, payload, DataPacket_Kind.RELIABLE, {
+      topic,
+      ...(destinationIdentities?.length ? { destinationIdentities } : {}),
+    });
   }
 
   /**

@@ -1,19 +1,25 @@
 "use client";
 
-import { memo } from "react";
-import { CheckCircle2, Users, Clock, Percent, Target } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { memo, useMemo, useState } from "react";
+import {
+  Flame,
+  Calendar,
+  Download,
+  Search,
+  Info,
+  CheckCircle2,
+  Clock,
+  FilterX,
+} from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import type {
   StudentAttendanceHistory,
   StudentAttendanceResponse,
 } from "@nexa-chess/types";
 import { AttendanceStatusBadge } from "./AttendanceStatusBadge";
 import { AttendancePercentBar } from "./AttendancePercentBar";
-
-function formatDuration(seconds: number) {
-  if (!seconds) return "0 min";
-  return `${Math.floor(seconds / 60)} min`;
-}
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate, formatTime } from "@/lib/datetime";
 
 interface StudentAttendanceViewProps {
   data: StudentAttendanceResponse;
@@ -22,6 +28,8 @@ interface StudentAttendanceViewProps {
   hideHeading?: boolean;
 }
 
+type StatusFilter = "ALL" | "PRESENT" | "LATE" | "ABSENT";
+
 export const StudentAttendanceView = memo(function StudentAttendanceView({
   data,
   onRowClick,
@@ -29,161 +37,311 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
 }: StudentAttendanceViewProps) {
   const { stats, history } = data;
   const interactive = typeof onRowClick === "function";
+  const timeZone = useUserTimeZone();
+
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filteredHistory = useMemo(() => {
+    return history.filter((record) => {
+      // Status filter
+      if (statusFilter !== "ALL" && record.status !== statusFilter) {
+        return false;
+      }
+      // Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const topicMatch = record.topic?.toLowerCase().includes(q);
+        const coachMatch = record.coachName?.toLowerCase().includes(q);
+        const batchMatch = record.batchName?.toLowerCase().includes(q);
+        if (!topicMatch && !coachMatch && !batchMatch) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [history, statusFilter, searchQuery]);
+
+  const handleExportCSV = () => {
+    if (!history.length) return;
+    const headers = [
+      "Date",
+      "Time",
+      "Class / Topic",
+      "Instructor",
+      "Batch",
+      "Status",
+      "Attended Duration (min)",
+      "Class Duration (min)",
+      "Attendance %",
+    ];
+    const rows = history.map((r) => {
+      const rawDate = r.actualStart ?? r.date;
+      const formattedDate = formatFullDate(rawDate, timeZone);
+      const formattedTime = formatTime(rawDate, timeZone);
+      return [
+        `"${formattedDate}"`,
+        `"${formattedTime}"`,
+        `"${(r.topic || "").replace(/"/g, '""')}"`,
+        `"${(r.coachName || "").replace(/"/g, '""')}"`,
+        `"${(r.batchName || "").replace(/"/g, '""')}"`,
+        r.status,
+        Math.round((r.actualDuration || 0) / 60),
+        Math.round((r.classActualDuration || r.scheduledDuration || 0) / 60),
+        `${r.attendancePercent ?? 0}%`,
+      ];
+    });
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `attendance_report_${new Date().toISOString().split("T")[0]}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
+      {/* Page Header */}
       {!hideHeading && (
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-app-text">Attendance</h1>
-          <p className="text-app-muted mt-1">
-            Track live class participation and learning time
-          </p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-app-text">
+              Attendance &amp; Participation
+            </h1>
+            <p className="text-app-muted mt-1 text-sm md:text-base">
+              Track your session history, engagement metrics, and class streaks.
+            </p>
+          </div>
+          <Button
+            variant="primary"
+            onClick={handleExportCSV}
+            className="rounded-full shadow-sm flex items-center gap-2"
+          >
+            <Download className="size-4" strokeWidth={2.5} />
+            <span>Download Attendance Report (CSV)</span>
+          </Button>
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <Card className="border-app-border bg-app-surface shadow-sm">
-          <CardContent className="p-5 flex flex-col justify-center h-full">
-            <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-primary/10 border border-primary/20">
-                <Percent className="h-5 w-5 text-primary" />
-              </span>
-            </div>
-            <p className="text-3xl font-bold tracking-tight">{stats.percentage}%</p>
-            <p className="text-sm font-medium text-app-muted mt-1">Overall Attendance</p>
-          </CardContent>
-        </Card>
+      {/* KPI Grid (5 Cards matching Stitch layout) */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* KPI 1: Overall Attendance */}
+        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+          <div className="relative w-16 h-16 flex items-center justify-center mb-2">
+            <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="text-app-soft stroke-current"
+                strokeWidth="3.5"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+              <path
+                className="text-[#34D399] transition-all duration-700 ease-out stroke-current"
+                strokeDasharray={`${Math.min(100, Math.max(0, stats.percentage))}, 100`}
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                fill="none"
+                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              />
+            </svg>
+            <span className="absolute text-lg font-bold text-app-text">{stats.percentage}%</span>
+          </div>
+          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted">Overall</span>
+        </div>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
-          <CardContent className="p-5 flex flex-col justify-center h-full">
-            <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
-                <CheckCircle2 className="h-5 w-5 text-green-500" />
-              </span>
-            </div>
-            <div className="flex items-end gap-2">
-              <p className="text-3xl font-bold tracking-tight text-green-600">{stats.attended}</p>
-              <p className="text-sm text-app-muted font-medium mb-1">/ {stats.total}</p>
-            </div>
-            <p className="text-sm font-medium text-app-muted mt-1">Classes Attended</p>
-          </CardContent>
-        </Card>
+        {/* KPI 2: Classes Attended */}
+        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mb-3">
+            <CheckCircle2 className="size-6" strokeWidth={2.5} />
+          </div>
+          <span className="text-2xl font-bold text-app-text">{stats.attended}/{stats.total}</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">Attended</span>
+        </div>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
-          <CardContent className="p-5 flex flex-col justify-center h-full">
-            <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                <Clock className="h-5 w-5 text-purple-500" />
-              </span>
-            </div>
-            <p className="text-3xl font-bold tracking-tight text-purple-600">{stats.totalLearningHours}h</p>
-            <p className="text-sm font-medium text-app-muted mt-1">Learning Time</p>
-          </CardContent>
-        </Card>
+        {/* KPI 3: Total Learning Time */}
+        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+          <div className="w-12 h-12 bg-purple-500/10 text-purple-600 rounded-full flex items-center justify-center mb-3">
+            <Clock className="size-6" strokeWidth={2.5} />
+          </div>
+          <span className="text-2xl font-bold text-app-text">{stats.totalLearningHours} hrs</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">Total Time</span>
+        </div>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
-          <CardContent className="p-5 flex flex-col justify-center h-full">
-            <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
-                <Target className="h-5 w-5 text-orange-500" />
-              </span>
-            </div>
-            <p className="text-3xl font-bold tracking-tight text-orange-500">{stats.currentStreak}</p>
-            <p className="text-sm font-medium text-app-muted mt-1">Current Streak</p>
-          </CardContent>
-        </Card>
+        {/* KPI 4: Current Streak */}
+        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+          <div className="w-12 h-12 bg-orange-500/10 text-orange-600 rounded-full flex items-center justify-center mb-3">
+            <Flame className="size-6" strokeWidth={2.5} />
+          </div>
+          <span className="text-2xl font-bold text-app-text">{stats.currentStreak} Classes</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">Current Streak</span>
+        </div>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
-          <CardContent className="p-5 flex flex-col justify-center h-full">
-            <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <Users className="h-5 w-5 text-blue-500" />
-              </span>
-            </div>
-            <p className="text-3xl font-bold tracking-tight text-blue-600">{stats.monthlyPercent}%</p>
-            <p className="text-sm font-medium text-app-muted mt-1">This Month</p>
-          </CardContent>
-        </Card>
+        {/* KPI 5: This Month */}
+        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md col-span-2 sm:col-span-1">
+          <div className="w-12 h-12 bg-blue-500/10 text-blue-600 rounded-full flex items-center justify-center mb-3">
+            <Calendar className="size-6" strokeWidth={2.5} />
+          </div>
+          <span className="text-2xl font-bold text-app-text">{stats.monthlyPercent}%</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">This Month</span>
+        </div>
       </div>
 
-      {/* History Table */}
-      <Card className="border-app-border bg-app-surface shadow-sm overflow-hidden">
-        <CardHeader className="bg-app-soft/50 border-b border-app-border">
-          <CardTitle className="text-lg flex justify-between items-center">
-            Attendance History
+      {/* Class History Card */}
+      <div className="bg-app-surface border border-app-border rounded-2xl shadow-sm overflow-hidden">
+        {/* Card Header with Status Filter Pills and Search */}
+        <div className="p-5 border-b border-app-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-bold text-app-text">Class History</h2>
             {interactive && (
-              <span className="text-sm font-normal text-app-muted">
-                Click a row for detailed logs
+              <span className="text-xs font-normal text-app-muted hidden sm:inline">
+                (Click row or info icon for detailed logs)
               </span>
             )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {history.length === 0 ? (
-            <div className="p-8 text-center text-app-muted">
-              No class history available.
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* Status Filter Buttons */}
+            <div className="flex bg-app-soft/80 p-1 rounded-xl border border-app-border">
+              {(["ALL", "PRESENT", "LATE", "ABSENT"] as const).map((status) => {
+                const isActive = statusFilter === status;
+                const label = status === "ALL" ? "All" : status.charAt(0) + status.slice(1).toLowerCase();
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusFilter(status)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      isActive
+                        ? "bg-app-surface text-app-text shadow-xs font-bold"
+                        : "text-app-muted hover:text-app-text hover:bg-app-surface/50"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
-                  <tr>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Date &amp; Time</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Topic / Coach</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Batch</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">Attendance %</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Duration</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-app-border">
-                  {history.map((record: StudentAttendanceHistory) => (
+
+            {/* Search Input */}
+            <div className="relative flex-1 sm:w-64 sm:flex-initial">
+              <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-app-muted pointer-events-none" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search classes..."
+                className="w-full pl-9 pr-4 py-1.5 text-sm bg-app-background border border-app-border rounded-xl text-app-text placeholder:text-app-muted focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Table Content */}
+        {filteredHistory.length === 0 ? (
+          <div className="p-12 text-center flex flex-col items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-app-soft flex items-center justify-center mb-3 text-app-muted">
+              <FilterX className="size-6" />
+            </div>
+            <h3 className="text-base font-semibold text-app-text">No records found</h3>
+            <p className="text-sm text-app-muted mt-1 max-w-sm">
+              {history.length === 0
+                ? "No attendance records available yet."
+                : "No class records match your selected filter or search terms."}
+            </p>
+            {(statusFilter !== "ALL" || searchQuery) && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-4 rounded-full text-xs"
+                onClick={() => {
+                  setStatusFilter("ALL");
+                  setSearchQuery("");
+                }}
+              >
+                Reset Filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-app-border bg-app-soft/50 text-xs font-semibold uppercase tracking-wider text-app-muted">
+                  <th scope="col" className="px-5 py-3.5">Class / Topic</th>
+                  <th scope="col" className="px-5 py-3.5">Instructor</th>
+                  <th scope="col" className="px-5 py-3.5">Status</th>
+                  <th scope="col" className="px-5 py-3.5">Duration</th>
+                  <th scope="col" className="px-5 py-3.5 md:w-[180px]">Engagement</th>
+                  <th scope="col" className="px-5 py-3.5 text-right">Logs</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-app-border">
+                {filteredHistory.map((record) => {
+                  const rawDate = record.actualStart ?? record.date;
+                  const formattedDate = formatFullDate(rawDate, timeZone);
+                  const formattedTime = formatTime(rawDate, timeZone);
+                  const actualMins = Math.round((record.actualDuration || 0) / 60);
+                  const totalMins = Math.round(
+                    (record.classActualDuration || record.scheduledDuration || 0) / 60
+                  );
+
+                  return (
                     <tr
                       key={record.id}
                       onClick={interactive ? () => onRowClick?.(record) : undefined}
-                      className={
-                        "transition-colors" +
-                        (interactive
-                          ? " hover:bg-app-soft/50 cursor-pointer"
-                          : "")
-                      }
+                      className={`group transition-colors ${
+                        interactive ? "hover:bg-app-soft/50 cursor-pointer" : ""
+                      }`}
                     >
-                      <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
-                        {new Date(record.actualStart ?? record.date).toLocaleDateString(undefined, {
-                          weekday: "short", month: "short", day: "numeric",
-                        })}
-                        <span className="text-app-muted block text-xs mt-0.5">
-                          {new Date(record.actualStart ?? record.date).toLocaleTimeString(undefined, {
-                            hour: "2-digit", minute: "2-digit",
-                          })}
-                        </span>
+                      <td className="px-5 py-4">
+                        <div className="font-semibold text-app-text">{record.topic}</div>
+                        <div className="text-xs text-app-muted mt-0.5">
+                          {formattedDate} • {formattedTime}
+                        </div>
                       </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <div className="font-medium text-app-text">{record.topic}</div>
-                        <div className="text-xs text-app-muted mt-0.5">{record.coachName}</div>
+                      <td className="px-5 py-4">
+                        <div className="font-medium text-app-text">{record.coachName}</div>
+                        <div className="text-xs text-app-muted mt-0.5">{record.batchName}</div>
                       </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">{record.batchName}</td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
-                        <AttendancePercentBar percent={record.attendancePercent} />
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
-                        {formatDuration(record.actualDuration)}{" "}
-                        <span className="text-xs">
-                          / {formatDuration(record.classActualDuration || record.scheduledDuration)}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3 md:px-6 md:py-4">
+                      <td className="px-5 py-4">
                         <AttendanceStatusBadge status={record.status} />
                       </td>
+                      <td className="px-5 py-4 text-sm text-app-text">
+                        <span>{actualMins}m</span>{" "}
+                        <span className="text-xs text-app-muted">/ {totalMins}m</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <AttendancePercentBar percent={record.attendancePercent} />
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (interactive) onRowClick?.(record);
+                          }}
+                          title="View Attendance Logs"
+                        >
+                          <Info className="size-4" strokeWidth={2.5} />
+                        </Button>
+                      </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 });

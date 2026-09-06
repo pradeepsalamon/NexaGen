@@ -34,6 +34,13 @@ interface LiveClassSettingsFormProps {
   showAdvanced?: boolean;
   /** "class" tweaks a class; "batch" edits batch defaults; "system" edits the global policy. */
   scope?: "class" | "batch" | "system";
+  /**
+   * `"auto"` puts label and control side by side from `sm` up — right for a
+   * full-width page. `"stacked"` never does, for narrow containers like the
+   * in-meeting sidebar, where the viewport-based `sm:` breakpoint says
+   * "wide" while the panel is only ~360px and the row overflows.
+   */
+  layout?: "auto" | "stacked";
 }
 
 const GROUP_ORDER: SettingsGroup[] = ["media", "participants", "classroom"];
@@ -47,7 +54,9 @@ export function LiveClassSettingsForm({
   disabled = false,
   showAdvanced = true,
   scope = "class",
+  layout = "auto",
 }: LiveClassSettingsFormProps) {
+  const stacked = layout === "stacked";
   const warnings = getLiveClassSettingsWarnings(resolved);
 
   const fields = SETTINGS_FIELDS.filter((f) => showAdvanced || !f.advanced);
@@ -70,7 +79,10 @@ export function LiveClassSettingsForm({
         return (
           <fieldset
             key={group}
-            className="rounded-app border border-app-border bg-app-surface p-4"
+            className={cn(
+              "min-w-0 rounded-app border border-app-border bg-app-surface",
+              stacked ? "p-3" : "p-4",
+            )}
           >
             <legend className="px-1 text-xs font-bold uppercase tracking-wider text-app-muted">
               {GROUP_LABELS[group]}
@@ -85,7 +97,10 @@ export function LiveClassSettingsForm({
                 return (
                   <div
                     key={field.path}
-                    className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                    className={cn(
+                      "flex min-w-0 flex-col gap-2 py-3",
+                      !stacked && "sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+                    )}
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
@@ -106,9 +121,14 @@ export function LiveClassSettingsForm({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2 sm:w-64 sm:shrink-0">
+                    <div
+                      className={cn(
+                        "flex min-w-0 items-center gap-2",
+                        !stacked && "sm:w-64 sm:shrink-0",
+                      )}
+                    >
                       <Select
-                        className="min-h-10 text-sm"
+                        className="min-h-10 min-w-0 text-sm"
                         aria-label={field.label}
                         disabled={disabled}
                         value={effective ?? field.options[0]?.value}

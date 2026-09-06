@@ -63,6 +63,16 @@ export const SETTINGS_FIELDS: SettingsFieldDef[] = [
     ],
   },
   {
+    path: "student.privateChat",
+    group: "participants",
+    label: "Private messages",
+    help: "One-to-one messages between a student and the coach. Students can never message each other privately.",
+    options: [
+      { value: "ENABLED", label: "Can message the coach" },
+      { value: "DISABLED", label: "Disabled" },
+    ],
+  },
+  {
     path: "student.board",
     group: "participants",
     label: "Chessboard interaction",

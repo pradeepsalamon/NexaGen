@@ -4,6 +4,8 @@ import type { Api } from "chessground/api";
 import { Config } from "chessground/config";
 import { useLocalParticipant } from "@livekit/components-react";
 import { useBoardStore } from "../../context/BoardProvider";
+import { controlSideForIdentity } from "../../lib/boardSyncRules";
+import type { BoardControlSide } from "../../types/sync";
 import { preloadSounds } from "../../audio/sounds";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
@@ -30,28 +32,41 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   const {
     chess, fen, turn, orientation, boardTheme, pieceTheme, showCoordinates,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
-    isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode, isDetached
+    selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
+    isDetached
   } = useBoardStore();
 
-  const canMove = useMemo(() => {
-    if (readOnly) return false;
-    if (isEditingPosition && isCoach) return true;
-    if (isCoach) return true;
+  // Which colour this client may move: "both" for the coach, for position
+  // editing and for a detached student exploring their own line; otherwise
+  // whatever the coach granted this student — white only, black only, or both.
+  const controlSide = useMemo<BoardControlSide | null>(() => {
+    if (readOnly) return null;
+    if (isCoach) return "both";
     // A detached student explores their own line locally.
-    if (isDetached) return true;
-    switch (permissionMode) {
-      case "EVERYONE": return true;
-      case "SELECTED_STUDENT": return !!localParticipant && selectedStudentIds.includes(localParticipant.identity);
-      case "VIEW_ONLY":
-      case "COACH_ONLY":
-      default: return false;
-    }
-  }, [isCoach, permissionMode, selectedStudentIds, localParticipant, isEditingPosition, isDetached, readOnly]);
+    if (isDetached) return "both";
+    return controlSideForIdentity({
+      identity: localParticipant?.identity,
+      permissionMode,
+      selectedStudentIds,
+      selectedStudentSides,
+    });
+  }, [isCoach, permissionMode, selectedStudentIds, selectedStudentSides, localParticipant, isDetached, readOnly]);
+
+  const canMove = controlSide !== null;
+  // A single-colour grant only unlocks the board on that colour's turn.
+  const isMyTurn = canMove && (controlSide === "both" || controlSide === turn);
+  const movableColor = isEditingPosition
+    ? "both"
+    : isGameOver || !isMyTurn
+      ? undefined
+      : controlSide === "both"
+        ? turn
+        : controlSide ?? undefined;
 
   // Compute legal moves
   const dests = useMemo(() => {
     if (isEditingPosition) return undefined; // Free movement
-    if (isGameOver || !canMove) return new Map();
+    if (isGameOver || !movableColor) return new Map();
     const moves = new Map();
     const legalMoves = chess.moves({ verbose: true });
     for (const move of legalMoves) {
@@ -61,7 +76,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       moves.get(move.from).push(move.to);
     }
     return moves;
-  }, [fen, isGameOver, chess, canMove, isEditingPosition]);
+  }, [fen, isGameOver, chess, movableColor, isEditingPosition]);
 
   // Use a ref to access the latest state in the onChange callback without triggering infinite loops
   const stateRef = useRef({ arrows, activeBrush });
@@ -160,7 +175,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       animation: { enabled: !isEditingPosition },
       viewOnly: false,
       movable: {
-        color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
+        color: movableColor,
         free: isEditingPosition,
         dests,
         events: {
@@ -266,12 +281,12 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       viewOnly: !canMove,
       drawable: { enabled: isCoach && !readOnly },
       movable: {
-        color: isEditingPosition ? 'both' : ((isGameOver || !canMove) ? undefined : turn),
+        color: movableColor,
         free: isEditingPosition,
         dests
       }
     });
-  }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, isEditingPosition, isCoach, readOnly]);
+  }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, movableColor, isEditingPosition, isCoach, readOnly]);
   
   // Sync annotations (arrows)
   useEffect(() => {

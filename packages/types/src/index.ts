@@ -8,6 +8,7 @@ import {
 
 export * from "./api-endpoints";
 export * from "./live-class-settings";
+export * from "./live-class-moderation";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)

@@ -1,6 +1,6 @@
 import { createStore } from "zustand";
 import { Chess, Move } from "chess.js";
-import { BoardPermissionMode, ClockState } from "../types/sync";
+import { BoardControlSide, BoardPermissionMode, ClockState } from "../types/sync";
 import { playSound, SoundType } from "../audio/sounds";
 import {
   DEFAULT_CLOCK,
@@ -43,6 +43,11 @@ export interface BoardState {
   permissionMode: BoardPermissionMode;
   /** Full LiveKit identities granted control while `permissionMode` is SELECTED_STUDENT. */
   selectedStudentIds: string[];
+  /**
+   * Per-identity side of that grant (`white` / `black` / `both`). An identity
+   * present in `selectedStudentIds` but missing here is treated as `"both"`.
+   */
+  selectedStudentSides: Record<string, BoardControlSide>;
   
   // Settings
   animationDuration: number;
@@ -96,7 +101,11 @@ export interface BoardActions {
   clearAnnotations: () => void;
   
   // Permissions
-  setPermissionMode: (mode: BoardPermissionMode, studentIds?: string[]) => void;
+  setPermissionMode: (
+    mode: BoardPermissionMode,
+    studentIds?: string[],
+    studentSides?: Record<string, BoardControlSide>,
+  ) => void;
 
   // Clock (coach-controlled)
   setClock: (clock: ClockState) => void;
@@ -164,6 +173,7 @@ export const createBoardStore = () => {
     
     permissionMode: "COACH_ONLY",
     selectedStudentIds: [],
+    selectedStudentSides: {},
     
     animationDuration: 200,
     highlightLastMove: true,
@@ -406,7 +416,12 @@ export const createBoardStore = () => {
     setAnnotations: (arrows, squares) => set({ arrows, squareStyles: squares }),
     clearAnnotations: () => set({ arrows: [], squareStyles: {} }),
     
-    setPermissionMode: (mode, studentIds) => set({ permissionMode: mode, selectedStudentIds: studentIds ?? [] }),
+    setPermissionMode: (mode, studentIds, studentSides) =>
+      set({
+        permissionMode: mode,
+        selectedStudentIds: studentIds ?? [],
+        selectedStudentSides: studentSides ?? {},
+      }),
 
     setClock: (clock) => set({ clock }),
     configureClock: ({ initialMs, incrementMs }) =>
@@ -461,6 +476,7 @@ export const createBoardStore = () => {
         set({
           permissionMode: payload.permissionMode,
           selectedStudentIds: payload.selectedStudentIds ?? [],
+          selectedStudentSides: payload.selectedStudentSides ?? {},
           remoteSyncId: state.remoteSyncId + 1
         });
         return;

@@ -1,8 +1,9 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
-import { Megaphone, Bell } from "lucide-react";
+import { Megaphone } from "lucide-react";
+import type { VariantProps } from "class-variance-authority";
+import { Badge, type badgeVariants } from "@/components/ui/Badge";
+import { Panel, PanelEmpty, PanelHeader, PanelList, PanelRow } from "@/components/ui/Panel";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 
@@ -18,47 +19,54 @@ interface AnnouncementsProps {
   announcements?: Announcement[];
 }
 
+type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
+
+const TYPE_VARIANT: Record<Announcement["type"], BadgeVariant> = {
+  BATCH: "success",
+  COURSE: "info",
+  PLATFORM: "default"
+};
+
 export function Announcements({ announcements = [] }: AnnouncementsProps) {
   const timeZone = useUserTimeZone();
 
   return (
-    <Card className="border-app-border bg-app-surface shadow-sm h-full flex flex-col">
-      <CardHeader className="pb-4 border-b border-app-border/50">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Megaphone className="h-5 w-5 text-accent" />
-          Announcements
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-0 flex-1 overflow-auto">
-        {announcements.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-            <Bell className="h-10 w-10 text-app-border mb-3" />
-            <p className="text-app-text font-medium">No announcements yet.</p>
-            <p className="text-sm text-app-muted mt-1">We&apos;ll notify you when there&apos;s an update.</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-app-border/50">
-            {announcements.map((announcement) => (
-              <div key={announcement.id} className="p-5 hover:bg-app-background/50 transition-colors">
-                <div className="flex justify-between items-start mb-2 gap-4">
-                  <h4 className="font-semibold text-app-text text-sm md:text-base leading-tight">
+    <Panel className="h-full">
+      <PanelHeader icon={Megaphone} title="Announcements" tone="accent" />
+      {announcements.length === 0 ? (
+        <PanelEmpty
+          icon={Megaphone}
+          message="We'll post here when there's news for your batch or course."
+          title="Nothing new"
+          tone="accent"
+        />
+      ) : (
+        <PanelList>
+          {announcements.map((announcement) => (
+            <PanelRow key={announcement.id} tone="accent">
+              <div>
+                <div className="mb-2 flex items-start justify-between gap-4">
+                  <h3 className="font-extrabold leading-tight tracking-tight text-app-text">
                     {announcement.title}
-                  </h4>
-                  <Badge variant="secondary" className="text-[10px] whitespace-nowrap">
+                  </h3>
+                  <Badge
+                    className="shrink-0 text-[10px]"
+                    variant={TYPE_VARIANT[announcement.type] ?? "secondary"}
+                  >
                     {announcement.type}
                   </Badge>
                 </div>
-                <p className="text-sm text-app-muted line-clamp-2">
+                <p className="line-clamp-2 text-sm leading-6 text-app-muted">
                   {announcement.description}
                 </p>
-                <p className="text-xs text-app-muted font-medium mt-3">
+                <p className="mt-3 text-xs font-bold text-app-muted">
                   {formatFullDate(announcement.createdAt, timeZone)}
                 </p>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+            </PanelRow>
+          ))}
+        </PanelList>
+      )}
+    </Panel>
   );
 }

@@ -10,19 +10,25 @@ interface ClassStatusBadgeProps {
 
 export function ClassStatusBadge({ status, className }: ClassStatusBadgeProps) {
   if (!status) return null;
-  
+
   const isLive = status === "LIVE" || status === "IN_PROGRESS";
-  
+
   return (
-    <Badge 
-      variant={getClassStatusBadgeVariant(status)} 
+    <Badge
+      variant={getClassStatusBadgeVariant(status)}
       className={cn(
-        "uppercase text-[10px] font-bold tracking-wider", 
-        isLive && "animate-pulse bg-red-500 hover:bg-red-600 shadow-sm text-white border-transparent",
+        "uppercase text-[10px] tracking-wider",
+        isLive && "bg-app-danger text-white",
         className
       )}
     >
-      {isLive ? "LIVE NOW" : getStatusLabel(status)}
+      {isLive ? (
+        <span
+          aria-hidden="true"
+          className="size-1.5 animate-pulse rounded-full bg-white"
+        />
+      ) : null}
+      {isLive ? "Live now" : getStatusLabel(status)}
     </Badge>
   );
 }

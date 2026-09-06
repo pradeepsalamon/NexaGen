@@ -12,6 +12,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
+import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
+import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
+import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
 import { LiveClassSettingsBridge } from "../meeting/LiveClassSettingsBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
@@ -140,9 +143,13 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       }}
     >
       <ReconnectToaster />
+      <AudioSessionBridge />
       <LiveClassSettingsBridge />
+      <HandRaiseBridge />
       <ConnectionStateManager classId={classId}>
         <ChatProvider classId={classId}>
+          {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
+          <MeetingEventToasts />
           <MeetingLayout />
         </ChatProvider>
       </ConnectionStateManager>

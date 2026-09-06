@@ -220,6 +220,7 @@ model User {
   coachAttendances       CoachAttendance[]        @relation("CoachClassAttendance")
   coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
+  directChatMessages     LiveChatMessage[]        @relation("UserLiveChatDirectMessages")
   notifications          Notification[]           @relation("UserNotifications")
   createdBatchSchedules  BatchClassSchedule[]     @relation("BatchScheduleCreatedBy")
   scheduleRules          BatchClassScheduleRule[] @relation("BatchScheduleRuleCoach")
@@ -878,6 +879,11 @@ model LiveChatMessage {
   senderName String
   senderRole String?
 
+  /// One-to-one private message when set; null is a room-wide message. The
+  /// student <-> student case is rejected by the API, never merely hidden.
+  recipientId String?
+  recipient   User?   @relation("UserLiveChatDirectMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+
   message String @db.Text
 
   /// LiveKit's message id, so history reconciliation dedupes on identity
@@ -889,6 +895,7 @@ model LiveChatMessage {
 
   @@index([liveSessionId])
   @@index([senderId])
+  @@index([recipientId])
   @@index([createdAt])
   @@index([clientMessageId])
   @@map("live_chat_messages")

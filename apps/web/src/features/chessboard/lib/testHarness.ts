@@ -1,6 +1,6 @@
 import type { StoreApi } from "zustand";
 import type { BoardStore } from "../store/createBoardStore";
-import type { ClockState } from "../types/sync";
+import type { BoardControlSide, ClockState } from "../types/sync";
 
 /**
  * Minimal imperative hook onto the active room board store, exposed on
@@ -13,7 +13,11 @@ export interface BoardTestHarness {
   fen: () => string;
   turn: () => "white" | "black";
   clock: () => ClockState;
-  permission: () => { mode: string; selectedStudentIds: string[] };
+  permission: () => {
+    mode: string;
+    selectedStudentIds: string[];
+    selectedStudentSides: Record<string, BoardControlSide>;
+  };
   detach: () => void;
   resync: () => void;
   isDetached: () => boolean;
@@ -40,6 +44,7 @@ export function installBoardTestHarness(store: StoreApi<BoardStore>): () => void
     permission: () => ({
       mode: store.getState().permissionMode,
       selectedStudentIds: store.getState().selectedStudentIds,
+      selectedStudentSides: store.getState().selectedStudentSides,
     }),
     detach: () => store.getState().detachBoard(),
     resync: () => store.getState().resyncBoard(),

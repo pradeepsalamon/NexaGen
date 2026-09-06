@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown, Info, SlidersHorizontal } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, History, Info, SlidersHorizontal } from "lucide-react";
 import type { LiveClassSettingsOverride } from "@nexa-chess/types";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/authStore";
 import { ClassSettingsPanel } from "./ClassSettingsPanel";
+import { isEmptyOverride } from "./fields";
+import { readLastUsedClassSettings } from "./lastUsed";
 import {
   useClassLiveSettings,
   useLiveClassPresets,
@@ -30,15 +34,58 @@ export function LiveClassSettingsSection({
   const { data, isLoading, isError, refetch } = useClassLiveSettings(classId);
   const { data: presetData } = useLiveClassPresets();
   const update = useUpdateClassLiveSettings(classId);
+  const userId = useAuthStore((state) => state.user?.id);
 
   const [open, setOpen] = useState(defaultOpen);
   const [override, setOverride] = useState<LiveClassSettingsOverride>({});
-
-  useEffect(() => {
-    if (data) setOverride(data.classOverride ?? {});
-  }, [data]);
+  /** True while the form shows remembered settings the coach hasn't saved here yet. */
+  const [prefilled, setPrefilled] = useState(false);
+  // Mirrors of the two above, so the sync effect can read them without taking
+  // them as dependencies (which would make it re-run on every edit).
+  const overrideRef = useRef<LiveClassSettingsOverride>({});
+  const prefilledRef = useRef(false);
+  // Seed the remembered draft once per class — not again after a save.
+  const seededRef = useRef<string | null>(null);
 
   const editable = !!data?.canEdit && !data?.snapshot;
+
+  const applyOverride = useCallback(
+    (next: LiveClassSettingsOverride, isPrefill: boolean) => {
+      overrideRef.current = next;
+      prefilledRef.current = isPrefill;
+      setOverride(next);
+      setPrefilled(isPrefill);
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!data) return;
+    const saved = data.classOverride ?? {};
+
+    if (seededRef.current !== classId) {
+      seededRef.current = classId;
+      // This class has no settings of its own: start it on whatever this coach
+      // last saved, pre-selected but unsaved, so they only have to confirm.
+      if (isEmptyOverride(saved) && data.canEdit && !data.snapshot) {
+        const remembered = readLastUsedClassSettings(userId);
+        if (remembered) {
+          applyOverride(remembered.override, true);
+          return;
+        }
+      }
+    } else if (
+      prefilledRef.current &&
+      JSON.stringify(saved) !== JSON.stringify(overrideRef.current)
+    ) {
+      // A background refetch landed while a remembered draft is still pending —
+      // keep the draft rather than snapping the form back to the saved values.
+      return;
+    }
+
+    applyOverride(saved, false);
+  }, [data, classId, userId, applyOverride]);
+
   const dirty = JSON.stringify(override) !== JSON.stringify(data?.classOverride ?? {});
 
   return (
@@ -49,9 +96,15 @@ export function LiveClassSettingsSection({
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-2 p-5 text-left sm:p-6"
       >
-        <span className="flex items-center gap-2.5">
-          <SlidersHorizontal className="size-5 text-primary" strokeWidth={2.5} />
+        <span className="flex min-w-0 flex-wrap items-center gap-2.5">
+          <SlidersHorizontal className="size-5 shrink-0 text-primary" strokeWidth={2.5} />
           <span className="text-lg font-bold text-app-text">Class settings</span>
+          {prefilled && (
+            <Badge variant="outline" className="gap-1 py-0.5 text-[10px] font-semibold">
+              <History className="size-3" strokeWidth={2.5} />
+              Your last settings — not saved yet
+            </Badge>
+          )}
         </span>
         <ChevronDown
           className={cn(
@@ -84,11 +137,28 @@ export function LiveClassSettingsSection({
                 </div>
               )}
 
+              {prefilled && (
+                <div className="flex flex-wrap items-center gap-2.5 rounded-control border border-primary/30 bg-primary/5 p-3 text-xs text-app-text">
+                  <History className="size-4 shrink-0 text-primary" strokeWidth={2.5} />
+                  <span className="min-w-0 flex-1">
+                    Pre-selected from the settings you last saved. Save to apply them to this
+                    class, or reset to inherit the batch and platform defaults.
+                  </span>
+                  <button
+                    type="button"
+                    className="shrink-0 font-semibold text-primary underline-offset-2 hover:underline"
+                    onClick={() => applyOverride(data.classOverride ?? {}, false)}
+                  >
+                    Don&apos;t use
+                  </button>
+                </div>
+              )}
+
               <ClassSettingsPanel
                 system={data.system}
                 batchOverride={data.batchOverride}
                 value={override}
-                onChange={setOverride}
+                onChange={(next) => applyOverride(next, false)}
                 presets={presetData?.presets ?? []}
                 disabled={!editable}
               />
@@ -98,7 +168,7 @@ export function LiveClassSettingsSection({
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => setOverride(data.classOverride ?? {})}
+                    onClick={() => applyOverride(data.classOverride ?? {}, false)}
                     disabled={update.isPending || !dirty}
                   >
                     Reset

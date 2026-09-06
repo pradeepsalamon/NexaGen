@@ -8,6 +8,8 @@ import type {
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
+import { useAuthStore } from "@/stores/authStore";
+import { writeLastUsedClassSettings } from "./lastUsed";
 import {
   createLiveClassPreset,
   deleteLiveClassPreset,
@@ -71,9 +73,13 @@ export function useClassLiveSettings(classId: string, enabled = true) {
 export function useUpdateClassLiveSettings(classId: string) {
   const qc = useQueryClient();
   const toast = useToast();
+  const userId = useAuthStore((state) => state.user?.id);
   return useMutation({
     mutationFn: (body: UpdateLiveClassSettingsRequest) => updateClassLiveSettings(classId, body),
-    onSuccess: () => {
+    onSuccess: (_data, body) => {
+      // Remember these choices so the next class this coach configures starts
+      // on them instead of back at the inherited defaults.
+      writeLastUsedClassSettings(userId, body.liveClassSettings);
       toast.success({ title: "Class settings saved" });
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.forClass(classId) });
     },
@@ -85,10 +91,12 @@ export function useUpdateClassLiveSettings(classId: string) {
 export function useUpdateLiveSettingsMidClass(classId: string) {
   const qc = useQueryClient();
   const toast = useToast();
+  const userId = useAuthStore((state) => state.user?.id);
   return useMutation({
     mutationFn: (body: UpdateLiveClassSettingsRequest) =>
       updateLiveSettingsMidClass(classId, body),
-    onSuccess: () => {
+    onSuccess: (_data, body) => {
+      writeLastUsedClassSettings(userId, body.liveClassSettings);
       toast.success({ title: "Class settings applied" });
       qc.invalidateQueries({ queryKey: queryKeys.liveClassSettings.forClass(classId) });
     },

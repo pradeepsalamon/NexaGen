@@ -208,7 +208,12 @@ coach/board durations were always 0, `room_finished` never fired, and the
   `LiveClassProvider`). `createBoardStore` now holds `selectedStudentIds: string[]`,
   `senderMayMutateBoard` checks `.includes`, and `UPDATE_PERMISSIONS` carries
   `selectedStudentIds`. The sidebar panel lists every meeting participant (coaches
-  shown as "full control", students get a Grant/Revoke button). Separately, the
+  shown as "full control"). **Grants are now per colour**: `LiveClassProvider`
+  keeps `boardControlStudents: Record<identity, "white" | "black" | "both">`, the
+  store mirrors it as `selectedStudentSides`, `UPDATE_PERMISSIONS` carries it, and
+  both coach surfaces use the shared `BoardControlSideToggle`
+  (Off / White / Black / Both) — so two students can play each other on the
+  shared board. Separately, the
   **PDF tab was removed entirely**: `PdfPanel`, the `pdf` tab, `pdfUrl`
   store/sync fields, `SET_UI_STATE.pdfUrl`, the `uploadPdf` client helper, and the
   API `POST /upload/pdf` route + `UploadService.uploadPdf`.
