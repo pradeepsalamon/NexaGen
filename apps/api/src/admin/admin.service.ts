@@ -104,7 +104,12 @@ export class AdminService {
     const endsAt = new Date(data.endsAt);
 
     assertNotInPast(startsAt);
-    await assertNoSchedulingConflict(this.prisma, { coachId: data.coachId, startsAt, endsAt });
+    await assertNoSchedulingConflict(this.prisma, {
+      coachId: data.coachId,
+      startsAt,
+      endsAt,
+      timeZone: coach.timezone
+    });
 
     const demoClass = await this.prisma.coachClass.create({
       data: {

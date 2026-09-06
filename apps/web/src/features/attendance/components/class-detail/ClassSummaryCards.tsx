@@ -3,7 +3,7 @@ import { Clock, Users } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import type { ClassDetailReport } from "@nexa-chess/types";
 import { AttendancePercentBar } from "../AttendancePercentBar";
-import { formatDuration } from "./classDetail.utils";
+import { formatDuration } from "@/lib/datetime";
 
 export const ClassSummaryCards = memo(function ClassSummaryCards({
   data,

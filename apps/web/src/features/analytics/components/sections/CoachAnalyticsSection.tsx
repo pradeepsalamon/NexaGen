@@ -10,6 +10,8 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useCoachAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi as num, formatHours, formatPercent } from "../../lib/format";
+import { formatDayMonth } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 import { RankBarList } from "../RankBarList";
 
@@ -21,6 +23,7 @@ export function CoachAnalyticsSection({
   showTable?: boolean;
 }) {
   const { data, isLoading, isError, refetch } = useCoachAnalyticsQuery(query);
+  const tz = useUserTimeZone();
   const k = data?.kpis;
 
   return (
@@ -58,7 +61,7 @@ export function CoachAnalyticsSection({
                 <AreaChartCard
                   data={data?.teachingHoursTrend.points ?? []}
                   series={[{ key: "value", label: "Hours" }]}
-                  xFormat={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  xFormat={(d) => formatDayMonth(d, tz)}
                   xKey="date"
                 />
               </ChartContainer>

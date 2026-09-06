@@ -35,6 +35,32 @@ function formatIso(
   return new Intl.DateTimeFormat("en-US", { ...options, timeZone }).format(date);
 }
 
+/**
+ * Escape hatch for one-off option sets — still forced into the viewer's zone.
+ * Prefer a named helper below; reach for this only when none of them fit.
+ */
+export function formatDate(
+  iso: string | null | undefined,
+  timeZone: string,
+  options: Intl.DateTimeFormatOptions
+): string {
+  return formatIso(iso, timeZone, options);
+}
+
+/**
+ * Elapsed time, e.g. "5h 50m" / "24 min" / "0 min". No timezone — this is a
+ * span of seconds (computed on the API from UTC timestamps), not an instant.
+ */
+export function formatDuration(seconds: number | null | undefined): string {
+  if (!seconds || seconds < 0) {
+    return "0 min";
+  }
+  const minutes = Math.floor(seconds / 60);
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return hrs > 0 ? `${hrs}h ${mins}m` : `${minutes} min`;
+}
+
 /** e.g. "06:30 PM" */
 export function formatTime(iso: string | null | undefined, timeZone: string): string {
   return formatIso(iso, timeZone, { hour: "2-digit", minute: "2-digit" });
@@ -48,6 +74,27 @@ export function formatDayMonth(iso: string | null | undefined, timeZone: string)
 /** e.g. "Mar 5, 2026" */
 export function formatFullDate(iso: string | null | undefined, timeZone: string): string {
   return formatIso(iso, timeZone, { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** e.g. "Sunday, September 6, 2026" */
+export function formatLongDate(iso: string | null | undefined, timeZone: string): string {
+  return formatIso(iso, timeZone, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/** e.g. "Mar 5, 2026, 06:36 PM" */
+export function formatDateTime(iso: string | null | undefined, timeZone: string): string {
+  return formatIso(iso, timeZone, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 /** e.g. "MAR" — the month half of a calendar badge */

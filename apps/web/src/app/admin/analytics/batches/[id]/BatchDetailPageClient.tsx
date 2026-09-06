@@ -14,6 +14,8 @@ import {
   formatPercent,
   relativeTime
 } from "@/features/analytics/lib/format";
+import { formatDayMonth } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 export function BatchDetailPageClient({ batchId }: { batchId: string }) {
   return (
@@ -31,6 +33,7 @@ function Body({
   query: Parameters<typeof useBatchDetailQuery>[1];
 }) {
   const { data, isLoading, isError, refetch } = useBatchDetailQuery(batchId, query);
+  const tz = useUserTimeZone();
   const b = data?.batch;
 
   if (isError) {
@@ -74,7 +77,7 @@ function Body({
             data={data?.attendanceTrend.points ?? []}
             format={(v) => `${v}%`}
             series={[{ key: "value", label: "Attendance %" }]}
-            xFormat={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            xFormat={(d) => formatDayMonth(d, tz)}
             xKey="date"
           />
         </ChartContainer>
@@ -101,7 +104,7 @@ function Body({
                     {s.classesAttended}/{s.classesAttended + s.classesMissed}
                   </td>
                   <td className="py-2 text-right text-app-muted">
-                    {relativeTime(s.lastActiveAt)}
+                    {relativeTime(s.lastActiveAt, tz)}
                   </td>
                 </tr>
               ))}

@@ -16,10 +16,13 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { useDataTable } from "../../../hooks/useDataTable";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 import { useClassHistory } from "../hooks/useCoachApi";
+import { formatFullDate, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { CoachClassDetailsDialog } from "./CoachClassDetailsDialog";
 
 export function CoachHistoryClient() {
   const { data, isLoading } = useClassHistory();
+  const tz = useUserTimeZone();
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
@@ -45,17 +48,16 @@ export function CoachHistoryClient() {
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} 
           />
         ),
-        cell: ({ row }) => {
-          const date = new Date(row.original.startsAt);
-          return (
-            <div className="flex flex-col">
-              <span className="font-medium">{date.toLocaleDateString()}</span>
-              <span className="text-xs text-app-muted">
-                {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-          );
-        },
+        cell: ({ row }) => (
+          <div className="flex flex-col">
+            <span className="font-medium">
+              {formatFullDate(row.original.startsAt, tz)}
+            </span>
+            <span className="text-xs text-app-muted">
+              {formatTime(row.original.startsAt, tz)}
+            </span>
+          </div>
+        ),
         sortingFn: (a, b) => {
           return new Date(a.original.startsAt).getTime() - new Date(b.original.startsAt).getTime();
         }
@@ -153,7 +155,7 @@ export function CoachHistoryClient() {
         )
       }
     ],
-    []
+    [tz]
   );
 
   const { table } = useDataTable({

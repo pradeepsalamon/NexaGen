@@ -12,10 +12,11 @@ import { RankBarList } from "@/features/analytics/components/RankBarList";
 import { useCoachDetailQuery } from "@/features/analytics/hooks/useAnalyticsApi";
 import {
   asKpi,
-  formatDate,
   formatHours,
   formatPercent
 } from "@/features/analytics/lib/format";
+import { formatDayMonth, formatFullDate } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 export function CoachDetailPageClient({ coachId }: { coachId: string }) {
   return (
@@ -27,6 +28,7 @@ export function CoachDetailPageClient({ coachId }: { coachId: string }) {
 
 function Body({ coachId, query }: { coachId: string; query: Parameters<typeof useCoachDetailQuery>[1] }) {
   const { data, isLoading, isError, refetch } = useCoachDetailQuery(coachId, query);
+  const tz = useUserTimeZone();
   const c = data?.coach;
 
   if (isError) {
@@ -68,7 +70,7 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
             <AreaChartCard
               data={data?.teachingHoursTrend.points ?? []}
               series={[{ key: "value", label: "Hours" }]}
-              xFormat={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              xFormat={(d) => formatDayMonth(d, tz)}
               xKey="date"
             />
           </ChartContainer>
@@ -109,7 +111,7 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
                     </Link>
                   </td>
                   <td className="py-2 text-app-muted">{cls.batchName ?? "—"}</td>
-                  <td className="py-2 text-app-muted">{formatDate(cls.date)}</td>
+                  <td className="py-2 text-app-muted">{formatFullDate(cls.date, tz)}</td>
                   <td className="py-2 text-right">{cls.durationMinutes} min</td>
                   <td className="py-2 text-right">{formatPercent(cls.attendancePercent)}</td>
                   <td className="py-2">{cls.status}</td>

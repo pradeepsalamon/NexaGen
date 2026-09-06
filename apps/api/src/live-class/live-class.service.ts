@@ -650,8 +650,12 @@ export class LiveClassService {
       }
       const now = new Date();
       if (coachClass?.startsAt && coachClass.startsAt > now) {
+        // Guest demo join — no account, so no timezone to localize into. The
+        // demo landing page shows the schedule in the visitor's own zone; this
+        // fallback string states it in UTC.
         const formattedTime = coachClass.startsAt.toLocaleString('en-US', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+          timeZone: 'UTC', timeZoneName: 'short'
         });
         throw new NotFoundException(`This demo class has not started yet. It is scheduled for ${formattedTime}. Please wait for the coach to begin the session.`);
       }
@@ -665,8 +669,10 @@ export class LiveClassService {
     if (liveSession.status !== LiveSessionStatus.LIVE) {
       const now = new Date();
       if (liveSession.class?.startsAt && liveSession.class.startsAt > now) {
+        // Guest demo join — no account/timezone; state the schedule in UTC.
         const formattedTime = liveSession.class.startsAt.toLocaleString('en-US', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+          timeZone: 'UTC', timeZoneName: 'short'
         });
         throw new NotFoundException(`This demo class has not started yet. It is scheduled for ${formattedTime}. Please wait for the coach to begin the session.`);
       }

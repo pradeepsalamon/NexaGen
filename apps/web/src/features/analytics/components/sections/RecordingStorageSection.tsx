@@ -13,6 +13,8 @@ import {
   useStorageAnalyticsQuery
 } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatBytes, formatDuration } from "../../lib/format";
+import { formatDayMonth } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 
 const STATE_STYLES: Record<string, string> = {
@@ -29,6 +31,7 @@ export function RecordingStorageSection({
 }) {
   const recordings = useRecordingAnalyticsQuery(query);
   const storage = useStorageAnalyticsQuery(query);
+  const tz = useUserTimeZone();
   const rk = recordings.data?.kpis;
   const s = storage.data;
 
@@ -124,7 +127,7 @@ export function RecordingStorageSection({
               data={(s?.growth.points ?? []).map((p) => ({ date: p.date, GB: p.value / 1024 ** 3 }))}
               format={(v) => `${v.toFixed(1)} GB`}
               series={[{ key: "GB", label: "Storage" }]}
-              xFormat={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+              xFormat={(d) => formatDayMonth(d, tz)}
               xKey="date"
             />
           </ChartContainer>

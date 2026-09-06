@@ -6,14 +6,11 @@ import { ChartContainer } from "@/components/charts/ChartContainer";
 import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { cn } from "@/lib/utils";
+import { formatDayMonth } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useUserAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 
 const GRANULARITIES: AnalyticsGranularity[] = ["day", "week", "month"];
-
-function formatBucket(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-}
 
 export function UserGrowthSection({
   query,
@@ -23,6 +20,7 @@ export function UserGrowthSection({
   onGranularityChange: (g: AnalyticsGranularity) => void;
 }) {
   const { data, isLoading, isError, refetch } = useUserAnalyticsQuery(query);
+  const tz = useUserTimeZone();
   const granularity = data?.growth.granularity ?? query.granularity ?? "day";
 
   const points =
@@ -75,7 +73,7 @@ export function UserGrowthSection({
                 { key: "New registrations", label: "New registrations" },
                 { key: "Total users", label: "Total users" }
               ]}
-              xFormat={formatBucket}
+              xFormat={(d) => formatDayMonth(d, tz)}
               xKey="date"
             />
           </ChartContainer>

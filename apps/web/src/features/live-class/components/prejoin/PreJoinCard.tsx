@@ -7,6 +7,8 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { RoomEnded } from "../states/ErrorStates";
 import { ClassStatus } from "../../types/live-class";
 import { cn } from "@/lib/utils";
+import { formatDate, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 interface PreJoinCardProps {
@@ -19,14 +21,19 @@ interface PreJoinCardProps {
   onJoin: () => void;
 }
 
-function formatSchedule(startedAt?: string | null, endsAt?: string | null) {
+function formatSchedule(
+  timeZone: string,
+  startedAt?: string | null,
+  endsAt?: string | null,
+) {
   if (!startedAt) return null;
-  const start = new Date(startedAt);
-  const day = start.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
-  const startTime = start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  const endTime = endsAt
-    ? new Date(endsAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
-    : null;
+  const day = formatDate(startedAt, timeZone, {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+  const startTime = formatTime(startedAt, timeZone);
+  const endTime = endsAt ? formatTime(endsAt, timeZone) : null;
   return endTime ? `${day} · ${startTime}–${endTime}` : `${day} · ${startTime}`;
 }
 
@@ -58,7 +65,8 @@ export function PreJoinCard({ status, topic, startedAt, endsAt, settings, onJoin
   const displayName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Student";
   const isStaff = user?.role === "COACH" || isStaffRole(user?.role);
   const roleLabel = isStaff ? "Coach" : "Student";
-  const schedule = formatSchedule(startedAt, endsAt);
+  const tz = useUserTimeZone();
+  const schedule = formatSchedule(tz, startedAt, endsAt);
 
   const joinState = settings
     ? resolveJoinState(settings, isStaff ? "COACH" : "STUDENT")

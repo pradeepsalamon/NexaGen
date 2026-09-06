@@ -35,7 +35,7 @@ export function MeetingLayout() {
 
   return (
     <PipProvider>
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-14 text-app-text">
+      <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-16 text-app-text">
         <MeetingTopBar />
         <ConnectionBanner />
 
@@ -43,8 +43,8 @@ export function MeetingLayout() {
           <BoardProvider>
             <LiveBoardSyncBridge>
               <BoardControlToasts />
-              <div className="relative flex flex-1 flex-col overflow-hidden">
-                <div className="custom-scrollbar relative flex flex-1 flex-col overflow-y-auto">
+              <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto">
                   <MeetingVideoGrid />
                 </div>
               </div>

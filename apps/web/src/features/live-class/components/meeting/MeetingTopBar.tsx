@@ -1,7 +1,6 @@
 "use client";
 
 import { memo } from "react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { ClassroomTopBar } from "./ClassroomTopBar";
 import { ConnectionPill, RecordingBadge, TimerBadge } from "./MeetingStatus";
@@ -23,9 +22,6 @@ export const MeetingTopBar = memo(function MeetingTopBar() {
         <>
           <ConnectionPill />
           <TimerBadge startedAt={startedAt} endsAt={endsAt} />
-          <span className="hidden md:block">
-            <ThemeToggle />
-          </span>
         </>
       }
     />

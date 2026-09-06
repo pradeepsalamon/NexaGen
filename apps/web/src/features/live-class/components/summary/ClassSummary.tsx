@@ -13,10 +13,8 @@ import { ClassStudentTable } from "@/features/attendance/components/class-detail
 import { StudentAttendanceDialog } from "@/features/attendance/components/StudentAttendanceDialog";
 import { AttendanceStatusBadge } from "@/features/attendance/components/AttendanceStatusBadge";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
-import {
-  formatDuration,
-  formatTime,
-} from "@/features/attendance/components/class-detail/classDetail.utils";
+import { formatDuration, formatLongDate, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 function Shell({
   topic,
@@ -52,6 +50,7 @@ function Shell({
 
 export function ClassSummary({ classId }: { classId: string }) {
   const { data, isLoading, isError } = useClassSummary(classId);
+  const tz = useUserTimeZone();
   const [drilldownStudent, setDrilldownStudent] = useState<{
     id: string;
     name: string;
@@ -95,14 +94,9 @@ export function ClassSummary({ classId }: { classId: string }) {
         </div>
         <p className="text-sm text-app-muted">
           {data.batchName} &middot; {data.coachName} &middot;{" "}
-          {new Date(data.scheduledStart).toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}{" "}
-          &middot; {formatTime(data.actualStart ?? data.scheduledStart)}–
-          {formatTime(data.actualEnd ?? data.scheduledEnd)}
+          {formatLongDate(data.scheduledStart, tz)}{" "}
+          &middot; {formatTime(data.actualStart ?? data.scheduledStart, tz)}–
+          {formatTime(data.actualEnd ?? data.scheduledEnd, tz)}
           {data.actualDuration > 0 &&
             ` (${formatDuration(data.actualDuration)})`}
         </p>
@@ -167,7 +161,7 @@ export function ClassSummary({ classId }: { classId: string }) {
                   Joined
                 </p>
                 <p className="text-sm font-medium text-app-text">
-                  {formatTime(data.myAttendance.joinedAt)}
+                  {formatTime(data.myAttendance.joinedAt, tz) || "—"}
                 </p>
               </div>
               <div>
@@ -175,7 +169,7 @@ export function ClassSummary({ classId }: { classId: string }) {
                   Left
                 </p>
                 <p className="text-sm font-medium text-app-text">
-                  {formatTime(data.myAttendance.leftAt)}
+                  {formatTime(data.myAttendance.leftAt, tz) || "—"}
                 </p>
               </div>
               <div>

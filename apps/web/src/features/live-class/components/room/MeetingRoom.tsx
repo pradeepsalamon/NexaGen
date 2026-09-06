@@ -14,6 +14,7 @@ import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
 import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
+import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
 import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
 import { LiveClassSettingsBridge } from "../meeting/LiveClassSettingsBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
@@ -144,6 +145,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
     >
       <ReconnectToaster />
       <AudioSessionBridge />
+      <PipMicCaptureBridge />
       <LiveClassSettingsBridge />
       <HandRaiseBridge />
       <ConnectionStateManager classId={classId}>

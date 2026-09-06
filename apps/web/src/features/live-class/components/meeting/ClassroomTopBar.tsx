@@ -1,8 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { Logo } from "@/components/Logo";
-import { cn } from "@/lib/utils";
-import { Z } from "../../lib/meetingUi";
+import { Header } from "@/components/layout/Header";
 
 interface ClassroomTopBarProps {
   /** Class title — the primary line. */
@@ -13,53 +12,42 @@ interface ClassroomTopBarProps {
   status?: ReactNode;
   /** Right-aligned cluster (connection, timer, leave…). */
   actions?: ReactNode;
-  className?: string;
 }
 
 /**
- * The classroom's own top bar — deliberately lighter than the global app
- * `Header`: no dashboard nav, notifications, or account menu, so the meeting
- * reads as a dedicated environment. Shared by the live meeting
- * (`MeetingTopBar`) and the pre-join / error screens (`ClassroomStateShell`).
+ * The classroom's top bar. Built on the global app `Header` so the account menu,
+ * notifications and Dashboard link stay reachable during a class, with the
+ * classroom-specific chips (LIVE / REC / connection / timer) layered in through
+ * its slots. Shared by the live meeting (`MeetingTopBar`) and the pre-join /
+ * error screens (`ClassroomStateShell`).
  */
 export function ClassroomTopBar({
   title,
   subtitle,
   status,
   actions,
-  className,
 }: ClassroomTopBarProps) {
   return (
-    <header
-      className={cn(
-        "fixed inset-x-0 top-0 flex h-14 items-center gap-3 border-b border-app-border bg-app-surface/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-app-surface/85 sm:px-4",
-        Z.topbar,
-        className,
-      )}
-    >
-      <Link
-        href="/"
-        aria-label="Nexa Chess home"
-        className="shrink-0 rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-      >
-        <Logo compact size={30} wordmarkClassName="hidden" />
-      </Link>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <h1 className="min-w-0 truncate text-sm font-extrabold text-app-text sm:text-[15px]">
+    <Header
+      compact
+      leftSlot={
+        status ? <div className="flex min-w-0 items-center gap-2">{status}</div> : undefined
+      }
+      centerSlot={
+        <div className="flex min-w-0 flex-col items-center">
+          <h1 className="min-w-0 max-w-[40vw] truncate text-sm font-extrabold text-app-text sm:max-w-none sm:text-[15px]">
             {title}
           </h1>
-          {status}
+          {subtitle && (
+            <p className="hidden max-w-[40vw] truncate text-xs text-app-muted sm:block">
+              {subtitle}
+            </p>
+          )}
         </div>
-        {subtitle && (
-          <p className="hidden truncate text-xs text-app-muted sm:block">{subtitle}</p>
-        )}
-      </div>
-
-      {actions && (
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">{actions}</div>
-      )}
-    </header>
+      }
+      rightSlot={
+        actions ? <div className="flex items-center gap-1.5 sm:gap-2">{actions}</div> : undefined
+      }
+    />
   );
 }

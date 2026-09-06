@@ -69,12 +69,31 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
   const lastRowStartIndex = layout.cols * (layout.rows - 1);
   const indent = lastRowIndent(totalItems, layout.cols);
 
-  const tileStyle = (index: number): CSSProperties => ({
-    gridColumn:
-      indent > 0 && index === lastRowStartIndex
-        ? `${indent + 1} / span 2`
-        : "span 2",
-  });
+  // Until the container reports a real size (first paint, or a measurement that
+  // failed), fall back to a plain responsive grid — tiles still get their size
+  // from `aspect-video`, so the stage is never blank.
+  const measured = width > 0 && height > 0 && halfTrackWidth > 0;
+
+  const gridStyle: CSSProperties = measured
+    ? {
+        gridTemplateColumns: `repeat(${layout.cols * 2}, ${halfTrackWidth}px)`,
+        justifyContent: "center",
+      }
+    : {
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+        width: "100%",
+        maxWidth: "72rem",
+      };
+
+  const tileStyle = (index: number): CSSProperties =>
+    measured
+      ? {
+          gridColumn:
+            indent > 0 && index === lastRowStartIndex
+              ? `${indent + 1} / span 2`
+              : "span 2",
+        }
+      : {};
 
   if (totalItems === 0 && !compact) {
     return (
@@ -103,21 +122,17 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
 
   return (
     <>
+      {/* The measured element must not scroll — see useElementSize. The inner
+          div is the scroller; min-h-full keeps the grid centred without
+          clipping its top when the tiles do overflow. */}
       <div
-        className="h-full w-full overflow-y-auto px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-24"
+        className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-24"
         ref={containerRef}
       >
-        {/* min-h-full + auto margins centre the grid without clipping its top
-            when the tiles do overflow (a plain items-center would). */}
-        <div className="flex min-h-full items-center justify-center">
-          <LayoutGroup>
-            <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${layout.cols * 2}, ${halfTrackWidth}px)`,
-                justifyContent: "center",
-              }}
-            >
+        <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
+          <div className="flex min-h-full items-center justify-center">
+            <LayoutGroup>
+              <div className="grid gap-3" style={gridStyle}>
               <AnimatePresence mode="popLayout">
                 {boardTileShown && (
                   <>
@@ -189,8 +204,9 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                   />
                 ))}
               </AnimatePresence>
-            </div>
-          </LayoutGroup>
+              </div>
+            </LayoutGroup>
+          </div>
         </div>
       </div>
 

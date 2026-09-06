@@ -2,22 +2,40 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { isTrackReference, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
 
-/** Live content-box size of an element, so layout can follow the real container. */
+/**
+ * Live content-box size of an element, so layout can follow the real container.
+ *
+ * Measure an element that does NOT itself scroll — a scrollbar appearing on the
+ * observed element toggles its content-box width, which re-drives the layout,
+ * which toggles the scrollbar again (a ResizeObserver feedback loop that leaves
+ * the grid stuck at a degenerate size).
+ */
 export function useElementSize<T extends HTMLElement>(ref: RefObject<T | null>) {
   const [size, setSize] = useState({ height: 0, width: 0 });
 
   useEffect(() => {
     const element = ref.current;
-    if (!element || typeof ResizeObserver === "undefined") return;
+    if (!element) return;
+
+    const apply = (width: number, height: number) =>
+      setSize((previous) =>
+        previous.width === width && previous.height === height
+          ? previous
+          : { height, width }
+      );
+
+    // Synchronous first read so the grid never renders a frame at 0×0.
+    const style = getComputedStyle(element);
+    const padX = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+    const padY = parseFloat(style.paddingTop) + parseFloat(style.paddingBottom);
+    const rect = element.getBoundingClientRect();
+    apply(Math.max(0, rect.width - padX), Math.max(0, rect.height - padY));
+
+    if (typeof ResizeObserver === "undefined") return;
 
     const observer = new ResizeObserver((entries) => {
       const box = entries[0]?.contentRect;
-      if (!box) return;
-      setSize((previous) =>
-        previous.width === box.width && previous.height === box.height
-          ? previous
-          : { height: box.height, width: box.width }
-      );
+      if (box) apply(box.width, box.height);
     });
 
     observer.observe(element);

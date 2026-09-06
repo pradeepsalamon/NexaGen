@@ -11,6 +11,8 @@ import { useClassDetail } from "../../../features/coach/hooks/useCoachApi";
 import { BackButton } from "@/components/ui/BackButton";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { useAuthStore } from "@/stores/authStore";
+import { formatFullDate, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useStartLiveClass } from "../../../features/live-class/hooks/useLiveClassApi";
 import { LiveClassMonitor } from "@/features/attendance/components/LiveClassMonitor";
 import { LiveClassSettingsSection } from "@/features/live-class/settings/LiveClassSettingsSection";
@@ -23,6 +25,7 @@ export default function ClassDetailsPage() {
   const isStaff =
     user?.role === "COACH" || user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
   const startLiveClassMutation = useStartLiveClass(id);
+  const tz = useUserTimeZone();
   const { data, isLoading } = useClassDetail(id, { refetchInterval: 20000 });
   const cls = data?.class;
 
@@ -45,9 +48,8 @@ export default function ClassDetailsPage() {
 
   if (!cls) return null;
 
-  const start = new Date(cls.startsAt);
-  const end = new Date(cls.endsAt);
-  const durationMs = end.getTime() - start.getTime();
+  const durationMs =
+    new Date(cls.endsAt).getTime() - new Date(cls.startsAt).getTime();
   const durationMins = Math.round(durationMs / 60000);
 
   return (
@@ -73,12 +75,12 @@ export default function ClassDetailsPage() {
           <div className="flex flex-col gap-3 p-4 bg-app-surface border border-app-border rounded-app shadow-soft md:min-w-[200px]">
             <div className="flex items-center gap-2 text-app-text">
               <Calendar className="h-4 w-4 text-primary" />
-              <span className="font-semibold">{start.toLocaleDateString()}</span>
+              <span className="font-semibold">{formatFullDate(cls.startsAt, tz)}</span>
             </div>
             <div className="flex items-center gap-2 text-app-text">
               <Clock className="h-4 w-4 text-primary" />
               <span className="font-semibold">
-                {start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ({durationMins}m)
+                {formatTime(cls.startsAt, tz)} ({durationMins}m)
               </span>
             </div>
           </div>

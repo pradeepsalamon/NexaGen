@@ -19,7 +19,7 @@ export function ClassroomStateShell({
   return (
     <div className="flex h-[100dvh] flex-col bg-app-background text-app-text">
       <ClassroomTopBar title={topic || "Live Class"} subtitle={subtitle} />
-      <div className="flex flex-1 items-center justify-center overflow-y-auto px-4 pt-14">
+      <div className="flex flex-1 items-center justify-center overflow-y-auto px-4 pt-16">
         {children}
       </div>
     </div>

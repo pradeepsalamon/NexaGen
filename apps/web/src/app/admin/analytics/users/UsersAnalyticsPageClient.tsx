@@ -8,8 +8,10 @@ import { AnalyticsPageShell } from "@/features/analytics/components/AnalyticsPag
 import { AnalyticsFilters } from "@/features/analytics/components/AnalyticsFilters";
 import { UserGrowthSection } from "@/features/analytics/components/sections/UserGrowthSection";
 import { formatDate, relativeTime } from "@/features/analytics/lib/format";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 export function UsersAnalyticsPageClient() {
+  const tz = useUserTimeZone();
   return (
     <AnalyticsPageShell
       description="Registrations, role and status mix, and the full user directory."
@@ -55,14 +57,14 @@ export function UsersAnalyticsPageClient() {
                   header: "Registered",
                   sortable: true,
                   align: "right",
-                  render: (r) => formatDate(r.createdAt)
+                  render: (r) => formatDate(r.createdAt, tz)
                 },
                 {
                   key: "lastActiveAt",
                   header: "Last active",
                   sortable: true,
                   align: "right",
-                  render: (r) => relativeTime(r.lastActiveAt)
+                  render: (r) => relativeTime(r.lastActiveAt, tz)
                 },
                 {
                   key: "batches",

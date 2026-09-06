@@ -12,7 +12,7 @@ import type { ClassDetailStudentLog } from "@nexa-chess/types";
 import { AttendanceStatusBadge } from "../AttendanceStatusBadge";
 import { AttendancePercentBar } from "../AttendancePercentBar";
 import { EventTimeline } from "./EventTimeline";
-import { formatDuration } from "./classDetail.utils";
+import { formatDuration } from "@/lib/datetime";
 
 interface ClassStudentTableProps {
   students: ClassDetailStudentLog[];

@@ -8,9 +8,12 @@ import { BatchStatusBadge } from "../../batches/components/BatchStatusBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCoachBatches } from "../hooks/useCoachApi";
+import { formatDayMonth, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 export function CoachBatchesClient() {
   const { data, isLoading } = useCoachBatches();
+  const tz = useUserTimeZone();
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -30,9 +33,8 @@ export function CoachBatchesClient() {
       ) : data?.batches && data.batches.length > 0 ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {data.batches.map((batch) => {
-            const nextClass = batch.nextClass ? new Date(batch.nextClass) : null;
-            const nextClassStr = nextClass
-              ? `${nextClass.toLocaleDateString([], { month: 'short', day: 'numeric' })} at ${nextClass.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            const nextClassStr = batch.nextClass
+              ? `${formatDayMonth(batch.nextClass, tz)} at ${formatTime(batch.nextClass, tz)}`
               : "Not scheduled";
 
             return (

@@ -7,6 +7,8 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { toast } from "sonner";
 import { useLiveClassChat, type ChatMessageData } from "../../../providers/ChatProvider";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useReducedMotion } from "../../../lib/meetingUi";
 import { ParticipantAvatar } from "../ParticipantAvatar";
 
@@ -36,13 +38,14 @@ export const ChatMessage = memo(function ChatMessage({
   msg: ChatMessageData;
   showHeader: boolean;
 }) {
+  const tz = useUserTimeZone();
   const time = useMemo(
     () =>
-      msg.timestamp.toLocaleTimeString([], {
+      formatDate(msg.timestamp.toISOString(), tz, {
         hour: "2-digit",
         minute: "2-digit",
       }),
-    [msg.timestamp],
+    [msg.timestamp, tz],
   );
 
   const { setDraft } = useLiveClassChat();

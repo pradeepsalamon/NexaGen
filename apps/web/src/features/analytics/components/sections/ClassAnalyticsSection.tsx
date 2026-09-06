@@ -9,6 +9,8 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useClassAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent } from "../../lib/format";
+import { formatDayMonth } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 function SegmentCard({ title, stats }: { title: string; stats?: ClassSegmentStats }) {
   return (
@@ -34,6 +36,7 @@ function SegmentCard({ title, stats }: { title: string; stats?: ClassSegmentStat
 
 export function ClassAnalyticsSection({ query }: { query: AnalyticsRangeQuery }) {
   const { data, isLoading, isError, refetch } = useClassAnalyticsQuery(query);
+  const tz = useUserTimeZone();
   const o = data?.overall;
 
   return (
@@ -73,7 +76,7 @@ export function ClassAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
                 <AreaChartCard
                   data={data?.trend.points ?? []}
                   series={[{ key: "value", label: "Completed" }]}
-                  xFormat={(d) => new Date(d).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  xFormat={(d) => formatDayMonth(d, tz)}
                   xKey="date"
                 />
               </ChartContainer>

@@ -26,6 +26,7 @@ import { SchedulePreviewPanel } from "./SchedulePreviewPanel";
 import {
   addMonthsISO,
   endDateForClassCount,
+  formatISODate,
   isoDateToLocalDate,
   localDateToISODate,
   TIMEZONE_OPTIONS,
@@ -269,11 +270,7 @@ export function ScheduleBuilderClient() {
                     />
                     <span className="font-normal text-app-muted">
                       {computedEndDate
-                        ? `Ends ${isoDateToLocalDate(computedEndDate)?.toLocaleDateString(undefined, {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric"
-                          })}`
+                        ? `Ends ${formatISODate(computedEndDate)}`
                         : "Add a weekly class to estimate the end date"}
                     </span>
                   </div>
