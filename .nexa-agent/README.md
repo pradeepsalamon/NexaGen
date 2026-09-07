@@ -109,6 +109,15 @@ Chains: `feature` (backend → frontend → tester), `architected-feature`
 Override per task: `--agent backend-dev=antigravity --model backend-dev=gemini-3.1-pro-high`,
 or per role in the control UI's `/new` form.
 
+Registered worker agents: `claude`, `antigravity`, `opencode`, and `factory`
+(Factory.ai's `droid` CLI). `factory` is **not a default for any role** and is
+**unverified** — see [config/agents.json](config/agents.json) `_unverified_note`:
+`droid` must be installed and `FACTORY_API_KEY` exported (or a `droid` login
+done) before a task can use `--agent <role>=factory`. Its `run.sh` fails loudly
+if either is missing rather than hanging on a prompt. Supervisor/chat is a
+separate config ([`config/supervisor.json`](config/supervisor.json)) and does
+not yet know how to parse `droid`'s output — `factory` is worker-only for now.
+
 ### Choosing models
 
 `npm run agent -- roles` prints every agent, its models and which is default.
@@ -120,7 +129,8 @@ or per role in the control UI's `/new` form.
 | `config/agents.json` → `default_model` | permanent, per agent | used when nothing more specific applies |
 | `--agent` / `--model` on `create` | one task | frozen into `state.json` at creation |
 | `/new` in the UI | one task | per-role Agent + Model dropdowns |
-| `NEXA_CLAUDE_MODEL`, `NEXA_ANTIGRAVITY_MODEL`, `NEXA_OPENCODE_MODEL` | one run | env override |
+| `NEXA_CLAUDE_MODEL`, `NEXA_ANTIGRAVITY_MODEL`, `NEXA_OPENCODE_MODEL`, `NEXA_FACTORY_MODEL` | one run | env override |
+| `NEXA_FACTORY_AUTO` (`low`/`medium`/`high`) | one run | `droid exec` autonomy tier; default `medium`, `low` for `reviewer` |
 
 Precedence is task → environment → role `default_model` → agent
 `default_model` → the CLI's own account default. Leaving `default_model` unset is not the same as pinning a model: it
@@ -147,7 +157,9 @@ Registered agents are in [config/agents.json](config/agents.json), including a
 `_corrections` block recording where each CLI's real invocation differs from what
 the documentation claims — `--max-turns`, `--headless` and `--input` do not exist
 on these builds, and Antigravity ignores `settings.json` permissions in print
-mode, which is why it hung silently in v1.
+mode, which is why it hung silently in v1. An `_unverified` list flags any agent
+whose invocation is transcribed from docs but not yet run on this box
+(currently `factory`).
 
 ---
 
@@ -338,7 +350,7 @@ config/          agents.json, roles.json, supervisor.json, SAFETY.md
 scripts/         e2e-dev.sh -- Playwright against the dev stack, never production
 agents/
   _lib/          guard.sh (safety, exit 90), build-prompt.sh, validate-result.sh (exit 91)
-  claude/ antigravity/ opencode/    worker wrappers, one per CLI
+  claude/ antigravity/ opencode/ factory/   worker wrappers, one per CLI
   supervisor/    run.sh + SUPERVISOR.md (the conversational system prompt)
 orchestrator/
   cli.ts         command surface

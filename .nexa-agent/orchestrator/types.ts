@@ -33,7 +33,7 @@ export type RoleName =
   | "bug-fixer"
   | "reviewer";
 
-export type AgentName = "claude" | "antigravity" | "opencode";
+export type AgentName = "claude" | "antigravity" | "opencode" | "factory";
 
 /**
  * A follow-up phase an agent proposes queuing automatically once the task

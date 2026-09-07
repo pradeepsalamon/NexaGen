@@ -1,5 +1,7 @@
 {
   "_note": "Invocation strings below are VERIFIED against the CLIs installed on this box (2026-09-03), not the flags assumed in the v2 spec. See _corrections for what changed and why.",
+  "_unverified": ["factory"],
+  "_unverified_note": "factory (Factory.ai 'droid' CLI) is registered but NOT yet installed or authenticated on this box. Its invoke string is transcribed from https://docs.factory.ai/reference/cli-reference (Sept 2026), not verified. Before first use: install droid, export FACTORY_API_KEY (or run `droid` once to log in), then run `droid exec --help` and reconcile the flags here + agents/factory/run.sh, and move it out of _unverified.",
   "claude": {
     "cli": "claude",
     "runner": "agents/claude/run.sh",
@@ -78,9 +80,31 @@
       }
     ]
   },
+  "factory": {
+    "cli": "droid",
+    "runner": "agents/factory/run.sh",
+    "invoke": "droid exec -f {{PROMPT_FILE}} --output-format json --auto {{AUTO_LEVEL}} --cwd {{REPO_PATH}}",
+    "session_mode": "fresh_per_task",
+    "supports_token_accounting": false,
+    "context_window_tokens": null,
+    "context_budget_pct": null,
+    "timeout_seconds": 4800,
+    "enforces_json_schema": false,
+    "permission_flag": "--auto",
+    "auto_level": "medium",
+    "auth_env": "FACTORY_API_KEY",
+    "default_model": "default",
+    "models": [
+      {
+        "id": "default",
+        "label": "Factory Droid (account default model)"
+      }
+    ]
+  },
   "_corrections": {
     "claude": "--max-turns does not exist in this build; bounded with --max-budget-usd instead. -p takes prompt text (or stdin), never a file path.",
     "antigravity": "No --headless / --input flags. Uses -p/--print with --output-format json. settings.json permissions are ignored in print mode, so --dangerously-skip-permissions is required and safety is enforced by agents/_lib/guard.sh instead.",
-    "opencode": "No --headless / --input flags. Uses 'run' subcommand with --format json and --auto for permissions."
+    "opencode": "No --headless / --input flags. Uses 'run' subcommand with --format json and --auto for permissions.",
+    "factory": "UNVERIFIED (see _unverified_note). Headless mode is the `exec` subcommand: `droid exec -f <file> --output-format json --auto <low|medium|high> --cwd <path>`. `--auto` is tiered: read-only default, low = edit files, medium = install deps + build/test + LOCAL git commits, high = push/deploy. Worker roles need local commits, so medium; they still never push (guard.sh + the prompt forbid it). No --max-budget-usd equivalent — timeout is the only hard stop. No token accounting in the JSON envelope: {type,subtype,is_error,duration_ms,num_turns,result,session_id}. Auth: export FACTORY_API_KEY=fk-... in the runner's environment, or `droid` interactive login (writes ~/.factory/)."
   }
 }

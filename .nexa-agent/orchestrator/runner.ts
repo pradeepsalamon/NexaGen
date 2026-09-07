@@ -84,6 +84,7 @@ const PAUSE_FILE = path.join(AGENT_DIR, "state", "runner.paused");
  */
 const AGENT_PROCESS_PATTERNS = [
   "opencode run --format json",
+  "droid exec ",
   String.raw`\.nexa-agent/agents/[a-z]+/run\.sh`,
   "/tmp/opencode/",
   "/tmp/antigravity/",
