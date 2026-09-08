@@ -149,7 +149,10 @@ test.describe("Puzzle Library", () => {
     await ctx.addCookies(admin);
     const page = await ctx.newPage();
     await page.goto("/admin/puzzles");
-    await expect(page.getByRole("heading", { name: "Puzzle Library" })).toBeVisible();
+    // The topbar and the page body both render an <h1>"Puzzle Library"; scope to the page body.
+    await expect(
+      page.getByRole("main").getByRole("heading", { name: "Puzzle Library" })
+    ).toBeVisible();
     await expect(page.getByRole("tab", { name: "Topics" })).toBeVisible();
     await ctx.close();
     await request.dispose();
