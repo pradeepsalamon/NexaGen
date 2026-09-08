@@ -3,6 +3,7 @@ import { APP_GUARD } from "@nestjs/core";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { AuthModule } from "./auth/auth.module";
 import { BatchModule } from "./batch/batch.module";
+import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
 import { CoachModule } from "./coach/coach.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { TrashModule } from "./trash/trash.module";
@@ -17,6 +18,8 @@ import { AttendanceModule } from "./attendance/attendance.module";
 import { BackupModule } from "./backup/backup.module";
 import { AssignmentModule } from "./assignment/assignment.module";
 import { NotificationModule } from "./notification/notification.module";
+import { AnalyticsModule } from "./analytics/analytics.module";
+import { PuzzleModule } from "./puzzle/puzzle.module";
 
 @Module({
   imports: [
@@ -27,7 +30,8 @@ import { NotificationModule } from "./notification/notification.module";
     ScheduleModule.forRoot(),
     PrismaModule, 
     AuthModule, 
-    BatchModule, 
+    BatchModule,
+    BatchScheduleModule,
     CoachModule,
     TrashModule, 
     UserModule,
@@ -39,7 +43,9 @@ import { NotificationModule } from "./notification/notification.module";
     AttendanceModule,
     BackupModule,
     AssignmentModule,
-    NotificationModule
+    NotificationModule,
+    AnalyticsModule,
+    PuzzleModule
   ],
   providers: [
     {

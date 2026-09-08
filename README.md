@@ -63,17 +63,75 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   solutions by playing them in `SolutionEditor`. A coach can also turn the live
   shared board into a `SOLVE_LINE` assignment from the board header
   ("Send as assignment" → the same form, position pre-seeded).
+- Puzzle Library: a standalone, reusable catalogue of chess-training puzzles
+  (position + solution line + topic + type + difficulty + ownership + lifecycle)
+  — `puzzle` API module, `features/puzzles` on web, `/admin/puzzles`,
+  `/coach/puzzles`, `/student/puzzles`. Every puzzle belongs to one
+  admin-managed `PuzzleTopic` (Fork, Pin, Back Rank, …). Admin puzzles are
+  `GLOBAL` (every coach sees them); coach puzzles are `PRIVATE` (author + admins
+  only) and can never be made global. Lifecycle is `DRAFT` → `PUBLISHED` →
+  `ARCHIVED` (all reversible), with a separate soft delete through the Trash
+  module. Students browse published puzzles and solve them; `PuzzleAttempt`
+  rows are scored by the same `AssignmentEvaluationService` SOLVE_LINE engine.
+- Live-class puzzle assignment: mid-class, a coach pushes a published puzzle
+  into the room (`API_ROUTES.liveClass.puzzle*`); every student solves it on
+  their own board and a leaderboard ranks them by score then time. Optional
+  timer + a "hide leaderboard from students" toggle. `LiveClassPuzzleAssignment`
+  references `puzzleId` (never copies) and is **not** trash-registered — it is a
+  lightweight per-class row whose lifecycle is a `status` column, same as
+  `Assignment`. The service is in `PuzzleModule` (which imports `LiveClassModule`);
+  only starting an attempt is a new route, everything else reuses the puzzle
+  attempt endpoints.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student
   finishes an attempt. `NotificationBell` in the app header polls every 60s.
   `NotificationService.notify` / `notifyMany` (idempotent on `(userId, dedupeKey)`)
   is the entry point for future notification sources. No email delivery yet.
+- Batch class scheduler: admins define a recurring weekly schedule for a batch
+  (`BatchClassSchedule` + `BatchClassScheduleRule` + `BatchScheduleException`)
+  and NexaGen generates the full class plan as ordinary `CoachClass` rows —
+  `batch-schedule` API module, `features/batch-schedules` on web,
+  `/admin/schedule`. The recurrence engine (`recurrence.util.ts`) is
+  timezone-aware (Intl-based, DST-correct) and deterministic. Flow:
+  `POST /batch-schedules/preview` (occurrence list, class count, first/last date,
+  coach/batch conflict detection — no writes) → `POST /batch-schedules`
+  (transactional generate; `force` to accept conflicts). Future edits:
+  `PATCH /batch-schedules/:id` (`regenerate` rebuilds only not-yet-started
+  sessions; past/LIVE/COMPLETED classes are immutable), `POST .../:id/regenerate`
+  (idempotent top-up; session numbers stay stable), `DELETE /batch-schedules/:id`
+  (end schedule + cancel upcoming), `PATCH /batch-schedules/occurrences/:classId`
+  (`CANCEL` / `RESTORE` / `RESCHEDULE` one class without touching the rule).
+  `GET /batch-schedules/calendar?from=&to=&batchId=` is role-scoped and powers the
+  admin month calendar; generated classes flow through the existing live-class,
+  attendance and assignment systems unchanged. Idempotency key:
+  unique `(scheduleId, occurrenceDate, scheduleRuleId)` on `classes`.
 - Live class monitoring: coach/admin see a live roster (who's connected, join
   time, last seen, reconnect count) on `/classes/[id]` while a class is running,
   and via a "Monitor Live" action on the admin Batch Classes table
   (`features/attendance/components/LiveClassMonitor`, polls
   `GET /attendance/class/:id/live` every 10s)
+- **Admin analytics dashboard** (`/admin` and `/admin/analytics/*`): a
+  production analytics system for Super Admin / Admin. `analytics` API module
+  (21 admin-only `GET` endpoints under `/analytics/*` + CSV export) →
+  `features/analytics` on web (recharts, themed chart wrappers, KPI cards,
+  shareable URL date-range/filter state). Sections: executive overview (16 KPIs),
+  user growth, acquisition ("how users discover NexaChess" — normalized
+  `User.acquisitionSource` + optional UTM capture at registration), students,
+  coach performance + teaching hours, live classes (demo vs batch vs status),
+  attendance (trend / by batch / by coach / low-attendance), batches, recordings
+  & storage (usage gauge + growth + linear forecast), engagement (DAU/WAU/MAU
+  from `analytics_events`), today's operations, and an actionable alert feed.
+  Drill-down sub-pages with paginated tables for users / coaches / classes /
+  recordings / batches, plus `coaches/:id` and `batches/:id` detail views.
+  Every metric's calculation is surfaced in a "How is this calculated?" tooltip.
+  New infra: `AnalyticsEvent` + `StorageSnapshot` models, a global
+  `ActivityTrackingInterceptor` (throttled `User.lastActiveAt`), a daily
+  storage-snapshot cron (`AnalyticsScheduler`, advisory lock `73002050`), and an
+  in-process 5-minute cache for the heavier sections (`?fresh=1` bypasses).
+  Config: `ANALYTICS_STORAGE_WARN_PERCENT` (70), `ANALYTICS_STORAGE_CRITICAL_PERCENT`
+  (85), `ANALYTICS_LOW_ATTENDANCE_PERCENT` (75), `ANALYTICS_INACTIVE_DAYS` (30),
+  `ANALYTICS_CACHE_TTL_SECONDS` (300).
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
 
 ## Development
@@ -170,9 +228,23 @@ SMTP_SECURE=false
 SMTP_USER=...
 SMTP_PASS=...
 SMTP_FROM=...
+
+# Recording storage + analytics thresholds (all optional, defaults shown)
+RECORDING_STORAGE_LIMIT_GB=130
+RECORDING_MIN_RETENTION_DAYS=14
+ANALYTICS_STORAGE_WARN_PERCENT=70
+ANALYTICS_STORAGE_CRITICAL_PERCENT=85
+ANALYTICS_LOW_ATTENDANCE_PERCENT=75
+ANALYTICS_INACTIVE_DAYS=30
+ANALYTICS_CACHE_TTL_SECONDS=300   # 0 disables the analytics in-process cache
 ```
 
 For production, replace JWT secrets with long random values and set `FRONTEND_URL` / `CORS_ORIGIN` to the live frontend origin.
+
+`recharts` is a `apps/web` runtime dependency (charts on the admin analytics
+dashboard). After `main`-branch deploys the daily `AnalyticsScheduler` cron
+starts recording `storage_snapshots`; the storage growth chart + forecast need
+~14 days of history before they render.
 
 ## Prisma
 
@@ -217,7 +289,7 @@ More Prisma notes live in `apps/api/prisma/README.md`.
 
 ## Trash And Soft Delete
 
-Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, and `BatchStudent`.
+Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, and `PuzzleTopic`.
 
 When adding a new trash-enabled model:
 
@@ -262,6 +334,8 @@ npm run build -w apps/web
 
 ```bash
 npx playwright test                 # e2e/ specs; needs api + web running
+npx playwright test pre-class-settings   # live-class pre-class settings: layered
+                                         # resolution, preset authz, audit, admin UI
 ```
 
 `e2e/live-board-sync.spec.ts` (shared live-class chessboard) is **opt-in** — it
@@ -281,6 +355,27 @@ opt-in the same way — additionally needs `STOCKFISH_PATH` set in `apps/api/.en
 ```bash
 RUN_ANALYSIS_E2E=1 npx playwright test analysis-board
 ```
+
+### Responsive screenshots
+
+`scripts/responsive/` is a standalone dev tool (not a Playwright spec) that
+screenshots any route across a device matrix (phone / tablet / laptop / desktop,
+portrait + landscape), flags horizontal overflow, and writes an HTML gallery.
+
+```bash
+npx playwright install chromium            # once
+npm run dev                                # app must be running
+npm run shots -- --path login --devices all
+npm run shots -- --paths admin,admin/batches --login admin --devices mobile,tablet
+npm run shots -- --live-class <roomId> --login student --devices mobile,mobile-landscape
+```
+
+Output → `scripts/responsive/shots/<timestamp>/` (git-ignored). Full docs and
+options: [`scripts/responsive/README.md`](scripts/responsive/README.md).
+
+For the breakpoint system, per-screen responsive behaviour, the full
+device × route × theme test matrix and a per-device checklist, see
+[`docs/RESPONSIVE.md`](docs/RESPONSIVE.md).
 
 ## UI Component Standards
 

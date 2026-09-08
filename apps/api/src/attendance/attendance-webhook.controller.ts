@@ -4,8 +4,10 @@ import {
   Req,
   Logger,
   HttpCode,
+  HttpException,
   HttpStatus,
   Inject,
+  UnauthorizedException,
   forwardRef,
 } from "@nestjs/common";
 import type { Request } from "express";
@@ -106,7 +108,10 @@ export class AttendanceWebhookController {
           this.logger.error(
             "Rejected LiveKit webhook: signature verification failed"
           );
-          return { ok: false, error: "Invalid signature" };
+          // 401 rather than a 200 `{ ok: false }`: a caller that cannot sign is
+          // not LiveKit, and swallowing it as a success hid broken webhooks from
+          // our own E2E suite for weeks.
+          throw new UnauthorizedException("Invalid webhook signature.");
         }
       } else {
         // No LiveKit credentials configured. Only accept unverified payloads
@@ -115,7 +120,7 @@ export class AttendanceWebhookController {
           this.logger.error(
             "Rejected LiveKit webhook: receiver unavailable in production"
           );
-          return { ok: false, error: "Webhook receiver unavailable" };
+          throw new UnauthorizedException("Webhook receiver unavailable.");
         }
 
         this.logger.warn(
@@ -164,8 +169,11 @@ export class AttendanceWebhookController {
 
       return { ok: true };
     } catch (error) {
+      // Rejections (bad signature) must reach the caller as a 4xx — only
+      // genuine processing failures are swallowed as 200 to stop LiveKit
+      // retrying a payload we will never manage to handle.
+      if (error instanceof HttpException) throw error;
       this.logger.error("Error processing LiveKit webhook", error);
-      // Return 200 to prevent retries on processing errors
       return { ok: false, error: "Processing error" };
     }
   }
@@ -214,6 +222,20 @@ export class AttendanceWebhookController {
 
     // Skip guest participants (those with identity starting with "guest_")
     if (participantIdentity?.startsWith("guest_")) return;
+
+    // Skip the recording bot. Egress' headless Chrome joins the room to compose
+    // the recording (see LiveKitService.startRecording) with identity
+    // `EG_<egressId>`, which the `split("_")[0]` above turns into a "EG" userId
+    // — that lands in the student branch below and tries to write attendance for
+    // a user that does not exist. It is not an attendee.
+    const participantKind = event.participant?.kind;
+    if (
+      participantIdentity?.startsWith("EG_") ||
+      participantKind === 2 || // ParticipantInfo_Kind.EGRESS
+      participantKind === "EGRESS"
+    ) {
+      return;
+    }
 
     const isCoach = userId === liveSession.coachId;
     const isBoard = participantIdentity?.endsWith("_board");

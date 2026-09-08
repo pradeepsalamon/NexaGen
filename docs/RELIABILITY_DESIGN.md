@@ -225,7 +225,7 @@ Gaps against the spec's "admin reliability view":
   engine bug class this replaced is already fixed (BACKLOG.md 2026-08-30).
 - Coach-authoritative shared clock (`ClockState`/`lib/clock.ts`), per-student
   detach/resync (`isDetached`, `detachBoard`/`resyncBoard`), multi-student
-  board control (`boardControlStudentIds`).
+  board control (`boardControlStudents`, identity → side).
 - `useBoardSync.ts` already reads `useConnectionState()` (`ConnectionState`
   from `livekit-client`).
 

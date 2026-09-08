@@ -6,7 +6,12 @@ import { Loader2, Users, CalendarX, TrendingUp, Presentation, CheckCircle2, XCir
 import { Card, CardContent } from "@/components/ui/Card";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type AdminAttendanceDashboard } from "@nexa-chess/types";
+import { getWebEnv } from "@nexa-chess/config/web";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
+
+const attendanceExportUrl =
+  getWebEnv({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
+    .NEXT_PUBLIC_API_URL + API_ROUTES.attendance.adminExport;
 
 export default function AdminAttendanceDashboardPage() {
   const [data, setData] = useState<AdminAttendanceDashboard | null>(null);
@@ -176,10 +181,10 @@ export default function AdminAttendanceDashboardPage() {
           <p className="font-semibold text-app-text">Coach Teaching Report</p>
           <p className="text-xs text-app-muted mt-1">Track actual teaching hours per coach</p>
         </Link>
-        <Link href={`${API_ROUTES.attendance.adminExport}`} className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
+        <a href={attendanceExportUrl} rel="noopener" target="_blank" className="p-4 border border-app-border rounded-lg bg-app-surface hover:border-primary transition-colors cursor-pointer text-center">
           <p className="font-semibold text-app-text">Export CSV</p>
           <p className="text-xs text-app-muted mt-1">Download attendance report</p>
-        </Link>
+        </a>
       </div>
     </div>
   );

@@ -3,15 +3,13 @@
 import { memo, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Copy, Reply } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/Tooltip";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { toast } from "sonner";
 import { useLiveClassChat, type ChatMessageData } from "../../../providers/ChatProvider";
 import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { useReducedMotion } from "../../../lib/meetingUi";
 import { ParticipantAvatar } from "../ParticipantAvatar";
 
 function renderTextWithLinks(text: string) {
@@ -40,16 +38,18 @@ export const ChatMessage = memo(function ChatMessage({
   msg: ChatMessageData;
   showHeader: boolean;
 }) {
+  const tz = useUserTimeZone();
   const time = useMemo(
     () =>
-      msg.timestamp.toLocaleTimeString([], {
+      formatDate(msg.timestamp.toISOString(), tz, {
         hour: "2-digit",
         minute: "2-digit",
       }),
-    [msg.timestamp],
+    [msg.timestamp, tz],
   );
 
   const { setDraft } = useLiveClassChat();
+  const reducedMotion = useReducedMotion();
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(msg.message);
@@ -73,17 +73,17 @@ export const ChatMessage = memo(function ChatMessage({
       return prefix + `${quotedMessage}\n@${msg.senderName} `;
     });
     setTimeout(() => {
-      document
-        .querySelector<HTMLTextAreaElement>('textarea[placeholder="Message room..."]')
-        ?.focus();
+      // Keyed off a data attribute, not the placeholder — that now changes
+      // with the active thread.
+      document.querySelector<HTMLTextAreaElement>("textarea[data-chat-composer]")?.focus();
     }, 10);
   }, [msg.message, msg.senderName, setDraft]);
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
+      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18, ease: "easeOut" }}
       className={cn(
         "group flex gap-2.5 w-full relative",
         showHeader ? "mt-4 first:mt-0" : "mt-1",
@@ -154,37 +154,30 @@ export const ChatMessage = memo(function ChatMessage({
           {/* Hover Actions */}
           <div
             className={cn(
-              "opacity-0 group-hover/bubble:opacity-100 transition-opacity flex items-center gap-1",
+              "flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover/bubble:opacity-100",
               msg.isOwn ? "pr-2" : "pl-2",
             )}
           >
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="p-1.5 text-app-muted hover:text-app-text hover:bg-app-soft rounded-md transition-colors"
-                    type="button"
-                    onClick={handleReply}
-                  >
-                    <Reply className="size-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Reply</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="p-1.5 text-app-muted hover:text-app-text hover:bg-app-soft rounded-md transition-colors"
-                    type="button"
-                    onClick={handleCopy}
-                  >
-                    <Copy className="size-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Copy</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <SimpleTooltip label="Reply">
+              <button
+                className="rounded-md p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+                type="button"
+                onClick={handleReply}
+                aria-label="Reply to message"
+              >
+                <Reply className="size-3.5" />
+              </button>
+            </SimpleTooltip>
+            <SimpleTooltip label="Copy">
+              <button
+                className="rounded-md p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+                type="button"
+                onClick={handleCopy}
+                aria-label="Copy message"
+              >
+                <Copy className="size-3.5" />
+              </button>
+            </SimpleTooltip>
           </div>
         </div>
 

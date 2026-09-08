@@ -76,7 +76,39 @@ export const API_ROUTES = {
     downloadRecording: (id: string = ":id") => `/live-class/${id}/recording/download`,
     streamRecording: (id: string = ":id") => `/live-class/${id}/recording/stream`,
     storageUsage: () => `/live-class/recording/storage/usage`,
-    recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`
+    recordingProgress: (id: string = ":id") => `/live-class/${id}/recording/progress`,
+    // Mid-class policy change (coach/admin) — re-resolves the snapshot and
+    // pushes new LiveKit grants to affected participants.
+    liveSettings: (id: string = ":id") => `/live-class/${id}/live-settings`,
+    // Force-mute one participant's mic / camera / screen share (coach-owner or admin).
+    moderate: (id: string = ":id") => `/live-class/${id}/moderate`,
+    // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
+    // for write, any participant for read).
+    puzzle: (id: string = ":id") => `/live-class/${id}/puzzle`,
+    // Student starts (or resumes) an in-room attempt — stamps liveClassId.
+    puzzleAttempt: (id: string = ":id") => `/live-class/${id}/puzzle/attempt`,
+    // Live leaderboard for the active assignment.
+    puzzleLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/leaderboard`
+  },
+  liveClassSettings: {
+    // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.
+    policy: "/live-class-settings/policy",
+    // Recent LIVE_SETTINGS_CHANGE audit rows — admin only.
+    audit: "/live-class-settings/audit",
+    // Layer 2 class config — GET coach/admin, PUT owning coach / admin.
+    forClass: (id: string = ":id") => `/live-class-settings/class/${id}`,
+    // Layer 3 batch default — GET coach in batch / admin, PUT admin / authorised coach.
+    forBatch: (id: string = ":id") => `/live-class-settings/batch/${id}`
+  },
+  liveClassPresets: {
+    // Layer 4 presets. List returns own PERSONAL + all ORG/system.
+    list: "/live-class-presets",
+    create: "/live-class-presets",
+    get: (id: string = ":id") => `/live-class-presets/${id}`,
+    update: (id: string = ":id") => `/live-class-presets/${id}`,
+    delete: (id: string = ":id") => `/live-class-presets/${id}`,
+    duplicate: (id: string = ":id") => `/live-class-presets/${id}/duplicate`,
+    setDefault: (id: string = ":id") => `/live-class-presets/${id}/default`
   },
   student: {
     dashboard: "/student/dashboard"
@@ -111,6 +143,35 @@ export const API_ROUTES = {
     hint: (id: string = ":id", attemptId: string = ":attemptId") =>
       `/assignments/mine/${id}/attempts/${attemptId}/hint`
   },
+  puzzles: {
+    // ── Topics (admin authors; staff + coach read) ──
+    topics: "/puzzles/topics",
+    topic: (id: string = ":id") => `/puzzles/topics/${id}`,
+    archiveTopic: (id: string = ":id") => `/puzzles/topics/${id}/archive`,
+    reassignTopic: (id: string = ":id") => `/puzzles/topics/${id}/reassign`,
+    // ── Library (admin: all; coach: GLOBAL + own) ──
+    list: "/puzzles",
+    create: "/puzzles",
+    stats: "/puzzles/stats",
+    validate: "/puzzles/validate",
+    bulk: "/puzzles/bulk",
+    get: (id: string = ":id") => `/puzzles/${id}`,
+    update: (id: string = ":id") => `/puzzles/${id}`,
+    delete: (id: string = ":id") => `/puzzles/${id}`,
+    publish: (id: string = ":id") => `/puzzles/${id}/publish`,
+    archive: (id: string = ":id") => `/puzzles/${id}/archive`,
+    duplicate: (id: string = ":id") => `/puzzles/${id}/duplicate`,
+    // ── Student practice ──
+    mine: "/puzzles/mine",
+    mineGet: (id: string = ":id") => `/puzzles/mine/${id}`,
+    attempts: (id: string = ":id") => `/puzzles/${id}/attempts`,
+    attempt: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/puzzles/${id}/attempts/${attemptId}`,
+    submitAttempt: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/puzzles/${id}/attempts/${attemptId}/submit`,
+    hint: (id: string = ":id", attemptId: string = ":attemptId") =>
+      `/puzzles/${id}/attempts/${attemptId}/hint`
+  },
   attendance: {
     student: "/attendance/student",
     studentById: (id: string = ":id") => `/attendance/student/${id}`,
@@ -132,5 +193,41 @@ export const API_ROUTES = {
   notifications: {
     list: "/notifications",
     markRead: "/notifications/read"
+  },
+  analytics: {
+    overview: "/analytics/overview",
+    users: "/analytics/users",
+    acquisition: "/analytics/acquisition",
+    students: "/analytics/students",
+    coaches: "/analytics/coaches",
+    coachById: (id: string = ":id") => `/analytics/coaches/${id}`,
+    classes: "/analytics/classes",
+    attendance: "/analytics/attendance",
+    batches: "/analytics/batches",
+    batchById: (id: string = ":id") => `/analytics/batches/${id}`,
+    recordings: "/analytics/recordings",
+    storage: "/analytics/storage",
+    engagement: "/analytics/engagement",
+    operations: "/analytics/operations",
+    today: "/analytics/today",
+    alerts: "/analytics/alerts",
+    usersTable: "/analytics/tables/users",
+    coachesTable: "/analytics/tables/coaches",
+    batchesTable: "/analytics/tables/batches",
+    classesTable: "/analytics/tables/classes",
+    recordingsTable: "/analytics/tables/recordings",
+    export: (report: string = ":report") => `/analytics/export/${report}`
+  },
+  batchSchedules: {
+    list: "/batch-schedules",
+    create: "/batch-schedules",
+    preview: "/batch-schedules/preview",
+    calendar: "/batch-schedules/calendar",
+    get: (id: string = ":id") => `/batch-schedules/${id}`,
+    update: (id: string = ":id") => `/batch-schedules/${id}`,
+    deactivate: (id: string = ":id") => `/batch-schedules/${id}`,
+    regenerate: (id: string = ":id") => `/batch-schedules/${id}/regenerate`,
+    occurrenceAction: (classId: string = ":classId") =>
+      `/batch-schedules/occurrences/${classId}`
   }
 } as const;

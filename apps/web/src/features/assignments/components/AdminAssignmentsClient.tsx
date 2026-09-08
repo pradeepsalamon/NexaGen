@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useToast } from "@/providers/ToastProvider";
-import { useAssignmentLibrary, useDeleteAssignment } from "../hooks/useAssignmentsApi";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { useAssignmentLibrary } from "../hooks/useAssignmentsApi";
+import { deleteAssignment } from "../api/assignmentApi";
 import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { ActivityBadge, DifficultyBadge } from "./assignmentBadges";
@@ -17,9 +19,18 @@ const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
 export function AdminAssignmentsClient() {
-  const toast = useToast();
   const { data, isLoading } = useAssignmentLibrary();
-  const deleteMutation = useDeleteAssignment();
+
+  const { run: runDelete } = useUndoableMutation({
+    strategy: "defer",
+    mutationFn: (item: AssignmentLibraryItem) => deleteAssignment(item.id),
+    undo: async () => {},
+    toast: (item) => ({
+      title: `Deleting "${item.title}"`,
+      message: "Removes it from every batch it was assigned to."
+    }),
+    invalidates: [queryKeys.assignments.all]
+  });
 
   const library = data?.assignments ?? [];
 
@@ -114,13 +125,7 @@ export function AdminAssignmentsClient() {
                         variant="outline"
                         size="icon"
                         className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
-                        onClick={() =>
-                          toast.undoable({
-                            title: `Deleting "${item.title}"`,
-                            message: "Removes it from every batch it was assigned to.",
-                            onCommit: () => deleteMutation.mutate(item.id),
-                          })
-                        }
+                        onClick={() => runDelete(item)}
                       >
                         <Trash2 className="size-4" strokeWidth={2.5} />
                       </Button>

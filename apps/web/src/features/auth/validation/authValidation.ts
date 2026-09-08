@@ -38,9 +38,9 @@ export function validateRegisterForm(
       values.studentAge,
       "Student age is required."
     ),
-    referralSource: getFieldError(
-      Boolean(touched.referralSource),
-      values.referralSource,
+    acquisitionSource: getFieldError(
+      Boolean(touched.acquisitionSource),
+      values.acquisitionSource,
       "Choose an option."
     ),
     contactNumber: getFieldError(

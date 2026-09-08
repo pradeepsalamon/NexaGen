@@ -428,6 +428,7 @@ Pre-commit hook auto-runs `typecheck` + `lint`. Also confirm:
 | Web serves unstyled HTML / missing `.next/server` chunk | `npm run dev:web:clean` |
 | API `Cannot find module '.../dist/...'` | `npm run dev:api:clean` |
 | LiveKit webhook 400 / attendance not recording | raw-text body parser for `application/webhook+json` in `main.ts`; `attendance` module event handling |
+| LiveKit webhook 401 `Invalid webhook signature` | `LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET` mismatch between the API and LiveKit, or a client signing the `sha256` claim as hex instead of base64. There is no bypass header — the endpoint verifies every payload. |
 | Attendance status wrong (present/late/partial) | active `AttendancePolicy` row thresholds; `attendance-calculations.spec.ts` |
 | CORS error / cookie not set in prod | `CORS_ORIGIN` (comma-separated list), `FRONTEND_URL` must be https |
 | Web↔API type drift | rebuild/typecheck `packages/types` consumers; the package is the source of truth |

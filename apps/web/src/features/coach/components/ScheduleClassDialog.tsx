@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
-import { createClassRequestSchema, type CreateClassRequest, type CoachClass, type CoachBatch } from "@nexa-chess/types";
+import { createClassRequestSchema, type CreateClassRequest, type UpdateClassRequest, type CoachClass, type CoachBatch } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
   Dialog,
@@ -17,9 +17,26 @@ import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
 import { FormSelect } from "@/components/forms/FormSelect";
-import { useCreateClass, useUpdateClass } from "../hooks/useCoachApi";
+import { useCreateClass } from "../hooks/useCoachApi";
+import { updateClass } from "../api/coachApi";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
 
 import { useState } from "react";
+
+function toUpdatePayload(cls: CoachClass): UpdateClassRequest {
+  return {
+    batchId: cls.batchId,
+    title: cls.title ?? undefined,
+    topic: cls.topic ?? "",
+    description: cls.description ?? undefined,
+    objectives: cls.objectives ?? undefined,
+    homework: cls.homework ?? undefined,
+    notes: cls.notes ?? undefined,
+    startsAt: cls.startsAt,
+    endsAt: cls.endsAt
+  };
+}
 
 interface ScheduleClassDialogProps {
   open: boolean;
@@ -38,8 +55,26 @@ export function ScheduleClassDialog({
 }: ScheduleClassDialogProps) {
   const [duration, setDuration] = useState("60");
   const [isDurationDropdownOpen, setIsDurationDropdownOpen] = useState(false);
+  // create: no delete endpoint exists for coach classes, so there's nothing to
+  // revert to — undo: intentionally excluded (see docs/UNDO_ARCHITECTURE.md §4)
   const createClassMutation = useCreateClass();
-  const updateClassMutation = useUpdateClass(classToEdit?.id || "");
+
+  const { run: runUpdate, isPending: isUpdating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (vars: { id: string; payload: UpdateClassRequest; previous: CoachClass }) => {
+      const result = await updateClass(vars.id, vars.payload);
+      onOpenChange(false);
+      return result;
+    },
+    undo: (vars) => updateClass(vars.id, toUpdatePayload(vars.previous)),
+    toast: () => ({ title: "Class updated successfully" }),
+    invalidates: [
+      queryKeys.coach.dashboard,
+      queryKeys.coach.classes,
+      queryKeys.coach.upcomingClasses,
+      ...(classToEdit ? [queryKeys.coach.classDetail(classToEdit.id)] : [])
+    ]
+  });
 
   const form = useForm<CreateClassRequest>({
     resolver: zodResolver(createClassRequestSchema),
@@ -108,9 +143,7 @@ export function ScheduleClassDialog({
     };
 
     if (classToEdit) {
-      updateClassMutation.mutate(submitData, {
-        onSuccess: () => onOpenChange(false)
-      });
+      runUpdate({ id: classToEdit.id, payload: submitData, previous: classToEdit });
     } else {
       createClassMutation.mutate(submitData, {
         onSuccess: () => onOpenChange(false)
@@ -118,7 +151,7 @@ export function ScheduleClassDialog({
     }
   };
 
-  const isPending = createClassMutation.isPending || updateClassMutation.isPending;
+  const isPending = createClassMutation.isPending || isUpdating;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

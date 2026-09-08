@@ -21,7 +21,9 @@ import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
 import { assertNoSchedulingConflict, assertNotInPast } from "./class-scheduling.util";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
+import { LiveClassSettingsService } from "../live-class/live-class-settings.service";
 import type { AccessTokenPayload } from "../auth/types";
+import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 
 type CoachClassWithRelations = Prisma.CoachClassGetPayload<{
   include: {
@@ -42,8 +44,25 @@ export class CoachService {
 
   constructor(
     private readonly jwtService: JwtService,
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
+    private readonly liveClassSettings: LiveClassSettingsService
   ) {}
+
+  /**
+   * Resolve the pre-class settings override to persist on a class from a
+   * create/update payload: an applied preset is copied wholesale (§23),
+   * otherwise the inline override is used verbatim.
+   */
+  private async resolveClassSettingsOverride(
+    userId: string,
+    role: UserRole,
+    payload: { presetId?: string; liveClassSettings?: LiveClassSettingsOverride }
+  ): Promise<LiveClassSettingsOverride | undefined> {
+    if (payload.presetId) {
+      return this.liveClassSettings.presetOverrideById(payload.presetId, { id: userId, role });
+    }
+    return payload.liveClassSettings;
+  }
 
   async getDashboard(accessToken: string | undefined): Promise<CoachDashboardResponse> {
     const coach = await this.getAuthenticatedCoach(accessToken);
@@ -189,6 +208,8 @@ export class CoachService {
     assertNotInPast(startsAt);
     await assertNoSchedulingConflict(this.prisma, { coachId, startsAt, endsAt });
 
+    const liveClassSettings = await this.resolveClassSettingsOverride(coachId, UserRole.COACH, payload);
+
     const cls = await this.prisma.coachClass.create({
       data: {
         batchId: payload.batchId,
@@ -200,7 +221,8 @@ export class CoachService {
         homework: this.toNullableString(payload.homework),
         notes: this.toNullableString(payload.notes),
         startsAt,
-        endsAt
+        endsAt,
+        ...(liveClassSettings ? { liveClassSettings: liveClassSettings as object } : {})
       },
       include: { 
         batch: { include: { students: { where: { isDeleted: false } } } },
@@ -308,6 +330,11 @@ export class CoachService {
       });
     }
 
+    const settingsOverride =
+      payload.presetId || payload.liveClassSettings !== undefined
+        ? await this.resolveClassSettingsOverride(coachId, UserRole.COACH, payload)
+        : undefined;
+
     const cls = await this.prisma.coachClass.update({
       where: { id: classId },
       data: {
@@ -319,7 +346,8 @@ export class CoachService {
         homework: payload.homework === undefined ? undefined : this.toNullableString(payload.homework),
         notes: payload.notes === undefined ? undefined : this.toNullableString(payload.notes),
         startsAt: payload.startsAt ? startsAt : undefined,
-        endsAt: payload.endsAt ? endsAt : undefined
+        endsAt: payload.endsAt ? endsAt : undefined,
+        liveClassSettings: settingsOverride === undefined ? undefined : (settingsOverride as object)
       },
       include: { 
         batch: { include: { students: { where: { isDeleted: false } } } },

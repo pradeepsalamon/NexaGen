@@ -12,6 +12,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
+import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
+import { PuzzleBridge } from "../meeting/PuzzleBridge";
+import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
+import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
+import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
+import { LiveClassSettingsBridge } from "../meeting/LiveClassSettingsBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
 import { useClassroomSession } from "../../providers/ClassroomSessionManager";
@@ -74,6 +80,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   const [ended, setEnded] = useState(false);
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
+  const joinToastShown = useRef(false);
   const { clearJoined } = useClassroomSession();
 
   if (ended) {
@@ -105,7 +112,13 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       video={false}
       className="flex h-[100dvh] flex-col overflow-hidden"
       data-lk-theme="default"
-      onConnected={() => setError(null)}
+      onConnected={() => {
+        setError(null);
+        if (!joinToastShown.current) {
+          joinToastShown.current = true;
+          toast.success("You joined the class", { duration: 2500 });
+        }
+      }}
       onDisconnected={(reason) => {
         toast.dismiss("lk-reconnecting");
         if (reason === DisconnectReason.ROOM_DELETED) {
@@ -132,8 +145,15 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       }}
     >
       <ReconnectToaster />
+      <AudioSessionBridge />
+      <PipMicCaptureBridge />
+      <LiveClassSettingsBridge />
+      <HandRaiseBridge />
+      <PuzzleBridge classId={classId} />
       <ConnectionStateManager classId={classId}>
         <ChatProvider classId={classId}>
+          {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
+          <MeetingEventToasts />
           <MeetingLayout />
         </ChatProvider>
       </ConnectionStateManager>

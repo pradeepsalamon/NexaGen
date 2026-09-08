@@ -7,25 +7,20 @@ import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { PasswordInput } from "@/components/ui/PasswordInput";
-import { Select } from "@/components/ui/Select";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
+import { getStoredAcquisition } from "@/lib/acquisition";
 import { useAuthStore } from "@/stores/authStore";
 import { register } from "../api/authApi";
-import type { ReferralSource, RegisterFormValues } from "../types/auth";
-
-const referralOptions: { label: string; value: ReferralSource }[] = [
-  { label: "Ads", value: "ads" },
-  { label: "Friend", value: "friend" },
-  { label: "School", value: "school" },
-  { label: "Others", value: "other" }
-];
+import type { RegisterFormValues } from "../types/auth";
+import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
 
 const initialValues: RegisterFormValues = {
   confirmPassword: "",
   contactNumber: "",
   email: "",
-  referralSource: "",
+  acquisitionSource: "",
+  acquisitionDetail: "",
   parentName: "",
   password: "",
   studentAge: "",
@@ -78,13 +73,17 @@ export function RegisterForm() {
       return;
     }
 
-    if (!values.referralSource) {
+    if (!values.acquisitionSource) {
       return;
     }
 
+    const { acquisitionDetail, ...rest } = values;
     registerMutation.mutate({
-      ...values,
-      referralSource: values.referralSource
+      ...rest,
+      // First-touch UTM/referrer data, then the user's explicit answer wins.
+      ...getStoredAcquisition(),
+      acquisitionSource: values.acquisitionSource,
+      acquisitionDetail: acquisitionDetail.trim() || undefined
     });
   }
 
@@ -117,37 +116,29 @@ export function RegisterForm() {
               />
             </FormField>
           </div>
-          <div className="grid gap-3.5 md:grid-cols-2">
-            <FormField id="student-age" label="Student Age">
-              <Input
-                id="student-age"
-                inputMode="numeric"
-                min={4}
-                onChange={(event) =>
-                  updateField("studentAge", event.target.value)
-                }
-                placeholder="Age"
-                required
-                type="number"
-                value={values.studentAge}
-              />
-            </FormField>
-            <FormField id="referral-source" label="How you known nexachess?">
-              <Select
-                id="referral-source"
-                onChange={(event) =>
-                  updateField(
-                    "referralSource",
-                    event.target.value as RegisterFormValues["referralSource"]
-                  )
-                }
-                options={referralOptions}
-                placeholder="Choose option"
-                required
-                value={values.referralSource}
-              />
-            </FormField>
-          </div>
+          <FormField id="student-age" label="Student Age">
+            <Input
+              id="student-age"
+              inputMode="numeric"
+              min={4}
+              onChange={(event) =>
+                updateField("studentAge", event.target.value)
+              }
+              placeholder="Age"
+              required
+              type="number"
+              value={values.studentAge}
+            />
+          </FormField>
+          <AcquisitionSourceSelect
+            detail={values.acquisitionDetail}
+            onDetailChange={(detail) =>
+              updateField("acquisitionDetail", detail)
+            }
+            onValueChange={(value) => updateField("acquisitionSource", value)}
+            required
+            value={values.acquisitionSource}
+          />
           <FormField id="contact-number" label="Contact Number">
             <Input
               autoComplete="tel"

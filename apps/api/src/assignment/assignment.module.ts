@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
+import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 import { NotificationModule } from "../notification/notification.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { StockfishModule } from "../stockfish/stockfish.module";
@@ -11,7 +12,15 @@ import { AssignmentService } from "./assignment.service";
 
 @Module({
   controllers: [AssignmentController],
-  imports: [JwtModule, NotificationModule, PrismaModule, StockfishModule, UploadModule],
-  providers: [AssignmentService, AssignmentAttemptService, AssignmentEvaluationService]
+  imports: [
+    AnalyticsEventModule,
+    JwtModule,
+    NotificationModule,
+    PrismaModule,
+    StockfishModule,
+    UploadModule
+  ],
+  providers: [AssignmentService, AssignmentAttemptService, AssignmentEvaluationService],
+  exports: [AssignmentEvaluationService]
 })
 export class AssignmentModule {}

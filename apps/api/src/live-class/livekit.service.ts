@@ -1,7 +1,15 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException } from "@nestjs/common";
-import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, S3Upload } from "livekit-server-sdk";
+import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, EncodingOptionsPreset, S3Upload, TrackSource, DataPacket_Kind } from "livekit-server-sdk";
+import type { DerivedLiveKitGrants, LiveKitTrackSource } from "@nexa-chess/types";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
+
+const TRACK_SOURCE_MAP: Record<LiveKitTrackSource, TrackSource> = {
+  camera: TrackSource.CAMERA,
+  microphone: TrackSource.MICROPHONE,
+  screen_share: TrackSource.SCREEN_SHARE,
+  screen_share_audio: TrackSource.SCREEN_SHARE_AUDIO,
+};
 
 @Injectable()
 export class LiveKitService implements OnModuleInit {
@@ -102,7 +110,22 @@ export class LiveKitService implements OnModuleInit {
         metadata: JSON.stringify({ role: options.isCoach ? 'COACH' : 'STUDENT' }),
       });
 
-      if (options.isCoach) {
+      if (options.grants) {
+        // Policy-derived grants (pre-class settings). This is the server-side
+        // enforcement point: a forbidden source is simply absent from
+        // `canPublishSources`, so the SFU rejects the publish.
+        const g = options.grants;
+        at.addGrant({
+          roomJoin: true,
+          room: options.roomName,
+          canPublish: g.canPublish,
+          canPublishSources: g.canPublishSources.map((s) => TRACK_SOURCE_MAP[s]),
+          canSubscribe: g.canSubscribe,
+          canPublishData: g.canPublishData,
+          roomAdmin: g.roomAdmin,
+          canUpdateOwnMetadata: g.canUpdateOwnMetadata,
+        });
+      } else if (options.isCoach) {
         at.addGrant({
           roomJoin: true,
           room: options.roomName,
@@ -135,25 +158,117 @@ export class LiveKitService implements OnModuleInit {
     }
   }
 
-  async startRecording(roomName: string, filepath: string): Promise<string> {
+  /** Reverse of `TRACK_SOURCE_MAP` — LiveKit enum value back to our string label. */
+  private static readonly TRACK_SOURCE_LABEL: Partial<Record<number, LiveKitTrackSource>> = {
+    [TrackSource.CAMERA]: "camera",
+    [TrackSource.MICROPHONE]: "microphone",
+    [TrackSource.SCREEN_SHARE]: "screen_share",
+    [TrackSource.SCREEN_SHARE_AUDIO]: "screen_share_audio",
+  };
+
+  static trackSourceLabel(source: number | undefined): LiveKitTrackSource | null {
+    return (source !== undefined && LiveKitService.TRACK_SOURCE_LABEL[source]) || null;
+  }
+
+  /**
+   * Push a fresh set of publish permissions to a participant already in the
+   * room (mid-class policy change). LiveKit replaces the permission set
+   * atomically, so every field must be supplied.
+   */
+  async updateParticipantPermissions(
+    roomName: string,
+    identity: string,
+    grants: DerivedLiveKitGrants,
+  ): Promise<void> {
+    await this.roomClient.updateParticipant(roomName, identity, {
+      permission: {
+        canSubscribe: grants.canSubscribe,
+        canPublish: grants.canPublish,
+        canPublishData: grants.canPublishData,
+        canPublishSources: grants.canPublishSources.map((s) => TRACK_SOURCE_MAP[s]),
+        canUpdateMetadata: grants.canUpdateOwnMetadata,
+      },
+    });
+  }
+
+  /** Force-mute one already-published track (used when a source is revoked live). */
+  async muteParticipantTrack(roomName: string, identity: string, trackSid: string): Promise<void> {
+    await this.roomClient.mutePublishedTrack(roomName, identity, trackSid, true);
+  }
+
+  /**
+   * Server-inject a data packet onto a topic every participant can listen on.
+   * Pass `destinationIdentities` to address it to specific participants only —
+   * LiveKit then never puts the packet on anyone else's wire.
+   */
+  async broadcastData(
+    roomName: string,
+    payload: Uint8Array,
+    topic: string,
+    destinationIdentities?: string[],
+  ): Promise<void> {
+    await this.roomClient.sendData(roomName, payload, DataPacket_Kind.RELIABLE, {
+      topic,
+      ...(destinationIdentities?.length ? { destinationIdentities } : {}),
+    });
+  }
+
+  /**
+   * Direct-to-OCI upload is opt-in. The rest of the recording stack — the
+   * storage quota (`ensureStorageCapacity`), retention pruning, the storage
+   * analytics and the signed `/recording/stream` endpoint — all read the local
+   * volume the `egress` container shares with the API. Keying the upload off
+   * "are OCI credentials present" instead sent every recording to object
+   * storage the moment DB backups were configured, leaving that whole subsystem
+   * looking at an empty directory.
+   */
+  private buildS3Output(): { case: "s3"; value: S3Upload } | undefined {
+    const env = getApiEnv();
+    if (env.RECORDING_STORAGE_TARGET !== "oci") return undefined;
+
+    const { OCI_ACCESS_KEY_ID, OCI_SECRET_ACCESS_KEY, OCI_REGION, OCI_NAMESPACE, OCI_BUCKET_NAME } = process.env;
+    if (!OCI_ACCESS_KEY_ID || !OCI_SECRET_ACCESS_KEY || !OCI_REGION || !OCI_NAMESPACE || !OCI_BUCKET_NAME) {
+      this.logger.error(
+        "RECORDING_STORAGE_TARGET=oci but the OCI_* credentials are incomplete — recording to the local volume instead."
+      );
+      return undefined;
+    }
+
+    return {
+      case: "s3",
+      value: new S3Upload({
+        accessKey: OCI_ACCESS_KEY_ID,
+        secret: OCI_SECRET_ACCESS_KEY,
+        region: OCI_REGION,
+        endpoint: `https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oci.customer-oci.com`,
+        bucket: OCI_BUCKET_NAME,
+        forcePathStyle: true,
+      }),
+    };
+  }
+
+  /**
+   * Base URL of the egress recording template. Egress' headless Chrome loads
+   * `<base>/<classId>?url=&token=&layout=` and films it, so this must be a URL
+   * *the egress container* can reach — it defaults to the compose service name
+   * on the internal network, not the public site.
+   */
+  private recorderTemplateUrl(classId: string): string | undefined {
+    const env = getApiEnv();
+    const base = env.RECORDING_TEMPLATE_BASE_URL?.replace(/\/+$/, "");
+    if (!base) return undefined;
+    return `${base}/recorder/${classId}`;
+  }
+
+  async startRecording(roomName: string, filepath: string, classId: string): Promise<string> {
     try {
       this.logger.log(`Starting LiveKit room composite egress for room: ${roomName}`);
-      let s3Output: { case: "s3", value: S3Upload } | undefined = undefined;
-      const { OCI_ACCESS_KEY_ID, OCI_SECRET_ACCESS_KEY, OCI_REGION, OCI_NAMESPACE, OCI_BUCKET_NAME } = process.env;
-      
-      if (OCI_ACCESS_KEY_ID && OCI_SECRET_ACCESS_KEY && OCI_REGION && OCI_NAMESPACE && OCI_BUCKET_NAME) {
-        const s3Upload = new S3Upload({
-          accessKey: OCI_ACCESS_KEY_ID,
-          secret: OCI_SECRET_ACCESS_KEY,
-          region: OCI_REGION,
-          endpoint: `https://${OCI_NAMESPACE}.compat.objectstorage.${OCI_REGION}.oci.customer-oci.com`,
-          bucket: OCI_BUCKET_NAME,
-          forcePathStyle: true,
-        });
-        s3Output = { case: "s3", value: s3Upload };
-      }
+      const s3Output = this.buildS3Output();
 
-      const egressFilepath = s3Output 
+      // An S3 key has no leading slash; a local path is absolute inside the
+      // egress container, which mounts the same volume as the API at
+      // `RECORDING_STORAGE_DIR`.
+      const egressFilepath = s3Output
         ? (filepath.startsWith("/") ? filepath.slice(1) : filepath)
         : (filepath.startsWith("/") ? filepath : `/${filepath}`);
 
@@ -162,6 +277,17 @@ export class LiveKitService implements OnModuleInit {
         fileType: EncodedFileType.MP4,
         output: s3Output,
       });
+      // Without a custom template egress falls back to LiveKit's built-in grid,
+      // which renders only published video tracks — a recorded lesson then
+      // contains webcam tiles and no chessboard, because the board is synced as
+      // data packets rather than video. The template renders the real class.
+      const customBaseUrl = this.recorderTemplateUrl(classId);
+      if (!customBaseUrl) {
+        this.logger.warn(
+          "RECORDING_TEMPLATE_BASE_URL is unset — falling back to the built-in grid layout, which does NOT capture the chessboard."
+        );
+      }
+
       const info = await this.egressClient.startRoomCompositeEgress(
         roomName,
         {
@@ -169,6 +295,13 @@ export class LiveKitService implements OnModuleInit {
         },
         {
           layout: "grid",
+          // Pinned rather than left at the 1080p30 default: the single-node
+          // egress deployment runs on a 2-vCPU box, where a 720p30 grid
+          // composite peaks around 1.35 CPU and 1080p cannot keep up. Must stay
+          // within `cpu_cost.room_composite_cpu_cost` in docker-compose.yml.
+          // The template lays out against this exact 1280x720 frame.
+          encodingOptions: EncodingOptionsPreset.H264_720P_30,
+          ...(customBaseUrl ? { customBaseUrl } : {}),
         }
       );
       this.logger.log(`Started recording ${roomName}, egressId: ${info.egressId}`);

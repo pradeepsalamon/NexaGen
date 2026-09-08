@@ -7,7 +7,8 @@ import type {
   AssignmentLibraryItem,
   CoachBatch,
   CreateAssignmentRequest,
-  SolutionMove
+  SolutionMove,
+  UpdateAssignmentRequest
 } from "@nexa-chess/types";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -27,8 +28,31 @@ import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { PositionEditor } from "@/features/chessboard/components/board/PositionEditor";
 import { START_FEN } from "@/features/chessboard/lib/fen";
-import { useCreateAssignment, useUpdateAssignment } from "../hooks/useAssignmentsApi";
+import { createAssignment, deleteAssignment, updateAssignment } from "../api/assignmentApi";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
 import { SolutionEditor } from "./SolutionEditor";
+
+function toUpdatePayload(assignment: AssignmentLibraryItem): UpdateAssignmentRequest {
+  return {
+    title: assignment.title,
+    description: assignment.description,
+    pgn: assignment.pgn,
+    difficulty: assignment.difficulty,
+    timeLimitMinutes: assignment.timeLimitMinutes ?? undefined,
+    activityType: assignment.activityType,
+    startFen: assignment.startFen ?? undefined,
+    solutionMoves: assignment.solutionMoves ?? undefined,
+    orientation: assignment.orientation ?? undefined,
+    studentColor: assignment.studentColor ?? undefined,
+    engineLevel: assignment.engineLevel ?? undefined,
+    passThresholdPercent: assignment.passThresholdPercent,
+    maxAttempts: assignment.maxAttempts,
+    allowHints: assignment.allowHints,
+    allowRetry: assignment.allowRetry,
+    requiredCompletionPercent: assignment.requiredCompletionPercent
+  };
+}
 
 type FormValues = {
   title: string;
@@ -110,8 +134,29 @@ export function AssignmentFormDialog({
   initialFen,
   initialActivityType
 }: Props) {
-  const createMutation = useCreateAssignment();
-  const updateMutation = useUpdateAssignment(assignment?.id ?? "");
+  const { run: runCreate, isPending: isCreating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (payload: CreateAssignmentRequest) => {
+      const result = await createAssignment(payload);
+      onOpenChange(false);
+      return result;
+    },
+    undo: (_vars, result) => deleteAssignment(result.assignment.id),
+    toast: (vars) => ({ title: `"${vars.title}" created` }),
+    invalidates: [queryKeys.assignments.all]
+  });
+
+  const { run: runUpdate, isPending: isUpdating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (vars: { id: string; payload: UpdateAssignmentRequest; previous: AssignmentLibraryItem }) => {
+      const result = await updateAssignment(vars.id, vars.payload);
+      onOpenChange(false);
+      return result;
+    },
+    undo: (vars) => updateAssignment(vars.id, toUpdatePayload(vars.previous)),
+    toast: () => ({ title: "Assignment updated" }),
+    invalidates: [queryKeys.assignments.all]
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [assignNow, setAssignNow] = useState(false);
 
@@ -149,7 +194,7 @@ export function AssignmentFormDialog({
   }, [open, mode, assignment, form, initialFen, initialActivityType]);
 
   const errors = form.formState.errors;
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const isPending = isCreating || isUpdating;
   const canAssignOnCreate = mode === "create" && !!coachBatches && coachBatches.length > 0;
   const activityType = form.watch("activityType");
   const startFen = form.watch("startFen");
@@ -202,14 +247,15 @@ export function AssignmentFormDialog({
     }
 
     if (mode === "edit" && assignment) {
-      updateMutation.mutate(
-        {
+      runUpdate({
+        id: assignment.id,
+        payload: {
           ...base,
           description: values.description.trim() || null,
           ...activity
         },
-        { onSuccess: () => onOpenChange(false) }
-      );
+        previous: assignment
+      });
       return;
     }
 
@@ -225,15 +271,12 @@ export function AssignmentFormDialog({
       }
     }
 
-    createMutation.mutate(
-      {
+    runCreate({
         ...base,
         ...activity,
         batchIds: deploying ? values.batchIds : undefined,
         dueDate: deploying ? values.dueDate : undefined
-      } as CreateAssignmentRequest,
-      { onSuccess: () => onOpenChange(false) }
-    );
+      } as CreateAssignmentRequest);
   });
 
   return (

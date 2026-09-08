@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { memo, useMemo, type CSSProperties } from "react";
 import { motion } from "framer-motion";
 import {
   isTrackReference,
@@ -14,14 +14,18 @@ import { ParticipantAvatar } from "../ParticipantAvatar";
 import { NetworkQualityIndicator } from "../MeetingStatus";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
-import { getHandRaised, getRole, getTrackKey } from "./videoGrid.utils";
+import { useReducedMotion } from "../../../lib/meetingUi";
+import { getRole, getTrackKey } from "./videoGrid.utils";
+import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 
 interface VideoTileProps {
   trackRef: TrackReferenceOrPlaceholder;
   onPin?: (key: string) => void;
+  /** Grid placement, e.g. indenting the first tile of a partial last row. */
+  style?: CSSProperties;
 }
 
-export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileProps) {
+export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: VideoTileProps) {
   const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
   const isSpeaking = useIsSpeaking(participant);
@@ -32,25 +36,28 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const trackKey = useMemo(() => getTrackKey(trackRef), [trackRef]);
   const role = useMemo(() => getRole(participant), [participant]);
-  const handRaised = getHandRaised(participant);
+  // Raised hands ride a data channel, not participant attributes — see
+  // `lib/handRaise.ts`. Optional: the recorder template renders tiles outside
+  // the provider stack.
+  const liveClassState = useOptionalLiveClassState();
+  const handRaised = !!liveClassState?.raisedHands[participant.identity];
   const isLocal = participant.isLocal;
+  const reducedMotion = useReducedMotion();
 
   return (
     <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.94 }}
-      animate={{
-        opacity: 1,
-        scale: isSpeaking ? 1.01 : 1,
-      }}
-      exit={{ opacity: 0, scale: 0.94 }}
+      layout={!reducedMotion}
+      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-shadow duration-200",
+        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-[box-shadow,border-color] duration-200",
         isSpeaking
-          ? "border-primary/60 shadow-[0_0_24px_rgba(66,120,206,0.25),0_0_48px_rgba(66,120,206,0.08)]"
+          ? "border-primary ring-2 ring-primary/60"
           : "border-app-border hover:border-app-border/80",
       )}
+      style={{ containerType: "size", ...style }}
     >
       {/* Video layer */}
       {hasVideo ? (
@@ -64,22 +71,28 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
           )}
         />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-app-soft">
-          <ParticipantAvatar name={name} size="lg" />
-          <div className="text-center flex items-center justify-center gap-1.5">
-            <p className="text-sm font-medium text-app-text/80">{name}</p>
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-app-soft p-2 sm:gap-3">
+          {/* Tiles are sized in px by the grid, so the placeholder scales off
+              the tile itself (cqw) rather than off viewport breakpoints. */}
+          <ParticipantAvatar
+            name={name}
+            size="lg"
+            className="size-[clamp(2rem,18cqw,6rem)] text-[clamp(0.7rem,6cqw,1.875rem)]"
+          />
+          <div className="flex max-w-full items-center justify-center gap-1.5 text-center">
+            <p className="truncate text-xs font-medium text-app-text/80 sm:text-sm">{name}</p>
             {role && role.toUpperCase() === "COACH" && (
-              <span className="text-app-muted text-xs font-normal">(Coach)</span>
+              <span className="shrink-0 text-app-muted text-xs font-normal">(Coach)</span>
             )}
           </div>
         </div>
       )}
 
       {/* Bottom-left name pill with mic status */}
-      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
+      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
         <span
           className={cn(
-            "flex size-5 items-center justify-center rounded-full",
+            "flex size-5 shrink-0 items-center justify-center rounded-full",
             isMuted ? "bg-red-500/20 text-red-500" : "bg-white/10 text-white/70",
           )}
           aria-label={isMuted ? "Microphone muted" : "Microphone on"}
@@ -87,7 +100,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
           {isMuted ? <MicOff className="size-3" /> : <Mic className="size-3" />}
         </span>
 
-        <span className="max-w-[160px] flex items-center gap-1.5 truncate text-xs font-semibold text-white/90">
+        <span className="flex min-w-0 items-center gap-1.5 truncate text-xs font-semibold text-white/90">
           <span className="truncate">
             {isLocal && !isScreenShare
               ? "You"
@@ -96,7 +109,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
                 : name}
           </span>
           {role && role.toUpperCase() === "COACH" && !isScreenShare && (
-            <span className="text-white/70 font-normal shrink-0">(Coach)</span>
+            <span className="hidden shrink-0 font-normal text-white/70 sm:inline">(Coach)</span>
           )}
         </span>
       </div>
@@ -133,20 +146,6 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin }: VideoTileP
         )}
       </div>
 
-      {/* Active speaker animated ring */}
-      {isSpeaking && (
-        <motion.div
-          className="pointer-events-none absolute inset-0 rounded-2xl"
-          animate={{
-            boxShadow: [
-              "inset 0 0 0 2px rgba(66,120,206,0.4)",
-              "inset 0 0 0 2px rgba(66,120,206,0.7)",
-              "inset 0 0 0 2px rgba(66,120,206,0.4)",
-            ],
-          }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
     </motion.div>
   );
 });

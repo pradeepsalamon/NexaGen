@@ -1,85 +1,184 @@
 "use client";
 
+import { AnimatePresence, motion } from "framer-motion";
 import {
+  useConnectionState,
   useConnectionQualityIndicator,
   useIsRecording,
+  useLocalParticipant,
 } from "@livekit/components-react";
 import { ConnectionState, ConnectionQuality, type Participant } from "livekit-client";
 import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
 import { useOptionalLiveClassState } from "../../providers/LiveClassProvider";
-import { useConnectionStateManager } from "../../providers/ConnectionStateManager";
-import { Timer, Wifi, WifiOff, Radio, TriangleAlert } from "lucide-react";
+import { Z, useReducedMotion } from "../../lib/meetingUi";
+import { Timer, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { toast } from "sonner";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 
-// ─── Connection Badge ────────────────────────────────────────
+// ─── Connection quality → presentation ───────────────────────
 
-const connectionConfig: Record<
-  ConnectionState,
-  { label: string; dotClass: string; textClass: string; pulse: boolean }
-> = {
-  [ConnectionState.Connected]: {
-    label: "Connected",
-    dotClass: "bg-emerald-400",
-    textClass: "text-emerald-400",
+type ConnState = "excellent" | "good" | "weak" | "reconnecting" | "offline";
+
+interface ConnectionSummary {
+  state: ConnState;
+  /** Pill text. Reads "Live" whenever we are actually in the room. */
+  label: string;
+  /** Human name for the current network strength, shown in the tooltip. */
+  quality: string;
+  /** Dot + text + chrome colours, so the pill itself carries the signal. */
+  dot: string;
+  text: string;
+  ring: string;
+  /** Reconnecting is the only state worth animating. */
+  pulse: boolean;
+}
+
+function useConnectionSummary(): ConnectionSummary {
+  const connectionState = useConnectionState();
+  const { localParticipant } = useLocalParticipant();
+  const { quality } = useConnectionQualityIndicator({ participant: localParticipant });
+
+  if (
+    connectionState === ConnectionState.Reconnecting ||
+    connectionState === ConnectionState.SignalReconnecting ||
+    connectionState === ConnectionState.Connecting
+  ) {
+    return {
+      state: "reconnecting",
+      label: "Reconnecting",
+      quality: "Reconnecting",
+      dot: "bg-amber-500",
+      text: "text-amber-600 dark:text-amber-400",
+      ring: "border-amber-500/40 bg-amber-500/10",
+      pulse: true,
+    };
+  }
+  if (connectionState === ConnectionState.Disconnected) {
+    return {
+      state: "offline",
+      label: "Offline",
+      quality: "Offline",
+      dot: "bg-app-danger",
+      text: "text-app-danger",
+      ring: "border-app-danger/40 bg-app-danger/10",
+      pulse: false,
+    };
+  }
+  if (quality === ConnectionQuality.Poor) {
+    return {
+      state: "weak",
+      label: "Live",
+      quality: "Weak network",
+      dot: "bg-app-danger",
+      text: "text-app-danger",
+      ring: "border-app-danger/40 bg-app-danger/10",
+      pulse: false,
+    };
+  }
+  if (quality === ConnectionQuality.Good) {
+    return {
+      state: "good",
+      label: "Live",
+      quality: "Good network",
+      dot: "bg-amber-500",
+      text: "text-amber-600 dark:text-amber-400",
+      ring: "border-amber-500/40 bg-amber-500/10",
+      pulse: false,
+    };
+  }
+  if (quality === ConnectionQuality.Unknown) {
+    return {
+      state: "good",
+      label: "Live",
+      quality: "Measuring…",
+      dot: "bg-app-muted",
+      text: "text-app-muted",
+      ring: "border-app-border bg-app-surface",
+      pulse: false,
+    };
+  }
+  return {
+    state: "excellent",
+    label: "Live",
+    quality: "Excellent network",
+    dot: "bg-emerald-500",
+    text: "text-emerald-600 dark:text-emerald-400",
+    ring: "border-emerald-500/40 bg-emerald-500/10",
     pulse: false,
-  },
-  [ConnectionState.Connecting]: {
-    label: "Connecting...",
-    dotClass: "bg-amber-400",
-    textClass: "text-amber-400",
-    pulse: true,
-  },
-  [ConnectionState.Disconnected]: {
-    label: "Disconnected",
-    dotClass: "bg-red-400",
-    textClass: "text-red-400",
-    pulse: false,
-  },
-  [ConnectionState.Reconnecting]: {
-    label: "Reconnecting...",
-    dotClass: "bg-amber-400",
-    textClass: "text-amber-400",
-    pulse: true,
-  },
-  [ConnectionState.SignalReconnecting]: {
-    label: "Reconnecting...",
-    dotClass: "bg-amber-400",
-    textClass: "text-amber-400",
-    pulse: true,
-  },
-};
+  };
+}
 
-export function ConnectionBadge({ compact = false, className }: { compact?: boolean; className?: string }) {
-  const { connectionState } = useConnectionStateManager();
-  const config = connectionConfig[connectionState];
+/**
+ * The classroom's single "are we live, and is the network holding up?" chip.
+ * The word stays "Live" while connected — the colour is what carries network
+ * strength (green excellent / amber good / red weak), with the precise state
+ * spelled out in the tooltip. Full label on `sm+`, dot only below.
+ */
+export function ConnectionPill({ className }: { className?: string }) {
+  const { dot, label, pulse, quality, ring, text } = useConnectionSummary();
 
   return (
-    <div
-      className={cn("flex items-center gap-2 rounded-full border border-app-border bg-app-surface/80 px-3 py-1.5 shadow-sm backdrop-blur-sm", className)}
-      role="status"
-      aria-label={`Connection status: ${config.label}`}
-    >
-      <span
+    <SimpleTooltip label={quality} side="bottom">
+      <div
         className={cn(
-          "size-2 rounded-full",
-          config.dotClass,
-          config.pulse && "animate-pulse",
+          "flex h-9 items-center gap-1.5 rounded-full border px-2 text-xs font-bold sm:px-2.5",
+          ring,
+          text,
+          className,
         )}
-      />
-      {!compact && (
-        <span className={cn("text-xs font-medium", config.textClass)}>
-          {config.label}
-        </span>
-      )}
-    </div>
+        role="status"
+        aria-label={quality}
+      >
+        <span
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            dot,
+            pulse && "motion-safe:animate-pulse",
+          )}
+        />
+        <span className="hidden sm:inline">{label}</span>
+      </div>
+    </SimpleTooltip>
   );
 }
 
-// ─── Network Quality Indicator ────────────────────────────────
+/** Slim, non-blocking banner shown only while the room is reconnecting. */
+export function ConnectionBanner() {
+  const connectionState = useConnectionState();
+  const reducedMotion = useReducedMotion();
+  const reconnecting =
+    connectionState === ConnectionState.Reconnecting ||
+    connectionState === ConnectionState.SignalReconnecting;
+
+  return (
+    <AnimatePresence>
+      {reconnecting && (
+        <motion.div
+          key="reconnect-banner"
+          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, y: -8 }}
+          transition={{ duration: 0.2 }}
+          className={cn(
+            "pointer-events-none fixed inset-x-0 top-16 flex justify-center px-3",
+            Z.banner,
+          )}
+          role="status"
+        >
+          <div className="flex items-center gap-2 rounded-b-app border border-t-0 border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-600 backdrop-blur dark:text-amber-400">
+            <span className="size-2 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
+            Connection interrupted — reconnecting…
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Per-participant network quality (video tiles, participant list) ──────────
 
 interface NetworkQualityProps {
   participant: Participant;
@@ -87,12 +186,9 @@ interface NetworkQualityProps {
 }
 
 export function NetworkQualityIndicator({ participant, className }: NetworkQualityProps) {
-  const { quality } = useConnectionQualityIndicator({
-    participant: participant,
-  });
+  const { quality } = useConnectionQualityIndicator({ participant });
 
   const isUnknown = quality === ConnectionQuality.Unknown;
-
   const bars = isUnknown
     ? 0
     : quality === ConnectionQuality.Excellent
@@ -101,47 +197,56 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
         ? 2
         : 1;
 
-  const color = isUnknown
-    ? "bg-white/30"
-    : quality === ConnectionQuality.Poor
-      ? "bg-red-500"
+  const color =
+    quality === ConnectionQuality.Poor
+      ? "bg-amber-400"
       : quality === ConnectionQuality.Good
         ? "bg-white/70"
         : "bg-white";
 
-  const qualityLabel = isUnknown ? "Calculating..." : quality;
+  const qualityLabel = isUnknown ? "Calculating…" : quality;
 
   return (
-    <div
-      className={cn(
-        "flex items-end gap-px",
-        className,
-      )}
-      title={`Connection: ${qualityLabel}`}
-      role="img"
-      aria-label={`Network quality: ${qualityLabel}`}
-    >
-      {[1, 2, 3].map((level) => (
-        <div
-          key={level}
-          className={cn(
-            "w-[3px] rounded-full transition-colors",
-            level <= bars ? color : "bg-white/10",
-            level === 1 ? "h-1.5" : level === 2 ? "h-2.5" : "h-3.5",
-          )}
-        />
-      ))}
-    </div>
+    <SimpleTooltip label={`Connection: ${qualityLabel}`}>
+      <div
+        className={cn("flex items-end gap-px", className)}
+        role="img"
+        aria-label={`Network quality: ${qualityLabel}`}
+      >
+        {[1, 2, 3].map((level) => (
+          <div
+            key={level}
+            className={cn(
+              "w-[3px] rounded-full transition-colors",
+              level <= bars ? color : "bg-white/10",
+              level === 1 ? "h-1.5" : level === 2 ? "h-2.5" : "h-3.5",
+            )}
+          />
+        ))}
+      </div>
+    </SimpleTooltip>
   );
 }
 
 // ─── Timer Badge ──────────────────────────────────────────────
 
-export function TimerBadge({ className, startedAt, endsAt }: { className?: string, startedAt?: string | null, endsAt?: string | null }) {
-  const { formatted, isRunning, toggleMode, mode, remainingSeconds, isOvertime } = useMeetingTimer(startedAt, endsAt);
+export function TimerBadge({
+  className,
+  startedAt,
+  endsAt,
+}: {
+  className?: string;
+  startedAt?: string | null;
+  endsAt?: string | null;
+}) {
+  const { formatted, isRunning, toggleMode, mode, remainingSeconds, isOvertime } =
+    useMeetingTimer(startedAt, endsAt);
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const toastShownRef = useRef<{ fiveMin: boolean, oneMin: boolean }>({ fiveMin: false, oneMin: false });
+  const toastShownRef = useRef<{ fiveMin: boolean; oneMin: boolean }>({
+    fiveMin: false,
+    oneMin: false,
+  });
 
   useEffect(() => {
     if (!isCoach || !endsAt) return;
@@ -159,15 +264,12 @@ export function TimerBadge({ className, startedAt, endsAt }: { className?: strin
 
   if (!isRunning) return null;
 
-  let colorClass = "text-app-muted border-app-border hover:bg-app-surface";
+  let colorClass = "text-app-muted border-app-border hover:bg-app-soft";
   let isWarning = false;
 
   if (mode === "down") {
-    if (isOvertime) {
-      colorClass = "text-red-500 border-red-500 bg-red-500/10 hover:bg-red-500/20";
-      isWarning = true;
-    } else if (remainingSeconds <= 60) {
-      colorClass = "text-red-500 border-red-500 bg-red-500/10 hover:bg-red-500/20";
+    if (isOvertime || remainingSeconds <= 60) {
+      colorClass = "text-app-danger border-app-danger bg-app-danger/10 hover:bg-app-danger/20";
       isWarning = true;
     } else if (remainingSeconds <= 300) {
       colorClass = "text-amber-500 border-amber-500 bg-amber-500/10 hover:bg-amber-500/20";
@@ -177,35 +279,28 @@ export function TimerBadge({ className, startedAt, endsAt }: { className?: strin
     }
   }
 
-  const tooltipText = mode === "up"
-    ? "Elapsed Time (Click to toggle)"
-    : isOvertime
-      ? "Overtime! (Click to toggle)"
-      : "Remaining Time (Click to toggle)";
+  const tooltipText =
+    mode === "up"
+      ? "Elapsed time — tap to show time remaining"
+      : isOvertime
+        ? "Overtime — tap to show elapsed time"
+        : "Time remaining — tap to show elapsed time";
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            onClick={toggleMode}
-            className={cn(
-              "flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-sm tabular-nums transition-colors",
-              colorClass,
-              className,
-            )}
-            role="timer"
-            aria-label={`Meeting duration: ${formatted}`}
-          >
-            {isWarning ? <TriangleAlert className="size-3.5" /> : <Timer className="size-3.5" />}
-            <span>{formatted}</span>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p>{tooltipText}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <SimpleTooltip label={tooltipText} side="bottom">
+      <button
+        onClick={toggleMode}
+        className={cn(
+          "flex h-9 items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold tabular-nums transition-colors",
+          colorClass,
+          className,
+        )}
+        aria-label={`Meeting duration: ${formatted}`}
+      >
+        {isWarning ? <TriangleAlert className="size-3.5" /> : <Timer className="size-3.5" />}
+        <span>{formatted}</span>
+      </button>
+    </SimpleTooltip>
   );
 }
 
@@ -226,47 +321,16 @@ export function RecordingBadge({
   if (!isRecording) return null;
 
   return (
-    <div
+    <span
       className={cn(
-        "flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-1 text-xs font-semibold text-red-500",
+        "flex items-center gap-1.5 rounded-full bg-app-danger/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-app-danger",
         className,
       )}
       role="status"
       aria-label="Recording in progress"
     >
-      <span className="size-2 rounded-full bg-red-500 animate-pulse" />
-      REC
-    </div>
-  );
-}
-
-// ─── Live Badge ──────────────────────────────────────────────
-
-export function LiveBadge({ className }: { className?: string }) {
-  return (
-    <span
-      className={cn(
-        "flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400",
-        className,
-      )}
-      role="status"
-      aria-label="Live class in session"
-    >
-      <Radio className="size-3" />
-      Live
+      <span className="size-1.5 rounded-full bg-app-danger motion-safe:animate-pulse" />
+      Rec
     </span>
-  );
-}
-
-// ─── Network Status Icon ─────────────────────────────────────
-
-export function NetworkStatusIcon({ className }: { className?: string }) {
-  const { connectionState } = useConnectionStateManager();
-  const isConnected = connectionState === ConnectionState.Connected;
-
-  return isConnected ? (
-    <Wifi className={cn("size-4 text-emerald-400", className)} aria-hidden="true" />
-  ) : (
-    <WifiOff className={cn("size-4 text-red-400", className)} aria-hidden="true" />
   );
 }

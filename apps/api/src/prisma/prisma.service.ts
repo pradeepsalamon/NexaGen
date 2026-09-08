@@ -141,12 +141,56 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.processedWebhookEvent;
   }
 
+  get liveClassPolicy() {
+    return this.client.liveClassPolicy;
+  }
+
+  get liveClassPreset() {
+    return this.client.liveClassPreset;
+  }
+
   get recordingWatchProgress() {
     return this.client.recordingWatchProgress;
   }
 
   get notification() {
     return this.client.notification;
+  }
+
+  get batchClassSchedule() {
+    return this.client.batchClassSchedule;
+  }
+
+  get batchClassScheduleRule() {
+    return this.client.batchClassScheduleRule;
+  }
+
+  get batchScheduleException() {
+    return this.client.batchScheduleException;
+  }
+
+  get analyticsEvent() {
+    return this.client.analyticsEvent;
+  }
+
+  get storageSnapshot() {
+    return this.client.storageSnapshot;
+  }
+
+  get puzzleTopic() {
+    return this.client.puzzleTopic;
+  }
+
+  get puzzle() {
+    return this.client.puzzle;
+  }
+
+  get puzzleAttempt() {
+    return this.client.puzzleAttempt;
+  }
+
+  get liveClassPuzzleAssignment() {
+    return this.client.liveClassPuzzleAssignment;
   }
 
   async $connect() {
@@ -162,6 +206,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
   );
 
   $queryRaw: typeof this.client.$queryRaw = this.client.$queryRaw.bind(this.client);
+
+  $queryRawUnsafe: typeof this.client.$queryRawUnsafe =
+    this.client.$queryRawUnsafe.bind(this.client);
 
   $executeRaw: typeof this.client.$executeRaw = this.client.$executeRaw.bind(
     this.client

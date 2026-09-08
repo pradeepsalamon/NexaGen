@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarDays, Pencil, Plus } from "lucide-react";
 import type { DemoClass } from "@nexa-chess/types";
 
@@ -13,11 +13,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
-import {
-  useCancelDemoClassMutation,
-  useDemoClassesQuery,
-  useRestoreDemoClassMutation,
-} from "../hooks/useAdminDemoClasses";
+import { useDemoClassesQuery } from "../hooks/useAdminDemoClasses";
+import { cancelDemoClass, restoreDemoClass } from "../api/adminApi";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import { DemoClassForm } from "./DemoClassForm";
 import { DemoClassDetailsDialog } from "./DemoClassDetailsDialog";
@@ -40,8 +39,6 @@ export function DemoClassesClient() {
   const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "startsAt", desc: true }] });
   const { clampToPageCount } = serverTable;
   const { data, isLoading } = useDemoClassesQuery(serverTable.params);
-  const cancelMutation = useCancelDemoClassMutation();
-  const restoreMutation = useRestoreDemoClassMutation();
   const classes = useMemo(() => data?.classes ?? [], [data?.classes]);
   const pageCount = data?.pagination?.totalPages ?? 1;
   useEffect(() => {
@@ -77,46 +74,21 @@ export function DemoClassesClient() {
     [toast]
   );
 
-  // Cancel / restore reference each other for the "Undo" toast action.
-  const undoRef = useRef<{ cancel: (id: string) => void; restore: (id: string) => void }>({
-    cancel: () => {},
-    restore: () => {},
+  const { run: runCancel, isPending: isCanceling } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: (id: string) => cancelDemoClass(id),
+    undo: (id) => restoreDemoClass(id),
+    toast: () => ({ title: "Class Cancelled", message: "The demo class has been cancelled." }),
+    invalidates: [[...queryKeys.admin.base, "demo-classes"]]
   });
 
-  const handleCancel = useCallback(
-    (id: string) => {
-      cancelMutation.mutate(id, {
-        onSuccess: () => {
-          toast.success({
-            title: "Class Cancelled",
-            message: "The demo class has been cancelled.",
-            durationMs: 5000,
-            action: { label: "Undo", onClick: () => undoRef.current.restore(id) },
-          });
-        },
-      });
-    },
-    [cancelMutation, toast]
-  );
-
-  const handleRestore = useCallback(
-    (id: string) => {
-      restoreMutation.mutate(id, {
-        onSuccess: () => {
-          toast.success({
-            title: "Class Restored",
-            message: "The class has been restored to SCHEDULED.",
-            durationMs: 5000,
-            action: { label: "Undo", onClick: () => undoRef.current.cancel(id) },
-          });
-        },
-      });
-    },
-    [restoreMutation, toast]
-  );
-
-  undoRef.current.cancel = handleCancel;
-  undoRef.current.restore = handleRestore;
+  const { run: runRestore, isPending: isRestoring } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: (id: string) => restoreDemoClass(id),
+    undo: (id) => cancelDemoClass(id),
+    toast: () => ({ title: "Class Restored", message: "The class has been restored to SCHEDULED." }),
+    invalidates: [[...queryKeys.admin.base, "demo-classes"]]
+  });
 
   const openDetails = useCallback((id: string) => {
     setDetailsClassId(id);
@@ -126,11 +98,11 @@ export function DemoClassesClient() {
   const columns = useDemoClassColumns({
     onEdit: editClass,
     onCopyLink: handleCopyLink,
-    onCancel: handleCancel,
-    onRestore: handleRestore,
+    onCancel: runCancel,
+    onRestore: runRestore,
     onViewDetails: openDetails,
-    cancelPending: cancelMutation.isPending,
-    restorePending: restoreMutation.isPending,
+    cancelPending: isCanceling,
+    restorePending: isRestoring,
   });
 
   const { table } = useDataTable<DemoClass, unknown>({

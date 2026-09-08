@@ -2,14 +2,74 @@ import {
   BatchStatus,
   CoachTitle,
   PrismaClient,
+  PuzzleDifficulty,
+  PuzzleStatus,
+  PuzzleType,
+  PuzzleVisibility,
   ReferralSource,
   UserRole,
   UserStatus
 } from "@prisma/client";
+import type { LiveClassSettingsOverride } from "@nexa-chess/types";
+import { Chess } from "chess.js";
 import { hashSecret } from "../src/auth/auth.utils";
 
 const prisma = new PrismaClient();
 const seedPassword = "Test@12345";
+
+// Layer 4 system presets (visible to every coach, managed by admins). The
+// Layer 1 policy row is lazily created by LiveClassSettingsService, not seeded.
+const SYSTEM_PRESETS: Array<{ name: string; description: string; settings: LiveClassSettingsOverride }> = [
+  {
+    name: "Standard Batch Class",
+    description: "Students muted, camera off, chat on, coach records manually.",
+    settings: {
+      student: { mic: "JOIN_MUTED", camera: "JOIN_OFF", screenShare: "DISABLED", chat: "ENABLED", board: "VIEW_ONLY" },
+      recording: "MANUAL"
+    }
+  },
+  {
+    name: "Interactive Lesson",
+    description: "Students can unmute, cameras on, board interaction enabled.",
+    settings: {
+      student: { mic: "JOIN_MUTED", camera: "JOIN_ON", screenShare: "DISABLED", chat: "ENABLED", board: "INTERACTIVE" },
+      recording: "MANUAL"
+    }
+  },
+  {
+    name: "Demo Class",
+    description: "Camera on, chat on, recording starts automatically.",
+    settings: {
+      student: { mic: "JOIN_MUTED", camera: "JOIN_ON", screenShare: "DISABLED", chat: "ENABLED", board: "VIEW_ONLY" },
+      recording: "AUTO_START"
+    }
+  }
+];
+
+async function seedSystemPresets() {
+  for (const preset of SYSTEM_PRESETS) {
+    const existing = await prisma.liveClassPreset.findFirst({
+      where: { name: preset.name, isSystem: true }
+    });
+    if (existing) {
+      await prisma.liveClassPreset.update({
+        where: { id: existing.id },
+        data: { description: preset.description, settings: preset.settings as object }
+      });
+    } else {
+      await prisma.liveClassPreset.create({
+        data: {
+          name: preset.name,
+          description: preset.description,
+          scope: "ORG",
+          isSystem: true,
+          settings: preset.settings as object
+        }
+      });
+    }
+  }
+  console.log(`- live-class presets: ${SYSTEM_PRESETS.length} system presets`);
+}
 
 async function upsertUser(email: string, createData: any, updateData: any) {
   const existing = await prisma.user.findFirst({ where: { email, isDeleted: false } });
@@ -35,6 +95,228 @@ async function upsertStudentProfile(userId: string, createData: any, updateData:
   return prisma.studentProfile.create({ data: createData });
 }
 
+const PUZZLE_TOPICS: Array<{ name: string; description: string; icon: string; sortOrder: number }> = [
+  { name: "Fork", description: "Identify and execute a tactical fork.", icon: "🍴", sortOrder: 1 },
+  { name: "Pin", description: "Exploit a pinned piece.", icon: "📌", sortOrder: 2 },
+  { name: "Skewer", description: "Win material with a skewer.", icon: "🍢", sortOrder: 3 },
+  { name: "Back Rank", description: "Deliver or defend a back-rank mate.", icon: "🏰", sortOrder: 4 },
+  { name: "Checkmate in 1", description: "Find the immediate checkmate.", icon: "♚", sortOrder: 5 },
+  { name: "Checkmate in 2", description: "Find the forced mate in two moves.", icon: "♛", sortOrder: 6 },
+  { name: "Tactical Patterns", description: "Spot the winning tactical shot.", icon: "⚡", sortOrder: 7 },
+  { name: "Endgame", description: "Convert a winning endgame.", icon: "⏱️", sortOrder: 8 }
+];
+
+/** Replay a UCI line from `fen`, rebuilding SAN; throws if any move is illegal. */
+function buildSolution(fen: string, ucis: string[]): Array<{ uci: string; san: string }> {
+  const chess = new Chess(fen);
+  return ucis.map((uci) => {
+    const res = chess.move({
+      from: uci.slice(0, 2),
+      to: uci.slice(2, 4),
+      promotion: uci.slice(4) || undefined
+    });
+    return { uci, san: res.san };
+  });
+}
+
+async function seedPuzzleTopics(createdById: string) {
+  const byName = new Map<string, string>();
+  for (const topic of PUZZLE_TOPICS) {
+    const existing = await prisma.puzzleTopic.findFirst({ where: { name: topic.name } });
+    if (existing) {
+      byName.set(topic.name, existing.id);
+      continue;
+    }
+    const created = await prisma.puzzleTopic.create({
+      data: {
+        name: topic.name,
+        slug: topic.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""),
+        description: topic.description,
+        icon: topic.icon,
+        sortOrder: topic.sortOrder,
+        createdById
+      }
+    });
+    byName.set(topic.name, created.id);
+  }
+  console.log(`- puzzle topics: ${byName.size}`);
+  return byName;
+}
+
+async function seedPuzzles(
+  topics: Map<string, string>,
+  adminId: string,
+  coachId: string,
+  coach2Id: string
+) {
+  if ((await prisma.puzzle.count()) >= 6) return;
+
+  const now = new Date();
+  const rows: Array<{
+    title: string;
+    topic: string;
+    type: PuzzleType;
+    difficulty: PuzzleDifficulty;
+    fen: string;
+    line: string[];
+    visibility: PuzzleVisibility;
+    createdById: string;
+    createdByRole: UserRole;
+    explanation: string;
+    hints: string[];
+    tags: string[];
+  }> = [
+    {
+      title: "Rook to the back rank",
+      topic: "Back Rank",
+      type: PuzzleType.CHECKMATE,
+      difficulty: PuzzleDifficulty.EASY,
+      fen: "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1",
+      line: ["a1a8"],
+      visibility: PuzzleVisibility.GLOBAL,
+      createdById: adminId,
+      createdByRole: UserRole.SUPER_ADMIN,
+      explanation: "The black king is trapped by its own pawns — Ra8 is mate.",
+      hints: ["Look at the open a-file.", "The f7/g7/h7 pawns box the king in."],
+      tags: ["back-rank", "rook"]
+    },
+    {
+      title: "King and rook mate",
+      topic: "Checkmate in 1",
+      type: PuzzleType.CHECKMATE,
+      difficulty: PuzzleDifficulty.BEGINNER,
+      fen: "k7/8/1K6/8/8/8/8/7R w - - 0 1",
+      line: ["h1h8"],
+      visibility: PuzzleVisibility.GLOBAL,
+      createdById: adminId,
+      createdByRole: UserRole.SUPER_ADMIN,
+      explanation: "The white king covers every escape square; Rh8 is mate.",
+      hints: ["Your king already does most of the work."],
+      tags: ["basic-mate"]
+    },
+    {
+      title: "Knight fork wins the queen",
+      topic: "Fork",
+      type: PuzzleType.TACTICAL,
+      difficulty: PuzzleDifficulty.INTERMEDIATE,
+      fen: "4k3/8/8/1q1N4/8/8/8/4K3 w - - 0 1",
+      line: ["d5c7", "e8d8", "c7b5"],
+      visibility: PuzzleVisibility.GLOBAL,
+      createdById: adminId,
+      createdByRole: UserRole.SUPER_ADMIN,
+      explanation: "Nc7+ forks the king and queen; after the king moves, Nxb5 wins.",
+      hints: ["Which square attacks both the king and the queen?"],
+      tags: ["fork", "knight"]
+    },
+    {
+      title: "Centralise and fork",
+      topic: "Tactical Patterns",
+      type: PuzzleType.CALCULATION,
+      difficulty: PuzzleDifficulty.ADVANCED,
+      fen: "4k3/8/8/7q/8/8/8/Q3K3 w - - 0 1",
+      line: ["a1e5", "e8f8", "e5h5"],
+      visibility: PuzzleVisibility.GLOBAL,
+      createdById: adminId,
+      createdByRole: UserRole.SUPER_ADMIN,
+      explanation: "Qe5+ checks the king and attacks the queen along the fifth rank.",
+      hints: ["Find a check that also hits the queen."],
+      tags: ["double-attack", "queen"]
+    },
+    {
+      title: "Queen delivers mate",
+      topic: "Endgame",
+      type: PuzzleType.ENDGAME,
+      difficulty: PuzzleDifficulty.BEGINNER,
+      fen: "k7/8/K7/8/8/8/8/7Q w - - 0 1",
+      line: ["h1h8"],
+      visibility: PuzzleVisibility.GLOBAL,
+      createdById: adminId,
+      createdByRole: UserRole.SUPER_ADMIN,
+      explanation: "With the king on a6 covering a7 and b7, Qh8 is mate.",
+      hints: ["The eighth rank is the target."],
+      tags: ["kq-vs-k"]
+    },
+    {
+      title: "Escape the check, win the queen",
+      topic: "Tactical Patterns",
+      type: PuzzleType.BEST_MOVE,
+      difficulty: PuzzleDifficulty.EASY,
+      fen: "7k/6pp/8/8/8/8/6PP/R2q3K w - - 0 1",
+      line: ["a1d1"],
+      visibility: PuzzleVisibility.PRIVATE,
+      createdById: coachId,
+      createdByRole: UserRole.COACH,
+      explanation: "Rxd1 gets out of check and wins the queen for free.",
+      hints: ["You are in check — deal with it and profit."],
+      tags: ["in-between"]
+    },
+    {
+      title: "Back rank with the heavy piece",
+      topic: "Back Rank",
+      type: PuzzleType.CHECKMATE,
+      difficulty: PuzzleDifficulty.EASY,
+      fen: "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 1",
+      line: ["d1d8"],
+      visibility: PuzzleVisibility.PRIVATE,
+      createdById: coachId,
+      createdByRole: UserRole.COACH,
+      explanation: "Rd8 is mate — the pawns leave the king no luft.",
+      hints: ["The eighth rank is undefended."],
+      tags: ["back-rank"]
+    }
+  ];
+
+  // A second coach's private puzzle — used to verify cross-coach visibility.
+  rows.push({
+    title: "Coach 2 — knight mate",
+    topic: "Checkmate in 1",
+    type: PuzzleType.CHECKMATE,
+    difficulty: PuzzleDifficulty.INTERMEDIATE,
+    fen: "6rk/6pp/7N/8/8/8/8/6K1 w - - 0 1",
+    line: ["h6f7"],
+    visibility: PuzzleVisibility.PRIVATE,
+    createdById: coach2Id,
+    createdByRole: UserRole.COACH,
+    explanation: "Nf7 is smothered mate — the rook and pawns trap the king.",
+    hints: ["The king has no squares."],
+    tags: ["smothered"]
+  });
+
+  let created = 0;
+  for (const row of rows) {
+    const topicId = topics.get(row.topic);
+    if (!topicId) continue;
+    let solution: Array<{ uci: string; san: string }>;
+    try {
+      solution = buildSolution(row.fen, row.line);
+    } catch (error) {
+      console.warn(`  skipped puzzle "${row.title}": ${(error as Error).message}`);
+      continue;
+    }
+    await prisma.puzzle.create({
+      data: {
+        topicId,
+        title: row.title,
+        puzzleType: row.type,
+        difficulty: row.difficulty,
+        fen: row.fen,
+        solutionMovesJson: solution,
+        explanation: row.explanation,
+        hintsJson: row.hints,
+        tags: row.tags,
+        status: PuzzleStatus.PUBLISHED,
+        visibility: row.visibility,
+        createdById: row.createdById,
+        createdByRole: row.createdByRole,
+        publishedById: row.createdById,
+        publishedAt: now
+      }
+    });
+    created += 1;
+  }
+  console.log(`- puzzles: ${created}`);
+}
+
 async function main() {
   const isProduction = process.env.NODE_ENV === "production";
   const forceSeed = process.env.FORCE_SEED === "true";
@@ -45,6 +327,8 @@ async function main() {
 
   const password = await hashSecret(seedPassword);
   const verifiedAt = new Date();
+
+  await seedSystemPresets();
 
   const superAdmin = await upsertUser(
     "superadmin@nexa.test",
@@ -101,6 +385,48 @@ async function main() {
       title: CoachTitle.FM,
       userId: coach.id,
       yearsOfExperience: 5
+    },
+    {
+      approvalStatus: UserStatus.ACTIVE,
+      approvedAt: verifiedAt,
+      approvedById: superAdmin.id
+    }
+  );
+
+  const coach2 = await upsertUser(
+    "coach2@nexa.test",
+    {
+      email: "coach2@nexa.test",
+      emailVerifiedAt: verifiedAt,
+      firstName: "Second",
+      isEmailVerified: true,
+      lastName: "Coach",
+      password,
+      role: UserRole.COACH,
+      status: UserStatus.ACTIVE,
+      username: "testcoach2"
+    },
+    {
+      emailVerifiedAt: verifiedAt,
+      isEmailVerified: true,
+      password,
+      status: UserStatus.ACTIVE
+    }
+  );
+
+  await upsertCoachProfile(
+    coach2.id,
+    {
+      approvalStatus: UserStatus.ACTIVE,
+      approvedAt: verifiedAt,
+      approvedById: superAdmin.id,
+      bio: "Second seeded coach — used to verify cross-coach puzzle visibility.",
+      fideRating: 1900,
+      hourlyRate: "40.00",
+      specialization: "Endgames",
+      title: CoachTitle.CM,
+      userId: coach2.id,
+      yearsOfExperience: 3
     },
     {
       approvalStatus: UserStatus.ACTIVE,
@@ -268,6 +594,9 @@ async function main() {
       }
       console.log(`Seeded ${batchNames.length} mock batches.`);
     }
+
+    const puzzleTopics = await seedPuzzleTopics(superAdmin.id);
+    await seedPuzzles(puzzleTopics, superAdmin.id, coach.id, coach2.id);
   }
 }
 

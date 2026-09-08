@@ -2,62 +2,37 @@
 
 import { motion } from "framer-motion";
 import { Users } from "lucide-react";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { useReducedMotion } from "../../lib/meetingUi";
 
 export function EmptyMeetingState() {
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const reducedMotion = useReducedMotion();
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={reducedMotion ? { opacity: 0 } : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
-      className="flex h-full w-full flex-col items-center justify-center gap-6 px-4"
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className="flex h-full w-full flex-col items-center justify-center gap-5 px-4 text-center"
     >
-      {/* Animated rings */}
-      <div className="relative flex items-center justify-center">
-        <motion.div
-          animate={{ scale: [1, 1.25, 1], opacity: [0.15, 0.05, 0.15] }}
-          transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute size-32 rounded-full border border-blue-500/20 bg-blue-500/5"
-        />
-        <motion.div
-          animate={{ scale: [1, 1.18, 1], opacity: [0.2, 0.08, 0.2] }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 0.4,
-          }}
-          className="absolute size-24 rounded-full border border-blue-500/25 bg-blue-500/8"
-        />
-        <div className="relative flex size-16 items-center justify-center rounded-full bg-[#2563EB]/15 text-[#2563EB]">
-          <Users className="size-7" />
-        </div>
+      <div className="relative flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+        <Users className="size-7" />
+        {!reducedMotion && (
+          <span className="absolute inset-0 rounded-2xl border border-primary/30 motion-safe:animate-ping" />
+        )}
       </div>
 
-      {/* Text */}
-      <div className="text-center">
+      <div>
         <h3 className="text-lg font-semibold text-app-text">
-          Waiting for participants...
+          {isCoach ? "Waiting for students to join" : "Waiting for the class to fill up"}
         </h3>
-        <p className="mt-1.5 text-sm text-app-muted">
-          Share the meeting link to invite others.
+        <p className="mt-1 text-sm text-app-muted">
+          {isCoach
+            ? "Students will appear here as they arrive."
+            : "Your coach and classmates will appear here as they join."}
         </p>
-      </div>
-
-      {/* Subtle loading dots */}
-      <div className="flex items-center gap-1.5">
-        {[0, 1, 2].map((i) => (
-          <motion.div
-            key={i}
-            animate={{ opacity: [0.2, 0.8, 0.2] }}
-            transition={{
-              duration: 1.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: i * 0.3,
-            }}
-            className="size-1.5 rounded-full bg-[#2563EB]"
-          />
-        ))}
       </div>
     </motion.div>
   );

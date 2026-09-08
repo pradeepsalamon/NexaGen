@@ -56,7 +56,7 @@ export function BatchClassesClient() {
 
   const handleDownload = async (classId: string) => {
     try {
-      const data = await getRecordingDownloadUrl(classId);
+      const data = await getRecordingDownloadUrl(classId, { download: true });
       if (data?.url) {
         window.open(data.url, "_blank");
       }

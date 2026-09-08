@@ -3,6 +3,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Req,
   Res,
   Body,
@@ -11,7 +12,16 @@ import {
 import type { Request, Response } from "express";
 import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { API_ROUTES } from "@nexa-chess/types";
+import {
+  API_ROUTES,
+  moderateParticipantRequestSchema,
+  saveLiveChatMessageRequestSchema,
+  updateLiveClassSettingsRequestSchema,
+  type ModerateParticipantRequest,
+  type SaveLiveChatMessageRequest,
+  type UpdateLiveClassSettingsRequest,
+} from "@nexa-chess/types";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 
 @Controller()
 export class LiveClassController {
@@ -34,6 +44,15 @@ export class LiveClassController {
   @Post(API_ROUTES.liveClass.end())
   endClass(@Param("id") id: string, @Req() request: Request) {
     return this.liveClassService.endClass(this.getAccessToken(request), id);
+  }
+
+  @Put(API_ROUTES.liveClass.liveSettings())
+  updateLiveSettings(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(updateLiveClassSettingsRequestSchema)) body: UpdateLiveClassSettingsRequest,
+  ) {
+    return this.liveClassService.updateLiveSettings(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.get())
@@ -59,14 +78,24 @@ export class LiveClassController {
   saveChatMessage(
     @Param("id") id: string,
     @Req() request: Request,
-    @Body() body: { message: string; clientMessageId?: string }
+    @Body(new ZodBodyPipe(saveLiveChatMessageRequestSchema)) body: SaveLiveChatMessageRequest
   ) {
     return this.liveClassService.saveChatMessage(
       this.getAccessToken(request),
       id,
       body.message,
-      body.clientMessageId
+      body.clientMessageId,
+      body.recipientId
     );
+  }
+
+  @Post(API_ROUTES.liveClass.moderate())
+  moderateParticipant(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(moderateParticipantRequestSchema)) body: ModerateParticipantRequest
+  ) {
+    return this.liveClassService.moderateParticipant(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.chat())
@@ -91,8 +120,17 @@ export class LiveClassController {
   }
 
   @Get(API_ROUTES.liveClass.downloadRecording())
-  downloadRecording(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.downloadRecording(this.getAccessToken(request), id);
+  downloadRecording(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Query("download") download?: string
+  ) {
+    return this.liveClassService.downloadRecording(
+      this.getAccessToken(request),
+      id,
+      request,
+      download === "1" || download === "true"
+    );
   }
 
   @Get(API_ROUTES.liveClass.streamRecording())
@@ -100,10 +138,17 @@ export class LiveClassController {
     @Param("id") id: string,
     @Req() request: Request,
     @Res() response: Response,
-    @Query("token") queryToken?: string
+    @Query("st") streamToken?: string,
+    @Query("dl") download?: string
   ) {
-    const token = this.getAccessToken(request) || queryToken;
-    return this.liveClassService.streamRecording(token, id, request, response);
+    return this.liveClassService.streamRecording(
+      this.getAccessToken(request),
+      streamToken,
+      id,
+      request,
+      response,
+      download === "1" || download === "true"
+    );
   }
 
   @Get(API_ROUTES.liveClass.storageUsage())

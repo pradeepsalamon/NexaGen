@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { Loader2, CalendarX } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { apiFetch } from "@/lib/api";
+import { formatLongDate, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { API_ROUTES, type ClassDetailReport } from "@nexa-chess/types";
 import { BackButton } from "@/components/ui/BackButton";
 import { ClassSummaryCards } from "@/features/attendance/components/class-detail/ClassSummaryCards";
@@ -15,6 +17,7 @@ import { StudentAttendanceDialog } from "@/features/attendance/components/Studen
 export default function ClassDetailPage() {
   const params = useParams();
   const classId = params.id as string;
+  const tz = useUserTimeZone();
   const [data, setData] = useState<ClassDetailReport | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [drilldownStudent, setDrilldownStudent] = useState<{ id: string; name: string } | null>(null);
@@ -87,21 +90,10 @@ export default function ClassDetailPage() {
           {data.batchName} &middot; {data.coachName}
         </p>
         <p className="text-app-muted text-sm mt-0.5">
-          {new Date(data.actualStart ?? data.scheduledStart).toLocaleDateString(undefined, {
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            year: "numeric",
-          })}{" "}
-          {new Date(data.actualStart ?? data.scheduledStart).toLocaleTimeString(undefined, {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}{" "}
+          {formatLongDate(data.actualStart ?? data.scheduledStart, tz)}{" "}
+          {formatTime(data.actualStart ?? data.scheduledStart, tz)}{" "}
           —{" "}
-          {new Date(data.actualEnd ?? data.scheduledEnd).toLocaleTimeString(undefined, {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {formatTime(data.actualEnd ?? data.scheduledEnd, tz)}
         </p>
       </div>
 

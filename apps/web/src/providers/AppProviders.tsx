@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 
+import { AcquisitionCapture } from "./AcquisitionCapture";
 import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
@@ -36,6 +37,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <ToastProvider>
           <TooltipProvider delayDuration={600}>
             <SessionBootstrap />
+            <AcquisitionCapture />
             {!isMeetingRoute && <Header />}
             {/* <EmailVerificationBanner /> (Temporarily disabled) */}
             <div className={!isMeetingRoute ? "pt-16" : ""}>{children}</div>

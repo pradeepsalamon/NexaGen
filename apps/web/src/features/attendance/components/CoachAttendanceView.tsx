@@ -16,11 +16,8 @@ import type {
 } from "@nexa-chess/types";
 import { AttendancePercentBar } from "./AttendancePercentBar";
 import { EventTimeline } from "./class-detail/EventTimeline";
-
-function formatDuration(seconds: number) {
-  if (!seconds) return "0 min";
-  return `${Math.floor(seconds / 60)} min`;
-}
+import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 interface CoachAttendanceViewProps {
   data: CoachTeachingResponse;
@@ -33,6 +30,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
   hideHeading,
 }: CoachAttendanceViewProps) {
   const { stats, history } = data;
+  const tz = useUserTimeZone();
   const [expandedClass, setExpandedClass] = useState<string | null>(null);
 
   const toggleClass = (id: string) =>
@@ -150,13 +148,13 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                               ))}
                           </td>
                           <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
-                            {new Date(record.actualStart ?? record.date).toLocaleDateString(undefined, {
-                              weekday: "short", month: "short", day: "numeric",
+                            {formatDate(record.actualStart ?? record.date, tz, {
+                              weekday: "short",
+                              month: "short",
+                              day: "numeric",
                             })}
                             <span className="text-app-muted block text-xs mt-0.5">
-                              {new Date(record.actualStart ?? record.date).toLocaleTimeString(undefined, {
-                                hour: "2-digit", minute: "2-digit",
-                              })}
+                              {formatTime(record.actualStart ?? record.date, tz)}
                             </span>
                           </td>
                           <td className="px-3 py-3 md:px-6 md:py-4">

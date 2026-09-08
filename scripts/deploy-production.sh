@@ -74,9 +74,12 @@ if [ "$DEPLOYS_API" = "true" ]; then
   echo "Migrations applied."
 fi
 
-# Start only the affected services
-echo "Starting services: ${SERVICES[*]}..."
-docker compose up -d "${SERVICES[@]}"
+# Start the affected services. Also reconcile `egress`: nothing `depends_on` it,
+# so a targeted `up -d web api` never creates or updates it, and recordings fail
+# silently ("no response from egress"). `livekit`/`redis`/`postgres` are covered
+# by api's depends_on.
+echo "Starting services: ${SERVICES[*]} (+ egress)..."
+docker compose up -d "${SERVICES[@]}" egress
 
 # =========================================================
 # Health Check Phase

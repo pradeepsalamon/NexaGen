@@ -4,6 +4,7 @@ import { UserRole, UserStatus } from "@prisma/client";
 import type { SolutionMove } from "@nexa-chess/types";
 import { AssignmentAttemptService } from "./assignment-attempt.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
+import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { StockfishService } from "../stockfish/stockfish.service";
@@ -117,12 +118,14 @@ describe("AssignmentAttemptService", () => {
     } as unknown as StockfishService);
 
     const notifications = { notify: jest.fn().mockResolvedValue(undefined) };
+    const analyticsEvents = { record: jest.fn().mockResolvedValue(undefined) };
 
     service = new AssignmentAttemptService(
       jwt as unknown as JwtService,
       prisma as unknown as PrismaService,
       evaluation,
-      notifications as unknown as NotificationService
+      notifications as unknown as NotificationService,
+      analyticsEvents as unknown as AnalyticsEventService
     );
   });
 

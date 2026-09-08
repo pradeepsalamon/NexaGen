@@ -1,9 +1,18 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Activity, MessageSquare, CheckCircle, Video, PlayCircle } from "lucide-react";
+import {
+  Activity,
+  CheckCircle,
+  MessageSquare,
+  PlayCircle,
+  Video,
+  type LucideIcon
+} from "lucide-react";
+import { Panel, PanelBody, PanelEmpty, PanelHeader } from "@/components/ui/Panel";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
+import { TONE, type Tone } from "@/lib/tone";
+import { cn } from "@/lib/utils";
 
 interface ActivityItem {
   id: string;
@@ -16,48 +25,57 @@ interface RecentActivityProps {
   activities?: ActivityItem[];
 }
 
+const ACTIVITY_STYLE: Record<string, { icon: LucideIcon; tone: Tone }> = {
+  CLASS_JOINED: { icon: Video, tone: "primary" },
+  LESSON_COMPLETED: { icon: PlayCircle, tone: "warm" },
+  PRACTICE_FINISHED: { icon: CheckCircle, tone: "accent" },
+  FEEDBACK: { icon: MessageSquare, tone: "secondary" }
+};
+
 export function RecentActivity({ activities = [] }: RecentActivityProps) {
   const timeZone = useUserTimeZone();
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "CLASS_JOINED": return <Video className="h-4 w-4 text-primary" />;
-      case "LESSON_COMPLETED": return <PlayCircle className="h-4 w-4 text-accent" />;
-      case "PRACTICE_FINISHED": return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case "FEEDBACK": return <MessageSquare className="h-4 w-4 text-secondary" />;
-      default: return <Activity className="h-4 w-4 text-app-muted" />;
-    }
-  };
-
   return (
-    <Card className="border-app-border bg-app-surface shadow-sm h-full flex flex-col">
-      <CardHeader className="pb-4 border-b border-app-border/50">
-        <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          <Activity className="h-5 w-5 text-primary" />
-          Recent Activity
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-5 flex-1 overflow-auto">
-        {activities.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full py-6 text-center text-app-muted">
-            <p>Your learning activity will appear here.</p>
-          </div>
-        ) : (
-          <div className="relative border-l-2 border-app-border/50 ml-3 space-y-6">
-            {activities.map((activity) => (
-              <div key={activity.id} className="relative pl-6">
-                <div className="absolute -left-[17px] bg-app-surface p-1 rounded-full border border-app-border">
-                  {getIcon(activity.type)}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-app-text">{activity.title}</p>
-                  <p className="text-xs text-app-muted mt-1">{formatFullDate(activity.createdAt, timeZone)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <Panel className="h-full">
+      <PanelHeader icon={Activity} title="Recent Activity" tone="primary" />
+      {activities.length === 0 ? (
+        <PanelEmpty
+          icon={Activity}
+          message="Join a class or finish a practice set to start your timeline."
+          title="No activity yet"
+          tone="primary"
+        />
+      ) : (
+        <PanelBody>
+          <ol className="relative space-y-5 border-l border-app-border pl-0">
+            {activities.map((activity) => {
+              const style = ACTIVITY_STYLE[activity.type] ?? {
+                icon: Activity,
+                tone: "primary" as Tone
+              };
+              const Icon = style.icon;
+
+              return (
+                <li className="relative pl-8" key={activity.id}>
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "absolute -left-[15px] top-0 flex size-[30px] items-center justify-center rounded-full ring-4 ring-app-surface",
+                      TONE[style.tone].chip
+                    )}
+                  >
+                    <Icon className="size-3.5" strokeWidth={2.5} />
+                  </span>
+                  <p className="text-sm font-extrabold text-app-text">{activity.title}</p>
+                  <p className="mt-0.5 text-xs text-app-muted">
+                    {formatFullDate(activity.createdAt, timeZone)}
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+        </PanelBody>
+      )}
+    </Panel>
   );
 }

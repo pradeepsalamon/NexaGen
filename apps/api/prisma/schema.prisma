@@ -32,6 +32,24 @@ enum ReferralSource {
   OTHER
 }
 
+// Normalized acquisition channel captured at registration (User.acquisitionSource).
+// UNKNOWN covers legacy rows and anyone who skipped the question — analytics never
+// fabricates a source, it reports UNKNOWN.
+enum AcquisitionSource {
+  WEBSITE
+  GOOGLE
+  INSTAGRAM
+  FACEBOOK
+  YOUTUBE
+  WHATSAPP
+  REFERRAL
+  SCHOOL
+  COACH_REFERRAL
+  ADVERTISEMENT
+  OTHER
+  UNKNOWN
+}
+
 enum ExperienceLevel {
   BEGINNER
   INTERMEDIATE
@@ -59,6 +77,12 @@ enum ClassStatus {
   COMPLETED
   CANCELLED
   IN_PROGRESS
+}
+
+enum BatchScheduleStatus {
+  ACTIVE
+  PAUSED
+  ENDED
 }
 
 enum AttendanceStatus {
@@ -117,6 +141,64 @@ enum AssignmentAttemptStatus {
   ABANDONED
 }
 
+// Visibility of a reusable pre-class settings preset.
+enum LiveClassPresetScope {
+  PERSONAL // visible only to ownerId
+  ORG // visible to every coach; managed by admins
+}
+
+// ── Puzzle library ──
+
+// The kind of task a puzzle asks the solver to perform. Extensible; the solver
+// treats every type the same (play the solution line) — the label is guidance.
+enum PuzzleType {
+  TACTICAL
+  CHECKMATE
+  BEST_MOVE
+  CALCULATION
+  ENDGAME
+  OPENING
+  CUSTOM
+}
+
+enum PuzzleDifficulty {
+  BEGINNER
+  EASY
+  INTERMEDIATE
+  ADVANCED
+  EXPERT
+}
+
+// Puzzle lifecycle. ARCHIVED is a reversible "retired" state (distinct from a
+// soft delete, which routes through the Trash module).
+enum PuzzleStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// GLOBAL = admin-authored, available to every coach. PRIVATE = coach-authored,
+// visible to the author + admins only. Coaches cannot create GLOBAL puzzles.
+enum PuzzleVisibility {
+  GLOBAL
+  PRIVATE
+}
+
+// Lifecycle of one PuzzleAttempt by a student.
+enum PuzzleAttemptStatus {
+  IN_PROGRESS
+  SOLVED
+  FAILED
+  ABANDONED
+}
+
+// Lifecycle of a puzzle pushed into a live class. ENDED is terminal; a class
+// only ever has one ACTIVE assignment at a time (partial unique index).
+enum LiveClassPuzzleStatus {
+  ACTIVE
+  ENDED
+}
+
 //
 // USER
 //
@@ -144,6 +226,19 @@ model User {
 
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
+  // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
+  // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
+  lastActiveAt    DateTime?
+
+  // ── Acquisition attribution (captured at registration; see analytics module) ──
+  acquisitionSource AcquisitionSource @default(UNKNOWN)
+  acquisitionDetail String? // free text for OTHER / referring coach name for COACH_REFERRAL
+  utmSource         String?
+  utmMedium         String?
+  utmCampaign       String?
+  utmContent        String?
+  utmTerm           String?
+  landingReferrer   String?
 
   createdById  String?
   createdBy    User?   @relation("UserCreatedUsers", fields: [createdById], references: [id])
@@ -171,13 +266,24 @@ model User {
   authoredAssignments    Assignment[]             @relation("AuthoredAssignments")
   deployedAssignments    AssignmentBatch[]        @relation("DeployedAssignments")
   studentAssignments     StudentAssignment[]      @relation("StudentAssignments")
+  createdPuzzleTopics    PuzzleTopic[]            @relation("PuzzleTopicCreatedBy")
+  deletedPuzzleTopics    PuzzleTopic[]            @relation("PuzzleTopicDeletedBy")
+  authoredPuzzles        Puzzle[]                 @relation("AuthoredPuzzles")
+  deletedPuzzles         Puzzle[]                 @relation("PuzzleDeletedBy")
+  studentPuzzleAttempts  PuzzleAttempt[]          @relation("StudentPuzzleAttempts")
+  assignedLivePuzzles    LiveClassPuzzleAssignment[] @relation("LiveClassPuzzleAssignedBy")
   activities             StudentActivity[]        @relation("StudentActivity")
   classAttendances       ClassAttendance[]
   attendanceLogs         AttendanceLog[]          @relation("UserAttendanceLogs")
   coachAttendances       CoachAttendance[]        @relation("CoachClassAttendance")
   coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
   chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
+  directChatMessages     LiveChatMessage[]        @relation("UserLiveChatDirectMessages")
   notifications          Notification[]           @relation("UserNotifications")
+  createdBatchSchedules  BatchClassSchedule[]     @relation("BatchScheduleCreatedBy")
+  scheduleRules          BatchClassScheduleRule[] @relation("BatchScheduleRuleCoach")
+  analyticsEvents        AnalyticsEvent[]         @relation("UserAnalyticsEvents")
+  liveClassPresets       LiveClassPreset[]        @relation("UserLiveClassPresets")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -195,6 +301,9 @@ model User {
   @@index([deletedAt])
   @@index([deletedById])
   @@index([deleteGroupId])
+  @@index([createdAt])
+  @@index([lastActiveAt])
+  @@index([acquisitionSource])
   @@map("users")
 }
 
@@ -362,6 +471,11 @@ model Batch {
   startsAt DateTime? @db.Date
   endsAt   DateTime? @db.Date
 
+  // Layer 3 pre-class defaults (partial LiveClassSettingsOverride blob; null =
+  // inherit system defaults). Validated by the shared Zod schema in
+  // `@nexa-chess/types`, never queried by key.
+  liveClassSettings Json?
+
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -370,6 +484,7 @@ model Batch {
   classes      CoachClass[]
   liveSessions LiveSession[]
   assignments  AssignmentBatch[]
+  schedules    BatchClassSchedule[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -484,6 +599,20 @@ model CoachClass {
 
   meetingRoomId String?
 
+  // Layer 2 pre-class config (partial LiveClassSettingsOverride blob; null =
+  // inherit batch/system). Resolved + frozen onto LiveSession at class start.
+  liveClassSettings Json?
+
+  // ── Recurring-schedule linkage (all nullable; manual classes leave them null) ──
+  scheduleId     String?
+  schedule       BatchClassSchedule?     @relation("BatchScheduleClasses", fields: [scheduleId], references: [id], onDelete: SetNull)
+  scheduleRuleId String?
+  scheduleRule   BatchClassScheduleRule? @relation("BatchScheduleRuleClasses", fields: [scheduleRuleId], references: [id], onDelete: SetNull)
+  // Local calendar day of the occurrence in the schedule's timezone.
+  occurrenceDate DateTime?               @db.Date
+  // Chronological class number within the owning schedule (stable once assigned).
+  sessionNumber  Int?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
@@ -492,13 +621,105 @@ model CoachClass {
   attendances              ClassAttendance[]
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
+  puzzleAssignments        LiveClassPuzzleAssignment[]
 
+  @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@index([batchId])
   @@index([coachId])
   @@index([status])
   @@index([startsAt])
   @@index([isDemo])
+  @@index([scheduleId])
+  @@index([batchId, startsAt])
   @@map("classes")
+}
+
+//
+// BATCH RECURRING CLASS SCHEDULES
+//
+
+/// The recurrence template for a batch's weekly classes. Generating it produces
+/// real `CoachClass` rows (one per occurrence) that behave exactly like
+/// manually-created classes for live-class, attendance, assignments, etc.
+model BatchClassSchedule {
+  id String @id @default(cuid())
+
+  batchId String
+  batch   Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id], onDelete: SetNull)
+
+  title    String
+  /// IANA timezone the wall-clock rule times are interpreted in.
+  timezone String @default("Asia/Kolkata")
+
+  /// Local calendar days (inclusive) the recurrence spans.
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+
+  status BatchScheduleStatus @default(ACTIVE)
+
+  createdById String?
+  createdBy   User?   @relation("BatchScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rules      BatchClassScheduleRule[]
+  exceptions BatchScheduleException[]
+  classes    CoachClass[]             @relation("BatchScheduleClasses")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([batchId])
+  @@index([status])
+  @@map("batch_class_schedules")
+}
+
+/// One weekly slot in a schedule: "every <dayOfWeek> from <startTime> to
+/// <endTime> with <coach>".
+model BatchClassScheduleRule {
+  id String @id @default(cuid())
+
+  scheduleId String
+  schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  /// 0 = Sunday … 6 = Saturday (JS getUTCDay convention).
+  dayOfWeek Int
+  /// "HH:MM" 24h wall-clock in the schedule's timezone.
+  startTime String
+  endTime   String
+
+  coachId String
+  coach   User   @relation("BatchScheduleRuleCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
+  isEnabled Boolean @default(true)
+
+  classes CoachClass[] @relation("BatchScheduleRuleClasses")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([scheduleId])
+  @@index([coachId])
+  @@map("batch_class_schedule_rules")
+}
+
+/// A single local date excluded from a schedule (holiday / batch break). The
+/// recurrence rule stays intact; only generation skips the date.
+model BatchScheduleException {
+  id String @id @default(cuid())
+
+  scheduleId String
+  schedule   BatchClassSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  date   DateTime @db.Date
+  reason String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([scheduleId, date])
+  @@index([scheduleId])
+  @@map("batch_schedule_exceptions")
 }
 
 model ClassAttendance {
@@ -532,6 +753,7 @@ model ClassAttendance {
   @@unique([classId, studentId])
   @@index([studentId])
   @@index([status])
+  @@index([createdAt])
   @@map("class_attendance")
 }
 
@@ -580,10 +802,10 @@ model CoachAttendance {
   joinedAt DateTime?        @default(now())
   leftAt   DateTime?
 
-  totalDuration  Int? // Total seconds coach was in class
-  boardDuration  Int? // Total seconds board was active in this class
-  reconnectCount Int       @default(0)
-  lastActivity   DateTime?
+  totalDuration   Int? // Total seconds coach was in class
+  boardDuration   Int? // Total seconds board was active in this class
+  reconnectCount  Int       @default(0)
+  lastActivity    DateTime?
   // See ClassAttendance.lastHeartbeatAt.
   lastHeartbeatAt DateTime?
 
@@ -607,7 +829,7 @@ model CoachAttendanceLog {
   user   User   @relation("UserCoachAttendanceLogs", fields: [userId], references: [id], onDelete: Cascade)
 
   eventType AttendanceEventType
-  timestamp DateTime @default(now())
+  timestamp DateTime            @default(now())
 
   sessionStart    DateTime?
   sessionEnd      DateTime?
@@ -673,7 +895,20 @@ model LiveSession {
   endedAt      DateTime?
   recordingUrl String?
 
+  // ── Recording metadata (promoted out of `metadata` JSON for analytics) ──
+  recordingBytes           BigInt? // file size in bytes; null = unknown / file pruned
+  recordingDurationSeconds Int?
+  recordingStatus          String? // RECORDING | STOPPING | COMPLETED | FAILED | PURGED_STORAGE_LIMIT
+  recordingStartedAt       DateTime?
+  recordingCompletedAt     DateTime?
+
   attendanceFinalizedAt DateTime?
+
+  // Frozen fully-resolved LiveClassSettings captured at class start (§38). Null
+  // for sessions started before this feature — token grants fall back to the
+  // pre-feature logic for those.
+  effectiveSettings  Json?
+  settingsSnapshotAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -686,6 +921,8 @@ model LiveSession {
   @@index([batchId])
   @@index([coachId])
   @@index([status])
+  @@index([startedAt])
+  @@index([endedAt])
   @@map("live_sessions")
 }
 
@@ -701,6 +938,11 @@ model LiveChatMessage {
   senderName String
   senderRole String?
 
+  /// One-to-one private message when set; null is a room-wide message. The
+  /// student <-> student case is rejected by the API, never merely hidden.
+  recipientId String?
+  recipient   User?   @relation("UserLiveChatDirectMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+
   message String @db.Text
 
   /// LiveKit's message id, so history reconciliation dedupes on identity
@@ -712,6 +954,7 @@ model LiveChatMessage {
 
   @@index([liveSessionId])
   @@index([senderId])
+  @@index([recipientId])
   @@index([createdAt])
   @@index([clientMessageId])
   @@map("live_chat_messages")
@@ -730,6 +973,54 @@ model ProcessedWebhookEvent {
 }
 
 //
+// PRE-CLASS SETTINGS (Layer 1 defaults + Layer 4 presets)
+//
+
+/// Singleton row holding the global default LiveClassSettings blob (Layer 1).
+/// Mirrors AttendancePolicy: lazily created, admin-managed. `isActive` selects
+/// the live row if more than one ever exists.
+model LiveClassPolicy {
+  id       String  @id @default(cuid())
+  name     String  @default("Default Live Class Policy")
+  isActive Boolean @default(true)
+
+  /// Full LiveClassSettings JSON (validated by @nexa-chess/types).
+  settings Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("live_class_policies")
+}
+
+/// A reusable pre-class configuration a coach (PERSONAL) or admin (ORG) can
+/// apply while creating/editing a class. Applying copies `settings` into the
+/// class — never a live reference (§23). Not soft-deletable (like Assignment).
+model LiveClassPreset {
+  id String @id @default(cuid())
+
+  ownerId String?
+  owner   User?   @relation("UserLiveClassPresets", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  scope     LiveClassPresetScope @default(PERSONAL)
+  isSystem  Boolean              @default(false)
+  isDefault Boolean              @default(false)
+
+  /// Partial LiveClassSettingsOverride JSON (validated by @nexa-chess/types).
+  settings Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([scope])
+  @@map("live_class_presets")
+}
+
+//
 // COURSES
 //
 
@@ -739,6 +1030,7 @@ model Course {
   description String?
   modules     CourseModule[]
   progress    StudentCourseProgress[]
+  schedules   BatchClassSchedule[]
 }
 
 model CourseModule {
@@ -867,6 +1159,7 @@ model StudentAssignment {
 
   @@unique([assignmentBatchId, studentId])
   @@index([studentId])
+  @@index([completedAt])
   @@map("student_assignments")
 }
 
@@ -904,18 +1197,18 @@ enum NotificationType {
 }
 
 model Notification {
-  id       String           @id @default(cuid())
-  userId   String
-  user     User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
-  type     NotificationType
-  title    String
-  body     String
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
   /// in-app deep link, e.g. /student/assignments/<id>
-  linkPath String?
+  linkPath  String?
   /// idempotency key so schedulers never double-send (null = always insert)
   dedupeKey String?
-  readAt   DateTime?
-  createdAt DateTime        @default(now())
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
 
   @@unique([userId, dedupeKey])
   @@index([userId, readAt])
@@ -963,4 +1256,202 @@ model RecordingWatchProgress {
 
   @@unique([studentId, classId])
   @@map("recording_watch_progress")
+}
+
+//
+// ANALYTICS
+//
+
+/// One meaningful product action by a user. Powers DAU/WAU/MAU, new-vs-returning,
+/// and the engagement section. Written fire-and-forget by AnalyticsEventService —
+/// a failed insert never breaks the originating request.
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation("UserAnalyticsEvents", fields: [userId], references: [id], onDelete: Cascade)
+  type       String // LOGIN | CLASS_JOIN | ASSIGNMENT_ATTEMPT | RECORDING_WATCH | DASHBOARD_VIEW
+  entityId   String? // class id / assignment id / etc.
+  occurredAt DateTime @default(now())
+
+  @@index([userId, occurredAt])
+  @@index([type, occurredAt])
+  @@index([occurredAt])
+  @@map("analytics_events")
+}
+
+/// Daily rollup of recording-storage usage. One row per business-timezone day,
+/// written by AnalyticsScheduler. Drives the storage growth chart and forecast.
+model StorageSnapshot {
+  id             String   @id @default(cuid())
+  capturedAt     DateTime @default(now())
+  capturedDate   DateTime @unique @db.Date
+  recordingBytes BigInt
+  recordingCount Int
+  limitBytes     BigInt
+
+  @@index([capturedAt])
+  @@map("storage_snapshots")
+}
+
+//
+// PUZZLE LIBRARY
+//
+
+// A chess-training theme (Fork, Pin, Back Rank, Checkmate in 2, …). Admin-only
+// authoring; every puzzle belongs to exactly one topic. Soft-deletable — the
+// `name`/`slug` unique indexes are partial (`WHERE "isDeleted" = false`), added
+// by hand in the migration so a deleted topic's name can be reused.
+model PuzzleTopic {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String
+  description String?
+  icon        String? // lucide icon name or emoji
+  sortOrder   Int     @default(0)
+
+  createdById String?
+  createdBy   User?   @relation("PuzzleTopicCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  puzzles Puzzle[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("PuzzleTopicDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@index([sortOrder])
+  @@map("puzzle_topics")
+}
+
+// A reusable chess-training object: position + solution line + topic + type +
+// difficulty + ownership + lifecycle. GLOBAL puzzles are admin-authored and
+// visible to every coach; PRIVATE puzzles are coach-authored and visible only to
+// the author + admins. The same puzzle is referenced by a
+// LiveClassPuzzleAssignment (in-class deployment) without being copied.
+model Puzzle {
+  id          String      @id @default(cuid())
+  topicId     String
+  topic       PuzzleTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  title       String
+  description String?
+
+  puzzleType PuzzleType
+  difficulty PuzzleDifficulty
+
+  fen               String // starting position (the position the solver sees)
+  solutionMovesJson Json     @default("[]") // [{ uci, san }] — the expected line
+  explanation       String?
+  hintsJson         Json? // string[] — progressive text hints
+  tags              String[] @default([])
+  estimatedSeconds  Int?
+
+  status     PuzzleStatus     @default(DRAFT)
+  visibility PuzzleVisibility @default(PRIVATE)
+
+  createdById   String?
+  createdBy     User?     @relation("AuthoredPuzzles", fields: [createdById], references: [id], onDelete: SetNull)
+  createdByRole UserRole // snapshot so the "Admin" vs coach label survives author deletion
+  updatedById   String?
+  publishedById String?
+  publishedAt   DateTime?
+  archivedById  String?
+  archivedAt    DateTime?
+
+  attempts         PuzzleAttempt[]
+  liveAssignments  LiveClassPuzzleAssignment[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("PuzzleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([topicId])
+  @@index([createdById])
+  @@index([puzzleType])
+  @@index([difficulty])
+  @@index([status])
+  @@index([visibility])
+  @@index([createdAt])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("puzzles")
+}
+
+// One solve attempt by a student. Progress is saved incrementally (movesJson);
+// the server evaluates authoritatively on submit. `liveClassId` holds the
+// `CoachClass.id` when the attempt was started from an in-class puzzle
+// assignment (see LiveClassPuzzleAssignment) — no FK, stays set after the class.
+// The live leaderboard reads `{ liveClassId, puzzleId }`; if the same puzzle is
+// assigned twice in one class the rounds merge (acceptable — an `assignmentId`
+// column can split them later if needed).
+model PuzzleAttempt {
+  id        String @id @default(cuid())
+  puzzleId  String
+  puzzle    Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User   @relation("StudentPuzzleAttempts", fields: [studentId], references: [id], onDelete: Cascade)
+
+  liveClassId String?
+
+  attemptNumber   Int
+  status          PuzzleAttemptStatus @default(IN_PROGRESS)
+  movesJson       Json                @default("[]") // [{ ply, uci, san, fenAfter, correct?, … }]
+  scorePercent    Int?
+  accuracyPercent Int?
+  hintsUsed       Int                 @default(0)
+  durationSeconds Int                 @default(0)
+  result          String? // "SOLVED" | "FAILED"
+  startedAt       DateTime            @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([puzzleId, studentId, attemptNumber])
+  @@index([puzzleId])
+  @@index([studentId])
+  @@index([liveClassId])
+  @@map("puzzle_attempts")
+}
+
+// A puzzle a coach pushed into a live class. References `puzzleId` — never
+// copies it. Lightweight and per-class, so it is NOT soft-deletable / not
+// registered with the Trash module (same call as Assignment). Lifecycle is the
+// `status` column. A partial unique index (`WHERE status = 'ACTIVE'`, added by
+// hand in the migration) enforces one live puzzle per class at a time.
+model LiveClassPuzzleAssignment {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  puzzleId String
+  puzzle   Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Restrict)
+
+  assignedById String?
+  assignedBy   User?   @relation("LiveClassPuzzleAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  status            LiveClassPuzzleStatus @default(ACTIVE)
+  revealLeaderboard Boolean               @default(true)
+  durationSeconds   Int? // null = untimed
+  startedAt         DateTime              @default(now())
+  endedAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId])
+  @@index([puzzleId])
+  @@map("live_class_puzzle_assignments")
 }

@@ -33,6 +33,13 @@ export const queryKeys = {
   admin: {
     base: ["admin"] as const,
   },
+  analytics: {
+    all: ["analytics"] as const,
+    section: (name: string, params?: Record<string, unknown>) =>
+      ["analytics", name, params ?? null] as const,
+    table: (name: string, params?: Record<string, unknown>) =>
+      ["analytics", "table", name, params ?? null] as const,
+  },
   attendance: {
     classSummary: (id: string) => ["attendance", "class-summary", id] as const,
     classLive: (id: string) => ["attendance", "class-live", id] as const,
@@ -47,7 +54,37 @@ export const queryKeys = {
     mineItem: (id: string) => ["assignments", "mine", id] as const,
     mineAttempts: (id: string) => ["assignments", "mine", id, "attempts"] as const,
   },
+  puzzles: {
+    all: ["puzzles"] as const,
+    list: (params?: Record<string, unknown>) => ["puzzles", "list", params ?? null] as const,
+    detail: (id: string) => ["puzzles", "detail", id] as const,
+    stats: ["puzzles", "stats"] as const,
+    topics: ["puzzles", "topics"] as const,
+    mine: (params?: Record<string, unknown>) => ["puzzles", "mine", params ?? null] as const,
+    mineDetail: (id: string) => ["puzzles", "mine", id] as const,
+    attempts: (id: string) => ["puzzles", "attempts", id] as const,
+  },
   notifications: {
     all: ["notifications"] as const,
+  },
+  batchSchedules: {
+    all: ["batch-schedules"] as const,
+    list: (batchId?: string) => ["batch-schedules", "list", batchId ?? null] as const,
+    detail: (id: string) => ["batch-schedules", "detail", id] as const,
+    calendar: (params: Record<string, unknown>) =>
+      ["batch-schedules", "calendar", params] as const,
+  },
+  liveClassSettings: {
+    policy: ["live-class-settings", "policy"] as const,
+    audit: ["live-class-settings", "audit"] as const,
+    forClass: (classId: string) => ["live-class-settings", "class", classId] as const,
+    forBatch: (batchId: string) => ["live-class-settings", "batch", batchId] as const,
+  },
+  liveClassPresets: {
+    all: ["live-class-presets"] as const,
+  },
+  livePuzzle: {
+    state: (classId: string) => ["live-puzzle", "state", classId] as const,
+    leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
   },
 } as const;

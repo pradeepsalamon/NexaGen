@@ -62,8 +62,97 @@ coach/board durations were always 0, `room_finished` never fired, and the
 | Item | Notes |
 |---|---|
 | **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
-| **Waiting room / lobby** | The "coach hasn't joined" gate implies one; currently just a polling screen. |
+| **Waiting room / lobby** | Deferred sub-feature of pre-class settings. The `waitingRoom` enum exists in `LiveClassSettings` (`@nexa-chess/types`) but v1 only allows `DISABLED`; the "coach hasn't joined" polling gate in `useLiveClass.ts` / `getToken` still stands. An app-level admit flow is the eventual implementation. |
+| **Screen-share request → coach approval** | Deferred. v1 pre-class settings expose screen-share as allowed/disallowed per role only; the request/approve handshake is not built. |
 | **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
+
+## Resolved (2026-09-06)
+
+- **Puzzle Library.** NexaChess had no puzzle system. Added a standalone,
+  reusable puzzle library: `PuzzleTopic` / `Puzzle` (soft-deletable, wired into
+  the Trash module) + `PuzzleAttempt` models; a `puzzle` API module
+  (`API_ROUTES.puzzles.*`, token-string auth) covering admin-only topic CRUD +
+  reassign, role-scoped puzzle CRUD (admin ⇒ GLOBAL, coach ⇒ PRIVATE — coaches
+  can never publish GLOBAL and cannot edit admin puzzles), publish/archive
+  toggles, duplicate, bulk actions, stats, `POST /puzzles/validate`, and the
+  student practice endpoints (`/puzzles/mine*`, `/puzzles/:id/attempts*`).
+  Server-side move evaluation **reuses `AssignmentEvaluationService`**
+  (`normalizeSolution` / `evaluateSolveLine` / `solveLineFeedback`) — now
+  exported from `AssignmentModule` — so there is one SOLVE_LINE engine. Web:
+  `features/puzzles/*`, routes under `/admin/puzzles`, `/coach/puzzles`,
+  `/student/puzzles` (+ `new` / `[id]` / `[id]/edit`), a reusable
+  `PuzzleSolver` built on the existing `PracticeBoard` + `PositionEditor` +
+  `SolutionEditor`. Seeded 8 topics + 8 puzzles + a `coach2@nexa.test` account
+  for cross-coach visibility testing. Migration
+  `20260906150110_puzzle_library` (all additive; partial unique indexes on
+  `puzzle_topics.name`/`slug`).
+
+- **Live-class puzzle assignment + leaderboard.** Built on top of the puzzle
+  library: `LiveClassPuzzleAssignment` (references `puzzleId`, not
+  trash-registered, partial unique index `WHERE status = 'ACTIVE'`), a
+  `LiveClassPuzzleService` / controller in `PuzzleModule` (now imports
+  `LiveClassModule`), three routes (`API_ROUTES.liveClass.puzzle` /
+  `.puzzleAttempt` / `.puzzleLeaderboard`). `startAttempt` is the only new
+  attempt route — save/submit/hint reuse the puzzle endpoints and now enforce
+  `assertLiveAssignmentOpen` (coach-ended or timer + 15s grace). Web: `PuzzleBridge`
+  + a "Puzzle" meeting sidebar panel (`MeetingPuzzlePanel`, `PuzzleAssignModal`,
+  `InRoomPuzzleSolver`); the standalone `usePuzzleAttempt` hook was extracted
+  from `StudentPuzzleSolveClient` and is shared. Lifecycle on
+  `LIVE_CLASS_PUZZLE_TOPIC`, leaderboard polled. Timed mode + coach
+  "hide leaderboard" toggle included. Migration
+  `20260906155518_live_class_puzzle_assignment`. See CLAUDE.md §3.7.
+
+## Resolved (2026-09-03)
+
+- **Live-class pre-class settings, permissions & presets.** Live classes had no
+  pre-class configuration — every class was hard-coded (all students
+  `canPublish`, board `COACH_ONLY`, no auto-join, no presets). Now four
+  inheriting layers (`LiveClassPolicy` → `Batch` → `CoachClass` →
+  `LiveClassPreset`) resolved by a shared engine in `@nexa-chess/types`, enforced
+  at the LiveKit token layer (`deriveLiveKitGrants`) and mid-class
+  (`PUT /live-class/:id/live-settings` → `updateParticipant`/`mutePublishedTrack`
+  + `SETTINGS_UPDATE` data packet). Config surfaces: class start page, coach
+  `/coach/presets`, admin `/admin/live-class` (platform defaults + org presets +
+  change history), batch "Class Settings" tab. Student pre-join previews the
+  policy and honours `autoJoin`. Audit via `TrashAuditLog`
+  `action: "LIVE_SETTINGS_CHANGE"`. Waiting room + screen-share
+  request/approve handshake remain deferred (see Feature gaps). See
+  CLAUDE.md §3.7.
+
+## Resolved (2026-08-31)
+
+- **Admin analytics dashboard.** The `/admin` landing page was a placeholder with
+  hardcoded metric cards. Replaced with a full analytics system: `analytics` API
+  module (21 admin-only endpoints + CSV export under `/analytics/*`),
+  `features/analytics` on web (recharts, KPI cards, shareable URL date-range
+  state), an `AdminSidebar` + gated `admin/layout.tsx` shell, and grouped admin
+  nav in `navItems.ts` (kills the old 4-place-edit problem — `Header.tsx`
+  `pageTitles`, the hardcoded chip row, and `adminNavItems` were all
+  hand-maintained). Sections: executive overview, user growth, acquisition,
+  students, coaches, classes, attendance, batches, recordings & storage,
+  engagement, operations + alerts; drill-down sub-pages under
+  `/admin/analytics/*` with paginated tables and `coaches/:id` / `batches/:id`
+  detail. Migration `20260831050015_analytics_foundations` (all additive):
+  `AnalyticsEvent` + `StorageSnapshot` models, `User.acquisitionSource`
+  (enum, backfilled from the legacy `StudentProfile.referralSource`) + UTM
+  columns, `LiveSession` recording size/duration/status columns, and analytics
+  indexes. New: global `ActivityTrackingInterceptor`, `AnalyticsScheduler` daily
+  storage snapshot, in-process analytics cache.
+
+- **Acquisition tracking beyond the 4-value student enum.** `registerRequestSchema`
+  / `registerCoachRequestSchema` now take `acquisitionSource` (12 normalized
+  slugs) + optional `acquisitionDetail` + UTM fields; `features/auth`
+  `AcquisitionSourceSelect` replaces the old dropdown on both register forms, and
+  `lib/acquisition.ts` captures first-touch UTM params / external referrer into
+  `localStorage` (mounted via `<AcquisitionCapture>` in `AppProviders`). Coaches
+  now answer the question too. Legacy `StudentProfile.referralSource` is kept
+  for back-compat.
+
+- **No user-activity signal.** Added `User.lastActiveAt` (throttled by
+  `ActivityTrackingInterceptor`, ≤1 write / 10 min / user) + an `analytics_events`
+  table written fire-and-forget by `AnalyticsEventService` on login, student
+  class-join, assignment submit, and recording watch. Powers real DAU/WAU/MAU +
+  new-vs-returning in the engagement section (history accrues from deploy).
 
 ## Resolved (2026-08-30)
 
@@ -155,7 +244,12 @@ coach/board durations were always 0, `room_finished` never fired, and the
   `LiveClassProvider`). `createBoardStore` now holds `selectedStudentIds: string[]`,
   `senderMayMutateBoard` checks `.includes`, and `UPDATE_PERMISSIONS` carries
   `selectedStudentIds`. The sidebar panel lists every meeting participant (coaches
-  shown as "full control", students get a Grant/Revoke button). Separately, the
+  shown as "full control"). **Grants are now per colour**: `LiveClassProvider`
+  keeps `boardControlStudents: Record<identity, "white" | "black" | "both">`, the
+  store mirrors it as `selectedStudentSides`, `UPDATE_PERMISSIONS` carries it, and
+  both coach surfaces use the shared `BoardControlSideToggle`
+  (Off / White / Black / Both) — so two students can play each other on the
+  shared board. Separately, the
   **PDF tab was removed entirely**: `PdfPanel`, the `pdf` tab, `pdfUrl`
   store/sync fields, `SET_UI_STATE.pdfUrl`, the `uploadPdf` client helper, and the
   API `POST /upload/pdf` route + `UploadService.uploadPdf`.

@@ -15,6 +15,21 @@ import {
 
 const coachTitles = ["NONE", "CM", "FM", "IM", "GM"] as const;
 
+const acquisitionSources = [
+  "website",
+  "google",
+  "instagram",
+  "facebook",
+  "youtube",
+  "whatsapp",
+  "referral",
+  "school",
+  "coach_referral",
+  "advertisement",
+  "other",
+  "unknown"
+] as const;
+
 export class RegisterCoachDto implements RegisterCoachRequest {
   @IsString()
   @IsNotEmpty()
@@ -60,4 +75,43 @@ export class RegisterCoachDto implements RegisterCoachRequest {
   @Min(0)
   @Max(80)
   yearsOfExperience?: number;
+
+  @IsOptional()
+  @IsIn(acquisitionSources)
+  acquisitionSource?: RegisterCoachRequest["acquisitionSource"];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  acquisitionDetail?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmSource?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmMedium?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmCampaign?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmContent?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  utmTerm?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  landingReferrer?: string;
 }

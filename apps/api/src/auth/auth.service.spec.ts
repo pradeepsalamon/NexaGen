@@ -12,6 +12,7 @@ import {
 } from "@prisma/client";
 import { AuthService } from "./auth.service";
 import { hashSecret } from "./auth.utils";
+import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -55,12 +56,15 @@ describe("AuthService", () => {
   let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
   let mailService: { sendPasswordResetLink: jest.Mock };
   let prismaService: MockPrismaService;
+  let analyticsEvents: { record: jest.Mock };
 
   beforeEach(async () => {
     jwtService = {
       signAsync: jest.fn(),
       verifyAsync: jest.fn()
     };
+
+    analyticsEvents = { record: jest.fn().mockResolvedValue(undefined) };
 
     mailService = {
       sendPasswordResetLink: jest.fn()
@@ -107,7 +111,8 @@ describe("AuthService", () => {
         AuthService,
         { provide: JwtService, useValue: jwtService },
         { provide: MailService, useValue: mailService },
-        { provide: PrismaService, useValue: prismaService }
+        { provide: PrismaService, useValue: prismaService },
+        { provide: AnalyticsEventService, useValue: analyticsEvents }
       ]
     }).compile();
 
@@ -239,6 +244,7 @@ describe("AuthService", () => {
       expect(result.accessToken).toBe("mocked-token");
       expect(result.refreshToken).toBe("mocked-token");
       expect(result.refreshTokenMaxAge).toBeGreaterThan(0);
+      expect(analyticsEvents.record).toHaveBeenCalledWith("usr-123", "LOGIN");
     });
   });
 

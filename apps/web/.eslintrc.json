@@ -1,3 +1,26 @@
 {
-  "extends": ["next/core-web-vitals"]
+  "extends": ["next/core-web-vitals"],
+  "rules": {
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.property.name=/^toLocale(Date|Time)String$/]",
+        "message": "Don't format dates with toLocaleDateString/toLocaleTimeString — the API sends UTC ISO strings and this renders in the machine's zone. Use lib/datetime.ts (formatTime, formatFullDate, formatLongDate, formatDateTime, formatRelativeDay, or formatDate(iso, tz, opts)) with the zone from useUserTimeZone(). Analytics: features/analytics/lib/format.ts, passing useUserTimeZone(). See CLAUDE.md §3.6."
+      },
+      {
+        "selector": "CallExpression[callee.object.type='NewExpression'][callee.object.callee.name='Date'][callee.property.name='toLocaleString']",
+        "message": "Don't format a Date with .toLocaleString() — it renders in the machine's zone. Use lib/datetime.ts helpers with useUserTimeZone(). See CLAUDE.md §3.6."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "src/lib/datetime.ts",
+        "src/features/analytics/lib/format.ts",
+        "src/features/batch-schedules/lib/scheduleFormat.ts"
+      ],
+      "rules": { "no-restricted-syntax": "off" }
+    }
+  ]
 }

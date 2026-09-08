@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
+import type { LiveClassSettings } from "@nexa-chess/types";
 import { getLiveClassToken, getLiveClass } from "../api/live-class";
 import { getTabClientId } from "../lib/joinedSession";
 import { ApiError } from "@/lib/api";
@@ -10,6 +11,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
   const [token, setToken] = useState<string | null>(null);
   const [roomName, setRoomName] = useState<string | null>(null);
   const [topic, setTopic] = useState<string | null>(null);
+  const [settings, setSettings] = useState<LiveClassSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Structured error code from the API (AUDIT H14) — lets callers branch on a
   // specific, known condition (e.g. "coach hasn't joined yet") instead of
@@ -45,6 +47,12 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
           setClassStatus(classDetails.status);
           if (classDetails.topic) {
             setTopic(classDetails.topic);
+          }
+          // Available before joining, so the pre-join screen can preview the
+          // policy and lock its toggles. The token response refines this with
+          // the participant-specific resolution once the user joins.
+          if (classDetails.preClassSettings) {
+            setSettings(classDetails.preClassSettings);
           }
           // Timer elapsed runs from the actual session start, not the scheduled one (AUDIT H2).
           const actualStart = classDetails.liveSession?.startedAt ?? classDetails.startsAt;
@@ -86,6 +94,7 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
           if (mounted) {
             setToken(res.token);
             setRoomName(res.roomName);
+            setSettings(res.settings ?? null);
             if (res.topic || classDetails.topic) {
               setTopic(res.topic || classDetails.topic);
             }
@@ -129,5 +138,5 @@ export function useLiveClass(roomId: string, shouldFetch: boolean = true, client
     setRetryToken((n) => n + 1);
   }, []);
 
-  return { token, roomName, topic, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry };
+  return { token, roomName, topic, settings, error, errorCode, isLoading, classStatus, startedAt, endsAt, retry };
 }

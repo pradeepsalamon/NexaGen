@@ -20,23 +20,39 @@ const config: Config = {
       },
       boxShadow: {
         card: "var(--shadow-card)",
+        lift: "var(--shadow-lift)",
         soft: "var(--shadow-soft)"
       },
       colors: {
-        accent: "var(--color-accent)",
-        app: {
-          background: "var(--color-background)",
-          border: "var(--color-border)",
-          danger: "var(--color-danger)",
-          focus: "var(--color-focus)",
-          muted: "var(--color-text-muted)",
-          soft: "var(--color-surface-soft)",
-          surface: "var(--color-surface)",
-          text: "var(--color-text)"
+        accent: {
+          DEFAULT: "rgb(var(--rgb-accent) / <alpha-value>)",
+          ink: "var(--color-accent-ink)"
         },
-        primary: "var(--color-primary)",
-        secondary: "var(--color-secondary)",
-        warm: "var(--color-warm)"
+        app: {
+          background: "rgb(var(--rgb-background) / <alpha-value>)",
+          border: "rgb(var(--rgb-border) / <alpha-value>)",
+          danger: {
+            DEFAULT: "rgb(var(--rgb-danger) / <alpha-value>)",
+            ink: "var(--color-danger-ink)"
+          },
+          focus: "var(--color-focus)",
+          muted: "rgb(var(--rgb-text-muted) / <alpha-value>)",
+          soft: "rgb(var(--rgb-surface-soft) / <alpha-value>)",
+          surface: "rgb(var(--rgb-surface) / <alpha-value>)",
+          text: "rgb(var(--rgb-text) / <alpha-value>)"
+        },
+        primary: {
+          DEFAULT: "rgb(var(--rgb-primary) / <alpha-value>)",
+          ink: "var(--color-primary-ink)"
+        },
+        secondary: {
+          DEFAULT: "rgb(var(--rgb-secondary) / <alpha-value>)",
+          ink: "var(--color-secondary-ink)"
+        },
+        warm: {
+          DEFAULT: "rgb(var(--rgb-warm) / <alpha-value>)",
+          ink: "var(--color-warm-ink)"
+        }
       },
       fontFamily: {
         sans: ["var(--font-sans)"]

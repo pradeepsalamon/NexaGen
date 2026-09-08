@@ -4,22 +4,29 @@ import { memo, useCallback, useEffect, useRef } from "react";
 import { Send, Smile } from "lucide-react";
 import EmojiPicker, { Theme } from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
 
 interface ChatComposerProps {
   draft: string;
+  /** True when the class policy has switched chat off for this user. */
+  disabled?: boolean;
   isSending: boolean;
+  placeholder?: string;
   onDraftChange: (value: string) => void;
   onSubmit: () => void;
 }
 
 export const ChatComposer = memo(function ChatComposer({
   draft,
+  disabled = false,
   isSending,
+  placeholder = "Message room...",
   onDraftChange,
   onSubmit,
 }: ChatComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { mode } = useTheme();
 
   const adjustTextarea = useCallback(() => {
     const el = textareaRef.current;
@@ -42,12 +49,13 @@ export const ChatComposer = memo(function ChatComposer({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (disabled) return;
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         onSubmit();
       }
     },
-    [onSubmit],
+    [disabled, onSubmit],
   );
 
   return (
@@ -63,11 +71,13 @@ export const ChatComposer = memo(function ChatComposer({
       >
         <textarea
           ref={textareaRef}
+          data-chat-composer=""
           value={draft}
+          disabled={disabled}
           onChange={(e) => onDraftChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Message room..."
-          className="max-h-[120px] min-h-[20px] w-full resize-none bg-transparent px-1 py-1 text-[13px] leading-relaxed text-app-text outline-none placeholder:text-app-muted/70 custom-scrollbar font-medium"
+          placeholder={placeholder}
+          className="max-h-[120px] min-h-[20px] w-full resize-none bg-transparent px-1 py-1 text-[13px] leading-relaxed text-app-text outline-none placeholder:text-app-muted/70 custom-scrollbar font-medium disabled:cursor-not-allowed"
           rows={1}
         />
 
@@ -88,7 +98,7 @@ export const ChatComposer = memo(function ChatComposer({
                 onDraftChange(draft + emojiData.emoji);
                 textareaRef.current?.focus();
               }}
-              theme={Theme.AUTO}
+              theme={mode === "dark" ? Theme.DARK : Theme.LIGHT}
               lazyLoadEmojis={true}
             />
           </PopoverContent>
@@ -96,7 +106,7 @@ export const ChatComposer = memo(function ChatComposer({
 
         <button
           type="submit"
-          disabled={!draft.trim() || isSending}
+          disabled={disabled || !draft.trim() || isSending}
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-full transition-all duration-300",
             draft.trim()

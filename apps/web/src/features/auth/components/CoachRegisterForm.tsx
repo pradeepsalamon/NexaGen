@@ -11,8 +11,13 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
+import { getStoredAcquisition } from "@/lib/acquisition";
 import { registerCoach } from "../api/authApi";
-import type { RegisterCoachRequest } from "@nexa-chess/types";
+import type {
+  AcquisitionSourceValue,
+  RegisterCoachRequest
+} from "@nexa-chess/types";
+import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
 
 const titleOptions: { label: string; value: string }[] = [
   { label: "None", value: "NONE" },
@@ -34,6 +39,10 @@ const initialValues: RegisterCoachRequest = {
 export function CoachRegisterForm() {
   const toast = useToast();
   const [values, setValues] = useState<RegisterCoachRequest>(initialValues);
+  const [acquisitionSource, setAcquisitionSource] = useState<
+    AcquisitionSourceValue | ""
+  >("");
+  const [acquisitionDetail, setAcquisitionDetail] = useState("");
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
   // Registration is an application, not a sign-in: the API issues no session
@@ -77,7 +86,14 @@ export function CoachRegisterForm() {
       return;
     }
 
-    registerMutation.mutate(values);
+    if (!acquisitionSource) return;
+
+    registerMutation.mutate({
+      ...values,
+      ...getStoredAcquisition(),
+      acquisitionSource,
+      acquisitionDetail: acquisitionDetail.trim() || undefined
+    });
   }
 
   if (submittedEmail) {
@@ -201,6 +217,14 @@ export function CoachRegisterForm() {
             />
           </FormField>
         </div>
+
+        <AcquisitionSourceSelect
+          detail={acquisitionDetail}
+          onDetailChange={setAcquisitionDetail}
+          onValueChange={setAcquisitionSource}
+          required
+          value={acquisitionSource}
+        />
 
         <div className="grid gap-3.5 md:grid-cols-2">
           <FormField id="password" label="Password">

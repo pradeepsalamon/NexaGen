@@ -1,14 +1,16 @@
 import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import type { ClassDetailCoachAttendance } from "@nexa-chess/types";
+import { formatDuration, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { EventTimeline } from "./EventTimeline";
-import { formatDuration, formatTime } from "./classDetail.utils";
 
 export const CoachAttendanceCard = memo(function CoachAttendanceCard({
   coach,
 }: {
   coach: ClassDetailCoachAttendance;
 }) {
+  const tz = useUserTimeZone();
   return (
     <Card className="border-app-border bg-app-surface shadow-sm">
       <CardHeader className="bg-app-soft/50 border-b border-app-border">
@@ -21,13 +23,13 @@ export const CoachAttendanceCard = memo(function CoachAttendanceCard({
           <div>
             <p className="text-xs font-medium text-app-muted uppercase">Joined</p>
             <p className="text-sm font-medium text-app-text">
-              {formatTime(coach.joinedAt)}
+              {formatTime(coach.joinedAt, tz) || "—"}
             </p>
           </div>
           <div>
             <p className="text-xs font-medium text-app-muted uppercase">Left</p>
             <p className="text-sm font-medium text-app-text">
-              {formatTime(coach.leftAt)}
+              {formatTime(coach.leftAt, tz) || "—"}
             </p>
           </div>
           <div>

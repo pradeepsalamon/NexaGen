@@ -5,6 +5,14 @@ export type MoveSoundType = "move" | "capture" | "check" | "gameEnd";
 export type BoardColor = "white" | "black";
 
 /**
+ * Which pieces a student who holds board control may actually move. The coach
+ * grants this per student, so one can be driving white while another drives
+ * black. `"both"` is the historic behaviour and the default for any grant that
+ * arrives without a side (older clients send identities only).
+ */
+export type BoardControlSide = BoardColor | "both";
+
+/**
  * Shared chess-clock state. Elapsed time is *derived* on render from
  * `updatedAt` + `running` (see `lib/clock.ts`), so only state transitions are
  * broadcast — never per-second ticks.
@@ -56,6 +64,8 @@ export interface PermissionPayload {
   mode: BoardPermissionMode;
   /** Full LiveKit participant identities of the students currently granted control. */
   selectedStudentIds?: string[];
+  /** identity -> side that identity may move. A missing entry means `"both"`. */
+  selectedStudentSides?: Record<string, BoardControlSide>;
 }
 
 export interface UiStatePayload {
@@ -70,6 +80,8 @@ export interface RequestControlPayload {
   /** Full LiveKit participant identity of the requesting student. */
   identity: string;
   studentName: string;
+  /** Side the student is asking for; omitted means "either / both". */
+  side?: BoardControlSide;
 }
 
 export type BoardSyncMessage =

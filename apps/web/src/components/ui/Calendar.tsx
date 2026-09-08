@@ -162,7 +162,7 @@ function CalendarDayButton({
           "border-blue-600 bg-blue-600 text-white hover:bg-blue-600 hover:text-white",
         className
       )}
-      data-day={day.date.toLocaleDateString()}
+      data-day={`${day.date.getFullYear()}-${day.date.getMonth() + 1}-${day.date.getDate()}`}
       data-selected-single={
         modifiers.selected &&
         !modifiers.range_start &&

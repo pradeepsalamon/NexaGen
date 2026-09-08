@@ -1,6 +1,14 @@
 import { z } from "zod";
 
+import {
+  liveClassSettingsOverrideSchema,
+  type LiveClassSettings,
+  type LiveClassSettingsOverride
+} from "./live-class-settings";
+
 export * from "./api-endpoints";
+export * from "./live-class-settings";
+export * from "./live-class-moderation";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -63,6 +71,57 @@ export const prismaExperienceLevelSchema = z.enum([
   "ADVANCED"
 ]);
 
+// ── Acquisition attribution ──
+// Lowercase slugs on the wire; the API maps them to the Prisma `AcquisitionSource`
+// enum. `unknown` is explicit and always valid — the UI never forces a guess.
+export const acquisitionSourceSchema = z.enum([
+  "website",
+  "google",
+  "instagram",
+  "facebook",
+  "youtube",
+  "whatsapp",
+  "referral",
+  "school",
+  "coach_referral",
+  "advertisement",
+  "other",
+  "unknown"
+]);
+
+export const prismaAcquisitionSourceSchema = z.enum([
+  "WEBSITE",
+  "GOOGLE",
+  "INSTAGRAM",
+  "FACEBOOK",
+  "YOUTUBE",
+  "WHATSAPP",
+  "REFERRAL",
+  "SCHOOL",
+  "COACH_REFERRAL",
+  "ADVERTISEMENT",
+  "OTHER",
+  "UNKNOWN"
+]);
+
+/** First-touch acquisition data captured at registration (all optional). */
+export const acquisitionCaptureSchema = z.object({
+  acquisitionSource: acquisitionSourceSchema.optional(),
+  acquisitionDetail: z.string().max(200).optional(),
+  utmSource: z.string().max(200).optional(),
+  utmMedium: z.string().max(200).optional(),
+  utmCampaign: z.string().max(200).optional(),
+  utmContent: z.string().max(200).optional(),
+  utmTerm: z.string().max(200).optional(),
+  landingReferrer: z.string().max(500).optional()
+});
+
+export type AcquisitionSourceValue = z.infer<typeof acquisitionSourceSchema>;
+export type PrismaAcquisitionSource = z.infer<
+  typeof prismaAcquisitionSourceSchema
+>;
+export type AcquisitionCapture = z.infer<typeof acquisitionCaptureSchema>;
+
 export const coachTitleSchema = z.enum(["NONE", "CM", "FM", "IM", "GM"]);
 
 export const batchStatusSchema = z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARCHIVED"]);
@@ -82,7 +141,17 @@ export const registerRequestSchema = z
     confirmPassword: z.string().min(8, "Confirm your password."),
     contactNumber: z.string().min(1, "Contact number is required.").max(30),
     email: z.string().email("Enter a valid email address.").max(255),
-    referralSource: referralSourceSchema,
+    // Legacy field — kept optional for older clients. New clients send
+    // `acquisitionSource` (+ optional detail / UTM) instead.
+    referralSource: referralSourceSchema.optional(),
+    acquisitionSource: acquisitionSourceSchema.optional(),
+    acquisitionDetail: z.string().max(200).optional(),
+    utmSource: z.string().max(200).optional(),
+    utmMedium: z.string().max(200).optional(),
+    utmCampaign: z.string().max(200).optional(),
+    utmContent: z.string().max(200).optional(),
+    utmTerm: z.string().max(200).optional(),
+    landingReferrer: z.string().max(500).optional(),
     parentName: z.string().min(1, "Parent name is required.").max(120),
     password: passwordSchema,
     studentAge: z
@@ -345,7 +414,9 @@ export type TrashEntity =
   | "CoachProfile"
   | "Batch"
   | "BatchCoach"
-  | "BatchStudent";
+  | "BatchStudent"
+  | "Puzzle"
+  | "PuzzleTopic";
 
 export type TrashDeletedBy = {
   email: string;
@@ -410,7 +481,15 @@ export const registerCoachRequestSchema = z
     title: coachTitleSchema.optional().default("NONE"),
     fideId: z.string().max(80).optional(),
     fideRating: z.number().int().min(0).max(4000).optional(),
-    yearsOfExperience: z.number().int().min(0).max(80).optional()
+    yearsOfExperience: z.number().int().min(0).max(80).optional(),
+    acquisitionSource: acquisitionSourceSchema.optional(),
+    acquisitionDetail: z.string().max(200).optional(),
+    utmSource: z.string().max(200).optional(),
+    utmMedium: z.string().max(200).optional(),
+    utmCampaign: z.string().max(200).optional(),
+    utmContent: z.string().max(200).optional(),
+    utmTerm: z.string().max(200).optional(),
+    landingReferrer: z.string().max(500).optional()
   })
   .refine((value) => value.password === value.confirmPassword, {
     message: "Passwords must match.",
@@ -489,6 +568,115 @@ export type CoachBatchesResponse = {
   batches: CoachBatch[];
 };
 
+//
+// LIVE CLASS PRE-CLASS SETTINGS & PRESETS
+//
+
+/** Layer 1 system defaults (singleton), admin-managed. */
+export type LiveClassPolicyResponse = {
+  id: string;
+  name: string;
+  settings: LiveClassSettings;
+  updatedAt: string;
+};
+
+export const updateLiveClassPolicyRequestSchema = z.object({
+  settings: liveClassSettingsOverrideSchema
+});
+export type UpdateLiveClassPolicyRequest = z.infer<typeof updateLiveClassPolicyRequestSchema>;
+
+/**
+ * Resolved config for one class plus each contributing layer, so the UI can
+ * label a field "inherited from batch" vs "custom for this class".
+ */
+export type LiveClassSettingsForClassResponse = {
+  classId: string;
+  system: LiveClassSettings;
+  batchOverride: LiveClassSettingsOverride | null;
+  classOverride: LiveClassSettingsOverride | null;
+  resolved: LiveClassSettings;
+  /** Frozen effective config if the class has already started, else null (§38). */
+  snapshot: LiveClassSettings | null;
+  canEdit: boolean;
+};
+
+export const updateLiveClassSettingsRequestSchema = z.object({
+  liveClassSettings: liveClassSettingsOverrideSchema.nullable(),
+  presetId: z.string().optional()
+});
+export type UpdateLiveClassSettingsRequest = z.infer<typeof updateLiveClassSettingsRequestSchema>;
+
+export type BatchLiveClassSettingsResponse = {
+  batchId: string;
+  system: LiveClassSettings;
+  batchOverride: LiveClassSettingsOverride | null;
+  resolved: LiveClassSettings;
+  canEdit: boolean;
+};
+
+/** One `LIVE_SETTINGS_CHANGE` audit row, admin-facing. */
+export type LiveClassSettingsAuditEntry = {
+  id: string;
+  /** "LiveClassPolicy" | "Batch" | "CoachClass" */
+  entity: string;
+  entityId: string;
+  /** "SYSTEM" | "BATCH" | "CLASS" */
+  scope: string;
+  /** Human label for the target (batch/class name), or null for the singleton policy. */
+  entityName: string | null;
+  actorName: string | null;
+  createdAt: string;
+  /** Override blobs (or full settings for the policy) before/after the change. */
+  before: LiveClassSettingsOverride | null;
+  after: LiveClassSettingsOverride | null;
+};
+
+export type LiveClassSettingsAuditResponse = {
+  entries: LiveClassSettingsAuditEntry[];
+};
+
+export const updateBatchLiveClassSettingsRequestSchema = z.object({
+  liveClassSettings: liveClassSettingsOverrideSchema.nullable()
+});
+export type UpdateBatchLiveClassSettingsRequest = z.infer<
+  typeof updateBatchLiveClassSettingsRequestSchema
+>;
+
+export const liveClassPresetScopeSchema = z.enum(["PERSONAL", "ORG"]);
+export type LiveClassPresetScope = z.infer<typeof liveClassPresetScopeSchema>;
+
+export type LiveClassPreset = {
+  id: string;
+  name: string;
+  description: string | null;
+  scope: LiveClassPresetScope;
+  isSystem: boolean;
+  isDefault: boolean;
+  settings: LiveClassSettingsOverride;
+  ownerId: string | null;
+  ownerName: string | null;
+  /** True when the requesting user may edit/delete this preset. */
+  canManage: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type LiveClassPresetsResponse = {
+  presets: LiveClassPreset[];
+};
+
+export const createLiveClassPresetRequestSchema = z.object({
+  name: z.string().min(1, "Name is required.").max(80),
+  description: z.string().max(500).optional(),
+  scope: liveClassPresetScopeSchema.default("PERSONAL"),
+  settings: liveClassSettingsOverrideSchema,
+  isDefault: z.boolean().optional()
+});
+export type CreateLiveClassPresetRequest = z.infer<typeof createLiveClassPresetRequestSchema>;
+
+export const updateLiveClassPresetRequestSchema = createLiveClassPresetRequestSchema.partial();
+export type UpdateLiveClassPresetRequest = z.infer<typeof updateLiveClassPresetRequestSchema>;
+
 export type CoachClassListResponse = {
   classes: CoachClass[];
 };
@@ -538,7 +726,11 @@ const createClassRequestBaseSchema = z.object({
   homework: z.string().max(2000).optional(),
   notes: z.string().max(2000).optional(),
   startsAt: z.string(),
-  endsAt: z.string()
+  endsAt: z.string(),
+  // Pre-class configuration (partial override on top of batch/system defaults).
+  // `presetId` is resolved server-side into `liveClassSettings` at create time.
+  liveClassSettings: liveClassSettingsOverrideSchema.optional(),
+  presetId: z.string().optional()
 });
 
 export const createClassRequestSchema = createClassRequestBaseSchema.refine(classDateRefinement, classDateRefinementOptions);
@@ -1588,3 +1780,212 @@ export type MarkNotificationsReadRequest = z.infer<
 export type MarkNotificationsReadResponse = {
   unreadCount: number;
 };
+
+//
+// BATCH RECURRING CLASS SCHEDULES
+//
+// A recurring weekly schedule for a batch. Generating it materialises real
+// `CoachClass` rows (one per occurrence) that behave exactly like manually
+// created classes for live-class, attendance and assignments.
+
+export type BatchScheduleStatus = "ACTIVE" | "PAUSED" | "ENDED";
+
+/** 0 = Sunday … 6 = Saturday. */
+export const scheduleRuleInputSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  startTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Expected HH:MM (24h)"),
+  endTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Expected HH:MM (24h)"),
+  coachId: z.string().min(1, "Coach is required"),
+  isEnabled: z.boolean().optional()
+});
+export type ScheduleRuleInput = z.infer<typeof scheduleRuleInputSchema>;
+
+const isoDateOnly = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected YYYY-MM-DD");
+
+export const previewBatchScheduleRequestSchema = z.object({
+  batchId: z.string().min(1),
+  courseId: z.string().min(1).nullable().optional(),
+  title: z.string().trim().min(1).max(160).optional(),
+  timezone: z.string().min(1),
+  startDate: isoDateOnly,
+  endDate: isoDateOnly,
+  rules: z.array(scheduleRuleInputSchema).min(1, "Add at least one weekly class"),
+  exceptions: z.array(isoDateOnly).optional()
+});
+export type PreviewBatchScheduleRequest = z.infer<
+  typeof previewBatchScheduleRequestSchema
+>;
+
+export const createBatchScheduleRequestSchema =
+  previewBatchScheduleRequestSchema.extend({
+    /** Proceed even though the preview reported coach/batch conflicts. */
+    force: z.boolean().optional()
+  });
+export type CreateBatchScheduleRequest = z.infer<
+  typeof createBatchScheduleRequestSchema
+>;
+
+export const updateBatchScheduleRequestSchema = z.object({
+  title: z.string().trim().min(1).max(160).optional(),
+  courseId: z.string().min(1).nullable().optional(),
+  endDate: isoDateOnly.optional(),
+  status: z.enum(["ACTIVE", "PAUSED", "ENDED"]).optional(),
+  rules: z.array(scheduleRuleInputSchema).min(1).optional(),
+  exceptions: z.array(isoDateOnly).optional(),
+  /** Regenerate future (not-yet-started) sessions from the new rules. */
+  regenerate: z.boolean().optional(),
+  force: z.boolean().optional()
+});
+export type UpdateBatchScheduleRequest = z.infer<
+  typeof updateBatchScheduleRequestSchema
+>;
+
+export const scheduleOccurrenceActionRequestSchema = z
+  .object({
+    action: z.enum(["CANCEL", "RESCHEDULE", "RESTORE"]),
+    startsAt: z.string().datetime().optional(),
+    endsAt: z.string().datetime().optional(),
+    coachId: z.string().min(1).optional()
+  })
+  .refine(
+    (v) =>
+      v.action !== "RESCHEDULE" ||
+      (Boolean(v.startsAt) && Boolean(v.endsAt)),
+    { message: "Reschedule requires startsAt and endsAt", path: ["startsAt"] }
+  );
+export type ScheduleOccurrenceActionRequest = z.infer<
+  typeof scheduleOccurrenceActionRequestSchema
+>;
+
+export type BatchScheduleRule = {
+  id: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  coachId: string;
+  coachName: string;
+  isEnabled: boolean;
+};
+
+export type BatchScheduleException = {
+  id: string;
+  date: string;
+  reason: string | null;
+};
+
+export type ScheduleWeeklySlot = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  coachId: string;
+  coachName: string;
+};
+
+export type ScheduleConflict = {
+  type: "COACH" | "BATCH";
+  date: string;
+  startsAt: string;
+  endsAt: string;
+  coachId: string;
+  coachName: string;
+  conflictingClassId: string;
+  conflictingClassTitle: string;
+};
+
+export type ScheduleOccurrencePreview = {
+  ruleId: string;
+  date: string;
+  dayOfWeek: number;
+  startsAt: string;
+  endsAt: string;
+  coachId: string;
+  coachName: string;
+  isPast: boolean;
+  hasConflict: boolean;
+};
+
+export type PreviewBatchScheduleResponse = {
+  timezone: string;
+  totalCount: number;
+  futureCount: number;
+  pastCount: number;
+  firstClassAt: string | null;
+  lastClassAt: string | null;
+  weeklySummary: ScheduleWeeklySlot[];
+  occurrences: ScheduleOccurrencePreview[];
+  conflicts: ScheduleConflict[];
+};
+
+export type BatchScheduleSummary = {
+  id: string;
+  batchId: string;
+  batchName: string;
+  courseId: string | null;
+  courseTitle: string | null;
+  title: string;
+  timezone: string;
+  startDate: string;
+  endDate: string;
+  status: BatchScheduleStatus;
+  ruleCount: number;
+  totalClasses: number;
+  upcomingClasses: number;
+  completedClasses: number;
+  cancelledClasses: number;
+  createdAt: string;
+};
+
+export type BatchScheduleDetail = BatchScheduleSummary & {
+  rules: BatchScheduleRule[];
+  exceptions: BatchScheduleException[];
+};
+
+export type BatchScheduleListResponse = {
+  schedules: BatchScheduleSummary[];
+};
+
+export type BatchScheduleResponse = {
+  schedule: BatchScheduleDetail;
+  generatedCount?: number;
+  cancelledCount?: number;
+};
+
+export type ScheduleCalendarClass = {
+  id: string;
+  batchId: string;
+  batchName: string;
+  title: string;
+  coachId: string;
+  coachName: string;
+  startsAt: string;
+  endsAt: string;
+  status: ClassStatus;
+  scheduleId: string | null;
+  sessionNumber: number | null;
+  hasRecording: boolean;
+};
+
+export type ScheduleCalendarResponse = {
+  classes: ScheduleCalendarClass[];
+};
+
+// ──────────────────────────────────────────────
+// Admin Analytics contract (large — kept in its own module)
+// ──────────────────────────────────────────────
+export * from "./analytics";
+
+// ──────────────────────────────────────────────
+// Puzzle library contract (kept in its own module)
+// ──────────────────────────────────────────────
+export * from "./puzzle";
+
+// ──────────────────────────────────────────────
+// Live-class puzzle assignment (depends on ./puzzle)
+// ──────────────────────────────────────────────
+export * from "./live-class-puzzle";

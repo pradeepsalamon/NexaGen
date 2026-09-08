@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { CoachService } from "./coach.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { LiveClassSettingsService } from "../live-class/live-class-settings.service";
 
 const ACCESS_TOKEN = "access-token";
 const COACH_ID = "coach-1";
@@ -87,7 +88,11 @@ describe("CoachService class scheduling", () => {
             user: { findUnique: userFindUnique }
           }
         },
-        { provide: JwtService, useValue: jwtService }
+        { provide: JwtService, useValue: jwtService },
+        {
+          provide: LiveClassSettingsService,
+          useValue: { presetOverrideById: jest.fn().mockResolvedValue({}) }
+        }
       ]
     }).compile();
 

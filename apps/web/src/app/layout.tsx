@@ -18,9 +18,18 @@ const themeInitScript = `
 
     root.dataset.theme = mode;
 
-    if (colors.primary) root.style.setProperty("--color-primary", colors.primary);
-    if (colors.secondary) root.style.setProperty("--color-secondary", colors.secondary);
-    if (colors.accent) root.style.setProperty("--color-accent", colors.accent);
+    const toChannels = (hex) => {
+      const value = String(hex || "").trim().replace("#", "");
+      const full = value.length === 3 ? value.split("").map((c) => c + c).join("") : value;
+      if (!/^[0-9a-fA-F]{6}$/.test(full)) return null;
+      const int = parseInt(full, 16);
+      return ((int >> 16) & 255) + " " + ((int >> 8) & 255) + " " + (int & 255);
+    };
+
+    ["primary", "secondary", "accent"].forEach((name) => {
+      const channels = toChannels(colors[name]);
+      if (channels) root.style.setProperty("--rgb-" + name, channels);
+    });
   } catch {
     document.documentElement.dataset.theme = "light";
   }

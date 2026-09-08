@@ -1,22 +1,33 @@
 "use client";
 
-import { useState, useMemo, memo } from "react";
-import { Users, Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, X } from "lucide-react";
-import { useParticipants } from "@livekit/components-react";
+import { useCallback, useState, useMemo, memo } from "react";
+import { useParams } from "next/navigation";
+import { Lock, Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, X } from "lucide-react";
+import { useConnectionQualityIndicator, useParticipants } from "@livekit/components-react";
+import { ConnectionQuality } from "livekit-client";
+import type { ModeratableSource } from "@nexa-chess/types";
+import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
+import { PanelHeader } from "./PanelHeader";
+import { BoardControlSideToggle, boardControlSideLabel } from "./BoardControlSideToggle";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import type { BoardControlSide } from "@/features/chessboard/types/sync";
 import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useLiveClassChat } from "../../providers/ChatProvider";
+import { isHumanParticipant } from "../../lib/participants";
+import { moderateParticipant } from "../../api/live-class";
+import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
-// ─── Types ───────────────────────────────────────────────────
+type LkParticipant = ReturnType<typeof useParticipants>[number];
 
 interface ParticipantMeta {
   role?: string;
-  handRaised?: boolean;
 }
 
-function parseMeta(participant: ReturnType<typeof useParticipants>[number]): ParticipantMeta {
+function parseMeta(participant: LkParticipant): ParticipantMeta {
   const meta: ParticipantMeta = {};
   if (participant.metadata) {
     try {
@@ -25,29 +36,87 @@ function parseMeta(participant: ReturnType<typeof useParticipants>[number]): Par
       // ignore
     }
   }
-  // Attributes take precedence for handRaised since client can update them
-  if (participant.attributes?.handRaised === "true") {
-    meta.handRaised = true;
-  } else if (participant.attributes?.handRaised === "false") {
-    meta.handRaised = false;
-  }
   return meta;
 }
 
-// ─── Participant List Item ───────────────────────────────────
+function ConnectionDot({ participant }: { participant: LkParticipant }) {
+  const { quality } = useConnectionQualityIndicator({ participant });
+  const color =
+    quality === ConnectionQuality.Poor
+      ? "bg-amber-500"
+      : quality === ConnectionQuality.Unknown
+        ? "bg-app-border"
+        : "bg-emerald-500";
+  return (
+    <SimpleTooltip label={`Connection: ${quality === ConnectionQuality.Unknown ? "calculating…" : quality}`}>
+      <span className={cn("size-2 shrink-0 rounded-full", color)} aria-hidden="true" />
+    </SimpleTooltip>
+  );
+}
+
+/**
+ * A track control in a participant row.
+ *
+ * For everyone it is a status icon. For a coach looking at a student whose
+ * track is live it is also a button that switches that track off at the SFU —
+ * mute only, since re-opening someone's microphone for them is a privacy hole
+ * (`moderateParticipant` on the API side refuses to do it either).
+ */
+function TrackStateControl({
+  activeIcon,
+  idleIcon,
+  isActive,
+  moderateLabel,
+  onModerate,
+}: {
+  activeIcon: React.ReactNode;
+  idleIcon: React.ReactNode;
+  isActive: boolean;
+  moderateLabel: string;
+  onModerate?: () => void;
+}) {
+  if (!isActive || !onModerate) {
+    return <>{isActive ? activeIcon : idleIcon}</>;
+  }
+
+  return (
+    <SimpleTooltip label={moderateLabel}>
+      <button
+        type="button"
+        onClick={onModerate}
+        aria-label={moderateLabel}
+        className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+      >
+        {activeIcon}
+      </button>
+    </SimpleTooltip>
+  );
+}
 
 interface ParticipantItemProps {
-  participant: ReturnType<typeof useParticipants>[number];
+  participant: LkParticipant;
+  isCoachRow?: boolean;
   showBoardControl?: boolean;
-  hasBoardControl?: boolean;
-  onToggleBoardControl?: (identity: string) => void;
+  handRaised?: boolean;
+  /** Coach/admin viewing a student: enables the force-mute + private-message actions. */
+  canModerate?: boolean;
+  onModerate?: (identity: string, source: ModeratableSource, name: string) => void;
+  onMessagePrivately?: (userId: string, name: string) => void;
+  /** Side this student may move, or null when they hold no control. */
+  boardControlSide?: BoardControlSide | null;
+  onSetBoardControlSide?: (identity: string, side: BoardControlSide | null) => void;
 }
 
 const ParticipantListItem = memo(function ParticipantListItem({
   participant,
+  isCoachRow,
   showBoardControl,
-  hasBoardControl,
-  onToggleBoardControl,
+  handRaised,
+  canModerate,
+  onModerate,
+  onMessagePrivately,
+  boardControlSide = null,
+  onSetBoardControlSide,
 }: ParticipantItemProps) {
   const user = useAuthStore((state) => state.user);
   const isMuted = !participant.isMicrophoneEnabled;
@@ -55,158 +124,231 @@ const ParticipantListItem = memo(function ParticipantListItem({
   const isScreenSharing = participant.isScreenShareEnabled;
   const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
   const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
-  const meta = parseMeta(participant);
+  // Identity is `<userId>` or `<userId>_<clientId>`; cuids carry no underscore.
+  const participantUserId = participant.identity.split("_")[0];
+  const canAct = !!canModerate && !participant.isLocal;
 
   return (
     <div
-      className="flex items-center justify-between gap-3 rounded-xl p-3 transition-colors hover:bg-app-soft"
+      className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-app-soft"
       role="listitem"
     >
-      <div className="flex items-center gap-3 min-w-0">
-        <ParticipantAvatar
-          name={name}
-          size="sm"
-          className="size-8 text-[10px] shrink-0"
-        />
-        <div className="flex flex-col overflow-hidden justify-center">
-          <span className="truncate text-sm font-medium text-app-text flex items-center gap-1.5">
-            {name}
-            {meta.role && meta.role.toUpperCase() === "COACH" && (
-              <span className="text-app-muted text-xs font-normal">(Coach)</span>
-            )}
-            {participant.isLocal && (
-              <span className="text-app-muted text-xs font-normal">(You)</span>
-            )}
-          </span>
-        </div>
+      <div className="flex min-w-0 items-center gap-2.5">
+        <ConnectionDot participant={participant} />
+        <ParticipantAvatar name={name} size="sm" className="size-8 shrink-0 text-[10px]" />
+        <span className="flex min-w-0 items-center gap-1.5">
+          <span className="truncate text-sm font-medium text-app-text">{name}</span>
+          {participant.isLocal && (
+            <span className="shrink-0 text-xs font-normal text-app-muted">(You)</span>
+          )}
+          {isCoachRow && (
+            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+              Coach
+            </span>
+          )}
+        </span>
       </div>
 
-      <div className="flex items-center gap-2 text-app-muted shrink-0">
-        {meta.handRaised && (
-          <Hand className="size-4 text-amber-400" aria-label="Hand raised" />
-        )}
-        {isScreenSharing && (
-          <MonitorUp className="size-4 text-primary" aria-label="Sharing screen" />
-        )}
-        {isCameraEnabled ? (
-          <Video className="size-4" aria-label="Camera on" />
-        ) : (
-          <VideoOff className="size-4 opacity-40" aria-label="Camera off" />
-        )}
-        {isMuted ? (
-          <MicOff className="size-4 text-red-500/80" aria-label="Muted" />
-        ) : (
-          <Mic className="size-4" aria-label="Microphone on" />
-        )}
-        {showBoardControl && onToggleBoardControl && (
-          <SimpleTooltip label={hasBoardControl ? "Revoke board control" : "Grant board control"}>
+      <div className="flex shrink-0 items-center gap-1.5 text-app-muted">
+        {handRaised && <Hand className="size-4 text-amber-500" aria-label="Hand raised" />}
+
+        {canAct && onMessagePrivately && (
+          <SimpleTooltip label={`Message ${name} privately`}>
             <button
               type="button"
-              onClick={() => onToggleBoardControl(participant.identity)}
-              className={cn(
-                "flex size-6 items-center justify-center rounded-md transition-all duration-150",
-                hasBoardControl
-                  ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
-                  : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
-              )}
-              aria-label={hasBoardControl ? "Revoke board control" : "Grant board control"}
+              onClick={() => onMessagePrivately(participantUserId, name)}
+              aria-label={`Message ${name} privately`}
+              className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-primary hover:text-white"
             >
-              <Crown className="size-3.5" />
+              <Lock className="size-3.5" />
             </button>
           </SimpleTooltip>
+        )}
+
+        <TrackStateControl
+          isActive={isScreenSharing}
+          activeIcon={<MonitorUp className="size-4 text-primary" aria-label="Sharing screen" />}
+          idleIcon={null}
+          moderateLabel={`Stop ${name}'s screen share`}
+          onModerate={
+            canAct && onModerate
+              ? () => onModerate(participant.identity, "screen_share", name)
+              : undefined
+          }
+        />
+
+        <TrackStateControl
+          isActive={isCameraEnabled}
+          activeIcon={<Video className="size-4" aria-label="Camera on" />}
+          idleIcon={<VideoOff className="size-4 opacity-40" aria-label="Camera off" />}
+          moderateLabel={`Turn off ${name}'s camera`}
+          onModerate={
+            canAct && onModerate
+              ? () => onModerate(participant.identity, "camera", name)
+              : undefined
+          }
+        />
+
+        <TrackStateControl
+          isActive={!isMuted}
+          activeIcon={<Mic className="size-4" aria-label="Microphone on" />}
+          idleIcon={<MicOff className="size-4 text-app-danger/80" aria-label="Muted" />}
+          moderateLabel={`Turn off ${name}'s microphone`}
+          onModerate={
+            canAct && onModerate
+              ? () => onModerate(participant.identity, "microphone", name)
+              : undefined
+          }
+        />
+        {showBoardControl && onSetBoardControlSide && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                // `title` rather than SimpleTooltip: this is already an
+                // `asChild` Radix trigger, and double-wrapping breaks it.
+                title={`Board control: ${boardControlSideLabel(boardControlSide)}`}
+                className={cn(
+                  "flex h-6 items-center gap-0.5 rounded-md px-1 transition-colors",
+                  boardControlSide
+                    ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
+                    : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
+                )}
+                aria-label={`Board control for ${name}: ${boardControlSideLabel(boardControlSide)}`}
+              >
+                <Crown className="size-3.5" />
+                {(boardControlSide === "white" || boardControlSide === "black") && (
+                  <span className="text-[10px] font-bold leading-none">
+                    {boardControlSide === "white" ? "W" : "B"}
+                  </span>
+                )}
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-3">
+              <p className="mb-2 text-xs font-semibold text-app-text">Board control</p>
+              <p className="mb-2 max-w-[15rem] text-[11px] leading-snug text-app-muted">
+                Which pieces {name} may move on the shared board.
+              </p>
+              <BoardControlSideToggle
+                studentName={name}
+                value={boardControlSide}
+                onChange={(side) => onSetBoardControlSide(participant.identity, side)}
+              />
+            </PopoverContent>
+          </Popover>
         )}
       </div>
     </div>
   );
 });
 
-// ─── Participants Panel Content ──────────────────────────────
-
 export function MeetingParticipants() {
-  const participants = useParticipants().filter(p => !p.identity.endsWith('_board'));
+  const participants = useParticipants().filter(isHumanParticipant);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
-  const { isChessboardOpen, boardControlStudentIds, toggleBoardControl } = useLiveClassState();
+  const {
+    boardControlStudents,
+    isChessboardOpen,
+    raisedHands,
+    setActiveSidebar,
+    setBoardControlSide,
+  } = useLiveClassState();
+  const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
+  const params = useParams();
+  const roomId = params?.roomId as string | undefined;
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+
+  const handleModerate = useCallback(
+    async (identity: string, source: ModeratableSource, name: string) => {
+      if (!roomId) return;
+      const label = MODERATED_SOURCE_LABEL[source];
+      try {
+        const result = await moderateParticipant(roomId, { identity, source });
+        meetingToast({
+          tone: result.muted ? "success" : "info",
+          title: result.muted
+            ? `Turned off ${name}'s ${label}`
+            : `${name}'s ${label} was already off`,
+          description: result.muted
+            ? `${name} can turn it back on unless the class settings lock it off.`
+            : undefined,
+        });
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't turn off ${name}'s ${label}`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId],
+  );
+
+  const handleMessagePrivately = useCallback(
+    (targetUserId: string) => {
+      openPrivateThread(targetUserId);
+      setActiveSidebar("chat");
+    },
+    [openPrivateThread, setActiveSidebar],
+  );
 
   const filteredParticipants = useMemo(() => {
     if (!searchQuery.trim()) return participants;
     const query = searchQuery.toLowerCase();
-    return participants.filter((p) => {
-      const name = (p.name || p.identity || "").toLowerCase();
-      return name.includes(query);
-    });
+    return participants.filter((p) => (p.name || p.identity || "").toLowerCase().includes(query));
   }, [participants, searchQuery]);
 
-  // Group by role
   const grouped = useMemo(() => {
-    const coaches: typeof filteredParticipants = [];
-    const students: typeof filteredParticipants = [];
-
+    const coaches: LkParticipant[] = [];
+    const students: LkParticipant[] = [];
     filteredParticipants.forEach((p) => {
-      const meta = parseMeta(p);
-      if (meta.role?.toLowerCase() === "coach" || meta.role?.toLowerCase() === "teacher") {
-        coaches.push(p);
-      } else {
-        students.push(p);
-      }
+      const role = parseMeta(p).role?.toLowerCase();
+      if (role === "coach" || role === "teacher") coaches.push(p);
+      else students.push(p);
     });
-
     return { coaches, students };
   }, [filteredParticipants]);
 
   return (
     <div className="flex h-full flex-col">
-      {/* Sub-header with search and count */}
-      <div className="flex h-12 shrink-0 items-center justify-between border-b border-app-border/40 px-4">
-        {showSearch ? (
-          <div className="flex items-center gap-2 w-full animate-in fade-in slide-in-from-right-4 duration-200">
-            <div className="flex-1 flex items-center bg-app-soft rounded-full px-3 py-1.5 ring-1 ring-app-border/50 focus-within:ring-primary/40 focus-within:bg-app-background transition-all">
-              <Search className="size-3.5 text-app-muted mr-2 shrink-0" />
-              <input
-                autoFocus
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search participants..."
-                className="w-full bg-transparent text-[13px] font-medium text-app-text outline-none placeholder:text-app-muted focus:ring-0"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setShowSearch(false);
-                  setSearchQuery("");
-                }}
-                className="ml-1 shrink-0 p-0.5 text-app-muted hover:bg-app-border/60 hover:text-app-text rounded-full transition-colors"
-                aria-label="Close search"
-              >
-                <X className="size-3.5" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-2 min-w-0 flex-1 mr-2 animate-in fade-in slide-in-from-left-4 duration-200">
-              <Users className="size-3.5 text-app-muted" />
-              <span className="text-xs font-semibold text-app-muted uppercase tracking-wider">
-                {participants.length} participant{participants.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowSearch(true)}
-              className="flex size-7 items-center justify-center rounded-lg text-app-muted hover:bg-app-soft hover:text-app-text transition-colors"
-              aria-label="Search participants"
-            >
-              <Search className="size-3.5" />
-            </button>
-          </>
-        )}
-      </div>
+      <PanelHeader
+        title="People"
+        count={participants.length}
+        actions={
+          <button
+            type="button"
+            onClick={() => {
+              setShowSearch((v) => !v);
+              if (showSearch) setSearchQuery("");
+            }}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text",
+              showSearch && "bg-app-soft text-app-text",
+            )}
+            aria-label={showSearch ? "Close search" : "Search participants"}
+          >
+            {showSearch ? <X className="size-4" /> : <Search className="size-4" />}
+          </button>
+        }
+      />
 
-      {/* Participant list */}
-      <div className="flex-1 overflow-y-auto overscroll-contain px-2 py-3 custom-scrollbar" role="list">
-        {/* Coaches section */}
+      {showSearch && (
+        <div className="shrink-0 border-b border-app-border/40 px-3 py-2">
+          <div className="flex items-center gap-2 rounded-full bg-app-soft px-3 py-1.5 ring-1 ring-app-border/50 focus-within:ring-primary/40">
+            <Search className="size-3.5 shrink-0 text-app-muted" />
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search participants…"
+              className="w-full bg-transparent text-[13px] font-medium text-app-text outline-none placeholder:text-app-muted"
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="custom-scrollbar flex-1 overflow-y-auto overscroll-contain px-2 py-3" role="list">
         {grouped.coaches.length > 0 && (
           <div className="mb-2">
             <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary">
@@ -214,13 +356,23 @@ export function MeetingParticipants() {
             </h3>
             <div className="flex flex-col gap-0.5">
               {grouped.coaches.map((p) => (
-                <ParticipantListItem key={p.identity} participant={p} />
+                <ParticipantListItem
+                  key={p.identity}
+                  participant={p}
+                  isCoachRow
+                  handRaised={!!raisedHands[p.identity]}
+                  onMessagePrivately={
+                    canMessagePrivately(p.identity.split("_")[0])
+                      ? handleMessagePrivately
+                      : undefined
+                  }
+                  canModerate={canMessagePrivately(p.identity.split("_")[0])}
+                />
               ))}
             </div>
           </div>
         )}
 
-        {/* Students / Others section */}
         <div>
           {grouped.coaches.length > 0 && (
             <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-app-muted">
@@ -232,9 +384,17 @@ export function MeetingParticipants() {
               <ParticipantListItem
                 key={p.identity}
                 participant={p}
+                handRaised={!!raisedHands[p.identity]}
+                canModerate={isCoach}
+                onModerate={isCoach ? handleModerate : undefined}
+                onMessagePrivately={
+                  canMessagePrivately(p.identity.split("_")[0])
+                    ? handleMessagePrivately
+                    : undefined
+                }
                 showBoardControl={isChessboardOpen && isCoach}
-                hasBoardControl={boardControlStudentIds.includes(p.identity)}
-                onToggleBoardControl={toggleBoardControl}
+                boardControlSide={boardControlStudents[p.identity] ?? null}
+                onSetBoardControlSide={setBoardControlSide}
               />
             ))}
           </div>

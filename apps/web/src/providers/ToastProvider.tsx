@@ -35,6 +35,8 @@ type UndoableInput = {
   delayMs?: number;
   message?: string;
   onCommit: () => void;
+  /** Fired when the user clicks Undo before onCommit fires. */
+  onUndo?: () => void;
   title: string;
 };
 
@@ -108,7 +110,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       },
       showToast,
       success: (toast) => showToast({ ...toast, type: "success" }),
-      undoable: ({ actionLabel, delayMs, message, onCommit, title }) => {
+      undoable: ({ actionLabel, delayMs, message, onCommit, onUndo, title }) => {
         const duration = delayMs ?? 6000;
         let committed = false;
         const timer = setTimeout(() => {
@@ -121,6 +123,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             onClick: () => {
               if (committed) return;
               clearTimeout(timer);
+              onUndo?.();
             }
           },
           durationMs: duration,

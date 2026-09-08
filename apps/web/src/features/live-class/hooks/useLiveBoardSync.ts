@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { BoardSyncActions } from "@/features/chessboard/hooks/useBoardSync";
+import type { BoardControlSide } from "@/features/chessboard/types/sync";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useLiveClassState } from "../providers/LiveClassProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -11,13 +12,20 @@ import { isStaffRole, useAuthStore } from "@/stores/authStore";
  * store's permission system, and force-syncs full state when the board is first
  * opened. Driven by the single sync engine in <LiveBoardSyncBridge>.
  */
-function permissionSignature(mode: string, ids: string[]) {
-  return `${mode}|${[...ids].sort().join(",")}`;
+function permissionSignature(
+  mode: string,
+  ids: string[],
+  sides: Record<string, BoardControlSide>,
+) {
+  const grants = ids.map((id) => `${id}:${sides[id] ?? "both"}`).sort();
+  return `${mode}|${grants.join(",")}`;
 }
 
 export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
-  const { boardControlStudentIds, isChessboardOpen } = useLiveClassState();
-  const { setPermissionMode, permissionMode, selectedStudentIds } = useBoardStore();
+  const { boardControlStudents, boardControlStudentIds, isChessboardOpen, settings } =
+    useLiveClassState();
+  const { setPermissionMode, permissionMode, selectedStudentIds, selectedStudentSides } =
+    useBoardStore();
   const { broadcastState, broadcastPermissions } = actions;
   const hasInitialized = useRef(false);
   const lastBroadcastSig = useRef<string | null>(null);
@@ -26,15 +34,27 @@ export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
 
   // boardControlStudentIds → board store permission mode (coach only). Guarded
   // against no-op writes so an echoed permission sync doesn't churn the store.
+  // With no explicit grants the mode follows the pre-class policy: a class
+  // configured for INTERACTIVE board opens with EVERYONE able to move.
+  const policyBoardMode = settings?.student.board === "INTERACTIVE" ? "EVERYONE" : "COACH_ONLY";
   useEffect(() => {
     if (!isCoach) return;
-    const desiredMode = boardControlStudentIds.length > 0 ? "SELECTED_STUDENT" : "COACH_ONLY";
-    const sameIds =
-      selectedStudentIds.length === boardControlStudentIds.length &&
-      boardControlStudentIds.every((id) => selectedStudentIds.includes(id));
-    if (permissionMode === desiredMode && sameIds) return;
-    setPermissionMode(desiredMode, boardControlStudentIds);
-  }, [boardControlStudentIds, selectedStudentIds, permissionMode, setPermissionMode, isCoach]);
+    const desiredMode =
+      boardControlStudentIds.length > 0 ? "SELECTED_STUDENT" : policyBoardMode;
+    const current = permissionSignature(permissionMode, selectedStudentIds, selectedStudentSides);
+    const desired = permissionSignature(desiredMode, boardControlStudentIds, boardControlStudents);
+    if (current === desired) return;
+    setPermissionMode(desiredMode, boardControlStudentIds, boardControlStudents);
+  }, [
+    boardControlStudents,
+    boardControlStudentIds,
+    selectedStudentIds,
+    selectedStudentSides,
+    permissionMode,
+    setPermissionMode,
+    isCoach,
+    policyBoardMode,
+  ]);
 
   // Broadcast permission changes to all participants — only when the value
   // actually changed. `syncFromRemote` reassigns `selectedStudentIds` on every
@@ -43,11 +63,18 @@ export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
   // forever (the grant/revoke button visibly flickering).
   useEffect(() => {
     if (!isChessboardOpen || !isCoach) return;
-    const sig = permissionSignature(permissionMode, selectedStudentIds);
+    const sig = permissionSignature(permissionMode, selectedStudentIds, selectedStudentSides);
     if (sig === lastBroadcastSig.current) return;
     lastBroadcastSig.current = sig;
     broadcastPermissions();
-  }, [permissionMode, selectedStudentIds, isChessboardOpen, broadcastPermissions, isCoach]);
+  }, [
+    permissionMode,
+    selectedStudentIds,
+    selectedStudentSides,
+    isChessboardOpen,
+    broadcastPermissions,
+    isCoach,
+  ]);
 
   // Force-sync full state to everyone when the board first opens.
   useEffect(() => {

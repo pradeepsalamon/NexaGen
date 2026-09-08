@@ -709,13 +709,21 @@ export class AttendanceService {
       // from a no-show — clear the join/leave stamps so it reads as ABSENT.
       const neverPresent = totalDuration === 0;
 
+      // Derive the join/leave stamps from the session logs, clamped to the
+      // class window. The live LEAVE/DISCONNECT webhooks that normally set
+      // `leftAt` are often lost in local dev (LiveKit can't reach localhost),
+      // which otherwise leaves "Left: —" next to a real duration.
+      const stamps = neverPresent
+        ? { joinedAt: null, leftAt: null }
+        : this.deriveAttendanceStamps(attendance, classEndTime);
+
       await this.prisma.classAttendance.update({
         where: { id: attendance.id },
         data: {
           totalDuration,
           attendancePercent: Math.round(attendancePercent * 10) / 10,
           status,
-          ...(neverPresent ? { joinedAt: null, leftAt: null } : {}),
+          ...stamps,
         },
       });
     }
@@ -770,27 +778,25 @@ export class AttendanceService {
       // when the class ends — its BOARD_LEAVE never arrives, or lands after
       // finalize — is still counted. `closeOpenAttendanceLogs` above has
       // already stamped `sessionEnd`/`sessionDuration` on any open BOARD_JOIN.
+      const boardCap = classEndTime.getTime();
       const boardDuration = coachAttendance.logs
         .filter((l) => l.eventType === AttendanceEventType.BOARD_JOIN)
         .reduce((sum, l) => {
-          if (l.sessionDuration) return sum + l.sessionDuration;
-          if (l.sessionStart && !l.sessionEnd) {
-            return (
-              sum +
-              Math.max(
-                0,
-                Math.floor(
-                  (classEndTime.getTime() - l.sessionStart.getTime()) / 1000
-                )
-              )
-            );
+          if (l.sessionStart) {
+            const end = Math.min(l.sessionEnd?.getTime() ?? boardCap, boardCap);
+            return sum + Math.max(0, Math.floor((end - l.sessionStart.getTime()) / 1000));
           }
-          return sum;
+          return l.sessionDuration ? sum + l.sessionDuration : sum;
         }, 0);
+
+      const coachStamps =
+        coachTotalDuration > 0
+          ? this.deriveAttendanceStamps(coachAttendance, classEndTime)
+          : {};
 
       await this.prisma.coachAttendance.update({
         where: { id: coachAttendance.id },
-        data: { totalDuration: coachTotalDuration, boardDuration },
+        data: { totalDuration: coachTotalDuration, boardDuration, ...coachStamps },
       });
     }
 
@@ -1883,6 +1889,7 @@ export class AttendanceService {
         month: monthDate.toLocaleDateString("en-US", {
           month: "short",
           year: "numeric",
+          timeZone: "UTC",
         }),
         classes: classesByMonth.get(key) ?? 0,
         attended: monthAttended,
@@ -2254,29 +2261,68 @@ export class AttendanceService {
       sessionEnd: Date | null;
       sessionDuration: number | null;
     }>,
-    // Cap still-open sessions at this instant instead of `new Date()`, so the
-    // computation is stable across re-runs (AUDIT M3).
+    // Every session — open or already closed — is clamped to this instant, so a
+    // session left open past the class (a lost `participant_left`) and a
+    // `sessionEnd` corrupted by an earlier bad write both stop inflating the
+    // total, and the computation is stable across re-runs (AUDIT M3).
     openSessionEnd: Date = new Date()
   ): number {
+    const cap = openSessionEnd.getTime();
     let total = 0;
     for (const log of logs) {
-      if (
+      const isSession =
         log.eventType === AttendanceEventType.JOIN ||
         log.eventType === AttendanceEventType.RECONNECT ||
         log.eventType === "JOIN" ||
-        log.eventType === "RECONNECT"
-      ) {
-        if (log.sessionDuration) {
-          total += log.sessionDuration;
-        } else if (log.sessionStart && !log.sessionEnd) {
-          total += Math.max(
-            0,
-            Math.floor((openSessionEnd.getTime() - log.sessionStart.getTime()) / 1000)
-          );
-        }
+        log.eventType === "RECONNECT";
+      if (!isSession) continue;
+
+      if (log.sessionStart) {
+        const end = Math.min(log.sessionEnd?.getTime() ?? cap, cap);
+        total += Math.max(0, Math.floor((end - log.sessionStart.getTime()) / 1000));
+      } else if (log.sessionDuration) {
+        // No start to clamp against (legacy row) — trust the stored value.
+        total += log.sessionDuration;
       }
     }
     return total;
+  }
+
+  /**
+   * Join / leave stamps for a finalized attendance row, read from its session
+   * logs and clamped to the class window. Used when the live LEAVE / DISCONNECT
+   * webhooks that normally set `joinedAt` / `leftAt` were lost (routine in local
+   * dev, where LiveKit can't reach localhost) — a session still open at
+   * finalize means the participant was present until the class ended.
+   */
+  private deriveAttendanceStamps(
+    row: {
+      joinedAt: Date | null;
+      logs: Array<{
+        eventType: string | AttendanceEventType;
+        sessionStart: Date | null;
+        sessionEnd: Date | null;
+      }>;
+    },
+    classEndTime: Date
+  ): { joinedAt: Date | null; leftAt: Date } {
+    const cap = classEndTime.getTime();
+    const starts: number[] = [];
+    let lastEnd = 0;
+    for (const log of row.logs) {
+      const isSession =
+        log.eventType === AttendanceEventType.JOIN ||
+        log.eventType === AttendanceEventType.RECONNECT ||
+        log.eventType === "JOIN" ||
+        log.eventType === "RECONNECT";
+      if (!isSession || !log.sessionStart) continue;
+      starts.push(log.sessionStart.getTime());
+      lastEnd = Math.max(lastEnd, Math.min(log.sessionEnd?.getTime() ?? cap, cap));
+    }
+    return {
+      joinedAt: row.joinedAt ?? (starts.length ? new Date(Math.min(...starts)) : null),
+      leftAt: new Date(lastEnd || cap),
+    };
   }
 
   /**
@@ -2286,10 +2332,19 @@ export class AttendanceService {
    * (AUDIT M2, M3).
    */
   private async closeOpenAttendanceLogs(classId: string, endTime: Date) {
+    // `sessionStart` / `sessionEnd` are `timestamp WITHOUT time zone` columns
+    // holding UTC wall-clock (the Prisma default). Bind the cutoff the same way
+    // — an ISO string cast `::timestamp` keeps those exact digits — NOT as a
+    // `Date`, which Prisma sends as `timestamptz`: PostgreSQL then coerces it
+    // (and the bare `sessionStart` column) through the session time zone, which
+    // is a no-op only when the DB runs in UTC. On a non-UTC box every close was
+    // shifted by the offset, turning a 20-minute class into hours (see
+    // attendance-calculations.spec).
+    const cutoff = endTime.toISOString();
     await this.prisma.$executeRaw`
       UPDATE "attendance_logs" l
-      SET "sessionEnd" = ${endTime},
-          "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${endTime}::timestamptz - l."sessionStart"))))::int
+      SET "sessionEnd" = ${cutoff}::timestamp,
+          "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${cutoff}::timestamp - l."sessionStart"))))::int
       FROM "class_attendance" ca
       WHERE l."attendanceId" = ca."id"
         AND ca."classId" = ${classId}
@@ -2298,8 +2353,8 @@ export class AttendanceService {
     `;
     await this.prisma.$executeRaw`
       UPDATE "coach_attendance_logs" l
-      SET "sessionEnd" = ${endTime},
-          "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${endTime}::timestamptz - l."sessionStart"))))::int
+      SET "sessionEnd" = ${cutoff}::timestamp,
+          "sessionDuration" = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (${cutoff}::timestamp - l."sessionStart"))))::int
       FROM "coach_attendance" ca
       WHERE l."attendanceId" = ca."id"
         AND ca."classId" = ${classId}

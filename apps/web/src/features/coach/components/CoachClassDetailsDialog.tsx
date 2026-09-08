@@ -34,7 +34,7 @@ export function CoachClassDetailsDialog({
   const handleDownload = async () => {
     if (!classId) return;
     try {
-      const data = await getRecordingDownloadUrl(classId);
+      const data = await getRecordingDownloadUrl(classId, { download: true });
       if (data?.url) {
         window.open(data.url, "_blank");
       }

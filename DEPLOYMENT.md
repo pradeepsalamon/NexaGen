@@ -50,13 +50,21 @@ docker compose up -d --build
 This single command will:
 1. Build the Next.js frontend (`web`)
 2. Build the NestJS backend (`api`)
-3. Download and start `postgres`, `redis`, and `livekit`
+3. Download and start `postgres`, `redis`, `livekit`, and `egress`
 4. Spin everything up in an isolated Docker network.
 
 To verify everything is running, use:
 ```bash
 docker compose ps
 ```
+
+**Class recording (`egress`):** the `egress` container is what LiveKit uses to
+record rooms. Nothing `depends_on` it, so `docker compose up -d web api` (what CI
+runs on every deploy) will **not** create or update it — only a full
+`docker compose up -d` or an explicit `docker compose up -d egress` does.
+`scripts/deploy-production.sh` appends `egress` to its `up` list for this reason.
+If recordings fail to start ("Failed to start LiveKit recording" / API 500),
+check `docker compose ps` for `nexa_egress` and `docker logs nexa_egress`.
 
 ## Step 4: Nginx Reverse Proxy & SSL (Required for WebRTC)
 

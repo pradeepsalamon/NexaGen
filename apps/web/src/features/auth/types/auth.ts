@@ -1,6 +1,6 @@
-import type { ReferralSource } from "@nexa-chess/types";
+import type { AcquisitionSourceValue, ReferralSource } from "@nexa-chess/types";
 
-export type { ReferralSource };
+export type { AcquisitionSourceValue, ReferralSource };
 
 export type LoginFormValues = {
   email: string;
@@ -12,7 +12,8 @@ export type RegisterFormValues = {
   confirmPassword: string;
   contactNumber: string;
   email: string;
-  referralSource: ReferralSource | "";
+  acquisitionSource: AcquisitionSourceValue | "";
+  acquisitionDetail: string;
   parentName: string;
   password: string;
   studentAge: string;

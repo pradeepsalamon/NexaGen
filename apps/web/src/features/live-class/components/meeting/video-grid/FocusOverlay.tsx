@@ -8,6 +8,7 @@ import { Minimize2, Pin } from "lucide-react";
 import { Track } from "livekit-client";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { Z } from "../../../lib/meetingUi";
 
 export function FocusOverlay({
   trackRef,
@@ -25,24 +26,25 @@ export function FocusOverlay({
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-background/95 p-4 backdrop-blur-md">
+    <div className={cn("fixed inset-0 flex items-center justify-center bg-app-background/95 p-2 backdrop-blur-md sm:p-4", Z.overlay)}>
       <div className="relative flex h-full w-full max-w-7xl flex-col gap-3">
         {/* Header bar */}
-        <div className="flex shrink-0 items-center justify-between">
-          <div className="flex items-center gap-2 text-sm text-app-muted">
-            <Pin className="size-4" />
-            <span className="font-medium">
+        <div className="flex shrink-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 text-sm text-app-muted">
+            <Pin className="size-4 shrink-0" />
+            <span className="truncate font-medium">
               {isScreenShare ? `${name}'s screen` : name}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface/50 px-4 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface"
+              className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface/50 px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface sm:px-4"
               onClick={onClose}
+              aria-label="Exit full screen"
             >
               <Minimize2 className="size-4" />
-              Exit full screen
+              <span className="hidden sm:inline">Exit full screen</span>
             </button>
           </div>
         </div>

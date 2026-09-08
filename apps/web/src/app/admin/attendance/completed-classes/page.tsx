@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { apiFetch } from "@/lib/api";
+import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
   API_ROUTES,
   type CompletedClassesResponse,
@@ -23,6 +25,7 @@ import { AttendancePercentBar } from "@/features/attendance/components/Attendanc
 
 export default function AdminCompletedClassesPage() {
   const router = useRouter();
+  const tz = useUserTimeZone();
   const [data, setData] = useState<CompletedClassesResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -53,14 +56,6 @@ export default function AdminCompletedClassesPage() {
     loadClasses();
   }, [page, dateFrom, dateTo]);
 
-  const formatDuration = (seconds: number) => {
-    if (!seconds) return "0 min";
-    const minutes = Math.floor(seconds / 60);
-    const hrs = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hrs > 0) return `${hrs}h ${mins}m`;
-    return `${minutes} min`;
-  };
 
   const filteredClasses =
     data?.classes.filter(
@@ -200,16 +195,13 @@ export default function AdminCompletedClassesPage() {
                         className="hover:bg-app-soft/50 transition-colors"
                       >
                         <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
-                          {new Date(cls.actualStart ?? cls.date).toLocaleDateString(undefined, {
+                          {formatDate(cls.actualStart ?? cls.date, tz, {
                             weekday: "short",
                             month: "short",
                             day: "numeric",
                           })}
                           <span className="text-app-muted block text-xs mt-0.5">
-                            {new Date(cls.actualStart ?? cls.scheduledStart).toLocaleTimeString(
-                              undefined,
-                              { hour: "2-digit", minute: "2-digit" }
-                            )}
+                            {formatTime(cls.actualStart ?? cls.scheduledStart, tz)}
                           </span>
                         </td>
                         <td className="px-3 py-3 md:px-6 md:py-4">

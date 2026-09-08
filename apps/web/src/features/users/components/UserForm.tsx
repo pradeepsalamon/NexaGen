@@ -9,9 +9,9 @@ import { Card } from "@/components/ui/Card";
 import { Form } from "@/components/forms/Form";
 import { FormInput } from "@/components/forms/FormInput";
 import { FormSelect } from "@/components/forms/FormSelect";
-import { getErrorMessage } from "@/lib/errors";
-import { useToast } from "@/providers/ToastProvider";
-import { useCreateUserMutation, useUpdateUserMutation } from "../hooks/useUsersApi";
+import { createUser, updateUser, deleteUser } from "../api/userApi";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { queryKeys } from "@/lib/queryKeys";
 
 const baseUserFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -43,10 +43,17 @@ interface UserFormProps {
   onSuccess: () => void;
 }
 
+function toUpdatePayload(user: AuthUser): UpdateUserRequest {
+  return {
+    firstName: user.firstName,
+    lastName: user.lastName ?? undefined,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+  };
+}
+
 export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
-  const { error } = useToast();
-  const createMutation = useCreateUserMutation();
-  const updateMutation = useUpdateUserMutation();
   const userFormSchema = baseUserFormSchema.superRefine((value, context) => {
     if (!selectedUser && !value.password) {
       context.addIssue({
@@ -69,7 +76,33 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
     },
   });
 
-  const isSaving = createMutation.isPending || updateMutation.isPending;
+  const { run: runCreate, isPending: isCreating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async (payload: CreateUserRequest) => {
+      const result = await createUser(payload);
+      form.reset();
+      onSuccess();
+      return result;
+    },
+    undo: (_vars, result) => deleteUser(result.user.id),
+    toast: (vars) => ({ title: `"${vars.firstName}" created` }),
+    invalidates: [queryKeys.users.all]
+  });
+
+  const { run: runUpdate, isPending: isUpdating } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: async ({ id, payload }: { id: string; payload: UpdateUserRequest; previous: AuthUser }) => {
+      const result = await updateUser(id, payload);
+      form.reset();
+      onSuccess();
+      return result;
+    },
+    undo: (vars) => updateUser(vars.id, toUpdatePayload(vars.previous)),
+    toast: () => ({ title: "User updated" }),
+    invalidates: [queryKeys.users.all]
+  });
+
+  const isSaving = isCreating || isUpdating;
 
   function onSubmit(values: UserFormValues) {
     if (selectedUser) {
@@ -83,25 +116,9 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
       if (values.password) {
         payload.password = values.password;
       }
-      updateMutation.mutate({ id: selectedUser.id, payload }, {
-        onError: (mutationError) => {
-          error({ title: "Failed to save user", message: getErrorMessage(mutationError) });
-        },
-        onSuccess: () => {
-          form.reset();
-          onSuccess();
-        }
-      });
+      runUpdate({ id: selectedUser.id, payload, previous: selectedUser });
     } else {
-      createMutation.mutate(values as CreateUserRequest, {
-        onError: (mutationError) => {
-          error({ title: "Failed to create user", message: getErrorMessage(mutationError) });
-        },
-        onSuccess: () => {
-          form.reset();
-          onSuccess();
-        }
-      });
+      runCreate(values as CreateUserRequest);
     }
   }
 

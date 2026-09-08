@@ -1,5 +1,11 @@
 import { apiFetch } from "@/lib/api";
-import { API_ROUTES, type ClassSummaryResponse } from "@nexa-chess/types";
+import {
+  API_ROUTES,
+  type ClassSummaryResponse,
+  type LiveChatMessageResponse,
+  type ModerateParticipantRequest,
+  type ModerateParticipantResponse,
+} from "@nexa-chess/types";
 import { CoachClass, LiveSession, LiveKitTokenResponse, ParticipantInfo } from "../types/live-class";
 
 export const getLiveClass = (roomId: string): Promise<CoachClass> => {
@@ -34,20 +40,40 @@ export const pingHeartbeat = (roomId: string, clientId?: string): Promise<{ ok: 
   });
 };
 
-export const getChatHistory = (roomId: string): Promise<any[]> => {
-  return apiFetch<any[]>(API_ROUTES.liveClass.chat(roomId));
+export const getChatHistory = (roomId: string): Promise<LiveChatMessageResponse[]> => {
+  return apiFetch<LiveChatMessageResponse[]>(API_ROUTES.liveClass.chat(roomId));
 };
 
 export const saveChatMessage = (
   roomId: string,
   message: string,
-  clientMessageId?: string
-): Promise<any> => {
+  clientMessageId?: string,
+  /** User id of the single recipient for a private message; omit for the room. */
+  recipientId?: string | null
+): Promise<LiveChatMessageResponse> => {
   // Pass the plain object — `apiFetch` (axios) serialises it. Passing a
   // pre-stringified body made axios send a raw JSON string (AUDIT M27).
-  return apiFetch<any>(API_ROUTES.liveClass.chat(roomId), {
+  return apiFetch<LiveChatMessageResponse>(API_ROUTES.liveClass.chat(roomId), {
     method: "POST",
-    body: { message, ...(clientMessageId ? { clientMessageId } : {}) },
+    body: {
+      message,
+      ...(clientMessageId ? { clientMessageId } : {}),
+      ...(recipientId ? { recipientId } : {}),
+    },
+  });
+};
+
+/**
+ * Coach-only: switch off one participant's already-published mic, camera or
+ * screen share. Mute only — the participant turns it back on themselves.
+ */
+export const moderateParticipant = (
+  roomId: string,
+  body: ModerateParticipantRequest
+): Promise<ModerateParticipantResponse> => {
+  return apiFetch<ModerateParticipantResponse>(API_ROUTES.liveClass.moderate(roomId), {
+    method: "POST",
+    body,
   });
 };
 
@@ -59,8 +85,12 @@ export const stopRecording = (roomId: string): Promise<{ success: boolean }> => 
   return apiFetch(API_ROUTES.liveClass.stopRecording(roomId), { method: "POST" });
 };
 
-export const getRecordingDownloadUrl = (roomId: string): Promise<{ url: string }> => {
-  return apiFetch<{ url: string }>(API_ROUTES.liveClass.downloadRecording(roomId));
+export const getRecordingDownloadUrl = (
+  roomId: string,
+  opts: { download?: boolean } = {}
+): Promise<{ url: string }> => {
+  const path = API_ROUTES.liveClass.downloadRecording(roomId);
+  return apiFetch<{ url: string }>(opts.download ? `${path}?download=1` : path);
 };
 
 export const updateRecordingProgress = (roomId: string, watchedSeconds: number): Promise<{ success: boolean }> => {
