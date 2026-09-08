@@ -73,9 +73,15 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   `ARCHIVED` (all reversible), with a separate soft delete through the Trash
   module. Students browse published puzzles and solve them; `PuzzleAttempt`
   rows are scored by the same `AssignmentEvaluationService` SOLVE_LINE engine.
-  The `PuzzleSolver` component (built on `PracticeBoard`) is written to be
-  hosted later by Live Class — a future `LiveClassPuzzleAssignment` will
-  reference `puzzleId` without copying the puzzle.
+- Live-class puzzle assignment: mid-class, a coach pushes a published puzzle
+  into the room (`API_ROUTES.liveClass.puzzle*`); every student solves it on
+  their own board and a leaderboard ranks them by score then time. Optional
+  timer + a "hide leaderboard from students" toggle. `LiveClassPuzzleAssignment`
+  references `puzzleId` (never copies) and is **not** trash-registered — it is a
+  lightweight per-class row whose lifecycle is a `status` column, same as
+  `Assignment`. The service is in `PuzzleModule` (which imports `LiveClassModule`);
+  only starting an attempt is a new route, everything else reuses the puzzle
+  attempt endpoints.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student

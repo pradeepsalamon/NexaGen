@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, memo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, MessageSquareText, Users, Settings, Loader2 } from "lucide-react";
+import { X, MessageSquareText, Users, Settings, Puzzle, Loader2 } from "lucide-react";
 import { useLiveClassState, type SidebarTab } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { useReducedMotion } from "../../lib/meetingUi";
@@ -18,6 +18,9 @@ const MeetingParticipants = lazy(() =>
 const MeetingSettings = lazy(() =>
   import("./MeetingSettings").then((m) => ({ default: m.MeetingSettings })),
 );
+const MeetingPuzzlePanel = lazy(() =>
+  import("./MeetingPuzzlePanel").then((m) => ({ default: m.MeetingPuzzlePanel })),
+);
 
 type PanelTab = Exclude<SidebarTab, null>;
 
@@ -31,6 +34,7 @@ const sidebarPanels: SidebarPanelConfig[] = [
   { id: "chat", label: "Chat", icon: <MessageSquareText className="size-4" /> },
   { id: "participants", label: "People", icon: <Users className="size-4" /> },
   { id: "settings", label: "Settings", icon: <Settings className="size-4" /> },
+  { id: "puzzle", label: "Puzzle", icon: <Puzzle className="size-4" /> },
 ];
 
 function PanelLoading() {
@@ -47,6 +51,7 @@ function SidebarContent({ tab }: { tab: PanelTab }) {
       {tab === "chat" && <MeetingChat />}
       {tab === "participants" && <MeetingParticipants />}
       {tab === "settings" && <MeetingSettings />}
+      {tab === "puzzle" && <MeetingPuzzlePanel />}
     </Suspense>
   );
 }

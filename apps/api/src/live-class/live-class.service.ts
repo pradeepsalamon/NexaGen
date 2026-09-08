@@ -140,6 +140,46 @@ export class LiveClassService {
     return liveSession;
   }
 
+  /**
+   * Public: authenticate the caller and assert they may participate in the class
+   * (owning coach, enrolled student, or admin). For sibling modules that layer
+   * their own in-room features on top of a live class.
+   */
+  async resolveParticipant(accessToken: string | undefined, classId: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    const liveSession = await this.getAccessibleLiveSession(user, classId);
+    return { user, liveSession };
+  }
+
+  /**
+   * Public: authenticate the caller and assert they own the class (coach) or are
+   * an admin. `requireLive` additionally asserts the session is LIVE.
+   */
+  async resolveClassManager(
+    accessToken: string | undefined,
+    classId: string,
+    opts: { requireLive?: boolean } = {},
+  ) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+    if (user.role !== UserRole.COACH && !isAdmin) {
+      throw new ForbiddenException("You do not have permission to manage this class.");
+    }
+
+    const liveSession = await this.prisma.liveSession.findUnique({ where: { classId } });
+    if (!liveSession) {
+      throw new NotFoundException("Live class not found.");
+    }
+    if (user.role === UserRole.COACH && liveSession.coachId !== user.id) {
+      throw new ForbiddenException("You can only manage your own classes.");
+    }
+    if (opts.requireLive && liveSession.status !== LiveSessionStatus.LIVE) {
+      throw new BadRequestException("Class is not currently live.");
+    }
+
+    return { user, liveSession };
+  }
+
   async startClass(accessToken: string | undefined, classId: string) {
     const user = await this.getAuthenticatedUser(accessToken);
 

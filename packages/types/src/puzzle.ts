@@ -19,8 +19,9 @@ import {
 // A puzzle is a reusable chess-training object: position + solution line + topic
 // + type + difficulty + ownership + lifecycle. Admin-authored puzzles are GLOBAL
 // (every coach sees them); coach-authored puzzles are PRIVATE (author + admins).
-// The same puzzle is later referenced by a LiveClassPuzzleAssignment — never
-// copied. Server-side move evaluation reuses the assignment SOLVE_LINE engine.
+// The same puzzle is referenced by a LiveClassPuzzleAssignment (see
+// ./live-class-puzzle) — never copied. Server-side move evaluation reuses the
+// assignment SOLVE_LINE engine.
 
 export const puzzleTypeSchema = z.enum([
   "TACTICAL",

@@ -1984,3 +1984,8 @@ export * from "./analytics";
 // Puzzle library contract (kept in its own module)
 // ──────────────────────────────────────────────
 export * from "./puzzle";
+
+// ──────────────────────────────────────────────
+// Live-class puzzle assignment (depends on ./puzzle)
+// ──────────────────────────────────────────────
+export * from "./live-class-puzzle";

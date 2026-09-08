@@ -1,11 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
-import type { LiveClassSettings } from "@nexa-chess/types";
+import type { LiveClassSettings, LivePuzzleAssignment } from "@nexa-chess/types";
 import type { BoardControlSide } from "@/features/chessboard/types/sync";
 import type { RaisedHand } from "../lib/handRaise";
 
-export type SidebarTab = "chat" | "participants" | "settings" | "notes" | null;
+export type SidebarTab = "chat" | "participants" | "settings" | "notes" | "puzzle" | null;
 
 interface LiveClassContextValue {
   /** Which sidebar panel is currently open */
@@ -92,6 +92,17 @@ interface LiveClassContextValue {
    * server-side in the same operation.
    */
   applySettingsUpdate: (next: LiveClassSettings) => void;
+
+  /**
+   * The puzzle a coach has pushed into the room (null = none). Seeded from
+   * `GET /live-class/:id/puzzle` and kept current by `<PuzzleBridge>` off the
+   * `live_class_puzzle` data channel. Never carries the solution line.
+   */
+  activePuzzle: LivePuzzleAssignment | null;
+  /** Set (or replace) the active puzzle after a `PUZZLE_ASSIGNED` message. */
+  applyPuzzleAssignment: (assignment: LivePuzzleAssignment | null) => void;
+  /** Clear the active puzzle after a `PUZZLE_ENDED` message. */
+  clearActivePuzzle: (assignmentId?: string) => void;
 }
 
 const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefined);
@@ -120,6 +131,7 @@ export function LiveClassProvider({
   >({});
   const [isRecording, setIsRecording] = useState(false);
   const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
+  const [activePuzzle, setActivePuzzle] = useState<LivePuzzleAssignment | null>(null);
 
   // Adopt a fresh snapshot from the token response (e.g. after a reconnect /
   // token refresh) without clobbering a newer mid-class update.
@@ -250,6 +262,21 @@ export function LiveClassProvider({
     setIsRecording((prev) => !prev);
   }, []);
 
+  const applyPuzzleAssignment = useCallback((assignment: LivePuzzleAssignment | null) => {
+    setActivePuzzle((prev) => {
+      if (prev?.id === assignment?.id && prev?.startedAt === assignment?.startedAt) return prev;
+      return assignment;
+    });
+  }, []);
+
+  const clearActivePuzzle = useCallback((assignmentId?: string) => {
+    setActivePuzzle((prev) => {
+      if (!prev) return prev;
+      if (assignmentId && prev.id !== assignmentId) return prev;
+      return null;
+    });
+  }, []);
+
   return (
     <LiveClassContext.Provider
       value={{
@@ -286,6 +313,9 @@ export function LiveClassProvider({
         toggleRecording,
         settings,
         applySettingsUpdate,
+        activePuzzle,
+        applyPuzzleAssignment,
+        clearActivePuzzle,
       }}
     >
       {children}

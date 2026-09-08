@@ -85,11 +85,22 @@ coach/board durations were always 0, `room_finished` never fired, and the
   `SolutionEditor`. Seeded 8 topics + 8 puzzles + a `coach2@nexa.test` account
   for cross-coach visibility testing. Migration
   `20260906150110_puzzle_library` (all additive; partial unique indexes on
-  `puzzle_topics.name`/`slug`). **Live-class puzzle assignment + leaderboard are
-  deliberately NOT built** — the model is ready for a future
-  `LiveClassPuzzleAssignment` that references `puzzleId` (see
-  `PuzzleAttempt.liveClassId`, an unconstrained column reserved for it). See
-  CLAUDE.md §3.8.
+  `puzzle_topics.name`/`slug`).
+
+- **Live-class puzzle assignment + leaderboard.** Built on top of the puzzle
+  library: `LiveClassPuzzleAssignment` (references `puzzleId`, not
+  trash-registered, partial unique index `WHERE status = 'ACTIVE'`), a
+  `LiveClassPuzzleService` / controller in `PuzzleModule` (now imports
+  `LiveClassModule`), three routes (`API_ROUTES.liveClass.puzzle` /
+  `.puzzleAttempt` / `.puzzleLeaderboard`). `startAttempt` is the only new
+  attempt route — save/submit/hint reuse the puzzle endpoints and now enforce
+  `assertLiveAssignmentOpen` (coach-ended or timer + 15s grace). Web: `PuzzleBridge`
+  + a "Puzzle" meeting sidebar panel (`MeetingPuzzlePanel`, `PuzzleAssignModal`,
+  `InRoomPuzzleSolver`); the standalone `usePuzzleAttempt` hook was extracted
+  from `StudentPuzzleSolveClient` and is shared. Lifecycle on
+  `LIVE_CLASS_PUZZLE_TOPIC`, leaderboard polled. Timed mode + coach
+  "hide leaderboard" toggle included. Migration
+  `20260906155518_live_class_puzzle_assignment`. See CLAUDE.md §3.7.
 
 ## Resolved (2026-09-03)
 

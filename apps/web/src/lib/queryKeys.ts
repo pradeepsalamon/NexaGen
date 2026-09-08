@@ -83,4 +83,8 @@ export const queryKeys = {
   liveClassPresets: {
     all: ["live-class-presets"] as const,
   },
+  livePuzzle: {
+    state: (classId: string) => ["live-puzzle", "state", classId] as const,
+    leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
+  },
 } as const;

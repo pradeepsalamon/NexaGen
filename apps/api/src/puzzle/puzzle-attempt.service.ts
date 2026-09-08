@@ -159,7 +159,8 @@ export class PuzzleAttemptService {
 
   async start(
     accessToken: string | undefined,
-    puzzleId: string
+    puzzleId: string,
+    context: { liveClassId?: string } = {}
   ): Promise<{ attempt: StartPuzzleAttemptResponse }> {
     const student = assertStudent(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
@@ -171,8 +172,9 @@ export class PuzzleAttemptService {
       ? (puzzle.hintsJson as unknown as string[])
       : [];
 
+    const liveClassId = context.liveClassId ?? null;
     const existing = await this.prisma.puzzleAttempt.findFirst({
-      where: { puzzleId, studentId: student.id, status: "IN_PROGRESS" },
+      where: { puzzleId, studentId: student.id, status: "IN_PROGRESS", liveClassId },
       orderBy: { attemptNumber: "desc" }
     });
 
@@ -183,7 +185,7 @@ export class PuzzleAttemptService {
       });
       try {
         attempt = await this.prisma.puzzleAttempt.create({
-          data: { puzzleId, studentId: student.id, attemptNumber: count + 1 }
+          data: { puzzleId, studentId: student.id, attemptNumber: count + 1, liveClassId }
         });
       } catch (error) {
         if (
@@ -191,7 +193,7 @@ export class PuzzleAttemptService {
           error.code === "P2002"
         ) {
           attempt = await this.prisma.puzzleAttempt.findFirst({
-            where: { puzzleId, studentId: student.id, status: "IN_PROGRESS" },
+            where: { puzzleId, studentId: student.id, status: "IN_PROGRESS", liveClassId },
             orderBy: { attemptNumber: "desc" }
           });
         }
@@ -255,6 +257,7 @@ export class PuzzleAttemptService {
     const attempt = this.assertActive(
       await this.loadOwnedAttempt(puzzleId, attemptId, student.id)
     );
+    await this.assertLiveAssignmentOpen(attempt, 15_000);
 
     const moves = dto.moves as AttemptMove[];
     this.evaluation.assertLegalLine(puzzle.fen, moves);
@@ -294,6 +297,7 @@ export class PuzzleAttemptService {
     const attempt = this.assertActive(
       await this.loadOwnedAttempt(puzzleId, attemptId, student.id)
     );
+    await this.assertLiveAssignmentOpen(attempt, 15_000);
 
     const moves = dto.moves as AttemptMove[];
     this.evaluation.assertLegalLine(puzzle.fen, moves);
@@ -363,6 +367,7 @@ export class PuzzleAttemptService {
     const attempt = this.assertActive(
       await this.loadOwnedAttempt(puzzleId, attemptId, student.id)
     );
+    await this.assertLiveAssignmentOpen(attempt);
 
     const solution = this.solutionFromRow(puzzle.solutionMovesJson);
     if (solution.length === 0) {
@@ -448,6 +453,29 @@ export class PuzzleAttemptService {
       throw new BadRequestException("This attempt has already been submitted.");
     }
     return attempt;
+  }
+
+  /**
+   * For an in-class attempt (`liveClassId` set), reject work once the coach has
+   * ended the puzzle or its timer has run out. `graceMs` lets a move already in
+   * flight at the buzzer still land (the client auto-submits on expiry).
+   */
+  private async assertLiveAssignmentOpen(attempt: AttemptRow, graceMs = 0): Promise<void> {
+    if (!attempt.liveClassId) return;
+    const assignment = await this.prisma.liveClassPuzzleAssignment.findFirst({
+      where: { liveClassId: attempt.liveClassId, puzzleId: attempt.puzzleId },
+      orderBy: { startedAt: "desc" }
+    });
+    if (!assignment) return;
+    if (assignment.status === "ENDED") {
+      throw new BadRequestException("Your coach has ended this puzzle.");
+    }
+    if (
+      assignment.durationSeconds &&
+      Date.now() > assignment.startedAt.getTime() + assignment.durationSeconds * 1000 + graceMs
+    ) {
+      throw new BadRequestException("Time is up for this puzzle.");
+    }
   }
 
   private solutionFromRow(raw: Prisma.JsonValue | null): SolutionMove[] {

@@ -81,7 +81,14 @@ export const API_ROUTES = {
     // pushes new LiveKit grants to affected participants.
     liveSettings: (id: string = ":id") => `/live-class/${id}/live-settings`,
     // Force-mute one participant's mic / camera / screen share (coach-owner or admin).
-    moderate: (id: string = ":id") => `/live-class/${id}/moderate`
+    moderate: (id: string = ":id") => `/live-class/${id}/moderate`,
+    // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
+    // for write, any participant for read).
+    puzzle: (id: string = ":id") => `/live-class/${id}/puzzle`,
+    // Student starts (or resumes) an in-room attempt — stamps liveClassId.
+    puzzleAttempt: (id: string = ":id") => `/live-class/${id}/puzzle/attempt`,
+    // Live leaderboard for the active assignment.
+    puzzleLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/leaderboard`
   },
   liveClassSettings: {
     // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.

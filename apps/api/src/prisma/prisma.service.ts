@@ -189,6 +189,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.puzzleAttempt;
   }
 
+  get liveClassPuzzleAssignment() {
+    return this.client.liveClassPuzzleAssignment;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

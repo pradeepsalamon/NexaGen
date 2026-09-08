@@ -1,143 +1,42 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback } from "react";
 import Link from "next/link";
-import type {
-  AttemptMove,
-  PuzzleAttemptResultResponse,
-  StartPuzzleAttemptResponse
-} from "@nexa-chess/types";
 import { ArrowLeft, CheckCircle2, Lightbulb, RotateCcw, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
-import {
-  PracticeBoard,
-  type PracticeBoardMove
-} from "@/features/chessboard/components/board/PracticeBoard";
-import { useToast } from "@/providers/ToastProvider";
-import {
-  savePuzzleAttempt,
-  startPuzzleAttempt,
-  submitPuzzleAttempt
-} from "../api/puzzleApi";
+import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
+import { startPuzzleAttempt } from "../api/puzzleApi";
+import { usePuzzleAttempt } from "../hooks/usePuzzleAttempt";
 import { useMyPuzzle } from "../hooks/usePuzzlesApi";
 import {
   PUZZLE_DIFFICULTY_LABELS,
   PUZZLE_TYPE_LABELS,
   difficultyBadgeVariant
 } from "../lib/puzzleMeta";
-import { replayLine } from "./solver/puzzleSolverEngine";
 
 export function StudentPuzzleSolveClient({ id }: { id: string }) {
-  const toast = useToast();
   const detail = useMyPuzzle(id);
-  const [session, setSession] = useState<StartPuzzleAttemptResponse | null>(null);
-  const [startError, setStartError] = useState<string | null>(null);
-
-  const [moves, setMoves] = useState<AttemptMove[]>([]);
-  const [phase, setPhase] = useState<"solving" | "done">("solving");
-  const [wrong, setWrong] = useState(false);
-  const [resetNonce, setResetNonce] = useState(0);
-  const [revealedHints, setRevealedHints] = useState(0);
-  const [result, setResult] = useState<PuzzleAttemptResultResponse | null>(null);
-  const startedAt = useRef(Date.now());
-  const busy = useRef(false);
-
-  const begin = useCallback(async () => {
-    try {
-      const res = await startPuzzleAttempt(id);
-      setSession(res.attempt);
-      setMoves(res.attempt.attempt.moves ?? []);
-      setPhase("solving");
-      setResult(null);
-      startedAt.current = Date.now();
-    } catch (error) {
-      setStartError((error as Error).message);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    void begin();
-  }, [begin]);
-
-  const startFen = session?.fen ?? "";
-  const currentFen = useMemo(() => {
-    if (!startFen) return "";
-    if (result && !result.solved) {
-      return replayLine(startFen, result.solutionMoves.map((m) => m.uci));
-    }
-    return replayLine(startFen, moves.map((m) => m.uci));
-  }, [startFen, moves, result]);
-
-  const submit = useCallback(
-    async (finalMoves: AttemptMove[]) => {
-      if (!session) return;
-      try {
-        const res = await submitPuzzleAttempt(id, session.attempt.id, {
-          moves: finalMoves,
-          durationSeconds: Math.round((Date.now() - startedAt.current) / 1000),
-          hintsUsed: revealedHints
-        });
-        setResult(res);
-        setPhase("done");
-      } catch (error) {
-        toast.error({ title: "Could not submit", message: (error as Error).message });
-      }
-    },
-    [session, id, revealedHints, toast]
-  );
-
-  const handleMove = useCallback(
-    async (pmv: PracticeBoardMove) => {
-      if (!session || phase !== "solving" || busy.current) return;
-      busy.current = true;
-      const studentMove: AttemptMove = {
-        ply: moves.length + 1,
-        uci: pmv.uci,
-        san: pmv.san,
-        fenAfter: pmv.fen
-      };
-      try {
-        const res = await savePuzzleAttempt(id, session.attempt.id, {
-          moves: [...moves, studentMove]
-        });
-        const fb = res.moveFeedback;
-        if (fb && !fb.correct) {
-          setWrong(true);
-          setResetNonce((n) => n + 1);
-          window.setTimeout(() => setWrong(false), 900);
-          return;
-        }
-        let nextMoves = [...moves, studentMove];
-        if (fb?.opponentReply) {
-          nextMoves = [
-            ...nextMoves,
-            {
-              ply: nextMoves.length + 1,
-              uci: fb.opponentReply.uci,
-              san: fb.opponentReply.san,
-              fenAfter: fb.opponentReply.fenAfter
-            }
-          ];
-          await savePuzzleAttempt(id, session.attempt.id, { moves: nextMoves });
-        }
-        setWrong(false);
-        setMoves(nextMoves);
-        if (fb?.lineComplete) {
-          await submit(nextMoves);
-        }
-      } catch (error) {
-        toast.error({ title: "Move rejected", message: (error as Error).message });
-        setResetNonce((n) => n + 1);
-      } finally {
-        busy.current = false;
-      }
-    },
-    [session, phase, moves, id, submit, toast]
-  );
+  const start = useCallback(() => startPuzzleAttempt(id), [id]);
+  const attempt = usePuzzleAttempt({ start });
+  const {
+    session,
+    startError,
+    moves,
+    phase,
+    wrong,
+    resetNonce,
+    result,
+    currentFen,
+    revealedHints,
+    begin,
+    handleMove,
+    giveUp,
+    showHint
+  } = attempt;
 
   if (detail.isLoading || (!session && !startError)) {
     return <Skeleton className="h-96 w-full" />;
@@ -147,7 +46,6 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
       <WidgetError
         message={startError ?? "Could not load this puzzle."}
         onRetry={() => {
-          setStartError(null);
           void begin();
           void detail.refetch();
         }}
@@ -266,12 +164,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
                   </Card>
                 ))}
                 {revealedHints < hints.length && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRevealedHints((n) => n + 1)}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={showHint}>
                     <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
                     Show a hint
                   </Button>
@@ -281,12 +174,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
 
             <div className="flex flex-wrap gap-2">
               {phase === "solving" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => submit(moves)}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={giveUp}>
                   Give up &amp; show solution
                 </Button>
               )}

@@ -192,6 +192,13 @@ enum PuzzleAttemptStatus {
   ABANDONED
 }
 
+// Lifecycle of a puzzle pushed into a live class. ENDED is terminal; a class
+// only ever has one ACTIVE assignment at a time (partial unique index).
+enum LiveClassPuzzleStatus {
+  ACTIVE
+  ENDED
+}
+
 //
 // USER
 //
@@ -264,6 +271,7 @@ model User {
   authoredPuzzles        Puzzle[]                 @relation("AuthoredPuzzles")
   deletedPuzzles         Puzzle[]                 @relation("PuzzleDeletedBy")
   studentPuzzleAttempts  PuzzleAttempt[]          @relation("StudentPuzzleAttempts")
+  assignedLivePuzzles    LiveClassPuzzleAssignment[] @relation("LiveClassPuzzleAssignedBy")
   activities             StudentActivity[]        @relation("StudentActivity")
   classAttendances       ClassAttendance[]
   attendanceLogs         AttendanceLog[]          @relation("UserAttendanceLogs")
@@ -613,6 +621,7 @@ model CoachClass {
   attendances              ClassAttendance[]
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
+  puzzleAssignments        LiveClassPuzzleAssignment[]
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@index([batchId])
@@ -1324,8 +1333,8 @@ model PuzzleTopic {
 // A reusable chess-training object: position + solution line + topic + type +
 // difficulty + ownership + lifecycle. GLOBAL puzzles are admin-authored and
 // visible to every coach; PRIVATE puzzles are coach-authored and visible only to
-// the author + admins. The same puzzle will later be referenced by a
-// LiveClassPuzzleAssignment without being copied.
+// the author + admins. The same puzzle is referenced by a
+// LiveClassPuzzleAssignment (in-class deployment) without being copied.
 model Puzzle {
   id          String      @id @default(cuid())
   topicId     String
@@ -1355,7 +1364,8 @@ model Puzzle {
   archivedById  String?
   archivedAt    DateTime?
 
-  attempts PuzzleAttempt[]
+  attempts         PuzzleAttempt[]
+  liveAssignments  LiveClassPuzzleAssignment[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1380,9 +1390,12 @@ model Puzzle {
 }
 
 // One solve attempt by a student. Progress is saved incrementally (movesJson);
-// the server evaluates authoritatively on submit. `liveClassId` is an
-// unconstrained nullable column reserved for the future LiveClassPuzzleAssignment
-// feature — no FK yet.
+// the server evaluates authoritatively on submit. `liveClassId` holds the
+// `CoachClass.id` when the attempt was started from an in-class puzzle
+// assignment (see LiveClassPuzzleAssignment) — no FK, stays set after the class.
+// The live leaderboard reads `{ liveClassId, puzzleId }`; if the same puzzle is
+// assigned twice in one class the rounds merge (acceptable — an `assignmentId`
+// column can split them later if needed).
 model PuzzleAttempt {
   id        String @id @default(cuid())
   puzzleId  String
@@ -1410,4 +1423,35 @@ model PuzzleAttempt {
   @@index([studentId])
   @@index([liveClassId])
   @@map("puzzle_attempts")
+}
+
+// A puzzle a coach pushed into a live class. References `puzzleId` — never
+// copies it. Lightweight and per-class, so it is NOT soft-deletable / not
+// registered with the Trash module (same call as Assignment). Lifecycle is the
+// `status` column. A partial unique index (`WHERE status = 'ACTIVE'`, added by
+// hand in the migration) enforces one live puzzle per class at a time.
+model LiveClassPuzzleAssignment {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  puzzleId String
+  puzzle   Puzzle @relation(fields: [puzzleId], references: [id], onDelete: Restrict)
+
+  assignedById String?
+  assignedBy   User?   @relation("LiveClassPuzzleAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  status            LiveClassPuzzleStatus @default(ACTIVE)
+  revealLeaderboard Boolean               @default(true)
+  durationSeconds   Int? // null = untimed
+  startedAt         DateTime              @default(now())
+  endedAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId])
+  @@index([puzzleId])
+  @@map("live_class_puzzle_assignments")
 }

@@ -93,7 +93,8 @@ describe("PuzzleAttemptService", () => {
         groupBy: jest.fn().mockResolvedValue([]),
         aggregate: jest.fn().mockResolvedValue({ _max: { scorePercent: null } })
       },
-      batchStudent: { findMany: jest.fn().mockResolvedValue([]) }
+      batchStudent: { findMany: jest.fn().mockResolvedValue([]) },
+      liveClassPuzzleAssignment: { findFirst: jest.fn().mockResolvedValue(null) }
     };
 
     const moduleRef = await Test.createTestingModule({
@@ -150,6 +151,50 @@ describe("PuzzleAttemptService", () => {
     });
     expect(res.solved).toBe(true);
     expect(res.scorePercent).toBe(100);
+  });
+
+  it("rejects submitting an in-class attempt after the coach ended the puzzle", async () => {
+    prisma.puzzleAttempt.findUnique.mockResolvedValue({
+      id: "att-1",
+      puzzleId: "pz-1",
+      studentId: STUDENT_ID,
+      status: "IN_PROGRESS",
+      liveClassId: "class-1",
+      movesJson: [],
+      hintsUsed: 0,
+      durationSeconds: 0
+    });
+    prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue({
+      status: "ENDED",
+      durationSeconds: null,
+      startedAt: new Date()
+    });
+    await expect(
+      service.submit(TOKEN, "pz-1", "att-1", {
+        moves: [{ ply: 1, uci: "a1a8", san: "Ra8#", fenAfter: "R5bk1/5ppp/8/8/8/8/8/6K1 b - - 1 1" }]
+      })
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("rejects an in-class attempt once the timer (plus grace) has elapsed", async () => {
+    prisma.puzzleAttempt.findUnique.mockResolvedValue({
+      id: "att-1",
+      puzzleId: "pz-1",
+      studentId: STUDENT_ID,
+      status: "IN_PROGRESS",
+      liveClassId: "class-1",
+      movesJson: [],
+      hintsUsed: 0,
+      durationSeconds: 0
+    });
+    prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue({
+      status: "ACTIVE",
+      durationSeconds: 120,
+      startedAt: new Date(Date.now() - 5 * 60 * 1000)
+    });
+    await expect(
+      service.saveProgress(TOKEN, "pz-1", "att-1", { moves: [] })
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it("rejects saving progress on a submitted attempt", async () => {
