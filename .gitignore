@@ -29,14 +29,8 @@ playwright-report/
 blob-report/
 .playwright/
 
-# Nexa AI Worker dynamic state & worktrees
+# Agent worktrees
 .worktrees/
-.ai/workers/state.json
-.ai/workers/heartbeat.json
-.ai/workers/heartbeat_*.json
-.ai/tasks/active/*.lock
-.ai/manager/state/*
-!.ai/manager/state/.gitkeep
 
 # Local Recordings storage. Anchored to the repo root: an unanchored
 # `recordings/` matches a directory of that name at ANY depth, which silently
