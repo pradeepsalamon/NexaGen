@@ -1,0 +1,243 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req
+} from "@nestjs/common";
+import type { Request } from "express";
+import {
+  API_ROUTES,
+  bulkPuzzleActionRequestSchema,
+  createPuzzleRequestSchema,
+  createPuzzleTopicRequestSchema,
+  puzzleHintRequestSchema,
+  reassignPuzzleTopicRequestSchema,
+  savePuzzleAttemptRequestSchema,
+  setPuzzleArchivedRequestSchema,
+  setPuzzlePublishedRequestSchema,
+  submitPuzzleAttemptRequestSchema,
+  updatePuzzleRequestSchema,
+  updatePuzzleTopicRequestSchema,
+  validatePuzzleRequestSchema,
+  type BulkPuzzleActionRequest,
+  type CreatePuzzleRequest,
+  type CreatePuzzleTopicRequest,
+  type PuzzleHintRequest,
+  type PuzzleListQuery,
+  type ReassignPuzzleTopicRequest,
+  type SavePuzzleAttemptRequest,
+  type SetPuzzleArchivedRequest,
+  type SetPuzzlePublishedRequest,
+  type StudentPuzzleListQuery,
+  type SubmitPuzzleAttemptRequest,
+  type UpdatePuzzleRequest,
+  type UpdatePuzzleTopicRequest,
+  type ValidatePuzzleRequest
+} from "@nexa-chess/types";
+import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { PuzzleAttemptService } from "./puzzle-attempt.service";
+import { PuzzleTopicService } from "./puzzle-topic.service";
+import { PuzzleService } from "./puzzle.service";
+
+@Controller()
+export class PuzzleController {
+  constructor(
+    private readonly puzzleService: PuzzleService,
+    private readonly topicService: PuzzleTopicService,
+    private readonly attemptService: PuzzleAttemptService
+  ) {}
+
+  // ── Topics ──
+
+  @Get(API_ROUTES.puzzles.topics)
+  listTopics(@Req() request: Request) {
+    return this.topicService.list(this.token(request));
+  }
+
+  @Post(API_ROUTES.puzzles.topics)
+  createTopic(
+    @Body(new ZodBodyPipe(createPuzzleTopicRequestSchema)) body: CreatePuzzleTopicRequest,
+    @Req() request: Request
+  ) {
+    return this.topicService.create(this.token(request), body);
+  }
+
+  @Get(API_ROUTES.puzzles.topic())
+  getTopic(@Param("id") id: string, @Req() request: Request) {
+    return this.topicService.get(this.token(request), id);
+  }
+
+  @Patch(API_ROUTES.puzzles.topic())
+  updateTopic(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(updatePuzzleTopicRequestSchema)) body: UpdatePuzzleTopicRequest,
+    @Req() request: Request
+  ) {
+    return this.topicService.update(this.token(request), id, body);
+  }
+
+  @Post(API_ROUTES.puzzles.archiveTopic())
+  archiveTopic(@Param("id") id: string, @Req() request: Request) {
+    return this.topicService.archive(this.token(request), id);
+  }
+
+  @Post(API_ROUTES.puzzles.reassignTopic())
+  reassignTopic(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(reassignPuzzleTopicRequestSchema)) body: ReassignPuzzleTopicRequest,
+    @Req() request: Request
+  ) {
+    return this.topicService.reassign(this.token(request), id, body);
+  }
+
+  // ── Library ──
+
+  @Get(API_ROUTES.puzzles.stats)
+  stats(@Req() request: Request) {
+    return this.puzzleService.stats(this.token(request));
+  }
+
+  @Post(API_ROUTES.puzzles.validate)
+  validate(
+    @Body(new ZodBodyPipe(validatePuzzleRequestSchema)) body: ValidatePuzzleRequest,
+    @Req() request: Request
+  ) {
+    return this.puzzleService.validate(this.token(request), body);
+  }
+
+  @Post(API_ROUTES.puzzles.bulk)
+  bulk(
+    @Body(new ZodBodyPipe(bulkPuzzleActionRequestSchema)) body: BulkPuzzleActionRequest,
+    @Req() request: Request
+  ) {
+    return this.puzzleService.bulk(this.token(request), body);
+  }
+
+  @Get(API_ROUTES.puzzles.list)
+  list(@Query() query: PuzzleListQuery, @Req() request: Request) {
+    return this.puzzleService.list(this.token(request), query);
+  }
+
+  @Post(API_ROUTES.puzzles.create)
+  create(
+    @Body(new ZodBodyPipe(createPuzzleRequestSchema)) body: CreatePuzzleRequest,
+    @Req() request: Request
+  ) {
+    return this.puzzleService.create(this.token(request), body);
+  }
+
+  // ── Student practice ──
+
+  @Get(API_ROUTES.puzzles.mine)
+  listMine(@Query() query: StudentPuzzleListQuery, @Req() request: Request) {
+    return this.attemptService.listForStudent(this.token(request), query);
+  }
+
+  @Get(API_ROUTES.puzzles.mineGet())
+  getMine(@Param("id") id: string, @Req() request: Request) {
+    return this.attemptService.getForStudent(this.token(request), id);
+  }
+
+  @Post(API_ROUTES.puzzles.attempts())
+  startAttempt(@Param("id") id: string, @Req() request: Request) {
+    return this.attemptService.start(this.token(request), id);
+  }
+
+  @Get(API_ROUTES.puzzles.attempts())
+  attemptHistory(@Param("id") id: string, @Req() request: Request) {
+    return this.attemptService.history(this.token(request), id);
+  }
+
+  @Get(API_ROUTES.puzzles.attempt())
+  getAttempt(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Req() request: Request
+  ) {
+    return this.attemptService.get(this.token(request), id, attemptId);
+  }
+
+  @Patch(API_ROUTES.puzzles.attempt())
+  saveAttempt(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Body(new ZodBodyPipe(savePuzzleAttemptRequestSchema)) body: SavePuzzleAttemptRequest,
+    @Req() request: Request
+  ) {
+    return this.attemptService.saveProgress(this.token(request), id, attemptId, body);
+  }
+
+  @Post(API_ROUTES.puzzles.submitAttempt())
+  submitAttempt(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Body(new ZodBodyPipe(submitPuzzleAttemptRequestSchema)) body: SubmitPuzzleAttemptRequest,
+    @Req() request: Request
+  ) {
+    return this.attemptService.submit(this.token(request), id, attemptId, body);
+  }
+
+  @Post(API_ROUTES.puzzles.hint())
+  hint(
+    @Param("id") id: string,
+    @Param("attemptId") attemptId: string,
+    @Body(new ZodBodyPipe(puzzleHintRequestSchema)) body: PuzzleHintRequest,
+    @Req() request: Request
+  ) {
+    return this.attemptService.hint(this.token(request), id, attemptId, body);
+  }
+
+  // ── Library item lifecycle ──
+
+  @Post(API_ROUTES.puzzles.publish())
+  publish(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(setPuzzlePublishedRequestSchema)) body: SetPuzzlePublishedRequest,
+    @Req() request: Request
+  ) {
+    return this.puzzleService.setPublished(this.token(request), id, body);
+  }
+
+  @Post(API_ROUTES.puzzles.archive())
+  archive(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(setPuzzleArchivedRequestSchema)) body: SetPuzzleArchivedRequest,
+    @Req() request: Request
+  ) {
+    return this.puzzleService.setArchived(this.token(request), id, body);
+  }
+
+  @Post(API_ROUTES.puzzles.duplicate())
+  duplicate(@Param("id") id: string, @Req() request: Request) {
+    return this.puzzleService.duplicate(this.token(request), id);
+  }
+
+  @Get(API_ROUTES.puzzles.get())
+  get(@Param("id") id: string, @Req() request: Request) {
+    return this.puzzleService.get(this.token(request), id);
+  }
+
+  @Patch(API_ROUTES.puzzles.update())
+  update(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(updatePuzzleRequestSchema)) body: UpdatePuzzleRequest,
+    @Req() request: Request
+  ) {
+    return this.puzzleService.update(this.token(request), id, body);
+  }
+
+  @Delete(API_ROUTES.puzzles.delete())
+  remove(@Param("id") id: string, @Req() request: Request) {
+    return this.puzzleService.remove(this.token(request), id);
+  }
+
+  private token(request: Request) {
+    return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
+  }
+}

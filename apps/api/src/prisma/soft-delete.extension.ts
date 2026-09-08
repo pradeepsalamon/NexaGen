@@ -32,7 +32,9 @@ export const softDeleteModels = [
   "CoachProfile",
   "Batch",
   "BatchCoach",
-  "BatchStudent"
+  "BatchStudent",
+  "Puzzle",
+  "PuzzleTopic"
 ] as const;
 
 export type SoftDeleteModel = (typeof softDeleteModels)[number];
@@ -78,6 +80,18 @@ export const trashEntities = [
     label: "User",
     searchFields: ["email", "firstName", "lastName", "username"],
     titleField: "email"
+  },
+  {
+    delegate: "puzzle",
+    label: "Puzzle",
+    searchFields: ["title", "description"],
+    titleField: "title"
+  },
+  {
+    delegate: "puzzleTopic",
+    label: "PuzzleTopic",
+    searchFields: ["name", "description"],
+    titleField: "name"
   }
 ] as const;
 
@@ -110,10 +124,12 @@ const relationToModel: Record<string, SoftDeleteModel> = {
   createdBy: "User",
   createdUsers: "User",
   deletedBy: "User",
+  puzzles: "Puzzle",
   student: "User",
   studentBatches: "BatchStudent",
   studentProfile: "StudentProfile",
   students: "BatchStudent",
+  topic: "PuzzleTopic",
   user: "User"
 };
 
@@ -124,6 +140,7 @@ const filterableRelationNames = new Set([
   "coaches",
   "createdBatches",
   "createdUsers",
+  "puzzles",
   "studentBatches",
   "students"
 ]);

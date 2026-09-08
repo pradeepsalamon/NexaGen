@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
   "/admin/analytics/operations": "Operations",
   "/admin/backups": "Database Backups",
   "/admin/batches": "Batch management",
+  "/admin/puzzles": "Puzzle Library",
   "/admin/coaches": "Coach applications",
   "/admin/trash": "Trash",
   "/admin/users": "User management",
@@ -32,12 +33,14 @@ const pageTitles: Record<string, string> = {
   "/coach/schedule": "Schedule",
   "/coach/students": "Students",
   "/coach/history": "Class History",
+  "/coach/puzzles": "Puzzles",
   "/student": "Student Dashboard",
   "/student/courses": "My Courses",
   "/student/batches": "My Batches",
   "/student/live-classes": "Live Classes",
   "/student/schedule": "Schedule",
   "/student/practice": "Practice",
+  "/student/puzzles": "Puzzles",
   "/student/progress": "Progress",
   "/student/attendance": "Attendance",
   "/forgot-password": "Account Help",
@@ -58,6 +61,16 @@ function formatPageTitle(pathname: string) {
 
   if (pathname.startsWith("/live-class/")) {
     return "Live Class";
+  }
+
+  if (/^\/(admin|coach)\/puzzles\//.test(pathname)) {
+    if (pathname.endsWith("/new")) return "New puzzle";
+    if (pathname.endsWith("/edit")) return "Edit puzzle";
+    return "Puzzle";
+  }
+
+  if (pathname.startsWith("/student/puzzles/")) {
+    return "Solve puzzle";
   }
 
   const currentSegment = pathname.split("/").filter(Boolean).at(-1);

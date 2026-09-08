@@ -66,6 +66,42 @@ coach/board durations were always 0, `room_finished` never fired, and the
 | **Screen-share request → coach approval** | Deferred. v1 pre-class settings expose screen-share as allowed/disallowed per role only; the request/approve handshake is not built. |
 | **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
 
+## Resolved (2026-09-06)
+
+- **Puzzle Library.** NexaChess had no puzzle system. Added a standalone,
+  reusable puzzle library: `PuzzleTopic` / `Puzzle` (soft-deletable, wired into
+  the Trash module) + `PuzzleAttempt` models; a `puzzle` API module
+  (`API_ROUTES.puzzles.*`, token-string auth) covering admin-only topic CRUD +
+  reassign, role-scoped puzzle CRUD (admin ⇒ GLOBAL, coach ⇒ PRIVATE — coaches
+  can never publish GLOBAL and cannot edit admin puzzles), publish/archive
+  toggles, duplicate, bulk actions, stats, `POST /puzzles/validate`, and the
+  student practice endpoints (`/puzzles/mine*`, `/puzzles/:id/attempts*`).
+  Server-side move evaluation **reuses `AssignmentEvaluationService`**
+  (`normalizeSolution` / `evaluateSolveLine` / `solveLineFeedback`) — now
+  exported from `AssignmentModule` — so there is one SOLVE_LINE engine. Web:
+  `features/puzzles/*`, routes under `/admin/puzzles`, `/coach/puzzles`,
+  `/student/puzzles` (+ `new` / `[id]` / `[id]/edit`), a reusable
+  `PuzzleSolver` built on the existing `PracticeBoard` + `PositionEditor` +
+  `SolutionEditor`. Seeded 8 topics + 8 puzzles + a `coach2@nexa.test` account
+  for cross-coach visibility testing. Migration
+  `20260906150110_puzzle_library` (all additive; partial unique indexes on
+  `puzzle_topics.name`/`slug`).
+
+- **Live-class puzzle assignment + leaderboard.** Built on top of the puzzle
+  library: `LiveClassPuzzleAssignment` (references `puzzleId`, not
+  trash-registered, partial unique index `WHERE status = 'ACTIVE'`), a
+  `LiveClassPuzzleService` / controller in `PuzzleModule` (now imports
+  `LiveClassModule`), three routes (`API_ROUTES.liveClass.puzzle` /
+  `.puzzleAttempt` / `.puzzleLeaderboard`). `startAttempt` is the only new
+  attempt route — save/submit/hint reuse the puzzle endpoints and now enforce
+  `assertLiveAssignmentOpen` (coach-ended or timer + 15s grace). Web: `PuzzleBridge`
+  + a "Puzzle" meeting sidebar panel (`MeetingPuzzlePanel`, `PuzzleAssignModal`,
+  `InRoomPuzzleSolver`); the standalone `usePuzzleAttempt` hook was extracted
+  from `StudentPuzzleSolveClient` and is shared. Lifecycle on
+  `LIVE_CLASS_PUZZLE_TOPIC`, leaderboard polled. Timed mode + coach
+  "hide leaderboard" toggle included. Migration
+  `20260906155518_live_class_puzzle_assignment`. See CLAUDE.md §3.7.
+
 ## Resolved (2026-09-03)
 
 - **Live-class pre-class settings, permissions & presets.** Live classes had no

@@ -19,6 +19,7 @@ import { BackupModule } from "./backup/backup.module";
 import { AssignmentModule } from "./assignment/assignment.module";
 import { NotificationModule } from "./notification/notification.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
+import { PuzzleModule } from "./puzzle/puzzle.module";
 
 @Module({
   imports: [
@@ -43,7 +44,8 @@ import { AnalyticsModule } from "./analytics/analytics.module";
     BackupModule,
     AssignmentModule,
     NotificationModule,
-    AnalyticsModule
+    AnalyticsModule,
+    PuzzleModule
   ],
   providers: [
     {

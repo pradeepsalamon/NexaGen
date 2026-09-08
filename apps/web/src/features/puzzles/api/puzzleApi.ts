@@ -1,0 +1,214 @@
+import { API_ROUTES } from "@nexa-chess/types";
+import type {
+  BulkPuzzleActionRequest,
+  BulkPuzzleActionResponse,
+  CreatePuzzleRequest,
+  CreatePuzzleTopicRequest,
+  PuzzleAttemptHistoryResponse,
+  PuzzleAttemptProgressResponse,
+  PuzzleAttemptResultResponse,
+  PuzzleHintRequest,
+  PuzzleHintResponse,
+  PuzzleListQuery,
+  PuzzleListResponse,
+  PuzzleResponse,
+  PuzzleStatsResponse,
+  PuzzleTopicListResponse,
+  PuzzleTopicResponse,
+  ReassignPuzzleTopicRequest,
+  SavePuzzleAttemptRequest,
+  SetPuzzleArchivedRequest,
+  SetPuzzlePublishedRequest,
+  StartPuzzleAttemptResponse,
+  StudentPuzzleDetailResponse,
+  StudentPuzzleListQuery,
+  StudentPuzzleListResponse,
+  SubmitPuzzleAttemptRequest,
+  UpdatePuzzleRequest,
+  UpdatePuzzleTopicRequest,
+  ValidatePuzzleRequest,
+  ValidatePuzzleResponse
+} from "@nexa-chess/types";
+import { apiFetch } from "@/lib/api";
+
+function qs(params: Record<string, string | number | undefined>): string {
+  const sp = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== "" && value !== null) sp.set(key, String(value));
+  }
+  const s = sp.toString();
+  return s ? `?${s}` : "";
+}
+
+// ── Topics ──
+
+export function getPuzzleTopics(): Promise<PuzzleTopicListResponse> {
+  return apiFetch(API_ROUTES.puzzles.topics);
+}
+
+export function createPuzzleTopic(
+  data: CreatePuzzleTopicRequest
+): Promise<PuzzleTopicResponse> {
+  return apiFetch(API_ROUTES.puzzles.topics, { method: "POST", body: data });
+}
+
+export function updatePuzzleTopic(
+  id: string,
+  data: UpdatePuzzleTopicRequest
+): Promise<PuzzleTopicResponse> {
+  return apiFetch(API_ROUTES.puzzles.topic(id), { method: "PATCH", body: data });
+}
+
+export function archivePuzzleTopic(id: string): Promise<{ success: true }> {
+  return apiFetch(API_ROUTES.puzzles.archiveTopic(id), { method: "POST" });
+}
+
+export function reassignPuzzleTopic(
+  id: string,
+  data: ReassignPuzzleTopicRequest
+): Promise<{ success: true; moved: number }> {
+  return apiFetch(API_ROUTES.puzzles.reassignTopic(id), { method: "POST", body: data });
+}
+
+// ── Library ──
+
+export function getPuzzles(query: PuzzleListQuery): Promise<PuzzleListResponse> {
+  return apiFetch(
+    API_ROUTES.puzzles.list +
+      qs({
+        page: query.page,
+        pageSize: query.pageSize,
+        search: query.search,
+        sort: query.sort,
+        order: query.order,
+        topicId: query.topicId,
+        puzzleType: query.puzzleType,
+        difficulty: query.difficulty,
+        status: query.status,
+        visibility: query.visibility,
+        creatorId: query.creatorId,
+        scope: query.scope
+      })
+  );
+}
+
+export function getPuzzle(id: string): Promise<PuzzleResponse> {
+  return apiFetch(API_ROUTES.puzzles.get(id));
+}
+
+export function getPuzzleStats(): Promise<PuzzleStatsResponse> {
+  return apiFetch(API_ROUTES.puzzles.stats);
+}
+
+export function createPuzzle(data: CreatePuzzleRequest): Promise<PuzzleResponse> {
+  return apiFetch(API_ROUTES.puzzles.create, { method: "POST", body: data });
+}
+
+export function updatePuzzle(
+  id: string,
+  data: UpdatePuzzleRequest
+): Promise<PuzzleResponse> {
+  return apiFetch(API_ROUTES.puzzles.update(id), { method: "PATCH", body: data });
+}
+
+export function deletePuzzle(id: string): Promise<{ success: true }> {
+  return apiFetch(API_ROUTES.puzzles.delete(id), { method: "DELETE" });
+}
+
+export function setPuzzlePublished(
+  id: string,
+  data: SetPuzzlePublishedRequest
+): Promise<PuzzleResponse> {
+  return apiFetch(API_ROUTES.puzzles.publish(id), { method: "POST", body: data });
+}
+
+export function setPuzzleArchived(
+  id: string,
+  data: SetPuzzleArchivedRequest
+): Promise<PuzzleResponse> {
+  return apiFetch(API_ROUTES.puzzles.archive(id), { method: "POST", body: data });
+}
+
+export function duplicatePuzzle(id: string): Promise<PuzzleResponse> {
+  return apiFetch(API_ROUTES.puzzles.duplicate(id), { method: "POST" });
+}
+
+export function bulkPuzzleAction(
+  data: BulkPuzzleActionRequest
+): Promise<BulkPuzzleActionResponse> {
+  return apiFetch(API_ROUTES.puzzles.bulk, { method: "POST", body: data });
+}
+
+export function validatePuzzle(
+  data: ValidatePuzzleRequest
+): Promise<ValidatePuzzleResponse> {
+  return apiFetch(API_ROUTES.puzzles.validate, { method: "POST", body: data });
+}
+
+// ── Student ──
+
+export function getMyPuzzles(
+  query: StudentPuzzleListQuery
+): Promise<StudentPuzzleListResponse> {
+  return apiFetch(
+    API_ROUTES.puzzles.mine +
+      qs({
+        page: query.page,
+        pageSize: query.pageSize,
+        search: query.search,
+        topicId: query.topicId,
+        puzzleType: query.puzzleType,
+        difficulty: query.difficulty,
+        solved: query.solved
+      })
+  );
+}
+
+export function getMyPuzzle(id: string): Promise<StudentPuzzleDetailResponse> {
+  return apiFetch(API_ROUTES.puzzles.mineGet(id));
+}
+
+export function startPuzzleAttempt(
+  puzzleId: string
+): Promise<{ attempt: StartPuzzleAttemptResponse }> {
+  return apiFetch(API_ROUTES.puzzles.attempts(puzzleId), { method: "POST" });
+}
+
+export function getPuzzleAttemptHistory(
+  puzzleId: string
+): Promise<PuzzleAttemptHistoryResponse> {
+  return apiFetch(API_ROUTES.puzzles.attempts(puzzleId));
+}
+
+export function savePuzzleAttempt(
+  puzzleId: string,
+  attemptId: string,
+  data: SavePuzzleAttemptRequest
+): Promise<PuzzleAttemptProgressResponse> {
+  return apiFetch(API_ROUTES.puzzles.attempt(puzzleId, attemptId), {
+    method: "PATCH",
+    body: data
+  });
+}
+
+export function submitPuzzleAttempt(
+  puzzleId: string,
+  attemptId: string,
+  data: SubmitPuzzleAttemptRequest
+): Promise<PuzzleAttemptResultResponse> {
+  return apiFetch(API_ROUTES.puzzles.submitAttempt(puzzleId, attemptId), {
+    method: "POST",
+    body: data
+  });
+}
+
+export function getPuzzleHint(
+  puzzleId: string,
+  attemptId: string,
+  data: PuzzleHintRequest
+): Promise<PuzzleHintResponse> {
+  return apiFetch(API_ROUTES.puzzles.hint(puzzleId, attemptId), {
+    method: "POST",
+    body: data
+  });
+}

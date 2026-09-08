@@ -20,6 +20,7 @@ import { AssignmentService } from "./assignment.service";
     StockfishModule,
     UploadModule
   ],
-  providers: [AssignmentService, AssignmentAttemptService, AssignmentEvaluationService]
+  providers: [AssignmentService, AssignmentAttemptService, AssignmentEvaluationService],
+  exports: [AssignmentEvaluationService]
 })
 export class AssignmentModule {}

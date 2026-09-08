@@ -63,6 +63,25 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   solutions by playing them in `SolutionEditor`. A coach can also turn the live
   shared board into a `SOLVE_LINE` assignment from the board header
   ("Send as assignment" → the same form, position pre-seeded).
+- Puzzle Library: a standalone, reusable catalogue of chess-training puzzles
+  (position + solution line + topic + type + difficulty + ownership + lifecycle)
+  — `puzzle` API module, `features/puzzles` on web, `/admin/puzzles`,
+  `/coach/puzzles`, `/student/puzzles`. Every puzzle belongs to one
+  admin-managed `PuzzleTopic` (Fork, Pin, Back Rank, …). Admin puzzles are
+  `GLOBAL` (every coach sees them); coach puzzles are `PRIVATE` (author + admins
+  only) and can never be made global. Lifecycle is `DRAFT` → `PUBLISHED` →
+  `ARCHIVED` (all reversible), with a separate soft delete through the Trash
+  module. Students browse published puzzles and solve them; `PuzzleAttempt`
+  rows are scored by the same `AssignmentEvaluationService` SOLVE_LINE engine.
+- Live-class puzzle assignment: mid-class, a coach pushes a published puzzle
+  into the room (`API_ROUTES.liveClass.puzzle*`); every student solves it on
+  their own board and a leaderboard ranks them by score then time. Optional
+  timer + a "hide leaderboard from students" toggle. `LiveClassPuzzleAssignment`
+  references `puzzleId` (never copies) and is **not** trash-registered — it is a
+  lightweight per-class row whose lifecycle is a `status` column, same as
+  `Assignment`. The service is in `PuzzleModule` (which imports `LiveClassModule`);
+  only starting an attempt is a new route, everything else reuses the puzzle
+  attempt endpoints.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student
@@ -270,7 +289,7 @@ More Prisma notes live in `apps/api/prisma/README.md`.
 
 ## Trash And Soft Delete
 
-Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, and `BatchStudent`.
+Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, and `PuzzleTopic`.
 
 When adding a new trash-enabled model:
 

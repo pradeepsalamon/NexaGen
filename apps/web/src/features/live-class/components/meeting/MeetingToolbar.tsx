@@ -18,6 +18,7 @@ import {
   Crown,
   Circle,
   PictureInPicture2,
+  Puzzle as PuzzleIcon,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -57,6 +58,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     isRecording: contextRecording,
     setIsRecording,
     settings,
+    activePuzzle,
   } = useLiveClassState();
 
   const lkRecording = useIsRecording();
@@ -150,6 +152,12 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       label: handRaised ? "Lower hand" : "Raise hand",
       onClick: toggleHandRaised,
       active: handRaised,
+    },
+    {
+      icon: <PuzzleIcon className={cn("size-5", activePuzzle && "text-primary")} />,
+      label: "Puzzle",
+      onClick: () => toggleSidebar("puzzle"),
+      active: activeSidebar === "puzzle",
     },
     {
       icon: <Settings className="size-5" />,
