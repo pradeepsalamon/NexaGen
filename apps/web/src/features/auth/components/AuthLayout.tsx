@@ -20,19 +20,25 @@ export function AuthLayout({ children }: AuthLayoutProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const unauthorizedReason = searchParams.get("reason") === "unauthorized";
 
   useEffect(() => {
-    if (searchParams.get("reason") === "unauthorized") {
+    if (unauthorizedReason) {
       // Force a refetch to allow the interceptor to attempt a token refresh
       queryClient.resetQueries({ queryKey: queryKeys.auth.session });
       router.replace("/login");
-      return;
     }
+    // Keyed on the primitive reason, not `searchParams`/`user` — those change
+    // on every session refetch (a fresh `user` object each time), which would
+    // re-fire this before router.replace's URL update lands and re-trigger
+    // resetQueries forever, hammering /auth/me in a tight loop.
+  }, [unauthorizedReason, router, queryClient]);
 
+  useEffect(() => {
     if (isSessionChecked && user) {
       router.replace(getRoleDashboardHref(user.role));
     }
-  }, [isSessionChecked, user, searchParams, router, queryClient]);
+  }, [isSessionChecked, user, router]);
 
   if (!isSessionChecked || user) {
     return null;
