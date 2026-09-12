@@ -56,6 +56,9 @@ describe("MailService", () => {
       ANALYTICS_LOW_ATTENDANCE_PERCENT: 75,
       ANALYTICS_INACTIVE_DAYS: 30,
       ANALYTICS_CACHE_TTL_SECONDS: 300,
+      REDIS_URL: undefined,
+      QUEUE_PREFIX: "nexa",
+      QUEUE_CONCURRENCY: 5,
       ...envMocks
     };
 
