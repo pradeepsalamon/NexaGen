@@ -104,9 +104,11 @@ your time:
   across `apps/web`. Multiple features shipped with the route + request/response
   type + service authorization done and only the frontend missing. If so, your
   job is `features/<x>/api/*Api.ts` + a hook + a component — not new contract.
-- **Orphaned code from the `.ai/` autonomous manager.** Code with no consumer and
-  an `NEXA-####` commit may be half-reverted autonomous output. Confirm it is
-  actually wanted before extending it — deleting it is often the fix.
+- **Orphaned code from the retired autonomous managers.** Code with no consumer
+  and an `NEXA-####` (old `.ai/` manager) or `agent/task_*` (`.nexa-agent/`)
+  commit may be half-reverted autonomous output. Both systems were removed
+  2026-09-08; leftovers in `apps/**` may remain. Confirm it is actually wanted
+  before extending it — deleting it is often the fix.
 
 If the feature you are adding is listed in BACKLOG.md, update that entry (move it
 to "Resolved" or narrow it) in the same change.
@@ -282,23 +284,23 @@ storage's Lua `eval` KEYS.
 
 ---
 
-## 7b. The autonomous agent system (`.nexa-agent/`)
+## 7b. The autonomous agent system
 
-Not a workspace member (the npm globs are `apps/*` / `packages/*`), and not part
-of `npm test`. It orchestrates worker CLI agents that develop this repo on
-isolated `agent/<task-id>` branches cut from `dev_vps`.
+**Removed 2026-09-08.** Both prior autonomous managers — the original `.ai/`
+(JS, `NEXA-####` tasks) and its successor `.nexa-agent/` (TS orchestrator) —
+were deleted. A replacement built around Factory.ai's `droid` CLI is planned but
+not started (blocked on `droid` being installed on the box). Recover either
+old system from git history (`git log --all -- .nexa-agent`) if needed.
 
-You will not normally run it, but two things matter if you touch this repo:
+Two things still matter if you touch this repo:
 
-- **`dev_vps` is the base branch** those tasks branch from and merge back into,
-  and `vps_dev` is the database. The names are near-anagrams of each other and
-  are easy to swap by accident.
-- **A merge into `dev_vps` only ever happens on explicit human approval**
-  (`npm run agent -- approve`). Passing tests are not permission.
+- **`dev_vps` is the base branch** for autonomous / VPS-side work and `vps_dev`
+  is the database. The names are near-anagrams and are easy to swap by accident.
+- **A merge into `dev_vps` only ever happens on explicit human approval.**
+  Passing tests are not permission.
 
-Talk to it with `cd .nexa-agent && npm run agent -- chat`. Its own docs are
-`.nexa-agent/README.md`; the safety boundary that all of it enforces is
-`.nexa-agent/config/SAFETY.md`.
+The production/dev safety boundary any future agent system must enforce is
+preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 
 ## 8. Where to look first when debugging
 
