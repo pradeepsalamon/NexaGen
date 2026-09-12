@@ -229,6 +229,11 @@ SMTP_USER=...
 SMTP_PASS=...
 SMTP_FROM=...
 
+# BullMQ. Unset REDIS_URL disables every queue (see "Background Jobs").
+REDIS_URL=redis://127.0.0.1:6379
+QUEUE_PREFIX=nexa
+QUEUE_CONCURRENCY=5
+
 # Recording storage + analytics thresholds (all optional, defaults shown)
 RECORDING_STORAGE_LIMIT_GB=130
 RECORDING_MIN_RETENTION_DAYS=14
@@ -311,6 +316,72 @@ A cascading delete (`cascadeSoftDelete`) tags the parent and its children with o
 The Trash list merges rows from all six tables in memory. Sorting and paging stay exact within the newest `MAX_TRASH_SCAN` (500) deleted rows per entity; deeper offsets are not supported.
 
 Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally scaled API instances do not run the cleanup concurrently.
+
+## Background Jobs (BullMQ)
+
+Queues run on the `redis` service that LiveKit and egress already share, so
+every BullMQ key is namespaced with `QUEUE_PREFIX`. Wiring lives in
+`apps/api/src/queue/`; `QueueModule.forRoot()` is registered in `app.module.ts`.
+
+Locally, start Redis with `npm run prod:db` (it maps `127.0.0.1:6379`, like
+postgres) and set `REDIS_URL` in `apps/api/.env`.
+
+**Queues are optional.** With `REDIS_URL` unset the API still boots: no worker
+starts and every `@InjectQueue()` resolves to a stand-in that logs the job and
+drops it, so `npm run dev:api` needs no Docker. That also means an enqueue is
+best-effort — anything that must survive gets a persisted row with a status
+column it can be re-driven from, and treats the enqueue as a nudge.
+
+Adding a queue — the feature module owns its name, there is no central registry:
+
+```ts
+// whatsapp.constants.ts
+export const WHATSAPP_QUEUE = "whatsapp";
+
+// whatsapp.module.ts
+@Module({
+  imports: [QueueModule.registerQueue(WHATSAPP_QUEUE)],
+  providers: [WhatsappService, WhatsappProcessor]
+})
+export class WhatsappModule {}
+
+// whatsapp.processor.ts
+@Processor(WHATSAPP_QUEUE, buildWorkerOptions(getApiEnv()))
+export class WhatsappProcessor extends WorkerHost {
+  async process(job: Job<SendMessageJob>) { /* ... */ }
+}
+
+// producing
+constructor(@InjectQueue(WHATSAPP_QUEUE) private readonly queue: Queue) {}
+await this.queue.add("send", payload, { jobId: message.id });
+```
+
+Retries and retention come from `DEFAULT_JOB_OPTIONS` in `queue.config.ts`
+(5 attempts, exponential backoff from 2s; completed jobs trimmed after 24h,
+failed ones kept a week for inspection). Pass a `jobId` derived from your own
+row to make an enqueue idempotent.
+
+## Rate Limiting
+
+`@nestjs/throttler` runs as a global `APP_GUARD` (100 req/min; auth routes drop
+to 5/min, password reset to 3/min — see `auth.controller.ts`). Counters live in
+Redis when `REDIS_URL` is set, so they **survive a restart**: in-memory counters
+reset on every deploy, which hands an attacker a fresh allowance against the
+login and reset limits.
+
+Storage is built in `common/throttler/throttler-storage.factory.ts` and wrapped
+by `ResilientThrottlerStorage`. Because the guard is global, a storage that
+threw would turn a Redis blip into a 500 on *every* route — so the wrapper falls
+back to in-process counting when Redis fails, stops calling Redis for 10s, and
+logs once on the way down and once on recovery. Limits stop being shared and
+reset during that window; the API stays up.
+
+The client is deliberately configured to fail fast (`enableOfflineQueue: false`,
+`commandTimeout: 1000`) — a hung Redis must become a fast fallback, not a
+stalled request. Keys are namespaced `<QUEUE_PREFIX>:throttle:`.
+
+With `REDIS_URL` unset the module keeps its in-memory default and logs a warning
+at boot.
 
 ## Verification
 

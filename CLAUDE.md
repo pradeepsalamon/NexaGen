@@ -104,9 +104,11 @@ your time:
   across `apps/web`. Multiple features shipped with the route + request/response
   type + service authorization done and only the frontend missing. If so, your
   job is `features/<x>/api/*Api.ts` + a hook + a component — not new contract.
-- **Orphaned code from the `.ai/` autonomous manager.** Code with no consumer and
-  an `NEXA-####` commit may be half-reverted autonomous output. Confirm it is
-  actually wanted before extending it — deleting it is often the fix.
+- **Orphaned code from the retired autonomous managers.** Code with no consumer
+  and an `NEXA-####` (old `.ai/` manager) or `agent/task_*` (`.nexa-agent/`)
+  commit may be half-reverted autonomous output. Both systems were removed
+  2026-09-08; leftovers in `apps/**` may remain. Confirm it is actually wanted
+  before extending it — deleting it is often the fix.
 
 If the feature you are adding is listed in BACKLOG.md, update that entry (move it
 to "Resolved" or narrow it) in the same change.
@@ -184,6 +186,37 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 - Toasts: `sonner`, wrapped by `useToast()` (`providers/ToastProvider.tsx`) — `success`/`error`/`warning`/`info`/`loading`/`promise`/`undoable`.
 - **Dates/times: never `new Date(iso).toLocale*()` in a component.** The API sends ISO-8601 UTC strings only (it must never pre-format — Node would use the *server's* zone, AUDIT H11). Format with `lib/datetime.ts` (`formatTime`, `formatFullDate`, `formatLongDate`, `formatDateTime`, `formatRelativeDay`, `formatDuration`, or the generic `formatDate(iso, tz, opts)`), passing the zone from `useUserTimeZone()` (the user's saved `User.timezone` → browser fallback). Analytics has its own `features/analytics/lib/format.ts` whose `formatDate`/`formatDateTime`/`relativeTime` take an optional `timeZone` — pass `useUserTimeZone()` (the analytics API already buckets every series in `User.timezone`). Duration helpers take seconds and carry no zone. Date-only values (`"YYYY-MM-DD"`, e.g. an analytics range bound) format with `"UTC"` so they don't drift a day.
 
+### 3.6b Background jobs (BullMQ)
+
+`apps/api/src/queue/` — `QueueModule.forRoot()` in `app.module.ts`, backed by the
+`redis` service LiveKit and egress already share (`QUEUE_PREFIX` namespaces the
+keys). **Queues are optional**: with `REDIS_URL` unset the API boots, no worker
+runs, and every `@InjectQueue()` resolves to `createDisabledQueue` — a stand-in
+that logs the job and drops it — so `npm run dev:api` needs no Docker. An
+enqueue is therefore best-effort; anything that must survive persists its own
+row with a status column first and treats the enqueue as a nudge.
+
+There is **no central queue-name registry** — a feature module declares its own
+constant and imports `QueueModule.registerQueue(NAME)`. Processors take
+`buildWorkerOptions(getApiEnv())` for concurrency; retries/retention come from
+`DEFAULT_JOB_OPTIONS` (5 attempts, exponential backoff, failed jobs kept 7d).
+Pass a `jobId` derived from your own row for idempotency. See README
+§ "Background Jobs (BullMQ)".
+
+### 3.6c Rate limiting
+
+`ThrottlerModule.forRootAsync` in `app.module.ts` (global `APP_GUARD`, 100/min;
+auth routes 5/min, password reset 3/min). Counters go to Redis when `REDIS_URL`
+is set so they survive a deploy, via
+`common/throttler/throttler-storage.factory.ts` +
+`ResilientThrottlerStorage`, which falls back to in-process counting (with a 10s
+cooldown) if Redis fails — the guard is global, so a throwing storage would 500
+every route. The client uses `buildRequestPathConnection` (fail-fast:
+`enableOfflineQueue: false`, `commandTimeout: 1000`), **not** the queue's
+connection, whose `maxRetriesPerRequest: null` is the opposite policy. Keys are
+namespaced `<QUEUE_PREFIX>:throttle:` — ioredis applies `keyPrefix` to the
+storage's Lua `eval` KEYS.
+
 ### 3.7 Live class / LiveKit
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
@@ -251,23 +284,23 @@ Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `
 
 ---
 
-## 7b. The autonomous agent system (`.nexa-agent/`)
+## 7b. The autonomous agent system
 
-Not a workspace member (the npm globs are `apps/*` / `packages/*`), and not part
-of `npm test`. It orchestrates worker CLI agents that develop this repo on
-isolated `agent/<task-id>` branches cut from `dev_vps`.
+**Removed 2026-09-08.** Both prior autonomous managers — the original `.ai/`
+(JS, `NEXA-####` tasks) and its successor `.nexa-agent/` (TS orchestrator) —
+were deleted. A replacement built around Factory.ai's `droid` CLI is planned but
+not started (blocked on `droid` being installed on the box). Recover either
+old system from git history (`git log --all -- .nexa-agent`) if needed.
 
-You will not normally run it, but two things matter if you touch this repo:
+Two things still matter if you touch this repo:
 
-- **`dev_vps` is the base branch** those tasks branch from and merge back into,
-  and `vps_dev` is the database. The names are near-anagrams of each other and
-  are easy to swap by accident.
-- **A merge into `dev_vps` only ever happens on explicit human approval**
-  (`npm run agent -- approve`). Passing tests are not permission.
+- **`dev_vps` is the base branch** for autonomous / VPS-side work and `vps_dev`
+  is the database. The names are near-anagrams and are easy to swap by accident.
+- **A merge into `dev_vps` only ever happens on explicit human approval.**
+  Passing tests are not permission.
 
-Talk to it with `cd .nexa-agent && npm run agent -- chat`. Its own docs are
-`.nexa-agent/README.md`; the safety boundary that all of it enforces is
-`.nexa-agent/config/SAFETY.md`.
+The production/dev safety boundary any future agent system must enforce is
+preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 
 ## 8. Where to look first when debugging
 
@@ -293,6 +326,8 @@ Talk to it with `cd .nexa-agent && npm run agent -- chat`. Its own docs are
 | Recorder template films a blank board | the coach never answered `REQUEST_SYNC`. `LiveClassService.requestBoardSyncForRecorder` injects it on topic `board_sync` at 4s and 9s after egress starts; the template joins hidden + subscribe-only so it cannot ask for itself |
 | Recording completes but the file isn't on disk | `RECORDING_STORAGE_TARGET` — `local` (default) writes into the mounted volume, `oci` makes egress upload straight to the bucket and the quota / retention prune / storage analytics then see nothing |
 | CORS / cookie not set in prod | `CORS_ORIGIN` (comma-separated), `FRONTEND_URL` must be https for `secure` cookies; `COOKIE_DOMAIN` (auto-derives `.registrable.tld` from `FRONTEND_URL`) shares the session across `api.`/`www.` subdomains; `TRUST_PROXY_HOPS` (nginx = 1) for X-Forwarded-* |
+| Rate limits reset unexpectedly / not shared | `REDIS_URL` unset (in-memory counters, gone on restart), or `ResilientThrottlerStorage` logged "counting rate limits in-process" — Redis is unreachable and it degraded on purpose rather than 500 every route |
+| Queued jobs never run | `REDIS_URL` unset → `QueueModule` logged "background queues are disabled" at boot and every producer hits `createDisabledQueue`. Otherwise check the worker is a provider in a module that imported `QueueModule.registerQueue(<name>)`, and that `QUEUE_PREFIX` matches between producer and worker |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
 | Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |

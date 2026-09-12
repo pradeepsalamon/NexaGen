@@ -8,9 +8,10 @@ interface CacheEntry {
 
 /**
  * A tiny in-process TTL cache for the heavier analytics sections (overview,
- * engagement, storage). The stack has no Redis; a few minutes of staleness per
- * API instance is an acceptable trade for not re-running ~15 aggregate queries
- * on every dashboard poll. `?fresh=1` bypasses it.
+ * engagement, storage). Deliberately in-process, not Redis: with one API
+ * container a shared cache buys nothing, and a few minutes of staleness per
+ * instance is an acceptable trade for not re-running ~15 aggregate queries on
+ * every dashboard poll. `?fresh=1` bypasses it.
  */
 @Injectable()
 export class AnalyticsCache {

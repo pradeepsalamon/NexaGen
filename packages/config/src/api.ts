@@ -61,7 +61,14 @@ const apiEnvSchema = z.object({
     .default(85),
   ANALYTICS_LOW_ATTENDANCE_PERCENT: z.coerce.number().min(1).max(100).default(75),
   ANALYTICS_INACTIVE_DAYS: z.coerce.number().int().positive().default(30),
-  ANALYTICS_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(300)
+  ANALYTICS_CACHE_TTL_SECONDS: z.coerce.number().int().nonnegative().default(300),
+  // BullMQ. Unset disables every queue: producers run their job inline and no
+  // worker starts, so `npm run dev:api` needs no Redis. Compose always sets it.
+  REDIS_URL: optionalUrlSchema,
+  // Namespaces every BullMQ key, so a shared Redis (LiveKit and egress already
+  // use this one) can never collide with a queue.
+  QUEUE_PREFIX: z.string().default("nexa"),
+  QUEUE_CONCURRENCY: z.coerce.number().int().positive().default(5)
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

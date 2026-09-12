@@ -37,6 +37,11 @@ services:
 
     command: redis-server --appendonly yes
 
+    # Loopback-only, like postgres — lets `npm run dev:api` on the host reach
+    # the same Redis the containers use (start it with `npm run prod:db`).
+    ports:
+      - "127.0.0.1:6379:6379"
+
     deploy:
       resources:
         limits:
@@ -203,6 +208,11 @@ services:
       ADMIN_EMAILS: ${ADMIN_EMAILS}
 
       TRASH_RETENTION_DAYS: ${TRASH_RETENTION_DAYS:-30}
+
+      # BullMQ. Shared with livekit/egress, so QUEUE_PREFIX namespaces the keys.
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      QUEUE_PREFIX: ${QUEUE_PREFIX:-nexa}
+      QUEUE_CONCURRENCY: ${QUEUE_CONCURRENCY:-5}
 
       STOCKFISH_PATH: ${STOCKFISH_PATH:-stockfish}
       STOCKFISH_POOL_SIZE: ${STOCKFISH_POOL_SIZE:-4}
