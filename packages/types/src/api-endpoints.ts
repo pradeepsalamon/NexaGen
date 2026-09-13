@@ -232,6 +232,60 @@ export const API_ROUTES = {
     recordingsTable: "/analytics/tables/recordings",
     export: (report: string = ":report") => `/analytics/export/${report}`
   },
+  // Provider-agnostic payments. The frontend never names a gateway — the
+  // PaymentRouter picks one. Webhooks are public (signature-verified), every
+  // other route is cookie-authed.
+  payments: {
+    // ── Catalogue ──
+    plans: "/payments/plans",
+    // ── Checkout (student) ──
+    checkoutConfig: (planId: string = ":planId") =>
+      `/payments/checkout/config/${planId}`,
+    checkout: "/payments/checkout",
+    // Prices a discount code against a plan + method. A preview, not a hold.
+    previewDiscount: "/payments/discounts/preview",
+    // Advisory client callback. Never grants access on its own.
+    verify: (id: string = ":id") => `/payments/${id}/verify`,
+    // Safe "Check payment status" — reconciles against the provider.
+    status: (id: string = ":id") => `/payments/${id}/status`,
+    // Fresh attempt on the SAME order after a failure.
+    retry: (id: string = ":id") => `/payments/${id}/retry`,
+    // ── Billing history (student) ──
+    mine: "/payments/mine",
+    invoice: (id: string = ":id") => `/payments/invoices/${id}`,
+    invoiceDownload: (id: string = ":id") => `/payments/invoices/${id}/download`,
+    mySubscriptions: "/payments/subscriptions/mine",
+    cancelSubscription: (id: string = ":id") =>
+      `/payments/subscriptions/${id}/cancel`,
+    // ── Webhooks (public, signature-verified) ──
+    webhookRazorpay: "/payments/webhooks/razorpay",
+    webhookCashfree: "/payments/webhooks/cashfree",
+    webhookStripe: "/payments/webhooks/stripe"
+  },
+  // Admin payment dashboard + configuration.
+  adminPayments: {
+    overview: "/admin/payments/overview",
+    list: "/admin/payments",
+    get: (id: string = ":id") => `/admin/payments/${id}`,
+    refund: (id: string = ":id") => `/admin/payments/${id}/refund`,
+    reconcile: (id: string = ":id") => `/admin/payments/${id}/reconcile`,
+    refunds: "/admin/payments/refunds",
+    subscriptions: "/admin/payments/subscriptions",
+    invoices: "/admin/payments/invoices",
+    providerHealth: "/admin/payments/provider-health",
+    routing: "/admin/payments/routing",
+    plans: "/admin/payments/plans",
+    plan: (id: string = ":id") => `/admin/payments/plans/${id}`,
+    export: "/admin/payments/export",
+    // ── Discounts ──
+    discounts: "/admin/payments/discounts",
+    discount: (id: string = ":id") => `/admin/payments/discounts/${id}`,
+    // ── Per-batch pricing: the plans attached to one batch ──
+    batchPricing: (batchId: string = ":batchId") =>
+      `/admin/payments/batches/${batchId}/pricing`,
+    batchPlan: (batchId: string = ":batchId", planId: string = ":planId") =>
+      `/admin/payments/batches/${batchId}/pricing/${planId}`
+  },
   batchSchedules: {
     list: "/batch-schedules",
     create: "/batch-schedules",

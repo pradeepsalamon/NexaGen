@@ -1994,3 +1994,8 @@ export * from "./live-class-puzzle";
 // Admin messaging rules + announcements (kept in its own module)
 // ──────────────────────────────────────────────
 export * from "./messaging";
+
+// ──────────────────────────────────────────────
+// Payments: provider-agnostic checkout, refunds, subscriptions, invoices
+// ──────────────────────────────────────────────
+export * from "./payments";

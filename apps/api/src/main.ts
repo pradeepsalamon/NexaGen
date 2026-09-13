@@ -3,6 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { getApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
+import { API_ROUTES } from "@nexa-chess/types";
 import type { NextFunction, Request, Response } from "express";
 import * as express from "express";
 import { AppModule } from "./app.module";
@@ -51,6 +52,17 @@ async function bootstrap() {
     "/webhooks/livekit",
     express.text({ type: "application/webhook+json" })
   );
+
+  // Payment gateways sign the exact request body. Parse these three routes as
+  // raw text BEFORE any JSON parser claims them — re-serialising JSON changes
+  // the bytes and every signature check would then fail.
+  for (const path of [
+    API_ROUTES.payments.webhookRazorpay,
+    API_ROUTES.payments.webhookCashfree,
+    API_ROUTES.payments.webhookStripe
+  ]) {
+    app.use(path, express.text({ type: "*/*", limit: "1mb" }));
+  }
 
   app.use(cookieParser());
   app.useGlobalPipes(

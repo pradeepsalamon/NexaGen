@@ -74,6 +74,27 @@ export const queryKeys = {
   notifications: {
     all: ["notifications"] as const,
   },
+  payments: {
+    all: ["payments"] as const,
+    plans: ["payments", "plans"] as const,
+    checkoutConfig: (planId: string) =>
+      ["payments", "checkout-config", planId] as const,
+    status: (paymentId: string) => ["payments", "status", paymentId] as const,
+    billing: ["payments", "billing"] as const,
+    invoice: (id: string) => ["payments", "invoice", id] as const,
+    adminOverview: ["payments", "admin", "overview"] as const,
+    adminList: (params?: Record<string, unknown>) =>
+      ["payments", "admin", "list", params ?? null] as const,
+    adminDetail: (id: string) => ["payments", "admin", "detail", id] as const,
+    adminRefunds: ["payments", "admin", "refunds"] as const,
+    adminSubscriptions: ["payments", "admin", "subscriptions"] as const,
+    adminInvoices: ["payments", "admin", "invoices"] as const,
+    providerHealth: ["payments", "admin", "provider-health"] as const,
+    routing: ["payments", "admin", "routing"] as const,
+    discounts: ["payments", "admin", "discounts"] as const,
+    batchPricing: (batchId: string) =>
+      ["payments", "batch-pricing", batchId] as const,
+  },
   batchSchedules: {
     all: ["batch-schedules"] as const,
     list: (batchId?: string) => ["batch-schedules", "list", batchId ?? null] as const,

@@ -15,7 +15,11 @@ export const messagingEventSchema = z.enum([
   "ASSIGNMENT_GRADED",
   "ANNOUNCEMENT",
   "ACCOUNT_WELCOME",
-  "ACCOUNT_APPROVED"
+  "ACCOUNT_APPROVED",
+  "PAYMENT_RECEIVED",
+  "PAYMENT_FAILED",
+  "REFUND_PROCESSED",
+  "SUBSCRIPTION_RENEWAL_FAILED"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -109,6 +113,18 @@ const ASSIGNMENT_VARIABLES = [
   "assignment.dueDateTime",
   "batch.name",
   "links.assignment"
+] as const;
+
+const PAYMENT_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "payment.amount",
+  "payment.currency",
+  "payment.method",
+  "payment.status",
+  "order.number",
+  "plan.name",
+  "invoice.number",
+  "links.billing"
 ] as const;
 
 export const MESSAGING_EVENT_DEFINITIONS: Record<
@@ -213,6 +229,42 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: [...RECIPIENT_VARIABLES, "links.login"],
     audiences: ["STUDENTS", "COACHES", "STUDENTS_AND_COACHES"],
     supportsLeadTime: false
+  },
+  PAYMENT_RECEIVED: {
+    event: "PAYMENT_RECEIVED",
+    label: "Payment received",
+    description:
+      "Sent once a payment is verified server-side and access has been granted. Never sent on a frontend success callback alone.",
+    variables: PAYMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  PAYMENT_FAILED: {
+    event: "PAYMENT_FAILED",
+    label: "Payment failed",
+    description:
+      "Sent when a payment attempt ends in a confirmed failure, with a link back to retry.",
+    variables: PAYMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  REFUND_PROCESSED: {
+    event: "REFUND_PROCESSED",
+    label: "Refund completed",
+    description:
+      "Sent when the provider confirms a refund has actually settled — not when the refund was requested.",
+    variables: PAYMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  SUBSCRIPTION_RENEWAL_FAILED: {
+    event: "SUBSCRIPTION_RENEWAL_FAILED",
+    label: "Subscription renewal failed",
+    description:
+      "Sent when a recurring charge could not be collected, so the member can update their payment method before access lapses.",
+    variables: PAYMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
   }
 };
 
@@ -281,7 +333,15 @@ export function sampleVariablesFor(event: MessagingEvent): MessageVariables {
     "result.outcome": "Passed",
     "announcement.title": "Holiday break",
     "announcement.body": "No classes from 20-24 September.",
-    "links.login": "https://nexa.test/login"
+    "links.login": "https://nexa.test/login",
+    "payment.amount": "₹999.00",
+    "payment.currency": "INR",
+    "payment.method": "UPI",
+    "payment.status": "Paid",
+    "order.number": "NEXA-2026-7F3K9Q",
+    "plan.name": "Premium Membership",
+    "invoice.number": "NEXA/2026/000123",
+    "links.billing": "https://nexa.test/student/billing"
   };
 
   const known = MESSAGING_EVENT_DEFINITIONS[event].variables;
@@ -455,6 +515,45 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Your account is ready",
     body: "Hi {{recipient.firstName}}, your {{academy.name}} account has been approved. Sign in at {{links.login}}."
+  },
+  // Payment rules ship ENABLED and in-app only. A receipt is transactional, not
+  // marketing: the member must be told their money arrived. WhatsApp stays off
+  // until an admin turns it on, because that needs an approved template.
+  PAYMENT_RECEIVED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "Payment successful",
+    body: "Hi {{recipient.firstName}}, we have received {{payment.amount}} for {{plan.name}}. Order {{order.number}}. Your invoice is at {{links.billing}}."
+  },
+  PAYMENT_FAILED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "Payment could not be completed",
+    body: "Hi {{recipient.firstName}}, your payment of {{payment.amount}} for {{plan.name}} could not be completed. Nothing has been charged. You can try again at {{links.billing}}."
+  },
+  REFUND_PROCESSED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "Refund completed",
+    body: "Hi {{recipient.firstName}}, a refund of {{payment.amount}} for order {{order.number}} has been processed. Banks usually take 5-7 working days to show it."
+  },
+  SUBSCRIPTION_RENEWAL_FAILED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "Subscription renewal failed",
+    body: "Hi {{recipient.firstName}}, we could not renew your {{plan.name}} subscription. Please update your payment method at {{links.billing}} to keep your access."
   }
 };
 

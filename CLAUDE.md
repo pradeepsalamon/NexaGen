@@ -274,6 +274,102 @@ use them, don't reimplement, or the admin preview stops matching the send.
   ANNOUNCEMENT rule; **the announcement's own audience picks recipients**, not
   the rule's. `student.service` filters the dashboard feed by that audience.
 
+### 3.6f Payments (Razorpay / Cashfree / Stripe)
+
+`apps/api/src/payments/` + `apps/web/src/features/payments/`, pages
+`/plans`, `/checkout/[planId]`, `/student/billing`, `/admin/payments`, routes
+`API_ROUTES.payments.*` / `.adminPayments.*`. Provider-agnostic and UPI-first
+for India.
+
+- **Business logic talks to `PaymentService` and nothing else.** It asks
+  `PaymentRouterService` for a gateway; the router answers from the
+  admin-editable config. **Never import a provider adapter outside
+  `payments/providers/`** — no provider status string may exist past that folder.
+- **The shared contract lives in `@nexa-chess/types` (`payments.ts`)**:
+  `PaymentStatus` + `PAYMENT_STATUS_RANK` + `canTransitionPaymentStatus`,
+  `resolvePaymentProvider`, `DEFAULT_PAYMENT_ROUTING`, `formatMoney`,
+  `toMinorUnits`/`toMajorUnits`. The admin routing preview calls the *same*
+  `resolvePaymentProvider` the server does, so the two cannot drift.
+- **Money is always integer minor units** (paise, cents) — `Int` columns, never
+  a float or Decimal. `toMinorUnits` is the only major→minor conversion, and
+  Cashfree (which speaks rupees) converts at its adapter boundary only.
+- **`applyProviderState` is the single state funnel.** Webhooks, the client's
+  `verify` callback, the "Check payment status" button and the reconciliation
+  cron are four doors into one transactional room. It applies the rank guard, so
+  a stale `PENDING` redelivered after a capture — or a `FAILED` for a sibling
+  attempt — cannot un-pay anything. A captured amount that differs from the
+  order parks the payment at `PROCESSING` with `failureCode: amount_mismatch`
+  rather than granting.
+- **Access is an `Entitlement` row, never a gateway status (§21).** Provider →
+  verification → payment → order → entitlement → access.
+  `EntitlementService.grant` runs inside the capture transaction and is
+  idempotent on the unique `(orderId, planId)`; batch enrolment is an `upsert`
+  (BatchStudent is soft-deletable and its unique key spans deleted rows).
+  **Nothing else in the codebase may enrol a student off a payment.**
+- **Double-payment protection is the unique index on `orders.idempotencyKey`**,
+  not a check-then-insert. The web client holds one key per plan in
+  `sessionStorage` (`features/payments/lib/checkoutKey.ts`), so a double click,
+  refresh, back-navigation or second tab replays it and the server returns the
+  original order.
+- **A retry is a new `PaymentAttempt` on the same `Order`.** `retry` reconciles
+  first and refuses while anything is in flight. §17: a provider is only
+  excluded from re-routing once its attempt reached a settled failure, and
+  `failoverEnabled` is **off by default** — never re-route while it is unclear
+  whether money moved.
+- **Webhooks are public but never trusted.** `/payments/webhooks/{razorpay,
+  cashfree,stripe}`; `main.ts` mounts `express.text` on those three paths so the
+  raw bytes survive for signature verification — **do not let a JSON parser
+  claim them**. The unique `(provider, eventId)` on `payment_webhook_events` is
+  the idempotency guard (a redelivery collides on insert); an unsigned payload
+  is persisted for audit and then rejected, and a handler failure marks the row
+  FAILED for the 10-minute recovery sweep rather than asking the provider to
+  retry forever.
+- **A refund is never SUCCEEDED because the API accepted it (§14)** — only a
+  webhook or a reconciliation read settles it. A *transport* failure leaves it
+  PENDING, deliberately: the gateway may have taken it, and marking it failed
+  invites a second refund.
+- Invoices are issued inside the capture transaction, numbered gaplessly from
+  `InvoiceSequence`, and rendered as printable HTML (no PDF dependency on the
+  ARM box). Line items are copied, so a later plan rename never rewrites a
+  receipt someone already downloaded.
+- Payment messaging rides the existing rules: `PAYMENT_RECEIVED`,
+  `PAYMENT_FAILED`, `REFUND_PROCESSED`, `SUBSCRIPTION_RENEWAL_FAILED` ship
+  **enabled, in-app only** via `MessagingDispatchService`. Every figure is read
+  back from the payment row, so a caller cannot assert an amount.
+- **A batch's price IS a `Plan` row carrying its `batchId`** — there is no second
+  pricing model. `BatchPricingService` + the "Pricing" tab in the admin
+  `BatchForm` are how an admin sets what a batch costs, and a batch may hold
+  several options at once (a monthly subscription beside a one-time fee). Plan
+  codes are generated from the batch name + interval, never typed.
+- **A recurring plan opens a mandate, not a charge.** `createCheckout` branches
+  on `isRecurringInterval(plan.interval)` into `SubscriptionService.start`, and
+  the router is passed `recurring: true` so only a gateway that can actually
+  mandate that method is a candidate. The provider bills each cycle; we mirror
+  its state from webhooks and never charge on our own clock.
+- **Discounts are the ONE mechanism that changes what someone pays.** A launch
+  code, a UPI-only offer and a batch deal are the same `Discount` row with a
+  different scope (`planIds` / `batchIds` / `methods`). The arithmetic is
+  `computeDiscount` in `@nexa-chess/types`, shared with the checkout preview.
+  **Tax is charged on the DISCOUNTED subtotal** — taxing the list price would
+  overcharge. A code is re-resolved server-side at checkout; the client's figure
+  is never trusted, and an invalid one is simply not applied rather than
+  refusing the purchase.
+- **A code is consumed at CAPTURE, not at checkout** — `DiscountService.redeem`
+  runs in the capture transaction, idempotent on the unique `orderId`, so an
+  abandoned cart never burns a limited code and a replayed webhook never
+  consumes a second use.
+- **Per-method switches live in `PaymentRoutingConfig.methodSettings`** (a
+  *partial* record — an absent method is enabled, so adding one never silently
+  disables it). `isMethodEnabled` gates the router AND the picker, so one switch
+  takes a method out everywhere. A plan's `allowedMethods` then narrows further;
+  it can restrict but never widen.
+- **None of these models are soft-deletable** and none are Trash-registered — a
+  financial record is never trashed. Plans archive (`isActive: false`) instead.
+- Every gateway is optional. Unset credentials ⇒ that adapter reports
+  `isConfigured()` false, the router skips it, and the checkout screen stops
+  offering the methods only it could serve. With none configured the API still
+  boots and a checkout attempt is a clean 503.
+
 ### 3.7 Live class / LiveKit
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
@@ -337,7 +433,8 @@ use them, don't reimplement, or the admin preview stops matching the send.
 6. **Update the relevant README/doc in the same change** when setup, commands, env vars, or behavior change (project rule in `README.md`).
 7. **Table action buttons → `rounded-full` icon template** with `strokeWidth={2.5}`.
 8. Reuse `components/ui/` primitives before writing new UI.
-9. **Dates: store UTC, localize in the browser.** No `toLocaleDateString`/`toLocaleTimeString`/`new Date(iso).toLocaleString()` in a web component (ESLint blocks it) — use `lib/datetime.ts` + `useUserTimeZone()`. No bound `Date`/`::timestamptz` next to a `timestamp` column in raw SQL — bind `${d.toISOString()}::timestamp`. API serializes with `.toISOString()`, never pre-formats. (`.agents/AGENTS.md` "Date & Time Rule".)
+9. **Payments: money is integer minor units, and access comes from an `Entitlement`, never from a gateway status or a frontend callback.** Every state change goes through `PaymentService.applyProviderState`; no provider adapter is imported outside `payments/providers/`.
+10. **Dates: store UTC, localize in the browser.** No `toLocaleDateString`/`toLocaleTimeString`/`new Date(iso).toLocaleString()` in a web component (ESLint blocks it) — use `lib/datetime.ts` + `useUserTimeZone()`. No bound `Date`/`::timestamptz` next to a `timestamp` column in raw SQL — bind `${d.toISOString()}::timestamp`. API serializes with `.toISOString()`, never pre-formats. (`.agents/AGENTS.md` "Date & Time Rule".)
 
 ---
 
@@ -390,6 +487,18 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | A rule fires twice | the `dedupeKey` differs between runs. Scheduled events key on the entity + the moment (`ASSIGNMENT_DUE_SOON:<id>:<dueDate>`), so a rescheduled deadline deliberately reminds again |
 | Class reminder is late by a few minutes | `MessagingScheduler.classReminders` sweeps every 5 minutes — a 30-minute rule sends 30-35 minutes ahead, by design |
 | WhatsApp message never arrives | `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` unset ⇒ `ServiceUnavailableException` before any request. Otherwise the logged failure carries Meta's own code: `131047` = outside the 24h window (send an approved template instead), `132xxx` = template name/params wrong, `190` = expired token, `130429`/`131056` = rate limited (retryable) |
+| A discount code is refused | the API returns a `DiscountRejection` reason, not a generic error — check it against `DISCOUNT_REJECTION_MESSAGES`. `METHOD_NOT_ELIGIBLE` is the common one: a method-scoped code cannot be priced until the buyer picks that method |
+| A code was applied but the order shows no discount | it is re-resolved at checkout, so it had expired, hit a limit, or did not match the chosen method by then. The order is correct; the preview was stale |
+| A limited code shows fewer uses than expected | redemptions are recorded at CAPTURE — abandoned checkouts deliberately do not count |
+| A batch's price does not appear at checkout | the price option is a `Plan` with that `batchId`; check it is `isActive`, and that its `allowedMethods` still intersect what the gateways can serve |
+| A monthly plan charged once and never again | it opened a one-off payment instead of a mandate — check the router had a `supportsRecurring` gateway for that currency, and that the provider's subscription webhooks reach `/payments/webhooks/*` |
+| Payment stuck "pending" forever | the reconciliation sweep (`payment-reconciliation.service.ts`, every 5 min, advisory lock `73002060`) asks the gateway directly — check it is running and that the payment has a `providerPaymentId`/`providerOrderId` to ask about. A payment with neither never reached the gateway and expires after `PAYMENTS_ORDER_TTL_MINUTES` |
+| Payment succeeded at the gateway but no access | the entitlement is what grants access, not the payment. Check `entitlements` for `(orderId, planId)`; if the payment is PAID and there is no row, the plan was deleted (logged) or the capture transaction rolled back. `POST /admin/payments/:id/reconcile` re-runs it safely |
+| Webhook returns 400 "Invalid webhook signature" | the gateway's webhook secret does not match the env var, or a JSON parser claimed the route before `express.text` in `main.ts` and the raw bytes were re-serialised. Never "fix" this by skipping verification |
+| A webhook fires twice and grants twice | it cannot — `(provider, eventId)` is unique and `(orderId, planId)` on entitlements is unique. If it did, something bypassed `PaymentService.applyProviderState` |
+| Checkout says "no payment gateway is available" | every gateway is unconfigured (`RAZORPAY_KEY_ID` / `CASHFREE_APP_ID` / `STRIPE_SECRET_KEY` all unset), or `PAYMENTS_ENABLED=false`. Health alone never causes this — a degraded gateway is still used rather than refusing money |
+| A method is missing from the checkout screen | `PaymentRouterService.availableMethods` only lists a method when the routed gateway's own adapter says it can serve it in that currency — Stripe deliberately reports no UPI flows |
+| Refund stuck PROCESSING | normal for days; banks are slow. `RefundService.reconcilePending` (every 30 min) reads the gateway. A refund left PENDING after a timeout is deliberate — the gateway may have taken it, so never issue a second one without reconciling |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
 | Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |

@@ -12,7 +12,13 @@ export function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = pathname === "/login" || pathname === "/signup";
-  const isProtectedRoute = pathname.startsWith("/admin") || pathname.startsWith("/coach") || pathname.startsWith("/student");
+  const isProtectedRoute =
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/coach") ||
+    pathname.startsWith("/student") ||
+    // Buying requires an account: the order is written against a user.
+    pathname.startsWith("/checkout") ||
+    pathname.startsWith("/plans");
 
   if (isProtectedRoute && !hasAccessToken && !hasRefreshToken) {
     const loginUrl = new URL("/login", request.url);
@@ -52,6 +58,8 @@ export const config = {
     "/admin/:path*",
     "/coach/:path*",
     "/student/:path*",
+    "/checkout/:path*",
+    "/plans",
     "/login",
     "/signup"
   ]
