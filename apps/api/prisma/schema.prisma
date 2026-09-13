@@ -287,6 +287,15 @@ model User {
   messagingRuleUpdates   MessagingRule[]             @relation("MessagingRuleUpdatedBy")
   messageDeliveries      MessageDelivery[]           @relation("UserMessageDeliveries")
   createdAnnouncements   Announcement[]              @relation("AnnouncementCreatedBy")
+  orders                 Order[]                     @relation("UserOrders")
+  payments               Payment[]                   @relation("UserPayments")
+  subscriptions          Subscription[]              @relation("UserSubscriptions")
+  invoices               Invoice[]                   @relation("UserInvoices")
+  entitlements           Entitlement[]               @relation("UserEntitlements")
+  requestedRefunds       Refund[]                    @relation("RefundRequestedBy")
+  paymentSettingUpdates  PaymentSetting[]            @relation("PaymentSettingUpdatedBy")
+  createdDiscounts       Discount[]                  @relation("DiscountCreatedBy")
+  discountRedemptions    DiscountRedemption[]        @relation("DiscountRedemptions")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -489,6 +498,8 @@ model Batch {
   assignments   AssignmentBatch[]
   schedules     BatchClassSchedule[]
   announcements Announcement[]       @relation("BatchAnnouncements")
+  plans         Plan[]               @relation("PlanBatch")
+  entitlements  Entitlement[]        @relation("EntitlementBatch")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1207,6 +1218,10 @@ enum NotificationType {
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  REFUND_PROCESSED
+  SUBSCRIPTION_RENEWAL_FAILED
 }
 
 model Notification {
@@ -1501,6 +1516,10 @@ enum MessagingEvent {
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  REFUND_PROCESSED
+  SUBSCRIPTION_RENEWAL_FAILED
 }
 
 enum MessagingScheduleMode {
@@ -1624,4 +1643,682 @@ model MessageDelivery {
   @@index([recipientId])
   @@index([createdAt])
   @@map("message_deliveries")
+}
+
+//
+// PAYMENTS
+//
+// Provider-agnostic. Business logic only ever talks to PaymentService; the
+// PaymentRouter decides which of Razorpay / Cashfree / Stripe handles an
+// attempt. Money is ALWAYS stored as integer minor units (paise, cents) — never
+// a float and never a Decimal a rounding bug can shave.
+//
+// Nothing here is soft-deletable. A financial record is never trashed, so these
+// models are deliberately absent from softDeleteModels and the Trash module;
+// lifecycle is expressed with status columns instead.
+//
+
+enum PaymentProvider {
+  RAZORPAY
+  CASHFREE
+  STRIPE
+}
+
+/// Unified payment state. Every provider status maps into this (see
+/// providers/*.mapper.ts); nothing outside that folder knows a provider string.
+enum PaymentStatus {
+  CREATED
+  PENDING
+  PROCESSING
+  AUTHORIZED
+  PAID
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUND_PENDING
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum OrderStatus {
+  CREATED
+  PENDING
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+  CANCELLED
+  EXPIRED
+  FAILED
+}
+
+enum PaymentMethodKind {
+  UPI
+  CARD
+  NET_BANKING
+  WALLET
+  EMI
+  PAY_LATER
+  APPLE_PAY
+  GOOGLE_PAY
+  OTHER
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum BillingInterval {
+  ONE_TIME
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  CREATED
+  PENDING_ACTIVATION
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+  REFUNDED
+}
+
+/// What a paid order actually unlocks. The gateway is NOT the source of truth
+/// for access (§21) — this row is.
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum WebhookEventStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum PaymentProviderEventKind {
+  API_CALL
+  WEBHOOK
+}
+
+/// A sellable product. `batchId` is what a successful purchase enrols into.
+model Plan {
+  id String @id @default(cuid())
+
+  code        String  @unique
+  name        String
+  description String?
+
+  /// Minor units (99900 = ₹999.00).
+  amount   Int
+  currency String @default("INR")
+
+  interval BillingInterval @default(ONE_TIME)
+
+  /// Access length per purchase, in days. Null = the billing interval.
+  accessDays Int?
+
+  /// GST / VAT percent added on top of `amount`.
+  taxPercent Float @default(0)
+
+  batchId String?
+  batch   Batch?  @relation("PlanBatch", fields: [batchId], references: [id], onDelete: SetNull)
+
+  features String[]
+
+  /// Methods this plan accepts. Empty = whatever the gateways can serve. Always
+  /// intersected with the platform-wide switches, so it narrows, never widens.
+  allowedMethods PaymentMethodKind[]
+
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  /// Provider-side plan/price handles, keyed by provider ("STRIPE": "price_…").
+  /// Created lazily on first recurring checkout and cached here.
+  providerPlanIds Json?
+
+  orders        Order[]
+  subscriptions Subscription[]
+  entitlements  Entitlement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([batchId])
+  @@map("plans")
+}
+
+/// The business order. One order may carry several payment attempts (§12) but
+/// only ever grants its entitlement once.
+model Order {
+  id String @id @default(cuid())
+
+  /// Human handle shown to the user and to support. NEXA-2026-000123.
+  orderNumber String @unique
+
+  userId String
+  user   User   @relation("UserOrders", fields: [userId], references: [id], onDelete: Cascade)
+
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  status OrderStatus @default(CREATED)
+
+  /// Minor units. subtotalAmount + taxAmount - discountAmount = amount.
+  subtotalAmount Int
+  taxAmount      Int    @default(0)
+  discountAmount Int    @default(0)
+  amount         Int
+  currency       String @default("INR")
+
+  /// Client-supplied checkout key. The unique index IS the double-submit guard:
+  /// a second click / refresh / tab replays the same key and collides instead
+  /// of opening a second order.
+  idempotencyKey String @unique
+
+  discountId String?
+  discount   Discount? @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  /// Copied at order time, so a later rename or deletion never rewrites what
+  /// the customer was told they used.
+  discountCode String?
+  discountRedemption DiscountRedemption?
+
+  notes Json?
+
+  paidAt    DateTime?
+  expiresAt DateTime?
+
+  payments     Payment[]
+  attempts     PaymentAttempt[]
+  invoice      Invoice?
+  entitlements Entitlement[]
+  subscription Subscription?    @relation("SubscriptionInitialOrder")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([planId])
+  @@index([createdAt])
+  @@index([discountId])
+  @@map("orders")
+}
+
+/// One payment as the provider sees it. Created before the gateway is called,
+/// so a network timeout still leaves a reconcilable record.
+model Payment {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  userId String?
+  user   User?   @relation("UserPayments", fields: [userId], references: [id], onDelete: SetNull)
+
+  provider PaymentProvider
+
+  /// The gateway's own handles. (provider, providerPaymentId) is unique, which
+  /// is what stops a replayed webhook creating a second payment.
+  providerPaymentId String?
+  providerOrderId   String?
+
+  /// Minor units.
+  amount         Int
+  amountRefunded Int    @default(0)
+  currency       String @default("INR")
+
+  paymentMethod PaymentMethodKind?
+
+  /// Free text from the provider ("upi/googlepay", "card/Visa 4242").
+  methodDetail String?
+
+  status PaymentStatus @default(CREATED)
+
+  failureCode    String?
+  failureMessage String?
+
+  /// Raw provider payload of the last state change, for support and disputes.
+  metadata Json?
+
+  paidAt DateTime?
+
+  attempts     PaymentAttempt[]
+  refunds      Refund[]
+  entitlements Entitlement[]
+  invoice      Invoice?
+
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerPaymentId])
+  @@index([orderId])
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([provider, status])
+  @@index([paymentMethod])
+  @@index([paidAt])
+  @@index([createdAt])
+  @@index([providerOrderId])
+  @@index([subscriptionId])
+  @@map("payments")
+}
+
+/// One try at paying an order. Attempt 1 -> Razorpay -> failed, attempt 2 ->
+/// Cashfree -> paid. Kept separate from Payment so retry history survives.
+model PaymentAttempt {
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  /// 1-based, unique per order.
+  attemptNumber Int
+
+  provider PaymentProvider
+  method   PaymentMethodKind?
+
+  status PaymentStatus @default(CREATED)
+
+  /// Which routing rule chose this provider — null when the default answered.
+  routingRuleId String?
+
+  failureCode    String?
+  failureMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderId, attemptNumber])
+  @@index([paymentId])
+  @@index([provider, status])
+  @@index([createdAt])
+  @@map("payment_attempts")
+}
+
+/// Every webhook we accept, stored before it is acted on. The unique
+/// (provider, eventId) is the idempotency guard: a redelivery collides on
+/// insert instead of re-running the handler.
+model PaymentWebhookEvent {
+  id String @id @default(cuid())
+
+  provider PaymentProvider
+
+  /// The provider's own event id. Providers that send none get a hash of the
+  /// payload, so a byte-identical redelivery still dedupes.
+  eventId   String
+  eventType String
+
+  status WebhookEventStatus @default(RECEIVED)
+
+  signatureValid Boolean @default(false)
+
+  payload Json
+
+  /// Payment this event resolved to, once known.
+  paymentId String?
+
+  attempts    Int       @default(0)
+  error       String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventId])
+  @@index([status, receivedAt])
+  @@index([provider, eventType])
+  @@index([paymentId])
+  @@index([receivedAt])
+  @@map("payment_webhook_events")
+}
+
+/// A refund is never SUCCEEDED because the API accepted the request — only
+/// because the provider later said so (§14).
+model Refund {
+  id String @id @default(cuid())
+
+  paymentId String
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  provider         PaymentProvider
+  providerRefundId String?
+
+  /// Minor units.
+  amount   Int
+  currency String @default("INR")
+
+  status RefundStatus @default(PENDING)
+
+  reason         String?
+  failureMessage String?
+
+  /// Idempotency key sent to the provider, so a retried request never
+  /// double-refunds.
+  idempotencyKey String @unique
+
+  requestedById String?
+  requestedBy   User?   @relation("RefundRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  metadata Json?
+
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([provider, providerRefundId])
+  @@index([paymentId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("refunds")
+}
+
+/// A recurring plan the provider bills. We mirror its state rather than owning
+/// it: the provider's mandate is what actually charges the card.
+model Subscription {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  provider               PaymentProvider
+  providerSubscriptionId String?
+
+  /// Provider-side customer handle, reused across renewals.
+  providerCustomerId String?
+
+  status SubscriptionStatus @default(CREATED)
+
+  interval BillingInterval
+
+  /// Minor units, per cycle. Frozen at subscribe time — a later plan price
+  /// change never silently re-prices an existing subscriber.
+  amount   Int
+  currency String @default("INR")
+
+  startDate         DateTime?
+  currentPeriodEnd  DateTime?
+  nextBillingDate   DateTime?
+  cancelledAt       DateTime?
+  cancelAtPeriodEnd Boolean   @default(false)
+  cancelReason      String?
+
+  failedRenewals Int @default(0)
+
+  /// Order that opened the subscription; renewals create their own orders.
+  initialOrderId String? @unique
+  initialOrder   Order?  @relation("SubscriptionInitialOrder", fields: [initialOrderId], references: [id], onDelete: SetNull)
+
+  payments     Payment[]
+  entitlements Entitlement[]
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerSubscriptionId])
+  @@index([userId, status])
+  @@index([status, nextBillingDate])
+  @@index([planId])
+  @@map("subscriptions")
+}
+
+/// Issued once, when an order is genuinely PAID. Numbering is gapless per year
+/// via InvoiceSequence.
+model Invoice {
+  id String @id @default(cuid())
+
+  number String @unique
+
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  paymentId String?  @unique
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  userId String
+  user   User   @relation("UserInvoices", fields: [userId], references: [id], onDelete: Cascade)
+
+  status InvoiceStatus @default(ISSUED)
+
+  /// Minor units, frozen at issue time.
+  subtotal       Int
+  taxAmount      Int     @default(0)
+  taxPercent     Float   @default(0)
+  taxLabel       String?
+  total          Int
+  amountRefunded Int     @default(0)
+  currency       String  @default("INR")
+
+  /// Line items as rendered. Copied, never joined — a later plan rename must
+  /// not rewrite a receipt someone already downloaded.
+  lines Json
+
+  sellerName    String?
+  sellerAddress String?
+  sellerTaxId   String?
+
+  issuedAt DateTime  @default(now())
+  paidAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, issuedAt])
+  @@index([status])
+  @@map("invoices")
+}
+
+/// Gapless invoice numbering. Incremented inside the same transaction that
+/// writes the invoice, so two concurrent captures cannot collide.
+model InvoiceSequence {
+  /// Calendar year the sequence belongs to.
+  year       Int @id
+  lastNumber Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("invoice_sequences")
+}
+
+/// What a payment actually bought. The ONLY thing that unlocks access — a
+/// provider saying "paid" is not enough, and a frontend saying so is never
+/// enough (§21).
+model Entitlement {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation("UserEntitlements", fields: [userId], references: [id], onDelete: Cascade)
+
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  /// The order that granted it. Unique per (order, plan) so a replayed webhook
+  /// can never grant the same benefit twice (§11).
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  /// Batch the student was enrolled into, when the plan names one.
+  batchId String?
+  batch   Batch?  @relation("EntitlementBatch", fields: [batchId], references: [id], onDelete: SetNull)
+
+  status EntitlementStatus @default(ACTIVE)
+
+  startsAt DateTime @default(now())
+
+  /// Null = perpetual.
+  endsAt DateTime?
+
+  revokedAt     DateTime?
+  revokedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orderId, planId])
+  @@index([userId, status])
+  @@index([status, endsAt])
+  @@index([planId])
+  @@index([subscriptionId])
+  @@map("entitlements")
+}
+
+/// Raw material for provider health (§17). One row per outbound API call and
+/// per inbound webhook, pruned on a schedule.
+model PaymentProviderEvent {
+  id String @id @default(cuid())
+
+  provider PaymentProvider
+  kind     PaymentProviderEventKind
+
+  /// "createPayment", "refundPayment", "webhook:payment.captured".
+  operation String
+
+  success    Boolean
+  durationMs Int?
+  statusCode Int?
+  errorCode  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([provider, createdAt])
+  @@index([createdAt])
+  @@map("payment_provider_events")
+}
+
+/// Singleton holding the admin-editable routing config. Lazily created from
+/// DEFAULT_PAYMENT_ROUTING in @nexa-chess/types, like LiveClassPolicy.
+model PaymentSetting {
+  id       String  @id @default(cuid())
+  isActive Boolean @default(true)
+
+  /// PaymentRoutingConfig JSON, validated by the shared Zod schema.
+  routing Json
+
+  updatedById String?
+  updatedBy   User?   @relation("PaymentSettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payment_settings")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+/// A discount is the one mechanism that changes what someone pays. A launch
+/// code, a UPI-only offer and a batch-specific deal are the same row with a
+/// different scope, so there is a single place to audit why an order cost what
+/// it did.
+model Discount {
+  id String @id @default(cuid())
+
+  /// Stored uppercase and matched uppercase, so "diwali25" is the same code.
+  code        String  @unique
+  name        String
+  description String?
+
+  type DiscountType
+
+  /// PERCENTAGE: whole percent (25 = 25%). FIXED: minor units.
+  value Int
+
+  /// FIXED only — the code is refused in any other currency, because "₹500
+  /// off" is not "$500 off".
+  currency String?
+
+  /// PERCENTAGE only: the most this code may ever take off. Minor units.
+  maxDiscountAmount Int?
+
+  /// Minimum order subtotal for the code to apply. Minor units.
+  minOrderAmount Int?
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  /// Total redemptions across everyone. Null = unlimited.
+  maxRedemptions Int?
+  maxPerUser     Int  @default(1)
+
+  /// Denormalised counter, incremented in the same transaction as the
+  /// redemption row, so validation never has to count rows.
+  redemptionCount Int @default(0)
+
+  /// Scope. Empty means "everything" for each dimension.
+  planIds  String[]
+  batchIds String[]
+  /// How a method-specific offer is expressed ("10% off on UPI").
+  methods  PaymentMethodKind[]
+
+  isActive Boolean @default(true)
+
+  createdById String?
+  createdBy   User?   @relation("DiscountCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  redemptions DiscountRedemption[]
+  orders      Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("discounts")
+}
+
+/// Written when an order is actually PAID, never when it is created — an
+/// abandoned checkout must not burn a limited code.
+model DiscountRedemption {
+  id String @id @default(cuid())
+
+  discountId String
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("DiscountRedemptions", fields: [userId], references: [id], onDelete: Cascade)
+
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Minor units actually taken off.
+  amount Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([discountId, orderId])
+  @@index([discountId, userId])
+  @@map("discount_redemptions")
 }

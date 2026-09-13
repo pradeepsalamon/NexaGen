@@ -71,6 +71,101 @@ async function seedSystemPresets() {
   console.log(`- live-class presets: ${SYSTEM_PRESETS.length} system presets`);
 }
 
+/**
+ * Sample plans, so a sandbox gateway can be exercised end-to-end without an
+ * admin building a catalogue by hand first. Idempotent on `code`, and prices
+ * are in MINOR units (99900 = ₹999.00) like everywhere else.
+ */
+const PLANS: Array<{
+  code: string;
+  name: string;
+  description: string;
+  amount: number;
+  interval: "ONE_TIME" | "MONTHLY" | "QUARTERLY" | "YEARLY";
+  taxPercent: number;
+  features: string[];
+  sortOrder: number;
+}> = [
+  {
+    code: "starter-monthly",
+    name: "Starter",
+    description: "Weekly group classes and the full puzzle library.",
+    amount: 99900,
+    interval: "MONTHLY",
+    taxPercent: 18,
+    features: ["Weekly group classes", "Puzzle library", "Class recordings"],
+    sortOrder: 1
+  },
+  {
+    code: "premium-monthly",
+    name: "Premium Membership",
+    description: "Everything in Starter, plus assignments and progress reviews.",
+    amount: 249900,
+    interval: "MONTHLY",
+    taxPercent: 18,
+    features: [
+      "Everything in Starter",
+      "Coach-graded assignments",
+      "Monthly progress review"
+    ],
+    sortOrder: 2
+  },
+  {
+    code: "annual-pass",
+    name: "Annual Pass",
+    description: "A full year of Premium, paid once.",
+    amount: 2499900,
+    interval: "YEARLY",
+    taxPercent: 18,
+    features: ["Everything in Premium", "Two months free", "Priority support"],
+    sortOrder: 3
+  }
+];
+
+async function seedPlans() {
+  for (const plan of PLANS) {
+    await prisma.plan.upsert({
+      where: { code: plan.code },
+      create: { ...plan, currency: "INR", isActive: true },
+      // Price and billing terms are left alone on re-seed: changing them under
+      // an existing subscriber is a deliberate admin action, not a seed's job.
+      update: {
+        name: plan.name,
+        description: plan.description,
+        features: plan.features,
+        sortOrder: plan.sortOrder
+      }
+    });
+  }
+  console.log(`- payments: ${PLANS.length} sample plans`);
+}
+
+/**
+ * A sample discount, so the coupon flow can be exercised in sandbox without an
+ * admin building one first. Idempotent on `code`; usage counters are never
+ * reset, because that would rewrite history.
+ */
+async function seedDiscounts() {
+  await prisma.discount.upsert({
+    where: { code: "WELCOME10" },
+    create: {
+      code: "WELCOME10",
+      name: "Welcome offer",
+      description: "10% off a first purchase, capped at ₹200.",
+      type: "PERCENTAGE",
+      value: 10,
+      maxDiscountAmount: 20000,
+      maxPerUser: 1,
+      isActive: true
+    },
+    update: {
+      name: "Welcome offer",
+      description: "10% off a first purchase, capped at ₹200."
+    }
+  });
+  console.log("- payments: 1 sample discount (WELCOME10)");
+}
+
 async function upsertUser(email: string, createData: any, updateData: any) {
   const existing = await prisma.user.findFirst({ where: { email, isDeleted: false } });
   if (existing) {
@@ -597,6 +692,8 @@ async function main() {
 
     const puzzleTopics = await seedPuzzleTopics(superAdmin.id);
     await seedPuzzles(puzzleTopics, superAdmin.id, coach.id, coach2.id);
+    await seedPlans();
+    await seedDiscounts();
   }
 }
 

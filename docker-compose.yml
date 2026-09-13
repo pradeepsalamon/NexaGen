@@ -225,6 +225,39 @@ services:
       # `web` service, not the public hostname.
       RECORDING_TEMPLATE_BASE_URL: ${RECORDING_TEMPLATE_BASE_URL:-http://web:3000}
 
+      # Payments. Each gateway is optional: unset credentials make it report
+      # itself unconfigured, the router skips it, and the checkout screen stops
+      # offering the methods only it could serve.
+      PAYMENTS_ENABLED: ${PAYMENTS_ENABLED:-true}
+      PAYMENTS_MODE: ${PAYMENTS_MODE:-sandbox}
+      PAYMENTS_DEFAULT_CURRENCY: ${PAYMENTS_DEFAULT_CURRENCY:-INR}
+      PAYMENTS_ORDER_TTL_MINUTES: ${PAYMENTS_ORDER_TTL_MINUTES:-30}
+      PAYMENTS_HTTP_TIMEOUT_MS: ${PAYMENTS_HTTP_TIMEOUT_MS:-15000}
+      PAYMENTS_HEALTH_WINDOW_HOURS: ${PAYMENTS_HEALTH_WINDOW_HOURS:-24}
+      PAYMENTS_HEALTH_MIN_SUCCESS_RATE: ${PAYMENTS_HEALTH_MIN_SUCCESS_RATE:-40}
+      PAYMENTS_HEALTH_MIN_SAMPLES: ${PAYMENTS_HEALTH_MIN_SAMPLES:-10}
+      PAYMENTS_INVOICE_PREFIX: ${PAYMENTS_INVOICE_PREFIX:-NEXA}
+      PAYMENTS_SELLER_NAME: ${PAYMENTS_SELLER_NAME}
+      PAYMENTS_SELLER_ADDRESS: ${PAYMENTS_SELLER_ADDRESS}
+      PAYMENTS_SELLER_TAX_ID: ${PAYMENTS_SELLER_TAX_ID}
+      PAYMENTS_TAX_LABEL: ${PAYMENTS_TAX_LABEL:-GST}
+
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+
+      CASHFREE_APP_ID: ${CASHFREE_APP_ID}
+      CASHFREE_SECRET_KEY: ${CASHFREE_SECRET_KEY}
+      CASHFREE_WEBHOOK_SECRET: ${CASHFREE_WEBHOOK_SECRET}
+      CASHFREE_API_VERSION: ${CASHFREE_API_VERSION:-2023-08-01}
+
+      # Only the PUBLISHABLE key ever reaches a browser, and it is served by the
+      # API in a checkout response — never baked into the web build.
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      STRIPE_API_VERSION: ${STRIPE_API_VERSION:-2024-06-20}
+
       # OCI Object Storage — DB backups (backup module) and the download
       # fallback for recordings not on local disk. Still required.
       OCI_REGION: ${OCI_REGION}

@@ -1,6 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
+  formatMoney,
+  PAYMENT_METHOD_LABELS,
+  PAYMENT_STATUS_LABELS,
   renderMessageTemplate,
   type MessageVariables,
   type MessagingAudience,
@@ -47,7 +50,22 @@ export type DispatchRequest =
       outcome: string;
     }
   | { event: "ANNOUNCEMENT"; announcementId: string }
-  | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED"; userId: string };
+  | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED"; userId: string }
+  /**
+   * Payment outcomes. The caller passes the payment id only — every figure in
+   * the message is read back from the row, so a message can never claim an
+   * amount or a status the database does not hold.
+   */
+  | {
+      event:
+        | "PAYMENT_RECEIVED"
+        | "PAYMENT_FAILED"
+        | "REFUND_PROCESSED"
+        | "SUBSCRIPTION_RENEWAL_FAILED";
+      paymentId: string;
+      /** Distinguishes repeat events on one payment (a second refund). */
+      dedupeSuffix?: string;
+    };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
   ruleEnabled: false,
@@ -257,6 +275,15 @@ export class MessagingDispatchService {
       case "ACCOUNT_WELCOME":
       case "ACCOUNT_APPROVED":
         return this.accountRecipients(request.event, request.userId, audience);
+      case "PAYMENT_RECEIVED":
+      case "PAYMENT_FAILED":
+      case "REFUND_PROCESSED":
+      case "SUBSCRIPTION_RENEWAL_FAILED":
+        return this.paymentRecipients(
+          request.event,
+          request.paymentId,
+          request.dedupeSuffix
+        );
     }
   }
 
@@ -505,6 +532,49 @@ export class MessagingDispatchService {
     ];
   }
 
+  /**
+   * The payer, with every figure read back from the payment row. `payment.
+   * amount` is formatted from the stored minor units — the caller never gets to
+   * assert what was charged.
+   */
+  private async paymentRecipients(
+    event: MessagingEvent,
+    paymentId: string,
+    dedupeSuffix?: string
+  ): Promise<Recipient[]> {
+    const payment = await this.prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        user: true,
+        order: { include: { plan: true } },
+        invoice: true
+      }
+    });
+    if (!payment?.user || payment.user.isDeleted) return [];
+
+    const refunded = event === "REFUND_PROCESSED";
+    const amount = refunded ? payment.amountRefunded : payment.amount;
+
+    return [
+      this.toRecipient(payment.user, {
+        variables: {
+          "payment.amount": formatMoney(amount, payment.currency),
+          "payment.currency": payment.currency,
+          "payment.method": payment.paymentMethod
+            ? PAYMENT_METHOD_LABELS[payment.paymentMethod]
+            : "",
+          "payment.status": PAYMENT_STATUS_LABELS[payment.status],
+          "order.number": payment.order.orderNumber,
+          "plan.name": payment.order.plan?.name ?? "",
+          "invoice.number": payment.invoice?.number ?? ""
+        },
+        linkPath: "/student/billing",
+        linkVariable: "links.billing",
+        dedupeKey: `${event}:${paymentId}${dedupeSuffix ? `:${dedupeSuffix}` : ""}`
+      })
+    ];
+  }
+
   // ── shared bits ──
 
   private assignmentVariables(
@@ -534,7 +604,11 @@ export class MessagingDispatchService {
     options: {
       variables: MessageVariables;
       linkPath: string | null;
-      linkVariable?: "links.class" | "links.assignment" | "links.login";
+      linkVariable?:
+        | "links.class"
+        | "links.assignment"
+        | "links.login"
+        | "links.billing";
       dedupeKey: string | null;
     }
   ): Recipient {

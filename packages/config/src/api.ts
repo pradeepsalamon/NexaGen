@@ -81,7 +81,55 @@ const apiEnvSchema = z.object({
     .regex(/^\d{1,4}$/, "Expected a country calling code like 91.")
     .optional()
     .or(z.literal("").transform(() => undefined)),
-  WHATSAPP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000)
+  WHATSAPP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+
+  // ── Payments ──
+  // Every gateway is optional and independently configurable. A gateway with
+  // missing credentials reports itself unconfigured, the router skips it, and
+  // the checkout screen simply never offers the methods only it could serve.
+  // With none configured the payments module still boots — the catalogue and
+  // history read fine, a checkout attempt is a clean 503.
+  PAYMENTS_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  /** Sandbox keys behave identically; this only selects provider hostnames. */
+  PAYMENTS_MODE: z.enum(["sandbox", "production"]).default("sandbox"),
+  PAYMENTS_DEFAULT_CURRENCY: z
+    .string()
+    .regex(/^[A-Za-z]{3}$/)
+    .default("INR")
+    .transform((value) => value.toUpperCase()),
+  /** An unpaid order stops accepting payments after this long. */
+  PAYMENTS_ORDER_TTL_MINUTES: z.coerce.number().int().positive().default(30),
+  /** Per-provider HTTP timeout. A slow gateway must not hold a request open. */
+  PAYMENTS_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(15000),
+  /** Rolling window the provider-health numbers are computed over. */
+  PAYMENTS_HEALTH_WINDOW_HOURS: z.coerce.number().int().positive().default(24),
+  /** Below this success rate (with enough samples) a provider drops out. */
+  PAYMENTS_HEALTH_MIN_SUCCESS_RATE: z.coerce.number().min(0).max(100).default(40),
+  PAYMENTS_HEALTH_MIN_SAMPLES: z.coerce.number().int().positive().default(10),
+  /** Invoice number prefix: NEXA/2026/000123. */
+  PAYMENTS_INVOICE_PREFIX: z.string().default("NEXA"),
+  /** Printed on invoices. Nothing is fabricated when these are unset. */
+  PAYMENTS_SELLER_NAME: z.string().optional(),
+  PAYMENTS_SELLER_ADDRESS: z.string().optional(),
+  PAYMENTS_SELLER_TAX_ID: z.string().optional(),
+  PAYMENTS_TAX_LABEL: z.string().default("GST"),
+
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+
+  CASHFREE_APP_ID: z.string().optional(),
+  CASHFREE_SECRET_KEY: z.string().optional(),
+  CASHFREE_WEBHOOK_SECRET: z.string().optional(),
+  CASHFREE_API_VERSION: z.string().default("2023-08-01"),
+
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_API_VERSION: z.string().default("2024-06-20")
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

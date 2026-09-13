@@ -4,6 +4,18 @@ import { softDeleteExtension } from "./soft-delete.extension";
 
 const createPrismaClient = () => new PrismaClient().$extends(softDeleteExtension);
 
+export type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>;
+
+/**
+ * The client handed to a `$transaction` callback. It is the *extended* client,
+ * so `Prisma.TransactionClient` does not describe it — a service that takes a
+ * `tx` parameter must use this type or the call site will not compile.
+ */
+export type PrismaTransactionClient = Omit<
+  ExtendedPrismaClient,
+  "$connect" | "$disconnect" | "$extends" | "$on" | "$transaction"
+>;
+
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
   private readonly client = createPrismaClient();
@@ -199,6 +211,62 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get messageDelivery() {
     return this.client.messageDelivery;
+  }
+
+  get plan() {
+    return this.client.plan;
+  }
+
+  get order() {
+    return this.client.order;
+  }
+
+  get payment() {
+    return this.client.payment;
+  }
+
+  get paymentAttempt() {
+    return this.client.paymentAttempt;
+  }
+
+  get paymentWebhookEvent() {
+    return this.client.paymentWebhookEvent;
+  }
+
+  get refund() {
+    return this.client.refund;
+  }
+
+  get subscription() {
+    return this.client.subscription;
+  }
+
+  get invoice() {
+    return this.client.invoice;
+  }
+
+  get invoiceSequence() {
+    return this.client.invoiceSequence;
+  }
+
+  get entitlement() {
+    return this.client.entitlement;
+  }
+
+  get paymentProviderEvent() {
+    return this.client.paymentProviderEvent;
+  }
+
+  get paymentSetting() {
+    return this.client.paymentSetting;
+  }
+
+  get discount() {
+    return this.client.discount;
+  }
+
+  get discountRedemption() {
+    return this.client.discountRedemption;
   }
 
   async $connect() {
