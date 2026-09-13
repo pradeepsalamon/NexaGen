@@ -25,6 +25,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
 import { TrashRepository } from "../trash/trash.repository";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
@@ -40,6 +41,7 @@ export class UserService {
 
   constructor(
     private readonly jwtService: JwtService,
+    private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
     private readonly trashRepository: TrashRepository
   ) { }
@@ -333,6 +335,11 @@ export class UserService {
       where: { id, isDeleted: false },
       data: { status: UserStatus.ACTIVE },
       include: userInclude
+    });
+
+    this.messaging.dispatchInBackground({
+      event: "ACCOUNT_APPROVED",
+      userId: updated.id
     });
 
     return { user: this.toAuthUser(updated) };

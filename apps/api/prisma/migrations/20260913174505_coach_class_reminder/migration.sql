@@ -1,0 +1,5 @@
+-- AlterEnum
+ALTER TYPE "MessagingEvent" ADD VALUE 'CLASS_REMINDER_COACH';
+
+-- AlterEnum
+ALTER TYPE "NotificationType" ADD VALUE 'CLASS_REMINDER_COACH';

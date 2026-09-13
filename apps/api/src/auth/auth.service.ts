@@ -45,6 +45,7 @@ import {
   splitStudentName,
   verifySecret
 } from "./auth.utils";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 type SessionContext = {
   ipAddress?: string;
@@ -109,6 +110,7 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
+    private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
     private readonly analyticsEvents: AnalyticsEventService
   ) {}
@@ -179,6 +181,11 @@ export class AuthService {
       this.refreshTokenShortMaxAge,
       this.refreshTokenShortTtl
     );
+
+    this.messaging.dispatchInBackground({
+      event: "ACCOUNT_WELCOME",
+      userId: user.id
+    });
 
     return {
       ...tokenPair,

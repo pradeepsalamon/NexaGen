@@ -15,6 +15,7 @@ import { hashSecret } from "./auth.utils";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 type MockPrismaService = {
   authSession: {
@@ -109,6 +110,10 @@ describe("AuthService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
+        {
+          provide: MessagingDispatchService,
+          useValue: { dispatchInBackground: jest.fn() }
+        },
         { provide: JwtService, useValue: jwtService },
         { provide: MailService, useValue: mailService },
         { provide: PrismaService, useValue: prismaService },

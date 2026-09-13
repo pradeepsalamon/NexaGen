@@ -194,6 +194,20 @@ export const API_ROUTES = {
     list: "/notifications",
     markRead: "/notifications/read"
   },
+  // Admin-configured outbound messaging (WhatsApp + in-app). Admin only.
+  messaging: {
+    rules: "/messaging/rules",
+    rule: (event: string = ":event") => `/messaging/rules/${event}`,
+    testRule: (event: string = ":event") => `/messaging/rules/${event}/test`,
+    deliveries: "/messaging/deliveries",
+    retryDelivery: (id: string = ":id") => `/messaging/deliveries/${id}/retry`
+  },
+  announcements: {
+    // GET is admin (full history); POST publishes + fires the ANNOUNCEMENT rule.
+    list: "/announcements",
+    create: "/announcements",
+    delete: (id: string = ":id") => `/announcements/${id}`
+  },
   analytics: {
     overview: "/analytics/overview",
     users: "/analytics/users",

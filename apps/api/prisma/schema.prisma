@@ -245,45 +245,48 @@ model User {
   createdUsers User[]  @relation("UserCreatedUsers")
 
   studentProfile         StudentProfile?
-  coachProfile           CoachProfile?            @relation("UserCoachProfile")
-  approvedCoaches        CoachProfile[]           @relation("CoachApprovedBy")
-  createdBatches         Batch[]                  @relation("BatchCreatedBy")
-  coachedBatches         BatchCoach[]             @relation("BatchCoaches")
-  studentBatches         BatchStudent[]           @relation("BatchStudents")
-  classes                CoachClass[]             @relation("ClassCoach")
+  coachProfile           CoachProfile?               @relation("UserCoachProfile")
+  approvedCoaches        CoachProfile[]              @relation("CoachApprovedBy")
+  createdBatches         Batch[]                     @relation("BatchCreatedBy")
+  coachedBatches         BatchCoach[]                @relation("BatchCoaches")
+  studentBatches         BatchStudent[]              @relation("BatchStudents")
+  classes                CoachClass[]                @relation("ClassCoach")
   authSessions           AuthSession[]
   passwordResets         PasswordResetToken[]
   emailVerifications     EmailVerificationToken[]
-  deletedRecords         TrashAuditLog[]          @relation("TrashAuditDeletedBy")
-  deletedStudentProfiles StudentProfile[]         @relation("StudentProfileDeletedBy")
-  deletedCoachProfiles   CoachProfile[]           @relation("CoachProfileDeletedBy")
-  deletedBatches         Batch[]                  @relation("BatchDeletedBy")
-  deletedBatchCoaches    BatchCoach[]             @relation("BatchCoachDeletedBy")
-  deletedBatchStudents   BatchStudent[]           @relation("BatchStudentDeletedBy")
-  liveSessions           LiveSession[]            @relation("LiveClassCoach")
-  courseProgress         StudentCourseProgress[]  @relation("StudentCourseProgress")
-  practices              StudentPractice[]        @relation("StudentPractice")
-  authoredAssignments    Assignment[]             @relation("AuthoredAssignments")
-  deployedAssignments    AssignmentBatch[]        @relation("DeployedAssignments")
-  studentAssignments     StudentAssignment[]      @relation("StudentAssignments")
-  createdPuzzleTopics    PuzzleTopic[]            @relation("PuzzleTopicCreatedBy")
-  deletedPuzzleTopics    PuzzleTopic[]            @relation("PuzzleTopicDeletedBy")
-  authoredPuzzles        Puzzle[]                 @relation("AuthoredPuzzles")
-  deletedPuzzles         Puzzle[]                 @relation("PuzzleDeletedBy")
-  studentPuzzleAttempts  PuzzleAttempt[]          @relation("StudentPuzzleAttempts")
+  deletedRecords         TrashAuditLog[]             @relation("TrashAuditDeletedBy")
+  deletedStudentProfiles StudentProfile[]            @relation("StudentProfileDeletedBy")
+  deletedCoachProfiles   CoachProfile[]              @relation("CoachProfileDeletedBy")
+  deletedBatches         Batch[]                     @relation("BatchDeletedBy")
+  deletedBatchCoaches    BatchCoach[]                @relation("BatchCoachDeletedBy")
+  deletedBatchStudents   BatchStudent[]              @relation("BatchStudentDeletedBy")
+  liveSessions           LiveSession[]               @relation("LiveClassCoach")
+  courseProgress         StudentCourseProgress[]     @relation("StudentCourseProgress")
+  practices              StudentPractice[]           @relation("StudentPractice")
+  authoredAssignments    Assignment[]                @relation("AuthoredAssignments")
+  deployedAssignments    AssignmentBatch[]           @relation("DeployedAssignments")
+  studentAssignments     StudentAssignment[]         @relation("StudentAssignments")
+  createdPuzzleTopics    PuzzleTopic[]               @relation("PuzzleTopicCreatedBy")
+  deletedPuzzleTopics    PuzzleTopic[]               @relation("PuzzleTopicDeletedBy")
+  authoredPuzzles        Puzzle[]                    @relation("AuthoredPuzzles")
+  deletedPuzzles         Puzzle[]                    @relation("PuzzleDeletedBy")
+  studentPuzzleAttempts  PuzzleAttempt[]             @relation("StudentPuzzleAttempts")
   assignedLivePuzzles    LiveClassPuzzleAssignment[] @relation("LiveClassPuzzleAssignedBy")
-  activities             StudentActivity[]        @relation("StudentActivity")
+  activities             StudentActivity[]           @relation("StudentActivity")
   classAttendances       ClassAttendance[]
-  attendanceLogs         AttendanceLog[]          @relation("UserAttendanceLogs")
-  coachAttendances       CoachAttendance[]        @relation("CoachClassAttendance")
-  coachAttendanceLogs    CoachAttendanceLog[]     @relation("UserCoachAttendanceLogs")
-  chatMessages           LiveChatMessage[]        @relation("UserLiveChatMessages")
-  directChatMessages     LiveChatMessage[]        @relation("UserLiveChatDirectMessages")
-  notifications          Notification[]           @relation("UserNotifications")
-  createdBatchSchedules  BatchClassSchedule[]     @relation("BatchScheduleCreatedBy")
-  scheduleRules          BatchClassScheduleRule[] @relation("BatchScheduleRuleCoach")
-  analyticsEvents        AnalyticsEvent[]         @relation("UserAnalyticsEvents")
-  liveClassPresets       LiveClassPreset[]        @relation("UserLiveClassPresets")
+  attendanceLogs         AttendanceLog[]             @relation("UserAttendanceLogs")
+  coachAttendances       CoachAttendance[]           @relation("CoachClassAttendance")
+  coachAttendanceLogs    CoachAttendanceLog[]        @relation("UserCoachAttendanceLogs")
+  chatMessages           LiveChatMessage[]           @relation("UserLiveChatMessages")
+  directChatMessages     LiveChatMessage[]           @relation("UserLiveChatDirectMessages")
+  notifications          Notification[]              @relation("UserNotifications")
+  createdBatchSchedules  BatchClassSchedule[]        @relation("BatchScheduleCreatedBy")
+  scheduleRules          BatchClassScheduleRule[]    @relation("BatchScheduleRuleCoach")
+  analyticsEvents        AnalyticsEvent[]            @relation("UserAnalyticsEvents")
+  liveClassPresets       LiveClassPreset[]           @relation("UserLiveClassPresets")
+  messagingRuleUpdates   MessagingRule[]             @relation("MessagingRuleUpdatedBy")
+  messageDeliveries      MessageDelivery[]           @relation("UserMessageDeliveries")
+  createdAnnouncements   Announcement[]              @relation("AnnouncementCreatedBy")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -479,12 +482,13 @@ model Batch {
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  coaches      BatchCoach[]
-  students     BatchStudent[]
-  classes      CoachClass[]
-  liveSessions LiveSession[]
-  assignments  AssignmentBatch[]
-  schedules    BatchClassSchedule[]
+  coaches       BatchCoach[]
+  students      BatchStudent[]
+  classes       CoachClass[]
+  liveSessions  LiveSession[]
+  assignments   AssignmentBatch[]
+  schedules     BatchClassSchedule[]
+  announcements Announcement[]       @relation("BatchAnnouncements")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -617,7 +621,7 @@ model CoachClass {
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
 
-  liveSession              LiveSession?             @relation("LiveSessionSchedule")
+  liveSession              LiveSession?                @relation("LiveSessionSchedule")
   attendances              ClassAttendance[]
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
@@ -1191,9 +1195,18 @@ model StudentAssignmentAttempt {
 // NOTIFICATIONS
 //
 
+/// Mirrors MessagingEvent — the in-app bell is one channel of a messaging rule.
 enum NotificationType {
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
+  CLASS_SCHEDULED
+  CLASS_REMINDER
+  CLASS_REMINDER_COACH
+  CLASS_CANCELLED
+  ASSIGNMENT_ASSIGNED
+  ANNOUNCEMENT
+  ACCOUNT_WELCOME
+  ACCOUNT_APPROVED
 }
 
 model Notification {
@@ -1233,12 +1246,25 @@ model StudentActivity {
 }
 
 model Announcement {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   title       String
   description String
-  type        String // BATCH, COURSE, PLATFORM
-  createdAt   DateTime @default(now())
+  /// Legacy label the student dashboard feed still renders: BATCH, COURSE, PLATFORM.
+  type        String
 
+  audience AnnouncementAudience @default(EVERYONE)
+
+  batchId String?
+  batch   Batch?  @relation("BatchAnnouncements", fields: [batchId], references: [id], onDelete: Cascade)
+
+  createdById String?
+  createdBy   User?   @relation("AnnouncementCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([audience])
+  @@index([batchId])
+  @@index([createdAt])
   @@map("announcements")
 }
 
@@ -1364,8 +1390,8 @@ model Puzzle {
   archivedById  String?
   archivedAt    DateTime?
 
-  attempts         PuzzleAttempt[]
-  liveAssignments  LiveClassPuzzleAssignment[]
+  attempts        PuzzleAttempt[]
+  liveAssignments LiveClassPuzzleAssignment[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1454,4 +1480,148 @@ model LiveClassPuzzleAssignment {
   @@index([liveClassId])
   @@index([puzzleId])
   @@map("live_class_puzzle_assignments")
+}
+
+//
+// ADMIN MESSAGING
+//
+// One rule per event decides whether a message goes out, on which channels, to
+// whom, and what it says. The shared catalogue, templates and renderer live in
+// `@nexa-chess/types` (messaging.ts) so the admin UI previews the exact string
+// the dispatcher builds.
+
+enum MessagingEvent {
+  CLASS_SCHEDULED
+  CLASS_REMINDER
+  CLASS_REMINDER_COACH
+  CLASS_CANCELLED
+  ASSIGNMENT_ASSIGNED
+  ASSIGNMENT_DUE_SOON
+  ASSIGNMENT_GRADED
+  ANNOUNCEMENT
+  ACCOUNT_WELCOME
+  ACCOUNT_APPROVED
+}
+
+enum MessagingScheduleMode {
+  IMMEDIATE
+  DAILY
+  WEEKLY
+}
+
+enum MessagingAudience {
+  STUDENTS
+  COACHES
+  STUDENTS_AND_COACHES
+}
+
+enum MessageChannel {
+  WHATSAPP
+  IN_APP
+}
+
+enum MessageDeliveryStatus {
+  /// Queued in the outbox; MessagingDeliveryWorker sends it on the next sweep.
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum AnnouncementAudience {
+  EVERYONE
+  STUDENTS
+  COACHES
+  BATCH
+}
+
+/// Admin-editable rule for one event. Seeded from DEFAULT_MESSAGING_RULES the
+/// first time the rules are read; every rule ships disabled.
+model MessagingRule {
+  id String @id @default(cuid())
+
+  event MessagingEvent @unique
+
+  enabled         Boolean @default(false)
+  whatsappEnabled Boolean @default(true)
+  inAppEnabled    Boolean @default(true)
+
+  audience          MessagingAudience     @default(STUDENTS)
+  /// Minutes before the moment, for lead-time events (class reminder, due soon).
+  leadTimeMinutes   Int?
+  /// When queued messages become due. Read in the RECIPIENT's timezone, so a
+  /// 9am daily rule reaches everyone at their own 9am. Lead-time events ignore it.
+  scheduleMode      MessagingScheduleMode @default(IMMEDIATE)
+  scheduleHour      Int?
+  scheduleMinute    Int?
+  /// 0 = Sunday .. 6 = Saturday. WEEKLY only.
+  scheduleDayOfWeek Int?
+  /// DAILY only: a weekend send rolls forward to Monday.
+  weekdaysOnly      Boolean               @default(false)
+
+  /// In-app heading. WhatsApp has no subject line and ignores it.
+  title String
+  body  String
+
+  /// Approved WhatsApp template, for sends that may fall outside the 24h window.
+  whatsappTemplateName     String?
+  whatsappTemplateLanguage String?
+  whatsappTemplateParams   String[]
+
+  updatedById String?
+  updatedBy   User?   @relation("MessagingRuleUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("messaging_rules")
+}
+
+/// One attempted message. Written before the provider call, so a dropped queue
+/// job or a provider outage still leaves an admin-visible record.
+model MessageDelivery {
+  id String @id @default(cuid())
+
+  event   MessagingEvent
+  channel MessageChannel
+  status  MessageDeliveryStatus
+
+  recipientId    String?
+  recipient      User?   @relation("UserMessageDeliveries", fields: [recipientId], references: [id], onDelete: SetNull)
+  /// E.164 digits actually dialled. Masked to the last 4 before it leaves the API.
+  recipientPhone String?
+  /// Rendered at queue time: what the rule said then, not what it says now.
+  body           String
+  title          String?
+  linkPath       String?
+
+  /// Rendered WhatsApp template, when the rule names one instead of free text.
+  templateName     String?
+  templateLanguage String?
+  templateParams   String[]
+
+  /// When the outbox may send it. Future for a DAILY/WEEKLY rule or a backoff.
+  scheduledFor  DateTime  @default(now())
+  attempts      Int       @default(0)
+  lastAttemptAt DateTime?
+  /// Set while a worker holds the row; stale claims are reaped after 5 minutes.
+  claimedAt     DateTime?
+  sentAt        DateTime?
+
+  /// Provider handle ("wamid.…") for a delivered WhatsApp message.
+  providerMessageId String?
+  error             String?
+
+  /// Idempotency key so a scheduler never double-sends. Null = always insert.
+  dedupeKey String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([channel, dedupeKey])
+  @@index([status, scheduledFor])
+  @@index([event, createdAt])
+  @@index([status])
+  @@index([recipientId])
+  @@index([createdAt])
+  @@map("message_deliveries")
 }

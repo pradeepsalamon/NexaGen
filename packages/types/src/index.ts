@@ -5,6 +5,7 @@ import {
   type LiveClassSettings,
   type LiveClassSettingsOverride
 } from "./live-class-settings";
+import { messagingEventSchema, type MessagingEvent } from "./messaging";
 
 export * from "./api-endpoints";
 export * from "./live-class-settings";
@@ -1747,11 +1748,10 @@ export interface StockfishAnalysisResult {
 // In-app notifications. `GET /notifications` returns the latest items + an
 // unread count; `POST /notifications/read` marks some (or all) read.
 
-export const notificationTypeSchema = z.enum([
-  "ASSIGNMENT_DUE_SOON",
-  "ASSIGNMENT_GRADED"
-]);
-export type NotificationType = z.infer<typeof notificationTypeSchema>;
+// The in-app bell is one channel of the admin-configured messaging rules, so
+// its type catalogue IS the event catalogue — see ./messaging.
+export const notificationTypeSchema = messagingEventSchema;
+export type NotificationType = MessagingEvent;
 
 export type NotificationItem = {
   id: string;
@@ -1989,3 +1989,8 @@ export * from "./puzzle";
 // Live-class puzzle assignment (depends on ./puzzle)
 // ──────────────────────────────────────────────
 export * from "./live-class-puzzle";
+
+// ──────────────────────────────────────────────
+// Admin messaging rules + announcements (kept in its own module)
+// ──────────────────────────────────────────────
+export * from "./messaging";

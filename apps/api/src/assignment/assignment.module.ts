@@ -9,12 +9,14 @@ import { AssignmentAttemptService } from "./assignment-attempt.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
 import { AssignmentController } from "./assignment.controller";
 import { AssignmentService } from "./assignment.service";
+import { MessagingModule } from "../messaging/messaging.module";
 
 @Module({
   controllers: [AssignmentController],
   imports: [
     AnalyticsEventModule,
     JwtModule,
+    MessagingModule,
     NotificationModule,
     PrismaModule,
     StockfishModule,

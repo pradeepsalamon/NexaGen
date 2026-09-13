@@ -5,6 +5,7 @@ import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { CoachService } from "./coach.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveClassSettingsService } from "../live-class/live-class-settings.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 const ACCESS_TOKEN = "access-token";
 const COACH_ID = "coach-1";
@@ -72,6 +73,10 @@ describe("CoachService class scheduling", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         CoachService,
+        {
+          provide: MessagingDispatchService,
+          useValue: { dispatchInBackground: jest.fn() }
+        },
         {
           provide: PrismaService,
           useValue: {
