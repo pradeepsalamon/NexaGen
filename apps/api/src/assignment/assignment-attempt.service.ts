@@ -29,9 +29,9 @@ import { Prisma, UserRole, UserStatus } from "@prisma/client";
 import { Chess } from "chess.js";
 import type { AccessTokenPayload } from "../auth/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
-import { NotificationService } from "../notification/notification.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 type AttemptRow = Prisma.StudentAssignmentAttemptGetPayload<Record<string, never>>;
 
@@ -51,7 +51,7 @@ export class AssignmentAttemptService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly evaluation: AssignmentEvaluationService,
-    private readonly notifications: NotificationService,
+    private readonly messaging: MessagingDispatchService,
     private readonly analyticsEvents: AnalyticsEventService
   ) {}
 
@@ -291,18 +291,15 @@ export class AssignmentAttemptService {
 
     const coachId = sa.assignmentBatch.assignedById;
     if (coachId) {
-      const studentName = `${student.firstName} ${student.lastName ?? ""}`.trim();
-      const accuracySuffix = accuracyPercent === null ? "" : ` · ${accuracyPercent}% accuracy`;
-      void this.notifications
-        .notify({
-          userId: coachId,
-          type: "ASSIGNMENT_GRADED",
-          title: `${studentName} finished "${assignment.title}"`,
-          body: `${result} — ${scorePercent}%${accuracySuffix}`,
-          linkPath: "/coach/assignments",
-          dedupeKey: `graded:${persisted.id}`
-        })
-        .catch(() => undefined);
+      // Copy, channels and audience come from the admin's ASSIGNMENT_GRADED rule.
+      this.messaging.dispatchInBackground({
+        event: "ASSIGNMENT_GRADED",
+        studentAssignmentId: sa.id,
+        coachId,
+        studentName: `${student.firstName} ${student.lastName ?? ""}`.trim(),
+        scorePercent,
+        outcome: result
+      });
     }
 
     const alreadyComplete = sa.status === "COMPLETED" || sa.completedAt !== null;

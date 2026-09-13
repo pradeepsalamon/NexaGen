@@ -22,6 +22,7 @@ import { assertNoSchedulingConflict, assertNotInPast } from "./class-scheduling.
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveClassSettingsService } from "../live-class/live-class-settings.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import type { AccessTokenPayload } from "../auth/types";
 import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 
@@ -45,7 +46,8 @@ export class CoachService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly liveClassSettings: LiveClassSettingsService
+    private readonly liveClassSettings: LiveClassSettingsService,
+    private readonly messaging: MessagingDispatchService
   ) {}
 
   /**
@@ -230,6 +232,11 @@ export class CoachService {
       }
     });
 
+    this.messaging.dispatchInBackground({
+      event: "CLASS_SCHEDULED",
+      classId: cls.id
+    });
+
     return { class: this.toCoachClass(cls) };
   }
 
@@ -388,6 +395,11 @@ export class CoachService {
         batch: { include: { students: { where: { isDeleted: false } } } },
         liveSession: true
       }
+    });
+
+    this.messaging.dispatchInBackground({
+      event: "CLASS_CANCELLED",
+      classId: cls.id
     });
 
     return { class: this.toCoachClass(cls) };

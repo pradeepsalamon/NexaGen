@@ -68,7 +68,20 @@ const apiEnvSchema = z.object({
   // Namespaces every BullMQ key, so a shared Redis (LiveKit and egress already
   // use this one) can never collide with a queue.
   QUEUE_PREFIX: z.string().default("nexa"),
-  QUEUE_CONCURRENCY: z.coerce.number().int().positive().default(5)
+  QUEUE_CONCURRENCY: z.coerce.number().int().positive().default(5),
+  // WhatsApp Cloud API (Meta Graph API). Unset ACCESS_TOKEN/PHONE_NUMBER_ID
+  // leaves WhatsAppService unconfigured — callers degrade, nothing breaks.
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+  WHATSAPP_API_BASE_URL: z.string().url().default("https://graph.facebook.com"),
+  WHATSAPP_API_VERSION: z.string().default("v21.0"),
+  // Digits only, no "+". Used to expand a national number (e.g. "09876543210").
+  WHATSAPP_DEFAULT_COUNTRY_CODE: z
+    .string()
+    .regex(/^\d{1,4}$/, "Expected a country calling code like 91.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  WHATSAPP_TIMEOUT_MS: z.coerce.number().int().positive().default(10000)
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

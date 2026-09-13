@@ -38,6 +38,7 @@ import type { AccessTokenPayload } from "../auth/types";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 /**
  * The interactive-transaction client as seen inside `prisma.$transaction(cb)`.
@@ -109,7 +110,8 @@ export class AssignmentService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly uploadService: UploadService,
-    private readonly evaluation: AssignmentEvaluationService
+    private readonly evaluation: AssignmentEvaluationService,
+    private readonly messaging: MessagingDispatchService
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -173,6 +175,7 @@ export class AssignmentService {
 
     const pgnUrl = await this.uploadPgn(dto.title, activity.pgn);
 
+    const deployments: string[] = [];
     const created = await this.prisma.$transaction(async (tx) => {
       const assignment = await tx.assignment.create({
         data: {
@@ -188,11 +191,21 @@ export class AssignmentService {
       });
 
       if (batchIds.length > 0 && dto.dueDate) {
-        await this.deployWithinTx(tx, assignment.id, user.id, batchIds, new Date(dto.dueDate));
+        deployments.push(
+          ...(await this.deployWithinTx(
+            tx,
+            assignment.id,
+            user.id,
+            batchIds,
+            new Date(dto.dueDate)
+          ))
+        );
       }
 
       return assignment;
     });
+
+    this.notifyDeployments(deployments);
 
     return this.getLibraryItem(accessToken, created.id);
   }
@@ -283,9 +296,11 @@ export class AssignmentService {
     const batchIds = [...new Set(dto.batchIds)];
     await this.assertCoachOwnsBatches(coach.id, batchIds);
 
-    await this.prisma.$transaction((tx) =>
+    const deployments = await this.prisma.$transaction((tx) =>
       this.deployWithinTx(tx, dto.assignmentId, coach.id, batchIds, new Date(dto.dueDate))
     );
+
+    this.notifyDeployments(deployments);
 
     return this.listDeployments(accessToken);
   }
@@ -423,13 +438,16 @@ export class AssignmentService {
   // Internals
   // ────────────────────────────────────────────────────────────
 
+  /** Returns the deployment ids so the caller can message students post-commit. */
   private async deployWithinTx(
     tx: Tx,
     assignmentId: string,
     coachId: string,
     batchIds: string[],
     dueDate: Date
-  ) {
+  ): Promise<string[]> {
+    const deploymentIds: string[] = [];
+
     for (const batchId of batchIds) {
       const deployment = await tx.assignmentBatch.upsert({
         where: { assignmentId_batchId: { assignmentId, batchId } },
@@ -451,6 +469,20 @@ export class AssignmentService {
           skipDuplicates: true
         });
       }
+
+      deploymentIds.push(deployment.id);
+    }
+
+    return deploymentIds;
+  }
+
+  /** Best-effort: a messaging failure must never undo a deployment. */
+  private notifyDeployments(deploymentIds: string[]) {
+    for (const assignmentBatchId of deploymentIds) {
+      this.messaging.dispatchInBackground({
+        event: "ASSIGNMENT_ASSIGNED",
+        assignmentBatchId
+      });
     }
   }
 

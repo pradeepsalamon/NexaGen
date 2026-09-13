@@ -59,6 +59,12 @@ describe("MailService", () => {
       REDIS_URL: undefined,
       QUEUE_PREFIX: "nexa",
       QUEUE_CONCURRENCY: 5,
+      WHATSAPP_ACCESS_TOKEN: undefined,
+      WHATSAPP_PHONE_NUMBER_ID: undefined,
+      WHATSAPP_API_BASE_URL: "https://graph.facebook.com",
+      WHATSAPP_API_VERSION: "v21.0",
+      WHATSAPP_DEFAULT_COUNTRY_CODE: undefined,
+      WHATSAPP_TIMEOUT_MS: 10000,
       ...envMocks
     };
 

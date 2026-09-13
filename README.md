@@ -234,6 +234,12 @@ REDIS_URL=redis://127.0.0.1:6379
 QUEUE_PREFIX=nexa
 QUEUE_CONCURRENCY=5
 
+# WhatsApp Cloud API. Unset token/phone id leaves sending disabled.
+WHATSAPP_ACCESS_TOKEN=
+WHATSAPP_PHONE_NUMBER_ID=
+WHATSAPP_API_VERSION=v21.0
+WHATSAPP_DEFAULT_COUNTRY_CODE=91   # expands national numbers to E.164
+
 # Recording storage + analytics thresholds (all optional, defaults shown)
 RECORDING_STORAGE_LIMIT_GB=130
 RECORDING_MIN_RETENTION_DAYS=14
@@ -360,6 +366,134 @@ Retries and retention come from `DEFAULT_JOB_OPTIONS` in `queue.config.ts`
 (5 attempts, exponential backoff from 2s; completed jobs trimmed after 24h,
 failed ones kept a week for inspection). Pass a `jobId` derived from your own
 row to make an enqueue idempotent.
+
+## WhatsApp Messaging
+
+`apps/api/src/whatsapp/` wraps the **WhatsApp Cloud API** (Meta Graph API) for
+outbound messages. Import `WhatsAppModule` and inject `WhatsAppService`:
+
+```ts
+await this.whatsapp.sendText({ to: "+91 98765 43210", body: "Class starts in 15 minutes." });
+
+await this.whatsapp.sendTemplate({
+  to: student.phone,
+  name: "class_reminder",       // approved in WhatsApp Manager
+  language: "en_US",
+  bodyParams: [student.name, "6:00 PM"]
+});
+```
+
+Free-form text only reaches a user inside the 24-hour customer-service window;
+outside it, WhatsApp accepts **approved templates only** and rejects text with
+error code `131047`.
+
+Numbers are normalized to E.164 digits without a `+` (the only form the API
+accepts) before sending — `+91 98765-43210`, `00919876543210` and, with
+`WHATSAPP_DEFAULT_COUNTRY_CODE=91`, `09876543210` all resolve to
+`919876543210`. A number that cannot be resolved is a `BadRequestException`, and
+no request is made.
+
+Three rules the module holds to:
+
+- **Optional, like the queues.** With `WHATSAPP_ACCESS_TOKEN` /
+  `WHATSAPP_PHONE_NUMBER_ID` unset, `isConfigured()` is false and a send throws
+  `ServiceUnavailableException` — check it before offering WhatsApp in a UI.
+- **One attempt per call.** Retries belong to the caller so a request never
+  blocks on provider backoff. Failures throw `WhatsAppSendError`, whose
+  `failure.retryable` separates a rate limit or outage from a rejected payload;
+  a BullMQ job can re-throw on the first and drop the second.
+- **`trySendText` / `trySendTemplate` never throw**, returning a
+  `{ ok, result | error }` outcome — use them where WhatsApp failing must not
+  fail the request. `sendTextToMany` fans one message out, de-duplicates the
+  recipients and reports per-recipient outcomes.
+
+Env: `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` (both from Meta →
+WhatsApp → API Setup), plus the optional `WHATSAPP_API_BASE_URL`,
+`WHATSAPP_API_VERSION`, `WHATSAPP_DEFAULT_COUNTRY_CODE` and
+`WHATSAPP_TIMEOUT_MS`.
+
+## Admin Messaging
+
+`/admin/messaging` is where an academy decides which moments send a message,
+what each one says, and who receives it. One **rule per event** (`messaging_rules`,
+one row each), edited by an admin, dispatched by the API.
+
+Three crons drive it: the outbox worker every minute, the class-reminder sweep
+every 5 minutes, and the assignment-due sweep hourly.
+
+| Event | Queued by |
+|---|---|
+| New class scheduled | a coach creating a class |
+| Before a class starts (students) | `MessagingScheduler`, on that rule's lead time |
+| Before a class starts (coach) | `MessagingScheduler`, on its own lead time and wording |
+| Class cancelled | a coach cancelling a class |
+| New assignment | an assignment deployed to a batch |
+| Assignment due soon | `MessagingScheduler`, on the rule's lead time |
+| Assignment submitted / graded | a student finishing an assignment |
+| Announcement | an admin publishing one (Announcements tab) |
+| Welcome message | self-registration, or an admin creating an account |
+| Account approved | an admin re-activating an account |
+
+Each rule carries: a master on/off, per-channel toggles (**WhatsApp** and the
+**in-app bell**), an audience, **when to send** (immediately, daily at a time,
+or weekly on a day - or a lead time, for the two events that fire ahead of a
+moment), the in-app heading, and the message body. Bodies are `{{placeholder}}` templates —
+the catalogue of what each event can bind lives in
+`packages/types/src/messaging.ts` (`MESSAGING_EVENT_DEFINITIONS`), and the same
+`renderMessageTemplate` runs in the admin preview and on the server, so what you
+see is what gets sent. A placeholder the event cannot fill is flagged in the
+editor and renders empty.
+
+Things worth knowing before you touch it:
+
+- **Everything ships off except two.** `ASSIGNMENT_DUE_SOON` and
+  `ASSIGNMENT_GRADED` default to on, in-app only, because this feature absorbed
+  the unconditional in-app notifications that used to live in
+  `NotificationScheduler` and `assignment-attempt.service`. Disabling them by
+  default would have silently removed a notification every academy already had.
+- **Dates render in each recipient's own `User.timezone`**, one render per
+  person — the rare server-side format the date rule allows
+  (`messaging.format.ts`).
+- **Nothing is sent in-request.** Dispatch only *queues*: it writes PENDING
+  `message_deliveries` rows and returns. `MessagingDeliveryWorker` (cron, every
+  minute) claims the due ones and delivers them. So a trigger costs no provider
+  round-trip, a crash mid-send loses nothing (the row is committed), and an
+  immediate rule lands within a minute.
+- **Failures retry themselves.** A retryable provider failure (rate limit,
+  outage - `WhatsAppSendError.retryable`) stays PENDING with a later
+  `scheduledFor`: 1m, 5m, 25m, 2h05m, then FAILED after 5 attempts. A rejected
+  payload fails immediately, since it would fail identically forever. An admin
+  can re-queue any failed message from the Delivery log.
+- **The two sides of a class are separate rules.** Students and the coach get
+  their own lead time, channels and copy (students 30 minutes before by default,
+  the coach 60) — a coach reminder reads "you're taking X with Intermediate B",
+  which is not a student's message with a different address. Each sweeps its own
+  window every 5 minutes.
+- **Send times are per recipient.** A "daily at 9am" rule reaches everyone at
+  *their own* 9am (`computeScheduledFor` reads `User.timezone`), with DST and a
+  weekdays-only option handled in `messaging.schedule.ts`.
+- **Dispatch never fails its caller.** Feature services call
+  `MessagingDispatchService.dispatchInBackground(...)`, which swallows and logs.
+  A WhatsApp outage cannot fail class creation.
+- **Every attempt is logged** to `message_deliveries` (Delivery log tab),
+  including skips for a missing phone number and provider failures with Meta's
+  own error text. Numbers are masked to the last 4 digits.
+- **Sends are idempotent** through a `dedupeKey` unique per `(channel, key)`.
+  Because the row is written *before* anything is sent, a repeated sweep
+  collides on insert rather than racing a second send. The two lead-time crons
+  take a Postgres advisory lock first, and the outbox worker claims rows with
+  `FOR UPDATE SKIP LOCKED` + a `claimedAt` stamp (stale claims reaped after 5
+  minutes), so a second API container takes different rows instead of the same
+  ones.
+- **Outside WhatsApp's 24-hour window**, free-form text is rejected by Meta
+  (error `131047`). A rule can name an approved template instead, with its
+  positional values written as mini-templates.
+
+Announcements (Announcements tab) write the dashboard feed row *and* fire the
+ANNOUNCEMENT rule. The announcement's own audience decides who hears it —
+everyone, students, coaches, or one batch — not the rule's, so a published
+broadcast can't be silently narrowed by a settings change. The student dashboard
+only shows announcements addressed to that student.
 
 ## Rate Limiting
 

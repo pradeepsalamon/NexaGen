@@ -6,6 +6,7 @@ import { AssignmentService } from "./assignment.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 const TOKEN = "access-token";
 const COACH_ID = "coach-1";
@@ -96,6 +97,10 @@ describe("AssignmentService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AssignmentService,
+        {
+          provide: MessagingDispatchService,
+          useValue: { dispatchInBackground: jest.fn() }
+        },
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwt },
         { provide: UploadService, useValue: upload },

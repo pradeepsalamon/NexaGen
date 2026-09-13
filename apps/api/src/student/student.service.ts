@@ -83,7 +83,23 @@ export class StudentService {
     });
 
     // 5. Fetch Announcements
+    // Only what this student is addressed by: platform-wide, students, or a
+    // batch they are actually in. A coach-only notice must not leak here.
+    const batchIds = (
+      await this.prisma.batchStudent.findMany({
+        where: { studentId: user.id },
+        select: { batchId: true }
+      })
+    ).map((row) => row.batchId);
+
     const announcements = await this.prisma.announcement.findMany({
+      where: {
+        OR: [
+          { audience: "EVERYONE" },
+          { audience: "STUDENTS" },
+          { audience: "BATCH", batchId: { in: batchIds } }
+        ]
+      },
       orderBy: { createdAt: "desc" },
       take: 5
     });

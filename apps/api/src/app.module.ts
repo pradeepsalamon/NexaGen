@@ -23,6 +23,8 @@ import { NotificationModule } from "./notification/notification.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { PuzzleModule } from "./puzzle/puzzle.module";
 import { QueueModule } from "./queue/queue.module";
+import { MessagingModule } from "./messaging/messaging.module";
+import { AnnouncementModule } from "./announcement/announcement.module";
 
 @Module({
   imports: [
@@ -54,7 +56,9 @@ import { QueueModule } from "./queue/queue.module";
     AssignmentModule,
     NotificationModule,
     AnalyticsModule,
-    PuzzleModule
+    PuzzleModule,
+    MessagingModule,
+    AnnouncementModule
   ],
   providers: [
     {

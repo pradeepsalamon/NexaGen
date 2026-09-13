@@ -10,6 +10,7 @@ import { UserRole, UserStatus } from "@prisma/client";
 import { UserService } from "./user.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
+import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 type MockPrismaService = {
   user: {
@@ -79,6 +80,10 @@ describe("UserService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UserService,
+        {
+          provide: MessagingDispatchService,
+          useValue: { dispatchInBackground: jest.fn() }
+        },
         { provide: PrismaService, useValue: prismaService },
         { provide: JwtService, useValue: jwtService },
         { provide: TrashRepository, useValue: trashRepository }

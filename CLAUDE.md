@@ -217,6 +217,63 @@ connection, whose `maxRetriesPerRequest: null` is the opposite policy. Keys are
 namespaced `<QUEUE_PREFIX>:throttle:` — ioredis applies `keyPrefix` to the
 storage's Lua `eval` KEYS.
 
+### 3.6d Outbound WhatsApp
+
+`apps/api/src/whatsapp/` — `WhatsAppModule` exports `WhatsAppService` (Meta
+Cloud API). Optional like the queues: unset `WHATSAPP_ACCESS_TOKEN` /
+`WHATSAPP_PHONE_NUMBER_ID` ⇒ `isConfigured()` false and a send throws
+`ServiceUnavailableException`. `sendText` only lands inside the 24h
+customer-service window — outside it use `sendTemplate` with a template approved
+in WhatsApp Manager. Numbers normalize to E.164 digits with no `+`
+(`WHATSAPP_DEFAULT_COUNTRY_CODE` expands a national number); an unresolvable one
+is a `BadRequestException` and no request goes out. **One network attempt per
+call** — retries belong to a BullMQ job, which should branch on
+`WhatsAppSendError.retryable`. `trySendText` / `trySendTemplate` / `sendTextToMany`
+return outcomes instead of throwing, for paths that must survive WhatsApp being
+down. See README § "WhatsApp Messaging".
+
+### 3.6e Admin messaging rules
+
+`apps/api/src/messaging/` + `apps/web/src/features/messaging/`, page
+`/admin/messaging`, routes `API_ROUTES.messaging.*` / `.announcements.*`. One
+`MessagingRule` row per `MessagingEvent` (10 events; `CLASS_REMINDER` and
+`CLASS_REMINDER_COACH` are the two sides of the same moment, each with its own
+lead time, channels and copy, swept separately in `messaging.scheduler.ts`) holds enabled + per-channel
+toggles (WhatsApp / in-app) + audience + lead time + `{{placeholder}}` templates.
+**The catalogue, defaults and renderer live in `@nexa-chess/types`
+(`messaging.ts`)** — `MESSAGING_EVENT_DEFINITIONS`, `DEFAULT_MESSAGING_RULES`,
+`renderMessageTemplate`, `findUnknownTemplateVariables`, `sampleVariablesFor`;
+use them, don't reimplement, or the admin preview stops matching the send.
+
+- **`MessagingDispatchService.dispatchInBackground(request)` is the only entry
+  point** a feature service calls. It never throws — messaging must not fail
+  class creation. Add a new trigger by extending `DispatchRequest` + its
+  `resolveRecipients` branch, never by calling WhatsApp/Notification directly.
+- **Dispatch queues; it does not send.** It writes PENDING `message_deliveries`
+  rows (body/title/template params rendered *at queue time*) and
+  `MessagingDeliveryWorker` (`@Cron(EVERY_MINUTE)`) delivers them: claim with
+  `FOR UPDATE SKIP LOCKED` + `claimedAt`, send, then SENT / retry-with-backoff
+  (`nextAttemptAt`, cap `MESSAGE_MAX_ATTEMPTS`) / FAILED. Only a `retryable`
+  provider failure is retried. **The claim SQL binds `${iso}::timestamp`, never
+  a `Date`** — these are `timestamp WITHOUT time zone` columns (§3.4).
+- **Send timing is per recipient**: `computeScheduledFor` (messaging.schedule.ts)
+  resolves a rule's DAILY/WEEKLY wall-clock time in the recipient's own
+  `User.timezone`, DST-corrected. Lead-time events bypass it — `usesLeadTime`.
+- `MessagingRuleService.getRule` seeds a missing row from the shared defaults, so
+  no seed migration is needed. `NotificationType` (Prisma + zod) mirrors
+  `MessagingEvent` — adding an event means adding to both enums.
+- The outbox row IS the idempotency guard: `dedupeKey` is unique per
+  `(channel, key)` and the row is written before any send, so a repeated sweep
+  collides on insert (P2002 → "already queued") instead of racing a send. The
+  two lead-time crons in `messaging.scheduler.ts` also take advisory locks
+  `73002051` / `73002052`.
+- `ASSIGNMENT_DUE_SOON` + `ASSIGNMENT_GRADED` ship **enabled, in-app only** —
+  they absorbed the old unconditional notifications (`NotificationScheduler` is
+  deleted; `assignment-attempt.service` now dispatches instead of notifying).
+- Announcements (`apps/api/src/announcement/`) publish the feed row then fire the
+  ANNOUNCEMENT rule; **the announcement's own audience picks recipients**, not
+  the rule's. `student.service` filters the dashboard feed by that audience.
+
 ### 3.7 Live class / LiveKit
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
@@ -328,6 +385,11 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | CORS / cookie not set in prod | `CORS_ORIGIN` (comma-separated), `FRONTEND_URL` must be https for `secure` cookies; `COOKIE_DOMAIN` (auto-derives `.registrable.tld` from `FRONTEND_URL`) shares the session across `api.`/`www.` subdomains; `TRUST_PROXY_HOPS` (nginx = 1) for X-Forwarded-* |
 | Rate limits reset unexpectedly / not shared | `REDIS_URL` unset (in-memory counters, gone on restart), or `ResilientThrottlerStorage` logged "counting rate limits in-process" — Redis is unreachable and it degraded on purpose rather than 500 every route |
 | Queued jobs never run | `REDIS_URL` unset → `QueueModule` logged "background queues are disabled" at boot and every producer hits `createDisabledQueue`. Otherwise check the worker is a provider in a module that imported `QueueModule.registerQueue(<name>)`, and that `QUEUE_PREFIX` matches between producer and worker |
+| A messaging rule doesn't fire | the rule is off by default — check `/admin/messaging`, then the Delivery log tab: a QUEUED row means the outbox has it (immediate rules send within a minute; a scheduled rule waits for its time, shown as "due ..."), RETRYING means the provider failed retryably, SKIPPED means no usable phone number |
+| Messages sit QUEUED forever | `MessagingDeliveryWorker`'s cron isn't running (is `ScheduleModule.forRoot()` still in `app.module`?), or every row is stuck claimed — `claimedAt` is only reaped after 5 minutes |
+| A rule fires twice | the `dedupeKey` differs between runs. Scheduled events key on the entity + the moment (`ASSIGNMENT_DUE_SOON:<id>:<dueDate>`), so a rescheduled deadline deliberately reminds again |
+| Class reminder is late by a few minutes | `MessagingScheduler.classReminders` sweeps every 5 minutes — a 30-minute rule sends 30-35 minutes ahead, by design |
+| WhatsApp message never arrives | `WHATSAPP_ACCESS_TOKEN` / `WHATSAPP_PHONE_NUMBER_ID` unset ⇒ `ServiceUnavailableException` before any request. Otherwise the logged failure carries Meta's own code: `131047` = outside the 24h window (send an approved template instead), `132xxx` = template name/params wrong, `190` = expired token, `130429`/`131056` = rate limited (retryable) |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
 | Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |
