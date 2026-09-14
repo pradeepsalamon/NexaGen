@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Mic,
@@ -38,7 +38,7 @@ import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { Z, useReducedMotion } from "../../lib/meetingUi";
 import { useParams } from "next/navigation";
-import { startRecording, stopRecording } from "../../api/live-class";
+import { startRecording, stopRecording, requestScreenShare, endScreenShare } from "../../api/live-class";
 import { toast } from "sonner";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
@@ -59,6 +59,8 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     setIsRecording,
     settings,
     activePuzzle,
+    screenShareRequests,
+    upsertScreenShareRequest,
   } = useLiveClassState();
 
   const lkRecording = useIsRecording();
@@ -100,6 +102,45 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     },
   });
   const participants = useParticipants();
+
+  // Screen-share request -> coach approval (Phase 3 of pre-class settings).
+  // `screenShareLocked` is the class-wide policy; an APPROVED per-student
+  // override widens just this student's token grant server-side, so the
+  // button behaves like the normal unlocked one once approved.
+  const myScreenShareRequest = !isCoach && user?.id ? screenShareRequests[user.id] : undefined;
+  const screenShareStatus = myScreenShareRequest?.status;
+  const screenShareApproved = screenShareStatus === "APPROVED";
+  const screenShareUnlocked = !screenShareLocked || screenShareApproved;
+  const [isRequestingScreenShare, setIsRequestingScreenShare] = useState(false);
+  const wasSharingRef = useRef(false);
+
+  // The student's own client is the source of truth for "I stopped sharing" —
+  // report it so the coach can see the grant is no longer in use.
+  useEffect(() => {
+    if (!screenShareApproved) {
+      wasSharingRef.current = false;
+      return;
+    }
+    if (wasSharingRef.current && !screen.enabled && roomId) {
+      endScreenShare(roomId).catch(() => {
+        // Best-effort — the coach can still revoke, or the class-end sweep cleans it up.
+      });
+    }
+    wasSharingRef.current = screen.enabled;
+  }, [screen.enabled, screenShareApproved, roomId]);
+
+  const handleRequestScreenShare = async () => {
+    if (!roomId || isRequestingScreenShare) return;
+    setIsRequestingScreenShare(true);
+    try {
+      const entry = await requestScreenShare(roomId);
+      upsertScreenShareRequest(entry);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to request screen sharing");
+    } finally {
+      setIsRequestingScreenShare(false);
+    }
+  };
 
   const extractProps = <T extends { className?: string }>(props: T) => {
     const { className: _cls, ...rest } = props;
@@ -235,19 +276,28 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
 
         {/* Screen share — unreliable on mobile browsers, desktop only */}
         <div className="hidden sm:block">
-          <MeetingControlButton
-            icon={<MonitorUp className="size-5" />}
-            label={
-              screenShareLocked
-                ? "Screen sharing is off for this class"
-                : screen.enabled
-                  ? "Stop sharing"
-                  : "Share screen"
-            }
-            variant={screen.enabled ? "active" : "default"}
-            {...extractProps(screen.buttonProps)}
-            disabled={screenShareLocked || screen.buttonProps.disabled}
-          />
+          {screenShareUnlocked ? (
+            <MeetingControlButton
+              icon={<MonitorUp className="size-5" />}
+              label={screen.enabled ? "Stop sharing" : "Share screen"}
+              variant={screen.enabled ? "active" : "default"}
+              {...extractProps(screen.buttonProps)}
+              disabled={screen.buttonProps.disabled}
+            />
+          ) : (
+            <MeetingControlButton
+              icon={<MonitorUp className="size-5" />}
+              label={
+                screenShareStatus === "PENDING"
+                  ? "Request sent — waiting for approval"
+                  : "Request to share screen"
+              }
+              variant="default"
+              loading={isRequestingScreenShare}
+              disabled={screenShareStatus === "PENDING"}
+              onClick={handleRequestScreenShare}
+            />
+          )}
         </div>
 
         {/* Shared board — coach, large screens (the board page needs a desktop) */}

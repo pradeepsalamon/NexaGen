@@ -19,6 +19,7 @@ import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
 import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
 import { LiveClassSettingsBridge } from "../meeting/LiveClassSettingsBridge";
 import { WaitingRoomBridge } from "../meeting/WaitingRoomBridge";
+import { ScreenShareRequestBridge } from "../meeting/ScreenShareRequestBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
 import { useClassroomSession } from "../../providers/ClassroomSessionManager";
@@ -150,6 +151,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       <PipMicCaptureBridge />
       <LiveClassSettingsBridge />
       <WaitingRoomBridge classId={classId} />
+      <ScreenShareRequestBridge classId={classId} />
       <HandRaiseBridge />
       <PuzzleBridge classId={classId} />
       <ConnectionStateManager classId={classId}>

@@ -15,10 +15,12 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import {
   API_ROUTES,
   moderateParticipantRequestSchema,
+  resolveScreenShareRequestSchema,
   resolveWaitingRoomRequestSchema,
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
   type ModerateParticipantRequest,
+  type ResolveScreenShareRequest,
   type ResolveWaitingRoomRequest,
   type SaveLiveChatMessageRequest,
   type UpdateLiveClassSettingsRequest,
@@ -108,6 +110,30 @@ export class LiveClassController {
   @Post(API_ROUTES.liveClass.requestWaitingRoom())
   requestWaitingRoom(@Param("id") id: string, @Req() request: Request) {
     return this.liveClassService.requestWaitingRoomAdmission(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.liveClass.screenShareRequests())
+  getScreenShareRequests(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.getScreenShareRequestList(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.requestScreenShare())
+  requestScreenShare(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.requestScreenShare(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.resolveScreenShareRequest())
+  resolveScreenShareRequest(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(resolveScreenShareRequestSchema)) body: ResolveScreenShareRequest
+  ) {
+    return this.liveClassService.resolveScreenShareRequest(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.endScreenShare())
+  endScreenShare(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.endScreenShare(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.moderate())

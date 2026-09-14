@@ -10,6 +10,7 @@ import { messagingEventSchema, type MessagingEvent } from "./messaging";
 export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
+export * from "./live-class-screen-share";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)

@@ -2,10 +2,24 @@
 
 import { useCallback, useState, useMemo, memo } from "react";
 import { useParams } from "next/navigation";
-import { Lock, Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, UserCheck, UserX, X } from "lucide-react";
+import {
+  Lock,
+  Search,
+  Mic,
+  MicOff,
+  Video,
+  VideoOff,
+  MonitorUp,
+  MonitorX,
+  Hand,
+  Crown,
+  UserCheck,
+  UserX,
+  X,
+} from "lucide-react";
 import { useConnectionQualityIndicator, useParticipants } from "@livekit/components-react";
 import { ConnectionQuality } from "livekit-client";
-import type { ModeratableSource, WaitingRoomEntry } from "@nexa-chess/types";
+import type { ModeratableSource, ScreenShareRequestEntry, WaitingRoomEntry } from "@nexa-chess/types";
 import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { PanelHeader } from "./PanelHeader";
@@ -17,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { isHumanParticipant } from "../../lib/participants";
-import { moderateParticipant, resolveWaitingRoomEntry } from "../../api/live-class";
+import { moderateParticipant, resolveScreenShareRequest, resolveWaitingRoomEntry } from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
@@ -285,6 +299,66 @@ const WaitingRoomListItem = memo(function WaitingRoomListItem({
   );
 });
 
+const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
+  entry,
+  onResolve,
+}: {
+  entry: ScreenShareRequestEntry;
+  onResolve: (studentId: string, action: "APPROVE" | "DENY" | "REVOKE", name: string) => void;
+}) {
+  const isApproved = entry.status === "APPROVED";
+  return (
+    <div
+      className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-app-soft"
+      role="listitem"
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        <ParticipantAvatar name={entry.studentName} size="sm" className="size-8 shrink-0 text-[10px]" />
+        <span className="truncate text-sm font-medium text-app-text">{entry.studentName}</span>
+        {isApproved && <span className="shrink-0 text-[10px] font-semibold text-emerald-600">Sharing allowed</span>}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        {isApproved ? (
+          <SimpleTooltip label={`Revoke ${entry.studentName}'s screen-share access`}>
+            <button
+              type="button"
+              aria-label={`Revoke ${entry.studentName}'s screen-share access`}
+              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white"
+              onClick={() => onResolve(entry.studentId, "REVOKE", entry.studentName)}
+            >
+              <MonitorX className="size-4" strokeWidth={2.5} />
+            </button>
+          </SimpleTooltip>
+        ) : (
+          <>
+            <SimpleTooltip label={`Approve ${entry.studentName}'s screen-share request`}>
+              <button
+                type="button"
+                aria-label={`Approve ${entry.studentName}'s screen-share request`}
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-emerald-600 transition-colors hover:bg-emerald-600 hover:text-white"
+                onClick={() => onResolve(entry.studentId, "APPROVE", entry.studentName)}
+              >
+                <UserCheck className="size-4" strokeWidth={2.5} />
+              </button>
+            </SimpleTooltip>
+            <SimpleTooltip label={`Deny ${entry.studentName}'s screen-share request`}>
+              <button
+                type="button"
+                aria-label={`Deny ${entry.studentName}'s screen-share request`}
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white"
+                onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
+              >
+                <UserX className="size-4" strokeWidth={2.5} />
+              </button>
+            </SimpleTooltip>
+          </>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export function MeetingParticipants() {
   const participants = useParticipants().filter(isHumanParticipant);
   const [searchQuery, setSearchQuery] = useState("");
@@ -297,6 +371,8 @@ export function MeetingParticipants() {
     setBoardControlSide,
     waitingRoomEntries,
     removeWaitingRoomEntry,
+    screenShareRequests,
+    upsertScreenShareRequest,
   } = useLiveClassState();
   const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
   const params = useParams();
@@ -350,6 +426,25 @@ export function MeetingParticipants() {
     [roomId, removeWaitingRoomEntry],
   );
 
+  const handleResolveScreenShare = useCallback(
+    async (studentId: string, action: "APPROVE" | "DENY" | "REVOKE", name: string) => {
+      if (!roomId) return;
+      try {
+        const entry = await resolveScreenShareRequest(roomId, { studentId, action });
+        // The broadcast this triggers also reaches this client, but update
+        // locally now too so the row reflects the new state instantly.
+        upsertScreenShareRequest(entry);
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't ${action.toLowerCase()} ${name}'s screen-share request`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId, upsertScreenShareRequest],
+  );
+
   const handleMessagePrivately = useCallback(
     (targetUserId: string) => {
       openPrivateThread(targetUserId);
@@ -367,6 +462,11 @@ export function MeetingParticipants() {
   const waitingList = useMemo(
     () => Object.values(waitingRoomEntries).sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
     [waitingRoomEntries],
+  );
+
+  const screenShareList = useMemo(
+    () => Object.values(screenShareRequests).sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
+    [screenShareRequests],
   );
 
   const grouped = useMemo(() => {
@@ -427,6 +527,19 @@ export function MeetingParticipants() {
             <div className="flex flex-col gap-0.5">
               {waitingList.map((entry) => (
                 <WaitingRoomListItem key={entry.studentId} entry={entry} onResolve={handleResolveWaiting} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isCoach && screenShareList.length > 0 && (
+          <div className="mb-2">
+            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              Screen-share requests ({screenShareList.length})
+            </h3>
+            <div className="flex flex-col gap-0.5">
+              {screenShareList.map((entry) => (
+                <ScreenShareRequestListItem key={entry.studentId} entry={entry} onResolve={handleResolveScreenShare} />
               ))}
             </div>
           </div>

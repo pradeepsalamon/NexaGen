@@ -329,6 +329,15 @@ export class AttendanceWebhookController {
           userId,
           reasonText
         );
+
+        // Defense-in-depth: a clean stop-sharing click already calls
+        // endScreenShare, but a crash/closed-tab disconnect wouldn't. Never
+        // let this disrupt attendance recording above.
+        try {
+          await this.liveClassService.endScreenShareOnDisconnect(classId, userId);
+        } catch (error) {
+          this.logger.warn(`Failed to clean up screen-share request for ${userId} in ${classId}`, error as Error);
+        }
         break;
       }
 

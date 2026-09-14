@@ -475,7 +475,8 @@ describe("LiveClassService.getToken coach-presence gate", () => {
           useValue: {
             coachClass: { findUnique: coachClassFindUnique },
             liveSession: { findUnique: liveSessionFindUnique },
-            user: { findUnique: userFindUnique }
+            user: { findUnique: userFindUnique },
+            liveClassScreenShareRequest: { findUnique: jest.fn().mockResolvedValue(null) }
           }
         },
         { provide: JwtService, useValue: jwtService },
@@ -798,7 +799,8 @@ describe("LiveClassService waiting room", () => {
               create: waitingCreate,
               updateMany: waitingUpdateMany,
               findUniqueOrThrow: waitingFindUniqueOrThrow
-            }
+            },
+            liveClassScreenShareRequest: { findUnique: jest.fn().mockResolvedValue(null) }
           }
         },
         { provide: JwtService, useValue: jwtService },
@@ -917,6 +919,337 @@ describe("LiveClassService waiting room", () => {
       ).rejects.toBeInstanceOf(ForbiddenException);
 
       expect(waitingUpdateMany).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe("LiveClassService screen-share requests", () => {
+  let service: LiveClassService;
+  let jwtService: { verifyAsync: jest.Mock };
+  let userFindUnique: jest.Mock;
+  let coachClassFindUnique: jest.Mock;
+  let liveSessionFindUnique: jest.Mock;
+  let liveSessionUpdateMany: jest.Mock;
+  let coachClassUpdate: jest.Mock;
+  let listParticipants: jest.Mock;
+  let generateAccessToken: jest.Mock;
+  let broadcastData: jest.Mock;
+  let updateParticipantPermissions: jest.Mock;
+  let muteParticipantTrack: jest.Mock;
+  let deleteRoom: jest.Mock;
+  let shareFindUnique: jest.Mock;
+  let shareUpsert: jest.Mock;
+  let shareUpdateMany: jest.Mock;
+  let shareFindUniqueOrThrow: jest.Mock;
+
+  const authenticateAs = (id: string, role: UserRole) => {
+    jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
+    userFindUnique.mockResolvedValue({
+      id,
+      role,
+      status: UserStatus.ACTIVE,
+      firstName: "Test",
+      lastName: "User"
+    });
+  };
+
+  const defaultSettings = liveClassSettingsSchema.parse({});
+  const allowedSettings = liveClassSettingsSchema.parse({ student: { screenShare: "ALLOWED" } });
+  const student = { firstName: "Stu", lastName: "Dent", avatarUrl: null };
+
+  const shareRow = (overrides: Record<string, unknown> = {}) => ({
+    id: "share-1",
+    status: "PENDING",
+    requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+    studentId: "student-1",
+    student,
+    ...overrides
+  });
+
+  beforeEach(async () => {
+    jwtService = { verifyAsync: jest.fn() };
+    userFindUnique = jest.fn();
+    coachClassFindUnique = jest.fn().mockResolvedValue({ id: "class-1", status: "LIVE" });
+    liveSessionFindUnique = jest.fn().mockResolvedValue({
+      id: "session-1",
+      classId: "class-1",
+      coachId: "coach-1",
+      roomName: "room-1",
+      status: "LIVE",
+      batch: { students: [{ studentId: "student-1" }] },
+      class: { topic: "Endgames" },
+      effectiveSettings: defaultSettings
+    });
+    liveSessionUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    coachClassUpdate = jest.fn().mockResolvedValue({});
+    listParticipants = jest.fn().mockResolvedValue([
+      { identity: "coach-1", tracks: [] },
+      { identity: "student-1_client-a", tracks: [] }
+    ]);
+    generateAccessToken = jest.fn().mockResolvedValue("livekit-token");
+    broadcastData = jest.fn().mockResolvedValue(undefined);
+    updateParticipantPermissions = jest.fn().mockResolvedValue(undefined);
+    muteParticipantTrack = jest.fn().mockResolvedValue(undefined);
+    deleteRoom = jest.fn().mockResolvedValue(undefined);
+    shareFindUnique = jest.fn().mockResolvedValue(null);
+    shareUpsert = jest.fn().mockImplementation(({ create }: { create: Record<string, unknown> }) =>
+      Promise.resolve(shareRow({ studentId: create.studentId }))
+    );
+    shareUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    shareFindUniqueOrThrow = jest.fn().mockResolvedValue(shareRow({ status: "APPROVED" }));
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LiveClassService,
+        {
+          provide: PrismaService,
+          useValue: {
+            coachClass: { findUnique: coachClassFindUnique, update: coachClassUpdate },
+            liveSession: { findUnique: liveSessionFindUnique, updateMany: liveSessionUpdateMany },
+            user: { findUnique: userFindUnique },
+            liveClassScreenShareRequest: {
+              findUnique: shareFindUnique,
+              upsert: shareUpsert,
+              updateMany: shareUpdateMany,
+              findUniqueOrThrow: shareFindUniqueOrThrow
+            }
+          }
+        },
+        { provide: JwtService, useValue: jwtService },
+        {
+          provide: LiveKitService,
+          useValue: {
+            listParticipants,
+            generateAccessToken,
+            broadcastData,
+            updateParticipantPermissions,
+            muteParticipantTrack,
+            deleteRoom
+          }
+        },
+        { provide: AttendanceService, useValue: { recordJoinEvent: jest.fn(), finalizeClassAttendance: jest.fn() } },
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} },
+        { provide: LiveClassSettingsService, useValue: {} },
+        {
+          provide: AnalyticsEventService,
+          useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() }
+        }
+      ]
+    }).compile();
+
+    service = module.get<LiveClassService>(LiveClassService);
+  });
+
+  describe("requestScreenShare", () => {
+    it("rejects when the class already allows screen sharing", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        roomName: "room-1",
+        status: "LIVE",
+        batch: { students: [{ studentId: "student-1" }] },
+        effectiveSettings: allowedSettings
+      });
+
+      await expect(service.requestScreenShare(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(BadRequestException);
+      expect(shareUpsert).not.toHaveBeenCalled();
+    });
+
+    it("creates a PENDING row and announces on first request", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+
+      const entry = await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+
+      expect(shareUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({ create: { liveSessionId: "session-1", studentId: "student-1" } })
+      );
+      expect(entry.status).toBe("PENDING");
+      expect(broadcastData).toHaveBeenCalledWith("room-1", expect.any(Uint8Array), "screen_share_request");
+    });
+
+    it("resets a DENIED row back to PENDING on re-request", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      shareFindUnique.mockResolvedValue(shareRow({ status: "DENIED" }));
+
+      await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+
+      expect(shareUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: { status: "PENDING", resolvedAt: null, resolvedById: null }
+        })
+      );
+    });
+
+    it("is idempotent (no re-announce) when already PENDING or APPROVED", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      shareFindUnique.mockResolvedValue(shareRow({ status: "PENDING" }));
+
+      const entry = await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+
+      expect(entry.status).toBe("PENDING");
+      expect(shareUpsert).not.toHaveBeenCalled();
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("resolveScreenShareRequest", () => {
+    it("approves a pending request and widens the student's LiveKit grant", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "APPROVED" }));
+
+      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+        studentId: "student-1",
+        action: "APPROVE"
+      });
+
+      expect(shareUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { liveSessionId: "session-1", studentId: "student-1", status: "PENDING" },
+          data: expect.objectContaining({ status: "APPROVED" })
+        })
+      );
+      expect(updateParticipantPermissions).toHaveBeenCalledWith(
+        "room-1",
+        "student-1_client-a",
+        expect.objectContaining({
+          canPublish: true,
+          canPublishSources: expect.arrayContaining(["screen_share", "screen_share_audio"])
+        })
+      );
+      expect(result.status).toBe("APPROVED");
+      expect(broadcastData).toHaveBeenCalledWith("room-1", expect.any(Uint8Array), "screen_share_request");
+    });
+
+    it("404s (idempotency guard) on a double-resolve", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      shareUpdateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", { studentId: "student-1", action: "APPROVE" })
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(shareFindUniqueOrThrow).not.toHaveBeenCalled();
+      expect(updateParticipantPermissions).not.toHaveBeenCalled();
+    });
+
+    it("denies a pending request without touching LiveKit grants", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "DENIED" }));
+
+      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+        studentId: "student-1",
+        action: "DENY"
+      });
+
+      expect(result.status).toBe("DENIED");
+      expect(updateParticipantPermissions).not.toHaveBeenCalled();
+    });
+
+    it("revokes an approved request, narrows the grant, and mutes a live screen-share track", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      listParticipants.mockResolvedValue([
+        {
+          identity: "student-1_client-a",
+          tracks: [{ sid: "track-1", source: 3 /* TrackSource.SCREEN_SHARE */, muted: false }]
+        }
+      ]);
+      shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
+
+      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+        studentId: "student-1",
+        action: "REVOKE"
+      });
+
+      expect(shareUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { liveSessionId: "session-1", studentId: "student-1", status: "APPROVED" }
+        })
+      );
+      expect(updateParticipantPermissions).toHaveBeenCalledWith(
+        "room-1",
+        "student-1_client-a",
+        expect.objectContaining({ canPublishSources: expect.not.arrayContaining(["screen_share"]) })
+      );
+      expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_client-a", "track-1");
+      expect(result.status).toBe("REVOKED");
+    });
+  });
+
+  describe("endScreenShare", () => {
+    it("self-revokes an approved request and narrows the grant", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
+
+      const result = await service.endScreenShare(ACCESS_TOKEN, "class-1");
+
+      expect(shareUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { liveSessionId: "session-1", studentId: "student-1", status: "APPROVED" }
+        })
+      );
+      expect(updateParticipantPermissions).toHaveBeenCalled();
+      expect(result.status).toBe("REVOKED");
+    });
+
+    it("is a no-op success when nothing was approved (coach revoked first)", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      shareUpdateMany.mockResolvedValue({ count: 0 });
+      shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "DENIED" }));
+
+      const result = await service.endScreenShare(ACCESS_TOKEN, "class-1");
+
+      expect(result.status).toBe("DENIED");
+      expect(updateParticipantPermissions).not.toHaveBeenCalled();
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getToken reconnect", () => {
+    it("merges screen_share/screen_share_audio back in for an APPROVED student even though the class policy is DISABLED", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      shareFindUnique.mockResolvedValue({ status: "APPROVED" });
+
+      await service.getToken(ACCESS_TOKEN, "class-1");
+
+      expect(generateAccessToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          grants: expect.objectContaining({
+            canPublishSources: expect.arrayContaining(["screen_share", "screen_share_audio"])
+          })
+        })
+      );
+    });
+
+    it("leaves grants alone when there is no request row", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+
+      await service.getToken(ACCESS_TOKEN, "class-1");
+
+      expect(generateAccessToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          grants: expect.objectContaining({
+            canPublishSources: expect.not.arrayContaining(["screen_share"])
+          })
+        })
+      );
+    });
+  });
+
+  describe("endClass sweep", () => {
+    it("sweeps lingering PENDING/APPROVED screen-share requests to REVOKED", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+
+      await service.endClass(ACCESS_TOKEN, "class-1");
+
+      expect(shareUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { liveSessionId: "session-1", status: { in: ["PENDING", "APPROVED"] } },
+          data: expect.objectContaining({ status: "REVOKED" })
+        })
+      );
     });
   });
 });

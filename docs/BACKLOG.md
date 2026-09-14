@@ -61,10 +61,25 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 | Item | Notes |
 |---|---|
-| **Screen-share request → coach approval** | Deferred. v1 pre-class settings expose screen-share as allowed/disallowed per role only; the request/approve handshake is not built. |
 | **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
 
 ## Resolved (2026-09-14)
+
+- **Screen-share request → coach approval.** A student whose class has
+  `student.screenShare: DISABLED` can click "Request to share screen"; the
+  coach sees it live (toast + a "Screen-share requests" section in the
+  Participants panel, mirroring the waiting room) and can Approve, Deny, or
+  later Revoke. A new `LiveClassScreenShareRequest` model (one row per
+  session+student, `PENDING`/`APPROVED`/`DENIED`/`REVOKED`) tracks the grant;
+  approval widens just that one student's LiveKit `canPublishSources` via
+  `updateParticipantPermissions` (idempotent via a status-filtered
+  `updateMany`, same pattern as waiting room's resolve) — the class-wide
+  `screenShareMode` policy is untouched. `getToken` also re-applies an
+  `APPROVED` grant on reconnect, so a refresh mid-approval doesn't silently
+  drop it. The grant ends when the student stops sharing (client-driven,
+  `endScreenShare`), the coach revokes it, they disconnect
+  (`participant_left` webhook cleanup), or the class ends (swept in
+  `internalEndClass`).
 
 - **Waiting room / lobby.** The `waitingRoom` enum on `LiveClassSettings`
   (`@nexa-chess/types`) is now `DISABLED | ENABLED` (previously reserved to

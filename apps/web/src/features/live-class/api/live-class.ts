@@ -5,7 +5,10 @@ import {
   type LiveChatMessageResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
+  type ResolveScreenShareRequest,
   type ResolveWaitingRoomRequest,
+  type ScreenShareRequestEntry,
+  type ScreenShareRequestListResponse,
   type WaitingRoomEntry,
   type WaitingRoomListResponse,
 } from "@nexa-chess/types";
@@ -99,6 +102,36 @@ export const resolveWaitingRoomEntry = (
 /** Student: (re)request admission, most commonly after a denial. */
 export const requestWaitingRoomAdmission = (roomId: string): Promise<WaitingRoomEntry> => {
   return apiFetch<WaitingRoomEntry>(API_ROUTES.liveClass.requestWaitingRoom(roomId), {
+    method: "POST",
+  });
+};
+
+/** Coach-owner/admin: requests currently pending or approved. */
+export const getScreenShareRequestList = (roomId: string): Promise<ScreenShareRequestListResponse> => {
+  return apiFetch<ScreenShareRequestListResponse>(API_ROUTES.liveClass.screenShareRequests(roomId));
+};
+
+/** Student: ask to share their screen while the class-wide policy is DISABLED. */
+export const requestScreenShare = (roomId: string): Promise<ScreenShareRequestEntry> => {
+  return apiFetch<ScreenShareRequestEntry>(API_ROUTES.liveClass.requestScreenShare(roomId), {
+    method: "POST",
+  });
+};
+
+/** Coach-owner/admin: approve, deny, or revoke one student's screen-share request. */
+export const resolveScreenShareRequest = (
+  roomId: string,
+  body: ResolveScreenShareRequest
+): Promise<ScreenShareRequestEntry> => {
+  return apiFetch<ScreenShareRequestEntry>(API_ROUTES.liveClass.resolveScreenShareRequest(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/** Student: self-report that sharing has stopped. */
+export const endScreenShare = (roomId: string): Promise<ScreenShareRequestEntry> => {
+  return apiFetch<ScreenShareRequestEntry>(API_ROUTES.liveClass.endScreenShare(roomId), {
     method: "POST",
   });
 };

@@ -321,6 +321,8 @@ model User {
   discountRedemptions    DiscountRedemption[]        @relation("DiscountRedemptions")
   liveClassWaitingRequests    LiveClassWaitingParticipant[] @relation("LiveClassWaitingStudent")
   liveClassWaitingResolutions LiveClassWaitingParticipant[] @relation("LiveClassWaitingResolvedBy")
+  liveClassScreenShareRequests    LiveClassScreenShareRequest[] @relation("LiveClassScreenShareStudent")
+  liveClassScreenShareResolutions LiveClassScreenShareRequest[] @relation("LiveClassScreenShareResolvedBy")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -958,6 +960,7 @@ model LiveSession {
   chatMessages             LiveChatMessage[]
   recordingWatchProgresses RecordingWatchProgress[]
   waitingParticipants      LiveClassWaitingParticipant[]
+  screenShareRequests      LiveClassScreenShareRequest[]
 
   @@index([batchId])
   @@index([coachId])
@@ -1001,6 +1004,43 @@ model LiveClassWaitingParticipant {
   @@unique([liveSessionId, studentId])
   @@index([liveSessionId, status])
   @@map("live_class_waiting_participants")
+}
+
+enum ScreenShareRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+  REVOKED
+}
+
+/// A student's ask to share their screen while `LiveClassSettings.
+/// student.screenShare` is DISABLED class-wide. One row per (session,
+/// student); approval widens just that student's LiveKit canPublishSources
+/// (LiveKitService.updateParticipantPermissions) — the class-wide policy is
+/// untouched. Operational session state, like LiveClassWaitingParticipant:
+/// not soft-deletable, not Trash-registered.
+model LiveClassScreenShareRequest {
+  id String @id @default(cuid())
+
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("LiveClassScreenShareStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  status ScreenShareRequestStatus @default(PENDING)
+
+  requestedAt  DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("LiveClassScreenShareResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([liveSessionId, studentId])
+  @@index([liveSessionId, status])
+  @@map("live_class_screen_share_requests")
 }
 
 model LiveChatMessage {

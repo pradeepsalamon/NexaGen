@@ -1,7 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
-import type { LiveClassSettings, LivePuzzleAssignment, WaitingRoomEntry } from "@nexa-chess/types";
+import type {
+  LiveClassSettings,
+  LivePuzzleAssignment,
+  ScreenShareRequestEntry,
+  WaitingRoomEntry,
+} from "@nexa-chess/types";
 import type { BoardControlSide } from "@/features/chessboard/types/sync";
 import type { RaisedHand } from "../lib/handRaise";
 
@@ -116,6 +121,20 @@ interface LiveClassContextValue {
   upsertWaitingRoomEntry: (entry: WaitingRoomEntry) => void;
   /** Drop one entry once it's no longer PENDING (a `REQUEST_RESOLVED` event). */
   removeWaitingRoomEntry: (studentId: string) => void;
+
+  /**
+   * Screen-share requests currently PENDING or APPROVED, keyed by studentId.
+   * Seeded from `GET /live-class/:id/screen-share-requests` and kept current
+   * by `<ScreenShareRequestBridge>` off the `screen_share_request` data
+   * channel. Unlike the waiting room, an APPROVED entry stays here (the
+   * student is already in the room) so the coach panel can still show a
+   * Revoke action.
+   */
+  screenShareRequests: Record<string, ScreenShareRequestEntry>;
+  /** Replace the whole set (the initial REST fetch). */
+  setScreenShareRequests: (entries: ScreenShareRequestEntry[]) => void;
+  /** Add or update one entry (a `REQUESTED` or `RESOLVED` event). */
+  upsertScreenShareRequest: (entry: ScreenShareRequestEntry) => void;
 }
 
 const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefined);
@@ -146,6 +165,9 @@ export function LiveClassProvider({
   const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
   const [activePuzzle, setActivePuzzle] = useState<LivePuzzleAssignment | null>(null);
   const [waitingRoomEntries, setWaitingRoomEntriesState] = useState<Record<string, WaitingRoomEntry>>({});
+  const [screenShareRequests, setScreenShareRequestsState] = useState<
+    Record<string, ScreenShareRequestEntry>
+  >({});
 
   // Adopt a fresh snapshot from the token response (e.g. after a reconnect /
   // token refresh) without clobbering a newer mid-class update.
@@ -307,6 +329,14 @@ export function LiveClassProvider({
     });
   }, []);
 
+  const setScreenShareRequests = useCallback((entries: ScreenShareRequestEntry[]) => {
+    setScreenShareRequestsState(Object.fromEntries(entries.map((e) => [e.studentId, e])));
+  }, []);
+
+  const upsertScreenShareRequest = useCallback((entry: ScreenShareRequestEntry) => {
+    setScreenShareRequestsState((prev) => ({ ...prev, [entry.studentId]: entry }));
+  }, []);
+
   return (
     <LiveClassContext.Provider
       value={{
@@ -350,6 +380,9 @@ export function LiveClassProvider({
         setWaitingRoomEntries,
         upsertWaitingRoomEntry,
         removeWaitingRoomEntry,
+        screenShareRequests,
+        setScreenShareRequests,
+        upsertScreenShareRequest,
       }}
     >
       {children}

@@ -94,7 +94,15 @@ export const API_ROUTES = {
     // Waiting room (coach-owner/admin): admit or deny one pending student.
     resolveWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/resolve`,
     // Waiting room (student): (re)request admission after a denial.
-    requestWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/request`
+    requestWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/request`,
+    // Screen-share request (coach-owner/admin): pending + currently-approved requests.
+    screenShareRequests: (id: string = ":id") => `/live-class/${id}/screen-share-requests`,
+    // Screen-share request (student): ask to share while the class-wide policy is DISABLED.
+    requestScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/request`,
+    // Screen-share request (coach-owner/admin): approve, deny, or revoke one student's request.
+    resolveScreenShareRequest: (id: string = ":id") => `/live-class/${id}/screen-share-requests/resolve`,
+    // Screen-share request (student): self-report that sharing has stopped.
+    endScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/end`
   },
   liveClassSettings: {
     // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.
