@@ -262,6 +262,42 @@ export const API_ROUTES = {
     webhookCashfree: "/payments/webhooks/cashfree",
     webhookStripe: "/payments/webhooks/stripe"
   },
+  // Invoices and credit notes. Every route is cookie-authed and authorized to
+  // the owner; there is deliberately no public or permanently-signed URL for a
+  // financial document.
+  invoices: {
+    mine: "/invoices",
+    get: (id: string = ":id") => `/invoices/${id}`,
+    // Streams the PDF through the API. Generates on demand if the stored file
+    // is missing, so a failed background render is never a dead end.
+    pdf: (id: string = ":id") => `/invoices/${id}/pdf`,
+    // Printable HTML, for browsers that prefer print-to-PDF.
+    html: (id: string = ":id") => `/invoices/${id}/html`,
+    audit: (id: string = ":id") => `/invoices/${id}/audit`,
+    creditNotes: "/invoices/credit-notes",
+    creditNote: (id: string = ":id") => `/invoices/credit-notes/${id}`,
+    creditNotePdf: (id: string = ":id") =>
+      `/invoices/credit-notes/${id}/pdf`,
+    // The buyer's own billing identity, used for the next invoice they receive.
+    billingProfile: "/invoices/billing-profile"
+  },
+  // Admin → Finance → Invoices, and Admin → Settings → Billing & Invoicing.
+  adminInvoices: {
+    list: "/admin/finance/invoices",
+    get: (id: string = ":id") => `/admin/finance/invoices/${id}`,
+    pdf: (id: string = ":id") => `/admin/finance/invoices/${id}/pdf`,
+    // Re-runs a failed render (§20). Never touches the payment.
+    retryPdf: (id: string = ":id") => `/admin/finance/invoices/${id}/retry-pdf`,
+    resendEmail: (id: string = ":id") =>
+      `/admin/finance/invoices/${id}/resend-email`,
+    audit: (id: string = ":id") => `/admin/finance/invoices/${id}/audit`,
+    export: "/admin/finance/invoices/export",
+    creditNotes: "/admin/finance/credit-notes",
+    createCreditNote: "/admin/finance/credit-notes",
+    creditNotePdf: (id: string = ":id") =>
+      `/admin/finance/credit-notes/${id}/pdf`,
+    settings: "/admin/finance/invoice-settings"
+  },
   // Admin payment dashboard + configuration.
   adminPayments: {
     overview: "/admin/payments/overview",

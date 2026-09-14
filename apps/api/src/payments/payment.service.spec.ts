@@ -3,8 +3,12 @@ import { Test, type TestingModule } from "@nestjs/testing";
 import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { BillingProfileService } from "./billing-profile.service";
+import { CreditNoteService } from "./credit-note.service";
 import { DiscountService } from "./discount.service";
 import { EntitlementService } from "./entitlement.service";
+import { InvoiceAuditService } from "./invoice-audit.service";
+import { InvoiceGenerationService } from "./invoice-generation.service";
 import { InvoiceService } from "./invoice.service";
 import { PaymentRouterService } from "./payment-router.service";
 import { PaymentService } from "./payment.service";
@@ -146,8 +150,15 @@ describe("PaymentService.applyProviderState", () => {
             payment: { findUnique: jest.fn().mockResolvedValue(payment) }
           }
         },
+        { provide: BillingProfileService, useValue: {} },
+        { provide: CreditNoteService, useValue: { listForUser: jest.fn() } },
         { provide: DiscountService, useValue: { redeem } },
         { provide: EntitlementService, useValue: { grant } },
+        { provide: InvoiceAuditService, useValue: { recordTx: jest.fn() } },
+        {
+          provide: InvoiceGenerationService,
+          useValue: { requestGeneration: jest.fn() }
+        },
         { provide: InvoiceService, useValue: { issue } },
         {
           provide: MessagingDispatchService,
@@ -303,8 +314,15 @@ describe("PaymentService.retry", () => {
           provide: PrismaService,
           useValue: { payment: { findUnique: jest.fn().mockResolvedValue(payment) } }
         },
+        { provide: BillingProfileService, useValue: {} },
+        { provide: CreditNoteService, useValue: {} },
         { provide: DiscountService, useValue: {} },
         { provide: EntitlementService, useValue: {} },
+        { provide: InvoiceAuditService, useValue: { recordTx: jest.fn() } },
+        {
+          provide: InvoiceGenerationService,
+          useValue: { requestGeneration: jest.fn() }
+        },
         { provide: InvoiceService, useValue: {} },
         { provide: MessagingDispatchService, useValue: { dispatchInBackground: jest.fn() } },
         { provide: ProviderRegistry, useValue: { anyConfigured: () => true } },
@@ -341,8 +359,15 @@ describe("PaymentService.retry", () => {
           provide: PrismaService,
           useValue: { payment: { findUnique: jest.fn().mockResolvedValue(payment) } }
         },
+        { provide: BillingProfileService, useValue: {} },
+        { provide: CreditNoteService, useValue: {} },
         { provide: DiscountService, useValue: {} },
         { provide: EntitlementService, useValue: {} },
+        { provide: InvoiceAuditService, useValue: { recordTx: jest.fn() } },
+        {
+          provide: InvoiceGenerationService,
+          useValue: { requestGeneration: jest.fn() }
+        },
         { provide: InvoiceService, useValue: {} },
         { provide: MessagingDispatchService, useValue: { dispatchInBackground: jest.fn() } },
         { provide: ProviderRegistry, useValue: { anyConfigured: () => true } },

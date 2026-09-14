@@ -119,14 +119,36 @@ export class MessagingDeliveryWorker {
         return false;
       }
 
+      // A row may carry an attachment (an invoice PDF), resolved at queue time
+      // so this worker never reaches back into a feature module to build one.
+      const document =
+        delivery.documentMediaId || delivery.documentLink
+          ? {
+              mediaId: delivery.documentMediaId ?? undefined,
+              link: delivery.documentLink ?? undefined,
+              filename: delivery.documentFilename ?? undefined
+            }
+          : null;
+
       const outcome = delivery.templateName
         ? await this.whatsapp.trySendTemplate({
             to,
             name: delivery.templateName,
             language: delivery.templateLanguage ?? undefined,
-            bodyParams: delivery.templateParams
+            bodyParams: delivery.templateParams,
+            // The template must be approved with a DOCUMENT header for this to
+            // be accepted; without one Meta rejects it as a payload mismatch.
+            headerDocument: document ?? undefined
           })
-        : await this.whatsapp.trySendText({ to, body: delivery.body });
+        : document
+          ? await this.whatsapp.trySendDocument({
+              to,
+              ...document,
+              // The rendered body rides along as the caption, so the recipient
+              // gets the words and the file in a single chat bubble.
+              caption: delivery.body
+            })
+          : await this.whatsapp.trySendText({ to, body: delivery.body });
 
       if (outcome.ok) {
         await this.markSent(delivery.id, attempts, outcome.result.messageId);

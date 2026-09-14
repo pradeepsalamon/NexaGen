@@ -95,6 +95,20 @@ export const queryKeys = {
     batchPricing: (batchId: string) =>
       ["payments", "batch-pricing", batchId] as const,
   },
+  invoices: {
+    all: ["invoices"] as const,
+    mine: ["invoices", "mine"] as const,
+    detail: (id: string) => ["invoices", "detail", id] as const,
+    audit: (id: string) => ["invoices", "audit", id] as const,
+    creditNotes: ["invoices", "credit-notes"] as const,
+    creditNote: (id: string) => ["invoices", "credit-note", id] as const,
+    billingProfile: ["invoices", "billing-profile"] as const,
+    adminList: (params?: Record<string, unknown>) =>
+      ["invoices", "admin", "list", params ?? null] as const,
+    adminDetail: (id: string) => ["invoices", "admin", "detail", id] as const,
+    adminCreditNotes: ["invoices", "admin", "credit-notes"] as const,
+    settings: ["invoices", "settings"] as const,
+  },
   batchSchedules: {
     all: ["batch-schedules"] as const,
     list: (batchId?: string) => ["batch-schedules", "list", batchId ?? null] as const,

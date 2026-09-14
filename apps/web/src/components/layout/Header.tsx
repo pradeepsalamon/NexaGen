@@ -24,6 +24,7 @@ const pageTitles: Record<string, string> = {
   "/admin/analytics/operations": "Operations",
   "/admin/backups": "Database Backups",
   "/admin/batches": "Batch management",
+  "/admin/finance/invoices": "Invoices",
   "/admin/puzzles": "Puzzle Library",
   "/admin/coaches": "Coach applications",
   "/admin/trash": "Trash",
@@ -43,6 +44,7 @@ const pageTitles: Record<string, string> = {
   "/student/puzzles": "Puzzles",
   "/student/progress": "Progress",
   "/student/attendance": "Attendance",
+  "/student/billing": "Billing",
   "/forgot-password": "Account Help",
   "/login": "Login",
   "/profile": "My Profile",
@@ -71,6 +73,14 @@ function formatPageTitle(pathname: string) {
 
   if (pathname.startsWith("/student/puzzles/")) {
     return "Solve puzzle";
+  }
+
+  // An invoice id is a cuid; showing it raw as the page title reads as noise.
+  if (
+    pathname.startsWith("/admin/finance/invoices/") ||
+    pathname.startsWith("/student/billing/invoices/")
+  ) {
+    return "Invoice";
   }
 
   const currentSegment = pathname.split("/").filter(Boolean).at(-1);

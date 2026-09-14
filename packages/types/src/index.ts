@@ -1999,3 +1999,6 @@ export * from "./messaging";
 // Payments: provider-agnostic checkout, refunds, subscriptions, invoices
 // ──────────────────────────────────────────────
 export * from "./payments";
+
+// Invoicing: tax engine, invoice + credit-note documents, billing settings
+export * from "./invoices";

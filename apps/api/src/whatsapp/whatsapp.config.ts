@@ -26,3 +26,15 @@ export function buildMessagesUrl(env: WhatsAppEnv): string {
   const base = env.WHATSAPP_API_BASE_URL.replace(/\/+$/, "");
   return `${base}/${env.WHATSAPP_API_VERSION}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`;
 }
+
+/** Graph API media-upload endpoint, for sending a PDF as a document. */
+export function buildMediaUrl(env: WhatsAppEnv): string {
+  if (!isWhatsAppConfigured(env)) {
+    throw new Error(
+      "WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are required to upload WhatsApp media."
+    );
+  }
+
+  const base = env.WHATSAPP_API_BASE_URL.replace(/\/+$/, "");
+  return `${base}/${env.WHATSAPP_API_VERSION}/${env.WHATSAPP_PHONE_NUMBER_ID}/media`;
+}

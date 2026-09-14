@@ -249,6 +249,26 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.invoiceSequence;
   }
 
+  get creditNote() {
+    return this.client.creditNote;
+  }
+
+  get creditNoteSequence() {
+    return this.client.creditNoteSequence;
+  }
+
+  get invoiceSettings() {
+    return this.client.invoiceSettings;
+  }
+
+  get invoiceAuditLog() {
+    return this.client.invoiceAuditLog;
+  }
+
+  get billingProfile() {
+    return this.client.billingProfile;
+  }
+
   get entitlement() {
     return this.client.entitlement;
   }

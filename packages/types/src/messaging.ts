@@ -19,7 +19,8 @@ export const messagingEventSchema = z.enum([
   "PAYMENT_RECEIVED",
   "PAYMENT_FAILED",
   "REFUND_PROCESSED",
-  "SUBSCRIPTION_RENEWAL_FAILED"
+  "SUBSCRIPTION_RENEWAL_FAILED",
+  "INVOICE_ISSUED"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -125,6 +126,22 @@ const PAYMENT_VARIABLES = [
   "plan.name",
   "invoice.number",
   "links.billing"
+] as const;
+
+/**
+ * The invoice document's own variables. `invoice.total` is the figure actually
+ * charged, read back from the invoice row — a message can never assert an
+ * amount the document does not carry.
+ */
+const INVOICE_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "invoice.number",
+  "invoice.total",
+  "invoice.date",
+  "invoice.currency",
+  "order.number",
+  "plan.name",
+  "links.invoice"
 ] as const;
 
 export const MESSAGING_EVENT_DEFINITIONS: Record<
@@ -263,6 +280,15 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     description:
       "Sent when a recurring charge could not be collected, so the member can update their payment method before access lapses.",
     variables: PAYMENT_VARIABLES,
+    audiences: ["STUDENTS"],
+    supportsLeadTime: false
+  },
+  INVOICE_ISSUED: {
+    event: "INVOICE_ISSUED",
+    label: "Invoice issued",
+    description:
+      "Sends the invoice itself once its PDF is ready. On WhatsApp the PDF is attached as a document, so a parent gets the receipt in the chat rather than a link to chase. Fires after the payment is verified, and never twice for one invoice.",
+    variables: INVOICE_VARIABLES,
     audiences: ["STUDENTS"],
     supportsLeadTime: false
   }
@@ -554,6 +580,15 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Subscription renewal failed",
     body: "Hi {{recipient.firstName}}, we could not renew your {{plan.name}} subscription. Please update your payment method at {{links.billing}} to keep your access."
+  },
+  INVOICE_ISSUED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "STUDENTS",
+    leadTimeMinutes: null,
+    title: "Invoice {{invoice.number}}",
+    body: "Hi {{recipient.firstName}}, here is your invoice {{invoice.number}} for {{invoice.total}}. You can also download it any time from {{links.invoice}}."
   }
 };
 

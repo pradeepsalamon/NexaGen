@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Download, FileText } from "lucide-react";
-import { API_ROUTES } from "@nexa-chess/types";
+import { Download, Eye, FileText } from "lucide-react";
 import {
   BILLING_INTERVAL_LABELS,
   formatMoney,
@@ -14,7 +13,6 @@ import {
   type PaymentStatus,
   type SubscriptionItem
 } from "@nexa-chess/types";
-import { getWebEnv } from "@nexa-chess/config/web";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -26,6 +24,12 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime, formatFullDate } from "@/lib/datetime";
+import {
+  creditNotePdfUrl,
+  invoicePdfUrl
+} from "@/features/invoices/api/invoicesApi";
+import { BillingProfileForm } from "@/features/invoices/components/BillingProfileForm";
+import { InvoiceStatusBadge } from "@/features/invoices/components/InvoiceBadges";
 import { useCancelSubscription, useMyBilling } from "../hooks/usePaymentsApi";
 
 const STATUS_VARIANT: Record<
@@ -44,10 +48,6 @@ const STATUS_VARIANT: Record<
   PARTIALLY_REFUNDED: "secondary",
   REFUNDED: "secondary"
 };
-
-const API_BASE_URL = getWebEnv({
-  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
-}).NEXT_PUBLIC_API_URL;
 
 /** A student's own payments, receipts, subscriptions and access. */
 export function BillingClient() {
@@ -76,10 +76,14 @@ export function BillingClient() {
         <TabsList>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          {data.creditNotes.length > 0 ? (
+            <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
+          ) : null}
           <TabsTrigger value="access">Access</TabsTrigger>
           {data.subscriptions.length > 0 ? (
             <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           ) : null}
+          <TabsTrigger value="billing-details">Billing details</TabsTrigger>
         </TabsList>
 
         <TabsContent value="payments">
@@ -127,7 +131,7 @@ export function BillingClient() {
                         variant="outline"
                       >
                         <a
-                          href={`${API_BASE_URL}${API_ROUTES.payments.invoiceDownload(payment.invoiceId)}`}
+                          href={invoicePdfUrl(payment.invoiceId)}
                           rel="noopener noreferrer"
                           target="_blank"
                         >
@@ -156,24 +160,44 @@ export function BillingClient() {
                   key={invoice.id}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-sm font-semibold text-app-text">
+                    <Link
+                      className="font-mono text-sm font-semibold text-primary hover:underline"
+                      href={`/student/billing/invoices/${invoice.id}`}
+                    >
                       {invoice.number}
-                    </p>
+                    </Link>
                     <p className="text-xs text-app-muted">
-                      {/* Date-only legal date — rendered in the viewer's zone
-                          from the stored UTC instant, like every other date. */}
-                      {formatFullDate(invoice.issuedAt, timeZone)}
-                      {invoice.transactionId
-                        ? ` · ${invoice.transactionId}`
+                      {/* The invoice's legal date, rendered in the viewer's
+                          zone from the stored UTC instant like every other
+                          date in the app. */}
+                      {formatFullDate(invoice.invoiceDate, timeZone)}
+                      {invoice.lines[0]
+                        ? ` · ${invoice.lines[0].description}`
                         : ""}
                     </p>
                   </div>
+
+                  <InvoiceStatusBadge status={invoice.status} />
 
                   <p className="text-sm font-bold text-app-text">
                     {formatMoney(invoice.total, invoice.currency)}
                   </p>
 
-                  <SimpleTooltip label="Download this invoice">
+                  <SimpleTooltip label="View this invoice">
+                    <Button
+                      aria-label={`View invoice ${invoice.number}`}
+                      asChild
+                      className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                      size="icon"
+                      variant="outline"
+                    >
+                      <Link href={`/student/billing/invoices/${invoice.id}`}>
+                        <Eye className="size-4" strokeWidth={2.5} />
+                      </Link>
+                    </Button>
+                  </SimpleTooltip>
+
+                  <SimpleTooltip label="Download this invoice as a PDF">
                     <Button
                       aria-label={`Download invoice ${invoice.number}`}
                       asChild
@@ -182,7 +206,7 @@ export function BillingClient() {
                       variant="outline"
                     >
                       <a
-                        href={`${API_BASE_URL}${API_ROUTES.payments.invoiceDownload(invoice.id)}`}
+                        href={invoicePdfUrl(invoice.id)}
                         rel="noopener noreferrer"
                         target="_blank"
                       >
@@ -194,6 +218,60 @@ export function BillingClient() {
               ))}
             </Card>
           )}
+        </TabsContent>
+
+        <TabsContent value="credit-notes">
+          {data.creditNotes.length === 0 ? (
+            <EmptyState
+              description="A credit note is issued if any of your payments is refunded."
+              title="No credit notes"
+            />
+          ) : (
+            <Card className="divide-y divide-app-border p-0">
+              {data.creditNotes.map((creditNote) => (
+                <div
+                  className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5"
+                  key={creditNote.id}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-sm font-semibold text-app-text">
+                      {creditNote.number}
+                    </p>
+                    <p className="text-xs text-app-muted">
+                      {formatFullDate(creditNote.issuedAt, timeZone)} · against{" "}
+                      {creditNote.invoiceNumber}
+                    </p>
+                  </div>
+
+                  <p className="text-sm font-bold text-app-text">
+                    {formatMoney(creditNote.total, creditNote.currency)}
+                  </p>
+
+                  <SimpleTooltip label="Download this credit note">
+                    <Button
+                      aria-label={`Download credit note ${creditNote.number}`}
+                      asChild
+                      className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                      size="icon"
+                      variant="outline"
+                    >
+                      <a
+                        href={creditNotePdfUrl(creditNote.id)}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        <Download className="size-4" strokeWidth={2.5} />
+                      </a>
+                    </Button>
+                  </SimpleTooltip>
+                </div>
+              ))}
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="billing-details">
+          <BillingProfileForm />
         </TabsContent>
 
         <TabsContent value="access">

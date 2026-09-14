@@ -20,6 +20,9 @@ function makeDelivery(overrides: Partial<MessageDelivery> = {}): MessageDelivery
     templateName: null,
     templateLanguage: null,
     templateParams: [],
+    documentMediaId: null,
+    documentLink: null,
+    documentFilename: null,
     scheduledFor: new Date(),
     attempts: 0,
     lastAttemptAt: null,
@@ -40,6 +43,7 @@ describe("MessagingDeliveryWorker", () => {
     isConfigured: jest.Mock;
     trySendText: jest.Mock;
     trySendTemplate: jest.Mock;
+    trySendDocument: jest.Mock;
   };
   let notifications: { notify: jest.Mock };
 
@@ -55,7 +59,10 @@ describe("MessagingDeliveryWorker", () => {
         .mockResolvedValue({ ok: true, result: { messageId: "wamid.1" } }),
       trySendTemplate: jest
         .fn()
-        .mockResolvedValue({ ok: true, result: { messageId: "wamid.2" } })
+        .mockResolvedValue({ ok: true, result: { messageId: "wamid.2" } }),
+      trySendDocument: jest
+        .fn()
+        .mockResolvedValue({ ok: true, result: { messageId: "wamid.3" } })
     };
     notifications = { notify: jest.fn().mockResolvedValue(undefined) };
 
@@ -108,6 +115,65 @@ describe("MessagingDeliveryWorker", () => {
     expect(whatsapp.trySendTemplate).toHaveBeenCalledWith(
       expect.objectContaining({ name: "class_reminder", bodyParams: ["Asha", "6:00 pm"] })
     );
+  });
+
+  it("sends an attached invoice PDF as a document, captioned with the body", async () => {
+    await setup([
+      makeDelivery({
+        event: "INVOICE_ISSUED",
+        body: "Here is your invoice NEXA-INV-2026-000001 for Rs 6,488.82.",
+        documentMediaId: "media_abc123",
+        documentFilename: "NEXA-INV-2026-000001.pdf"
+      })
+    ]);
+
+    await worker.sweep();
+
+    // A parent gets the receipt in the chat, not a link to chase.
+    expect(whatsapp.trySendText).not.toHaveBeenCalled();
+    expect(whatsapp.trySendDocument).toHaveBeenCalledWith({
+      to: "919876543210",
+      mediaId: "media_abc123",
+      link: undefined,
+      filename: "NEXA-INV-2026-000001.pdf",
+      caption: "Here is your invoice NEXA-INV-2026-000001 for Rs 6,488.82."
+    });
+    expect(lastUpdate()).toMatchObject({ status: "SENT" });
+  });
+
+  it("attaches the document to a template header when the rule names one", async () => {
+    await setup([
+      makeDelivery({
+        event: "INVOICE_ISSUED",
+        templateName: "invoice_issued",
+        templateParams: ["Priya", "NEXA-INV-2026-000001"],
+        documentMediaId: "media_abc123",
+        documentFilename: "NEXA-INV-2026-000001.pdf"
+      })
+    ]);
+
+    await worker.sweep();
+
+    expect(whatsapp.trySendDocument).not.toHaveBeenCalled();
+    expect(whatsapp.trySendTemplate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "invoice_issued",
+        headerDocument: {
+          mediaId: "media_abc123",
+          link: undefined,
+          filename: "NEXA-INV-2026-000001.pdf"
+        }
+      })
+    );
+  });
+
+  it("falls back to a plain text message when there is no attachment", async () => {
+    await setup([makeDelivery({ event: "INVOICE_ISSUED" })]);
+
+    await worker.sweep();
+
+    expect(whatsapp.trySendDocument).not.toHaveBeenCalled();
+    expect(whatsapp.trySendText).toHaveBeenCalled();
   });
 
   it("keeps a retryable failure pending, with backoff", async () => {
