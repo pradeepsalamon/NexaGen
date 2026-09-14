@@ -72,6 +72,79 @@ export class MailService {
     });
   }
 
+  /**
+   * The receipt email. Only ever reached after a payment is verified, and the
+   * caller claims a one-shot flag before calling, so a redelivered webhook
+   * cannot produce a second copy.
+   */
+  async sendInvoiceIssued(input: {
+    to: string;
+    customerName: string;
+    invoiceNumber: string;
+    amount: string;
+    sellerName: string;
+    supportEmail: string | null;
+    /** Short-lived signed link, used when the PDF is not attached. */
+    downloadUrl: string | null;
+    attachment: { filename: string; content: Buffer } | null;
+  }) {
+    const transporter = this.createTransporter();
+
+    const support = input.supportEmail
+      ? `Questions? Reply to this email or write to ${input.supportEmail}.`
+      : "Questions? Just reply to this email.";
+
+    await transporter.sendMail({
+      from: this.from,
+      to: input.to,
+      subject: `Your ${input.sellerName} invoice ${input.invoiceNumber}`,
+      text: [
+        `Hi ${input.customerName},`,
+        "",
+        `Thank you for your payment of ${input.amount}.`,
+        `Your invoice ${input.invoiceNumber} is ready.`,
+        ...(input.attachment ? ["It is attached to this email as a PDF."] : []),
+        ...(input.downloadUrl ? ["", `Download it here: ${input.downloadUrl}`] : []),
+        "",
+        "You can also find it any time under Billing in your dashboard.",
+        "",
+        support
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2 style="color:#4278ce;margin-bottom:4px">Payment successful</h2>
+          <p style="margin-top:0">Hi ${escapeHtml(input.customerName)}, thank you for your payment of <strong>${escapeHtml(input.amount)}</strong>.</p>
+          <p>Your invoice <strong>${escapeHtml(input.invoiceNumber)}</strong> is ready.${
+            input.attachment ? " It is attached to this email as a PDF." : ""
+          }</p>
+          ${
+            input.downloadUrl
+              ? `<p>
+            <a href="${input.downloadUrl}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
+              Download invoice
+            </a>
+          </p>
+          <p style="font-size:13px;color:#5d6672">This download link expires in 7 days.</p>`
+              : ""
+          }
+          <p>You can also find it any time under <strong>Billing</strong> in your dashboard.</p>
+          <p style="font-size:13px;color:#5d6672">${escapeHtml(support)}</p>
+        </div>
+      `,
+      ...(input.attachment
+        ? {
+            attachments: [
+              {
+                filename: input.attachment.filename,
+                content: input.attachment.content,
+                contentType: "application/pdf"
+              }
+            ]
+          }
+        : {})
+    });
+  }
+
   private createTransporter() {
     if (!this.host || !this.user || !this.pass || !this.from) {
       throw new ServiceUnavailableException("SMTP is not configured.");
@@ -87,4 +160,12 @@ export class MailService {
       secure: this.secure
     });
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

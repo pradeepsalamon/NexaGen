@@ -673,13 +673,81 @@ or a reconciliation read settles it. A *transport* failure deliberately leaves
 the refund PENDING rather than FAILED, because the gateway may have taken it and
 "failed" invites a second refund for the same money.
 
-### Invoices
+### Invoices and credit notes
 
 Issued once, inside the capture transaction, numbered gaplessly per year from
-`InvoiceSequence` (`NEXA/2026/000123`). Served as printable HTML rather than a
-PDF binary — it prints to PDF from any browser and adds no renderer to the ARM
-build. Line items are copied at issue time, so a later plan rename never
-rewrites a receipt someone already downloaded.
+`InvoiceSequence` (`NEXA-INV-2026-000123`). Everything the invoice asserts —
+line items, the buyer's billing identity, the seller's registered details, the
+tax split — is **frozen onto the row at issue time**, so a receipt someone
+downloaded a year ago renders identically today.
+
+**The line names the purchase**, not just the plan: a batch's price is a `Plan`
+usually called something like "Term fee", so the line is built as
+`<plan> — <batch> (<interval>)` — "Term fee — Saturday Intermediate (Monthly)".
+That string is copied at issue time, so renaming or deleting the plan later
+never rewrites a receipt someone already downloaded.
+
+**PDFs** are rendered server-side with **pdfmake** (`invoice-pdf.service.ts`),
+not headless Chrome: this box already runs LiveKit egress' Chromium during
+recordings and a second browser competing for two vCPUs is how a class loses its
+recording. pdfmake's table primitive paginates on its own, and the Roboto it
+bundles carries real glyphs for ₹, €, £ and •, so no extra font ships in the
+image. A printable HTML version is served alongside for anyone who would rather
+print.
+
+**Storage is private.** A rendered PDF is archived to Cloudinary as an
+`authenticated` `raw` asset (`invoice-storage.service.ts`) — there is no
+permanently-public URL for a financial document. Downloads always stream through
+the authenticated API route, so changing the id in the URL reaches someone
+else's invoice only if you are an admin. Cloudinary is **optional**: with the
+credentials unset nothing is archived and PDFs are rendered on demand instead,
+so local dev needs no account.
+
+**Rendering runs on BullMQ** (`invoice` queue, `invoice.processor.ts`). The
+capture enqueues a job keyed on the invoice row, so two redelivered webhooks
+collapse into one render, and a container restarted mid-render picks the work
+back up instead of losing it. Queues are optional as everywhere else: with
+`REDIS_URL` unset the service renders inline rather than letting
+`createDisabledQueue` drop the job, so `npm run dev:api` still works without
+Docker. `pdfStatus` remains the source of truth and the sweep remains the net —
+the queue is a nudge.
+
+**A failed render never touches the payment.** Generation runs *after* the
+capture commits. A failure parks the invoice at `pdfStatus: FAILED` — the
+financial `status` stays `PAID` — and the retry sweep picks it up. If the
+archive is missing when someone asks for their receipt, it is re-rendered on the
+spot, so a background failure is invisible to the customer.
+
+**The invoice is delivered on WhatsApp as the PDF itself**, not a link. Once the
+render succeeds, the `INVOICE_ISSUED` messaging rule fires through
+`MessagingDispatchService` like every other outbound message. When the rule has
+WhatsApp enabled, the PDF is uploaded to Meta first and the resulting media
+handle is attached to the outbox row, so the delivery worker sends a `document`
+message (or a template with a DOCUMENT header, when the rule names one) and a
+parent receives the receipt in the chat. Nothing is uploaded for an in-app-only
+rule, and a failed upload degrades to the download link in the body rather than
+dropping the message. It is addressed to the **invoice's** billing phone — the
+parent — not the student's account number.
+
+**Tax** is computed by the shared engine in `@nexa-chess/types`
+(`invoices.ts`): `resolveTaxTreatment` decides CGST+SGST (intra-state),
+IGST (inter-state) or zero-rated export from the seller's and buyer's place of
+supply — never assumed — and the admin preview calls the same function the
+server does. Tax is always charged on the **discounted** subtotal.
+
+**A refund never edits the invoice.** It records `amountRefunded` and moves the
+status; the document that accounts for the reversal is a separate, numbered
+`CreditNote` (`NEXA-CN-2026-000001`), idempotent on the unique `refundId`, with
+tax reversed in the proportion it was charged.
+
+**Business details are configuration**, never constants in the template:
+Admin → Invoices → Billing & invoicing (`InvoiceSettings`, a singleton seeded
+from the legacy `PAYMENTS_*` env vars on first read).
+
+Surfaces: student `/student/billing` (invoices, credit notes, billing details)
+and `/student/billing/invoices/[id]`; admin `/admin/finance/invoices` with
+per-currency roll-ups, filters, CSV export, PDF retry, email resend and the
+audit trail. Routes are `API_ROUTES.invoices.*` / `.adminInvoices.*`.
 
 ### Background work
 
@@ -687,7 +755,10 @@ rewrites a receipt someone already downloaded.
 |---|---|---|
 | `PaymentReconciliationService.sweep` | 5 min (advisory lock `73002060`) | Asks each gateway about in-flight payments; expires unpaid orders past their TTL |
 | `PaymentWebhookService.recoverFailedEvents` | 10 min | Replays stored webhook events whose handler threw |
+| `InvoiceProcessor` (BullMQ `invoice` queue) | on demand | Renders + archives an invoice or credit-note PDF, then emails and WhatsApps it. 5 attempts with exponential backoff; failures kept 7 days |
+| `InvoiceGenerationService.sweepFailedGenerations` | 10 min (advisory lock `73002070`) | Retries failed/pending invoice PDFs, and reclaims rows stuck `GENERATING` over 15 min |
 | `RefundService.reconcilePending` | 30 min | Reads the gateway for refunds it has not reported on |
+| `InvoiceGenerationService.sweepUnsentEmails` | 30 min | Re-sends invoice emails that failed after a successful render |
 | `EntitlementService.expireLapsed` | hourly | Marks entitlements past `endsAt` as expired |
 | `ProviderHealthService.pruneOldEvents` | daily | Trims provider telemetry past 30 days |
 

@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import {
+  BILLING_INTERVAL_LABELS,
   canTransitionPaymentStatus,
   isInFlightPaymentStatus,
   isRecurringInterval,
@@ -15,6 +16,7 @@ import {
   orderStatusForPayment,
   PAYMENT_STATUS_MESSAGES,
   type AppliedDiscount,
+  type BillingInterval,
   type ApplyDiscountRequest,
   type ApplyDiscountResponse,
   type CheckoutConfigResponse,
@@ -38,8 +40,12 @@ import {
 } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { BillingProfileService } from "./billing-profile.service";
+import { CreditNoteService } from "./credit-note.service";
 import { DiscountService, toAppliedDiscount } from "./discount.service";
 import { EntitlementService } from "./entitlement.service";
+import { InvoiceAuditService } from "./invoice-audit.service";
+import { InvoiceGenerationService } from "./invoice-generation.service";
 import { InvoiceService } from "./invoice.service";
 import { PaymentRouterService } from "./payment-router.service";
 import { assertOwnerOrAdmin, fullName, isAdminRole } from "./payments-auth.helper";
@@ -90,8 +96,12 @@ export class PaymentService {
   private readonly logger = new Logger(PaymentService.name);
 
   constructor(
+    private readonly billingProfiles: BillingProfileService,
+    private readonly creditNotes: CreditNoteService,
     private readonly discounts: DiscountService,
     private readonly entitlements: EntitlementService,
+    private readonly invoiceAudit: InvoiceAuditService,
+    private readonly invoiceGeneration: InvoiceGenerationService,
     private readonly invoices: InvoiceService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
@@ -566,7 +576,13 @@ export class PaymentService {
     const outcome = await this.prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: { id: paymentId },
-        include: { order: { include: { plan: true } } }
+        // The plan's batch comes along so the invoice line can say WHICH batch
+        // was bought — "Monthly fee" alone is not a receipt a parent can read.
+        include: {
+          order: {
+            include: { plan: { include: { batch: { select: { name: true } } } } }
+          }
+        }
       });
       if (!payment) {
         throw new NotFoundException("Payment not found.");
@@ -591,7 +607,12 @@ export class PaymentService {
         if (Object.keys(handleUpdates).length > 0) {
           await tx.payment.update({ where: { id: payment.id }, data: handleUpdates });
         }
-        return { changed: false, status: payment.status, captured: false };
+        return {
+          changed: false,
+          status: payment.status,
+          captured: false,
+          invoiceId: null
+        };
       }
 
       // An amount mismatch means the customer paid something other than what
@@ -614,7 +635,12 @@ export class PaymentService {
             metadata: toJson(details.raw)
           }
         });
-        return { changed: true, status: PaymentStatus.PROCESSING, captured: false };
+        return {
+          changed: true,
+          status: PaymentStatus.PROCESSING,
+          captured: false,
+          invoiceId: null
+        };
       }
 
       const paidAt =
@@ -653,6 +679,7 @@ export class PaymentService {
       });
 
       let captured = false;
+      let invoiceId: string | null = null;
 
       if (nextStatus === PaymentStatus.PAID && payment.order.planId) {
         // Payment = PAID and Order = PAID → entitlement → access (§21).
@@ -665,18 +692,44 @@ export class PaymentService {
           grantedAt: paidAt ?? new Date()
         });
 
-        await this.invoices.issue(tx, {
+        // The invoice is issued in the SAME transaction as the entitlement, so
+        // a paid order always has a receipt and a receipt never exists for an
+        // unpaid one. Its figures come from the order row, never the client.
+        const issued = await this.invoices.issue(tx, {
           orderId: payment.orderId,
           paymentId: payment.id,
           userId: payment.order.userId,
-          description: payment.order.plan?.name ?? "NexaChess purchase",
-          subtotal: payment.order.subtotalAmount,
+          items: [
+            {
+              productId: payment.order.planId,
+              description: describePurchase(payment.order.plan),
+              quantity: 1,
+              unitAmount: payment.order.subtotalAmount
+            }
+          ],
           discountAmount: payment.order.discountAmount,
           discountCode: payment.order.discountCode,
-          taxAmount: payment.order.taxAmount,
           taxPercent: payment.order.plan?.taxPercent ?? 0,
           currency: payment.currency,
-          paidAt: paidAt ?? new Date()
+          paidAt: paidAt ?? new Date(),
+          provider: payment.provider,
+          paymentMethod: details.method ?? payment.paymentMethod,
+          methodDetail: details.methodDetail ?? payment.methodDetail,
+          transactionId:
+            details.providerPaymentId ?? payment.providerPaymentId
+        });
+        invoiceId = issued.id;
+
+        await this.invoiceAudit.recordTx(tx, {
+          event: "PAYMENT_CONFIRMED",
+          invoiceId: issued.id,
+          metadata: {
+            paymentId: payment.id,
+            orderId: payment.orderId,
+            amount: payment.amount,
+            currency: payment.currency,
+            source
+          }
         });
 
         // A code is only consumed once money actually arrives, so an abandoned
@@ -693,7 +746,7 @@ export class PaymentService {
         captured = true;
       }
 
-      return { changed: true, status: nextStatus, captured };
+      return { changed: true, status: nextStatus, captured, invoiceId };
     });
 
     if (outcome.changed) {
@@ -708,6 +761,13 @@ export class PaymentService {
           event: "PAYMENT_RECEIVED",
           paymentId
         });
+
+        // Same reasoning as the message above: the artifact is generated after
+        // the money is settled, and a failure here parks the invoice at
+        // pdfStatus FAILED for the retry sweep without touching the payment.
+        if (outcome.invoiceId) {
+          this.invoiceGeneration.requestGeneration(outcome.invoiceId);
+        }
       } else if (outcome.status === PaymentStatus.FAILED) {
         this.messaging.dispatchInBackground({
           event: "PAYMENT_FAILED",
@@ -724,7 +784,14 @@ export class PaymentService {
   // ────────────────────────────────────────────────
 
   async getBilling(user: User): Promise<MyBillingResponse> {
-    const [payments, invoices, subscriptions, entitlements] = await Promise.all([
+    const [
+      payments,
+      invoices,
+      creditNotes,
+      billingProfile,
+      subscriptions,
+      entitlements
+    ] = await Promise.all([
       this.prisma.payment.findMany({
         where: { userId: user.id },
         include: PAYMENT_INCLUDE,
@@ -732,6 +799,8 @@ export class PaymentService {
         take: 100
       }),
       this.invoices.listForUser(user.id),
+      this.creditNotes.listForUser(user.id),
+      this.billingProfiles.get(user.id),
       this.prisma.subscription.findMany({
         where: { userId: user.id },
         include: {
@@ -746,6 +815,8 @@ export class PaymentService {
     return {
       payments: payments.map((payment) => this.toListItem(payment)),
       invoices,
+      creditNotes,
+      billingProfile,
       subscriptions: subscriptions.map((subscription) => ({
         id: subscription.id,
         userId: subscription.userId,
@@ -1232,3 +1303,56 @@ function appliedFromOrder(order: {
 export { isUniqueViolation, toJson, toPlanItem } from "./payments.util";
 
 export type { Plan };
+
+/**
+ * What the invoice line calls the thing that was bought.
+ *
+ * A batch's price is a Plan carrying that batch's id, and its name is whatever
+ * the admin typed ("Monthly fee"), so the plan name ALONE does not identify the
+ * purchase. The batch it belongs to and the billing interval are what make the
+ * line legible to the person paying — and this string is copied onto the
+ * invoice, so it stays right even if the plan is renamed or deleted later.
+ */
+export function describePurchase(
+  plan:
+    | {
+        name?: string | null;
+        interval?: BillingInterval | null;
+        batch?: { name?: string | null } | null;
+      }
+    | null
+    | undefined
+): string {
+  // Defensive throughout: this runs INSIDE the capture transaction, so a throw
+  // here would roll back a payment that already succeeded — the one thing the
+  // whole invoice design exists to prevent. A missing field costs a nicer
+  // label, never the money.
+  const name = plan?.name?.trim();
+  if (!plan || !name) return "NexaChess purchase";
+
+  const parts = [name];
+  const lower = name.toLowerCase();
+
+  const batchName = plan.batch?.name?.trim();
+  // Skip when the admin already worked the batch name into the plan name,
+  // rather than printing "Monthly fee - Batch A - Batch A".
+  if (batchName && !lower.includes(batchName.toLowerCase())) {
+    parts.push(batchName);
+  }
+
+  const joined = parts.join(" — ");
+
+  // An unrecognised or absent interval simply contributes nothing.
+  const interval = plan.interval
+    ? BILLING_INTERVAL_LABELS[plan.interval]
+    : undefined;
+  if (
+    interval &&
+    plan.interval !== "ONE_TIME" &&
+    !lower.includes(interval.toLowerCase())
+  ) {
+    return `${joined} (${interval})`;
+  }
+
+  return joined;
+}

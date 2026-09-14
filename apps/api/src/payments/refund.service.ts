@@ -20,6 +20,9 @@ import {
   type PrismaTransactionClient
 } from "../prisma/prisma.service";
 import { EntitlementService } from "./entitlement.service";
+import { CreditNoteService } from "./credit-note.service";
+import { InvoiceAuditService } from "./invoice-audit.service";
+import { InvoiceGenerationService } from "./invoice-generation.service";
 import { InvoiceService } from "./invoice.service";
 import { toJson } from "./payments.util";
 import { fullName } from "./payments-auth.helper";
@@ -63,7 +66,10 @@ export class RefundService {
   private readonly logger = new Logger(RefundService.name);
 
   constructor(
+    private readonly creditNotes: CreditNoteService,
     private readonly entitlements: EntitlementService,
+    private readonly invoiceAudit: InvoiceAuditService,
+    private readonly invoiceGeneration: InvoiceGenerationService,
     private readonly invoices: InvoiceService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
@@ -273,14 +279,44 @@ export class RefundService {
         }
       });
 
-      await this.invoices.recordRefund(
+      // The invoice records how much went back out; it is never rewritten.
+      const invoice = await this.invoices.recordRefund(
         tx,
         refund.payment.orderId,
         succeeded,
         fullyRefunded
       );
 
-      return { paymentId: refund.paymentId, refundId: refund.id };
+      // The document that actually accounts for the reversal is a credit note
+      // (§19). Idempotent on the unique refundId, so reconciliation re-reading
+      // an already-settled refund never issues a second one.
+      let creditNoteId: string | null = null;
+      if (invoice) {
+        const creditNote = await this.creditNotes.issueForRefund(tx, {
+          invoiceId: invoice.id,
+          refundId: refund.id,
+          amount: refund.amount,
+          reason: "REFUND",
+          note: refund.reason,
+          actorId: refund.requestedById
+        });
+        creditNoteId = creditNote?.id ?? null;
+
+        await this.invoiceAudit.recordTx(tx, {
+          event: "REFUND_COMPLETED",
+          invoiceId: invoice.id,
+          creditNoteId,
+          actorId: refund.requestedById,
+          metadata: {
+            refundId: refund.id,
+            amount: refund.amount,
+            currency: refund.currency,
+            fullyRefunded
+          }
+        });
+      }
+
+      return { paymentId: refund.paymentId, refundId: refund.id, creditNoteId };
     });
 
     if (settled) {
@@ -289,6 +325,10 @@ export class RefundService {
         paymentId: settled.paymentId,
         dedupeSuffix: settled.refundId
       });
+
+      if (settled.creditNoteId) {
+        this.invoiceGeneration.requestCreditNoteGeneration(settled.creditNoteId);
+      }
     }
   }
 

@@ -28,7 +28,24 @@ interface Recipient {
   linkPath: string | null;
   /** Makes this send unique, so a cron re-run collides instead of re-sending. */
   dedupeKey: string | null;
+  /** Attached to the WhatsApp message, when the event carries a document. */
+  document?: DispatchDocument;
 }
+
+/**
+ * A file to attach to a WhatsApp message.
+ *
+ * Resolved by the CALLER, not here: this service persists rows and must not
+ * learn how to build an invoice PDF. Payments uploads the PDF to Meta and
+ * passes the resulting handle in.
+ */
+export type DispatchDocument = {
+  /** Meta media handle, from `WhatsAppService.uploadMedia`. Valid 30 days. */
+  mediaId?: string | null;
+  /** Fallback when nothing could be uploaded; Meta fetches it at send time. */
+  link?: string | null;
+  filename?: string | null;
+};
 
 export type DispatchRequest =
   | {
@@ -65,6 +82,15 @@ export type DispatchRequest =
       paymentId: string;
       /** Distinguishes repeat events on one payment (a second refund). */
       dedupeSuffix?: string;
+    }
+  /**
+   * The invoice itself. Every figure is read back from the invoice row, and the
+   * PDF is attached by the caller — this service never builds one.
+   */
+  | {
+      event: "INVOICE_ISSUED";
+      invoiceId: string;
+      document?: DispatchDocument;
     };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
@@ -190,6 +216,7 @@ export class MessagingDispatchService {
       body,
       phone: to,
       scheduledFor,
+      document: recipient.document,
       ...(rule.whatsappTemplateName
         ? {
             templateName: rule.whatsappTemplateName,
@@ -218,6 +245,7 @@ export class MessagingDispatchService {
     templateName?: string | null;
     templateLanguage?: string | null;
     templateParams?: string[];
+    document?: DispatchDocument;
   }): Promise<boolean> {
     try {
       await this.prisma.messageDelivery.create({
@@ -233,6 +261,9 @@ export class MessagingDispatchService {
           templateName: input.templateName ?? null,
           templateLanguage: input.templateLanguage ?? null,
           templateParams: input.templateParams ?? [],
+          documentMediaId: input.document?.mediaId ?? null,
+          documentLink: input.document?.link ?? null,
+          documentFilename: input.document?.filename ?? null,
           scheduledFor: input.scheduledFor,
           error: input.error ?? null,
           dedupeKey: input.recipient.dedupeKey
@@ -284,6 +315,8 @@ export class MessagingDispatchService {
           request.paymentId,
           request.dedupeSuffix
         );
+      case "INVOICE_ISSUED":
+        return this.invoiceRecipients(request.invoiceId, request.document);
     }
   }
 
@@ -575,6 +608,52 @@ export class MessagingDispatchService {
     ];
   }
 
+  /**
+   * The invoice's recipient is whoever the invoice is BILLED to — for a student
+   * account that is usually the parent, whose phone is on the invoice row and
+   * not on the user. Falls back to the account's own number when the invoice
+   * carries none.
+   *
+   * The dedupe key is the invoice id alone, so however many times generation is
+   * retried the parent receives exactly one copy.
+   */
+  private async invoiceRecipients(
+    invoiceId: string,
+    document?: DispatchDocument
+  ): Promise<Recipient[]> {
+    const invoice = await this.prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { user: true, order: { include: { plan: true } } }
+    });
+    if (!invoice?.user || invoice.user.isDeleted) return [];
+
+    const recipient = this.toRecipient(invoice.user, {
+      variables: {
+        "invoice.number": invoice.number,
+        "invoice.total": formatMoney(invoice.total, invoice.currency),
+        "invoice.currency": invoice.currency,
+        "invoice.date": formatInZone(
+          invoice.invoiceDate,
+          invoice.user.timezone,
+          "date"
+        ),
+        "order.number": invoice.order.orderNumber,
+        "plan.name": invoice.order.plan?.name ?? ""
+      },
+      linkPath: `/student/billing/invoices/${invoice.id}`,
+      linkVariable: "links.invoice",
+      dedupeKey: `INVOICE_ISSUED:${invoice.id}`
+    });
+
+    return [
+      {
+        ...recipient,
+        phoneNumber: invoice.billingPhone ?? recipient.phoneNumber,
+        document
+      }
+    ];
+  }
+
   // ── shared bits ──
 
   private assignmentVariables(
@@ -608,7 +687,8 @@ export class MessagingDispatchService {
         | "links.class"
         | "links.assignment"
         | "links.login"
-        | "links.billing";
+        | "links.billing"
+        | "links.invoice";
       dedupeKey: string | null;
     }
   ): Recipient {

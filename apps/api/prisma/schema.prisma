@@ -291,6 +291,10 @@ model User {
   payments               Payment[]                   @relation("UserPayments")
   subscriptions          Subscription[]              @relation("UserSubscriptions")
   invoices               Invoice[]                   @relation("UserInvoices")
+  creditNotes            CreditNote[]                @relation("UserCreditNotes")
+  billingProfile         BillingProfile?             @relation("UserBillingProfile")
+  invoiceAuditActions    InvoiceAuditLog[]           @relation("InvoiceAuditActor")
+  invoiceSettingUpdates  InvoiceSettings[]           @relation("InvoiceSettingsUpdatedBy")
   entitlements           Entitlement[]               @relation("UserEntitlements")
   requestedRefunds       Refund[]                    @relation("RefundRequestedBy")
   paymentSettingUpdates  PaymentSetting[]            @relation("PaymentSettingUpdatedBy")
@@ -1208,6 +1212,7 @@ model StudentAssignmentAttempt {
 
 /// Mirrors MessagingEvent — the in-app bell is one channel of a messaging rule.
 enum NotificationType {
+  INVOICE_ISSUED
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
   CLASS_SCHEDULED
@@ -1506,6 +1511,7 @@ model LiveClassPuzzleAssignment {
 // the dispatcher builds.
 
 enum MessagingEvent {
+  INVOICE_ISSUED
   CLASS_SCHEDULED
   CLASS_REMINDER
   CLASS_REMINDER_COACH
@@ -1618,6 +1624,15 @@ model MessageDelivery {
   templateName     String?
   templateLanguage String?
   templateParams   String[]
+
+  /// An attachment resolved at queue time, so the worker never has to reach
+  /// back into a feature module to build one. `documentMediaId` is an upload
+  /// Meta already holds — preferred over a link, because a financial document
+  /// should not need a fetchable URL and a signed one could expire before the
+  /// outbox gets to it.
+  documentMediaId  String?
+  documentLink     String?
+  documentFilename String?
 
   /// When the outbox may send it. Future for a DAILY/WEEKLY rule or a backoff.
   scheduledFor  DateTime  @default(now())
@@ -1732,8 +1747,51 @@ enum InvoiceStatus {
   DRAFT
   ISSUED
   PAID
+  PARTIALLY_REFUNDED
   VOID
   REFUNDED
+}
+
+/// The PDF artifact's own state, separate from the financial status above: a
+/// render that fails must never make a paid invoice look unpaid (section 20).
+enum InvoicePdfStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+}
+
+/// How a sale is taxed. Resolved from the seller's and buyer's place of
+/// supply, never assumed.
+enum TaxTreatment {
+  NONE
+  INTRA_STATE
+  INTER_STATE
+  EXPORT
+  REVERSE_CHARGE
+}
+
+enum CreditNoteReason {
+  REFUND
+  CANCELLATION
+  CORRECTION
+  WRITE_OFF
+  OTHER
+}
+
+enum InvoiceEventType {
+  PAYMENT_CONFIRMED
+  INVOICE_GENERATION_REQUESTED
+  INVOICE_GENERATED
+  INVOICE_GENERATION_FAILED
+  INVOICE_EMAIL_REQUESTED
+  INVOICE_EMAIL_SENT
+  INVOICE_EMAIL_FAILED
+  INVOICE_DOWNLOADED
+  INVOICE_VIEWED
+  REFUND_COMPLETED
+  CREDIT_NOTE_CREATED
+  INVOICE_SETTINGS_UPDATED
 }
 
 /// What a paid order actually unlocks. The gateway is NOT the source of truth
@@ -1832,11 +1890,11 @@ model Order {
   /// of opening a second order.
   idempotencyKey String @unique
 
-  discountId String?
-  discount   Discount? @relation(fields: [discountId], references: [id], onDelete: SetNull)
+  discountId         String?
+  discount           Discount?           @relation(fields: [discountId], references: [id], onDelete: SetNull)
   /// Copied at order time, so a later rename or deletion never rewrites what
   /// the customer was told they used.
-  discountCode String?
+  discountCode       String?
   discountRedemption DiscountRedemption?
 
   notes Json?
@@ -2022,6 +2080,8 @@ model Refund {
 
   metadata Json?
 
+  creditNote CreditNote?
+
   processedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -2092,6 +2152,8 @@ model Subscription {
 model Invoice {
   id String @id @default(cuid())
 
+  /// NEXA-INV-2026-000001. Gapless within a year, allocated from
+  /// InvoiceSequence under a row lock and never reused.
   number String @unique
 
   orderId String @unique
@@ -2105,36 +2167,269 @@ model Invoice {
 
   status InvoiceStatus @default(ISSUED)
 
-  /// Minor units, frozen at issue time.
+  /// Minor units, all frozen at issue time.
   subtotal       Int
-  taxAmount      Int     @default(0)
-  taxPercent     Float   @default(0)
-  taxLabel       String?
+  discountAmount Int     @default(0)
+  discountCode   String?
+  /// subtotal - discountAmount. Tax is charged on THIS, never the list price.
+  taxableAmount  Int
+  cgstAmount     Int     @default(0)
+  sgstAmount     Int     @default(0)
+  igstAmount     Int     @default(0)
+  taxTotal       Int     @default(0)
   total          Int
   amountRefunded Int     @default(0)
   currency       String  @default("INR")
 
-  /// Line items as rendered. Copied, never joined — a later plan rename must
+  taxTreatment   TaxTreatment @default(NONE)
+  taxRatePercent Float        @default(0)
+  taxLabel       String?
+
+  /// Line items as rendered. Copied, never joined - a later plan rename must
   /// not rewrite a receipt someone already downloaded.
   lines Json
 
-  sellerName    String?
-  sellerAddress String?
-  sellerTaxId   String?
+  /// Buyer identity, snapshotted. An invoice must not change when the user
+  /// edits their profile afterwards.
+  billingName       String
+  billingEmail      String?
+  billingPhone      String?
+  billingLine1      String?
+  billingLine2      String?
+  billingCity       String?
+  billingState      String?
+  /// GST state code, derived from the buyer's GSTIN when they gave one.
+  billingStateCode  String?
+  billingPostalCode String?
+  billingCountry    String  @default("IN")
+  customerGstin     String?
+  businessName      String?
 
-  issuedAt DateTime  @default(now())
-  paidAt   DateTime?
+  /// Seller identity, snapshotted from InvoiceSettings at issue time.
+  seller Json
+
+  /// Payment facts, copied so the receipt survives a payment row changing.
+  /// methodDetail is always a provider-supplied safe descriptor
+  /// (Visa ending 4242) - never a PAN, CVV, PIN or bank credential.
+  paymentProvider PaymentProvider?
+  paymentMethod   PaymentMethodKind?
+  methodDetail    String?
+  transactionId   String?
+
+  notes  String?
+  terms  String?
+  footer String?
+
+  /// The PDF artifact. `pdfStorageKey` is a private Cloudinary public_id; there
+  /// is deliberately no permanently-public URL for a financial document.
+  pdfStatus      InvoicePdfStatus @default(PENDING)
+  pdfStorageKey  String?
+  pdfUrl         String?
+  pdfBytes       Int?
+  pdfGeneratedAt DateTime?
+  pdfAttempts    Int              @default(0)
+  pdfError       String?
+
+  /// Email dedupe. The flag is what stops a redelivered webhook sending a
+  /// second copy.
+  emailSent   Boolean   @default(false)
+  emailSentAt DateTime?
+
+  invoiceDate DateTime  @default(now())
+  dueDate     DateTime?
+  paidAt      DateTime?
+
+  creditNotes CreditNote[]
+  auditLogs   InvoiceAuditLog[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId, issuedAt])
+  @@index([userId, invoiceDate])
   @@index([status])
+  @@index([pdfStatus])
+  @@index([paymentProvider])
+  @@index([paymentMethod])
+  @@index([currency])
+  @@index([invoiceDate])
   @@map("invoices")
 }
 
-/// Gapless invoice numbering. Incremented inside the same transaction that
-/// writes the invoice, so two concurrent captures cannot collide.
+/// A credit note reverses value without touching the invoice it references -
+/// an issued invoice is never rewritten after a refund.
+model CreditNote {
+  id String @id @default(cuid())
+
+  /// NEXA-CN-2026-000001, from its own sequence.
+  number String @unique
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("UserCreditNotes", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The refund that caused it. Unique, so one refund can only ever produce
+  /// one credit note however many times reconciliation re-runs.
+  refundId String? @unique
+  refund   Refund? @relation(fields: [refundId], references: [id], onDelete: SetNull)
+
+  reason CreditNoteReason @default(REFUND)
+  note   String?
+
+  /// Minor units, positive. Tax is split back in the same proportion it was
+  /// charged, so a partial credit never invents tax.
+  subtotal   Int
+  cgstAmount Int    @default(0)
+  sgstAmount Int    @default(0)
+  igstAmount Int    @default(0)
+  taxTotal   Int    @default(0)
+  total      Int
+  currency   String @default("INR")
+
+  isFullCredit Boolean @default(false)
+
+  lines   Json
+  billing Json
+  seller  Json
+
+  pdfStatus      InvoicePdfStatus @default(PENDING)
+  pdfStorageKey  String?
+  pdfBytes       Int?
+  pdfGeneratedAt DateTime?
+  pdfAttempts    Int              @default(0)
+  pdfError       String?
+
+  issuedAt DateTime @default(now())
+
+  auditLogs InvoiceAuditLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([invoiceId])
+  @@index([userId, issuedAt])
+  @@index([issuedAt])
+  @@map("credit_notes")
+}
+
+/// Who an invoice is actually billed to.
+///
+/// Deliberately not the User row: a student account is usually paid for by a
+/// parent, so the bill-payer's name, email and address are their own record.
+/// Seeded from StudentProfile.parent* the first time a student checks out, and
+/// editable by the buyer afterwards.
+model BillingProfile {
+  id String @id @default(cuid())
+
+  userId String @unique
+  user   User   @relation("UserBillingProfile", fields: [userId], references: [id], onDelete: Cascade)
+
+  name  String
+  email String?
+  phone String?
+
+  line1      String?
+  line2      String?
+  city       String?
+  state      String?
+  /// GST state code, derived from `gstin` when one is set.
+  stateCode  String?
+  postalCode String?
+  country    String  @default("IN")
+
+  gstin        String?
+  businessName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("billing_profiles")
+}
+
+model CreditNoteSequence {
+  year       Int @id
+  lastNumber Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("credit_note_sequences")
+}
+
+/// Admin - Settings - Billing and Invoicing. A singleton: business details are
+/// never hard-coded into the PDF template.
+model InvoiceSettings {
+  /// Always "default" - enforced by the service, which upserts on this id.
+  id String @id @default("default")
+
+  legalName String  @default("NexaChess")
+  tradeName String?
+
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String  @default("IN")
+
+  email   String?
+  phone   String?
+  website String?
+
+  gstin String?
+  pan   String?
+
+  logoUrl String?
+
+  invoicePrefix    String @default("NEXA-INV")
+  creditNotePrefix String @default("NEXA-CN")
+
+  defaultTaxPercent Float  @default(0)
+  taxLabel          String @default("GST")
+
+  footerText   String?
+  termsText    String?
+  supportEmail String?
+
+  emailOnIssue     Boolean @default(true)
+  attachPdfToEmail Boolean @default(true)
+
+  /// Null until an admin saves, which is how the API reports `configured`.
+  updatedAt   DateTime?
+  updatedById String?
+  updatedBy   User?     @relation("InvoiceSettingsUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@map("invoice_settings")
+}
+
+/// Invoice audit trail. Append-only; nothing updates or deletes a row.
+model InvoiceAuditLog {
+  id String @id @default(cuid())
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  creditNoteId String?
+  creditNote   CreditNote? @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  event InvoiceEventType
+
+  /// Null for an automated action (webhook, cron, worker).
+  actorId String?
+  actor   User?   @relation("InvoiceAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([invoiceId, createdAt])
+  @@index([creditNoteId, createdAt])
+  @@index([event, createdAt])
+  @@map("invoice_audit_logs")
+}
+
 model InvoiceSequence {
   /// Calendar year the sequence belongs to.
   year       Int @id

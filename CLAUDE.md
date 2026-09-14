@@ -267,6 +267,10 @@ use them, don't reimplement, or the admin preview stops matching the send.
   collides on insert (P2002 → "already queued") instead of racing a send. The
   two lead-time crons in `messaging.scheduler.ts` also take advisory locks
   `73002051` / `73002052`.
+- `INVOICE_ISSUED` ships **enabled, in-app only**, and is the one event that can
+  carry an attachment: `DispatchRequest` takes an optional `document`
+  (`mediaId`/`link`/`filename`) which the CALLER resolves — dispatch persists it
+  onto `message_deliveries` and the worker sends it as a WhatsApp document.
 - `ASSIGNMENT_DUE_SOON` + `ASSIGNMENT_GRADED` ship **enabled, in-app only** —
   they absorbed the old unconditional notifications (`NotificationScheduler` is
   deleted; `assignment-attempt.service` now dispatches instead of notifying).
@@ -370,6 +374,77 @@ for India.
   offering the methods only it could serve. With none configured the API still
   boots and a checkout attempt is a clean 503.
 
+### 3.6g Invoices, PDFs and credit notes
+
+`apps/api/src/payments/invoice*.ts` + `credit-note.service.ts` +
+`billing-profile.service.ts`, `apps/web/src/features/invoices/`, pages
+`/student/billing/invoices/[id]` and `/admin/finance/invoices`, routes
+`API_ROUTES.invoices.*` / `.adminInvoices.*`.
+
+- **The line item names what was actually bought.** `describePurchase`
+  (payment.service.ts) builds it from the plan name + the batch the plan prices
+  + the billing interval — a batch plan is usually named "Term fee", which alone
+  tells a parent nothing. It is copied onto the invoice, so a later plan rename
+  never rewrites an issued receipt, and it is **deliberately defensive**: it runs
+  inside the capture transaction, so a missing field costs a nicer label, never
+  the payment.
+- **An invoice is a frozen snapshot.** `InvoiceService.issue` copies the lines,
+  the buyer's billing identity, the seller's registered details and the whole
+  tax split onto the row inside the capture transaction. Nothing is resolved by
+  joining a live plan, profile or settings row afterwards — a receipt downloaded
+  a year ago must render identically today. Idempotent on the unique `orderId`.
+- **The tax engine lives in `@nexa-chess/types` (`invoices.ts`)** —
+  `resolveTaxTreatment`, `computeTax`, `computeCreditBreakdown`,
+  `sumInvoiceLines`, `formatDocumentNumber`, `isValidGstin`,
+  `stateCodeFromGstin`. Use them, don't reimplement, or the admin preview stops
+  matching the issued document. **Never assume CGST+SGST or IGST**: the
+  treatment is derived from the seller's and buyer's place of supply, and a sale
+  abroad is a zero-rated export whatever the plan's rate says. Tax is charged on
+  the **discounted** subtotal.
+- **PDF generation NEVER touches the payment (§20).** It runs after the capture
+  commits, on the BullMQ `invoice` queue. A failure sets `pdfStatus: FAILED` and
+  leaves the financial `status: PAID` alone; `sweepFailedGenerations` (10 min,
+  advisory lock `73002070`) retries, and a download of a missing archive
+  re-renders on the spot. Do not move generation into the capture transaction.
+- **The queue is a nudge, not the source of truth.** `pdfStatus` + the sweep is
+  what guarantees a PDF exists; BullMQ just means a restart mid-render does not
+  lose the work. With `REDIS_URL` unset the service renders **inline** rather
+  than letting `createDisabledQueue` drop the job. **A `jobId` must not contain
+  a colon** — BullMQ joins its Redis keys on `:` and rejects one ("Custom Id
+  cannot contain :"), which silently breaks every enqueue; the helpers in
+  `invoice-queue.ts` use `--`.
+- **WhatsApp delivery goes through `MessagingDispatchService`, never
+  `WhatsAppService` directly** (§3.6e). The `INVOICE_ISSUED` rule carries it.
+  The PDF is uploaded to Meta at dispatch time and the media handle is stored on
+  the outbox row, so the delivery worker attaches a real document rather than a
+  link — and the worker never has to reach back into the payments module to
+  build one. Upload only happens when the rule actually enables WhatsApp; a
+  failure degrades to the link. The message is addressed to the invoice's
+  `billingPhone` (the parent), not the account's number.
+- **pdfmake, not headless Chrome** (`invoice-pdf.service.ts`). Egress' Chromium
+  already competes for this box's two vCPUs. pdfmake's table paginates itself
+  and its bundled Roboto has real ₹ / € / £ / • glyphs — no extra font ships.
+- **Storage is private and optional.** Cloudinary `type: "authenticated"`,
+  `resource_type: "raw"`. There is no permanently-public URL for a financial
+  document, and downloads always stream through the authenticated API route.
+  With `CLOUDINARY_*` unset nothing is archived and PDFs render on demand.
+- **A refund never edits an issued invoice (§19).** `recordRefund` only moves
+  `amountRefunded` + `status`; the reversal is a separate numbered `CreditNote`,
+  idempotent on the unique `refundId`, with tax reversed proportionally.
+- **The invoice email is claimed before it is sent.** `emailSent` is set by a
+  conditional `updateMany` *before* the send, so two redelivered webhooks
+  produce one email; a failed send releases the claim for the retry sweep.
+- **Billing identity is its own row.** A student is usually paid for by a
+  parent, so `BillingProfile` → `StudentProfile.parent*` → the account is the
+  resolution order. Never bill a student invoice to the student's own profile
+  without checking.
+- **Business details are `InvoiceSettings`, never template constants** — a
+  singleton seeded from the legacy `PAYMENTS_*` env vars on first read, edited
+  at Admin → Invoices → Billing & invoicing.
+- `Invoice`, `CreditNote`, `InvoiceSettings`, `InvoiceAuditLog` and
+  `BillingProfile` are **not soft-deletable** and not Trash-registered — a
+  financial record is never trashed.
+
 ### 3.7 Live class / LiveKit
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
@@ -434,7 +509,8 @@ for India.
 7. **Table action buttons → `rounded-full` icon template** with `strokeWidth={2.5}`.
 8. Reuse `components/ui/` primitives before writing new UI.
 9. **Payments: money is integer minor units, and access comes from an `Entitlement`, never from a gateway status or a frontend callback.** Every state change goes through `PaymentService.applyProviderState`; no provider adapter is imported outside `payments/providers/`.
-10. **Dates: store UTC, localize in the browser.** No `toLocaleDateString`/`toLocaleTimeString`/`new Date(iso).toLocaleString()` in a web component (ESLint blocks it) — use `lib/datetime.ts` + `useUserTimeZone()`. No bound `Date`/`::timestamptz` next to a `timestamp` column in raw SQL — bind `${d.toISOString()}::timestamp`. API serializes with `.toISOString()`, never pre-formats. (`.agents/AGENTS.md` "Date & Time Rule".)
+10. **Invoices: a failed PDF never changes a payment.** Generation runs after the capture commits; a failure is `pdfStatus: FAILED`, not a rolled-back payment. Tax goes through the shared engine in `@nexa-chess/types`, never a local calculation, and an issued invoice is never edited — a refund gets a credit note.
+11. **Dates: store UTC, localize in the browser.** No `toLocaleDateString`/`toLocaleTimeString`/`new Date(iso).toLocaleString()` in a web component (ESLint blocks it) — use `lib/datetime.ts` + `useUserTimeZone()`. No bound `Date`/`::timestamptz` next to a `timestamp` column in raw SQL — bind `${d.toISOString()}::timestamp`. API serializes with `.toISOString()`, never pre-formats. (`.agents/AGENTS.md` "Date & Time Rule".)
 
 ---
 
@@ -499,6 +575,16 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | Checkout says "no payment gateway is available" | every gateway is unconfigured (`RAZORPAY_KEY_ID` / `CASHFREE_APP_ID` / `STRIPE_SECRET_KEY` all unset), or `PAYMENTS_ENABLED=false`. Health alone never causes this — a degraded gateway is still used rather than refusing money |
 | A method is missing from the checkout screen | `PaymentRouterService.availableMethods` only lists a method when the routed gateway's own adapter says it can serve it in that currency — Stripe deliberately reports no UPI flows |
 | Refund stuck PROCESSING | normal for days; banks are slow. `RefundService.reconcilePending` (every 30 min) reads the gateway. A refund left PENDING after a timeout is deliberate — the gateway may have taken it, so never issue a second one without reconciling |
+| Invoice PDF never renders and the log says "Custom Id cannot contain :" | A BullMQ `jobId` may not contain a colon. `invoice-queue.ts` uses `--`; anything reintroducing `:` makes every enqueue throw and leaves PDFs to the 10-minute sweep |
+| Queued invoice PDFs never run | `REDIS_URL` unset means the service renders inline instead (check the boot log for "background queues are disabled"). Otherwise confirm `InvoiceProcessor` is a provider in PaymentsModule and that `QUEUE_PREFIX` matches between producer and worker |
+| Invoice WhatsApp arrives without the PDF attached | The upload to Meta failed or WhatsApp is unconfigured, and it degraded to the link by design — the warning names the provider error. Outside the 24h window a free-form document is rejected: give the rule an approved template name whose header is a DOCUMENT |
+| Invoice WhatsApp went to the student, not the parent | It is addressed to the invoice's `billingPhone`, which is snapshotted from the billing profile at issue time. An invoice issued before the parent's number was saved carries the account's instead |
+| Invoice has no PDF / "Generation failed" | The payment is fine — only the artifact failed. `pdfError` on the row says why; `sweepFailedGenerations` retries every 10 min, and Admin → Invoices has a manual retry. A download still works: a missing archive is re-rendered on demand |
+| Invoice PDF shows boxes instead of ₹ | The font lost the glyph. `invoice-pdf.service.ts` resolves pdfmake's bundled Roboto through `require.resolve("pdfmake/package.json")`; a bundler or Docker layer that drops `node_modules/pdfmake/fonts` is the usual cause |
+| Invoice charged CGST+SGST when it should be IGST (or vice versa) | The treatment comes from `resolveTaxTreatment` — check the seller's GSTIN in Admin → Invoices → Billing & invoicing and the buyer's GSTIN on their billing profile. The first two digits of each GSTIN are the state code, and that comparison is the whole decision |
+| An invoice is billed to the student, not the parent | `BillingProfileService.resolve` — the buyer has no saved `BillingProfile` and their `StudentProfile.parentName` is empty, so it fell through to the account. Billing details are frozen at issue, so fixing the profile only affects the next invoice |
+| Invoice email never arrives / arrives twice | `emailSent` is claimed by a conditional update *before* the send, so a second webhook is a no-op by design. Never arriving means SMTP is unset, the invoice has no billing email, or an admin turned `emailOnIssue` off. Admin → Invoices → Resend is the deliberate override |
+| Invoice number skipped a value | Expected. Numbers are allocated from `InvoiceSequence` and never reused, so a rolled-back capture consumes one permanently |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
 | Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |

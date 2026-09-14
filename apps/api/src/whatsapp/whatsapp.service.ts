@@ -5,10 +5,16 @@ import {
   ServiceUnavailableException
 } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { buildMessagesUrl, isWhatsAppConfigured } from "./whatsapp.config";
+import {
+  buildMediaUrl,
+  buildMessagesUrl,
+  isWhatsAppConfigured
+} from "./whatsapp.config";
 import type {
   WhatsAppApiSuccess,
+  WhatsAppDocumentMessage,
   WhatsAppFailure,
+  WhatsAppMediaUploadResult,
   WhatsAppSendOutcome,
   WhatsAppSendResult,
   WhatsAppTemplateMessage,
@@ -16,6 +22,7 @@ import type {
 } from "./whatsapp.types";
 import {
   WHATSAPP_TEXT_BODY_LIMIT,
+  buildDocumentPayload,
   buildTemplatePayload,
   buildTextPayload,
   describeWhatsAppFailure,
@@ -85,6 +92,112 @@ export class WhatsAppService {
   /** Best-effort template send. See {@link trySendText}. */
   async trySendTemplate(message: WhatsAppTemplateMessage): Promise<WhatsAppSendOutcome> {
     return this.attempt(() => this.sendTemplate(message));
+  }
+
+  /**
+   * Sends a document (a PDF invoice, say) as a free-form message.
+   *
+   * Like {@link sendText}, this only lands inside the 24h customer-service
+   * window. Outside it, attach the document to an approved template instead —
+   * {@link sendTemplate} with `headerDocument`.
+   */
+  async sendDocument(
+    message: WhatsAppDocumentMessage
+  ): Promise<WhatsAppSendResult> {
+    if (!message.mediaId && !message.link) {
+      throw new BadRequestException(
+        "A WhatsApp document needs either an uploaded mediaId or a link."
+      );
+    }
+
+    const to = this.resolveRecipient(message.to);
+    return this.send(buildDocumentPayload(message, to), to);
+  }
+
+  /** Best-effort document send. See {@link trySendText}. */
+  async trySendDocument(
+    message: WhatsAppDocumentMessage
+  ): Promise<WhatsAppSendOutcome> {
+    return this.attempt(() => this.sendDocument(message));
+  }
+
+  /**
+   * Uploads a file to Meta and returns the handle to send it by.
+   *
+   * Preferred over passing a `link`: Meta keeps the bytes for 30 days, so
+   * nothing has to expose a fetchable URL for a financial document, and the
+   * send cannot fail because a short-lived signed URL expired between queueing
+   * and delivery.
+   *
+   * One network attempt, like every other call here — retries belong to the
+   * caller's job.
+   */
+  async uploadMedia(
+    file: Buffer,
+    filename: string,
+    contentType = "application/pdf"
+  ): Promise<WhatsAppMediaUploadResult> {
+    if (!this.isConfigured()) {
+      throw new ServiceUnavailableException("WhatsApp is not configured.");
+    }
+
+    const form = new FormData();
+    form.append("messaging_product", "whatsapp");
+    form.append("type", contentType);
+    form.append(
+      "file",
+      new Blob([new Uint8Array(file)], { type: contentType }),
+      filename
+    );
+
+    let response: Response;
+    try {
+      response = await fetch(buildMediaUrl(this.env), {
+        method: "POST",
+        // No Content-Type header: fetch sets the multipart boundary itself.
+        headers: { Authorization: `Bearer ${this.env.WHATSAPP_ACCESS_TOKEN}` },
+        body: form,
+        signal: AbortSignal.timeout(this.env.WHATSAPP_TIMEOUT_MS)
+      });
+    } catch (error) {
+      throw this.fail(parseSendFailure(0, null), (error as Error).message);
+    }
+
+    const body = await this.readJson(response);
+    if (!response.ok) {
+      throw this.fail(parseSendFailure(response.status, body));
+    }
+
+    const mediaId = (body as { id?: string } | null)?.id;
+    if (!mediaId) {
+      throw this.fail({
+        message: "WhatsApp media upload returned no id.",
+        status: response.status,
+        retryable: false
+      });
+    }
+
+    return { mediaId };
+  }
+
+  /** Best-effort upload for paths that must survive WhatsApp being down. */
+  async tryUploadMedia(
+    file: Buffer,
+    filename: string,
+    contentType = "application/pdf"
+  ): Promise<{ ok: true; mediaId: string } | { ok: false; error: WhatsAppFailure }> {
+    try {
+      const { mediaId } = await this.uploadMedia(file, filename, contentType);
+      return { ok: true, mediaId };
+    } catch (error) {
+      if (error instanceof WhatsAppSendError) {
+        return { ok: false, error: error.failure };
+      }
+      return {
+        ok: false,
+        error: { message: (error as Error).message, status: 0, retryable: false }
+      };
+    }
   }
 
   /** Fan out one text to many recipients; one bad number never sinks the rest. */

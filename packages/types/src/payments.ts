@@ -324,17 +324,6 @@ export const REFUND_STATUS_LABELS: Record<RefundStatus, string> = {
   CANCELLED: "Refund cancelled"
 };
 
-// ── Invoices ──
-
-export const invoiceStatusSchema = z.enum([
-  "DRAFT",
-  "ISSUED",
-  "PAID",
-  "VOID",
-  "REFUNDED"
-]);
-export type InvoiceStatus = z.infer<typeof invoiceStatusSchema>;
-
 // ── Entitlements (the §21 access boundary) ──
 
 export const entitlementStatusSchema = z.enum(["ACTIVE", "EXPIRED", "REVOKED"]);
@@ -885,43 +874,6 @@ export type CancelSubscriptionRequest = z.infer<
   typeof cancelSubscriptionRequestSchema
 >;
 
-// ── Invoices ──
-
-export type InvoiceLine = {
-  description: string;
-  quantity: number;
-  unitAmount: number;
-  amount: number;
-};
-
-export type InvoiceItem = {
-  id: string;
-  number: string;
-  orderId: string;
-  orderNumber: string;
-  userName: string | null;
-  userEmail: string | null;
-  status: InvoiceStatus;
-  subtotal: number;
-  taxAmount: number;
-  taxPercent: number;
-  taxLabel: string | null;
-  total: number;
-  amountRefunded: number;
-  currency: string;
-  lines: InvoiceLine[];
-  /** Provider handle, shown on the receipt so support can trace it. */
-  transactionId: string | null;
-  method: PaymentMethodKind | null;
-  issuedAt: string;
-  paidAt: string | null;
-  sellerName: string | null;
-  sellerAddress: string | null;
-  sellerTaxId: string | null;
-};
-
-export type InvoiceListResponse = { invoices: InvoiceItem[] };
-
 // ── Entitlements / my access ──
 
 export type EntitlementItem = {
@@ -934,13 +886,6 @@ export type EntitlementItem = {
   startsAt: string;
   endsAt: string | null;
   createdAt: string;
-};
-
-export type MyBillingResponse = {
-  payments: PaymentListItem[];
-  invoices: InvoiceItem[];
-  subscriptions: SubscriptionItem[];
-  entitlements: EntitlementItem[];
 };
 
 // ── Provider health ──

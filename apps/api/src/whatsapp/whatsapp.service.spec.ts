@@ -110,6 +110,127 @@ describe("WhatsAppService", () => {
     });
   });
 
+  describe("documents", () => {
+    it("uploads a PDF to the media endpoint and returns the handle", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, { id: "media_abc123" }));
+      const service = await setupService();
+
+      const result = await service.uploadMedia(
+        Buffer.from("%PDF-1.3"),
+        "NEXA-INV-2026-000001.pdf"
+      );
+
+      expect(result.mediaId).toBe("media_abc123");
+
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(String(url)).toMatch(/\/media$/);
+      expect(init.body).toBeInstanceOf(FormData);
+      // fetch must set the multipart boundary itself; an explicit Content-Type
+      // here produces a malformed upload.
+      expect(init.headers["Content-Type"]).toBeUndefined();
+    });
+
+    it("treats an upload with no id as a failure rather than sending nothing", async () => {
+      fetchMock.mockResolvedValue(jsonResponse(200, {}));
+      const service = await setupService();
+
+      await expect(
+        service.uploadMedia(Buffer.from("%PDF-"), "x.pdf")
+      ).rejects.toBeInstanceOf(WhatsAppSendError);
+    });
+
+    it("sends a document by media id, with the body as its caption", async () => {
+      const service = await setupService();
+
+      await service.sendDocument({
+        to: "+919876543210",
+        mediaId: "media_abc123",
+        filename: "NEXA-INV-2026-000001.pdf",
+        caption: "Here is your invoice."
+      });
+
+      const [, init] = fetchMock.mock.calls[0];
+      const payload = JSON.parse(init.body as string);
+
+      expect(payload.type).toBe("document");
+      expect(payload.document).toEqual({
+        id: "media_abc123",
+        filename: "NEXA-INV-2026-000001.pdf",
+        caption: "Here is your invoice."
+      });
+      // A media id and a link are mutually exclusive; the id wins.
+      expect(payload.document.link).toBeUndefined();
+    });
+
+    it("falls back to a link when there is no uploaded media", async () => {
+      const service = await setupService();
+
+      await service.sendDocument({
+        to: "+919876543210",
+        link: "https://example.test/invoice.pdf",
+        filename: "invoice.pdf"
+      });
+
+      const payload = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      expect(payload.document.link).toBe("https://example.test/invoice.pdf");
+      expect(payload.document.id).toBeUndefined();
+    });
+
+    it("refuses a document that names neither a media id nor a link", async () => {
+      const service = await setupService();
+
+      await expect(
+        service.sendDocument({ to: "+919876543210" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("attaches a document to a template as its header", async () => {
+      const service = await setupService();
+
+      await service.sendTemplate({
+        to: "+919876543210",
+        name: "invoice_issued",
+        bodyParams: ["Priya", "NEXA-INV-2026-000001"],
+        headerDocument: {
+          mediaId: "media_abc123",
+          filename: "NEXA-INV-2026-000001.pdf"
+        }
+      });
+
+      const payload = JSON.parse(fetchMock.mock.calls[0][1].body as string);
+      const header = payload.template.components.find(
+        (component: { type: string }) => component.type === "header"
+      );
+
+      expect(header.parameters[0]).toEqual({
+        type: "document",
+        document: { id: "media_abc123", filename: "NEXA-INV-2026-000001.pdf" }
+      });
+    });
+
+    it("never throws from the best-effort upload", async () => {
+      fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
+      const service = await setupService();
+
+      const outcome = await service.tryUploadMedia(
+        Buffer.from("%PDF-"),
+        "x.pdf"
+      );
+
+      expect(outcome.ok).toBe(false);
+    });
+
+    it("refuses to upload without credentials", async () => {
+      const service = await setupService({ WHATSAPP_ACCESS_TOKEN: undefined });
+
+      await expect(
+        service.uploadMedia(Buffer.from("%PDF-"), "x.pdf")
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe("sendText", () => {
     it("posts a text message to the configured phone number", async () => {
       const service = await setupService();

@@ -1,6 +1,7 @@
 import type {
   WhatsAppApiErrorBody,
   WhatsAppApiSuccess,
+  WhatsAppDocumentMessage,
   WhatsAppFailure,
   WhatsAppSendResult,
   WhatsAppTemplateComponent,
@@ -80,6 +81,23 @@ export function buildTextPayload(message: WhatsAppTextMessage, to: string) {
   };
 }
 
+export function buildDocumentPayload(
+  message: WhatsAppDocumentMessage,
+  to: string
+) {
+  return {
+    messaging_product: "whatsapp" as const,
+    recipient_type: "individual" as const,
+    to,
+    type: "document" as const,
+    document: {
+      ...(message.mediaId ? { id: message.mediaId } : { link: message.link }),
+      ...(message.filename ? { filename: message.filename } : {}),
+      ...(message.caption ? { caption: message.caption } : {})
+    }
+  };
+}
+
 export function buildTemplatePayload(message: WhatsAppTemplateMessage, to: string) {
   const components = message.components ?? buildTemplateComponents(message);
 
@@ -101,7 +119,26 @@ function buildTemplateComponents(
 ): WhatsAppTemplateComponent[] {
   const components: WhatsAppTemplateComponent[] = [];
 
-  if (message.headerParams?.length) {
+  // A document header and a text header are mutually exclusive in Meta's
+  // schema — a template is approved with one or the other.
+  if (message.headerDocument) {
+    components.push({
+      type: "header",
+      parameters: [
+        {
+          type: "document",
+          document: {
+            ...(message.headerDocument.mediaId
+              ? { id: message.headerDocument.mediaId }
+              : { link: message.headerDocument.link }),
+            ...(message.headerDocument.filename
+              ? { filename: message.headerDocument.filename }
+              : {})
+          }
+        }
+      ]
+    });
+  } else if (message.headerParams?.length) {
     components.push({ type: "header", parameters: toTextParameters(message.headerParams) });
   }
   if (message.bodyParams?.length) {

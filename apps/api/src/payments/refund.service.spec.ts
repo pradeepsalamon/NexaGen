@@ -4,6 +4,9 @@ import { PaymentStatus, RefundStatus } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { EntitlementService } from "./entitlement.service";
+import { CreditNoteService } from "./credit-note.service";
+import { InvoiceAuditService } from "./invoice-audit.service";
+import { InvoiceGenerationService } from "./invoice-generation.service";
 import { InvoiceService } from "./invoice.service";
 import { PaymentProviderError } from "./providers/payment-provider.interface";
 import { ProviderRegistry } from "./providers/provider-registry.service";
@@ -92,6 +95,12 @@ describe("RefundService.create", () => {
           }
         },
         { provide: EntitlementService, useValue: { revokeForOrder: jest.fn() } },
+        { provide: CreditNoteService, useValue: { issueForRefund: jest.fn() } },
+        { provide: InvoiceAuditService, useValue: { recordTx: jest.fn() } },
+        {
+          provide: InvoiceGenerationService,
+          useValue: { generateCreditNote: jest.fn().mockResolvedValue(true) }
+        },
         { provide: InvoiceService, useValue: { recordRefund: jest.fn() } },
         {
           provide: MessagingDispatchService,
@@ -247,6 +256,17 @@ describe("RefundService.applyProviderState", () => {
           }
         },
         { provide: EntitlementService, useValue: {} },
+        {
+          provide: CreditNoteService,
+          useValue: {
+            issueForRefund: jest.fn().mockResolvedValue({ id: "cn_1" })
+          }
+        },
+        { provide: InvoiceAuditService, useValue: { recordTx: jest.fn() } },
+        {
+          provide: InvoiceGenerationService,
+          useValue: { generateCreditNote: jest.fn().mockResolvedValue(true) }
+        },
         { provide: InvoiceService, useValue: { recordRefund } },
         {
           provide: MessagingDispatchService,
