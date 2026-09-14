@@ -5,6 +5,9 @@ import {
   type LiveChatMessageResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
+  type ResolveWaitingRoomRequest,
+  type WaitingRoomEntry,
+  type WaitingRoomListResponse,
 } from "@nexa-chess/types";
 import { CoachClass, LiveSession, LiveKitTokenResponse, ParticipantInfo } from "../types/live-class";
 
@@ -74,6 +77,29 @@ export const moderateParticipant = (
   return apiFetch<ModerateParticipantResponse>(API_ROUTES.liveClass.moderate(roomId), {
     method: "POST",
     body,
+  });
+};
+
+/** Coach-owner/admin: students currently pending admission, oldest first. */
+export const getWaitingRoomList = (roomId: string): Promise<WaitingRoomListResponse> => {
+  return apiFetch<WaitingRoomListResponse>(API_ROUTES.liveClass.waitingRoom(roomId));
+};
+
+/** Coach-owner/admin: admit or deny one pending student. */
+export const resolveWaitingRoomEntry = (
+  roomId: string,
+  body: ResolveWaitingRoomRequest
+): Promise<WaitingRoomEntry> => {
+  return apiFetch<WaitingRoomEntry>(API_ROUTES.liveClass.resolveWaitingRoom(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/** Student: (re)request admission, most commonly after a denial. */
+export const requestWaitingRoomAdmission = (roomId: string): Promise<WaitingRoomEntry> => {
+  return apiFetch<WaitingRoomEntry>(API_ROUTES.liveClass.requestWaitingRoom(roomId), {
+    method: "POST",
   });
 };
 

@@ -31,9 +31,8 @@ export type BoardInteractionMode = z.infer<typeof boardInteractionModeSchema>;
 export const recordingModeSchema = z.enum(["DISABLED", "MANUAL", "AUTO_START"]);
 export type RecordingMode = z.infer<typeof recordingModeSchema>;
 
-// v1 exposes only DISABLED — the enum is reserved so the waiting-room feature
-// can land later without a settings migration.
-export const waitingRoomModeSchema = z.enum(["DISABLED"]);
+/** Whether students must be explicitly admitted by the coach before joining. */
+export const waitingRoomModeSchema = z.enum(["DISABLED", "ENABLED"]);
 export type WaitingRoomMode = z.infer<typeof waitingRoomModeSchema>;
 
 /**
@@ -332,6 +331,9 @@ export function getLiveClassSettingsWarnings(settings: LiveClassSettings): strin
   if (settings.autoJoin.student === "ENABLED") {
     warnings.push("Students may enter the classroom automatically when the class becomes available.");
   }
+  if (settings.waitingRoom === "ENABLED") {
+    warnings.push("Students will need to be admitted individually before they can join.");
+  }
   if (settings.recording === "AUTO_START") {
     warnings.push("Recording starts automatically; participants are notified when it begins.");
   }
@@ -343,3 +345,51 @@ export function getLiveClassSettingsWarnings(settings: LiveClassSettings): strin
   }
   return warnings;
 }
+
+// ──────────────────────────────────────────────
+// Waiting room (join-time admit flow)
+// ──────────────────────────────────────────────
+
+export const waitingRoomStatusSchema = z.enum(["PENDING", "ADMITTED", "DENIED"]);
+export type WaitingRoomStatus = z.infer<typeof waitingRoomStatusSchema>;
+
+export interface WaitingRoomEntry {
+  id: string;
+  studentId: string;
+  studentName: string;
+  avatarUrl: string | null;
+  status: WaitingRoomStatus;
+  /** ISO-8601 UTC. */
+  requestedAt: string;
+}
+
+export const resolveWaitingRoomRequestSchema = z.object({
+  studentId: z.string().min(1),
+  action: z.enum(["ADMIT", "DENY"]),
+});
+export type ResolveWaitingRoomRequest = z.infer<typeof resolveWaitingRoomRequestSchema>;
+
+export interface WaitingRoomListResponse {
+  entries: WaitingRoomEntry[];
+}
+
+/**
+ * LiveKit data-channel topic the API server-injects a waiting-room event on so
+ * a coach/admin already connected to the room sees a new request (or another
+ * tab's resolution) without waiting on a poll. Purely a nudge — the REST list
+ * endpoint is the source of truth, same as `LIVE_CLASS_MODERATION_TOPIC`.
+ */
+export const LIVE_CLASS_WAITING_ROOM_TOPIC = "waiting_room";
+
+export const waitingRoomEventSchema = z.object({
+  type: z.enum(["JOIN_REQUESTED", "REQUEST_RESOLVED"]),
+  entry: z.object({
+    id: z.string(),
+    studentId: z.string(),
+    studentName: z.string(),
+    avatarUrl: z.string().nullable(),
+    status: waitingRoomStatusSchema,
+    requestedAt: z.string(),
+  }),
+});
+export type WaitingRoomEvent = z.infer<typeof waitingRoomEventSchema>;

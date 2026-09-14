@@ -57,6 +57,9 @@ function policySummary(settings: LiveClassSettings): string[] {
   if (settings.recording === "AUTO_START") {
     lines.push("This class is recorded automatically.");
   }
+  if (settings.waitingRoom === "ENABLED") {
+    lines.push("The coach will need to let you in — hang tight after you join.");
+  }
   return lines;
 }
 

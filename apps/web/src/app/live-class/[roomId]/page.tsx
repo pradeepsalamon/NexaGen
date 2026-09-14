@@ -22,6 +22,8 @@ import {
   PermissionDenied,
   ClassNotStarted,
   WaitingForCoach,
+  WaitingForAdmit,
+  JoinDenied,
 } from "@/features/live-class/components/states/ErrorStates";
 import { ClassSummary } from "@/features/live-class/components/summary/ClassSummary";
 
@@ -102,6 +104,22 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
       return (
         <ClassroomStateShell topic={topic}>
           <WaitingForCoach onRetry={retry} />
+        </ClassroomStateShell>
+      );
+    }
+
+    if (errorCode === "WAITING_FOR_ADMIT") {
+      return (
+        <ClassroomStateShell topic={topic}>
+          <WaitingForAdmit onRetry={retry} />
+        </ClassroomStateShell>
+      );
+    }
+
+    if (errorCode === "JOIN_DENIED") {
+      return (
+        <ClassroomStateShell topic={topic}>
+          <JoinDenied roomId={roomId} onRequested={() => retry()} />
         </ClassroomStateShell>
       );
     }

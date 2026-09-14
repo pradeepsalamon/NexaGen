@@ -127,6 +127,13 @@ export const SETTINGS_FIELDS: SettingsFieldDef[] = [
       { value: "AUTO_START", label: "Starts automatically" },
     ],
   },
+  {
+    path: "waitingRoom",
+    group: "classroom",
+    label: "Waiting room",
+    help: "Students must be admitted individually before they can join. Cannot be combined with student auto-join.",
+    options: YES_NO("ENABLED", "DISABLED"),
+  },
 ];
 
 export const GROUP_LABELS: Record<SettingsGroup, string> = {

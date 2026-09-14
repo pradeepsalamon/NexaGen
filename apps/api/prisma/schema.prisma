@@ -319,6 +319,8 @@ model User {
   paymentSettingUpdates  PaymentSetting[]            @relation("PaymentSettingUpdatedBy")
   createdDiscounts       Discount[]                  @relation("DiscountCreatedBy")
   discountRedemptions    DiscountRedemption[]        @relation("DiscountRedemptions")
+  liveClassWaitingRequests    LiveClassWaitingParticipant[] @relation("LiveClassWaitingStudent")
+  liveClassWaitingResolutions LiveClassWaitingParticipant[] @relation("LiveClassWaitingResolvedBy")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -955,6 +957,7 @@ model LiveSession {
 
   chatMessages             LiveChatMessage[]
   recordingWatchProgresses RecordingWatchProgress[]
+  waitingParticipants      LiveClassWaitingParticipant[]
 
   @@index([batchId])
   @@index([coachId])
@@ -962,6 +965,42 @@ model LiveSession {
   @@index([startedAt])
   @@index([endedAt])
   @@map("live_sessions")
+}
+
+enum WaitingRoomStatus {
+  PENDING
+  ADMITTED
+  DENIED
+}
+
+/// Tracks students blocked at the door by a class's waiting-room policy
+/// (`LiveClassSettings.waitingRoom`). One row per (session, student); a
+/// student who is denied and later clicks "Request again" resets the same
+/// row rather than creating a new one, so the coach's list never grows
+/// duplicates. Operational data scoped to one LiveSession — not
+/// soft-deletable, not Trash-registered, like LiveClassPuzzleAssignment.
+model LiveClassWaitingParticipant {
+  id String @id @default(cuid())
+
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("LiveClassWaitingStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  status WaitingRoomStatus @default(PENDING)
+
+  requestedAt  DateTime  @default(now())
+  resolvedAt   DateTime?
+  resolvedById String?
+  resolvedBy   User?     @relation("LiveClassWaitingResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([liveSessionId, studentId])
+  @@index([liveSessionId, status])
+  @@map("live_class_waiting_participants")
 }
 
 model LiveChatMessage {

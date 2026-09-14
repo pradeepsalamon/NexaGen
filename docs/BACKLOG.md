@@ -61,11 +61,27 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 | Item | Notes |
 |---|---|
-| **Waiting room / lobby** | Deferred sub-feature of pre-class settings. The `waitingRoom` enum exists in `LiveClassSettings` (`@nexa-chess/types`) but v1 only allows `DISABLED`; the "coach hasn't joined" polling gate in `useLiveClass.ts` / `getToken` still stands. An app-level admit flow is the eventual implementation. |
 | **Screen-share request → coach approval** | Deferred. v1 pre-class settings expose screen-share as allowed/disallowed per role only; the request/approve handshake is not built. |
 | **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
 
 ## Resolved (2026-09-14)
+
+- **Waiting room / lobby.** The `waitingRoom` enum on `LiveClassSettings`
+  (`@nexa-chess/types`) is now `DISABLED | ENABLED` (previously reserved to
+  `DISABLED` only). A new `LiveClassWaitingParticipant` model (one row per
+  session+student, `PENDING`/`ADMITTED`/`DENIED`) gates a student's `getToken`
+  call — first attempt creates a `PENDING` row and blocks with a structured
+  `WAITING_FOR_ADMIT` code (student polls via the same silent-retry pattern as
+  the existing `COACH_NOT_JOINED` screen); a `DENIED` row blocks with
+  `JOIN_DENIED` and a "Request again" action. The API server-injects a
+  `waiting_room` LiveKit data packet (mirrors `LIVE_CLASS_MODERATION_TOPIC`) so
+  a connected coach/admin sees a join request live via a toast + a "Waiting to
+  join" section in the Participants panel with Admit/Deny actions
+  (`GET`/`POST .../waiting-room[/resolve]`, coach-owner/admin, idempotent via a
+  `status: PENDING` update filter). `LiveClassSettingsForm` auto-clears
+  `autoJoin.student` when waiting room is enabled (and vice versa) since the
+  two are mutually exclusive — `validateLiveClassSettings` already enforced
+  this server-side, so the enum widen alone made that existing guard live.
 
 - **Course / CourseModule authoring.** `Course`/`CourseModule` were a near-empty
   schema stub (`CourseModule` had only a `title` — no order/content/status) with

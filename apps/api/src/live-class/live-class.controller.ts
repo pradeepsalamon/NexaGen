@@ -15,9 +15,11 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import {
   API_ROUTES,
   moderateParticipantRequestSchema,
+  resolveWaitingRoomRequestSchema,
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
   type ModerateParticipantRequest,
+  type ResolveWaitingRoomRequest,
   type SaveLiveChatMessageRequest,
   type UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
@@ -87,6 +89,25 @@ export class LiveClassController {
       body.clientMessageId,
       body.recipientId
     );
+  }
+
+  @Get(API_ROUTES.liveClass.waitingRoom())
+  getWaitingRoom(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.getWaitingRoomList(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.resolveWaitingRoom())
+  resolveWaitingRoom(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(resolveWaitingRoomRequestSchema)) body: ResolveWaitingRoomRequest
+  ) {
+    return this.liveClassService.resolveWaitingRoomEntry(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.requestWaitingRoom())
+  requestWaitingRoom(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.requestWaitingRoomAdmission(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.moderate())

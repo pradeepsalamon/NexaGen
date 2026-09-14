@@ -719,3 +719,204 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
     );
   });
 });
+
+describe("LiveClassService waiting room", () => {
+  let service: LiveClassService;
+  let jwtService: { verifyAsync: jest.Mock };
+  let userFindUnique: jest.Mock;
+  let coachClassFindUnique: jest.Mock;
+  let liveSessionFindUnique: jest.Mock;
+  let listParticipants: jest.Mock;
+  let generateAccessToken: jest.Mock;
+  let broadcastData: jest.Mock;
+  let waitingFindUnique: jest.Mock;
+  let waitingCreate: jest.Mock;
+  let waitingUpdateMany: jest.Mock;
+  let waitingFindUniqueOrThrow: jest.Mock;
+
+  const authenticateAs = (id: string, role: UserRole) => {
+    jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
+    userFindUnique.mockResolvedValue({
+      id,
+      role,
+      status: UserStatus.ACTIVE,
+      firstName: "Test",
+      lastName: "User"
+    });
+  };
+
+  const waitingRoomSettings = liveClassSettingsSchema.parse({ waitingRoom: "ENABLED" });
+  const student = { firstName: "Stu", lastName: "Dent", avatarUrl: null };
+
+  beforeEach(async () => {
+    jwtService = { verifyAsync: jest.fn() };
+    userFindUnique = jest.fn();
+    coachClassFindUnique = jest.fn().mockResolvedValue({ id: "class-1", status: "LIVE" });
+    liveSessionFindUnique = jest.fn().mockResolvedValue({
+      id: "session-1",
+      classId: "class-1",
+      coachId: "coach-1",
+      roomName: "room-1",
+      status: "LIVE",
+      batch: { students: [{ studentId: "student-1" }] },
+      class: { topic: "Endgames" },
+      effectiveSettings: waitingRoomSettings
+    });
+    listParticipants = jest.fn().mockResolvedValue([{ identity: "coach-1" }]);
+    generateAccessToken = jest.fn().mockResolvedValue("livekit-token");
+    broadcastData = jest.fn().mockResolvedValue(undefined);
+    waitingFindUnique = jest.fn().mockResolvedValue(null);
+    waitingCreate = jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+      Promise.resolve({
+        id: "wait-1",
+        status: "PENDING",
+        requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+        studentId: data.studentId,
+        student
+      })
+    );
+    waitingUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
+    waitingFindUniqueOrThrow = jest.fn().mockResolvedValue({
+      id: "wait-1",
+      status: "ADMITTED",
+      requestedAt: new Date("2026-01-01T00:00:00.000Z"),
+      studentId: "student-1",
+      student
+    });
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LiveClassService,
+        {
+          provide: PrismaService,
+          useValue: {
+            coachClass: { findUnique: coachClassFindUnique },
+            liveSession: { findUnique: liveSessionFindUnique },
+            user: { findUnique: userFindUnique },
+            liveClassWaitingParticipant: {
+              findUnique: waitingFindUnique,
+              create: waitingCreate,
+              updateMany: waitingUpdateMany,
+              findUniqueOrThrow: waitingFindUniqueOrThrow
+            }
+          }
+        },
+        { provide: JwtService, useValue: jwtService },
+        { provide: LiveKitService, useValue: { listParticipants, generateAccessToken, broadcastData } },
+        { provide: AttendanceService, useValue: { recordJoinEvent: jest.fn() } },
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} },
+        { provide: LiveClassSettingsService, useValue: {} },
+        {
+          provide: AnalyticsEventService,
+          useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() }
+        }
+      ]
+    }).compile();
+
+    service = module.get<LiveClassService>(LiveClassService);
+  });
+
+  describe("getToken", () => {
+    it("creates a PENDING row and blocks with WAITING_FOR_ADMIT on first request", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+
+      await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
+        response: { code: "WAITING_FOR_ADMIT" }
+      });
+
+      expect(waitingCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { liveSessionId: "session-1", studentId: "student-1" } })
+      );
+      expect(broadcastData).toHaveBeenCalledWith("room-1", expect.any(Uint8Array), "waiting_room");
+      expect(generateAccessToken).not.toHaveBeenCalled();
+    });
+
+    it("blocks again without re-announcing once the row is already PENDING", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      waitingFindUnique.mockResolvedValue({ status: "PENDING" });
+
+      await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
+        response: { code: "WAITING_FOR_ADMIT" }
+      });
+
+      expect(waitingCreate).not.toHaveBeenCalled();
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+
+    it("mints a token once the row is ADMITTED", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      waitingFindUnique.mockResolvedValue({ status: "ADMITTED" });
+
+      await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({
+        token: "livekit-token"
+      });
+    });
+
+    it("rejects with JOIN_DENIED once the row is DENIED", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      waitingFindUnique.mockResolvedValue({ status: "DENIED" });
+
+      await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
+        response: { code: "JOIN_DENIED" }
+      });
+      expect(generateAccessToken).not.toHaveBeenCalled();
+    });
+
+    it("never gates the coach", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+
+      await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({
+        token: "livekit-token"
+      });
+      expect(waitingFindUnique).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("resolveWaitingRoomEntry", () => {
+    it("admits a pending student and broadcasts the resolution", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+
+      const result = await service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+        studentId: "student-1",
+        action: "ADMIT"
+      });
+
+      expect(waitingUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { liveSessionId: "session-1", studentId: "student-1", status: "PENDING" },
+          data: expect.objectContaining({ status: "ADMITTED", resolvedById: "coach-1" })
+        })
+      );
+      expect(result.status).toBe("ADMITTED");
+      expect(broadcastData).toHaveBeenCalledWith("room-1", expect.any(Uint8Array), "waiting_room");
+    });
+
+    it("404s (idempotency guard) when the row is already resolved", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      waitingUpdateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+          studentId: "student-1",
+          action: "ADMIT"
+        })
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      expect(waitingFindUniqueOrThrow).not.toHaveBeenCalled();
+    });
+
+    it("rejects a coach who does not own the class", async () => {
+      authenticateAs("coach-2", UserRole.COACH);
+
+      await expect(
+        service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+          studentId: "student-1",
+          action: "ADMIT"
+        })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      expect(waitingUpdateMany).not.toHaveBeenCalled();
+    });
+  });
+});

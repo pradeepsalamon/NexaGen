@@ -2,10 +2,10 @@
 
 import { useCallback, useState, useMemo, memo } from "react";
 import { useParams } from "next/navigation";
-import { Lock, Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, X } from "lucide-react";
+import { Lock, Search, Mic, MicOff, Video, VideoOff, MonitorUp, Hand, Crown, UserCheck, UserX, X } from "lucide-react";
 import { useConnectionQualityIndicator, useParticipants } from "@livekit/components-react";
 import { ConnectionQuality } from "livekit-client";
-import type { ModeratableSource } from "@nexa-chess/types";
+import type { ModeratableSource, WaitingRoomEntry } from "@nexa-chess/types";
 import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { PanelHeader } from "./PanelHeader";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { isHumanParticipant } from "../../lib/participants";
-import { moderateParticipant } from "../../api/live-class";
+import { moderateParticipant, resolveWaitingRoomEntry } from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
@@ -242,6 +242,49 @@ const ParticipantListItem = memo(function ParticipantListItem({
   );
 });
 
+const WaitingRoomListItem = memo(function WaitingRoomListItem({
+  entry,
+  onResolve,
+}: {
+  entry: WaitingRoomEntry;
+  onResolve: (studentId: string, action: "ADMIT" | "DENY", name: string) => void;
+}) {
+  return (
+    <div
+      className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-app-soft"
+      role="listitem"
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        <ParticipantAvatar name={entry.studentName} size="sm" className="size-8 shrink-0 text-[10px]" />
+        <span className="truncate text-sm font-medium text-app-text">{entry.studentName}</span>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1.5">
+        <SimpleTooltip label={`Admit ${entry.studentName}`}>
+          <button
+            type="button"
+            aria-label={`Admit ${entry.studentName}`}
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-emerald-600 transition-colors hover:bg-emerald-600 hover:text-white"
+            onClick={() => onResolve(entry.studentId, "ADMIT", entry.studentName)}
+          >
+            <UserCheck className="size-4" strokeWidth={2.5} />
+          </button>
+        </SimpleTooltip>
+        <SimpleTooltip label={`Deny ${entry.studentName}`}>
+          <button
+            type="button"
+            aria-label={`Deny ${entry.studentName}`}
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white"
+            onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
+          >
+            <UserX className="size-4" strokeWidth={2.5} />
+          </button>
+        </SimpleTooltip>
+      </div>
+    </div>
+  );
+});
+
 export function MeetingParticipants() {
   const participants = useParticipants().filter(isHumanParticipant);
   const [searchQuery, setSearchQuery] = useState("");
@@ -252,6 +295,8 @@ export function MeetingParticipants() {
     raisedHands,
     setActiveSidebar,
     setBoardControlSide,
+    waitingRoomEntries,
+    removeWaitingRoomEntry,
   } = useLiveClassState();
   const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
   const params = useParams();
@@ -285,6 +330,26 @@ export function MeetingParticipants() {
     [roomId],
   );
 
+  const handleResolveWaiting = useCallback(
+    async (studentId: string, action: "ADMIT" | "DENY", name: string) => {
+      if (!roomId) return;
+      try {
+        await resolveWaitingRoomEntry(roomId, { studentId, action });
+        // The `REQUEST_RESOLVED` broadcast this triggers also reaches this
+        // client, but remove locally now too so the row disappears instantly
+        // rather than waiting on the round trip.
+        removeWaitingRoomEntry(studentId);
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't ${action === "ADMIT" ? "admit" : "deny"} ${name}`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId, removeWaitingRoomEntry],
+  );
+
   const handleMessagePrivately = useCallback(
     (targetUserId: string) => {
       openPrivateThread(targetUserId);
@@ -298,6 +363,11 @@ export function MeetingParticipants() {
     const query = searchQuery.toLowerCase();
     return participants.filter((p) => (p.name || p.identity || "").toLowerCase().includes(query));
   }, [participants, searchQuery]);
+
+  const waitingList = useMemo(
+    () => Object.values(waitingRoomEntries).sort((a, b) => a.requestedAt.localeCompare(b.requestedAt)),
+    [waitingRoomEntries],
+  );
 
   const grouped = useMemo(() => {
     const coaches: LkParticipant[] = [];
@@ -349,6 +419,19 @@ export function MeetingParticipants() {
       )}
 
       <div className="custom-scrollbar flex-1 overflow-y-auto overscroll-contain px-2 py-3" role="list">
+        {isCoach && waitingList.length > 0 && (
+          <div className="mb-2">
+            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              Waiting to join ({waitingList.length})
+            </h3>
+            <div className="flex flex-col gap-0.5">
+              {waitingList.map((entry) => (
+                <WaitingRoomListItem key={entry.studentId} entry={entry} onResolve={handleResolveWaiting} />
+              ))}
+            </div>
+          </div>
+        )}
+
         {grouped.coaches.length > 0 && (
           <div className="mb-2">
             <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary">

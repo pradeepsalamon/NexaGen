@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { CircleAlert, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
+import { CircleAlert, DoorClosed, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
-import { getLiveClass, startLiveClass } from "../../api/live-class";
+import { getLiveClass, requestWaitingRoomAdmission, startLiveClass } from "../../api/live-class";
 
 const COACH_JOIN_POLL_INTERVAL_MS = 5000;
+const WAITING_FOR_ADMIT_POLL_INTERVAL_MS = 5000;
 
 interface StateLayoutProps {
   icon: React.ReactNode;
@@ -186,6 +187,75 @@ export function WaitingForCoach({
       title="Waiting for your coach"
       message="The class is live, but your coach hasn't joined the room yet. You'll be connected automatically the moment they do — no need to refresh."
     >
+      <Button asChild variant="outline">
+        <a href={dashboardUrl}>Return to dashboard</a>
+      </Button>
+    </StateLayout>
+  );
+}
+
+/**
+ * This class's waiting-room policy requires the coach to let each student in
+ * individually. The request was already recorded by the API on the first
+ * failed token call — this screen just self-retries until it's resolved,
+ * same silent-poll pattern as `WaitingForCoach`.
+ */
+export function WaitingForAdmit({
+  onRetry,
+}: {
+  onRetry: (options?: { silent?: boolean }) => void;
+}) {
+  const dashboardUrl = useDashboardHref();
+  const onRetryRef = useRef(onRetry);
+  onRetryRef.current = onRetry;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      onRetryRef.current({ silent: true });
+    }, WAITING_FOR_ADMIT_POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <StateLayout
+      icon={<Loader2 className="size-8 animate-spin" />}
+      title="Waiting to be let in"
+      message="Your coach needs to admit you before you can join. You'll be connected automatically as soon as they do."
+    >
+      <Button asChild variant="outline">
+        <a href={dashboardUrl}>Return to dashboard</a>
+      </Button>
+    </StateLayout>
+  );
+}
+
+/** The coach denied this student's request to join. */
+export function JoinDenied({ roomId, onRequested }: { roomId: string; onRequested: () => void }) {
+  const dashboardUrl = useDashboardHref();
+  const [isRequesting, setIsRequesting] = useState(false);
+
+  const handleRequestAgain = async () => {
+    setIsRequesting(true);
+    try {
+      await requestWaitingRoomAdmission(roomId);
+      onRequested();
+    } catch (err) {
+      console.error("Failed to request admission again", err);
+      setIsRequesting(false);
+    }
+  };
+
+  return (
+    <StateLayout
+      icon={<DoorClosed className="size-8" />}
+      tone="danger"
+      title="Not admitted"
+      message="Your coach didn't let you into this class. You can ask again, or check with them directly."
+    >
+      <Button onClick={handleRequestAgain} disabled={isRequesting}>
+        {isRequesting && <Loader2 className="mr-2 size-4 animate-spin" />}
+        Request again
+      </Button>
       <Button asChild variant="outline">
         <a href={dashboardUrl}>Return to dashboard</a>
       </Button>

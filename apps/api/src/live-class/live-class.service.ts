@@ -23,15 +23,20 @@ import {
   privateChatRecipientAllowed,
   LIVE_CLASS_MODERATION_TOPIC,
   LIVE_CLASS_SETTINGS_TOPIC,
+  LIVE_CLASS_WAITING_ROOM_TOPIC,
   type LiveChatMessageResponse,
   type LiveClassSettings,
   type LiveClassSettingsMessage,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
   type ModerationNotice,
+  type ResolveWaitingRoomRequest,
   type UpdateLiveClassSettingsRequest,
+  type WaitingRoomEntry,
+  type WaitingRoomEvent,
+  type WaitingRoomListResponse,
 } from "@nexa-chess/types";
-import { UserRole, UserStatus, ClassStatus } from "@prisma/client";
+import { UserRole, UserStatus, ClassStatus, WaitingRoomStatus } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
@@ -305,6 +310,30 @@ export class LiveClassService {
       throw new ForbiddenException("You are not authorized to join this class.");
     }
 
+    // Pre-class settings enforcement: derive LiveKit publish grants from the
+    // frozen snapshot (§38). A class started before this feature has no
+    // snapshot → `grants` stays undefined and the pre-feature grant logic runs.
+    // Hoisted above the gates below so the waiting-room check can read the
+    // resolved policy before minting anything.
+    let effectiveSettings: LiveClassSettings | null = null;
+    let grants: LiveKitTokenOptions["grants"];
+    if (liveSession.effectiveSettings) {
+      try {
+        effectiveSettings = liveClassSettingsSchema.parse(liveSession.effectiveSettings);
+        grants = deriveLiveKitGrants(
+          effectiveSettings,
+          isStudent ? "STUDENT" : "COACH"
+        );
+      } catch (error) {
+        this.logger.warn(`Invalid effectiveSettings for class ${classId}; using default grants`, error as Error);
+        effectiveSettings = null;
+      }
+    }
+
+    if (isStudent && effectiveSettings?.waitingRoom === "ENABLED") {
+      await this.gateWaitingRoom(liveSession, user);
+    }
+
     if (isStudent) {
       const coachNotJoined = new BadRequestException({
         // AUDIT H14: a structured `code` lets the web app branch on this
@@ -315,7 +344,7 @@ export class LiveClassService {
         code: "COACH_NOT_JOINED"
       });
 
-      let participants: Awaited<ReturnType<typeof this.livekit.listParticipants>>;
+      let participants: Awaited<ReturnType<LiveKitService["listParticipants"]>>;
       try {
         // `listParticipants` returns `[]` for a not-yet-created room and only
         // throws on a real LiveKit outage, which must not be disguised as
@@ -331,24 +360,6 @@ export class LiveClassService {
 
       if (!participants.some(p => LiveClassService.isCoachParticipant(p.identity, liveSession.coachId))) {
         throw coachNotJoined;
-      }
-    }
-
-    // Pre-class settings enforcement: derive LiveKit publish grants from the
-    // frozen snapshot (§38). A class started before this feature has no
-    // snapshot → `grants` stays undefined and the pre-feature grant logic runs.
-    let effectiveSettings: LiveClassSettings | null = null;
-    let grants: LiveKitTokenOptions["grants"];
-    if (liveSession.effectiveSettings) {
-      try {
-        effectiveSettings = liveClassSettingsSchema.parse(liveSession.effectiveSettings);
-        grants = deriveLiveKitGrants(
-          effectiveSettings,
-          isStudent ? "STUDENT" : "COACH"
-        );
-      } catch (error) {
-        this.logger.warn(`Invalid effectiveSettings for class ${classId}; using default grants`, error as Error);
-        effectiveSettings = null;
       }
     }
 
@@ -886,6 +897,169 @@ export class LiveClassService {
       clientMessageId: row.clientMessageId,
       createdAt: row.createdAt.toISOString(),
     };
+  }
+
+  private static toWaitingRoomEntry(row: {
+    id: string;
+    status: WaitingRoomStatus;
+    requestedAt: Date;
+    student: { firstName: string; lastName: string | null; avatarUrl: string | null };
+    studentId: string;
+  }): WaitingRoomEntry {
+    return {
+      id: row.id,
+      studentId: row.studentId,
+      studentName: `${row.student.firstName} ${row.student.lastName || ""}`.trim(),
+      avatarUrl: row.student.avatarUrl,
+      status: row.status,
+      requestedAt: row.requestedAt.toISOString(),
+    };
+  }
+
+  /** Best-effort nudge to any coach/admin already connected. Never throws. */
+  private async announceWaitingRoomEvent(
+    roomName: string,
+    type: WaitingRoomEvent["type"],
+    entry: WaitingRoomEntry,
+  ): Promise<void> {
+    try {
+      const event: WaitingRoomEvent = { type, entry };
+      await this.livekit.broadcastData(
+        roomName,
+        new TextEncoder().encode(JSON.stringify(event)),
+        LIVE_CLASS_WAITING_ROOM_TOPIC,
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to announce waiting-room event in ${roomName}`, error as Error);
+    }
+  }
+
+  /**
+   * Blocks a student's token request until a coach admits them. Called from
+   * `getToken` only when the class's resolved settings enable the waiting
+   * room. Returns normally (falls through to token minting) once the
+   * student's row is ADMITTED; otherwise throws a structured, client-known
+   * error the web app polls or shows a "not admitted" screen for.
+   */
+  private async gateWaitingRoom(
+    liveSession: { id: string; roomName: string },
+    user: { id: string },
+  ): Promise<void> {
+    const existing = await this.prisma.liveClassWaitingParticipant.findUnique({
+      where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: user.id } },
+    });
+
+    if (existing?.status === WaitingRoomStatus.ADMITTED) {
+      return;
+    }
+
+    if (existing?.status === WaitingRoomStatus.DENIED) {
+      throw new ForbiddenException({
+        message: "The coach has not admitted you to this class.",
+        code: "JOIN_DENIED",
+      });
+    }
+
+    if (!existing) {
+      const created = await this.prisma.liveClassWaitingParticipant.create({
+        data: { liveSessionId: liveSession.id, studentId: user.id },
+        include: { student: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+      });
+      // Only announce on the transition into PENDING — the client silently
+      // re-polls this same gate every few seconds, and re-announcing on every
+      // poll would spam the coach with a fresh toast each time.
+      await this.announceWaitingRoomEvent(
+        liveSession.roomName,
+        "JOIN_REQUESTED",
+        LiveClassService.toWaitingRoomEntry(created),
+      );
+    }
+
+    throw new BadRequestException({
+      message: "Waiting for the coach to let you in.",
+      code: "WAITING_FOR_ADMIT",
+    });
+  }
+
+  /** Coach-owner/admin: students currently pending admission, oldest first. */
+  async getWaitingRoomList(
+    accessToken: string | undefined,
+    classId: string,
+  ): Promise<WaitingRoomListResponse> {
+    const { liveSession } = await this.resolveClassManager(accessToken, classId);
+
+    const rows = await this.prisma.liveClassWaitingParticipant.findMany({
+      where: { liveSessionId: liveSession.id, status: WaitingRoomStatus.PENDING },
+      include: { student: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+      orderBy: { requestedAt: "asc" },
+    });
+
+    return { entries: rows.map((row) => LiveClassService.toWaitingRoomEntry(row)) };
+  }
+
+  /** Coach-owner/admin: admit or deny one pending student. */
+  async resolveWaitingRoomEntry(
+    accessToken: string | undefined,
+    classId: string,
+    body: ResolveWaitingRoomRequest,
+  ): Promise<WaitingRoomEntry> {
+    const { user, liveSession } = await this.resolveClassManager(accessToken, classId);
+
+    const status = body.action === "ADMIT" ? WaitingRoomStatus.ADMITTED : WaitingRoomStatus.DENIED;
+    // The `status: PENDING` filter is the idempotency guard against a
+    // double-click or two coach tabs resolving the same request at once.
+    const { count } = await this.prisma.liveClassWaitingParticipant.updateMany({
+      where: { liveSessionId: liveSession.id, studentId: body.studentId, status: WaitingRoomStatus.PENDING },
+      data: { status, resolvedAt: new Date(), resolvedById: user.id },
+    });
+
+    if (count === 0) {
+      throw new NotFoundException("No pending request for that student.");
+    }
+
+    const updated = await this.prisma.liveClassWaitingParticipant.findUniqueOrThrow({
+      where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: body.studentId } },
+      include: { student: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+    });
+
+    const entry = LiveClassService.toWaitingRoomEntry(updated);
+    await this.announceWaitingRoomEvent(liveSession.roomName, "REQUEST_RESOLVED", entry);
+    return entry;
+  }
+
+  /** Student: (re)request admission, most commonly after a denial. */
+  async requestWaitingRoomAdmission(
+    accessToken: string | undefined,
+    classId: string,
+  ): Promise<WaitingRoomEntry> {
+    const { user, liveSession } = await this.resolveParticipant(accessToken, classId);
+    if (liveSession.status !== LiveSessionStatus.LIVE) {
+      throw new BadRequestException("Class is not currently live.");
+    }
+
+    let effectiveSettings: LiveClassSettings | null = null;
+    try {
+      if (liveSession.effectiveSettings) {
+        effectiveSettings = liveClassSettingsSchema.parse(liveSession.effectiveSettings);
+      }
+    } catch (error) {
+      this.logger.warn(`Invalid effectiveSettings for class ${classId}`, error as Error);
+    }
+    if (effectiveSettings?.waitingRoom !== "ENABLED") {
+      throw new BadRequestException("This class does not use a waiting room.");
+    }
+
+    const updated = await this.prisma.liveClassWaitingParticipant.upsert({
+      where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: user.id } },
+      create: { liveSessionId: liveSession.id, studentId: user.id },
+      update: { status: WaitingRoomStatus.PENDING, resolvedAt: null, resolvedById: null },
+      include: { student: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+    });
+
+    const entry = LiveClassService.toWaitingRoomEntry(updated);
+    // Explicit user click, not a silent poll — always announce.
+    await this.announceWaitingRoomEvent(liveSession.roomName, "JOIN_REQUESTED", entry);
+    return entry;
   }
 
   /**

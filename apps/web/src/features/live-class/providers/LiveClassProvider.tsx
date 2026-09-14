@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
-import type { LiveClassSettings, LivePuzzleAssignment } from "@nexa-chess/types";
+import type { LiveClassSettings, LivePuzzleAssignment, WaitingRoomEntry } from "@nexa-chess/types";
 import type { BoardControlSide } from "@/features/chessboard/types/sync";
 import type { RaisedHand } from "../lib/handRaise";
 
@@ -103,6 +103,19 @@ interface LiveClassContextValue {
   applyPuzzleAssignment: (assignment: LivePuzzleAssignment | null) => void;
   /** Clear the active puzzle after a `PUZZLE_ENDED` message. */
   clearActivePuzzle: (assignmentId?: string) => void;
+
+  /**
+   * Students currently pending admission (coach/admin view only), keyed by
+   * studentId. Seeded from `GET /live-class/:id/waiting-room` and kept
+   * current by `<WaitingRoomBridge>` off the `waiting_room` data channel.
+   */
+  waitingRoomEntries: Record<string, WaitingRoomEntry>;
+  /** Replace the whole pending set (the initial REST fetch). */
+  setWaitingRoomEntries: (entries: WaitingRoomEntry[]) => void;
+  /** Add or update one pending entry (a `JOIN_REQUESTED` event). */
+  upsertWaitingRoomEntry: (entry: WaitingRoomEntry) => void;
+  /** Drop one entry once it's no longer PENDING (a `REQUEST_RESOLVED` event). */
+  removeWaitingRoomEntry: (studentId: string) => void;
 }
 
 const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefined);
@@ -132,6 +145,7 @@ export function LiveClassProvider({
   const [isRecording, setIsRecording] = useState(false);
   const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
   const [activePuzzle, setActivePuzzle] = useState<LivePuzzleAssignment | null>(null);
+  const [waitingRoomEntries, setWaitingRoomEntriesState] = useState<Record<string, WaitingRoomEntry>>({});
 
   // Adopt a fresh snapshot from the token response (e.g. after a reconnect /
   // token refresh) without clobbering a newer mid-class update.
@@ -277,6 +291,22 @@ export function LiveClassProvider({
     });
   }, []);
 
+  const setWaitingRoomEntries = useCallback((entries: WaitingRoomEntry[]) => {
+    setWaitingRoomEntriesState(Object.fromEntries(entries.map((e) => [e.studentId, e])));
+  }, []);
+
+  const upsertWaitingRoomEntry = useCallback((entry: WaitingRoomEntry) => {
+    setWaitingRoomEntriesState((prev) => ({ ...prev, [entry.studentId]: entry }));
+  }, []);
+
+  const removeWaitingRoomEntry = useCallback((studentId: string) => {
+    setWaitingRoomEntriesState((prev) => {
+      if (!(studentId in prev)) return prev;
+      const { [studentId]: _removed, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
   return (
     <LiveClassContext.Provider
       value={{
@@ -316,6 +346,10 @@ export function LiveClassProvider({
         activePuzzle,
         applyPuzzleAssignment,
         clearActivePuzzle,
+        waitingRoomEntries,
+        setWaitingRoomEntries,
+        upsertWaitingRoomEntry,
+        removeWaitingRoomEntry,
       }}
     >
       {children}

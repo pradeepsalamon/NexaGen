@@ -64,11 +64,22 @@ export function LiveClassSettingsForm({
   const handleChange = (path: string, value: string) => {
     // If the chosen value equals what would be inherited anyway, drop the key so
     // the field keeps showing "inherited" rather than a redundant "custom".
-    if (scope !== "system" && value === getAtPath(inheritedFrom, path)) {
-      onOverrideChange(unsetAtPath(override, path));
-    } else {
-      onOverrideChange(setAtPath(override, path, value));
+    const applyOne = (base: LiveClassSettingsOverride, p: string, v: string) =>
+      scope !== "system" && v === getAtPath(inheritedFrom, p) ? unsetAtPath(base, p) : setAtPath(base, p, v);
+
+    let next = applyOne(override, path, value);
+
+    // Waiting room and student auto-join are mutually exclusive (the server
+    // rejects the combination via `validateLiveClassSettings`) — clear the
+    // other field in the same change so the user never hits that 400.
+    if (path === "waitingRoom" && value === "ENABLED" && getAtPath(resolved, "autoJoin.student") === "ENABLED") {
+      next = applyOne(next, "autoJoin.student", "DISABLED");
     }
+    if (path === "autoJoin.student" && value === "ENABLED" && getAtPath(resolved, "waitingRoom") === "ENABLED") {
+      next = applyOne(next, "waitingRoom", "DISABLED");
+    }
+
+    onOverrideChange(next);
   };
 
   return (

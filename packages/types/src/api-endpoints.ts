@@ -88,7 +88,13 @@ export const API_ROUTES = {
     // Student starts (or resumes) an in-room attempt — stamps liveClassId.
     puzzleAttempt: (id: string = ":id") => `/live-class/${id}/puzzle/attempt`,
     // Live leaderboard for the active assignment.
-    puzzleLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/leaderboard`
+    puzzleLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/leaderboard`,
+    // Waiting room (coach-owner/admin): list of students pending admission.
+    waitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room`,
+    // Waiting room (coach-owner/admin): admit or deny one pending student.
+    resolveWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/resolve`,
+    // Waiting room (student): (re)request admission after a denial.
+    requestWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/request`
   },
   liveClassSettings: {
     // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.
