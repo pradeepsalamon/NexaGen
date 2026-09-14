@@ -53,7 +53,8 @@ const CASCADE_CHILDREN: Record<
   User: [
     { delegate: "studentProfile", foreignKey: "userId", label: "StudentProfile" },
     { delegate: "coachProfile", foreignKey: "userId", label: "CoachProfile" }
-  ]
+  ],
+  Course: [{ delegate: "courseModule", foreignKey: "courseId", label: "CourseModule" }]
 };
 
 @Injectable()

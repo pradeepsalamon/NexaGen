@@ -26,6 +26,7 @@ const pageTitles: Record<string, string> = {
   "/admin/batches": "Batch management",
   "/admin/finance/invoices": "Invoices",
   "/admin/puzzles": "Puzzle Library",
+  "/admin/courses": "Courses",
   "/admin/coaches": "Coach applications",
   "/admin/trash": "Trash",
   "/admin/users": "User management",
@@ -73,6 +74,14 @@ function formatPageTitle(pathname: string) {
 
   if (pathname.startsWith("/student/puzzles/")) {
     return "Solve puzzle";
+  }
+
+  // A course id is a cuid; showing it raw as the page title reads as noise.
+  if (pathname.startsWith("/admin/courses/")) {
+    return pathname.endsWith("/new") ? "New course" : "Course";
+  }
+  if (pathname.startsWith("/student/courses/")) {
+    return "Course";
   }
 
   // An invoice id is a cuid; showing it raw as the page title reads as noise.

@@ -61,10 +61,44 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 | Item | Notes |
 |---|---|
-| **Course / CourseModule / Announcement authoring** | Models are queried by the student dashboard but there is no API or admin UI to create them — "Continue Learning / Announcements" are permanently empty outside seed data. (**Assignments now have full authoring + interactive activities + server-side evaluation** — see the `assignment` module and README §Features; the legacy `Practice` / `StudentPractice` tables remain seed-only and unused.) |
 | **Waiting room / lobby** | Deferred sub-feature of pre-class settings. The `waitingRoom` enum exists in `LiveClassSettings` (`@nexa-chess/types`) but v1 only allows `DISABLED`; the "coach hasn't joined" polling gate in `useLiveClass.ts` / `getToken` still stands. An app-level admit flow is the eventual implementation. |
 | **Screen-share request → coach approval** | Deferred. v1 pre-class settings expose screen-share as allowed/disallowed per role only; the request/approve handshake is not built. |
 | **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
+
+## Resolved (2026-09-14)
+
+- **Course / CourseModule authoring.** `Course`/`CourseModule` were a near-empty
+  schema stub (`CourseModule` had only a `title` — no order/content/status) with
+  no API module and no seed data; `ContinueLearning.tsx` on the student
+  dashboard linked to `/student/courses` and `/student/courses/:id`, both 404.
+  Built a `course` API module (`API_ROUTES.courses.*`, admin-only authoring —
+  no coach/visibility scoping, unlike `Puzzle`): a `CourseModule` **references
+  existing library content** (an `Assignment` or a `Puzzle` via a nullable-FK +
+  `contentType` discriminator, `onDelete: Restrict` so a hard delete of in-use
+  content is blocked, not silently orphaned) rather than authoring anything new.
+  Lifecycle `DRAFT` → `PUBLISHED` (blocked with zero modules) → `ARCHIVED`, plus
+  a separate soft delete of `Course`/`CourseModule` through the Trash module.
+  Completion is an explicit `StudentModuleProgress` row per (student, module) —
+  not derived from `StudentAssignment` (which requires a batch deployment via
+  `AssignmentBatch` a course-attached assignment never has) — with a
+  self-healing auto-complete for puzzle modules solved outside the course UI
+  (detected from `PuzzleAttempt.status === SOLVED`). Web: `features/courses/*`,
+  admin `/admin/courses` (+ `new` / `[id]`, reorder via up/down controls, an
+  `AttachModuleModal` content picker modeled on `PuzzleAssignModal`), student
+  `/student/courses` (+ `[id]`, puzzle modules deep-link to the real solver,
+  assignment modules render read-only via `PgnBoardViewer`). Fixed the two
+  previously-404ing dashboard links; `student.service.ts`'s dashboard mapping
+  now surfaces the next incomplete module instead of a static description.
+  Migration `20260914081307_course_module_authoring` (additive). Surfaced and
+  fixed a latent gap while testing the new `Restrict` FK: `Assignment.remove`
+  and the Trash permanent-delete paths (`permanentDelete`, `bulkPermanentDelete`,
+  the retention cleanup cron) previously let a Postgres RESTRICT violation
+  bubble up as an unhandled 500 — Prisma surfaces a DB-enforced RESTRICT as an
+  *unknown* request error, not its own `P2003`, so `error.code` checks alone
+  miss it. New shared `apps/api/src/prisma/prisma-errors.ts` (`isForeignKeyRestrictError`)
+  turns it into a clear 400 everywhere, and the cron's chunked hard-delete now
+  falls back to one-row-at-a-time on a blocked chunk instead of aborting up to
+  500 unrelated rows.
 
 ## Resolved (2026-09-06)
 
@@ -353,7 +387,9 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 - Email verification is commented out in `auth.service.ts` (two places) by design for now.
 - `GET /batches/:id` (`batches.get`) has no frontend caller — the list response is reused.
-- `POST /upload/pgn` has no direct frontend caller (the `assignment` service
-  calls `UploadService.uploadPgn` server-side); the controller route itself is
-  still unused. Size is capped at 512KB in the controller and the shared
+- `POST /upload/pgn` — stale note removed 2026-09-14: it does have a direct
+  frontend caller (`apps/web/src/features/chessboard/components/panels/
+  SidebarTabs.tsx` → `lib/uploadApi.ts`'s `uploadPgn`), in addition to the
+  `assignment` service's server-side call to `UploadService.uploadPgn`. Size
+  is capped at 512KB in the controller and the shared
   `createAssignmentRequestSchema`.

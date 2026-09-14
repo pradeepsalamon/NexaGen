@@ -95,6 +95,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Manage" },
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Manage" },
   { href: "/admin/puzzles", label: "Puzzle Library", icon: Puzzle, group: "Manage" },
+  { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Manage" },
   { href: "/admin/users", label: "Users", icon: Users, group: "Manage" },
   { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Manage" },
   { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Manage" },

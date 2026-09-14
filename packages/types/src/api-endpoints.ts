@@ -172,6 +172,26 @@ export const API_ROUTES = {
     hint: (id: string = ":id", attemptId: string = ":attemptId") =>
       `/puzzles/${id}/attempts/${attemptId}/hint`
   },
+  // Curated, ordered playlists of existing Assignment/Puzzle library content.
+  // Admin authors; students consume PUBLISHED courses only.
+  courses: {
+    list: "/courses",
+    create: "/courses",
+    get: (id: string = ":id") => `/courses/${id}`,
+    update: (id: string = ":id") => `/courses/${id}`,
+    delete: (id: string = ":id") => `/courses/${id}`,
+    publish: (id: string = ":id") => `/courses/${id}/publish`,
+    archive: (id: string = ":id") => `/courses/${id}/archive`,
+    modules: (id: string = ":id") => `/courses/${id}/modules`,
+    module: (id: string = ":id", moduleId: string = ":moduleId") =>
+      `/courses/${id}/modules/${moduleId}`,
+    reorderModules: (id: string = ":id") => `/courses/${id}/modules/reorder`,
+    // ── Student ──
+    mine: "/courses/mine",
+    mineGet: (id: string = ":id") => `/courses/mine/${id}`,
+    completeModule: (id: string = ":id", moduleId: string = ":moduleId") =>
+      `/courses/mine/${id}/modules/${moduleId}/complete`
+  },
   attendance: {
     student: "/attendance/student",
     studentById: (id: string = ":id") => `/attendance/student/${id}`,

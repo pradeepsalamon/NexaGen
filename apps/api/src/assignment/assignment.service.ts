@@ -35,6 +35,7 @@ import type {
 import { Prisma, UserRole, UserStatus } from "@prisma/client";
 import { Chess } from "chess.js";
 import type { AccessTokenPayload } from "../auth/types";
+import { isForeignKeyRestrictError } from "../prisma/prisma-errors";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
@@ -271,7 +272,19 @@ export class AssignmentService {
       throw new ForbiddenException("You cannot delete this assignment.");
     }
 
-    await this.prisma.assignment.delete({ where: { id } });
+    try {
+      await this.prisma.assignment.delete({ where: { id } });
+    } catch (error) {
+      // A CourseModule references this assignment (onDelete: Restrict) — even
+      // a soft-deleted module still holds the FK row, so the delete is blocked
+      // at the DB level rather than silently orphaning a course.
+      if (isForeignKeyRestrictError(error)) {
+        throw new BadRequestException(
+          "This assignment is used by a course module. Remove it from the course first."
+        );
+      }
+      throw error;
+    }
     return { success: true };
   }
 

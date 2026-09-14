@@ -73,6 +73,26 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   `ARCHIVED` (all reversible), with a separate soft delete through the Trash
   module. Students browse published puzzles and solve them; `PuzzleAttempt`
   rows are scored by the same `AssignmentEvaluationService` SOLVE_LINE engine.
+- Course Library: a curated, ordered playlist of *existing* library content —
+  each `CourseModule` references an Assignment or a Puzzle (never new authored
+  content) — `course` API module, `features/courses` on web, `/admin/courses`,
+  `/student/courses`. Admin-authored only (no coach/visibility scoping, unlike
+  Puzzle). Lifecycle is `DRAFT` → `PUBLISHED` (blocked with zero modules) →
+  `ARCHIVED` (all reversible), with a separate soft delete of `Course`/
+  `CourseModule` through the Trash module (`onDelete: Restrict` on the
+  Assignment/Puzzle FK blocks hard-deleting content still attached to a
+  module — surfaced as a 400, not a 500, via
+  `isForeignKeyRestrictError` in `prisma/prisma-errors.ts`). Completion is an
+  explicit `StudentModuleProgress` row per (student, module) — not derived —
+  because an Assignment only gets a `StudentAssignment` row once deployed to
+  the student's batch via `AssignmentBatch`, which a course-attached
+  assignment never is; a Puzzle module self-heals a `StudentModuleProgress`
+  row from an existing `PuzzleAttempt.status === SOLVED` the first time the
+  student opens the course detail page. `StudentCourseProgress.progressPercent`
+  is recomputed on every completion. Course-embedded Assignment modules are a
+  read-only `PgnBoardViewer` walkthrough regardless of the underlying
+  `activityType` (no `StudentAssignment` row to hang interactive scoring off);
+  Puzzle modules deep-link into the real solver at `/student/puzzles/:id`.
 - Live-class puzzle assignment: mid-class, a coach pushes a published puzzle
   into the room (`API_ROUTES.liveClass.puzzle*`); every student solves it on
   their own board and a leaderboard ranks them by score then time. Optional
@@ -300,7 +320,7 @@ More Prisma notes live in `apps/api/prisma/README.md`.
 
 ## Trash And Soft Delete
 
-Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, and `PuzzleTopic`.
+Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `Course`, and `CourseModule`.
 
 When adding a new trash-enabled model:
 
@@ -319,7 +339,7 @@ CREATE UNIQUE INDEX "example_key" ON "table"("field") WHERE "isDeleted" = false;
 
 A cascading delete (`cascadeSoftDelete`) tags the parent and its children with one `deleteGroupId`; `TrashRepository.restore` on any member of the group brings the whole group back. Deleting a User cascades to its student/coach profile; deleting a Batch cascades to its coach/student assignments.
 
-The Trash list merges rows from all six tables in memory. Sorting and paging stay exact within the newest `MAX_TRASH_SCAN` (500) deleted rows per entity; deeper offsets are not supported.
+The Trash list merges rows from all trash-entity tables in memory. Sorting and paging stay exact within the newest `MAX_TRASH_SCAN` (500) deleted rows per entity; deeper offsets are not supported.
 
 Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally scaled API instances do not run the cleanup concurrently.
 

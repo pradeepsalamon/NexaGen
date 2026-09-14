@@ -199,6 +199,21 @@ enum LiveClassPuzzleStatus {
   ENDED
 }
 
+// Course lifecycle. ARCHIVED is a reversible "retired" state (distinct from a
+// soft delete, which routes through the Trash module) — mirrors PuzzleStatus.
+enum CourseStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// What a CourseModule points at. A course never authors new content — it
+// curates existing library Assignments/Puzzles into an ordered sequence.
+enum CourseModuleContentType {
+  ASSIGNMENT
+  PUZZLE
+}
+
 //
 // USER
 //
@@ -262,6 +277,10 @@ model User {
   deletedBatchStudents   BatchStudent[]              @relation("BatchStudentDeletedBy")
   liveSessions           LiveSession[]               @relation("LiveClassCoach")
   courseProgress         StudentCourseProgress[]     @relation("StudentCourseProgress")
+  moduleProgress         StudentModuleProgress[]     @relation("StudentModuleProgress")
+  authoredCourses        Course[]                    @relation("AuthoredCourses")
+  deletedCourses         Course[]                    @relation("CourseDeletedBy")
+  deletedCourseModules   CourseModule[]              @relation("CourseModuleDeletedBy")
   practices              StudentPractice[]           @relation("StudentPractice")
   authoredAssignments    Assignment[]                @relation("AuthoredAssignments")
   deployedAssignments    AssignmentBatch[]           @relation("DeployedAssignments")
@@ -1043,20 +1062,78 @@ model LiveClassPreset {
 // COURSES
 //
 
+// A curated, ordered playlist of existing library content (Assignments /
+// Puzzles). Admin-authored only — no scoping field, visible to every student
+// once PUBLISHED. Mirrors Puzzle's status/soft-delete shape.
 model Course {
-  id          String                  @id @default(cuid())
+  id          String       @id @default(cuid())
   title       String
   description String?
-  modules     CourseModule[]
-  progress    StudentCourseProgress[]
-  schedules   BatchClassSchedule[]
+  status      CourseStatus @default(DRAFT)
+
+  createdById   String?
+  createdBy     User?     @relation("AuthoredCourses", fields: [createdById], references: [id], onDelete: SetNull)
+  publishedById String?
+  publishedAt   DateTime?
+  archivedById  String?
+  archivedAt    DateTime?
+
+  modules   CourseModule[]
+  progress  StudentCourseProgress[]
+  schedules BatchClassSchedule[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("CourseDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([status])
+  @@index([createdById])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("courses")
 }
 
+// References exactly one of assignment/puzzle, matching contentType — enforced
+// in the Zod schema + service (no DB CHECK constraint elsewhere in this schema
+// to match). onDelete: Restrict so a hard delete of in-use library content is
+// blocked rather than silently orphaning the module.
 model CourseModule {
   id       String @id @default(cuid())
   courseId String
   course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
   title    String
+  order    Int    @default(0)
+
+  contentType  CourseModuleContentType
+  assignmentId String?
+  assignment   Assignment?             @relation(fields: [assignmentId], references: [id], onDelete: Restrict)
+  puzzleId     String?
+  puzzle       Puzzle?                 @relation(fields: [puzzleId], references: [id], onDelete: Restrict)
+
+  progress StudentModuleProgress[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  isDeleted     Boolean   @default(false)
+  deletedAt     DateTime?
+  deletedById   String?
+  deletedBy     User?     @relation("CourseModuleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId String?
+
+  @@index([courseId, order])
+  @@index([assignmentId])
+  @@index([puzzleId])
+  @@index([isDeleted])
+  @@index([deletedAt])
+  @@index([deletedById])
+  @@index([deleteGroupId])
+  @@map("course_modules")
 }
 
 model StudentCourseProgress {
@@ -1070,6 +1147,25 @@ model StudentCourseProgress {
 
   @@unique([studentId, courseId])
   @@map("student_course_progress")
+}
+
+// One explicit completion mark per (student, module) — the numerator behind
+// StudentCourseProgress.progressPercent. Not derived from StudentAssignment
+// (which requires the assignment to be deployed to the student's batch via
+// AssignmentBatch) or PuzzleAttempt, so both content types share one
+// mechanism. Hard-cascades with its module/student — not Trash-registered,
+// same category as PuzzleAttempt.
+model StudentModuleProgress {
+  id          String       @id @default(cuid())
+  studentId   String
+  student     User         @relation("StudentModuleProgress", fields: [studentId], references: [id], onDelete: Cascade)
+  moduleId    String
+  module      CourseModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  completedAt DateTime     @default(now())
+
+  @@unique([studentId, moduleId])
+  @@index([moduleId])
+  @@map("student_module_progress")
 }
 
 //
@@ -1127,7 +1223,8 @@ model Assignment {
   allowRetry                Boolean                @default(true)
   requiredCompletionPercent Int                    @default(100)
 
-  deployments AssignmentBatch[]
+  deployments   AssignmentBatch[]
+  courseModules CourseModule[]
 
   @@index([createdById])
   @@index([isLibrary])
@@ -1412,6 +1509,7 @@ model Puzzle {
 
   attempts        PuzzleAttempt[]
   liveAssignments LiveClassPuzzleAssignment[]
+  courseModules   CourseModule[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt

@@ -1,6 +1,8 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
@@ -9,6 +11,7 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import { UserRole, UserStatus } from "@prisma/client";
 import { parseDurationMs } from "../auth/auth.utils";
 import type { AccessTokenPayload } from "../auth/types";
+import { isForeignKeyRestrictError } from "../prisma/prisma-errors";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TrashAction } from "../prisma/soft-delete.extension";
 import { UploadService } from "../upload/upload.service";
@@ -38,6 +41,7 @@ type TrashSortBy = (typeof TRASH_SORT_FIELDS)[number];
 @Injectable()
 export class TrashService {
   private readonly env = getApiEnv();
+  private readonly logger = new Logger(TrashService.name);
 
   constructor(
     private readonly jwtService: JwtService,
@@ -108,10 +112,21 @@ export class TrashService {
     const user = await this.getSuperAdmin(accessToken);
     await this.trashRepository.findDeleted(entity, id);
 
-    await this.prisma.$transaction(async (transaction) => {
-      await this.deleteExternalAssets(entity, id);
-      await this.trashRepository.hardDelete(transaction, entity, id, user.id);
-    });
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        await this.deleteExternalAssets(entity, id);
+        await this.trashRepository.hardDelete(transaction, entity, id, user.id);
+      });
+    } catch (error) {
+      // e.g. a soft-deleted Puzzle/Assignment still referenced by a
+      // CourseModule (onDelete: Restrict) — the row itself must go first.
+      if (isForeignKeyRestrictError(error)) {
+        throw new BadRequestException(
+          "This item is still referenced elsewhere and can't be permanently deleted yet."
+        );
+      }
+      throw error;
+    }
 
     return { ok: true };
   }
@@ -131,24 +146,37 @@ export class TrashService {
     );
 
     let deletedCount = 0;
-    await this.prisma.$transaction(async (transaction) => {
-      for (const item of items) {
-        try {
-          await this.trashRepository.findDeleted(item.entity, item.id);
-        } catch (error) {
-          if (error instanceof NotFoundException) continue; // already gone
-          throw error;
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        for (const item of items) {
+          try {
+            await this.trashRepository.findDeleted(item.entity, item.id);
+          } catch (error) {
+            if (error instanceof NotFoundException) continue; // already gone
+            throw error;
+          }
+          await this.deleteExternalAssets(item.entity, item.id);
+          await this.trashRepository.hardDelete(
+            transaction,
+            item.entity,
+            item.id,
+            user.id
+          );
+          deletedCount += 1;
         }
-        await this.deleteExternalAssets(item.entity, item.id);
-        await this.trashRepository.hardDelete(
-          transaction,
-          item.entity,
-          item.id,
-          user.id
+      });
+    } catch (error) {
+      // One selected item is still referenced elsewhere (e.g. a Puzzle/
+      // Assignment still attached to a live CourseModule) — reject the whole
+      // batch with a clear message rather than a generic 500; the admin can
+      // deselect it and retry.
+      if (isForeignKeyRestrictError(error)) {
+        throw new BadRequestException(
+          "One of the selected items is still referenced elsewhere and can't be permanently deleted yet."
         );
-        deletedCount += 1;
       }
-    });
+      throw error;
+    }
 
     return { ok: true, deletedCount };
   }
@@ -218,19 +246,53 @@ export class TrashService {
     let deleted = 0;
     for (let i = 0; i < ordered.length; i += CHUNK) {
       const chunk = ordered.slice(i, i + CHUNK);
-      await this.prisma.$transaction(async (transaction) => {
-        for (const item of chunk) {
+      try {
+        await this.prisma.$transaction(async (transaction) => {
+          for (const item of chunk) {
+            await this.deleteExternalAssets(item.entity, item.id);
+            await this.trashRepository.hardDelete(
+              transaction,
+              item.entity,
+              item.id,
+              userId,
+              action
+            );
+          }
+        });
+        deleted += chunk.length;
+      } catch (error) {
+        if (!isForeignKeyRestrictError(error)) throw error;
+        // One row in this chunk is still referenced elsewhere (e.g. a Puzzle/
+        // Assignment still attached to a live CourseModule) — Postgres aborts
+        // the whole transaction on that single RESTRICT violation, so retry
+        // one row at a time rather than losing the rest of an otherwise-clean
+        // chunk. The blocked row is skipped and picked up on a later sweep
+        // once whatever still references it is gone.
+        deleted += await this.hardDeleteOneAtATime(chunk, userId, action);
+      }
+    }
+    return deleted;
+  }
+
+  private async hardDeleteOneAtATime(
+    chunk: Array<{ entity: string; id: string }>,
+    userId: string | null,
+    action: TrashAction
+  ): Promise<number> {
+    let deleted = 0;
+    for (const item of chunk) {
+      try {
+        await this.prisma.$transaction(async (transaction) => {
           await this.deleteExternalAssets(item.entity, item.id);
-          await this.trashRepository.hardDelete(
-            transaction,
-            item.entity,
-            item.id,
-            userId,
-            action
-          );
-          deleted += 1;
-        }
-      });
+          await this.trashRepository.hardDelete(transaction, item.entity, item.id, userId, action);
+        });
+        deleted += 1;
+      } catch (error) {
+        if (!isForeignKeyRestrictError(error)) throw error;
+        this.logger.warn(
+          `Skipped permanent delete of ${item.entity} ${item.id}: still referenced elsewhere.`
+        );
+      }
     }
     return deleted;
   }

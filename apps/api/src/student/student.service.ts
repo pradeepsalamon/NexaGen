@@ -51,13 +51,24 @@ export class StudentService {
       })
     ]);
 
-    // 2. Fetch Course Progress
+    // 2. Fetch Course Progress (+ modules, to surface the next incomplete one)
     const courses = await this.prisma.studentCourseProgress.findMany({
       where: { studentId: user.id },
-      include: { course: true },
+      include: { course: { include: { modules: { orderBy: { order: "asc" } } } } },
       orderBy: { lastOpenedAt: "desc" },
       take: 4
     });
+    const courseModuleIds = courses.flatMap((cp) => cp.course.modules.map((m) => m.id));
+    const completedModuleIds = new Set(
+      courseModuleIds.length > 0
+        ? (
+            await this.prisma.studentModuleProgress.findMany({
+              where: { studentId: user.id, moduleId: { in: courseModuleIds } },
+              select: { moduleId: true }
+            })
+          ).map((row) => row.moduleId)
+        : []
+    );
 
     // 3. Fetch Practices + coach-assigned PGN assignments (both feed the
     //    "Assignments & Practice" card).
@@ -180,13 +191,18 @@ export class StudentService {
         topic: c.topic || "Untitled Class",
         status: c.status
       })),
-      courses: courses.map((cp: any) => ({
-        id: cp.course.id,
-        title: cp.course.title,
-        module: cp.course.description || "In Progress",
-        progressPercent: cp.progressPercent,
-        lastOpenedAt: cp.lastOpenedAt.toISOString()
-      })),
+      courses: courses.map((cp: any) => {
+        const nextModule = cp.course.modules.find(
+          (m: { id: string }) => !completedModuleIds.has(m.id)
+        );
+        return {
+          id: cp.course.id,
+          title: cp.course.title,
+          module: nextModule?.title || cp.course.description || "In Progress",
+          progressPercent: cp.progressPercent,
+          lastOpenedAt: cp.lastOpenedAt.toISOString()
+        };
+      }),
       practices: [
         ...assignments.map((a: any) => ({
           id: a.id,

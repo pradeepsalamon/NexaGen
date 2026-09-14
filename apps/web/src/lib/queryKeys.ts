@@ -74,6 +74,13 @@ export const queryKeys = {
   notifications: {
     all: ["notifications"] as const,
   },
+  courses: {
+    all: ["courses"] as const,
+    list: (params?: Record<string, unknown>) => ["courses", "list", params ?? null] as const,
+    detail: (id: string) => ["courses", "detail", id] as const,
+    mine: ["courses", "mine"] as const,
+    mineDetail: (id: string) => ["courses", "mine", id] as const,
+  },
   payments: {
     all: ["payments"] as const,
     plans: ["payments", "plans"] as const,

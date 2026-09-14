@@ -22,6 +22,7 @@ import { AssignmentModule } from "./assignment/assignment.module";
 import { NotificationModule } from "./notification/notification.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { PuzzleModule } from "./puzzle/puzzle.module";
+import { CourseModule } from "./course/course.module";
 import { QueueModule } from "./queue/queue.module";
 import { MessagingModule } from "./messaging/messaging.module";
 import { AnnouncementModule } from "./announcement/announcement.module";
@@ -58,6 +59,7 @@ import { PaymentsModule } from "./payments/payments.module";
     NotificationModule,
     AnalyticsModule,
     PuzzleModule,
+    CourseModule,
     MessagingModule,
     AnnouncementModule,
     PaymentsModule

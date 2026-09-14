@@ -417,7 +417,9 @@ export type TrashEntity =
   | "BatchCoach"
   | "BatchStudent"
   | "Puzzle"
-  | "PuzzleTopic";
+  | "PuzzleTopic"
+  | "Course"
+  | "CourseModule";
 
 export type TrashDeletedBy = {
   email: string;
@@ -1989,6 +1991,11 @@ export * from "./puzzle";
 // Live-class puzzle assignment (depends on ./puzzle)
 // ──────────────────────────────────────────────
 export * from "./live-class-puzzle";
+
+// ──────────────────────────────────────────────
+// Course library (depends on ./puzzle + Assignment types above)
+// ──────────────────────────────────────────────
+export * from "./course";
 
 // ──────────────────────────────────────────────
 // Admin messaging rules + announcements (kept in its own module)
