@@ -389,9 +389,10 @@ export class CoachService {
       where: { id: classId },
       data: {
         status: ClassStatus.CANCELLED,
-        cancelledAt: new Date()
+        cancelledAt: new Date(),
+        cancelledById: coachId
       },
-      include: { 
+      include: {
         batch: { include: { students: { where: { isDeleted: false } } } },
         liveSession: true
       }

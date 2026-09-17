@@ -136,4 +136,23 @@ export const queryKeys = {
     state: (classId: string) => ["live-puzzle", "state", classId] as const,
     leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
   },
+  payroll: {
+    all: ["payroll"] as const,
+    mine: ["payroll", "mine"] as const,
+    myPayslips: ["payroll", "my-payslips"] as const,
+    record: (id: string) => ["payroll", "record", id] as const,
+    adminPeriods: ["payroll", "admin", "periods"] as const,
+    adminPeriod: (id: string) => ["payroll", "admin", "period", id] as const,
+    adminRecords: (periodId: string) => ["payroll", "admin", "records", periodId] as const,
+    adminRecord: (id: string) => ["payroll", "admin", "record", id] as const,
+    adminAdjustments: (recordId: string) => ["payroll", "admin", "adjustments", recordId] as const,
+    adminAudit: (recordId: string) => ["payroll", "admin", "audit", recordId] as const,
+    adminCompensationProfiles: ["payroll", "admin", "compensation-profiles"] as const,
+    adminCompensationProfile: (coachId: string) =>
+      ["payroll", "admin", "compensation-profile", coachId] as const,
+    adminCompensationRates: (coachId: string) =>
+      ["payroll", "admin", "compensation-rates", coachId] as const,
+    adminRules: ["payroll", "admin", "rules"] as const,
+    adminPayouts: (periodId: string) => ["payroll", "admin", "payouts", periodId] as const,
+  },
 } as const;

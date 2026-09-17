@@ -1,0 +1,240 @@
+"use client";
+
+import { Fragment, useState } from "react";
+import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { formatMoney } from "@nexa-chess/types";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
+import {
+  useAdminPayouts,
+  useAdminPayrollPeriod,
+  useAdminPayrollRecords,
+  useApprovePayrollPeriod,
+  useCalculatePayrollPeriod,
+  useCancelPayrollPeriod,
+  useFinalizePayrollPeriod,
+  useMarkPayrollPeriodPaid,
+  useRecalculatePayrollPeriod
+} from "../hooks/usePayrollApi";
+import { PayrollPeriodStatusBadge, PayrollRecordStatusBadge } from "./PayrollBadges";
+import { PayrollRecordDetailPanel } from "./PayrollRecordDetailPanel";
+
+/** One payroll period: teaching summary, lifecycle actions, per-coach breakdown. */
+export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string }) {
+  const timeZone = useUserTimeZone();
+  const { data: periodData, isLoading } = useAdminPayrollPeriod(periodId);
+  const { data: recordsData } = useAdminPayrollRecords(periodId);
+  const { data: payoutsData } = useAdminPayouts(periodId);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const calculate = useCalculatePayrollPeriod();
+  const recalculate = useRecalculatePayrollPeriod();
+  const approve = useApprovePayrollPeriod();
+  const finalize = useFinalizePayrollPeriod();
+  const markPaid = useMarkPayrollPeriodPaid();
+  const cancel = useCancelPayrollPeriod();
+
+  const period = periodData?.period;
+  const records = recordsData?.records ?? [];
+  const payoutsByRecord = new Map((payoutsData?.payouts ?? []).map((p) => [p.payrollRecordId, p]));
+
+  const currency = "INR";
+  const totals = records.reduce(
+    (acc, r) => ({
+      gross: acc.gross + r.grossEarningsMinor,
+      net: acc.net + r.netPayableMinor
+    }),
+    { gross: 0, net: 0 }
+  );
+
+  return (
+    <div className="space-y-4">
+      <Button asChild className="-ml-2" size="sm" variant="ghost">
+        <Link href="/admin/finance/coach-payroll">
+          <ArrowLeft className="mr-1.5 size-4" strokeWidth={2.5} />
+          Back to payroll
+        </Link>
+      </Button>
+
+      {isLoading ? <Skeleton className="h-64 w-full" /> : null}
+
+      {period ? (
+        <>
+          <Card className="space-y-3 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg font-bold text-app-text">{period.periodType} payroll</h1>
+                  <PayrollPeriodStatusBadge status={period.status} />
+                </div>
+                <p className="text-sm text-app-muted">
+                  {formatFullDate(period.startDate, "UTC")} – {formatFullDate(period.endDate, "UTC")}
+                  {records.length > 0 ? ` · ${records.length} coach${records.length === 1 ? "" : "es"}` : ""}
+                </p>
+                {period.notes ? <p className="mt-1 text-xs text-app-muted">{period.notes}</p> : null}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {period.status === "DRAFT" ? (
+                  <Button
+                    isLoading={calculate.isPending}
+                    onClick={() => calculate.mutate(periodId)}
+                  >
+                    Calculate
+                  </Button>
+                ) : null}
+
+                {period.status === "REVIEW" ? (
+                  <>
+                    <Button
+                      isLoading={recalculate.isPending}
+                      onClick={() => recalculate.mutate(periodId)}
+                      variant="outline"
+                    >
+                      Recalculate
+                    </Button>
+                    <Button isLoading={approve.isPending} onClick={() => approve.mutate(periodId)}>
+                      Approve
+                    </Button>
+                    <Button
+                      isLoading={cancel.isPending}
+                      onClick={() => cancel.mutate({ id: periodId, body: {} })}
+                      variant="ghost"
+                    >
+                      Cancel period
+                    </Button>
+                  </>
+                ) : null}
+
+                {period.status === "APPROVED" ? (
+                  <Button isLoading={finalize.isPending} onClick={() => finalize.mutate(periodId)}>
+                    Finalize
+                  </Button>
+                ) : null}
+
+                {period.status === "FINALIZED" ? (
+                  <Button isLoading={markPaid.isPending} onClick={() => markPaid.mutate(periodId)}>
+                    Mark period paid
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
+            {period.status === "DRAFT" && records.length === 0 ? (
+              <p className="text-xs text-app-muted">
+                Calculating covers every coach with a class or a compensation profile in
+                this date range. A class still scheduled/live inside the window blocks
+                calculation until it settles.
+              </p>
+            ) : null}
+
+            {records.length > 0 ? (
+              <div className="flex flex-wrap gap-6 border-t border-app-border pt-3 text-sm">
+                <div>
+                  <p className="text-xs text-app-muted">Gross payroll</p>
+                  <p className="font-semibold tabular-nums text-app-text">
+                    {formatMoney(totals.gross, currency)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-app-muted">Net payable</p>
+                  <p className="font-semibold tabular-nums text-primary">
+                    {formatMoney(totals.net, currency)}
+                  </p>
+                </div>
+                {period.calculatedAt ? (
+                  <div>
+                    <p className="text-xs text-app-muted">Last calculated</p>
+                    <p className="text-app-text">{formatFullDate(period.calculatedAt, timeZone)}</p>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </Card>
+
+          {records.length === 0 ? (
+            <EmptyState
+              description={
+                period.status === "DRAFT"
+                  ? "Run Calculate to compute what every in-scope coach is owed."
+                  : "No coaches were in scope for this period."
+              }
+              title="Nothing calculated yet"
+            />
+          ) : (
+            <Card className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] border-collapse">
+                  <thead>
+                    <tr className="border-b border-app-border">
+                      {["Coach", "Classes", "Hours", "Gross", "Net", "Status", ""].map((heading) => (
+                        <th
+                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                          key={heading}
+                        >
+                          {heading}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {records.map((record) => (
+                      <Fragment key={record.id}>
+                        <tr
+                          className="cursor-pointer border-b border-app-border last:border-0 hover:bg-app-soft/60"
+                          onClick={() => setExpanded(expanded === record.id ? null : record.id)}
+                        >
+                          <td className="px-4 py-3">
+                            <p className="text-sm font-semibold text-app-text">{record.coachName}</p>
+                            <p className="text-xs text-app-muted">{record.coachEmail}</p>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-app-muted">
+                            {record.completedClassesCount}/{record.scheduledClassesCount}
+                          </td>
+                          <td className="px-4 py-3 text-sm tabular-nums text-app-muted">
+                            {(record.totalTeachingSeconds / 3600).toFixed(1)}
+                          </td>
+                          <td className="px-4 py-3 text-sm tabular-nums text-app-text">
+                            {formatMoney(record.grossEarningsMinor, currency)}
+                          </td>
+                          <td className="px-4 py-3 text-sm font-semibold tabular-nums text-primary">
+                            {formatMoney(record.netPayableMinor, currency)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <PayrollRecordStatusBadge status={record.status} />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {expanded === record.id ? (
+                              <ChevronDown className="ml-auto size-4 text-app-muted" strokeWidth={2.5} />
+                            ) : (
+                              <ChevronRight className="ml-auto size-4 text-app-muted" strokeWidth={2.5} />
+                            )}
+                          </td>
+                        </tr>
+                        {expanded === record.id ? (
+                          <tr>
+                            <td className="p-0" colSpan={7}>
+                              <PayrollRecordDetailPanel
+                                payout={payoutsByRecord.get(record.id)}
+                                record={record}
+                              />
+                            </td>
+                          </tr>
+                        ) : null}
+                      </Fragment>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+}

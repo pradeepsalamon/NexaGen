@@ -356,6 +356,55 @@ export const API_ROUTES = {
     batchPlan: (batchId: string = ":batchId", planId: string = ":planId") =>
       `/admin/payments/batches/${batchId}/pricing/${planId}`
   },
+  // Coach payroll — what the academy owes a coach, computed from teaching
+  // activity. Separate from `payments`/`invoices` above (customer billing).
+  // Coach-facing: own record/payslips only, read-only.
+  payroll: {
+    mine: "/payroll/mine",
+    record: (id: string = ":id") => `/payroll/records/${id}`,
+    payslips: "/payroll/payslips",
+    payslip: (id: string = ":id") => `/payroll/payslips/${id}`,
+    payslipPdf: (id: string = ":id") => `/payroll/payslips/${id}/pdf`
+  },
+  // Admin → Finance → Coach Payroll.
+  adminPayroll: {
+    periods: "/admin/payroll/periods",
+    period: (id: string = ":id") => `/admin/payroll/periods/${id}`,
+    calculatePeriod: (id: string = ":id") => `/admin/payroll/periods/${id}/calculate`,
+    approvePeriod: (id: string = ":id") => `/admin/payroll/periods/${id}/approve`,
+    finalizePeriod: (id: string = ":id") => `/admin/payroll/periods/${id}/finalize`,
+    markPaidPeriod: (id: string = ":id") => `/admin/payroll/periods/${id}/mark-paid`,
+    recalculatePeriod: (id: string = ":id") => `/admin/payroll/periods/${id}/recalculate`,
+    cancelPeriod: (id: string = ":id") => `/admin/payroll/periods/${id}/cancel`,
+    records: "/admin/payroll/records",
+    record: (id: string = ":id") => `/admin/payroll/records/${id}`,
+    recalculateRecord: (id: string = ":id") =>
+      `/admin/payroll/records/${id}/recalculate`,
+    adjustments: (recordId: string = ":recordId") =>
+      `/admin/payroll/records/${recordId}/adjustments`,
+    adjustment: (id: string = ":id") => `/admin/payroll/adjustments/${id}`,
+    reverseAdjustment: (id: string = ":id") =>
+      `/admin/payroll/adjustments/${id}/reverse`,
+    compensationProfiles: "/admin/payroll/compensation-profiles",
+    compensationProfile: (coachId: string = ":coachId") =>
+      `/admin/payroll/compensation-profiles/${coachId}`,
+    compensationRates: (coachId: string = ":coachId") =>
+      `/admin/payroll/compensation-profiles/${coachId}/rates`,
+    compensationRate: (id: string = ":id") =>
+      `/admin/payroll/compensation-rates/${id}`,
+    closeCompensationRate: (id: string = ":id") =>
+      `/admin/payroll/compensation-rates/${id}/close`,
+    rules: "/admin/payroll/rules",
+    rule: (id: string = ":id") => `/admin/payroll/rules/${id}`,
+    payslipPdf: (id: string = ":id") => `/admin/payroll/payslips/${id}/pdf`,
+    retryPayslipPdf: (id: string = ":id") =>
+      `/admin/payroll/payslips/${id}/retry-pdf`,
+    payouts: "/admin/payroll/payouts",
+    payout: (id: string = ":id") => `/admin/payroll/payouts/${id}`,
+    markPayoutPaid: (id: string = ":id") => `/admin/payroll/payouts/${id}/mark-paid`,
+    audit: (recordId: string = ":recordId") =>
+      `/admin/payroll/records/${recordId}/audit`
+  },
   batchSchedules: {
     list: "/batch-schedules",
     create: "/batch-schedules",

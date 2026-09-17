@@ -23,7 +23,8 @@ import {
   UserCheck,
   UserRoundCheck,
   Users,
-  Video
+  Video,
+  Wallet
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -75,6 +76,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/history", label: "Class History", icon: History },
   { href: "/coach/attendance", label: "Attendance", icon: UserCheck },
   { href: "/coach/presets", label: "Class Presets", icon: SlidersHorizontal },
+  { href: "/coach/earnings", label: "Earnings", icon: Wallet },
   { href: "/profile", label: "Settings", icon: Settings }
 ];
 
@@ -102,6 +104,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "Manage" },
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Manage" },
   { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Manage" },
+  { href: "/admin/finance/coach-payroll", label: "Coach Payroll", icon: Wallet, group: "Manage" },
   // Super Admin
   { href: "/admin/backups", label: "DB Backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },

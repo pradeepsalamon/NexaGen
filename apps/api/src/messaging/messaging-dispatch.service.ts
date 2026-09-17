@@ -91,7 +91,13 @@ export type DispatchRequest =
       event: "INVOICE_ISSUED";
       invoiceId: string;
       document?: DispatchDocument;
-    };
+    }
+  /**
+   * A coach's own payroll moment. Every figure is read back from the
+   * `CoachPayrollRecord` row — never asserted by the caller — and the body
+   * template carries no bank/payment detail (CLAUDE.md payroll §28).
+   */
+  | { event: "PAYROLL_FINALIZED" | "PAYROLL_PAID"; payrollRecordId: string };
 
 const EMPTY_SUMMARY: MessagingDispatchSummary = {
   ruleEnabled: false,
@@ -317,6 +323,9 @@ export class MessagingDispatchService {
         );
       case "INVOICE_ISSUED":
         return this.invoiceRecipients(request.invoiceId, request.document);
+      case "PAYROLL_FINALIZED":
+      case "PAYROLL_PAID":
+        return this.payrollRecipients(request.event, request.payrollRecordId);
     }
   }
 
@@ -654,6 +663,31 @@ export class MessagingDispatchService {
     ];
   }
 
+  private async payrollRecipients(
+    event: "PAYROLL_FINALIZED" | "PAYROLL_PAID",
+    payrollRecordId: string
+  ): Promise<Recipient[]> {
+    const record = await this.prisma.coachPayrollRecord.findUnique({
+      where: { id: payrollRecordId },
+      include: { coach: true, period: true }
+    });
+    if (!record?.coach || record.coach.isDeleted) return [];
+
+    const periodLabel = `${formatInZone(record.period.startDate, "UTC", "date")} – ${formatInZone(record.period.endDate, "UTC", "date")}`;
+
+    const recipient = this.toRecipient(record.coach, {
+      variables: {
+        "payroll.periodLabel": periodLabel,
+        "payroll.netPayable": formatMoney(record.netPayableMinor, "INR")
+      },
+      linkPath: "/coach/earnings",
+      linkVariable: "links.earnings",
+      dedupeKey: `${event}:${record.id}`
+    });
+
+    return [recipient];
+  }
+
   // ── shared bits ──
 
   private assignmentVariables(
@@ -688,7 +722,8 @@ export class MessagingDispatchService {
         | "links.assignment"
         | "links.login"
         | "links.billing"
-        | "links.invoice";
+        | "links.invoice"
+        | "links.earnings";
       dedupeKey: string | null;
     }
   ): Recipient {

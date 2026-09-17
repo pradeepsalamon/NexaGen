@@ -27,6 +27,7 @@ import { QueueModule } from "./queue/queue.module";
 import { MessagingModule } from "./messaging/messaging.module";
 import { AnnouncementModule } from "./announcement/announcement.module";
 import { PaymentsModule } from "./payments/payments.module";
+import { PayrollModule } from "./payroll/payroll.module";
 
 @Module({
   imports: [
@@ -62,7 +63,8 @@ import { PaymentsModule } from "./payments/payments.module";
     CourseModule,
     MessagingModule,
     AnnouncementModule,
-    PaymentsModule
+    PaymentsModule,
+    PayrollModule
   ],
   providers: [
     {

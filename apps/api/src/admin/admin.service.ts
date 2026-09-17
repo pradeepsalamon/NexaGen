@@ -174,7 +174,7 @@ export class AdminService {
     return { class: updatedClass };
   }
 
-  async cancelDemoClass(_adminId: string, classId: string) {
+  async cancelDemoClass(adminId: string, classId: string) {
     const existingClass = await this.prisma.coachClass.findUnique({
       where: { id: classId, isDemo: true }
     });
@@ -187,7 +187,8 @@ export class AdminService {
       where: { id: classId },
       data: {
         status: 'CANCELLED',
-        cancelledAt: new Date()
+        cancelledAt: new Date(),
+        cancelledById: adminId
       }
     });
 
@@ -219,7 +220,9 @@ export class AdminService {
       where: { id: classId },
       data: {
         status: 'SCHEDULED',
-        cancelledAt: null
+        cancelledAt: null,
+        cancelledById: null,
+        cancellationReason: null
       }
     });
 

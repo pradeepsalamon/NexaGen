@@ -63,6 +63,49 @@ coach/board durations were always 0, `room_finished` never fired, and the
 |---|---|
 | **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
 
+## Resolved (2026-09-17)
+
+- **Coach payroll & payslips.** NexaChess had no coach-compensation feature —
+  coaches were paid entirely outside the system, distinct from the
+  `payments`/`invoices` track which only ever handled customer billing. Added
+  a parallel `payroll` API module + `features/payroll` web feature computing
+  what the academy owes each coach from actual teaching activity (never
+  re-derived from attendance — reads `CoachAttendance.totalDuration`/
+  `boardDuration` and `CoachClass.status`/`cancelledAt`/`cancelledById`, the
+  latter newly threaded through the three cancel call sites in
+  `coach.service.ts`/`admin.service.ts`/`batch-schedule.service.ts`).
+  New models: `CoachCompensationProfile` (engagement type EMPLOYEE by
+  default; PDF framing is Payslip vs Coach Payment Statement) +
+  effective-dated `CoachCompensationRate` (a rate change closes the previous
+  row rather than mutating it, so a past payroll period always resolves what
+  was actually in force), `PayrollRule` (cancellation/attendance/bonus/
+  deduction), `PayrollPeriod` → `CoachPayrollRecord` (one per coach,
+  DRAFT→CALCULATING→REVIEW→APPROVED→FINALIZED→PAID, immutable once
+  FINALIZED — a correction is a `PayrollAdjustment` reversal, never a silent
+  edit), `CoachPayout`, `Payslip`/`PayslipSequence`. The calculation engine
+  (`payroll-calculation.engine.ts`) is pure — no Prisma import — covering all
+  7 compensation models (hourly, per-class, fixed salary, hourly+class,
+  tiered, percentage-of-revenue [stubbed, no revenue linkage yet], hybrid)
+  with every branch producing an explainable line item, never just a final
+  number. Payslip PDFs render via pdfmake off a BullMQ queue (mirrors
+  `payments/invoice-*`: `--`-separated job ids, inline-render fallback when
+  `REDIS_URL` is unset, advisory-lock `73002080` retry sweep) and auto-queue
+  on period finalize. Two new messaging events, `PAYROLL_FINALIZED` /
+  `PAYROLL_PAID` (enabled, in-app only, coach audience, no bank/payment
+  detail in the body). Web: `/admin/finance/coach-payroll` (periods, an
+  expandable per-coach breakdown + adjustments + payout actions, compensation
+  profiles, rule builder) and `/coach/earnings` (history + payslip download)
+  plus a dashboard widget. Permissions reuse existing `ADMIN`/`SUPER_ADMIN`
+  checks — no new granular Finance/Payroll Admin role. Migrations
+  `20260917044521_coach_payroll_foundation`,
+  `20260917051923_payslip_pdf_attempts`,
+  `20260917055223_payroll_messaging_events` (all additive).
+  Explicitly out of scope: real tax/TDS calculation (placeholder columns
+  only), real bank-transfer payout integration (`CoachPayout` is
+  manual-status-tracking only), multi-currency math, bulk CSV import/export
+  of rates, tiered-rate authoring from the admin UI (API-only for now), and
+  any coach-side write capability (coaches are read-only throughout).
+
 ## Resolved (2026-09-14)
 
 - **Screen-share request → coach approval.** A student whose class has

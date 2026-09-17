@@ -20,7 +20,9 @@ export const messagingEventSchema = z.enum([
   "PAYMENT_FAILED",
   "REFUND_PROCESSED",
   "SUBSCRIPTION_RENEWAL_FAILED",
-  "INVOICE_ISSUED"
+  "INVOICE_ISSUED",
+  "PAYROLL_FINALIZED",
+  "PAYROLL_PAID"
 ]);
 export type MessagingEvent = z.infer<typeof messagingEventSchema>;
 
@@ -142,6 +144,17 @@ const INVOICE_VARIABLES = [
   "order.number",
   "plan.name",
   "links.invoice"
+] as const;
+
+/**
+ * A coach's own payroll moment — never the amount alone: no bank/payment
+ * detail is ever a template variable here (CLAUDE.md payroll §28).
+ */
+const PAYROLL_VARIABLES = [
+  ...RECIPIENT_VARIABLES,
+  "payroll.periodLabel",
+  "payroll.netPayable",
+  "links.earnings"
 ] as const;
 
 export const MESSAGING_EVENT_DEFINITIONS: Record<
@@ -291,6 +304,23 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     variables: INVOICE_VARIABLES,
     audiences: ["STUDENTS"],
     supportsLeadTime: false
+  },
+  PAYROLL_FINALIZED: {
+    event: "PAYROLL_FINALIZED",
+    label: "Payslip ready",
+    description:
+      "Sent to a coach when an admin finalizes the payroll period they're included in — their payslip is generating.",
+    variables: PAYROLL_VARIABLES,
+    audiences: ["COACHES"],
+    supportsLeadTime: false
+  },
+  PAYROLL_PAID: {
+    event: "PAYROLL_PAID",
+    label: "Payroll paid",
+    description: "Sent to a coach once their payout for a period is marked paid.",
+    variables: PAYROLL_VARIABLES,
+    audiences: ["COACHES"],
+    supportsLeadTime: false
   }
 };
 
@@ -367,7 +397,10 @@ export function sampleVariablesFor(event: MessagingEvent): MessageVariables {
     "order.number": "NEXA-2026-7F3K9Q",
     "plan.name": "Premium Membership",
     "invoice.number": "NEXA/2026/000123",
-    "links.billing": "https://nexa.test/student/billing"
+    "links.billing": "https://nexa.test/student/billing",
+    "payroll.periodLabel": "September 2026",
+    "payroll.netPayable": "₹19,750.00",
+    "links.earnings": "https://nexa.test/coach/earnings"
   };
 
   const known = MESSAGING_EVENT_DEFINITIONS[event].variables;
@@ -589,6 +622,27 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Invoice {{invoice.number}}",
     body: "Hi {{recipient.firstName}}, here is your invoice {{invoice.number}} for {{invoice.total}}. You can also download it any time from {{links.invoice}}."
+  },
+  // Payroll rules ship ENABLED and in-app only, same reasoning as payments:
+  // a payslip/payout is transactional, not marketing. The body deliberately
+  // never carries a bank/payment detail (CLAUDE.md payroll §28).
+  PAYROLL_FINALIZED: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "COACHES",
+    leadTimeMinutes: null,
+    title: "Your payslip is ready",
+    body: "Hi {{recipient.firstName}}, your payslip for {{payroll.periodLabel}} is ready. View it at {{links.earnings}}."
+  },
+  PAYROLL_PAID: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "COACHES",
+    leadTimeMinutes: null,
+    title: "Payment sent",
+    body: "Hi {{recipient.firstName}}, your payment of {{payroll.netPayable}} for {{payroll.periodLabel}} has been processed."
   }
 };
 

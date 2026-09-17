@@ -25,6 +25,7 @@ const pageTitles: Record<string, string> = {
   "/admin/backups": "Database Backups",
   "/admin/batches": "Batch management",
   "/admin/finance/invoices": "Invoices",
+  "/admin/finance/coach-payroll": "Coach Payroll",
   "/admin/puzzles": "Puzzle Library",
   "/admin/courses": "Courses",
   "/admin/coaches": "Coach applications",
@@ -36,6 +37,7 @@ const pageTitles: Record<string, string> = {
   "/coach/students": "Students",
   "/coach/history": "Class History",
   "/coach/puzzles": "Puzzles",
+  "/coach/earnings": "Earnings",
   "/student": "Student Dashboard",
   "/student/courses": "My Courses",
   "/student/batches": "My Batches",
@@ -90,6 +92,11 @@ function formatPageTitle(pathname: string) {
     pathname.startsWith("/student/billing/invoices/")
   ) {
     return "Invoice";
+  }
+
+  // A payroll period id is a cuid; showing it raw as the page title reads as noise.
+  if (pathname.startsWith("/admin/finance/coach-payroll/periods/")) {
+    return "Payroll Period";
   }
 
   const currentSegment = pathname.split("/").filter(Boolean).at(-1);

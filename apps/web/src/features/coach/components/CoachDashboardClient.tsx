@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCoachDashboard, useTodayClasses } from "../hooks/useCoachApi";
 import { cancelClass } from "../api/coachApi";
+import { CoachEarningsSummaryCard } from "@/features/payroll/components/CoachEarningsSummaryCard";
 import { ClassCard } from "./ClassCard";
 import type { CoachClass } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -132,6 +133,8 @@ export function CoachDashboardClient() {
             );
           })}
       </div>
+
+      <CoachEarningsSummaryCard />
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">

@@ -301,6 +301,42 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.discountRedemption;
   }
 
+  get coachCompensationProfile() {
+    return this.client.coachCompensationProfile;
+  }
+
+  get coachCompensationRate() {
+    return this.client.coachCompensationRate;
+  }
+
+  get payrollRule() {
+    return this.client.payrollRule;
+  }
+
+  get payrollPeriod() {
+    return this.client.payrollPeriod;
+  }
+
+  get coachPayrollRecord() {
+    return this.client.coachPayrollRecord;
+  }
+
+  get payrollAdjustment() {
+    return this.client.payrollAdjustment;
+  }
+
+  get coachPayout() {
+    return this.client.coachPayout;
+  }
+
+  get payslip() {
+    return this.client.payslip;
+  }
+
+  get payslipSequence() {
+    return this.client.payslipSequence;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

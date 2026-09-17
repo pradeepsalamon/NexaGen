@@ -259,70 +259,85 @@ model User {
   createdBy    User?   @relation("UserCreatedUsers", fields: [createdById], references: [id])
   createdUsers User[]  @relation("UserCreatedUsers")
 
-  studentProfile         StudentProfile?
-  coachProfile           CoachProfile?               @relation("UserCoachProfile")
-  approvedCoaches        CoachProfile[]              @relation("CoachApprovedBy")
-  createdBatches         Batch[]                     @relation("BatchCreatedBy")
-  coachedBatches         BatchCoach[]                @relation("BatchCoaches")
-  studentBatches         BatchStudent[]              @relation("BatchStudents")
-  classes                CoachClass[]                @relation("ClassCoach")
-  authSessions           AuthSession[]
-  passwordResets         PasswordResetToken[]
-  emailVerifications     EmailVerificationToken[]
-  deletedRecords         TrashAuditLog[]             @relation("TrashAuditDeletedBy")
-  deletedStudentProfiles StudentProfile[]            @relation("StudentProfileDeletedBy")
-  deletedCoachProfiles   CoachProfile[]              @relation("CoachProfileDeletedBy")
-  deletedBatches         Batch[]                     @relation("BatchDeletedBy")
-  deletedBatchCoaches    BatchCoach[]                @relation("BatchCoachDeletedBy")
-  deletedBatchStudents   BatchStudent[]              @relation("BatchStudentDeletedBy")
-  liveSessions           LiveSession[]               @relation("LiveClassCoach")
-  courseProgress         StudentCourseProgress[]     @relation("StudentCourseProgress")
-  moduleProgress         StudentModuleProgress[]     @relation("StudentModuleProgress")
-  authoredCourses        Course[]                    @relation("AuthoredCourses")
-  deletedCourses         Course[]                    @relation("CourseDeletedBy")
-  deletedCourseModules   CourseModule[]              @relation("CourseModuleDeletedBy")
-  practices              StudentPractice[]           @relation("StudentPractice")
-  authoredAssignments    Assignment[]                @relation("AuthoredAssignments")
-  deployedAssignments    AssignmentBatch[]           @relation("DeployedAssignments")
-  studentAssignments     StudentAssignment[]         @relation("StudentAssignments")
-  createdPuzzleTopics    PuzzleTopic[]               @relation("PuzzleTopicCreatedBy")
-  deletedPuzzleTopics    PuzzleTopic[]               @relation("PuzzleTopicDeletedBy")
-  authoredPuzzles        Puzzle[]                    @relation("AuthoredPuzzles")
-  deletedPuzzles         Puzzle[]                    @relation("PuzzleDeletedBy")
-  studentPuzzleAttempts  PuzzleAttempt[]             @relation("StudentPuzzleAttempts")
-  assignedLivePuzzles    LiveClassPuzzleAssignment[] @relation("LiveClassPuzzleAssignedBy")
-  activities             StudentActivity[]           @relation("StudentActivity")
-  classAttendances       ClassAttendance[]
-  attendanceLogs         AttendanceLog[]             @relation("UserAttendanceLogs")
-  coachAttendances       CoachAttendance[]           @relation("CoachClassAttendance")
-  coachAttendanceLogs    CoachAttendanceLog[]        @relation("UserCoachAttendanceLogs")
-  chatMessages           LiveChatMessage[]           @relation("UserLiveChatMessages")
-  directChatMessages     LiveChatMessage[]           @relation("UserLiveChatDirectMessages")
-  notifications          Notification[]              @relation("UserNotifications")
-  createdBatchSchedules  BatchClassSchedule[]        @relation("BatchScheduleCreatedBy")
-  scheduleRules          BatchClassScheduleRule[]    @relation("BatchScheduleRuleCoach")
-  analyticsEvents        AnalyticsEvent[]            @relation("UserAnalyticsEvents")
-  liveClassPresets       LiveClassPreset[]           @relation("UserLiveClassPresets")
-  messagingRuleUpdates   MessagingRule[]             @relation("MessagingRuleUpdatedBy")
-  messageDeliveries      MessageDelivery[]           @relation("UserMessageDeliveries")
-  createdAnnouncements   Announcement[]              @relation("AnnouncementCreatedBy")
-  orders                 Order[]                     @relation("UserOrders")
-  payments               Payment[]                   @relation("UserPayments")
-  subscriptions          Subscription[]              @relation("UserSubscriptions")
-  invoices               Invoice[]                   @relation("UserInvoices")
-  creditNotes            CreditNote[]                @relation("UserCreditNotes")
-  billingProfile         BillingProfile?             @relation("UserBillingProfile")
-  invoiceAuditActions    InvoiceAuditLog[]           @relation("InvoiceAuditActor")
-  invoiceSettingUpdates  InvoiceSettings[]           @relation("InvoiceSettingsUpdatedBy")
-  entitlements           Entitlement[]               @relation("UserEntitlements")
-  requestedRefunds       Refund[]                    @relation("RefundRequestedBy")
-  paymentSettingUpdates  PaymentSetting[]            @relation("PaymentSettingUpdatedBy")
-  createdDiscounts       Discount[]                  @relation("DiscountCreatedBy")
-  discountRedemptions    DiscountRedemption[]        @relation("DiscountRedemptions")
-  liveClassWaitingRequests    LiveClassWaitingParticipant[] @relation("LiveClassWaitingStudent")
-  liveClassWaitingResolutions LiveClassWaitingParticipant[] @relation("LiveClassWaitingResolvedBy")
+  studentProfile                  StudentProfile?
+  coachProfile                    CoachProfile?                 @relation("UserCoachProfile")
+  approvedCoaches                 CoachProfile[]                @relation("CoachApprovedBy")
+  createdBatches                  Batch[]                       @relation("BatchCreatedBy")
+  coachedBatches                  BatchCoach[]                  @relation("BatchCoaches")
+  studentBatches                  BatchStudent[]                @relation("BatchStudents")
+  classes                         CoachClass[]                  @relation("ClassCoach")
+  authSessions                    AuthSession[]
+  passwordResets                  PasswordResetToken[]
+  emailVerifications              EmailVerificationToken[]
+  deletedRecords                  TrashAuditLog[]               @relation("TrashAuditDeletedBy")
+  deletedStudentProfiles          StudentProfile[]              @relation("StudentProfileDeletedBy")
+  deletedCoachProfiles            CoachProfile[]                @relation("CoachProfileDeletedBy")
+  deletedBatches                  Batch[]                       @relation("BatchDeletedBy")
+  deletedBatchCoaches             BatchCoach[]                  @relation("BatchCoachDeletedBy")
+  deletedBatchStudents            BatchStudent[]                @relation("BatchStudentDeletedBy")
+  liveSessions                    LiveSession[]                 @relation("LiveClassCoach")
+  courseProgress                  StudentCourseProgress[]       @relation("StudentCourseProgress")
+  moduleProgress                  StudentModuleProgress[]       @relation("StudentModuleProgress")
+  authoredCourses                 Course[]                      @relation("AuthoredCourses")
+  deletedCourses                  Course[]                      @relation("CourseDeletedBy")
+  deletedCourseModules            CourseModule[]                @relation("CourseModuleDeletedBy")
+  practices                       StudentPractice[]             @relation("StudentPractice")
+  authoredAssignments             Assignment[]                  @relation("AuthoredAssignments")
+  deployedAssignments             AssignmentBatch[]             @relation("DeployedAssignments")
+  studentAssignments              StudentAssignment[]           @relation("StudentAssignments")
+  createdPuzzleTopics             PuzzleTopic[]                 @relation("PuzzleTopicCreatedBy")
+  deletedPuzzleTopics             PuzzleTopic[]                 @relation("PuzzleTopicDeletedBy")
+  authoredPuzzles                 Puzzle[]                      @relation("AuthoredPuzzles")
+  deletedPuzzles                  Puzzle[]                      @relation("PuzzleDeletedBy")
+  studentPuzzleAttempts           PuzzleAttempt[]               @relation("StudentPuzzleAttempts")
+  assignedLivePuzzles             LiveClassPuzzleAssignment[]   @relation("LiveClassPuzzleAssignedBy")
+  activities                      StudentActivity[]             @relation("StudentActivity")
+  classAttendances                ClassAttendance[]
+  attendanceLogs                  AttendanceLog[]               @relation("UserAttendanceLogs")
+  coachAttendances                CoachAttendance[]             @relation("CoachClassAttendance")
+  coachAttendanceLogs             CoachAttendanceLog[]          @relation("UserCoachAttendanceLogs")
+  chatMessages                    LiveChatMessage[]             @relation("UserLiveChatMessages")
+  directChatMessages              LiveChatMessage[]             @relation("UserLiveChatDirectMessages")
+  notifications                   Notification[]                @relation("UserNotifications")
+  createdBatchSchedules           BatchClassSchedule[]          @relation("BatchScheduleCreatedBy")
+  scheduleRules                   BatchClassScheduleRule[]      @relation("BatchScheduleRuleCoach")
+  analyticsEvents                 AnalyticsEvent[]              @relation("UserAnalyticsEvents")
+  liveClassPresets                LiveClassPreset[]             @relation("UserLiveClassPresets")
+  messagingRuleUpdates            MessagingRule[]               @relation("MessagingRuleUpdatedBy")
+  messageDeliveries               MessageDelivery[]             @relation("UserMessageDeliveries")
+  createdAnnouncements            Announcement[]                @relation("AnnouncementCreatedBy")
+  orders                          Order[]                       @relation("UserOrders")
+  payments                        Payment[]                     @relation("UserPayments")
+  subscriptions                   Subscription[]                @relation("UserSubscriptions")
+  invoices                        Invoice[]                     @relation("UserInvoices")
+  creditNotes                     CreditNote[]                  @relation("UserCreditNotes")
+  billingProfile                  BillingProfile?               @relation("UserBillingProfile")
+  invoiceAuditActions             InvoiceAuditLog[]             @relation("InvoiceAuditActor")
+  invoiceSettingUpdates           InvoiceSettings[]             @relation("InvoiceSettingsUpdatedBy")
+  entitlements                    Entitlement[]                 @relation("UserEntitlements")
+  requestedRefunds                Refund[]                      @relation("RefundRequestedBy")
+  paymentSettingUpdates           PaymentSetting[]              @relation("PaymentSettingUpdatedBy")
+  createdDiscounts                Discount[]                    @relation("DiscountCreatedBy")
+  discountRedemptions             DiscountRedemption[]          @relation("DiscountRedemptions")
+  liveClassWaitingRequests        LiveClassWaitingParticipant[] @relation("LiveClassWaitingStudent")
+  liveClassWaitingResolutions     LiveClassWaitingParticipant[] @relation("LiveClassWaitingResolvedBy")
   liveClassScreenShareRequests    LiveClassScreenShareRequest[] @relation("LiveClassScreenShareStudent")
   liveClassScreenShareResolutions LiveClassScreenShareRequest[] @relation("LiveClassScreenShareResolvedBy")
+
+  // ── Coach payroll ──
+  cancelledClasses                 CoachClass[]               @relation("ClassCancelledBy")
+  coachCompensationProfile         CoachCompensationProfile?  @relation("CoachCompensationProfile")
+  createdCoachCompensationProfiles CoachCompensationProfile[] @relation("CoachCompensationProfileCreatedBy")
+  coachCompensationRates           CoachCompensationRate[]    @relation("CoachCompensationRate")
+  createdCoachCompensationRates    CoachCompensationRate[]    @relation("CoachCompensationRateCreatedBy")
+  createdPayrollRules              PayrollRule[]              @relation("PayrollRuleCreatedBy")
+  createdPayrollPeriods            PayrollPeriod[]            @relation("PayrollPeriodCreatedBy")
+  approvedPayrollPeriods           PayrollPeriod[]            @relation("PayrollPeriodApprovedBy")
+  finalizedPayrollPeriods          PayrollPeriod[]            @relation("PayrollPeriodFinalizedBy")
+  coachPayrollRecords              CoachPayrollRecord[]       @relation("CoachPayrollRecordCoach")
+  createdPayrollAdjustments        PayrollAdjustment[]        @relation("PayrollAdjustmentCreatedBy")
+  reversedPayrollAdjustments       PayrollAdjustment[]        @relation("PayrollAdjustmentReversedBy")
+  adminCoachPayouts                CoachPayout[]              @relation("CoachPayoutAdmin")
 
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
@@ -658,6 +673,13 @@ model CoachClass {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   cancelledAt DateTime?
+
+  // Who cancelled the class and why — needed for payroll cancellation rules
+  // (coach-cancels vs student-cancels vs admin-cancels pay differently).
+  // Nullable: most existing/uncancelled classes never set these.
+  cancelledById      String?
+  cancelledBy        User?   @relation("ClassCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  cancellationReason String?
 
   liveSession              LiveSession?                @relation("LiveSessionSchedule")
   attendances              ClassAttendance[]
@@ -1403,6 +1425,8 @@ enum NotificationType {
   PAYMENT_FAILED
   REFUND_PROCESSED
   SUBSCRIPTION_RENEWAL_FAILED
+  PAYROLL_FINALIZED
+  PAYROLL_PAID
 }
 
 model Notification {
@@ -1703,6 +1727,8 @@ enum MessagingEvent {
   PAYMENT_FAILED
   REFUND_PROCESSED
   SUBSCRIPTION_RENEWAL_FAILED
+  PAYROLL_FINALIZED
+  PAYROLL_PAID
 }
 
 enum MessagingScheduleMode {
@@ -2793,4 +2819,406 @@ model DiscountRedemption {
   @@unique([discountId, orderId])
   @@index([discountId, userId])
   @@map("discount_redemptions")
+}
+
+//
+// COACH PAYROLL & PAYSLIPS
+//
+// Computes what each coach is owed for a period from actual teaching activity
+// — CoachClass / CoachAttendance / ClassAttendance are read, never
+// re-derived; AttendanceService.finalizeClassAttendance stays the only place
+// actual teaching time is computed. Admins review/adjust/approve/finalize the
+// result and issue a PDF document. Entirely separate from the PAYMENTS
+// section above: a student's Invoice and a coach's Payslip are different
+// financial documents for different parties.
+//
+// Nothing here is soft-deletable. A financial record is never trashed.
+//
+
+enum CoachEngagementType {
+  EMPLOYEE
+  CONTRACTOR
+  FREELANCER
+  OTHER
+}
+
+enum CoachCompensationModel {
+  HOURLY
+  PER_CLASS
+  FIXED_SALARY
+  HOURLY_PLUS_CLASS
+  TIERED
+  PERCENTAGE
+  HYBRID
+}
+
+enum CompensationCalculationType {
+  HOURLY_RATE
+  PER_CLASS_RATE
+  MONTHLY_SALARY
+  TIER
+  PERCENTAGE
+}
+
+enum PayrollRuleType {
+  CANCELLATION
+  ATTENDANCE
+  BONUS
+  DEDUCTION
+}
+
+enum PayrollPeriodType {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum PayrollPeriodStatus {
+  DRAFT
+  CALCULATING
+  REVIEW
+  APPROVED
+  FINALIZED
+  PAID
+  CANCELLED
+}
+
+enum CoachPayrollRecordStatus {
+  PENDING
+  CALCULATED
+  REVIEWED
+  APPROVED
+  FINALIZED
+  PAID
+}
+
+enum PayrollAdjustmentType {
+  EARNING
+  DEDUCTION
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum PayslipDocumentKind {
+  PAYSLIP
+  PAYMENT_STATEMENT
+}
+
+/// The PDF artifact's own state, separate from the payroll record's financial
+/// status — mirrors InvoicePdfStatus. A failed render must never make a
+/// finalized/paid payroll record look unresolved.
+enum PayslipPdfStatus {
+  PENDING
+  GENERATING
+  READY
+  FAILED
+}
+
+/// Per-coach compensation configuration, 1:1 with a coach. Created lazily
+/// (default EMPLOYEE / HOURLY) the first time an admin opens a coach's payroll
+/// settings.
+model CoachCompensationProfile {
+  id String @id @default(cuid())
+
+  coachId String @unique
+  coach   User   @relation("CoachCompensationProfile", fields: [coachId], references: [id], onDelete: Cascade)
+
+  engagementType           CoachEngagementType    @default(EMPLOYEE)
+  defaultCompensationModel CoachCompensationModel @default(HOURLY)
+  currency                 String                 @default("INR")
+
+  paymentMethod  String?
+  /// Bank/UPI details. Access-restricted: never returned to a non-admin
+  /// caller, never written into TrashAuditLog metadata, never included in a
+  /// notification body.
+  paymentDetails Json?
+
+  /// Tax/compliance placeholders (§29). Nullable, unused by any calculation
+  /// today — extensibility only.
+  panNumber    String?
+  gstin        String?
+  taxTreatment String?
+
+  notes String?
+
+  createdById String?
+  createdBy   User?   @relation("CoachCompensationProfileCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  rates CoachCompensationRate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("coach_compensation_profiles")
+}
+
+/// Effective-dated rate rows. A "rate change" always closes the previous
+/// row's effectiveTo and inserts a new row — never mutates a past rate's
+/// value in place, so a historical payroll period always resolves the rate
+/// that was actually in force when it ran.
+model CoachCompensationRate {
+  id String @id @default(cuid())
+
+  coachId String
+  coach   User   @relation("CoachCompensationRate", fields: [coachId], references: [id], onDelete: Cascade)
+
+  compensationProfileId String?
+  compensationProfile   CoachCompensationProfile? @relation(fields: [compensationProfileId], references: [id], onDelete: SetNull)
+
+  compensationModel CoachCompensationModel
+  calculationType   CompensationCalculationType
+
+  /// Flat hourly / per-class / monthly value, minor units.
+  rateMinor     Int?
+  /// PERCENTAGE model, basis points (10000 = 100%) — no floats.
+  percentageBps Int?
+  /// Ordered tier breakpoints for TIERED, e.g. [{ uptoHours, rateMinor }, ...].
+  tierConfig    Json?
+  /// Optional scoping: { classTypes?, studentLevels?, batchIds? }. Unscoped
+  /// (null) applies to everything not covered by a more specific row.
+  scopeConfig   Json?
+
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("CoachCompensationRateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([coachId, effectiveFrom])
+  @@map("coach_compensation_rates")
+}
+
+/// Configurable cancellation / attendance / bonus / deduction rules the
+/// calculation engine applies on top of the base rate. Effective-dated like
+/// CoachCompensationRate, so a rule change never rewrites a past payroll
+/// period's already-frozen ruleSnapshot.
+model PayrollRule {
+  id String @id @default(cuid())
+
+  name        String
+  description String?
+  ruleType    PayrollRuleType
+
+  /// Structured predicate, e.g. { cancelledBy: "COACH" } or
+  /// { cancelledBy: "STUDENT", noticeHours: { lt: 2 } }.
+  condition Json
+  /// Structured effect, e.g. { payoutPercent: 0 } or { flatAmountMinor: 5000 }.
+  effect    Json
+
+  priority Int     @default(0)
+  enabled  Boolean @default(true)
+
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("PayrollRuleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ruleType, enabled])
+  @@map("payroll_rules")
+}
+
+/// A payroll run for a date range, covering every in-scope coach. Statuses
+/// only ever move forward (DRAFT → CALCULATING → REVIEW → APPROVED →
+/// FINALIZED → PAID), or sideways into CANCELLED. Once FINALIZED, nothing
+/// about a period's already-produced CoachPayrollRecord rows may silently
+/// change — a correction is a PayrollAdjustment, never an edit (§31).
+model PayrollPeriod {
+  id String @id @default(cuid())
+
+  periodType PayrollPeriodType
+  startDate  DateTime          @db.Date
+  endDate    DateTime          @db.Date
+
+  status PayrollPeriodStatus @default(DRAFT)
+
+  createdById String?
+  createdBy   User?   @relation("PayrollPeriodCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  calculatedAt  DateTime?
+  approvedById  String?
+  approvedBy    User?     @relation("PayrollPeriodApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt    DateTime?
+  finalizedById String?
+  finalizedBy   User?     @relation("PayrollPeriodFinalizedBy", fields: [finalizedById], references: [id], onDelete: SetNull)
+  finalizedAt   DateTime?
+  paidAt        DateTime?
+
+  notes String?
+
+  records CoachPayrollRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([periodType, startDate, endDate])
+  @@index([status])
+  @@index([startDate, endDate])
+  @@map("payroll_periods")
+}
+
+/// One coach's calculated payroll within a period. The teaching-summary
+/// counts are read (never re-derived) from
+/// CoachClass/CoachAttendance/ClassAttendance; rateSnapshot/ruleSnapshot
+/// freeze exactly which CoachCompensationRate/PayrollRule rows produced
+/// earningsBreakdown, so a later rate/rule edit can never retroactively
+/// change a finalized record (§14/§31).
+model CoachPayrollRecord {
+  id String @id @default(cuid())
+
+  periodId String
+  period   PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  coachId String
+  coach   User   @relation("CoachPayrollRecordCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
+  status CoachPayrollRecordStatus @default(PENDING)
+
+  scheduledClassesCount   Int @default(0)
+  completedClassesCount   Int @default(0)
+  cancelledByCoachCount   Int @default(0)
+  cancelledByStudentCount Int @default(0)
+  cancelledByAdminCount   Int @default(0)
+  noShowCount             Int @default(0)
+  totalTeachingSeconds    Int @default(0)
+  totalBoardSeconds       Int @default(0)
+
+  /// Versioned, explainable breakdown: { version: 1, lineItems: [{ label,
+  /// quantity?, rateMinor?, amountMinor, source }] } (§11).
+  earningsBreakdown Json?
+  /// The CoachCompensationRate row(s) actually applied, frozen at calc time.
+  rateSnapshot      Json?
+  /// The PayrollRule row(s) actually applied, frozen at calc time.
+  ruleSnapshot      Json?
+
+  grossEarningsMinor    Int @default(0)
+  totalDeductionsMinor  Int @default(0)
+  totalAdjustmentsMinor Int @default(0)
+  netPayableMinor       Int @default(0)
+
+  calculatedAt DateTime?
+  reviewedAt   DateTime?
+  approvedAt   DateTime?
+  finalizedAt  DateTime?
+
+  adjustments PayrollAdjustment[]
+  payout      CoachPayout?
+  payslip     Payslip?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([periodId, coachId])
+  @@index([coachId])
+  @@index([status])
+  @@map("coach_payroll_records")
+}
+
+/// A manual earning or deduction on top of the calculated record (§9). Never
+/// hard-deleted once the record is past REVIEW — a correction reverses it
+/// (reversedById/reversedAt/reversalReason) instead, keeping the row for
+/// audit.
+model PayrollAdjustment {
+  id String @id @default(cuid())
+
+  payrollRecordId String
+  payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+
+  type        PayrollAdjustmentType
+  description String
+  amountMinor Int
+  reason      String
+
+  createdById String?
+  createdBy   User?   @relation("PayrollAdjustmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  reversedById   String?
+  reversedBy     User?     @relation("PayrollAdjustmentReversedBy", fields: [reversedById], references: [id], onDelete: SetNull)
+  reversedAt     DateTime?
+  reversalReason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([payrollRecordId])
+  @@map("payroll_adjustments")
+}
+
+/// Payout tracking, deliberately separate from the payroll calculation itself
+/// (§22). With no bank-transfer integration yet, "Mark as Paid Manually" with
+/// a reference/date/method/notes is the only path to PAID.
+model CoachPayout {
+  id String @id @default(cuid())
+
+  payrollRecordId String             @unique
+  payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+
+  status    PayoutStatus @default(PENDING)
+  method    String?
+  reference String?
+  paidAt    DateTime?
+  notes     String?
+
+  adminId String?
+  admin   User?   @relation("CoachPayoutAdmin", fields: [adminId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("coach_payouts")
+}
+
+/// The PDF artifact: "Payslip" for an EMPLOYEE coach, "Coach Payment
+/// Statement" for CONTRACTOR/FREELANCER/OTHER (§17) — engagementTypeAtIssue
+/// freezes which framing was used so a later engagement-type change never
+/// rewrites an already-issued document.
+model Payslip {
+  id String @id @default(cuid())
+
+  /// NEXA-PAY-2026-000001. Gapless within a year, allocated from
+  /// PayslipSequence under a row lock and never reused.
+  documentNumber String @unique
+
+  payrollRecordId String             @unique
+  payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+
+  documentKind          PayslipDocumentKind
+  engagementTypeAtIssue CoachEngagementType
+
+  /// Private Cloudinary public_id — no permanently-public URL, mirrors Invoice.
+  storageKey  String?
+  pdfStatus   PayslipPdfStatus @default(PENDING)
+  pdfError    String?
+  pdfAttempts Int              @default(0)
+
+  issuedAt DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pdfStatus])
+  @@map("payslips")
+}
+
+model PayslipSequence {
+  /// Calendar year the sequence belongs to.
+  year       Int @id
+  lastNumber Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("payslip_sequences")
 }

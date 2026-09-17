@@ -2010,3 +2010,10 @@ export * from "./payments";
 
 // Invoicing: tax engine, invoice + credit-note documents, billing settings
 export * from "./invoices";
+
+// ──────────────────────────────────────────────
+// Coach payroll & payslips: what the academy owes a coach, computed from
+// teaching activity — separate from ./payments + ./invoices (customer
+// billing). Kept in its own module (depends on nothing above).
+// ──────────────────────────────────────────────
+export * from "./payroll";

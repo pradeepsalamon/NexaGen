@@ -730,7 +730,7 @@ export class BatchScheduleService {
           status: ClassStatus.SCHEDULED,
           startsAt: { gt: new Date() }
         },
-        data: { status: ClassStatus.CANCELLED, cancelledAt: new Date() }
+        data: { status: ClassStatus.CANCELLED, cancelledAt: new Date(), cancelledById: user.id }
       });
       return cancelled.count;
     });
@@ -768,7 +768,7 @@ export class BatchScheduleService {
       }
       await this.prisma.coachClass.update({
         where: { id: classId },
-        data: { status: ClassStatus.CANCELLED, cancelledAt: new Date() }
+        data: { status: ClassStatus.CANCELLED, cancelledAt: new Date(), cancelledById: user.id }
       });
     } else if (body.action === "RESTORE") {
       if (cls.status !== ClassStatus.CANCELLED) {
@@ -777,7 +777,12 @@ export class BatchScheduleService {
       await this.assertNoConflict(cls.coachId, cls.batchId, cls.startsAt, cls.endsAt, classId);
       await this.prisma.coachClass.update({
         where: { id: classId },
-        data: { status: ClassStatus.SCHEDULED, cancelledAt: null }
+        data: {
+          status: ClassStatus.SCHEDULED,
+          cancelledAt: null,
+          cancelledById: null,
+          cancellationReason: null
+        }
       });
     } else {
       // RESCHEDULE
