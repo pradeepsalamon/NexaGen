@@ -42,6 +42,11 @@ export class LiveClassPuzzleController {
     return this.service.leaderboard(this.token(request), id);
   }
 
+  @Get(API_ROUTES.liveClass.puzzleBoards())
+  boards(@Param("id") id: string, @Req() request: Request) {
+    return this.service.boards(this.token(request), id);
+  }
+
   private token(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
   }

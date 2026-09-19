@@ -132,9 +132,15 @@ export const queryKeys = {
   liveClassPresets: {
     all: ["live-class-presets"] as const,
   },
+  chessAppearance: {
+    resolved: ["chess-appearance", "resolved"] as const,
+    catalog: ["chess-appearance", "catalog"] as const,
+    admin: ["chess-appearance", "admin"] as const,
+  },
   livePuzzle: {
     state: (classId: string) => ["live-puzzle", "state", classId] as const,
     leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
+    boards: (classId: string) => ["live-puzzle", "boards", classId] as const,
   },
   payroll: {
     all: ["payroll"] as const,

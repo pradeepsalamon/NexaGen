@@ -98,13 +98,58 @@ export type LivePuzzleLeaderboardEntry = {
   isSelf: boolean;
 };
 
+/** A batch-enrolled student with no completed (or, for `notStarted`, no) attempt yet. */
+export type LivePuzzleRosterEntry = {
+  studentId: string;
+  studentName: string;
+};
+
 export type LivePuzzleLeaderboardResponse = {
   /**
    * Ranked completed attempts (best per student). When `revealLeaderboard` is
    * false and the caller is a student, this holds only their own row.
    */
   entries: LivePuzzleLeaderboardEntry[];
-  /** Distinct students with an in-progress attempt. */
+  /** Distinct students with an in-progress attempt. Kept for backward compat — equals `stillSolving.length`. */
   solvingCount: number;
+  /** Full class roster, minus `entries` and `notStarted`. */
+  stillSolving: LivePuzzleRosterEntry[];
+  /** Full class roster with no attempt row at all for this assignment. */
+  notStarted: LivePuzzleRosterEntry[];
   revealLeaderboard: boolean;
+};
+
+// ── Coach live-board view ──
+// Coach-only (never sent to students): every enrolled student's current
+// position for the active assignment, read from their latest persisted
+// attempt (`PuzzleAttempt.movesJson`, saved after every move — see
+// `usePuzzleAttempt`). Polled, same as the leaderboard; not broadcast.
+
+export const LIVE_PUZZLE_BOARD_STATUSES = [
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "SOLVED",
+  "FAILED",
+  "ABANDONED"
+] as const;
+export type LivePuzzleBoardStatus = (typeof LIVE_PUZZLE_BOARD_STATUSES)[number];
+
+export type LivePuzzleBoardEntry = {
+  studentId: string;
+  studentName: string;
+  status: LivePuzzleBoardStatus;
+  /** Current position; null only when `status` is `NOT_STARTED`. */
+  fen: string | null;
+  moveCount: number;
+  lastMoveSan: string | null;
+  /** ISO timestamp of the student's last saved move, or null when `NOT_STARTED`. */
+  updatedAt: string | null;
+};
+
+export type LivePuzzleBoardsResponse = {
+  assignmentId: string | null;
+  /** Starting position, for rendering a `NOT_STARTED` tile. */
+  puzzleFen: string;
+  orientation: "white" | "black";
+  boards: LivePuzzleBoardEntry[];
 };

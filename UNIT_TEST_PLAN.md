@@ -1025,6 +1025,80 @@ Expected scenario categories:
   - Admin authorization.
   - Correct status transitions and soft deletes.
 
+### Puzzle Module — Live-Class Boards & Leaderboard Roster
+
+Priority: High
+
+Context: `LiveClassPuzzleService` (`apps/api/src/puzzle/live-class-puzzle.service.ts`)
+gained a coach-only `boards()` method (backs `GET /live-class/:id/puzzle/boards`,
+`API_ROUTES.liveClass.puzzleBoards`) that returns every enrolled student's current
+board position for the active puzzle, and `leaderboard()` was extended to return
+the full class roster (`stillSolving`, `notStarted`) instead of only students with
+an attempt row. Types: `LivePuzzleBoardsResponse`, `LivePuzzleBoardEntry`,
+`LivePuzzleRosterEntry` in `packages/types/src/live-class-puzzle.ts`. Existing spec:
+`apps/api/src/puzzle/live-class-puzzle.service.spec.ts` — extend it, don't create a
+new file.
+
+Already covered (do not duplicate):
+
+- `leaderboard()`: ranks by score desc / duration asc / best-attempt-per-student;
+  hides peers from a student when `revealLeaderboard` is false; lists a
+  batch-enrolled student with no attempt in `notStarted`; lists an in-progress
+  batch-enrolled student in `stillSolving`.
+- `boards()`: a roster student with no attempt returns `NOT_STARTED` with
+  `fen: null`; a student with one in-progress attempt returns the last move's
+  `fenAfter` as `fen`.
+
+Gaps to implement:
+
+- **`boards()` — no assignment ever created for the class:** returns
+  `{ assignmentId: null, puzzleFen: "", orientation: "white", boards: [] }`.
+- **`boards()` — most-recent attempt selection:** a student with two attempt rows
+  (different `attemptNumber`) must surface the higher `attemptNumber` row's
+  position, not the first one found or the best-scoring one.
+- **`boards()` — finished students:** `SOLVED` and `FAILED` rows report that
+  `status` (not coerced to `IN_PROGRESS`/`NOT_STARTED`), with `fen` set to their
+  final move's `fenAfter`.
+- **`boards()` — ordering:** boards are sorted by `studentName` ascending
+  regardless of roster/attempt fetch order.
+- **`boards()` — student left the batch after attempting:** a `PuzzleAttempt` row
+  whose `studentId` is no longer in `batch.students` (roster empty/smaller) still
+  appears in `boards`, via the attempted-row fallback merge — mirrors the
+  equivalent `leaderboard()` behavior but is currently untested for `boards()`.
+- **`boards()` — batch-less / one-off class:** `loadRoster()` returns `[]` when
+  `liveSession.batch` is null; `boards()` should still list every student who has
+  an attempt row (fallback merge), just with an empty roster otherwise.
+- **`boards()` — authorization:** a student or a non-owning coach calling
+  `boards()` gets whatever `LiveClassService.resolveClassManager` throws
+  (`ForbiddenException`/`NotFoundException`); assert the mock is invoked with
+  `(accessToken, classId)` and that a rejection from it propagates un-caught.
+- **`leaderboard()` — roster + attempted-but-left-batch union:** a student with an
+  attempt row whose id is absent from the roster fetch must still appear in
+  `entries`/`stillSolving`/`notStarted` as appropriate (the `rosterMap` fallback
+  merge in `leaderboard()`), not silently dropped.
+- **`leaderboard()` — `stillSolving` excludes a student who is both in-progress
+  and has a separate completed attempt:** i.e. `best.has(id)` correctly removes
+  them from `stillSolving` even though an `IN_PROGRESS` row also exists for a
+  different `attemptNumber`.
+- **`LiveClassPuzzleController.boards()`:** a thin controller test (or e2e) that
+  the route is wired (`GET /live-class/:id/puzzle/boards`) and forwards the
+  cookie token the same way the sibling routes do — no dedicated test exists for
+  the controller today (none of the other puzzle routes have one either; add one
+  set if/when this file gets controller-level tests).
+
+Not backend, but should be closed alongside the above:
+
+- `e2e/live-class-puzzle.spec.ts` (opt-in, `RUN_LIVE_PUZZLE_E2E=1`): does not
+  exercise `GET /live-class/:id/puzzle/boards`, and its leaderboard assertions
+  don't check the new `stillSolving`/`notStarted` fields. Extend the existing
+  `"assign → in-room attempt → leaderboard → end"` test rather than adding a new
+  one.
+- No web unit tests exist anywhere in this repo (project convention — UI is
+  covered by Playwright only), so `PuzzleBoardTile`, `PuzzleLiveBoardsPanel`,
+  `useLivePuzzleBoards`, and the `MeetingPuzzlePanel` roster-list rendering have
+  no automated coverage beyond `npm run build -w apps/web` / `typecheck` / manual
+  QA. This is consistent with existing practice, not a gap to close the same way.
+
 ## Maintenance Rules
 
 - Whenever a new module is created, add a section to this plan in the same commit.

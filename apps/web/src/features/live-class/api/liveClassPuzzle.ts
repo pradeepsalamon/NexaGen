@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
   type AssignLivePuzzleRequest,
+  type LivePuzzleBoardsResponse,
   type LivePuzzleLeaderboardResponse,
   type LivePuzzleStateResponse,
   type StartPuzzleAttemptResponse
@@ -36,3 +37,6 @@ export const getLivePuzzleLeaderboard = (
   classId: string
 ): Promise<LivePuzzleLeaderboardResponse> =>
   apiFetch<LivePuzzleLeaderboardResponse>(API_ROUTES.liveClass.puzzleLeaderboard(classId));
+
+export const getLivePuzzleBoards = (classId: string): Promise<LivePuzzleBoardsResponse> =>
+  apiFetch<LivePuzzleBoardsResponse>(API_ROUTES.liveClass.puzzleBoards(classId));

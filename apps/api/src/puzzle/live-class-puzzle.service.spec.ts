@@ -46,12 +46,15 @@ const assignmentRow = (over: Record<string, unknown> = {}) => ({
 
 const attempt = (over: Record<string, unknown> = {}) => ({
   studentId: STUDENT_ID,
+  attemptNumber: 1,
   status: "SOLVED",
   scorePercent: 100,
   accuracyPercent: 100,
   durationSeconds: 20,
   hintsUsed: 0,
+  movesJson: [],
   completedAt: new Date("2026-09-06T10:01:00Z"),
+  updatedAt: new Date("2026-09-06T10:01:00Z"),
   student: { id: STUDENT_ID, firstName: "Sam", lastName: "Student" },
   ...over
 });
@@ -72,6 +75,7 @@ describe("LiveClassPuzzleService", () => {
         create: jest.fn().mockResolvedValue(assignmentRow())
       },
       puzzleAttempt: { findMany: jest.fn().mockResolvedValue([]) },
+      liveSession: { findUnique: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn().mockImplementation(async (fn: any) => fn(prisma))
     };
     liveClass = {
@@ -180,6 +184,206 @@ describe("LiveClassPuzzleService", () => {
       expect(res.entries).toHaveLength(1);
       expect(res.entries[0].studentId).toBe(STUDENT_ID);
       expect(res.revealLeaderboard).toBe(false);
+      expect(res.stillSolving).toHaveLength(0);
+      expect(res.notStarted).toHaveLength(0);
+    });
+
+    it("lists batch-enrolled students who haven't attempted as notStarted", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: {
+          students: [
+            { student: { id: STUDENT_ID, firstName: "Sam", lastName: "Student" } },
+            { student: { id: "s-idle", firstName: "Idle", lastName: "Student" } }
+          ]
+        }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([attempt({ studentId: STUDENT_ID })]);
+      const res = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(res.entries.map((e) => e.studentId)).toEqual([STUDENT_ID]);
+      expect(res.notStarted).toEqual([{ studentId: "s-idle", studentName: "Idle Student" }]);
+      expect(res.stillSolving).toHaveLength(0);
+    });
+
+    it("lists a batch-enrolled student who is still solving", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [{ student: { id: "s-solving", firstName: "Solving", lastName: null } }] }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({
+          studentId: "s-solving",
+          status: "IN_PROGRESS",
+          scorePercent: null,
+          student: { id: "s-solving", firstName: "Solving", lastName: null }
+        })
+      ]);
+      const res = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(res.entries).toHaveLength(0);
+      expect(res.solvingCount).toBe(1);
+      expect(res.stillSolving).toEqual([{ studentId: "s-solving", studentName: "Solving" }]);
+      expect(res.notStarted).toHaveLength(0);
+    });
+
+    it("includes an attempted-but-left-batch student in the correct list via rosterMap fallback", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [] } // Roster is empty
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: "s-left", status: "SOLVED", scorePercent: 100, student: { id: "s-left", firstName: "Left", lastName: null } }),
+        attempt({ studentId: "s-left-prog", status: "IN_PROGRESS", scorePercent: null, student: { id: "s-left-prog", firstName: "LeftProg", lastName: null } })
+      ]);
+      const res = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(res.entries).toHaveLength(1);
+      expect(res.entries[0].studentId).toBe("s-left");
+      expect(res.stillSolving).toHaveLength(1);
+      expect(res.stillSolving[0].studentId).toBe("s-left-prog");
+    });
+
+    it("excludes a student from stillSolving if they have a completed attempt", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [{ student: { id: STUDENT_ID, firstName: "Sam", lastName: "Student" } }] }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: STUDENT_ID, status: "SOLVED", attemptNumber: 1 }),
+        attempt({ studentId: STUDENT_ID, status: "IN_PROGRESS", attemptNumber: 2, scorePercent: null })
+      ]);
+      const res = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(res.entries).toHaveLength(1);
+      expect(res.entries[0].studentId).toBe(STUDENT_ID);
+      expect(res.stillSolving).toHaveLength(0); // Excluded because they have a best attempt
+      expect(res.notStarted).toHaveLength(0);
+    });
+  });
+
+  describe("boards", () => {
+    beforeEach(() => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(assignmentRow());
+    });
+
+    it("returns NOT_STARTED with the puzzle's starting fen for a roster student with no attempt", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [{ student: { id: "s-idle", firstName: "Idle", lastName: null } }] }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([]);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      expect(liveClass.resolveClassManager).toHaveBeenCalledWith(TOKEN, CLASS_ID);
+      expect(res.boards).toEqual([
+        {
+          studentId: "s-idle",
+          studentName: "Idle",
+          status: "NOT_STARTED",
+          fen: null,
+          moveCount: 0,
+          lastMoveSan: null,
+          updatedAt: null
+        }
+      ]);
+      expect(res.puzzleFen).toBe(FEN);
+    });
+
+    it("returns the last move's fen for an in-progress attempt", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [{ student: { id: STUDENT_ID, firstName: "Sam", lastName: "Student" } }] }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({
+          studentId: STUDENT_ID,
+          status: "IN_PROGRESS",
+          attemptNumber: 1,
+          scorePercent: null,
+          movesJson: [{ ply: 1, uci: "a1a8", san: "Ra8+", fenAfter: "next-fen" }]
+        })
+      ]);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      expect(res.boards).toEqual([
+        {
+          studentId: STUDENT_ID,
+          studentName: "Sam Student",
+          status: "IN_PROGRESS",
+          fen: "next-fen",
+          moveCount: 1,
+          lastMoveSan: "Ra8+",
+          updatedAt: expect.any(String)
+        }
+      ]);
+    });
+
+    it("returns empty default object when no assignment has ever been created", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(null);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      expect(res).toEqual({ assignmentId: null, puzzleFen: "", orientation: "white", boards: [] });
+    });
+
+    it("surfaces the most recent attempt based on attemptNumber", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [{ student: { id: STUDENT_ID, firstName: "Sam", lastName: null } }] }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: STUDENT_ID, attemptNumber: 1, status: "IN_PROGRESS", movesJson: [{ ply: 1, uci: "a1a2", san: "Ra2", fenAfter: "old-fen" }] }),
+        attempt({ studentId: STUDENT_ID, attemptNumber: 2, status: "IN_PROGRESS", movesJson: [{ ply: 1, uci: "a1a8", san: "Ra8+", fenAfter: "new-fen" }] })
+      ]);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      expect(res.boards[0].fen).toBe("new-fen");
+    });
+
+    it("reports SOLVED and FAILED status with their final fen", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [{ student: { id: "s1", firstName: "S1", lastName: null } }, { student: { id: "s2", firstName: "S2", lastName: null } }] }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: "s1", status: "SOLVED", movesJson: [{ ply: 1, fenAfter: "solved-fen" }], student: { id: "s1", firstName: "S1", lastName: null } }),
+        attempt({ studentId: "s2", status: "FAILED", movesJson: [{ ply: 1, fenAfter: "failed-fen" }], student: { id: "s2", firstName: "S2", lastName: null } })
+      ]);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      const s1 = res.boards.find((b) => b.studentId === "s1");
+      const s2 = res.boards.find((b) => b.studentId === "s2");
+      expect(s1?.status).toBe("SOLVED");
+      expect(s1?.fen).toBe("solved-fen");
+      expect(s2?.status).toBe("FAILED");
+      expect(s2?.fen).toBe("failed-fen");
+    });
+
+    it("sorts boards by studentName ascending", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: {
+          students: [
+            { student: { id: "s-z", firstName: "Zebra", lastName: null } },
+            { student: { id: "s-a", firstName: "Alpha", lastName: null } }
+          ]
+        }
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([]);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      expect(res.boards.map((b) => b.studentName)).toEqual(["Alpha", "Zebra"]);
+    });
+
+    it("includes a student who left the batch via attempted-row fallback", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [] } // Empty roster
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: "s-left", student: { id: "s-left", firstName: "Left", lastName: null } })
+      ]);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      expect(res.boards).toHaveLength(1);
+      expect(res.boards[0].studentId).toBe("s-left");
+    });
+
+    it("includes attempted students for a batch-less live session", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: null // Batch-less
+      });
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: "s-one-off", student: { id: "s-one-off", firstName: "OneOff", lastName: null } })
+      ]);
+      const res = await service.boards(TOKEN, CLASS_ID);
+      expect(res.boards).toHaveLength(1);
+      expect(res.boards[0].studentId).toBe("s-one-off");
+    });
+
+    it("propagates authorization errors from resolveClassManager", async () => {
+      liveClass.resolveClassManager.mockRejectedValue(new ForbiddenException());
+      await expect(service.boards(TOKEN, CLASS_ID)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(liveClass.resolveClassManager).toHaveBeenCalledWith(TOKEN, CLASS_ID);
     });
   });
 });

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle2, Puzzle as PuzzleIcon } from "lucide-react";
+import { CheckCircle2, LayoutGrid, Puzzle as PuzzleIcon } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -22,6 +22,7 @@ import { useEndLivePuzzle, useLivePuzzleLeaderboard } from "../../hooks/useLiveP
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { InRoomPuzzleSolver } from "./InRoomPuzzleSolver";
 import { PuzzleAssignModal } from "./PuzzleAssignModal";
+import { PuzzleLiveBoardsPanel } from "./PuzzleLiveBoardsPanel";
 
 export function MeetingPuzzlePanel() {
   const params = useParams();
@@ -32,6 +33,7 @@ export function MeetingPuzzlePanel() {
   const { activePuzzle } = useLiveClassState();
   const [assignOpen, setAssignOpen] = useState(false);
   const [solveOpen, setSolveOpen] = useState(false);
+  const [boardsOpen, setBoardsOpen] = useState(false);
   const endPuzzle = useEndLivePuzzle(classId);
   const leaderboard = useLivePuzzleLeaderboard(classId, !!activePuzzle);
   const { secondsLeft, expired } = useCountdown(activePuzzle?.endsAt);
@@ -76,6 +78,15 @@ export function MeetingPuzzlePanel() {
             <div className="flex flex-wrap gap-2 pt-1">
               {isCoach ? (
                 <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBoardsOpen(true)}
+                  >
+                    <LayoutGrid className="mr-1.5 size-3.5" strokeWidth={2.5} />
+                    Live boards
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
@@ -142,9 +153,14 @@ export function MeetingPuzzlePanel() {
             ) : (
               <p className="text-sm text-app-muted">No finishes yet.</p>
             )}
-            {leaderboard.data && leaderboard.data.solvingCount > 0 ? (
-              <p className="mt-1.5 text-xs text-app-muted">
-                {leaderboard.data.solvingCount} still solving
+            {leaderboard.data && leaderboard.data.stillSolving.length > 0 ? (
+              <p className="mt-1.5 truncate text-xs text-app-muted">
+                Still solving: {leaderboard.data.stillSolving.map((s) => s.studentName).join(", ")}
+              </p>
+            ) : null}
+            {isCoach && leaderboard.data && leaderboard.data.notStarted.length > 0 ? (
+              <p className="mt-1 truncate text-xs text-app-muted">
+                Not started: {leaderboard.data.notStarted.map((s) => s.studentName).join(", ")}
               </p>
             ) : null}
           </div>
@@ -153,6 +169,10 @@ export function MeetingPuzzlePanel() {
 
       {isCoach ? (
         <PuzzleAssignModal classId={classId} open={assignOpen} onOpenChange={setAssignOpen} />
+      ) : null}
+
+      {isCoach ? (
+        <PuzzleLiveBoardsPanel classId={classId} open={boardsOpen} onOpenChange={setBoardsOpen} />
       ) : null}
 
       {activePuzzle && !isCoach ? (

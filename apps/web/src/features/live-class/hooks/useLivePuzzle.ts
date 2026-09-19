@@ -5,6 +5,7 @@ import { useToast } from "@/providers/ToastProvider";
 import {
   assignLivePuzzle,
   endLivePuzzle,
+  getLivePuzzleBoards,
   getLivePuzzleLeaderboard,
   getLivePuzzleState
 } from "../api/liveClassPuzzle";
@@ -28,6 +29,17 @@ export function useLivePuzzleLeaderboard(classId: string, enabled = true) {
   });
 }
 
+// Coach-only. A faster poll than the leaderboard's since this is the live
+// "walk the room" view — only fetched while the panel is actually open.
+export function useLivePuzzleBoards(classId: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.livePuzzle.boards(classId),
+    queryFn: () => getLivePuzzleBoards(classId),
+    enabled: enabled && !!classId,
+    refetchInterval: enabled ? 3000 : false
+  });
+}
+
 // undo: intentionally excluded — a mid-class server broadcast reaches every
 // participant instantly; a silent client revert would not re-broadcast.
 export function useAssignLivePuzzle(classId: string) {
@@ -39,6 +51,7 @@ export function useAssignLivePuzzle(classId: string) {
       toast.success({ title: "Puzzle shared with the class" });
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
+      qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
     },
     onError: (error: Error) =>
       toast.error({ title: "Couldn't share the puzzle", message: error.message })
@@ -54,6 +67,7 @@ export function useEndLivePuzzle(classId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
+      qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
     },
     onError: (error: Error) =>
       toast.error({ title: "Couldn't end the puzzle", message: error.message })

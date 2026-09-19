@@ -6,10 +6,15 @@ import {
 } from "@nestjs/common";
 import type {
   AssignLivePuzzleRequest,
+  AttemptMove,
   LivePuzzleAssignment,
+  LivePuzzleBoardEntry,
+  LivePuzzleBoardsResponse,
+  LivePuzzleBoardStatus,
   LivePuzzleLeaderboardEntry,
   LivePuzzleLeaderboardResponse,
   LivePuzzleMessage,
+  LivePuzzleRosterEntry,
   LivePuzzleStateResponse,
   StartPuzzleAttemptResponse
 } from "@nexa-chess/types";
@@ -128,7 +133,7 @@ export class LiveClassPuzzleService {
     return this.attempts.start(accessToken, active.puzzleId, { liveClassId: classId });
   }
 
-  /** Ranked leaderboard for the current (or most recent) assignment. */
+  /** Ranked leaderboard for the current (or most recent) assignment, plus the rest of the roster. */
   async leaderboard(
     accessToken: string | undefined,
     classId: string
@@ -143,13 +148,16 @@ export class LiveClassPuzzleService {
         include: puzzleInclude
       }));
     if (!assignment) {
-      return { entries: [], solvingCount: 0, revealLeaderboard: true };
+      return { entries: [], solvingCount: 0, stillSolving: [], notStarted: [], revealLeaderboard: true };
     }
 
-    const rows = await this.prisma.puzzleAttempt.findMany({
-      where: { liveClassId: classId, puzzleId: assignment.puzzleId },
-      include: { student: { select: { id: true, firstName: true, lastName: true } } }
-    });
+    const [rows, roster] = await Promise.all([
+      this.prisma.puzzleAttempt.findMany({
+        where: { liveClassId: classId, puzzleId: assignment.puzzleId },
+        include: { student: { select: { id: true, firstName: true, lastName: true } } }
+      }),
+      this.loadRoster(classId)
+    ]);
 
     const best = new Map<string, (typeof rows)[number]>();
     for (const row of rows) {
@@ -172,19 +180,118 @@ export class LiveClassPuzzleService {
         isSelf: row.studentId === user.id
       }));
 
-    const solving = new Set(
+    // Roster = every enrolled student, plus anyone with an attempt who has
+    // since left the batch (so their row never silently vanishes mid-class).
+    const rosterMap = new Map<string, { id: string; firstName: string; lastName: string | null }>(
+      roster.map((s) => [s.id, s])
+    );
+    for (const row of rows) {
+      if (!rosterMap.has(row.studentId)) rosterMap.set(row.studentId, row.student);
+    }
+
+    const attemptedIds = new Set(rows.map((r) => r.studentId));
+    const inProgressIds = new Set(
       rows.filter((r) => r.status === "IN_PROGRESS").map((r) => r.studentId)
     );
-    const solvingCount = [...solving].filter((id) => !best.has(id)).length;
+
+    const toRosterEntry = (s: { id: string; firstName: string; lastName: string | null }): LivePuzzleRosterEntry => ({
+      studentId: s.id,
+      studentName: fullName(s) ?? "Student"
+    });
+
+    const stillSolving = [...rosterMap.values()]
+      .filter((s) => inProgressIds.has(s.id) && !best.has(s.id))
+      .map(toRosterEntry);
+    const notStarted = [...rosterMap.values()]
+      .filter((s) => !attemptedIds.has(s.id))
+      .map(toRosterEntry);
 
     const revealLeaderboard = assignment.revealLeaderboard;
     const isStudent = user.role === UserRole.STUDENT;
-    const entries =
-      !revealLeaderboard && isStudent
-        ? ranked.filter((entry) => entry.isSelf)
-        : ranked;
+    const hide = !revealLeaderboard && isStudent;
 
-    return { entries, solvingCount, revealLeaderboard };
+    return {
+      entries: hide ? ranked.filter((entry) => entry.isSelf) : ranked,
+      solvingCount: stillSolving.length,
+      stillSolving: hide ? stillSolving.filter((s) => s.studentId === user.id) : stillSolving,
+      notStarted: hide ? notStarted.filter((s) => s.studentId === user.id) : notStarted,
+      revealLeaderboard
+    };
+  }
+
+  /** Coach-owner / admin: every enrolled student's current board position for the active (or most recent) assignment. */
+  async boards(accessToken: string | undefined, classId: string): Promise<LivePuzzleBoardsResponse> {
+    await this.liveClass.resolveClassManager(accessToken, classId);
+
+    const assignment =
+      (await this.loadActive(classId)) ??
+      (await this.prisma.liveClassPuzzleAssignment.findFirst({
+        where: { liveClassId: classId },
+        orderBy: { startedAt: "desc" },
+        include: puzzleInclude
+      }));
+    if (!assignment) {
+      return { assignmentId: null, puzzleFen: "", orientation: "white", boards: [] };
+    }
+
+    const [rows, roster] = await Promise.all([
+      this.prisma.puzzleAttempt.findMany({
+        where: { liveClassId: classId, puzzleId: assignment.puzzleId },
+        include: { student: { select: { id: true, firstName: true, lastName: true } } }
+      }),
+      this.loadRoster(classId)
+    ]);
+
+    // A student's most recent attempt (by attemptNumber) is their "current" board.
+    const latestByStudent = new Map<string, (typeof rows)[number]>();
+    for (const row of rows) {
+      const current = latestByStudent.get(row.studentId);
+      if (!current || row.attemptNumber > current.attemptNumber) {
+        latestByStudent.set(row.studentId, row);
+      }
+    }
+
+    const rosterMap = new Map<string, { id: string; firstName: string; lastName: string | null }>(
+      roster.map((s) => [s.id, s])
+    );
+    for (const row of rows) {
+      if (!rosterMap.has(row.studentId)) rosterMap.set(row.studentId, row.student);
+    }
+
+    const boards: LivePuzzleBoardEntry[] = [...rosterMap.values()]
+      .map((student) => {
+        const row = latestByStudent.get(student.id);
+        if (!row) {
+          return {
+            studentId: student.id,
+            studentName: fullName(student) ?? "Student",
+            status: "NOT_STARTED" as LivePuzzleBoardStatus,
+            fen: null,
+            moveCount: 0,
+            lastMoveSan: null,
+            updatedAt: null
+          };
+        }
+        const moves = Array.isArray(row.movesJson) ? (row.movesJson as unknown as AttemptMove[]) : [];
+        const last = moves[moves.length - 1];
+        return {
+          studentId: student.id,
+          studentName: fullName(student) ?? "Student",
+          status: row.status as LivePuzzleBoardStatus,
+          fen: last?.fenAfter ?? assignment.puzzle.fen,
+          moveCount: moves.length,
+          lastMoveSan: last?.san ?? null,
+          updatedAt: row.updatedAt.toISOString()
+        };
+      })
+      .sort((a, b) => a.studentName.localeCompare(b.studentName));
+
+    return {
+      assignmentId: assignment.id,
+      puzzleFen: assignment.puzzle.fen,
+      orientation: this.sideToMove(assignment.puzzle.fen),
+      boards
+    };
   }
 
   // ── internals ──
@@ -194,6 +301,26 @@ export class LiveClassPuzzleService {
       where: { liveClassId: classId, status: "ACTIVE" },
       include: puzzleInclude
     });
+  }
+
+  /** Enrolled students for the class's batch. Empty for a batch-less one-off class. */
+  private async loadRoster(
+    classId: string
+  ): Promise<{ id: string; firstName: string; lastName: string | null }[]> {
+    const liveSession = await this.prisma.liveSession.findUnique({
+      where: { classId },
+      include: {
+        batch: {
+          include: {
+            students: {
+              where: { isDeleted: false },
+              include: { student: { select: { id: true, firstName: true, lastName: true } } }
+            }
+          }
+        }
+      }
+    });
+    return (liveSession?.batch?.students ?? []).map((bs) => bs.student);
   }
 
   private assertOpen(row: AssignmentRow): void {

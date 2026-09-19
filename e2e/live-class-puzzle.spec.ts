@@ -205,10 +205,22 @@ test.describe("Live-class puzzle assignment", () => {
       const board = await json<{
         entries: Array<{ studentId: string; rank: number; scorePercent: number; solved: boolean; isSelf: boolean }>;
         revealLeaderboard: boolean;
+        stillSolving: Array<{ studentId: string }>;
+        notStarted: Array<{ studentId: string }>;
       }>(request, "GET", `/live-class/${classId}/puzzle/leaderboard`, student);
       expect(board.revealLeaderboard).toBe(true);
       expect(board.entries.length).toBe(1);
       expect(board.entries[0]).toMatchObject({ rank: 1, scorePercent: 100, solved: true, isSelf: true });
+      expect(Array.isArray(board.stillSolving)).toBe(true);
+      expect(Array.isArray(board.notStarted)).toBe(true);
+
+      // Coach can fetch the boards.
+      const boards = await json<{
+        boards: Array<{ studentId: string; status: string }>;
+      }>(request, "GET", `/live-class/${classId}/puzzle/boards`, coach);
+      expect(Array.isArray(boards.boards)).toBe(true);
+      const studentBoard = boards.boards.find(b => board.entries[0].studentId === b.studentId);
+      expect(studentBoard?.status).toBe("SOLVED");
 
       // Coach ends it.
       const ended = await json<{ assignment: unknown }>(
