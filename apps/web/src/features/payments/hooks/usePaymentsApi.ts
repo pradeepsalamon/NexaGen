@@ -6,7 +6,11 @@ import type {
   CancelSubscriptionRequest,
   CreateBatchPlanRequest,
   CreateDiscountRequest,
+  CreateOfflinePaymentMethodRequest,
+  ManualPaymentReviewStatus,
+  RecordManualPaymentRequest,
   UpdateDiscountRequest,
+  UpdateOfflinePaymentMethodRequest,
   CreateCheckoutRequest,
   CreatePlanRequest,
   CreateRefundRequest,
@@ -19,17 +23,28 @@ import type {
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
+  approveManualPayment,
   archiveBatchPlan,
   archivePlan,
   cancelSubscription,
   createBatchPlan,
   createDiscount,
+  createOfflineMethod,
   deleteDiscount,
+  getAdminManualPayments,
+  getAdminOfflineMethods,
   getBatchPricing,
   getDiscounts,
+  getManualBatchPlans,
+  getManualBatchStudents,
+  getMyManualPayments,
+  getOfflineMethods,
   previewDiscount,
+  recordManualPayment,
+  rejectManualPayment,
   updateBatchPlan,
   updateDiscount,
+  updateOfflineMethod,
   createCheckout,
   createPlan,
   getAdminInvoices,
@@ -449,6 +464,153 @@ export function useArchiveBatchPlan(batchId: string) {
       });
       void queryClient.invalidateQueries({ queryKey: queryKeys.payments.plans });
       toast.success({ title: "Price option archived" });
+    }
+  });
+}
+
+// ── Manual / offline payments (admin OR coach) ──
+
+export function useOfflineMethods() {
+  return useQuery({
+    queryKey: queryKeys.payments.manualMethods,
+    queryFn: getOfflineMethods
+  });
+}
+
+export function useManualBatchPlans(batchId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.payments.manualBatchPlans(batchId ?? ""),
+    queryFn: () => getManualBatchPlans(batchId as string),
+    enabled: Boolean(batchId)
+  });
+}
+
+export function useManualBatchStudents(batchId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.payments.manualBatchStudents(batchId ?? ""),
+    queryFn: () => getManualBatchStudents(batchId as string),
+    enabled: Boolean(batchId)
+  });
+}
+
+export function useMyManualPayments() {
+  return useQuery({
+    queryKey: queryKeys.payments.manualMine,
+    queryFn: getMyManualPayments
+  });
+}
+
+/**
+ * Not wrapped in useUndoableMutation — same policy exclusion as a refund
+ * (lib/undo/README.md): this either grants access immediately (admin) or
+ * opens a review request (coach), and there is no reverse endpoint for either.
+ */
+export function useRecordManualPayment() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({ data, file }: { data: RecordManualPaymentRequest; file?: File }) =>
+      recordManualPayment(data, file),
+    onSuccess: (record) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.payments.manualMine });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.payments.manualAdminList()
+      });
+      toast.success({
+        title:
+          record.status === "APPROVED"
+            ? "Payment recorded"
+            : "Submitted for admin approval",
+        message:
+          record.status === "APPROVED"
+            ? undefined
+            : "The student gets access once an admin approves it."
+      });
+    }
+  });
+}
+
+// ── Manual / offline payments (admin) ──
+
+export function useAdminManualPayments(status?: ManualPaymentReviewStatus) {
+  return useQuery({
+    queryKey: queryKeys.payments.manualAdminList(status),
+    queryFn: () => getAdminManualPayments(status)
+  });
+}
+
+/**
+ * Approving is a one-way grant of access — same policy exclusion as a refund,
+ * not wrapped in useUndoableMutation. The confirmation dialog is the safeguard.
+ */
+export function useApproveManualPayment() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => approveManualPayment(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+      toast.success({ title: "Payment approved" });
+    }
+  });
+}
+
+export function useRejectManualPayment() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      rejectManualPayment(id, reason),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+      toast.success({ title: "Request rejected" });
+    }
+  });
+}
+
+export function useAdminOfflineMethods() {
+  return useQuery({
+    queryKey: queryKeys.payments.manualAdminMethods,
+    queryFn: getAdminOfflineMethods
+  });
+}
+
+export function useCreateOfflineMethod() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: (data: CreateOfflinePaymentMethodRequest) => createOfflineMethod(data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.payments.manualAdminMethods
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.payments.manualMethods
+      });
+      toast.success({ title: "Payment method added" });
+    }
+  });
+}
+
+export function useUpdateOfflineMethod() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateOfflinePaymentMethodRequest }) =>
+      updateOfflineMethod(id, data),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.payments.manualAdminMethods
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.payments.manualMethods
+      });
+      toast.success({ title: "Payment method saved" });
     }
   });
 }

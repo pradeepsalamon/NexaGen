@@ -285,6 +285,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.entitlement;
   }
 
+  get offlinePaymentMethod() {
+    return this.client.offlinePaymentMethod;
+  }
+
+  get manualPaymentRecord() {
+    return this.client.manualPaymentRecord;
+  }
+
   get paymentProviderEvent() {
     return this.client.paymentProviderEvent;
   }

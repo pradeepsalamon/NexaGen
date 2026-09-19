@@ -6,9 +6,17 @@ import type {
   CancelSubscriptionRequest,
   CreateBatchPlanRequest,
   CreateDiscountRequest,
+  CreateOfflinePaymentMethodRequest,
   DiscountListResponse,
   DiscountItem,
+  ManualPaymentListResponse,
+  ManualPaymentRecordItem,
+  ManualPaymentReviewStatus,
+  ManualPaymentStudentListResponse,
+  OfflinePaymentMethodItem,
+  RecordManualPaymentRequest,
   UpdateDiscountRequest,
+  UpdateOfflinePaymentMethodRequest,
   CheckoutConfigResponse,
   CheckoutResponse,
   CreateCheckoutRequest,
@@ -33,7 +41,12 @@ import type {
   UpdatePlanRequest,
   VerifyPaymentRequest
 } from "@nexa-chess/types";
+import { getWebEnv } from "@nexa-chess/config/web";
 import { apiFetch } from "@/lib/api";
+
+const API_BASE_URL = getWebEnv({
+  NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
+}).NEXT_PUBLIC_API_URL;
 
 // ── Student / checkout ──
 
@@ -292,6 +305,99 @@ export type AdminPaymentDetail = {
     receivedAt: string;
   }[];
 };
+
+// ── Manual / offline payments (admin OR coach) ──
+
+export function getOfflineMethods(): Promise<{ methods: OfflinePaymentMethodItem[] }> {
+  return apiFetch(API_ROUTES.payments.manual.methods);
+}
+
+export function getManualBatchPlans(batchId: string): Promise<PlanListResponse> {
+  return apiFetch(API_ROUTES.payments.manual.batchPlans(batchId));
+}
+
+export function getManualBatchStudents(
+  batchId: string
+): Promise<ManualPaymentStudentListResponse> {
+  return apiFetch(API_ROUTES.payments.manual.batchStudents(batchId));
+}
+
+/**
+ * Multipart, not JSON — the optional proof attachment rides alongside the
+ * payload as a second form field. Mirrors `lib/uploadApi.ts`'s FormData
+ * construction rather than the usual typed JSON `apiFetch<T>()` call.
+ */
+export function recordManualPayment(
+  data: RecordManualPaymentRequest,
+  file?: File
+): Promise<ManualPaymentRecordItem> {
+  const formData = new FormData();
+  formData.append("payload", JSON.stringify(data));
+  if (file) formData.append("file", file);
+
+  return apiFetch(API_ROUTES.payments.manual.record, {
+    body: formData,
+    method: "POST",
+    headers: { "Content-Type": "multipart/form-data" }
+  });
+}
+
+export function getMyManualPayments(): Promise<ManualPaymentListResponse> {
+  return apiFetch(API_ROUTES.payments.manual.mine);
+}
+
+export function manualPaymentAttachmentUrl(recordId: string): string {
+  return `${API_BASE_URL}${API_ROUTES.payments.manual.attachment(recordId)}`;
+}
+
+// ── Manual / offline payments (admin) ──
+
+export function getAdminManualPayments(
+  status?: ManualPaymentReviewStatus
+): Promise<ManualPaymentListResponse> {
+  return apiFetch(
+    withQuery(API_ROUTES.adminPayments.manual.list, { status: status ?? "" })
+  );
+}
+
+export function approveManualPayment(id: string): Promise<ManualPaymentRecordItem> {
+  return apiFetch(API_ROUTES.adminPayments.manual.approve(id), { method: "POST" });
+}
+
+export function rejectManualPayment(
+  id: string,
+  reason: string
+): Promise<ManualPaymentRecordItem> {
+  return apiFetch(API_ROUTES.adminPayments.manual.reject(id), {
+    method: "POST",
+    body: { reason }
+  });
+}
+
+export function getAdminOfflineMethods(): Promise<{
+  methods: OfflinePaymentMethodItem[];
+}> {
+  return apiFetch(API_ROUTES.adminPayments.manual.methods);
+}
+
+export function createOfflineMethod(
+  data: CreateOfflinePaymentMethodRequest
+): Promise<OfflinePaymentMethodItem> {
+  return apiFetch(API_ROUTES.adminPayments.manual.methods, {
+    method: "POST",
+    body: data
+  });
+}
+
+export function updateOfflineMethod(
+  id: string,
+  data: UpdateOfflinePaymentMethodRequest
+): Promise<OfflinePaymentMethodItem> {
+  return apiFetch(API_ROUTES.adminPayments.manual.method(id), {
+    method: "PUT",
+    body: data
+  });
+}
 
 function withQuery(path: string, params: Record<string, unknown>): string {
   const search = new URLSearchParams();

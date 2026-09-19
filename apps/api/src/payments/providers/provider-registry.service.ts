@@ -1,8 +1,9 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
+import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import {
   PAYMENT_PROVIDERS,
   type PaymentProvider,
   type PaymentMethodKind,
+  type PaymentSource,
   type UpiFlow
 } from "@nexa-chess/types";
 import { CashfreeProvider } from "./cashfree.provider";
@@ -31,7 +32,21 @@ export class ProviderRegistry {
     };
   }
 
-  get(provider: PaymentProvider): PaymentProviderAdapter {
+  /**
+   * Accepts {@link PaymentSource} (a stored payment's actual provider, which
+   * can be MANUAL) rather than the narrower {@link PaymentProvider} (a routing
+   * candidate, which can't) so callers reading a Payment/Refund/Subscription
+   * row don't need to narrow it themselves first. MANUAL has no adapter by
+   * design — rejected here, once, with a clear message, instead of an opaque
+   * "no adapter registered" from every call site.
+   */
+  get(provider: PaymentSource): PaymentProviderAdapter {
+    if (provider === "MANUAL") {
+      throw new BadRequestException(
+        "Manual payments have no gateway adapter — they never reconcile with a provider."
+      );
+    }
+
     const adapter = this.adapters[provider];
     if (!adapter) {
       throw new ServiceUnavailableException(
@@ -42,7 +57,7 @@ export class ProviderRegistry {
   }
 
   /** Throws rather than returning an adapter that cannot authenticate. */
-  require(provider: PaymentProvider): PaymentProviderAdapter {
+  require(provider: PaymentSource): PaymentProviderAdapter {
     const adapter = this.get(provider);
     if (!adapter.isConfigured()) {
       throw new ServiceUnavailableException(

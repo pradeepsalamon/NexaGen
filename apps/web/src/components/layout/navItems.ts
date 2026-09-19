@@ -80,6 +80,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/attendance", label: "Attendance", icon: UserCheck },
   { href: "/coach/presets", label: "Class Presets", icon: SlidersHorizontal },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet },
+  { href: "/coach/payments", label: "Payments", icon: CreditCard },
   { href: "/chess-board", label: "Chess Board", icon: Palette },
   { href: "/profile", label: "Settings", icon: Settings }
 ];

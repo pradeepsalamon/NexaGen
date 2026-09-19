@@ -103,6 +103,15 @@ export const queryKeys = {
     discounts: ["payments", "admin", "discounts"] as const,
     batchPricing: (batchId: string) =>
       ["payments", "batch-pricing", batchId] as const,
+    manualMethods: ["payments", "manual", "methods"] as const,
+    manualBatchPlans: (batchId: string) =>
+      ["payments", "manual", "batch-plans", batchId] as const,
+    manualBatchStudents: (batchId: string) =>
+      ["payments", "manual", "batch-students", batchId] as const,
+    manualMine: ["payments", "manual", "mine"] as const,
+    manualAdminList: (status?: string) =>
+      ["payments", "manual", "admin", "list", status ?? null] as const,
+    manualAdminMethods: ["payments", "manual", "admin", "methods"] as const,
   },
   invoices: {
     all: ["invoices"] as const,

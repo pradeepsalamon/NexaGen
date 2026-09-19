@@ -44,6 +44,19 @@ export function assertAdmin(user: User): User {
 }
 
 /**
+ * Manual/offline payment recording is the one payments surface a coach may
+ * touch — always scoped to their own batches, never a general payments view.
+ */
+export function assertAdminOrCoach(user: User): User {
+  if (!isAdminRole(user.role) && user.role !== UserRole.COACH) {
+    throw new ForbiddenException(
+      "Only admins and coaches can record manual payments."
+    );
+  }
+  return user;
+}
+
+/**
  * Row-level visibility for a payment record. Admins see everything; everyone
  * else sees only their own. There is no coach view of another student's
  * payments by design — money is between the student and the academy.

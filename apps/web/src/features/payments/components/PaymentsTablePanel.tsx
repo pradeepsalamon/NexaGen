@@ -7,8 +7,8 @@ import {
   formatMoney,
   PAYMENT_METHOD_KINDS,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
-  PAYMENT_PROVIDERS,
+  PAYMENT_SOURCE_LABELS,
+  PAYMENT_SOURCES,
   PAYMENT_STATUS_LABELS,
   PAYMENT_STATUSES,
   type PaymentListItem,
@@ -95,8 +95,8 @@ export function PaymentsTablePanel() {
                   undefined) as PaymentListQuery["provider"]
               })
             }
-            options={PAYMENT_PROVIDERS.map((provider) => ({
-              label: PAYMENT_PROVIDER_LABELS[provider],
+            options={PAYMENT_SOURCES.map((provider) => ({
+              label: PAYMENT_SOURCE_LABELS[provider],
               value: provider
             }))}
             placeholder="Any gateway"
@@ -236,7 +236,7 @@ export function PaymentsTablePanel() {
                         : "—"}
                     </td>
                     <td className="px-4 py-3 text-app-muted">
-                      {PAYMENT_PROVIDER_LABELS[payment.provider]}
+                      {PAYMENT_SOURCE_LABELS[payment.provider]}
                     </td>
                     <td className="px-4 py-3">
                       <Badge variant={STATUS_VARIANT[payment.status]}>

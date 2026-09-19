@@ -19,8 +19,8 @@ import {
   INVOICE_STATUS_LABELS,
   PAYMENT_METHOD_KINDS,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
-  PAYMENT_PROVIDERS,
+  PAYMENT_SOURCE_LABELS,
+  PAYMENT_SOURCES,
   type AdminInvoiceQuery,
   type InvoiceDocumentStatus,
   type InvoiceStats
@@ -115,8 +115,8 @@ export function AdminInvoicesPanel() {
                   undefined) as AdminInvoiceQuery["provider"]
               })
             }
-            options={PAYMENT_PROVIDERS.map((provider) => ({
-              label: PAYMENT_PROVIDER_LABELS[provider],
+            options={PAYMENT_SOURCES.map((provider) => ({
+              label: PAYMENT_SOURCE_LABELS[provider],
               value: provider
             }))}
             placeholder="Any gateway"
@@ -253,7 +253,7 @@ export function AdminInvoicesPanel() {
                     </td>
                     <td className="px-4 py-3 text-xs text-app-muted">
                       {invoice.payment.provider
-                        ? PAYMENT_PROVIDER_LABELS[invoice.payment.provider]
+                        ? PAYMENT_SOURCE_LABELS[invoice.payment.provider]
                         : "—"}
                       {invoice.payment.method
                         ? ` · ${PAYMENT_METHOD_LABELS[invoice.payment.method]}`

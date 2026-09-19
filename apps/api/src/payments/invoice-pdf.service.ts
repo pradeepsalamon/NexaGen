@@ -6,7 +6,7 @@ import {
   formatMoney,
   INVOICE_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   stateNameFromCode,
   type BillingAddress,
   type CreditNoteItem,
@@ -536,7 +536,7 @@ export class InvoicePdfService {
     if (invoice.payment.provider) {
       entries.push([
         "Payment provider",
-        PAYMENT_PROVIDER_LABELS[invoice.payment.provider]
+        PAYMENT_SOURCE_LABELS[invoice.payment.provider]
       ]);
     }
     if (invoice.payment.method) {

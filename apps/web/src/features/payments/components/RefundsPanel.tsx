@@ -2,7 +2,7 @@
 
 import {
   formatMoney,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   REFUND_STATUS_LABELS,
   type RefundStatus
 } from "@nexa-chess/types";
@@ -61,7 +61,7 @@ export function RefundsPanel() {
               <span className="font-mono text-xs">{refund.orderNumber}</span>
             </p>
             <p className="truncate text-xs text-app-muted">
-              {PAYMENT_PROVIDER_LABELS[refund.provider]}
+              {PAYMENT_SOURCE_LABELS[refund.provider]}
               {refund.reason ? ` · ${refund.reason}` : ""}
               {refund.requestedByName ? ` · by ${refund.requestedByName}` : ""}
             </p>

@@ -21,6 +21,10 @@ import { InvoiceService } from "./invoice.service";
 import { InvoiceProcessor } from "./invoice.processor";
 import { InvoicesAdminController } from "./invoices-admin.controller";
 import { InvoicesController } from "./invoices.controller";
+import { ManualPaymentAttachmentStorage } from "./manual-payment-attachment.storage";
+import { ManualPaymentController } from "./manual-payment.controller";
+import { ManualPaymentService } from "./manual-payment.service";
+import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { PaymentReconciliationService } from "./payment-reconciliation.service";
 import { PaymentRouterService } from "./payment-router.service";
 import { PaymentWebhookService } from "./payment-webhook.service";
@@ -53,6 +57,7 @@ import { SubscriptionService } from "./subscription.service";
   controllers: [
     InvoicesAdminController,
     InvoicesController,
+    ManualPaymentController,
     PaymentsController,
     PaymentsAdminController,
     PaymentsWebhookController
@@ -83,6 +88,9 @@ import { SubscriptionService } from "./subscription.service";
     InvoiceService,
     InvoiceSettingsService,
     InvoiceStorageService,
+    ManualPaymentAttachmentStorage,
+    ManualPaymentService,
+    OfflinePaymentMethodService,
     PaymentReconciliationService,
     PaymentRouterService,
     PaymentService,

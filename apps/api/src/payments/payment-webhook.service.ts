@@ -310,7 +310,13 @@ export class PaymentWebhookService {
     });
 
     for (const event of failed) {
-      const adapter = this.registry.get(event.provider);
+      // A webhook can never carry provider MANUAL — no route accepts one — so
+      // this narrows what `PaymentWebhookEvent.provider`'s (wide, DB-level)
+      // type allows back down to the 3 real gateways this service deals in.
+      if (event.provider === "MANUAL") continue;
+      const provider: PaymentProvider = event.provider;
+
+      const adapter = this.registry.get(provider);
       try {
         // The stored payload is re-parsed through the adapter so the mapping
         // logic stays in one place, but the signature is not re-checked: it was
@@ -319,7 +325,7 @@ export class PaymentWebhookService {
           rawBody: JSON.stringify(event.payload),
           headers: {}
         });
-        await this.process(event.id, event.provider, {
+        await this.process(event.id, provider, {
           ...result,
           eventId: event.eventId,
           signatureValid: true

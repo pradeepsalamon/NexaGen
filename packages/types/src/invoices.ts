@@ -1,12 +1,12 @@
 import { z } from "zod";
 import {
   paymentMethodKindSchema,
-  paymentProviderSchema,
+  paymentSourceSchema,
   percentOf,
   type EntitlementItem,
   type PaymentListItem,
   type PaymentMethodKind,
-  type PaymentProvider,
+  type PaymentSource,
   type SubscriptionItem
 } from "./payments";
 
@@ -340,7 +340,7 @@ export function sumInvoiceLines(lines: InvoiceLine[]): {
 // ── The document ──
 
 export type InvoicePaymentSummary = {
-  provider: PaymentProvider | null;
+  provider: PaymentSource | null;
   method: PaymentMethodKind | null;
   /**
    * Provider-supplied, already-safe descriptor ("Visa •••• 4242", "UPI —
@@ -715,7 +715,7 @@ export type InvoiceAuditResponse = { entries: InvoiceAuditEntry[] };
 export const adminInvoiceQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   status: invoiceDocumentStatusSchema.optional(),
-  provider: paymentProviderSchema.optional(),
+  provider: paymentSourceSchema.optional(),
   method: paymentMethodKindSchema.optional(),
   currency: z.string().trim().length(3).toUpperCase().optional(),
   userId: z.string().trim().optional(),

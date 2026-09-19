@@ -6,7 +6,7 @@ import {
   INVOICE_STATUS_LABELS,
   invoiceLineSchema,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   stateCodeFromGstin,
   sellerFromSettings,
   sumInvoiceLines,
@@ -608,7 +608,7 @@ export class InvoiceService {
       [
         "Provider",
         invoice.payment.provider
-          ? PAYMENT_PROVIDER_LABELS[invoice.payment.provider]
+          ? PAYMENT_SOURCE_LABELS[invoice.payment.provider]
           : "—"
       ],
       ["Transaction ID", invoice.payment.transactionId ?? "—"]

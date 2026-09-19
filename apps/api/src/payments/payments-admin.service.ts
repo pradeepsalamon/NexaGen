@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { getApiEnv } from "@nexa-chess/config/api";
 import {
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   paymentRoutingConfigSchema,
   type PaymentListQuery,
   type PaymentListResponse,
@@ -147,7 +147,7 @@ export class PaymentsAdminService {
       ),
       revenueByProvider: groupRevenue(settled, (row) => ({
         key: row.provider,
-        label: PAYMENT_PROVIDER_LABELS[row.provider]
+        label: PAYMENT_SOURCE_LABELS[row.provider]
       })),
       revenueTrend: this.buildTrend(trendRows, tz, today.start),
       activeSubscriptions: await this.prisma.subscription.count({

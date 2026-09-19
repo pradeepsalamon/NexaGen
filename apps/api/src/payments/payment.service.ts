@@ -480,6 +480,7 @@ export class PaymentService {
   ): Promise<PaymentStatusResponse> {
     const payment = await this.requirePayment(paymentId);
     assertOwnerOrAdmin(user, payment.userId);
+    this.assertHasGateway(payment.provider);
 
     const adapter = this.registry.get(payment.provider);
 
@@ -532,6 +533,7 @@ export class PaymentService {
    */
   async reconcile(paymentId: string): Promise<void> {
     const payment = await this.requirePayment(paymentId);
+    this.assertHasGateway(payment.provider);
     const adapter = this.registry.get(payment.provider);
 
     if (!adapter.isConfigured()) return;
@@ -945,10 +947,14 @@ export class PaymentService {
     }
 
     // Providers already tried are excluded only after the attempt they belong
-    // to reached a settled failure — never while one is still in the air.
+    // to reached a settled failure — never while one is still in the air. A
+    // MANUAL attempt (a rejected manual payment being retried online) is
+    // never a routing candidate in the first place, so it is dropped rather
+    // than passed to a router that only knows the 3 real gateways.
     const exhausted = order.attempts
       .filter((attempt) => attempt.status === PaymentStatus.FAILED)
-      .map((attempt) => attempt.provider);
+      .map((attempt) => attempt.provider)
+      .filter((provider): provider is Exclude<typeof provider, "MANUAL"> => provider !== "MANUAL");
 
     const decision = await this.router.route({
       currency: order.currency,
@@ -1193,6 +1199,20 @@ export class PaymentService {
       dto.returnPath,
       appliedFromOrder(order)
     );
+  }
+
+  /**
+   * MANUAL payments never touch a gateway — `ProviderRegistry` has no adapter
+   * registered for them, so `.get()` would throw an opaque
+   * "no adapter registered" error. Reject with a clear one instead: a manual
+   * payment's state only ever moves via `ManualPaymentService.approve/reject`.
+   */
+  private assertHasGateway(provider: Payment["provider"]): void {
+    if (provider === "MANUAL") {
+      throw new BadRequestException(
+        "Manual payments don't reconcile with a gateway — approve or reject the request instead."
+      );
+    }
   }
 
   /**

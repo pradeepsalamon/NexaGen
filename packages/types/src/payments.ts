@@ -24,6 +24,23 @@ export const PAYMENT_PROVIDER_LABELS: Record<PaymentProvider, string> = {
   STRIPE: "Stripe"
 };
 
+/**
+ * What a payment was actually settled with — the 3 routable gateways, plus MANUAL
+ * (cash / personal UPI-GPay / bank transfer, recorded by an admin or coach for
+ * tracking). Deliberately separate from {@link PaymentProvider}: routing, checkout
+ * handoff and gateway health only ever deal with the 3 real gateways and never see
+ * MANUAL — it is never a routing candidate and has no provider adapter. Use this type
+ * only for fields that reflect a stored payment's actual provider.
+ */
+export const paymentSourceSchema = z.enum(["RAZORPAY", "CASHFREE", "STRIPE", "MANUAL"]);
+export type PaymentSource = z.infer<typeof paymentSourceSchema>;
+export const PAYMENT_SOURCES = paymentSourceSchema.options;
+
+export const PAYMENT_SOURCE_LABELS: Record<PaymentSource, string> = {
+  ...PAYMENT_PROVIDER_LABELS,
+  MANUAL: "Manual"
+};
+
 // ── Unified payment state model ──
 //
 // Provider statuses map into this and nothing else. The rank is what makes
@@ -713,7 +730,7 @@ export type PaymentStatusResponse = {
   orderNumber: string;
   status: PaymentStatus;
   orderStatus: OrderStatus;
-  provider: PaymentProvider;
+  provider: PaymentSource;
   method: PaymentMethodKind | null;
   amount: number;
   currency: string;
@@ -749,7 +766,7 @@ export type PaymentListItem = {
   amountRefunded: number;
   method: PaymentMethodKind | null;
   methodDetail: string | null;
-  provider: PaymentProvider;
+  provider: PaymentSource;
   providerPaymentId: string | null;
   status: PaymentStatus;
   failureCode: string | null;
@@ -763,7 +780,7 @@ export const paymentListQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(200).default(25),
   search: z.string().trim().max(120).optional(),
-  provider: paymentProviderSchema.optional(),
+  provider: paymentSourceSchema.optional(),
   status: paymentStatusSchema.optional(),
   method: paymentMethodKindSchema.optional(),
   userId: z.string().trim().max(60).optional(),
@@ -825,7 +842,7 @@ export type RefundItem = {
   id: string;
   paymentId: string;
   orderNumber: string;
-  provider: PaymentProvider;
+  provider: PaymentSource;
   providerRefundId: string | null;
   amount: number;
   currency: string;
@@ -848,7 +865,7 @@ export type SubscriptionItem = {
   userName: string | null;
   planId: string;
   planName: string;
-  provider: PaymentProvider;
+  provider: PaymentSource;
   providerSubscriptionId: string | null;
   status: SubscriptionStatus;
   interval: BillingInterval;
@@ -1189,6 +1206,107 @@ export const createBatchPlanRequestSchema = z.object({
   sortOrder: z.number().int().min(0).max(9999).default(0)
 });
 export type CreateBatchPlanRequest = z.infer<typeof createBatchPlanRequestSchema>;
+
+// ──────────────────────────────────────────────────────────────
+// Manual / offline payments
+// ──────────────────────────────────────────────────────────────
+// Cash, personal UPI/GPay, bank transfer — recorded by an admin or coach for
+// tracking, never through a gateway. An admin's record is auto-approved; a
+// coach's record is PENDING until an admin approves it. Approval runs the
+// SAME payment funnel a gateway capture does, so it grants the same
+// entitlement and issues the same invoice.
+
+export const offlinePaymentMethodItemSchema = z.object({
+  id: z.string(),
+  key: z.string(),
+  label: z.string(),
+  isActive: z.boolean(),
+  sortOrder: z.number().int()
+});
+export type OfflinePaymentMethodItem = z.infer<typeof offlinePaymentMethodItemSchema>;
+
+export const createOfflinePaymentMethodRequestSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+  sortOrder: z.number().int().min(0).max(9999).default(0)
+});
+export type CreateOfflinePaymentMethodRequest = z.infer<
+  typeof createOfflinePaymentMethodRequestSchema
+>;
+
+export const updateOfflinePaymentMethodRequestSchema = z.object({
+  label: z.string().trim().min(1).max(80).optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().min(0).max(9999).optional()
+});
+export type UpdateOfflinePaymentMethodRequest = z.infer<
+  typeof updateOfflinePaymentMethodRequestSchema
+>;
+
+export const recordManualPaymentRequestSchema = z.object({
+  studentUserId: z.string().trim().min(1),
+  planId: z.string().trim().min(1),
+  methodId: z.string().trim().min(1),
+  reference: z.string().trim().max(200).optional()
+});
+export type RecordManualPaymentRequest = z.infer<
+  typeof recordManualPaymentRequestSchema
+>;
+
+export const rejectManualPaymentRequestSchema = z.object({
+  reason: z.string().trim().min(1).max(500)
+});
+export type RejectManualPaymentRequest = z.infer<
+  typeof rejectManualPaymentRequestSchema
+>;
+
+export const manualPaymentReviewStatusSchema = z.enum([
+  "PENDING",
+  "APPROVED",
+  "REJECTED"
+]);
+export type ManualPaymentReviewStatus = z.infer<
+  typeof manualPaymentReviewStatusSchema
+>;
+
+export type ManualPaymentRecordItem = {
+  id: string;
+  paymentId: string;
+  orderId: string;
+  orderNumber: string;
+  studentUserId: string;
+  studentName: string | null;
+  planId: string;
+  planName: string;
+  batchId: string | null;
+  batchName: string | null;
+  amount: number;
+  currency: string;
+  methodId: string;
+  methodLabel: string;
+  reference: string | null;
+  recordedByUserId: string;
+  recordedByName: string | null;
+  recordedByRole: string;
+  status: ManualPaymentReviewStatus;
+  reviewedByName: string | null;
+  reviewedAt: string | null;
+  rejectionReason: string | null;
+  hasAttachment: boolean;
+  attachmentFileName: string | null;
+  createdAt: string;
+};
+
+export type ManualPaymentListResponse = { records: ManualPaymentRecordItem[] };
+
+/** A batch's enrolled student, for the "who is this payment for" picker. */
+export type ManualPaymentStudentOption = {
+  id: string;
+  name: string;
+  email: string;
+};
+export type ManualPaymentStudentListResponse = {
+  students: ManualPaymentStudentOption[];
+};
 
 // ── UX copy ──
 //

@@ -314,7 +314,18 @@ export const API_ROUTES = {
     // ── Webhooks (public, signature-verified) ──
     webhookRazorpay: "/payments/webhooks/razorpay",
     webhookCashfree: "/payments/webhooks/cashfree",
-    webhookStripe: "/payments/webhooks/stripe"
+    webhookStripe: "/payments/webhooks/stripe",
+    // ── Manual / offline payments (admin OR coach) ──
+    manual: {
+      methods: "/payments/manual/methods",
+      batchPlans: (batchId: string = ":batchId") =>
+        `/payments/manual/batches/${batchId}/plans`,
+      batchStudents: (batchId: string = ":batchId") =>
+        `/payments/manual/batches/${batchId}/students`,
+      record: "/payments/manual",
+      mine: "/payments/manual/mine",
+      attachment: (id: string = ":id") => `/payments/manual/${id}/attachment`
+    }
   },
   // Invoices and credit notes. Every route is cookie-authed and authorized to
   // the owner; there is deliberately no public or permanently-signed URL for a
@@ -374,7 +385,15 @@ export const API_ROUTES = {
     batchPricing: (batchId: string = ":batchId") =>
       `/admin/payments/batches/${batchId}/pricing`,
     batchPlan: (batchId: string = ":batchId", planId: string = ":planId") =>
-      `/admin/payments/batches/${batchId}/pricing/${planId}`
+      `/admin/payments/batches/${batchId}/pricing/${planId}`,
+    // ── Manual / offline payments ──
+    manual: {
+      list: "/admin/payments/manual",
+      approve: (id: string = ":id") => `/admin/payments/manual/${id}/approve`,
+      reject: (id: string = ":id") => `/admin/payments/manual/${id}/reject`,
+      methods: "/admin/payments/manual/methods",
+      method: (id: string = ":id") => `/admin/payments/manual/methods/${id}`
+    }
   },
   // Coach payroll — what the academy owes a coach, computed from teaching
   // activity. Separate from `payments`/`invoices` above (customer billing).

@@ -316,6 +316,8 @@ model User {
   invoiceAuditActions             InvoiceAuditLog[]             @relation("InvoiceAuditActor")
   invoiceSettingUpdates           InvoiceSettings[]             @relation("InvoiceSettingsUpdatedBy")
   entitlements                    Entitlement[]                 @relation("UserEntitlements")
+  manualPaymentsRecorded          ManualPaymentRecord[]         @relation("ManualPaymentRecordedBy")
+  manualPaymentsReviewed          ManualPaymentRecord[]         @relation("ManualPaymentReviewedBy")
   requestedRefunds                Refund[]                      @relation("RefundRequestedBy")
   paymentSettingUpdates           PaymentSetting[]              @relation("PaymentSettingUpdatedBy")
   createdDiscounts                Discount[]                    @relation("DiscountCreatedBy")
@@ -1939,6 +1941,17 @@ enum PaymentProvider {
   RAZORPAY
   CASHFREE
   STRIPE
+  /// Cash / personal UPI-GPay / bank transfer — recorded by an admin or coach for
+  /// tracking, never routed to by PaymentRouterService or given a provider adapter.
+  MANUAL
+}
+
+/// Approval workflow for a coach-submitted manual payment. An admin's own record is
+/// created straight into APPROVED.
+enum OfflinePaymentReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 /// Unified payment state. Every provider status maps into this (see
@@ -2223,6 +2236,7 @@ model Payment {
   refunds      Refund[]
   entitlements Entitlement[]
   invoice      Invoice?
+  manualRecord ManualPaymentRecord?
 
   subscriptionId String?
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
@@ -2748,6 +2762,74 @@ model Entitlement {
   @@index([planId])
   @@index([subscriptionId])
   @@map("entitlements")
+}
+
+/// Admin-managed catalogue of offline ways a student can pay (Cash, personal UPI/GPay,
+/// bank transfer, …). Deactivate instead of delete once a record references one.
+model OfflinePaymentMethod {
+  id String @id @default(cuid())
+
+  key      String  @unique
+  label    String
+  isActive Boolean @default(true)
+
+  sortOrder Int @default(0)
+
+  manualPayments ManualPaymentRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("offline_payment_methods")
+}
+
+/// One manual/offline payment recorded by an admin or coach for tracking — cash,
+/// personal UPI, bank transfer. 1:1 with the Payment it produces (provider MANUAL).
+///
+/// A coach's record starts PENDING and grants nothing until an admin approves it —
+/// approval runs the SAME PaymentService.applyProviderState funnel a real gateway
+/// capture uses (§3.6f), so the entitlement, invoice and PAYMENT_RECEIVED messaging
+/// are identical to an online payment. An admin's own record is auto-approved.
+///
+/// Not soft-deletable / not Trash-registered — a financial record is never trashed.
+model ManualPaymentRecord {
+  id String @id @default(cuid())
+
+  paymentId String  @unique
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  methodId String
+  method   OfflinePaymentMethod @relation(fields: [methodId], references: [id], onDelete: Restrict)
+
+  /// Free text: a UPI transaction id, cheque number, a note.
+  reference String?
+
+  recordedByUserId String
+  recordedByUser   User     @relation("ManualPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Cascade)
+  recordedByRole   UserRole
+
+  status OfflinePaymentReviewStatus @default(PENDING)
+
+  reviewedByUserId String?
+  reviewedByUser   User?     @relation("ManualPaymentReviewedBy", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+  reviewedAt       DateTime?
+  rejectionReason  String?
+
+  /// Optional proof of payment (a screenshot or a PDF receipt). Captured at record
+  /// time only — there is no edit-after-the-fact route. `attachmentKey` is a
+  /// Cloudinary public_id (private/authenticated/raw), never a public URL.
+  attachmentKey       String?
+  attachmentFileName  String?
+  attachmentMimeType  String?
+  attachmentSizeBytes Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([recordedByUserId])
+  @@map("manual_payment_records")
 }
 
 /// Raw material for provider health (§17). One row per outbound API call and

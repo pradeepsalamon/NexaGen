@@ -7,7 +7,7 @@ import {
   BILLING_INTERVAL_LABELS,
   formatMoney,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   PAYMENT_STATUS_LABELS,
   SUBSCRIPTION_STATUS_LABELS,
   type PaymentStatus,
@@ -357,7 +357,7 @@ function SubscriptionRow({
         <span className="text-sm text-app-muted">
           {formatMoney(subscription.amount, subscription.currency)} ·{" "}
           {BILLING_INTERVAL_LABELS[subscription.interval]} ·{" "}
-          {PAYMENT_PROVIDER_LABELS[subscription.provider]}
+          {PAYMENT_SOURCE_LABELS[subscription.provider]}
         </span>
       </div>
 

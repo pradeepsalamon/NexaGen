@@ -88,6 +88,12 @@ export class RefundService {
     });
     if (!payment) throw new NotFoundException("Payment not found.");
 
+    if (payment.provider === "MANUAL") {
+      throw new BadRequestException(
+        "Manual payments can't be refunded through a gateway. Reverse it operationally and record it separately."
+      );
+    }
+
     if (
       payment.status !== PaymentStatus.PAID &&
       payment.status !== PaymentStatus.PARTIALLY_REFUNDED &&

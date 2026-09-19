@@ -373,6 +373,34 @@ for India.
   `isConfigured()` false, the router skips it, and the checkout screen stops
   offering the methods only it could serve. With none configured the API still
   boots and a checkout attempt is a clean 503.
+- **Manual / offline payments (cash, a coach's personal UPI/GPay, bank
+  transfer) are tracked the same way without a gateway.**
+  `apps/api/src/payments/manual-payment.service.ts` builds an ordinary
+  `Order` + `Payment` (`provider: MANUAL`, never routed to by
+  `PaymentRouterService` or given a provider adapter) and reaches `PAID`
+  through the SAME `PaymentService.applyProviderState` funnel a gateway
+  capture uses — same entitlement, same invoice, same `PAYMENT_RECEIVED`
+  message. Admin → Payments → "Manual payments" (`ManualPaymentsPanel.tsx`);
+  coach → Payments (`/coach/payments`, `CoachManualPaymentsClient.tsx`),
+  scoped to their own batches via `BatchCoach`/`BatchStudent`. **A coach's
+  record is `PENDING` until an admin approves it** (`ManualPaymentRecord`,
+  its own approval workflow, not soft-deletable/Trash-registered like the
+  rest of this module) — **an admin's own record is auto-approved**. The
+  offline method itself (Cash, UPI/GPay, …) is an admin-managed catalogue
+  (`OfflinePaymentMethod`, seeded lazily on first read), not hardcoded. An
+  optional proof-of-payment attachment (screenshot or PDF) is stored the
+  same private/authenticated way as an invoice PDF
+  (`manual-payment-attachment.storage.ts`) and streamed back through the API.
+  **Never refundable through this system** — `verify`/`reconcile`/`retry`
+  and `RefundService.create` all reject provider `MANUAL` with a clear error
+  instead of the opaque "no adapter registered" a bare `ProviderRegistry`
+  lookup would otherwise produce. The shared `PaymentSource` type
+  (`RAZORPAY | CASHFREE | STRIPE | MANUAL`, in `packages/types/src/
+  payments.ts`) is deliberately kept separate from the narrower
+  `PaymentProvider` (the 3 routable gateways) — only fields that reflect an
+  actual stored payment/refund/subscription widen to `PaymentSource`;
+  routing, checkout handoff and gateway health stay on `PaymentProvider` and
+  never see `MANUAL`.
 
 ### 3.6g Invoices, PDFs and credit notes
 
@@ -631,6 +659,9 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | A monthly plan charged once and never again | it opened a one-off payment instead of a mandate — check the router had a `supportsRecurring` gateway for that currency, and that the provider's subscription webhooks reach `/payments/webhooks/*` |
 | Payment stuck "pending" forever | the reconciliation sweep (`payment-reconciliation.service.ts`, every 5 min, advisory lock `73002060`) asks the gateway directly — check it is running and that the payment has a `providerPaymentId`/`providerOrderId` to ask about. A payment with neither never reached the gateway and expires after `PAYMENTS_ORDER_TTL_MINUTES` |
 | Payment succeeded at the gateway but no access | the entitlement is what grants access, not the payment. Check `entitlements` for `(orderId, planId)`; if the payment is PAID and there is no row, the plan was deleted (logged) or the capture transaction rolled back. `POST /admin/payments/:id/reconcile` re-runs it safely |
+| A coach's manual payment never grants access | expected — it sits `PENDING` until an admin approves it in Admin → Payments → "Manual payments". Check `ManualPaymentRecord.status`; an admin's own record instead auto-approves |
+| "Manual payments don't reconcile with a gateway" / "have no gateway adapter" | expected — someone clicked reconcile/retry, or tried to refund, a `Payment` with `provider: MANUAL`. There is no gateway to ask; approve/reject the `ManualPaymentRecord` instead, and reversal is a separate operational step (§3.6f), not a refund |
+| Manual payment "View proof" shows nothing / 404s | `CLOUDINARY_*` unset (`ManualPaymentAttachmentStorage.isConfigured()` false — the upload was silently skipped, same optional-storage pattern as invoice PDFs), or the file was never attached (it's optional at record time only, no edit-after route) |
 | Webhook returns 400 "Invalid webhook signature" | the gateway's webhook secret does not match the env var, or a JSON parser claimed the route before `express.text` in `main.ts` and the raw bytes were re-serialised. Never "fix" this by skipping verification |
 | A webhook fires twice and grants twice | it cannot — `(provider, eventId)` is unique and `(orderId, planId)` on entitlements is unique. If it did, something bypassed `PaymentService.applyProviderState` |
 | Checkout says "no payment gateway is available" | every gateway is unconfigured (`RAZORPAY_KEY_ID` / `CASHFREE_APP_ID` / `STRIPE_SECRET_KEY` all unset), or `PAYMENTS_ENABLED=false`. Health alone never causes this — a degraded gateway is still used rather than refusing money |

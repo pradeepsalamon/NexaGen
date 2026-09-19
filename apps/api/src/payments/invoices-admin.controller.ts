@@ -17,7 +17,7 @@ import {
   formatMoney,
   INVOICE_STATUS_LABELS,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   retryInvoicePdfRequestSchema,
   updateInvoiceSettingsRequestSchema,
   type CreateCreditNoteRequest,
@@ -277,7 +277,7 @@ function toCsv(invoices: InvoiceItem[]): string {
     money(invoice.total, invoice.currency),
     money(invoice.amountRefunded, invoice.currency),
     invoice.payment.provider
-      ? PAYMENT_PROVIDER_LABELS[invoice.payment.provider]
+      ? PAYMENT_SOURCE_LABELS[invoice.payment.provider]
       : "",
     invoice.payment.method ? PAYMENT_METHOD_LABELS[invoice.payment.method] : "",
     invoice.payment.transactionId ?? ""

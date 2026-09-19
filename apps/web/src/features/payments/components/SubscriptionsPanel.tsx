@@ -4,7 +4,7 @@ import {
   BILLING_INTERVAL_LABELS,
   formatMoney,
   isActiveSubscriptionStatus,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   SUBSCRIPTION_STATUS_LABELS
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -54,7 +54,7 @@ export function SubscriptionsPanel() {
             </p>
             <p className="text-xs text-app-muted">
               {BILLING_INTERVAL_LABELS[subscription.interval]} ·{" "}
-              {PAYMENT_PROVIDER_LABELS[subscription.provider]}
+              {PAYMENT_SOURCE_LABELS[subscription.provider]}
               {subscription.cancelAtPeriodEnd ? " · cancelling at period end" : ""}
             </p>
           </div>

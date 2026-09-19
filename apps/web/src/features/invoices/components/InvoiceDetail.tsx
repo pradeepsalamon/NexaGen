@@ -3,7 +3,7 @@
 import {
   formatMoney,
   PAYMENT_METHOD_LABELS,
-  PAYMENT_PROVIDER_LABELS,
+  PAYMENT_SOURCE_LABELS,
   stateNameFromCode,
   type InvoiceItem
 } from "@nexa-chess/types";
@@ -154,7 +154,7 @@ export function InvoiceDetail({
             {invoice.payment.provider ? (
               <Field
                 label="Provider"
-                value={PAYMENT_PROVIDER_LABELS[invoice.payment.provider]}
+                value={PAYMENT_SOURCE_LABELS[invoice.payment.provider]}
               />
             ) : null}
             {invoice.payment.method ? (

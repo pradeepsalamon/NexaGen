@@ -3,6 +3,7 @@
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { DiscountsPanel } from "./DiscountsPanel";
+import { ManualPaymentsPanel } from "./ManualPaymentsPanel";
 import { PaymentsOverviewPanel } from "./PaymentsOverviewPanel";
 import { PaymentsTablePanel } from "./PaymentsTablePanel";
 import { PlansPanel } from "./PlansPanel";
@@ -24,6 +25,7 @@ export function PaymentsAdminClient() {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
+          <TabsTrigger value="manual">Manual payments</TabsTrigger>
           <TabsTrigger value="refunds">Refunds</TabsTrigger>
           <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
           <TabsTrigger value="plans">Plans</TabsTrigger>
@@ -36,6 +38,9 @@ export function PaymentsAdminClient() {
         </TabsContent>
         <TabsContent value="transactions">
           <PaymentsTablePanel />
+        </TabsContent>
+        <TabsContent value="manual">
+          <ManualPaymentsPanel />
         </TabsContent>
         <TabsContent value="refunds">
           <RefundsPanel />

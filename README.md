@@ -741,6 +741,36 @@ or a reconciliation read settles it. A *transport* failure deliberately leaves
 the refund PENDING rather than FAILED, because the gateway may have taken it and
 "failed" invites a second refund for the same money.
 
+### Manual / offline payments
+
+Cash, a coach's personal UPI/GPay, or a bank transfer collected outside the
+app — tracked the same way as a gateway payment, without one. An admin or a
+coach records it from **Payments → Manual payments** (admin) or **Payments**
+(coach, scoped to their own batches). It never goes through `PaymentRouter` or
+a provider adapter: `ManualPaymentService` builds an ordinary `Order` +
+`Payment` (`provider: MANUAL`) directly and reaches `PAID` through the exact
+same `PaymentService.applyProviderState` funnel a gateway capture uses, so the
+entitlement, invoice and `PAYMENT_RECEIVED` message are unchanged code paths.
+
+- **A coach's record is `PENDING` until an admin approves it.** Approving
+  reaches `PAID`; rejecting reaches `FAILED` with a reason the coach can see —
+  both through `applyProviderState`, so nothing about the access/invoice/
+  messaging logic is duplicated. **An admin's own record is auto-approved.**
+- **The offline method (Cash, UPI/GPay, bank transfer, …) is an
+  admin-managed catalogue** (`OfflinePaymentMethod`), not a hardcoded list —
+  deactivate instead of delete once a record references one.
+- **A record can carry an optional proof-of-payment attachment** (a
+  screenshot or a PDF receipt), stored the same private/authenticated way as
+  an invoice PDF (`manual-payment-attachment.storage.ts`) and streamed back
+  through the API, never a bare Cloudinary URL.
+- **Never refundable through this system** — there is no gateway to call.
+  `verify`/`reconcile`/`retry`/refund all reject provider `MANUAL` with a
+  clear error rather than the opaque "no adapter registered" a missing
+  `ProviderRegistry` entry would otherwise produce.
+- **A coach only ever sees the manual entries they themselves submitted** —
+  never a student's online payment history. Money between a student and the
+  academy otherwise stays admin-only, unchanged.
+
 ### Invoices and credit notes
 
 Issued once, inside the capture transaction, numbered gaplessly per year from

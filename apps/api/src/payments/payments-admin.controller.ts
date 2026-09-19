@@ -15,16 +15,23 @@ import {
   API_ROUTES,
   createBatchPlanRequestSchema,
   createDiscountRequestSchema,
+  createOfflinePaymentMethodRequestSchema,
   createPlanRequestSchema,
   createRefundRequestSchema,
   paymentListQuerySchema,
+  rejectManualPaymentRequestSchema,
   updateDiscountRequestSchema,
+  updateOfflinePaymentMethodRequestSchema,
   updatePlanRequestSchema,
   type CreateBatchPlanRequest,
   type CreateDiscountRequest,
+  type CreateOfflinePaymentMethodRequest,
   type CreatePlanRequest,
   type CreateRefundRequest,
+  type ManualPaymentReviewStatus,
+  type RejectManualPaymentRequest,
   type UpdateDiscountRequest,
+  type UpdateOfflinePaymentMethodRequest,
   type UpdatePlanRequest
 } from "@nexa-chess/types";
 import type { Request } from "express";
@@ -34,6 +41,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { BatchPricingService } from "./batch-pricing.service";
 import { DiscountService } from "./discount.service";
 import { InvoiceService } from "./invoice.service";
+import { ManualPaymentService } from "./manual-payment.service";
+import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { PaymentService } from "./payment.service";
 import { PaymentsAdminService } from "./payments-admin.service";
 import { assertAdmin, authenticateUser } from "./payments-auth.helper";
@@ -50,6 +59,8 @@ export class PaymentsAdminController {
     private readonly discounts: DiscountService,
     private readonly invoices: InvoiceService,
     private readonly jwtService: JwtService,
+    private readonly manualPayments: ManualPaymentService,
+    private readonly offlineMethods: OfflinePaymentMethodService,
     private readonly payments: PaymentService,
     private readonly plans: PlanService,
     private readonly prisma: PrismaService,
@@ -218,6 +229,64 @@ export class PaymentsAdminController {
   ) {
     await this.adminUser(request);
     return this.batchPricing.archive(batchId, planId);
+  }
+
+  // ── Manual / offline payments ──
+  //
+  // Registered before "One payment" below: /admin/payments/manual would
+  // otherwise be shadowed by /admin/payments/:id (Nest/Express match routes
+  // in registration order, and a dynamic segment matches "manual" as an id).
+
+  @Get(API_ROUTES.adminPayments.manual.list)
+  async listManualPayments(@Query("status") status: string | undefined, @Req() request: Request) {
+    await this.adminUser(request);
+    return this.manualPayments.listAll(
+      (status as ManualPaymentReviewStatus | undefined) ?? undefined
+    );
+  }
+
+  @Post(API_ROUTES.adminPayments.manual.approve())
+  async approveManualPayment(@Param("id") id: string, @Req() request: Request) {
+    const admin = await this.adminUser(request);
+    return this.manualPayments.approve(admin, id);
+  }
+
+  @Post(API_ROUTES.adminPayments.manual.reject())
+  async rejectManualPayment(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(rejectManualPaymentRequestSchema))
+    body: RejectManualPaymentRequest,
+    @Req() request: Request
+  ) {
+    const admin = await this.adminUser(request);
+    return this.manualPayments.reject(admin, id, body.reason);
+  }
+
+  @Get(API_ROUTES.adminPayments.manual.methods)
+  async listOfflineMethods(@Req() request: Request) {
+    await this.adminUser(request);
+    return { methods: await this.offlineMethods.list() };
+  }
+
+  @Post(API_ROUTES.adminPayments.manual.methods)
+  async createOfflineMethod(
+    @Body(new ZodBodyPipe(createOfflinePaymentMethodRequestSchema))
+    body: CreateOfflinePaymentMethodRequest,
+    @Req() request: Request
+  ) {
+    await this.adminUser(request);
+    return this.offlineMethods.create(body);
+  }
+
+  @Put(API_ROUTES.adminPayments.manual.method())
+  async updateOfflineMethod(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(updateOfflinePaymentMethodRequestSchema))
+    body: UpdateOfflinePaymentMethodRequest,
+    @Req() request: Request
+  ) {
+    await this.adminUser(request);
+    return this.offlineMethods.update(id, body);
   }
 
   // ── One payment ──
