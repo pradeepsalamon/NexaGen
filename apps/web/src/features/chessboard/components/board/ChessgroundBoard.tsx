@@ -8,20 +8,18 @@ import { controlSideForIdentity } from "../../lib/boardSyncRules";
 import type { BoardControlSide } from "../../types/sync";
 import { preloadSounds } from "../../audio/sounds";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-
-// Chessground CSS
-import "chessground/assets/chessground.base.css";
-import "chessground/assets/chessground.brown.css";
-import "chessground/assets/chessground.cburnett.css";
+import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
 export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
   const cgRef = useRef<any>(null);
-  
+
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
+  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings } =
+    useChessAppearance();
 
   // Warm the move-sound buffer cache so the first move isn't silent while the
   // asset downloads (AUDIT H5).
@@ -30,11 +28,18 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   }, []);
 
   const {
-    chess, fen, turn, orientation, boardTheme, pieceTheme, showCoordinates,
+    chess, fen, turn, orientation, moveHistory, historyIndex,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
     isDetached
   } = useBoardStore();
+
+  // Squares of the last played move, for the last-move highlight — derived
+  // from move history rather than tracked separately.
+  const lastMoveSquares = useMemo(() => {
+    const last = moveHistory[historyIndex];
+    return last ? [last.from, last.to] : undefined;
+  }, [moveHistory, historyIndex]);
 
   // Which colour this client may move: "both" for the coach, for position
   // editing and for a detached student exploring their own line; otherwise
@@ -172,11 +177,18 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       turnColor: turn,
       orientation,
       coordinates: showCoordinates,
-      animation: { enabled: !isEditingPosition },
+      animation: { enabled: animationEnabled && !isEditingPosition },
+      check: chess.inCheck(),
+      lastMove: lastMoveSquares as any,
+      highlight: {
+        lastMove: highlightSettings.highlightEnabled,
+        check: highlightSettings.checkIndicatorEnabled,
+      },
       viewOnly: false,
       movable: {
         color: movableColor,
         free: isEditingPosition,
+        showDests: highlightSettings.legalMovesEnabled,
         dests,
         events: {
           after: (orig, dest) => {
@@ -277,16 +289,26 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       turnColor: turn,
       orientation,
       coordinates: showCoordinates,
-      animation: { enabled: !isEditingPosition },
+      animation: { enabled: animationEnabled && !isEditingPosition },
+      check: chess.inCheck(),
+      lastMove: lastMoveSquares as any,
+      highlight: {
+        lastMove: highlightSettings.highlightEnabled,
+        check: highlightSettings.checkIndicatorEnabled,
+      },
       viewOnly: !canMove,
       drawable: { enabled: isCoach && !readOnly },
       movable: {
         color: movableColor,
         free: isEditingPosition,
+        showDests: highlightSettings.legalMovesEnabled,
         dests
       }
     });
-  }, [cg, fen, turn, orientation, showCoordinates, isGameOver, dests, canMove, movableColor, isEditingPosition, isCoach, readOnly]);
+  }, [
+    cg, fen, turn, orientation, showCoordinates, animationEnabled, highlightSettings, chess,
+    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, isCoach, readOnly
+  ]);
   
   // Sync annotations (arrows)
   useEffect(() => {
@@ -307,8 +329,9 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     <div
       ref={containerRef}
       className="w-full h-full"
-      data-board={boardTheme}
-      data-piece={pieceTheme}
+      data-nexa-board-theme={currentBoardTheme}
+      data-nexa-piece-set={currentPieceSet}
+      data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
     />
   );
 }

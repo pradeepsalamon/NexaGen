@@ -7,10 +7,7 @@ import type { DrawShape } from "chessground/draw";
 import type { Color, Key } from "chessground/types";
 import { Chess, type Square } from "chess.js";
 import { cn } from "@/lib/utils";
-
-import "chessground/assets/chessground.base.css";
-import "chessground/assets/chessground.brown.css";
-import "chessground/assets/chessground.cburnett.css";
+import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
 export interface PracticeBoardMove {
   from: string;
@@ -54,6 +51,9 @@ export function PracticeBoard({
   const apiRef = useRef<Api | null>(null);
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
+  const {
+    currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings
+  } = useChessAppearance();
 
   const [promotion, setPromotion] = useState<{ from: Square; to: Square } | null>(null);
 
@@ -114,15 +114,18 @@ export function PracticeBoard({
       fen,
       orientation,
       turnColor,
-      coordinates: true,
+      coordinates: showCoordinates,
       drawable: { enabled: false },
-      animation: { enabled: true, duration: 150 },
-      highlight: { lastMove: true, check: true },
+      animation: { enabled: animationEnabled, duration: 150 },
+      highlight: {
+        lastMove: highlightSettings.highlightEnabled,
+        check: highlightSettings.checkIndicatorEnabled,
+      },
       movable: {
         free: false,
         color: movableColor,
         dests,
-        showDests: true,
+        showDests: highlightSettings.legalMovesEnabled,
         events: {
           after: (orig, dest) => {
             const from = orig as Square;
@@ -154,11 +157,20 @@ export function PracticeBoard({
       fen,
       orientation,
       turnColor,
+      coordinates: showCoordinates,
+      animation: { enabled: animationEnabled, duration: 150 },
       lastMove: lastMove ? (lastMove as Key[]) : undefined,
       check: game?.inCheck() ?? false,
-      movable: { free: false, color: movableColor, dests, showDests: true }
+      highlight: {
+        lastMove: highlightSettings.highlightEnabled,
+        check: highlightSettings.checkIndicatorEnabled,
+      },
+      movable: { free: false, color: movableColor, dests, showDests: highlightSettings.legalMovesEnabled }
     });
-  }, [fen, orientation, turnColor, lastMove, movableColor, dests, game]);
+  }, [
+    fen, orientation, turnColor, lastMove, movableColor, dests, game,
+    showCoordinates, animationEnabled, highlightSettings
+  ]);
 
   useEffect(() => {
     const shapes: DrawShape[] = [];
@@ -176,6 +188,9 @@ export function PracticeBoard({
       <div
         ref={containerRef}
         className="aspect-square w-full overflow-hidden rounded-app border border-app-border"
+        data-nexa-board-theme={currentBoardTheme}
+        data-nexa-piece-set={currentPieceSet}
+        data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
       />
       {promotion && (
         <div className="absolute inset-0 z-20 flex items-center justify-center rounded-app bg-black/60 backdrop-blur-sm">

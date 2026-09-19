@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { useBoardStore } from "../context/BoardProvider";
+import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
 export function useBoardShortcuts() {
-  const { 
-    undo, redo, setOrientation, orientation, 
-    setShowCoordinates, showCoordinates, 
+  const {
+    undo, redo, setOrientation, orientation,
     isEditingPosition, setEditingPosition
   } = useBoardStore();
+  const { showCoordinates, updatePreference } = useChessAppearance();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -29,7 +30,7 @@ export function useBoardShortcuts() {
             setOrientation(orientation === 'white' ? 'black' : 'white');
             break;
           case 'c':
-            setShowCoordinates(!showCoordinates);
+            updatePreference({ showCoordinates: !showCoordinates });
             break;
           case 'escape':
             if (isEditingPosition) {
@@ -43,5 +44,5 @@ export function useBoardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, setOrientation, orientation, setShowCoordinates, showCoordinates, isEditingPosition, setEditingPosition]);
+  }, [undo, redo, setOrientation, orientation, showCoordinates, updatePreference, isEditingPosition, setEditingPosition]);
 }

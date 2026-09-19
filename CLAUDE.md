@@ -445,6 +445,64 @@ for India.
   `BillingProfile` are **not soft-deletable** and not Trash-registered — a
   financial record is never trashed.
 
+### 3.6h Chess board appearance
+
+`apps/api/src/chess-appearance/` + `apps/web/src/features/chess-appearance/`,
+pages `/chess-board` (any role, personal preference) and
+`/admin/chess-appearance` (admin, global default), routes
+`API_ROUTES.chessAppearance.*`. Centralizes the visual appearance of every
+chessboard in the app — board theme, piece set, coordinates, animation,
+highlight/legal-move/check toggles — behind one resolver, so no board
+component hardcodes its own styling.
+
+- **Same 3-layer resolver shape as pre-class settings** (§3.7's
+  `resolveLiveClassSettings`): system default (Nexa Classic) → admin global
+  default (`ChessAppearanceSettings` singleton) → the caller's own
+  `UserChessAppearancePreference` row, last non-empty layer wins.
+  `resolveChessAppearance` + `BOARD_THEME_CATALOG` / `PIECE_SET_CATALOG` live
+  in `@nexa-chess/types` (`chess-appearance.ts`) — use them, don't reimplement.
+- **A preference save merges onto the caller's existing stored override**,
+  never replaces it wholesale (`mergeChessAppearanceOverrides`). A
+  single-field patch — the live board's `C` keyboard shortcut for
+  coordinates, say — must not silently erase a different field the user set
+  from the settings page. Applies to both the user and admin update paths.
+- **Board themes are self-authored CSS**, not images: a checkerboard from two
+  stacked `linear-gradient`s plus an optional wood-grain layer, parameterized
+  by `--nexa-*` CSS custom properties scoped under
+  `[data-nexa-board-theme="<id>"]` (`features/chess-appearance/styles/boards.css`).
+  Lichess's own board textures are photographic with no documented license,
+  and a screenshot/photo background is explicitly ruled out — real interactive
+  squares only.
+- **Piece sets are vendored SVGs from lichess's open-source piece library**
+  (github.com/lichess-org/lila), filtered to commercially-safe licenses —
+  most lichess sets are CC BY-NC-SA (non-commercial) and were excluded.
+  Attribution: `apps/web/public/chess/pieces/LICENSES.md`. Scoped the same
+  way, under `[data-nexa-piece-set="<id>"]`
+  (`features/chess-appearance/styles/pieces.css`), referenced by file URL
+  (not inlined) so the browser only fetches a set once it actually renders.
+- **Every chessboard reads from `useChessAppearance()`**
+  (`ChessAppearanceProvider`, mounted once in `AppProviders.tsx`;
+  CSS imported once via `features/chess-appearance/styles/index.css`), not
+  hardcoded values: `ChessgroundBoard`, `PracticeBoard`, `PositionEditor`,
+  `PuzzleBoardTile`, `PgnBoardViewer`, `SolutionEditor` (via `PracticeBoard`),
+  and the recorder template (`RecorderClient`, which has no authenticated
+  user, so always resolves to the system/admin default). **Purely cosmetic**:
+  never affects FEN/position/moves/puzzle solution/game state, and — like
+  board theme picks generally — is deliberately **not** synced over any
+  `LIVE_CLASS_*` data-channel topic, so each participant keeps their own
+  appearance independent of the coach's.
+- **`ChessAppearancePreviewScope`** shadows the app-wide context with draft
+  values for its subtree, so a settings page's live preview (a real, movable
+  `PracticeBoard`) updates immediately as the form changes, with no special
+  "preview mode" plumbing in any board component.
+- **Disabling a built-in theme is the only lifecycle action** — admin can
+  never delete one (`ChessAppearanceSettings.disabledBoardThemeIds` /
+  `.disabledPieceSetIds`). A disabled theme disappears from both picker UIs;
+  a user who already had it selected keeps rendering it unchanged.
+- `ChessAppearanceSettings` and `UserChessAppearancePreference` are **not
+  soft-deletable** and not Trash-registered — cosmetic, not an audit-worthy
+  record.
+
 ### 3.7 Live class / LiveKit
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
@@ -587,6 +645,9 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | An invoice is billed to the student, not the parent | `BillingProfileService.resolve` — the buyer has no saved `BillingProfile` and their `StudentProfile.parentName` is empty, so it fell through to the account. Billing details are frozen at issue, so fixing the profile only affects the next invoice |
 | Invoice email never arrives / arrives twice | `emailSent` is claimed by a conditional update *before* the send, so a second webhook is a no-op by design. Never arriving means SMTP is unset, the invoice has no billing email, or an admin turned `emailOnIssue` off. Admin → Invoices → Resend is the deliberate override |
 | Invoice number skipped a value | Expected. Numbers are allocated from `InvoiceSequence` and never reused, so a rolled-back capture consumes one permanently |
+| A chessboard ignores the user's theme/piece-set choice | that board component isn't reading `useChessAppearance()` — check it has `data-nexa-board-theme`/`data-nexa-piece-set` on the same element chessground mounts onto, and that `features/chess-appearance/styles/index.css` is imported (once, in `AppProviders.tsx`) |
+| A settings-page preference save wiped out a different saved field | shouldn't happen — `updateMyPreference`/`updateGlobalSettings` merge onto the existing stored override via `mergeChessAppearanceOverrides`, never replace wholesale. If it did, something bypassed `ChessAppearanceService` |
+| Board looks unstyled for a split second / flashes brown | expected only while `ChessAppearanceProvider`'s query is loading — it should fall back to `DEFAULT_CHESS_APPEARANCE` (Nexa Classic), never blank chessground defaults; if it's showing chessground's own brown/cburnett, a component still imports `chessground/assets/*.css` directly instead of relying on the shared stylesheet |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
 | Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |

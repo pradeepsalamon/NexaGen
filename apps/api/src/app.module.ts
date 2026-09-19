@@ -28,6 +28,7 @@ import { MessagingModule } from "./messaging/messaging.module";
 import { AnnouncementModule } from "./announcement/announcement.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { PayrollModule } from "./payroll/payroll.module";
+import { ChessAppearanceModule } from "./chess-appearance/chess-appearance.module";
 
 @Module({
   imports: [
@@ -64,7 +65,8 @@ import { PayrollModule } from "./payroll/payroll.module";
     MessagingModule,
     AnnouncementModule,
     PaymentsModule,
-    PayrollModule
+    PayrollModule,
+    ChessAppearanceModule
   ],
   providers: [
     {

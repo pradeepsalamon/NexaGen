@@ -89,6 +89,8 @@ export const API_ROUTES = {
     puzzleAttempt: (id: string = ":id") => `/live-class/${id}/puzzle/attempt`,
     // Live leaderboard for the active assignment.
     puzzleLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/leaderboard`,
+    // Coach-owner+admin only: every enrolled student's current board position.
+    puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
     // Waiting room (coach-owner/admin): list of students pending admission.
     waitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room`,
     // Waiting room (coach-owner/admin): admit or deny one pending student.
@@ -113,6 +115,18 @@ export const API_ROUTES = {
     forClass: (id: string = ":id") => `/live-class-settings/class/${id}`,
     // Layer 3 batch default — GET coach in batch / admin, PUT admin / authorised coach.
     forBatch: (id: string = ":id") => `/live-class-settings/batch/${id}`
+  },
+  chessAppearance: {
+    // Resolved config for the caller (user > admin default > system default) — any authed role.
+    get: "/chess-appearance",
+    // Enabled board themes + piece sets for picker UIs — any authed role.
+    catalog: "/chess-appearance/catalog",
+    // Caller's own preference. PUT saves a partial override, DELETE resets it.
+    me: "/chess-appearance/me",
+    // Layer 1 admin global default (singleton). GET any authed, PUT admin only.
+    admin: "/chess-appearance/admin",
+    // Reset the global default back to Nexa Classic — admin only.
+    adminReset: "/chess-appearance/admin/reset"
   },
   liveClassPresets: {
     // Layer 4 presets. List returns own PERSONAL + all ORG/system.

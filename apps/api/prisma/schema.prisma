@@ -312,6 +312,7 @@ model User {
   invoices                        Invoice[]                     @relation("UserInvoices")
   creditNotes                     CreditNote[]                  @relation("UserCreditNotes")
   billingProfile                  BillingProfile?               @relation("UserBillingProfile")
+  chessAppearancePreference       UserChessAppearancePreference? @relation("UserChessAppearancePreference")
   invoiceAuditActions             InvoiceAuditLog[]             @relation("InvoiceAuditActor")
   invoiceSettingUpdates           InvoiceSettings[]             @relation("InvoiceSettingsUpdatedBy")
   entitlements                    Entitlement[]                 @relation("UserEntitlements")
@@ -1157,6 +1158,51 @@ model LiveClassPreset {
   @@index([ownerId])
   @@index([scope])
   @@map("live_class_presets")
+}
+
+//
+// CHESS BOARD APPEARANCE (board theme / piece set customization)
+//
+
+/// Singleton row holding the admin global default (Layer "admin-default").
+/// Mirrors LiveClassPolicy: lazily created, admin-managed. Purely cosmetic —
+/// never affects FEN/position/moves/game state.
+model ChessAppearanceSettings {
+  id       String  @id @default(cuid())
+  name     String  @default("Default Chess Appearance Settings")
+  isActive Boolean @default(true)
+
+  /// Partial ChessAppearanceOverride JSON (validated by @nexa-chess/types).
+  /// Empty object means "untouched" — the system default (Nexa Classic) applies.
+  settings Json @default("{}")
+
+  /// Built-in theme/piece-set ids an admin has disabled; excluded from the
+  /// catalog and from resolution. System themes are never deletable, only
+  /// toggle-able.
+  disabledBoardThemeIds String[] @default([])
+  disabledPieceSetIds   String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("chess_appearance_settings")
+}
+
+/// One user's personal board appearance preference. Row absence means "no
+/// personal preference" — the resolver falls through to the admin/system
+/// default. Not soft-deletable (cosmetic, no trash semantics needed).
+model UserChessAppearancePreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation("UserChessAppearancePreference", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Partial ChessAppearanceOverride JSON (validated by @nexa-chess/types).
+  settings Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_chess_appearance_preferences")
 }
 
 //

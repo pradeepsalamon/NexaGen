@@ -6,11 +6,19 @@ import {
   type LiveClassSettingsOverride
 } from "./live-class-settings";
 import { messagingEventSchema, type MessagingEvent } from "./messaging";
+import {
+  chessAppearanceOverrideSchema,
+  type BoardThemeMeta,
+  type ChessAppearance,
+  type ChessAppearanceOverride,
+  type PieceSetMeta
+} from "./chess-appearance";
 
 export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
 export * from "./live-class-screen-share";
+export * from "./chess-appearance";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -638,6 +646,46 @@ export type LiveClassSettingsAuditEntry = {
 export type LiveClassSettingsAuditResponse = {
   entries: LiveClassSettingsAuditEntry[];
 };
+
+//
+// CHESS APPEARANCE (board theme / piece set customization)
+//
+
+/** Resolved appearance for the caller, plus which layer produced it. */
+export type ChessAppearanceResponse = {
+  config: ChessAppearance;
+  source: "user" | "admin-default" | "system-default";
+};
+
+/** Enabled board themes + piece sets for picker UIs. */
+export type ChessAppearanceCatalogResponse = {
+  boardThemes: BoardThemeMeta[];
+  pieceSets: PieceSetMeta[];
+};
+
+export const updateChessAppearanceRequestSchema = z.object({
+  settings: chessAppearanceOverrideSchema
+});
+export type UpdateChessAppearanceRequest = z.infer<typeof updateChessAppearanceRequestSchema>;
+
+/** Layer 1 admin global default (singleton), admin-managed. */
+export type ChessAppearanceAdminResponse = {
+  id: string;
+  settings: ChessAppearanceOverride;
+  resolved: ChessAppearance;
+  disabledBoardThemeIds: string[];
+  disabledPieceSetIds: string[];
+  updatedAt: string;
+};
+
+export const updateChessAppearanceAdminRequestSchema = z.object({
+  settings: chessAppearanceOverrideSchema,
+  disabledBoardThemeIds: z.array(z.string()).optional(),
+  disabledPieceSetIds: z.array(z.string()).optional()
+});
+export type UpdateChessAppearanceAdminRequest = z.infer<
+  typeof updateChessAppearanceAdminRequestSchema
+>;
 
 export const updateBatchLiveClassSettingsRequestSchema = z.object({
   liveClassSettings: liveClassSettingsOverrideSchema.nullable()

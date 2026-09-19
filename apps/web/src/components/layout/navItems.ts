@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   LineChart,
   MessageSquare,
+  Palette,
   Puzzle,
   ReceiptText,
   Settings,
@@ -63,6 +64,7 @@ export const studentNavItems: NavItem[] = [
   { href: "/student/progress", label: "Progress", icon: TrendingUp },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard },
+  { href: "/chess-board", label: "Chess Board", icon: Palette },
   { href: "/profile", label: "Profile & Settings", icon: Settings }
 ];
 
@@ -77,6 +79,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/attendance", label: "Attendance", icon: UserCheck },
   { href: "/coach/presets", label: "Class Presets", icon: SlidersHorizontal },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet },
+  { href: "/chess-board", label: "Chess Board", icon: Palette },
   { href: "/profile", label: "Settings", icon: Settings }
 ];
 
@@ -101,6 +104,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users, group: "Manage" },
   { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Manage" },
   { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Manage" },
+  { href: "/admin/chess-appearance", label: "Chess Appearance", icon: Palette, group: "Manage" },
   { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "Manage" },
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Manage" },
   { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Manage" },

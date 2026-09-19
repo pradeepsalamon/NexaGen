@@ -1,0 +1,128 @@
+/*
+ * Board surface themes. Self-authored CSS (no vendored images) — see
+ * chess-appearance.ts for why: lichess's own board textures are photographic
+ * with no documented license, and the spec forbids using a photo/screenshot
+ * as a static board background anyway. Colors are tuned to approximate the
+ * NexaChess reference board for "nexa-classic"; the other five are flat/
+ * gradient colors, which carry no licensing concern.
+ *
+ * Every board (any of the 7 chessground-mounted components) carries
+ * `data-nexa-board-theme="<id>"` on the same element chessground marks
+ * `.cg-wrap` on, so these rules stay scoped — two differently-themed boards
+ * can render on the same page (e.g. a live-class puzzle leaderboard grid).
+ */
+
+[data-nexa-board-theme="nexa-classic"] {
+  --nexa-light: #ecd3a6;
+  --nexa-dark: #ad7a4c;
+  --nexa-grain-layer: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  --nexa-coord-on-light: rgba(66, 42, 20, 0.75);
+  --nexa-coord-on-dark: rgba(255, 244, 230, 0.85);
+  --nexa-border: #7a5330;
+}
+
+[data-nexa-board-theme="classic-green"] {
+  --nexa-light: #eeeed2;
+  --nexa-dark: #6e9552;
+  --nexa-coord-on-light: rgba(45, 58, 36, 0.75);
+  --nexa-coord-on-dark: rgba(255, 255, 255, 0.85);
+  --nexa-border: #4c6938;
+}
+
+[data-nexa-board-theme="blue"] {
+  --nexa-light: #e4eaf3;
+  --nexa-dark: #6c8ebf;
+  --nexa-coord-on-light: rgba(30, 42, 64, 0.7);
+  --nexa-coord-on-dark: rgba(255, 255, 255, 0.85);
+  --nexa-border: #4c6a94;
+}
+
+[data-nexa-board-theme="brown"] {
+  --nexa-light: #f0d9b5;
+  --nexa-dark: #b58863;
+  --nexa-grain-layer: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  --nexa-coord-on-light: rgba(72, 72, 72, 0.8);
+  --nexa-coord-on-dark: rgba(255, 255, 255, 0.8);
+  --nexa-border: #8a5f3d;
+}
+
+[data-nexa-board-theme="dark"] {
+  --nexa-light: #5b6472;
+  --nexa-dark: #2e333b;
+  --nexa-coord-on-light: rgba(230, 230, 235, 0.75);
+  --nexa-coord-on-dark: rgba(180, 190, 205, 0.65);
+  --nexa-border: #1c1f24;
+}
+
+[data-nexa-board-theme="minimal"] {
+  --nexa-light: #f7f7f7;
+  --nexa-dark: #c4c4c4;
+  --nexa-coord-on-light: rgba(60, 60, 60, 0.6);
+  --nexa-coord-on-dark: rgba(255, 255, 255, 0.7);
+  --nexa-border: #a8a8a8;
+}
+
+/* One shared rule set, parameterized by the custom properties above. */
+[data-nexa-board-theme] cg-board {
+  background-color: var(--nexa-light);
+  background-image: var(--nexa-grain-layer, none),
+    linear-gradient(
+      45deg,
+      var(--nexa-dark) 25%,
+      transparent 25%,
+      transparent 75%,
+      var(--nexa-dark) 75%
+    ),
+    linear-gradient(
+      45deg,
+      var(--nexa-dark) 25%,
+      transparent 25%,
+      transparent 75%,
+      var(--nexa-dark) 75%
+    );
+  background-size:
+    100% 100%,
+    25% 25%,
+    25% 25%;
+  background-position:
+    0 0,
+    0 0,
+    12.5% 12.5%;
+}
+
+[data-nexa-board-theme] {
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px var(--nexa-border, transparent);
+}
+
+/* Alternating rank/file coordinate label colors, mirroring chessground's own
+   brown-theme logic but parameterized per NexaChess theme. */
+[data-nexa-board-theme].orientation-white .ranks :nth-child(odd),
+[data-nexa-board-theme].orientation-white .files :nth-child(even),
+[data-nexa-board-theme].orientation-black .ranks :nth-child(even),
+[data-nexa-board-theme].orientation-black .files :nth-child(odd),
+[data-nexa-board-theme] coords.squares:nth-of-type(odd) :nth-child(even),
+[data-nexa-board-theme] coords.squares:nth-of-type(even) :nth-child(odd) {
+  color: var(--nexa-coord-on-dark);
+}
+
+[data-nexa-board-theme].orientation-white .ranks :nth-child(even),
+[data-nexa-board-theme].orientation-white .files :nth-child(odd),
+[data-nexa-board-theme].orientation-black .ranks :nth-child(odd),
+[data-nexa-board-theme].orientation-black .files :nth-child(even),
+[data-nexa-board-theme] coords.squares:nth-of-type(odd) :nth-child(odd),
+[data-nexa-board-theme] coords.squares:nth-of-type(even) :nth-child(even) {
+  color: var(--nexa-coord-on-light);
+}

@@ -7,12 +7,9 @@ import { Chess } from "chess.js";
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
+import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
-import "chessground/assets/chessground.base.css";
-import "chessground/assets/chessground.brown.css";
-import "chessground/assets/chessground.cburnett.css";
-
-type Ply = { fen: string; san: string };
+type Ply = { fen: string; san: string; from: string; to: string; check: boolean };
 
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -36,8 +33,8 @@ function parsePgn(pgn: string): { plies: Ply[]; startFen: string; error: boolean
 
   const plies: Ply[] = [];
   for (const san of loaded.history()) {
-    replay.move(san);
-    plies.push({ fen: replay.fen(), san });
+    const move = replay.move(san);
+    plies.push({ fen: replay.fen(), san, from: move.from, to: move.to, check: replay.inCheck() });
   }
 
   return { plies, startFen, error: false };
@@ -45,6 +42,8 @@ function parsePgn(pgn: string): { plies: Ply[]; startFen: string; error: boolean
 
 export function PgnBoardViewer({ pgn }: { pgn: string }) {
   const { plies, startFen, error } = useMemo(() => parsePgn(pgn), [pgn]);
+  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings } =
+    useChessAppearance();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -56,15 +55,16 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
   }, [plies.length]);
 
   const currentFen = cursor < 0 ? startFen : plies[cursor]?.fen ?? startFen;
+  const currentPly = cursor >= 0 ? plies[cursor] : undefined;
 
   useEffect(() => {
     if (!containerRef.current) return;
     apiRef.current = Chessground(containerRef.current, {
       fen: currentFen,
       viewOnly: true,
-      coordinates: true,
+      coordinates: showCoordinates,
       drawable: { enabled: false },
-      animation: { enabled: true, duration: 150 }
+      animation: { enabled: animationEnabled, duration: 150 }
     });
     return () => {
       apiRef.current?.destroy();
@@ -75,8 +75,16 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
   }, []);
 
   useEffect(() => {
-    apiRef.current?.set({ fen: currentFen });
-  }, [currentFen]);
+    apiRef.current?.set({
+      fen: currentFen,
+      lastMove: currentPly ? [currentPly.from, currentPly.to] as any : undefined,
+      check: currentPly?.check ?? false,
+      highlight: {
+        lastMove: highlightSettings.highlightEnabled,
+        check: highlightSettings.checkIndicatorEnabled,
+      },
+    });
+  }, [currentFen, currentPly, highlightSettings]);
 
   const atStart = cursor < 0;
   const atEnd = cursor >= plies.length - 1;
@@ -92,7 +100,13 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
       <div className="w-full max-w-[420px]">
-        <div ref={containerRef} className="aspect-square w-full overflow-hidden rounded-app border border-app-border" />
+        <div
+          ref={containerRef}
+          className="aspect-square w-full overflow-hidden rounded-app border border-app-border"
+          data-nexa-board-theme={currentBoardTheme}
+          data-nexa-piece-set={currentPieceSet}
+          data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
+        />
         <div className="mt-3 flex items-center justify-center gap-2">
           <Button
             aria-label="First move"

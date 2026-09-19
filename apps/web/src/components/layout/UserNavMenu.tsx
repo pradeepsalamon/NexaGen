@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { LayoutDashboard, User as UserIcon, LogOut, ChevronDown } from "lucide-react";
+import { LayoutDashboard, User as UserIcon, LogOut, ChevronDown, Palette } from "lucide-react";
 import type { AuthUser } from "@nexa-chess/types";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
@@ -153,6 +153,12 @@ export function UserNavMenu({ user }: UserNavMenuProps) {
               <Link href="/profile" className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
                 <UserIcon className="size-4 text-app-muted" />
                 <span>My Profile & Settings</span>
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link href="/chess-board" className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
+                <Palette className="size-4 text-app-muted" />
+                <span>Chess Board</span>
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>

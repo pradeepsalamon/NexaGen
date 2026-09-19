@@ -29,11 +29,12 @@ export interface BoardState {
   historyIndex: number;
   
   // Board Presentation
+  // Theme/piece-set/coordinates/animation/highlight visuals now live in the
+  // app-wide ChessAppearanceProvider (see features/chess-appearance) — this
+  // store only keeps `orientation`, which is functional live-class state
+  // (whose side renders at the bottom right now), not a cosmetic preference.
   orientation: "white" | "black";
-  boardTheme: string;
-  pieceTheme: string;
-  showCoordinates: boolean;
-  
+
   // Annotations (Chessground format: Map of shapes)
   // For simplicity and sync, we store as raw arrays/objects which translate to chessground DrawShapes
   arrows: string[][]; // [["e2", "e4", "red"]]
@@ -48,11 +49,7 @@ export interface BoardState {
    * present in `selectedStudentIds` but missing here is treated as `"both"`.
    */
   selectedStudentSides: Record<string, BoardControlSide>;
-  
-  // Settings
-  animationDuration: number;
-  highlightLastMove: boolean;
-  
+
   // Editor & Interactions
   activeBrush: string; // e.g. "green", "red"
   isEditingPosition: boolean;
@@ -94,8 +91,7 @@ export interface BoardActions {
   
   // UI Actions
   setOrientation: (orientation: "white" | "black") => void;
-  setTheme: (board: string, piece: string) => void;
-  
+
   // Annotations
   setAnnotations: (arrows: string[][], squares: Record<string, string>) => void;
   clearAnnotations: () => void;
@@ -128,7 +124,6 @@ export interface BoardActions {
   setActiveBrush: (brush: string) => void;
   setEditingPosition: (editing: boolean) => void;
   setPendingPromotion: (promo: { from: string, to: string } | null) => void;
-  setShowCoordinates: (show: boolean) => void;
   setIsDrawingMode: (mode: boolean) => void;
   setIsSetupPositionOpen: (open: boolean) => void;
 
@@ -143,13 +138,6 @@ const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 export const createBoardStore = () => {
   const chess = new Chess();
 
-  // AUDIT H7: this store is created fresh per meeting room and never persists
-  // itself, but `boardStore.ts` (the app-wide store) already does — with
-  // exactly these three fields in its `partialize`. Seed from it instead of
-  // hardcoding defaults, and write through to it below, so board theme /
-  // piece theme / coordinates survive a reload instead of resetting every time.
-  const persistedPreferences = usePersistedStore.getState();
-
   return createStore<BoardStore>((set, get) => ({
     chess,
     fen: INITIAL_FEN,
@@ -162,22 +150,16 @@ export const createBoardStore = () => {
     historyIndex: -1,
 
     orientation: "white",
-    boardTheme: persistedPreferences.boardTheme,
-    pieceTheme: persistedPreferences.pieceTheme,
-    showCoordinates: persistedPreferences.showCoordinates,
     isDrawingMode: false,
     remoteSyncId: 0,
-    
+
     arrows: [],
     squareStyles: {},
-    
+
     permissionMode: "COACH_ONLY",
     selectedStudentIds: [],
     selectedStudentSides: {},
-    
-    animationDuration: 200,
-    highlightLastMove: true,
-    
+
     activeBrush: "green",
     isEditingPosition: false,
     pendingPromotion: null,
@@ -407,12 +389,7 @@ export const createBoardStore = () => {
     },
     
     setOrientation: (orientation) => set({ orientation }),
-    setTheme: (boardTheme, pieceTheme) => {
-      set({ boardTheme, pieceTheme });
-      // Write through to the persisted store (AUDIT H7).
-      usePersistedStore.setState({ boardTheme, pieceTheme });
-    },
-    
+
     setAnnotations: (arrows, squares) => set({ arrows, squareStyles: squares }),
     clearAnnotations: () => set({ arrows: [], squareStyles: {} }),
     
@@ -536,11 +513,6 @@ export const createBoardStore = () => {
     setActiveBrush: (brush) => set({ activeBrush: brush }),
     setEditingPosition: (editing) => set({ isEditingPosition: editing }),
     setPendingPromotion: (promo) => set({ pendingPromotion: promo }),
-    setShowCoordinates: (show) => {
-      set({ showCoordinates: show });
-      // Write through to the persisted store (AUDIT H7).
-      usePersistedStore.setState({ showCoordinates: show });
-    },
     setIsDrawingMode: (mode) => set({ isDrawingMode: mode }),
     setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open }),
     setActiveTab: (tab) => set({ activeTab: tab })

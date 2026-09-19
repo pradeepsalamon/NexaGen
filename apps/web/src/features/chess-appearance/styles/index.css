@@ -1,0 +1,10 @@
+/*
+ * The full chessboard visual system, imported exactly once (in
+ * AppProviders.tsx) instead of the six duplicate per-component imports of
+ * chessground's bundled defaults this replaces.
+ */
+@import "chessground/assets/chessground.base.css";
+@import "./boards.css";
+@import "./pieces.css";
+@import "./highlights.css";
+@import "./preview.css";

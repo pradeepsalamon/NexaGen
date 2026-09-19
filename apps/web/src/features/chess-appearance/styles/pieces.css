@@ -1,0 +1,74 @@
+/*
+ * Piece set themes. SVGs vendored from lichess's open-source piece library
+ * under commercially-safe licenses — see
+ * apps/web/public/chess/pieces/LICENSES.md for full attribution.
+ *
+ * File-based `url(...)` references (not inlined data-URIs) so the browser
+ * only fetches a set's SVGs once it actually renders on the page, and caches
+ * them across every board using that set (multiple boards, one theme).
+ */
+
+[data-nexa-piece-set="classic"] piece.pawn.white { background-image: url("/chess/pieces/classic/wP.svg"); }
+[data-nexa-piece-set="classic"] piece.knight.white { background-image: url("/chess/pieces/classic/wN.svg"); }
+[data-nexa-piece-set="classic"] piece.bishop.white { background-image: url("/chess/pieces/classic/wB.svg"); }
+[data-nexa-piece-set="classic"] piece.rook.white { background-image: url("/chess/pieces/classic/wR.svg"); }
+[data-nexa-piece-set="classic"] piece.queen.white { background-image: url("/chess/pieces/classic/wQ.svg"); }
+[data-nexa-piece-set="classic"] piece.king.white { background-image: url("/chess/pieces/classic/wK.svg"); }
+[data-nexa-piece-set="classic"] piece.pawn.black { background-image: url("/chess/pieces/classic/bP.svg"); }
+[data-nexa-piece-set="classic"] piece.knight.black { background-image: url("/chess/pieces/classic/bN.svg"); }
+[data-nexa-piece-set="classic"] piece.bishop.black { background-image: url("/chess/pieces/classic/bB.svg"); }
+[data-nexa-piece-set="classic"] piece.rook.black { background-image: url("/chess/pieces/classic/bR.svg"); }
+[data-nexa-piece-set="classic"] piece.queen.black { background-image: url("/chess/pieces/classic/bQ.svg"); }
+[data-nexa-piece-set="classic"] piece.king.black { background-image: url("/chess/pieces/classic/bK.svg"); }
+
+[data-nexa-piece-set="modern"] piece.pawn.white { background-image: url("/chess/pieces/modern/wP.svg"); }
+[data-nexa-piece-set="modern"] piece.knight.white { background-image: url("/chess/pieces/modern/wN.svg"); }
+[data-nexa-piece-set="modern"] piece.bishop.white { background-image: url("/chess/pieces/modern/wB.svg"); }
+[data-nexa-piece-set="modern"] piece.rook.white { background-image: url("/chess/pieces/modern/wR.svg"); }
+[data-nexa-piece-set="modern"] piece.queen.white { background-image: url("/chess/pieces/modern/wQ.svg"); }
+[data-nexa-piece-set="modern"] piece.king.white { background-image: url("/chess/pieces/modern/wK.svg"); }
+[data-nexa-piece-set="modern"] piece.pawn.black { background-image: url("/chess/pieces/modern/bP.svg"); }
+[data-nexa-piece-set="modern"] piece.knight.black { background-image: url("/chess/pieces/modern/bN.svg"); }
+[data-nexa-piece-set="modern"] piece.bishop.black { background-image: url("/chess/pieces/modern/bB.svg"); }
+[data-nexa-piece-set="modern"] piece.rook.black { background-image: url("/chess/pieces/modern/bR.svg"); }
+[data-nexa-piece-set="modern"] piece.queen.black { background-image: url("/chess/pieces/modern/bQ.svg"); }
+[data-nexa-piece-set="modern"] piece.king.black { background-image: url("/chess/pieces/modern/bK.svg"); }
+
+[data-nexa-piece-set="minimal"] piece.pawn.white { background-image: url("/chess/pieces/minimal/wP.svg"); }
+[data-nexa-piece-set="minimal"] piece.knight.white { background-image: url("/chess/pieces/minimal/wN.svg"); }
+[data-nexa-piece-set="minimal"] piece.bishop.white { background-image: url("/chess/pieces/minimal/wB.svg"); }
+[data-nexa-piece-set="minimal"] piece.rook.white { background-image: url("/chess/pieces/minimal/wR.svg"); }
+[data-nexa-piece-set="minimal"] piece.queen.white { background-image: url("/chess/pieces/minimal/wQ.svg"); }
+[data-nexa-piece-set="minimal"] piece.king.white { background-image: url("/chess/pieces/minimal/wK.svg"); }
+[data-nexa-piece-set="minimal"] piece.pawn.black { background-image: url("/chess/pieces/minimal/bP.svg"); }
+[data-nexa-piece-set="minimal"] piece.knight.black { background-image: url("/chess/pieces/minimal/bN.svg"); }
+[data-nexa-piece-set="minimal"] piece.bishop.black { background-image: url("/chess/pieces/minimal/bB.svg"); }
+[data-nexa-piece-set="minimal"] piece.rook.black { background-image: url("/chess/pieces/minimal/bR.svg"); }
+[data-nexa-piece-set="minimal"] piece.queen.black { background-image: url("/chess/pieces/minimal/bQ.svg"); }
+[data-nexa-piece-set="minimal"] piece.king.black { background-image: url("/chess/pieces/minimal/bK.svg"); }
+
+[data-nexa-piece-set="tournament"] piece.pawn.white { background-image: url("/chess/pieces/tournament/wP.svg"); }
+[data-nexa-piece-set="tournament"] piece.knight.white { background-image: url("/chess/pieces/tournament/wN.svg"); }
+[data-nexa-piece-set="tournament"] piece.bishop.white { background-image: url("/chess/pieces/tournament/wB.svg"); }
+[data-nexa-piece-set="tournament"] piece.rook.white { background-image: url("/chess/pieces/tournament/wR.svg"); }
+[data-nexa-piece-set="tournament"] piece.queen.white { background-image: url("/chess/pieces/tournament/wQ.svg"); }
+[data-nexa-piece-set="tournament"] piece.king.white { background-image: url("/chess/pieces/tournament/wK.svg"); }
+[data-nexa-piece-set="tournament"] piece.pawn.black { background-image: url("/chess/pieces/tournament/bP.svg"); }
+[data-nexa-piece-set="tournament"] piece.knight.black { background-image: url("/chess/pieces/tournament/bN.svg"); }
+[data-nexa-piece-set="tournament"] piece.bishop.black { background-image: url("/chess/pieces/tournament/bB.svg"); }
+[data-nexa-piece-set="tournament"] piece.rook.black { background-image: url("/chess/pieces/tournament/bR.svg"); }
+[data-nexa-piece-set="tournament"] piece.queen.black { background-image: url("/chess/pieces/tournament/bQ.svg"); }
+[data-nexa-piece-set="tournament"] piece.king.black { background-image: url("/chess/pieces/tournament/bK.svg"); }
+
+[data-nexa-piece-set="wooden"] piece.pawn.white { background-image: url("/chess/pieces/wooden/wP.svg"); }
+[data-nexa-piece-set="wooden"] piece.knight.white { background-image: url("/chess/pieces/wooden/wN.svg"); }
+[data-nexa-piece-set="wooden"] piece.bishop.white { background-image: url("/chess/pieces/wooden/wB.svg"); }
+[data-nexa-piece-set="wooden"] piece.rook.white { background-image: url("/chess/pieces/wooden/wR.svg"); }
+[data-nexa-piece-set="wooden"] piece.queen.white { background-image: url("/chess/pieces/wooden/wQ.svg"); }
+[data-nexa-piece-set="wooden"] piece.king.white { background-image: url("/chess/pieces/wooden/wK.svg"); }
+[data-nexa-piece-set="wooden"] piece.pawn.black { background-image: url("/chess/pieces/wooden/bP.svg"); }
+[data-nexa-piece-set="wooden"] piece.knight.black { background-image: url("/chess/pieces/wooden/bN.svg"); }
+[data-nexa-piece-set="wooden"] piece.bishop.black { background-image: url("/chess/pieces/wooden/bB.svg"); }
+[data-nexa-piece-set="wooden"] piece.rook.black { background-image: url("/chess/pieces/wooden/bR.svg"); }
+[data-nexa-piece-set="wooden"] piece.queen.black { background-image: url("/chess/pieces/wooden/bQ.svg"); }
+[data-nexa-piece-set="wooden"] piece.king.black { background-image: url("/chess/pieces/wooden/bK.svg"); }

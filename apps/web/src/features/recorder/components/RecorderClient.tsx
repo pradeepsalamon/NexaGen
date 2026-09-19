@@ -14,10 +14,7 @@ import {
 } from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BoardSyncMessage, BoardColor } from "@/features/chessboard/types/sync";
-
-import "chessground/assets/chessground.base.css";
-import "chessground/assets/chessground.brown.css";
-import "chessground/assets/chessground.cburnett.css";
+import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
 /** The data-channel topic the live class broadcasts board state on. */
 const BOARD_SYNC_TOPIC = "board_sync";
@@ -57,6 +54,11 @@ type BoardState = {
 function RecorderBoard({ state }: { state: BoardState }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  // No LiveKit-authenticated user exists in this headless egress context, so
+  // this always resolves to the system default (Nexa Classic) — recordings
+  // show a consistent board regardless of the coach's own preference.
+  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled } =
+    useChessAppearance();
 
   useEffect(() => {
     if (!hostRef.current || apiRef.current) return;
@@ -64,8 +66,8 @@ function RecorderBoard({ state }: { state: BoardState }) {
       fen: state.fen,
       orientation: state.orientation,
       viewOnly: true,
-      coordinates: true,
-      animation: { enabled: true, duration: 200 },
+      coordinates: showCoordinates,
+      animation: { enabled: animationEnabled, duration: 200 },
       drawable: { enabled: false, visible: true },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -93,7 +95,14 @@ function RecorderBoard({ state }: { state: BoardState }) {
     } as Parameters<Api["set"]>[0]);
   }, [state]);
 
-  return <div className="recorder-board" ref={hostRef} />;
+  return (
+    <div
+      className="recorder-board"
+      ref={hostRef}
+      data-nexa-board-theme={currentBoardTheme}
+      data-nexa-piece-set={currentPieceSet}
+    />
+  );
 }
 
 /** One participant's camera tile; falls back to initials when video is off. */

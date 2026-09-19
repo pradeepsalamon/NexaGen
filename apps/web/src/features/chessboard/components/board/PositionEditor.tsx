@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { Color, MouchEvent, Role } from "chessground/types";
+import type { PieceSetId } from "@nexa-chess/types";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -14,10 +15,7 @@ import {
   START_FEN,
   type FenParts,
 } from "../../lib/fen";
-
-import "chessground/assets/chessground.base.css";
-import "chessground/assets/chessground.brown.css";
-import "chessground/assets/chessground.cburnett.css";
+import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
 export interface PositionEditorProps {
   /** Full FEN string. Controlled — the editor never holds its own copy. */
@@ -41,6 +39,7 @@ const ROLES: { role: Role; label: string }[] = [
 export function PositionEditor({ value, onChange, orientation = "white", className }: PositionEditorProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
+  const { currentBoardTheme, currentPieceSet, showCoordinates } = useChessAppearance();
   // Latest parts, readable inside the chessground change callback without
   // re-instantiating the board.
   const partsRef = useRef<FenParts>(parseFen(value));
@@ -62,7 +61,7 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
     const cg = Chessground(el, {
       fen: partsRef.current.placement,
       orientation,
-      coordinates: true,
+      coordinates: showCoordinates,
       autoCastle: false,
       movable: { free: true, color: "both", showDests: false },
       draggable: { deleteOnDropOff: true, showGhost: true },
@@ -117,13 +116,15 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
     <div className={cn("flex flex-col gap-5 md:flex-row md:items-start md:gap-6", className)}>
       {/* Board + spare pieces */}
       <div className="w-full max-w-[420px] shrink-0">
-        <SpareRow color="black" onSpawn={spawnPiece} />
+        <SpareRow color="black" pieceSetId={currentPieceSet} onSpawn={spawnPiece} />
         <div
           ref={boardRef}
           data-testid="position-editor-board"
-          className="cg-wrap cburnett brown my-2 aspect-square w-full overflow-hidden rounded-app border border-app-border"
+          data-nexa-board-theme={currentBoardTheme}
+          data-nexa-piece-set={currentPieceSet}
+          className="cg-wrap my-2 aspect-square w-full overflow-hidden rounded-app border border-app-border"
         />
-        <SpareRow color="white" onSpawn={spawnPiece} />
+        <SpareRow color="white" pieceSetId={currentPieceSet} onSpawn={spawnPiece} />
         <p className="mt-2 flex items-center gap-1.5 text-xs text-app-muted">
           <Trash2 className="size-3.5" strokeWidth={2.5} />
           Drag a piece off the board to remove it.
@@ -221,9 +222,11 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
 
 function SpareRow({
   color,
+  pieceSetId,
   onSpawn,
 }: {
   color: Color;
+  pieceSetId: PieceSetId;
   onSpawn: (e: React.MouseEvent | React.TouchEvent, role: Role, color: Color) => void;
 }) {
   return (
@@ -240,10 +243,10 @@ function SpareRow({
           onMouseDown={(e) => onSpawn(e, role, color)}
           onTouchStart={(e) => onSpawn(e, role, color)}
         >
-          {/* `.cg-wrap` ancestor + real <piece> element so the cburnett
-              `.cg-wrap piece.<role>.<color>` background rules apply; inline
+          {/* `.cg-wrap` ancestor + real <piece> element so the pieces.css
+              `[data-nexa-piece-set] piece.<role>.<color>` rules apply; inline
               styles undo chessground's absolute 12.5% board sizing. */}
-          <span className="cg-wrap cburnett block size-full">
+          <span className="cg-wrap block size-full" data-nexa-piece-set={pieceSetId}>
             {React.createElement("piece", {
               className: `${role} ${color}`,
               style: {

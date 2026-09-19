@@ -153,6 +153,10 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   (85), `ANALYTICS_LOW_ATTENDANCE_PERCENT` (75), `ANALYTICS_INACTIVE_DAYS` (30),
   `ANALYTICS_CACHE_TTL_SECONDS` (300).
 - Quiet API startup logs with request logging for method, path, status, duration, and client address
+- Chess board appearance: centralized board theme / piece set system (6 board
+  themes, 5 licensed piece sets) with a 3-layer resolver (system → admin
+  default → user preference), user page `/chess-board`, admin page
+  `/admin/chess-appearance` — see "Chess Board Appearance" below
 
 ## Development
 
@@ -514,6 +518,50 @@ ANNOUNCEMENT rule. The announcement's own audience decides who hears it —
 everyone, students, coaches, or one batch — not the rule's, so a published
 broadcast can't be silently narrowed by a settings change. The student dashboard
 only shows announcements addressed to that student.
+
+## Chess Board Appearance
+
+A single, centralized theme system drives the visual appearance of every
+chessboard in the app (`apps/api/src/chess-appearance/`,
+`apps/web/src/features/chess-appearance/`, routes `API_ROUTES.chessAppearance.*`,
+user page `/chess-board`, admin page `/admin/chess-appearance`).
+
+- **Three-layer resolver, same shape as pre-class settings**: system default
+  (Nexa Classic) → admin global default → the user's own preference, last
+  non-empty layer wins. `resolveChessAppearance` + the catalogs live in
+  `@nexa-chess/types` (`chess-appearance.ts`) so the API and both settings
+  pages can never disagree about what a theme is or how resolution works.
+- **6 board themes** (Nexa Classic, Classic Green, Blue, Brown, Dark, Minimal)
+  are self-authored CSS — a checkerboard built from two stacked
+  `linear-gradient`s plus an optional subtle wood-grain layer, parameterized
+  by CSS custom properties scoped under `[data-nexa-board-theme="<id>"]`. No
+  image assets, no licensing concerns, and any two boards on the same page can
+  run different themes at once.
+- **5 piece sets** (Classic, Modern, Minimal, Tournament, Wooden) are vendored
+  SVGs from lichess's open-source piece library
+  (github.com/lichess-org/lila), filtered to commercially-safe licenses —
+  most of lichess's own sets are non-commercial and were excluded. Full
+  attribution in `apps/web/public/chess/pieces/LICENSES.md`. Scoped the same
+  way, under `[data-nexa-piece-set="<id>"]`.
+- **Every chessboard** (`ChessgroundBoard`, `PracticeBoard`, `PositionEditor`,
+  `PuzzleBoardTile`, `PgnBoardViewer`, `SolutionEditor`, the recorder template)
+  reads its theme, coordinates, animation, and highlight/legal-move/check
+  toggles from `useChessAppearance()` (`ChessAppearanceProvider`, mounted once
+  in `AppProviders.tsx`) instead of hardcoding them — purely cosmetic,
+  per-browser state that never touches FEN/position/move history and is never
+  broadcast over a live-class data channel.
+- **Live preview without saving**: `ChessAppearancePreviewScope` shadows the
+  app-wide context with unsaved draft values for its subtree, so the settings
+  pages' preview board (a real, movable `PracticeBoard`) updates immediately
+  as a form changes, with zero special-casing in the board components
+  themselves.
+- **A user-preference save merges onto the existing stored override**, not a
+  wholesale replace — a single-field change (e.g. the board's `C` keyboard
+  shortcut for coordinates) can't silently clobber a different field the user
+  set earlier from the settings page. The same merge applies to the admin
+  global default.
+- **Admin can disable a built-in theme** (never delete one) to hide it from
+  both picker UIs; a user who already had it selected keeps rendering it.
 
 ## Payments
 

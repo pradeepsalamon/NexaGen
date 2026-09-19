@@ -8,11 +8,16 @@ import { type ReactNode, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { TooltipProvider } from "@/components/ui/Tooltip";
+import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
 import { AcquisitionCapture } from "./AcquisitionCapture";
 import { SessionBootstrap } from "./SessionBootstrap";
 import { ThemeProvider } from "./ThemeProvider";
 import { ToastProvider } from "./ToastProvider";
+
+// The full chessboard visual system (board themes + piece sets), imported
+// exactly once here instead of once per board component.
+import "@/features/chess-appearance/styles/index.css";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -36,11 +41,13 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ThemeProvider>
         <ToastProvider>
           <TooltipProvider delayDuration={600}>
-            <SessionBootstrap />
-            <AcquisitionCapture />
-            {!isMeetingRoute && <Header />}
-            {/* <EmailVerificationBanner /> (Temporarily disabled) */}
-            <div className={!isMeetingRoute ? "pt-16" : ""}>{children}</div>
+            <ChessAppearanceProvider>
+              <SessionBootstrap />
+              <AcquisitionCapture />
+              {!isMeetingRoute && <Header />}
+              {/* <EmailVerificationBanner /> (Temporarily disabled) */}
+              <div className={!isMeetingRoute ? "pt-16" : ""}>{children}</div>
+            </ChessAppearanceProvider>
           </TooltipProvider>
         </ToastProvider>
       </ThemeProvider>

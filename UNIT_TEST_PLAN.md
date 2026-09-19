@@ -758,6 +758,35 @@ Scenarios after extraction:
 - Disconnects Prisma in `finally`.
 - Sets `process.exitCode = 1` on failure.
 
+### Chess Appearance Module
+
+Priority: Medium
+
+Files requiring unit tests:
+
+- `ChessAppearanceService`
+
+Covered in `apps/api/src/chess-appearance/chess-appearance.service.spec.ts`:
+
+- **Resolved appearance**: a new user with no admin override gets the
+  Nexa Classic system default; a new user picks up the admin global default
+  once one is set; a user's own preference wins over the admin default.
+- **User preference**: `updateMyPreference` upserts a partial override, and
+  merges a single-field patch onto an existing stored preference without
+  clobbering other previously-saved fields; `resetMyPreference` removes the
+  preference row so the admin default (or system default) applies again.
+- **Catalog**: `getCatalog` filters out admin-disabled board themes and
+  piece sets.
+- **Admin global default**: `getGlobalSettings` / `updateGlobalSettings`
+  reject a non-admin (coach, student) with `ForbiddenException`; an admin can
+  update the global default and the disabled-id lists; `resetGlobalSettings`
+  clears both the override and the disabled-id lists back to the system
+  baseline.
+
+Not covered (manual/E2E territory — no server-side logic to unit test):
+web-side theme/piece-set CSS rendering, the live preview's draft-shadowing
+behavior, and cross-device preference persistence.
+
 ## Missing Coverage And Future Inventory
 
 The following modules are requested by product scope but not currently implemented. When created, they must be added to this document immediately.
