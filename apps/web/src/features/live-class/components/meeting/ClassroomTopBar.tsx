@@ -12,6 +12,13 @@ interface ClassroomTopBarProps {
   status?: ReactNode;
   /** Right-aligned cluster (connection, timer, leave…). */
   actions?: ReactNode;
+  /**
+   * The account menu / Dashboard / notification links open in a new tab
+   * instead of routing the current tab away — used by the live meeting so
+   * clicking them can't silently unmount the LiveKit room. Not set from the
+   * pre-join / error screens, which have no live connection to protect.
+   */
+  openLinksInNewTab?: boolean;
 }
 
 /**
@@ -26,10 +33,12 @@ export function ClassroomTopBar({
   subtitle,
   status,
   actions,
+  openLinksInNewTab = false,
 }: ClassroomTopBarProps) {
   return (
     <Header
       compact
+      openLinksInNewTab={openLinksInNewTab}
       leftSlot={
         status ? <div className="flex min-w-0 items-center gap-2">{status}</div> : undefined
       }

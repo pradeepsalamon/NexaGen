@@ -1,23 +1,38 @@
+import { useState } from "react";
 import { MoveHistory } from "../panels/MoveHistory";
 import { StockfishPanel } from "./StockfishPanel";
 import { MasterbasePanel } from "./MasterbasePanel";
+import { PgnPanel } from "./PgnPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
 import { uploadPgn } from "@/lib/uploadApi";
 import { toast } from "sonner";
 import { useBoardStore } from "../../context/BoardProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import { loadPgnIntoBoard } from "../../lib/loadPgn";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 import { isHumanParticipant } from "@/features/live-class/lib/participants";
 import { BoardControlSideToggle } from "@/features/live-class/components/meeting/BoardControlSideToggle";
 import type { BoardControlSide } from "../../types/sync";
 import { useParticipants } from "@livekit/components-react";
+import { analyzePosition } from "../../api/stockfishApi";
 
 export function SidebarTabs() {
-  const { pgn, reset, undo, pushHistory, historyIndex, setIsSetupPositionOpen, activeTab, setActiveTab } = useBoardStore();
+  const {
+    fen,
+    pgn,
+    undo,
+    redo,
+    historyIndex,
+    moveHistory,
+    isGameOver,
+    makeMove,
+    setIsSetupPositionOpen,
+    activeTab,
+    setActiveTab,
+  } = useBoardStore();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const [isEngineMoving, setIsEngineMoving] = useState(false);
 
   // Live class context (only defined when board is inside a live class)
   const liveClassState = useOptionalLiveClassState();
@@ -36,11 +51,6 @@ export function SidebarTabs() {
     }
   };
 
-  const handleNew = () => {
-    reset();
-    toast.success("Board reset to starting position");
-  };
-
   const handleCopyPGN = async () => {
     if (pgn) {
       await navigator.clipboard.writeText(pgn);
@@ -50,48 +60,55 @@ export function SidebarTabs() {
     }
   };
 
-  const handlePastePGN = async () => {
-    let text = "";
-    try {
-      text = await navigator.clipboard.readText();
-    } catch {
-      toast.error("Could not read the clipboard. Use Load Games/Positions to paste a PGN.");
-      return;
-    }
-    const result = loadPgnIntoBoard(text, pushHistory);
-    if (result.ok) {
-      toast.success("PGN loaded successfully");
-    } else {
-      toast.error(result.error);
-    }
+  const handlePastePGN = () => {
+    setActiveTab("pgn");
   };
 
   const handleSetupPosition = () => {
     setIsSetupPositionOpen(true);
   };
 
+  const handleEngineMove = async () => {
+    if (isGameOver) {
+      toast.error("The game is already over.");
+      return;
+    }
+    setIsEngineMoving(true);
+    try {
+      const analysis = await analyzePosition(fen);
+      const uci = analysis.bestMoveUci;
+      if (!uci || uci.length < 4) {
+        toast.error("Engine could not find a move for this position.");
+        return;
+      }
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.length > 4 ? uci.slice(4, 5) : undefined;
+      if (!makeMove(from, to, promotion)) {
+        toast.error("Could not play the engine's move.");
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to get the engine's move.");
+    } finally {
+      setIsEngineMoving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full w-full bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 p-4 shadow-sm border-l border-gray-200 dark:border-slate-800">
-      
-      {/* Top right link */}
-      <div className="flex justify-end mb-4">
-        <button 
-          onClick={handleSetupPosition}
-          className="text-blue-500 hover:text-blue-600 text-sm font-medium flex items-center gap-1"
-        >
-          <span>&lt;</span> Load Games/Positions
-        </button>
-      </div>
 
       {/* Action Buttons Row */}
       {isCoach && (
         <div className="flex flex-wrap gap-2 mb-6">
           <Button variant="primary" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 h-auto text-xs font-medium" onClick={handleSaveToCloud}>Save</Button>
-          <SidebarButton onClick={handleNew}>New</SidebarButton>
           <SidebarButton onClick={handleSetupPosition}>Setup Position</SidebarButton>
-          <SidebarButton onClick={undo} disabled={historyIndex <= 0}>Undo</SidebarButton>
-          <SidebarButton onClick={handlePastePGN}>Paste PGN</SidebarButton>
+          <SidebarButton onClick={undo} disabled={historyIndex < 0}>Undo</SidebarButton>
+          <SidebarButton onClick={redo} disabled={historyIndex >= moveHistory.length - 1}>Redo</SidebarButton>
           <SidebarButton onClick={handleCopyPGN}>Copy PGN</SidebarButton>
+          <SidebarButton onClick={handlePastePGN}>Paste PGN</SidebarButton>
+          <SidebarButton onClick={handleEngineMove} disabled={isEngineMoving || isGameOver}>
+            {isEngineMoving ? "Thinking…" : "Engine Move"}
+          </SidebarButton>
         </div>
       )}
 
@@ -107,6 +124,11 @@ export function SidebarTabs() {
           {isCoach && (
             <TabsTrigger value="engine" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
               Engine
+            </TabsTrigger>
+          )}
+          {isCoach && (
+            <TabsTrigger value="pgn" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
+              PGN
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
@@ -127,6 +149,11 @@ export function SidebarTabs() {
         {isCoach && (
           <TabsContent value="engine" className="flex-1 mt-0">
             <StockfishPanel />
+          </TabsContent>
+        )}
+        {isCoach && (
+          <TabsContent value="pgn" className="flex-1 min-h-0 overflow-y-auto mt-0">
+            <PgnPanel />
           </TabsContent>
         )}
         {isCoach && liveClassState && (

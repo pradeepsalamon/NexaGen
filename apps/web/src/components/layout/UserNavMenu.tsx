@@ -28,6 +28,8 @@ type UserWithAvatar = AuthUser & {
 
 type UserNavMenuProps = {
   user: UserWithAvatar;
+  /** Live class only: menu links open in a new tab instead of unmounting the room. */
+  openLinksInNewTab?: boolean;
 };
 
 function getRoleLabel(role?: string) {
@@ -66,7 +68,7 @@ function getInitials(user?: Pick<UserWithAvatar, "firstName" | "lastName">) {
   return initials || "NC";
 }
 
-export function UserNavMenu({ user }: UserNavMenuProps) {
+export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProps) {
   const router = useRouter();
   const toast = useToast();
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -96,6 +98,9 @@ export function UserNavMenu({ user }: UserNavMenuProps) {
 
   const dashboardHref = getRoleDashboardHref(user.role);
   const initials = getInitials(user);
+  const newTabProps = openLinksInNewTab
+    ? { target: "_blank" as const, rel: "noopener noreferrer" }
+    : {};
 
   return (
     <>
@@ -144,19 +149,31 @@ export function UserNavMenu({ user }: UserNavMenuProps) {
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem asChild>
-              <Link href={dashboardHref} className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
+              <Link
+                href={dashboardHref}
+                className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold"
+                {...newTabProps}
+              >
                 <LayoutDashboard className="size-4 text-primary" />
                 <span>Dashboard</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/profile" className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
+              <Link
+                href="/profile"
+                className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold"
+                {...newTabProps}
+              >
                 <UserIcon className="size-4 text-app-muted" />
                 <span>My Profile & Settings</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link href="/chess-board" className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold">
+              <Link
+                href="/chess-board"
+                className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold"
+                {...newTabProps}
+              >
                 <Palette className="size-4 text-app-muted" />
                 <span>Chess Board</span>
               </Link>

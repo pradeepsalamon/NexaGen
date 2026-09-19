@@ -74,37 +74,66 @@
   --nexa-border: #a8a8a8;
 }
 
-/* One shared rule set, parameterized by the custom properties above. */
+/* One shared rule set, parameterized by the custom properties above.
+ *
+ * The rounding/clipping lives here (on cg-board), not on the wrap: chessground
+ * renders rank/file coordinate labels as siblings of cg-board, positioned
+ * partly *outside* the board's own box (negative top/bottom offsets — see
+ * chessground.base.css `coords.ranks`/`coords.files`), on the assumption that
+ * the host page leaves room around the board for them. `overflow: hidden` on
+ * the wrap would clip those labels along with the checker pattern, so instead
+ * only cg-board (the checker background + squares/pieces) clips to the
+ * rounded corner, and the wrap itself stays `overflow: visible`.
+ */
 [data-nexa-board-theme] cg-board {
+  overflow: hidden;
+  border-radius: 2px;
   background-color: var(--nexa-light);
+  /*
+   * A single conic-gradient wedge-quadrant tile (light/dark/light/dark going
+   * clockwise from the top) repeated at 2x2-square size — the only version of
+   * the "CSS-only checkerboard" that actually produces flat, solid-color
+   * squares. The two-layer 45deg linear-gradient variant (offset diagonal
+   * stripes) looks equivalent on paper but does NOT tile into clean squares:
+   * verified by sampling rendered pixels — individual squares came out
+   * diagonally split into two colors instead of one flat fill.
+   */
   background-image: var(--nexa-grain-layer, none),
-    linear-gradient(
-      45deg,
-      var(--nexa-dark) 25%,
-      transparent 25%,
-      transparent 75%,
-      var(--nexa-dark) 75%
-    ),
-    linear-gradient(
-      45deg,
-      var(--nexa-dark) 25%,
-      transparent 25%,
-      transparent 75%,
-      var(--nexa-dark) 75%
+    conic-gradient(
+      var(--nexa-dark) 90deg,
+      var(--nexa-light) 90deg 180deg,
+      var(--nexa-dark) 180deg 270deg,
+      var(--nexa-light) 270deg
     );
   background-size:
     100% 100%,
-    25% 25%,
     25% 25%;
   background-position:
     0 0,
-    0 0,
-    12.5% 12.5%;
+    0 0;
 }
 
 [data-nexa-board-theme] {
   border-radius: 2px;
   box-shadow: 0 0 0 3px var(--nexa-border, transparent);
+}
+
+/*
+ * chessground's default `coords.files`/`coords.ranks` offsets (base CSS:
+ * `left: 24px` on .files with no compensating transform on its `coord`
+ * children, and `.ranks coord { transform: translateY(39%) }`) assume the
+ * host page reserves an outside margin sized to match — they were tuned for
+ * lichess's own board chrome, not a board sized/bordered like ours. Left
+ * alone, file letters render ~25px right of their actual column (verified:
+ * a bottom-rank rook's rendered x-center vs its file letter's) and rank
+ * numbers sit a few px high. Re-center both against our own square grid.
+ */
+[data-nexa-board-theme] coords.files {
+  left: 0;
+}
+
+[data-nexa-board-theme] coords.ranks coord {
+  transform: translateY(50%);
 }
 
 /* Alternating rank/file coordinate label colors, mirroring chessground's own

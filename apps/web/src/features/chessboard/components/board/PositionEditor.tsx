@@ -62,7 +62,6 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
       fen: partsRef.current.placement,
       orientation,
       coordinates: showCoordinates,
-      coordinatesOnSquares: true,
       autoCastle: false,
       movable: { free: true, color: "both", showDests: false },
       draggable: { deleteOnDropOff: true, showGhost: true },
@@ -123,7 +122,7 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
           data-testid="position-editor-board"
           data-nexa-board-theme={currentBoardTheme}
           data-nexa-piece-set={currentPieceSet}
-          className="cg-wrap my-2 aspect-square w-full overflow-hidden rounded-app border border-app-border"
+          className="cg-wrap my-2 aspect-square w-full rounded-app border border-app-border"
         />
         <SpareRow color="white" pieceSetId={currentPieceSet} onSpawn={spawnPiece} />
         <p className="mt-2 flex items-center gap-1.5 text-xs text-app-muted">

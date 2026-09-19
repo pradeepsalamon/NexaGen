@@ -63,7 +63,6 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
       fen: currentFen,
       viewOnly: true,
       coordinates: showCoordinates,
-      coordinatesOnSquares: true,
       drawable: { enabled: false },
       animation: { enabled: animationEnabled, duration: 150 }
     });
@@ -103,7 +102,7 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
       <div className="w-full max-w-[420px]">
         <div
           ref={containerRef}
-          className="aspect-square w-full overflow-hidden rounded-app border border-app-border"
+          className="aspect-square w-full rounded-app border border-app-border"
           data-nexa-board-theme={currentBoardTheme}
           data-nexa-piece-set={currentPieceSet}
           data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}

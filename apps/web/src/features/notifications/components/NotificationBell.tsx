@@ -10,7 +10,12 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useMarkNotificationsRead, useNotifications } from "../hooks/useNotificationsApi";
 
-export function NotificationBell() {
+export function NotificationBell({
+  openLinksInNewTab = false,
+}: {
+  /** Live class only: notification links open in a new tab instead of unmounting the room. */
+  openLinksInNewTab?: boolean;
+} = {}) {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const [open, setOpen] = useState(false);
@@ -30,7 +35,12 @@ export function NotificationBell() {
   const handleItemClick = (item: NotificationItem) => {
     if (!item.readAt) markRead.mutate({ ids: [item.id] });
     setOpen(false);
-    if (item.linkPath) router.push(item.linkPath);
+    if (!item.linkPath) return;
+    if (openLinksInNewTab) {
+      window.open(item.linkPath, "_blank", "noopener,noreferrer");
+    } else {
+      router.push(item.linkPath);
+    }
   };
 
   return (

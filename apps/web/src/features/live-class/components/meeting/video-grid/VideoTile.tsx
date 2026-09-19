@@ -52,7 +52,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-app-surface transition-[box-shadow,border-color] duration-200",
+        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-app-surface shadow-card transition-[box-shadow,border-color] duration-200",
         isSpeaking
           ? "border-primary ring-2 ring-primary/60"
           : "border-app-border hover:border-app-border/80",
@@ -73,16 +73,18 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       ) : (
         <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-app-soft p-2 sm:gap-3">
           {/* Tiles are sized in px by the grid, so the placeholder scales off
-              the tile itself (cqw) rather than off viewport breakpoints. */}
+              the tile itself (cqmin — the smaller of its width/height) rather
+              than off viewport breakpoints, and keeps growing on a large,
+              mostly-empty tile instead of maxing out at a small fixed size. */}
           <ParticipantAvatar
             name={name}
             size="lg"
-            className="size-[clamp(2rem,18cqw,6rem)] text-[clamp(0.7rem,6cqw,1.875rem)]"
+            className="size-[clamp(2.5rem,26cqmin,11rem)] text-[clamp(0.75rem,9cqmin,2.5rem)]"
           />
           <div className="flex max-w-full items-center justify-center gap-1.5 text-center">
-            <p className="truncate text-xs font-medium text-app-text/80 sm:text-sm">{name}</p>
+            <p className="truncate text-[clamp(0.75rem,3cqmin,1.125rem)] font-medium text-app-text/80">{name}</p>
             {role && role.toUpperCase() === "COACH" && (
-              <span className="shrink-0 text-app-muted text-xs font-normal">(Coach)</span>
+              <span className="shrink-0 text-app-muted text-[clamp(0.7rem,2.6cqmin,1rem)] font-normal">(Coach)</span>
             )}
           </div>
         </div>

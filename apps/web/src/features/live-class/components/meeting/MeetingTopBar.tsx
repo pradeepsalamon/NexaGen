@@ -11,6 +11,7 @@ export const MeetingTopBar = memo(function MeetingTopBar() {
   return (
     <ClassroomTopBar
       title={topic || "Live Class"}
+      openLinksInNewTab
       status={
         <span className="flex shrink-0 items-center gap-1.5">
           <RecordingBadge />

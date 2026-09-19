@@ -115,7 +115,6 @@ export function PracticeBoard({
       orientation,
       turnColor,
       coordinates: showCoordinates,
-      coordinatesOnSquares: true,
       drawable: { enabled: false },
       animation: { enabled: animationEnabled, duration: 150 },
       highlight: {
@@ -159,7 +158,6 @@ export function PracticeBoard({
       orientation,
       turnColor,
       coordinates: showCoordinates,
-      coordinatesOnSquares: true,
       animation: { enabled: animationEnabled, duration: 150 },
       lastMove: lastMove ? (lastMove as Key[]) : undefined,
       check: game?.inCheck() ?? false,
@@ -189,7 +187,7 @@ export function PracticeBoard({
     <div className={cn("relative w-full max-w-[440px]", className)}>
       <div
         ref={containerRef}
-        className="aspect-square w-full overflow-hidden rounded-app border border-app-border"
+        className="aspect-square w-full rounded-app border border-app-border"
         data-nexa-board-theme={currentBoardTheme}
         data-nexa-piece-set={currentPieceSet}
         data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}

@@ -117,6 +117,7 @@ export function Header({
   rightSlot,
   leftSlot,
   compact = false,
+  openLinksInNewTab = false,
 }: {
   centerSlot?: React.ReactNode;
   rightSlot?: React.ReactNode;
@@ -127,6 +128,13 @@ export function Header({
    * on a phone. No effect on `sm+` or when omitted.
    */
   compact?: boolean;
+  /**
+   * Live class only: the logo/Dashboard links and notification navigation open
+   * in a new tab instead of routing the current tab away, which would unmount
+   * the LiveKit room and disconnect the user. Backgrounding the class tab this
+   * way is also what lets the browser's auto Picture-in-Picture kick in.
+   */
+  openLinksInNewTab?: boolean;
 } = {}) {
   const pathname = usePathname();
   const isHydrated = useAuthStore((state) => state.isHydrated);
@@ -148,6 +156,7 @@ export function Header({
             aria-label={activeUser ? "Go to Dashboard" : "Go to Home"}
             className="shrink-0 rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
             href={homeHref}
+            {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           >
             <Logo
               compact
@@ -176,6 +185,7 @@ export function Header({
                   : "border-app-border bg-app-soft text-app-text hover:border-primary/50 hover:bg-app-soft/80"
               )}
               href={dashboardHref}
+              {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
             >
               <LayoutDashboard aria-hidden="true" className="size-4" strokeWidth={2.5} />
               <span className="hidden sm:inline">Dashboard</span>
@@ -183,7 +193,7 @@ export function Header({
           )}
           {activeUser && (
             <span className={cn(compact && "hidden lg:block")}>
-              <NotificationBell />
+              <NotificationBell openLinksInNewTab={openLinksInNewTab} />
             </span>
           )}
           <span className={cn(compact && "hidden sm:block")}>
@@ -202,7 +212,7 @@ export function Header({
               />
             </div>
           ) : activeUser ? (
-            <UserNavMenu user={activeUser} />
+            <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
           ) : (
             <Link
               className="inline-flex min-h-10 items-center gap-2 rounded-control border border-app-border bg-primary px-3 text-sm font-extrabold text-white shadow-card transition hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:px-4"
