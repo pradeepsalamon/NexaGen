@@ -67,6 +67,7 @@ function RecorderBoard({ state }: { state: BoardState }) {
       orientation: state.orientation,
       viewOnly: true,
       coordinates: showCoordinates,
+      coordinatesOnSquares: true,
       animation: { enabled: animationEnabled, duration: 200 },
       drawable: { enabled: false, visible: true },
     });

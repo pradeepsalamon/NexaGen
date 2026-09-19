@@ -62,6 +62,7 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
       fen: partsRef.current.placement,
       orientation,
       coordinates: showCoordinates,
+      coordinatesOnSquares: true,
       autoCastle: false,
       movable: { free: true, color: "both", showDests: false },
       draggable: { deleteOnDropOff: true, showGhost: true },

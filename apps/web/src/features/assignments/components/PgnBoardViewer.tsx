@@ -63,6 +63,7 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
       fen: currentFen,
       viewOnly: true,
       coordinates: showCoordinates,
+      coordinatesOnSquares: true,
       drawable: { enabled: false },
       animation: { enabled: animationEnabled, duration: 150 }
     });

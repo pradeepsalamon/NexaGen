@@ -115,6 +115,7 @@ export function PracticeBoard({
       orientation,
       turnColor,
       coordinates: showCoordinates,
+      coordinatesOnSquares: true,
       drawable: { enabled: false },
       animation: { enabled: animationEnabled, duration: 150 },
       highlight: {
@@ -158,6 +159,7 @@ export function PracticeBoard({
       orientation,
       turnColor,
       coordinates: showCoordinates,
+      coordinatesOnSquares: true,
       animation: { enabled: animationEnabled, duration: 150 },
       lastMove: lastMove ? (lastMove as Key[]) : undefined,
       check: game?.inCheck() ?? false,
