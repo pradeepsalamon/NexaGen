@@ -16,6 +16,7 @@ import { WebhookReceiver } from "livekit-server-sdk";
 import { DisconnectReason } from "@livekit/protocol";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { AttendanceService } from "./attendance.service";
+import { resolveJoinAction } from "./attendance-session.util";
 import { LiveClassService } from "../live-class/live-class.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { API_ROUTES } from "@nexa-chess/types";
@@ -240,6 +241,14 @@ export class AttendanceWebhookController {
     const isCoach = userId === liveSession.coachId;
     const isBoard = participantIdentity?.endsWith("_board");
 
+    // Per-tab id (`_<tabId>` LiveKit identity suffix, joinedSession.ts
+    // #getTabClientId), used by the student join/leave paths below to tell two
+    // concurrent tabs of the same student apart (§2.8 multi-tab misfire).
+    const clientId =
+      !isBoard && participantIdentity?.includes("_")
+        ? participantIdentity.split("_").slice(1).join("_")
+        : undefined;
+
     switch (event.event) {
       case "participant_joined": {
         if (isBoard) {
@@ -275,35 +284,59 @@ export class AttendanceWebhookController {
           break;
         }
 
-        // Student logic
+        // Student logic. See resolveJoinAction for why this is clientId-scoped
+        // rather than "whichever session is most recently open" (§2.8): a
+        // second tab joining must not ghost-drop the first tab's still-live
+        // session, or that first tab's own later clean leave would go on to
+        // close the second tab's session out from under it.
         const existing = await this.prisma.classAttendance.findUnique({
           where: { classId_studentId: { classId, studentId: userId } },
-          include: { logs: { orderBy: { timestamp: "desc" }, take: 1 } },
         });
+        const openLogs = existing
+          ? await this.prisma.attendanceLog.findMany({
+              where: {
+                attendanceId: existing.id,
+                eventType: { in: ["JOIN", "RECONNECT"] },
+                sessionEnd: null,
+              },
+              select: { id: true, clientId: true, timestamp: true },
+            })
+          : [];
 
-        if (!existing) {
-          // First time joining
-          await this.attendanceService.recordJoinEvent(classId, userId, { source: "LIVEKIT" });
-        } else {
-          const lastLog = existing.logs[0];
+        const action = resolveJoinAction(
+          !!existing,
+          openLogs,
+          clientId,
+          new Date(),
+          DUPLICATE_JOIN_WINDOW_MS
+        );
 
-          // LiveClassService.getToken opens the session when the student
-          // requests a token, moments before LiveKit emits participant_joined.
-          // Treating that as a re-join produced a phantom "Ghost drop" and an
-          // inflated reconnectCount on every single join. See AUDIT.md H3.
-          if (this.isSameJoin(lastLog)) {
+        switch (action.kind) {
+          case "FIRST_JOIN":
+            await this.attendanceService.recordJoinEvent(classId, userId, {
+              source: "LIVEKIT",
+              clientId,
+            });
+            break;
+          case "DUPLICATE_SKIP":
+            // LiveClassService.getToken opens the session when the student
+            // requests a token, moments before LiveKit emits
+            // participant_joined. Treating that as a re-join produced a
+            // phantom "Ghost drop" and an inflated reconnectCount on every
+            // single join. See AUDIT.md H3.
             this.logger.debug(
               `Skipping duplicate join for user=${userId} class=${classId}`
             );
             break;
-          }
-
-          const lastEvent = lastLog?.eventType;
-          if (lastEvent === "JOIN" || lastEvent === "RECONNECT") {
-            // Ghost drop
-            await this.attendanceService.recordLeaveEvent(classId, userId, "Ghost drop");
-          }
-          await this.attendanceService.recordReconnectEvent(classId, userId);
+          case "GHOST_DROP_RECONNECT":
+            await this.attendanceService.recordLeaveEvent(classId, userId, "Ghost drop", {
+              clientId,
+            });
+            await this.attendanceService.recordReconnectEvent(classId, userId, clientId);
+            break;
+          case "CONCURRENT_RECONNECT":
+            await this.attendanceService.recordReconnectEvent(classId, userId, clientId);
+            break;
         }
         break;
       }
@@ -323,12 +356,11 @@ export class AttendanceWebhookController {
           break;
         }
 
-        // Student logic
-        await this.attendanceService.recordLeaveEvent(
-          classId,
-          userId,
-          reasonText
-        );
+        // Student logic. clientId lets this close only the tab that actually
+        // left rather than whichever session happens to be open (§2.8).
+        await this.attendanceService.recordLeaveEvent(classId, userId, reasonText, {
+          clientId,
+        });
 
         // Defense-in-depth: a clean stop-sharing click already calls
         // endScreenShare, but a crash/closed-tab disconnect wouldn't. Never

@@ -59,9 +59,57 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 ## Feature gaps
 
-| Item | Notes |
-|---|---|
-| **P0 classroom reliability (heartbeat/presence, reconnect grace period, cross-class admin reliability view) — Phase 3/6 done (2026-09-05)** | Design doc at `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2 for details). Phase 3 landed the frontend half: `ConnectionStateManager` (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`) now actually calls `POST /live-class/:id/heartbeat` every 15s while `Connected` — Phase 2's `RECONNECTING`/`OFFLINE` presence states will start appearing in `LiveClassMonitor` now that a client is finally sending pings — and exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`, `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider` (which now re-fetches `getChatHistory` on a Reconnecting→Connected transition, closing the chat-recovery gap with no backend change). `ClassroomSessionManager` (`ClassroomSessionManager.tsx`) relocated the `getTabClientId`/`joinedSession` call sites out of `useLiveClass.ts`/`page.tsx`/`MeetingRoom.tsx` into one context, and adds a `BroadcastChannel`-based duplicate-tab warning toast (product-layer only; the transport-layer identity collision was already handled). The chessboard's `useBoardSyncEngine` (`apps/web/src/features/chessboard/hooks/useBoardSync.ts`) now also re-dispatches `REQUEST_SYNC` on the same Reconnecting→Connected transition, confirming and closing §2.6's open question — implemented locally in the hook (not via the manager) so it also covers the coach's standalone board pop-out window (`/live-class/[roomId]/board`), which has no `ConnectionStateManager`. Still missing (Phases 4-6): a dedicated multi-tab-attendance test, a cross-class admin reliability view, and a coach-hour reconciliation audit against pre-heartbeat historical data. See the design doc's §6 phased plan before picking up Phase 4. |
+None currently tracked here.
+
+## Resolved (2026-09-19)
+
+- **P0 classroom reliability, all 6 phases.** Design doc at
+  `docs/RELIABILITY_DESIGN.md` (2026-09-04 audit). Phases 1-2 landed the
+  heartbeat backbone and `getLiveClassMonitoring` presence (see design doc §2).
+  Phase 3 landed the frontend half: `ConnectionStateManager`
+  (`apps/web/src/features/live-class/providers/ConnectionStateManager.tsx`)
+  calls `POST /live-class/:id/heartbeat` every 15s while `Connected` and
+  exposes one `presenceState`/`reconnectEpoch` consumed by `useMeetingTimer`,
+  `MeetingStatus`'s `ConnectionBadge`/`NetworkStatusIcon`, and `ChatProvider`
+  (re-fetches `getChatHistory` on a Reconnecting→Connected transition).
+  `ClassroomSessionManager` relocated `getTabClientId`/`joinedSession` into
+  one context and adds a `BroadcastChannel` duplicate-tab warning toast. The
+  chessboard's `useBoardSyncEngine` re-dispatches `REQUEST_SYNC` on the same
+  reconnect transition, closing §2.6.
+  **Phase 4**: confirmed the §2.8 multi-tab misfire (a second tab's join
+  ghost-dropped the first tab's still-open session; that first tab's own
+  later clean leave then closed the second tab's session out from under it,
+  undercounting real presence) and fixed it — `AttendanceLog.clientId`
+  (migration `20260919112041_attendance_log_client_id`) plus two pure
+  decision helpers in `apps/api/src/attendance/attendance-session.util.ts`
+  (`resolveJoinAction`/`selectSessionToClose`) scope the join/ghost-drop/
+  leave-closing logic to the tab that actually sent the event, student-side
+  only (coach path unchanged — see design doc §2.8 for why). Tests:
+  `attendance-session.util.spec.ts`, `attendance-multi-tab.spec.ts`.
+  **Phase 5**: `AttendanceService.getLiveReliabilityOverview`
+  (`API_ROUTES.attendance.adminLiveReliability`) is a genuinely new
+  cross-class query — every `LIVE` session with a coach or student in
+  `RECONNECTING`/`OFFLINE` presence — built from `ClassAttendance`/
+  `CoachAttendance` rows directly (not `batch.students`, so a never-joined
+  student never shows up as a false "offline"). The per-class presence
+  classification was factored out of `getLiveClassMonitoring` into a shared
+  `derivePresence` helper, and this is the first view to apply it to the
+  coach's own connection too. Frontend: `/admin/reliability`
+  (`AdminLiveReliabilityClient`, nav "Live Reliability"), polling every 15s.
+  Tests: `attendance-reliability.spec.ts`; verified in-browser via `npm run
+  shots -- --path admin/reliability --login admin`.
+  **Phase 6**: `AttendanceService.getReliabilityMetrics`
+  (`API_ROUTES.attendance.adminReliabilityMetrics`) reports webhook-loss rate
+  and heartbeat-fallback rate over a trailing window, surfaced on
+  `/admin/reliability` as a "Last 30 days" panel — buildable and fully tested
+  (`attendance-reliability.spec.ts`). The other half, comparing
+  heartbeat-backstopped totals against real pre-heartbeat historical data, is
+  a runnable script (`apps/api/scripts/reliability-reconciliation-audit.cjs`,
+  `npm run audit:reliability -w apps/api -- --days 90`) but was **not**
+  actually run against real data — this agent has no `vps_dev`/production
+  access (`.agents/SAFETY.md`). It was run against local dev only to prove it
+  executes (see design doc §6.1 for the output and its caveats). Someone with
+  `vps_dev`/prod access should run it there for the real comparison.
 
 ## Resolved (2026-09-17)
 

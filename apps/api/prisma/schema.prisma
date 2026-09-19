@@ -843,6 +843,13 @@ model AttendanceLog {
   ipAddress String?
   source    String  @default("LIVEKIT") // LIVEKIT, MANUAL, SYSTEM
 
+  // Per-tab id (LiveKit identity suffix, `joinedSession.ts#getTabClientId`).
+  // Null for older rows and non-webhook sources. Lets a LEAVE/DISCONNECT close
+  // only the tab that actually sent it instead of whichever session happens to
+  // be open, so a second concurrent tab of the same student isn't wrongly
+  // closed out from under it (P0 reliability Phase 4, RELIABILITY_DESIGN.md §2.8).
+  clientId String?
+
   createdAt DateTime @default(now())
 
   @@index([attendanceId])

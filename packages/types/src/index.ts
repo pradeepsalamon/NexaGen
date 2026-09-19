@@ -1039,6 +1039,53 @@ export const liveClassMonitoringSchema = z.object({
 export type LiveMonitoringStudent = z.infer<typeof liveMonitoringStudentSchema>;
 export type LiveClassMonitoring = z.infer<typeof liveClassMonitoringSchema>;
 
+// -- LIVE RELIABILITY (cross-class) TYPES (RELIABILITY_DESIGN.md §4.5) --
+
+export const liveReliabilityParticipantSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.enum(["COACH", "STUDENT"]),
+  presence: participantPresenceSchema,
+  lastHeartbeatAt: z.string().nullable(),
+});
+
+export const liveReliabilityClassSchema = z.object({
+  classId: z.string(),
+  title: z.string(),
+  coachName: z.string(),
+  batchName: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  reconnectingCount: z.number(),
+  offlineCount: z.number(),
+  affectedParticipants: z.array(liveReliabilityParticipantSchema),
+});
+
+export const liveReliabilityOverviewSchema = z.object({
+  generatedAt: z.string(),
+  liveClassCount: z.number(),
+  affectedClassCount: z.number(),
+  totalReconnecting: z.number(),
+  totalOffline: z.number(),
+  classes: z.array(liveReliabilityClassSchema),
+});
+
+export type LiveReliabilityParticipant = z.infer<typeof liveReliabilityParticipantSchema>;
+export type LiveReliabilityClass = z.infer<typeof liveReliabilityClassSchema>;
+export type LiveReliabilityOverview = z.infer<typeof liveReliabilityOverviewSchema>;
+
+// Trailing-window webhook-loss / heartbeat-fallback rate (§6 Phase 6).
+export const reliabilityMetricsSchema = z.object({
+  windowDays: z.number(),
+  sampledClasses: z.number(),
+  totalParticipantSessions: z.number(),
+  webhookLossCount: z.number(),
+  webhookLossRate: z.number(),
+  heartbeatFallbackCount: z.number(),
+  heartbeatFallbackRate: z.number(),
+});
+
+export type ReliabilityMetrics = z.infer<typeof reliabilityMetricsSchema>;
+
 export const recordingProgressRequestSchema = z.object({
   watchedSeconds: z.number().int().min(0)
 });

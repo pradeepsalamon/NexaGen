@@ -787,6 +787,120 @@ Not covered (manual/E2E territory — no server-side logic to unit test):
 web-side theme/piece-set CSS rendering, the live preview's draft-shadowing
 behavior, and cross-device preference persistence.
 
+### Attendance — Multi-Tab Session Correctness (P0 Reliability Phase 4)
+
+Priority: High
+
+Context: a second browser tab of the same student joining the same class must
+not disturb the first tab's already-open attendance session, and a tab
+cleanly leaving must close only its own session — see
+`docs/RELIABILITY_DESIGN.md` §2.8 for the full writeup of the misfire this
+replaces.
+
+Files requiring unit tests:
+
+- `resolveJoinAction` / `selectSessionToClose`
+  (`apps/api/src/attendance/attendance-session.util.ts`)
+- `AttendanceWebhookController#processEvent` (student join/leave branches)
+- `AttendanceService.recordLeaveEvent` / `recordDisconnectEvent`
+
+Covered in `apps/api/src/attendance/attendance-session.util.spec.ts`:
+
+- `resolveJoinAction`: first join with no attendance row; duplicate join
+  within the window for the same tab; ghost-drop of the same tab's own stale
+  session; a second tab's join does **not** ghost-drop a different tab's open
+  session; legacy fallback (no `clientId`) behaves like the pre-Phase-4
+  single-session logic; a plain reconnect when nothing is open.
+- `selectSessionToClose`: no-op when nothing is open; closes only the tab
+  that sent the event when two tabs both have an open session; falls back to
+  the most recently opened session when the given `clientId` has no open
+  session of its own, and when `clientId` is unknown entirely (heartbeat
+  sweep).
+
+Covered in `apps/api/src/attendance/attendance-multi-tab.spec.ts`:
+
+- Webhook controller: tab B joining while tab A's session is still open does
+  not call `recordLeaveEvent` (no ghost-drop) and reconnects tab B with its
+  own `clientId`; a `participant_left` webhook passes the leaving
+  participant's `clientId` through to `recordLeaveEvent`.
+- `AttendanceService.recordLeaveEvent`: with two open sessions (different
+  `clientId`s), closes only the one matching the event's `clientId`; falls
+  back to the most recent open session when `clientId` is omitted.
+
+Not covered (accepted limitation, not a gap — see design doc §2.8): duration
+double-counting when two tabs are genuinely open concurrently for an
+overlapping stretch (each tracked and summed independently); the coach side
+of the same class of bug (`CoachAttendanceLog` has no `clientId` column —
+out of scope for this phase, coaches are not expected to run simultaneous
+class tabs).
+
+### Attendance — Cross-Class Reliability View (P0 Reliability Phase 5)
+
+Priority: Medium
+
+Files requiring unit tests:
+
+- `AttendanceService.getLiveReliabilityOverview`
+- `AttendanceService.derivePresence` (private helper, exercised indirectly
+  through the two methods above rather than tested standalone — see
+  `attendance-calculations.spec.ts`'s existing convention of not unit-testing
+  small private helpers directly when their callers already cover every
+  branch)
+
+Covered in `apps/api/src/attendance/attendance-reliability.spec.ts`:
+
+- Authorization: rejects a coach and a student with `ForbiddenException`;
+  allows an admin.
+- Query shape: only queries `LiveSession` rows with `status: LIVE`.
+- A `LIVE` class where every participant is online is excluded from
+  `classes`, but still counts toward `liveClassCount`.
+- A `LIVE` class with one offline student (stale heartbeat, JOIN/RECONNECT
+  log) surfaces in `classes` with the correct `offlineCount`, and a
+  still-present second student in the same class is never listed as
+  affected.
+- A stale coach heartbeat surfaces as an affected `COACH`-role participant —
+  the first place in the codebase presence classification is applied to the
+  coach's own connection, not just students.
+
+Not covered (manual/E2E territory): the admin page
+(`AdminLiveReliabilityClient`, `/admin/reliability`) — verified instead via
+`npm run shots -- --path admin/reliability --login admin` (empty-state
+render, no console errors, no horizontal overflow); populating an actual
+degraded live class for a full-page visual check was not exercised.
+
+### Attendance — Reliability Metrics (P0 Reliability Phase 6)
+
+Priority: Medium
+
+Files requiring unit tests:
+
+- `AttendanceService.getReliabilityMetrics`
+
+Covered in `apps/api/src/attendance/attendance-reliability.spec.ts`:
+
+- Authorization: rejects a coach.
+- Zeroed response when no `ENDED` sessions fall in the window; the
+  attendance-row queries are skipped entirely in that case.
+- `days` is clamped to [1, 365]; the query filters `LiveSession` on
+  `status: ENDED`.
+- A clean webhook leave (JOIN + LEAVE) counts toward neither loss nor
+  fallback.
+- A heartbeat-timeout DISCONNECT (JOIN + DISCONNECT reason
+  `heartbeat_timeout`) counts as both a loss and a fallback.
+- A silently force-closed session (JOIN only, no LEAVE/DISCONNECT at all —
+  the finalize-time clamp case) counts as a loss but not a fallback.
+- A row that never joined (no JOIN/RECONNECT log) is excluded from
+  `totalParticipantSessions` entirely.
+- Student and coach rows combine into one rate.
+
+Not covered (documented as an explicit limitation, not a gap — see
+`docs/RELIABILITY_DESIGN.md` §6.1): the reconciliation half of Phase 6,
+`apps/api/scripts/reliability-reconciliation-audit.cjs`, is a read-only
+database script with no unit-testable logic of its own (it's a report over
+real data) — it was run once against local dev to confirm it executes, not
+against real historical data, since this agent has no `vps_dev`/production
+access.
+
 ## Missing Coverage And Future Inventory
 
 The following modules are requested by product scope but not currently implemented. When created, they must be added to this document immediately.

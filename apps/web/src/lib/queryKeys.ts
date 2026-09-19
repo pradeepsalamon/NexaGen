@@ -50,6 +50,8 @@ export const queryKeys = {
   attendance: {
     classSummary: (id: string) => ["attendance", "class-summary", id] as const,
     classLive: (id: string) => ["attendance", "class-live", id] as const,
+    liveReliability: ["attendance", "live-reliability"] as const,
+    reliabilityMetrics: (days: number) => ["attendance", "reliability-metrics", days] as const,
   },
   assignments: {
     all: ["assignments"] as const,

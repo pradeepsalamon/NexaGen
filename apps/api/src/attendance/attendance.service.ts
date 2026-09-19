@@ -22,6 +22,7 @@ import {
 } from "@prisma/client";
 import type { AccessTokenPayload } from "../auth/types";
 import type { ParticipantPresence } from "@nexa-chess/types";
+import { selectSessionToClose } from "./attendance-session.util";
 
 const CLASS_DETAIL_INCLUDE = {
   coach: true,
@@ -71,7 +72,7 @@ export class AttendanceService {
   async recordJoinEvent(
     classId: string,
     userId: string,
-    metadata?: { userAgent?: string; ipAddress?: string; source?: string }
+    metadata?: { userAgent?: string; ipAddress?: string; source?: string; clientId?: string }
   ) {
     const now = new Date();
 
@@ -121,6 +122,7 @@ export class AttendanceService {
         userAgent: metadata?.userAgent,
         ipAddress: metadata?.ipAddress,
         source: metadata?.source || "LIVEKIT",
+        clientId: metadata?.clientId,
       },
     });
 
@@ -135,7 +137,7 @@ export class AttendanceService {
     classId: string,
     userId: string,
     reason?: string,
-    metadata?: { source?: string }
+    metadata?: { source?: string; clientId?: string }
   ) {
     const now = new Date();
 
@@ -150,15 +152,20 @@ export class AttendanceService {
       return null;
     }
 
-    // Find the most recent JOIN/RECONNECT log without a sessionEnd
-    const openSession = await this.prisma.attendanceLog.findFirst({
+    // A second concurrent tab of the same student can leave open sessions for
+    // more than one clientId at once — close only the tab that actually sent
+    // this event when we know which one that was (§2.8 multi-tab misfire),
+    // falling back to the most recent open session otherwise.
+    const openLogs = await this.prisma.attendanceLog.findMany({
       where: {
         attendanceId: attendance.id,
         eventType: { in: [AttendanceEventType.JOIN, AttendanceEventType.RECONNECT] },
         sessionEnd: null,
       },
-      orderBy: { timestamp: "desc" },
+      select: { id: true, clientId: true, timestamp: true, sessionStart: true },
     });
+    const closeId = selectSessionToClose(openLogs, metadata?.clientId);
+    const openSession = closeId ? openLogs.find((log) => log.id === closeId) : undefined;
 
     const sessionDuration = openSession?.sessionStart
       ? Math.floor(
@@ -183,6 +190,7 @@ export class AttendanceService {
         timestamp: now,
         reason,
         source: metadata?.source || "LIVEKIT",
+        clientId: metadata?.clientId,
       },
     });
 
@@ -212,15 +220,20 @@ export class AttendanceService {
 
     if (!attendance) return null;
 
-    // Close open session
-    const openSession = await this.prisma.attendanceLog.findFirst({
+    // Close open session. The sweep has no clientId of its own (it only fires
+    // once every tab's heartbeat has gone stale, §2.8) — closes the most
+    // recently opened session; a stray second one, if any, is caught by
+    // `closeOpenAttendanceLogs` at finalize.
+    const openLogs = await this.prisma.attendanceLog.findMany({
       where: {
         attendanceId: attendance.id,
         eventType: { in: [AttendanceEventType.JOIN, AttendanceEventType.RECONNECT] },
         sessionEnd: null,
       },
-      orderBy: { timestamp: "desc" },
+      select: { id: true, clientId: true, timestamp: true, sessionStart: true },
     });
+    const closeId = selectSessionToClose(openLogs, undefined);
+    const openSession = closeId ? openLogs.find((log) => log.id === closeId) : undefined;
 
     const sessionDuration = openSession?.sessionStart
       ? Math.floor(
@@ -258,7 +271,7 @@ export class AttendanceService {
     return attendance;
   }
 
-  async recordReconnectEvent(classId: string, userId: string) {
+  async recordReconnectEvent(classId: string, userId: string, clientId?: string) {
     const now = new Date();
 
     const attendance = await this.prisma.classAttendance.findUnique({
@@ -275,6 +288,7 @@ export class AttendanceService {
         timestamp: now,
         sessionStart: now,
         source: "LIVEKIT",
+        clientId,
       },
     });
 
@@ -1967,34 +1981,17 @@ export class AttendanceService {
     const students = enrolledStudents.map((bs) => {
       const att = attendanceMap.get(bs.studentId);
       const lastLog = att?.logs?.[0];
-      const isOnline =
-        lastLog &&
-        (lastLog.eventType === AttendanceEventType.JOIN ||
-          lastLog.eventType === AttendanceEventType.RECONNECT);
-
-      // presence refines isOnline using lastHeartbeatAt when it's been
-      // populated (RELIABILITY_DESIGN.md §3.2/§4.2). A class/session with no
-      // heartbeat data yet (predates Phase 1, or the frontend hasn't started
-      // pinging) falls back to the webhook-only ONLINE/LEFT/OFFLINE split.
-      let presence: ParticipantPresence;
-      if (!isOnline) {
-        presence = lastLog ? "LEFT" : "OFFLINE";
-      } else if (!att?.lastHeartbeatAt) {
-        presence = "ONLINE";
-      } else {
-        const ageMs = now - att.lastHeartbeatAt.getTime();
-        presence =
-          ageMs <= AttendanceService.HEARTBEAT_FRESH_MS
-            ? "ONLINE"
-            : ageMs <= graceMs
-              ? "RECONNECTING"
-              : "OFFLINE";
-      }
+      const { isOnline, presence } = this.derivePresence(
+        lastLog?.eventType,
+        att?.lastHeartbeatAt,
+        graceMs,
+        now
+      );
 
       return {
         id: bs.studentId,
         name: `${bs.student.firstName} ${bs.student.lastName || ""}`.trim(),
-        isOnline: !!isOnline,
+        isOnline,
         presence,
         lastHeartbeatAt: att?.lastHeartbeatAt?.toISOString() || null,
         joinedAt: att?.joinedAt?.toISOString() || null,
@@ -2015,6 +2012,247 @@ export class AttendanceService {
       onlineCount,
       offlineCount,
       students,
+    };
+  }
+
+  /**
+   * Shared ONLINE/RECONNECTING/OFFLINE/LEFT classification (RELIABILITY_
+   * DESIGN.md §3.2/§4.2), used by both the per-class monitor above and the
+   * cross-class reliability view below. `lastLogEventType` is whatever the
+   * participant's most recent JOIN/RECONNECT/LEAVE/DISCONNECT log says, kept
+   * as a plain string since `CoachAttendanceLog.eventType` isn't the same
+   * enum as `AttendanceLog`'s (§4.4) and this needs to serve both.
+   */
+  private derivePresence(
+    lastLogEventType: string | undefined,
+    lastHeartbeatAt: Date | null | undefined,
+    graceMs: number,
+    now: number
+  ): { isOnline: boolean; presence: ParticipantPresence } {
+    const isOnline =
+      lastLogEventType === AttendanceEventType.JOIN ||
+      lastLogEventType === AttendanceEventType.RECONNECT;
+
+    if (!isOnline) {
+      return { isOnline: false, presence: lastLogEventType ? "LEFT" : "OFFLINE" };
+    }
+    if (!lastHeartbeatAt) {
+      return { isOnline: true, presence: "ONLINE" };
+    }
+
+    const ageMs = now - lastHeartbeatAt.getTime();
+    const presence: ParticipantPresence =
+      ageMs <= AttendanceService.HEARTBEAT_FRESH_MS
+        ? "ONLINE"
+        : ageMs <= graceMs
+          ? "RECONNECTING"
+          : "OFFLINE";
+
+    return { isOnline: true, presence };
+  }
+
+  /**
+   * P0 reliability Phase 5 (RELIABILITY_DESIGN.md §4.5): admin-only,
+   * cross-class view of every currently-LIVE session that has at least one
+   * participant (coach or student) in RECONNECTING/OFFLINE presence right
+   * now. Deliberately a fresh query, not a repurposing of
+   * `getLiveClassMonitoring` above (which stays per-class and lists the full
+   * enrolled roster, including students who never joined) — a participant
+   * who never joined is an attendance concern, not a reliability one, so
+   * this only ever looks at rows that actually have a
+   * ClassAttendance/CoachAttendance.
+   */
+  async getLiveReliabilityOverview(accessToken: string | undefined) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException("Admin access required.");
+    }
+
+    const policy = await this.getActivePolicy();
+    const graceMs = policy.gracePeriodMinutes * 60_000;
+    const now = Date.now();
+
+    const liveSessions = await this.prisma.liveSession.findMany({
+      where: { status: LiveSessionStatus.LIVE },
+      include: {
+        class: {
+          include: {
+            coach: true,
+            batch: true,
+            coachAttendance: {
+              include: { logs: { orderBy: { timestamp: "desc" }, take: 1 } },
+            },
+            attendances: {
+              include: {
+                student: true,
+                logs: { orderBy: { timestamp: "desc" }, take: 1 },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    type ReliabilityParticipant = {
+      id: string;
+      name: string;
+      role: "COACH" | "STUDENT";
+      presence: ParticipantPresence;
+      lastHeartbeatAt: string | null;
+    };
+
+    const classes = liveSessions.map((session) => {
+      const coachClass = session.class;
+      const participants: ReliabilityParticipant[] = [];
+
+      if (coachClass.coachAttendance) {
+        const lastLog = coachClass.coachAttendance.logs[0];
+        const { presence } = this.derivePresence(
+          lastLog?.eventType,
+          coachClass.coachAttendance.lastHeartbeatAt,
+          graceMs,
+          now
+        );
+        participants.push({
+          id: coachClass.coachId,
+          name: `${coachClass.coach.firstName} ${coachClass.coach.lastName || ""}`.trim(),
+          role: "COACH",
+          presence,
+          lastHeartbeatAt: coachClass.coachAttendance.lastHeartbeatAt?.toISOString() || null,
+        });
+      }
+
+      for (const att of coachClass.attendances) {
+        const lastLog = att.logs[0];
+        const { presence } = this.derivePresence(
+          lastLog?.eventType,
+          att.lastHeartbeatAt,
+          graceMs,
+          now
+        );
+        participants.push({
+          id: att.studentId,
+          name: `${att.student.firstName} ${att.student.lastName || ""}`.trim(),
+          role: "STUDENT",
+          presence,
+          lastHeartbeatAt: att.lastHeartbeatAt?.toISOString() || null,
+        });
+      }
+
+      const affectedParticipants = participants.filter(
+        (p) => p.presence === "RECONNECTING" || p.presence === "OFFLINE"
+      );
+
+      return {
+        classId: coachClass.id,
+        title: coachClass.title || coachClass.topic || "Untitled class",
+        coachName: `${coachClass.coach.firstName} ${coachClass.coach.lastName || ""}`.trim(),
+        batchName: coachClass.batch?.name || null,
+        startedAt: session.startedAt?.toISOString() || null,
+        reconnectingCount: affectedParticipants.filter((p) => p.presence === "RECONNECTING").length,
+        offlineCount: affectedParticipants.filter((p) => p.presence === "OFFLINE").length,
+        affectedParticipants,
+      };
+    });
+
+    const affectedClasses = classes.filter((c) => c.affectedParticipants.length > 0);
+
+    return {
+      generatedAt: new Date().toISOString(),
+      liveClassCount: classes.length,
+      affectedClassCount: affectedClasses.length,
+      totalReconnecting: affectedClasses.reduce((sum, c) => sum + c.reconnectingCount, 0),
+      totalOffline: affectedClasses.reduce((sum, c) => sum + c.offlineCount, 0),
+      classes: affectedClasses,
+    };
+  }
+
+  /**
+   * P0 reliability Phase 6 (RELIABILITY_DESIGN.md §6): admin-only, how often
+   * the LiveKit webhook path actually worked over a trailing window.
+   *
+   * `recordDisconnectEvent`/`recordCoachDisconnectEvent` are called from
+   * nowhere except `sweepStaleHeartbeats` (§4.1), always with
+   * `reason: "heartbeat_timeout"` — so counting DISCONNECT logs with that
+   * reason *is* counting heartbeat-fallback triggers, no separate bookkeeping
+   * needed. "Webhook loss" is broader: a participant session with no LEAVE
+   * log anywhere in its history never got a clean webhook leave at all —
+   * either the fallback caught it (a DISCONNECT log exists), or it didn't and
+   * `closeOpenAttendanceLogs` silently force-closed it at finalize with no
+   * marker row of its own. The two counts aren't a strict subset of one
+   * another (a session can fall back once, reconnect, then leave cleanly —
+   * that has both a DISCONNECT and a LEAVE log) so both are computed
+   * independently from the same per-row log set.
+   */
+  async getReliabilityMetrics(accessToken: string | undefined, days = 30) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException("Admin access required.");
+    }
+
+    const windowDays = Math.min(Math.max(Math.trunc(days) || 30, 1), 365);
+    const since = new Date(Date.now() - windowDays * 24 * 60 * 60_000);
+
+    const endedSessions = await this.prisma.liveSession.findMany({
+      where: { status: LiveSessionStatus.ENDED, endedAt: { gte: since } },
+      select: { classId: true },
+    });
+    const classIds = endedSessions.map((s) => s.classId);
+
+    if (classIds.length === 0) {
+      return {
+        windowDays,
+        sampledClasses: 0,
+        totalParticipantSessions: 0,
+        webhookLossCount: 0,
+        webhookLossRate: 0,
+        heartbeatFallbackCount: 0,
+        heartbeatFallbackRate: 0,
+      };
+    }
+
+    const logSelect = { eventType: true, reason: true } as const;
+    const [studentRows, coachRows] = await Promise.all([
+      this.prisma.classAttendance.findMany({
+        where: { classId: { in: classIds } },
+        select: { logs: { select: logSelect } },
+      }),
+      this.prisma.coachAttendance.findMany({
+        where: { classId: { in: classIds } },
+        select: { logs: { select: logSelect } },
+      }),
+    ]);
+
+    let totalParticipantSessions = 0;
+    let webhookLossCount = 0;
+    let heartbeatFallbackCount = 0;
+
+    for (const row of [...studentRows, ...coachRows]) {
+      const hasJoined = row.logs.some(
+        (l) => l.eventType === "JOIN" || l.eventType === "RECONNECT"
+      );
+      if (!hasJoined) continue; // never actually joined — not a session for this metric
+
+      totalParticipantSessions += 1;
+
+      if (!row.logs.some((l) => l.eventType === "LEAVE")) {
+        webhookLossCount += 1;
+      }
+      if (row.logs.some((l) => l.eventType === "DISCONNECT" && l.reason === "heartbeat_timeout")) {
+        heartbeatFallbackCount += 1;
+      }
+    }
+
+    return {
+      windowDays,
+      sampledClasses: classIds.length,
+      totalParticipantSessions,
+      webhookLossCount,
+      webhookLossRate: totalParticipantSessions ? webhookLossCount / totalParticipantSessions : 0,
+      heartbeatFallbackCount,
+      heartbeatFallbackRate: totalParticipantSessions
+        ? heartbeatFallbackCount / totalParticipantSessions
+        : 0,
     };
   }
 

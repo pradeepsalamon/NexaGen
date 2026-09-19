@@ -318,6 +318,45 @@ dedicated test.
 browser (second tab of the same room shows "This class is already open in
 another tab.") — `ClassroomSessionManager` BroadcastChannel path works.
 
+**Phase 4 status: DONE (2026-09-19).** The attendance-ordering misfire
+described above was confirmed and fixed. `AttendanceLog` gained a nullable
+`clientId` column (migration `20260919112041_attendance_log_client_id`,
+populated from the `_<tabId>` LiveKit identity suffix already produced by
+`getTabClientId()`). Two pure decision helpers,
+`resolveJoinAction`/`selectSessionToClose`
+(`apps/api/src/attendance/attendance-session.util.ts`), replace the old
+"whichever session is most recently open" logic:
+
+- **Join side** (`AttendanceWebhookController#processEvent`, student branch
+  only — the coach branch is unchanged and still has the old, single-session
+  behavior, since a coach opening two simultaneous class tabs is not the
+  scenario this phase targeted): a second tab's `participant_joined` no longer
+  ghost-drops a *different* tab's still-open session. It only ghost-drops when
+  the **same** `clientId` already has a stale open session (a genuine
+  crash-and-reload of that one tab); a different `clientId` opens its own
+  concurrent session instead.
+- **Leave side** (`AttendanceService.recordLeaveEvent` /
+  `recordDisconnectEvent`): closes the open session matching the event's own
+  `clientId` when known, rather than always closing "the most recent" — so
+  one tab's clean leave can no longer close a *different*, still-connected
+  tab's session out from under it. Falls back to the old
+  most-recent-open behavior when `clientId` is unavailable (legacy rows, or
+  the heartbeat-timeout sweep, which has no per-tab identity and only fires
+  once every tab's heartbeat has gone stale anyway).
+- **Known residual limitation, accepted rather than solved**: if a student
+  genuinely has two tabs open concurrently for an overlapping stretch, each
+  tab's session duration is tracked and summed independently, so the overlap
+  is double-counted in total duration. Building interval-aware duration
+  accounting was explicitly out of scope (§5) — the product-layer warning
+  (§2.8 above) already discourages the dual-tab case, and the bug this phase
+  fixes (a student wrongly recorded as having left, undercounting real
+  presence) was materially worse than this residual overcount.
+
+Tests: `attendance-session.util.spec.ts` (exhaustive coverage of the two pure
+decision functions) and `attendance-multi-tab.spec.ts` (the two-tabs-of-one-
+student scenario end to end through the webhook controller and
+`AttendanceService`).
+
 ### 2.9 Frontend session/connection state — EXISTS (as implemented)
 
 No `ClassroomSessionManager` or `ConnectionStateManager` exists. The relevant
@@ -582,6 +621,36 @@ sessions with any participant in `RECONNECTING`/`OFFLINE` presence, and (once
 `getLiveClassMonitoring` (which stays per-class). Frontend: a new admin page/
 section, not a component that already exists to extend.
 
+**Status: DONE (2026-09-19).** `AttendanceService.getLiveReliabilityOverview`
+(`API_ROUTES.attendance.adminLiveReliability` = `GET
+/attendance/admin/live-reliability`, admin-only, token-string auth pattern —
+no guards) queries every `LiveSession` with `status: LIVE` directly, joined to
+`CoachClass.coachAttendance`/`.attendances` — deliberately **not** built from
+`coachClass.batch.students` the way `getLiveClassMonitoring` is, since a
+student who never joined is an attendance concern, not a reliability one; this
+view only ever looks at rows that actually have a `ClassAttendance`/
+`CoachAttendance`. The per-class `ONLINE`/`RECONNECTING`/`OFFLINE`/`LEFT`
+classification (§3.2/§4.2) was factored out of `getLiveClassMonitoring` into a
+shared private `derivePresence` helper so both callers agree by construction —
+and this view is also the first thing in the codebase to apply that
+classification to the **coach's own** connection (`CoachAttendance
+.lastHeartbeatAt`), which `getLiveClassMonitoring` has never surfaced. A class
+with every participant `ONLINE` is filtered out entirely — `classes` in the
+response only ever holds *affected* classes; `liveClassCount` is the only
+field that counts the healthy ones too. Frontend: `/admin/reliability`
+(`AdminLiveReliabilityClient`, nav entry "Live Reliability" under Manage),
+polling every 15s to match the heartbeat cadence — a new page, not an
+extension of `LiveClassMonitor` (which stays per-class, opened from a
+specific class's own page).
+
+Tests: `attendance-reliability.spec.ts` (authorization; only-LIVE-sessions
+query shape; a fully-online class is excluded while its counts still land in
+`liveClassCount`; an offline student and a stale-heartbeat coach both surface
+as affected participants). Verified in-browser via `npm run shots -- --path
+admin/reliability --login admin` (empty state — no live classes in the dev
+seed at verification time — renders correctly, no console errors, no
+horizontal overflow).
+
 ---
 
 ## 5. Explicitly out of scope for this initiative
@@ -607,9 +676,59 @@ section, not a component that already exists to extend.
 | **1. Schema + heartbeat backbone — DONE (2026-09-05)** | `LiveSessionStatus` enum, `AttendanceEventType` +BOARD_*, `CoachAttendanceLog.eventType` migration, `lastHeartbeatAt` column(s) or new session-scoped model (decide after resolving §2.8's multi-tab question), `POST /live-class/:id/heartbeat`, wire `recordDisconnectEvent` via new grace-period cron. Check row counts for `ClassStatus.IN_PROGRESS` in `vps_dev` before deciding whether to drop it (query-only — do not run destructive schema/data changes as part of this check). | This doc |
 | **2. `getLiveClassMonitoring` presence — DONE (2026-09-05)** | Derive `presence`/`lastHeartbeatAt` in the response; update `LiveClassMonitor` UI to show `RECONNECTING` distinctly from `OFFLINE`. | Phase 1 |
 | **3. Frontend `ConnectionStateManager`/`ClassroomSessionManager` — DONE (2026-09-05), e2e specs still red** | Consolidate `joinedSession.ts`, `getTabClientId`, `useConnectionState` call sites; wire heartbeat ping; trigger board `REQUEST_SYNC` and chat re-fetch on reconnect; duplicate-tab product-layer warning. Browser smoke of all four deliverables passed (2026-09-05, tester-e2e). The two touched specs remain failing on stale/impossible assertions (`live-board-sync.spec.ts:162,170` `" e3 "/" e6 "`; `attendance-flow.spec.ts:198` `meData.id` vs `/auth/me`'s `{user}` shape, `:441` `/total students/i`) — spec fixes required before the Phase-3 gate can be marked green. | Phase 1 (needs the heartbeat endpoint) |
-| **4. Multi-tab attendance correctness** | Dedicated test (unit or `e2e/`) for two simultaneous tabs of one student; fix ghost-drop misfire if confirmed (§2.8). | Can start in parallel with Phase 1 |
-| **5. Admin cross-class reliability view** | New endpoint + admin page per §4.5. | Phase 2 |
-| **6. Coach-hour reconciliation audit** | Compare heartbeat-backstopped totals against pre-heartbeat historical data on a sample of classes to confirm Phase 1 didn't change existing numbers unexpectedly; add reliability metrics (webhook-loss rate, heartbeat-fallback trigger rate) to the admin dashboard. | Phases 1–5 |
+| **4. Multi-tab attendance correctness — DONE (2026-09-19)** | Dedicated test (unit or `e2e/`) for two simultaneous tabs of one student; fix ghost-drop misfire if confirmed (§2.8). Confirmed and fixed — see §2.8 for the full writeup. | Can start in parallel with Phase 1 |
+| **5. Admin cross-class reliability view — DONE (2026-09-19)** | New endpoint + admin page per §4.5. See §4.5 for the full writeup. | Phase 2 |
+| **6. Coach-hour reconciliation audit — DONE (2026-09-19)** | Compare heartbeat-backstopped totals against pre-heartbeat historical data on a sample of classes to confirm Phase 1 didn't change existing numbers unexpectedly; add reliability metrics (webhook-loss rate, heartbeat-fallback trigger rate) to the admin dashboard. | Phases 1–5 |
 
 Each phase should update this doc's status table (§2) and `docs/BACKLOG.md` in
 the same change, per CLAUDE.md §3.0/§6.
+
+### 6.1 Phase 6 writeup
+
+Two deliverables, split because only one of them could actually be *run* from
+this environment:
+
+- **Reliability metrics (buildable and run here): DONE.**
+  `AttendanceService.getReliabilityMetrics` (`API_ROUTES.attendance
+  .adminReliabilityMetrics` = `GET /attendance/admin/reliability-metrics
+  ?days=`, admin-only) reports, over a trailing window (default 30 days,
+  clamped to 1–365): `webhookLossRate` — the share of participant-sessions
+  (student `ClassAttendance` + coach `CoachAttendance` rows on `ENDED`
+  sessions, restricted to rows that actually joined) with **no** `LEAVE` log
+  anywhere in their history — and `heartbeatFallbackRate` — the share where a
+  `DISCONNECT` log with `reason: "heartbeat_timeout"` exists, i.e. the sweep
+  from §4.1 had to catch it. The two are computed independently (a session can
+  fall back once, reconnect, then leave cleanly, so `heartbeatFallback` is not
+  a strict subset of `webhookLoss`). Since `recordDisconnectEvent`/
+  `recordCoachDisconnectEvent` are called from nowhere except
+  `sweepStaleHeartbeats`, always with that exact reason string, counting those
+  rows *is* counting fallback triggers — no separate bookkeeping needed.
+  Surfaced on `/admin/reliability` below the live view, as a "Last 30 days"
+  panel. Tests: `attendance-reliability.spec.ts`.
+
+- **Reconciliation audit (script only — not actually run against real
+  historical data): the code is DONE, the audit itself is NOT.**
+  `apps/api/scripts/reliability-reconciliation-audit.cjs`
+  (`npm run audit:reliability -w apps/api -- --days 90`) samples `ENDED`
+  sessions in a trailing window, sums each class's attendance-log
+  `sessionDuration`s, and reports the ratio against the class's scheduled
+  duration, bucketed by whether the class ran before or after the Phase 1
+  heartbeat rollout (2026-09-05) — flagging anything over 3× scheduled as a
+  sanity-check anomaly. **This agent's environment has no access to `vps_dev`
+  or production** (`.agents/SAFETY.md` — that access is deliberately not
+  granted here), so the actual "did Phase 1 change real historical numbers"
+  comparison the phase asks for has **not** been performed. What *was* done:
+  the script was run against local dev (`npm run build -w apps/api && npm run
+  audit:reliability -w apps/api -- --days 365`) to prove it executes
+  correctly — 13 sampled classes, all synthetic seed/test data (local LiveKit
+  webhooks can't reach `localhost` at all, so the fallback path is
+  structurally unexercised there — see CLAUDE.md's debugging table). It
+  surfaced one large pre-Phase-1 anomaly (a 60-minute class with ~281 hours of
+  recorded duration — an abandoned test class whose session was finalized
+  long after it should have been, not a real regression) and two smaller
+  post-Phase-1 anomalies (~5.7×). That pattern is at least consistent with the
+  hypothesis Phase 1 was meant to test (worse runaways before the fallback
+  existed, smaller ones after), but with n=13 synthetic classes it is **not
+  evidence of anything about production** — someone with `vps_dev`/prod access
+  needs to run the script there for the real answer, using the exact command
+  in the script's own header comment.

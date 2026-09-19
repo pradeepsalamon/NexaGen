@@ -235,6 +235,12 @@ export const API_ROUTES = {
     adminCoachReport: "/attendance/admin/coach-report",
     adminCompletedClasses: "/attendance/admin/completed-classes",
     adminExport: "/attendance/admin/export",
+    // Admin-only, cross-class: every currently-LIVE session with a
+    // reconnecting/offline participant (RELIABILITY_DESIGN.md §4.5).
+    adminLiveReliability: "/attendance/admin/live-reliability",
+    // Admin-only: webhook-loss / heartbeat-fallback rate over a trailing
+    // window (RELIABILITY_DESIGN.md §6, Phase 6). Query param `?days=`.
+    adminReliabilityMetrics: "/attendance/admin/reliability-metrics",
     policy: "/attendance/policy",
     webhook: "/webhooks/livekit"
   },

@@ -112,6 +112,28 @@ export class AttendanceController {
     );
   }
 
+  // ── Admin cross-class reliability view (P0 reliability Phase 5) ──
+
+  @Get(API_ROUTES.attendance.adminLiveReliability)
+  getLiveReliabilityOverview(@Req() request: Request) {
+    return this.attendanceService.getLiveReliabilityOverview(
+      this.getAccessToken(request)
+    );
+  }
+
+  // ── Admin reliability metrics (P0 reliability Phase 6) ──
+
+  @Get(API_ROUTES.attendance.adminReliabilityMetrics)
+  getReliabilityMetrics(
+    @Req() request: Request,
+    @Query("days") days?: string
+  ) {
+    return this.attendanceService.getReliabilityMetrics(
+      this.getAccessToken(request),
+      days ? Number(days) : undefined
+    );
+  }
+
   // ── Admin Completed Classes ──
 
   @Get(API_ROUTES.attendance.adminCompletedClasses)

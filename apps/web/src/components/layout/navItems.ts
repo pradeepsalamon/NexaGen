@@ -25,7 +25,8 @@ import {
   UserRoundCheck,
   Users,
   Video,
-  Wallet
+  Wallet,
+  Wifi
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -103,6 +104,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Manage" },
   { href: "/admin/users", label: "Users", icon: Users, group: "Manage" },
   { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Manage" },
+  { href: "/admin/reliability", label: "Live Reliability", icon: Wifi, group: "Manage" },
   { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Manage" },
   { href: "/admin/chess-appearance", label: "Chess Appearance", icon: Palette, group: "Manage" },
   { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "Manage" },

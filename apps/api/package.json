@@ -24,7 +24,8 @@
     "test:cov": "jest --coverage",
     "test:payments:integration": "node scripts/payments-integration-check.cjs",
     "test:payments:webhooks": "node scripts/payments-webhook-check.cjs",
-    "test:payments:pricing": "node scripts/payments-pricing-check.cjs"
+    "test:payments:pricing": "node scripts/payments-pricing-check.cjs",
+    "audit:reliability": "node scripts/reliability-reconciliation-audit.cjs"
   },
   "prisma": {
     "seed": "node prisma/seed-runner.js"
