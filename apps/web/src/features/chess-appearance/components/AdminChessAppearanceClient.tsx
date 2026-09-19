@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Info } from "lucide-react";
+import { Info, Lock } from "lucide-react";
 import {
   BOARD_THEME_CATALOG,
   chessAppearanceSchema,
   PIECE_SET_CATALOG,
+  SOUND_THEME_CATALOG,
   type ChessAppearance,
   type ChessAppearanceOverride,
 } from "@nexa-chess/types";
@@ -18,7 +19,10 @@ import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBo
 import { AppearanceTogglesForm } from "./AppearanceTogglesForm";
 import { BoardThemePicker } from "./BoardThemePicker";
 import { ChessAppearancePreviewScope } from "./ChessAppearancePreviewScope";
+import { PieceColorPicker } from "./PieceColorPicker";
 import { PieceSetPicker } from "./PieceSetPicker";
+import { SoundSettingsForm } from "./SoundSettingsForm";
+import { SoundThemePicker } from "./SoundThemePicker";
 import {
   useChessAppearanceAdminQuery,
   useResetChessAppearanceAdminMutation,
@@ -35,6 +39,8 @@ export function AdminChessAppearanceClient() {
   const [draft, setDraft] = useState<ChessAppearance>(() => chessAppearanceSchema.parse({}));
   const [disabledBoardThemeIds, setDisabledBoardThemeIds] = useState<string[]>([]);
   const [disabledPieceSetIds, setDisabledPieceSetIds] = useState<string[]>([]);
+  const [disabledSoundThemeIds, setDisabledSoundThemeIds] = useState<string[]>([]);
+  const [locked, setLocked] = useState(false);
   const [previewFen, setPreviewFen] = useState(PREVIEW_FEN);
 
   useEffect(() => {
@@ -42,6 +48,8 @@ export function AdminChessAppearanceClient() {
     setDraft(data.resolved);
     setDisabledBoardThemeIds(data.disabledBoardThemeIds);
     setDisabledPieceSetIds(data.disabledPieceSetIds);
+    setDisabledSoundThemeIds(data.disabledSoundThemeIds);
+    setLocked(data.locked);
   }, [data]);
 
   const patch = (p: Partial<ChessAppearance>) => setDraft((d) => ({ ...d, ...p }));
@@ -53,16 +61,25 @@ export function AdminChessAppearanceClient() {
   const dirty = data
     ? JSON.stringify(draft) !== JSON.stringify(data.resolved) ||
       JSON.stringify([...disabledBoardThemeIds].sort()) !== JSON.stringify([...data.disabledBoardThemeIds].sort()) ||
-      JSON.stringify([...disabledPieceSetIds].sort()) !== JSON.stringify([...data.disabledPieceSetIds].sort())
+      JSON.stringify([...disabledPieceSetIds].sort()) !== JSON.stringify([...data.disabledPieceSetIds].sort()) ||
+      JSON.stringify([...disabledSoundThemeIds].sort()) !== JSON.stringify([...data.disabledSoundThemeIds].sort()) ||
+      locked !== data.locked
     : false;
 
   const handleSave = () => {
     const settings: ChessAppearanceOverride = { ...draft };
-    updateMutation.mutate({ settings, disabledBoardThemeIds, disabledPieceSetIds });
+    updateMutation.mutate({
+      settings,
+      disabledBoardThemeIds,
+      disabledPieceSetIds,
+      disabledSoundThemeIds,
+      locked,
+    });
   };
 
   const enabledBoardThemes = BOARD_THEME_CATALOG.filter((t) => !disabledBoardThemeIds.includes(t.id));
   const enabledPieceSets = PIECE_SET_CATALOG.filter((p) => !disabledPieceSetIds.includes(p.id));
+  const enabledSoundThemes = SOUND_THEME_CATALOG.filter((s) => !disabledSoundThemeIds.includes(s.id));
 
   return (
     <div className="space-y-5">
@@ -93,6 +110,28 @@ export function AdminChessAppearanceClient() {
               </p>
             </div>
 
+            <Card className="space-y-1 p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-2.5">
+                  <Lock className="mt-0.5 size-4 shrink-0 text-app-muted" strokeWidth={2.5} />
+                  <div>
+                    <h2 className="text-lg font-bold text-app-text">Lock board settings</h2>
+                    <p className="mt-1 text-sm text-app-muted">
+                      When on, every coach and student sees this default and can&apos;t set a
+                      personal board/piece/sound preference of their own — you&apos;re the only
+                      one who controls it.
+                    </p>
+                  </div>
+                </div>
+                <Checkbox
+                  id="chess-appearance-locked"
+                  checked={locked}
+                  onCheckedChange={(c) => setLocked(c === true)}
+                  aria-label="Lock board settings for everyone"
+                />
+              </div>
+            </Card>
+
             <Card className="space-y-3 p-5 sm:p-6">
               <h2 className="text-lg font-bold text-app-text">Global default board</h2>
               <BoardThemePicker
@@ -111,6 +150,17 @@ export function AdminChessAppearanceClient() {
                 selectedId={draft.pieceSetId}
                 onSelect={(pieceSetId) => patch({ pieceSetId })}
               />
+              <PieceColorPicker draft={draft} onChange={patch} />
+            </Card>
+
+            <Card className="space-y-3 p-5 sm:p-6">
+              <h2 className="text-lg font-bold text-app-text">Global default sound</h2>
+              <SoundThemePicker
+                soundThemes={enabledSoundThemes}
+                selectedId={draft.soundThemeId}
+                onSelect={(soundThemeId) => patch({ soundThemeId })}
+              />
+              <SoundSettingsForm draft={draft} onChange={patch} />
             </Card>
 
             <Card className="space-y-3 p-5 sm:p-6">
@@ -126,7 +176,7 @@ export function AdminChessAppearanceClient() {
                   only turned off.
                 </p>
               </div>
-              <div className="grid gap-5 sm:grid-cols-2">
+              <div className="grid gap-5 sm:grid-cols-3">
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Board themes</p>
                   {BOARD_THEME_CATALOG.map((theme) => (
@@ -151,6 +201,20 @@ export function AdminChessAppearanceClient() {
                       checked={!disabledPieceSetIds.includes(set.id)}
                       onCheckedChange={() =>
                         toggleDisabled(disabledPieceSetIds, setDisabledPieceSetIds, set.id)
+                      }
+                    />
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Sound themes</p>
+                  {SOUND_THEME_CATALOG.map((theme) => (
+                    <Checkbox
+                      key={theme.id}
+                      id={`sound-theme-enabled-${theme.id}`}
+                      label={theme.name}
+                      checked={!disabledSoundThemeIds.includes(theme.id)}
+                      onCheckedChange={() =>
+                        toggleDisabled(disabledSoundThemeIds, setDisabledSoundThemeIds, theme.id)
                       }
                     />
                   ))}

@@ -3,7 +3,7 @@
  * chess-appearance.ts for why: lichess's own board textures are photographic
  * with no documented license, and the spec forbids using a photo/screenshot
  * as a static board background anyway. Colors are tuned to approximate the
- * NexaChess reference board for "nexa-classic"; the other five are flat/
+ * NexaChess reference board for "nexa-classic"; most of the others are flat/
  * gradient colors, which carry no licensing concern.
  *
  * Every board (any of the 7 chessground-mounted components) carries
@@ -22,24 +22,21 @@
     transparent 1px,
     transparent 3px
   );
-  --nexa-coord-on-light: rgba(66, 42, 20, 0.75);
-  --nexa-coord-on-dark: rgba(255, 244, 230, 0.85);
+  --nexa-coord-color: rgba(66, 42, 20, 0.75);
   --nexa-border: #7a5330;
 }
 
 [data-nexa-board-theme="classic-green"] {
   --nexa-light: #eeeed2;
   --nexa-dark: #6e9552;
-  --nexa-coord-on-light: rgba(45, 58, 36, 0.75);
-  --nexa-coord-on-dark: rgba(255, 255, 255, 0.85);
+  --nexa-coord-color: rgba(45, 58, 36, 0.75);
   --nexa-border: #4c6938;
 }
 
 [data-nexa-board-theme="blue"] {
   --nexa-light: #e4eaf3;
   --nexa-dark: #6c8ebf;
-  --nexa-coord-on-light: rgba(30, 42, 64, 0.7);
-  --nexa-coord-on-dark: rgba(255, 255, 255, 0.85);
+  --nexa-coord-color: rgba(30, 42, 64, 0.7);
   --nexa-border: #4c6a94;
 }
 
@@ -53,39 +50,73 @@
     transparent 1px,
     transparent 3px
   );
-  --nexa-coord-on-light: rgba(72, 72, 72, 0.8);
-  --nexa-coord-on-dark: rgba(255, 255, 255, 0.8);
+  --nexa-coord-color: rgba(72, 72, 72, 0.8);
   --nexa-border: #8a5f3d;
 }
 
 [data-nexa-board-theme="dark"] {
   --nexa-light: #5b6472;
   --nexa-dark: #2e333b;
-  --nexa-coord-on-light: rgba(230, 230, 235, 0.75);
-  --nexa-coord-on-dark: rgba(180, 190, 205, 0.65);
+  --nexa-coord-color: rgba(215, 220, 230, 0.75);
   --nexa-border: #1c1f24;
 }
 
 [data-nexa-board-theme="minimal"] {
   --nexa-light: #f7f7f7;
   --nexa-dark: #c4c4c4;
-  --nexa-coord-on-light: rgba(60, 60, 60, 0.6);
-  --nexa-coord-on-dark: rgba(255, 255, 255, 0.7);
+  --nexa-coord-color: rgba(60, 60, 60, 0.6);
   --nexa-border: #a8a8a8;
 }
 
-/* One shared rule set, parameterized by the custom properties above.
+[data-nexa-board-theme="walnut"] {
+  --nexa-light: #dfc094;
+  --nexa-dark: #a5754c;
+  --nexa-grain-layer: repeating-linear-gradient(
+    112deg,
+    rgba(255, 255, 255, 0.07) 0px,
+    rgba(255, 255, 255, 0.07) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  --nexa-coord-color: rgba(64, 38, 16, 0.8);
+  --nexa-border: #6b4423;
+}
+
+/*
+ * Coordinate labels render outside the checkered area, in a slim margin
+ * along the left (ranks) and bottom (files) edges — matching how most
+ * chess sites show them, and what chessground's own default coords.ranks/
+ * coords.files DOM already is (this app never sets `coordinatesOnSquares`,
+ * so the `coords.squares` variant never appears here).
  *
- * The rounding/clipping lives here (on cg-board), not on the wrap: chessground
- * renders rank/file coordinate labels as siblings of cg-board, positioned
- * partly *outside* the board's own box (negative top/bottom offsets — see
- * chessground.base.css `coords.ranks`/`coords.files`), on the assumption that
- * the host page leaves room around the board for them. `overflow: hidden` on
- * the wrap would clip those labels along with the checker pattern, so instead
- * only cg-board (the checker background + squares/pieces) clips to the
- * rounded corner, and the wrap itself stays `overflow: visible`.
+ * That margin comes out of cg-board's own box (inset + shrink), not out of
+ * padding on the wrap: `.cg-wrap` has no set size of its own, cg-container
+ * is absolutely positioned at 100% of it, and percentages on an absolutely
+ * positioned box resolve against the *padding* box — so padding on the wrap
+ * reserves no visible space at all here. Insetting cg-board instead keeps
+ * the wrap's own footprint exactly what every caller already sized it to
+ * (many size it to an exact square via their own container), so this
+ * doesn't ripple into layout elsewhere.
+ *
+ * `:has(coords.ranks)` gates the margin on whether chessground actually
+ * appended coordinate elements (`coordinates: true` in config) — a board
+ * with coordinates off keeps rendering edge-to-edge, no wasted space.
  */
+[data-nexa-board-theme] {
+  --nexa-coord-margin: 0px;
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px var(--nexa-border, transparent);
+}
+
+[data-nexa-board-theme]:has(coords.ranks) {
+  --nexa-coord-margin: 6%;
+}
+
 [data-nexa-board-theme] cg-board {
+  top: 0;
+  left: var(--nexa-coord-margin);
+  width: calc(100% - var(--nexa-coord-margin));
+  height: calc(100% - var(--nexa-coord-margin));
   overflow: hidden;
   border-radius: 2px;
   background-color: var(--nexa-light);
@@ -113,45 +144,27 @@
     0 0;
 }
 
-[data-nexa-board-theme] {
-  border-radius: 2px;
-  box-shadow: 0 0 0 3px var(--nexa-border, transparent);
-}
-
-/*
- * chessground's default `coords.files`/`coords.ranks` offsets (base CSS:
- * `left: 24px` on .files with no compensating transform on its `coord`
- * children, and `.ranks coord { transform: translateY(39%) }`) assume the
- * host page reserves an outside margin sized to match — they were tuned for
- * lichess's own board chrome, not a board sized/bordered like ours. Left
- * alone, file letters render ~25px right of their actual column (verified:
- * a bottom-rank rook's rendered x-center vs its file letter's) and rank
- * numbers sit a few px high. Re-center both against our own square grid.
- */
-[data-nexa-board-theme] coords.files {
+/* Override chessground's own (lichess-tuned) negative-offset placement —
+   ours sits fully inside the wrap's box, in the margin cg-board just gave
+   up, rather than bleeding outside it. */
+[data-nexa-board-theme] coords.ranks {
+  top: 0;
   left: 0;
+  width: var(--nexa-coord-margin);
+  height: calc(100% - var(--nexa-coord-margin));
 }
 
-[data-nexa-board-theme] coords.ranks coord {
-  transform: translateY(50%);
+[data-nexa-board-theme] coords.files {
+  left: var(--nexa-coord-margin);
+  bottom: 0;
+  width: calc(100% - var(--nexa-coord-margin));
+  height: var(--nexa-coord-margin);
 }
 
-/* Alternating rank/file coordinate label colors, mirroring chessground's own
-   brown-theme logic but parameterized per NexaChess theme. */
-[data-nexa-board-theme].orientation-white .ranks :nth-child(odd),
-[data-nexa-board-theme].orientation-white .files :nth-child(even),
-[data-nexa-board-theme].orientation-black .ranks :nth-child(even),
-[data-nexa-board-theme].orientation-black .files :nth-child(odd),
-[data-nexa-board-theme] coords.squares:nth-of-type(odd) :nth-child(even),
-[data-nexa-board-theme] coords.squares:nth-of-type(even) :nth-child(odd) {
-  color: var(--nexa-coord-on-dark);
-}
-
-[data-nexa-board-theme].orientation-white .ranks :nth-child(even),
-[data-nexa-board-theme].orientation-white .files :nth-child(odd),
-[data-nexa-board-theme].orientation-black .ranks :nth-child(odd),
-[data-nexa-board-theme].orientation-black .files :nth-child(even),
-[data-nexa-board-theme] coords.squares:nth-of-type(odd) :nth-child(odd),
-[data-nexa-board-theme] coords.squares:nth-of-type(even) :nth-child(even) {
-  color: var(--nexa-coord-on-light);
+[data-nexa-board-theme] coords coord {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--nexa-coord-color);
+  font-weight: 600;
 }

@@ -1183,11 +1183,17 @@ model ChessAppearanceSettings {
   /// Empty object means "untouched" — the system default (Nexa Classic) applies.
   settings Json @default("{}")
 
-  /// Built-in theme/piece-set ids an admin has disabled; excluded from the
-  /// catalog and from resolution. System themes are never deletable, only
-  /// toggle-able.
+  /// Built-in theme/piece-set/sound-theme ids an admin has disabled; excluded
+  /// from the catalog and from resolution. System themes are never
+  /// deletable, only toggle-able.
   disabledBoardThemeIds String[] @default([])
   disabledPieceSetIds   String[] @default([])
+  disabledSoundThemeIds String[] @default([])
+
+  /// When true, every user resolves straight to this admin default — the
+  /// user layer in `resolveChessAppearance` is skipped entirely, so nobody
+  /// can set a personal board/piece/sound preference until an admin unlocks.
+  locked Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

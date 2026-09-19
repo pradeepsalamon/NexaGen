@@ -42,8 +42,14 @@ function parsePgn(pgn: string): { plies: Ply[]; startFen: string; error: boolean
 
 export function PgnBoardViewer({ pgn }: { pgn: string }) {
   const { plies, startFen, error } = useMemo(() => parsePgn(pgn), [pgn]);
-  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings } =
-    useChessAppearance();
+  const {
+    currentBoardTheme,
+    currentPieceSet,
+    showCoordinates,
+    animationEnabled,
+    highlightSettings,
+    hasCustomPieceColors,
+  } = useChessAppearance();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
@@ -105,6 +111,7 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
           className="aspect-square w-full rounded-app border border-app-border"
           data-nexa-board-theme={currentBoardTheme}
           data-nexa-piece-set={currentPieceSet}
+          data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
           data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
         />
         <div className="mt-3 flex items-center justify-center gap-2">

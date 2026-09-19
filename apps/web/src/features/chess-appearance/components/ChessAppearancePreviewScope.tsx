@@ -3,6 +3,9 @@
 import { useMemo, type ReactNode } from "react";
 import type { ChessAppearance } from "@nexa-chess/types";
 import { ChessAppearanceContext } from "../context/ChessAppearanceProvider";
+import { pieceSetSupportsCustomColors } from "../lib/recolorPieces";
+import { usePieceRecolorStyle } from "../lib/usePieceRecolorStyle";
+import { useSoundSettingsSync } from "../lib/useSoundSettingsSync";
 
 interface ChessAppearancePreviewScopeProps {
   config: ChessAppearance;
@@ -17,6 +20,9 @@ interface ChessAppearancePreviewScopeProps {
  * `useChessAppearance()`, and gets whichever provider is nearest).
  */
 export function ChessAppearancePreviewScope({ config, children }: ChessAppearancePreviewScopeProps) {
+  usePieceRecolorStyle(config.pieceSetId, config.pieceColorWhite, config.pieceColorBlack);
+  useSoundSettingsSync(config.soundThemeId, config.soundEnabled, config.soundVolume);
+
   const value = useMemo(
     () => ({
       currentBoardTheme: config.boardThemeId,
@@ -29,6 +35,15 @@ export function ChessAppearancePreviewScope({ config, children }: ChessAppearanc
         legalMovesEnabled: config.legalMovesEnabled,
         checkIndicatorEnabled: config.checkIndicatorEnabled,
       },
+      pieceColorWhite: config.pieceColorWhite,
+      pieceColorBlack: config.pieceColorBlack,
+      hasCustomPieceColors:
+        (!!config.pieceColorWhite || !!config.pieceColorBlack) &&
+        pieceSetSupportsCustomColors(config.pieceSetId),
+      soundThemeId: config.soundThemeId,
+      soundEnabled: config.soundEnabled,
+      soundVolume: config.soundVolume,
+      locked: false,
       isLoading: false,
       updatePreference: () => {},
       resetPreference: () => {},

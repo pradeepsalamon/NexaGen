@@ -52,7 +52,8 @@ export function PracticeBoard({
   const onMoveRef = useRef(onMove);
   onMoveRef.current = onMove;
   const {
-    currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings
+    currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings,
+    hasCustomPieceColors
   } = useChessAppearance();
 
   const [promotion, setPromotion] = useState<{ from: Square; to: Square } | null>(null);
@@ -190,6 +191,7 @@ export function PracticeBoard({
         className="aspect-square w-full rounded-app border border-app-border"
         data-nexa-board-theme={currentBoardTheme}
         data-nexa-piece-set={currentPieceSet}
+        data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
         data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
       />
       {promotion && (

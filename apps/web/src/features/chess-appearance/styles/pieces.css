@@ -72,3 +72,16 @@
 [data-nexa-piece-set="wooden"] piece.rook.black { background-image: url("/chess/pieces/wooden/bR.svg"); }
 [data-nexa-piece-set="wooden"] piece.queen.black { background-image: url("/chess/pieces/wooden/bQ.svg"); }
 [data-nexa-piece-set="wooden"] piece.king.black { background-image: url("/chess/pieces/wooden/bK.svg"); }
+
+[data-nexa-piece-set="bold"] piece.pawn.white { background-image: url("/chess/pieces/bold/wP.svg"); }
+[data-nexa-piece-set="bold"] piece.knight.white { background-image: url("/chess/pieces/bold/wN.svg"); }
+[data-nexa-piece-set="bold"] piece.bishop.white { background-image: url("/chess/pieces/bold/wB.svg"); }
+[data-nexa-piece-set="bold"] piece.rook.white { background-image: url("/chess/pieces/bold/wR.svg"); }
+[data-nexa-piece-set="bold"] piece.queen.white { background-image: url("/chess/pieces/bold/wQ.svg"); }
+[data-nexa-piece-set="bold"] piece.king.white { background-image: url("/chess/pieces/bold/wK.svg"); }
+[data-nexa-piece-set="bold"] piece.pawn.black { background-image: url("/chess/pieces/bold/bP.svg"); }
+[data-nexa-piece-set="bold"] piece.knight.black { background-image: url("/chess/pieces/bold/bN.svg"); }
+[data-nexa-piece-set="bold"] piece.bishop.black { background-image: url("/chess/pieces/bold/bB.svg"); }
+[data-nexa-piece-set="bold"] piece.rook.black { background-image: url("/chess/pieces/bold/bR.svg"); }
+[data-nexa-piece-set="bold"] piece.queen.black { background-image: url("/chess/pieces/bold/bQ.svg"); }
+[data-nexa-piece-set="bold"] piece.king.black { background-image: url("/chess/pieces/bold/bK.svg"); }

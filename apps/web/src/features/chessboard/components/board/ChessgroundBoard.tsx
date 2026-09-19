@@ -18,8 +18,14 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
-  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, highlightSettings } =
-    useChessAppearance();
+  const {
+    currentBoardTheme,
+    currentPieceSet,
+    showCoordinates,
+    animationEnabled,
+    highlightSettings,
+    hasCustomPieceColors,
+  } = useChessAppearance();
 
   // Warm the move-sound buffer cache so the first move isn't silent while the
   // asset downloads (AUDIT H5).
@@ -331,6 +337,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       className="w-full h-full"
       data-nexa-board-theme={currentBoardTheme}
       data-nexa-piece-set={currentPieceSet}
+      data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
       data-nexa-highlights={highlightSettings.highlightEnabled ? undefined : "off"}
     />
   );

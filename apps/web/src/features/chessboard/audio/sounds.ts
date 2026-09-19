@@ -1,39 +1,30 @@
-// Chessboard move sounds (AUDIT H5). Previously both functions were empty stubs
-// and no assets existed, so the whole compute-moveType → broadcast → play chain
-// was dead. This is a minimal WebAudio implementation backed by short WAV cues
-// in `public/sounds/`.
-
-import { useBoardStore as usePersistedBoardStore } from "../store/boardStore";
+// Chessboard move sounds (AUDIT H5). A minimal WebAudio implementation backed
+// by short cues in `public/sounds/<themeId>/`. Theme/volume/enabled are
+// driven from the chess-appearance resolver (see `useSoundSettingsSync`) —
+// this module itself is a plain, non-React side-effect surface so
+// `createBoardStore.ts` can call `playSound` without depending on React.
 
 export type SoundType = "move" | "capture" | "check" | "gameEnd";
 
-const SOUND_FILES: Record<SoundType, string> = {
-  move: "/sounds/move.wav",
-  capture: "/sounds/capture.wav",
-  check: "/sounds/check.wav",
-  gameEnd: "/sounds/gameEnd.wav",
+const SOUND_THEME_EXTENSIONS: Record<string, string> = {
+  "nexa-classic": "wav",
 };
+const DEFAULT_EXTENSION = "mp3";
 
-// Local mirror of the persisted `soundEnabled` preference. `boardStore`'s
-// `toggleSound` calls `setSoundEnabled`; we also read the persisted store
-// directly on first use so a page load starts in the right state.
+/** Public so a theme picker can build a preview URL without its own copy of the extension map. */
+export function getSoundUrl(themeId: string, type: SoundType): string {
+  const ext = SOUND_THEME_EXTENSIONS[themeId] ?? DEFAULT_EXTENSION;
+  return `/sounds/${themeId}/${type}.${ext}`;
+}
+
+let themeId = "nexa-classic";
 let enabled = true;
-let hydratedFromStore = false;
+let volume = 0.8;
 
 let ctx: AudioContext | null = null;
-const buffers = new Map<SoundType, AudioBuffer>();
-const inflight = new Map<SoundType, Promise<AudioBuffer | null>>();
-
-function hydrateEnabledOnce() {
-  if (hydratedFromStore || typeof window === "undefined") return;
-  hydratedFromStore = true;
-  try {
-    const persisted = usePersistedBoardStore.getState().soundEnabled;
-    if (typeof persisted === "boolean") enabled = persisted;
-  } catch {
-    // store not available (SSR / test) — keep the default
-  }
-}
+// Keyed by `${themeId}:${type}` so switching themes doesn't reuse a stale buffer.
+const buffers = new Map<string, AudioBuffer>();
+const inflight = new Map<string, Promise<AudioBuffer | null>>();
 
 function getContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
@@ -48,46 +39,55 @@ function getContext(): AudioContext | null {
   return ctx;
 }
 
-async function loadBuffer(type: SoundType): Promise<AudioBuffer | null> {
-  const cached = buffers.get(type);
-  if (cached) return cached;
+function loadBuffer(theme: string, type: SoundType): Promise<AudioBuffer | null> {
+  const key = `${theme}:${type}`;
+  const cached = buffers.get(key);
+  if (cached) return Promise.resolve(cached);
 
-  const existing = inflight.get(type);
+  const existing = inflight.get(key);
   if (existing) return existing;
 
   const audioCtx = getContext();
-  if (!audioCtx) return null;
+  if (!audioCtx) return Promise.resolve(null);
 
-  const promise = fetch(SOUND_FILES[type])
+  const promise = fetch(getSoundUrl(theme, type))
     .then((res) => {
-      if (!res.ok) throw new Error(`sound ${type}: ${res.status}`);
+      if (!res.ok) throw new Error(`sound ${key}: ${res.status}`);
       return res.arrayBuffer();
     })
     .then((data) => audioCtx.decodeAudioData(data))
     .then((buf) => {
-      buffers.set(type, buf);
-      inflight.delete(type);
+      buffers.set(key, buf);
+      inflight.delete(key);
       return buf;
     })
     .catch((err) => {
-      inflight.delete(type);
-      console.warn("Failed to load board sound", type, err);
+      inflight.delete(key);
+      console.warn("Failed to load board sound", key, err);
       return null;
     });
 
-  inflight.set(type, promise);
+  inflight.set(key, promise);
   return promise;
 }
 
 export function setSoundEnabled(value: boolean) {
-  hydratedFromStore = true;
   enabled = value;
 }
 
+export function setSoundVolume(value: number) {
+  volume = Math.min(1, Math.max(0, value));
+}
+
+/** Switches the active theme and warms its buffers. Safe to call repeatedly. */
+export function setSoundTheme(nextThemeId: string) {
+  if (nextThemeId === themeId) return;
+  themeId = nextThemeId;
+  preloadSounds();
+}
+
 export function playSound(type: SoundType) {
-  if (typeof window === "undefined") return;
-  hydrateEnabledOnce();
-  if (!enabled) return;
+  if (typeof window === "undefined" || !enabled) return;
 
   const audioCtx = getContext();
   if (!audioCtx) return;
@@ -99,7 +99,7 @@ export function playSound(type: SoundType) {
       const source = audioCtx.createBufferSource();
       source.buffer = buf;
       const gain = audioCtx.createGain();
-      gain.gain.value = 0.8;
+      gain.gain.value = volume;
       source.connect(gain).connect(audioCtx.destination);
       source.start(0);
     } catch (err) {
@@ -107,13 +107,13 @@ export function playSound(type: SoundType) {
     }
   };
 
-  const ready = buffers.get(type);
+  const ready = buffers.get(`${themeId}:${type}`);
   if (ready) start(ready);
-  else void loadBuffer(type).then(start);
+  else void loadBuffer(themeId, type).then(start);
 }
 
-/** Warm the buffer cache (call after the board mounts). Safe to call repeatedly. */
+/** Warm the current theme's buffer cache (call after the board mounts, or on theme change). */
 export function preloadSounds() {
   if (typeof window === "undefined") return;
-  (Object.keys(SOUND_FILES) as SoundType[]).forEach((t) => void loadBuffer(t));
+  (["move", "capture", "check", "gameEnd"] as SoundType[]).forEach((t) => void loadBuffer(themeId, t));
 }

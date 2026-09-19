@@ -8,12 +8,16 @@ import {
   type BoardThemeId,
   type ChessAppearanceOverride,
   type PieceSetId,
+  type SoundThemeId,
 } from "@nexa-chess/types";
 import {
   useResetChessAppearanceMutation,
   useResolvedChessAppearanceQuery,
   useUpdateChessAppearanceMutation,
 } from "../hooks/useChessAppearanceApi";
+import { pieceSetSupportsCustomColors } from "../lib/recolorPieces";
+import { usePieceRecolorStyle } from "../lib/usePieceRecolorStyle";
+import { useSoundSettingsSync } from "../lib/useSoundSettingsSync";
 
 interface ChessHighlightSettings {
   highlightEnabled: boolean;
@@ -28,6 +32,16 @@ interface ChessAppearanceContextValue {
   boardOrientation: BoardOrientation;
   animationEnabled: boolean;
   highlightSettings: ChessHighlightSettings;
+  /** `null` = that color isn't customized; the piece set's own color is used. */
+  pieceColorWhite: string | null;
+  pieceColorBlack: string | null;
+  /** True when a board should carry `data-nexa-piece-recolor="on"` (see `recolorPieces.ts`). */
+  hasCustomPieceColors: boolean;
+  soundThemeId: SoundThemeId;
+  soundEnabled: boolean;
+  soundVolume: number;
+  /** True when an admin has locked board settings — see `ResolvedChessAppearance.locked`. */
+  locked: boolean;
   /** True while the resolved config is still loading — consumers get the safe default meanwhile. */
   isLoading: boolean;
   updatePreference: (override: ChessAppearanceOverride) => void;
@@ -60,6 +74,9 @@ export function ChessAppearanceProvider({ children }: { children: ReactNode }) {
   const animationEnabled =
     prefersReducedMotion && data?.source !== "user" ? false : config.animationEnabled;
 
+  usePieceRecolorStyle(config.pieceSetId, config.pieceColorWhite, config.pieceColorBlack);
+  useSoundSettingsSync(config.soundThemeId, config.soundEnabled, config.soundVolume);
+
   const value = useMemo<ChessAppearanceContextValue>(
     () => ({
       currentBoardTheme: config.boardThemeId,
@@ -72,12 +89,21 @@ export function ChessAppearanceProvider({ children }: { children: ReactNode }) {
         legalMovesEnabled: config.legalMovesEnabled,
         checkIndicatorEnabled: config.checkIndicatorEnabled,
       },
+      pieceColorWhite: config.pieceColorWhite,
+      pieceColorBlack: config.pieceColorBlack,
+      hasCustomPieceColors:
+        (!!config.pieceColorWhite || !!config.pieceColorBlack) &&
+        pieceSetSupportsCustomColors(config.pieceSetId),
+      soundThemeId: config.soundThemeId,
+      soundEnabled: config.soundEnabled,
+      soundVolume: config.soundVolume,
+      locked: data?.locked ?? false,
       isLoading,
       updatePreference: (override: ChessAppearanceOverride) =>
         updateMutation.mutate({ settings: override }),
       resetPreference: () => resetMutation.mutate(),
     }),
-    [config, animationEnabled, isLoading, updateMutation, resetMutation],
+    [config, animationEnabled, data?.locked, isLoading, updateMutation, resetMutation],
   );
 
   return (

@@ -11,7 +11,8 @@ import {
   type BoardThemeMeta,
   type ChessAppearance,
   type ChessAppearanceOverride,
-  type PieceSetMeta
+  type PieceSetMeta,
+  type SoundThemeMeta
 } from "./chess-appearance";
 
 export * from "./api-endpoints";
@@ -655,12 +656,15 @@ export type LiveClassSettingsAuditResponse = {
 export type ChessAppearanceResponse = {
   config: ChessAppearance;
   source: "user" | "admin-default" | "system-default";
+  /** True when the admin has locked board settings — see `ResolvedChessAppearance.locked`. */
+  locked: boolean;
 };
 
-/** Enabled board themes + piece sets for picker UIs. */
+/** Enabled board themes + piece sets + sound themes for picker UIs. */
 export type ChessAppearanceCatalogResponse = {
   boardThemes: BoardThemeMeta[];
   pieceSets: PieceSetMeta[];
+  soundThemes: SoundThemeMeta[];
 };
 
 export const updateChessAppearanceRequestSchema = z.object({
@@ -675,13 +679,18 @@ export type ChessAppearanceAdminResponse = {
   resolved: ChessAppearance;
   disabledBoardThemeIds: string[];
   disabledPieceSetIds: string[];
+  disabledSoundThemeIds: string[];
+  /** When true, every user resolves straight to this admin default — no personal override applies. */
+  locked: boolean;
   updatedAt: string;
 };
 
 export const updateChessAppearanceAdminRequestSchema = z.object({
   settings: chessAppearanceOverrideSchema,
   disabledBoardThemeIds: z.array(z.string()).optional(),
-  disabledPieceSetIds: z.array(z.string()).optional()
+  disabledPieceSetIds: z.array(z.string()).optional(),
+  disabledSoundThemeIds: z.array(z.string()).optional(),
+  locked: z.boolean().optional()
 });
 export type UpdateChessAppearanceAdminRequest = z.infer<
   typeof updateChessAppearanceAdminRequestSchema

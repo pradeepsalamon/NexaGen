@@ -15,7 +15,7 @@ export function PuzzleBoardTile({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
-  const { currentBoardTheme, currentPieceSet, animationEnabled } = useChessAppearance();
+  const { currentBoardTheme, currentPieceSet, animationEnabled, hasCustomPieceColors } = useChessAppearance();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -47,6 +47,7 @@ export function PuzzleBoardTile({
       className="aspect-square w-full overflow-hidden rounded-app border border-app-border"
       data-nexa-board-theme={currentBoardTheme}
       data-nexa-piece-set={currentPieceSet}
+      data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
     />
   );
 }

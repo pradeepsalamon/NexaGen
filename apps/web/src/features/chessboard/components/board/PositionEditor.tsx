@@ -39,7 +39,7 @@ const ROLES: { role: Role; label: string }[] = [
 export function PositionEditor({ value, onChange, orientation = "white", className }: PositionEditorProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
-  const { currentBoardTheme, currentPieceSet, showCoordinates } = useChessAppearance();
+  const { currentBoardTheme, currentPieceSet, showCoordinates, hasCustomPieceColors } = useChessAppearance();
   // Latest parts, readable inside the chessground change callback without
   // re-instantiating the board.
   const partsRef = useRef<FenParts>(parseFen(value));
@@ -116,15 +116,26 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
     <div className={cn("flex flex-col gap-5 md:flex-row md:items-start md:gap-6", className)}>
       {/* Board + spare pieces */}
       <div className="w-full max-w-[420px] shrink-0">
-        <SpareRow color="black" pieceSetId={currentPieceSet} onSpawn={spawnPiece} />
+        <SpareRow
+          color="black"
+          pieceSetId={currentPieceSet}
+          hasCustomPieceColors={hasCustomPieceColors}
+          onSpawn={spawnPiece}
+        />
         <div
           ref={boardRef}
           data-testid="position-editor-board"
           data-nexa-board-theme={currentBoardTheme}
           data-nexa-piece-set={currentPieceSet}
+          data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
           className="cg-wrap my-2 aspect-square w-full rounded-app border border-app-border"
         />
-        <SpareRow color="white" pieceSetId={currentPieceSet} onSpawn={spawnPiece} />
+        <SpareRow
+          color="white"
+          pieceSetId={currentPieceSet}
+          hasCustomPieceColors={hasCustomPieceColors}
+          onSpawn={spawnPiece}
+        />
         <p className="mt-2 flex items-center gap-1.5 text-xs text-app-muted">
           <Trash2 className="size-3.5" strokeWidth={2.5} />
           Drag a piece off the board to remove it.
@@ -223,10 +234,12 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
 function SpareRow({
   color,
   pieceSetId,
+  hasCustomPieceColors,
   onSpawn,
 }: {
   color: Color;
   pieceSetId: PieceSetId;
+  hasCustomPieceColors: boolean;
   onSpawn: (e: React.MouseEvent | React.TouchEvent, role: Role, color: Color) => void;
 }) {
   return (
@@ -246,7 +259,11 @@ function SpareRow({
           {/* `.cg-wrap` ancestor + real <piece> element so the pieces.css
               `[data-nexa-piece-set] piece.<role>.<color>` rules apply; inline
               styles undo chessground's absolute 12.5% board sizing. */}
-          <span className="cg-wrap block size-full" data-nexa-piece-set={pieceSetId}>
+          <span
+            className="cg-wrap block size-full"
+            data-nexa-piece-set={pieceSetId}
+            data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
+          >
             {React.createElement("piece", {
               className: `${role} ${color}`,
               style: {

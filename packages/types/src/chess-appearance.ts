@@ -12,14 +12,30 @@ export const boardThemeIdSchema = z.enum([
   "brown",
   "dark",
   "minimal",
+  "walnut",
 ]);
 export type BoardThemeId = z.infer<typeof boardThemeIdSchema>;
 
-export const pieceSetIdSchema = z.enum(["classic", "modern", "minimal", "tournament", "wooden"]);
+export const pieceSetIdSchema = z.enum([
+  "classic",
+  "modern",
+  "minimal",
+  "tournament",
+  "wooden",
+  "bold",
+]);
 export type PieceSetId = z.infer<typeof pieceSetIdSchema>;
 
 export const boardOrientationSchema = z.enum(["white", "black", "auto"]);
 export type BoardOrientation = z.infer<typeof boardOrientationSchema>;
+
+export const soundThemeIdSchema = z.enum(["nexa-classic", "futuristic", "nes", "piano", "sfx"]);
+export type SoundThemeId = z.infer<typeof soundThemeIdSchema>;
+
+/** `#rrggbb`, matching the `<input type="color">` value format. */
+export const pieceColorSchema = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Must be a hex color like #a1b2c3.");
 
 /**
  * The fully-resolved appearance shape. Every field has a default, so
@@ -36,6 +52,15 @@ export const chessAppearanceSchema = z
     highlightEnabled: z.boolean().default(true),
     legalMovesEnabled: z.boolean().default(true),
     checkIndicatorEnabled: z.boolean().default(true),
+    // `null` = use the piece set's own colors. Recolors only the piece body
+    // fill — outlines/accent details stay put, so a piece never loses its
+    // silhouette. See `features/chess-appearance/lib/recolorPieces.ts`.
+    pieceColorWhite: pieceColorSchema.nullable().default(null),
+    pieceColorBlack: pieceColorSchema.nullable().default(null),
+    soundThemeId: soundThemeIdSchema.default("nexa-classic"),
+    soundEnabled: z.boolean().default(true),
+    /** Linear gain, 0 (silent) to 1 (full volume). */
+    soundVolume: z.number().min(0).max(1).default(0.8),
   })
   .prefault({});
 
@@ -58,6 +83,11 @@ export const chessAppearanceOverrideSchema = z.object({
   highlightEnabled: z.boolean().optional(),
   legalMovesEnabled: z.boolean().optional(),
   checkIndicatorEnabled: z.boolean().optional(),
+  pieceColorWhite: pieceColorSchema.nullable().optional(),
+  pieceColorBlack: pieceColorSchema.nullable().optional(),
+  soundThemeId: soundThemeIdSchema.optional(),
+  soundEnabled: z.boolean().optional(),
+  soundVolume: z.number().min(0).max(1).optional(),
 });
 
 export type ChessAppearanceOverride = z.infer<typeof chessAppearanceOverrideSchema>;
@@ -71,6 +101,16 @@ export type ChessAppearanceSource = "user" | "admin-default" | "system-default";
 export interface ResolvedChessAppearance {
   config: ChessAppearance;
   source: ChessAppearanceSource;
+  /**
+   * True when the admin has locked board settings platform-wide (spec: "admin
+   * only controls all board settings"). A locked resolve never applies the
+   * user layer even if one is stored from before the lock was turned on —
+   * `updateMyPreference` also refuses new writes while locked (`resetMyPreference`
+   * still works, clearing a stale preference is harmless). Consumers use this
+   * to show "your administrator has locked board settings" and disable
+   * personal controls.
+   */
+  locked: boolean;
 }
 
 function pruneUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
@@ -115,14 +155,16 @@ function parseOverride(value: unknown): ChessAppearanceOverride | null {
  * Resolve the effective appearance for one user. `admin` is the singleton
  * `ChessAppearanceSettings.settings` blob (may be `{}` — untouched), `user`
  * is the caller's `UserChessAppearancePreference.settings` (absent when they
- * have never saved a preference). Last non-empty layer wins.
+ * have never saved a preference). Last non-empty layer wins — unless
+ * `locked` is set, in which case the user layer is skipped entirely.
  */
 export function resolveChessAppearance(layers: {
   admin?: unknown;
   user?: unknown;
+  locked?: boolean;
 }): ResolvedChessAppearance {
   const adminOverride = parseOverride(layers.admin);
-  const userOverride = parseOverride(layers.user);
+  const userOverride = layers.locked ? null : parseOverride(layers.user);
 
   let config = DEFAULT_CHESS_APPEARANCE;
   let source: ChessAppearanceSource = "system-default";
@@ -136,7 +178,7 @@ export function resolveChessAppearance(layers: {
     source = "user";
   }
 
-  return { config: chessAppearanceSchema.parse(config), source };
+  return { config: chessAppearanceSchema.parse(config), source, locked: !!layers.locked };
 }
 
 // ──────────────────────────────────────────────
@@ -186,6 +228,12 @@ export const BOARD_THEME_CATALOG: BoardThemeMeta[] = [
     id: "minimal",
     name: "Minimal",
     description: "Clean modern flat-color board.",
+    isSystemTheme: true,
+  },
+  {
+    id: "walnut",
+    name: "Walnut",
+    description: "Deep walnut wood board with bold coordinate labels.",
     isSystemTheme: true,
   },
 ];
@@ -254,5 +302,81 @@ export const PIECE_SET_CATALOG: PieceSetMeta[] = [
     license: "CC0 1.0",
     author: "RhosGFX",
     source: "lichess-org/lila public/piece/rhosgfx",
+  },
+  {
+    id: "bold",
+    name: "Bold",
+    description: "Bold, thick-outlined pieces with a friendly cartoon feel.",
+    isSystemTheme: true,
+    license: "GPLv3+",
+    author: "Maxime Chupin",
+    source: "lichess-org/lila public/piece/mpchess",
+  },
+];
+
+export interface SoundThemeMeta {
+  id: SoundThemeId;
+  name: string;
+  description: string;
+  isSystemTheme: true;
+  /** SPDX-ish license label as documented at the source. */
+  license: string;
+  author: string;
+  /** Where the vendored audio was sourced from. */
+  source: string;
+}
+
+/**
+ * Vendored from lichess's open-source sound library
+ * (github.com/lichess-org/lila, `public/sound/<id>`), filtered to
+ * commercially-safe licenses only — lichess's own default set and most others
+ * are non-free/non-commercial and were excluded. Full text in
+ * `apps/web/public/sounds/LICENSES.md`.
+ */
+export const SOUND_THEME_CATALOG: SoundThemeMeta[] = [
+  {
+    id: "nexa-classic",
+    name: "Nexa Classic",
+    description: "The original NexaChess move, capture, check and game-end cues.",
+    isSystemTheme: true,
+    license: "Proprietary (NexaChess)",
+    author: "NexaChess",
+    source: "n/a — first-party",
+  },
+  {
+    id: "futuristic",
+    name: "Futuristic",
+    description: "Synth-driven electronic cues.",
+    isSystemTheme: true,
+    license: "AGPLv3+",
+    author: "Enigmahack",
+    source: "lichess-org/lila public/sound/futuristic",
+  },
+  {
+    id: "nes",
+    name: "8-bit",
+    description: "Retro chiptune cues.",
+    isSystemTheme: true,
+    license: "AGPLv3+",
+    author: "Enigmahack",
+    source: "lichess-org/lila public/sound/nes",
+  },
+  {
+    id: "piano",
+    name: "Piano",
+    description: "Warm piano-note cues.",
+    isSystemTheme: true,
+    license: "AGPLv3+",
+    author: "Enigmahack",
+    source: "lichess-org/lila public/sound/piano",
+  },
+  {
+    id: "sfx",
+    name: "SFX",
+    description: "Punchy percussive sound-effect cues.",
+    isSystemTheme: true,
+    license: "AGPLv3+",
+    author: "Enigmahack",
+    source: "lichess-org/lila public/sound/sfx",
   },
 ];

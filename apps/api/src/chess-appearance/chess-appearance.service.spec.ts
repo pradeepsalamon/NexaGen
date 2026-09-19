@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
+import { BOARD_THEME_CATALOG, PIECE_SET_CATALOG, SOUND_THEME_CATALOG } from "@nexa-chess/types";
 import { ChessAppearanceService } from "./chess-appearance.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -37,6 +38,8 @@ describe("ChessAppearanceService", () => {
           settings: data.settings,
           disabledBoardThemeIds: [],
           disabledPieceSetIds: [],
+          disabledSoundThemeIds: [],
+          locked: false,
           updatedAt: new Date("2026-01-01T00:00:00Z"),
         })),
         update: jest.fn().mockImplementation(({ data }) => ({
@@ -45,6 +48,8 @@ describe("ChessAppearanceService", () => {
           settings: data.settings,
           disabledBoardThemeIds: data.disabledBoardThemeIds ?? [],
           disabledPieceSetIds: data.disabledPieceSetIds ?? [],
+          disabledSoundThemeIds: data.disabledSoundThemeIds ?? [],
+          locked: data.locked ?? false,
           updatedAt: new Date("2026-01-02T00:00:00Z"),
         })),
       },
@@ -83,6 +88,8 @@ describe("ChessAppearanceService", () => {
         settings: { boardThemeId: "classic-green" },
         disabledBoardThemeIds: [],
         disabledPieceSetIds: [],
+        disabledSoundThemeIds: [],
+        locked: false,
         updatedAt: new Date(),
       });
       const res = await service.getResolvedAppearance(TOKEN);
@@ -97,6 +104,8 @@ describe("ChessAppearanceService", () => {
         settings: { boardThemeId: "classic-green" },
         disabledBoardThemeIds: [],
         disabledPieceSetIds: [],
+        disabledSoundThemeIds: [],
+        locked: false,
         updatedAt: new Date(),
       });
       prisma.userChessAppearancePreference.findUnique.mockResolvedValue({
@@ -144,6 +153,23 @@ describe("ChessAppearanceService", () => {
       expect(res.config.showCoordinates).toBe(false);
     });
 
+    it("refuses to save a preference while the admin has locked board settings", async () => {
+      authAs("student-1", UserRole.STUDENT);
+      prisma.chessAppearanceSettings.findFirst.mockResolvedValue({
+        id: "settings-1",
+        settings: {},
+        disabledBoardThemeIds: [],
+        disabledPieceSetIds: [],
+        disabledSoundThemeIds: [],
+        locked: true,
+        updatedAt: new Date(),
+      });
+      await expect(
+        service.updateMyPreference(TOKEN, { settings: { boardThemeId: "blue" } }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.userChessAppearancePreference.upsert).not.toHaveBeenCalled();
+    });
+
     it("reset removes the preference row so the admin default applies again", async () => {
       authAs("student-1", UserRole.STUDENT);
       prisma.chessAppearanceSettings.findFirst.mockResolvedValue({
@@ -151,6 +177,8 @@ describe("ChessAppearanceService", () => {
         settings: { boardThemeId: "classic-green" },
         disabledBoardThemeIds: [],
         disabledPieceSetIds: [],
+        disabledSoundThemeIds: [],
+        locked: false,
         updatedAt: new Date(),
       });
       const res = await service.resetMyPreference(TOKEN);
@@ -160,23 +188,47 @@ describe("ChessAppearanceService", () => {
       expect(res.source).toBe("admin-default");
       expect(res.config.boardThemeId).toBe("classic-green");
     });
+
+    it("ignores a stored user preference and stays on the admin default while locked", async () => {
+      authAs("student-1", UserRole.STUDENT);
+      prisma.chessAppearanceSettings.findFirst.mockResolvedValue({
+        id: "settings-1",
+        settings: { boardThemeId: "classic-green" },
+        disabledBoardThemeIds: [],
+        disabledPieceSetIds: [],
+        disabledSoundThemeIds: [],
+        locked: true,
+        updatedAt: new Date(),
+      });
+      prisma.userChessAppearancePreference.findUnique.mockResolvedValue({
+        settings: { boardThemeId: "dark", pieceSetId: "modern" },
+      });
+      const res = await service.getResolvedAppearance(TOKEN);
+      expect(res.locked).toBe(true);
+      expect(res.source).toBe("admin-default");
+      expect(res.config.boardThemeId).toBe("classic-green");
+    });
   });
 
   describe("catalog", () => {
-    it("filters out admin-disabled themes and piece sets", async () => {
+    it("filters out admin-disabled themes, piece sets and sound themes", async () => {
       authAs("coach-1", UserRole.COACH);
       prisma.chessAppearanceSettings.findFirst.mockResolvedValue({
         id: "settings-1",
         settings: {},
         disabledBoardThemeIds: ["dark"],
         disabledPieceSetIds: ["wooden"],
+        disabledSoundThemeIds: ["nes"],
+        locked: false,
         updatedAt: new Date(),
       });
       const res = await service.getCatalog(TOKEN);
       expect(res.boardThemes.map((t) => t.id)).not.toContain("dark");
       expect(res.pieceSets.map((p) => p.id)).not.toContain("wooden");
-      expect(res.boardThemes.length).toBe(5);
-      expect(res.pieceSets.length).toBe(4);
+      expect(res.soundThemes.map((s) => s.id)).not.toContain("nes");
+      expect(res.boardThemes.length).toBe(BOARD_THEME_CATALOG.length - 1);
+      expect(res.pieceSets.length).toBe(PIECE_SET_CATALOG.length - 1);
+      expect(res.soundThemes.length).toBe(SOUND_THEME_CATALOG.length - 1);
     });
   });
 
@@ -211,6 +263,8 @@ describe("ChessAppearanceService", () => {
         settings: { boardThemeId: "dark", pieceSetId: "modern" },
         disabledBoardThemeIds: [],
         disabledPieceSetIds: [],
+        disabledSoundThemeIds: [],
+        locked: false,
         updatedAt: new Date(),
       });
       const res = await service.updateGlobalSettings(TOKEN, { settings: { showCoordinates: false } });
@@ -219,12 +273,19 @@ describe("ChessAppearanceService", () => {
       expect(res.resolved.pieceSetId).toBe("modern");
     });
 
-    it("reset clears the override and disabled-id lists", async () => {
+    it("reset clears the override, disabled-id lists and the lock", async () => {
       authAs("admin-1", UserRole.ADMIN);
       const res = await service.resetGlobalSettings(TOKEN);
       expect(res.settings).toEqual({});
       expect(res.disabledBoardThemeIds).toEqual([]);
+      expect(res.locked).toBe(false);
       expect(res.resolved.boardThemeId).toBe("nexa-classic");
+    });
+
+    it("an admin can lock board settings platform-wide", async () => {
+      authAs("admin-1", UserRole.SUPER_ADMIN);
+      const res = await service.updateGlobalSettings(TOKEN, { settings: {}, locked: true });
+      expect(res.locked).toBe(true);
     });
   });
 });

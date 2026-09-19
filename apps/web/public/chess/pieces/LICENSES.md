@@ -13,6 +13,7 @@ excluded. Files are unmodified except for the directory rename shown below.
 | `minimal` | `wP.svg wN.svg wB.svg wR.svg wQ.svg wK.svg` + `b*` | `spatial` | Maurizio Monge | MIT |
 | `tournament` | `wP.svg wN.svg wB.svg wR.svg wQ.svg wK.svg` + `b*` | `merida` | Armando Hernandez Marroquin | GPLv2+ |
 | `wooden` | `wP.svg wN.svg wB.svg wR.svg wQ.svg wK.svg` + `b*` | `rhosgfx` | RhosGFX | CC0 1.0 |
+| `bold` | `wP.svg wN.svg wB.svg wR.svg wQ.svg wK.svg` + `b*` | `mpchess` | Maxime Chupin | GPLv3+ |
 
 Note: lichess's own `mono` set (which "Minimal" was originally mapped to) only
 ships 6 shape files with no white/black split (color is applied via CSS), which

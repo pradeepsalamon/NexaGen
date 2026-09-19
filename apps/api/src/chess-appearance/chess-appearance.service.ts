@@ -7,6 +7,7 @@ import {
   mergeChessAppearanceOverrides,
   PIECE_SET_CATALOG,
   resolveChessAppearance,
+  SOUND_THEME_CATALOG,
   type ChessAppearanceAdminResponse,
   type ChessAppearanceCatalogResponse,
   type ChessAppearanceOverride,
@@ -85,6 +86,8 @@ export class ChessAppearanceService {
     settings: unknown;
     disabledBoardThemeIds: string[];
     disabledPieceSetIds: string[];
+    disabledSoundThemeIds: string[];
+    locked: boolean;
     updatedAt: Date;
   }): ChessAppearanceAdminResponse {
     const settings = this.parseOverride(row.settings) ?? {};
@@ -94,6 +97,8 @@ export class ChessAppearanceService {
       resolved: resolveChessAppearance({ admin: settings }).config,
       disabledBoardThemeIds: row.disabledBoardThemeIds,
       disabledPieceSetIds: row.disabledPieceSetIds,
+      disabledSoundThemeIds: row.disabledSoundThemeIds,
+      locked: row.locked,
       updatedAt: row.updatedAt.toISOString(),
     };
   }
@@ -109,6 +114,7 @@ export class ChessAppearanceService {
     return resolveChessAppearance({
       admin: settingsRow.settings,
       user: preferenceRow?.settings,
+      locked: settingsRow.locked,
     });
   }
 
@@ -117,9 +123,11 @@ export class ChessAppearanceService {
     const settingsRow = await this.getActiveSettingsRow();
     const disabledBoardThemeIds = new Set(settingsRow.disabledBoardThemeIds);
     const disabledPieceSetIds = new Set(settingsRow.disabledPieceSetIds);
+    const disabledSoundThemeIds = new Set(settingsRow.disabledSoundThemeIds);
     return {
       boardThemes: BOARD_THEME_CATALOG.filter((theme) => !disabledBoardThemeIds.has(theme.id)),
       pieceSets: PIECE_SET_CATALOG.filter((set) => !disabledPieceSetIds.has(set.id)),
+      soundThemes: SOUND_THEME_CATALOG.filter((set) => !disabledSoundThemeIds.has(set.id)),
     };
   }
 
@@ -137,6 +145,12 @@ export class ChessAppearanceService {
     body: UpdateChessAppearanceRequest,
   ): Promise<ChessAppearanceResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
+    const settingsRow = await this.getActiveSettingsRow();
+    if (settingsRow.locked) {
+      throw new ForbiddenException(
+        "Your administrator has locked board settings — you can't set a personal preference.",
+      );
+    }
     const existing = await this.prisma.userChessAppearancePreference.findUnique({
       where: { userId: user.id },
     });
@@ -149,15 +163,18 @@ export class ChessAppearanceService {
       create: { userId: user.id, settings: nextOverride },
       update: { settings: nextOverride },
     });
-    const settingsRow = await this.getActiveSettingsRow();
-    return resolveChessAppearance({ admin: settingsRow.settings, user: nextOverride });
+    return resolveChessAppearance({
+      admin: settingsRow.settings,
+      user: nextOverride,
+      locked: settingsRow.locked,
+    });
   }
 
   async resetMyPreference(accessToken: string | undefined): Promise<ChessAppearanceResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
     await this.prisma.userChessAppearancePreference.deleteMany({ where: { userId: user.id } });
     const settingsRow = await this.getActiveSettingsRow();
-    return resolveChessAppearance({ admin: settingsRow.settings });
+    return resolveChessAppearance({ admin: settingsRow.settings, locked: settingsRow.locked });
   }
 
   // ── Admin global default ──
@@ -186,6 +203,8 @@ export class ChessAppearanceService {
         settings: nextOverride,
         ...(body.disabledBoardThemeIds ? { disabledBoardThemeIds: body.disabledBoardThemeIds } : {}),
         ...(body.disabledPieceSetIds ? { disabledPieceSetIds: body.disabledPieceSetIds } : {}),
+        ...(body.disabledSoundThemeIds ? { disabledSoundThemeIds: body.disabledSoundThemeIds } : {}),
+        ...(body.locked !== undefined ? { locked: body.locked } : {}),
       },
     });
     return this.toAdminResponse(updated);
@@ -197,7 +216,13 @@ export class ChessAppearanceService {
     const row = await this.getActiveSettingsRow();
     const updated = await this.prisma.chessAppearanceSettings.update({
       where: { id: row.id },
-      data: { settings: {}, disabledBoardThemeIds: [], disabledPieceSetIds: [] },
+      data: {
+        settings: {},
+        disabledBoardThemeIds: [],
+        disabledPieceSetIds: [],
+        disabledSoundThemeIds: [],
+        locked: false,
+      },
     });
     return this.toAdminResponse(updated);
   }

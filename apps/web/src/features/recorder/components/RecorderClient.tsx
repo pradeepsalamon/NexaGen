@@ -57,7 +57,7 @@ function RecorderBoard({ state }: { state: BoardState }) {
   // No LiveKit-authenticated user exists in this headless egress context, so
   // this always resolves to the system default (Nexa Classic) — recordings
   // show a consistent board regardless of the coach's own preference.
-  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled } =
+  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, hasCustomPieceColors } =
     useChessAppearance();
 
   useEffect(() => {
@@ -101,6 +101,7 @@ function RecorderBoard({ state }: { state: BoardState }) {
       ref={hostRef}
       data-nexa-board-theme={currentBoardTheme}
       data-nexa-piece-set={currentPieceSet}
+      data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
     />
   );
 }
