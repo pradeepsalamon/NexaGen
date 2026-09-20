@@ -12,6 +12,8 @@ import { JwtModule } from "@nestjs/jwt";
 import { AttendanceModule } from "../attendance/attendance.module";
 import { BackupModule } from "../backup/backup.module";
 import { AnalyticsEventModule } from "../analytics/analytics-event.module";
+import { WhatsAppModule } from "../whatsapp/whatsapp.module";
+import { MailModule } from "../mail/mail.module";
 
 @Module({
   imports: [
@@ -19,7 +21,9 @@ import { AnalyticsEventModule } from "../analytics/analytics-event.module";
     JwtModule.register({}),
     forwardRef(() => AttendanceModule),
     BackupModule,
-    AnalyticsEventModule
+    AnalyticsEventModule,
+    WhatsAppModule,
+    MailModule
   ],
   controllers: [LiveClassController, LiveClassSettingsController, LiveClassPresetController],
   providers: [

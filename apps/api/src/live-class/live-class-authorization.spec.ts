@@ -10,6 +10,8 @@ import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
 import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
+import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -90,6 +92,8 @@ describe("LiveClassService chat authorization", () => {
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
@@ -319,6 +323,8 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -484,6 +490,8 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         { provide: AttendanceService, useValue: { recordJoinEvent } },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }
@@ -660,6 +668,8 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { updateSettingsForClass, resolveForClass, getSettingsForClass },
@@ -808,6 +818,8 @@ describe("LiveClassService waiting room", () => {
         { provide: AttendanceService, useValue: { recordJoinEvent: jest.fn() } },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,
@@ -1030,6 +1042,8 @@ describe("LiveClassService screen-share requests", () => {
         { provide: AttendanceService, useValue: { recordJoinEvent: jest.fn(), finalizeClassAttendance: jest.fn() } },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
         { provide: LiveClassSettingsService, useValue: {} },
         {
           provide: AnalyticsEventService,

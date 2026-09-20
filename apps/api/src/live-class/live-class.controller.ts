@@ -14,11 +14,13 @@ import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import {
   API_ROUTES,
+  guestJoinDemoRequestSchema,
   moderateParticipantRequestSchema,
   resolveScreenShareRequestSchema,
   resolveWaitingRoomRequestSchema,
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
+  type GuestJoinDemoRequest,
   type ModerateParticipantRequest,
   type ResolveScreenShareRequest,
   type ResolveWaitingRoomRequest,
@@ -151,8 +153,10 @@ export class LiveClassController {
   }
 
   @Post(API_ROUTES.liveClass.demoJoin())
-  joinDemoClass(@Param("id") id: string, @Body() body: any) {
-    // Expected body: GuestJoinDemoRequest
+  joinDemoClass(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(guestJoinDemoRequestSchema)) body: GuestJoinDemoRequest
+  ) {
     return this.liveClassService.joinDemoClass(id, body);
   }
 

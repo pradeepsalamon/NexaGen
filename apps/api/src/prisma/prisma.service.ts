@@ -85,6 +85,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.liveClassWaitingParticipant;
   }
 
+  get demoClassRegistration() {
+    return this.client.demoClassRegistration;
+  }
+
   get liveClassScreenShareRequest() {
     return this.client.liveClassScreenShareRequest;
   }

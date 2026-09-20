@@ -15,7 +15,7 @@ import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
+import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
 import {
   deriveLiveKitGrants,
@@ -26,6 +26,8 @@ import {
   LIVE_CLASS_SETTINGS_TOPIC,
   LIVE_CLASS_WAITING_ROOM_TOPIC,
   type DerivedLiveKitGrants,
+  type GuestJoinDemoRequest,
+  type GuestJoinDemoResponse,
   type LiveChatMessageResponse,
   type LiveClassSettings,
   type LiveClassSettingsMessage,
@@ -47,6 +49,7 @@ import {
   UserRole,
   UserStatus,
   ClassStatus,
+  DemoRegistrationContactMethod,
   ScreenShareRequestStatus,
   WaitingRoomStatus,
 } from "@prisma/client";
@@ -56,6 +59,8 @@ import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
 import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
+import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { MailService } from "../mail/mail.service";
 import type { Request, Response } from "express";
 
 /**
@@ -87,7 +92,9 @@ export class LiveClassService {
     private readonly backupService: BackupService,
     private readonly recordingStorageService: RecordingStorageService,
     private readonly settingsService: LiveClassSettingsService,
-    private readonly analyticsEvents: AnalyticsEventService
+    private readonly analyticsEvents: AnalyticsEventService,
+    private readonly whatsapp: WhatsAppService,
+    private readonly mail: MailService
   ) { }
 
   /** Parses a protobuf 64-bit field, which may arrive as a string, or null. */
@@ -728,58 +735,57 @@ export class LiveClassService {
     return { participants };
   }
 
-  async joinDemoClass(classId: string, body: { guestName: string }) {
-    if (!body.guestName || body.guestName.trim().length === 0) {
-      throw new BadRequestException("Guest name is required");
-    }
-
-    const liveSession = await this.prisma.liveSession.findUnique({
-      where: { classId },
-      include: { class: true }
+  /**
+   * Registers a visitor for a demo class — name plus a phone number or email,
+   * standing in for a full account — and, if the class happens to be live
+   * right now, immediately mints a guest LiveKit token too. A visitor who
+   * registers before the coach starts gets back `joined: false` with the
+   * scheduled time instead of an error; the join page re-submits the same
+   * details once the class goes live (see `registerDemoGuest` for why that
+   * retry never re-registers or re-sends the confirmation).
+   */
+  async joinDemoClass(
+    classId: string,
+    body: GuestJoinDemoRequest
+  ): Promise<GuestJoinDemoResponse> {
+    const coachClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
+      include: { liveSession: true }
     });
 
-    if (!liveSession) {
-      // No live session created yet — class hasn't started
-      const coachClass = await this.prisma.coachClass.findUnique({ where: { id: classId } });
-      if (coachClass?.status === 'COMPLETED') {
-        throw new NotFoundException("This demo class has already ended.");
-      }
-      if (coachClass?.status === 'CANCELLED') {
-        throw new NotFoundException("This demo class has been cancelled.");
-      }
-      const now = new Date();
-      if (coachClass?.startsAt && coachClass.startsAt > now) {
-        // Guest demo join — no account, so no timezone to localize into. The
-        // demo landing page shows the schedule in the visitor's own zone; this
-        // fallback string states it in UTC.
-        const formattedTime = coachClass.startsAt.toLocaleString('en-US', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-          timeZone: 'UTC', timeZoneName: 'short'
-        });
-        throw new NotFoundException(`This demo class has not started yet. It is scheduled for ${formattedTime}. Please wait for the coach to begin the session.`);
-      }
-      throw new NotFoundException("This demo class has not started yet. Please wait for the coach to begin the session.");
+    if (!coachClass || !coachClass.isDemo) {
+      throw new NotFoundException("This demo class was not found.");
     }
-
-    if (liveSession.status === LiveSessionStatus.ENDED) {
+    if (coachClass.status === ClassStatus.CANCELLED) {
+      throw new NotFoundException("This demo class has been cancelled.");
+    }
+    if (coachClass.status === ClassStatus.COMPLETED) {
       throw new NotFoundException("This demo class has already ended.");
     }
 
-    if (liveSession.status !== LiveSessionStatus.LIVE) {
-      const now = new Date();
-      if (liveSession.class?.startsAt && liveSession.class.startsAt > now) {
-        // Guest demo join — no account/timezone; state the schedule in UTC.
-        const formattedTime = liveSession.class.startsAt.toLocaleString('en-US', {
-          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-          timeZone: 'UTC', timeZoneName: 'short'
-        });
-        throw new NotFoundException(`This demo class has not started yet. It is scheduled for ${formattedTime}. Please wait for the coach to begin the session.`);
-      }
-      throw new NotFoundException("This demo class has not started yet. Please wait for the coach to begin the session.");
+    const liveSession = coachClass.liveSession;
+    if (liveSession?.status === LiveSessionStatus.ENDED) {
+      throw new NotFoundException("This demo class has already ended.");
     }
 
-    if (!liveSession.class?.isDemo) {
-      throw new ForbiddenException("This class is not a demo class.");
+    const topic = coachClass.topic || coachClass.title || "Demo Class";
+    const registration = await this.registerDemoGuest(classId, coachClass.startsAt, topic, body);
+
+    if (liveSession?.status !== LiveSessionStatus.LIVE) {
+      // Guest demo registration — no account/timezone; state the schedule in UTC.
+      const formattedTime = coachClass.startsAt.toLocaleString('en-US', {
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+        timeZone: 'UTC', timeZoneName: 'short'
+      });
+      return {
+        registered: true,
+        joined: false,
+        token: null,
+        roomName: null,
+        topic,
+        startsAt: coachClass.startsAt.toISOString(),
+        message: `You're registered! This demo class is scheduled for ${formattedTime}. Come back here once the coach starts the session.`
+      };
     }
 
     // `crypto.randomUUID()` — the old `Math.random().toString(36).substring(7)`
@@ -795,26 +801,111 @@ export class LiveClassService {
     };
 
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
-    const topic = liveSession.class?.topic || liveSession.class?.title || "Demo Class";
 
-    // Append the guest to metadata.participants with a single atomic JSONB
-    // update, so concurrent guest joins don't clobber each other's entries via
-    // a read-modify-write race (AUDIT M19).
-    const guestEntry = JSON.stringify([
-      { name: body.guestName, joinedAt: new Date().toISOString() }
-    ]);
-    await this.prisma.$executeRaw`
-      UPDATE "live_sessions"
-      SET "metadata" = jsonb_set(
-        COALESCE("metadata", '{}'::jsonb),
-        '{participants}',
-        COALESCE("metadata" -> 'participants', '[]'::jsonb) || ${guestEntry}::jsonb,
-        true
-      )
-      WHERE "id" = ${liveSession.id}
-    `;
+    if (!registration.joinedAt) {
+      await this.prisma.demoClassRegistration
+        .update({ where: { id: registration.id }, data: { joinedAt: new Date() } })
+        .catch(() => undefined);
+    }
 
-    return { token: livekitToken, roomName: liveSession.roomName, topic };
+    return {
+      registered: true,
+      joined: true,
+      token: livekitToken,
+      roomName: liveSession.roomName,
+      topic,
+      startsAt: null,
+      message: null
+    };
+  }
+
+  /**
+   * Upserts the guest's registration (one row per class per contact — see the
+   * `@@unique([classId, contactMethod, contactValue])` index) and, only the
+   * first time, fires a best-effort confirmation on whichever channel they
+   * picked. The join page re-submits the same details while it waits for the
+   * class to go live, and that retry must reuse the existing row rather than
+   * re-registering or spamming a second confirmation.
+   */
+  private async registerDemoGuest(
+    classId: string,
+    startsAt: Date,
+    topic: string,
+    body: GuestJoinDemoRequest
+  ) {
+    const contactMethod: DemoRegistrationContactMethod =
+      body.contactMethod === "EMAIL"
+        ? DemoRegistrationContactMethod.EMAIL
+        : DemoRegistrationContactMethod.PHONE;
+
+    const contactValue =
+      contactMethod === DemoRegistrationContactMethod.EMAIL
+        ? (body.email as string)
+        : this.whatsapp.normalizeRecipient(body.phoneNumber) ??
+          (body.phoneNumber as string).replace(/\D/g, "");
+
+    if (!contactValue) {
+      throw new BadRequestException("Enter a valid phone number or email address.");
+    }
+
+    const existing = await this.prisma.demoClassRegistration.findUnique({
+      where: {
+        classId_contactMethod_contactValue: { classId, contactMethod, contactValue }
+      }
+    });
+    if (existing) return existing;
+
+    const created = await this.prisma.demoClassRegistration.create({
+      data: {
+        classId,
+        name: body.guestName,
+        contactMethod,
+        contactValue,
+        phoneNumber: contactMethod === DemoRegistrationContactMethod.PHONE ? body.phoneNumber : null,
+        email: contactMethod === DemoRegistrationContactMethod.EMAIL ? body.email : null
+      }
+    });
+
+    void this.sendDemoRegistrationConfirmation(classId, created, startsAt, topic);
+
+    return created;
+  }
+
+  /** Best-effort — a failed confirmation never blocks registration or join. */
+  private async sendDemoRegistrationConfirmation(
+    classId: string,
+    registration: {
+      name: string;
+      contactMethod: DemoRegistrationContactMethod;
+      phoneNumber: string | null;
+      email: string | null;
+    },
+    startsAt: Date,
+    topic: string
+  ) {
+    try {
+      if (registration.contactMethod === DemoRegistrationContactMethod.EMAIL && registration.email) {
+        await this.mail.sendDemoClassRegistrationConfirmation({
+          to: registration.email,
+          guestName: registration.name,
+          classTopic: topic,
+          startsAt,
+          joinUrl: `${getFrontendUrl(this.env)}/demo/${classId}`
+        });
+      } else if (registration.phoneNumber) {
+        // A first-time visitor is outside WhatsApp's 24h customer-service
+        // window, so this free-form text may simply not deliver — attempted
+        // anyway, best effort, and never awaited by the caller's response.
+        await this.whatsapp.trySendText({
+          to: registration.phoneNumber,
+          body: `Hi ${registration.name}, you're registered for the demo class "${topic}". We'll see you there!`
+        });
+      }
+    } catch (error) {
+      this.logger.warn(
+        `Demo registration confirmation for class ${classId} failed: ${(error as Error).message}`
+      );
+    }
   }
 
   async saveChatMessage(

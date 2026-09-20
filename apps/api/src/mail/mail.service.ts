@@ -145,6 +145,57 @@ export class MailService {
     });
   }
 
+  /**
+   * Confirms a demo class registration for a visitor who has no account — the
+   * only record of the class they'll get if they picked email as their contact
+   * method instead of a phone number.
+   */
+  async sendDemoClassRegistrationConfirmation(input: {
+    to: string;
+    guestName: string;
+    classTopic: string;
+    startsAt: Date;
+    joinUrl: string;
+  }) {
+    const transporter = this.createTransporter();
+    const when = input.startsAt.toLocaleString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+      timeZoneName: "short"
+    });
+
+    await transporter.sendMail({
+      from: this.from,
+      to: input.to,
+      subject: `You're registered: ${input.classTopic}`,
+      text: [
+        `Hi ${input.guestName},`,
+        "",
+        `You're registered for the demo class "${input.classTopic}", scheduled for ${when}.`,
+        "",
+        `Join here once it starts: ${input.joinUrl}`,
+        "",
+        "See you there!"
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>You're registered!</h2>
+          <p>Hi ${escapeHtml(input.guestName)}, you're registered for the demo class <strong>${escapeHtml(input.classTopic)}</strong>, scheduled for ${escapeHtml(when)}.</p>
+          <p>
+            <a href="${input.joinUrl}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
+              Join once it starts
+            </a>
+          </p>
+          <p>See you there!</p>
+        </div>
+      `
+    });
+  }
+
   private createTransporter() {
     if (!this.host || !this.user || !this.pass || !this.from) {
       throw new ServiceUnavailableException("SMTP is not configured.");

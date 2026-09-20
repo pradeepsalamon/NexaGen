@@ -10,6 +10,8 @@ import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
 import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
+import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "test-access-token";
@@ -97,6 +99,8 @@ describe("LiveClassService recording feature", () => {
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: backupService },
         { provide: RecordingStorageService, useValue: recordingStorageService },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
         {
           provide: LiveClassSettingsService,
           useValue: { resolveForClass: jest.fn().mockResolvedValue({ resolved: {} }) }

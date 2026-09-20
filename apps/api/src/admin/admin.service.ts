@@ -294,16 +294,14 @@ export class AdminService {
       where: { id: classId, isDemo: true },
       include: {
         coach: true,
-        liveSession: true
+        liveSession: true,
+        demoRegistrations: { orderBy: { createdAt: 'desc' } }
       }
     });
 
     if (!existingClass) {
       throw new NotFoundException("Demo class not found");
     }
-
-    const metadata = (existingClass.liveSession?.metadata as Record<string, any>) || {};
-    const participants = metadata.participants || [];
 
     return {
       class: {
@@ -316,7 +314,13 @@ export class AdminService {
         coachName: `${existingClass.coach.firstName} ${existingClass.coach.lastName || ''}`.trim(),
         actualStartsAt: existingClass.liveSession?.startedAt?.toISOString() || null,
         actualEndsAt: existingClass.liveSession?.endedAt?.toISOString() || null,
-        participants
+        registrations: existingClass.demoRegistrations.map((r) => ({
+          name: r.name,
+          contactMethod: r.contactMethod,
+          contact: r.contactMethod === 'EMAIL' ? (r.email ?? r.contactValue) : (r.phoneNumber ?? r.contactValue),
+          registeredAt: r.createdAt.toISOString(),
+          joined: !!r.joinedAt
+        }))
       }
     };
   }

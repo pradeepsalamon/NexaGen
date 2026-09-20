@@ -689,6 +689,7 @@ model CoachClass {
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
   puzzleAssignments        LiveClassPuzzleAssignment[]
+  demoRegistrations        DemoClassRegistration[]
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@index([batchId])
@@ -699,6 +700,35 @@ model CoachClass {
   @@index([scheduleId])
   @@index([batchId, startsAt])
   @@map("classes")
+}
+
+enum DemoRegistrationContactMethod {
+  PHONE
+  EMAIL
+}
+
+/// A visitor's sign-up for a demo class, captured in place of a full account —
+/// name plus a phone number or email (never both required). One row per unique
+/// contact per class, so a retried/auto-polled join never re-registers or
+/// re-sends the confirmation message. `joinedAt` is set once the guest actually
+/// connects to the LiveKit room (the class is live); a registration with a null
+/// `joinedAt` means they signed up ahead of the class starting.
+model DemoClassRegistration {
+  id            String                         @id @default(cuid())
+  classId       String
+  class         CoachClass                     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  name          String
+  contactMethod DemoRegistrationContactMethod
+  /// Normalized (digits-only phone, or lowercased email) — the dedupe key.
+  contactValue  String
+  phoneNumber   String?
+  email         String?
+  joinedAt      DateTime?
+  createdAt     DateTime                       @default(now())
+
+  @@unique([classId, contactMethod, contactValue])
+  @@index([classId])
+  @@map("demo_class_registrations")
 }
 
 //

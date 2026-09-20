@@ -1297,14 +1297,45 @@ export const updateDemoClassRequestSchema = z.object({
   path: ["endsAt"]
 });
 
-export const guestJoinDemoRequestSchema = z.object({
-  guestName: z.string().min(1, "Name is required").max(50)
-});
+export const demoRegistrationContactMethodSchema = z.enum(["PHONE", "EMAIL"]);
+export type DemoRegistrationContactMethod = z.infer<
+  typeof demoRegistrationContactMethodSchema
+>;
+
+export const guestJoinDemoRequestSchema = z
+  .object({
+    guestName: z.string().trim().min(1, "Name is required").max(50),
+    contactMethod: demoRegistrationContactMethodSchema.default("PHONE"),
+    phoneNumber: z.string().trim().max(20).optional(),
+    email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Enter a valid email address")
+      .max(200)
+      .optional()
+  })
+  .refine(
+    (value) =>
+      value.contactMethod === "EMAIL"
+        ? !!value.email
+        : !!value.phoneNumber && value.phoneNumber.replace(/\D/g, "").length >= 7,
+    {
+      message: "Enter a valid phone number or email address.",
+      path: ["contactMethod"]
+    }
+  );
 
 export const guestJoinDemoResponseSchema = z.object({
-  token: z.string(),
-  roomName: z.string(),
-  topic: z.string()
+  registered: z.literal(true),
+  /** True once a LiveKit token was minted — false means registered but the
+   *  class has not gone live yet; the visitor comes back once it has. */
+  joined: z.boolean(),
+  token: z.string().nullable(),
+  roomName: z.string().nullable(),
+  topic: z.string(),
+  startsAt: z.string().datetime().nullable(),
+  message: z.string().nullable()
 });
 
 export const demoClassSchema = z.object({
@@ -1322,13 +1353,21 @@ export const listDemoClassesResponseSchema = z.object({
   pagination: paginationMetaSchema.optional()
 });
 
+export const demoClassRegistrationItemSchema = z.object({
+  name: z.string(),
+  contactMethod: demoRegistrationContactMethodSchema,
+  contact: z.string(),
+  registeredAt: z.string().datetime(),
+  joined: z.boolean()
+});
+export type DemoClassRegistrationItem = z.infer<
+  typeof demoClassRegistrationItemSchema
+>;
+
 export const demoClassDetailsSchema = demoClassSchema.extend({
   actualStartsAt: z.string().datetime().nullable(),
   actualEndsAt: z.string().datetime().nullable(),
-  participants: z.array(z.object({
-    name: z.string(),
-    joinedAt: z.string().datetime()
-  }))
+  registrations: z.array(demoClassRegistrationItemSchema)
 });
 
 export const demoClassDetailsResponseSchema = z.object({

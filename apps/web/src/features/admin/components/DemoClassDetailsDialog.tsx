@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/Dialog";
 import { useDemoClassDetailsQuery } from "../hooks/useAdminDemoClasses";
 import { Badge } from "@/components/ui/Badge";
-import { Clock, Users, User, Calendar } from "lucide-react";
+import { Clock, Users, User, Calendar, Mail, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 interface DemoClassDetailsDialogProps {
@@ -93,29 +93,45 @@ export function DemoClassDetailsDialog({
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
-                    <Users className="size-4" /> Guest Participants
+                    <Users className="size-4" /> Registrations
                   </h4>
                   <Badge variant="secondary">
-                    {demoClass.participants.length} joined
+                    {demoClass.registrations.length} registered
                   </Badge>
                 </div>
 
-                {demoClass.participants.length > 0 ? (
-                  <ul className="space-y-2 border rounded-md p-3 bg-card max-h-[150px] overflow-y-auto">
-                    {demoClass.participants.map((p, i) => (
-                      <li key={i} className="flex justify-between items-center text-sm">
-                        <span className="flex items-center gap-2">
-                          <User className="size-3 text-muted-foreground" /> {p.name}
+                {demoClass.registrations.length > 0 ? (
+                  <ul className="space-y-2 border rounded-md p-3 bg-card max-h-[220px] overflow-y-auto">
+                    {demoClass.registrations.map((r, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <User className="size-3 shrink-0 text-muted-foreground" />
+                          <span className="flex min-w-0 flex-col">
+                            <span className="truncate font-medium">{r.name}</span>
+                            <span className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                              {r.contactMethod === "EMAIL" ? (
+                                <Mail className="size-3 shrink-0" />
+                              ) : (
+                                <Phone className="size-3 shrink-0" />
+                              )}
+                              {r.contact}
+                            </span>
+                          </span>
                         </span>
-                        <span className="text-muted-foreground text-xs">
-                          {format(new Date(p.joinedAt), "h:mm a")}
+                        <span className="flex shrink-0 flex-col items-end gap-1">
+                          <Badge variant={r.joined ? "success" : "secondary"} className="text-[10px]">
+                            {r.joined ? "Joined" : "Registered"}
+                          </Badge>
+                          <span className="text-[10px] text-muted-foreground">
+                            {format(new Date(r.registeredAt), "MMM d, h:mm a")}
+                          </span>
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
                   <div className="text-sm text-muted-foreground border rounded-md p-4 text-center bg-muted/10">
-                    No guests joined this class.
+                    No one has registered for this class yet.
                   </div>
                 )}
               </div>
