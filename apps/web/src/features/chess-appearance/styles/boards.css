@@ -83,40 +83,24 @@
 }
 
 /*
- * Coordinate labels render outside the checkered area, in a slim margin
- * along the left (ranks) and bottom (files) edges — matching how most
- * chess sites show them, and what chessground's own default coords.ranks/
- * coords.files DOM already is (this app never sets `coordinatesOnSquares`,
- * so the `coords.squares` variant never appears here).
+ * Coordinate labels render as a small overlay on top of the board's own
+ * edge squares (the corner of the a-file / rank-1 squares) — matching how
+ * lichess/chess.com show them — instead of chessground's own default
+ * coords.ranks/coords.files placement, which uses negative offsets tuned
+ * for lichess's fixed page padding and bleeds outside this app's wrap
+ * (which has no such reserved margin).
  *
- * That margin comes out of cg-board's own box (inset + shrink), not out of
- * padding on the wrap: `.cg-wrap` has no set size of its own, cg-container
- * is absolutely positioned at 100% of it, and percentages on an absolutely
- * positioned box resolve against the *padding* box — so padding on the wrap
- * reserves no visible space at all here. Insetting cg-board instead keeps
- * the wrap's own footprint exactly what every caller already sized it to
- * (many size it to an exact square via their own container), so this
- * doesn't ripple into layout elsewhere.
- *
- * `:has(coords.ranks)` gates the margin on whether chessground actually
- * appended coordinate elements (`coordinates: true` in config) — a board
- * with coordinates off keeps rendering edge-to-edge, no wasted space.
+ * cg-board keeps its full 100% box; coords is a later sibling of cg-board
+ * inside cg-container, so it paints on top of the squares/pieces with no
+ * z-index needed. `pointer-events: none` (chessground's own base CSS)
+ * keeps it from blocking piece dragging.
  */
 [data-nexa-board-theme] {
-  --nexa-coord-margin: 0px;
   border-radius: 2px;
   box-shadow: 0 0 0 3px var(--nexa-border, transparent);
 }
 
-[data-nexa-board-theme]:has(coords.ranks) {
-  --nexa-coord-margin: 6%;
-}
-
 [data-nexa-board-theme] cg-board {
-  top: 0;
-  left: var(--nexa-coord-margin);
-  width: calc(100% - var(--nexa-coord-margin));
-  height: calc(100% - var(--nexa-coord-margin));
   overflow: hidden;
   border-radius: 2px;
   background-color: var(--nexa-light);
@@ -145,20 +129,20 @@
 }
 
 /* Override chessground's own (lichess-tuned) negative-offset placement —
-   ours sits fully inside the wrap's box, in the margin cg-board just gave
-   up, rather than bleeding outside it. */
+   ours sits fully inside cg-board's own box, overlaid on the corner of the
+   edge squares, rather than bleeding outside the wrap. */
 [data-nexa-board-theme] coords.ranks {
   top: 0;
   left: 0;
-  width: var(--nexa-coord-margin);
-  height: calc(100% - var(--nexa-coord-margin));
+  width: 6%;
+  height: 100%;
 }
 
 [data-nexa-board-theme] coords.files {
-  left: var(--nexa-coord-margin);
+  left: 0;
   bottom: 0;
-  width: calc(100% - var(--nexa-coord-margin));
-  height: var(--nexa-coord-margin);
+  width: 100%;
+  height: 6%;
 }
 
 [data-nexa-board-theme] coords coord {
@@ -167,4 +151,5 @@
   justify-content: center;
   color: var(--nexa-coord-color);
   font-weight: 600;
+  font-size: 11px;
 }

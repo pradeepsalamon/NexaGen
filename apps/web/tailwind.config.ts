@@ -52,6 +52,18 @@ const config: Config = {
         warm: {
           DEFAULT: "rgb(var(--rgb-warm) / <alpha-value>)",
           ink: "var(--color-warm-ink)"
+        },
+        success: {
+          DEFAULT: "rgb(var(--rgb-success) / <alpha-value>)",
+          ink: "var(--color-success-ink)"
+        },
+        warning: {
+          DEFAULT: "rgb(var(--rgb-warning) / <alpha-value>)",
+          ink: "var(--color-warning-ink)"
+        },
+        info: {
+          DEFAULT: "rgb(var(--rgb-info) / <alpha-value>)",
+          ink: "var(--color-info-ink)"
         }
       },
       fontFamily: {

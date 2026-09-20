@@ -3,7 +3,7 @@ import type { BatchStatus } from "@nexa-chess/types";
 
 export function BatchStatusBadge({ status }: { status: BatchStatus }) {
   return (
-    <Badge variant={getStatusBadgeVariant(status)} className="text-[10px] uppercase font-bold tracking-wider">
+    <Badge variant={getStatusBadgeVariant(status)} className="text-[10px] uppercase tracking-wider">
       {status}
     </Badge>
   );

@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { Copy, ClipboardPaste, Cpu, Loader2, Redo2, Undo2 } from "lucide-react";
 import { MoveHistory } from "../panels/MoveHistory";
 import { StockfishPanel } from "./StockfishPanel";
 import { MasterbasePanel } from "./MasterbasePanel";
 import { PgnPanel } from "./PgnPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { uploadPgn } from "@/lib/uploadApi";
 import { toast } from "sonner";
 import { useBoardStore } from "../../context/BoardProvider";
@@ -15,6 +17,7 @@ import { BoardControlSideToggle } from "@/features/live-class/components/meeting
 import type { BoardControlSide } from "../../types/sync";
 import { useParticipants } from "@livekit/components-react";
 import { analyzePosition } from "../../api/stockfishApi";
+import { NavIconButton } from "../toolbars/BoardNavigation";
 
 export function SidebarTabs() {
   const {
@@ -99,16 +102,45 @@ export function SidebarTabs() {
 
       {/* Action Buttons Row */}
       {isCoach && (
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap items-center gap-2 mb-6">
           <Button variant="primary" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 h-auto text-xs font-medium" onClick={handleSaveToCloud}>Save</Button>
           <SidebarButton onClick={handleSetupPosition}>Setup Position</SidebarButton>
-          <SidebarButton onClick={undo} disabled={historyIndex < 0}>Undo</SidebarButton>
-          <SidebarButton onClick={redo} disabled={historyIndex >= moveHistory.length - 1}>Redo</SidebarButton>
-          <SidebarButton onClick={handleCopyPGN}>Copy PGN</SidebarButton>
-          <SidebarButton onClick={handlePastePGN}>Paste PGN</SidebarButton>
-          <SidebarButton onClick={handleEngineMove} disabled={isEngineMoving || isGameOver}>
-            {isEngineMoving ? "Thinking…" : "Engine Move"}
-          </SidebarButton>
+          <SimpleTooltip label="Undo">
+            <NavIconButton
+              aria-label="Undo"
+              icon={<Undo2 size={16} />}
+              onClick={undo}
+              disabled={historyIndex < 0}
+            />
+          </SimpleTooltip>
+          <SimpleTooltip label="Redo">
+            <NavIconButton
+              aria-label="Redo"
+              icon={<Redo2 size={16} />}
+              onClick={redo}
+              disabled={historyIndex >= moveHistory.length - 1}
+            />
+          </SimpleTooltip>
+          <SimpleTooltip label="Copy PGN">
+            <NavIconButton aria-label="Copy PGN" icon={<Copy size={16} />} onClick={handleCopyPGN} />
+          </SimpleTooltip>
+          <SimpleTooltip label="Paste PGN">
+            <NavIconButton aria-label="Paste PGN" icon={<ClipboardPaste size={16} />} onClick={handlePastePGN} />
+          </SimpleTooltip>
+          <SimpleTooltip label={isEngineMoving ? "Thinking…" : "Engine Move"}>
+            <NavIconButton
+              aria-label={isEngineMoving ? "Thinking…" : "Engine Move"}
+              icon={
+                isEngineMoving ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Cpu size={16} />
+                )
+              }
+              onClick={handleEngineMove}
+              disabled={isEngineMoving || isGameOver}
+            />
+          </SimpleTooltip>
         </div>
       )}
 
@@ -255,8 +287,8 @@ function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
 
 function SidebarButton({ children, onClick, disabled }: { children: React.ReactNode, onClick?: () => void, disabled?: boolean }) {
   return (
-    <Button 
-      variant="outline" 
+    <Button
+      variant="outline"
       onClick={onClick}
       disabled={disabled}
       className="bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 border-gray-300 dark:border-slate-700 px-3 py-1.5 h-auto text-xs font-normal"

@@ -96,7 +96,7 @@ export function BoardNavigation() {
   );
 }
 
-const NavIconButton = React.forwardRef<HTMLButtonElement, { icon: React.ReactNode, onClick?: () => void, disabled?: boolean, isActive?: boolean }>(
+export const NavIconButton = React.forwardRef<HTMLButtonElement, { icon: React.ReactNode, onClick?: () => void, disabled?: boolean, isActive?: boolean, "aria-label"?: string }>(
   ({ icon, onClick, disabled, isActive, ...props }, ref) => {
     return (
       <button

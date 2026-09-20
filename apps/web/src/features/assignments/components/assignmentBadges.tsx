@@ -29,9 +29,9 @@ export function ActivityBadge({ activityType }: { activityType: AssignmentActivi
 }
 
 const DIFFICULTY_STYLE: Record<AssignmentDifficulty, string> = {
-  BEGINNER: "border-green-200 bg-green-50 text-green-700",
-  INTERMEDIATE: "border-yellow-200 bg-yellow-50 text-yellow-700",
-  ADVANCED: "border-red-200 bg-red-50 text-red-700"
+  BEGINNER: "border-success/30 bg-success/10 text-success-ink",
+  INTERMEDIATE: "border-warning/30 bg-warning/10 text-warning-ink",
+  ADVANCED: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink"
 };
 
 const DIFFICULTY_LABEL: Record<AssignmentDifficulty, string> = {
@@ -42,8 +42,8 @@ const DIFFICULTY_LABEL: Record<AssignmentDifficulty, string> = {
 
 const STATUS_STYLE: Record<AssignmentStatus, string> = {
   PENDING: "border-app-border bg-app-background text-app-muted",
-  IN_PROGRESS: "border-yellow-200 bg-yellow-50 text-yellow-700",
-  COMPLETED: "border-green-200 bg-green-50 text-green-700"
+  IN_PROGRESS: "border-warning/30 bg-warning/10 text-warning-ink",
+  COMPLETED: "border-success/30 bg-success/10 text-success-ink"
 };
 
 const STATUS_LABEL: Record<AssignmentStatus, string> = {
@@ -75,7 +75,7 @@ export function DueBadge({ dueDate, formatted }: { dueDate: string; formatted: s
       className={cn(
         "rounded border px-2 py-0.5 text-xs font-medium",
         overdue
-          ? "border-red-200 bg-red-50 text-red-700"
+          ? "border-app-danger/30 bg-app-danger/10 text-app-danger-ink"
           : "border-app-border bg-app-background text-app-muted"
       )}
     >

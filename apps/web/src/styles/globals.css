@@ -18,6 +18,13 @@
   --rgb-border: 216 224 235;
   --rgb-danger: 217 45 32;
 
+  /* Fixed semantic status hues — distinct from the four brand hues above, so
+     a badge's meaning (success/warning/info) never overloads a brand color's
+     own meaning (e.g. secondary yellow already means "attention/practice"). */
+  --rgb-success: 22 163 74;
+  --rgb-warning: 217 119 6;
+  --rgb-info: 37 99 235;
+
   --color-primary: rgb(var(--rgb-primary));
   --color-secondary: rgb(var(--rgb-secondary));
   --color-accent: rgb(var(--rgb-accent));
@@ -29,6 +36,9 @@
   --color-text-muted: rgb(var(--rgb-text-muted));
   --color-border: rgb(var(--rgb-border));
   --color-danger: rgb(var(--rgb-danger));
+  --color-success: rgb(var(--rgb-success));
+  --color-warning: rgb(var(--rgb-warning));
+  --color-info: rgb(var(--rgb-info));
 
   /* Readable text/icon weight of each hue against a light surface. */
   --color-primary-ink: color-mix(in srgb, var(--color-primary) 82%, #04122b);
@@ -36,6 +46,9 @@
   --color-accent-ink: color-mix(in srgb, var(--color-accent) 40%, #05402a);
   --color-warm-ink: color-mix(in srgb, var(--color-warm) 45%, #5a2410);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 88%, #3d0603);
+  --color-success-ink: color-mix(in srgb, var(--color-success) 88%, #052e1d);
+  --color-warning-ink: color-mix(in srgb, var(--color-warning) 88%, #3d2a00);
+  --color-info-ink: color-mix(in srgb, var(--color-info) 88%, #04122b);
 
   --color-focus: color-mix(in srgb, var(--color-primary) 72%, white);
   --shadow-soft: 0 24px 80px rgb(var(--rgb-text) / 0.12);
@@ -57,6 +70,9 @@
   --rgb-text-muted: 161 161 170;
   --rgb-border: 56 56 61;
   --rgb-danger: 220 38 38;
+  --rgb-success: 34 197 94;
+  --rgb-warning: 245 158 11;
+  --rgb-info: 59 130 246;
 
   /* Inks lighten instead of darken so they stay legible on dark surfaces. */
   --color-primary-ink: color-mix(in srgb, var(--color-primary) 58%, white);
@@ -64,6 +80,9 @@
   --color-accent-ink: color-mix(in srgb, var(--color-accent) 80%, white);
   --color-warm-ink: color-mix(in srgb, var(--color-warm) 82%, white);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 52%, white);
+  --color-success-ink: color-mix(in srgb, var(--color-success) 60%, white);
+  --color-warning-ink: color-mix(in srgb, var(--color-warning) 60%, white);
+  --color-info-ink: color-mix(in srgb, var(--color-info) 60%, white);
 
   --shadow-soft: 0 24px 90px rgb(0 0 0 / 0.34);
   --shadow-card: 0 20px 54px rgb(0 0 0 / 0.3);
