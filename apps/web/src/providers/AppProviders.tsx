@@ -22,6 +22,9 @@ import "@/features/chess-appearance/styles/index.css";
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isMeetingRoute = pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
+  // The academy marketing page has its own nav/footer chrome — never the
+  // dashboard shell.
+  const isChromeless = isMeetingRoute || pathname?.startsWith("/academy");
 
   const [queryClient] = useState(
     () =>
@@ -44,9 +47,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
             <ChessAppearanceProvider>
               <SessionBootstrap />
               <AcquisitionCapture />
-              {!isMeetingRoute && <Header />}
+              {!isChromeless && <Header />}
               {/* <EmailVerificationBanner /> (Temporarily disabled) */}
-              <div className={!isMeetingRoute ? "pt-16" : ""}>{children}</div>
+              <div className={!isChromeless ? "pt-16" : ""}>{children}</div>
             </ChessAppearanceProvider>
           </TooltipProvider>
         </ToastProvider>

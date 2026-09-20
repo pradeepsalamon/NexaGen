@@ -357,6 +357,22 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.userChessAppearancePreference;
   }
 
+  get visitorSession() {
+    return this.client.visitorSession;
+  }
+
+  get lead() {
+    return this.client.lead;
+  }
+
+  get leadActivity() {
+    return this.client.leadActivity;
+  }
+
+  get leadNote() {
+    return this.client.leadNote;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

@@ -29,6 +29,7 @@ import { AnnouncementModule } from "./announcement/announcement.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { PayrollModule } from "./payroll/payroll.module";
 import { ChessAppearanceModule } from "./chess-appearance/chess-appearance.module";
+import { LeadModule } from "./lead/lead.module";
 
 @Module({
   imports: [
@@ -66,7 +67,8 @@ import { ChessAppearanceModule } from "./chess-appearance/chess-appearance.modul
     AnnouncementModule,
     PaymentsModule,
     PayrollModule,
-    ChessAppearanceModule
+    ChessAppearanceModule,
+    LeadModule
   ],
   providers: [
     {

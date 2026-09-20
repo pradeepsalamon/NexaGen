@@ -32,6 +32,10 @@ const apiEnvSchema = z.object({
     .default("false")
     .transform((value) => value === "true"),
   SMTP_USER: z.string().optional(),
+  // Comma-separated staff emails notified when the academy marketing page
+  // ("book a demo") creates a new Lead. Unset ⇒ notification is skipped, same
+  // as any other MailService send with no SMTP configured.
+  ADMIN_EMAILS: z.string().optional(),
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
@@ -144,6 +148,13 @@ export function getApiEnv(source: NodeJS.ProcessEnv = process.env) {
 export function getCorsOrigins(env: Pick<ApiEnv, "CORS_ORIGIN">) {
   return env.CORS_ORIGIN.split(",")
     .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
+export function getAdminNotificationEmails(env: Pick<ApiEnv, "ADMIN_EMAILS">) {
+  return (env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim())
     .filter(Boolean);
 }
 

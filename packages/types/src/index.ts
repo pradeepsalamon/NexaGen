@@ -2160,3 +2160,9 @@ export * from "./invoices";
 // billing). Kept in its own module (depends on nothing above).
 // ──────────────────────────────────────────────
 export * from "./payroll";
+
+// ──────────────────────────────────────────────
+// Academy leads CRM: "book a demo" inquiries from the public marketing site,
+// plus the visitor-session attribution they're traced back to.
+// ──────────────────────────────────────────────
+export * from "./leads";

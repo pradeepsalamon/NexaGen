@@ -22,6 +22,7 @@ import {
   TrendingUp,
   Trash2,
   UserCheck,
+  UserPlus,
   UserRoundCheck,
   Users,
   Video,
@@ -98,6 +99,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/analytics/engagement", label: "Engagement", icon: Activity, group: "Analytics" },
   { href: "/admin/analytics/operations", label: "Operations", icon: Clock, group: "Analytics" },
   // Manage
+  { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "Manage" },
   { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Manage" },
   { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Manage" },
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Manage" },

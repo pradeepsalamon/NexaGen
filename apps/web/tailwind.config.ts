@@ -64,7 +64,19 @@ const config: Config = {
         info: {
           DEFAULT: "rgb(var(--rgb-info) / <alpha-value>)",
           ink: "var(--color-info-ink)"
-        }
+        },
+        // Academy marketing page (/academy) only — its own palette, ported
+        // verbatim from the standalone landing site. Plain hex (not the
+        // rgb(var(...)) pattern above) so Tailwind's opacity modifiers
+        // (bg-gold/5, border-gold/30, ...) work automatically.
+        gold: {
+          DEFAULT: "#1a3a52",
+          light: "#2a5a8a",
+          dark: "#0f1f2f"
+        },
+        "text-primary": "#1a3a52",
+        "text-secondary": "#4a5f7f",
+        "text-muted": "#7a8fa5"
       },
       fontFamily: {
         sans: ["var(--font-sans)"]

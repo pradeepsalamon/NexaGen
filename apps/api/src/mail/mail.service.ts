@@ -1,9 +1,10 @@
-import { Injectable, ServiceUnavailableException } from "@nestjs/common";
-import { getApiEnv } from "@nexa-chess/config/api";
+import { Injectable, Logger, ServiceUnavailableException } from "@nestjs/common";
+import { getAdminNotificationEmails, getApiEnv } from "@nexa-chess/config/api";
 import nodemailer from "nodemailer";
 
 @Injectable()
 export class MailService {
+  private readonly logger = new Logger(MailService.name);
   private readonly env = getApiEnv();
   private readonly from = this.env.SMTP_FROM ?? this.env.SMTP_USER;
   private readonly host = this.env.SMTP_HOST;
@@ -191,6 +192,59 @@ export class MailService {
             </a>
           </p>
           <p>See you there!</p>
+        </div>
+      `
+    });
+  }
+
+  /**
+   * Notifies staff of a new academy "book a demo" lead. Skips silently (no
+   * throw) when either SMTP or `ADMIN_EMAILS` is unset — callers treat this
+   * as fire-and-forget and must never fail lead creation on it.
+   */
+  async sendNewLeadNotification(input: {
+    studentName: string;
+    parentName: string;
+    studentAge: number;
+    experienceLevel: string;
+    phone: string;
+    source: string | null;
+    campaign: string | null;
+  }) {
+    const recipients = getAdminNotificationEmails(this.env);
+    if (recipients.length === 0) {
+      this.logger.warn("Skipped new-lead notification: ADMIN_EMAILS is unset.");
+      return;
+    }
+
+    const transporter = this.createTransporter();
+
+    await transporter.sendMail({
+      from: this.from,
+      to: recipients.join(","),
+      subject: `New demo booking: ${input.studentName}`,
+      text: [
+        "A new demo class inquiry came in from the academy site.",
+        "",
+        `Student: ${input.studentName} (age ${input.studentAge})`,
+        `Parent: ${input.parentName}`,
+        `Experience: ${input.experienceLevel}`,
+        `Phone: ${input.phone}`,
+        `Source: ${input.source ?? "Unknown"}`,
+        `Campaign: ${input.campaign ?? "-"}`
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>New demo booking</h2>
+          <p>A new demo class inquiry came in from the academy site.</p>
+          <table style="border-collapse:collapse">
+            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Student</td><td>${escapeHtml(input.studentName)} (age ${input.studentAge})</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Parent</td><td>${escapeHtml(input.parentName)}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Experience</td><td>${escapeHtml(input.experienceLevel)}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Phone</td><td>${escapeHtml(input.phone)}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Source</td><td>${escapeHtml(input.source ?? "Unknown")}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Campaign</td><td>${escapeHtml(input.campaign ?? "-")}</td></tr>
+          </table>
         </div>
       `
     });

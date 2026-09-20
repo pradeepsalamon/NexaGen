@@ -455,5 +455,18 @@ export const API_ROUTES = {
     regenerate: (id: string = ":id") => `/batch-schedules/${id}/regenerate`,
     occurrenceAction: (classId: string = ":classId") =>
       `/batch-schedules/occurrences/${classId}`
+  },
+  leads: {
+    create: "/leads",
+    tracking: "/leads/tracking"
+  },
+  adminLeads: {
+    list: "/admin/leads",
+    metrics: "/admin/leads/metrics",
+    get: (id: string = ":id") => `/admin/leads/${id}`,
+    updateStatus: (id: string = ":id") => `/admin/leads/${id}/status`,
+    notes: (id: string = ":id") => `/admin/leads/${id}/notes`,
+    assignDemoClass: (id: string = ":id") => `/admin/leads/${id}/assign-demo-class`,
+    delete: (id: string = ":id") => `/admin/leads/${id}`
   }
 } as const;

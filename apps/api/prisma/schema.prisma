@@ -342,6 +342,10 @@ model User {
   reversedPayrollAdjustments       PayrollAdjustment[]        @relation("PayrollAdjustmentReversedBy")
   adminCoachPayouts                CoachPayout[]              @relation("CoachPayoutAdmin")
 
+  // ── Academy leads CRM ──
+  leadActivities LeadActivity[] @relation("LeadActivityCreatedBy")
+  leadNotes      LeadNote[]     @relation("LeadNoteCreatedBy")
+
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
   isDeleted                Boolean                  @default(false)
@@ -690,6 +694,7 @@ model CoachClass {
   recordingWatchProgresses RecordingWatchProgress[]
   puzzleAssignments        LiveClassPuzzleAssignment[]
   demoRegistrations        DemoClassRegistration[]
+  assignedLeads            Lead[]                       @relation("LeadAssignedClass")
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@index([batchId])
@@ -729,6 +734,140 @@ model DemoClassRegistration {
   @@unique([classId, contactMethod, contactValue])
   @@index([classId])
   @@map("demo_class_registrations")
+}
+
+//
+// ACADEMY LEADS CRM (public marketing site "book a demo" inquiries)
+//
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  DEMO_SCHEDULED
+  DEMO_ATTENDED
+  FOLLOW_UP
+  PAYMENT_PENDING
+  CONVERTED
+  ACTIVE_STUDENT
+  LOST
+}
+
+/// A pre-signup marketing-site visit, keyed by a first-party cookie pair
+/// (visitor id + session id). Captures UTM/referrer/click-id attribution so a
+/// `Lead` created later in the same session can be traced back to a campaign.
+/// Upserted on every tracked page view — `pageViews`/`lastVisit` advance on
+/// repeat hits, everything else is set once on the first hit of a session.
+model VisitorSession {
+  id        String @id @default(cuid())
+  sessionId String @unique
+  visitorId String
+
+  ipAddress  String?
+  userAgent  String?
+  browser    String?
+  os         String?
+  deviceType String?
+
+  referrer    String?
+  landingPage String?
+
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+
+  fbclid String?
+  gclid  String?
+
+  firstVisit DateTime @default(now())
+  lastVisit  DateTime @updatedAt
+  pageViews  Int      @default(1)
+
+  leads Lead[]
+
+  @@index([visitorId])
+  @@map("visitor_sessions")
+}
+
+/// A "book a demo" inquiry from the academy marketing page — upstream of
+/// `DemoClassRegistration`: a lead is a prospect an admin/coach triages
+/// (contacts, schedules an actual demo, converts to an enrolled student),
+/// not yet a signup for a specific scheduled class.
+model Lead {
+  id              String @id @default(cuid())
+  studentName     String
+  parentName      String
+  studentAge      Int
+  experienceLevel String
+  phone           String
+
+  status LeadStatus @default(NEW)
+  /// First-touch attribution, derived from the linked `VisitorSession` at
+  /// creation time (utmSource, else referrer, else "Organic").
+  source   String?
+  campaign String?
+
+  lastActivityAt DateTime?
+  convertedAt    DateTime?
+
+  visitorSessionId String?
+  visitorSession    VisitorSession? @relation(fields: [visitorSessionId], references: [id], onDelete: SetNull)
+
+  /// The demo class slot this lead has been booked into, if any (admin
+  /// action — see LeadService.assignDemoClass). Mirrored into a real
+  /// `DemoClassRegistration` on that class so attendance/join flow works the
+  /// same as a self-registered guest.
+  assignedClassId String?
+  assignedClass    CoachClass? @relation("LeadAssignedClass", fields: [assignedClassId], references: [id], onDelete: SetNull)
+
+  activities LeadActivity[]
+  notes      LeadNote[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([visitorSessionId])
+  @@index([assignedClassId])
+  @@map("leads")
+}
+
+/// Timeline entry on a `Lead` — system-generated (registration, status
+/// change) or staff-authored (mirrors a `LeadNote`). `createdById` is null
+/// for system entries.
+model LeadActivity {
+  id     String @id @default(cuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  activityType String
+  title        String
+  description  String?
+
+  createdById String?
+  createdBy   User?    @relation("LeadActivityCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+  @@map("lead_activities")
+}
+
+model LeadNote {
+  id     String @id @default(cuid())
+  leadId String
+  lead   Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  note String
+
+  createdById String?
+  createdBy   User?    @relation("LeadNoteCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+  @@map("lead_notes")
 }
 
 //
