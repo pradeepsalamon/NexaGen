@@ -15,6 +15,7 @@ import { AttendanceStatusBadge } from "@/features/attendance/components/Attendan
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { formatDuration, formatLongDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { ClassEndFeedback } from "@/features/feedback/components/ClassEndFeedback";
 
 function Shell({
   topic,
@@ -101,6 +102,8 @@ export function ClassSummary({ classId }: { classId: string }) {
             ` (${formatDuration(data.actualDuration)})`}
         </p>
       </div>
+
+      {data.status !== "CANCELLED" ? <ClassEndFeedback classId={classId} /> : null}
 
       {data.status === "CANCELLED" ? (
         <div className="flex flex-col items-center justify-center gap-2 py-20 text-center">

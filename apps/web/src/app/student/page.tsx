@@ -13,6 +13,7 @@ import { RecentActivity } from "@/features/student-dashboard/components/RecentAc
 import { TodaysClass } from "@/features/student-dashboard/components/TodaysClass";
 import { UpcomingClasses } from "@/features/student-dashboard/components/UpcomingClasses";
 import { WelcomeCard } from "@/features/student-dashboard/components/WelcomeCard";
+import { DashboardFeedback } from "@/features/feedback/components/DashboardFeedback";
 import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -81,6 +82,8 @@ export default function StudentDashboardPage() {
 
   return (
     <div className="space-y-6 pb-10">
+      <DashboardFeedback />
+
       <Row delay={0}>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2">

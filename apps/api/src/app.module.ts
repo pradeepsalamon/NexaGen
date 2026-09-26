@@ -29,6 +29,7 @@ import { AnnouncementModule } from "./announcement/announcement.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { PayrollModule } from "./payroll/payroll.module";
 import { ChessAppearanceModule } from "./chess-appearance/chess-appearance.module";
+import { FeedbackModule } from "./feedback/feedback.module";
 import { LeadModule } from "./lead/lead.module";
 
 @Module({
@@ -68,7 +69,8 @@ import { LeadModule } from "./lead/lead.module";
     PaymentsModule,
     PayrollModule,
     ChessAppearanceModule,
-    LeadModule
+    LeadModule,
+    FeedbackModule
   ],
   providers: [
     {
