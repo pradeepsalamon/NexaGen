@@ -266,6 +266,9 @@ model User {
   coachedBatches                  BatchCoach[]                  @relation("BatchCoaches")
   studentBatches                  BatchStudent[]                @relation("BatchStudents")
   classes                         CoachClass[]                  @relation("ClassCoach")
+  createdFeedbackForms            FeedbackForm[]                @relation("FeedbackFormCreatedBy")
+  givenFeedback                   FeedbackResponse[]            @relation("FeedbackResponseStudent")
+  receivedFeedback                FeedbackResponse[]            @relation("FeedbackResponseCoach")
   authSessions                    AuthSession[]
   passwordResets                  PasswordResetToken[]
   emailVerifications              EmailVerificationToken[]
@@ -695,6 +698,7 @@ model CoachClass {
   puzzleAssignments        LiveClassPuzzleAssignment[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                       @relation("LeadAssignedClass")
+  feedbackResponses        FeedbackResponse[]           @relation("FeedbackResponseClass")
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@index([batchId])
@@ -3531,4 +3535,124 @@ model PayslipSequence {
   updatedAt DateTime @updatedAt
 
   @@map("payslip_sequences")
+}
+
+// ──────────────────────────────────────────────
+// Coach feedback & ratings. An admin authors a FeedbackForm (its questions are
+// a JSON array of `FeedbackQuestion` from @nexa-chess/types, edited wholesale),
+// decides WHEN it is asked (`trigger`) and WHERE the student sees it
+// (`placements`). "Pending" is computed on read — there is no request row — and
+// a FeedbackResponse (submitted or skipped) is what closes one. The unique
+// (form, student, coach, contextKey) is the double-submit guard.
+// Not soft-deletable, not Trash-registered: a form with responses can only be
+// deactivated, never deleted.
+// ──────────────────────────────────────────────
+
+enum FeedbackTrigger {
+  AFTER_CLASS
+  RECURRING
+  ONE_TIME
+}
+
+enum FeedbackPlacement {
+  CLASS_END
+  DASHBOARD_POPUP
+  DASHBOARD_CARD
+}
+
+enum FeedbackResponseStatus {
+  SUBMITTED
+  SKIPPED
+}
+
+model FeedbackForm {
+  id          String  @id @default(cuid())
+  title       String
+  description String?
+  isActive    Boolean @default(true)
+
+  /// FeedbackQuestion[] — stable ids so answers survive later edits.
+  questions Json
+
+  trigger          FeedbackTrigger
+  /// AFTER_CLASS: ask after every Nth attended class with the same coach.
+  classInterval    Int                 @default(1)
+  /// RECURRING: ask once per coach every N days.
+  intervalDays     Int?
+  /// How long an unanswered request stays open.
+  expiresAfterDays Int                 @default(7)
+  placements       FeedbackPlacement[]
+  /// Empty = every batch.
+  batchIds         String[]
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  allowSkip   Boolean @default(true)
+  /// Coaches see their own aggregate + anonymous comments from this form.
+  showToCoach Boolean @default(true)
+
+  createdById String?
+  createdBy   User?   @relation("FeedbackFormCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  responses FeedbackResponse[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("feedback_forms")
+}
+
+model FeedbackResponse {
+  id String @id @default(cuid())
+
+  formId String
+  form   FeedbackForm @relation(fields: [formId], references: [id], onDelete: Restrict)
+
+  studentId String
+  student   User   @relation("FeedbackResponseStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  coachId String
+  coach   User   @relation("FeedbackResponseCoach", fields: [coachId], references: [id], onDelete: Cascade)
+
+  classId String?
+  class   CoachClass? @relation("FeedbackResponseClass", fields: [classId], references: [id], onDelete: SetNull)
+
+  /// `class:<id>` | `period:<n>` | `once` — what this response answers.
+  contextKey String
+
+  status        FeedbackResponseStatus
+  /// Mean of this response's RATING answers (1-5); null if none / skipped.
+  overallRating Float?
+
+  answers FeedbackAnswer[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([formId, studentId, coachId, contextKey])
+  @@index([coachId, status])
+  @@index([studentId])
+  @@index([createdAt])
+  @@map("feedback_responses")
+}
+
+model FeedbackAnswer {
+  id String @id @default(cuid())
+
+  responseId String
+  response   FeedbackResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  /// Snapshot of the question at submit time, so a later edit never rewrites
+  /// what the student was actually asked.
+  questionId    String
+  questionLabel String
+  questionType  String
+
+  ratingValue Int?
+  textValue   String?
+
+  @@index([responseId])
+  @@index([questionId])
+  @@map("feedback_answers")
 }

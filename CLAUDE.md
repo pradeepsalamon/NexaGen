@@ -531,6 +531,34 @@ component hardcodes its own styling.
   soft-deletable** and not Trash-registered — cosmetic, not an audit-worthy
   record.
 
+### 3.6i Coach feedback & ratings
+
+`apps/api/src/feedback/` + `apps/web/src/features/feedback/`, pages
+`/admin/feedback` and `/coach/feedback`, routes `API_ROUTES.feedback.*` /
+`.adminFeedback.*`. Admin-authored `FeedbackForm`s (questions as a JSON array of
+`FeedbackQuestion` with stable ids) decide **when** a student is asked
+(`trigger`: `AFTER_CLASS` every Nth attended class per coach / `RECURRING` every
+N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
+`ClassSummary`, `DASHBOARD_POPUP`, `DASHBOARD_CARD` — both on `/student`).
+
+- **Pending is computed, never stored.** `computePendingFeedback`
+  (`feedback-pending.util.ts`, pure + unit-tested) derives open requests from
+  live forms, the student's attended COMPLETED batch classes and existing
+  responses. `contextKey` names what a response answers: `class:<id>`,
+  `period:<n>`, `once`.
+- **Submit/skip never trust the client's target** — `resolveOwnCandidate`
+  recomputes pending and requires an exact match. The unique
+  `(formId, studentId, coachId, contextKey)` is the double-submit guard (P2002 →
+  409).
+- `FeedbackAnswer` snapshots the question label/type at submit time;
+  `FeedbackResponse.overallRating` is the mean of its RATING answers, and the
+  coach rating is the mean of those. Coaches only see responses from
+  `showToCoach` forms, with the student stripped (`toResponseDto(row, true)`).
+- A form with responses cannot be deleted (FK is `Restrict`) — it is
+  deactivated. None of these models are soft-deletable or Trash-registered.
+- Shared types, labels and `averageRating` live in `@nexa-chess/types`
+  (`feedback.ts`).
+
 ### 3.7 Live class / LiveKit
 
 - `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. LiveKit webhook at `POST /webhooks/livekit` — `main.ts` parses `application/webhook+json` as raw text for signature verification; don't break that.
@@ -684,4 +712,6 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |
 | `DAU/WAU/MAU` shows "Data unavailable" | no `analytics_events` rows yet — they accrue from deploy (login / class-join / assignment-attempt / recording-watch) |
+| A student never gets asked for feedback | the form must be active and inside its `startsAt`/`endsAt`; an `AFTER_CLASS` form only counts classes that ended *after* the form's start (or creation), that were `COMPLETED`, belonged to a batch in `batchIds` (empty = all), and that the student attended (not `ABSENT`). `RECURRING`/`ONE_TIME` need at least one such class with that coach. Then check the placement — the class-end screen only shows `CLASS_END` forms |
+| Feedback shows up again after the student answered | it's a different `contextKey` — the next class, or the next `RECURRING` period — by design. Same key twice would be a 409 |
 | Analytics timezone off by a day | all bucketing goes through `zonedDayBounds`/`zonedMonthBounds` + `date_trunc(... AT TIME ZONE tz)` using the requesting admin's `User.timezone`; check that column |

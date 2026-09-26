@@ -468,5 +468,17 @@ export const API_ROUTES = {
     notes: (id: string = ":id") => `/admin/leads/${id}/notes`,
     assignDemoClass: (id: string = ":id") => `/admin/leads/${id}/assign-demo-class`,
     delete: (id: string = ":id") => `/admin/leads/${id}`
+  },
+  feedback: {
+    pending: "/feedback/pending",
+    submit: "/feedback/submit",
+    skip: "/feedback/skip",
+    mine: "/feedback/me"
+  },
+  adminFeedback: {
+    forms: "/admin/feedback/forms",
+    form: (id: string = ":id") => `/admin/feedback/forms/${id}`,
+    responses: "/admin/feedback/responses",
+    coachRatings: "/admin/feedback/coach-ratings"
   }
 } as const;

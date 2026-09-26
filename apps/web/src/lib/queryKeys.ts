@@ -33,6 +33,14 @@ export const queryKeys = {
   admin: {
     base: ["admin"] as const,
   },
+  feedback: {
+    all: ["feedback"] as const,
+    pending: (params?: Record<string, any>) => ["feedback", "pending", params ?? null] as const,
+    forms: ["feedback", "forms"] as const,
+    responses: (params?: Record<string, any>) => ["feedback", "responses", params ?? null] as const,
+    coachRatings: ["feedback", "coach-ratings"] as const,
+    mine: ["feedback", "mine"] as const,
+  },
   leads: {
     all: ["leads"] as const,
     list: (params?: Record<string, any>) => ["leads", "list", params ?? null] as const,

@@ -2166,3 +2166,9 @@ export * from "./payroll";
 // plus the visitor-session attribution they're traced back to.
 // ──────────────────────────────────────────────
 export * from "./leads";
+
+// ──────────────────────────────────────────────
+// Coach feedback & ratings: admin-authored forms, where/when students see
+// them, and the per-coach rating roll-up.
+// ──────────────────────────────────────────────
+export * from "./feedback";

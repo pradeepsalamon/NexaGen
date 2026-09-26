@@ -519,6 +519,41 @@ everyone, students, coaches, or one batch — not the rule's, so a published
 broadcast can't be silently narrowed by a settings change. The student dashboard
 only shows announcements addressed to that student.
 
+## Coach Feedback & Ratings
+
+Students rate their coaches through forms an admin designs
+(`apps/api/src/feedback/`, `apps/web/src/features/feedback/`, routes
+`API_ROUTES.feedback.*` / `.adminFeedback.*`, admin page `/admin/feedback`,
+coach page `/coach/feedback`).
+
+- **What is asked** — a form holds up to 20 questions: star rating (1-5),
+  written answer, multiple choice, or yes/no, each optionally required. The
+  coach's rating is the mean of the star-rating answers; a response's own
+  `overallRating` is the mean of its rated questions.
+- **When it is asked** (`trigger`):
+  - *After classes* — after every Nth completed class a student attended with
+    the same coach (`classInterval`, 1 = every class). Only classes that end
+    after the form's start date (or creation, if no start) count.
+  - *Periodically* — once per coach every `intervalDays`.
+  - *Once* — once per coach while the form is live.
+  - A request stays open `expiresAfterDays`; optional `startsAt` / `endsAt`
+    bound the whole form. `batchIds` limits it to some batches (empty = all).
+    Periodic/once forms only ask about coaches the student actually attended a
+    class with.
+- **Where it appears** (`placements`, any combination): the class-ended summary
+  screen, a pop-up on the student dashboard (at most one per visit), and a card
+  at the top of the student dashboard until answered.
+- **Who sees results** — admins see every response with the student's name;
+  a coach sees only their own, anonymously, and only from forms with
+  `showToCoach` on. `allowSkip` lets students dismiss a request for good.
+- "Pending" is computed on read (`feedback-pending.util.ts`), never stored. A
+  submitted or skipped `FeedbackResponse` closes a request; its unique
+  `(formId, studentId, coachId, contextKey)` stops double submission, and the
+  server re-derives the target itself instead of trusting the client's ids.
+- Answers snapshot the question text and type, so editing a form never rewrites
+  past responses. A form with responses can't be deleted — deactivate it.
+  None of these models are soft-deletable or Trash-registered.
+
 ## Chess Board Appearance
 
 A single, centralized theme system drives the visual appearance of every
@@ -960,6 +995,15 @@ opt-in the same way — additionally needs `STOCKFISH_PATH` set in `apps/api/.en
 
 ```bash
 RUN_ANALYSIS_E2E=1 npx playwright test analysis-board
+```
+
+`e2e/coach-feedback.spec.ts` (admin builds a form → student answers on the
+dashboard → coach/admin see the rating) is opt-in too. It writes fixture
+classes straight into the database it is given and cleans them up afterwards,
+so point it at a local database only:
+
+```bash
+RUN_FEEDBACK_E2E=1 DATABASE_URL=<local db> npx playwright test coach-feedback
 ```
 
 ### Responsive screenshots
