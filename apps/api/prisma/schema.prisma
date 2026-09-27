@@ -1831,6 +1831,9 @@ model Puzzle {
   hintsJson         Json? // string[] — progressive text hints
   tags              String[] @default([])
   estimatedSeconds  Int?
+  /// This puzzle's own points / penalties override (PuzzleScoringOverride,
+  /// validated by @nexa-chess/types). null = the admin default applies.
+  scoringJson       Json?
 
   status     PuzzleStatus     @default(DRAFT)
   visibility PuzzleVisibility @default(PRIVATE)
@@ -1892,6 +1895,8 @@ model PuzzleAttempt {
   scorePercent    Int?
   accuracyPercent Int?
   hintsUsed       Int                 @default(0)
+  /// Wrong moves tried, counted server-side in saveProgress (negative marks).
+  wrongMoves      Int                 @default(0)
   durationSeconds Int                 @default(0)
   result          String? // "SOLVED" | "FAILED"
   startedAt       DateTime            @default(now())
@@ -1925,6 +1930,12 @@ model LiveClassPuzzleAssignment {
 
   status            LiveClassPuzzleStatus @default(ACTIVE)
   revealLeaderboard Boolean               @default(true)
+  /// Resolved PuzzleScoring / PuzzleLeaderboardOptions, frozen at share time
+  /// (null on rows shared before points existed → the defaults apply).
+  scoringJson       Json?
+  leaderboardJson   Json?
+  /// Coach's manual +/- points: { [studentId]: number }.
+  adjustmentsJson   Json                  @default("{}")
   durationSeconds   Int? // null = untimed
   startedAt         DateTime              @default(now())
   endedAt           DateTime?
@@ -1935,6 +1946,22 @@ model LiveClassPuzzleAssignment {
   @@index([liveClassId])
   @@index([puzzleId])
   @@map("live_class_puzzle_assignments")
+}
+
+// Platform default points + leaderboard rules for live-class puzzles
+// (singleton, id "default"). Seeded lazily on first read — no seed migration.
+// Cosmetic-level config: not soft-deletable, not Trash-registered.
+model PuzzleScoringSettings {
+  id              String   @id @default("default")
+  /// PuzzleScoring JSON (validated by @nexa-chess/types).
+  scoringJson     Json?
+  /// PuzzleLeaderboardOptions JSON.
+  leaderboardJson Json?
+  updatedById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("puzzle_scoring_settings")
 }
 
 //

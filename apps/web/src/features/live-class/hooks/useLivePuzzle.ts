@@ -1,13 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AssignLivePuzzleRequest } from "@nexa-chess/types";
+import type {
+  AdjustLivePuzzlePointsRequest,
+  AssignLivePuzzleRequest,
+  UpdateLivePuzzleRequest
+} from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
+  adjustLivePuzzlePoints,
   assignLivePuzzle,
   endLivePuzzle,
   getLivePuzzleBoards,
   getLivePuzzleLeaderboard,
-  getLivePuzzleState
+  getLivePuzzleState,
+  updateLivePuzzle
 } from "../api/liveClassPuzzle";
 
 export function useLivePuzzleState(classId: string, enabled = true) {
@@ -71,5 +77,37 @@ export function useEndLivePuzzle(classId: string) {
     },
     onError: (error: Error) =>
       toast.error({ title: "Couldn't end the puzzle", message: error.message })
+  });
+}
+
+// undo: intentionally excluded — a mid-class broadcast (PUZZLE_UPDATED) reaches
+// every participant instantly; same policy as mid-class settings changes.
+export function useUpdateLivePuzzle(classId: string) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (body: UpdateLivePuzzleRequest) => updateLivePuzzle(classId, body),
+    onSuccess: () => {
+      toast.success({ title: "Puzzle rules updated", message: "Points were recalculated for everyone." });
+      qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
+      qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Couldn't update the puzzle", message: error.message })
+  });
+}
+
+// undo: intentionally excluded — an adjustment is its own reverse (the opposite
+// +/- button), and the running total is on screen immediately.
+export function useAdjustLivePuzzlePoints(classId: string) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (body: AdjustLivePuzzlePointsRequest) => adjustLivePuzzlePoints(classId, body),
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.livePuzzle.leaderboard(classId), data);
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Couldn't adjust points", message: error.message })
   });
 }

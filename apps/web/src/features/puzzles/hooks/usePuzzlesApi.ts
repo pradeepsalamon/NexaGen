@@ -5,6 +5,7 @@ import type {
   PuzzleListQuery,
   StudentPuzzleListQuery,
   UpdatePuzzleRequest,
+  UpdatePuzzleScoringSettingsRequest,
   UpdatePuzzleTopicRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -15,10 +16,12 @@ import {
   getMyPuzzle,
   getMyPuzzles,
   getPuzzle,
+  getPuzzleScoringSettings,
   getPuzzleStats,
   getPuzzleTopics,
   getPuzzles,
   updatePuzzle,
+  updatePuzzleScoringSettings,
   updatePuzzleTopic
 } from "../api/puzzleApi";
 
@@ -123,5 +126,30 @@ export function useMyPuzzle(id: string, enabled = true) {
     queryKey: queryKeys.puzzles.mineDetail(id),
     queryFn: () => getMyPuzzle(id),
     enabled: !!id && enabled
+  });
+}
+
+/** Platform default points + leaderboard rules (staff read, admin write). */
+export function usePuzzleScoringSettings(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.puzzles.scoringSettings,
+    queryFn: getPuzzleScoringSettings,
+    enabled,
+    staleTime: 60_000
+  });
+}
+
+// undo: intentionally excluded — singleton settings-form Save (lib/undo/README.md).
+export function useUpdatePuzzleScoringSettings() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (data: UpdatePuzzleScoringSettingsRequest) => updatePuzzleScoringSettings(data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(queryKeys.puzzles.scoringSettings, data);
+      toast.success({ title: "Puzzle scoring defaults saved" });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Could not save scoring defaults", message: error.message })
   });
 }

@@ -22,12 +22,14 @@ import { VideoTile } from "./video-grid/VideoTile";
 import { CompactVideoTile } from "./video-grid/CompactVideoTile";
 import { FocusOverlay } from "./video-grid/FocusOverlay";
 import { BoardFocusOverlay } from "./video-grid/BoardFocusOverlay";
+import { PuzzleGridTile } from "./video-grid/PuzzleGridTile";
 
 /** Matches the `gap-3` on the grid; the layout maths needs it as a number. */
 const GRID_GAP = 12;
 
 export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
-  const { pinnedParticipantSid, setPinnedParticipantSid, isChessboardOpen } = useLiveClassState();
+  const { pinnedParticipantSid, setPinnedParticipantSid, isChessboardOpen, activePuzzle } =
+    useLiveClassState();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const showBoardTile = isChessboardOpen && !isCoach;
@@ -55,7 +57,11 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
   );
 
   const boardTileShown = showBoardTile && !compact;
-  const totalItems = sortedTracks.length + (boardTileShown ? 1 : 0);
+  // A shared puzzle sits first in the grid, like the shared board, so students
+  // find it without opening a panel.
+  const puzzleTileShown = !!activePuzzle && !compact;
+  const leadingTiles = (puzzleTileShown ? 1 : 0) + (boardTileShown ? 1 : 0);
+  const totalItems = sortedTracks.length + leadingTiles;
 
   // Sized from the real container rather than a breakpoint table, so every
   // participant count lays out correctly on every screen.
@@ -134,6 +140,9 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
             <LayoutGroup>
               <div className="grid gap-3" style={gridStyle}>
               <AnimatePresence mode="popLayout">
+                {puzzleTileShown && activePuzzle && (
+                  <PuzzleGridTile key="puzzle-tile" puzzle={activePuzzle} style={tileStyle(0)} />
+                )}
                 {boardTileShown && (
                   <>
                     <motion.div
@@ -144,7 +153,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                       exit={{ opacity: 0, scale: 0.94 }}
                       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
                       className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200"
-                      style={{ containerType: "size", ...tileStyle(0) }}
+                      style={{ containerType: "size", ...tileStyle(puzzleTileShown ? 1 : 0) }}
                     >
                       {/* Only render ChessgroundBoard when NOT in fullscreen to avoid dual-instance conflicts */}
                       {!isBoardFullscreen && (
@@ -200,7 +209,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                     key={getTrackKey(trackRef)}
                     trackRef={trackRef}
                     onPin={setPinnedParticipantSid}
-                    style={tileStyle(trackIndex + (boardTileShown ? 1 : 0))}
+                    style={tileStyle(trackIndex + leadingTiles)}
                   />
                 ))}
               </AnimatePresence>

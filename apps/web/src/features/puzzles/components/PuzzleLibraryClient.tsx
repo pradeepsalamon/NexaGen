@@ -17,6 +17,7 @@ import {
   Plus,
   Send,
   Trash2,
+  Trophy,
   Undo2
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
@@ -95,12 +96,22 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
               : "Browse the admin library and manage your own puzzles."}
           </p>
         </div>
-        <Button asChild>
-          <Link href={`${basePath}/new`}>
-            <Plus className="mr-2 size-4" />
-            New puzzle
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {role === "admin" ? (
+            <Button asChild variant="outline">
+              <Link href={`${basePath}/scoring`}>
+                <Trophy className="mr-2 size-4" strokeWidth={2.5} />
+                Points &amp; leaderboard
+              </Link>
+            </Button>
+          ) : null}
+          <Button asChild>
+            <Link href={`${basePath}/new`}>
+              <Plus className="mr-2 size-4" />
+              New puzzle
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {role === "admin" && stats.data && (

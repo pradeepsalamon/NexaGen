@@ -6,10 +6,13 @@ import type {
   CreatePuzzleRequest,
   PuzzleDetail,
   PuzzleDifficulty,
+  PuzzleScoring,
+  PuzzleScoringOverride,
   PuzzleType,
   SolutionMove,
   UpdatePuzzleRequest
 } from "@nexa-chess/types";
+import { resolvePuzzleScoring } from "@nexa-chess/types";
 import { CheckCircle2, Eye, Loader2, X, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -22,7 +25,14 @@ import { START_FEN } from "@/features/chessboard/lib/fen";
 import { SolutionEditor } from "@/features/assignments/components/SolutionEditor";
 import { useToast } from "@/providers/ToastProvider";
 import { setPuzzlePublished, validatePuzzle } from "../api/puzzleApi";
-import { useCreatePuzzle, usePuzzleTopics, useUpdatePuzzle } from "../hooks/usePuzzlesApi";
+import { Checkbox } from "@/components/ui/Checkbox";
+import {
+  useCreatePuzzle,
+  usePuzzleScoringSettings,
+  usePuzzleTopics,
+  useUpdatePuzzle
+} from "../hooks/usePuzzlesApi";
+import { PuzzleScoringFields, PuzzleScoringPreview } from "./scoring/PuzzleScoringFields";
 import {
   PUZZLE_DIFFICULTY_OPTIONS,
   PUZZLE_TYPE_OPTIONS
@@ -71,6 +81,21 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
     puzzle?.estimatedSeconds ? String(Math.round(puzzle.estimatedSeconds / 60)) : ""
   );
 
+  // Live-class points: an optional override on top of the admin default. Only
+  // the fields the author touches are stored, so the rest keep following the
+  // admin default if it changes later.
+  const scoringDefaults = usePuzzleScoringSettings();
+  const [customScoring, setCustomScoring] = useState(!!puzzle?.scoring);
+  const [scoringOverride, setScoringOverride] = useState<PuzzleScoringOverride>(
+    puzzle?.scoring ?? {}
+  );
+  const effectiveScoring = useMemo(
+    () => resolvePuzzleScoring(scoringDefaults.data?.settings.scoring, scoringOverride),
+    [scoringDefaults.data, scoringOverride]
+  );
+  const onScoringChange = (next: PuzzleScoring, key: keyof PuzzleScoring) =>
+    setScoringOverride((prev) => ({ ...prev, [key]: next[key] }));
+
   const [validation, setValidation] = useState<
     { valid: boolean; error?: string } | null
   >(null);
@@ -105,7 +130,8 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
     hints: hints.map((h) => h.trim()).filter(Boolean),
     tags,
     estimatedSeconds: estimatedMinutes ? Number(estimatedMinutes) * 60 : undefined,
-    orientation: sideToMove(fen)
+    orientation: sideToMove(fen),
+    scoring: customScoring && Object.keys(scoringOverride).length > 0 ? scoringOverride : null
   });
 
   const missing = !title.trim() || !topicId;
@@ -369,7 +395,44 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
       </Card>
 
       <Card className="p-4 sm:p-6">
-        <SectionHeading index={4} title="Publishing" />
+        <SectionHeading
+          index={4}
+          title="Live-class points"
+          hint="What this puzzle is worth when a coach shares it in a class. Off = the platform default."
+        />
+        <Checkbox
+          id="pz-custom-scoring"
+          label="Use custom points for this puzzle"
+          checked={customScoring}
+          onCheckedChange={(checked) => setCustomScoring(checked === true)}
+        />
+        {customScoring ? (
+          <div className="mt-3 space-y-4">
+            <PuzzleScoringFields
+              idPrefix="pz-scoring"
+              value={effectiveScoring}
+              onChange={onScoringChange}
+            />
+            <PuzzleScoringPreview scoring={effectiveScoring} />
+            {Object.keys(scoringOverride).length > 0 ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setScoringOverride({})}>
+                Reset to platform default
+              </Button>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-app-muted">
+            {effectiveScoring.basePoints} pts to solve
+            {effectiveScoring.wrongMovePenalty > 0
+              ? `, −${effectiveScoring.wrongMovePenalty} per wrong move`
+              : ""}{" "}
+            (platform default).
+          </p>
+        )}
+      </Card>
+
+      <Card className="p-4 sm:p-6">
+        <SectionHeading index={5} title="Publishing" />
         <dl className="grid gap-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-app-muted">Creator</dt>

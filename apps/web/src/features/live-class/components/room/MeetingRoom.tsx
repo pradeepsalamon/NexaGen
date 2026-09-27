@@ -14,6 +14,7 @@ import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
 import { PuzzleBridge } from "../meeting/PuzzleBridge";
+import { PuzzleSolverHost } from "../meeting/PuzzleSolverHost";
 import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
 import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
 import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
@@ -178,6 +179,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
         <ScreenShareRequestBridge classId={classId} />
         <HandRaiseBridge />
         <PuzzleBridge classId={classId} />
+        <PuzzleSolverHost classId={classId} />
         <ConnectionStateManager classId={classId}>
           <ChatProvider classId={classId}>
             {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}

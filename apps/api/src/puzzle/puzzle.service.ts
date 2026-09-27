@@ -22,6 +22,7 @@ import type {
   ValidatePuzzleRequest,
   ValidatePuzzleResponse
 } from "@nexa-chess/types";
+import { parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
 import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import {
@@ -161,6 +162,7 @@ export class PuzzleService {
         hintsJson: (dto.hints ?? []) as unknown as Prisma.InputJsonValue,
         tags: dto.tags ?? [],
         estimatedSeconds: dto.estimatedSeconds ?? null,
+        scoringJson: this.scoringJsonInput(dto.scoring),
         status: publish ? PuzzleStatus.PUBLISHED : PuzzleStatus.DRAFT,
         visibility,
         createdById: user.id,
@@ -218,6 +220,7 @@ export class PuzzleService {
     }
     if (dto.tags !== undefined) data.tags = dto.tags;
     if (dto.estimatedSeconds !== undefined) data.estimatedSeconds = dto.estimatedSeconds;
+    if (dto.scoring !== undefined) data.scoringJson = this.scoringJsonInput(dto.scoring);
 
     const updated = await this.prisma.puzzle.update({
       where: { id },
@@ -307,6 +310,7 @@ export class PuzzleService {
         hintsJson: source.hintsJson ?? [],
         tags: source.tags,
         estimatedSeconds: source.estimatedSeconds,
+        scoringJson: source.scoringJson ?? Prisma.DbNull,
         status: PuzzleStatus.DRAFT,
         visibility: isAdminRole(user.role)
           ? PuzzleVisibility.GLOBAL
@@ -499,6 +503,7 @@ export class PuzzleService {
       visibility: row.visibility,
       tags: row.tags,
       estimatedSeconds: row.estimatedSeconds,
+      scoring: parseScoringOverride(row.scoringJson),
       sideToMove: this.sideToMove(row.fen),
       solutionLength: this.solutionFromRow(row.solutionMovesJson).length,
       createdById: row.createdById,
@@ -528,5 +533,16 @@ export class PuzzleService {
 
   private roleLabel(role: UserRole): string {
     return role === UserRole.COACH ? "Coach" : "Admin";
+  }
+
+  /** An empty override is stored as NULL so the admin default visibly applies. */
+  private scoringJsonInput(
+    scoring: PuzzleScoringOverride | null | undefined
+  ): Prisma.InputJsonValue | typeof Prisma.DbNull {
+    if (!scoring) return Prisma.DbNull;
+    const cleaned = Object.fromEntries(
+      Object.entries(scoring).filter(([, value]) => value !== undefined)
+    );
+    return Object.keys(cleaned).length ? (cleaned as Prisma.InputJsonValue) : Prisma.DbNull;
   }
 }

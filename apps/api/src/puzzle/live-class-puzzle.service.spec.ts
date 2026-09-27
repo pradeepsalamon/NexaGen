@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { PuzzleStatus, PuzzleVisibility, UserRole, UserStatus } from "@prisma/client";
 import { LiveClassService } from "../live-class/live-class.service";
@@ -7,6 +7,7 @@ import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveClassPuzzleService } from "./live-class-puzzle.service";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
+import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 
 const TOKEN = "t";
 const CLASS_ID = "class-1";
@@ -52,6 +53,7 @@ const attempt = (over: Record<string, unknown> = {}) => ({
   accuracyPercent: 100,
   durationSeconds: 20,
   hintsUsed: 0,
+  wrongMoves: 0,
   movesJson: [],
   completedAt: new Date("2026-09-06T10:01:00Z"),
   updatedAt: new Date("2026-09-06T10:01:00Z"),
@@ -94,7 +96,11 @@ describe("LiveClassPuzzleService", () => {
         { provide: PrismaService, useValue: prisma },
         { provide: LiveKitService, useValue: { broadcastData: jest.fn().mockResolvedValue(undefined) } },
         { provide: LiveClassService, useValue: liveClass },
-        { provide: PuzzleAttemptService, useValue: attempts }
+        { provide: PuzzleAttemptService, useValue: attempts },
+        {
+          provide: PuzzleScoringSettingsService,
+          useValue: { defaults: jest.fn().mockResolvedValue({ leaderboard: null, scoring: null }) }
+        }
       ]
     }).compile();
 
@@ -384,6 +390,156 @@ describe("LiveClassPuzzleService", () => {
       liveClass.resolveClassManager.mockRejectedValue(new ForbiddenException());
       await expect(service.boards(TOKEN, CLASS_ID)).rejects.toBeInstanceOf(ForbiddenException);
       expect(liveClass.resolveClassManager).toHaveBeenCalledWith(TOKEN, CLASS_ID);
+    });
+  });
+  describe("points & leaderboard rules", () => {
+    const scoring = {
+      allowNegative: false,
+      basePoints: 100,
+      firstSolveBonuses: [30, 10],
+      hintPenalty: 10,
+      maxAttempts: null,
+      partialCredit: true,
+      speedBonusMax: 0,
+      speedBonusSeconds: 120,
+      wrongMovePenalty: 15
+    };
+    const leaderboard = {
+      anonymize: false,
+      rankBy: "POINTS",
+      showStats: true,
+      topN: null,
+      visibility: "LIVE"
+    };
+    const student = (id: string) => ({ id, firstName: id, lastName: null });
+
+    it("ranks by points: wrong moves cost points, first solvers earn a bonus", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(
+        assignmentRow({ leaderboardJson: leaderboard, scoringJson: scoring })
+      );
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        // Solved first but made 3 wrong moves: 100 + 30 − 45 = 85
+        attempt({ studentId: "s-a", wrongMoves: 3, completedAt: new Date("2026-09-06T10:00:30Z"), student: student("s-a") }),
+        // Solved second, clean: 100 + 10 = 110
+        attempt({ studentId: "s-b", completedAt: new Date("2026-09-06T10:00:40Z"), student: student("s-b") }),
+        // Half the line, no solve: partial 50
+        attempt({ studentId: "s-c", status: "FAILED", scorePercent: 50, student: student("s-c") })
+      ]);
+      liveClass.resolveParticipant.mockResolvedValue({ user: asUser(COACH_ID, UserRole.COACH), liveSession });
+
+      const res = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(res.entries.map((e) => [e.studentId, e.points])).toEqual([
+        ["s-b", 110],
+        ["s-a", 85],
+        ["s-c", 50]
+      ]);
+      expect(res.entries[1].breakdown).toMatchObject({ firstSolveBonus: 30, wrongMovePenalty: 45 });
+    });
+
+    it("applies the coach's manual adjustment, even to a student with no attempt", async () => {
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: { students: [{ student: student("s-verbal") }] }
+      });
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(
+        assignmentRow({
+          adjustmentsJson: { "s-a": -20, "s-verbal": 40 },
+          leaderboardJson: leaderboard,
+          scoringJson: scoring
+        })
+      );
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: "s-a", student: student("s-a") })
+      ]);
+      liveClass.resolveParticipant.mockResolvedValue({ user: asUser(COACH_ID, UserRole.COACH), liveSession });
+
+      const res = await service.leaderboard(TOKEN, CLASS_ID);
+      // s-a: 100 + 30 (first solve) − 20 = 110; s-verbal: +40
+      expect(res.entries.map((e) => [e.studentId, e.points])).toEqual([
+        ["s-a", 110],
+        ["s-verbal", 40]
+      ]);
+      expect(res.notStarted).toHaveLength(0);
+    });
+
+    it("AFTER_END shows a student only their own row while the puzzle runs, everyone after", async () => {
+      const rows = [
+        attempt({ studentId: STUDENT_ID }),
+        attempt({ studentId: "s-other", student: student("s-other") })
+      ];
+      prisma.puzzleAttempt.findMany.mockResolvedValue(rows);
+
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(
+        assignmentRow({ leaderboardJson: { ...leaderboard, visibility: "AFTER_END" }, scoringJson: scoring })
+      );
+      const during = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(during.entries.map((e) => e.studentId)).toEqual([STUDENT_ID]);
+      expect(during.self?.rank).toBeNull();
+      expect(during.showingAll).toBe(false);
+
+      prisma.liveClassPuzzleAssignment.findFirst
+        .mockResolvedValueOnce(null) // no active
+        .mockResolvedValueOnce(
+          assignmentRow({
+            leaderboardJson: { ...leaderboard, visibility: "AFTER_END" },
+            scoringJson: scoring,
+            status: "ENDED"
+          })
+        );
+      const after = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(after.entries).toHaveLength(2);
+      expect(after.active).toBe(false);
+    });
+
+    it("anonymizes other students and caps to the top N for students", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(
+        assignmentRow({ leaderboardJson: { ...leaderboard, anonymize: true, topN: 1 }, scoringJson: scoring })
+      );
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ studentId: "s-top", completedAt: new Date("2026-09-06T10:00:10Z"), student: student("s-top") }),
+        attempt({ studentId: "s-mid", completedAt: new Date("2026-09-06T10:00:20Z"), student: student("s-mid") }),
+        attempt({ studentId: STUDENT_ID, status: "FAILED", scorePercent: 0 })
+      ]);
+      const res = await service.leaderboard(TOKEN, CLASS_ID);
+      expect(res.entries.map((e) => e.studentName)).toEqual(["Student 1", "Sam Student"]);
+      expect(res.entries.some((e) => e.studentId === "s-top")).toBe(false);
+    });
+
+    it("refuses a fresh attempt once a student has used all their tries", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(
+        assignmentRow({ scoringJson: { ...scoring, maxAttempts: 1 } })
+      );
+      prisma.puzzleAttempt.findMany.mockResolvedValue([{ status: "FAILED" }]);
+      await expect(service.startAttempt(TOKEN, CLASS_ID)).rejects.toBeInstanceOf(BadRequestException);
+      expect(attempts.start).not.toHaveBeenCalled();
+
+      // ...but an attempt still in progress is always resumable.
+      prisma.puzzleAttempt.findMany.mockResolvedValue([{ status: "FAILED" }, { status: "IN_PROGRESS" }]);
+      await service.startAttempt(TOKEN, CLASS_ID);
+      expect(attempts.start).toHaveBeenCalled();
+    });
+
+    it("adds a manual adjustment onto the existing one", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(assignmentRow({ scoringJson: scoring }));
+      prisma.liveClassPuzzleAssignment.findUniqueOrThrow = jest
+        .fn()
+        .mockResolvedValue({ adjustmentsJson: { "s-a": 10 } });
+      await service.adjust(TOKEN, CLASS_ID, { studentId: "s-a", delta: 5 });
+      expect(prisma.liveClassPuzzleAssignment.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { adjustmentsJson: { "s-a": 15 } } })
+      );
+    });
+
+    it("freezes the admin default, the puzzle override and the coach's pick onto the assignment", async () => {
+      prisma.puzzle.findUnique.mockResolvedValue(puzzleRow({ scoringJson: { basePoints: 300, hintPenalty: 0 } }));
+      await service.assign(TOKEN, CLASS_ID, {
+        puzzleId: "pz-1",
+        leaderboard: { visibility: "AFTER_END" },
+        scoring: { wrongMovePenalty: 25 }
+      });
+      const data = prisma.liveClassPuzzleAssignment.create.mock.calls[0][0].data;
+      expect(data.scoringJson).toMatchObject({ basePoints: 300, hintPenalty: 0, wrongMovePenalty: 25 });
+      expect(data.leaderboardJson).toMatchObject({ visibility: "AFTER_END" });
+      expect(data.revealLeaderboard).toBe(false);
     });
   });
 });

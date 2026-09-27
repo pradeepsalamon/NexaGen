@@ -2134,6 +2134,7 @@ export * from "./puzzle";
 // ──────────────────────────────────────────────
 // Live-class puzzle assignment (depends on ./puzzle)
 // ──────────────────────────────────────────────
+export * from "./puzzle-scoring";
 export * from "./live-class-puzzle";
 
 // ──────────────────────────────────────────────

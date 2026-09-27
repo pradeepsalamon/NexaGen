@@ -18,6 +18,7 @@ import { usePuzzleAttempt } from "@/features/puzzles/hooks/usePuzzleAttempt";
 import { queryKeys } from "@/lib/queryKeys";
 import { startLivePuzzleAttempt } from "../../api/liveClassPuzzle";
 import { formatClock, useCountdown } from "../../hooks/useCountdown";
+import { useLivePuzzleLeaderboard } from "../../hooks/useLivePuzzle";
 
 /**
  * The student's in-class puzzle board. Same server-scored SOLVE_LINE flow as the
@@ -40,6 +41,9 @@ export function InRoomPuzzleSolver({
   const { session, startError, moves, phase, wrong, resetNonce, result, currentFen, begin, handleMove, giveUp } =
     usePuzzleAttempt({ start });
   const { secondsLeft, expired } = useCountdown(puzzle.endsAt);
+  const leaderboard = useLivePuzzleLeaderboard(classId, true);
+  const self = leaderboard.data?.self ?? null;
+  const { scoring } = puzzle;
 
   useEffect(() => {
     if (!result) return;
@@ -74,6 +78,16 @@ export function InRoomPuzzleSolver({
         ) : null}
       </div>
 
+      <p className="text-xs text-app-muted">
+        {scoring.basePoints} pts to solve
+        {scoring.wrongMovePenalty > 0 ? ` · −${scoring.wrongMovePenalty} per wrong move` : ""}
+        {scoring.speedBonusMax > 0 ? ` · up to +${scoring.speedBonusMax} for speed` : ""}
+        {scoring.firstSolveBonuses[0] ? ` · +${scoring.firstSolveBonuses[0]} for solving first` : ""}
+        {self?.attemptsLeft !== null && self?.attemptsLeft !== undefined
+          ? ` · ${self.attemptsLeft} ${self.attemptsLeft === 1 ? "try" : "tries"} left`
+          : ""}
+      </p>
+
       {startError ? (
         <Card className="space-y-2 p-3 text-sm text-app-text">
           <p>{startError}</p>
@@ -105,6 +119,7 @@ export function InRoomPuzzleSolver({
         <Card className="flex items-center gap-2 border-app-danger/40 p-2.5 text-sm text-app-danger-ink">
           <XCircle className="size-4 shrink-0" strokeWidth={2.5} />
           Not the move — try again.
+          {scoring.wrongMovePenalty > 0 ? ` (−${scoring.wrongMovePenalty} pts)` : ""}
         </Card>
       ) : null}
 
@@ -120,7 +135,11 @@ export function InRoomPuzzleSolver({
           <span>
             {result.solved
               ? `Solved — score ${result.scorePercent}%.`
-              : `Score ${result.scorePercent}%. Full line:`}
+              : `Score ${result.scorePercent}%.`}
+            {self?.points !== null && self?.points !== undefined
+              ? ` Your points: ${self.points}${self.rank !== null ? ` (#${self.rank})` : ""}.`
+              : ""}
+            {!result.solved ? " Full line:" : ""}
             {!result.solved ? (
               <span className="mt-1 block">
                 {result.solutionMoves.map((m) => m.san).join(" ")}

@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req
 } from "@nestjs/common";
@@ -22,6 +23,7 @@ import {
   setPuzzlePublishedRequestSchema,
   submitPuzzleAttemptRequestSchema,
   updatePuzzleRequestSchema,
+  updatePuzzleScoringSettingsRequestSchema,
   updatePuzzleTopicRequestSchema,
   validatePuzzleRequestSchema,
   type BulkPuzzleActionRequest,
@@ -36,12 +38,14 @@ import {
   type StudentPuzzleListQuery,
   type SubmitPuzzleAttemptRequest,
   type UpdatePuzzleRequest,
+  type UpdatePuzzleScoringSettingsRequest,
   type UpdatePuzzleTopicRequest,
   type ValidatePuzzleRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
+import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 import { PuzzleTopicService } from "./puzzle-topic.service";
 import { PuzzleService } from "./puzzle.service";
 
@@ -50,7 +54,8 @@ export class PuzzleController {
   constructor(
     private readonly puzzleService: PuzzleService,
     private readonly topicService: PuzzleTopicService,
-    private readonly attemptService: PuzzleAttemptService
+    private readonly attemptService: PuzzleAttemptService,
+    private readonly scoringSettings: PuzzleScoringSettingsService
   ) {}
 
   // ── Topics ──
@@ -94,6 +99,24 @@ export class PuzzleController {
     @Req() request: Request
   ) {
     return this.topicService.reassign(this.token(request), id, body);
+  }
+
+  // ── Live-class points & leaderboard defaults ──
+  // Declared before the `/puzzles/:id` routes so "scoring-settings" is never
+  // captured as a puzzle id.
+
+  @Get(API_ROUTES.puzzles.scoringSettings)
+  getScoringSettings(@Req() request: Request) {
+    return this.scoringSettings.get(this.token(request));
+  }
+
+  @Put(API_ROUTES.puzzles.scoringSettings)
+  updateScoringSettings(
+    @Body(new ZodBodyPipe(updatePuzzleScoringSettingsRequestSchema))
+    body: UpdatePuzzleScoringSettingsRequest,
+    @Req() request: Request
+  ) {
+    return this.scoringSettings.update(this.token(request), body);
   }
 
   // ── Library ──

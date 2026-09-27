@@ -211,4 +211,37 @@ describe("PuzzleAttemptService", () => {
       service.saveProgress(TOKEN, "pz-1", "att-1", { moves: [] })
     ).rejects.toBeInstanceOf(BadRequestException);
   });
+  describe("wrong-move counting", () => {
+    const openAttempt = {
+      id: "att-1",
+      puzzleId: "pz-1",
+      studentId: STUDENT_ID,
+      status: "IN_PROGRESS",
+      liveClassId: null,
+      movesJson: [],
+      hintsUsed: 0,
+      durationSeconds: 0
+    };
+
+    it("counts a wrong move server-side and does not persist it", async () => {
+      prisma.puzzleAttempt.findUnique.mockResolvedValue(openAttempt);
+      const res = await service.saveProgress(TOKEN, "pz-1", "att-1", {
+        moves: [{ ply: 1, uci: "a1a7", san: "Ra7", fenAfter: "" }]
+      });
+      expect(res.moveFeedback?.correct).toBe(false);
+      const { data } = prisma.puzzleAttempt.update.mock.calls[0][0];
+      expect(data.wrongMoves).toEqual({ increment: 1 });
+      expect(data.movesJson).toBeUndefined();
+    });
+
+    it("persists a correct move without touching the counter", async () => {
+      prisma.puzzleAttempt.findUnique.mockResolvedValue(openAttempt);
+      await service.saveProgress(TOKEN, "pz-1", "att-1", {
+        moves: [{ ply: 1, ...MATE_MOVE, fenAfter: "" }]
+      });
+      const { data } = prisma.puzzleAttempt.update.mock.calls[0][0];
+      expect(data.wrongMoves).toBeUndefined();
+      expect(data.movesJson).toHaveLength(1);
+    });
+  });
 });
