@@ -50,11 +50,11 @@ export function FocusOverlay({
         </div>
 
         {/* Video container */}
-        <div className="min-h-0 flex-1 overflow-hidden rounded-2xl border border-app-border bg-black shadow-2xl">
+        <div className="min-h-0 flex-1 overflow-hidden rounded-app border border-app-border bg-black shadow-soft">
           <ParticipantTile
             trackRef={trackRef}
             className={cn(
-              "h-full w-full overflow-hidden rounded-2xl [&_.lk-participant-metadata]:hidden",
+              "h-full w-full overflow-hidden rounded-app [&_.lk-participant-metadata]:hidden",
               isScreenShare
                 ? "[&_.lk-video-container_video]:object-contain"
                 : "[&_.lk-video-container_video]:object-cover",

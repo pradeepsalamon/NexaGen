@@ -13,7 +13,6 @@ import {
   type MessagingScheduleMode
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +26,8 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useTestMessagingRule, useUpdateMessagingRule } from "../hooks/useMessagingApi";
+import { TimePicker } from "@/components/ui/TimePicker";
+import { Switch } from "@/components/ui/Switch";
 
 const DAY_OPTIONS = [
   { label: "Sunday", value: "0" },
@@ -132,7 +133,7 @@ export function MessagingRuleEditor({
 
         <div className="space-y-5">
           <div className="grid gap-3 rounded-app border border-app-border bg-app-background p-4">
-            <Checkbox
+            <Switch
               checked={draft.enabled}
               id={`${rule.event}-enabled`}
               label="Send this message"
@@ -141,7 +142,7 @@ export function MessagingRuleEditor({
               }
             />
             <div className="flex flex-wrap gap-x-6 gap-y-3 pl-6">
-              <Checkbox
+              <Switch
                 checked={draft.whatsappEnabled}
                 disabled={!draft.enabled}
                 id={`${rule.event}-whatsapp`}
@@ -153,7 +154,7 @@ export function MessagingRuleEditor({
                   }))
                 }
               />
-              <Checkbox
+              <Switch
                 checked={draft.inAppEnabled}
                 disabled={!draft.enabled}
                 id={`${rule.event}-inapp`}
@@ -249,17 +250,17 @@ export function MessagingRuleEditor({
                     label="Time"
                     hint="In each recipient's own timezone."
                   >
-                    <Input
+                    <TimePicker
                       id={`${rule.event}-time`}
-                      onChange={(e) => {
-                        const [hour, minute] = e.target.value.split(":").map(Number);
+                      onChange={(value) => {
+                        const [hour, minute] = value.split(":").map(Number);
                         setDraft((current) => ({
                           ...current,
                           scheduleHour: Number.isFinite(hour) ? hour : 9,
                           scheduleMinute: Number.isFinite(minute) ? minute : 0
                         }));
                       }}
-                      type="time"
+                      
                       value={toClockValue(draft.scheduleHour, draft.scheduleMinute)}
                     />
                   </FormField>
@@ -280,7 +281,7 @@ export function MessagingRuleEditor({
                     </FormField>
                   ) : (
                     <div className="flex items-end pb-2">
-                      <Checkbox
+                      <Switch
                         checked={draft.weekdaysOnly}
                         id={`${rule.event}-weekdays`}
                         label="Weekdays only"
@@ -332,7 +333,7 @@ export function MessagingRuleEditor({
             <div className="mt-2 flex flex-wrap gap-1.5">
               {definition.variables.map((name) => (
                 <button
-                  className="rounded-full border border-app-border px-2.5 py-1 text-xs text-app-muted transition hover:border-primary hover:text-primary"
+                  className="rounded-full border border-app-border px-2.5 py-1 text-xs text-app-muted transition hover:border-primary hover:text-primary-ink"
                   key={name}
                   onClick={() => insertVariable(name)}
                   type="button"
@@ -463,7 +464,7 @@ export function MessagingRuleEditor({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
             Cancel
           </Button>
           <Button disabled={update.isPending} onClick={save} type="button">

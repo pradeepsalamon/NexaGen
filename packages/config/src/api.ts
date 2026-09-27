@@ -42,6 +42,8 @@ const apiEnvSchema = z.object({
   STOCKFISH_PATH: z.string().optional(),
   STOCKFISH_POOL_SIZE: z.coerce.number().int().positive().default(4),
   STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800),
+  STOCKFISH_MOVE_MOVETIME: z.coerce.number().int().positive().default(2000),
+  STOCKFISH_HASH_MB: z.coerce.number().int().positive().default(64),
   COOKIE_DOMAIN: z.string().optional(),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),

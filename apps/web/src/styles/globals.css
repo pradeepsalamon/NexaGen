@@ -149,7 +149,7 @@
   }
 
   a {
-    @apply font-bold text-primary no-underline transition-opacity hover:opacity-80;
+    @apply font-bold text-primary-ink no-underline transition-opacity hover:opacity-80;
   }
 
   button,

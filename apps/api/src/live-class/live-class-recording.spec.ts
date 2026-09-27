@@ -222,11 +222,14 @@ describe("LiveClassService recording feature", () => {
 
         // The template joins hidden and subscribe-only, so it cannot request a
         // sync itself the way a late-joining student does — the server does it.
-        expect(livekitService.broadcastData).not.toHaveBeenCalled();
+        // (Only the board-sync requests — start also announces RECORDING_STATE.)
+        const boardSyncCalls = () =>
+          livekitService.broadcastData.mock.calls.filter((call: unknown[]) => call[2] === "board_sync");
+        expect(boardSyncCalls()).toHaveLength(0);
         jest.advanceTimersByTime(10_000);
 
-        expect(livekitService.broadcastData).toHaveBeenCalledTimes(2);
-        const [roomName, payload, topic] = livekitService.broadcastData.mock.calls[0];
+        expect(boardSyncCalls()).toHaveLength(2);
+        const [roomName, payload, topic] = boardSyncCalls()[0];
         expect(roomName).toBe("class_class-1");
         expect(topic).toBe("board_sync");
         expect(JSON.parse(new TextDecoder().decode(payload))).toEqual({

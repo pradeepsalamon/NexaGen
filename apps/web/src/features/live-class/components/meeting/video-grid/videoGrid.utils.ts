@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type RefObject } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isTrackReference, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { useParticipantActivity } from "../../../hooks/useParticipantActivity";
@@ -12,11 +12,14 @@ import { compareByActivity } from "../../../lib/participantActivity";
  * which toggles the scrollbar again (a ResizeObserver feedback loop that leaves
  * the grid stuck at a degenerate size).
  */
-export function useElementSize<T extends HTMLElement>(ref: RefObject<T | null>) {
+export function useElementSize<T extends HTMLElement>() {
   const [size, setSize] = useState({ height: 0, width: 0 });
+  // A callback ref, not a RefObject: the measured element mounts later than the
+  // component (empty state first, tiles once someone joins), and an effect keyed
+  // on a stable RefObject would never see it and leave the grid unmeasured.
+  const [element, setElement] = useState<T | null>(null);
 
   useEffect(() => {
-    const element = ref.current;
     if (!element) return;
 
     const apply = (width: number, height: number) =>
@@ -42,9 +45,9 @@ export function useElementSize<T extends HTMLElement>(ref: RefObject<T | null>) 
 
     observer.observe(element);
     return () => observer.disconnect();
-  }, [ref]);
+  }, [element]);
 
-  return size;
+  return { ...size, ref: setElement };
 }
 
 export function getTrackKey(trackRef: TrackReferenceOrPlaceholder) {

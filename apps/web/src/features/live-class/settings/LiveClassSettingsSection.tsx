@@ -97,7 +97,7 @@ export function LiveClassSettingsSection({
         className="flex w-full items-center justify-between gap-2 p-5 text-left sm:p-6"
       >
         <span className="flex min-w-0 flex-wrap items-center gap-2.5">
-          <SlidersHorizontal className="size-5 shrink-0 text-primary" strokeWidth={2.5} />
+          <SlidersHorizontal className="size-5 shrink-0 text-primary-ink" strokeWidth={2.5} />
           <span className="text-lg font-bold text-app-text">Class settings</span>
           {prefilled && (
             <Badge variant="outline" className="gap-1 py-0.5 text-[10px] font-semibold">
@@ -139,14 +139,14 @@ export function LiveClassSettingsSection({
 
               {prefilled && (
                 <div className="flex flex-wrap items-center gap-2.5 rounded-control border border-primary/30 bg-primary/5 p-3 text-xs text-app-text">
-                  <History className="size-4 shrink-0 text-primary" strokeWidth={2.5} />
+                  <History className="size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
                   <span className="min-w-0 flex-1">
                     Pre-selected from the settings you last saved. Save to apply them to this
                     class, or reset to inherit the batch and platform defaults.
                   </span>
                   <button
                     type="button"
-                    className="shrink-0 font-semibold text-primary underline-offset-2 hover:underline"
+                    className="shrink-0 font-semibold text-primary-ink underline-offset-2 hover:underline"
                     onClick={() => applyOverride(data.classOverride ?? {}, false)}
                   >
                     Don&apos;t use

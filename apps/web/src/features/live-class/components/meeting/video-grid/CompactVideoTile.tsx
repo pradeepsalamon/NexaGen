@@ -36,7 +36,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.15 }}
       className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl border bg-app-surface transition-shadow duration-150",
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-control border bg-app-surface transition-shadow duration-150",
         "w-28 h-20 sm:w-36 sm:h-24",
         isSpeaking
           ? "border-primary/60 shadow-[0_0_12px_rgba(66,120,206,0.2)]"
@@ -47,7 +47,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
         <ParticipantTile
           trackRef={trackRef}
           className={cn(
-            "h-full w-full overflow-hidden rounded-xl [&_.lk-participant-metadata]:hidden [&_.lk-participant-name]:hidden",
+            "h-full w-full overflow-hidden rounded-control [&_.lk-participant-metadata]:hidden [&_.lk-participant-name]:hidden",
             isScreenShare
               ? "[&_.lk-video-container_video]:object-contain"
               : "[&_.lk-video-container_video]:object-cover",
@@ -60,7 +60,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       )}
 
       {/* Name pill */}
-      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-md bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
+      <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-control bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">
         {isMuted ? (
           <MicOff className="size-2.5 text-red-400 shrink-0" />
         ) : (

@@ -125,9 +125,9 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
                         <SimpleTooltip label={topic.puzzleCount > 0 ? "Reassign & archive" : "Archive"}>
                           <Button
                             aria-label="Archive topic"
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:bg-secondary hover:text-black"
+                            className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                             onClick={() =>
                               topic.puzzleCount > 0 ? setReassigning(topic) : runArchive(topic)
                             }
@@ -231,7 +231,7 @@ function TopicFormDialog({
           </FormField>
         </div>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button
@@ -293,7 +293,7 @@ function ReassignDialog({
           />
         </FormField>
         <DialogFooter>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>
+          <Button variant="outline" onClick={onClose} disabled={busy}>
             Cancel
           </Button>
           <Button

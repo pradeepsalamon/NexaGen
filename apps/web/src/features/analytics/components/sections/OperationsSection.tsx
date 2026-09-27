@@ -19,12 +19,13 @@ import {
   useOperationsQuery,
   useTodayQuery
 } from "../../hooks/useAnalyticsApi";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 const SEVERITY: Record<
   AnalyticsAlert["severity"],
   { icon: typeof Info; className: string }
 > = {
-  info: { icon: Info, className: "text-primary" },
+  info: { icon: Info, className: "text-primary-ink" },
   warning: { icon: CircleAlert, className: "text-warm" },
   critical: { icon: AlertTriangle, className: "text-app-danger" }
 };
@@ -100,45 +101,45 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
 
             {t && t.schedule.length > 0 ? (
               <div className="mt-5 overflow-x-auto">
-                <table className="w-full min-w-[560px] text-left text-sm">
-                  <thead className="text-xs uppercase tracking-wide text-app-muted">
-                    <tr>
-                      <th className="pb-2">Time</th>
-                      <th className="pb-2">Class</th>
-                      <th className="pb-2">Coach</th>
-                      <th className="pb-2 text-right">Students</th>
-                      <th className="pb-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-app-border">
+                <Table className="w-full min-w-[560px] text-left text-sm">
+                  <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+                    <TableRow>
+                      <TableHead className="pb-2">Time</TableHead>
+                      <TableHead className="pb-2">Class</TableHead>
+                      <TableHead className="pb-2">Coach</TableHead>
+                      <TableHead className="pb-2 text-right">Students</TableHead>
+                      <TableHead className="pb-2">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-app-border">
                     {t.schedule.map((c) => (
-                      <tr key={c.classId}>
-                        <td className="py-2 text-app-muted">
+                      <TableRow key={c.classId}>
+                        <TableCell className="text-left py-2 text-app-muted">
                           {formatTime(c.time, tz)}
-                        </td>
-                        <td className="py-2">
-                          <Link className="text-primary hover:underline" href={`/classes/${c.classId}`}>
+                        </TableCell>
+                        <TableCell className="text-left py-2">
+                          <Link className="text-primary-ink hover:underline" href={`/classes/${c.classId}`}>
                             {c.topic}
                           </Link>{" "}
                           <span className="text-xs text-app-muted">
                             ({c.type}
                             {c.batchName ? ` · ${c.batchName}` : ""})
                           </span>
-                        </td>
-                        <td className="py-2 text-app-muted">{c.coachName}</td>
-                        <td className="py-2 text-right">{c.studentCount}</td>
-                        <td className="py-2">
+                        </TableCell>
+                        <TableCell className="text-left py-2 text-app-muted">{c.coachName}</TableCell>
+                        <TableCell className="py-2 text-right">{c.studentCount}</TableCell>
+                        <TableCell className="text-left py-2">
                           <span className="inline-flex items-center gap-1 text-xs font-semibold">
                             {c.status === "LIVE" ? (
                               <Radio className="size-3 text-app-danger" />
                             ) : null}
                             {c.status}
                           </span>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             ) : null}
           </>
@@ -174,7 +175,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
                   </div>
                   {alert.href ? (
                     <Link
-                      className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                      className="shrink-0 text-xs font-semibold text-primary-ink hover:underline"
                       href={alert.href}
                     >
                       View →

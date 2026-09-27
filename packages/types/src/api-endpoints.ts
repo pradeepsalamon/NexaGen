@@ -92,6 +92,19 @@ export const API_ROUTES = {
     puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
     // Coach-owner+admin: manual +/- points for one student on the active puzzle.
     puzzleAdjust: (id: string = ":id") => `/live-class/${id}/puzzle/adjust`,
+    // Simul: POST start / DELETE end (coach-owner+admin), GET current (any participant).
+    simul: (id: string = ":id") => `/live-class/${id}/simul`,
+    // Coach-owner+admin: add one more student to the running simul.
+    simulPlayers: (id: string = ":id") => `/live-class/${id}/simul/games`,
+    // Coach or that game's student plays a move.
+    simulMove: (id: string = ":id", gameId: string = ":gameId") =>
+      `/live-class/${id}/simul/games/${gameId}/move`,
+    // Coach-owner+admin: play Stockfish's move on one board.
+    simulEngineMove: (id: string = ":id", gameId: string = ":gameId") =>
+      `/live-class/${id}/simul/games/${gameId}/engine-move`,
+    // Resign / draw offer / accept / decline / (coach) adjudicate.
+    simulGameAction: (id: string = ":id", gameId: string = ":gameId") =>
+      `/live-class/${id}/simul/games/${gameId}/action`,
     // Waiting room (coach-owner/admin): list of students pending admission.
     waitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room`,
     // Waiting room (coach-owner/admin): admit or deny one pending student.
@@ -105,7 +118,17 @@ export const API_ROUTES = {
     // Screen-share request (coach-owner/admin): approve, deny, or revoke one student's request.
     resolveScreenShareRequest: (id: string = ":id") => `/live-class/${id}/screen-share-requests/resolve`,
     // Screen-share request (student): self-report that sharing has stopped.
-    endScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/end`
+    endScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/end`,
+    // Pull a student in (coach-owner/admin): GET batch roster with presence,
+    // POST pull one student, POST cancel a pending pull.
+    pullRoster: (id: string = ":id") => `/live-class/${id}/pull/roster`,
+    pullStudent: (id: string = ":id") => `/live-class/${id}/pull`,
+    cancelPull: (id: string = ":id") => `/live-class/${id}/pull/cancel`
+  },
+  presence: {
+    // Any signed-in tab, every ~15s: marks the user online and, for a student,
+    // returns their live class + any pending coach pull.
+    heartbeat: "/presence/heartbeat"
   },
   liveClassSettings: {
     // Layer 1 system defaults (singleton) — GET any authed, PUT admin only.

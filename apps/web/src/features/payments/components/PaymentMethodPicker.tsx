@@ -75,7 +75,7 @@ export function PaymentMethodPicker({
               aria-hidden
               className={cn(
                 "mt-0.5 size-5 shrink-0",
-                selected ? "text-primary" : "text-app-muted"
+                selected ? "text-primary-ink" : "text-app-muted"
               )}
               strokeWidth={2.5}
             />

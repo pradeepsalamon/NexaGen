@@ -38,7 +38,7 @@ export function RankBarList({
           <li key={row.key}>
             <div className="mb-1 flex items-center justify-between gap-2 text-sm">
               {row.href ? (
-                <Link className="truncate hover:text-primary hover:underline" href={row.href}>
+                <Link className="truncate hover:text-primary-ink hover:underline" href={row.href}>
                   {label}
                 </Link>
               ) : (

@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Textarea } from "@/components/ui/Textarea";
 import { useMarkPayoutPaid } from "../hooks/usePayrollApi";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 type Props = {
   payoutId: string;
@@ -66,10 +67,10 @@ export function MarkPayoutPaidDialog({ payoutId, amountMinor, currency, onClose 
           </div>
           <div>
             <Label htmlFor="payout-date">Payment date</Label>
-            <Input
+            <DateStringPicker
               id="payout-date"
-              onChange={(event) => setPaidAt(event.target.value)}
-              type="date"
+              onChange={(value) => setPaidAt(value)}
+              
               value={paidAt}
             />
           </div>
@@ -85,7 +86,7 @@ export function MarkPayoutPaidDialog({ payoutId, amountMinor, currency, onClose 
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

@@ -12,7 +12,7 @@ export function PageHeader({ title, description, actions, children }: PageHeader
     <div className="mb-8 flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight">{title}</h1>
           {description && (
             <p className="mt-1 text-sm text-app-muted">
               {description}

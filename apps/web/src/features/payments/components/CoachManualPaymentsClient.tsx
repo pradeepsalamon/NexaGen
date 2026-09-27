@@ -97,7 +97,7 @@ export function CoachManualPaymentsClient() {
               ) : null}
               {record.hasAttachment ? (
                 <a
-                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
                   href={manualPaymentAttachmentUrl(record.id)}
                   rel="noopener noreferrer"
                   target="_blank"

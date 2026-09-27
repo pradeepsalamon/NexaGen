@@ -22,6 +22,7 @@ import { ConnectionQuality } from "livekit-client";
 import type { ModeratableSource, ScreenShareRequestEntry, WaitingRoomEntry } from "@nexa-chess/types";
 import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
+import { PullStudentsSection } from "./PullStudentsSection";
 import { PanelHeader } from "./PanelHeader";
 import { BoardControlSideToggle, boardControlSideLabel } from "./BoardControlSideToggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -149,7 +150,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
 
   return (
     <div
-      className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-app-soft"
+      className="flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-2 transition-colors hover:bg-app-soft"
       role="listitem"
     >
       <div className="flex min-w-0 items-center gap-2.5">
@@ -169,7 +170,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
           )}
           {speaking && <span className="sr-only">(speaking)</span>}
           {isCoachRow && (
-            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-ink">
               Coach
             </span>
           )}
@@ -194,7 +195,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
 
         <TrackStateControl
           isActive={isScreenSharing}
-          activeIcon={<MonitorUp className="size-4 text-primary" aria-label="Sharing screen" />}
+          activeIcon={<MonitorUp className="size-4 text-primary-ink" aria-label="Sharing screen" />}
           idleIcon={null}
           moderateLabel={`Stop ${name}'s screen share`}
           onModerate={
@@ -236,7 +237,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
                 // `asChild` Radix trigger, and double-wrapping breaks it.
                 title={`Board control: ${boardControlSideLabel(boardControlSide)}`}
                 className={cn(
-                  "flex h-6 items-center gap-0.5 rounded-md px-1 transition-colors",
+                  "flex h-6 items-center gap-0.5 rounded-control px-1 transition-colors",
                   boardControlSide
                     ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
                     : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
@@ -278,7 +279,7 @@ const WaitingRoomListItem = memo(function WaitingRoomListItem({
 }) {
   return (
     <div
-      className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-app-soft"
+      className="flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-2 transition-colors hover:bg-app-soft"
       role="listitem"
     >
       <div className="flex min-w-0 items-center gap-2.5">
@@ -322,7 +323,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
   const isApproved = entry.status === "APPROVED";
   return (
     <div
-      className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-3 py-2 transition-colors hover:bg-app-soft"
+      className="flex min-h-11 items-center justify-between gap-3 rounded-control px-3 py-2 transition-colors hover:bg-app-soft"
       role="listitem"
     >
       <div className="flex min-w-0 items-center gap-2.5">
@@ -509,7 +510,7 @@ export function MeetingParticipants() {
               if (showSearch) setSearchQuery("");
             }}
             className={cn(
-              "flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text",
+              "flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text",
               showSearch && "bg-app-soft text-app-text",
             )}
             aria-label={showSearch ? "Close search" : "Search participants"}
@@ -563,7 +564,7 @@ export function MeetingParticipants() {
 
         {grouped.coaches.length > 0 && (
           <div className="mb-2">
-            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary">
+            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
               Coaches ({grouped.coaches.length})
             </h3>
             <div className="flex flex-col gap-0.5">
@@ -613,6 +614,8 @@ export function MeetingParticipants() {
             ))}
           </div>
         </div>
+
+        {isCoach && roomId ? <PullStudentsSection classId={roomId} /> : null}
 
         {filteredParticipants.length === 0 && searchQuery && (
           <div className="flex h-32 items-center justify-center text-sm text-app-muted">

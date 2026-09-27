@@ -82,6 +82,7 @@ describe("LiveClassService chat authorization", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             liveChatMessage: { create: chatCreate, findMany: chatFindMany },
             liveSession: { findUnique: liveSessionFindUnique },
             user: { findUnique: userFindUnique }
@@ -314,6 +315,7 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             liveSession: { findUnique: liveSessionFindUnique },
             user: { findUnique: userFindUnique }
           }
@@ -479,6 +481,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             coachClass: { findUnique: coachClassFindUnique },
             liveSession: { findUnique: liveSessionFindUnique },
             user: { findUnique: userFindUnique },
@@ -656,6 +659,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             liveSession: { findUnique: liveSessionFindUnique, update: liveSessionUpdate },
             user: { findUnique: userFindUnique },
           },
@@ -801,6 +805,7 @@ describe("LiveClassService waiting room", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             coachClass: { findUnique: coachClassFindUnique },
             liveSession: { findUnique: liveSessionFindUnique },
             user: { findUnique: userFindUnique },
@@ -1016,6 +1021,7 @@ describe("LiveClassService screen-share requests", () => {
         {
           provide: PrismaService,
           useValue: {
+            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
             coachClass: { findUnique: coachClassFindUnique, update: coachClassUpdate },
             liveSession: { findUnique: liveSessionFindUnique, updateMany: liveSessionUpdateMany },
             user: { findUnique: userFindUnique },

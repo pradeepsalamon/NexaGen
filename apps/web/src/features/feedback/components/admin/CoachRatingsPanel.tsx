@@ -59,7 +59,7 @@ export function CoachRatingsPanel({ onViewResponses }: { onViewResponses: (coach
             <>
               <RatingBreakdown distribution={coach.distribution} />
               <Button
-                className="w-fit px-0 text-primary"
+                className="w-fit px-0 text-primary-ink"
                 onClick={() => onViewResponses(coach.coachId)}
                 type="button"
                 variant="ghost"

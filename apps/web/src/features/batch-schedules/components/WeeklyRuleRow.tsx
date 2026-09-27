@@ -65,9 +65,9 @@ export function WeeklyRuleRow({ rule, coaches, onChange, onRemove, canRemove }: 
         <SimpleTooltip label="Remove this weekly class">
           <Button
             aria-label="Remove weekly class"
-            variant="outline"
+            variant="ghost"
             size="icon"
-            className="size-8 rounded-full border-app-danger p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white disabled:opacity-40"
+            className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white disabled:opacity-40"
             disabled={!canRemove}
             onClick={onRemove}
           >

@@ -10,10 +10,12 @@ import {
   Mail,
   Receipt,
   RotateCw,
+  Search,
   Undo2,
   Wallet
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   formatMoney,
   INVOICE_STATUS_LABELS,
@@ -28,11 +30,17 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  FilterChips,
+  FilterField,
+  FilterPopover,
+  type ActiveFilter
+} from "@/components/ui/FilterPopover";
 import { Input } from "@/components/ui/Input";
+import { RowActions } from "@/components/ui/RowActions";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatTile } from "@/components/ui/StatTile";
-import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import {
@@ -46,13 +54,39 @@ import {
 } from "../hooks/useInvoicesApi";
 import { CreditNoteDialog } from "./CreditNoteDialog";
 import { InvoicePdfBadge, InvoiceStatusBadge } from "./InvoiceBadges";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 const INVOICE_STATUSES = Object.keys(
   INVOICE_STATUS_LABELS
 ) as InvoiceDocumentStatus[];
 
+type InvoiceFilters = Pick<
+  Partial<AdminInvoiceQuery>,
+  "currency" | "from" | "method" | "provider" | "status" | "to"
+>;
+
+const EMPTY_INVOICE_FILTERS: InvoiceFilters = {
+  currency: undefined,
+  from: undefined,
+  method: undefined,
+  provider: undefined,
+  status: undefined,
+  to: undefined
+};
+
+const pickInvoiceFilters = (query: Partial<AdminInvoiceQuery>): InvoiceFilters => ({
+  currency: query.currency,
+  from: query.from,
+  method: query.method,
+  provider: query.provider,
+  status: query.status,
+  to: query.to
+});
+
 /** Admin → Finance → Invoices (§17). */
 export function AdminInvoicesPanel() {
+  const router = useRouter();
   const timeZone = useUserTimeZone();
   const [filters, setFilters] = useState<Partial<AdminInvoiceQuery>>({
     page: 1,
@@ -74,110 +108,172 @@ export function AdminInvoicesPanel() {
   const set = (patch: Partial<AdminInvoiceQuery>) =>
     setFilters((current) => ({ ...current, ...patch, page: patch.page ?? 1 }));
 
+  const clearFilters = () => set(EMPTY_INVOICE_FILTERS);
+
+  const activeFilters: ActiveFilter[] = [
+    filters.status && {
+      key: "status",
+      label: INVOICE_STATUS_LABELS[filters.status],
+      onRemove: () => set({ status: undefined })
+    },
+    filters.provider && {
+      key: "provider",
+      label: PAYMENT_SOURCE_LABELS[filters.provider],
+      onRemove: () => set({ provider: undefined })
+    },
+    filters.method && {
+      key: "method",
+      label: PAYMENT_METHOD_LABELS[filters.method],
+      onRemove: () => set({ method: undefined })
+    },
+    filters.currency && {
+      key: "currency",
+      label: filters.currency,
+      onRemove: () => set({ currency: undefined })
+    },
+    filters.from && {
+      key: "from",
+      label: `From ${formatFullDate(filters.from, "UTC")}`,
+      onRemove: () => set({ from: undefined })
+    },
+    filters.to && {
+      key: "to",
+      label: `To ${formatFullDate(filters.to, "UTC")}`,
+      onRemove: () => set({ to: undefined })
+    }
+  ].filter((filter): filter is ActiveFilter => Boolean(filter));
+
   return (
     <div className="space-y-4">
       {data ? <InvoiceStatsRow stats={data.stats} /> : null}
 
-      <Card className="flex flex-wrap items-end gap-3 p-4">
-        <div className="min-w-48 flex-1">
-          <Input
-            aria-label="Search invoices"
-            onChange={(event) => set({ search: event.target.value })}
-            placeholder="Invoice, order, customer, transaction ID…"
-            value={filters.search ?? ""}
-          />
+      <Card className="space-y-3 p-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-48 flex-1">
+            <Search
+              aria-hidden="true"
+              className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-app-muted"
+              strokeWidth={2.5}
+            />
+            <Input
+              aria-label="Search invoices"
+              className="pl-10"
+              onChange={(event) => set({ search: event.target.value })}
+              placeholder="Invoice, order, customer, transaction ID…"
+              value={filters.search ?? ""}
+            />
+          </div>
+
+          <FilterPopover
+            activeCount={activeFilters.length}
+            emptyValue={EMPTY_INVOICE_FILTERS}
+            onApply={set}
+            value={pickInvoiceFilters(filters)}
+          >
+            {(draft, update) => (
+              <>
+                <FilterField htmlFor="invoice-filter-status" label="Status">
+                  <Select
+                    id="invoice-filter-status"
+                    onChange={(event) =>
+                      update({
+                        status: (event.target.value ||
+                          undefined) as AdminInvoiceQuery["status"]
+                      })
+                    }
+                    options={INVOICE_STATUSES.map((status) => ({
+                      label: INVOICE_STATUS_LABELS[status],
+                      value: status
+                    }))}
+                    placeholder="Any status"
+                    value={draft.status ?? ""}
+                  />
+                </FilterField>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <FilterField htmlFor="invoice-filter-gateway" label="Gateway">
+                    <Select
+                      id="invoice-filter-gateway"
+                      onChange={(event) =>
+                        update({
+                          provider: (event.target.value ||
+                            undefined) as AdminInvoiceQuery["provider"]
+                        })
+                      }
+                      options={PAYMENT_SOURCES.map((provider) => ({
+                        label: PAYMENT_SOURCE_LABELS[provider],
+                        value: provider
+                      }))}
+                      placeholder="Any gateway"
+                      value={draft.provider ?? ""}
+                    />
+                  </FilterField>
+
+                  <FilterField htmlFor="invoice-filter-method" label="Method">
+                    <Select
+                      id="invoice-filter-method"
+                      onChange={(event) =>
+                        update({
+                          method: (event.target.value ||
+                            undefined) as AdminInvoiceQuery["method"]
+                        })
+                      }
+                      options={PAYMENT_METHOD_KINDS.map((method) => ({
+                        label: PAYMENT_METHOD_LABELS[method],
+                        value: method
+                      }))}
+                      placeholder="Any method"
+                      value={draft.method ?? ""}
+                    />
+                  </FilterField>
+                </div>
+
+                <FilterField htmlFor="invoice-filter-currency" label="Currency">
+                  <Input
+                    id="invoice-filter-currency"
+                    maxLength={3}
+                    onChange={(event) =>
+                      update({ currency: event.target.value.toUpperCase() || undefined })
+                    }
+                    placeholder="e.g. INR"
+                    value={draft.currency ?? ""}
+                  />
+                </FilterField>
+
+                <div className="space-y-3">
+                  <FilterField label="From">
+                    <DateStringPicker
+                      aria-label="From date"
+                      className="w-full"
+                      onChange={(value) => update({ from: value || undefined })}
+                      placeholder="Any date"
+                      value={draft.from ?? ""}
+                    />
+                  </FilterField>
+
+                  <FilterField label="To">
+                    <DateStringPicker
+                      aria-label="To date"
+                      className="w-full"
+                      onChange={(value) => update({ to: value || undefined })}
+                      placeholder="Any date"
+                      value={draft.to ?? ""}
+                    />
+                  </FilterField>
+                </div>
+              </>
+            )}
+          </FilterPopover>
+
+          <Button asChild variant="outline">
+            <a href={adminInvoiceExportUrl(filters)}>
+              <Download className="size-4" strokeWidth={2.5} />
+              Export CSV
+            </a>
+          </Button>
         </div>
 
-        <div className="min-w-36">
-          <Select
-            aria-label="Filter by status"
-            onChange={(event) =>
-              set({
-                status: (event.target.value ||
-                  undefined) as AdminInvoiceQuery["status"]
-              })
-            }
-            options={INVOICE_STATUSES.map((status) => ({
-              label: INVOICE_STATUS_LABELS[status],
-              value: status
-            }))}
-            placeholder="Any status"
-            value={filters.status ?? ""}
-          />
-        </div>
-
-        <div className="min-w-36">
-          <Select
-            aria-label="Filter by gateway"
-            onChange={(event) =>
-              set({
-                provider: (event.target.value ||
-                  undefined) as AdminInvoiceQuery["provider"]
-              })
-            }
-            options={PAYMENT_SOURCES.map((provider) => ({
-              label: PAYMENT_SOURCE_LABELS[provider],
-              value: provider
-            }))}
-            placeholder="Any gateway"
-            value={filters.provider ?? ""}
-          />
-        </div>
-
-        <div className="min-w-36">
-          <Select
-            aria-label="Filter by method"
-            onChange={(event) =>
-              set({
-                method: (event.target.value ||
-                  undefined) as AdminInvoiceQuery["method"]
-              })
-            }
-            options={PAYMENT_METHOD_KINDS.map((method) => ({
-              label: PAYMENT_METHOD_LABELS[method],
-              value: method
-            }))}
-            placeholder="Any method"
-            value={filters.method ?? ""}
-          />
-        </div>
-
-        <div className="min-w-28">
-          <Input
-            aria-label="Filter by currency"
-            maxLength={3}
-            onChange={(event) =>
-              set({ currency: event.target.value.toUpperCase() || undefined })
-            }
-            placeholder="Currency"
-            value={filters.currency ?? ""}
-          />
-        </div>
-
-        <div className="min-w-36">
-          <Input
-            aria-label="From date"
-            onChange={(event) => set({ from: event.target.value || undefined })}
-            type="date"
-            value={filters.from ?? ""}
-          />
-        </div>
-
-        <div className="min-w-36">
-          <Input
-            aria-label="To date"
-            onChange={(event) => set({ to: event.target.value || undefined })}
-            type="date"
-            value={filters.to ?? ""}
-          />
-        </div>
-
-        <Button asChild size="sm" variant="outline">
-          <a href={adminInvoiceExportUrl(filters)}>
-            <Download className="mr-1.5 size-4" strokeWidth={2.5} />
-            Export CSV
-          </a>
-        </Button>
+        <FilterChips filters={activeFilters} onClearAll={clearFilters} />
       </Card>
 
       {isLoading ? <Skeleton className="h-96 w-full" /> : null}
@@ -192,9 +288,9 @@ export function AdminInvoicesPanel() {
       {data && data.invoices.length > 0 ? (
         <Card className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[880px] border-collapse">
-              <thead>
-                <tr className="border-b border-app-border">
+            <Table className="w-full min-w-[880px] border-collapse">
+              <TableHeader>
+                <TableRow className="border-b border-app-border">
                   {[
                     "Invoice",
                     "Customer",
@@ -206,30 +302,30 @@ export function AdminInvoicesPanel() {
                     "Status",
                     ""
                   ].map((heading) => (
-                    <th
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                    <TableHead
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
                       {heading}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.invoices.map((invoice) => (
-                  <tr
+                  <TableRow
                     className="border-b border-app-border last:border-0"
                     key={invoice.id}
                   >
-                    <td className="px-4 py-3">
+                    <TableCell className="text-left px-4 py-3">
                       <Link
-                        className="font-mono text-sm font-semibold text-primary hover:underline"
+                        className="font-mono text-sm font-semibold text-primary-ink hover:underline"
                         href={`/admin/finance/invoices/${invoice.id}`}
                       >
                         {invoice.number}
                       </Link>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <p className="text-sm text-app-text">
                         {invoice.billing.name}
                       </p>
@@ -238,123 +334,99 @@ export function AdminInvoicesPanel() {
                           {invoice.billing.email}
                         </p>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 font-mono text-xs text-app-muted">
                       {invoice.orderNumber}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm text-app-muted">
                       {formatFullDate(invoice.invoiceDate, timeZone)}
-                    </td>
-                    <td className="px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
                       {formatMoney(invoice.total, invoice.currency)}
-                    </td>
-                    <td className="px-4 py-3 text-sm tabular-nums text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-muted">
                       {formatMoney(invoice.taxTotal, invoice.currency)}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-xs text-app-muted">
                       {invoice.payment.provider
                         ? PAYMENT_SOURCE_LABELS[invoice.payment.provider]
                         : "—"}
                       {invoice.payment.method
                         ? ` · ${PAYMENT_METHOD_LABELS[invoice.payment.method]}`
                         : ""}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <InvoiceStatusBadge status={invoice.status} />
                         <InvoicePdfBadge status={invoice.pdfStatus} />
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <SimpleTooltip label="View this invoice">
-                          <Button
-                            aria-label={`View invoice ${invoice.number}`}
-                            asChild
-                            className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
-                            size="icon"
-                            variant="outline"
-                          >
-                            <Link href={`/admin/finance/invoices/${invoice.id}`}>
-                              <Eye className="size-4" strokeWidth={2.5} />
-                            </Link>
-                          </Button>
-                        </SimpleTooltip>
-
-                        <SimpleTooltip label="Download the PDF">
-                          <Button
-                            aria-label={`Download invoice ${invoice.number}`}
-                            asChild
-                            className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
-                            size="icon"
-                            variant="outline"
-                          >
-                            <a
-                              href={adminInvoicePdfUrl(invoice.id)}
-                              rel="noopener noreferrer"
-                              target="_blank"
-                            >
-                              <Download className="size-4" strokeWidth={2.5} />
-                            </a>
-                          </Button>
-                        </SimpleTooltip>
-
-                        {invoice.pdfStatus === "FAILED" ? (
-                          <SimpleTooltip label="Retry PDF generation">
-                            <Button
-                              aria-label={`Retry PDF for invoice ${invoice.number}`}
-                              className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
-                              disabled={retryPdf.isPending}
-                              onClick={() =>
-                                retryPdf.mutate({ id: invoice.id })
-                              }
-                              size="icon"
-                              variant="outline"
-                            >
-                              <RotateCw className="size-4" strokeWidth={2.5} />
-                            </Button>
-                          </SimpleTooltip>
-                        ) : null}
-
-                        <SimpleTooltip label="Resend the invoice email">
-                          <Button
-                            aria-label={`Resend invoice ${invoice.number} by email`}
-                            className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
-                            disabled={resendEmail.isPending}
-                            onClick={() => resendEmail.mutate(invoice.id)}
-                            size="icon"
-                            variant="outline"
-                          >
-                            <Mail className="size-4" strokeWidth={2.5} />
-                          </Button>
-                        </SimpleTooltip>
-
-                        {invoice.amountRefunded < invoice.total ? (
-                          <SimpleTooltip label="Issue a credit note">
-                            <Button
-                              aria-label={`Issue a credit note against ${invoice.number}`}
-                              className="size-8 rounded-full border-app-border p-0 hover:bg-secondary hover:text-white"
-                              onClick={() =>
-                                setCrediting({
-                                  id: invoice.id,
-                                  number: invoice.number,
-                                  total: invoice.total - invoice.amountRefunded,
-                                  currency: invoice.currency
-                                })
-                              }
-                              size="icon"
-                              variant="outline"
-                            >
-                              <Undo2 className="size-4" strokeWidth={2.5} />
-                            </Button>
-                          </SimpleTooltip>
-                        ) : null}
-                      </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
+                      <RowActions
+                        actions={[
+                          {
+                            ariaLabel: `View invoice ${invoice.number}`,
+                            icon: Eye,
+                            label: "View invoice",
+                            onSelect: () =>
+                              router.push(`/admin/finance/invoices/${invoice.id}`)
+                          },
+                          {
+                            ariaLabel: `Download invoice ${invoice.number}`,
+                            icon: Download,
+                            label: "Download PDF",
+                            onSelect: () =>
+                              window.open(
+                                adminInvoicePdfUrl(invoice.id),
+                                "_blank",
+                                "noopener,noreferrer"
+                              )
+                          },
+                          ...(invoice.pdfStatus === "FAILED"
+                            ? [
+                                {
+                                  ariaLabel: `Retry PDF for invoice ${invoice.number}`,
+                                  disabled: retryPdf.isPending,
+                                  icon: RotateCw,
+                                  label: "Retry PDF generation",
+                                  onSelect: () =>
+                                    retryPdf.mutate({ id: invoice.id })
+                                }
+                              ]
+                            : []),
+                          {
+                            ariaLabel: `Resend invoice ${invoice.number} by email`,
+                            disabled: resendEmail.isPending,
+                            icon: Mail,
+                            label: "Resend invoice email",
+                            onSelect: () => resendEmail.mutate(invoice.id)
+                          },
+                          ...(invoice.amountRefunded < invoice.total
+                            ? [
+                                {
+                                  ariaLabel: `Issue a credit note against ${invoice.number}`,
+                                  icon: Undo2,
+                                  label: "Issue credit note",
+                                  onSelect: () =>
+                                    setCrediting({
+                                      currency: invoice.currency,
+                                      id: invoice.id,
+                                      number: invoice.number,
+                                      total:
+                                        invoice.total - invoice.amountRefunded
+                                    }),
+                                  tone: "warning" as const
+                                }
+                              ]
+                            : [])
+                        ]}
+                        inline={2}
+                      />
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           <div className="flex items-center justify-between border-t border-app-border px-4 py-3">

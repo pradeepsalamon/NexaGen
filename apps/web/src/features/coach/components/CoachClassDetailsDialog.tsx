@@ -76,7 +76,7 @@ export function CoachClassDetailsDialog({
             <>
               <div>
                 <h3 className="text-lg font-semibold">{coachClass.topic || coachClass.title || "Untitled Class"}</h3>
-                <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2">
+                <p className="text-sm text-app-muted mt-1 flex items-center gap-2">
                   <GraduationCap className="size-4" /> {coachClass.batchName}
                 </p>
                 {coachClass.description && (
@@ -84,9 +84,9 @@ export function CoachClassDetailsDialog({
                 )}
               </div>
 
-              <div className="space-y-3 rounded-lg border p-4 bg-muted/20">
+              <div className="space-y-3 rounded-control border p-4 bg-app-soft/20">
                 <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="size-4 text-muted-foreground" />
+                  <Calendar className="size-4 text-app-muted" />
                   <span className="font-medium min-w-[110px]">Scheduled:</span>
                   <span>
                     {formatDate(coachClass.startsAt)} - {format(new Date(coachClass.endsAt), "h:mm a")}
@@ -94,22 +94,22 @@ export function CoachClassDetailsDialog({
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="size-4 text-muted-foreground" />
+                  <Clock className="size-4 text-app-muted" />
                   <span className="font-medium min-w-[110px]">Actual Start:</span>
                   <span>{formatDate(coachClass.actualStartsAt)}</span>
                 </div>
 
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="size-4 text-muted-foreground" />
+                  <Clock className="size-4 text-app-muted" />
                   <span className="font-medium min-w-[110px]">Actual End:</span>
                   <span>{formatDate(coachClass.actualEndsAt)}</span>
                 </div>
               </div>
 
               {coachClass.hasRecording && (
-                <div className="flex items-center justify-between p-3 rounded-lg border border-border/60 bg-muted/10">
+                <div className="flex items-center justify-between p-3 rounded-control border border-border/60 bg-app-soft/10">
                   <div className="flex items-center gap-2 text-sm">
-                    <Video className="size-4 text-primary" />
+                    <Video className="size-4 text-primary-ink" />
                     <span className="font-medium">Class Recording</span>
                   </div>
                   <Button
@@ -135,20 +135,20 @@ export function CoachClassDetailsDialog({
                 </div>
 
                 {coachClass.participants.length > 0 ? (
-                  <ul className="space-y-2 border rounded-md p-3 bg-card max-h-[150px] overflow-y-auto">
+                  <ul className="space-y-2 border rounded-control p-3 bg-card max-h-[150px] overflow-y-auto">
                     {coachClass.participants.map((p, i) => (
                       <li key={i} className="flex justify-between items-center text-sm">
                         <span className="flex items-center gap-2">
-                          <User className="size-3 text-muted-foreground" /> {p.name}
+                          <User className="size-3 text-app-muted" /> {p.name}
                         </span>
-                        <span className="text-muted-foreground text-xs">
+                        <span className="text-app-muted text-xs">
                           {p.joinedAt ? format(new Date(p.joinedAt), "h:mm a") : "—"}
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <div className="text-sm text-muted-foreground border rounded-md p-4 text-center bg-muted/10">
+                  <div className="text-sm text-app-muted border rounded-control p-4 text-center bg-app-soft/10">
                     No students joined this class.
                   </div>
                 )}

@@ -86,7 +86,7 @@ describe('StockfishController', () => {
   it('analyzes a valid position for a coach', async () => {
     const out = await controller.analyze(req('t'), { fen: START_FEN });
     expect(out).toEqual(RESULT);
-    expect(stockfish.analyzePosition).toHaveBeenCalledWith(START_FEN);
+    expect(stockfish.analyzePosition).toHaveBeenCalledWith(START_FEN, { mode: undefined });
   });
 
   it('allows an admin', async () => {

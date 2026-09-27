@@ -267,7 +267,7 @@ export function CheckoutClient({ planId }: Props) {
             <h1 className="text-lg font-bold text-app-text">
               {config.plan.name}
             </h1>
-            <p className="mt-1 text-2xl font-bold text-primary">
+            <p className="mt-1 text-2xl font-bold text-primary-ink">
               {formatMoney(config.plan.amount, config.currency)}
               {isRecurringInterval(config.plan.interval) ? (
                 <span className="text-sm font-semibold text-app-muted">

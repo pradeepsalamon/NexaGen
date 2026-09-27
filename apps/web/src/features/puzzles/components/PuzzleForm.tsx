@@ -14,6 +14,7 @@ import type {
 } from "@nexa-chess/types";
 import { resolvePuzzleScoring } from "@nexa-chess/types";
 import { CheckCircle2, Eye, Loader2, X, XCircle } from "lucide-react";
+import { FormPageShell } from "@/components/layout/FormPageShell";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FormField } from "@/components/ui/FormField";
@@ -25,7 +26,6 @@ import { START_FEN } from "@/features/chessboard/lib/fen";
 import { SolutionEditor } from "@/features/assignments/components/SolutionEditor";
 import { useToast } from "@/providers/ToastProvider";
 import { setPuzzlePublished, validatePuzzle } from "../api/puzzleApi";
-import { Checkbox } from "@/components/ui/Checkbox";
 import {
   useCreatePuzzle,
   usePuzzleScoringSettings,
@@ -39,6 +39,7 @@ import {
 } from "../lib/puzzleMeta";
 import { PuzzleSolver } from "./solver/PuzzleSolver";
 import { sideToMove } from "./solver/puzzleSolverEngine";
+import { Switch } from "@/components/ui/Switch";
 
 interface Props {
   mode: "create" | "edit";
@@ -185,26 +186,34 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-app-text">
-            {mode === "create" ? "New puzzle" : "Edit puzzle"}
-          </h1>
-          <p className="mt-1 text-sm text-app-muted">
-            Position, solution, topic, type and difficulty — a reusable training object.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setShowPreview((v) => !v)}
-          disabled={solutionMoves.length === 0}
-        >
-          <Eye className="mr-2 size-4" strokeWidth={2.5} />
-          {showPreview ? "Hide preview" : "Preview"}
-        </Button>
-      </div>
+    <FormPageShell
+      actions={
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowPreview((v) => !v)}
+            disabled={solutionMoves.length === 0}
+          >
+            <Eye className="size-4" strokeWidth={2.5} />
+            {showPreview ? "Hide preview" : "Preview"}
+          </Button>
+          <Button type="button" variant="secondary" size="sm" onClick={() => save(false)} disabled={saving}>
+            Save draft
+          </Button>
+          <Button type="button" size="sm" onClick={() => save(true)} disabled={saving}>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+            Publish
+          </Button>
+        </>
+      }
+      backHref={basePath}
+      backLabel="Back to puzzles"
+      description="Position, solution, topic, type and difficulty — a reusable training object."
+      eyebrow="Puzzle library"
+      title={mode === "create" ? "New puzzle" : "Edit puzzle"}
+    >
 
       {showPreview && solutionMoves.length > 0 && (
         <Card className="p-4">
@@ -405,7 +414,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
           title="Live-class points"
           hint="What this puzzle is worth when a coach shares it in a class. Off = the platform default."
         />
-        <Checkbox
+        <Switch
           id="pz-custom-scoring"
           label="Use custom points for this puzzle"
           checked={customScoring}
@@ -420,7 +429,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
             />
             <PuzzleScoringPreview scoring={effectiveScoring} />
             {Object.keys(scoringOverride).length > 0 ? (
-              <Button type="button" variant="ghost" size="sm" onClick={() => setScoringOverride({})}>
+              <Button type="button" variant="outline" size="sm" onClick={() => setScoringOverride({})}>
                 Reset to platform default
               </Button>
             ) : null}
@@ -459,24 +468,6 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
           </div>
         </dl>
       </Card>
-
-      <div className="sticky bottom-0 -mx-4 flex flex-wrap items-center gap-2 border-t border-app-border bg-app-background/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-b-app">
-        <Button type="button" onClick={() => save(true)} disabled={saving}>
-          {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-          Publish
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => save(false)} disabled={saving}>
-          Save draft
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          onClick={() => router.push(basePath)}
-          disabled={saving}
-        >
-          Cancel
-        </Button>
-      </div>
-    </div>
+    </FormPageShell>
   );
 }

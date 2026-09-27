@@ -40,7 +40,7 @@ export function AnalyticsFilters({
   onChange: (patch: Partial<AnalyticsRangeQuery>) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center justify-end gap-2">
       <Select
         aria-label="Role filter"
         className="w-auto min-w-[8rem]"

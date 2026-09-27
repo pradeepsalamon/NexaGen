@@ -23,6 +23,7 @@ import {
 } from "../hooks/usePayrollApi";
 import { PayrollPeriodStatusBadge, PayrollRecordStatusBadge } from "./PayrollBadges";
 import { PayrollRecordDetailPanel } from "./PayrollRecordDetailPanel";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 /** One payroll period: teaching summary, lifecycle actions, per-coach breakdown. */
 export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string }) {
@@ -143,7 +144,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                 </div>
                 <div>
                   <p className="text-xs text-app-muted">Net payable</p>
-                  <p className="font-semibold tabular-nums text-primary">
+                  <p className="font-semibold tabular-nums text-primary-ink">
                     {formatMoney(totals.net, currency)}
                   </p>
                 </div>
@@ -169,67 +170,67 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
           ) : (
             <Card className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] border-collapse">
-                  <thead>
-                    <tr className="border-b border-app-border">
+                <Table className="w-full min-w-[760px] border-collapse">
+                  <TableHeader>
+                    <TableRow className="border-b border-app-border">
                       {["Coach", "Classes", "Hours", "Gross", "Net", "Status", ""].map((heading) => (
-                        <th
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                        <TableHead
+                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                           key={heading}
                         >
                           {heading}
-                        </th>
+                        </TableHead>
                       ))}
-                    </tr>
-                  </thead>
-                  <tbody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {records.map((record) => (
                       <Fragment key={record.id}>
-                        <tr
+                        <TableRow
                           className="cursor-pointer border-b border-app-border last:border-0 hover:bg-app-soft/60"
                           onClick={() => setExpanded(expanded === record.id ? null : record.id)}
                         >
-                          <td className="px-4 py-3">
+                          <TableCell className="text-left px-4 py-3">
                             <p className="text-sm font-semibold text-app-text">{record.coachName}</p>
                             <p className="text-xs text-app-muted">{record.coachEmail}</p>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-app-muted">
+                          </TableCell>
+                          <TableCell className="text-left px-4 py-3 text-sm text-app-muted">
                             {record.completedClassesCount}/{record.scheduledClassesCount}
-                          </td>
-                          <td className="px-4 py-3 text-sm tabular-nums text-app-muted">
+                          </TableCell>
+                          <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-muted">
                             {(record.totalTeachingSeconds / 3600).toFixed(1)}
-                          </td>
-                          <td className="px-4 py-3 text-sm tabular-nums text-app-text">
+                          </TableCell>
+                          <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-text">
                             {formatMoney(record.grossEarningsMinor, currency)}
-                          </td>
-                          <td className="px-4 py-3 text-sm font-semibold tabular-nums text-primary">
+                          </TableCell>
+                          <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-primary-ink">
                             {formatMoney(record.netPayableMinor, currency)}
-                          </td>
-                          <td className="px-4 py-3">
+                          </TableCell>
+                          <TableCell className="text-left px-4 py-3">
                             <PayrollRecordStatusBadge status={record.status} />
-                          </td>
-                          <td className="px-4 py-3 text-right">
+                          </TableCell>
+                          <TableCell className="px-4 py-3 text-right">
                             {expanded === record.id ? (
                               <ChevronDown className="ml-auto size-4 text-app-muted" strokeWidth={2.5} />
                             ) : (
                               <ChevronRight className="ml-auto size-4 text-app-muted" strokeWidth={2.5} />
                             )}
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                         {expanded === record.id ? (
-                          <tr>
-                            <td className="p-0" colSpan={7}>
+                          <TableRow>
+                            <TableCell className="text-left p-0" colSpan={7}>
                               <PayrollRecordDetailPanel
                                 payout={payoutsByRecord.get(record.id)}
                                 record={record}
                               />
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ) : null}
                       </Fragment>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </Card>
           )}

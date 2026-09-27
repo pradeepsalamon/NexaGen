@@ -174,8 +174,8 @@ export function LiveClassSettingsForm({
       {warnings.length > 0 && (
         <div
           className={cn(
-            "flex gap-2.5 rounded-control border border-yellow-300 bg-yellow-50 p-3 text-xs text-yellow-900",
-            "dark:border-yellow-900 dark:bg-yellow-950/40 dark:text-yellow-200",
+            "flex gap-2.5 rounded-control border border-secondary/40 bg-secondary/10 p-3 text-xs text-secondary-ink",
+            "",
           )}
         >
           <AlertTriangle className="mt-0.5 size-4 shrink-0" strokeWidth={2.5} />

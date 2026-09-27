@@ -77,7 +77,7 @@ export function UserChessAppearanceSettingsClient() {
           <div className="space-y-5">
             {resolved.locked && (
               <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-surface))] p-3.5 text-sm text-app-text">
-                <Lock className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
+                <Lock className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
                 <p>
                   Your administrator has locked board settings for everyone — you&apos;re seeing
                   the platform default and can&apos;t set a personal preference right now.

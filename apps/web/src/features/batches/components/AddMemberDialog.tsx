@@ -20,7 +20,7 @@ export function AddMemberDialog({ members, onAdd, type }: AddMemberDialogProps) 
   return (
     <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) setSearch(""); }}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs bg-app-surface shadow-sm">
+        <Button size="sm" variant="outline" className="h-7 px-2 text-xs bg-app-surface shadow-card">
           <UserPlus className="mr-1.5 size-3.5" /> Add {type}
         </Button>
       </DialogTrigger>
@@ -32,9 +32,9 @@ export function AddMemberDialog({ members, onAdd, type }: AddMemberDialogProps) 
           <Input placeholder="Search name or email..." value={search} onChange={e => setSearch(e.target.value)} autoFocus />
           <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto pr-1">
              {filtered.map(m => (
-               <div key={m.id} className="flex items-center justify-between p-3 border border-app-border rounded-lg shadow-sm hover:border-primary/40 transition-colors">
+               <div key={m.id} className="flex items-center justify-between p-3 border border-app-border rounded-control shadow-card hover:border-primary/40 transition-colors">
                  <div className="flex items-center gap-3">
-                   <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
+                   <div className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary-ink font-bold text-sm">
                      {m.firstName.charAt(0)}{m.lastName ? m.lastName.charAt(0) : ""}
                    </div>
                    <div>
@@ -47,7 +47,7 @@ export function AddMemberDialog({ members, onAdd, type }: AddMemberDialogProps) 
                      <TooltipTrigger asChild>
                        <button 
                          type="button"
-                         className="flex size-8 items-center justify-center rounded-full border border-primary text-primary transition-colors hover:bg-primary hover:text-white"
+                         className="flex size-8 items-center justify-center rounded-full border border-primary text-primary-ink transition-colors hover:bg-primary hover:text-white"
                          onClick={() => { onAdd(m.id); setOpen(false); setSearch(""); }}
                        >
                          <UserPlus className="size-4" />

@@ -33,18 +33,18 @@ export function BoardNavigation() {
 
   return (
     <TooltipProvider>
-      <div className="flex items-center justify-center gap-2 mt-4 text-gray-600 dark:text-slate-400">
+      <div className="flex items-center justify-center gap-2 mt-4 text-app-muted">
         
         <Tooltip>
           <TooltipTrigger asChild>
-            <NavIconButton icon={<SkipBack size={16} />} onClick={jumpToStart} disabled={!canUndo} />
+            <NavIconButton icon={<SkipBack className="size-4" />} onClick={jumpToStart} disabled={!canUndo} />
           </TooltipTrigger>
           <TooltipContent>Jump to Start</TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <NavIconButton icon={<ChevronLeft size={18} />} onClick={undo} disabled={!canUndo} />
+            <NavIconButton icon={<ChevronLeft className="size-[18px]" />} onClick={undo} disabled={!canUndo} />
           </TooltipTrigger>
           <TooltipContent>Previous Move</TooltipContent>
         </Tooltip>
@@ -52,7 +52,7 @@ export function BoardNavigation() {
         <Tooltip>
           <TooltipTrigger asChild>
             <NavIconButton 
-              icon={<PenTool size={16} />} 
+              icon={<PenTool className="size-4" />} 
               onClick={() => setIsDrawingMode(!isDrawingMode)} 
               isActive={isDrawingMode} 
             />
@@ -63,7 +63,7 @@ export function BoardNavigation() {
         <Tooltip>
           <TooltipTrigger asChild>
             <NavIconButton 
-              icon={<RotateCw size={16} />} 
+              icon={<RotateCw className="size-4" />} 
               onClick={() => setOrientation(orientation === 'white' ? 'black' : 'white')} 
             />
           </TooltipTrigger>
@@ -72,21 +72,21 @@ export function BoardNavigation() {
         
         <Tooltip>
           <TooltipTrigger asChild>
-            <NavIconButton icon={<X size={16} />} onClick={reset} disabled={!canModify} />
+            <NavIconButton icon={<X className="size-4" />} onClick={reset} disabled={!canModify} />
           </TooltipTrigger>
           <TooltipContent>Reset Board</TooltipContent>
         </Tooltip>
         
         <Tooltip>
           <TooltipTrigger asChild>
-            <NavIconButton icon={<ChevronRight size={18} />} onClick={redo} disabled={!canRedo} />
+            <NavIconButton icon={<ChevronRight className="size-[18px]" />} onClick={redo} disabled={!canRedo} />
           </TooltipTrigger>
           <TooltipContent>Next Move</TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <NavIconButton icon={<SkipForward size={16} />} onClick={jumpToEnd} disabled={!canRedo} />
+            <NavIconButton icon={<SkipForward className="size-4" />} onClick={jumpToEnd} disabled={!canRedo} />
           </TooltipTrigger>
           <TooltipContent>Jump to End</TooltipContent>
         </Tooltip>
@@ -104,11 +104,11 @@ export const NavIconButton = React.forwardRef<HTMLButtonElement, { icon: React.R
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-sm transition-colors
-          ${disabled ? 'opacity-50 cursor-not-allowed border-gray-300 bg-white dark:border-slate-700 dark:bg-slate-800' : 
+        className={`w-8 h-8 rounded-full border flex items-center justify-center shadow-card transition-colors
+          ${disabled ? 'opacity-50 cursor-not-allowed border-app-border bg-app-surface' : 
             isActive 
-              ? 'border-blue-400 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-400' 
-              : 'border-gray-300 bg-white hover:bg-gray-50 active:bg-gray-100 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:active:bg-slate-600'}
+              ? 'border-primary bg-primary/10 text-primary-ink' 
+              : 'border-app-border bg-app-surface hover:bg-app-soft active:bg-app-soft'}
         `}
         {...props}
       >

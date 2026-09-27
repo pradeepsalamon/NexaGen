@@ -73,7 +73,7 @@ export function BillingClient() {
       />
 
       <Tabs defaultValue="payments">
-        <TabsList>
+        <TabsList className="justify-self-end">
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           {data.creditNotes.length > 0 ? (
@@ -126,9 +126,9 @@ export function BillingClient() {
                       <Button
                         aria-label={`Open invoice ${payment.invoiceNumber ?? ""}`}
                         asChild
-                        className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                        className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                         size="icon"
-                        variant="outline"
+                        variant="ghost"
                       >
                         <a
                           href={invoicePdfUrl(payment.invoiceId)}
@@ -161,7 +161,7 @@ export function BillingClient() {
                 >
                   <div className="min-w-0 flex-1">
                     <Link
-                      className="font-mono text-sm font-semibold text-primary hover:underline"
+                      className="font-mono text-sm font-semibold text-primary-ink hover:underline"
                       href={`/student/billing/invoices/${invoice.id}`}
                     >
                       {invoice.number}
@@ -187,9 +187,9 @@ export function BillingClient() {
                     <Button
                       aria-label={`View invoice ${invoice.number}`}
                       asChild
-                      className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                       size="icon"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <Link href={`/student/billing/invoices/${invoice.id}`}>
                         <Eye className="size-4" strokeWidth={2.5} />
@@ -201,9 +201,9 @@ export function BillingClient() {
                     <Button
                       aria-label={`Download invoice ${invoice.number}`}
                       asChild
-                      className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                       size="icon"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <a
                         href={invoicePdfUrl(invoice.id)}
@@ -251,9 +251,9 @@ export function BillingClient() {
                     <Button
                       aria-label={`Download credit note ${creditNote.number}`}
                       asChild
-                      className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                       size="icon"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <a
                         href={creditNotePdfUrl(creditNote.id)}
@@ -326,7 +326,7 @@ export function BillingClient() {
 
       <p className="text-sm text-app-muted">
         Looking for something to buy?{" "}
-        <Link className="font-semibold text-primary underline" href="/plans">
+        <Link className="font-semibold text-primary-ink underline" href="/plans">
           See the available plans
         </Link>
         .

@@ -1,7 +1,7 @@
 import type { ChessAppearance } from "@nexa-chess/types";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
+import { Switch } from "@/components/ui/Switch";
 
 const ORIENTATION_OPTIONS = [
   { label: "White at bottom", value: "white" },
@@ -28,31 +28,31 @@ export function AppearanceTogglesForm({ draft, onChange }: AppearanceTogglesForm
       </div>
 
       <div className="flex flex-col justify-end gap-2.5">
-        <Checkbox
+        <Switch
           id="show-coordinates"
           label="Show coordinates"
           checked={draft.showCoordinates}
           onCheckedChange={(c) => onChange({ showCoordinates: c === true })}
         />
-        <Checkbox
+        <Switch
           id="animation-enabled"
           label="Piece movement animation"
           checked={draft.animationEnabled}
           onCheckedChange={(c) => onChange({ animationEnabled: c === true })}
         />
-        <Checkbox
+        <Switch
           id="legal-moves-enabled"
           label="Show legal moves"
           checked={draft.legalMovesEnabled}
           onCheckedChange={(c) => onChange({ legalMovesEnabled: c === true })}
         />
-        <Checkbox
+        <Switch
           id="highlight-enabled"
           label="Show last move + selection highlight"
           checked={draft.highlightEnabled}
           onCheckedChange={(c) => onChange({ highlightEnabled: c === true })}
         />
-        <Checkbox
+        <Switch
           id="check-indicator-enabled"
           label="Show check indicator"
           checked={draft.checkIndicatorEnabled}

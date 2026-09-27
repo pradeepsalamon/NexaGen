@@ -16,10 +16,10 @@ export function getEventIcon(eventType: string) {
     case "DISCONNECT":
       return <WifiOff className="h-4 w-4 text-orange-500" />;
     case "RECONNECT":
-      return <RefreshCcw className="h-4 w-4 text-blue-500" />;
+      return <RefreshCcw className="h-4 w-4 text-primary-ink" />;
     case "BOARD_JOIN":
     case "BOARD_LEAVE":
-      return <LayoutGrid className="h-4 w-4 text-blue-500" />;
+      return <LayoutGrid className="h-4 w-4 text-primary-ink" />;
     default:
       return <Clock className="h-4 w-4 text-app-muted" />;
   }

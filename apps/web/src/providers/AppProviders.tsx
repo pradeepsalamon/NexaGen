@@ -9,6 +9,7 @@ import { usePathname } from "next/navigation";
 import { Header } from "@/components/layout/Header";
 import { TooltipProvider } from "@/components/ui/Tooltip";
 import { ChessAppearanceProvider } from "@/features/chess-appearance/context/ChessAppearanceProvider";
+import { PresenceBridge } from "@/features/presence/components/PresenceBridge";
 import { TypographySync } from "@/features/typography/context/TypographySync";
 
 import { AcquisitionCapture } from "./AcquisitionCapture";
@@ -47,6 +48,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           <TooltipProvider delayDuration={600}>
             <ChessAppearanceProvider>
               <SessionBootstrap />
+              <PresenceBridge />
               <TypographySync />
               <AcquisitionCapture />
               {!isChromeless && <Header />}

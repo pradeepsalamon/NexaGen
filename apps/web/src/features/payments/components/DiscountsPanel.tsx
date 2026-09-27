@@ -36,6 +36,8 @@ import {
   useDiscounts,
   useUpdateDiscount
 } from "../hooks/usePaymentsApi";
+import { DateStringPicker } from "@/components/ui/DatePicker";
+import { Switch } from "@/components/ui/Switch";
 
 /**
  * Discount codes — the one mechanism that changes what someone pays.
@@ -140,11 +142,11 @@ export function DiscountsPanel() {
                 <SimpleTooltip label="Edit this code">
                   <Button
                     aria-label={`Edit ${discount.code}`}
-                    className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                     onClick={() => setEditing(discount)}
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -159,12 +161,12 @@ export function DiscountsPanel() {
                 >
                   <Button
                     aria-label={`Remove ${discount.code}`}
-                    className="size-8 rounded-full border-app-danger p-0 hover:bg-app-danger hover:text-white"
+                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                     disabled={remove.isPending}
                     onClick={() => remove.mutate(discount.id)}
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                   >
                     <Trash2 className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -387,20 +389,20 @@ function DiscountForm({
 
         <div>
           <Label htmlFor="discount-starts">Valid from</Label>
-          <Input
+          <DateStringPicker
             id="discount-starts"
-            onChange={(event) => setForm({ ...form, startsAt: event.target.value })}
-            type="date"
+            onChange={(value) => setForm({ ...form, startsAt: value })}
+            
             value={form.startsAt}
           />
         </div>
 
         <div>
           <Label htmlFor="discount-ends">Valid until</Label>
-          <Input
+          <DateStringPicker
             id="discount-ends"
-            onChange={(event) => setForm({ ...form, endsAt: event.target.value })}
-            type="date"
+            onChange={(value) => setForm({ ...form, endsAt: value })}
+            
             value={form.endsAt}
           />
         </div>
@@ -528,7 +530,7 @@ function DiscountForm({
       </div>
 
       <label className="flex items-center gap-2 text-sm text-app-text">
-        <Checkbox
+        <Switch
           checked={form.isActive}
           onCheckedChange={(checked) =>
             setForm({ ...form, isActive: checked === true })
@@ -552,7 +554,7 @@ function DiscountForm({
         >
           {discount ? "Save code" : "Create code"}
         </Button>
-        <Button onClick={onClose} type="button" variant="ghost">
+        <Button onClick={onClose} type="button" variant="outline">
           Cancel
         </Button>
       </div>

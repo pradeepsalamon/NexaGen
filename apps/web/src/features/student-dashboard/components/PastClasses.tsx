@@ -113,10 +113,10 @@ export function PastClasses({ classes }: PastClassesProps) {
                       <SimpleTooltip label="Download recording">
                         <Button
                           aria-label={`Download recording for ${c.topic}`}
-                          className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                          className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                           onClick={() => handleDownload(c.id)}
                           size="icon"
-                          variant="outline"
+                          variant="ghost"
                         >
                           <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
                         </Button>

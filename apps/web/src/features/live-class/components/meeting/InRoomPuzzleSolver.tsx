@@ -40,8 +40,10 @@ export function InRoomPuzzleSolver({
   const qc = useQueryClient();
   const { send } = useDataChannel(LIVE_CLASS_PUZZLE_TOPIC);
   const start = useCallback(() => startLivePuzzleAttempt(classId), [classId]);
-  const { session, startError, moves, phase, wrong, resetNonce, result, currentFen, begin, handleMove, giveUp } =
-    usePuzzleAttempt({ start });
+  const {
+    session, startError, moves, phase, wrong, resetNonce, result, currentFen,
+    begin, handleMove, giveUp, pendingSubmit, retrySubmit
+  } = usePuzzleAttempt({ start });
   const { secondsLeft, expired } = useCountdown(puzzle.endsAt);
   const leaderboard = useLivePuzzleLeaderboard(classId, true);
   const self = leaderboard.data?.self ?? null;
@@ -66,6 +68,15 @@ export function InRoomPuzzleSolver({
       send(encodeLivePuzzle({ type: "LEADERBOARD_DIRTY" }), { reliable: true }).catch(() => {});
     }
   }, [result, qc, classId, send]);
+
+  // The coach's "solving" count comes from the attempt row; nudge every client
+  // as soon as it exists rather than waiting for the next poll.
+  const announcedStart = useRef(false);
+  useEffect(() => {
+    if (!session || announcedStart.current || !send) return;
+    announcedStart.current = true;
+    send(encodeLivePuzzle({ type: "LEADERBOARD_DIRTY" }), { reliable: true }).catch(() => {});
+  }, [session, send]);
 
   // Submit whatever the student has when the timer runs out, once.
   const autoSubmitted = useRef(false);
@@ -100,6 +111,15 @@ export function InRoomPuzzleSolver({
           ? ` · ${self.attemptsLeft} ${self.attemptsLeft === 1 ? "try" : "tries"} left`
           : ""}
       </p>
+
+      {pendingSubmit && !result ? (
+        <Card className="space-y-2 border-app-danger/40 p-3 text-sm text-app-text">
+          <p>Your answer didn&apos;t reach the server, so your coach can&apos;t see it yet.</p>
+          <Button type="button" size="sm" onClick={() => void retrySubmit()}>
+            Submit again
+          </Button>
+        </Card>
+      ) : null}
 
       {startError ? (
         <Card className="space-y-2 p-3 text-sm text-app-text">

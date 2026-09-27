@@ -230,7 +230,7 @@ function ManualPaymentForm({
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

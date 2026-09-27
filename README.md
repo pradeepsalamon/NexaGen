@@ -102,6 +102,14 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   `Assignment`. The service is in `PuzzleModule` (which imports `LiveClassModule`);
   only starting an attempt is a new route, everything else reuses the puzzle
   attempt endpoints.
+- Live-class simul: the coach plays one game against each of several (or all)
+  students at once (`API_ROUTES.liveClass.simul*`, `apps/api/src/simul/`,
+  toolbar "Play simul"). Every move is server-validated with chess.js and
+  guarded by the game's `ply`; the coach's board queue puts games waiting on the
+  coach first (longest wait first) and auto-advances after each move. The coach
+  can ask Stockfish for a hint or have it play the move at a chosen strength
+  (needs `STOCKFISH_PATH`). `LiveClassSimul` / `LiveClassSimulGame` are
+  per-class operational rows — not soft-deletable, not trash-registered.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student
@@ -1029,6 +1037,8 @@ device × route × theme test matrix and a per-device checklist, see
 
 ## UI Component Standards
 
+The full, enforced rule set (tokens, which component for which control, layout, accessibility, pre-PR checklist) is **[docs/UI_RULES.md](docs/UI_RULES.md)**.
+
 ### Primary UI Library
 
 This project uses **shadcn/ui** as the default component library.
@@ -1075,6 +1085,7 @@ Developers should always prefer existing shadcn/ui components before creating cu
 
 **Containers**
 
+- FormPageShell (`components/layout/`, full-page create/edit screens: sticky back + title + actions header, optional `aside` column)
 - Card (with CardHeader, CardTitle, CardDescription, CardContent, CardFooter)
 - Dialog
 - AlertDialog
@@ -1082,6 +1093,10 @@ Developers should always prefer existing shadcn/ui components before creating cu
 
 **Data Display**
 
+- BulkActionsBar + `BulkResultDialog` + `useBulkAction` (floating bar for selected table rows, per-row result summary)
+- RowActions (table action column as round icon buttons; optional `inline` groups the rest behind a "⋮" menu)
+- DatePicker / `DateStringPicker` / TimePicker (never a native `type="date|time|datetime-local"` input; `DateStringPicker` takes the `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` strings those inputs used)
+- Switch (on/off settings: "Lock …", "Enabled", "Send WhatsApp", preferences). Use `Checkbox` only for multi-select lists, table row selection and consent/acknowledgement ticks. Same `checked` / `onCheckedChange` / `label` API as `Checkbox`
 - Alert (tinted `error` / `warning` / `info` / `success` inline message with the right `role`/`aria-live`; `WidgetError` is built on it)
 - Badge
 - Table (with TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption)

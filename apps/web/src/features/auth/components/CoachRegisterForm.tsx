@@ -101,7 +101,7 @@ export function CoachRegisterForm() {
       <div className="grid gap-4 text-center">
         <CheckCircle2
           aria-hidden="true"
-          className="mx-auto size-12 text-primary"
+          className="mx-auto size-12 text-primary-ink"
           strokeWidth={2.5}
         />
         <div className="grid gap-1.5">

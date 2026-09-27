@@ -14,7 +14,7 @@ const buttonVariants = cva(
         ghost:
           "border-transparent bg-transparent text-app-text hover:bg-app-soft hover:text-app-text",
         outline:
-          "border-primary bg-app-surface text-primary hover:bg-primary/5 dark:border-app-text dark:text-app-text dark:hover:bg-white/5",
+          "border-primary-ink bg-app-surface text-primary-ink hover:bg-primary/10",
         primary:
           "border-transparent bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-white shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)]",
         secondary:

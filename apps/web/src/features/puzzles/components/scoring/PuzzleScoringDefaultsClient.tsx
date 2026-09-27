@@ -53,7 +53,7 @@ export function PuzzleScoringDefaultsClient() {
         >
           <ArrowLeft className="size-4" strokeWidth={2.5} /> Puzzle Library
         </Link>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-app-text">
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
           Puzzle points &amp; leaderboard
         </h1>
         <p className="mt-1 text-sm text-app-muted">

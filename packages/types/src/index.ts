@@ -1850,7 +1850,9 @@ export type RequestEngineMoveResponse = {
 // position as a FEN; the API returns the pooled engine's evaluation of it.
 
 export const stockfishAnalyzeRequestSchema = z.object({
-  fen: z.string().trim().min(1, "FEN is required.").max(120, "FEN is malformed.")
+  fen: z.string().trim().min(1, "FEN is required.").max(120, "FEN is malformed."),
+  /** "analysis" (default) is tuned for speed; "move" thinks longer at full strength. */
+  mode: z.enum(["analysis", "move"]).optional()
 });
 
 export type StockfishAnalyzeRequest = z.infer<typeof stockfishAnalyzeRequestSchema>;
@@ -2119,6 +2121,7 @@ export * from "./puzzle";
 // ──────────────────────────────────────────────
 export * from "./puzzle-scoring";
 export * from "./live-class-puzzle";
+export * from "./live-class-simul";
 
 // ──────────────────────────────────────────────
 // Course library (depends on ./puzzle + Assignment types above)
@@ -2193,3 +2196,8 @@ export type StudentDashboardFeaturedClass = {
   durationMinutes: number;
   status: string;
 };
+
+// ──────────────────────────────────────────────
+// In-app presence + coach "pull a student into class".
+// ──────────────────────────────────────────────
+export * from "./presence";

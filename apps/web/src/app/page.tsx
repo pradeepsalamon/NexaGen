@@ -31,7 +31,7 @@ export default function Home() {
       <section className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
         <div className="grid gap-8">
           <div className="max-w-3xl">
-            <p className="mb-3 text-xs font-extrabold uppercase text-primary">
+            <p className="mb-3 text-xs font-extrabold uppercase text-primary-ink">
               Nexa Chess Academy
             </p>
             <h1 className="max-w-[12ch] text-[clamp(3rem,9vw,5.8rem)] font-extrabold leading-[0.92] text-app-text">
@@ -56,7 +56,7 @@ export default function Home() {
                 >
                   <Icon
                     aria-hidden="true"
-                    className="mb-4 size-5 text-primary"
+                    className="mb-4 size-5 text-primary-ink"
                     strokeWidth={2.5}
                   />
                   <h2 className="text-sm font-extrabold text-app-text">

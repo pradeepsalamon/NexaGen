@@ -22,7 +22,7 @@ export function CoachPresetsClient() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-app-text">Class Presets</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class Presets</h1>
           <p className="mt-1 text-sm text-app-muted">
             Save reusable class settings once, then apply them in a click when you start a class.
           </p>

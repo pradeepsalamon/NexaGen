@@ -68,7 +68,7 @@ export function NotificationBell({
             <button
               type="button"
               onClick={() => markRead.mutate(undefined)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
             >
               <CheckCheck className="size-3.5" strokeWidth={2.5} />
               Mark all read

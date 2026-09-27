@@ -52,7 +52,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       exit={reducedMotion ? { opacity: 0 } : { opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
-        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border bg-app-surface shadow-card transition-[box-shadow,border-color] duration-200",
+        "group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border bg-app-surface shadow-card transition-[box-shadow,border-color] duration-200",
         isSpeaking
           ? "border-primary ring-2 ring-primary/60"
           : "border-app-border hover:border-app-border/80",
@@ -64,7 +64,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
         <ParticipantTile
           trackRef={trackRef}
           className={cn(
-            "h-full w-full overflow-hidden rounded-2xl [&_.lk-participant-metadata]:hidden [&_.lk-participant-name]:hidden",
+            "h-full w-full overflow-hidden rounded-app [&_.lk-participant-metadata]:hidden [&_.lk-participant-name]:hidden",
             isScreenShare
               ? "[&_.lk-video-container_video]:object-contain"
               : "[&_.lk-video-container_video]:object-cover",
@@ -91,7 +91,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       )}
 
       {/* Bottom-left name pill with mic status */}
-      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-sm backdrop-blur-md">
+      <div className="absolute bottom-2 left-2 z-10 flex w-fit max-w-[calc(100%-3.25rem)] items-center gap-2 rounded-full border border-white/10 bg-black/60 px-2 py-1.5 pr-3 shadow-card backdrop-blur-md">
         <span
           className={cn(
             "flex size-5 shrink-0 items-center justify-center rounded-full",
@@ -117,7 +117,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       </div>
 
       {/* Bottom-right connection quality */}
-      <div className="absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-full border border-white/10 bg-black/60 p-1.5 px-2 shadow-sm backdrop-blur-md">
+      <div className="absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-full border border-white/10 bg-black/60 p-1.5 px-2 shadow-card backdrop-blur-md">
         <NetworkQualityIndicator participant={participant} />
       </div>
 
@@ -125,7 +125,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-2.5">
         <div className="flex gap-2 items-center">
           {handRaised && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white shadow-sm">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white shadow-card">
               <Hand className="h-3 w-3" />
             </span>
           )}

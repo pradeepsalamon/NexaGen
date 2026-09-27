@@ -15,6 +15,7 @@ import { formatFullDate } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { invoiceHtmlUrl, invoicePdfUrl } from "../api/invoicesApi";
 import { InvoicePdfBadge, InvoiceStatusBadge, TaxTreatmentBadge } from "./InvoiceBadges";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 /**
  * The invoice detail view (§16), used by both the student and admin surfaces.
@@ -65,9 +66,9 @@ export function InvoiceDetail({
               <Button
                 aria-label="Open a printable version of this invoice"
                 asChild
-                className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                 size="icon"
-                variant="outline"
+                variant="ghost"
               >
                 <a
                   href={invoiceHtmlUrl(invoice.id)}
@@ -178,50 +179,50 @@ export function InvoiceDetail({
 
       <Card className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[520px] border-collapse">
-            <thead>
-              <tr className="border-b border-app-border">
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted">
+          <Table className="w-full min-w-[520px] border-collapse">
+            <TableHeader>
+              <TableRow className="border-b border-app-border">
+                <TableHead className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">
                   Description
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-app-muted">
+                </TableHead>
+                <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">
                   Qty
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-app-muted">
+                </TableHead>
+                <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">
                   Rate
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-app-muted">
+                </TableHead>
+                <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">
                   Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {invoice.lines.map((line, index) => (
-                <tr
+                <TableRow
                   className="border-b border-app-border last:border-0"
                   key={`${line.description}-${index}`}
                 >
-                  <td className="px-4 py-3 text-sm text-app-text">
+                  <TableCell className="text-left px-4 py-3 text-sm text-app-text">
                     {line.description}
                     {line.discountAmount > 0 ? (
                       <span className="block text-xs text-app-muted">
                         Discount −{money(line.discountAmount)}
                       </span>
                     ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm tabular-nums text-app-text">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right text-sm tabular-nums text-app-text">
                     {line.quantity}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm tabular-nums text-app-text">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right text-sm tabular-nums text-app-text">
                     {money(line.unitAmount)}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-app-text">
+                  </TableCell>
+                  <TableCell className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-app-text">
                     {money(line.amount)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         <div className="flex justify-end border-t border-app-border px-4 py-4">
@@ -264,7 +265,7 @@ export function InvoiceDetail({
 
             <div className="flex items-baseline justify-between border-t-2 border-app-text pt-2">
               <dt className="text-sm font-bold text-app-text">Total</dt>
-              <dd className="text-lg font-bold tabular-nums text-primary">
+              <dd className="text-lg font-bold tabular-nums text-primary-ink">
                 {money(invoice.total)}
               </dd>
             </div>

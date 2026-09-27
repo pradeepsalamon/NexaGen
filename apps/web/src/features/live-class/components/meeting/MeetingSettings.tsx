@@ -117,7 +117,7 @@ export function MeetingSettings() {
               <div key={key} className="flex items-center justify-between gap-3">
                 <dt className="min-w-0 truncate text-sm text-app-text">{action}</dt>
                 <dd>
-                  <kbd className="rounded-md border border-app-border bg-app-soft px-2 py-0.5 font-mono text-xs font-semibold text-app-muted">
+                  <kbd className="rounded-control border border-app-border bg-app-soft px-2 py-0.5 font-mono text-xs font-semibold text-app-muted">
                     {key}
                   </kbd>
                 </dd>

@@ -249,7 +249,10 @@ export class LiveClassPuzzleService {
         );
       }
     }
-    return this.attempts.start(accessToken, active.puzzleId, { liveClassId: classId });
+    return this.attempts.start(accessToken, active.puzzleId, {
+      liveClassId: classId,
+      startedAfter: active.startedAt
+    });
   }
 
   /** Ranked leaderboard for the current (or most recent) assignment, plus the rest of the roster. */

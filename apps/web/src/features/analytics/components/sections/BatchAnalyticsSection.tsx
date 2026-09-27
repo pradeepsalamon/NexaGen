@@ -8,6 +8,8 @@ import { SectionCard } from "@/components/ui/SectionCard";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useBatchAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent } from "../../lib/format";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { Badge } from "@/components/ui/Badge";
 
 export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery }) {
   const { data, isLoading, isError, refetch } = useBatchAnalyticsQuery(query);
@@ -34,55 +36,53 @@ export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
           </KpiCardRow>
 
           <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-app-muted">
-                <tr>
-                  <th className="pb-2">Batch</th>
-                  <th className="pb-2">Coach</th>
-                  <th className="pb-2 text-right">Students</th>
-                  <th className="pb-2 text-right">Classes</th>
-                  <th className="pb-2 text-right">Completed</th>
-                  <th className="pb-2 text-right">Attendance</th>
-                  <th className="pb-2 text-right">Hours</th>
-                  <th className="pb-2">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-app-border">
+            <Table className="w-full min-w-[720px] text-left text-sm">
+              <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+                <TableRow>
+                  <TableHead className="pb-2">Batch</TableHead>
+                  <TableHead className="pb-2">Coach</TableHead>
+                  <TableHead className="pb-2 text-right">Students</TableHead>
+                  <TableHead className="pb-2 text-right">Classes</TableHead>
+                  <TableHead className="pb-2 text-right">Completed</TableHead>
+                  <TableHead className="pb-2 text-right">Attendance</TableHead>
+                  <TableHead className="pb-2 text-right">Hours</TableHead>
+                  <TableHead className="pb-2">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-app-border">
                 {(data?.batches ?? []).slice(0, 12).map((b) => (
-                  <tr key={b.batchId}>
-                    <td className="py-2">
+                  <TableRow key={b.batchId}>
+                    <TableCell className="text-left py-2">
                       <Link
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-ink hover:underline"
                         href={`/admin/analytics/batches/${b.batchId}`}
                       >
                         {b.name}
                       </Link>
-                    </td>
-                    <td className="py-2 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left py-2 text-app-muted">
                       {b.coachNames.join(", ") || "—"}
-                    </td>
-                    <td className="py-2 text-right">{b.students}</td>
-                    <td className="py-2 text-right">{b.classes}</td>
-                    <td className="py-2 text-right">{b.completedClasses}</td>
-                    <td className="py-2 text-right">{formatPercent(b.attendancePercent)}</td>
-                    <td className="py-2 text-right">{formatHours(b.teachingHours)}</td>
-                    <td className="py-2">
-                      <span className="rounded-full bg-app-soft px-2 py-0.5 text-xs font-semibold text-app-text">
-                        {b.status}
-                      </span>
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="py-2 text-right">{b.students}</TableCell>
+                    <TableCell className="py-2 text-right">{b.classes}</TableCell>
+                    <TableCell className="py-2 text-right">{b.completedClasses}</TableCell>
+                    <TableCell className="py-2 text-right">{formatPercent(b.attendancePercent)}</TableCell>
+                    <TableCell className="py-2 text-right">{formatHours(b.teachingHours)}</TableCell>
+                    <TableCell className="text-left py-2">
+                      <Badge variant="secondary">{b.status}</Badge>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {isLoading ? (
-                  <tr><td className="py-3 text-app-muted" colSpan={8}>Loading…</td></tr>
+                  <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={8}>Loading…</TableCell></TableRow>
                 ) : null}
                 {!isLoading && (data?.batches.length ?? 0) === 0 ? (
-                  <tr><td className="py-3 text-app-muted" colSpan={8}>No batches yet.</td></tr>
+                  <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={8}>No batches yet.</TableCell></TableRow>
                 ) : null}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
-          <Link className="mt-2 inline-block text-xs font-semibold text-primary hover:underline" href="/admin/analytics/batches">
+          <Link className="mt-2 inline-block text-xs font-semibold text-primary-ink hover:underline" href="/admin/analytics/batches">
             View all batches →
           </Link>
         </>

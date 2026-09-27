@@ -1,6 +1,6 @@
 import type { ChessAppearance } from "@nexa-chess/types";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Label } from "@/components/ui/Label";
+import { Switch } from "@/components/ui/Switch";
 
 interface SoundSettingsFormProps {
   draft: ChessAppearance;
@@ -10,7 +10,7 @@ interface SoundSettingsFormProps {
 export function SoundSettingsForm({ draft, onChange }: SoundSettingsFormProps) {
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <Checkbox
+      <Switch
         id="sound-enabled"
         label="Play move sounds"
         checked={draft.soundEnabled}

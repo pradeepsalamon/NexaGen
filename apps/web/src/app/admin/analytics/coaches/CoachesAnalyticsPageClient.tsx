@@ -26,7 +26,7 @@ export function CoachesAnalyticsPageClient() {
                   key: "name",
                   header: "Coach",
                   render: (r) => (
-                    <Link className="font-medium text-primary hover:underline" href={`/admin/analytics/coaches/${r.coachId}`}>
+                    <Link className="font-medium text-primary-ink hover:underline" href={`/admin/analytics/coaches/${r.coachId}`}>
                       {r.name}
                     </Link>
                   )

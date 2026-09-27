@@ -34,12 +34,12 @@ export function EmailVerificationBanner() {
   }
 
   return (
-    <div className="bg-yellow-50 border-b border-yellow-200 text-yellow-800 px-4 py-2 text-sm flex items-center justify-center gap-4 fixed top-16 w-full z-30">
+    <div className="bg-secondary/10 border-b border-secondary/40 text-secondary-ink px-4 py-2 text-sm flex items-center justify-center gap-4 fixed top-16 w-full z-30">
       <p>
         Please verify your email address to unlock all features.
       </p>
       <button
-        className="font-medium underline hover:text-yellow-900 disabled:opacity-50"
+        className="font-medium underline hover:text-secondary-ink disabled:opacity-50"
         disabled={resendMutation.isPending || isSent}
         onClick={() => resendMutation.mutate()}
       >

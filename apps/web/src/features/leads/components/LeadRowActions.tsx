@@ -24,11 +24,11 @@ export const LeadRowActions = memo(function LeadRowActions({
       <SimpleTooltip label="View details">
         <Button
           aria-label={`View details for ${lead.studentName}`}
-          className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+          className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
           onClick={() => onViewDetails(lead.id)}
           size="icon"
           type="button"
-          variant="outline"
+          variant="ghost"
         >
           <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
         </Button>
@@ -37,12 +37,12 @@ export const LeadRowActions = memo(function LeadRowActions({
       <SimpleTooltip label="Delete lead">
         <Button
           aria-label={`Delete lead for ${lead.studentName}`}
-          className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
+          className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
           disabled={deletePending}
           onClick={() => onDelete(lead.id)}
           size="icon"
           type="button"
-          variant="outline"
+          variant="ghost"
         >
           <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
         </Button>

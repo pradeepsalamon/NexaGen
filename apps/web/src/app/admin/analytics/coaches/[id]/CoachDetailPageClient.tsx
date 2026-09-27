@@ -17,6 +17,7 @@ import {
 } from "@/features/analytics/lib/format";
 import { formatDayMonth, formatFullDate } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function CoachDetailPageClient({ coachId }: { coachId: string }) {
   return (
@@ -38,7 +39,7 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
   return (
     <div className="space-y-5">
       <Link
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-sm font-semibold text-primary-ink hover:underline"
         href="/admin/analytics/coaches"
       >
         <ArrowLeft className="size-4" /> All coaches
@@ -91,37 +92,37 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
       <div className="rounded-app border border-app-border bg-app-surface p-4 shadow-card">
         <p className="mb-2 text-sm font-bold text-app-text">Recent classes</p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-app-muted">
-              <tr>
-                <th className="pb-2">Class</th>
-                <th className="pb-2">Batch</th>
-                <th className="pb-2">Date</th>
-                <th className="pb-2 text-right">Duration</th>
-                <th className="pb-2 text-right">Attendance</th>
-                <th className="pb-2">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-app-border">
+          <Table className="w-full min-w-[560px] text-left text-sm">
+            <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+              <TableRow>
+                <TableHead className="pb-2">Class</TableHead>
+                <TableHead className="pb-2">Batch</TableHead>
+                <TableHead className="pb-2">Date</TableHead>
+                <TableHead className="pb-2 text-right">Duration</TableHead>
+                <TableHead className="pb-2 text-right">Attendance</TableHead>
+                <TableHead className="pb-2">Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-app-border">
               {(data?.recentClasses ?? []).map((cls) => (
-                <tr key={cls.classId}>
-                  <td className="py-2">
-                    <Link className="text-primary hover:underline" href={`/classes/${cls.classId}`}>
+                <TableRow key={cls.classId}>
+                  <TableCell className="text-left py-2">
+                    <Link className="text-primary-ink hover:underline" href={`/classes/${cls.classId}`}>
                       {cls.topic}
                     </Link>
-                  </td>
-                  <td className="py-2 text-app-muted">{cls.batchName ?? "—"}</td>
-                  <td className="py-2 text-app-muted">{formatFullDate(cls.date, tz)}</td>
-                  <td className="py-2 text-right">{cls.durationMinutes} min</td>
-                  <td className="py-2 text-right">{formatPercent(cls.attendancePercent)}</td>
-                  <td className="py-2">{cls.status}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className="text-left py-2 text-app-muted">{cls.batchName ?? "—"}</TableCell>
+                  <TableCell className="text-left py-2 text-app-muted">{formatFullDate(cls.date, tz)}</TableCell>
+                  <TableCell className="py-2 text-right">{cls.durationMinutes} min</TableCell>
+                  <TableCell className="py-2 text-right">{formatPercent(cls.attendancePercent)}</TableCell>
+                  <TableCell className="text-left py-2">{cls.status}</TableCell>
+                </TableRow>
               ))}
               {!isLoading && (data?.recentClasses.length ?? 0) === 0 ? (
-                <tr><td className="py-3 text-app-muted" colSpan={6}>No classes in this period.</td></tr>
+                <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={6}>No classes in this period.</TableCell></TableRow>
               ) : null}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

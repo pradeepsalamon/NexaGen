@@ -64,7 +64,7 @@ export const ChatThreadBar = memo(function ChatThreadBar() {
             activeThread === thread.id
               ? thread.isPrivate
                 ? "bg-secondary/20 text-app-text ring-1 ring-secondary/50"
-                : "bg-primary/10 text-primary ring-1 ring-primary/30"
+                : "bg-primary/10 text-primary-ink ring-1 ring-primary/30"
               : "text-app-muted hover:bg-app-soft hover:text-app-text",
           )}
         >

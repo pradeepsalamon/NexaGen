@@ -24,7 +24,7 @@ export function FeedbackItemHeading({
   return (
     <div className="flex items-start gap-3">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/[0.12]">
-        <MessageSquareHeart aria-hidden="true" className="size-5 text-primary" strokeWidth={2.5} />
+        <MessageSquareHeart aria-hidden="true" className="size-5 text-primary-ink" strokeWidth={2.5} />
       </span>
       <div className="min-w-0">
         {renderTitle ? renderTitle(titleClass, item.formTitle) : <h2 className={titleClass}>{item.formTitle}</h2>}

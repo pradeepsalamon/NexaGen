@@ -40,7 +40,7 @@ const sidebarPanels: SidebarPanelConfig[] = [
 function PanelLoading() {
   return (
     <div className="flex h-full items-center justify-center">
-      <Loader2 className="size-6 animate-spin text-primary" />
+      <Loader2 className="size-6 animate-spin text-primary-ink" />
     </div>
   );
 }
@@ -75,9 +75,9 @@ const SidebarTabs = memo(function SidebarTabs({
           aria-selected={active === panel.id}
           onClick={() => onTabChange(panel.id)}
           className={cn(
-            "flex min-h-11 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors sm:min-h-9",
+            "flex min-h-11 items-center gap-1.5 rounded-control px-3 text-xs font-semibold transition-colors sm:min-h-9",
             active === panel.id
-              ? "bg-primary/10 text-primary"
+              ? "bg-primary/10 text-primary-ink"
               : "text-app-muted hover:bg-app-soft hover:text-app-text",
           )}
         >
@@ -125,7 +125,7 @@ export function MeetingSidebar() {
             <button
               type="button"
               onClick={() => setActiveSidebar(null)}
-              className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-app-soft text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+              className="flex size-9 shrink-0 items-center justify-center rounded-control bg-app-soft text-app-muted transition-colors hover:bg-app-danger hover:text-white"
               aria-label="Close panel"
             >
               <X className="size-5" />

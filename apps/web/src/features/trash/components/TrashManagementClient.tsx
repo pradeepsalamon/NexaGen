@@ -263,12 +263,12 @@ export function TrashManagementClient() {
                 <TooltipTrigger asChild>
                   <Button
                     aria-label={`Restore ${row.original.title}`}
-                    className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
                     onClick={() => runRestore([row.original])}
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                   >
                     <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   </Button>
@@ -279,12 +279,12 @@ export function TrashManagementClient() {
                 <TooltipTrigger asChild>
                   <Button
                     aria-label={`Delete ${row.original.title} permanently`}
-                    className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
+                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                     disabled={restoreMutation.isPending || deleteMutation.isPending}
                     onClick={() => runDelete([row.original])}
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                   >
                     <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
                   </Button>

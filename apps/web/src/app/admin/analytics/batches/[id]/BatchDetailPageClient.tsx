@@ -16,6 +16,7 @@ import {
 } from "@/features/analytics/lib/format";
 import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function BatchDetailPageClient({ batchId }: { batchId: string }) {
   return (
@@ -43,7 +44,7 @@ function Body({
   return (
     <div className="space-y-5">
       <Link
-        className="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+        className="inline-flex items-center gap-1 text-sm font-semibold text-primary-ink hover:underline"
         href="/admin/analytics/batches"
       >
         <ArrowLeft className="size-4" /> All batches
@@ -86,33 +87,33 @@ function Body({
       <div className="rounded-app border border-app-border bg-app-surface p-4 shadow-card">
         <p className="mb-2 text-sm font-bold text-app-text">Students</p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-app-muted">
-              <tr>
-                <th className="pb-2">Student</th>
-                <th className="pb-2 text-right">Attendance</th>
-                <th className="pb-2 text-right">Attended</th>
-                <th className="pb-2 text-right">Last active</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-app-border">
+          <Table className="w-full min-w-[480px] text-left text-sm">
+            <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+              <TableRow>
+                <TableHead className="pb-2">Student</TableHead>
+                <TableHead className="pb-2 text-right">Attendance</TableHead>
+                <TableHead className="pb-2 text-right">Attended</TableHead>
+                <TableHead className="pb-2 text-right">Last active</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-app-border">
               {(data?.students ?? []).map((s) => (
-                <tr key={s.studentId}>
-                  <td className="py-2 font-medium text-app-text">{s.name}</td>
-                  <td className="py-2 text-right">{formatPercent(s.attendancePercent)}</td>
-                  <td className="py-2 text-right">
+                <TableRow key={s.studentId}>
+                  <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
+                  <TableCell className="py-2 text-right">{formatPercent(s.attendancePercent)}</TableCell>
+                  <TableCell className="py-2 text-right">
                     {s.classesAttended}/{s.classesAttended + s.classesMissed}
-                  </td>
-                  <td className="py-2 text-right text-app-muted">
+                  </TableCell>
+                  <TableCell className="py-2 text-right text-app-muted">
                     {relativeTime(s.lastActiveAt, tz)}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
               {!isLoading && (data?.students.length ?? 0) === 0 ? (
-                <tr><td className="py-3 text-app-muted" colSpan={4}>No students enrolled.</td></tr>
+                <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={4}>No students enrolled.</TableCell></TableRow>
               ) : null}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </div>

@@ -83,8 +83,8 @@ export function RecordingPlayerDialog({ classId, isOpen, onClose, topic }: Recor
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-4xl w-[95vw] h-[85vh] flex flex-col p-0 overflow-hidden bg-black border-border/40">
-        <DialogHeader className="p-4 bg-background/95 backdrop-blur z-10 border-b border-border/40 absolute top-0 w-full">
-          <DialogTitle className="text-foreground">{topic} Recording</DialogTitle>
+        <DialogHeader className="p-4 bg-app-background/95 backdrop-blur z-10 border-b border-border/40 absolute top-0 w-full">
+          <DialogTitle className="text-app-text">{topic} Recording</DialogTitle>
         </DialogHeader>
         
         <div className="flex-1 flex items-center justify-center bg-black pt-[60px] pb-4 px-4 w-full h-full relative">
@@ -102,7 +102,7 @@ export function RecordingPlayerDialog({ classId, isOpen, onClose, topic }: Recor
               controls
               controlsList="nodownload"
               autoPlay
-              className="max-w-full max-h-full rounded-md shadow-2xl"
+              className="max-w-full max-h-full rounded-control shadow-soft"
               onTimeUpdate={handleTimeUpdate}
             >
               Your browser does not support the video tag.

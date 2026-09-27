@@ -94,7 +94,7 @@ export function DiscountField({
   if (!open) {
     return (
       <button
-        className="flex items-center gap-1.5 text-sm font-semibold text-primary underline"
+        className="flex items-center gap-1.5 text-sm font-semibold text-primary-ink underline"
         disabled={disabled}
         onClick={() => setOpen(true)}
         type="button"

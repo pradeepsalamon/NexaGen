@@ -34,7 +34,7 @@ export function RequestControlButton() {
         : "You have control";
 
   const pill =
-    "flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold shadow-md backdrop-blur-md transition-all active:scale-95";
+    "flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold shadow-card backdrop-blur-md transition-all active:scale-95";
 
   return (
     <div className="flex items-center gap-1.5">
@@ -42,7 +42,7 @@ export function RequestControlButton() {
         <button
           type="button"
           onClick={requestResync}
-          className={`${pill} border-sky-500/40 bg-black/80 text-sky-300 hover:border-sky-400 hover:text-sky-200`}
+          className={`${pill} border-primary/40 bg-black/80 text-primary-ink hover:border-primary hover:text-primary-ink`}
         >
           <RefreshCw className="size-3" />
           Resync

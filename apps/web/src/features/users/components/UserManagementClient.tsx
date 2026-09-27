@@ -32,8 +32,12 @@ import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import { DataTableToolbar } from "@/components/ui/DataTableToolbar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { BulkActionsBar } from "@/components/ui/BulkActionsBar";
+import { RowActions } from "@/components/ui/RowActions";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
+import { BulkResultDialog } from "@/components/common/BulkResultDialog";
+import { ConfirmationModal } from "@/components/common/ConfirmationModal";
+import { useBulkAction } from "@/hooks/useBulkAction";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 
@@ -105,6 +109,11 @@ export function UserManagementClient() {
   // still being referenced by `columns`, which the table needs up front.
   // See AUDIT.md H4.
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const bulk = useBulkAction<AuthUser>({
+    invalidates: [queryKeys.users.all, queryKeys.trash.all],
+    labelOf: (user) => [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email
+  });
+  const [bulkConfirm, setBulkConfirm] = useState<"archive" | "delete" | null>(null);
 
   const editUser = useCallback((user: AuthUser) => {
     setEditingUserId(user.id);
@@ -206,64 +215,35 @@ export function UserManagementClient() {
         header: "Actions",
         cell: ({ row }) => {
           const isArchived = row.original.status === "ARCHIVED";
+          const name = [row.original.firstName, row.original.lastName].filter(Boolean).join(" ") || row.original.email;
           return (
-            <TooltipProvider>
-              <div className="flex items-center gap-2 justify-center">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      aria-label={`Edit ${row.original.firstName}`}
-                      className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
-                      onClick={() => editUser(row.original)}
-                      size="icon"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Pencil aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Edit user</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      aria-label={isArchived ? `Restore ${row.original.firstName}` : `Archive ${row.original.firstName}`}
-                      className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:border-secondary hover:bg-secondary hover:text-black"
-                      disabled={isArchiving || isRestoring}
-                      onClick={() => isArchived ? handleRestore(row.original.id) : handleArchive(row.original.id)}
-                      size="icon"
-                      type="button"
-                      variant="outline"
-                    >
-                      {isArchived ? (
-                        <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                      ) : (
-                        <Archive aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{isArchived ? "Unarchive user" : "Archive user"}</TooltipContent>
-                </Tooltip>
-
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      aria-label={`Delete ${row.original.firstName}`}
-                      className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:border-app-danger hover:bg-app-danger hover:text-white"
-                      disabled={isDeleting}
-                      onClick={() => handleDelete(row.original.id)}
-                      size="icon"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Delete user</TooltipContent>
-                </Tooltip>
-              </div>
-            </TooltipProvider>
+            <RowActions
+              actions={[
+                {
+                  ariaLabel: `Edit ${name}`,
+                  icon: Pencil,
+                  label: "Edit user",
+                  onSelect: () => editUser(row.original)
+                },
+                {
+                  ariaLabel: isArchived ? `Unarchive ${name}` : `Archive ${name}`,
+                  disabled: isArchiving || isRestoring,
+                  icon: isArchived ? RotateCcw : Archive,
+                  label: isArchived ? "Unarchive user" : "Archive user",
+                  onSelect: () =>
+                    isArchived ? handleRestore(row.original.id) : handleArchive(row.original.id),
+                  tone: "warning"
+                },
+                {
+                  ariaLabel: `Delete ${name}`,
+                  disabled: isDeleting,
+                  icon: Trash2,
+                  label: "Delete user",
+                  onSelect: () => handleDelete(row.original.id),
+                  tone: "danger"
+                }
+              ]}
+            />
           );
         }
       }
@@ -297,6 +277,17 @@ export function UserManagementClient() {
     ...serverTable.manual
   });
 
+  const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original);
+
+  // undo: intentionally excluded — bulk ops confirm first and report per-row results; deleted rows restore from Trash
+  const runBulk = async (kind: "archive" | "delete") => {
+    await bulk.run(kind === "archive" ? "Archive" : "Delete", selectedRows, (user) =>
+      kind === "archive" ? archiveUser(user.id) : deleteUser(user.id)
+    );
+    setBulkConfirm(null);
+    setRowSelection({});
+  };
+
   return (
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-7xl gap-5">
@@ -313,10 +304,10 @@ export function UserManagementClient() {
         >
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-extrabold uppercase text-primary">
+              <p className="text-xs font-extrabold uppercase text-primary-ink">
                 User management
               </p>
-              <h1 className="mt-2 text-3xl font-extrabold leading-tight text-app-text">
+              <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
                 Users
               </h1>
             </div>
@@ -375,6 +366,30 @@ export function UserManagementClient() {
                 table={table}
                 totalRows={usersQuery.data?.pagination?.total ?? 0}
               />
+
+              <BulkActionsBar
+                actions={[
+                  { disabled: bulk.isPending, icon: Archive, label: "Archive", onSelect: () => setBulkConfirm("archive") },
+                  { disabled: bulk.isPending, icon: Trash2, label: "Delete", onSelect: () => setBulkConfirm("delete"), tone: "danger" }
+                ]}
+                count={selectedRows.length}
+                noun="user"
+                onClear={() => setRowSelection({})}
+              />
+              <ConfirmationModal
+                confirmLabel={bulkConfirm === "delete" ? "Delete" : "Archive"}
+                icon={bulkConfirm === "delete" ? Trash2 : Archive}
+                isConfirming={bulk.isPending}
+                isOpen={bulkConfirm !== null}
+                onCancel={() => setBulkConfirm(null)}
+                onConfirm={() => bulkConfirm && runBulk(bulkConfirm)}
+                title={`${bulkConfirm === "delete" ? "Delete" : "Archive"} ${selectedRows.length} user${selectedRows.length === 1 ? "" : "s"}?`}
+              >
+                {bulkConfirm === "delete"
+                  ? "Deleted users move to Trash and can be restored from there."
+                  : "Archived users lose access until they are unarchived."}
+              </ConfirmationModal>
+              <BulkResultDialog onClose={bulk.clearResult} result={bulk.result} />
             </Card>
           </TabsContent>
 

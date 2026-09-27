@@ -91,10 +91,10 @@ export function CapturedPieces({ color }: CapturedPiecesProps) {
   captured.sort((a, b) => order.indexOf(a) - order.indexOf(b));
 
   return (
-    <div className="flex items-center gap-2 h-6 text-muted-foreground font-medium">
+    <div className="flex items-center gap-2 h-6 text-app-muted font-medium">
       <div className="flex gap-0.5 text-xl">
         {captured.map((p, i) => (
-          <span key={i} className={color === "white" ? "text-gray-300" : "text-gray-700"}>
+          <span key={i} className={color === "white" ? "text-app-muted" : "text-app-text"}>
              {PIECE_SYMBOLS[p as PieceSymbol]}
           </span>
         ))}

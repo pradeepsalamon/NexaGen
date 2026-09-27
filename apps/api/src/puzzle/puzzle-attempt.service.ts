@@ -163,7 +163,7 @@ export class PuzzleAttemptService {
   async start(
     accessToken: string | undefined,
     puzzleId: string,
-    context: { liveClassId?: string } = {}
+    context: { liveClassId?: string; startedAfter?: Date } = {}
   ): Promise<{ attempt: StartPuzzleAttemptResponse }> {
     const student = assertStudent(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
@@ -176,8 +176,19 @@ export class PuzzleAttemptService {
       : [];
 
     const liveClassId = context.liveClassId ?? null;
+    // In class, only an attempt opened during THIS share is resumable. An open
+    // attempt left over from an earlier share of the same puzzle predates the
+    // assignment, so the coach's board and leaderboard filter it out — resuming
+    // it meant a student could solve and never show up for the coach.
+    const resumable = {
+      puzzleId,
+      studentId: student.id,
+      status: "IN_PROGRESS" as const,
+      liveClassId,
+      ...(context.startedAfter ? { startedAt: { gte: context.startedAfter } } : {})
+    };
     const existing = await this.prisma.puzzleAttempt.findFirst({
-      where: { puzzleId, studentId: student.id, status: "IN_PROGRESS", liveClassId },
+      where: resumable,
       orderBy: { attemptNumber: "desc" }
     });
 
@@ -196,7 +207,7 @@ export class PuzzleAttemptService {
           error.code === "P2002"
         ) {
           attempt = await this.prisma.puzzleAttempt.findFirst({
-            where: { puzzleId, studentId: student.id, status: "IN_PROGRESS", liveClassId },
+            where: resumable,
             orderBy: { attemptNumber: "desc" }
           });
         }
@@ -310,15 +321,28 @@ export class PuzzleAttemptService {
     const attempt = this.assertActive(
       await this.loadOwnedAttempt(puzzleId, attemptId, student.id)
     );
-    await this.assertLiveAssignmentOpen(attempt, 15_000);
-
-    const moves = dto.moves as AttemptMove[];
-    this.evaluation.assertLegalLine(puzzle.fen, moves);
 
     const solution = this.solutionFromRow(puzzle.solutionMovesJson);
     if (solution.length === 0) {
       throw new BadRequestException("This puzzle has no solution configured.");
     }
+
+    // Every move of a line saved through saveProgress was accepted while the
+    // puzzle was open, so the solve already happened in time — a submit that
+    // lands just after the buzzer (or the coach ending it) must still count.
+    const savedMoves = Array.isArray(attempt.movesJson)
+      ? (attempt.movesJson as unknown as AttemptMove[])
+      : [];
+    const solvedInTime =
+      savedMoves.length > 0 &&
+      this.evaluation.evaluateSolveLine(puzzle.fen, solution, savedMoves, this.sideToMove(puzzle.fen))
+        .solved;
+    if (!solvedInTime) {
+      await this.assertLiveAssignmentOpen(attempt, 15_000);
+    }
+
+    const moves = (solvedInTime ? savedMoves : dto.moves) as AttemptMove[];
+    this.evaluation.assertLegalLine(puzzle.fen, moves);
 
     const evalResult = this.evaluation.evaluateSolveLine(
       puzzle.fen,

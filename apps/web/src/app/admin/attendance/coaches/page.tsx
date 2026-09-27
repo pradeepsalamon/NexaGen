@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, CalendarX, Users, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
@@ -14,6 +13,8 @@ import {
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { CoachAttendanceDialog } from "@/features/attendance/components/CoachAttendanceDialog";
 import { BackButton } from "@/components/ui/BackButton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 export default function AdminCoachTeachingPage() {
   const [data, setData] = useState<AdminCoachTeachingReport | null>(null);
@@ -69,7 +70,7 @@ export default function AdminCoachTeachingPage() {
       <BackButton />
 
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-app-text">
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
           Coach Teaching Report
         </h1>
         <p className="text-app-muted mt-1">
@@ -78,29 +79,29 @@ export default function AdminCoachTeachingPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-end justify-end gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-app-muted uppercase">
                 From
               </label>
-              <Input
-                type="date"
+              <DateStringPicker
+                
                 value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="w-40"
+                onChange={(value) => setDateFrom(value)}
+                className="w-44" placeholder="Any date"
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-app-muted uppercase">
                 To
               </label>
-              <Input
-                type="date"
+              <DateStringPicker
+                
                 value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="w-40"
+                onChange={(value) => setDateTo(value)}
+                className="w-44" placeholder="Any date"
               />
             </div>
             <Button onClick={loadReport} disabled={isLoading}>
@@ -115,7 +116,7 @@ export default function AdminCoachTeachingPage() {
 
       {isLoading && !data ? (
         <div className="flex h-[40vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
         </div>
       ) : coaches.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[40vh] text-center">
@@ -131,11 +132,11 @@ export default function AdminCoachTeachingPage() {
         <>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <Card className="border-app-border bg-app-surface shadow-sm">
+            <Card className="border-app-border bg-app-surface shadow-card">
               <CardContent className="p-5 flex flex-col justify-center h-full">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <Users className="h-5 w-5 text-blue-500" />
+                  <span className="p-2 rounded-control bg-primary/10 border border-primary/20">
+                    <Users className="h-5 w-5 text-primary-ink" />
                   </span>
                 </div>
                 <p className="text-3xl font-bold tracking-tight">
@@ -147,10 +148,10 @@ export default function AdminCoachTeachingPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-app-border bg-app-surface shadow-sm">
+            <Card className="border-app-border bg-app-surface shadow-card">
               <CardContent className="p-5 flex flex-col justify-center h-full">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <span className="p-2 rounded-control bg-green-500/10 border border-green-500/20">
                     <CalendarX className="h-5 w-5 text-green-500" />
                   </span>
                 </div>
@@ -163,10 +164,10 @@ export default function AdminCoachTeachingPage() {
               </CardContent>
             </Card>
 
-            <Card className="border-app-border bg-app-surface shadow-sm">
+            <Card className="border-app-border bg-app-surface shadow-card">
               <CardContent className="p-5 flex flex-col justify-center h-full">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                  <span className="p-2 rounded-control bg-orange-500/10 border border-orange-500/20">
                     <Clock className="h-5 w-5 text-orange-500" />
                   </span>
                 </div>
@@ -181,44 +182,44 @@ export default function AdminCoachTeachingPage() {
           </div>
 
           {/* Table */}
-          <Card className="border-app-border bg-app-surface shadow-sm overflow-hidden">
+          <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">
             <CardContent className="p-0">
               <p className="px-3 pt-4 pb-2 text-xs text-app-muted md:px-6">
                 Click a row for that coach&apos;s full teaching history.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
-                    <tr>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                <Table className="w-full text-sm text-left">
+                  <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+                    <TableRow>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Coach Name
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Total Classes
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Completed
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Cancelled
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Scheduled Hours
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Actual Hours
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Avg Duration
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Completion %
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-app-border">
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-app-border">
                     {coaches.map((coach: AdminCoachTeachingItem) => (
-                      <tr
+                      <TableRow
                         key={coach.coachId}
                         role="button"
                         tabIndex={0}
@@ -234,31 +235,31 @@ export default function AdminCoachTeachingPage() {
                         }}
                         className="cursor-pointer hover:bg-app-soft/50 transition-colors focus:outline-none focus-visible:bg-app-soft focus-visible:ring-2 focus-visible:ring-app-focus focus-visible:ring-inset"
                       >
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-text font-medium">
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-text font-medium">
                           {coach.coachName}
                           <span className="text-app-muted block text-xs mt-0.5">
                             {coach.email}
                           </span>
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-text">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-text">
                           {coach.totalClasses}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-green-600 font-medium">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-green-600 font-medium">
                           {coach.completedClasses}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-red-600 font-medium">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-red-600 font-medium">
                           {coach.cancelledClasses}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                           {formatHours(coach.totalScheduledHours)}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                           {formatHours(coach.totalActualHours)}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                           {formatMinutes(coach.avgDurationMinutes)}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                           <div className="flex flex-col gap-1">
                             <AttendancePercentBar
                               percent={coach.completionPercent}
@@ -267,11 +268,11 @@ export default function AdminCoachTeachingPage() {
                               {coach.completionPercent}%
                             </span>
                           </div>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

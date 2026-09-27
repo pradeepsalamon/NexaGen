@@ -92,7 +92,7 @@ export function AssignmentSubmissionsDialog({ open, onOpenChange, deploymentId }
                       s.status === "COMPLETED"
                         ? "border-green-200 bg-green-50 text-green-700"
                         : s.status === "IN_PROGRESS"
-                          ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+                          ? "border-secondary/40 bg-secondary/10 text-secondary-ink"
                           : "border-app-border bg-app-background text-app-muted"
                     }
                   >

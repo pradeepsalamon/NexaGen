@@ -1,4 +1,4 @@
-import { parseUciInfoLine, uciLineToSan } from './stockfish.service';
+import { normalizeEngineFen, parseUciInfoLine, uciLineToSan } from './stockfish.service';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -57,5 +57,33 @@ describe('uciLineToSan', () => {
 
   it('handles promotion moves', () => {
     expect(uciLineToSan('8/P6k/8/8/8/8/7K/8 w - - 0 1', ['a7a8q'])).toEqual(['a8=Q']);
+  });
+});
+
+describe('normalizeEngineFen', () => {
+  it('passes the start position through unchanged', () => {
+    expect(normalizeEngineFen(START_FEN)).toEqual({ ok: true, fen: START_FEN });
+  });
+
+  it('drops castling rights the pieces cannot back', () => {
+    // Set-up position: kings on their squares but no rooks.
+    const out = normalizeEngineFen('4k3/8/8/8/8/8/8/4K3 w KQkq - 0 1');
+    expect(out).toEqual({ ok: true, fen: '4k3/8/8/8/8/8/8/4K3 w - - 0 1' });
+  });
+
+  it('drops an en passant square with no pawn behind it', () => {
+    const out = normalizeEngineFen('4k3/8/8/8/8/8/8/4K3 w - e6 0 1');
+    expect(out).toEqual({ ok: true, fen: '4k3/8/8/8/8/8/8/4K3 w - - 0 1' });
+  });
+
+  it('rejects the side not to move being in check', () => {
+    // White rook gives check to the black king, but it is White to move.
+    const out = normalizeEngineFen('4k3/8/8/8/8/8/8/4R1K1 w - - 0 1');
+    expect(out.ok).toBe(false);
+  });
+
+  it('rejects a pawn on the back rank', () => {
+    const out = normalizeEngineFen('P3k3/8/8/8/8/8/8/4K3 w - - 0 1');
+    expect(out.ok).toBe(false);
   });
 });

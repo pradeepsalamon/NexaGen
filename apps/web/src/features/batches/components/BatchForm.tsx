@@ -134,7 +134,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
         <Tabs defaultValue="details" className="w-full">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border pb-4 mb-4">
             <div>
-              <p className="text-xs font-extrabold uppercase text-primary">
+              <p className="text-xs font-extrabold uppercase text-primary-ink">
                 {selectedBatch ? "Edit batch" : "Create batch"}
               </p>
               <h2 className="mt-2 text-xl font-extrabold text-app-text">
@@ -260,9 +260,9 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                           {assignedCoaches.length > 0 ? (
                             <div className="flex flex-col gap-2">
                               {assignedCoaches.map(c => (
-                                <div key={c.id} className="flex items-center justify-between p-3 border border-app-border rounded-lg bg-app-surface shadow-sm">
+                                <div key={c.id} className="flex items-center justify-between p-3 border border-app-border rounded-control bg-app-surface shadow-card">
                                   <div className="flex items-center gap-3">
-                                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary-ink font-bold">
                                       {c.firstName.charAt(0)}{c.lastName ? c.lastName.charAt(0) : ""}
                                     </div>
                                     <div>
@@ -350,9 +350,9 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
                           {assignedStudents.length > 0 ? (
                             <div className="flex flex-col gap-2">
                               {assignedStudents.map(s => (
-                                <div key={s.id} className="flex items-center justify-between p-3 border border-app-border rounded-lg bg-app-surface shadow-sm">
+                                <div key={s.id} className="flex items-center justify-between p-3 border border-app-border rounded-control bg-app-surface shadow-card">
                                   <div className="flex items-center gap-3">
-                                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold">
+                                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary-ink font-bold">
                                       {s.firstName.charAt(0)}{s.lastName ? s.lastName.charAt(0) : ""}
                                     </div>
                                     <div>

@@ -12,7 +12,7 @@ const Table = forwardRef<
   TableHTMLAttributes<HTMLTableElement>
 >(function Table({ className, ...props }, ref) {
   return (
-    <div className="w-full overflow-auto">
+    <div className="w-full overflow-auto rounded-[16px]">
       <table
         className={cn("w-full caption-bottom text-sm", className)}
         ref={ref}

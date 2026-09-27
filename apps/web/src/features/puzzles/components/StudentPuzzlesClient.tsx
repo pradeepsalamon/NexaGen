@@ -65,14 +65,14 @@ export function StudentPuzzlesClient() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-app-text">Puzzles</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzles</h1>
         <p className="mt-1 text-sm text-app-muted">
           Practice tactics and endgames at your own pace.
         </p>
       </div>
 
       <Card className="grid gap-4 p-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Input
             value={searchInput}
             onChange={(e) => {
@@ -130,7 +130,7 @@ export function StudentPuzzlesClient() {
             className="w-auto"
           />
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={clear}>
+            <Button variant="outline" size="sm" onClick={clear}>
               Clear
             </Button>
           )}

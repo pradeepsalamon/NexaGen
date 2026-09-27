@@ -15,12 +15,12 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useRouting, useSaveRouting } from "../hooks/usePaymentsApi";
+import { Switch } from "@/components/ui/Switch";
 
 /**
  * Smart-routing configuration (§3).
@@ -63,7 +63,7 @@ export function RoutingPanel() {
               key={rule.id}
             >
               <label className="flex items-center gap-2 text-sm font-semibold text-app-text">
-                <Checkbox
+                <Switch
                   checked={rule.enabled}
                   onCheckedChange={(checked) =>
                     setDraft({
@@ -116,7 +116,7 @@ export function RoutingPanel() {
         </ul>
 
         <label className="mt-4 flex items-start gap-2 text-sm">
-          <Checkbox
+          <Switch
             checked={draft.failoverEnabled}
             onCheckedChange={(checked) =>
               setDraft({ ...draft, failoverEnabled: checked === true })
@@ -155,7 +155,7 @@ export function RoutingPanel() {
           <Button
             onClick={() => setDraft(data.config)}
             type="button"
-            variant="ghost"
+            variant="outline"
           >
             Reset
           </Button>
@@ -179,7 +179,7 @@ export function RoutingPanel() {
                   key={method}
                 >
                   <label className="flex min-w-36 items-center gap-2 text-sm font-semibold text-app-text">
-                    <Checkbox
+                    <Switch
                       checked={enabled}
                       onCheckedChange={(checked) =>
                         setDraft({

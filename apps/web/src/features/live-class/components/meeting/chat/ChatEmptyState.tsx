@@ -3,7 +3,7 @@ import { MessageSquareText } from "lucide-react";
 export function ChatEmptyState() {
   return (
     <div className="flex h-full flex-col items-center justify-center px-8 pb-10 text-center">
-      <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <div className="mb-4 flex size-14 items-center justify-center rounded-app bg-primary/10 text-primary-ink">
         <MessageSquareText className="size-6" strokeWidth={1.75} />
       </div>
       <h3 className="text-sm font-semibold text-app-text">No messages yet</h3>

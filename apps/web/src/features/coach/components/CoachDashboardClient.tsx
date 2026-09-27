@@ -38,8 +38,8 @@ export function CoachDashboardClient() {
       label: "Assigned Batches",
       value: dashboardData?.batchCount || 0,
       icon: Layers,
-      color: "text-blue-500",
-      bg: "bg-blue-500/10",
+      color: "text-primary-ink",
+      bg: "bg-primary/10",
       href: "/coach/batches"
     },
     {
@@ -88,7 +88,7 @@ export function CoachDashboardClient() {
     <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-app-text tracking-tight">Coach Dashboard</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Coach Dashboard</h1>
           <p className="text-app-muted mt-1">Overview of your classes, batches, and students.</p>
         </div>
         <Button asChild>
@@ -116,7 +116,7 @@ export function CoachDashboardClient() {
               <Link key={card.label} href={card.href} className="block group">
                 <Card className="p-6 transition-all hover:border-primary/50 hover:shadow-md">
                   <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl ${card.bg}`}>
+                    <div className={`p-3 rounded-control ${card.bg}`}>
                       <Icon className={`h-6 w-6 ${card.color}`} strokeWidth={2.5} />
                     </div>
                     <div>

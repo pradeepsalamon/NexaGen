@@ -22,7 +22,7 @@ export function AdminFeedbackClient() {
       />
 
       <Tabs onValueChange={(value) => setTab(value as Tab)} value={tab}>
-        <TabsList className="w-full justify-start overflow-x-auto sm:w-fit">
+        <TabsList className="w-full justify-start overflow-x-auto sm:w-fit sm:justify-self-end">
           <TabsTrigger value="forms">
             <ClipboardList aria-hidden="true" className="size-4" />
             Forms

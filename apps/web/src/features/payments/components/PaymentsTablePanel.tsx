@@ -31,6 +31,8 @@ import {
   useReconcilePayment
 } from "../hooks/usePaymentsApi";
 import { RefundDialog } from "./RefundDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 const STATUS_VARIANT: Record<
   PaymentStatus,
@@ -76,7 +78,7 @@ export function PaymentsTablePanel() {
 
   return (
     <div className="space-y-4">
-      <Card className="flex flex-wrap items-end gap-3 p-4">
+      <Card className="flex flex-wrap items-end justify-end gap-3 p-4">
         <div className="min-w-48 flex-1">
           <Input
             aria-label="Search payments"
@@ -141,20 +143,20 @@ export function PaymentsTablePanel() {
         </div>
 
         <div className="min-w-36">
-          <Input
+          <DateStringPicker
             aria-label="From date"
-            onChange={(event) => set({ from: event.target.value || undefined })}
-            type="date"
-            value={filters.from ?? ""}
+            onChange={(value) => set({ from: value || undefined })}
+            
+            value={filters.from ?? ""} placeholder="From date"
           />
         </div>
 
         <div className="min-w-36">
-          <Input
+          <DateStringPicker
             aria-label="To date"
-            onChange={(event) => set({ to: event.target.value || undefined })}
-            type="date"
-            value={filters.to ?? ""}
+            onChange={(value) => set({ to: value || undefined })}
+            
+            value={filters.to ?? ""} placeholder="To date"
           />
         </div>
 
@@ -183,62 +185,62 @@ export function PaymentsTablePanel() {
       ) : (
         <Card className="overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="border-b border-app-border bg-app-soft text-left">
-                <tr className="text-xs uppercase tracking-wide text-app-muted">
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Order</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3">Method</th>
-                  <th className="px-4 py-3">Gateway</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Transaction ID</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full min-w-[900px] text-sm">
+              <TableHeader className="border-b border-app-border bg-app-soft text-left">
+                <TableRow className="text-xs uppercase tracking-wide text-app-muted">
+                  <TableHead className="px-4 py-3">Date</TableHead>
+                  <TableHead className="px-4 py-3">User</TableHead>
+                  <TableHead className="px-4 py-3">Order</TableHead>
+                  <TableHead className="px-4 py-3 text-right">Amount</TableHead>
+                  <TableHead className="px-4 py-3">Method</TableHead>
+                  <TableHead className="px-4 py-3">Gateway</TableHead>
+                  <TableHead className="px-4 py-3">Status</TableHead>
+                  <TableHead className="px-4 py-3">Transaction ID</TableHead>
+                  <TableHead className="px-4 py-3 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.payments.map((payment) => (
-                  <tr
+                  <TableRow
                     className="border-b border-app-border last:border-b-0"
                     key={payment.id}
                   >
-                    <td className="whitespace-nowrap px-4 py-3 text-app-muted">
+                    <TableCell className="text-left whitespace-nowrap px-4 py-3 text-app-muted">
                       {formatDateTime(payment.createdAt, timeZone)}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <span className="block font-semibold text-app-text">
                         {payment.userName ?? "—"}
                       </span>
                       <span className="block text-xs text-app-muted">
                         {payment.userEmail ?? ""}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <span className="block font-mono text-xs text-app-text">
                         {payment.orderNumber}
                       </span>
                       <span className="block text-xs text-app-muted">
                         {payment.planName ?? ""}
                       </span>
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-app-text">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-app-text">
                       {formatMoney(payment.amount, payment.currency)}
                       {payment.amountRefunded > 0 ? (
                         <span className="block text-xs font-normal text-app-muted">
                           −{formatMoney(payment.amountRefunded, payment.currency)}
                         </span>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-app-muted">
                       {payment.method
                         ? PAYMENT_METHOD_LABELS[payment.method]
                         : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-app-muted">
                       {PAYMENT_SOURCE_LABELS[payment.provider]}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <Badge variant={STATUS_VARIANT[payment.status]}>
                         {PAYMENT_STATUS_LABELS[payment.status]}
                       </Badge>
@@ -247,21 +249,21 @@ export function PaymentsTablePanel() {
                           {payment.attempts} attempts
                         </span>
                       ) : null}
-                    </td>
-                    <td className="max-w-[160px] truncate px-4 py-3 font-mono text-xs text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left max-w-[160px] truncate px-4 py-3 font-mono text-xs text-app-muted">
                       {payment.providerPaymentId ?? "—"}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-right">
                       <div className="flex justify-end gap-1.5">
                         <SimpleTooltip label="Re-read this payment from the gateway">
                           <Button
                             aria-label="Reconcile with the gateway"
-                            className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                             disabled={reconcile.isPending}
                             onClick={() => reconcile.mutate(payment.id)}
                             size="icon"
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                           >
                             <RotateCw className="size-3.5" strokeWidth={2.5} />
                           </Button>
@@ -272,22 +274,22 @@ export function PaymentsTablePanel() {
                           <SimpleTooltip label="Refund this payment">
                             <Button
                               aria-label="Refund this payment"
-                              className="size-8 rounded-full border-app-danger p-0 hover:bg-app-danger hover:text-white"
+                              className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                               onClick={() => setRefunding(payment)}
                               size="icon"
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                             >
                               <Undo2 className="size-3.5" strokeWidth={2.5} />
                             </Button>
                           </SimpleTooltip>
                         ) : null}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-app-border px-4 py-3">

@@ -32,6 +32,7 @@ import { createAssignment, deleteAssignment, updateAssignment } from "../api/ass
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
 import { SolutionEditor } from "./SolutionEditor";
+import { Switch } from "@/components/ui/Switch";
 
 function toUpdatePayload(assignment: AssignmentLibraryItem): UpdateAssignmentRequest {
   return {
@@ -465,7 +466,7 @@ export function AssignmentFormDialog({
                   control={form.control}
                   name="allowRetry"
                   render={({ field }) => (
-                    <Checkbox
+                    <Switch
                       id="allowRetry"
                       label="Allow retry of a wrong move"
                       checked={field.value}
@@ -477,7 +478,7 @@ export function AssignmentFormDialog({
                   control={form.control}
                   name="allowHints"
                   render={({ field }) => (
-                    <Checkbox
+                    <Switch
                       id="allowHints"
                       label="Allow progressive hints (piece → square → move)"
                       checked={field.value}
@@ -514,7 +515,7 @@ export function AssignmentFormDialog({
 
           {canAssignOnCreate && (
             <div className="rounded-app border border-app-border bg-app-background/50 p-3">
-              <Checkbox
+              <Switch
                 id="assignNow"
                 label="Assign to my batches now"
                 checked={assignNow}

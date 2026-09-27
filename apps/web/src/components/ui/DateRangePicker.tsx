@@ -63,15 +63,29 @@ export function DateRangePicker({
   onChange: (value: DateRangeValue) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [range, setRange] = useState<DateRange | undefined>(
-    value.from && value.to
-      ? { from: new Date(value.from), to: new Date(value.to) }
-      : undefined
-  );
+  const toRange = (current: DateRangeValue): DateRange | undefined =>
+    current.from && current.to
+      ? { from: new Date(current.from), to: new Date(current.to) }
+      : undefined;
+  const [range, setRange] = useState<DateRange | undefined>(toRange(value));
+
+  // A custom range is applied once, on close, not on every click.
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      setRange(toRange(value));
+    } else if (range?.from && range.to) {
+      const from = range.from.toISOString().slice(0, 10);
+      const to = range.to.toISOString().slice(0, 10);
+      if (from !== value.from || to !== value.to) {
+        onChange({ ...value, preset: "custom", from, to });
+      }
+    }
+    setOpen(next);
+  };
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Popover onOpenChange={setOpen} open={open}>
+      <Popover onOpenChange={handleOpenChange} open={open}>
         <PopoverTrigger asChild>
           <Button
             className="min-w-[12rem] justify-between gap-2"
@@ -112,19 +126,20 @@ export function DateRangePicker({
               <Calendar
                 mode="range"
                 numberOfMonths={1}
-                onSelect={(next) => {
-                  setRange(next);
-                  if (next?.from && next?.to) {
-                    onChange({
-                      ...value,
-                      preset: "custom",
-                      from: next.from.toISOString().slice(0, 10),
-                      to: next.to.toISOString().slice(0, 10)
-                    });
-                  }
-                }}
+                onSelect={setRange}
                 selected={range}
               />
+              <div className="px-3 pb-3">
+                <Button
+                  className="w-full"
+                  disabled={!range?.from || !range.to}
+                  onClick={() => handleOpenChange(false)}
+                  size="sm"
+                  type="button"
+                >
+                  Apply
+                </Button>
+              </div>
             </div>
           </div>
         </PopoverContent>

@@ -25,7 +25,6 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/Dialog";
-import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useToast } from "@/providers/ToastProvider";
 import {
@@ -42,6 +41,7 @@ import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
 import { BatchScheduleCalendar } from "./BatchScheduleCalendar";
 import { DAY_LABELS, formatInZone, formatWallTime } from "../lib/scheduleFormat";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "message" in error) {
@@ -179,8 +179,8 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
 
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-extrabold uppercase text-primary">{schedule.batchName}</p>
-            <h1 className="mt-1 text-2xl font-extrabold text-app-text">{schedule.title}</h1>
+            <p className="text-xs font-extrabold uppercase text-primary-ink">{schedule.batchName}</p>
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-1 text-app-text">{schedule.title}</h1>
             <p className="mt-1 text-sm text-app-muted">
               {schedule.startDate} → {schedule.endDate} · {schedule.timezone}
             </p>
@@ -294,7 +294,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
 
         <Card className="grid gap-2 p-4">
           <p className="flex items-center gap-2 text-sm font-extrabold text-app-text">
-            <CalendarClock className="size-4 text-primary" aria-hidden="true" />
+            <CalendarClock className="size-4 text-primary-ink" aria-hidden="true" />
             Sessions
           </p>
           <div className="max-h-96 overflow-y-auto">
@@ -323,9 +323,9 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
                           Reschedule
                         </Button>
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          className="text-app-danger"
+                          className="border-app-danger text-app-danger hover:bg-app-soft"
                           onClick={() =>
                             runOccurrenceAction({ classId: cls.id, payload: { action: "CANCEL" } })
                           }
@@ -411,15 +411,15 @@ function RescheduleDialog({
         <div className="grid gap-3">
           <label className="grid gap-1 text-xs font-bold text-app-muted">
             New start (UTC)
-            <Input
-              type="datetime-local"
+            <DateStringPicker withTime
+              
               value={start}
-              onChange={(e) => setStart(e.target.value)}
+              onChange={(value) => setStart(value)}
             />
           </label>
           <label className="grid gap-1 text-xs font-bold text-app-muted">
             New end (UTC)
-            <Input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} />
+            <DateStringPicker withTime  value={end} onChange={(value) => setEnd(value)} />
           </label>
         </div>
         <DialogFooter>

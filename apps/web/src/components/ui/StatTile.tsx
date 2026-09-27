@@ -31,7 +31,7 @@ export function StatTile({
   const hasRing = typeof progress === "number" && Number.isFinite(progress);
 
   return (
-    <article className="rounded-app border border-app-border bg-app-surface p-5 shadow-card transition-colors duration-200 hover:border-primary">
+    <article className="rounded-[20px] border border-app-border bg-app-surface p-5 shadow-card transition-colors duration-200 hover:border-primary">
       <div className="mb-3 flex items-center justify-between gap-2">
         {hasRing ? (
           <span aria-hidden="true" className="relative flex size-9 items-center justify-center">
@@ -64,13 +64,9 @@ export function StatTile({
         ) : (
           <span
             aria-hidden="true"
-            className={cn(
-              "flex size-9 items-center justify-center rounded-control border",
-              style.border,
-              style.chip
-            )}
+            className="flex size-10 items-center justify-center rounded-full [background:linear-gradient(var(--color-surface),var(--color-surface))_padding-box,linear-gradient(160deg,rgb(var(--rgb-primary)/0.1),rgb(var(--rgb-primary)),rgb(var(--rgb-secondary)))_border-box] border-2 border-transparent"
           >
-            <Icon className="size-4" strokeWidth={2.5} />
+            <Icon className={cn("size-4", style.text)} strokeWidth={2.5} />
           </span>
         )}
 

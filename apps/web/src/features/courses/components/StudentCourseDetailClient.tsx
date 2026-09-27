@@ -30,7 +30,7 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-app-text">{course.title}</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{course.title}</h1>
         {course.description && <p className="mt-1 text-sm text-app-muted">{course.description}</p>}
         <div className="mt-3 flex items-center gap-3">
           <div

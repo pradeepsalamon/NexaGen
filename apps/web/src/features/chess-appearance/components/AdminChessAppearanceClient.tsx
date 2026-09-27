@@ -12,7 +12,6 @@ import {
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
@@ -28,6 +27,7 @@ import {
   useResetChessAppearanceAdminMutation,
   useUpdateChessAppearanceAdminMutation,
 } from "../hooks/useChessAppearanceApi";
+import { Switch } from "@/components/ui/Switch";
 
 const PREVIEW_FEN = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
 
@@ -103,7 +103,7 @@ export function AdminChessAppearanceClient() {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
             <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-surface))] p-3.5 text-sm text-app-text">
-              <Info className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
+              <Info className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
               <p>
                 This changes the default appearance for users who have not selected a personal board
                 preference. Users with their own preference are unaffected.
@@ -123,7 +123,7 @@ export function AdminChessAppearanceClient() {
                     </p>
                   </div>
                 </div>
-                <Checkbox
+                <Switch
                   id="chess-appearance-locked"
                   checked={locked}
                   onCheckedChange={(c) => setLocked(c === true)}
@@ -180,7 +180,7 @@ export function AdminChessAppearanceClient() {
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Board themes</p>
                   {BOARD_THEME_CATALOG.map((theme) => (
-                    <Checkbox
+                    <Switch
                       key={theme.id}
                       id={`board-theme-enabled-${theme.id}`}
                       label={theme.name}
@@ -194,7 +194,7 @@ export function AdminChessAppearanceClient() {
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Piece sets</p>
                   {PIECE_SET_CATALOG.map((set) => (
-                    <Checkbox
+                    <Switch
                       key={set.id}
                       id={`piece-set-enabled-${set.id}`}
                       label={set.name}
@@ -208,7 +208,7 @@ export function AdminChessAppearanceClient() {
                 <div className="space-y-2">
                   <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Sound themes</p>
                   {SOUND_THEME_CATALOG.map((theme) => (
-                    <Checkbox
+                    <Switch
                       key={theme.id}
                       id={`sound-theme-enabled-${theme.id}`}
                       label={theme.name}

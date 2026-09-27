@@ -16,6 +16,7 @@ import { AttendancePercentBar } from "@/features/attendance/components/Attendanc
 import { formatDuration, formatLongDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { ClassEndFeedback } from "@/features/feedback/components/ClassEndFeedback";
+import { Badge } from "@/components/ui/Badge";
 
 function Shell({
   topic,
@@ -61,7 +62,7 @@ export function ClassSummary({ classId }: { classId: string }) {
     return (
       <Shell topic="Live Class">
         <div className="flex flex-col items-center justify-center gap-3 py-24 text-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
           <p className="text-app-muted">Loading class summary…</p>
         </div>
       </Shell>
@@ -89,9 +90,7 @@ export function ClassSummary({ classId }: { classId: string }) {
           <h2 className="text-2xl font-bold tracking-tight text-app-text">
             {data.topic}
           </h2>
-          <span className="inline-flex items-center rounded-full border border-app-border bg-app-soft px-2.5 py-0.5 text-xs font-medium text-app-muted">
-            {data.status}
-          </span>
+          <Badge variant="secondary">{data.status}</Badge>
         </div>
         <p className="text-sm text-app-muted">
           {data.batchName} &middot; {data.coachName} &middot;{" "}
@@ -112,7 +111,7 @@ export function ClassSummary({ classId }: { classId: string }) {
         </div>
       ) : !data.finalized ? (
         <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-          <Loader2 className="h-7 w-7 animate-spin text-primary" />
+          <Loader2 className="h-7 w-7 animate-spin text-primary-ink" />
           <p className="font-medium text-app-text">Calculating attendance…</p>
           <p className="text-sm text-app-muted">
             This usually takes a few seconds. You can return to your dashboard
@@ -139,7 +138,7 @@ export function ClassSummary({ classId }: { classId: string }) {
           />
         </>
       ) : data.myAttendance ? (
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="space-y-5 p-6">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-app-muted">
@@ -193,7 +192,7 @@ export function ClassSummary({ classId }: { classId: string }) {
               </div>
             </div>
 
-            <Button asChild variant="ghost" className="gap-1.5 px-0 text-primary">
+            <Button asChild variant="ghost" className="gap-1.5 px-0 text-primary-ink">
               <a href="/student/attendance">
                 <RotateCw className="h-4 w-4" />
                 View full attendance history

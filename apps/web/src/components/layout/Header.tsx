@@ -158,13 +158,20 @@ export function Header({
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface/95 shadow-[0_1px_0_rgba(16,24,40,0.02)] backdrop-blur supports-[backdrop-filter]:bg-app-surface/[0.88]">
-      <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-3 min-w-0 justify-self-start">
+      <div
+        className={cn(
+          "mx-auto grid h-full w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-3 sm:px-6 lg:px-8",
+          // The classroom's right cluster (connection, timer, account…) is too
+          // wide for a 7xl column and would spill into the centred title.
+          compact ? "max-w-none" : "max-w-7xl"
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-2 justify-self-start sm:gap-3">
           {hasSidebar ? (
             <button
               aria-expanded={sidebarOpen}
               aria-label="Open menu"
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-primary transition hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:size-10"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-primary-ink transition hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:size-10"
               onClick={toggleSidebar}
               type="button"
             >
@@ -184,7 +191,7 @@ export function Header({
         {centerSlot ? (
           centerSlot
         ) : (
-          <h1 className="max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:max-w-none sm:text-base">
+          <h1 className="hidden max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:block sm:max-w-none sm:text-base">
             {pageTitle}
           </h1>
         )}
@@ -193,8 +200,8 @@ export function Header({
           {activeUser && (
             <Link
               className={cn(
-                "min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
-                compact ? "hidden lg:inline-flex" : "inline-flex",
+                "min-h-9 items-center gap-2 rounded-control border px-3 text-xs font-extrabold shadow-card transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:text-sm",
+                compact ? "hidden lg:inline-flex" : hasSidebar ? "hidden sm:inline-flex" : "inline-flex",
                 pathname.startsWith(dashboardHref) && dashboardHref !== "/"
                   ? "border-primary bg-primary text-white"
                   : "border-app-border bg-app-soft text-app-text hover:border-primary/50 hover:bg-app-soft/80"

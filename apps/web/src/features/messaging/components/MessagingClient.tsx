@@ -15,7 +15,7 @@ export function MessagingClient() {
       />
 
       <Tabs defaultValue="rules">
-        <TabsList>
+        <TabsList className="justify-self-end">
           <TabsTrigger value="rules">Message rules</TabsTrigger>
           <TabsTrigger value="announcements">Announcements</TabsTrigger>
           <TabsTrigger value="log">Delivery log</TabsTrigger>

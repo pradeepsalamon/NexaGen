@@ -14,11 +14,11 @@ export const ClassSummaryCards = memo(function ClassSummaryCards({
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="p-2 rounded-lg bg-primary/10 border border-primary/20">
-              <Clock className="h-5 w-5 text-primary" />
+            <span className="p-2 rounded-control bg-primary/10 border border-primary/20">
+              <Clock className="h-5 w-5 text-primary-ink" />
             </span>
           </div>
           <p className="text-2xl font-bold tracking-tight">
@@ -30,14 +30,14 @@ export const ClassSummaryCards = memo(function ClassSummaryCards({
         </CardContent>
       </Card>
 
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <Clock className="h-5 w-5 text-blue-500" />
+            <span className="p-2 rounded-control bg-primary/10 border border-primary/20">
+              <Clock className="h-5 w-5 text-primary-ink" />
             </span>
           </div>
-          <p className="text-2xl font-bold tracking-tight text-blue-600">
+          <p className="text-2xl font-bold tracking-tight text-primary-ink">
             {formatDuration(data.actualDuration)}
           </p>
           <p className="text-sm font-medium text-app-muted mt-1">
@@ -46,10 +46,10 @@ export const ClassSummaryCards = memo(function ClassSummaryCards({
         </CardContent>
       </Card>
 
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
+            <span className="p-2 rounded-control bg-purple-500/10 border border-purple-500/20">
               <Users className="h-5 w-5 text-purple-500" />
             </span>
           </div>
@@ -65,10 +65,10 @@ export const ClassSummaryCards = memo(function ClassSummaryCards({
         </CardContent>
       </Card>
 
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+            <span className="p-2 rounded-control bg-green-500/10 border border-green-500/20">
               <Users className="h-5 w-5 text-green-500" />
             </span>
           </div>

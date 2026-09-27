@@ -17,10 +17,10 @@ export function EmptyMeetingState() {
       transition={{ duration: 0.35, ease: "easeOut" }}
       className="flex h-full w-full flex-col items-center justify-center gap-5 px-4 text-center"
     >
-      <div className="relative flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+      <div className="relative flex size-16 items-center justify-center rounded-app bg-primary/10 text-primary-ink">
         <Users className="size-7" />
         {!reducedMotion && (
-          <span className="absolute inset-0 rounded-2xl border border-primary/30 motion-safe:animate-ping" />
+          <span className="absolute inset-0 rounded-app border border-primary/30 motion-safe:animate-ping" />
         )}
       </div>
 

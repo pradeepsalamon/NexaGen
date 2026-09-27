@@ -5,6 +5,7 @@ import {
   type LiveChatMessageResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
+  type PullRosterResponse,
   type ResolveScreenShareRequest,
   type ResolveWaitingRoomRequest,
   type ScreenShareRequestEntry,
@@ -158,3 +159,19 @@ export const updateRecordingProgress = (roomId: string, watchedSeconds: number):
     body: { watchedSeconds }
   });
 };
+
+// Pull a student into class (coach-owner/admin).
+export const getPullRoster = (roomId: string) =>
+  apiFetch<PullRosterResponse>(API_ROUTES.liveClass.pullRoster(roomId));
+
+export const pullStudent = (roomId: string, studentId: string) =>
+  apiFetch<{ status: "PENDING" }>(API_ROUTES.liveClass.pullStudent(roomId), {
+    method: "POST",
+    body: { studentId }
+  });
+
+export const cancelPull = (roomId: string, studentId: string) =>
+  apiFetch<{ cancelled: boolean }>(API_ROUTES.liveClass.cancelPull(roomId), {
+    method: "POST",
+    body: { studentId }
+  });

@@ -8,6 +8,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { useStudentAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent, relativeTime } from "../../lib/format";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function StudentAnalyticsSection({
   query
@@ -79,40 +80,40 @@ function StudentTable({
   const tz = useUserTimeZone();
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[420px] text-left text-sm">
-        <thead className="text-xs uppercase tracking-wide text-app-muted">
-          <tr>
-            <th className="pb-2">Student</th>
-            <th className="pb-2 text-right">Attendance</th>
-            <th className="pb-2 text-right">Hours</th>
-            <th className="pb-2 text-right">Last active</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-app-border">
+      <Table className="w-full min-w-[420px] text-left text-sm">
+        <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+          <TableRow>
+            <TableHead className="pb-2">Student</TableHead>
+            <TableHead className="pb-2 text-right">Attendance</TableHead>
+            <TableHead className="pb-2 text-right">Hours</TableHead>
+            <TableHead className="pb-2 text-right">Last active</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-app-border">
           {rows.map((s) => (
-            <tr key={s.studentId}>
-              <td className="py-2 font-medium text-app-text">{s.name}</td>
-              <td
+            <TableRow key={s.studentId}>
+              <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
+              <TableCell
                 className={`py-2 text-right font-semibold ${
                   danger ? "text-app-danger" : "text-app-text"
                 }`}
               >
                 {formatPercent(s.attendancePercent)}
-              </td>
-              <td className="py-2 text-right">{formatHours(s.learningHours)}</td>
-              <td className="py-2 text-right text-app-muted">
+              </TableCell>
+              <TableCell className="py-2 text-right">{formatHours(s.learningHours)}</TableCell>
+              <TableCell className="py-2 text-right text-app-muted">
                 {relativeTime(s.lastActiveAt, tz)}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
           {isLoading ? (
-            <tr><td className="py-3 text-app-muted" colSpan={4}>Loading…</td></tr>
+            <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={4}>Loading…</TableCell></TableRow>
           ) : null}
           {!isLoading && rows.length === 0 ? (
-            <tr><td className="py-3 text-app-muted" colSpan={4}>Nothing to show.</td></tr>
+            <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={4}>Nothing to show.</TableCell></TableRow>
           ) : null}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

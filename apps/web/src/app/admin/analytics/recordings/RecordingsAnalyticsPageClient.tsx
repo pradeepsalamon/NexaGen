@@ -57,7 +57,7 @@ export function RecordingsAnalyticsPageClient() {
                   header: "Class",
                   render: (r) => (
                     <Link
-                      className="font-medium text-primary hover:underline"
+                      className="font-medium text-primary-ink hover:underline"
                       href={`/classes/${r.classId}`}
                     >
                       {r.topic}

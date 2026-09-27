@@ -38,7 +38,7 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
         src={imageUrl}
         alt={name}
         className={cn(
-          "rounded-full object-cover shadow-lg border border-app-border",
+          "rounded-full object-cover shadow-lift border border-app-border",
           sizeMap[size],
           className
         )}
@@ -49,7 +49,7 @@ export const ParticipantAvatar = memo(function ParticipantAvatar({
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] font-extrabold text-primary shadow-sm",
+        "flex items-center justify-center rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] font-extrabold text-primary-ink shadow-card",
         sizeMap[size],
         className
       )}

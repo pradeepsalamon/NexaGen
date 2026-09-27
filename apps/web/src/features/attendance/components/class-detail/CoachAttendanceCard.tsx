@@ -12,7 +12,7 @@ export const CoachAttendanceCard = memo(function CoachAttendanceCard({
 }) {
   const tz = useUserTimeZone();
   return (
-    <Card className="border-app-border bg-app-surface shadow-sm">
+    <Card className="border-app-border bg-app-surface shadow-card">
       <CardHeader className="bg-app-soft/50 border-b border-app-border">
         <CardTitle className="text-lg">
           Coach Attendance — {coach.coachName}

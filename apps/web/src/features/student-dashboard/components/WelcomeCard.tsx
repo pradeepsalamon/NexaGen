@@ -131,7 +131,7 @@ export function WelcomeCard({
           <span className="inline-flex items-center rounded-full border border-secondary/40 bg-secondary/25 px-2.5 py-0.5 text-xs font-extrabold text-secondary-ink">
             {batchName}
           </span>
-          <h1 className="mt-2 flex items-center gap-3 text-2xl font-extrabold tracking-tight text-app-text sm:text-3xl">
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 flex items-center gap-3 text-app-text">
             <span>Welcome back, {studentName}!</span>
             <span aria-hidden="true" className="inline-block motion-safe:animate-bounce">
               👋

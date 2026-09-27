@@ -14,6 +14,7 @@ import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 import { RankBarList } from "../RankBarList";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function CoachAnalyticsSection({
   query,
@@ -84,44 +85,44 @@ export function CoachAnalyticsSection({
             <div className="mt-6 overflow-x-auto">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-sm font-bold text-app-text">Leaderboard</p>
-                <Link className="text-xs font-semibold text-primary hover:underline" href="/admin/analytics/coaches">
+                <Link className="text-xs font-semibold text-primary-ink hover:underline" href="/admin/analytics/coaches">
                   View full table →
                 </Link>
               </div>
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-wide text-app-muted">
-                  <tr>
-                    <th className="pb-2">Coach</th>
-                    <th className="pb-2 text-right">Classes</th>
-                    <th className="pb-2 text-right">Hours</th>
-                    <th className="pb-2 text-right">Students</th>
-                    <th className="pb-2 text-right">Attendance</th>
-                    <th className="pb-2 text-right">Avg duration</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-app-border">
+              <Table className="w-full min-w-[640px] text-left text-sm">
+                <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+                  <TableRow>
+                    <TableHead className="pb-2">Coach</TableHead>
+                    <TableHead className="pb-2 text-right">Classes</TableHead>
+                    <TableHead className="pb-2 text-right">Hours</TableHead>
+                    <TableHead className="pb-2 text-right">Students</TableHead>
+                    <TableHead className="pb-2 text-right">Attendance</TableHead>
+                    <TableHead className="pb-2 text-right">Avg duration</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-app-border">
                   {(data?.leaderboard ?? []).slice(0, 8).map((c) => (
-                    <tr key={c.coachId}>
-                      <td className="py-2">
-                        <Link className="font-medium text-primary hover:underline" href={`/admin/analytics/coaches/${c.coachId}`}>
+                    <TableRow key={c.coachId}>
+                      <TableCell className="text-left py-2">
+                        <Link className="font-medium text-primary-ink hover:underline" href={`/admin/analytics/coaches/${c.coachId}`}>
                           {c.name}
                         </Link>
-                      </td>
-                      <td className="py-2 text-right">{c.completedClasses}/{c.classesConducted}</td>
-                      <td className="py-2 text-right">{formatHours(c.teachingHours)}</td>
-                      <td className="py-2 text-right">{c.students}</td>
-                      <td className="py-2 text-right">{formatPercent(c.avgAttendancePercent)}</td>
-                      <td className="py-2 text-right">{c.avgClassDurationMinutes ?? "—"} min</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell className="py-2 text-right">{c.completedClasses}/{c.classesConducted}</TableCell>
+                      <TableCell className="py-2 text-right">{formatHours(c.teachingHours)}</TableCell>
+                      <TableCell className="py-2 text-right">{c.students}</TableCell>
+                      <TableCell className="py-2 text-right">{formatPercent(c.avgAttendancePercent)}</TableCell>
+                      <TableCell className="py-2 text-right">{c.avgClassDurationMinutes ?? "—"} min</TableCell>
+                    </TableRow>
                   ))}
                   {isLoading ? (
-                    <tr><td className="py-3 text-app-muted" colSpan={6}>Loading…</td></tr>
+                    <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={6}>Loading…</TableCell></TableRow>
                   ) : null}
                   {!isLoading && (data?.leaderboard.length ?? 0) === 0 ? (
-                    <tr><td className="py-3 text-app-muted" colSpan={6}>No coach activity for this period.</td></tr>
+                    <TableRow><TableCell className="text-left py-3 text-app-muted" colSpan={6}>No coach activity for this period.</TableCell></TableRow>
                   ) : null}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           ) : null}
         </>

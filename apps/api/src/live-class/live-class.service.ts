@@ -23,6 +23,9 @@ import {
   privateChatRecipientAllowed,
   LIVE_CLASS_MODERATION_TOPIC,
   LIVE_CLASS_RECORDING_TOPIC,
+  PRESENCE_ONLINE_WINDOW_MS,
+  type PullRosterResponse,
+  type PullRosterStudent,
   LIVE_CLASS_SCREEN_SHARE_TOPIC,
   LIVE_CLASS_SETTINGS_TOPIC,
   LIVE_CLASS_WAITING_ROOM_TOPIC,
@@ -424,6 +427,13 @@ export class LiveClassService {
 
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
     const topic = liveSession.class?.topic || liveSession.class?.title || "Live Class";
+
+    if (isStudent) {
+      await this.prisma.liveClassPull.updateMany({
+        where: { liveSessionId: liveSession.id, studentId: user.id, status: "PENDING" },
+        data: { status: "JOINED", resolvedAt: new Date() },
+      });
+    }
 
     // Auto-mark attendance for students when they request a token (join class)
     if (isStudent && liveSession.classId) {
@@ -1086,6 +1096,13 @@ export class LiveClassService {
     liveSession: { id: string; roomName: string },
     user: { id: string },
   ): Promise<void> {
+    // The coach explicitly pulled this student in — that is the admission.
+    const pulled = await this.prisma.liveClassPull.findFirst({
+      where: { liveSessionId: liveSession.id, studentId: user.id, status: { in: ["PENDING", "JOINED"] } },
+      select: { id: true },
+    });
+    if (pulled) return;
+
     const existing = await this.prisma.liveClassWaitingParticipant.findUnique({
       where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId: user.id } },
     });
@@ -1123,6 +1140,117 @@ export class LiveClassService {
   }
 
   /** Coach-owner/admin: students currently pending admission, oldest first. */
+  // ─── Pull a student into class ───────────────────────────────
+
+  /**
+   * Coach-owner/admin: every student in the class's batch with whether they
+   * have the app open (presence heartbeat), are already in the room, and any
+   * pull already sent.
+   */
+  async getPullRoster(accessToken: string | undefined, classId: string): Promise<PullRosterResponse> {
+    const { liveSession } = await this.resolveClassManager(accessToken, classId);
+
+    const coachClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
+      select: { batchId: true },
+    });
+    if (!coachClass?.batchId) return { students: [] };
+
+    const [enrolments, pulls, inRoom] = await Promise.all([
+      this.prisma.batchStudent.findMany({
+        where: { batchId: coachClass.batchId, student: { status: UserStatus.ACTIVE } },
+        include: {
+          student: {
+            select: { id: true, firstName: true, lastName: true, avatarUrl: true, lastSeenAt: true },
+          },
+        },
+      }),
+      this.prisma.liveClassPull.findMany({ where: { liveSessionId: liveSession.id } }),
+      this.connectedUserIds(liveSession.roomName),
+    ]);
+
+    const pullByStudent = new Map(pulls.map((p) => [p.studentId, p]));
+    const onlineSince = Date.now() - PRESENCE_ONLINE_WINDOW_MS;
+
+    const students: PullRosterStudent[] = enrolments.map(({ student }) => {
+      const pull = pullByStudent.get(student.id);
+      return {
+        studentId: student.id,
+        name: `${student.firstName} ${student.lastName ?? ""}`.trim(),
+        avatarUrl: student.avatarUrl,
+        online: !!student.lastSeenAt && student.lastSeenAt.getTime() >= onlineSince,
+        lastSeenAt: student.lastSeenAt?.toISOString() ?? null,
+        inClass: inRoom.has(student.id),
+        pull: pull ? { status: pull.status, requestedAt: pull.requestedAt.toISOString() } : null,
+      };
+    });
+
+    // Who the coach is most likely to act on first: absent + online.
+    students.sort(
+      (a, b) =>
+        Number(a.inClass) - Number(b.inClass) ||
+        Number(b.online) - Number(a.online) ||
+        a.name.localeCompare(b.name),
+    );
+    return { students };
+  }
+
+  /** Coach-owner/admin: send (or re-send) a pull to one enrolled student. */
+  async pullStudent(
+    accessToken: string | undefined,
+    classId: string,
+    studentId: string,
+  ): Promise<{ status: "PENDING" }> {
+    const { user, liveSession } = await this.resolveClassManager(accessToken, classId, { requireLive: true });
+
+    const coachClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
+      select: { batchId: true },
+    });
+    const enrolled = coachClass?.batchId
+      ? await this.prisma.batchStudent.findFirst({
+          where: { batchId: coachClass.batchId, studentId },
+          select: { id: true },
+        })
+      : null;
+    if (!enrolled) {
+      throw new BadRequestException("That student is not in this class's batch.");
+    }
+
+    const now = new Date();
+    await this.prisma.liveClassPull.upsert({
+      where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId } },
+      update: { status: "PENDING", requestedAt: now, resolvedAt: null, requestedById: user.id },
+      create: { liveSessionId: liveSession.id, studentId, requestedById: user.id },
+    });
+    return { status: "PENDING" };
+  }
+
+  /** Coach-owner/admin: withdraw a pull the student has not acted on yet. */
+  async cancelPull(
+    accessToken: string | undefined,
+    classId: string,
+    studentId: string,
+  ): Promise<{ cancelled: boolean }> {
+    const { liveSession } = await this.resolveClassManager(accessToken, classId);
+    const { count } = await this.prisma.liveClassPull.updateMany({
+      where: { liveSessionId: liveSession.id, studentId, status: "PENDING" },
+      data: { status: "CANCELLED", resolvedAt: new Date() },
+    });
+    return { cancelled: count > 0 };
+  }
+
+  /** User ids connected to the room; empty (not an error) if LiveKit can't be asked. */
+  private async connectedUserIds(roomName: string): Promise<Set<string>> {
+    try {
+      const participants = await this.livekit.listParticipants(roomName);
+      return new Set(participants.map((p) => p.identity.split("_")[0]));
+    } catch (error) {
+      this.logger.warn(`Could not list participants for ${roomName}`, error as Error);
+      return new Set();
+    }
+  }
+
   async getWaitingRoomList(
     accessToken: string | undefined,
     classId: string,

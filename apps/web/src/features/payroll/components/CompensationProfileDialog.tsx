@@ -32,6 +32,7 @@ import {
   useAddCompensationRate,
   useUpdateCompensationProfile
 } from "../hooks/usePayrollApi";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 const ENGAGEMENT_TYPES = Object.keys(COACH_ENGAGEMENT_TYPE_LABELS) as CoachEngagementType[];
 const COMPENSATION_MODELS = Object.keys(COACH_COMPENSATION_MODEL_LABELS) as CoachCompensationModel[];
@@ -263,10 +264,10 @@ export function CompensationProfileDialog({
 
                 <div>
                   <Label htmlFor="rate-effective-from">Effective from</Label>
-                  <Input
+                  <DateStringPicker
                     id="rate-effective-from"
-                    onChange={(event) => setEffectiveFrom(event.target.value)}
-                    type="date"
+                    onChange={(value) => setEffectiveFrom(value)}
+                    
                     value={effectiveFrom}
                   />
                 </div>
@@ -302,7 +303,7 @@ export function CompensationProfileDialog({
         )}
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Close
           </Button>
         </DialogFooter>

@@ -25,7 +25,7 @@ export function UserAvatar({ href = "/profile", user }: UserAvatarProps) {
       <TooltipTrigger asChild>
         <Link
           aria-label="Show profile"
-          className="inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-sm font-extrabold text-primary shadow-card transition hover:border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+          className="inline-flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-sm font-extrabold text-primary-ink shadow-card transition hover:border-[color-mix(in_srgb,var(--color-primary)_45%,var(--color-border))] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           href={href}
         >
           {user?.avatarUrl ? (

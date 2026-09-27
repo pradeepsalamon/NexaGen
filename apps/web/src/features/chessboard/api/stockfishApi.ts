@@ -6,11 +6,12 @@ export type { StockfishAnalysisResult };
 
 export async function analyzePosition(
   fen: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  mode: "analysis" | "move" = "analysis"
 ): Promise<StockfishAnalysisResult> {
   return apiFetch<StockfishAnalysisResult>(API_ROUTES.stockfish.analyze, {
     method: "POST",
-    body: { fen },
+    body: { fen, mode },
     signal
   });
 }

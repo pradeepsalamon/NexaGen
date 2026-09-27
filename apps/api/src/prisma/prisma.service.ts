@@ -85,6 +85,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.liveClassWaitingParticipant;
   }
 
+  get liveClassPull() {
+    return this.client.liveClassPull;
+  }
+
   get demoClassRegistration() {
     return this.client.demoClassRegistration;
   }
@@ -219,6 +223,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get liveClassPuzzleAssignment() {
     return this.client.liveClassPuzzleAssignment;
+  }
+
+  get liveClassSimul() {
+    return this.client.liveClassSimul;
+  }
+
+  get liveClassSimulGame() {
+    return this.client.liveClassSimulGame;
   }
 
   get puzzleScoringSettings() {

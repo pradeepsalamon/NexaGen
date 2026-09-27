@@ -41,7 +41,7 @@ export function UserSettings({
   return (
     <Card className="grid gap-5 p-5">
       <div>
-        <p className="text-xs font-extrabold uppercase text-primary">
+        <p className="text-xs font-extrabold uppercase text-primary-ink">
           Table settings
         </p>
         <h2 className="mt-2 text-xl font-extrabold text-app-text">

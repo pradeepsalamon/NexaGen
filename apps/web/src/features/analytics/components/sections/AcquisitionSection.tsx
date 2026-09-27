@@ -7,6 +7,7 @@ import { BarChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useAcquisitionQuery } from "../../hooks/useAnalyticsApi";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
   const { data, isLoading, isError, refetch } = useAcquisitionQuery(query);
@@ -54,32 +55,32 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
             </span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="text-xs uppercase tracking-wide text-app-muted">
-                  <th className="pb-2">Source</th>
-                  <th className="pb-2 text-right">Users</th>
-                  <th className="pb-2 text-right">%</th>
-                  <th className="pb-2 text-right">Trend</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-app-border">
+            <Table className="w-full text-left text-sm">
+              <TableHeader>
+                <TableRow className="text-xs uppercase tracking-wide text-app-muted">
+                  <TableHead className="pb-2">Source</TableHead>
+                  <TableHead className="pb-2 text-right">Users</TableHead>
+                  <TableHead className="pb-2 text-right">%</TableHead>
+                  <TableHead className="pb-2 text-right">Trend</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-app-border">
                 {(data?.sources ?? []).map((s) => (
-                  <tr key={s.key}>
-                    <td className="py-2">
+                  <TableRow key={s.key}>
+                    <TableCell className="text-left py-2">
                       <Link
-                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        className="inline-flex items-center gap-1 font-medium text-primary-ink hover:underline"
                         href={`/admin/analytics/users?acquisitionSource=${s.key}`}
                       >
                         {s.label}
                         <ArrowUpRight className="size-3" />
                       </Link>
-                    </td>
-                    <td className="py-2 text-right font-semibold text-app-text">
+                    </TableCell>
+                    <TableCell className="py-2 text-right font-semibold text-app-text">
                       {s.users.toLocaleString()}
-                    </td>
-                    <td className="py-2 text-right text-app-muted">{s.percent}%</td>
-                    <td className="py-2 text-right">
+                    </TableCell>
+                    <TableCell className="py-2 text-right text-app-muted">{s.percent}%</TableCell>
+                    <TableCell className="py-2 text-right">
                       {s.deltaPct === null ? (
                         <span className="text-app-muted">—</span>
                       ) : (
@@ -92,18 +93,18 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                           {s.deltaPct}%
                         </span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {isLoading ? (
-                  <tr>
-                    <td className="py-3 text-app-muted" colSpan={4}>
+                  <TableRow>
+                    <TableCell className="text-left py-3 text-app-muted" colSpan={4}>
                       Loading…
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : null}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </div>
       </div>

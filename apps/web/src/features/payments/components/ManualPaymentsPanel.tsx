@@ -38,6 +38,7 @@ import {
   useUpdateOfflineMethod
 } from "../hooks/usePaymentsApi";
 import { RecordManualPaymentDialog } from "./RecordManualPaymentDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 const STATUS_VARIANT: Record<
   ManualPaymentReviewStatus,
@@ -109,53 +110,53 @@ export function ManualPaymentsPanel() {
       ) : (
         <Card className="overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] text-sm">
-              <thead className="border-b border-app-border bg-app-soft text-left">
-                <tr className="text-xs uppercase tracking-wide text-app-muted">
-                  <th className="px-4 py-3">Date</th>
-                  <th className="px-4 py-3">Student</th>
-                  <th className="px-4 py-3">Plan</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3">Method</th>
-                  <th className="px-4 py-3">Recorded by</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full min-w-[900px] text-sm">
+              <TableHeader className="border-b border-app-border bg-app-soft text-left">
+                <TableRow className="text-xs uppercase tracking-wide text-app-muted">
+                  <TableHead className="px-4 py-3">Date</TableHead>
+                  <TableHead className="px-4 py-3">Student</TableHead>
+                  <TableHead className="px-4 py-3">Plan</TableHead>
+                  <TableHead className="px-4 py-3 text-right">Amount</TableHead>
+                  <TableHead className="px-4 py-3">Method</TableHead>
+                  <TableHead className="px-4 py-3">Recorded by</TableHead>
+                  <TableHead className="px-4 py-3">Status</TableHead>
+                  <TableHead className="px-4 py-3 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {records.map((record) => (
-                  <tr
+                  <TableRow
                     className="border-b border-app-border last:border-b-0"
                     key={record.id}
                   >
-                    <td className="whitespace-nowrap px-4 py-3 text-app-muted">
+                    <TableCell className="text-left whitespace-nowrap px-4 py-3 text-app-muted">
                       {formatDateTime(record.createdAt, timeZone)}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <span className="block font-semibold text-app-text">
                         {record.studentName ?? "—"}
                       </span>
                       <span className="block font-mono text-xs text-app-muted">
                         {record.orderNumber}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-app-muted">
                       {record.planName}
                       {record.batchName ? (
                         <span className="block text-xs">{record.batchName}</span>
                       ) : null}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-app-text">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap px-4 py-3 text-right font-semibold tabular-nums text-app-text">
                       {formatMoney(record.amount, record.currency)}
-                    </td>
-                    <td className="px-4 py-3 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-app-muted">
                       {record.methodLabel}
                       {record.reference ? (
                         <span className="block text-xs">{record.reference}</span>
                       ) : null}
                       {record.hasAttachment ? (
                         <a
-                          className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                          className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
                           href={manualPaymentAttachmentUrl(record.id)}
                           rel="noopener noreferrer"
                           target="_blank"
@@ -163,14 +164,14 @@ export function ManualPaymentsPanel() {
                           View proof <ExternalLink className="size-3" strokeWidth={2.5} />
                         </a>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-3 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-app-muted">
                       {record.recordedByName ?? "—"}
                       <span className="block text-xs capitalize">
                         {record.recordedByRole.toLowerCase()}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <Badge variant={STATUS_VARIANT[record.status]}>
                         {record.status === "PENDING"
                           ? "Pending"
@@ -183,19 +184,19 @@ export function ManualPaymentsPanel() {
                           {record.rejectionReason}
                         </span>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       {record.status === "PENDING" ? (
                         <div className="flex justify-end gap-1.5">
                           <SimpleTooltip label="Approve — grants access">
                             <Button
                               aria-label={`Approve payment for ${record.studentName ?? "student"}`}
-                              className="size-8 rounded-full border-accent p-0 hover:bg-accent hover:text-white"
+                              className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
                               disabled={approve.isPending}
                               onClick={() => approve.mutate(record.id)}
                               size="icon"
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                             >
                               <Check className="size-3.5" strokeWidth={2.5} />
                             </Button>
@@ -203,22 +204,22 @@ export function ManualPaymentsPanel() {
                           <SimpleTooltip label="Reject">
                             <Button
                               aria-label={`Reject payment for ${record.studentName ?? "student"}`}
-                              className="size-8 rounded-full border-app-danger p-0 hover:bg-app-danger hover:text-white"
+                              className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                               onClick={() => setRejecting(record)}
                               size="icon"
                               type="button"
-                              variant="outline"
+                              variant="ghost"
                             >
                               <X className="size-3.5" strokeWidth={2.5} />
                             </Button>
                           </SimpleTooltip>
                         </div>
                       ) : null}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       )}
@@ -261,7 +262,7 @@ function RejectManualPaymentDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button
@@ -332,11 +333,11 @@ function OfflineMethodsSection() {
                 <SimpleTooltip label="Edit">
                   <Button
                     aria-label={`Edit ${method.label}`}
-                    className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                     onClick={() => setEditing(method)}
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -346,7 +347,7 @@ function OfflineMethodsSection() {
                 >
                   <Button
                     aria-label={`${method.isActive ? "Deactivate" : "Reactivate"} ${method.label}`}
-                    className="size-8 rounded-full border-app-border p-0 hover:bg-app-soft"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                     disabled={update.isPending}
                     onClick={() =>
                       update.mutate({
@@ -356,7 +357,7 @@ function OfflineMethodsSection() {
                     }
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                   >
                     {method.isActive ? (
                       <X className="size-3.5" strokeWidth={2.5} />
@@ -422,7 +423,7 @@ function OfflineMethodForm({
         >
           {method ? "Save" : "Add"}
         </Button>
-        <Button onClick={onClose} type="button" variant="ghost">
+        <Button onClick={onClose} type="button" variant="outline">
           Cancel
         </Button>
       </div>

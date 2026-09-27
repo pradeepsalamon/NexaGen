@@ -78,7 +78,7 @@ export default function AttendancePolicyPage() {
   if (isLoading) {
     return (
       <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
       </div>
     );
   }
@@ -86,16 +86,16 @@ export default function AttendancePolicyPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 p-6">
       <div className="flex items-center gap-3 mb-8 border-b border-app-border pb-4">
-        <div className="p-2 bg-primary/10 rounded-lg border border-primary/20">
-          <Settings className="w-6 h-6 text-primary" />
+        <div className="p-2 bg-primary/10 rounded-control border border-primary/20">
+          <Settings className="w-6 h-6 text-primary-ink" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-app-text">Attendance Policy</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Attendance Policy</h1>
           <p className="text-app-muted text-sm mt-1">Configure global attendance thresholds and calculation rules</p>
         </div>
       </div>
 
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardHeader>
           <CardTitle>Calculation Thresholds</CardTitle>
           <CardDescription>
@@ -125,7 +125,7 @@ export default function AttendancePolicyPage() {
 
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                <span className="w-2 h-2 rounded-full bg-secondary"></span>
                 Late Threshold (%)
               </Label>
               <div className="relative">
@@ -160,7 +160,7 @@ export default function AttendancePolicyPage() {
             </div>
           </div>
           
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg mt-4">
+          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-control mt-4">
             <p className="text-sm font-medium text-red-600">
               Absent Rule: <span className="font-normal text-red-500">Students with attendance less than {partialThreshold}% will be marked as Absent.</span>
             </p>
@@ -168,7 +168,7 @@ export default function AttendancePolicyPage() {
         </CardContent>
       </Card>
 
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardHeader>
           <CardTitle>Session Rules</CardTitle>
           <CardDescription>Configure grace periods and minimums</CardDescription>

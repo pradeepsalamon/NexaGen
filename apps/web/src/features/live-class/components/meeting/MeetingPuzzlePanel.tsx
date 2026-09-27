@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { CheckCircle2, LayoutGrid, PlusCircle, Puzzle as PuzzleIcon, SlidersHorizontal } from "lucide-react";
+import { CheckCircle2, Inbox, LayoutGrid, Medal, Pencil, PlusCircle, Puzzle as PuzzleIcon } from "lucide-react";
 import type {
   LivePuzzleLeaderboardEntry,
   LivePuzzleLeaderboardResponse,
@@ -15,6 +15,7 @@ import { Card } from "@/components/ui/Card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { Input } from "@/components/ui/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import {
   PuzzleLeaderboardFields,
@@ -37,6 +38,7 @@ import {
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { PuzzleAssignModal } from "./PuzzleAssignModal";
 import { PuzzleLiveBoardsPanel } from "./PuzzleLiveBoardsPanel";
+import { Switch } from "@/components/ui/Switch";
 
 /** Coach-only: manual +/- points for one student (a verbal answer, a bonus, a deduction). */
 function AdjustPointsPopover({
@@ -114,7 +116,7 @@ function AdjustPointsPopover({
           <Button
             type="button"
             size="sm"
-            variant="ghost"
+            variant="outline"
             className="min-h-8 w-full text-xs"
             onClick={() => apply(0, true)}
           >
@@ -126,69 +128,210 @@ function AdjustPointsPopover({
   );
 }
 
-function pointsLabel(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
-  return rankByPoints ? `${entry.points} pts` : `${entry.scorePercent}%`;
+function pointsValue(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
+  return rankByPoints ? String(entry.points) : `${entry.scorePercent}%`;
 }
 
-function LeaderboardList({
+const MEDAL_TONE: Record<number, string> = {
+  1: "text-amber-500",
+  2: "text-slate-400",
+  3: "text-orange-500"
+};
+
+/** Medal for the podium, plain number below it. */
+function RankMark({ rank }: { rank: number }) {
+  const tone = MEDAL_TONE[rank];
+  if (!tone) {
+    return <span className="inline-block w-6 text-center font-bold tabular-nums text-app-muted">{rank}</span>;
+  }
+  return (
+    <span className="relative inline-flex size-6 items-center justify-center" aria-label={`Rank ${rank}`}>
+      <Medal aria-hidden="true" className={cn("size-6", tone)} strokeWidth={2.25} />
+      <span className="absolute top-[3px] text-[9px] font-extrabold text-app-text">{rank}</span>
+    </span>
+  );
+}
+
+function entryStats(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
+  return [
+    rankByPoints ? `${entry.scorePercent}%` : null,
+    `${entry.durationSeconds}s`,
+    entry.wrongMoves > 0 ? `${entry.wrongMoves} wrong` : null,
+    entry.hintsUsed > 0 ? `${entry.hintsUsed} hint${entry.hintsUsed === 1 ? "" : "s"}` : null,
+    entry.breakdown.firstSolveBonus > 0 ? `+${entry.breakdown.firstSolveBonus} first` : null,
+    entry.breakdown.speedBonus > 0 ? `+${entry.breakdown.speedBonus} speed` : null,
+    entry.breakdown.adjustment !== 0
+      ? `${entry.breakdown.adjustment > 0 ? "+" : ""}${entry.breakdown.adjustment} coach`
+      : null
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+/** Highlight card: the leader for a coach, the student's own standing for a student. */
+function StandingCard({
+  name,
+  rank,
+  points,
+  attempts,
+  pointsLabel
+}: {
+  name: string;
+  rank: number | null;
+  points: string;
+  attempts: number;
+  pointsLabel: string;
+}) {
+  return (
+    <div className="rounded-app bg-app-soft p-3.5">
+      <div className="flex items-center gap-3">
+        {rank !== null ? (
+          <RankMark rank={rank} />
+        ) : (
+          <Medal aria-hidden="true" className="size-6 text-app-muted" strokeWidth={2.25} />
+        )}
+        <span className="truncate text-base font-semibold text-app-text">{name}</span>
+      </div>
+      <dl className="mt-2.5 flex gap-8 text-sm">
+        <div>
+          <dt className="text-xs font-bold text-app-text">{pointsLabel}</dt>
+          <dd className="tabular-nums text-app-text">{points}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-bold text-app-text">Attempts</dt>
+          <dd className="tabular-nums text-app-text">{attempts}</dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
+function LeaderboardSection({
   classId,
   data,
-  isCoach
+  isCoach,
+  canEdit,
+  onEditPoints
 }: {
   classId: string;
   data: LivePuzzleLeaderboardResponse;
   isCoach: boolean;
+  /** Coach with a running puzzle: the visibility toggle + Edit Points. */
+  canEdit: boolean;
+  onEditPoints: () => void;
 }) {
   const options = data.leaderboard;
   const rankByPoints = (options?.rankBy ?? "POINTS") === "POINTS";
   const showStats = isCoach || (options?.showStats ?? true);
+  const pointsLabel = rankByPoints ? "Points" : "Score";
+  const update = useUpdateLivePuzzle(classId, { quiet: true });
+  const visibleToStudents = (options?.visibility ?? "LIVE") === "LIVE";
+  const user = useAuthStore((state) => state.user);
 
-  if (data.entries.length === 0) {
-    return <p className="text-sm text-app-muted">No finishes yet.</p>;
-  }
+  const leader = data.entries[0] ?? null;
+  const self = data.self;
 
   return (
-    <ol className="space-y-1">
-      {data.entries.map((entry) => (
-        <li
-          key={entry.studentId}
-          className={cn(
-            "rounded-app border border-app-border px-2.5 py-1.5 text-sm",
-            entry.isSelf ? "bg-primary/[0.08]" : "bg-app-surface"
-          )}
-        >
-          <div className="flex items-center justify-between gap-2">
-            <span className="flex min-w-0 items-center gap-2">
-              <span className="w-5 shrink-0 font-bold text-app-muted">{entry.rank}</span>
-              <span className="truncate text-app-text">{entry.studentName}</span>
-              {entry.solved ? (
-                <CheckCircle2 className="size-3.5 shrink-0 text-accent-ink" strokeWidth={2.5} />
-              ) : null}
-            </span>
-            <span className="flex shrink-0 items-center gap-1.5">
-              <span className="font-semibold tabular-nums text-app-text">
-                {pointsLabel(entry, rankByPoints)}
-              </span>
-              {isCoach ? <AdjustPointsPopover classId={classId} entry={entry} /> : null}
-            </span>
+    <div className="space-y-3">
+      {canEdit ? (
+        <div className="flex items-center justify-between gap-3">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-app-text">
+            <Switch
+              checked={visibleToStudents}
+              disabled={update.isPending}
+              onCheckedChange={(checked) =>
+                update.mutate({ leaderboard: { visibility: checked === true ? "LIVE" : "HIDDEN" } })
+              }
+            />
+            Show leaderboard to students
+          </label>
+          <button
+            type="button"
+            onClick={onEditPoints}
+            className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-app-text hover:text-primary-ink"
+          >
+            <Pencil aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+            Edit Points
+          </button>
+        </div>
+      ) : null}
+
+      {isCoach ? (
+        leader ? (
+          <StandingCard
+            name={leader.studentName}
+            rank={leader.rank}
+            points={pointsValue(leader, rankByPoints)}
+            attempts={leader.attemptsUsed}
+            pointsLabel={pointsLabel}
+          />
+        ) : null
+      ) : self ? (
+        <StandingCard
+          name={user ? `${user.firstName} ${user.lastName ?? ""}`.trim() : "You"}
+          rank={self.rank}
+          points={self.points !== null ? String(self.points) : "0"}
+          attempts={self.attemptsUsed}
+          pointsLabel="Points"
+        />
+      ) : null}
+
+      <div className="overflow-hidden rounded-app border border-app-border">
+        <Table>
+          <TableHeader className="bg-app-soft">
+            <TableRow>
+              <TableHead className="h-10 w-20 px-3 text-xs">Position</TableHead>
+              <TableHead className="h-10 px-2 text-xs">Name</TableHead>
+              <TableHead className="h-10 px-2 text-right text-xs">{pointsLabel}</TableHead>
+              <TableHead className="h-10 px-3 text-right text-xs">Attempts</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.entries.map((entry) => (
+              <TableRow key={entry.studentId} className={cn(entry.isSelf && "bg-primary/[0.08]")}>
+                <TableCell className="px-3 py-2">
+                  <RankMark rank={entry.rank} />
+                </TableCell>
+                <TableCell className="max-w-0 px-2 py-2">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate font-medium text-app-text">{entry.studentName}</span>
+                    {entry.solved ? (
+                      <CheckCircle2
+                        aria-label="Solved"
+                        className="size-3.5 shrink-0 text-accent-ink"
+                        strokeWidth={2.5}
+                      />
+                    ) : null}
+                  </span>
+                  {showStats ? (
+                    <span className="block truncate text-[11px] tabular-nums text-app-muted">
+                      {entryStats(entry, rankByPoints)}
+                    </span>
+                  ) : null}
+                </TableCell>
+                <TableCell className="px-2 py-2 text-right">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="font-semibold tabular-nums text-app-text">
+                      {pointsValue(entry, rankByPoints)}
+                    </span>
+                    {isCoach ? <AdjustPointsPopover classId={classId} entry={entry} /> : null}
+                  </span>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-right tabular-nums text-app-text">
+                  {entry.attemptsUsed}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {data.entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-app-muted">
+            <Inbox aria-hidden="true" className="size-8 opacity-50" strokeWidth={1.75} />
+            <span className="text-xs">No data yet</span>
           </div>
-          {showStats ? (
-            <p className="mt-0.5 pl-7 text-[11px] tabular-nums text-app-muted">
-              {rankByPoints ? `${entry.scorePercent}% · ` : ""}
-              {entry.durationSeconds}s
-              {entry.wrongMoves > 0 ? ` · ${entry.wrongMoves} wrong` : ""}
-              {entry.hintsUsed > 0 ? ` · ${entry.hintsUsed} hint${entry.hintsUsed === 1 ? "" : "s"}` : ""}
-              {entry.attemptsUsed > 1 ? ` · ${entry.attemptsUsed} tries` : ""}
-              {entry.breakdown.firstSolveBonus > 0 ? ` · +${entry.breakdown.firstSolveBonus} first` : ""}
-              {entry.breakdown.speedBonus > 0 ? ` · +${entry.breakdown.speedBonus} speed` : ""}
-              {entry.breakdown.adjustment !== 0
-                ? ` · ${entry.breakdown.adjustment > 0 ? "+" : ""}${entry.breakdown.adjustment} coach`
-                : ""}
-            </p>
-          ) : null}
-        </li>
-      ))}
-    </ol>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -235,7 +378,7 @@ function EditRulesDialog({
           </p>
         </div>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
@@ -349,10 +492,6 @@ export function MeetingPuzzlePanel() {
                   <LayoutGrid className="mr-1.5 size-3.5" strokeWidth={2.5} />
                   Live boards
                 </Button>
-                <Button type="button" variant="outline" size="sm" onClick={() => setRulesOpen(true)}>
-                  <SlidersHorizontal className="mr-1.5 size-3.5" strokeWidth={2.5} />
-                  Edit points
-                </Button>
                 <Button type="button" variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
                   Swap puzzle
                 </Button>
@@ -397,7 +536,15 @@ export function MeetingPuzzlePanel() {
             {activePuzzle ? "Leaderboard" : `Last puzzle — ${lastResults?.title ?? ""}`}
           </p>
           {note ? <p className="mb-1.5 text-xs text-app-muted">{note}</p> : null}
-          {data ? <LeaderboardList classId={classId} data={data} isCoach={isCoach} /> : null}
+          {data ? (
+            <LeaderboardSection
+              classId={classId}
+              data={data}
+              isCoach={isCoach}
+              canEdit={isCoach && !!activePuzzle}
+              onEditPoints={() => setRulesOpen(true)}
+            />
+          ) : null}
           {data && data.stillSolving.length > 0 ? (
             <p className="mt-1.5 truncate text-xs text-app-muted">
               Still solving: {data.stillSolving.map((s) => s.studentName).join(", ")}

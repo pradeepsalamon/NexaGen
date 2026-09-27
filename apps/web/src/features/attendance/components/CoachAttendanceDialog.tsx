@@ -73,11 +73,11 @@ export function CoachAttendanceDialog({
         <div className="flex-1 overflow-y-auto p-6 pt-4">
           {isLoading ? (
             <div className="space-y-4">
-              <Skeleton className="h-28 w-full rounded-lg" />
-              <Skeleton className="h-64 w-full rounded-lg" />
+              <Skeleton className="h-28 w-full rounded-control" />
+              <Skeleton className="h-64 w-full rounded-control" />
             </div>
           ) : error ? (
-            <div className="p-4 rounded-lg bg-red-50 text-red-600 border border-red-200">
+            <div className="p-4 rounded-control bg-red-50 text-red-600 border border-red-200">
               {error}
             </div>
           ) : data ? (

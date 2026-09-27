@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/utils";
 import { useLiveReliabilityOverview } from "../hooks/useLiveReliabilityOverview";
 import { useReliabilityMetrics } from "../hooks/useReliabilityMetrics";
+import { Badge } from "@/components/ui/Badge";
 
 // Admin cross-class reliability view (RELIABILITY_DESIGN.md §4.5): every
 // currently-LIVE class with a participant (coach or student) in
@@ -205,14 +206,10 @@ function ClassCard({ liveClass, timeZone }: { liveClass: LiveReliabilityClass; t
         </div>
         <div className="flex gap-2">
           {liveClass.reconnectingCount > 0 && (
-            <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-              {liveClass.reconnectingCount} reconnecting
-            </span>
+            <Badge variant="warning">{liveClass.reconnectingCount} reconnecting</Badge>
           )}
           {liveClass.offlineCount > 0 && (
-            <span className="rounded-full border border-orange-300 bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
-              {liveClass.offlineCount} offline
-            </span>
+            <Badge variant="destructive">{liveClass.offlineCount} offline</Badge>
           )}
         </div>
       </div>

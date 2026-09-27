@@ -18,7 +18,7 @@ export function CoachBatchesClient() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-extrabold text-app-text tracking-tight">My Batches</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">My Batches</h1>
         <p className="text-app-muted mt-1">Manage your assigned batches and their students.</p>
       </div>
 

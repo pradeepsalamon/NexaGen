@@ -33,6 +33,7 @@ import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useSaveFeedbackFormMutation } from "../../hooks/useFeedbackApi";
 import { blankQuestion, defaultFormValues, formToValues } from "../../lib/formDefaults";
 import { QuestionEditor } from "./QuestionEditor";
+import { Switch } from "@/components/ui/Switch";
 
 const TRIGGER_OPTIONS = (Object.keys(FEEDBACK_TRIGGER_LABELS) as FeedbackTrigger[]).map((value) => ({
   label: FEEDBACK_TRIGGER_LABELS[value],
@@ -353,7 +354,7 @@ export function FeedbackFormEditor({
                 control={control}
                 name="isActive"
                 render={({ field }) => (
-                  <Checkbox
+                  <Switch
                     checked={field.value}
                     id="feedback-active"
                     label="Active — students are asked while this is on"
@@ -365,7 +366,7 @@ export function FeedbackFormEditor({
                 control={control}
                 name="allowSkip"
                 render={({ field }) => (
-                  <Checkbox
+                  <Switch
                     checked={field.value}
                     id="feedback-skip"
                     label="Let students skip it"
@@ -377,7 +378,7 @@ export function FeedbackFormEditor({
                 control={control}
                 name="showToCoach"
                 render={({ field }) => (
-                  <Checkbox
+                  <Switch
                     checked={field.value}
                     id="feedback-coach"
                     label="Show results to the coach (anonymously)"
@@ -390,7 +391,7 @@ export function FeedbackFormEditor({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="ghost">
+          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
             Cancel
           </Button>
           <Button disabled={save.isPending} onClick={submit} type="button">

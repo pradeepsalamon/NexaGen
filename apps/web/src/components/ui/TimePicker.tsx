@@ -14,6 +14,7 @@ type TimePickerProps = {
   className?: string;
   minuteStep?: number;
   "aria-label"?: string;
+  id?: string;
 };
 
 function parse(value: string): { hour: number; minute: number } {
@@ -33,9 +34,14 @@ export function TimePicker({
   onChange,
   className,
   minuteStep = 5,
-  "aria-label": ariaLabel
+  "aria-label": ariaLabel,
+  id
 }: TimePickerProps) {
-  const { hour, minute } = parse(value);
+  const [open, setOpen] = React.useState(false);
+  // Committed on close so each select change isn't its own update.
+  const [draft, setDraft] = React.useState(value);
+  const current = open ? draft : value;
+  const { hour, minute } = parse(current);
   const meridiem: "AM" | "PM" = hour >= 12 ? "PM" : "AM";
   const hour12 = hour % 12 === 0 ? 12 : hour % 12;
 
@@ -46,7 +52,13 @@ export function TimePicker({
     return list.sort((a, b) => a - b);
   }, [minute, minuteStep]);
 
-  const label = value
+  const handleOpenChange = (next: boolean) => {
+    if (next) setDraft(value);
+    else if (draft !== value) onChange(draft);
+    setOpen(next);
+  };
+
+  const label = current
     ? `${String(hour12).padStart(2, "0")}:${String(minute).padStart(2, "0")} ${meridiem}`
     : "--:--";
 
@@ -54,11 +66,12 @@ export function TimePicker({
     "min-h-9 rounded-control border border-app-border bg-app-surface px-2 text-sm font-semibold text-app-text focus:border-primary focus:outline-none";
 
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange} open={open}>
       <PopoverTrigger asChild>
         <Button
           type="button"
           aria-label={ariaLabel}
+          id={id}
           variant="outline"
           className={cn(
             "min-h-11 w-full justify-start gap-2 rounded-full px-4 font-medium border border-app-border bg-app-surface text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] hover:bg-app-surface dark:border-app-border dark:text-app-text dark:hover:bg-app-surface",
@@ -75,7 +88,7 @@ export function TimePicker({
             aria-label="Hour"
             className={selectClass}
             value={hour12}
-            onChange={(e) => onChange(to24(Number(e.target.value), minute, meridiem))}
+            onChange={(e) => setDraft(to24(Number(e.target.value), minute, meridiem))}
           >
             {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
               <option key={h} value={h}>
@@ -88,7 +101,7 @@ export function TimePicker({
             aria-label="Minute"
             className={selectClass}
             value={minute}
-            onChange={(e) => onChange(to24(hour12, Number(e.target.value), meridiem))}
+            onChange={(e) => setDraft(to24(hour12, Number(e.target.value), meridiem))}
           >
             {minutes.map((m) => (
               <option key={m} value={m}>
@@ -101,13 +114,21 @@ export function TimePicker({
             className={selectClass}
             value={meridiem}
             onChange={(e) =>
-              onChange(to24(hour12, minute, e.target.value as "AM" | "PM"))
+              setDraft(to24(hour12, minute, e.target.value as "AM" | "PM"))
             }
           >
             <option value="AM">AM</option>
             <option value="PM">PM</option>
           </select>
         </div>
+        <Button
+          className="mt-3 w-full"
+          onClick={() => handleOpenChange(false)}
+          size="sm"
+          type="button"
+        >
+          Done
+        </Button>
       </PopoverContent>
     </Popover>
   );

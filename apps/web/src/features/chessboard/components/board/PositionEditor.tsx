@@ -16,6 +16,9 @@ import {
   type FenParts,
 } from "../../lib/fen";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
+import { Input } from "@/components/ui/Input";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Button } from "@/components/ui/Button";
 
 export interface PositionEditorProps {
   /** Full FEN string. Controlled — the editor never holds its own copy. */
@@ -175,11 +178,11 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
         <div className="flex flex-wrap gap-4">
           <label className="flex flex-col gap-1 text-sm font-semibold text-app-text">
             En passant
-            <input
+            <Input
               type="text"
               inputMode="text"
               maxLength={2}
-              className="w-20 rounded-control border border-app-border bg-app-surface px-2 py-1.5 font-mono text-sm font-normal text-app-text"
+              className="min-h-9 w-20 px-3 font-mono font-normal"
               value={parts.enPassant}
               onChange={(e) => emit({ enPassant: e.target.value.trim() || "-" })}
               aria-label="En passant target square"
@@ -187,10 +190,10 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
           </label>
           <label className="flex flex-col gap-1 text-sm font-semibold text-app-text">
             Move number
-            <input
+            <Input
               type="number"
               min={1}
-              className="w-24 rounded-control border border-app-border bg-app-surface px-2 py-1.5 text-sm font-normal text-app-text"
+              className="min-h-9 w-24 px-3 font-normal"
               value={parts.fullMove}
               onChange={(e) => emit({ fullMove: String(Math.max(1, parseInt(e.target.value, 10) || 1)) })}
               aria-label="Full move number"
@@ -199,28 +202,20 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-control border border-app-border bg-app-surface px-3 py-1.5 text-sm font-medium text-app-text transition-colors hover:bg-app-soft"
-            onClick={() => onChange(START_FEN)}
-          >
+          <Button onClick={() => onChange(START_FEN)} size="sm" type="button" variant="outline">
             <RotateCcw className="size-3.5" strokeWidth={2.5} />
             Starting position
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-1.5 rounded-control border border-app-border bg-app-surface px-3 py-1.5 text-sm font-medium text-app-text transition-colors hover:bg-app-soft"
-            onClick={() => emit({ placement: EMPTY_PLACEMENT })}
-          >
+          </Button>
+          <Button onClick={() => emit({ placement: EMPTY_PLACEMENT })} size="sm" type="button" variant="outline">
             <Trash2 className="size-3.5" strokeWidth={2.5} />
             Clear board
-          </button>
+          </Button>
         </div>
 
         <label className="flex flex-col gap-1 text-sm font-semibold text-app-text">
           FEN
-          <input
-            className="w-full rounded-control border border-app-border bg-app-surface px-3 py-1.5 font-mono text-sm font-normal text-app-text"
+          <Input
+            className="min-h-9 font-mono font-normal"
             value={value}
             spellCheck={false}
             onChange={(e) => onChange(e.target.value)}
@@ -294,15 +289,11 @@ function CastlingBox({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-2">
-      <input
-        type="checkbox"
-        className="size-4 accent-primary"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        aria-label={label}
-      />
-      {label}
-    </label>
+    <Checkbox
+      checked={checked}
+      id={`castling-${label.replace(/\W+/g, "-").toLowerCase()}`}
+      label={label}
+      onCheckedChange={(next) => onChange(next === true)}
+    />
   );
 }

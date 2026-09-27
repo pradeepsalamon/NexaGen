@@ -13,6 +13,7 @@ import {
 import { AdjustmentDialog } from "./AdjustmentDialog";
 import { PayoutSection } from "./PayoutSection";
 import { ReverseAdjustmentDialog } from "./ReverseAdjustmentDialog";
+import { Table, TableBody, TableCell, TableRow } from "@/components/ui/Table";
 
 const ADJUSTABLE_STATUSES = new Set(["CALCULATED", "APPROVED"]);
 
@@ -62,23 +63,23 @@ export function PayrollRecordDetailPanel({
           {lineItems.length === 0 ? (
             <p className="text-sm text-app-muted">No teaching activity in this period.</p>
           ) : (
-            <table className="w-full border-collapse text-sm">
-              <tbody>
+            <Table className="w-full border-collapse text-sm">
+              <TableBody>
                 {lineItems.map((item, index) => (
-                  <tr className="border-b border-app-border last:border-0" key={index}>
-                    <td className="py-1.5 pr-2 text-app-text">
+                  <TableRow className="border-b border-app-border last:border-0" key={index}>
+                    <TableCell className="text-left py-1.5 pr-2 text-app-text">
                       {item.label}
                       {item.quantity !== undefined ? (
                         <span className="text-app-muted"> × {item.quantity}</span>
                       ) : null}
-                    </td>
-                    <td className="py-1.5 text-right tabular-nums text-app-text">
+                    </TableCell>
+                    <TableCell className="py-1.5 text-right tabular-nums text-app-text">
                       {formatMoney(item.amountMinor, currency)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
 
           <dl className="mt-3 space-y-1 text-sm">
@@ -103,7 +104,7 @@ export function PayrollRecordDetailPanel({
             </div>
             <div className="flex justify-between border-t border-app-border pt-1 text-base">
               <dt className="font-bold text-app-text">Net payable</dt>
-              <dd className="font-bold tabular-nums text-primary">
+              <dd className="font-bold tabular-nums text-primary-ink">
                 {formatMoney(record.netPayableMinor, currency)}
               </dd>
             </div>

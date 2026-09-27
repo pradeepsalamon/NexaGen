@@ -12,10 +12,10 @@ import {
   type PuzzleLeaderboardOptions,
   type PuzzleScoring
 } from "@nexa-chess/types";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { Switch } from "@/components/ui/Switch";
 
 /**
  * Editors for live-class puzzle points and leaderboard rules. Shared by the
@@ -161,13 +161,13 @@ export function PuzzleScoringFields({
         />
       </FormField>
       <div className="flex flex-col justify-center gap-1">
-        <Checkbox
+        <Switch
           id={`${idPrefix}-partial`}
           label="Partial points for part of the line"
           checked={value.partialCredit}
           onCheckedChange={(checked) => set("partialCredit", checked === true)}
         />
-        <Checkbox
+        <Switch
           id={`${idPrefix}-negative`}
           label="Allow totals below zero"
           checked={value.allowNegative}
@@ -264,13 +264,13 @@ export function PuzzleLeaderboardFields({
         />
       </FormField>
       <div className="flex flex-col justify-center gap-1">
-        <Checkbox
+        <Switch
           id={`${idPrefix}-anon`}
           label="Hide other students' names"
           checked={value.anonymize}
           onCheckedChange={(checked) => set("anonymize", checked === true)}
         />
-        <Checkbox
+        <Switch
           id={`${idPrefix}-stats`}
           label="Show time, wrong moves and hints"
           checked={value.showStats}

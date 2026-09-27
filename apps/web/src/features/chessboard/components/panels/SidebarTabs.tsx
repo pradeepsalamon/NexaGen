@@ -79,7 +79,8 @@ export function SidebarTabs() {
     }
     setIsEngineMoving(true);
     try {
-      const analysis = await analyzePosition(fen);
+      // Full strength, longer think — the engine is playing, not just advising.
+      const analysis = await analyzePosition(fen, undefined, "move");
       const uci = analysis.bestMoveUci;
       if (!uci || uci.length < 4) {
         toast.error("Engine could not find a move for this position.");
@@ -99,17 +100,17 @@ export function SidebarTabs() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full bg-white dark:bg-slate-900 text-gray-800 dark:text-slate-200 p-4 shadow-sm border-l border-gray-200 dark:border-slate-800">
+    <div className="flex flex-col h-full w-full bg-app-surface text-app-text p-4 shadow-card border-l border-app-border">
 
       {/* Action Buttons Row */}
       {isCoach && (
         <div className="flex flex-wrap items-center gap-2 mb-6">
-          <Button variant="primary" className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-1.5 h-auto text-xs font-medium" onClick={handleSaveToCloud}>Save</Button>
+          <Button variant="primary" className="bg-primary hover:bg-primary text-white px-4 py-1.5 h-auto text-xs font-medium" onClick={handleSaveToCloud}>Save</Button>
           <SidebarButton onClick={handleSetupPosition}>Setup Position</SidebarButton>
           <SimpleTooltip label="Undo">
             <NavIconButton
               aria-label="Undo"
-              icon={<Undo2 size={16} />}
+              icon={<Undo2 className="size-4" />}
               onClick={undo}
               disabled={historyIndex < 0}
             />
@@ -117,25 +118,25 @@ export function SidebarTabs() {
           <SimpleTooltip label="Redo">
             <NavIconButton
               aria-label="Redo"
-              icon={<Redo2 size={16} />}
+              icon={<Redo2 className="size-4" />}
               onClick={redo}
               disabled={historyIndex >= moveHistory.length - 1}
             />
           </SimpleTooltip>
           <SimpleTooltip label="Copy PGN">
-            <NavIconButton aria-label="Copy PGN" icon={<Copy size={16} />} onClick={handleCopyPGN} />
+            <NavIconButton aria-label="Copy PGN" icon={<Copy className="size-4" />} onClick={handleCopyPGN} />
           </SimpleTooltip>
           <SimpleTooltip label="Paste PGN">
-            <NavIconButton aria-label="Paste PGN" icon={<ClipboardPaste size={16} />} onClick={handlePastePGN} />
+            <NavIconButton aria-label="Paste PGN" icon={<ClipboardPaste className="size-4" />} onClick={handlePastePGN} />
           </SimpleTooltip>
           <SimpleTooltip label={isEngineMoving ? "Thinking…" : "Engine Move"}>
             <NavIconButton
               aria-label={isEngineMoving ? "Thinking…" : "Engine Move"}
               icon={
                 isEngineMoving ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 className="size-4 animate-spin" />
                 ) : (
-                  <Cpu size={16} />
+                  <Cpu className="size-4" />
                 )
               }
               onClick={handleEngineMove}
@@ -147,40 +148,40 @@ export function SidebarTabs() {
 
       {/* Tabs Section */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="w-full justify-start bg-transparent border-b border-gray-200 dark:border-slate-800 rounded-none h-auto p-0 space-x-4 mb-4 overflow-x-auto">
+        <TabsList className="w-full justify-start bg-transparent border-b border-app-border rounded-none h-auto p-0 space-x-4 mb-4 overflow-x-auto">
           <TabsTrigger 
             value="moves" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap"
           >
             Moves
           </TabsTrigger>
           {isCoach && (
-            <TabsTrigger value="engine" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
+            <TabsTrigger value="engine" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Engine
             </TabsTrigger>
           )}
           {isCoach && (
-            <TabsTrigger value="pgn" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
+            <TabsTrigger value="pgn" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               PGN
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-             <TabsTrigger value="class" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
+             <TabsTrigger value="class" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Live Class
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-            <TabsTrigger value="puzzles" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
+            <TabsTrigger value="puzzles" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Puzzles
             </TabsTrigger>
           )}
-          <TabsTrigger value="masterbase" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
+          <TabsTrigger value="masterbase" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
             Masterbase
           </TabsTrigger>
         </TabsList>
         
         <TabsContent value="moves" className="flex-1 min-h-0 overflow-y-auto mt-0">
-          <div className="h-full light-theme-overrides text-gray-800 dark:text-slate-200">
+          <div className="h-full light-theme-overrides text-app-text">
             <MoveHistory />
           </div>
         </TabsContent>
@@ -244,19 +245,19 @@ function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
 
   return (
     <div className="flex flex-col h-full gap-4 p-2 text-sm">
-      <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-800 pb-2">
+      <div className="flex items-center justify-between border-b border-app-border pb-2">
         <h3 className="font-bold">Board Control</h3>
         {grantedIds.length > 0 && (
           <button
             type="button"
             onClick={() => liveClassState.clearBoardControl()}
-            className="text-xs font-medium text-blue-500 hover:text-blue-600"
+            className="text-xs font-medium text-primary-ink hover:text-primary-ink"
           >
             Revoke all
           </button>
         )}
       </div>
-      <p className="text-xs text-gray-500 dark:text-slate-400 -mt-2">
+      <p className="text-xs text-app-muted -mt-2">
         Choose which pieces each student may move — white, black, or both. Several can hold
         control at once, so two students can play each other; the coach always has full control.
       </p>
@@ -267,7 +268,7 @@ function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
           .map((p) => (
             <div
               key={p.identity}
-              className="flex items-center justify-between rounded-control border border-gray-200 dark:border-slate-800 px-3 h-8 text-xs text-gray-500 dark:text-slate-400"
+              className="flex items-center justify-between rounded-control border border-app-border px-3 h-8 text-xs text-app-muted"
             >
               <span className="truncate">{p.name}</span>
               <span className="shrink-0 font-medium">Coach · full control</span>
@@ -275,12 +276,12 @@ function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
           ))}
 
         {students.length === 0 ? (
-          <p className="text-xs text-gray-400 italic py-2">No students in room.</p>
+          <p className="text-xs text-app-muted italic py-2">No students in room.</p>
         ) : (
           students.map((p) => (
             <div
               key={p.identity}
-              className="flex items-center justify-between gap-2 rounded-control border border-gray-200 dark:border-slate-800 pl-3 pr-1 h-9"
+              className="flex items-center justify-between gap-2 rounded-control border border-app-border pl-3 pr-1 h-9"
             >
               <span className="truncate text-xs font-medium text-app-text">{p.name}</span>
               <BoardControlSideToggle
@@ -302,7 +303,7 @@ function SidebarButton({ children, onClick, disabled }: { children: React.ReactN
       variant="outline"
       onClick={onClick}
       disabled={disabled}
-      className="bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-600 dark:text-slate-300 border-gray-300 dark:border-slate-700 px-3 py-1.5 h-auto text-xs font-normal"
+      className="bg-app-surface hover:bg-app-soft text-app-muted border-app-border px-3 py-1.5 h-auto text-xs font-normal"
     >
       {children}
     </Button>

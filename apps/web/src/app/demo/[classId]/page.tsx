@@ -127,10 +127,10 @@ export default function DemoClassPage() {
     return (
       <div className="flex flex-col h-screen">
         <Header centerSlot={headerCenter} />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-lg border-primary/10">
+        <div className="flex-1 overflow-auto bg-app-soft pt-16 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md shadow-lift border-primary/10">
             <CardHeader className="text-center">
-              <CardTitle className="text-2xl text-primary">Join Demo Class</CardTitle>
+              <CardTitle className="text-2xl text-primary-ink">Join Demo Class</CardTitle>
               <CardDescription>
                 Register with your name and a mobile number or email — no account needed
               </CardDescription>
@@ -144,7 +144,7 @@ export default function DemoClassPage() {
                   onChange={(e) => setValues((v) => ({ ...v, guestName: e.target.value }))}
                   disabled={isSubmitting}
                   required
-                  className="h-12 text-lg px-4 bg-background/50 focus:bg-background"
+                  className="h-12 text-lg px-4 bg-app-background/50 focus:bg-app-background"
                 />
 
                 <div className="flex rounded-control border border-app-border bg-app-soft p-1 text-sm font-medium">
@@ -175,7 +175,7 @@ export default function DemoClassPage() {
                     disabled={isSubmitting}
                     required
                     maxLength={20}
-                    className="h-12 text-lg px-4 bg-background/50 focus:bg-background"
+                    className="h-12 text-lg px-4 bg-app-background/50 focus:bg-app-background"
                   />
                 ) : (
                   <Input
@@ -188,13 +188,13 @@ export default function DemoClassPage() {
                     disabled={isSubmitting}
                     required
                     maxLength={200}
-                    className="h-12 text-lg px-4 bg-background/50 focus:bg-background"
+                    className="h-12 text-lg px-4 bg-app-background/50 focus:bg-app-background"
                   />
                 )}
 
                 <Button
                   type="submit"
-                  className="w-full h-12 text-lg font-semibold rounded-xl"
+                  className="w-full h-12 text-lg font-semibold rounded-control"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? "Registering…" : "Register & Join"}
@@ -211,11 +211,11 @@ export default function DemoClassPage() {
     return (
       <div className="flex flex-col h-screen">
         <Header centerSlot={headerCenter} />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md shadow-lg border-primary/10">
+        <div className="flex-1 overflow-auto bg-app-soft pt-16 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md shadow-lift border-primary/10">
             <CardHeader className="text-center">
-              <CalendarClock className="mx-auto mb-2 size-10 text-primary" />
-              <CardTitle className="text-2xl text-primary">You&apos;re registered!</CardTitle>
+              <CalendarClock className="mx-auto mb-2 size-10 text-primary-ink" />
+              <CardTitle className="text-2xl text-primary-ink">You&apos;re registered!</CardTitle>
               <CardDescription>
                 {waitingMessage ?? "We'll see you when the class goes live."}
               </CardDescription>
@@ -245,7 +245,7 @@ export default function DemoClassPage() {
     return (
       <div className="flex flex-col h-screen">
         <Header centerSlot={headerCenter} />
-        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 pt-16 flex items-center justify-center">
+        <div className="flex-1 overflow-auto bg-app-soft pt-16 flex items-center justify-center">
           <LoadingMeeting message="Connecting to room..." />
         </div>
       </div>

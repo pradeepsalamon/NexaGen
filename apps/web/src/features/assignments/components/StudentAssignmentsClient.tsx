@@ -31,7 +31,7 @@ export function StudentAssignmentsClient() {
       {isLoading ? (
         <div className="grid gap-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full rounded-xl" />
+            <Skeleton key={i} className="h-24 w-full rounded-control" />
           ))}
         </div>
       ) : assignments.length === 0 ? (

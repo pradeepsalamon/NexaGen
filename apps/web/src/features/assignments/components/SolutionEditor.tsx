@@ -120,7 +120,7 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-primary"
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-primary-ink"
       >
         Import PGN / FEN
         <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2.5} />

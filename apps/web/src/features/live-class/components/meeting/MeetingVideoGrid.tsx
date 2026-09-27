@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useTracks } from "@livekit/components-react";
 import { Crown, Maximize2 } from "lucide-react";
@@ -27,6 +27,7 @@ import { PuzzleGridTile } from "./video-grid/PuzzleGridTile";
 
 /** Matches the `gap-3` on the grid; the layout maths needs it as a number. */
 const GRID_GAP = 12;
+const SCROLLBAR_GUTTER = 16;
 
 export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
   const { pinnedParticipantSid, setPinnedParticipantSid, isChessboardOpen, activePuzzle } =
@@ -41,8 +42,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
     if (showBoardTile) setBoardStage(true);
   }, [showBoardTile]);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { height, width } = useElementSize(containerRef);
+  const { height, width, ref: containerRef } = useElementSize<HTMLDivElement>();
 
   const tracks = useTracks(
     [
@@ -72,7 +72,8 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
   // Sized from the real container rather than a breakpoint table, so every
   // participant count lays out correctly on every screen.
   const layout = useMemo(
-    () => computeGridLayout(totalItems, width, height, GRID_GAP),
+    // The scroller reserves a stable scrollbar gutter inside the measured box.
+    () => computeGridLayout(totalItems, Math.max(0, width - SCROLLBAR_GUTTER), height, GRID_GAP),
     [totalItems, width, height],
   );
   // The grid runs on half-width tracks with every tile spanning two, so a
@@ -155,7 +156,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
           div is the scroller; min-h-full keeps the grid centred without
           clipping its top when the tiles do overflow. */}
       <div
-        className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-24"
+        className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 pt-3 pb-28 sm:px-4 sm:pt-4 sm:pb-32"
         ref={containerRef}
       >
         <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
@@ -175,7 +176,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.94 }}
                       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                      className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200"
+                      className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border border-app-border bg-app-surface transition-shadow duration-200"
                       style={{ containerType: "size", ...tileStyle(puzzleTileShown ? 1 : 0) }}
                     >
                       <div
@@ -192,7 +193,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                           is intentionally not shown on this small tile — it lives
                           in the full-screen board view. */}
                       <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
-                        <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 shadow-sm backdrop-blur-md">
+                        <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 shadow-card backdrop-blur-md">
                           <Crown className="size-3 text-amber-400" />
                           <span className="text-[11px] font-semibold text-white/90">Shared Board</span>
                         </div>
@@ -204,7 +205,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                         <FlipBoardButton className="pointer-events-auto" />
                         <button
                           type="button"
-                          className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-sm"
+                          className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-card"
                           onClick={() => setBoardStage(true)}
                           aria-label="View board full screen"
                         >

@@ -105,7 +105,7 @@ export function CoachHistoryClient() {
             <div className="flex items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button asChild variant="outline" size="icon" className="size-8 rounded-full border-yellow-500 p-0 text-app-text transition-colors hover:border-yellow-500 hover:bg-yellow-500 hover:text-black">
+                  <Button asChild variant="ghost" size="icon" className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black">
                     <Link href={`/classes/${row.original.id}`} aria-label={`View ${row.original.title || row.original.topic}`}>
                       <Eye className="size-4" strokeWidth={2.5} aria-hidden="true" />
                     </Link>
@@ -119,14 +119,14 @@ export function CoachHistoryClient() {
                   <TooltipTrigger asChild>
                     <Button
                       aria-label="View completed details"
-                      className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                       onClick={() => {
                         setDetailsClassId(row.original.id);
                         setIsDetailsOpen(true);
                       }}
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -140,11 +140,11 @@ export function CoachHistoryClient() {
                   <TooltipTrigger asChild>
                     <Button
                       aria-label="Edit class notes"
-                      className="size-8 rounded-full border-sky-500 p-0 text-app-text transition-colors hover:border-sky-500 hover:bg-sky-500 hover:text-white"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                       onClick={() => setNotesClass(row.original)}
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <NotebookPen aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -158,11 +158,11 @@ export function CoachHistoryClient() {
                   <TooltipTrigger asChild>
                     <Button
                       aria-label="Download Recording"
-                      className="size-8 rounded-full border-green-500 p-0 text-app-text transition-colors hover:border-green-500 hover:bg-green-500 hover:text-white"
+                      className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
                       onClick={() => handleDownload(row.original.id)}
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -187,7 +187,7 @@ export function CoachHistoryClient() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-extrabold text-app-text tracking-tight">Class History</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class History</h1>
         <p className="text-app-muted mt-1">Review your past and cancelled classes.</p>
       </div>
 

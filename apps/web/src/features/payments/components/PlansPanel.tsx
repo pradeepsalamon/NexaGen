@@ -98,11 +98,11 @@ export function PlansPanel() {
                 <SimpleTooltip label="Edit this plan">
                   <Button
                     aria-label={`Edit ${plan.name}`}
-                    className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                    className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                     onClick={() => setEditing(plan)}
                     size="icon"
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                   >
                     <Pencil className="size-3.5" strokeWidth={2.5} />
                   </Button>
@@ -112,12 +112,12 @@ export function PlansPanel() {
                   <SimpleTooltip label="Archive — past invoices are kept">
                     <Button
                       aria-label={`Archive ${plan.name}`}
-                      className="size-8 rounded-full border-app-danger p-0 hover:bg-app-danger hover:text-white"
+                      className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                       disabled={archive.isPending}
                       onClick={() => archive.mutate(plan.id)}
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <Archive className="size-3.5" strokeWidth={2.5} />
                     </Button>
@@ -358,7 +358,7 @@ function PlanFormDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

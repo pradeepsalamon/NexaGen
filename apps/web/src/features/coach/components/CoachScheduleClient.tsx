@@ -53,7 +53,7 @@ export function CoachScheduleClient() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold text-app-text tracking-tight">Schedule</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Schedule</h1>
           <p className="text-app-muted mt-1">
             Your batches&apos; classes, scheduled by the academy. Add notes to any of them, or ask
             for an extra class or a new time.

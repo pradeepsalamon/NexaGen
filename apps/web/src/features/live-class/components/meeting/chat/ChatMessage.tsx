@@ -97,7 +97,7 @@ export const ChatMessage = memo(function ChatMessage({
             <ParticipantAvatar
               name={msg.senderName}
               size="sm"
-              className="size-8 text-[10px] shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+              className="size-8 text-[10px] shadow-card ring-1 ring-app-border"
             />
           )}
         </div>
@@ -127,10 +127,10 @@ export const ChatMessage = memo(function ChatMessage({
           {/* Message Bubble */}
           <div
             className={cn(
-              "px-3.5 py-2.5 text-sm leading-relaxed [word-break:break-word] shadow-sm transition-all duration-200",
+              "px-3.5 py-2.5 text-sm leading-relaxed [word-break:break-word] shadow-card transition-all duration-200",
               msg.isOwn
-                ? "bg-primary text-white rounded-2xl rounded-tr-sm"
-                : "bg-app-surface border border-app-border text-app-text rounded-2xl rounded-tl-sm dark:bg-app-soft/50",
+                ? "bg-primary text-white rounded-app rounded-tr-sm"
+                : "bg-app-surface border border-app-border text-app-text rounded-app rounded-tl-sm dark:bg-app-soft/50",
             )}
           >
             {msg.message.split("\n").map((line, lineIndex) => {
@@ -142,7 +142,7 @@ export const ChatMessage = memo(function ChatMessage({
                   key={lineIndex}
                   className={cn(
                     isQuote &&
-                      "my-1 border-l-2 border-current pl-2.5 opacity-75 text-[13px] italic bg-black/5 dark:bg-white/5 py-1 rounded-r-md",
+                      "my-1 border-l-2 border-current pl-2.5 opacity-75 text-[13px] italic bg-app-soft py-1 rounded-r-control",
                   )}
                 >
                   {renderTextWithLinks(textContent)}
@@ -160,7 +160,7 @@ export const ChatMessage = memo(function ChatMessage({
           >
             <SimpleTooltip label="Reply">
               <button
-                className="rounded-md p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+                className="rounded-control p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
                 type="button"
                 onClick={handleReply}
                 aria-label="Reply to message"
@@ -170,7 +170,7 @@ export const ChatMessage = memo(function ChatMessage({
             </SimpleTooltip>
             <SimpleTooltip label="Copy">
               <button
-                className="rounded-md p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+                className="rounded-control p-1.5 text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
                 type="button"
                 onClick={handleCopy}
                 aria-label="Copy message"

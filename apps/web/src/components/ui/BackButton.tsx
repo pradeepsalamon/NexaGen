@@ -20,7 +20,7 @@ export function BackButton({
       type="button"
       onClick={() => router.back()}
       className={cn(
-        "inline-flex items-center rounded-full bg-yellow-400 px-4 py-2 text-sm font-bold text-yellow-950 shadow-sm transition-all hover:bg-yellow-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 w-fit",
+        "inline-flex w-fit items-center rounded-full bg-secondary px-4 py-2 text-sm font-bold text-black shadow-sm transition-all hover:bg-[color-mix(in_srgb,var(--color-secondary)_84%,white)] hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
         className
       )}
       {...props}

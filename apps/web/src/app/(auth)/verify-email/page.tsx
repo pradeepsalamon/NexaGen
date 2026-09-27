@@ -9,6 +9,7 @@ import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { AuthHeader } from "@/features/auth/components/AuthHeader";
 import { Button } from "@/components/ui/Button";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 export default function VerifyEmailPage() {
   const router = useRouter();
@@ -59,24 +60,20 @@ export default function VerifyEmailPage() {
       
       <div className="py-6">
         {status === "loading" && (
-          <p className="text-gray-600">Verifying your email address, please wait...</p>
+          <p className="text-app-muted">Verifying your email address, please wait...</p>
         )}
         
         {status === "success" && (
-          <div className="text-green-600 flex flex-col items-center gap-4">
-            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
+          <div className="text-success-ink flex flex-col items-center gap-4">
+            <CheckCircle2 aria-hidden="true" className="size-12" strokeWidth={2} />
             <p>Email verified successfully! Redirecting you...</p>
           </div>
         )}
         
         {status === "error" && (
-          <div className="text-red-600 flex flex-col items-center gap-4">
-            <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <p className="text-gray-900">{errorMsg}</p>
+          <div className="text-app-danger flex flex-col items-center gap-4">
+            <AlertCircle aria-hidden="true" className="size-12" strokeWidth={2} />
+            <p className="text-app-text">{errorMsg}</p>
             <Button onClick={() => router.push("/login")} variant="outline" className="mt-4">
               Return to Login
             </Button>

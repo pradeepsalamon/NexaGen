@@ -11,11 +11,11 @@ import {
   DialogHeader,
   DialogTitle
 } from "@/components/ui/Dialog";
-import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useCreatePayrollPeriod } from "../hooks/usePayrollApi";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 const PERIOD_TYPES = Object.keys(PAYROLL_PERIOD_TYPE_LABELS) as PayrollPeriodType[];
 
@@ -64,19 +64,19 @@ export function CreatePeriodDialog({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="period-start">Start date</Label>
-              <Input
+              <DateStringPicker
                 id="period-start"
-                onChange={(event) => setStartDate(event.target.value)}
-                type="date"
+                onChange={(value) => setStartDate(value)}
+                
                 value={startDate}
               />
             </div>
             <div>
               <Label htmlFor="period-end">End date</Label>
-              <Input
+              <DateStringPicker
                 id="period-end"
-                onChange={(event) => setEndDate(event.target.value)}
-                type="date"
+                onChange={(value) => setEndDate(value)}
+                
                 value={endDate}
               />
             </div>
@@ -98,7 +98,7 @@ export function CreatePeriodDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

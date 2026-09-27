@@ -20,6 +20,7 @@ import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { AssignmentSubmissionsDialog } from "./AssignmentSubmissionsDialog";
 import { DeployAssignmentDialog } from "./DeployAssignmentDialog";
 import { DifficultyBadge, DueBadge } from "./assignmentBadges";
+import { Badge } from "@/components/ui/Badge";
 
 const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
@@ -76,7 +77,7 @@ export function CoachAssignmentsClient() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-app-text">Assignments</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Assignments</h1>
           <p className="mt-1 text-app-muted">
             Build PGN assignments and send them to your batches with a due date.
           </p>
@@ -88,7 +89,7 @@ export function CoachAssignmentsClient() {
       </div>
 
       <Tabs defaultValue="library">
-        <TabsList>
+        <TabsList className="justify-self-end">
           <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
           <TabsTrigger value="assigned">Assigned ({deployments.length})</TabsTrigger>
         </TabsList>
@@ -119,7 +120,7 @@ export function CoachAssignmentsClient() {
                     <button
                       type="button"
                       onClick={() => setPreviewing(item)}
-                      className="text-left font-semibold text-app-text hover:text-primary"
+                      className="text-left font-semibold text-app-text hover:text-primary-ink"
                     >
                       {item.title}
                     </button>
@@ -127,9 +128,9 @@ export function CoachAssignmentsClient() {
                   <div className="flex flex-wrap items-center gap-2">
                     <DifficultyBadge difficulty={item.difficulty} />
                     {item.isLibrary && (
-                      <span className="rounded border border-app-border bg-app-background px-2 py-0.5 text-xs text-app-muted">
+                      <Badge variant="outline">
                         Shared{item.createdByName ? ` · ${item.createdByName}` : ""}
-                      </span>
+                      </Badge>
                     )}
                     <span className="text-xs text-app-muted">
                       {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
@@ -163,9 +164,9 @@ export function CoachAssignmentsClient() {
                         </Button>
                         <Button
                           aria-label="Delete assignment"
-                          variant="outline"
+                          variant="ghost"
                           size="icon"
-                          className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
+                          className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                           onClick={() => runDelete(item)}
                         >
                           <Trash2 className="size-4" strokeWidth={2.5} />
@@ -220,9 +221,9 @@ export function CoachAssignmentsClient() {
                     </Button>
                     <Button
                       aria-label="Withdraw assignment"
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
-                      className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
+                      className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                       onClick={() => runWithdraw(d)}
                     >
                       <Trash2 className="size-4" strokeWidth={2.5} />

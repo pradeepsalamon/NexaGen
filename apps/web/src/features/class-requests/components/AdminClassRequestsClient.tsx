@@ -67,7 +67,7 @@ export function AdminClassRequestsClient() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-app-text">Class Requests</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class Requests</h1>
           <p className="mt-1 text-app-muted">
             Coaches ask here for extra classes and new times. Approving creates or moves the class.
           </p>
@@ -125,11 +125,11 @@ export function AdminClassRequestsClient() {
                   <SimpleTooltip label="Approve">
                     <Button
                       aria-label="Approve request"
-                      className="size-8 rounded-full border-green-500 p-0 text-app-text transition-colors hover:border-green-500 hover:bg-green-500 hover:text-white"
+                      className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
                       onClick={() => openDecision(r, true)}
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <Check aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>
@@ -137,11 +137,11 @@ export function AdminClassRequestsClient() {
                   <SimpleTooltip label="Reject">
                     <Button
                       aria-label="Reject request"
-                      className="size-8 rounded-full border-red-500 p-0 text-app-text transition-colors hover:border-red-500 hover:bg-red-500 hover:text-white"
+                      className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                       onClick={() => openDecision(r, false)}
                       size="icon"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <X aria-hidden="true" className="size-4" strokeWidth={2.5} />
                     </Button>

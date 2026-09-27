@@ -156,7 +156,11 @@ describe("LiveClassPuzzleService", () => {
     it("delegates to PuzzleAttemptService.start stamping liveClassId", async () => {
       prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(assignmentRow());
       await service.startAttempt(TOKEN, CLASS_ID);
-      expect(attempts.start).toHaveBeenCalledWith(TOKEN, "pz-1", { liveClassId: CLASS_ID });
+      const row = assignmentRow();
+      expect(attempts.start).toHaveBeenCalledWith(TOKEN, "pz-1", {
+        liveClassId: CLASS_ID,
+        startedAfter: row.startedAt
+      });
     });
   });
 

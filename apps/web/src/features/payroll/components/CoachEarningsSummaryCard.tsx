@@ -22,7 +22,7 @@ export function CoachEarningsSummaryCard() {
   return (
     <Card className="space-y-3 p-5">
       <div className="flex items-center gap-2">
-        <span className="flex size-9 items-center justify-center rounded-control border border-app-border bg-primary/[0.12] text-primary">
+        <span className="flex size-9 items-center justify-center rounded-control border border-app-border bg-primary/[0.12] text-primary-ink">
           <Wallet className="size-4" strokeWidth={2.5} />
         </span>
         <h3 className="text-sm font-bold text-app-text">Earnings</h3>

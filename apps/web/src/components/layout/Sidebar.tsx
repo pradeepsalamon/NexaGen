@@ -236,8 +236,8 @@ export function NavDrawer({
           aria-expanded={open}
           aria-label={open ? "Close sidebar" : "Open sidebar"}
           className={cn(
-            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-secondary text-black shadow-lg transition-[width,margin,border-radius] duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-            open ? "ml-2 w-7 rounded-2xl" : "w-5 touch-none rounded-r-2xl hover:w-6"
+            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-secondary text-black shadow-lift transition-[width,margin,border-radius] duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+            open ? "ml-2 w-7 rounded-app" : "w-5 touch-none rounded-r-app hover:w-6"
           )}
           onClick={unlessDragged(toggle)}
           type="button"

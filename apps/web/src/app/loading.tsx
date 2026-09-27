@@ -8,7 +8,7 @@ export default function Loading() {
     >
       <Loader2
         aria-hidden="true"
-        className="size-9 animate-spin text-primary"
+        className="size-9 animate-spin text-primary-ink"
         strokeWidth={2.5}
       />
     </main>

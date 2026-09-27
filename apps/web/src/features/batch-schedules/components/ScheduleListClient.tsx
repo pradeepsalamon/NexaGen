@@ -25,8 +25,8 @@ export function ScheduleListClient() {
       <div className="mx-auto grid max-w-6xl gap-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-extrabold uppercase text-primary">Class Scheduler</p>
-            <h1 className="mt-2 text-3xl font-extrabold text-app-text">Batch class plans</h1>
+            <p className="text-xs font-extrabold uppercase text-primary-ink">Class Scheduler</p>
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Batch class plans</h1>
           </div>
           <Button asChild>
             <Link href="/admin/schedule/new">

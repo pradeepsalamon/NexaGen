@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
 import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -97,18 +98,18 @@ export function AssignmentResultView({
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
             <PracticeBoard fen={boardFen} interactive={false} className="lg:w-[360px]" />
             <div className="min-w-0 flex-1 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs uppercase tracking-wide text-app-muted">
-                    <th className="py-1 pr-3">#</th>
-                    <th className="py-1 pr-3">Your move</th>
-                    <th className="py-1 pr-3">Expected</th>
-                    <th className="py-1">Result</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table className="w-full text-sm">
+                <TableHeader>
+                  <TableRow className="text-left text-xs uppercase tracking-wide text-app-muted">
+                    <TableHead className="py-1 pr-3">#</TableHead>
+                    <TableHead className="py-1 pr-3">Your move</TableHead>
+                    <TableHead className="py-1 pr-3">Expected</TableHead>
+                    <TableHead className="py-1">Result</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {result.review.map((r, i) => (
-                    <tr
+                    <TableRow
                       key={r.ply}
                       onClick={() => setCursor(i)}
                       className={cn(
@@ -116,10 +117,10 @@ export function AssignmentResultView({
                         cursor === i && "bg-app-soft"
                       )}
                     >
-                      <td className="py-1.5 pr-3 text-app-muted">{Math.floor(r.ply / 2) + 1}</td>
-                      <td className="py-1.5 pr-3 font-medium text-app-text">{r.yourMove ?? "—"}</td>
-                      <td className="py-1.5 pr-3 text-app-text">{r.expectedMove ?? "—"}</td>
-                      <td className="py-1.5">
+                      <TableCell className="text-left py-1.5 pr-3 text-app-muted">{Math.floor(r.ply / 2) + 1}</TableCell>
+                      <TableCell className="text-left py-1.5 pr-3 font-medium text-app-text">{r.yourMove ?? "—"}</TableCell>
+                      <TableCell className="text-left py-1.5 pr-3 text-app-text">{r.expectedMove ?? "—"}</TableCell>
+                      <TableCell className="text-left py-1.5">
                         {r.correct === true ? (
                           <span className="text-green-600">✓ Correct</span>
                         ) : r.correct === false ? (
@@ -127,11 +128,11 @@ export function AssignmentResultView({
                         ) : (
                           <span className="text-app-muted">— Not reached</span>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
               {result.solutionMoves && (
                 <p className="mt-3 text-xs text-app-muted">
                   Full line:{" "}

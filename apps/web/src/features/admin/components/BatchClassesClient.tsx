@@ -181,11 +181,11 @@ export function BatchClassesClient() {
                     <TooltipTrigger asChild>
                       <Button
                         aria-label="Monitor live class"
-                        className="size-8 rounded-full border-green-500 p-0 text-app-text transition-colors hover:border-green-500 hover:bg-green-500 hover:text-white"
+                        className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
                         onClick={() => setMonitorClassId(row.original.id)}
                         size="icon"
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                       >
                         <Radio aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
@@ -198,14 +198,14 @@ export function BatchClassesClient() {
                     <TooltipTrigger asChild>
                       <Button
                         aria-label="View batch class details"
-                        className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                        className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                         onClick={() => {
                           setDetailsClassId(row.original.id);
                           setIsDetailsOpen(true);
                         }}
                         size="icon"
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                       >
                         <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
@@ -218,11 +218,11 @@ export function BatchClassesClient() {
                     <TooltipTrigger asChild>
                       <Button
                         aria-label="Download Recording"
-                        className="size-8 rounded-full border-green-500 p-0 text-app-text transition-colors hover:border-green-500 hover:bg-green-500 hover:text-white"
+                        className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
                         onClick={() => handleDownload(row.original.id)}
                         size="icon"
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                       >
                         <Download aria-hidden="true" className="size-4" strokeWidth={2.5} />
                       </Button>
@@ -255,10 +255,10 @@ export function BatchClassesClient() {
       <div className="mx-auto grid max-w-7xl gap-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-extrabold uppercase text-primary">
+            <p className="text-xs font-extrabold uppercase text-primary-ink">
               Classes Management
             </p>
-            <h1 className="mt-2 text-3xl font-extrabold leading-tight text-app-text">
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
               Batch Classes
             </h1>
           </div>

@@ -6,11 +6,11 @@ import {
   type FeedbackQuestion,
   type FeedbackQuestionType
 } from "@nexa-chess/types";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { RowAction } from "./RowAction";
+import { Switch } from "@/components/ui/Switch";
 
 const TYPE_OPTIONS = (Object.keys(FEEDBACK_QUESTION_TYPE_LABELS) as FeedbackQuestionType[]).map((value) => ({
   label: FEEDBACK_QUESTION_TYPE_LABELS[value],
@@ -84,7 +84,7 @@ export function QuestionEditor({
       {error ? <p className="pl-8 text-xs font-medium text-app-danger-ink">{error}</p> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-2 pl-8">
-        <Checkbox
+        <Switch
           checked={question.required}
           id={`${id}-required`}
           label="Required"

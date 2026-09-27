@@ -17,12 +17,14 @@ import {
   guestJoinDemoRequestSchema,
   moderateParticipantRequestSchema,
   resolveScreenShareRequestSchema,
+  pullStudentRequestSchema,
   resolveWaitingRoomRequestSchema,
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
   type GuestJoinDemoRequest,
   type ModerateParticipantRequest,
   type ResolveScreenShareRequest,
+  type PullStudentRequest,
   type ResolveWaitingRoomRequest,
   type SaveLiveChatMessageRequest,
   type UpdateLiveClassSettingsRequest,
@@ -93,6 +95,29 @@ export class LiveClassController {
       body.clientMessageId,
       body.recipientId
     );
+  }
+
+  @Get(API_ROUTES.liveClass.pullRoster())
+  getPullRoster(@Param("id") id: string, @Req() request: Request) {
+    return this.liveClassService.getPullRoster(this.getAccessToken(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.pullStudent())
+  pullStudent(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(pullStudentRequestSchema)) body: PullStudentRequest
+  ) {
+    return this.liveClassService.pullStudent(this.getAccessToken(request), id, body.studentId);
+  }
+
+  @Post(API_ROUTES.liveClass.cancelPull())
+  cancelPull(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(pullStudentRequestSchema)) body: PullStudentRequest
+  ) {
+    return this.liveClassService.cancelPull(this.getAccessToken(request), id, body.studentId);
   }
 
   @Get(API_ROUTES.liveClass.waitingRoom())

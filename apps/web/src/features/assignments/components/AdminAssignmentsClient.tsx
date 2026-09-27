@@ -48,7 +48,7 @@ export function AdminAssignmentsClient() {
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight text-app-text">
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
               Assignment library
             </h1>
             <p className="mt-1 text-app-muted">
@@ -85,7 +85,7 @@ export function AdminAssignmentsClient() {
                 <button
                   type="button"
                   onClick={() => setPreviewing(item)}
-                  className="text-left font-semibold text-app-text hover:text-primary"
+                  className="text-left font-semibold text-app-text hover:text-primary-ink"
                 >
                   {item.title}
                 </button>
@@ -122,9 +122,9 @@ export function AdminAssignmentsClient() {
                       </Button>
                       <Button
                         aria-label="Delete assignment"
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
-                        className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-red-600 hover:text-white"
+                        className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                         onClick={() => runDelete(item)}
                       >
                         <Trash2 className="size-4" strokeWidth={2.5} />

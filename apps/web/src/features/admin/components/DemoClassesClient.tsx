@@ -132,10 +132,10 @@ export function DemoClassesClient() {
         >
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-extrabold uppercase text-primary">
+              <p className="text-xs font-extrabold uppercase text-primary-ink">
                 Demo Class management
               </p>
-              <h1 className="mt-2 text-3xl font-extrabold leading-tight text-app-text">
+              <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
                 Demo Classes
               </h1>
             </div>

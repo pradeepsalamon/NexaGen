@@ -10,13 +10,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { validateFen } from 'chess.js';
 import type { Request } from 'express';
 import { getApiEnv } from '@nexa-chess/config/api';
 import type { AccessTokenPayload } from '../auth/types';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { AnalyzePositionDto } from './dto/analyze-position.dto';
-import { StockfishService } from './stockfish.service';
+import { normalizeEngineFen, StockfishService } from './stockfish.service';
 
 const ANALYSIS_ROLES = new Set(['COACH', 'ADMIN', 'SUPER_ADMIN']);
 
@@ -64,12 +63,12 @@ export class StockfishController {
   async analyze(@Req() request: Request, @Body() body: AnalyzePositionDto) {
     await this.assertCanAnalyze(request);
 
-    if (!validateFen(body.fen).ok) {
-      throw new BadRequestException('The position (FEN) is not valid.');
+    // An illegal set-up position is a 400 naming the problem; an empty or
+    // crashed engine pool is a 503.
+    const check = normalizeEngineFen(body.fen);
+    if (!check.ok) {
+      throw new BadRequestException(check.reason);
     }
-
-    // A thrown ServiceUnavailableException (engine pool empty / died)
-    // propagates as 503 so the client can show a real error state.
-    return this.stockfishService.analyzePosition(body.fen);
+    return this.stockfishService.analyzePosition(check.fen, { mode: body.mode });
   }
 }

@@ -61,7 +61,7 @@ export function MasterbasePanel() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-sm text-gray-500 dark:text-slate-400 p-4 text-center">
+      <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
         <span className="font-semibold mb-2">Masterbase Explorer</span>
         <p>{error}</p>
       </div>
@@ -70,7 +70,7 @@ export function MasterbasePanel() {
 
   if (isLoading && !data) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-sm text-gray-500 dark:text-slate-400 p-4 text-center">
+      <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
         <Loader2 className="animate-spin mb-4" size={24} />
         <p>Searching master games…</p>
       </div>
@@ -86,7 +86,7 @@ export function MasterbasePanel() {
   return (
     <div className="flex flex-col gap-4 p-2 text-sm">
       <div>
-        <h3 className="font-bold border-b border-gray-200 dark:border-slate-800 pb-2 mb-2">Master Games</h3>
+        <h3 className="font-bold border-b border-app-border pb-2 mb-2">Master Games</h3>
         {data.opening?.name && (
           <p className="text-xs text-app-muted">
             <span className="font-medium">{data.opening.eco ? `${data.opening.eco} — ` : ""}{data.opening.name}</span>
@@ -94,10 +94,10 @@ export function MasterbasePanel() {
         )}
         <p className="text-xs text-app-muted mt-1">{total.toLocaleString()} games in the masters database</p>
 
-        <div className="flex h-3 rounded-full overflow-hidden mt-2 bg-gray-200 dark:bg-slate-700">
-          <div className="bg-white border-r border-gray-300" style={{ width: `${pct(data.white)}%` }} title={`White ${pct(data.white)}%`} />
+        <div className="flex h-3 rounded-full overflow-hidden mt-2 bg-app-border">
+          <div className="bg-white border-r border-app-border" style={{ width: `${pct(data.white)}%` }} title={`White ${pct(data.white)}%`} />
           <div className="bg-gray-400" style={{ width: `${pct(data.draws)}%` }} title={`Draws ${pct(data.draws)}%`} />
-          <div className="bg-gray-900 dark:bg-slate-950" style={{ width: `${pct(data.black)}%` }} title={`Black ${pct(data.black)}%`} />
+          <div className="bg-gray-900" style={{ width: `${pct(data.black)}%` }} title={`Black ${pct(data.black)}%`} />
         </div>
         <div className="flex justify-between text-[11px] text-app-muted mt-1">
           <span>White {pct(data.white)}%</span>
@@ -115,8 +115,8 @@ export function MasterbasePanel() {
               return (
                 <div key={m.san} className="flex items-center gap-2">
                   <span className="w-12 font-semibold text-app-text">{m.san}</span>
-                  <div className="flex-1 h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-slate-800">
-                    <div className="h-full bg-blue-500/70" style={{ width: `${Math.max(4, (games / maxMoveGames) * 100)}%` }} />
+                  <div className="flex-1 h-2 rounded-full overflow-hidden bg-app-soft">
+                    <div className="h-full bg-primary/70" style={{ width: `${Math.max(4, (games / maxMoveGames) * 100)}%` }} />
                   </div>
                   <span className="w-20 text-right text-app-muted">{games.toLocaleString()}</span>
                 </div>

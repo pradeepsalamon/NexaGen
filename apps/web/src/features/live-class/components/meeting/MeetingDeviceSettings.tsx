@@ -199,7 +199,7 @@ function DeviceSelector({
       {options.length > 0 && needsPermission && !issue && (
         <p className="text-[11px] text-app-muted">
           Device names are hidden until you allow access —{" "}
-          <button type="button" className="font-semibold text-primary underline-offset-2 hover:underline" onClick={() => void scan()}>
+          <button type="button" className="font-semibold text-primary-ink underline-offset-2 hover:underline" onClick={() => void scan()}>
             allow &amp; scan
           </button>
           .

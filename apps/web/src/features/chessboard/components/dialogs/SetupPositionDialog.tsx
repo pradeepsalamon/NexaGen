@@ -8,6 +8,7 @@ import { START_FEN, validateFen } from "../../lib/fen";
 import { PositionEditor } from "../board/PositionEditor";
 import { toast } from "sonner";
 import { Upload } from "lucide-react";
+import { Textarea } from "@/components/ui/Textarea";
 
 export function SetupPositionDialog() {
   const { isSetupPositionOpen, setIsSetupPositionOpen, pushHistory } = useBoardStore();
@@ -93,8 +94,9 @@ export function SetupPositionDialog() {
                 Paste a PGN game (or the moves of a study line) and load it onto the board.
                 The move list and navigation controls populate automatically.
               </p>
-              <textarea
-                className="w-full min-h-[220px] bg-app-surface border border-app-border rounded-md p-3 text-sm font-mono resize-y text-app-text"
+              <Textarea
+                aria-label="PGN"
+                className="min-h-[220px] font-mono"
                 placeholder={'[Event "Casual game"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *'}
                 value={pgnText}
                 onChange={(e) => setPgnText(e.target.value)}
@@ -108,7 +110,7 @@ export function SetupPositionDialog() {
               />
               <div className="flex flex-wrap justify-between gap-3">
                 <Button variant="outline" onClick={() => fileRef.current?.click()}>
-                  <Upload size={16} strokeWidth={2.5} className="mr-2" />
+                  <Upload strokeWidth={2.5} className="size-4 mr-2" />
                   Upload .pgn file
                 </Button>
                 <div className="flex gap-3">

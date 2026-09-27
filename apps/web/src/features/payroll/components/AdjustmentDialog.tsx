@@ -107,7 +107,7 @@ export function AdjustmentDialog({ recordId, coachName, currency, onClose }: Pro
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button disabled={!canSubmit} isLoading={create.isPending} onClick={handleSubmit} type="button">

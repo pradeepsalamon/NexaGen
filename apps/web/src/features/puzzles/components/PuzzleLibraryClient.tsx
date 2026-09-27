@@ -89,7 +89,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-app-text">Puzzle Library</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle Library</h1>
           <p className="mt-1 text-sm text-app-muted">
             {role === "admin"
               ? "Manage the shared puzzle library and every coach's puzzles."
@@ -136,7 +136,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
       )}
 
       <Tabs defaultValue={tabs[0].key}>
-        <TabsList className="flex-wrap">
+        <TabsList className="flex-wrap justify-self-end">
           {tabs.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>
               {t.label}
@@ -233,7 +233,7 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
 
   return (
     <Card className="grid gap-4 p-4">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap justify-end gap-2">
         <Input
           value={searchInput}
           onChange={(e) => {
@@ -277,7 +277,7 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
           className="w-auto"
         />
         {hasFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
+          <Button variant="outline" size="sm" onClick={clearFilters}>
             Clear
           </Button>
         )}
@@ -322,7 +322,7 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
               {puzzles.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium text-app-text">
-                    <Link href={`${basePath}/${p.id}`} className="hover:text-primary">
+                    <Link href={`${basePath}/${p.id}`} className="hover:text-primary-ink">
                       {p.title}
                     </Link>
                   </TableCell>
@@ -393,9 +393,9 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
                               aria-label={
                                 p.status === "PUBLISHED" ? "Unpublish puzzle" : "Publish puzzle"
                               }
-                              variant="outline"
+                              variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:bg-secondary hover:text-black"
+                              className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                               onClick={() =>
                                 runPublish({ id: p.id, next: p.status !== "PUBLISHED" })
                               }
@@ -414,9 +414,9 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
                               aria-label={
                                 p.status === "ARCHIVED" ? "Restore puzzle" : "Archive puzzle"
                               }
-                              variant="outline"
+                              variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:bg-secondary hover:text-black"
+                              className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                               onClick={() =>
                                 runArchive({ id: p.id, next: p.status !== "ARCHIVED" })
                               }
@@ -431,9 +431,9 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
                           <SimpleTooltip label="Delete">
                             <Button
                               aria-label="Delete puzzle"
-                              variant="outline"
+                              variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:bg-app-danger hover:text-white"
+                              className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                               onClick={() => runDelete(p)}
                             >
                               <Trash2 className="size-4" strokeWidth={2.5} />

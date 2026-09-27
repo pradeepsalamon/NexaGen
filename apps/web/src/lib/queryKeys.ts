@@ -168,10 +168,19 @@ export const queryKeys = {
     resolved: ["typography", "resolved"] as const,
     admin: ["typography", "admin"] as const,
   },
+  presence: {
+    heartbeat: ["presence", "heartbeat"] as const,
+  },
+  livePull: {
+    roster: (classId: string) => ["live-pull", "roster", classId] as const,
+  },
   livePuzzle: {
     state: (classId: string) => ["live-puzzle", "state", classId] as const,
     leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
     boards: (classId: string) => ["live-puzzle", "boards", classId] as const,
+  },
+  liveSimul: {
+    state: (classId: string) => ["live-simul", "state", classId] as const,
   },
   payroll: {
     all: ["payroll"] as const,

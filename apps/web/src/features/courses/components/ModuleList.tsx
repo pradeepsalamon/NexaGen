@@ -100,9 +100,9 @@ export function ModuleList({
                 <SimpleTooltip label="Remove">
                   <Button
                     aria-label="Remove module"
-                    variant="outline"
+                    variant="ghost"
                     size="icon"
-                    className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:bg-app-danger hover:text-white"
+                    className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                     onClick={() => runRemove(m.id)}
                   >
                     <Trash2 className="size-4" strokeWidth={2.5} />

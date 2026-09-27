@@ -173,8 +173,8 @@ export function ScheduleBuilderClient() {
     <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-5xl gap-5">
         <header>
-          <p className="text-xs font-extrabold uppercase text-primary">Class Scheduler</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-app-text">Create batch class plan</h1>
+          <p className="text-xs font-extrabold uppercase text-primary-ink">Class Scheduler</p>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Create batch class plan</h1>
           <p className="mt-1 text-sm text-app-muted">
             Define a recurring weekly schedule and NexaGen generates every class for the period.
           </p>

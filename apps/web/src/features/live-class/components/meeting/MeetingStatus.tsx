@@ -274,7 +274,7 @@ export function TimerBadge({
       colorClass = "text-amber-500 border-amber-500 bg-amber-500/10 hover:bg-amber-500/20";
       isWarning = true;
     } else {
-      colorClass = "text-primary border-primary bg-primary/10 hover:bg-primary/20";
+      colorClass = "text-primary-ink border-primary bg-primary/10 hover:bg-primary/20";
     }
   }
 

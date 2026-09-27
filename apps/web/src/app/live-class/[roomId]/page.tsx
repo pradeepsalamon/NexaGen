@@ -59,7 +59,15 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
   // denies it, we fall back to the card so the student can sort it out.
   const autoJoinTried = useRef(false);
   useEffect(() => {
-    if (hasJoined || autoJoinTried.current || isLoading || error || !settings) return;
+    if (hasJoined || autoJoinTried.current || isLoading || error) return;
+    // Pulled in by the coach: straight into the room, no pre-join card. The
+    // media provider still applies the class policy to mic / camera.
+    if (new URLSearchParams(window.location.search).get("pulled") === "1") {
+      autoJoinTried.current = true;
+      join();
+      return;
+    }
+    if (!settings) return;
     const prefs = loadMediaPrefs();
     const joinState = resolveJoinState(settings, isStaff ? "COACH" : "STUDENT", {
       camera: prefs.cameraOn,

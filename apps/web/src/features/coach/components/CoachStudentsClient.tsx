@@ -103,11 +103,11 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
             <SimpleTooltip label="View progress">
               <Button
                 aria-label={`View ${name}'s progress`}
-                className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:border-primary hover:bg-primary hover:text-white"
+                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                 onClick={() => setProgressFor({ id: row.original.id, name })}
                 size="icon"
                 type="button"
-                variant="outline"
+                variant="ghost"
               >
                 <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
@@ -146,7 +146,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-extrabold text-app-text tracking-tight">Students</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Students</h1>
         <p className="text-app-muted mt-1">View and search for students across your assigned batches.</p>
       </div>
 

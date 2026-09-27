@@ -156,7 +156,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                   onBlur={() => setTimeout(() => setIsDurationDropdownOpen(false), 200)}
                 />
                 {isDurationDropdownOpen && (
-                  <div className="absolute z-50 w-full mt-1 rounded-md border border-app-border bg-app-surface shadow-md">
+                  <div className="absolute z-50 w-full mt-1 rounded-control border border-app-border bg-app-surface shadow-card">
                     <ul className="max-h-60 overflow-auto py-1 text-sm text-app-text">
                       {[
                         { label: "30 minutes", value: "30" },

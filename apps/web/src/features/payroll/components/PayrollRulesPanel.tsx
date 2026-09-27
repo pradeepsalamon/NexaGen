@@ -12,6 +12,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { usePayrollRules, useUpdatePayrollRule } from "../hooks/usePayrollApi";
 import { RuleDialog } from "./RuleDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 /** Admin → Finance → Coach Payroll → Rules (§7/§26). */
 export function PayrollRulesPanel() {
@@ -46,41 +47,41 @@ export function PayrollRulesPanel() {
       {data && data.rules.length > 0 ? (
         <Card className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse">
-              <thead>
-                <tr className="border-b border-app-border">
+            <Table className="w-full min-w-[640px] border-collapse">
+              <TableHeader>
+                <TableRow className="border-b border-app-border">
                   {["Name", "Type", "Priority", "Effective from", "Enabled", ""].map((heading) => (
-                    <th
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                    <TableHead
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
                       {heading}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.rules.map((rule) => (
-                  <tr className="border-b border-app-border last:border-0" key={rule.id}>
-                    <td className="px-4 py-3">
+                  <TableRow className="border-b border-app-border last:border-0" key={rule.id}>
+                    <TableCell className="text-left px-4 py-3">
                       <p className="text-sm font-semibold text-app-text">{rule.name}</p>
                       {rule.description ? (
                         <p className="text-xs text-app-muted">{rule.description}</p>
                       ) : null}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <Badge variant="outline">{PAYROLL_RULE_TYPE_LABELS[rule.ruleType]}</Badge>
-                    </td>
-                    <td className="px-4 py-3 text-sm tabular-nums text-app-muted">{rule.priority}</td>
-                    <td className="px-4 py-3 text-xs text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-muted">{rule.priority}</TableCell>
+                    <TableCell className="text-left px-4 py-3 text-xs text-app-muted">
                       {formatFullDate(rule.effectiveFrom, timeZone)}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <Badge variant={rule.enabled ? "success" : "secondary"}>
                         {rule.enabled ? "Enabled" : "Disabled"}
                       </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-right">
                       <Button
                         onClick={() =>
                           toggleEnabled.mutate({ id: rule.id, body: { enabled: !rule.enabled } })
@@ -90,11 +91,11 @@ export function PayrollRulesPanel() {
                       >
                         {rule.enabled ? "Disable" : "Enable"}
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       ) : null}

@@ -18,7 +18,7 @@ export function AdminPayrollClient() {
       </div>
 
       <Tabs defaultValue="periods">
-        <TabsList>
+        <TabsList className="justify-self-end">
           <TabsTrigger value="periods">Periods</TabsTrigger>
           <TabsTrigger value="compensation">Compensation</TabsTrigger>
           <TabsTrigger value="rules">Rules</TabsTrigger>

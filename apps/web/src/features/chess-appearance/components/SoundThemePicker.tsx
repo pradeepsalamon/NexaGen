@@ -65,7 +65,7 @@ export function SoundThemePicker({ soundThemes, selectedId, onSelect }: SoundThe
                     handlePreview(theme.id);
                   }
                 }}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-text transition hover:border-primary/50 hover:text-primary"
+                className="flex size-9 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-text transition hover:border-primary/50 hover:text-primary-ink"
               >
                 {isPlaying ? (
                   <Square className="size-3.5" strokeWidth={2.5} />

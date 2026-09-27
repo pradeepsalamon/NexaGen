@@ -42,14 +42,24 @@ export function KpiCard({
   const body = (
     <div
       className={cn(
-        "group flex h-full flex-col justify-between gap-3 rounded-app border border-app-border bg-app-surface p-4 shadow-card transition",
+        "group flex h-full flex-col justify-between gap-3 rounded-[20px] border border-app-border bg-app-surface p-4 shadow-card transition",
         href && "hover:border-primary hover:shadow-soft"
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-app-muted">
-          {label}
-        </span>
+        <div className="flex min-w-0 items-center gap-2.5">
+          {Icon ? (
+            <span
+              aria-hidden="true"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-primary [background:linear-gradient(var(--color-surface),var(--color-surface))_padding-box,linear-gradient(160deg,rgb(var(--rgb-primary)/0.1),rgb(var(--rgb-primary)),rgb(var(--rgb-secondary)))_border-box] border-2 border-transparent"
+            >
+              <Icon className="size-4" strokeWidth={2.25} />
+            </span>
+          ) : null}
+          <span className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+            {label}
+          </span>
+        </div>
         <div className="flex items-center gap-1 text-app-muted">
           {tooltip ? (
             <SimpleTooltip label={tooltip}>
@@ -62,7 +72,6 @@ export function KpiCard({
               </button>
             </SimpleTooltip>
           ) : null}
-          {Icon ? <Icon className="size-4" strokeWidth={2.25} /> : null}
         </div>
       </div>
 

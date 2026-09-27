@@ -13,6 +13,7 @@ import { AttendanceStatusBadge } from "../AttendanceStatusBadge";
 import { AttendancePercentBar } from "../AttendancePercentBar";
 import { EventTimeline } from "./EventTimeline";
 import { formatDuration } from "@/lib/datetime";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 interface ClassStudentTableProps {
   students: ClassDetailStudentLog[];
@@ -29,7 +30,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
     setExpandedStudent((current) => (current === id ? null : id));
 
   return (
-    <Card className="border-app-border bg-app-surface shadow-sm overflow-hidden">
+    <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">
       <CardHeader className="bg-app-soft/50 border-b border-app-border">
         <CardTitle className="text-lg flex justify-between items-center">
           Student Attendance
@@ -40,68 +41,68 @@ export const ClassStudentTable = memo(function ClassStudentTable({
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
-              <tr>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Name</th>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Status</th>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">Duration</th>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[160px]">
+          <Table className="w-full text-sm text-left">
+            <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+              <TableRow>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">Name</TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">Status</TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">Duration</TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[160px]">
                   Attendance %
-                </th>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                </TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                   Reconnects
-                </th>
-                <th className="px-3 py-3 md:px-6 md:py-4 font-semibold text-right">
+                </TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold text-right">
                   History
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-app-border">
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-app-border">
               {students.map((student) => (
                 <Fragment key={student.id}>
-                  <tr
+                  <TableRow
                     onClick={() => toggleStudent(student.id)}
                     className="hover:bg-app-soft/50 transition-colors cursor-pointer"
                   >
-                    <td className="px-3 py-3 md:px-6 md:py-4 w-10">
+                    <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 w-10">
                       {student.logs.length > 0 &&
                         (expandedStudent === student.id ? (
                           <ChevronDown className="h-4 w-4 text-app-muted" />
                         ) : (
                           <ChevronRight className="h-4 w-4 text-app-muted" />
                         ))}
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4">
+                    </TableCell>
+                    <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                       <div className="font-medium text-app-text">
                         {student.name}
                       </div>
                       <div className="text-xs text-app-muted mt-0.5">
                         {student.email}
                       </div>
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4">
+                    </TableCell>
+                    <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                       <AttendanceStatusBadge status={student.status} />
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                       {formatDuration(student.duration)}
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4">
+                    </TableCell>
+                    <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                       <AttendancePercentBar percent={student.attendancePercent} />
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                       {student.reconnectCount}
-                    </td>
-                    <td className="px-3 py-3 md:px-6 md:py-4 text-right">
+                    </TableCell>
+                    <TableCell className="px-3 py-3 md:px-6 md:py-4 text-right">
                       <TooltipProvider>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               aria-label={`View attendance history for ${student.name}`}
-                              variant="outline"
+                              variant="ghost"
                               size="icon"
-                              className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                               onClick={(event) => {
                                 event.stopPropagation();
                                 onViewHistory({ id: student.id, name: student.name });
@@ -113,13 +114,13 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                           <TooltipContent>Full attendance history</TooltipContent>
                         </Tooltip>
                       </TooltipProvider>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                   {expandedStudent === student.id && student.logs.length > 0 && (
-                    <tr>
-                      <td
+                    <TableRow>
+                      <TableCell
                         colSpan={7}
-                        className="px-3 py-3 md:px-6 md:py-4 bg-app-soft/30"
+                        className="text-left px-3 py-3 md:px-6 md:py-4 bg-app-soft/30"
                       >
                         <div className="pl-4">
                           <p className="text-xs font-semibold text-app-muted uppercase mb-2">
@@ -130,13 +131,13 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                             className="space-y-1.5"
                           />
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </Fragment>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </CardContent>
     </Card>

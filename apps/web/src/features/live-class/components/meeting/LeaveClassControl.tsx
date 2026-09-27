@@ -94,7 +94,7 @@ export function LeaveClassControl({
               </Button>
             </div>
             <DialogFooter>
-              <Button variant="secondary" onClick={() => setOpen(false)}>
+              <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
             </DialogFooter>

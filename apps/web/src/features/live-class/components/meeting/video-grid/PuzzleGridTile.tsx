@@ -79,7 +79,7 @@ export function PuzzleGridTile({
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.94 }}
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-      className="group relative flex aspect-video overflow-hidden rounded-2xl border-2 border-primary/50 bg-app-surface shadow-card"
+      className="group relative flex aspect-video overflow-hidden rounded-app border-2 border-primary/50 bg-app-surface shadow-card"
       style={{ containerType: "size", ...style }}
     >
       <button
@@ -95,7 +95,7 @@ export function PuzzleGridTile({
 
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1 py-0.5">
           <div className="min-w-0 space-y-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-ink">
               <PuzzleIcon className="size-3" strokeWidth={2.5} />
               Class puzzle
             </span>

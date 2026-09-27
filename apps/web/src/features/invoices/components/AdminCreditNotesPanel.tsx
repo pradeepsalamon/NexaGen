@@ -13,6 +13,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { adminCreditNotePdfUrl } from "../api/invoicesApi";
 import { useAdminCreditNotes } from "../hooks/useInvoicesApi";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 /** Every credit note raised, newest first (§19). */
 export function AdminCreditNotesPanel() {
@@ -33,9 +34,9 @@ export function AdminCreditNotesPanel() {
   return (
     <Card className="p-0">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse">
-          <thead>
-            <tr className="border-b border-app-border">
+        <Table className="w-full min-w-[760px] border-collapse">
+          <TableHeader>
+            <TableRow className="border-b border-app-border">
               {[
                 "Credit note",
                 "Against",
@@ -45,62 +46,62 @@ export function AdminCreditNotesPanel() {
                 "Reason",
                 ""
               ].map((heading) => (
-                <th
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                <TableHead
+                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                   key={heading}
                 >
                   {heading}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {data.creditNotes.map((creditNote) => (
-              <tr
+              <TableRow
                 className="border-b border-app-border last:border-0"
                 key={creditNote.id}
               >
-                <td className="px-4 py-3 font-mono text-sm font-semibold text-app-text">
+                <TableCell className="text-left px-4 py-3 font-mono text-sm font-semibold text-app-text">
                   {creditNote.number}
-                </td>
-                <td className="px-4 py-3">
+                </TableCell>
+                <TableCell className="text-left px-4 py-3">
                   <Link
-                    className="font-mono text-xs text-primary hover:underline"
+                    className="font-mono text-xs text-primary-ink hover:underline"
                     href={`/admin/finance/invoices/${creditNote.invoiceId}`}
                   >
                     {creditNote.invoiceNumber}
                   </Link>
-                </td>
-                <td className="px-4 py-3 text-sm text-app-text">
+                </TableCell>
+                <TableCell className="text-left px-4 py-3 text-sm text-app-text">
                   {creditNote.billing.name}
-                </td>
-                <td className="px-4 py-3 text-sm text-app-muted">
+                </TableCell>
+                <TableCell className="text-left px-4 py-3 text-sm text-app-muted">
                   {formatFullDate(creditNote.issuedAt, timeZone)}
-                </td>
-                <td className="px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
+                </TableCell>
+                <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-app-text">
                   {formatMoney(creditNote.total, creditNote.currency)}
                   {!creditNote.isFullCredit ? (
                     <Badge className="ml-2" variant="outline">
                       Partial
                     </Badge>
                   ) : null}
-                </td>
-                <td className="px-4 py-3 text-xs text-app-muted">
+                </TableCell>
+                <TableCell className="text-left px-4 py-3 text-xs text-app-muted">
                   {CREDIT_NOTE_REASON_LABELS[creditNote.reason]}
                   {creditNote.providerRefundId ? (
                     <span className="block font-mono">
                       {creditNote.providerRefundId}
                     </span>
                   ) : null}
-                </td>
-                <td className="px-4 py-3 text-right">
+                </TableCell>
+                <TableCell className="px-4 py-3 text-right">
                   <SimpleTooltip label="Download this credit note">
                     <Button
                       aria-label={`Download credit note ${creditNote.number}`}
                       asChild
-                      className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                      className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                       size="icon"
-                      variant="outline"
+                      variant="ghost"
                     >
                       <a
                         href={adminCreditNotePdfUrl(creditNote.id)}
@@ -111,11 +112,11 @@ export function AdminCreditNotesPanel() {
                       </a>
                     </Button>
                   </SimpleTooltip>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </Card>
   );

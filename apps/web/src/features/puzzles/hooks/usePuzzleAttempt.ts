@@ -31,6 +31,9 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
   const [resetNonce, setResetNonce] = useState(0);
   const [revealedHints, setRevealedHints] = useState(0);
   const [result, setResult] = useState<PuzzleAttemptResultResponse | null>(null);
+  // Moves of a finished line whose submit never reached the server; kept so the
+  // student can send it again instead of the attempt staying open forever.
+  const [pendingSubmit, setPendingSubmit] = useState<AttemptMove[] | null>(null);
   const startedAt = useRef(Date.now());
   const busy = useRef(false);
 
@@ -44,6 +47,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       setWrong(false);
       setRevealedHints(0);
       setResult(null);
+      setPendingSubmit(null);
       startedAt.current = Date.now();
     } catch (error) {
       setStartError((error as Error).message);
@@ -71,18 +75,28 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
   const submit = useCallback(
     async (finalMoves: AttemptMove[]) => {
       if (!puzzleId || !attemptId) return;
-      try {
-        const res = await submitPuzzleAttempt(puzzleId, attemptId, {
-          moves: finalMoves,
-          durationSeconds: Math.round((Date.now() - startedAt.current) / 1000),
-          hintsUsed: revealedHints
-        });
-        setResult(res);
-        setPhase("done");
-        return res;
-      } catch (error) {
-        toast.error({ title: "Could not submit", message: (error as Error).message });
+      const body = {
+        moves: finalMoves,
+        durationSeconds: Math.round((Date.now() - startedAt.current) / 1000),
+        hintsUsed: revealedHints
+      };
+      // A dropped request here is the difference between "solved" and "still
+      // solving" on the coach's screen, so ride out a brief network blip.
+      let lastError: unknown;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const res = await submitPuzzleAttempt(puzzleId, attemptId, body);
+          setPendingSubmit(null);
+          setResult(res);
+          setPhase("done");
+          return res;
+        } catch (error) {
+          lastError = error;
+          if (attempt < 2) await new Promise((r) => window.setTimeout(r, 800 * (attempt + 1)));
+        }
       }
+      setPendingSubmit(finalMoves);
+      toast.error({ title: "Could not submit", message: (lastError as Error).message });
     },
     [puzzleId, attemptId, revealedHints, toast]
   );
@@ -137,6 +151,10 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
   );
 
   const giveUp = useCallback(() => submit(moves), [submit, moves]);
+  const retrySubmit = useCallback(
+    () => (pendingSubmit ? submit(pendingSubmit) : undefined),
+    [submit, pendingSubmit]
+  );
   const showHint = useCallback(() => setRevealedHints((n) => n + 1), []);
 
   return {
@@ -151,6 +169,8 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
     revealedHints,
     begin,
     handleMove,
+    pendingSubmit: pendingSubmit !== null,
+    retrySubmit,
     submit,
     giveUp,
     showHint

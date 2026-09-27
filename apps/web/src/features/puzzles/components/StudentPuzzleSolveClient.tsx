@@ -66,7 +66,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
       </Button>
 
       <div>
-        <h1 className="text-2xl font-extrabold tracking-tight text-app-text">{p.title}</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{p.title}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge variant="secondary">{p.topicName}</Badge>
           <Badge variant="outline">{PUZZLE_TYPE_LABELS[p.puzzleType]}</Badge>

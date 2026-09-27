@@ -10,6 +10,9 @@ import { preloadSounds } from "../../audio/sounds";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
+/** Stored brush name for a palette colour ("green" is aliased to the palette brush in chessground). */
+const paletteBrush = (colorId: string) => (colorId === "green" ? "primaryGreen" : colorId);
+
 export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cg, setCg] = useState<Api | null>(null);
@@ -96,9 +99,8 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     stateRef.current = { arrows, activeBrush };
   }, [arrows, activeBrush]);
 
-  const isAutoClearing = useRef(false);
   const isDrawingModeRef = useRef(isDrawingMode);
-  
+
   useEffect(() => {
     isDrawingModeRef.current = isDrawingMode;
   }, [isDrawingMode]);
@@ -106,20 +108,40 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    
+
     const handleDown = (e: MouseEvent | TouchEvent) => {
-      // Ignore if it's already a right or middle click
-      if ('button' in e && e.button !== 0) return;
+      const isMouse = "button" in e;
+      const isRight = isMouse && (e as MouseEvent).button === 2;
+      const isShiftLeft = isMouse && (e as MouseEvent).button === 0 && e.shiftKey;
+
+      // A drawing gesture: pick the colour from the held modifier (Ctrl red,
+      // Alt blue, Shift yellow, else the palette colour) and stamp it onto the
+      // shape chessground just started — its own mapping differs, and an
+      // exact brush match is what lets a repeat right-click remove the mark.
+      if (isRight || isShiftLeft) {
+        const brush = e.ctrlKey
+          ? "red"
+          : e.altKey
+            ? "blue"
+            : e.shiftKey
+              ? "yellow"
+              : paletteBrush(stateRef.current.activeBrush);
+        window.setTimeout(() => {
+          const state = cgRef.current?.state;
+          if (state?.drawable?.current) {
+            state.drawable.current.brush = brush;
+            state.dom.redraw();
+          }
+        }, 0);
+        return;
+      }
+
+      if (isMouse && (e as MouseEvent).button !== 0) return;
 
       // Invalidate chessground's cached board bounds so square hit-testing uses
       // the current geometry (the board can be moved/resized by layout shifts
       // and CSS transforms that ResizeObserver does not report).
       cgRef.current?.state?.dom?.bounds?.clear?.();
-
-      isAutoClearing.current = true;
-      setTimeout(() => {
-        isAutoClearing.current = false;
-      }, 0);
 
       // If we are in 1-click drawing mode, convert left-click/touch into a right-click
       if (isDrawingModeRef.current) {
@@ -214,7 +236,8 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       drawable: {
         enabled: isCoach && !readOnly,
         visible: true,
-        eraseOnClick: false,
+        // Lichess style: a left click anywhere on the board clears every mark.
+        eraseOnClick: true,
         brushes: {
           green: getBrushConfig(activeBrush),
           primaryGreen: getBrushConfig('green'),
@@ -223,34 +246,12 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
           yellow: getBrushConfig('yellow'),
         },
         onChange: (shapes) => {
-          const { arrows: currentArrows, activeBrush: currentActiveBrush } = stateRef.current;
-          
-          if (isAutoClearing.current && shapes.length === 0) {
-            // Chessground is attempting to natively auto-clear annotations on click.
-            // We reject this and restore the arrows immediately.
-            setTimeout(() => {
-              if (containerRef.current && instance) {
-                const mappedShapes = currentArrows.map(a => ({
-                  orig: a[0] as any,
-                  dest: (a[1] === a[0] ? undefined : a[1]) as any,
-                  brush: a[2] === 'green' ? 'primaryGreen' : a[2]
-                }));
-                instance.setShapes(mappedShapes);
-              }
-            }, 0);
-            return;
-          }
-
-          const newArrows = shapes.map(s => {
-            const orig = s.orig;
-            const dest = s.dest || s.orig;
-            const existing = currentArrows.find(a => a[0] === orig && a[1] === dest);
-            if (existing) {
-               return [orig, dest, existing[2]];
-            }
-            const brush = currentActiveBrush === 'green' ? 'primaryGreen' : currentActiveBrush;
-            return [orig, dest, brush];
-          });
+          const { activeBrush: currentActiveBrush } = stateRef.current;
+          const newArrows = shapes.map(s => [
+            s.orig,
+            s.dest || s.orig,
+            s.brush === 'green' ? paletteBrush(currentActiveBrush) : s.brush,
+          ]);
           setAnnotations(newArrows as any, {});
           // Broadcasting is handled by the store subscription in useBoardSync;
           // calling broadcastAnnotations here races it with a stale closure.

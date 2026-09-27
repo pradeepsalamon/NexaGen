@@ -12,7 +12,7 @@ export function LoadingMeeting({ message = "Loading class…" }: { message?: str
         {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
-            className="aspect-video rounded-2xl border border-app-border bg-app-soft motion-safe:animate-pulse"
+            className="aspect-video rounded-app border border-app-border bg-app-soft motion-safe:animate-pulse"
             style={{ animationDelay: `${i * 120}ms` }}
           />
         ))}

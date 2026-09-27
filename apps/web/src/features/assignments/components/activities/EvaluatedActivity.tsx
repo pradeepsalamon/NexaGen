@@ -440,11 +440,11 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
             )}
 
             {hint && (
-              <p className="rounded-app border border-blue-200 bg-blue-50 p-2 text-sm text-blue-700">
+              <p className="rounded-app border border-primary/40 bg-primary/10 p-2 text-sm text-primary-ink">
                 <Lightbulb className="mr-1 inline size-4 align-text-bottom" strokeWidth={2.5} />
                 {hintText(hint)}
                 {hint.onTrack && !hint.lineComplete && hint.level < 3 && (
-                  <span className="ml-1 text-blue-500">Ask again for more.</span>
+                  <span className="ml-1 text-primary-ink">Ask again for more.</span>
                 )}
               </p>
             )}

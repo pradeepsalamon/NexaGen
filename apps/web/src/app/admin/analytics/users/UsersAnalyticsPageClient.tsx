@@ -97,7 +97,7 @@ export function UsersAnalyticsPageClient() {
           </div>
           <p className="text-xs text-app-muted">
             Tip: filter by acquisition source above, then{" "}
-            <Link className="text-primary hover:underline" href="/admin/analytics/acquisition">
+            <Link className="text-primary-ink hover:underline" href="/admin/analytics/acquisition">
               see the full acquisition breakdown →
             </Link>
           </p>

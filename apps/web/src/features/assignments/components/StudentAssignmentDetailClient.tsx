@@ -17,6 +17,7 @@ import {
 import { EvaluatedActivity } from "./activities/EvaluatedActivity";
 import { PgnBoardViewer } from "./PgnBoardViewer";
 import { ActivityBadge, DifficultyBadge, DueBadge, StatusBadge } from "./assignmentBadges";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -59,7 +60,7 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
         Back to assignments
       </Button>
       <div className="space-y-2">
-        <h1 className="text-2xl font-extrabold tracking-tight text-app-text">{assignment.title}</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{assignment.title}</h1>
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <ActivityBadge activityType={assignment.activityType} />
           <DifficultyBadge difficulty={assignment.difficulty} />
@@ -144,7 +145,7 @@ function ReplayActivity({
   return (
     <>
       <div className="flex justify-end">
-        <div className="flex items-center gap-2 rounded-lg border border-app-border bg-app-background/50 px-4 py-2 font-mono text-xl font-bold tracking-tight text-app-text">
+        <div className="flex items-center gap-2 rounded-control border border-app-border bg-app-background/50 px-4 py-2 font-mono text-xl font-bold tracking-tight text-app-text">
           <Timer className="size-5" />
           <span className={timeLimit && displayTime <= 60 && !isDone ? "text-red-500 animate-pulse" : ""}>
             {formatTime(displayTime)}
@@ -187,7 +188,7 @@ function ReplayActivity({
               href={assignment.pgnUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary-ink hover:underline"
             >
               <Download className="size-4" strokeWidth={2.5} />
               Download PGN
@@ -264,27 +265,27 @@ function EvaluatedShell({
             Attempt history
           </h3>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs uppercase tracking-wide text-app-muted">
-                  <th className="py-1 pr-4">Attempt</th>
-                  <th className="py-1 pr-4">Score</th>
-                  <th className="py-1 pr-4">Accuracy</th>
-                  <th className="py-1 pr-4">Result</th>
-                  <th className="py-1">Time</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="w-full text-sm">
+              <TableHeader>
+                <TableRow className="text-left text-xs uppercase tracking-wide text-app-muted">
+                  <TableHead className="py-1 pr-4">Attempt</TableHead>
+                  <TableHead className="py-1 pr-4">Score</TableHead>
+                  <TableHead className="py-1 pr-4">Accuracy</TableHead>
+                  <TableHead className="py-1 pr-4">Result</TableHead>
+                  <TableHead className="py-1">Time</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {attempts.map((a) => (
-                  <tr key={a.id} className="border-t border-app-border/50">
-                    <td className="py-1.5 pr-4 text-app-text">#{a.attemptNumber}</td>
-                    <td className="py-1.5 pr-4 text-app-text">
+                  <TableRow key={a.id} className="border-t border-app-border/50">
+                    <TableCell className="text-left py-1.5 pr-4 text-app-text">#{a.attemptNumber}</TableCell>
+                    <TableCell className="text-left py-1.5 pr-4 text-app-text">
                       {a.scorePercent === null ? "—" : `${a.scorePercent}%`}
-                    </td>
-                    <td className="py-1.5 pr-4 text-app-text">
+                    </TableCell>
+                    <TableCell className="text-left py-1.5 pr-4 text-app-text">
                       {a.accuracyPercent === null ? "—" : `${a.accuracyPercent}%`}
-                    </td>
-                    <td className="py-1.5 pr-4">
+                    </TableCell>
+                    <TableCell className="text-left py-1.5 pr-4">
                       <span
                         className={
                           a.status === "COMPLETED"
@@ -296,12 +297,12 @@ function EvaluatedShell({
                       >
                         {a.result ?? a.status}
                       </span>
-                    </td>
-                    <td className="py-1.5">{formatTime(a.durationSeconds)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-left py-1.5">{formatTime(a.durationSeconds)}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       )}

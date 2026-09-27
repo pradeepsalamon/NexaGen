@@ -63,7 +63,7 @@ function FontPicker({
                 <span className="block text-xs leading-snug text-app-muted">{font.description}</span>
               </span>
               {active ? (
-                <Check aria-hidden="true" className="size-4 shrink-0 text-primary" strokeWidth={2.75} />
+                <Check aria-hidden="true" className="size-4 shrink-0 text-primary-ink" strokeWidth={2.75} />
               ) : null}
             </button>
           );
@@ -157,7 +157,7 @@ export function TypographyFields({
                   {label}
                 </p>
                 <p
-                  className="text-[1.35em] font-bold text-primary"
+                  className="text-[1.35em] font-bold text-primary-ink"
                   style={{ fontFamily: fontFamilyOf(value.headingFont) }}
                 >
                   {stat}

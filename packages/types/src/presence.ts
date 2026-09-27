@@ -1,0 +1,57 @@
+import { z } from "zod";
+
+// ──────────────────────────────────────────────
+// In-app presence + coach "pull into class"
+// ──────────────────────────────────────────────
+
+/** How often a signed-in tab pings `/presence/heartbeat`. */
+export const PRESENCE_HEARTBEAT_MS = 15_000;
+/** A user counts as online (inside the app) if seen within this window. */
+export const PRESENCE_ONLINE_WINDOW_MS = 45_000;
+
+/** The class live right now for one of the student's batches. */
+export interface PresenceLiveClass {
+  classId: string;
+  topic: string;
+  coachName: string;
+  startedAt: string | null;
+}
+
+/** A coach asked this student to join; the app takes them straight in. */
+export interface PresencePull {
+  id: string;
+  classId: string;
+  topic: string;
+  coachName: string;
+  requestedAt: string;
+}
+
+export interface PresenceHeartbeatResponse {
+  /** Students only; null for every other role. */
+  liveClass: PresenceLiveClass | null;
+  pull: PresencePull | null;
+}
+
+export type LiveClassPullStatus = "PENDING" | "JOINED" | "CANCELLED";
+
+export interface PullRosterStudent {
+  studentId: string;
+  name: string;
+  avatarUrl: string | null;
+  /** Has the app open right now (any page). */
+  online: boolean;
+  lastSeenAt: string | null;
+  /** Connected to this class's room. */
+  inClass: boolean;
+  pull: { status: LiveClassPullStatus; requestedAt: string } | null;
+}
+
+export interface PullRosterResponse {
+  students: PullRosterStudent[];
+}
+
+export const pullStudentRequestSchema = z.object({
+  studentId: z.string().trim().min(1, "Student is required.")
+});
+
+export type PullStudentRequest = z.infer<typeof pullStudentRequestSchema>;

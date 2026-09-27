@@ -34,7 +34,7 @@ const TimeChip = memo(function TimeChip({
   return (
     <div
       className={cn(
-        "flex items-center justify-between gap-3 rounded-lg border px-3 py-1.5 tabular-nums transition-colors",
+        "flex items-center justify-between gap-3 rounded-control border px-3 py-1.5 tabular-nums transition-colors",
         active
           ? "border-primary bg-primary/10 text-app-text"
           : "border-app-border bg-app-surface/70 text-app-muted",
@@ -75,7 +75,7 @@ function CoachClockControls() {
           type="button"
           aria-label="Clock settings"
           title="Clock settings"
-          className="flex size-8 items-center justify-center rounded-lg text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
+          className="flex size-8 items-center justify-center rounded-control text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
         >
           <Timer className="size-4" />
         </button>

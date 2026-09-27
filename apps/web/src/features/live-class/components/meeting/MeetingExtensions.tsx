@@ -36,7 +36,7 @@ function ExtensionPlaceholder({ icon, title, description, className }: Placehold
         className,
       )}
     >
-      <div className="mb-5 flex size-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/10">
+      <div className="mb-5 flex size-16 items-center justify-center rounded-app bg-primary/10 border border-primary/10">
         {icon}
       </div>
       <h3 className="text-base font-semibold text-app-text mb-1.5 tracking-tight">
@@ -57,7 +57,7 @@ function ExtensionPlaceholder({ icon, title, description, className }: Placehold
 export function ChessboardPanel() {
   return (
     <ExtensionPlaceholder
-      icon={<LayoutGrid className="size-8 text-primary" strokeWidth={1.5} />}
+      icon={<LayoutGrid className="size-8 text-primary-ink" strokeWidth={1.5} />}
       title="Live Chessboard"
       description="Interactive chessboard for live demonstrations, analysis, and student practice."
     />
@@ -67,7 +67,7 @@ export function ChessboardPanel() {
 export function WhiteboardPanel() {
   return (
     <ExtensionPlaceholder
-      icon={<PenTool className="size-8 text-primary" strokeWidth={1.5} />}
+      icon={<PenTool className="size-8 text-primary-ink" strokeWidth={1.5} />}
       title="Whiteboard"
       description="Collaborative whiteboard for drawing diagrams, explaining concepts, and annotations."
     />
@@ -77,7 +77,7 @@ export function WhiteboardPanel() {
 export function PgnViewerPanel() {
   return (
     <ExtensionPlaceholder
-      icon={<FileText className="size-8 text-primary" strokeWidth={1.5} />}
+      icon={<FileText className="size-8 text-primary-ink" strokeWidth={1.5} />}
       title="PGN Viewer"
       description="View, analyze, and step through chess games in PGN format during class."
     />
@@ -87,7 +87,7 @@ export function PgnViewerPanel() {
 export function CoachNotesPanel() {
   return (
     <ExtensionPlaceholder
-      icon={<BookOpen className="size-8 text-primary" strokeWidth={1.5} />}
+      icon={<BookOpen className="size-8 text-primary-ink" strokeWidth={1.5} />}
       title="Coach Notes"
       description="Private notes and lesson plans for coaches to reference during the session."
     />
@@ -97,7 +97,7 @@ export function CoachNotesPanel() {
 export function HomeworkPanel() {
   return (
     <ExtensionPlaceholder
-      icon={<ClipboardList className="size-8 text-primary" strokeWidth={1.5} />}
+      icon={<ClipboardList className="size-8 text-primary-ink" strokeWidth={1.5} />}
       title="Homework"
       description="Assign and review homework, puzzles, and exercises for students."
     />
@@ -107,7 +107,7 @@ export function HomeworkPanel() {
 export function AiAssistantPanel() {
   return (
     <ExtensionPlaceholder
-      icon={<Bot className="size-8 text-primary" strokeWidth={1.5} />}
+      icon={<Bot className="size-8 text-primary-ink" strokeWidth={1.5} />}
       title="AI Assistant"
       description="AI-powered teaching assistant for real-time analysis and suggestions."
     />
@@ -117,7 +117,7 @@ export function AiAssistantPanel() {
 export function ClassroomAnalyticsPanel() {
   return (
     <ExtensionPlaceholder
-      icon={<BarChart3 className="size-8 text-primary" strokeWidth={1.5} />}
+      icon={<BarChart3 className="size-8 text-primary-ink" strokeWidth={1.5} />}
       title="Classroom Analytics"
       description="Live engagement metrics, attention tracking, and session statistics."
     />

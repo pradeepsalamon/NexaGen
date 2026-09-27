@@ -15,7 +15,9 @@ import { cn } from "@/lib/utils";
 
 
 type DatePickerProps = {
+  "aria-label"?: string;
   className?: string;
+  id?: string;
   onChange: (date: Date | undefined) => void;
   placeholder?: string;
   value: Date | undefined;
@@ -23,60 +25,67 @@ type DatePickerProps = {
 };
 
 export function DatePicker({
+  "aria-label": ariaLabel,
   className,
+  id,
   onChange,
   placeholder,
   value,
   withTime = false
 }: DatePickerProps) {
-  const [dateTimeValue, setDateTimeValue] = React.useState<Date | undefined>(
-    value
-  );
+  const [open, setOpen] = React.useState(false);
+  // Edits stay local until the dialog closes, so the parent (and any query
+  // keyed on it) sees one change instead of one per click.
+  const [draft, setDraft] = React.useState<Date | undefined>(undefined);
+  const initial = React.useRef<Date | undefined>(undefined);
 
-  React.useEffect(() => {
-    if (withTime) {
-      setDateTimeValue(value);
-    }
-  }, [value, withTime]);
-
-  const selectedDate = withTime
-    ? dateTimeValue
+  const committedDate = withTime
+    ? value
     : value
       ? normalizeDateOnlyValue(value)
       : undefined;
+  const selectedDate = open ? draft : committedDate;
   const displayPlaceholder =
     placeholder ?? (withTime ? "Pick a date & time" : "Pick a date");
 
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      initial.current = committedDate;
+      setDraft(committedDate);
+    } else if (draft?.getTime() !== initial.current?.getTime()) {
+      onChange(draft);
+    }
+    setOpen(next);
+  };
+
   const handleSelect = (date: Date | undefined) => {
     if (!withTime) {
-      onChange(date ? toIsoSafeDateOnly(date) : undefined);
+      setDraft(date ? toIsoSafeDateOnly(date) : undefined);
       return;
     }
 
     if (!date) {
-      setDateTimeValue(undefined);
-      onChange(undefined);
+      setDraft(undefined);
       return;
     }
 
     const nextDate = new Date(date);
 
-    if (dateTimeValue) {
-      nextDate.setHours(dateTimeValue.getHours(), dateTimeValue.getMinutes());
+    if (draft) {
+      nextDate.setHours(draft.getHours(), draft.getMinutes());
     } else {
       nextDate.setHours(12, 0);
     }
     nextDate.setSeconds(0, 0);
 
-    setDateTimeValue(nextDate);
-    onChange(nextDate);
+    setDraft(nextDate);
   };
 
   const handleTimeChange = (
     type: "hour" | "minute" | "ampm",
     nextValue: string
   ) => {
-    const nextDate = selectedDate ? new Date(selectedDate) : new Date();
+    const nextDate = draft ? new Date(draft) : new Date();
     nextDate.setSeconds(0, 0);
 
     if (type === "minute") {
@@ -97,14 +106,15 @@ export function DatePicker({
       }
     }
 
-    setDateTimeValue(nextDate);
-    onChange(nextDate);
+    setDraft(nextDate);
   };
 
   return (
-    <Dialog>
+    <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <Button
+          aria-label={ariaLabel}
+          id={id}
           variant="outline"
           className={cn(
             "min-h-11 justify-start rounded-full px-4 py-2 text-left text-sm font-medium border border-app-border bg-app-surface text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] hover:bg-app-surface hover:text-app-text dark:border-app-border dark:text-app-text dark:hover:bg-app-surface",
@@ -195,7 +205,7 @@ export function DatePicker({
         
         <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
           <DialogClose asChild>
-            <Button variant="primary" size="sm" className="w-full bg-secondary hover:bg-secondary/90 text-app-text font-semibold">
+            <Button variant="primary" size="sm" className="w-full">
               Done
             </Button>
           </DialogClose>
@@ -237,3 +247,45 @@ function normalizeDateOnlyValue(date: Date) {
   return toIsoSafeDateOnly(normalized);
 }
 
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * `DatePicker` for string-valued state: `"YYYY-MM-DD"`, or with `withTime`
+ * `"YYYY-MM-DDTHH:mm"` (the `datetime-local` format). Parsed and emitted in
+ * the browser's local zone, exactly like the native inputs it replaces; `""`
+ * means empty.
+ */
+export function DateStringPicker({
+  onChange,
+  value,
+  withTime = false,
+  ...props
+}: Omit<DatePickerProps, "onChange" | "value"> & {
+  onChange: (value: string) => void;
+  value: string;
+}) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(value);
+  const date = match
+    ? new Date(
+        Number(match[1]),
+        Number(match[2]) - 1,
+        Number(match[3]),
+        Number(match[4] ?? 0),
+        Number(match[5] ?? 0)
+      )
+    : undefined;
+
+  return (
+    <DatePicker
+      {...props}
+      onChange={(next) => {
+        if (!next) return onChange("");
+        const day = `${next.getFullYear()}-${pad(next.getMonth() + 1)}-${pad(next.getDate())}`;
+        onChange(withTime ? `${day}T${pad(next.getHours())}:${pad(next.getMinutes())}` : day);
+      }}
+      value={date}
+      withTime={withTime}
+    />
+  );
+}

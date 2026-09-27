@@ -18,6 +18,7 @@ import { AttendancePercentBar } from "./AttendancePercentBar";
 import { EventTimeline } from "./class-detail/EventTimeline";
 import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 interface CoachAttendanceViewProps {
   data: CoachTeachingResponse;
@@ -40,7 +41,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
     <div className="space-y-6">
       {!hideHeading && (
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-app-text">
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
             Teaching Attendance
           </h1>
         </div>
@@ -48,11 +49,11 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <Clock className="h-5 w-5 text-blue-500" />
+              <span className="p-2 rounded-control bg-primary/10 border border-primary/20">
+                <Clock className="h-5 w-5 text-primary-ink" />
               </span>
             </div>
             <p className="text-3xl font-bold tracking-tight">{stats.totalTeachingHours}h</p>
@@ -60,10 +61,10 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+              <span className="p-2 rounded-control bg-green-500/10 border border-green-500/20">
                 <History className="h-5 w-5 text-green-500" />
               </span>
             </div>
@@ -75,10 +76,10 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-orange-500/10 border border-orange-500/20">
+              <span className="p-2 rounded-control bg-orange-500/10 border border-orange-500/20">
                 <Users className="h-5 w-5 text-orange-500" />
               </span>
             </div>
@@ -87,10 +88,10 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+              <span className="p-2 rounded-control bg-red-500/10 border border-red-500/20">
                 <AlertTriangle className="h-5 w-5 text-red-500" />
               </span>
             </div>
@@ -101,7 +102,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
       </div>
 
       {/* History Table */}
-      <Card className="border-app-border bg-app-surface shadow-sm overflow-hidden">
+      <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">
         <CardHeader className="bg-app-soft/50 border-b border-app-border">
           <CardTitle className="text-lg flex justify-between items-center">
             Recent Classes
@@ -117,37 +118,37 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
-                  <tr className="text-center">
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Date &amp; Time</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Topic / Batch</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">Student Attendance</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Teaching Time</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Coach Attendance</th>
-                    <th scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Board Usage</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-app-border text-center">
+              <Table className="w-full text-sm">
+                <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+                  <TableRow className="text-center">
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Date &amp; Time</TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Topic / Batch</TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">Student Attendance</TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Teaching Time</TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Coach Attendance</TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Board Usage</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-app-border text-center">
                   {history.map((record: CoachTeachingHistory) => {
                     const logs = record.logs ?? [];
                     const isExpanded = expandedClass === record.id;
                     return (
                       <Fragment key={record.id}>
-                        <tr
+                        <TableRow
                           onClick={() => toggleClass(record.id)}
                           className="hover:bg-app-soft/50 transition-colors cursor-pointer"
                         >
-                          <td className="px-3 py-3 md:px-6 md:py-4 w-10">
+                          <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 w-10">
                             {logs.length > 0 &&
                               (isExpanded ? (
                                 <ChevronDown className="h-4 w-4 text-app-muted" />
                               ) : (
                                 <ChevronRight className="h-4 w-4 text-app-muted" />
                               ))}
-                          </td>
-                          <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
+                          </TableCell>
+                          <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
                             {formatDate(record.actualStart ?? record.date, tz, {
                               weekday: "short",
                               month: "short",
@@ -156,36 +157,36 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                             <span className="text-app-muted block text-xs mt-0.5">
                               {formatTime(record.actualStart ?? record.date, tz)}
                             </span>
-                          </td>
-                          <td className="px-3 py-3 md:px-6 md:py-4">
+                          </TableCell>
+                          <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                             <div className="font-medium text-app-text">{record.topic}</div>
                             <div className="text-xs text-app-muted mt-0.5">{record.batchName}</div>
-                          </td>
-                          <td className="px-3 py-3 md:px-6 md:py-4">
+                          </TableCell>
+                          <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                             <div className="flex flex-col gap-1">
                               <AttendancePercentBar percent={record.attendancePercent} />
                               <span className="text-xs text-app-muted text-right">
                                 {record.studentsPresent} / {record.totalStudents} students
                               </span>
                             </div>
-                          </td>
-                          <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted font-medium">
+                          </TableCell>
+                          <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted font-medium">
                             {formatDuration(record.teachingDuration)}
-                          </td>
-                          <td className="px-3 py-3 md:px-6 md:py-4">
+                          </TableCell>
+                          <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                             <div className="font-medium text-app-text">
                               {formatDuration(record.coachTotalDuration || 0)}
                             </div>
-                          </td>
-                          <td className="px-3 py-3 md:px-6 md:py-4">
-                            <div className="font-medium text-blue-500">
+                          </TableCell>
+                          <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
+                            <div className="font-medium text-primary-ink">
                               {formatDuration(record.boardDuration || 0)}
                             </div>
-                          </td>
-                        </tr>
+                          </TableCell>
+                        </TableRow>
                         {isExpanded && logs.length > 0 && (
-                          <tr>
-                            <td colSpan={7} className="px-3 py-3 md:px-6 md:py-4 bg-app-soft/30 text-left">
+                          <TableRow>
+                            <TableCell colSpan={7} className="px-3 py-3 md:px-6 md:py-4 bg-app-soft/30 text-left">
                               <div className="pl-4">
                                 <p className="text-xs font-semibold text-app-muted uppercase mb-2">
                                   Event Timeline
@@ -195,14 +196,14 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                                   className="space-y-1.5"
                                 />
                               </div>
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         )}
                       </Fragment>
                     );
                   })}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

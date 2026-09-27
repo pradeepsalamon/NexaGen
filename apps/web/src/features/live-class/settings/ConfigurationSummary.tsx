@@ -19,7 +19,7 @@ export function ConfigurationSummary({
         {summaryRows(resolved).map((row) => (
           <div key={row.label} className="flex items-start justify-between gap-3 text-sm">
             <dt className="flex items-center gap-1.5 text-app-muted">
-              <Check className="size-3.5 shrink-0 text-primary" strokeWidth={3} />
+              <Check className="size-3.5 shrink-0 text-primary-ink" strokeWidth={3} />
               {row.label}
             </dt>
             <dd className="text-right font-semibold text-app-text">{row.value}</dd>

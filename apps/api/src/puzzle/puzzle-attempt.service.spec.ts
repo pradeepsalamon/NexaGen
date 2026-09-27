@@ -178,6 +178,37 @@ describe("PuzzleAttemptService", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it("accepts the submit of a line already solved through saved moves after the coach ended it", async () => {
+    const solvedLine = [{ ply: 1, uci: "a1a8", san: "Ra8#", fenAfter: "R5k1/5ppp/8/8/8/8/8/6K1 b - - 1 1" }];
+    prisma.puzzleAttempt.findUnique.mockResolvedValue({
+      id: "att-1",
+      puzzleId: "pz-1",
+      studentId: STUDENT_ID,
+      status: "IN_PROGRESS",
+      liveClassId: "class-1",
+      movesJson: solvedLine,
+      hintsUsed: 0,
+      durationSeconds: 0
+    });
+    prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue({
+      status: "ENDED",
+      durationSeconds: null,
+      startedAt: new Date()
+    });
+    const res = await service.submit(TOKEN, "pz-1", "att-1", { moves: solvedLine });
+    expect(res.solved).toBe(true);
+  });
+
+  it("only resumes an in-class attempt opened during the current share", async () => {
+    const startedAfter = new Date("2026-09-28T10:00:00Z");
+    await service.start(TOKEN, "pz-1", { liveClassId: "class-1", startedAfter }).catch(() => undefined);
+    expect(prisma.puzzleAttempt.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ startedAt: { gte: startedAfter } })
+      })
+    );
+  });
+
   it("rejects an in-class attempt once the timer (plus grace) has elapsed", async () => {
     prisma.puzzleAttempt.findUnique.mockResolvedValue({
       id: "att-1",

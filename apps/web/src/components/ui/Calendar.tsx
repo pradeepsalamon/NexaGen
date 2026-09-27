@@ -7,9 +7,12 @@ import { cn } from "@/lib/utils";
 
 function Calendar({
   className,
+  captionLayout = "dropdown",
   classNames,
   components,
+  endMonth = new Date(new Date().getFullYear() + 10, 11),
   showOutsideDays = true,
+  startMonth = new Date(new Date().getFullYear() - 100, 0),
   ...props
 }: React.ComponentProps<typeof DayPicker>) {
   const defaultClassNames = getDefaultClassNames();
@@ -44,7 +47,9 @@ function Calendar({
           defaultClassNames.month_caption
         ),
         caption_label: cn(
-          "select-none text-base font-bold text-zinc-950 dark:text-zinc-100",
+          captionLayout === "label"
+            ? "select-none text-base font-bold text-zinc-950 dark:text-zinc-100"
+            : "flex h-8 select-none items-center gap-1 rounded-md pl-2.5 pr-1.5 text-sm font-bold text-zinc-950 dark:text-zinc-100 [&>svg]:size-3.5 [&>svg]:text-zinc-500",
           defaultClassNames.caption_label
         ),
         dropdowns: cn(
@@ -52,11 +57,11 @@ function Calendar({
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "relative rounded-md border border-zinc-300 bg-white text-zinc-950 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100",
+          "relative rounded-md border border-zinc-300 bg-white text-zinc-950 transition-colors hover:bg-zinc-100 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-800",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(
-          "absolute inset-0 bg-white text-zinc-950 opacity-0 dark:bg-zinc-950 dark:text-zinc-100",
+          "absolute inset-0 cursor-pointer bg-white text-zinc-950 opacity-0 dark:bg-zinc-950 dark:text-zinc-100",
           defaultClassNames.dropdown
         ),
         month_grid: cn(
@@ -127,7 +132,10 @@ function Calendar({
         DayButton: CalendarDayButton,
         ...components
       }}
+      captionLayout={captionLayout}
+      endMonth={endMonth}
       showOutsideDays={showOutsideDays}
+      startMonth={startMonth}
       {...props}
     />
   );

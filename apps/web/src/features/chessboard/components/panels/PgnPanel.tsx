@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
 import { loadPgnIntoBoard } from "../../lib/loadPgn";
+import { Textarea } from "@/components/ui/Textarea";
 
 /**
  * Shows the current game's PGN and lets a coach edit or paste a different one
@@ -41,11 +42,12 @@ export function PgnPanel() {
 
   return (
     <div className="flex h-full flex-col gap-3 p-1 text-sm">
-      <p className="text-xs text-gray-500 dark:text-slate-400">
+      <p className="text-xs text-app-muted">
         This is the current game&apos;s PGN. Edit it, or paste a different game, then Load it onto the board.
       </p>
-      <textarea
-        className="min-h-[220px] w-full flex-1 resize-y rounded-md border border-gray-300 bg-white p-3 font-mono text-xs text-gray-800 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+      <Textarea
+        aria-label="Game PGN"
+        className="min-h-[220px] flex-1 font-mono text-xs"
         placeholder={'[Event "Casual game"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *'}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -62,7 +64,7 @@ export function PgnPanel() {
           variant="primary"
           onClick={handleLoad}
           disabled={!draft.trim()}
-          className="h-auto bg-blue-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-600"
+          className="h-auto bg-primary px-3 py-1.5 text-xs font-medium text-white hover:bg-primary"
         >
           Load PGN
         </Button>

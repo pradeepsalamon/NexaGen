@@ -8,7 +8,6 @@ import {
   type PayrollRuleType
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +21,8 @@ import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useCreatePayrollRule } from "../hooks/usePayrollApi";
+import { DateStringPicker } from "@/components/ui/DatePicker";
+import { Switch } from "@/components/ui/Switch";
 
 const RULE_TYPES = Object.keys(PAYROLL_RULE_TYPE_LABELS) as PayrollRuleType[];
 
@@ -228,23 +229,23 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <Label htmlFor="rule-effective-from">Effective from</Label>
-              <Input
+              <DateStringPicker
                 id="rule-effective-from"
-                onChange={(event) => setEffectiveFrom(event.target.value)}
-                type="date"
+                onChange={(value) => setEffectiveFrom(value)}
+                
                 value={effectiveFrom}
               />
             </div>
           </div>
 
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox checked={enabled} onCheckedChange={(checked) => setEnabled(checked === true)} />
+            <Switch checked={enabled} onCheckedChange={(checked) => setEnabled(checked === true)} />
             Enabled
           </label>
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button disabled={!canSubmit} isLoading={create.isPending} onClick={handleSubmit} type="button">

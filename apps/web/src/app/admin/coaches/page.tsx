@@ -45,7 +45,7 @@ export default function PendingCoachesPage() {
             <div className="mb-2 flex items-center gap-2">
               <BackButton />
             </div>
-            <h1 className="text-3xl font-extrabold text-app-text">Pending Coach Applications</h1>
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Pending Coach Applications</h1>
             <p className="mt-2 text-app-muted">Review and approve applications for new coaches.</p>
           </div>
         </header>
@@ -75,7 +75,7 @@ export default function PendingCoachesPage() {
                   <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-app-muted">
                     <span>{coach.email}</span>
                     <span>•</span>
-                    <span className="font-semibold text-primary">
+                    <span className="font-semibold text-primary-ink">
                       {coach.coachProfile.title !== "NONE" ? coach.coachProfile.title : "No Title"}
                     </span>
                     {coach.coachProfile.fideRating && (

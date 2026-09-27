@@ -8,7 +8,6 @@ import {
   type PaymentListItem
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +20,7 @@ import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Textarea } from "@/components/ui/Textarea";
 import { useRefundPayment } from "../hooks/usePaymentsApi";
+import { Switch } from "@/components/ui/Switch";
 
 type Props = {
   payment: PaymentListItem;
@@ -81,7 +81,7 @@ export function RefundDialog({ payment, onClose }: Props) {
 
         <div className="space-y-4">
           <label className="flex items-center gap-2 text-sm">
-            <Checkbox
+            <Switch
               checked={full}
               onCheckedChange={(checked) => setFull(checked === true)}
             />
@@ -126,7 +126,7 @@ export function RefundDialog({ payment, onClose }: Props) {
           </div>
 
           <label className="flex items-start gap-2 text-sm">
-            <Checkbox
+            <Switch
               checked={revokeAccess}
               onCheckedChange={(checked) => setRevokeAccess(checked === true)}
             />
@@ -141,7 +141,7 @@ export function RefundDialog({ payment, onClose }: Props) {
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} type="button" variant="ghost">
+          <Button onClick={onClose} type="button" variant="outline">
             Cancel
           </Button>
           <Button

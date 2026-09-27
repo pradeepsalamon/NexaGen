@@ -20,6 +20,8 @@ import { AttendanceStatusBadge } from "./AttendanceStatusBadge";
 import { AttendancePercentBar } from "./AttendancePercentBar";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate, formatTime } from "@/lib/datetime";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { Input } from "@/components/ui/Input";
 
 interface StudentAttendanceViewProps {
   data: StudentAttendanceResponse;
@@ -112,7 +114,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
       {!hideHeading && (
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-app-text">
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
               Attendance &amp; Participation
             </h1>
             <p className="text-app-muted mt-1 text-sm md:text-base">
@@ -122,7 +124,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
           <Button
             variant="primary"
             onClick={handleExportCSV}
-            className="rounded-full shadow-sm flex items-center gap-2"
+            className="rounded-full shadow-card flex items-center gap-2"
           >
             <Download className="size-4" strokeWidth={2.5} />
             <span>Download Attendance Report (CSV)</span>
@@ -133,7 +135,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
       {/* KPI Grid (5 Cards matching Stitch layout) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* KPI 1: Overall Attendance */}
-        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
           <div className="relative w-16 h-16 flex items-center justify-center mb-2">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
               <path
@@ -143,7 +145,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
               <path
-                className="text-[#34D399] transition-all duration-700 ease-out stroke-current"
+                className="text-success transition-all duration-700 ease-out stroke-current"
                 strokeDasharray={`${Math.min(100, Math.max(0, stats.percentage))}, 100`}
                 strokeWidth="3.5"
                 strokeLinecap="round"
@@ -157,7 +159,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 2: Classes Attended */}
-        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
           <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mb-3">
             <CheckCircle2 className="size-6" strokeWidth={2.5} />
           </div>
@@ -166,7 +168,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 3: Total Learning Time */}
-        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
           <div className="w-12 h-12 bg-purple-500/10 text-purple-600 rounded-full flex items-center justify-center mb-3">
             <Clock className="size-6" strokeWidth={2.5} />
           </div>
@@ -175,7 +177,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 4: Current Streak */}
-        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
           <div className="w-12 h-12 bg-orange-500/10 text-orange-600 rounded-full flex items-center justify-center mb-3">
             <Flame className="size-6" strokeWidth={2.5} />
           </div>
@@ -184,8 +186,8 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 5: This Month */}
-        <div className="bg-app-surface border border-app-border rounded-2xl p-5 shadow-sm flex flex-col items-center justify-center text-center transition-all hover:shadow-md col-span-2 sm:col-span-1">
-          <div className="w-12 h-12 bg-blue-500/10 text-blue-600 rounded-full flex items-center justify-center mb-3">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md col-span-2 sm:col-span-1">
+          <div className="w-12 h-12 bg-primary/10 text-primary-ink rounded-full flex items-center justify-center mb-3">
             <Calendar className="size-6" strokeWidth={2.5} />
           </div>
           <span className="text-2xl font-bold text-app-text">{stats.monthlyPercent}%</span>
@@ -194,7 +196,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
       </div>
 
       {/* Class History Card */}
-      <div className="bg-app-surface border border-app-border rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-app-surface border border-app-border rounded-app shadow-card overflow-hidden">
         {/* Card Header with Status Filter Pills and Search */}
         <div className="p-5 border-b border-app-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-2">
@@ -208,7 +210,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
 
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             {/* Status Filter Buttons */}
-            <div className="flex bg-app-soft/80 p-1 rounded-xl border border-app-border">
+            <div className="flex bg-app-soft/80 p-1 rounded-control border border-app-border">
               {(["ALL", "PRESENT", "LATE", "ABSENT"] as const).map((status) => {
                 const isActive = statusFilter === status;
                 const label = status === "ALL" ? "All" : status.charAt(0) + status.slice(1).toLowerCase();
@@ -217,7 +219,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                     key={status}
                     type="button"
                     onClick={() => setStatusFilter(status)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-control transition-all ${
                       isActive
                         ? "bg-app-surface text-app-text shadow-xs font-bold"
                         : "text-app-muted hover:text-app-text hover:bg-app-surface/50"
@@ -232,12 +234,13 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
             {/* Search Input */}
             <div className="relative flex-1 sm:w-64 sm:flex-initial">
               <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-app-muted pointer-events-none" />
-              <input
-                type="text"
+              <Input
+                aria-label="Search classes"
+                type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search classes..."
-                className="w-full pl-9 pr-4 py-1.5 text-sm bg-app-background border border-app-border rounded-xl text-app-text placeholder:text-app-muted focus:outline-hidden focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="min-h-10 pl-9"
               />
             </div>
           </div>
@@ -271,18 +274,18 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-app-border bg-app-soft/50 text-xs font-semibold uppercase tracking-wider text-app-muted">
-                  <th scope="col" className="px-5 py-3.5">Class / Topic</th>
-                  <th scope="col" className="px-5 py-3.5">Instructor</th>
-                  <th scope="col" className="px-5 py-3.5">Status</th>
-                  <th scope="col" className="px-5 py-3.5">Duration</th>
-                  <th scope="col" className="px-5 py-3.5 md:w-[180px]">Engagement</th>
-                  <th scope="col" className="px-5 py-3.5 text-right">Logs</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-app-border">
+            <Table className="w-full text-left border-collapse">
+              <TableHeader>
+                <TableRow className="border-b border-app-border bg-app-soft/50 text-xs font-semibold uppercase tracking-wider text-app-muted">
+                  <TableHead scope="col" className="px-5 py-3.5">Class / Topic</TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5">Instructor</TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5">Status</TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5">Duration</TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5 md:w-[180px]">Engagement</TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5 text-right">Logs</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-app-border">
                 {filteredHistory.map((record) => {
                   const rawDate = record.actualStart ?? record.date;
                   const formattedDate = formatFullDate(rawDate, timeZone);
@@ -293,38 +296,38 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                   );
 
                   return (
-                    <tr
+                    <TableRow
                       key={record.id}
                       onClick={interactive ? () => onRowClick?.(record) : undefined}
                       className={`group transition-colors ${
                         interactive ? "hover:bg-app-soft/50 cursor-pointer" : ""
                       }`}
                     >
-                      <td className="px-5 py-4">
+                      <TableCell className="text-left px-5 py-4">
                         <div className="font-semibold text-app-text">{record.topic}</div>
                         <div className="text-xs text-app-muted mt-0.5">
                           {formattedDate} • {formattedTime}
                         </div>
-                      </td>
-                      <td className="px-5 py-4">
+                      </TableCell>
+                      <TableCell className="text-left px-5 py-4">
                         <div className="font-medium text-app-text">{record.coachName}</div>
                         <div className="text-xs text-app-muted mt-0.5">{record.batchName}</div>
-                      </td>
-                      <td className="px-5 py-4">
+                      </TableCell>
+                      <TableCell className="text-left px-5 py-4">
                         <AttendanceStatusBadge status={record.status} />
-                      </td>
-                      <td className="px-5 py-4 text-sm text-app-text">
+                      </TableCell>
+                      <TableCell className="text-left px-5 py-4 text-sm text-app-text">
                         <span>{actualMins}m</span>{" "}
                         <span className="text-xs text-app-muted">/ {totalMins}m</span>
-                      </td>
-                      <td className="px-5 py-4">
+                      </TableCell>
+                      <TableCell className="text-left px-5 py-4">
                         <AttendancePercentBar percent={record.attendancePercent} />
-                      </td>
-                      <td className="px-5 py-4 text-right">
+                      </TableCell>
+                      <TableCell className="px-5 py-4 text-right">
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="icon"
-                          className="size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                          className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                           onClick={(e) => {
                             e.stopPropagation();
                             if (interactive) onRowClick?.(record);
@@ -333,12 +336,12 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                         >
                           <Info className="size-4" strokeWidth={2.5} />
                         </Button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

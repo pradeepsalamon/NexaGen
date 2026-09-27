@@ -109,9 +109,9 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
           <button
             type="button"
             aria-label="User navigation menu"
-            className="group inline-flex items-center gap-2 rounded-full border border-app-border bg-app-surface p-1 pr-2.5 text-sm font-bold text-app-text shadow-sm transition hover:border-primary/50 hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            className="group inline-flex items-center gap-2 rounded-full border border-app-border bg-app-surface p-1 pr-2.5 text-sm font-bold text-app-text shadow-card transition hover:border-primary/50 hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
           >
-            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-xs font-extrabold text-primary">
+            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-xs font-extrabold text-primary-ink">
               {user.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -130,7 +130,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
             <ChevronDown className="size-3.5 text-app-muted transition group-data-[state=open]:rotate-180" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-xl">
+        <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lift">
           <DropdownMenuLabel className="font-normal p-2">
             <div className="flex flex-col space-y-1">
               <div className="flex items-center justify-between gap-2">
@@ -154,7 +154,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
                 className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold"
                 {...newTabProps}
               >
-                <LayoutDashboard className="size-4 text-primary" />
+                <LayoutDashboard className="size-4 text-primary-ink" />
                 <span>Dashboard</span>
               </Link>
             </DropdownMenuItem>

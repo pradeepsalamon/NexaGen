@@ -31,7 +31,7 @@ export function ClassesAnalyticsPageClient() {
                   key: "topic",
                   header: "Class",
                   render: (r) => (
-                    <Link className="font-medium text-primary hover:underline" href={`/classes/${r.id}`}>
+                    <Link className="font-medium text-primary-ink hover:underline" href={`/classes/${r.id}`}>
                       {r.topic}
                     </Link>
                   )

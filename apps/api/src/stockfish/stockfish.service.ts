@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   OnModuleDestroy,
@@ -6,6 +7,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { spawn, ChildProcess } from 'child_process';
+import { cpus } from 'os';
 import { Chess, validateFen } from 'chess.js';
 import { getApiEnv } from '@nexa-chess/config/api';
 import type { StockfishAnalysisResult } from '@nexa-chess/types';
@@ -93,6 +95,99 @@ export function uciLineToSan(fen: string, uciMoves: string[]): string[] {
   return san;
 }
 
+export type EngineFenCheck = { ok: true; fen: string } | { ok: false; reason: string };
+
+/**
+ * chess.js accepts FENs Stockfish can crash on — a set-up position with the
+ * side not to move in check, a pawn on the back rank, or castling rights the
+ * pieces cannot back. Repair what is cosmetic (castling / en passant) and
+ * reject what is genuinely illegal, so the engine only ever sees a sane board.
+ */
+export function normalizeEngineFen(input: string): EngineFenCheck {
+  const fen = input.trim();
+  if (!validateFen(fen).ok) {
+    return { ok: false, reason: 'The position (FEN) is not valid.' };
+  }
+
+  const fields = fen.split(/\s+/);
+  const [placement, turn] = fields;
+  const rows = placement.split('/');
+  const pieceAt = (square: string): string | null => {
+    const file = square.charCodeAt(0) - 97;
+    const rank = Number(square[1]);
+    let col = 0;
+    for (const ch of rows[8 - rank]) {
+      if (/\d/.test(ch)) {
+        col += Number(ch);
+      } else {
+        if (col === file) return ch;
+        col += 1;
+      }
+    }
+    return null;
+  };
+
+  const whiteKings = (placement.match(/K/g) ?? []).length;
+  const blackKings = (placement.match(/k/g) ?? []).length;
+  if (whiteKings !== 1 || blackKings !== 1) {
+    return { ok: false, reason: 'Each side needs exactly one king.' };
+  }
+  if (/[pP]/.test(rows[0]) || /[pP]/.test(rows[7])) {
+    return { ok: false, reason: 'Pawns cannot stand on the first or last rank.' };
+  }
+
+  let castling = fields[2] ?? '-';
+  if (castling !== '-') {
+    const rights: Array<[string, string, string, string, string]> = [
+      ['K', 'K', 'e1', 'R', 'h1'],
+      ['Q', 'K', 'e1', 'R', 'a1'],
+      ['k', 'k', 'e8', 'r', 'h8'],
+      ['q', 'k', 'e8', 'r', 'a8'],
+    ];
+    const kept = rights
+      .filter(
+        ([flag, king, kingSq, rook, rookSq]) =>
+          castling.includes(flag) && pieceAt(kingSq) === king && pieceAt(rookSq) === rook,
+      )
+      .map(([flag]) => flag)
+      .join('');
+    castling = kept || '-';
+  }
+
+  let ep = fields[3] ?? '-';
+  if (ep !== '-') {
+    const file = ep[0];
+    const valid =
+      turn === 'w'
+        ? ep[1] === '6' && pieceAt(`${file}5`) === 'p'
+        : ep[1] === '3' && pieceAt(`${file}4`) === 'P';
+    if (!valid) ep = '-';
+  }
+
+  const normalized = [placement, turn, castling, ep, fields[4] ?? '0', fields[5] ?? '1'].join(' ');
+
+  try {
+    // The side that just moved may not be left in check.
+    const flipped = new Chess(
+      [placement, turn === 'w' ? 'b' : 'w', castling, '-', '0', '1'].join(' '),
+      { skipValidation: true },
+    );
+    if (flipped.inCheck()) {
+      const toMove = turn === 'w' ? 'White' : 'Black';
+      const other = turn === 'w' ? 'Black' : 'White';
+      return {
+        ok: false,
+        reason: `Illegal position: ${other} is in check but it is ${toMove} to move.`,
+      };
+    }
+    new Chess(normalized);
+  } catch {
+    return { ok: false, reason: 'The position (FEN) is not valid.' };
+  }
+
+  return { ok: true, fen: normalized };
+}
+
 interface AnalysisTask {
   fen: string;
   resolve: (result: RawAnalysis) => void;
@@ -106,16 +201,26 @@ interface AnalysisTask {
 class EngineInstance {
   process: ChildProcess;
   isBusy = false;
+  dead = false;
   currentTask: AnalysisTask | null = null;
   private buffer = '';
   private result = emptyRaw();
+  private taskTimer: NodeJS.Timeout | null = null;
 
   constructor(
     path: string,
     private readonly movetimeMs: number,
+    private readonly tuning: { hashMb: number; threads: number },
     private onReady: () => void,
+    private onDead: (engine: EngineInstance) => void,
   ) {
     this.process = spawn(path);
+
+    // Writing to a crashed engine's stdin emits EPIPE; unhandled, that takes
+    // the whole API down.
+    this.process.stdin?.on('error', (err) => {
+      Logger.warn(`Stockfish stdin error: ${err.message}`, 'StockfishEngine');
+    });
 
     this.process.on('error', (err) => {
       Logger.error(
@@ -135,11 +240,19 @@ class EngineInstance {
 
     this.process.on('close', (code) => {
       Logger.warn(`Stockfish process exited with code ${code}`, 'StockfishEngine');
+      this.clearTimer();
       if (this.currentTask) {
-        this.currentTask.reject(new Error('Stockfish process died'));
+        // An availability problem, not a server bug: 503, not 500.
+        this.currentTask.reject(
+          new ServiceUnavailableException('The engine stopped unexpectedly. Please try again.'),
+        );
         this.currentTask = null;
       }
       this.isBusy = false;
+      if (!this.dead) {
+        this.dead = true;
+        this.onDead(this);
+      }
     });
 
     this.process.stdin?.write('uci\n');
@@ -151,6 +264,8 @@ class EngineInstance {
 
     for (const line of lines) {
       if (line.trim() === 'uciok') {
+        this.process.stdin?.write(`setoption name Hash value ${this.tuning.hashMb}\n`);
+        this.process.stdin?.write(`setoption name Threads value ${this.tuning.threads}\n`);
         this.process.stdin?.write('isready\n');
       } else if (line.trim() === 'readyok') {
         this.onReady();
@@ -168,12 +283,20 @@ class EngineInstance {
       this.result.bestMove = parts[1];
     }
 
+    this.clearTimer();
     if (this.currentTask) {
       this.currentTask.resolve(this.result);
       this.currentTask = null;
     }
     this.isBusy = false;
     this.onReady();
+  }
+
+  private clearTimer() {
+    if (this.taskTimer) {
+      clearTimeout(this.taskTimer);
+      this.taskTimer = null;
+    }
   }
 
   analyze(task: AnalysisTask) {
@@ -186,11 +309,21 @@ class EngineInstance {
         ? 20
         : Math.max(0, Math.min(20, Math.round(task.skillLevel)));
     this.process.stdin?.write(`setoption name Skill Level value ${skill}\n`);
+    const movetime = task.movetimeMs ?? this.movetimeMs;
     this.process.stdin?.write(`position fen ${task.fen}\n`);
-    this.process.stdin?.write(`go movetime ${task.movetimeMs ?? this.movetimeMs}\n`);
+    this.process.stdin?.write(`go movetime ${movetime}\n`);
+
+    // A hung engine would otherwise hold the request (and its pool slot)
+    // forever. Killing it fires 'close', which rejects the task and respawns.
+    this.taskTimer = setTimeout(() => {
+      Logger.warn('Stockfish did not answer in time; restarting it', 'StockfishEngine');
+      this.process.kill();
+    }, movetime + 5000);
   }
 
   kill() {
+    this.dead = true;
+    this.clearTimer();
     this.process.stdin?.write('quit\n');
     this.process.kill();
   }
@@ -204,12 +337,25 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   private readonly path: string;
   private readonly poolSize: number;
   private readonly movetimeMs: number;
+  private readonly moveMovetimeMs: number;
+  private readonly tuning: { hashMb: number; threads: number };
+  private shuttingDown = false;
+  // Revisiting a position (stepping through a game, re-syncs) is common, so
+  // answer it from memory instead of burning another engine slot.
+  private readonly cache = new Map<string, StockfishAnalysisResult>();
+  private static readonly CACHE_LIMIT = 500;
 
   constructor() {
     const env = getApiEnv();
     this.path = env.STOCKFISH_PATH ?? '';
     this.poolSize = env.STOCKFISH_POOL_SIZE;
     this.movetimeMs = env.STOCKFISH_MOVETIME;
+    this.moveMovetimeMs = env.STOCKFISH_MOVE_MOVETIME;
+    this.tuning = {
+      hashMb: env.STOCKFISH_HASH_MB,
+      // Share the cores across the pool rather than oversubscribing them.
+      threads: Math.max(1, Math.min(4, Math.floor(cpus().length / Math.max(1, this.poolSize)))),
+    };
   }
 
   onModuleInit() {
@@ -220,18 +366,45 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
 
     this.logger.log(`Initializing Stockfish pool (size: ${this.poolSize})...`);
     for (let i = 0; i < this.poolSize; i++) {
-      try {
-        const engine = new EngineInstance(this.path, this.movetimeMs, () =>
-          this.processQueue(),
-        );
-        this.engines.push(engine);
-      } catch {
-        this.logger.error(`Failed to spawn Stockfish process at ${this.path}`);
-      }
+      this.spawnEngine();
     }
   }
 
+  private spawnEngine() {
+    try {
+      const engine = new EngineInstance(
+        this.path,
+        this.movetimeMs,
+        this.tuning,
+        () => this.processQueue(),
+        (dead) => this.replaceEngine(dead),
+      );
+      this.engines.push(engine);
+    } catch {
+      this.logger.error(`Failed to spawn Stockfish process at ${this.path}`);
+    }
+  }
+
+  /** A crashed engine leaves the pool and a fresh one takes its place. */
+  private replaceEngine(dead: EngineInstance) {
+    this.engines = this.engines.filter((e) => e !== dead);
+    if (this.shuttingDown) return;
+    setTimeout(() => {
+      if (this.shuttingDown) return;
+      this.spawnEngine();
+      this.processQueue();
+    }, 1000);
+  }
+
+  /** Throws a 400 naming the problem when Stockfish must not see `fen`. */
+  normalizeFen(fen: string): string {
+    const check = normalizeEngineFen(fen);
+    if (!check.ok) throw new BadRequestException(check.reason);
+    return check.fen;
+  }
+
   onModuleDestroy() {
+    this.shuttingDown = true;
     this.logger.log('Shutting down Stockfish engines...');
     for (const engine of this.engines) {
       engine.kill();
@@ -240,8 +413,8 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   }
 
   async analyzePosition(
-    fen: string,
-    opts: { movetimeMs?: number } = {},
+    inputFen: string,
+    opts: { movetimeMs?: number; mode?: 'analysis' | 'move' } = {},
   ): Promise<StockfishAnalysisResult> {
     if (this.engines.length === 0) {
       throw new ServiceUnavailableException(
@@ -249,8 +422,16 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       );
     }
 
+    const fen = this.normalizeFen(inputFen);
+    // "move" = the engine plays: full strength (Skill 20) and a longer think.
+    const movetimeMs =
+      opts.movetimeMs ?? (opts.mode === 'move' ? this.moveMovetimeMs : this.movetimeMs);
+    const cacheKey = `${movetimeMs}:${fen}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const raw = await new Promise<RawAnalysis>((resolve, reject) => {
-      this.taskQueue.push({ fen, resolve, reject, movetimeMs: opts.movetimeMs });
+      this.taskQueue.push({ fen, resolve, reject, movetimeMs });
       this.processQueue();
     });
 
@@ -261,7 +442,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       ? uciLineToSan(fen, [bestMoveUci])[0]
       : '';
 
-    return {
+    const result: StockfishAnalysisResult = {
       evaluation: raw.evaluation,
       mate: raw.mate,
       bestMove,
@@ -270,6 +451,13 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       pv,
       pvUci,
     };
+
+    this.cache.set(cacheKey, result);
+    if (this.cache.size > StockfishService.CACHE_LIMIT) {
+      const oldest = this.cache.keys().next().value;
+      if (oldest !== undefined) this.cache.delete(oldest);
+    }
+    return result;
   }
 
   /** True when at least one engine process is alive. */
@@ -283,7 +471,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
    * Throws `ServiceUnavailableException` when the pool is not running.
    */
   async getBestMove(
-    fen: string,
+    inputFen: string,
     opts: { skillLevel?: number; movetimeMs?: number } = {},
   ): Promise<{ uci: string; san: string | null } | null> {
     if (this.engines.length === 0) {
@@ -291,6 +479,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
         'Engine play is not available on this server.',
       );
     }
+    const fen = this.normalizeFen(inputFen);
 
     const raw = await new Promise<RawAnalysis>((resolve, reject) => {
       this.taskQueue.push({
@@ -311,7 +500,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   private processQueue() {
     if (this.taskQueue.length === 0) return;
 
-    const availableEngine = this.engines.find((e) => !e.isBusy);
+    const availableEngine = this.engines.find((e) => !e.isBusy && !e.dead);
     if (availableEngine) {
       const task = this.taskQueue.shift();
       if (task) {

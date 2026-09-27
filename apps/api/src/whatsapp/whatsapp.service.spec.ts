@@ -49,6 +49,8 @@ describe("WhatsAppService", () => {
       SMTP_SECURE: false,
       STOCKFISH_POOL_SIZE: 1,
       STOCKFISH_MOVETIME: 800,
+      STOCKFISH_MOVE_MOVETIME: 2000,
+      STOCKFISH_HASH_MB: 64,
       TRUST_PROXY_HOPS: 0,
       RECORDING_STORAGE_DIR: "/recordings",
       RECORDING_STORAGE_LIMIT_GB: 130,

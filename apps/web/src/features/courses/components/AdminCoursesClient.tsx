@@ -62,7 +62,7 @@ export function AdminCoursesClient() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-app-text">Courses</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Courses</h1>
           <p className="mt-1 text-sm text-app-muted">
             Curate ordered playlists of existing assignments and puzzles for students.
           </p>
@@ -76,7 +76,7 @@ export function AdminCoursesClient() {
       </div>
 
       <Card className="grid gap-4 p-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           <Input
             value={searchInput}
             onChange={(e) => {
@@ -98,7 +98,7 @@ export function AdminCoursesClient() {
             className="w-auto"
           />
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
+            <Button variant="outline" size="sm" onClick={clearFilters}>
               Clear
             </Button>
           )}
@@ -137,7 +137,7 @@ export function AdminCoursesClient() {
                 {courses.map((c: CourseSummary) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium text-app-text">
-                      <Link href={`/admin/courses/${c.id}`} className="hover:text-primary">
+                      <Link href={`/admin/courses/${c.id}`} className="hover:text-primary-ink">
                         {c.title}
                       </Link>
                     </TableCell>
@@ -164,9 +164,9 @@ export function AdminCoursesClient() {
                         <SimpleTooltip label={c.status === "PUBLISHED" ? "Unpublish" : "Publish"}>
                           <Button
                             aria-label={c.status === "PUBLISHED" ? "Unpublish course" : "Publish course"}
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:bg-secondary hover:text-black"
+                            className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                             onClick={() => runPublish({ id: c.id, next: c.status !== "PUBLISHED" })}
                           >
                             {c.status === "PUBLISHED" ? (
@@ -179,9 +179,9 @@ export function AdminCoursesClient() {
                         <SimpleTooltip label={c.status === "ARCHIVED" ? "Restore" : "Archive"}>
                           <Button
                             aria-label={c.status === "ARCHIVED" ? "Restore course" : "Archive course"}
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="size-8 rounded-full border-secondary p-0 text-app-text transition-colors hover:bg-secondary hover:text-black"
+                            className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                             onClick={() => runArchive({ id: c.id, next: c.status !== "ARCHIVED" })}
                           >
                             {c.status === "ARCHIVED" ? (
@@ -194,9 +194,9 @@ export function AdminCoursesClient() {
                         <SimpleTooltip label="Delete">
                           <Button
                             aria-label="Delete course"
-                            variant="outline"
+                            variant="ghost"
                             size="icon"
-                            className="size-8 rounded-full border-app-danger p-0 text-app-text transition-colors hover:bg-app-danger hover:text-white"
+                            className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
                             onClick={() => runDelete(c.id)}
                           >
                             <Trash2 className="size-4" strokeWidth={2.5} />

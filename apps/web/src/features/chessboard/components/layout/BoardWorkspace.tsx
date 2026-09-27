@@ -30,13 +30,8 @@ export function BoardWorkspace() {
           </div>
           <ChessClock
             layout="horizontal"
-            className="rounded-lg border border-app-border bg-app-surface/95 px-1.5 py-1 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95"
+            className="rounded-control border border-app-border bg-app-surface/95 px-1.5 py-1 shadow-card backdrop-blur"
           />
-        </div>
-
-        {/* Drawing tools float in the right gutter, below the header row */}
-        <div className="absolute right-2 top-16 z-10 md:right-4">
-          <DrawingToolbar />
         </div>
 
         <div
@@ -46,7 +41,7 @@ export function BoardWorkspace() {
           <div className="absolute inset-0 m-auto flex flex-col items-center justify-center">
             {/* The board itself, bounded by a square */}
             <div
-              className="overflow-hidden bg-[#e0d8c8] shadow-md dark:bg-slate-800"
+              className="overflow-hidden bg-[#e0d8c8] shadow-card"
               style={{
                 width: "min(100cqw - 2rem, 100cqh - 5rem)",
                 height: "min(100cqw - 2rem, 100cqh - 5rem)",
@@ -56,15 +51,16 @@ export function BoardWorkspace() {
             </div>
 
             {/* Board Navigation Row */}
-            <div className="mt-4 flex w-full flex-col items-center gap-2">
+            <div className="mt-4 flex w-full flex-wrap items-center justify-center gap-3">
               <BoardNavigation />
+              <DrawingToolbar />
             </div>
           </div>
         </div>
       </div>
 
       {/* Right Sidebar Area */}
-      <div className="w-full h-[46vh] md:w-[480px] lg:w-[550px] flex-shrink-0 bg-white dark:bg-slate-900 shadow-sm border border-gray-200 dark:border-slate-800 md:h-full flex flex-col overflow-hidden">
+      <div className="w-full h-[46vh] md:w-[480px] lg:w-[550px] flex-shrink-0 bg-app-surface shadow-card border border-app-border md:h-full flex flex-col overflow-hidden">
         <SidebarTabs />
       </div>
 

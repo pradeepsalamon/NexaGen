@@ -136,7 +136,7 @@ export function FeedbackQuestionnaire({
             disabled={busy}
             onClick={() => skip.mutate(target, { onSuccess: () => onDone?.() })}
             type="button"
-            variant="ghost"
+            variant="outline"
           >
             Skip
           </Button>

@@ -14,9 +14,9 @@ export function DrawingToolbar() {
 
   const colors = [
     { id: 'green', hex: '#15781B', label: 'Green' },
-    { id: 'red', hex: '#882020', label: 'Red' },
-    { id: 'blue', hex: '#003088', label: 'Blue' },
-    { id: 'yellow', hex: '#e68f00', label: 'Yellow' }
+    { id: 'red', hex: '#882020', label: 'Red (hold Ctrl)' },
+    { id: 'blue', hex: '#003088', label: 'Blue (hold Alt)' },
+    { id: 'yellow', hex: '#e68f00', label: 'Yellow (hold Shift)' }
   ];
 
   const handleClear = () => {
@@ -27,8 +27,8 @@ export function DrawingToolbar() {
   };
 
   return (
-    <div className="flex flex-col gap-2 p-2 bg-white dark:bg-slate-900 shadow-sm border border-gray-200 dark:border-slate-800 rounded-lg">
-      <div className="flex flex-col gap-1">
+    <div className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-2 py-1 shadow-card">
+      <div className="flex items-center gap-1">
         {colors.map(color => (
           <Tooltip key={color.id}>
             <TooltipTrigger asChild>
@@ -38,7 +38,7 @@ export function DrawingToolbar() {
                 onClick={() => setActiveBrush(color.id)}
                 className={`w-8 h-8 rounded-full border-2 transition-all ${
                   activeBrush === color.id 
-                    ? 'border-blue-500 scale-110 shadow-sm' 
+                    ? 'border-primary scale-110 shadow-card' 
                     : 'border-transparent hover:scale-105'
                 }`}
               >
@@ -48,22 +48,22 @@ export function DrawingToolbar() {
                 />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="left">
+            <TooltipContent side="top">
               {color.label}
             </TooltipContent>
           </Tooltip>
         ))}
         
-        <div className="w-full h-px bg-gray-200 dark:bg-slate-800 my-1" />
+        <div className="mx-1 h-5 w-px bg-app-border" />
         
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full text-gray-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30" onClick={handleClear}>
-              <Trash2 size={16} />
+            <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full text-app-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30" onClick={handleClear}>
+              <Trash2 className="size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="left">
-            Clear all annotations
+          <TooltipContent side="top">
+            Clear all annotations (or left-click the board)
           </TooltipContent>
         </Tooltip>
       </div>

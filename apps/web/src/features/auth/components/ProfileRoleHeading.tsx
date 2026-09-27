@@ -14,6 +14,6 @@ export function ProfileRoleHeading() {
   const label = role ? roleLabels[role] ?? role : "Profile";
 
   return (
-    <h1 className="mt-3 text-3xl font-extrabold text-app-text">{label}</h1>
+    <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-3 text-app-text">{label}</h1>
   );
 }

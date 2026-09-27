@@ -18,7 +18,7 @@ export function AdminFinanceClient() {
       </div>
 
       <Tabs defaultValue="invoices">
-        <TabsList>
+        <TabsList className="justify-self-end">
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="credit-notes">Credit notes</TabsTrigger>
           <TabsTrigger value="settings">Billing &amp; invoicing</TabsTrigger>

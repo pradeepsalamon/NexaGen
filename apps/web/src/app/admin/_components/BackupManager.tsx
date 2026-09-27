@@ -123,7 +123,7 @@ export function BackupManager() {
       <div className="p-5 border-b border-app-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-extrabold text-app-text flex items-center gap-2">
-            <HardDriveDownload className="size-5 text-primary" />
+            <HardDriveDownload className="size-5 text-primary-ink" />
             Database Backups
           </h2>
           <p className="mt-1 text-sm text-app-muted">
@@ -208,18 +208,18 @@ export function BackupManager() {
                   <TableCell className="text-right pr-5">
                     <div className="flex justify-end gap-2">
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
-                        className="size-8 rounded-full border-blue-500 p-0 text-app-text transition-colors hover:bg-blue-500 hover:text-white"
+                        className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                         onClick={() => handleDownload(backup.key)}
                         title="Download"
                       >
                         <Download className="size-4" strokeWidth={2.5} />
                       </Button>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="icon"
-                        className="size-8 rounded-full border-amber-500 p-0 text-app-text transition-colors hover:bg-amber-500 hover:text-white"
+                        className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
                         onClick={() => setRestoreItem(backup)}
                         title="Restore"
                       >
@@ -242,7 +242,7 @@ export function BackupManager() {
             </AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-4 mt-2">
-                <div className="bg-destructive/10 text-destructive font-semibold p-3 rounded-md border border-destructive/20">
+                <div className="bg-destructive/10 text-destructive font-semibold p-3 rounded-control border border-destructive/20">
                   ⚠️ WARNING: This will immediately WIPE the current production database and replace it entirely with this backup. ALL data added after this backup was taken will be PERMANENTLY LOST.
                 </div>
                 {restoreItem && (

@@ -22,7 +22,7 @@ export function PaymentsAdminClient() {
       />
 
       <Tabs defaultValue="overview">
-        <TabsList>
+        <TabsList className="justify-self-end">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="transactions">Transactions</TabsTrigger>
           <TabsTrigger value="manual">Manual payments</TabsTrigger>

@@ -22,8 +22,8 @@ function StateLayout({ icon, tone = "neutral", title, message, children }: State
     <div className="mx-auto flex w-full max-w-md flex-col items-center py-12 text-center">
       <div
         className={
-          "mb-6 flex size-16 items-center justify-center rounded-2xl " +
-          (tone === "danger" ? "bg-app-danger/10 text-app-danger" : "bg-primary/10 text-primary")
+          "mb-6 flex size-16 items-center justify-center rounded-app " +
+          (tone === "danger" ? "bg-app-danger/10 text-app-danger" : "bg-primary/10 text-primary-ink")
         }
       >
         {icon}

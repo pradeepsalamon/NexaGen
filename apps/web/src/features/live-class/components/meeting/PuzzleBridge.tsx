@@ -69,8 +69,9 @@ export function PuzzleBridge({
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
       } else {
-        // LEADERBOARD_DIRTY — a peer just finished.
+        // LEADERBOARD_DIRTY — a student started or finished.
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
+        if (isCoach) qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
       }
     },
     [applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen, qc, classId, isCoach]

@@ -244,6 +244,9 @@ model User {
   // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
   // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
   lastActiveAt    DateTime?
+  // In-app presence: bumped by the web app's /presence/heartbeat (~15s) while
+  // any tab is open. "Online" = seen within the last minute.
+  lastSeenAt      DateTime?
 
   // ── Acquisition attribution (captured at registration; see analytics module) ──
   acquisitionSource AcquisitionSource @default(UNKNOWN)
@@ -298,6 +301,8 @@ model User {
   studentProgress                 StudentProgress?               @relation("StudentProgress")
   puzzleRatingChanges             PuzzleRatingChange[]           @relation("StudentPuzzleRatingChanges")
   assignedLivePuzzles             LiveClassPuzzleAssignment[]    @relation("LiveClassPuzzleAssignedBy")
+  startedSimuls                   LiveClassSimul[]               @relation("LiveClassSimulStartedBy")
+  simulGames                      LiveClassSimulGame[]           @relation("LiveClassSimulGameStudent")
   activities                      StudentActivity[]              @relation("StudentActivity")
   classAttendances                ClassAttendance[]
   attendanceLogs                  AttendanceLog[]                @relation("UserAttendanceLogs")
@@ -332,6 +337,8 @@ model User {
   discountRedemptions             DiscountRedemption[]           @relation("DiscountRedemptions")
   liveClassWaitingRequests        LiveClassWaitingParticipant[]  @relation("LiveClassWaitingStudent")
   liveClassWaitingResolutions     LiveClassWaitingParticipant[]  @relation("LiveClassWaitingResolvedBy")
+  liveClassPullsReceived          LiveClassPull[]                @relation("LiveClassPullStudent")
+  liveClassPullsSent              LiveClassPull[]                @relation("LiveClassPullRequestedBy")
   liveClassScreenShareRequests    LiveClassScreenShareRequest[]  @relation("LiveClassScreenShareStudent")
   liveClassScreenShareResolutions LiveClassScreenShareRequest[]  @relation("LiveClassScreenShareResolvedBy")
 
@@ -702,6 +709,7 @@ model CoachClass {
   coachAttendance          CoachAttendance?
   recordingWatchProgresses RecordingWatchProgress[]
   puzzleAssignments        LiveClassPuzzleAssignment[]
+  simuls                   LiveClassSimul[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                      @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]          @relation("FeedbackResponseClass")
@@ -1172,6 +1180,7 @@ model LiveSession {
   chatMessages             LiveChatMessage[]
   recordingWatchProgresses RecordingWatchProgress[]
   waitingParticipants      LiveClassWaitingParticipant[]
+  pulls                    LiveClassPull[]
   screenShareRequests      LiveClassScreenShareRequest[]
 
   @@index([batchId])
@@ -1180,6 +1189,40 @@ model LiveSession {
   @@index([startedAt])
   @@index([endedAt])
   @@map("live_sessions")
+}
+
+enum LiveClassPullStatus {
+  PENDING
+  JOINED
+  CANCELLED
+}
+
+/// A coach pulling a student into a live class. The student's app picks it up
+/// on its next presence heartbeat (or first one after login) and joins
+/// directly. Operational session state — not soft-deletable, not in Trash.
+model LiveClassPull {
+  id String @id @default(cuid())
+
+  liveSessionId String
+  liveSession   LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("LiveClassPullStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  requestedById String
+  requestedBy   User   @relation("LiveClassPullRequestedBy", fields: [requestedById], references: [id], onDelete: Cascade)
+
+  status LiveClassPullStatus @default(PENDING)
+
+  requestedAt DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([liveSessionId, studentId])
+  @@index([studentId, status])
+  @@map("live_class_pulls")
 }
 
 enum WaitingRoomStatus {
@@ -1987,6 +2030,103 @@ model LiveClassPuzzleAssignment {
   @@index([liveClassId])
   @@index([puzzleId])
   @@map("live_class_puzzle_assignments")
+}
+
+enum LiveClassSimulStatus {
+  ACTIVE
+  ENDED
+}
+
+enum SimulColorMode {
+  WHITE
+  BLACK
+  ALTERNATE
+}
+
+enum SimulGameStatus {
+  ONGOING
+  FINISHED
+}
+
+enum SimulGameResult {
+  COACH_WON
+  STUDENT_WON
+  DRAW
+}
+
+enum SimulEndReason {
+  CHECKMATE
+  STALEMATE
+  INSUFFICIENT_MATERIAL
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  RESIGNATION
+  DRAW_AGREED
+  ADJUDICATED
+  SIMUL_ENDED
+}
+
+enum SimulSide {
+  COACH
+  STUDENT
+}
+
+/// The coach plays several students at once in a live class. One ACTIVE per
+/// class (partial unique index in the migration). Operational class state —
+/// not soft-deletable, not Trash-registered.
+model LiveClassSimul {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  startedById String?
+  startedBy   User?   @relation("LiveClassSimulStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+
+  status    LiveClassSimulStatus @default(ACTIVE)
+  colorMode SimulColorMode       @default(WHITE)
+  startFen  String
+  startedAt DateTime             @default(now())
+  endedAt   DateTime?
+
+  games LiveClassSimulGame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId])
+  @@map("live_class_simuls")
+}
+
+model LiveClassSimulGame {
+  id String @id @default(cuid())
+
+  simulId String
+  simul   LiveClassSimul @relation(fields: [simulId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("LiveClassSimulGameStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  coachIsWhite  Boolean
+  fen           String
+  /// SimulMove[] (san, uci, by, engine?).
+  movesJson     Json            @default("[]")
+  /// Half-moves played — the optimistic-concurrency guard for every move.
+  ply           Int             @default(0)
+  status        SimulGameStatus @default(ONGOING)
+  result        SimulGameResult?
+  endReason     SimulEndReason?
+  drawOfferedBy SimulSide?
+  engineMoves   Int             @default(0)
+  lastMoveAt    DateTime?
+  finishedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([simulId, studentId])
+  @@index([studentId])
+  @@map("live_class_simul_games")
 }
 
 // Platform default points + leaderboard rules for live-class puzzles

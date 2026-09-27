@@ -89,7 +89,7 @@ export function LiveClassAuditLog() {
   return (
     <Card className="space-y-4 p-5 sm:p-6">
       <div className="flex items-center gap-2.5">
-        <History className="size-5 text-primary" strokeWidth={2.5} />
+        <History className="size-5 text-primary-ink" strokeWidth={2.5} />
         <h2 className="text-lg font-bold text-app-text">Recent changes</h2>
       </div>
 

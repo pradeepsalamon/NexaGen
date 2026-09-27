@@ -5,7 +5,6 @@ import { Info, Lock } from "lucide-react";
 import { DEFAULT_TYPOGRAPHY, type Typography } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import {
@@ -14,6 +13,7 @@ import {
   useUpdateTypographyAdminMutation
 } from "../hooks/useTypographyApi";
 import { TypographyFields } from "./TypographyFields";
+import { Switch } from "@/components/ui/Switch";
 
 export function AdminTypographyClient() {
   const { data, isLoading, isError, refetch } = useTypographyAdminQuery();
@@ -55,7 +55,7 @@ export function AdminTypographyClient() {
       ) : (
         <>
           <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-primary/5 p-3.5 text-sm text-app-text">
-            <Info className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
+            <Info className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
             <p>
               Users who already chose their own fonts or text size keep them, unless you lock the
               settings below.
@@ -74,7 +74,7 @@ export function AdminTypographyClient() {
                   </p>
                 </div>
               </div>
-              <Checkbox
+              <Switch
                 aria-label="Lock text settings for everyone"
                 checked={locked}
                 id="typography-locked"

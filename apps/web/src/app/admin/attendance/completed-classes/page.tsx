@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { apiFetch } from "@/lib/api";
 import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
@@ -22,6 +21,8 @@ import {
   type CompletedClassItem,
 } from "@nexa-chess/types";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { DateStringPicker } from "@/components/ui/DatePicker";
 
 export default function AdminCompletedClassesPage() {
   const router = useRouter();
@@ -66,7 +67,7 @@ export default function AdminCompletedClassesPage() {
   return (
     <div className="space-y-6 max-w-7xl p-4 sm:p-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-app-text">
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
           Completed Classes
         </h1>
         <p className="text-app-muted mt-1">
@@ -75,35 +76,35 @@ export default function AdminCompletedClassesPage() {
       </div>
 
       {/* Filters */}
-      <Card className="border-app-border bg-app-surface shadow-sm">
+      <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-4">
-          <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-wrap items-end justify-end gap-4">
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-app-muted uppercase">
                 From
               </label>
-              <Input
-                type="date"
+              <DateStringPicker
+                
                 value={dateFrom}
-                onChange={(e) => {
-                  setDateFrom(e.target.value);
+                onChange={(value) => {
+                  setDateFrom(value);
                   setPage(1);
                 }}
-                className="w-40"
+                className="w-44" placeholder="Any date"
               />
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-app-muted uppercase">
                 To
               </label>
-              <Input
-                type="date"
+              <DateStringPicker
+                
                 value={dateTo}
-                onChange={(e) => {
-                  setDateTo(e.target.value);
+                onChange={(value) => {
+                  setDateTo(value);
                   setPage(1);
                 }}
-                className="w-40"
+                className="w-44" placeholder="Any date"
               />
             </div>
             <div className="flex flex-col gap-1.5">
@@ -142,7 +143,7 @@ export default function AdminCompletedClassesPage() {
 
       {isLoading ? (
         <div className="flex h-[40vh] items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
         </div>
       ) : !data || filteredClasses.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[40vh] text-center">
@@ -156,45 +157,45 @@ export default function AdminCompletedClassesPage() {
         </div>
       ) : (
         <>
-          <Card className="border-app-border bg-app-surface shadow-sm overflow-hidden">
+          <Card className="border-app-border bg-app-surface shadow-card overflow-hidden">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
-                    <tr>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                <Table className="w-full text-sm text-left">
+                  <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+                    <TableRow>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Date
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Topic / Batch
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Coach
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">
                         Attendance
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Duration
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Teaching
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Status
-                      </th>
-                      <th className="px-3 py-3 md:px-6 md:py-4 font-semibold">
+                      </TableHead>
+                      <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-app-border">
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody className="divide-y divide-app-border">
                     {filteredClasses.map((cls: CompletedClassItem) => (
-                      <tr
+                      <TableRow
                         key={cls.id}
                         className="hover:bg-app-soft/50 transition-colors"
                       >
-                        <td className="px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
                           {formatDate(cls.actualStart ?? cls.date, tz, {
                             weekday: "short",
                             month: "short",
@@ -203,19 +204,19 @@ export default function AdminCompletedClassesPage() {
                           <span className="text-app-muted block text-xs mt-0.5">
                             {formatTime(cls.actualStart ?? cls.scheduledStart, tz)}
                           </span>
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                           <div className="font-medium text-app-text">
                             {cls.topic}
                           </div>
                           <div className="text-xs text-app-muted mt-0.5">
                             {cls.batchName}
                           </div>
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-text">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-text">
                           {cls.coachName}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                           <div className="flex flex-col gap-1">
                             <AttendancePercentBar
                               percent={cls.attendancePercent}
@@ -225,16 +226,16 @@ export default function AdminCompletedClassesPage() {
                               students
                             </span>
                           </div>
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                           {cls.actualDuration > 0
                             ? formatDuration(cls.actualDuration)
                             : formatDuration(cls.scheduledDuration)}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4 text-app-muted">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">
                           {formatDuration(cls.coachTeachingDuration)}
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               cls.status === "COMPLETED"
@@ -244,8 +245,8 @@ export default function AdminCompletedClassesPage() {
                           >
                             {cls.status}
                           </span>
-                        </td>
-                        <td className="px-3 py-3 md:px-6 md:py-4">
+                        </TableCell>
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                           <Button
                             variant="ghost"
                             size="sm"
@@ -258,11 +259,11 @@ export default function AdminCompletedClassesPage() {
                             <Eye className="h-4 w-4 mr-1" />
                             Details
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>

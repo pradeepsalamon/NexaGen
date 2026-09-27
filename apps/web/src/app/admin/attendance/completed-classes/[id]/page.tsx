@@ -42,7 +42,7 @@ export default function ClassDetailPage() {
   if (isLoading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
       </div>
     );
   }
@@ -73,7 +73,7 @@ export default function ClassDetailPage() {
       {/* Class Header */}
       <div>
         <div className="flex items-center gap-3 mb-1">
-          <h1 className="text-3xl font-bold tracking-tight text-app-text">
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
             {data.topic}
           </h1>
           <span
@@ -110,7 +110,7 @@ export default function ClassDetailPage() {
 
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5">
             <p className="text-2xl font-bold tracking-tight">
               {data.totalStudents}
@@ -121,7 +121,7 @@ export default function ClassDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5">
             <p className="text-2xl font-bold tracking-tight text-green-600">
               {attended}
@@ -130,7 +130,7 @@ export default function ClassDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5">
             <p className="text-2xl font-bold tracking-tight text-red-600">
               {data.absentCount}
@@ -139,7 +139,7 @@ export default function ClassDetailPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-app-border bg-app-surface shadow-sm">
+        <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5">
             <p className="text-2xl font-bold tracking-tight">
               {Math.round(data.overallPercent)}%

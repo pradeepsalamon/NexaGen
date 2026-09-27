@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export interface DrillColumn<Row> {
   key: string;
@@ -95,11 +96,11 @@ export function AnalyticsDrillTable<Row>({
       </div>
 
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="bg-app-soft text-xs uppercase tracking-wide text-app-muted">
-            <tr>
+        <Table className="w-full min-w-[640px] text-left text-sm">
+          <TableHeader className="bg-app-soft text-xs uppercase tracking-wide text-app-muted">
+            <TableRow>
               {columns.map((col) => (
-                <th
+                <TableHead
                   className={cn("px-4 py-2.5", col.align === "right" && "text-right")}
                   key={col.key}
                 >
@@ -123,41 +124,41 @@ export function AnalyticsDrillTable<Row>({
                   ) : (
                     col.header
                   )}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-app-border">
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-app-border">
             {isLoading ? (
               Array.from({ length: 8 }).map((_, i) => (
-                <tr key={i}>
+                <TableRow key={i}>
                   {columns.map((col) => (
-                    <td className="px-4 py-3" key={col.key}>
+                    <TableCell className="text-left px-4 py-3" key={col.key}>
                       <Skeleton className="h-4 w-full" />
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))
             ) : isError ? (
-              <tr>
-                <td className="px-4 py-6 text-center text-app-muted" colSpan={columns.length}>
+              <TableRow>
+                <TableCell className="px-4 py-6 text-center text-app-muted" colSpan={columns.length}>
                   Couldn&apos;t load this table.{" "}
-                  <button className="text-primary underline" onClick={() => refetch()} type="button">
+                  <button className="text-primary-ink underline" onClick={() => refetch()} type="button">
                     Retry
                   </button>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (data?.rows.length ?? 0) === 0 ? (
-              <tr>
-                <td className="px-4 py-6 text-center text-app-muted" colSpan={columns.length}>
+              <TableRow>
+                <TableCell className="px-4 py-6 text-center text-app-muted" colSpan={columns.length}>
                   {emptyMessage}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               data?.rows.map((row) => (
-                <tr className="hover:bg-app-soft/50" key={rowKey(row)}>
+                <TableRow className="hover:bg-app-soft/50" key={rowKey(row)}>
                   {columns.map((col) => (
-                    <td
+                    <TableCell
                       className={cn(
                         "px-4 py-2.5",
                         col.align === "right" && "text-right"
@@ -165,13 +166,13 @@ export function AnalyticsDrillTable<Row>({
                       key={col.key}
                     >
                       {col.render(row)}
-                    </td>
+                    </TableCell>
                   ))}
-                </tr>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
 
       <div className="flex items-center justify-between gap-2 border-t border-app-border p-3 text-sm text-app-muted">

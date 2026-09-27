@@ -12,6 +12,7 @@ import { TrashModule } from "./trash/trash.module";
 import { UserModule } from "./user/user.module";
 import { LiveClassModule } from "./live-class/live-class.module";
 import { AdminModule } from './admin/admin.module';
+import { PresenceModule } from "./presence/presence.module";
 import { StudentModule } from "./student/student.module";
 import { ScheduleModule } from "@nestjs/schedule";
 import { UploadModule } from "./upload/upload.module";
@@ -22,6 +23,7 @@ import { AssignmentModule } from "./assignment/assignment.module";
 import { NotificationModule } from "./notification/notification.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { PuzzleModule } from "./puzzle/puzzle.module";
+import { SimulModule } from "./simul/simul.module";
 import { CourseModule } from "./course/course.module";
 import { QueueModule } from "./queue/queue.module";
 import { MessagingModule } from "./messaging/messaging.module";
@@ -57,6 +59,7 @@ import { LeadModule } from "./lead/lead.module";
     UserModule,
     LiveClassModule,
     AdminModule,
+    PresenceModule,
     StudentModule,
     UploadModule,
     StockfishModule,
@@ -66,6 +69,7 @@ import { LeadModule } from "./lead/lead.module";
     NotificationModule,
     AnalyticsModule,
     PuzzleModule,
+    SimulModule,
     CourseModule,
     MessagingModule,
     AnnouncementModule,

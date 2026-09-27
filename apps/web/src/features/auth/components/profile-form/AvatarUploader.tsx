@@ -29,7 +29,7 @@ export const AvatarUploader = memo(function AvatarUploader({
 
   return (
     <div className="flex flex-col items-center justify-center space-y-4 mb-2">
-      <div className="size-24 rounded-full overflow-hidden ring-2 ring-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-primary flex items-center justify-center shrink-0 shadow-sm text-3xl font-extrabold">
+      <div className="size-24 rounded-full overflow-hidden ring-2 ring-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-primary-ink flex items-center justify-center shrink-0 shadow-card text-3xl font-extrabold">
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={avatarUrl} alt="Avatar" className="w-full h-full object-cover" />

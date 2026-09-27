@@ -36,17 +36,17 @@ export default function StudentAttendancePage() {
       <div className="max-w-7xl mx-auto space-y-6 pb-10">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="space-y-2">
-            <div className="h-8 w-64 bg-app-soft animate-pulse rounded-lg" />
-            <div className="h-4 w-80 bg-app-soft animate-pulse rounded-lg" />
+            <div className="h-8 w-64 bg-app-soft animate-pulse rounded-control" />
+            <div className="h-4 w-80 bg-app-soft animate-pulse rounded-control" />
           </div>
           <div className="h-10 w-56 bg-app-soft animate-pulse rounded-full" />
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-36 bg-app-surface border border-app-border rounded-2xl animate-pulse" />
+            <div key={i} className="h-36 bg-app-surface border border-app-border rounded-app animate-pulse" />
           ))}
         </div>
-        <div className="h-96 w-full bg-app-surface border border-app-border rounded-2xl animate-pulse" />
+        <div className="h-96 w-full bg-app-surface border border-app-border rounded-app animate-pulse" />
       </div>
     );
   }

@@ -12,6 +12,7 @@ import { formatFullDate } from "@/lib/datetime";
 import { useAdminPayrollPeriods } from "../hooks/usePayrollApi";
 import { CreatePeriodDialog } from "./CreatePeriodDialog";
 import { PayrollPeriodStatusBadge } from "./PayrollBadges";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 /** Admin → Finance → Coach Payroll → Periods. */
 export function AdminPayrollPeriodsPanel() {
@@ -45,46 +46,46 @@ export function AdminPayrollPeriodsPanel() {
       {data && data.periods.length > 0 ? (
         <Card className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse">
-              <thead>
-                <tr className="border-b border-app-border">
+            <Table className="w-full min-w-[640px] border-collapse">
+              <TableHeader>
+                <TableRow className="border-b border-app-border">
                   {["Period", "Range", "Status", "Calculated", "Finalized", ""].map((heading) => (
-                    <th
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                    <TableHead
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
                       {heading}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.periods.map((period) => (
-                  <tr className="border-b border-app-border last:border-0" key={period.id}>
-                    <td className="px-4 py-3 text-sm font-semibold text-app-text">
+                  <TableRow className="border-b border-app-border last:border-0" key={period.id}>
+                    <TableCell className="text-left px-4 py-3 text-sm font-semibold text-app-text">
                       {period.periodType}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm text-app-muted">
                       {formatFullDate(period.startDate, "UTC")} – {formatFullDate(period.endDate, "UTC")}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3">
                       <PayrollPeriodStatusBadge status={period.status} />
-                    </td>
-                    <td className="px-4 py-3 text-xs text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-xs text-app-muted">
                       {period.calculatedAt ? formatFullDate(period.calculatedAt, timeZone) : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-xs text-app-muted">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-xs text-app-muted">
                       {period.finalizedAt ? formatFullDate(period.finalizedAt, timeZone) : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="px-4 py-3 text-right">
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/admin/finance/coach-payroll/periods/${period.id}`}>Open</Link>
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       ) : null}

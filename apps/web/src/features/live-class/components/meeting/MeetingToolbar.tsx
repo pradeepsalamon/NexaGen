@@ -20,6 +20,7 @@ import {
   PictureInPicture2,
   Puzzle as PuzzleIcon,
   SmilePlus,
+  Swords,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -34,6 +35,7 @@ import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useOptionalSimul } from "../../providers/SimulProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -78,6 +80,21 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     !isCoach && !!settings && settings.student.screenShare !== "ALLOWED";
 
   const { unreadCount } = useLiveClassChat();
+  const simul = useOptionalSimul();
+  const simulActive = simul?.simul?.status === "ACTIVE";
+  const showSimul = !!simul && (simul.isManager || !!simul.myGame);
+  const simulBadge = !simul
+    ? 0
+    : simul.isManager
+      ? simul.coachOpen ? 0 : simul.coachToMove
+      : simul.myGame?.turn === "STUDENT" && !simul.studentOpen && simulActive ? 1 : 0;
+  const openSimul = () => {
+    if (!simul) return;
+    if (!simul.isManager) simul.setStudentOpen(true);
+    else if (simul.simul) simul.setCoachOpen(true);
+    else simul.setStartOpen(true);
+  };
+  const simulLabel = simul?.isManager && !simul.simul ? "Play simul" : "Simul boards";
   const { localParticipant } = useLocalParticipant();
   const pip = useOptionalPip();
 
@@ -219,10 +236,19 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   // rather than offering a control that silently does nothing.
   if (pip?.supported) {
     moreItems.push({
-      icon: <PictureInPicture2 className={cn("size-5", pip.active && "text-primary")} />,
+      icon: <PictureInPicture2 className={cn("size-5", pip.active && "text-primary-ink")} />,
       label: pip.active ? "Close mini player" : "Mini player",
       onClick: pip.toggle,
       active: pip.active,
+    });
+  }
+
+  if (showSimul && isCoach) {
+    moreItems.push({
+      icon: <Swords className="size-5" />,
+      label: simulLabel,
+      onClick: openSimul,
+      mobileOnly: true,
     });
   }
 
@@ -255,7 +281,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       role="toolbar"
       aria-label="Meeting controls"
     >
-      <div className="pointer-events-auto flex max-w-full items-center gap-1 rounded-2xl border border-app-border bg-app-surface/90 px-2 py-2 shadow-card backdrop-blur-xl sm:gap-1.5 sm:px-3 sm:py-2.5">
+      <div className="pointer-events-auto flex max-w-full items-center gap-1 rounded-app border border-app-border bg-app-surface/90 px-2 py-2 shadow-card backdrop-blur-xl sm:gap-1.5 sm:px-3 sm:py-2.5">
         <MeetingControlButton
           icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
           label={micLocked ? "Microphone disabled by the coach" : mic.enabled ? "Mute" : "Unmute"}
@@ -339,12 +365,23 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
         </div>
 
         <MeetingControlButton
-          icon={<PuzzleIcon className={cn("size-5", activePuzzle && activeSidebar !== "puzzle" && "text-primary")} />}
+          icon={<PuzzleIcon className={cn("size-5", activePuzzle && activeSidebar !== "puzzle" && "text-primary-ink")} />}
           label={activeSidebar === "puzzle" ? "Close puzzles" : "Puzzles"}
           badge={activePuzzle && activeSidebar !== "puzzle" ? 1 : 0}
           variant={activeSidebar === "puzzle" ? "active" : "default"}
           onClick={() => toggleSidebar("puzzle")}
         />
+
+        {showSimul ? (
+          <div className={cn(isCoach && "hidden sm:block")}>
+            <MeetingControlButton
+              icon={<Swords className={cn("size-5", simulActive && "text-primary-ink")} />}
+              label={simulLabel}
+              badge={simulBadge}
+              onClick={openSimul}
+            />
+          </div>
+        ) : null}
 
         <ReactionPicker>
           <MeetingControlButton icon={<SmilePlus className="size-5" />} label="Reactions" />

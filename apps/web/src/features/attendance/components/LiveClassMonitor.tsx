@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/Dialog";
 import { cn } from "@/lib/utils";
 import { useLiveClassMonitoring } from "../hooks/useLiveClassMonitoring";
+import { Badge } from "@/components/ui/Badge";
 
 type Connection = "online" | "reconnecting" | "offline" | "left" | "absent";
 
@@ -215,9 +216,9 @@ function StudentRow({ student, timeZone }: { student: LiveMonitoringStudent; tim
         </div>
       </div>
       {student.reconnectCount > 0 && (
-        <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+        <Badge className="shrink-0" variant="warning">
           {student.reconnectCount}× reconnect
-        </span>
+        </Badge>
       )}
     </li>
   );

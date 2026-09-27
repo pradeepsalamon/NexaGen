@@ -11,7 +11,6 @@ import {
 import { Info } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -20,6 +19,7 @@ import {
   useInvoiceSettings,
   useUpdateInvoiceSettings
 } from "../hooks/useInvoicesApi";
+import { Switch } from "@/components/ui/Switch";
 
 /**
  * Admin → Settings → Billing & Invoicing (§4).
@@ -55,7 +55,7 @@ export function InvoiceSettingsPanel() {
     <div className="space-y-4">
       {!data?.configured ? (
         <Card className="flex items-start gap-2 border-primary/40 bg-primary/[0.06] p-4">
-          <Info className="mt-0.5 size-4 shrink-0 text-primary" strokeWidth={2.5} />
+          <Info className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
           <p className="text-sm text-app-text">
             These are placeholder values taken from the server environment. Save
             them once and invoices will carry your registered details.
@@ -63,7 +63,7 @@ export function InvoiceSettingsPanel() {
         </Card>
       ) : null}
 
-      <Card className="space-y-4">
+      <Card className="space-y-5 p-5 sm:p-6">
         <SectionTitle
           subtitle="Printed as the seller on every invoice and credit note."
           title="Business identity"
@@ -139,7 +139,7 @@ export function InvoiceSettingsPanel() {
         </div>
       </Card>
 
-      <Card className="space-y-4">
+      <Card className="space-y-5 p-5 sm:p-6">
         <SectionTitle
           subtitle="Your GSTIN decides how every sale is taxed — CGST + SGST within your state, IGST outside it."
           title="Tax registration"
@@ -210,7 +210,7 @@ export function InvoiceSettingsPanel() {
         </div>
       </Card>
 
-      <Card className="space-y-4">
+      <Card className="space-y-5 p-5 sm:p-6">
         <SectionTitle
           subtitle="Changing a prefix affects only documents issued afterwards — numbers already allocated are never reused."
           title="Numbering"
@@ -232,7 +232,7 @@ export function InvoiceSettingsPanel() {
         </div>
       </Card>
 
-      <Card className="space-y-4">
+      <Card className="space-y-5 p-5 sm:p-6">
         <SectionTitle
           subtitle="Printed at the foot of every invoice."
           title="Footer and terms"
@@ -266,14 +266,14 @@ export function InvoiceSettingsPanel() {
         />
       </Card>
 
-      <Card className="space-y-4">
+      <Card className="space-y-5 p-5 sm:p-6">
         <SectionTitle
           subtitle="Sent only after a payment is verified, and never twice for the same invoice."
           title="Invoice email"
         />
 
         <div className="flex items-center gap-2">
-          <Checkbox
+          <Switch
             checked={form.emailOnIssue}
             id="settings-email-on-issue"
             onCheckedChange={(checked) => set("emailOnIssue", checked === true)}
@@ -284,7 +284,7 @@ export function InvoiceSettingsPanel() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Checkbox
+          <Switch
             checked={form.attachPdfToEmail}
             disabled={!form.emailOnIssue}
             id="settings-attach-pdf"
@@ -302,7 +302,7 @@ export function InvoiceSettingsPanel() {
         <Button
           disabled={update.isPending}
           onClick={() => data && setForm(data.settings)}
-          variant="ghost"
+          variant="outline"
         >
           Reset
         </Button>

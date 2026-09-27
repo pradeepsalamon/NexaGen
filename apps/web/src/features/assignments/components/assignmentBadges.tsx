@@ -14,10 +14,10 @@ export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
 };
 
 const ACTIVITY_STYLE: Record<AssignmentActivityType, string> = {
-  REPLAY: "border-sky-200 bg-sky-50 text-sky-700",
+  REPLAY: "border-primary/40 bg-primary/10 text-primary-ink",
   SOLVE_LINE: "border-violet-200 bg-violet-50 text-violet-700",
   PLAY_VS_ENGINE: "border-amber-200 bg-amber-50 text-amber-700",
-  FREE_ANALYSIS: "border-slate-200 bg-slate-50 text-slate-700"
+  FREE_ANALYSIS: "border-app-border bg-app-soft text-app-text"
 };
 
 export function ActivityBadge({ activityType }: { activityType: AssignmentActivityType }) {

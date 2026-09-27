@@ -4,7 +4,7 @@ import { analyzePosition, StockfishAnalysisResult } from '../../api/stockfishApi
 import { Loader2, Pause, Play } from 'lucide-react';
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 
-const ANALYSIS_DEBOUNCE_MS = 400;
+const ANALYSIS_DEBOUNCE_MS = 150;
 
 export function StockfishPanel() {
   const fen = usePersistedStore(state => state.fen);
@@ -71,19 +71,19 @@ export function StockfishPanel() {
     return (
       <div className="flex flex-col h-full text-sm p-4 text-app-text">
         <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-          <span className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase tracking-wider">Engine Analysis</span>
+          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Engine Analysis</span>
           <SimpleTooltip label="Resume analysis">
             <button
               type="button"
               onClick={() => setIsEnabled(true)}
               aria-label="Resume analysis"
-              className="w-8 h-8 rounded-full border border-gray-300 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center shadow-sm transition-colors"
+              className="w-8 h-8 rounded-full border border-app-border bg-app-surface hover:bg-app-soft flex items-center justify-center shadow-card transition-colors"
             >
-              <Play size={14} />
+              <Play className="size-3.5" />
             </button>
           </SimpleTooltip>
         </div>
-        <div className="flex flex-col items-center justify-center flex-1 text-gray-500 dark:text-slate-400 p-4 text-center">
+        <div className="flex flex-col items-center justify-center flex-1 text-app-muted p-4 text-center">
           <p>Engine analysis is paused.</p>
         </div>
       </div>
@@ -92,7 +92,7 @@ export function StockfishPanel() {
 
   if (!analysis) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-sm text-gray-500 dark:text-slate-400 p-4 text-center">
+      <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
         <Loader2 className="animate-spin mb-4" size={24} />
         <p>Waiting for analysis...</p>
       </div>
@@ -107,21 +107,21 @@ export function StockfishPanel() {
     <div className="flex flex-col h-full text-sm p-4 text-app-text">
       <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
         <div className="flex flex-col">
-          <span className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase tracking-wider">Evaluation</span>
-          <span className={`text-2xl font-bold ${analysis.mate !== null ? 'text-blue-500' : 'text-app-text'}`}>
+          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Evaluation</span>
+          <span className={`text-2xl font-bold ${analysis.mate !== null ? 'text-primary-ink' : 'text-app-text'}`}>
             {scoreText}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {isAnalyzing && <Loader2 className="animate-spin text-primary" size={20} />}
+          {isAnalyzing && <Loader2 className="animate-spin text-primary-ink" size={20} />}
           <SimpleTooltip label="Pause analysis">
             <button
               type="button"
               onClick={() => setIsEnabled(false)}
               aria-label="Pause analysis"
-              className="w-8 h-8 rounded-full border border-gray-300 bg-white hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 flex items-center justify-center shadow-sm transition-colors"
+              className="w-8 h-8 rounded-full border border-app-border bg-app-surface hover:bg-app-soft flex items-center justify-center shadow-card transition-colors"
             >
-              <Pause size={14} />
+              <Pause className="size-3.5" />
             </button>
           </SimpleTooltip>
         </div>
@@ -129,15 +129,15 @@ export function StockfishPanel() {
 
       {analysis.bestMove && (
         <div className="mb-4">
-          <span className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase tracking-wider">Best Move</span>
+          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Best Move</span>
           <div className="mt-1 font-mono text-lg font-medium">{analysis.bestMove}</div>
         </div>
       )}
 
       {analysis.pv && analysis.pv.length > 0 && (
         <div>
-          <span className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase tracking-wider">Principal Variation (Depth {analysis.depth})</span>
-          <div className="mt-2 text-xs text-gray-600 dark:text-slate-300 leading-relaxed font-mono">
+          <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Principal Variation (Depth {analysis.depth})</span>
+          <div className="mt-2 text-xs text-app-muted leading-relaxed font-mono">
             {analysis.pv.join(' ')}
           </div>
         </div>

@@ -50,7 +50,7 @@ export function PlansClient() {
               ) : null}
             </div>
 
-            <p className="mt-3 text-2xl font-bold text-primary">
+            <p className="mt-3 text-2xl font-bold text-primary-ink">
               {formatMoney(plan.amount, plan.currency)}
               {isRecurringInterval(plan.interval) ? (
                 <span className="text-sm font-semibold text-app-muted">
@@ -73,7 +73,7 @@ export function PlansClient() {
                   >
                     <Check
                       aria-hidden
-                      className="mt-0.5 size-4 shrink-0 text-primary"
+                      className="mt-0.5 size-4 shrink-0 text-primary-ink"
                       strokeWidth={2.5}
                     />
                     {feature}

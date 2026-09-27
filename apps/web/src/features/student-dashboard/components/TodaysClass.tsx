@@ -99,7 +99,7 @@ export function TodaysClass({
           {id ? (
             <div className="mt-4 flex items-center justify-between gap-3 border-t border-app-border pt-4">
               <Link
-                className="inline-flex items-center gap-1 text-xs font-bold text-primary transition-opacity hover:opacity-80"
+                className="inline-flex items-center gap-1 text-xs font-bold text-primary-ink transition-opacity hover:opacity-80"
                 href={`/live-class/${id}`}
               >
                 Class details

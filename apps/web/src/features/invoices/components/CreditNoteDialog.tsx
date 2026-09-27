@@ -9,7 +9,6 @@ import {
   type CreditNoteReason
 } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
-import { Checkbox } from "@/components/ui/Checkbox";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,7 @@ import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { useCreateCreditNote } from "../hooks/useInvoicesApi";
+import { Switch } from "@/components/ui/Switch";
 
 const REASONS = Object.keys(CREDIT_NOTE_REASON_LABELS) as CreditNoteReason[];
 
@@ -91,7 +91,7 @@ export function CreditNoteDialog({
 
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <Checkbox
+            <Switch
               checked={full}
               id="credit-full"
               onCheckedChange={(checked) => setFull(checked === true)}
@@ -148,7 +148,7 @@ export function CreditNoteDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={onClose} variant="ghost">
+          <Button onClick={onClose} variant="outline">
             Cancel
           </Button>
           <Button

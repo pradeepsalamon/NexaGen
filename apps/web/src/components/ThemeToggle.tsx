@@ -20,7 +20,7 @@ export function ThemeToggle() {
         <Button
           aria-label={label}
           aria-pressed={isDark}
-          className="relative h-9 min-h-9 w-[72px] rounded-full border-2 border-app-border bg-app-soft p-1 shadow-card hover:bg-app-soft dark:border-neutral-800 dark:bg-neutral-950 dark:hover:bg-neutral-950"
+          className="relative h-9 min-h-9 w-[72px] rounded-full border-2 border-app-border bg-app-soft p-1 shadow-card hover:bg-app-soft"
           onClick={toggleMode}
           type="button"
           variant="outline"

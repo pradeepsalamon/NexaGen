@@ -33,7 +33,7 @@ export function SchedulePreviewPanel({
 
       <Card className="grid gap-2 p-4">
         <p className="flex items-center gap-2 text-sm font-extrabold text-app-text">
-          <Clock className="size-4 text-primary" aria-hidden="true" />
+          <Clock className="size-4 text-primary-ink" aria-hidden="true" />
           Weekly pattern ({timezone})
         </p>
         <div className="flex flex-wrap gap-2">
@@ -76,7 +76,7 @@ export function SchedulePreviewPanel({
 
       <Card className="grid gap-1 p-4">
         <p className="flex items-center gap-2 text-sm font-extrabold text-app-text">
-          <CalendarCheck className="size-4 text-primary" aria-hidden="true" />
+          <CalendarCheck className="size-4 text-primary-ink" aria-hidden="true" />
           Class plan preview
         </p>
         <div className="max-h-72 overflow-y-auto">

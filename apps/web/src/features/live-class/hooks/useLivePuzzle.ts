@@ -82,13 +82,15 @@ export function useEndLivePuzzle(classId: string) {
 
 // undo: intentionally excluded — a mid-class broadcast (PUZZLE_UPDATED) reaches
 // every participant instantly; same policy as mid-class settings changes.
-export function useUpdateLivePuzzle(classId: string) {
+export function useUpdateLivePuzzle(classId: string, opts: { quiet?: boolean } = {}) {
   const qc = useQueryClient();
   const toast = useToast();
   return useMutation({
     mutationFn: (body: UpdateLivePuzzleRequest) => updateLivePuzzle(classId, body),
     onSuccess: () => {
-      toast.success({ title: "Puzzle rules updated", message: "Points were recalculated for everyone." });
+      if (!opts.quiet) {
+        toast.success({ title: "Puzzle rules updated", message: "Points were recalculated for everyone." });
+      }
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
     },

@@ -22,7 +22,7 @@ export function AuthHeader({
           {title}
         </h2>
         <p className="m-0 text-sm leading-6 text-app-muted">
-          {helperText} <Link className="font-semibold text-primary hover:underline" href={actionHref}>{actionLabel}</Link>
+          {helperText} <Link className="font-semibold text-primary-ink hover:underline" href={actionHref}>{actionLabel}</Link>
         </p>
       </div>
       {rightContent && <div>{rightContent}</div>}

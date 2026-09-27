@@ -27,9 +27,9 @@ const variantStyles: Record<ControlVariant, string> = {
   default:
     "bg-app-surface text-app-muted hover:bg-app-soft hover:text-app-text border border-app-border",
   active:
-    "bg-primary text-white hover:bg-primary/90 shadow-sm",
+    "bg-primary text-white hover:bg-primary/90 shadow-card",
   danger:
-    "bg-app-danger text-white hover:opacity-90 border border-app-danger shadow-sm",
+    "bg-app-danger text-white hover:opacity-90 border border-app-danger shadow-card",
 };
 
 export const MeetingControlButton = forwardRef<
@@ -61,7 +61,7 @@ export const MeetingControlButton = forwardRef<
         >
           {loading ? <Loader2 className="size-5 animate-spin" /> : icon}
           {badge !== undefined && badge > 0 && (
-            <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-md">
+            <span className="absolute -right-0.5 -top-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white shadow-card">
               {badge > 9 ? "9+" : badge}
             </span>
           )}
@@ -70,7 +70,7 @@ export const MeetingControlButton = forwardRef<
       <TooltipContent side="top" className="flex items-center gap-1.5">
         <span>{label}</span>
         {shortcut && (
-          <kbd className="rounded border border-white/20 px-1 text-[10px] font-mono font-semibold dark:border-neutral-950/20">
+          <kbd className="rounded border border-white/20 px-1 text-[10px] font-mono font-semibold">
             {shortcut}
           </kbd>
         )}

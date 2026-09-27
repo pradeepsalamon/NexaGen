@@ -27,7 +27,7 @@ export function ReactionPicker({
               key={emoji}
               type="button"
               aria-label={`React ${emoji}`}
-              className="flex size-11 items-center justify-center rounded-xl text-2xl transition-transform hover:scale-110 hover:bg-app-soft active:scale-95"
+              className="flex size-11 items-center justify-center rounded-control text-2xl transition-transform hover:scale-110 hover:bg-app-soft active:scale-95"
               onClick={() => reactions.sendReaction(emoji)}
             >
               {emoji}

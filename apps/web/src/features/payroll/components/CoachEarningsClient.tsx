@@ -11,6 +11,7 @@ import { formatFullDate } from "@/lib/datetime";
 import { myPayslipPdfUrl } from "../api/payrollApi";
 import { useMyPayrollRecords, useMyPayslips } from "../hooks/usePayrollApi";
 import { PayrollRecordStatusBadge } from "./PayrollBadges";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 /** Coach → Earnings (§18): payroll history + payslip downloads, read-only. */
 export function CoachEarningsClient() {
@@ -42,52 +43,52 @@ export function CoachEarningsClient() {
       {records.length > 0 ? (
         <Card className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] border-collapse">
-              <thead>
-                <tr className="border-b border-app-border">
+            <Table className="w-full min-w-[720px] border-collapse">
+              <TableHeader>
+                <TableRow className="border-b border-app-border">
                   {["Period", "Classes", "Hours", "Gross", "Net", "Status", "Payslip"].map((heading) => (
-                    <th
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                    <TableHead
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
                       {heading}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {records.map((record) => {
                   const payslip = payslipByRecord.get(record.id);
                   return (
-                    <tr className="border-b border-app-border last:border-0" key={record.id}>
-                      <td className="px-4 py-3 text-sm text-app-text">
+                    <TableRow className="border-b border-app-border last:border-0" key={record.id}>
+                      <TableCell className="text-left px-4 py-3 text-sm text-app-text">
                         {formatFullDate(record.period.startDate, "UTC")} –{" "}
                         {formatFullDate(record.period.endDate, "UTC")}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-app-muted">
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3 text-sm text-app-muted">
                         {record.completedClassesCount}/{record.scheduledClassesCount}
-                      </td>
-                      <td className="px-4 py-3 text-sm tabular-nums text-app-muted">
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-muted">
                         {(record.totalTeachingSeconds / 3600).toFixed(1)}
-                      </td>
-                      <td className="px-4 py-3 text-sm tabular-nums text-app-text">
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3 text-sm tabular-nums text-app-text">
                         {formatMoney(record.grossEarningsMinor, "INR")}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-semibold tabular-nums text-primary">
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3 text-sm font-semibold tabular-nums text-primary-ink">
                         {formatMoney(record.netPayableMinor, "INR")}
-                      </td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3">
                         <PayrollRecordStatusBadge status={record.status} />
-                      </td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell className="text-left px-4 py-3">
                         {payslip && payslip.pdfStatus === "READY" ? (
                           <SimpleTooltip label="Download your payslip">
                             <Button
                               aria-label={`Download payslip ${payslip.documentNumber}`}
                               asChild
-                              className="size-8 rounded-full border-app-border p-0 hover:bg-primary hover:text-white"
+                              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
                               size="icon"
-                              variant="outline"
+                              variant="ghost"
                             >
                               <a
                                 href={myPayslipPdfUrl(payslip.id)}
@@ -103,12 +104,12 @@ export function CoachEarningsClient() {
                             {payslip ? "Generating…" : "—"}
                           </span>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       ) : null}

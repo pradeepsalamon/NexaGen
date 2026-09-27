@@ -10,7 +10,6 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Checkbox } from "@/components/ui/Checkbox";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -27,6 +26,7 @@ import {
   useCreateAnnouncement,
   useDeleteAnnouncement
 } from "../hooks/useMessagingApi";
+import { Switch } from "@/components/ui/Switch";
 
 const AUDIENCE_OPTIONS: { label: string; value: AnnouncementAudience }[] = [
   { label: "Everyone", value: "EVERYONE" },
@@ -144,7 +144,7 @@ function Composer() {
         ) : null}
       </div>
 
-      <Checkbox
+      <Switch
         checked={sendMessages}
         id="announcement-send"
         label="Also send it on the Announcement rule's channels"

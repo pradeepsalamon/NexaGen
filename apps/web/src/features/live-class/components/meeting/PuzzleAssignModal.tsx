@@ -70,6 +70,17 @@ function saveLastOptions(options: ShareOptions) {
   }
 }
 
+// Mirrors the API's bounds on `durationSeconds` (live-class-puzzle.ts).
+const TIMER_MIN_SECONDS = 30;
+const TIMER_MAX_SECONDS = 3600;
+const TIMER_PRESETS = [
+  { value: "60", label: "1 min" },
+  { value: "120", label: "2 min" },
+  { value: "300", label: "5 min" },
+  { value: "600", label: "10 min" },
+  { value: "900", label: "15 min" }
+];
+
 export function PuzzleAssignModal({
   classId,
   open,
@@ -82,6 +93,7 @@ export function PuzzleAssignModal({
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<PuzzleDifficulty | "">("");
   const [durationSeconds, setDurationSeconds] = useState("");
+  const [customTimer, setCustomTimer] = useState(false);
   const [scoringOverride, setScoringOverride] = useState<PuzzleScoringOverride>({});
   const [leaderboardOverride, setLeaderboardOverride] = useState<PuzzleLeaderboardOverride>({});
   const [optionsOpen, setOptionsOpen] = useState(false);
@@ -92,6 +104,9 @@ export function PuzzleAssignModal({
     if (!open) return;
     const last = loadLastOptions();
     setDurationSeconds(last.durationSeconds);
+    setCustomTimer(
+      !!last.durationSeconds && !TIMER_PRESETS.some((p) => p.value === last.durationSeconds)
+    );
     setScoringOverride(last.scoring);
     setLeaderboardOverride(last.leaderboard);
   }, [open]);
@@ -124,7 +139,18 @@ export function PuzzleAssignModal({
 
   const assign = useAssignLivePuzzle(classId);
 
+  const customMinutes = durationSeconds ? Math.floor(Number(durationSeconds) / 60) : 0;
+  const customSeconds = durationSeconds ? Number(durationSeconds) % 60 : 0;
+  const setCustomParts = (minutes: number, seconds: number) => {
+    const total = Math.max(0, minutes) * 60 + Math.max(0, Math.min(59, seconds));
+    setDurationSeconds(total > 0 ? String(total) : "");
+  };
+  const timerInvalid =
+    !!durationSeconds &&
+    (Number(durationSeconds) < TIMER_MIN_SECONDS || Number(durationSeconds) > TIMER_MAX_SECONDS);
+
   const handleAssign = (puzzleId: string) => {
+    if (timerInvalid) return;
     assign.mutate(
       {
         puzzleId,
@@ -170,23 +196,57 @@ export function PuzzleAssignModal({
           <label className="flex items-center gap-2 text-sm text-app-text">
             <span className="text-app-muted">Timer</span>
             <Select
-              value={durationSeconds}
-              onChange={(e) => setDurationSeconds(e.target.value)}
+              value={customTimer ? "custom" : durationSeconds}
+              onChange={(e) => {
+                if (e.target.value === "custom") {
+                  setCustomTimer(true);
+                  if (!durationSeconds) setDurationSeconds("180");
+                } else {
+                  setCustomTimer(false);
+                  setDurationSeconds(e.target.value);
+                }
+              }}
               placeholder="No timer"
-              options={[
-                { value: "120", label: "2 min" },
-                { value: "300", label: "5 min" },
-                { value: "600", label: "10 min" },
-                { value: "900", label: "15 min" }
-              ]}
+              options={[...TIMER_PRESETS, { value: "custom", label: "Custom…" }]}
               className="w-32"
             />
           </label>
+          {customTimer ? (
+            <div className="flex items-center gap-1.5 text-sm text-app-text">
+              <Input
+                aria-label="Timer minutes"
+                className="w-16"
+                inputMode="numeric"
+                max={60}
+                min={0}
+                onChange={(e) => setCustomParts(Number(e.target.value) || 0, customSeconds)}
+                type="number"
+                value={customMinutes}
+              />
+              <span className="text-app-muted">min</span>
+              <Input
+                aria-label="Timer seconds"
+                className="w-16"
+                inputMode="numeric"
+                max={59}
+                min={0}
+                onChange={(e) => setCustomParts(customMinutes, Number(e.target.value) || 0)}
+                type="number"
+                value={customSeconds}
+              />
+              <span className="text-app-muted">sec</span>
+              {timerInvalid ? (
+                <span className="text-xs font-semibold text-app-danger">
+                  30 s – 60 min
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => setOptionsOpen((v) => !v)}
             aria-expanded={optionsOpen}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-ink"
           >
             <Trophy className="size-4" strokeWidth={2.5} />
             Points &amp; leaderboard
@@ -222,7 +282,7 @@ export function PuzzleAssignModal({
             {customized ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   setScoringOverride({});
@@ -240,7 +300,7 @@ export function PuzzleAssignModal({
             <button
               type="button"
               onClick={() => setFolder(null)}
-              className="flex items-center gap-1 text-sm font-semibold text-primary"
+              className="flex items-center gap-1 text-sm font-semibold text-primary-ink"
             >
               <ChevronLeft className="size-4" strokeWidth={2.5} />
               All folders
@@ -285,7 +345,7 @@ export function PuzzleAssignModal({
                 key={puzzle.id}
                 className="flex items-center justify-between gap-3 rounded-app border border-app-border bg-app-surface p-3"
               >
-                <FileText className="size-5 shrink-0 text-primary" strokeWidth={2} />
+                <FileText className="size-5 shrink-0 text-primary-ink" strokeWidth={2} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-app-text">{puzzle.title}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">

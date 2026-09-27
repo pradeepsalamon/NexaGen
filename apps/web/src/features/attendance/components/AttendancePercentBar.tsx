@@ -10,7 +10,7 @@ export function AttendancePercentBar({ percent, className, showText = true }: At
   // Determine color based on threshold
   let colorClass = "bg-red-500";
   if (percent >= 90) colorClass = "bg-green-500";
-  else if (percent >= 70) colorClass = "bg-yellow-500";
+  else if (percent >= 70) colorClass = "bg-secondary";
   else if (percent >= 30) colorClass = "bg-orange-500";
 
   return (

@@ -1,4 +1,5 @@
 import { useBoardStore } from "../../context/BoardProvider";
+import { Button } from "@/components/ui/Button";
 
 export function PromotionDialog() {
   const { pendingPromotion, setPendingPromotion, makeMove, turn } = useBoardStore();
@@ -25,26 +26,23 @@ export function PromotionDialog() {
 
   return (
     <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm">
-      <div className="bg-background border border-gray-200 dark:border-white/20 p-6 rounded-lg shadow-2xl animate-in zoom-in-95 duration-200">
+      <div className="bg-app-background border border-app-border p-6 rounded-control shadow-soft animate-in zoom-in-95 duration-200">
         <h3 className="text-lg font-semibold mb-4 text-center">Promote to</h3>
         <div className="flex gap-4 mb-6">
           {pieces.map(p => (
             <button
               key={p}
               onClick={() => handleSelect(p)}
-              className="w-16 h-16 bg-black/5 hover:bg-black/10 dark:bg-white/5 dark:hover:bg-white/10 rounded-md border border-gray-200 dark:border-white/10 flex items-center justify-center text-4xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-16 h-16 bg-app-soft hover:bg-primary/10 rounded-control border border-app-border flex items-center justify-center text-4xl transition-colors focus:outline-none focus:ring-2 focus:ring-primary"
             >
               {/* Very simple placeholder. We can map to actual SVGs if we had them. */}
               {turn === 'white' ? p.toUpperCase() : p}
             </button>
           ))}
         </div>
-        <button
-          onClick={handleCancel}
-          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <Button fullWidth onClick={handleCancel} size="sm" type="button" variant="outline">
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );

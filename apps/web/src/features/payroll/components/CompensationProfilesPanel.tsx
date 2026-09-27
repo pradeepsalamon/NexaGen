@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCompensationProfiles } from "../hooks/usePayrollApi";
 import { CompensationProfileDialog } from "./CompensationProfileDialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 /** Admin → Finance → Coach Payroll → Compensation (§13/§14/§26). */
 export function CompensationProfilesPanel() {
@@ -31,34 +32,34 @@ export function CompensationProfilesPanel() {
       {data && data.profiles.length > 0 ? (
         <Card className="p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse">
-              <thead>
-                <tr className="border-b border-app-border">
+            <Table className="w-full min-w-[640px] border-collapse">
+              <TableHeader>
+                <TableRow className="border-b border-app-border">
                   {["Coach", "Engagement", "Compensation model", "Currency", ""].map((heading) => (
-                    <th
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-app-muted"
+                    <TableHead
+                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
                       {heading}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {data.profiles.map((profile) => (
-                  <tr className="border-b border-app-border last:border-0" key={profile.coachId}>
-                    <td className="px-4 py-3">
+                  <TableRow className="border-b border-app-border last:border-0" key={profile.coachId}>
+                    <TableCell className="text-left px-4 py-3">
                       <p className="text-sm font-semibold text-app-text">{profile.coachName}</p>
                       <p className="text-xs text-app-muted">{profile.coachEmail}</p>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-app-text">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm text-app-text">
                       {COACH_ENGAGEMENT_TYPE_LABELS[profile.engagementType]}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-app-text">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm text-app-text">
                       {COACH_COMPENSATION_MODEL_LABELS[profile.defaultCompensationModel]}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-app-muted">{profile.currency}</td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="text-left px-4 py-3 text-sm text-app-muted">{profile.currency}</TableCell>
+                    <TableCell className="px-4 py-3 text-right">
                       <Button
                         onClick={() => setEditingCoachId(profile.coachId)}
                         size="sm"
@@ -66,11 +67,11 @@ export function CompensationProfilesPanel() {
                       >
                         Configure
                       </Button>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
       ) : null}

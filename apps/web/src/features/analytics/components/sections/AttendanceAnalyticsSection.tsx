@@ -13,6 +13,7 @@ import { asKpi, formatPercent, relativeTime } from "../../lib/format";
 import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { RankBarList } from "../RankBarList";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function AttendanceAnalyticsSection({
   query
@@ -96,44 +97,44 @@ export function AttendanceAnalyticsSection({
               Students below {data?.lowAttendanceThreshold ?? 75}% attendance
             </p>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-wide text-app-muted">
-                  <tr>
-                    <th className="pb-2">Student</th>
-                    <th className="pb-2">Batch</th>
-                    <th className="pb-2 text-right">Attendance</th>
-                    <th className="pb-2 text-right">Attended</th>
-                    <th className="pb-2 text-right">Last active</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-app-border">
+              <Table className="w-full min-w-[520px] text-left text-sm">
+                <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+                  <TableRow>
+                    <TableHead className="pb-2">Student</TableHead>
+                    <TableHead className="pb-2">Batch</TableHead>
+                    <TableHead className="pb-2 text-right">Attendance</TableHead>
+                    <TableHead className="pb-2 text-right">Attended</TableHead>
+                    <TableHead className="pb-2 text-right">Last active</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-app-border">
                   {(data?.lowAttendanceStudents ?? []).map((s) => (
-                    <tr key={s.studentId}>
-                      <td className="py-2 font-medium text-app-text">{s.name}</td>
-                      <td className="py-2 text-app-muted">{s.batchName ?? "—"}</td>
-                      <td className="py-2 text-right font-semibold text-app-danger">
+                    <TableRow key={s.studentId}>
+                      <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
+                      <TableCell className="text-left py-2 text-app-muted">{s.batchName ?? "—"}</TableCell>
+                      <TableCell className="py-2 text-right font-semibold text-app-danger">
                         {formatPercent(s.attendancePercent)}
-                      </td>
-                      <td className="py-2 text-right">
+                      </TableCell>
+                      <TableCell className="py-2 text-right">
                         {s.classesAttended}/{s.classesAttended + s.classesMissed}
-                      </td>
-                      <td className="py-2 text-right text-app-muted">
+                      </TableCell>
+                      <TableCell className="py-2 text-right text-app-muted">
                         {relativeTime(s.lastActiveAt, tz)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
                   {!isLoading && (data?.lowAttendanceStudents.length ?? 0) === 0 ? (
-                    <tr>
-                      <td className="py-3 text-app-muted" colSpan={5}>
+                    <TableRow>
+                      <TableCell className="text-left py-3 text-app-muted" colSpan={5}>
                         No students are below the threshold. 🎉
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ) : null}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
             <Link
-              className="mt-2 inline-block text-xs font-semibold text-primary hover:underline"
+              className="mt-2 inline-block text-xs font-semibold text-primary-ink hover:underline"
               href="/admin/analytics/attendance"
             >
               Full attendance report →

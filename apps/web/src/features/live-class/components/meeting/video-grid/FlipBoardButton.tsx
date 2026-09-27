@@ -19,8 +19,8 @@ export function FlipBoardButton({ className }: { className?: string }) {
         aria-pressed={localFlip}
         onClick={toggleLocalFlip}
         className={cn(
-          "flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text shadow-sm backdrop-blur-sm transition-all duration-150 hover:scale-105 hover:bg-app-surface",
-          localFlip && "border-primary text-primary",
+          "flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text shadow-card backdrop-blur-sm transition-all duration-150 hover:scale-105 hover:bg-app-surface",
+          localFlip && "border-primary text-primary-ink",
           className,
         )}
       >

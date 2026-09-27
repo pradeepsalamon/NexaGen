@@ -62,7 +62,7 @@ export function ConfirmationModal({
           <AlertDialogCancel
             className={cn(
               PILL,
-              "border border-b-2 border-primary bg-app-surface text-primary hover:bg-primary/5 dark:border-app-text dark:text-app-text dark:hover:bg-white/5"
+              "border border-b-2 border-primary-ink bg-app-surface text-primary-ink hover:bg-primary/10"
             )}
             disabled={isConfirming}
           >

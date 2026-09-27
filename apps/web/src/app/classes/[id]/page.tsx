@@ -60,7 +60,7 @@ export default function ClassDetailsPage() {
         <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-3 mb-2">
-              <h1 className="text-3xl font-extrabold text-app-text">
+              <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
                 {cls.title || cls.topic || "Regular Session"}
               </h1>
               <div className="flex items-center gap-2">
@@ -74,11 +74,11 @@ export default function ClassDetailsPage() {
           
           <div className="flex flex-col gap-3 p-4 bg-app-surface border border-app-border rounded-app shadow-soft md:min-w-[200px]">
             <div className="flex items-center gap-2 text-app-text">
-              <Calendar className="h-4 w-4 text-primary" />
+              <Calendar className="h-4 w-4 text-primary-ink" />
               <span className="font-semibold">{formatFullDate(cls.startsAt, tz)}</span>
             </div>
             <div className="flex items-center gap-2 text-app-text">
-              <Clock className="h-4 w-4 text-primary" />
+              <Clock className="h-4 w-4 text-primary-ink" />
               <span className="font-semibold">
                 {formatTime(cls.startsAt, tz)} ({durationMins}m)
               </span>
@@ -88,7 +88,7 @@ export default function ClassDetailsPage() {
 
         <Card className="p-5 sm:p-8 border-primary/20 bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_5%,var(--color-surface)),color-mix(in_srgb,var(--color-accent)_5%,var(--color-surface)))]">
           <div className="flex flex-col items-center text-center max-w-md mx-auto space-y-4">
-            <div className="p-4 rounded-full bg-primary/10 text-primary mb-2">
+            <div className="p-4 rounded-full bg-primary/10 text-primary-ink mb-2">
               <Video className="h-8 w-8" />
             </div>
             {isCoach ? (

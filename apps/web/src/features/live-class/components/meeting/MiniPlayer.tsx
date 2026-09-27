@@ -75,7 +75,7 @@ function MiniPlayerContent() {
 
         {handCount > 0 && (
           <div
-            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-amber-500 px-1.5 py-1 text-[11px] font-bold text-white shadow-sm"
+            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-amber-500 px-1.5 py-1 text-[11px] font-bold text-white shadow-card"
             title={`${handCount} hand${handCount > 1 ? "s" : ""} raised`}
           >
             <Hand className="size-3" />
@@ -122,7 +122,7 @@ function MiniPlayerContent() {
           onClick={returnToClass}
           aria-label="Back to class"
           title="Back to class"
-          className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-bold text-primary transition-colors hover:bg-primary hover:text-white"
+          className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-bold text-primary-ink transition-colors hover:bg-primary hover:text-white"
         >
           <Undo2 className="size-3.5" strokeWidth={2.5} />
           Back

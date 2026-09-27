@@ -112,7 +112,7 @@ export function MeetingChat() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 15, scale: 0.9 }}
               onClick={scrollToBottom}
-              className="sticky bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-primary/95 text-white px-4 py-2 shadow-xl shadow-primary/20 text-xs font-semibold hover:bg-primary transition-colors z-20 backdrop-blur-md"
+              className="sticky bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-primary/95 text-white px-4 py-2 shadow-lift shadow-primary/20 text-xs font-semibold hover:bg-primary transition-colors z-20 backdrop-blur-md"
               type="button"
             >
               <ChevronDown className="size-4" />
