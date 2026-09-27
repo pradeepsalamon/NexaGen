@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useConnectionState, useLocalParticipant } from "@livekit/components-react";
+import { useConnectionState, useLocalParticipant, useRoomContext } from "@livekit/components-react";
 import { ConnectionState, Track, createLocalAudioTrack } from "livekit-client";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { isDocumentPipSupported } from "../../lib/documentPip";
+import { useMediaDeviceManager } from "../../providers/MediaDeviceProvider";
 
 /**
  * Holds a microphone capture open for the whole class — published but muted, so
@@ -28,16 +29,20 @@ import { isDocumentPipSupported } from "../../lib/documentPip";
 export function PipMicCaptureBridge() {
   const state = useConnectionState();
   const { localParticipant } = useLocalParticipant();
+  const room = useRoomContext();
   const { settings } = useLiveClassState();
   const user = useAuthStore((s) => s.user);
   const doneRef = useRef(false);
+  // Wait for MediaDeviceProvider's join-time restore: it may be about to turn
+  // the mic on (pre-join choice), and two captures racing would publish twice.
+  const initialApplied = useMediaDeviceManager()?.initialApplied ?? true;
 
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const micForcedOff = !isCoach && settings?.student.mic === "FORCED_OFF";
 
   useEffect(() => {
     if (doneRef.current) return;
-    if (state !== ConnectionState.Connected || !localParticipant) return;
+    if (state !== ConnectionState.Connected || !localParticipant || !initialApplied) return;
     if (typeof window === "undefined" || !isDocumentPipSupported()) return;
     if (micForcedOff) return;
 
@@ -56,7 +61,9 @@ export function PipMicCaptureBridge() {
       try {
         // Create → mute → publish, in that order: the track never carries audio
         // to the room before it is muted, so a moment of live mic is impossible.
-        const track = await createLocalAudioTrack();
+        // Same capture defaults as the toolbar toggle, so unmuting later uses
+        // the microphone the student picked (saved device), not the OS default.
+        const track = await createLocalAudioTrack(room.options.audioCaptureDefaults);
         await track.mute();
         if (cancelled) {
           track.stop();
@@ -72,7 +79,7 @@ export function PipMicCaptureBridge() {
     return () => {
       cancelled = true;
     };
-  }, [state, localParticipant, micForcedOff]);
+  }, [state, localParticipant, room, micForcedOff, initialApplied]);
 
   return null;
 }

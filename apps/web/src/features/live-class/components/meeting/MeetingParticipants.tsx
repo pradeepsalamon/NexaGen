@@ -31,6 +31,8 @@ import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { isHumanParticipant } from "../../lib/participants";
+import { useParticipantActivity } from "../../hooks/useParticipantActivity";
+import { isActivelySpeaking, sortByActivity } from "../../lib/participantActivity";
 import { moderateParticipant, resolveScreenShareRequest, resolveWaitingRoomEntry } from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -112,6 +114,8 @@ interface ParticipantItemProps {
   isCoachRow?: boolean;
   showBoardControl?: boolean;
   handRaised?: boolean;
+  /** Speaking now (or within the short hold) — rings the avatar. */
+  speaking?: boolean;
   /** Coach/admin viewing a student: enables the force-mute + private-message actions. */
   canModerate?: boolean;
   onModerate?: (identity: string, source: ModeratableSource, name: string) => void;
@@ -126,6 +130,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
   isCoachRow,
   showBoardControl,
   handRaised,
+  speaking = false,
   canModerate,
   onModerate,
   onMessagePrivately,
@@ -149,12 +154,20 @@ const ParticipantListItem = memo(function ParticipantListItem({
     >
       <div className="flex min-w-0 items-center gap-2.5">
         <ConnectionDot participant={participant} />
-        <ParticipantAvatar name={name} size="sm" className="size-8 shrink-0 text-[10px]" />
+        <ParticipantAvatar
+          name={name}
+          size="sm"
+          className={cn(
+            "size-8 shrink-0 text-[10px] transition-shadow",
+            speaking && "ring-2 ring-primary ring-offset-1 ring-offset-app-surface",
+          )}
+        />
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-sm font-medium text-app-text">{name}</span>
           {participant.isLocal && (
             <span className="shrink-0 text-xs font-normal text-app-muted">(You)</span>
           )}
+          {speaking && <span className="sr-only">(speaking)</span>}
           {isCoachRow && (
             <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
               Coach
@@ -469,16 +482,19 @@ export function MeetingParticipants() {
     [screenShareRequests],
   );
 
+  // Active people float to the top of each group — sharing, speaking, hand
+  // up, spoke recently, camera/mic on — like Zoom / Meet (lib/participantActivity.ts).
+  const activity = useParticipantActivity();
   const grouped = useMemo(() => {
     const coaches: LkParticipant[] = [];
     const students: LkParticipant[] = [];
-    filteredParticipants.forEach((p) => {
+    sortByActivity(filteredParticipants, (p) => p, activity).forEach((p) => {
       const role = parseMeta(p).role?.toLowerCase();
       if (role === "coach" || role === "teacher") coaches.push(p);
       else students.push(p);
     });
     return { coaches, students };
-  }, [filteredParticipants]);
+  }, [activity, filteredParticipants]);
 
   return (
     <div className="flex h-full flex-col">
@@ -557,6 +573,7 @@ export function MeetingParticipants() {
                   participant={p}
                   isCoachRow
                   handRaised={!!raisedHands[p.identity]}
+                  speaking={isActivelySpeaking(p, activity)}
                   onMessagePrivately={
                     canMessagePrivately(p.identity.split("_")[0])
                       ? handleMessagePrivately
@@ -581,6 +598,7 @@ export function MeetingParticipants() {
                 key={p.identity}
                 participant={p}
                 handRaised={!!raisedHands[p.identity]}
+                speaking={isActivelySpeaking(p, activity)}
                 canModerate={isCoach}
                 onModerate={isCoach ? handleModerate : undefined}
                 onMessagePrivately={

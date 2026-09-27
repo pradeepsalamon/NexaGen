@@ -26,6 +26,7 @@ import {
   JoinDenied,
 } from "@/features/live-class/components/states/ErrorStates";
 import { ClassSummary } from "@/features/live-class/components/summary/ClassSummary";
+import { loadMediaPrefs } from "@/features/live-class/lib/mediaDevices";
 
 export default function LiveClassPage() {
   const params = useParams();
@@ -59,7 +60,11 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
   const autoJoinTried = useRef(false);
   useEffect(() => {
     if (hasJoined || autoJoinTried.current || isLoading || error || !settings) return;
-    const joinState = resolveJoinState(settings, isStaff ? "COACH" : "STUDENT");
+    const prefs = loadMediaPrefs();
+    const joinState = resolveJoinState(settings, isStaff ? "COACH" : "STUDENT", {
+      camera: prefs.cameraOn,
+      mic: prefs.micOn,
+    });
     if (!joinState.autoJoin) return;
     autoJoinTried.current = true;
     void (async () => {
@@ -67,9 +72,11 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
       const wantCam = joinState.camera.defaultOn;
       if ((wantMic || wantCam) && typeof navigator !== "undefined" && navigator.mediaDevices) {
         try {
+          // Plain ids are *ideal* constraints: an unplugged saved device
+          // falls back to the default rather than failing the pre-flight.
           const stream = await navigator.mediaDevices.getUserMedia({
-            audio: wantMic,
-            video: wantCam,
+            audio: wantMic ? { deviceId: prefs.audioinput?.deviceId } : false,
+            video: wantCam ? { deviceId: prefs.videoinput?.deviceId } : false,
           });
           stream.getTracks().forEach((t) => t.stop());
         } catch {

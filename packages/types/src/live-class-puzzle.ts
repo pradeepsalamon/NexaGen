@@ -1,6 +1,15 @@
 import { z } from "zod";
 
 import { puzzleDifficultySchema, puzzleTypeSchema } from "./puzzle";
+import {
+  puzzleLeaderboardOptionsSchema,
+  puzzleLeaderboardOverrideSchema,
+  puzzleScoringOverrideSchema,
+  puzzleScoringSchema,
+  type PuzzleLeaderboardOptions,
+  type PuzzlePointsBreakdown,
+  type PuzzleScoring
+} from "./puzzle-scoring";
 
 // ──────────────────────────────────────────────────────────────
 // Live-class puzzle assignment — shared contract
@@ -27,7 +36,11 @@ export const livePuzzleAssignmentSchema = z.object({
   orientation: z.enum(["white", "black"]),
   fen: z.string(),
   solutionLength: z.number().int().min(0),
+  /** Kept for older clients: true when `leaderboard.visibility` is LIVE. */
   revealLeaderboard: z.boolean(),
+  /** Frozen at share time; the coach can edit it while the puzzle runs. */
+  scoring: puzzleScoringSchema,
+  leaderboard: puzzleLeaderboardOptionsSchema,
   /** null = untimed. */
   durationSeconds: z.number().int().positive().nullable(),
   startedAt: z.string(),
@@ -47,6 +60,8 @@ export const LIVE_CLASS_PUZZLE_TOPIC = "live_class_puzzle";
 
 export const livePuzzleMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("PUZZLE_ASSIGNED"), assignment: livePuzzleAssignmentSchema }),
+  // The coach edited the running puzzle's points / leaderboard rules.
+  z.object({ type: z.literal("PUZZLE_UPDATED"), assignment: livePuzzleAssignmentSchema }),
   z.object({ type: z.literal("PUZZLE_ENDED"), assignmentId: z.string() }),
   // Sent by a student's client right after it submits, so every other client
   // refetches the leaderboard immediately instead of waiting for the poll.
@@ -75,9 +90,29 @@ export const assignLivePuzzleRequestSchema = z.object({
   puzzleId: z.string().min(1),
   /** null / omitted = untimed. */
   durationSeconds: z.number().int().min(30).max(3600).nullish(),
-  revealLeaderboard: z.boolean().optional()
+  /** Legacy switch — `leaderboard.visibility` wins when both are sent. */
+  revealLeaderboard: z.boolean().optional(),
+  /** On top of the admin default + the puzzle's own override. */
+  scoring: puzzleScoringOverrideSchema.optional(),
+  leaderboard: puzzleLeaderboardOverrideSchema.optional()
 });
 export type AssignLivePuzzleRequest = z.infer<typeof assignLivePuzzleRequestSchema>;
+
+/** Coach edits the running puzzle; points are recomputed for everyone. */
+export const updateLivePuzzleRequestSchema = z.object({
+  scoring: puzzleScoringOverrideSchema.optional(),
+  leaderboard: puzzleLeaderboardOverrideSchema.optional()
+});
+export type UpdateLivePuzzleRequest = z.infer<typeof updateLivePuzzleRequestSchema>;
+
+/** Coach's manual +/- points for one student (added to any earlier adjustment). */
+export const adjustLivePuzzlePointsRequestSchema = z.object({
+  studentId: z.string().min(1),
+  delta: z.number().int().min(-10_000).max(10_000),
+  /** Replace the running adjustment with `delta` instead of adding to it. */
+  replace: z.boolean().optional()
+});
+export type AdjustLivePuzzlePointsRequest = z.infer<typeof adjustLivePuzzlePointsRequestSchema>;
 
 // ── Responses ──
 
@@ -89,13 +124,29 @@ export type LivePuzzleLeaderboardEntry = {
   studentId: string;
   studentName: string;
   rank: number;
+  /** `breakdown.total` — what the board ranks on when `rankBy` is POINTS. */
+  points: number;
+  breakdown: PuzzlePointsBreakdown;
   scorePercent: number;
   accuracyPercent: number | null;
   durationSeconds: number;
   hintsUsed: number;
+  wrongMoves: number;
+  attemptsUsed: number;
   solved: boolean;
   /** True for the row belonging to the requesting student. */
   isSelf: boolean;
+};
+
+/** The requesting student's own standing — drives the grid tile and Solve button. */
+export type LivePuzzleSelfStatus = {
+  attemptsUsed: number;
+  /** null = unlimited. */
+  attemptsLeft: number | null;
+  inProgress: boolean;
+  solved: boolean;
+  points: number | null;
+  rank: number | null;
 };
 
 /** A batch-enrolled student with no completed (or, for `notStarted`, no) attempt yet. */
@@ -117,6 +168,16 @@ export type LivePuzzleLeaderboardResponse = {
   /** Full class roster with no attempt row at all for this assignment. */
   notStarted: LivePuzzleRosterEntry[];
   revealLeaderboard: boolean;
+  /** The assignment this board is for — the active one, else the most recent. */
+  assignmentId: string | null;
+  title: string | null;
+  active: boolean;
+  scoring: PuzzleScoring | null;
+  leaderboard: PuzzleLeaderboardOptions | null;
+  /** False when a student is only being shown their own row (hidden / after-end / top-N). */
+  showingAll: boolean;
+  /** Students only. */
+  self: LivePuzzleSelfStatus | null;
 };
 
 // ── Coach live-board view ──

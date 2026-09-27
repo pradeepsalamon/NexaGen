@@ -1,9 +1,13 @@
-import { Body, Controller, Delete, Get, Param, Post, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
 import type { Request } from "express";
 import {
   API_ROUTES,
+  adjustLivePuzzlePointsRequestSchema,
   assignLivePuzzleRequestSchema,
-  type AssignLivePuzzleRequest
+  updateLivePuzzleRequestSchema,
+  type AdjustLivePuzzlePointsRequest,
+  type AssignLivePuzzleRequest,
+  type UpdateLivePuzzleRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
@@ -20,6 +24,24 @@ export class LiveClassPuzzleController {
     @Req() request: Request
   ) {
     return this.service.assign(this.token(request), id, body);
+  }
+
+  @Patch(API_ROUTES.liveClass.puzzle())
+  update(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(updateLivePuzzleRequestSchema)) body: UpdateLivePuzzleRequest,
+    @Req() request: Request
+  ) {
+    return this.service.update(this.token(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.puzzleAdjust())
+  adjust(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(adjustLivePuzzlePointsRequestSchema)) body: AdjustLivePuzzlePointsRequest,
+    @Req() request: Request
+  ) {
+    return this.service.adjust(this.token(request), id, body);
   }
 
   @Delete(API_ROUTES.liveClass.puzzle())

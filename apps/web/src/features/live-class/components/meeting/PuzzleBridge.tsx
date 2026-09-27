@@ -19,7 +19,8 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
  * `<LiveClassProvider>`.
  */
 export function PuzzleBridge({ classId }: { classId: string }) {
-  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle } = useLiveClassState();
+  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen } =
+    useLiveClassState();
   const qc = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
@@ -50,7 +51,18 @@ export function PuzzleBridge({ classId }: { classId: string }) {
         applyPuzzleAssignment(decoded.assignment);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
-        if (!isCoach) toast.info("Your coach shared a puzzle.");
+        if (!isCoach) {
+          toast.info("Your coach shared a puzzle", {
+            action: { label: "Solve now", onClick: () => setPuzzleSolverOpen(true) },
+            description: `${decoded.assignment.title} — it's in the video grid too.`,
+            duration: 8000,
+            id: `puzzle-assigned-${decoded.assignment.id}`
+          });
+        }
+      } else if (decoded.type === "PUZZLE_UPDATED") {
+        applyPuzzleAssignment(decoded.assignment);
+        qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
+        if (!isCoach) toast.info("Your coach changed the puzzle's scoring.", { duration: 3000 });
       } else if (decoded.type === "PUZZLE_ENDED") {
         clearActivePuzzle(decoded.assignmentId);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
@@ -60,7 +72,7 @@ export function PuzzleBridge({ classId }: { classId: string }) {
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
       }
     },
-    [applyPuzzleAssignment, clearActivePuzzle, qc, classId, isCoach]
+    [applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen, qc, classId, isCoach]
   );
 
   useDataChannel(LIVE_CLASS_PUZZLE_TOPIC, onMessage);

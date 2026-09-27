@@ -22,6 +22,7 @@ import type {
   StudentPuzzleSummary,
   SubmitPuzzleAttemptRequest
 } from "@nexa-chess/types";
+import { parseScoringOverride } from "@nexa-chess/types";
 import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
@@ -262,15 +263,6 @@ export class PuzzleAttemptService {
     const moves = dto.moves as AttemptMove[];
     this.evaluation.assertLegalLine(puzzle.fen, moves);
 
-    const updated = await this.prisma.puzzleAttempt.update({
-      where: { id: attempt.id },
-      data: {
-        movesJson: moves as unknown as Prisma.InputJsonValue,
-        durationSeconds: dto.durationSeconds ?? attempt.durationSeconds,
-        hintsUsed: Math.max(attempt.hintsUsed, dto.hintsUsed ?? 0)
-      }
-    });
-
     const solution = this.solutionFromRow(puzzle.solutionMovesJson);
     const moveFeedback = solution.length
       ? this.evaluation.solveLineFeedback(
@@ -280,6 +272,25 @@ export class PuzzleAttemptService {
           this.sideToMove(puzzle.fen)
         )
       : null;
+
+    // A wrong move is a negative mark: counted here, server-side, where the
+    // client cannot skip it (it only learns a move was wrong from this call).
+    // The wrong line is not persisted — the client resets to the last good
+    // position, and the coach's live board shouldn't show a move that was undone.
+    const wrong = !!moveFeedback && !moveFeedback.correct;
+    const updated = await this.prisma.puzzleAttempt.update({
+      where: { id: attempt.id },
+      data: wrong
+        ? {
+            durationSeconds: dto.durationSeconds ?? attempt.durationSeconds,
+            wrongMoves: { increment: 1 }
+          }
+        : {
+            movesJson: moves as unknown as Prisma.InputJsonValue,
+            durationSeconds: dto.durationSeconds ?? attempt.durationSeconds,
+            hintsUsed: Math.max(attempt.hintsUsed, dto.hintsUsed ?? 0)
+          }
+    });
 
     return { attempt: this.toAttempt(updated), moveFeedback };
   }
@@ -504,6 +515,7 @@ export class PuzzleAttemptService {
       visibility: row.visibility,
       tags: row.tags,
       estimatedSeconds: row.estimatedSeconds,
+      scoring: parseScoringOverride(row.scoringJson),
       sideToMove: this.sideToMove(row.fen),
       solutionLength: this.solutionFromRow(row.solutionMovesJson).length,
       createdById: row.createdById,

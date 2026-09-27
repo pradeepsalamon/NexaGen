@@ -108,6 +108,13 @@ interface LiveClassContextValue {
   applyPuzzleAssignment: (assignment: LivePuzzleAssignment | null) => void;
   /** Clear the active puzzle after a `PUZZLE_ENDED` message. */
   clearActivePuzzle: (assignmentId?: string) => void;
+  /**
+   * Whether the student's puzzle solver is open. One solver (`PuzzleSolverHost`)
+   * serves the grid tile, the Puzzle panel and the "shared a puzzle" toast, so
+   * two boards never run the same attempt.
+   */
+  puzzleSolverOpen: boolean;
+  setPuzzleSolverOpen: (open: boolean) => void;
 
   /**
    * Students currently pending admission (coach/admin view only), keyed by
@@ -164,6 +171,7 @@ export function LiveClassProvider({
   const [isRecording, setIsRecording] = useState(false);
   const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
   const [activePuzzle, setActivePuzzle] = useState<LivePuzzleAssignment | null>(null);
+  const [puzzleSolverOpen, setPuzzleSolverOpen] = useState(false);
   const [waitingRoomEntries, setWaitingRoomEntriesState] = useState<Record<string, WaitingRoomEntry>>({});
   const [screenShareRequests, setScreenShareRequestsState] = useState<
     Record<string, ScreenShareRequestEntry>
@@ -300,7 +308,10 @@ export function LiveClassProvider({
 
   const applyPuzzleAssignment = useCallback((assignment: LivePuzzleAssignment | null) => {
     setActivePuzzle((prev) => {
-      if (prev?.id === assignment?.id && prev?.startedAt === assignment?.startedAt) return prev;
+      // Same assignment, same content → keep the reference (no re-render).
+      // A PUZZLE_UPDATED edit keeps the id but changes the rules, so compare
+      // the payload rather than just the id.
+      if (prev && assignment && JSON.stringify(prev) === JSON.stringify(assignment)) return prev;
       return assignment;
     });
   }, []);
@@ -311,6 +322,7 @@ export function LiveClassProvider({
       if (assignmentId && prev.id !== assignmentId) return prev;
       return null;
     });
+    setPuzzleSolverOpen(false);
   }, []);
 
   const setWaitingRoomEntries = useCallback((entries: WaitingRoomEntry[]) => {
@@ -374,6 +386,8 @@ export function LiveClassProvider({
         settings,
         applySettingsUpdate,
         activePuzzle,
+        puzzleSolverOpen,
+        setPuzzleSolverOpen,
         applyPuzzleAssignment,
         clearActivePuzzle,
         waitingRoomEntries,

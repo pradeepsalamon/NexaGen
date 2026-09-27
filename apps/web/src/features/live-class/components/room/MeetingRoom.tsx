@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
   StartAudio,
   useConnectionState,
 } from "@livekit/components-react";
-import { ConnectionState, DisconnectReason } from "livekit-client";
+import { ConnectionState, DisconnectReason, type RoomOptions } from "livekit-client";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
 import { PuzzleBridge } from "../meeting/PuzzleBridge";
+import { PuzzleSolverHost } from "../meeting/PuzzleSolverHost";
 import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
 import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
 import { MeetingEventToasts } from "../meeting/MeetingEventToasts";
@@ -22,6 +23,8 @@ import { WaitingRoomBridge } from "../meeting/WaitingRoomBridge";
 import { ScreenShareRequestBridge } from "../meeting/ScreenShareRequestBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
+import { MediaDeviceProvider } from "../../providers/MediaDeviceProvider";
+import { loadMediaPrefs } from "../../lib/mediaDevices";
 import { useClassroomSession } from "../../providers/ClassroomSessionManager";
 import { ConnectionLost } from "../states/ErrorStates";
 import { ClassSummary } from "../summary/ClassSummary";
@@ -85,6 +88,26 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   const joinToastShown = useRef(false);
   const { clearJoined } = useClassroomSession();
 
+  // Capture defaults for every mic / camera this room opens (toolbar toggles,
+  // keyboard shortcuts, the mini player). The saved device is passed as a
+  // plain id — an *ideal* constraint — so if it has been unplugged the browser
+  // falls back to its default instead of failing with OverconstrainedError.
+  // MediaDeviceProvider then re-resolves it by label once devices are listed.
+  const roomOptions = useMemo<RoomOptions>(() => {
+    const prefs = loadMediaPrefs();
+    return {
+      audioCaptureDefaults: {
+        autoGainControl: true,
+        deviceId: prefs.audioinput?.deviceId,
+        echoCancellation: true,
+        noiseSuppression: true,
+      },
+      videoCaptureDefaults: {
+        deviceId: prefs.videoinput?.deviceId,
+      },
+    };
+  }, []);
+
   if (ended) {
     // The class ended (room deleted) while this tab was in the meeting. Show the
     // post-class summary instead of silently bouncing to the dashboard.
@@ -110,6 +133,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       token={token}
       serverUrl={env.NEXT_PUBLIC_LIVEKIT_URL}
       connect
+      options={roomOptions}
       audio={false}
       video={false}
       className="flex h-[100dvh] flex-col overflow-hidden"
@@ -148,19 +172,22 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
     >
       <ReconnectToaster />
       <AudioSessionBridge />
-      <PipMicCaptureBridge />
-      <LiveClassSettingsBridge />
-      <WaitingRoomBridge classId={classId} />
-      <ScreenShareRequestBridge classId={classId} />
-      <HandRaiseBridge />
-      <PuzzleBridge classId={classId} />
-      <ConnectionStateManager classId={classId}>
-        <ChatProvider classId={classId}>
-          {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
-          <MeetingEventToasts />
-          <MeetingLayout />
-        </ChatProvider>
-      </ConnectionStateManager>
+      <MediaDeviceProvider>
+        <PipMicCaptureBridge />
+        <LiveClassSettingsBridge />
+        <WaitingRoomBridge classId={classId} />
+        <ScreenShareRequestBridge classId={classId} />
+        <HandRaiseBridge />
+        <PuzzleBridge classId={classId} />
+        <PuzzleSolverHost classId={classId} />
+        <ConnectionStateManager classId={classId}>
+          <ChatProvider classId={classId}>
+            {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
+            <MeetingEventToasts />
+            <MeetingLayout />
+          </ChatProvider>
+        </ConnectionStateManager>
+      </MediaDeviceProvider>
       <RoomAudioRenderer />
       <StartAudio label="Click to allow audio playback" />
     </LiveKitRoom>

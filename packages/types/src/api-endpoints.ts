@@ -91,6 +91,8 @@ export const API_ROUTES = {
     puzzleLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/leaderboard`,
     // Coach-owner+admin only: every enrolled student's current board position.
     puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
+    // Coach-owner+admin: manual +/- points for one student on the active puzzle.
+    puzzleAdjust: (id: string = ":id") => `/live-class/${id}/puzzle/adjust`,
     // Waiting room (coach-owner/admin): list of students pending admission.
     waitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room`,
     // Waiting room (coach-owner/admin): admit or deny one pending student.
@@ -180,6 +182,8 @@ export const API_ROUTES = {
     // ── Library (admin: all; coach: GLOBAL + own) ──
     list: "/puzzles",
     create: "/puzzles",
+    // Platform default points + leaderboard rules (GET staff, PUT admin).
+    scoringSettings: "/puzzles/scoring-settings",
     stats: "/puzzles/stats",
     validate: "/puzzles/validate",
     bulk: "/puzzles/bulk",

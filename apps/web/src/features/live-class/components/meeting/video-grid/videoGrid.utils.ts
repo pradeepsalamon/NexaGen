@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useState, type RefObject } from "react";
 import { isTrackReference, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
+import { useParticipantActivity } from "../../../hooks/useParticipantActivity";
+import { compareByActivity } from "../../../lib/participantActivity";
 
 /**
  * Live content-box size of an element, so layout can follow the real container.
@@ -139,48 +141,26 @@ export function getRole(
   return null;
 }
 
+/**
+ * Tile order: screen shares, then the coach (students always keep the teacher
+ * in view), then everyone else by live activity — speaking, hand raised,
+ * spoke recently, camera/mic on (`lib/participantActivity.ts`, the same order
+ * the People panel uses). Re-sorts on every active-speaker change.
+ */
 export function useSortedTracks(tracks: TrackReferenceOrPlaceholder[]) {
-  const speakerOrderRef = useRef<Map<string, number>>(new Map());
+  const activity = useParticipantActivity();
 
   return useMemo(() => {
-    const now = Date.now();
-    tracks.forEach((t) => {
-      if (t.participant.isSpeaking) {
-        speakerOrderRef.current.set(t.participant.identity, now);
-      }
+    const isScreen = (t: TrackReferenceOrPlaceholder) => t.source === Track.Source.ScreenShare;
+    const isCoach = (t: TrackReferenceOrPlaceholder) =>
+      getRole(t.participant)?.toUpperCase() === "COACH";
+
+    return [...tracks].sort((a, b) => {
+      if (isScreen(a) !== isScreen(b)) return isScreen(a) ? -1 : 1;
+      if (isCoach(a) !== isCoach(b)) return isCoach(a) ? -1 : 1;
+      const byActivity = compareByActivity(a.participant, b.participant, activity);
+      if (byActivity !== 0) return byActivity;
+      return a.source.localeCompare(b.source);
     });
-
-    // Cleanup entries older than 10s
-    for (const [key, time] of speakerOrderRef.current) {
-      if (now - time > 10000) {
-        speakerOrderRef.current.delete(key);
-      }
-    }
-
-    const sorted = [...tracks].sort((a, b) => {
-      const aIsScreen = a.source === Track.Source.ScreenShare;
-      const bIsScreen = b.source === Track.Source.ScreenShare;
-      if (aIsScreen !== bIsScreen) return aIsScreen ? -1 : 1;
-
-      const aIsCoach = getRole(a.participant)?.toUpperCase() === "COACH";
-      const bIsCoach = getRole(b.participant)?.toUpperCase() === "COACH";
-      if (aIsCoach !== bIsCoach) return aIsCoach ? -1 : 1;
-
-      const aIsSpeaking = a.participant.isSpeaking;
-      const bIsSpeaking = b.participant.isSpeaking;
-      if (aIsSpeaking !== bIsSpeaking) return aIsSpeaking ? -1 : 1;
-
-      const aLastSpoke = speakerOrderRef.current.get(a.participant.identity) ?? 0;
-      const bLastSpoke = speakerOrderRef.current.get(b.participant.identity) ?? 0;
-      if (aLastSpoke !== bLastSpoke) return bLastSpoke - aLastSpoke;
-
-      if (a.participant.isLocal !== b.participant.isLocal) {
-        return a.participant.isLocal ? -1 : 1;
-      }
-
-      return a.participant.identity.localeCompare(b.participant.identity);
-    });
-
-    return sorted;
-  }, [tracks]);
+  }, [activity, tracks]);
 }

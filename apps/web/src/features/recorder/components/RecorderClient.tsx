@@ -15,6 +15,14 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BoardSyncMessage, BoardColor } from "@/features/chessboard/types/sync";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
+import { HAND_RAISE_TOPIC, decodeHandRaise } from "@/features/live-class/lib/handRaise";
+import {
+  RECENT_SPEAKER_MS,
+  SPEAKING_HOLD_MS,
+  compareByActivity,
+  createSpeakerTracker,
+  trackSpeakers,
+} from "@/features/live-class/lib/participantActivity";
 
 /** The data-channel topic the live class broadcasts board state on. */
 const BOARD_SYNC_TOPIC = "board_sync";
@@ -160,6 +168,9 @@ export function RecorderClient({ classId }: { classId: string }) {
   const [error, setError] = useState<string | null>(null);
   const roomRef = useRef<Room | null>(null);
   const startedRef = useRef(false);
+  /** Who spoke when, and whose hand is up — drives the rail's activity order. */
+  const speakersRef = useRef(createSpeakerTracker());
+  const handsRef = useRef(new Map<string, number>());
   /**
    * Room-composite egress records the headless tab's audio output, so every
    * remote mic / screen-share audio track has to actually be *playing* in the
@@ -235,8 +246,21 @@ export function RecorderClient({ classId }: { classId: string }) {
         track: chosen?.isSubscribed && !chosen.isMuted ? (chosen.track as RemoteTrack) : undefined,
       });
     }
-    // Coach first — the inset column reads top-down.
-    next.sort((a, b) => Number(isCoach(b.participant)) - Number(isCoach(a.participant)));
+    // Screen shares, then the coach, then whoever is active — speaking, hand
+    // up, spoke recently, camera on — the same order the live class shows
+    // (lib/participantActivity.ts). The rail reads top-down.
+    const ctx = {
+      lastSpokeAt: speakersRef.current.lastSpokeAt,
+      now: Date.now(),
+      raisedHandAt: handsRef.current,
+    };
+    const sharing = (p: Participant) =>
+      !!p.getTrackPublication(Track.Source.ScreenShare)?.track;
+    next.sort((a, b) => {
+      if (sharing(a.participant) !== sharing(b.participant)) return sharing(a.participant) ? -1 : 1;
+      if (isCoach(a.participant) !== isCoach(b.participant)) return isCoach(a.participant) ? -1 : 1;
+      return compareByActivity(a.participant, b.participant, ctx);
+    });
     setTiles(next);
   }, []);
 
@@ -254,6 +278,20 @@ export function RecorderClient({ classId }: { classId: string }) {
     roomRef.current = room;
 
     const onChanged = () => refreshTiles(room);
+    // Re-sort again once a speaking hold / recent-speaker window lapses, so a
+    // quiet participant drops back without waiting for the next event.
+    const settleTimers: Record<"hold" | "recent", number | undefined> = {
+      hold: undefined,
+      recent: undefined,
+    };
+    const onSpeakers = (speakers: Participant[]) => {
+      trackSpeakers(speakersRef.current, speakers);
+      onChanged();
+      window.clearTimeout(settleTimers.hold);
+      window.clearTimeout(settleTimers.recent);
+      settleTimers.hold = window.setTimeout(onChanged, SPEAKING_HOLD_MS + 50);
+      settleTimers.recent = window.setTimeout(onChanged, RECENT_SPEAKER_MS + 50);
+    };
     const onSubscribed = (track: RemoteTrack, _pub: RemoteTrackPublication) => {
       attachAudio(track);
       onChanged();
@@ -269,11 +307,24 @@ export function RecorderClient({ classId }: { classId: string }) {
       .on(RoomEvent.TrackMuted, onChanged)
       .on(RoomEvent.TrackUnmuted, onChanged)
       .on(RoomEvent.ParticipantConnected, onChanged)
-      .on(RoomEvent.ParticipantDisconnected, onChanged)
+      .on(RoomEvent.ParticipantDisconnected, (p: RemoteParticipant) => {
+        handsRef.current.delete(p.identity);
+        onChanged();
+      })
+      .on(RoomEvent.ActiveSpeakersChanged, onSpeakers)
       .on(RoomEvent.Disconnected, () => signalEnd())
       .on(
         RoomEvent.DataReceived,
-        (payload: Uint8Array, _from?: RemoteParticipant, _kind?: unknown, topic?: string) => {
+        (payload: Uint8Array, from?: RemoteParticipant, _kind?: unknown, topic?: string) => {
+          if (topic === HAND_RAISE_TOPIC) {
+            // Identity from the LiveKit envelope, never the payload (handRaise.ts).
+            const msg = decodeHandRaise(payload);
+            if (!from || msg?.type !== "HAND_RAISE") return;
+            if (msg.raised) handsRef.current.set(from.identity, msg.at);
+            else handsRef.current.delete(from.identity);
+            onChanged();
+            return;
+          }
           if (topic !== BOARD_SYNC_TOPIC) return;
           try {
             applyMessage(JSON.parse(new TextDecoder().decode(payload)) as BoardSyncMessage);
@@ -311,6 +362,8 @@ export function RecorderClient({ classId }: { classId: string }) {
 
     return () => {
       cancelled = true;
+      window.clearTimeout(settleTimers.hold);
+      window.clearTimeout(settleTimers.recent);
       for (const els of audioEls.values()) {
         for (const el of els) el.remove();
       }

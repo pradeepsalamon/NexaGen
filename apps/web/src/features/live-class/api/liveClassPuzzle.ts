@@ -1,11 +1,13 @@
 import { apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
+  type AdjustLivePuzzlePointsRequest,
   type AssignLivePuzzleRequest,
   type LivePuzzleBoardsResponse,
   type LivePuzzleLeaderboardResponse,
   type LivePuzzleStateResponse,
-  type StartPuzzleAttemptResponse
+  type StartPuzzleAttemptResponse,
+  type UpdateLivePuzzleRequest
 } from "@nexa-chess/types";
 
 export const getLivePuzzleState = (classId: string): Promise<LivePuzzleStateResponse> =>
@@ -40,3 +42,21 @@ export const getLivePuzzleLeaderboard = (
 
 export const getLivePuzzleBoards = (classId: string): Promise<LivePuzzleBoardsResponse> =>
   apiFetch<LivePuzzleBoardsResponse>(API_ROUTES.liveClass.puzzleBoards(classId));
+
+export const updateLivePuzzle = (
+  classId: string,
+  body: UpdateLivePuzzleRequest
+): Promise<LivePuzzleStateResponse> =>
+  apiFetch<LivePuzzleStateResponse>(API_ROUTES.liveClass.puzzle(classId), {
+    method: "PATCH",
+    body
+  });
+
+export const adjustLivePuzzlePoints = (
+  classId: string,
+  body: AdjustLivePuzzlePointsRequest
+): Promise<LivePuzzleLeaderboardResponse> =>
+  apiFetch<LivePuzzleLeaderboardResponse>(API_ROUTES.liveClass.puzzleAdjust(classId), {
+    method: "POST",
+    body
+  });

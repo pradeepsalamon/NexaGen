@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  puzzleScoringOverrideSchema,
+  type PuzzleScoringOverride
+} from "./puzzle-scoring";
 
 import {
   attemptMoveSchema,
@@ -123,6 +127,8 @@ export const createPuzzleRequestSchema = z
     tags: puzzleTagsSchema.optional(),
     estimatedSeconds: z.number().int().min(5).max(3600).optional(),
     orientation: chessColorSchema.optional(),
+    /** Points / penalties for this puzzle when shared in a live class. */
+    scoring: puzzleScoringOverrideSchema.nullable().optional(),
     status: z.enum(["DRAFT", "PUBLISHED"]).optional(),
     // Coaches cannot set GLOBAL — the server forces PRIVATE for them.
     visibility: puzzleVisibilitySchema.optional()
@@ -150,7 +156,9 @@ export const updatePuzzleRequestSchema = z.object({
   hints: puzzleHintsSchema.optional(),
   tags: puzzleTagsSchema.optional(),
   estimatedSeconds: z.number().int().min(5).max(3600).nullable().optional(),
-  orientation: chessColorSchema.optional()
+  orientation: chessColorSchema.optional(),
+  /** null clears the override (the admin default applies). */
+  scoring: puzzleScoringOverrideSchema.nullable().optional()
 });
 export type UpdatePuzzleRequest = z.infer<typeof updatePuzzleRequestSchema>;
 
@@ -213,6 +221,8 @@ export type PuzzleSummary = {
   visibility: PuzzleVisibility;
   tags: string[];
   estimatedSeconds: number | null;
+  /** This puzzle's own points / penalties override; null = the admin default. */
+  scoring: PuzzleScoringOverride | null;
   sideToMove: "white" | "black";
   solutionLength: number;
   createdById: string | null;

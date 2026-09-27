@@ -12,6 +12,7 @@ import type {
   PuzzleListQuery,
   PuzzleListResponse,
   PuzzleResponse,
+  PuzzleScoringSettingsResponse,
   PuzzleStatsResponse,
   PuzzleTopicListResponse,
   PuzzleTopicResponse,
@@ -25,6 +26,7 @@ import type {
   StudentPuzzleListResponse,
   SubmitPuzzleAttemptRequest,
   UpdatePuzzleRequest,
+  UpdatePuzzleScoringSettingsRequest,
   UpdatePuzzleTopicRequest,
   ValidatePuzzleRequest,
   ValidatePuzzleResponse
@@ -211,4 +213,16 @@ export function getPuzzleHint(
     method: "POST",
     body: data
   });
+}
+
+// ── Live-class points & leaderboard defaults ──
+
+export function getPuzzleScoringSettings(): Promise<PuzzleScoringSettingsResponse> {
+  return apiFetch(API_ROUTES.puzzles.scoringSettings);
+}
+
+export function updatePuzzleScoringSettings(
+  data: UpdatePuzzleScoringSettingsRequest
+): Promise<PuzzleScoringSettingsResponse> {
+  return apiFetch(API_ROUTES.puzzles.scoringSettings, { method: "PUT", body: data });
 }

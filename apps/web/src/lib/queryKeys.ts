@@ -83,6 +83,7 @@ export const queryKeys = {
     list: (params?: Record<string, unknown>) => ["puzzles", "list", params ?? null] as const,
     detail: (id: string) => ["puzzles", "detail", id] as const,
     stats: ["puzzles", "stats"] as const,
+    scoringSettings: ["puzzles", "scoring-settings"] as const,
     topics: ["puzzles", "topics"] as const,
     mine: (params?: Record<string, unknown>) => ["puzzles", "mine", params ?? null] as const,
     mineDetail: (id: string) => ["puzzles", "mine", id] as const,
