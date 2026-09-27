@@ -58,6 +58,16 @@ describe("resolveJoinAction", () => {
     });
   });
 
+  it("adopts a fresh clientId-less token JOIN instead of opening a parallel session", () => {
+    const openLogs = [
+      { id: "log-token", clientId: null, timestamp: new Date("2026-01-01T10:09:55Z") },
+    ];
+    expect(resolveJoinAction(true, openLogs, "tab-a", now, WINDOW_MS)).toEqual({
+      kind: "DUPLICATE_SKIP",
+      adoptLogId: "log-token",
+    });
+  });
+
   it("is a plain reconnect when nothing is currently open", () => {
     expect(resolveJoinAction(true, [], "tab-a", now, WINDOW_MS)).toEqual({
       kind: "CONCURRENT_RECONNECT",

@@ -16,7 +16,7 @@ export type OpenAttendanceLog = {
 
 export type JoinAction =
   | { kind: "FIRST_JOIN" }
-  | { kind: "DUPLICATE_SKIP" }
+  | { kind: "DUPLICATE_SKIP"; adoptLogId?: string }
   | { kind: "GHOST_DROP_RECONNECT"; staleLogId: string }
   | { kind: "CONCURRENT_RECONNECT" };
 
@@ -49,7 +49,20 @@ export function resolveJoinAction(
     ? openLogs.find((log) => log.clientId === clientId)
     : openLogs[0];
 
-  if (!reference) return { kind: "CONCURRENT_RECONNECT" };
+  if (!reference) {
+    // The token request's JOIN carries no clientId on older clients — the
+    // webhook for that same join must adopt it, not open a parallel session.
+    const unscoped = clientId
+      ? openLogs.find(
+          (log) =>
+            log.clientId === null &&
+            now.getTime() - log.timestamp.getTime() >= 0 &&
+            now.getTime() - log.timestamp.getTime() < duplicateJoinWindowMs
+        )
+      : undefined;
+    if (unscoped) return { kind: "DUPLICATE_SKIP", adoptLogId: unscoped.id };
+    return { kind: "CONCURRENT_RECONNECT" };
+  }
 
   const ageMs = now.getTime() - reference.timestamp.getTime();
   if (ageMs >= 0 && ageMs < duplicateJoinWindowMs) {

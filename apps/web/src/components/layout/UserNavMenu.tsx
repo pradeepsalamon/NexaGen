@@ -193,6 +193,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
       <ConfirmationModal
         cancelLabel="Stay logged in"
         confirmLabel="Logout"
+        icon={LogOut}
         isConfirming={logoutMutation.isPending}
         isOpen={isConfirmOpen}
         onCancel={() => setIsConfirmOpen(false)}

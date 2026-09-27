@@ -48,6 +48,18 @@ export interface ModerationNotice {
   byName: string;
 }
 
+/**
+ * Topic the API injects recording start/stop on. LiveKit's own `isRecording`
+ * only flips once egress has finalized the file, which lags a stop by many
+ * seconds — this packet lets every client update the moment it happens.
+ */
+export const LIVE_CLASS_RECORDING_TOPIC = "recording";
+
+export interface RecordingStateNotice {
+  type: "RECORDING_STATE";
+  recording: boolean;
+}
+
 export const MODERATED_SOURCE_LABEL: Record<ModeratableSource, string> = {
   microphone: "microphone",
   camera: "camera",

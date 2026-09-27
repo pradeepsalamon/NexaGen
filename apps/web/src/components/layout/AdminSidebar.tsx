@@ -35,7 +35,7 @@ export function AdminSidebar() {
 
   return (
     <NavDrawer
-      subtitle={role === "SUPER_ADMIN" ? "Super Admin Console" : "Admin Console"}
+      subtitle={role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
       title="Nexa Chess"
     >
       {groups.map((group) =>

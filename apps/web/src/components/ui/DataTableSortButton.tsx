@@ -11,7 +11,7 @@ export function DataTableSortButton({ label, onClick }: DataTableSortButtonProps
     <Button
       variant="ghost"
       onClick={onClick}
-      className="h-8 data-[state=open]:bg-accent"
+      className="-mx-2 h-8 min-h-8 px-2 text-current hover:bg-white/15 hover:text-current"
     >
       <span>{label}</span>
       <ChevronsUpDown className="h-3 w-3" />

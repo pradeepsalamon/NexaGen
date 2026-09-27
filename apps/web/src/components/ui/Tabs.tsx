@@ -22,7 +22,7 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     className={cn(
-      "inline-flex min-h-11 w-fit items-center rounded-control bg-app-soft p-1 text-app-muted",
+      "inline-flex min-h-11 w-fit items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] p-1 shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
       className
     )}
     ref={ref}
@@ -37,7 +37,7 @@ const TabsTrigger = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     className={cn(
-      "inline-flex min-h-9 items-center justify-center gap-2 rounded-control px-3 text-sm font-extrabold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-60 data-[state=active]:bg-secondary data-[state=active]:text-black data-[state=active]:shadow-card data-[state=inactive]:text-app-muted data-[state=inactive]:hover:text-app-text",
+      "inline-flex min-h-9 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-full px-4 text-sm font-bold text-white/85 transition-colors duration-150 hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-accent data-[state=active]:text-white data-[state=active]:shadow-[0_4px_12px_-4px_rgb(var(--rgb-accent)/0.6)] data-[state=active]:hover:bg-accent",
       className
     )}
     ref={ref}

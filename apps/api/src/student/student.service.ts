@@ -4,7 +4,12 @@ import {
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
+import type {
+  StudentDashboardFeaturedClass,
+  StudentDashboardLiveClass
+} from "@nexa-chess/types";
 import { AttendanceService } from "../attendance/attendance.service";
+import { LiveKitService } from "../live-class/livekit.service";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "../auth/types";
@@ -18,6 +23,7 @@ export class StudentService {
   constructor(
     private readonly attendanceService: AttendanceService,
     private readonly jwtService: JwtService,
+    private readonly livekit: LiveKitService,
     private readonly prisma: PrismaService
   ) { }
 
@@ -115,32 +121,38 @@ export class StudentService {
       take: 5
     });
 
-    // Determine Today's class vs Upcoming
-    let todaysClass: typeof scheduledClasses[0] | null = null;
-    const upcomingClasses = [];
+    // A class that is live right now wins regardless of when it was scheduled
+    // (a late class that started yesterday is still live today).
+    const liveCandidate = await this.prisma.coachClass.findFirst({
+      where: {
+        batch: { students: { some: { studentId: user.id, isDeleted: false } } },
+        OR: [
+          { status: { in: ["LIVE", "IN_PROGRESS"] } },
+          { liveSession: { status: "LIVE" } }
+        ],
+        NOT: { status: { in: ["CANCELLED", "COMPLETED"] } }
+      },
+      orderBy: { startsAt: "desc" },
+      include: { coach: true, liveSession: true }
+    });
+    const liveClass = liveCandidate ? await this.toLiveClass(liveCandidate) : null;
 
+    // Featured class: live > today's still-ahead class > next scheduled class
+    // on any later day > today's already-finished class.
+    const now = new Date();
     const classesToday = scheduledClasses.filter(c => c.startsAt < todayEnd);
-    const classesFuture = scheduledClasses.filter(c => c.startsAt >= todayEnd);
+    const pending = scheduledClasses.filter(
+      c => c.status === "SCHEDULED" && c.endsAt > now
+    );
+    const featured =
+      liveCandidate ||
+      pending[0] ||
+      [...classesToday].reverse().find(c => c.status === "COMPLETED") ||
+      null;
 
-    if (classesToday.length > 0) {
-      const liveClass = classesToday.find(c => c.status === "LIVE");
-      const scheduledClass = classesToday.find(c => c.status === "SCHEDULED");
-      const completedClass = [...classesToday].reverse().find(c => c.status === "COMPLETED");
-
-      todaysClass = liveClass || scheduledClass || completedClass || classesToday[0];
-
-      // Put the rest of today's scheduled classes in upcoming
-      if (todaysClass) {
-        const remainingToday = classesToday.filter(
-          c => c.id !== todaysClass!.id && c.status === "SCHEDULED"
-        );
-        upcomingClasses.push(...remainingToday);
-      }
-    }
-
-    // Only include SCHEDULED future classes in the upcoming list
-    upcomingClasses.push(...classesFuture.filter(c => c.status === "SCHEDULED"));
-    const finalUpcoming = upcomingClasses.slice(0, 5);
+    const finalUpcoming = scheduledClasses
+      .filter(c => c.status === "SCHEDULED" && c.id !== featured?.id && c.endsAt > now)
+      .slice(0, 5);
 
     // Fetch past classes for the dashboard
     const pastClasses = await this.prisma.coachClass.findMany({
@@ -174,16 +186,8 @@ export class StudentService {
       // Dates are returned as ISO-8601 only. Formatting them here would use the
       // server's timezone, not the student's — the web app formats them with
       // the user's `timezone` (AUDIT H11).
-      todaysClass: todaysClass ? {
-        id: todaysClass.id,
-        topic: todaysClass.topic || "Untitled Class",
-        coachName: todaysClass.coach.firstName,
-        startsAt: todaysClass.startsAt.toISOString(),
-        durationMinutes: Math.round(
-          (todaysClass.endsAt.getTime() - todaysClass.startsAt.getTime()) / 60000
-        ),
-        status: todaysClass.status
-      } : null,
+      liveClass,
+      todaysClass: featured ? this.toFeaturedClass(featured) : null,
       upcomingClasses: finalUpcoming.map(c => ({
         id: c.id,
         startsAt: c.startsAt.toISOString(),
@@ -243,6 +247,66 @@ export class StudentService {
         hasRecording: !!c.liveSession?.recordingUrl,
       })),
       progressMetrics
+    };
+  }
+
+  private toFeaturedClass(c: {
+    id: string;
+    topic: string | null;
+    coach: { firstName: string };
+    startsAt: Date;
+    endsAt: Date;
+    status: string;
+  }): StudentDashboardFeaturedClass {
+    return {
+      id: c.id,
+      topic: c.topic || "Untitled Class",
+      coachName: c.coach.firstName,
+      startsAt: c.startsAt.toISOString(),
+      endsAt: c.endsAt.toISOString(),
+      durationMinutes: Math.round((c.endsAt.getTime() - c.startsAt.getTime()) / 60000),
+      status: c.status
+    };
+  }
+
+  private async toLiveClass(c: {
+    id: string;
+    topic: string | null;
+    coachId: string;
+    coach: { firstName: string };
+    startsAt: Date;
+    endsAt: Date;
+    liveSession: { roomName: string; startedAt: Date | null } | null;
+  }): Promise<StudentDashboardLiveClass> {
+    let participantCount: number | null = null;
+    let coachPresent: boolean | null = null;
+    if (c.liveSession) {
+      try {
+        const participants = await this.livekit.listParticipants(c.liveSession.roomName);
+        // Count people, not connections: drop the recorder, the coach's board
+        // tab and extra tabs of the same user.
+        const people = new Set(
+          participants
+            .map(p => p.identity)
+            .filter(identity => !identity.startsWith("EG_") && !identity.endsWith("_board"))
+            .map(identity => identity.split("_")[0])
+        );
+        participantCount = people.size;
+        coachPresent = people.has(c.coachId);
+      } catch {
+        // LiveKit outage — the card still offers Join, just without the count.
+      }
+    }
+
+    return {
+      id: c.id,
+      topic: c.topic || "Untitled Class",
+      coachName: c.coach.firstName,
+      startsAt: c.startsAt.toISOString(),
+      endsAt: c.endsAt.toISOString(),
+      startedAt: c.liveSession?.startedAt?.toISOString() ?? null,
+      participantCount,
+      coachPresent
     };
   }
 

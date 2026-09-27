@@ -21,7 +21,7 @@ function read(): ChartColors {
     primary: "#2447a0",
     secondary: "#f4b63f",
     accent: "#1f9d78",
-    warm: "#7c5cd6",
+    warm: "#e0685a",
     danger: "#d92d20",
     muted: "#5e6784",
     border: "#dde1f0",
@@ -35,7 +35,7 @@ function read(): ChartColors {
       fallback.secondary,
       fallback.accent,
       fallback.warm,
-      "#e0685a",
+      "#7c5cd6",
       "#12b5a5"
     ];
     return fallback;
@@ -59,7 +59,7 @@ function read(): ChartColors {
     colors.secondary,
     colors.accent,
     colors.warm,
-    "#e0685a",
+    "#7c5cd6",
     "#12b5a5",
     "#f2749b",
     "#8a94a6"

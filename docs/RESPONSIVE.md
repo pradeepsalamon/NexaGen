@@ -118,13 +118,15 @@ ipad-mini, ipad-air-landscape, laptop-13, laptop-15, desktop-1080`.
 ┌───────────────────────────────────────────────┐
 │ Header  fixed inset-x-0 top-0 z-40 h-16        │  ← always fixed, 64 px; ☰ opens the drawer
 ├───────────────────────────────────────────────┤
-│▌ main  (full width — the drawer never reserves │
-│▌ space)  p-4 → md:p-6 → lg:p-8                 │
-│▌ mx-auto max-w-6xl / 7xl, overflow-x-hidden    │
+│ main  (full width — the drawer never reserves  │
+▐ space)  p-4 → md:p-6 → lg:p-8                  │
+│ mx-auto max-w-6xl / 7xl, overflow-x-hidden     │
 └───────────────────────────────────────────────┘
- ▌= NavDrawer closed: fixed top-0→bottom-0, z-50, only a 12 px edge peeks out.
-   Open: slides over header + content (w-[280px], max-md:w-[240px],
-   rounded-r-[20px]) with a bg-black/40 backdrop; round toggle at top-20.
+ ▐ = NavDrawer closed: fully off-screen; only its 20 px tab handle shows at
+     mid-height on the left edge.
+     Open: a floating card inset 12 px (w-[280px], max-md:w-[240px],
+     rounded-[24px]) slides over header + content with a bg-black/40 backdrop
+     (mounted only while open); the handle rides on the card's edge.
 ```
 
 Key files:
@@ -134,8 +136,8 @@ Key files:
 | App wrapper | [`AppShell.tsx`](../apps/web/src/components/layout/AppShell.tsx) | Renders `<RoleSidebar/>` + children, so every AppShell page (role dashboards, `/profile`, `/chess-board`, `/classes/[id]`) gets the drawer |
 | Role picker | [`RoleSidebar.tsx`](../apps/web/src/components/layout/RoleSidebar.tsx) | Admin / Super Admin → `AdminSidebar`, Coach → `CoachSidebar`, Student → `StudentSidebar`; nothing before auth hydrates |
 | Top bar | [`Header.tsx`](../apps/web/src/components/layout/Header.tsx) | `fixed h-16`; 3-col grid `minmax(0,1fr) auto minmax(0,1fr)`; title `truncate max-w-[42vw] sm:max-w-none`; `compact` prop hides Dashboard CTA / bell / theme toggle on small screens for immersive pages. Shows a menu button only while a drawer is mounted (`useSidebarStore().available`) |
-| Drawer shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | `NavDrawer` (off-canvas panel, backdrop, edge toggle, title, optional footer), `NavDrawerLink` (top-level row, active = `bg-secondary`), `NavDrawerAccordion` (section row + inset panel of child links, active child = white). Closes on Escape, backdrop, link click and any route change; the hidden nav is `inert`. Open state is shared in [`stores/sidebarStore.ts`](../apps/web/src/stores/sidebarStore.ts), not persisted — it always starts closed |
-| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | "Dashboard" direct link, then accordion sections (Analytics / Manage / Super Admin). **One section open at a time**; the section owning the current route opens itself on navigation |
+| Drawer shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | `NavDrawer` (floating off-canvas card, backdrop, edge tab handle, logo with the role chip on its right, scrolling nav between a pinned header and footer; footer = signed-in user unless overridden), `NavDrawerLink` (top-level row, current page = solid `bg-accent` emerald), `NavDrawerAccordion` (section row with an emerald tint + left rule while expanded, inset panel of child links, current child = solid emerald). The nav's direct children are `shrink-0`: it is a scrolling flex column, and without that an expanded section squeezes the other rows below their 40 px height. Opens from the header ☰, the handle, a click on the peeked slice, or by **dragging the handle / slice outward** (pointer events, so touch works too; past 35 % of the card it opens, otherwise it snaps back). On hover-capable devices a mouse at the left screen edge (`w-2` hot zone) slides 28 px of the card out as a peek. Closes on Escape, backdrop, link click and any route change; the hidden nav is `inert`. Open state is shared in [`stores/sidebarStore.ts`](../apps/web/src/stores/sidebarStore.ts), not persisted — it always starts closed |
+| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | "Dashboard" direct link, then accordion sections (Analytics / People / Classes / Learning / Finance / Settings / Super Admin — defined by `group` in `navItems.ts`, icons in `ADMIN_GROUP_ICONS`). **One section open at a time**; the section owning the current route opens itself on navigation |
 | Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | Flat direct links |
 | Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | Flat direct links with live badges; rating + profile cards in the footer |
 | Page heading | [`PageHeader.tsx`](../apps/web/src/components/layout/PageHeader.tsx) | `flex-col gap-4 sm:flex-row sm:items-center sm:justify-between` — title stacks above actions on phone |
@@ -397,8 +399,9 @@ Run against `index.html` (or a real device / DevTools device mode).
 
 ### Phone portrait (320–430)
 - [ ] `android-small` (320): nothing clipped, buttons not cut off.
-- [ ] Drawer closed with only its 12 px edge showing; header ☰ and the edge
-      toggle both open it (240 px); backdrop / Escape / a link closes it.
+- [ ] Drawer closed with only its tab handle showing (mid-height, left edge);
+      header ☰ and the handle both open it (240 px, room left for the handle
+      at 320 px); backdrop / Escape / a link closes it.
 - [ ] `PageHeader` stacked; primary action reachable (full-width / icon).
 - [ ] Tables scroll inside their box; page does not.
 - [ ] Dialogs: `≤ 90vh`, internal scroll, close button reachable.

@@ -77,8 +77,6 @@ export default function StudentDashboardPage() {
   }
 
   const todaysClass = data?.todaysClass;
-  const isTodayLive =
-    todaysClass?.status === "IN_PROGRESS" || todaysClass?.status === "LIVE";
 
   return (
     <div className="space-y-6 pb-10">
@@ -92,7 +90,7 @@ export default function StudentDashboardPage() {
               courseName={data?.courses?.[0]?.title || "Explore Courses"}
               batchName={data?.batchName || "Your Batch"}
               memberSince="Recently"
-              liveClassId={isTodayLive ? todaysClass.id : undefined}
+              liveClass={data?.liveClass}
             />
           </div>
           <TodaysClass

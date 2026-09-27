@@ -22,6 +22,7 @@ import {
   liveClassSettingsSchema,
   privateChatRecipientAllowed,
   LIVE_CLASS_MODERATION_TOPIC,
+  LIVE_CLASS_RECORDING_TOPIC,
   LIVE_CLASS_SCREEN_SHARE_TOPIC,
   LIVE_CLASS_SETTINGS_TOPIC,
   LIVE_CLASS_WAITING_ROOM_TOPIC,
@@ -35,6 +36,7 @@ import {
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
   type ModerationNotice,
+  type RecordingStateNotice,
   type ResolveScreenShareRequest,
   type ResolveWaitingRoomRequest,
   type ScreenShareRequestEntry,
@@ -429,7 +431,7 @@ export class LiveClassService {
         await this.attendanceService.recordJoinEvent(
           liveSession.classId,
           user.id,
-          { source: "TOKEN_REQUEST" }
+          { source: "TOKEN_REQUEST", clientId }
         );
       } catch (error) {
         this.logger.warn(`Failed to record attendance for student ${user.id}`, error);
@@ -1632,7 +1634,23 @@ export class LiveClassService {
       },
     });
 
+    void this.announceRecordingState(roomName, true);
+
     return { success: true, egressId, filepath };
+  }
+
+  /** Best-effort: a dropped packet only delays the UI until LiveKit catches up. */
+  private async announceRecordingState(roomName: string, recording: boolean) {
+    try {
+      const notice: RecordingStateNotice = { type: "RECORDING_STATE", recording };
+      await this.livekit.broadcastData(
+        roomName,
+        new TextEncoder().encode(JSON.stringify(notice)),
+        LIVE_CLASS_RECORDING_TOPIC
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to announce recording state in ${roomName}`, error as Error);
+    }
   }
 
   async stopRecording(accessToken: string | undefined, classId: string) {
@@ -1667,6 +1685,8 @@ export class LiveClassService {
         metadata: { ...restMetadata, recordingStatus: "STOPPING" },
       },
     });
+
+    void this.announceRecordingState(liveSession.roomName, false);
 
     return { success: true };
   }

@@ -11,7 +11,7 @@
   --rgb-primary: 36 71 160;
   --rgb-secondary: 244 182 63;
   --rgb-accent: 31 157 120;
-  --rgb-warm: 124 92 214;
+  --rgb-warm: 224 104 90;
   --rgb-background: 246 247 252;
   --rgb-surface: 255 255 255;
   --rgb-surface-soft: 238 241 250;
@@ -22,7 +22,7 @@
 
   /* Fixed semantic status hues — distinct from the four brand hues above, so
      a badge's meaning (success/warning/info) never overloads a brand color's
-     own meaning (e.g. secondary saffron already means "attention/practice"). */
+     own meaning (e.g. secondary orange already means "attention/practice"). */
   --rgb-success: 22 163 74;
   --rgb-warning: 217 119 6;
   --rgb-info: 37 99 235;
@@ -44,9 +44,9 @@
 
   /* Readable text/icon weight of each hue against a light surface. */
   --color-primary-ink: color-mix(in srgb, var(--color-primary) 85%, #0b1640);
-  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 40%, #3d2a00);
+  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 70%, #431407);
   --color-accent-ink: color-mix(in srgb, var(--color-accent) 70%, #05402a);
-  --color-warm-ink: color-mix(in srgb, var(--color-warm) 80%, #1e0f4a);
+  --color-warm-ink: color-mix(in srgb, var(--color-warm) 70%, #4a120c);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 88%, #3d0603);
   --color-success-ink: color-mix(in srgb, var(--color-success) 88%, #052e1d);
   --color-warning-ink: color-mix(in srgb, var(--color-warning) 88%, #3d2a00);
@@ -73,8 +73,8 @@
 }
 
 :root[data-theme="dark"] {
-  /* Ink-navy surfaces instead of pure black, so dark mode stays in the brand family. */
-  --rgb-primary: 91 127 219;
+  /* Ink-navy surfaces instead of pure black, so dark mode stays in the brand family.
+     Brand hues are deliberately NOT redefined here — they are identical in both themes. */
   --rgb-background: 9 12 26;
   --rgb-surface: 16 20 40;
   --rgb-surface-soft: 25 30 56;
@@ -88,7 +88,7 @@
 
   /* Inks lighten instead of darken so they stay legible on dark surfaces. */
   --color-primary-ink: color-mix(in srgb, var(--color-primary) 60%, white);
-  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 82%, white);
+  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 70%, white);
   --color-accent-ink: color-mix(in srgb, var(--color-accent) 60%, white);
   --color-warm-ink: color-mix(in srgb, var(--color-warm) 60%, white);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 52%, white);
@@ -105,7 +105,7 @@
   * {
     @apply box-border;
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
+    scrollbar-color: var(--color-primary) rgb(var(--rgb-primary) / 0.08);
   }
 
   /* Webkit custom scrollbar */
@@ -114,14 +114,14 @@
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgb(var(--rgb-primary) / 0.08);
   }
   ::-webkit-scrollbar-thumb {
-    background-color: var(--color-border);
+    background-color: var(--color-primary);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-text-muted);
+    background-color: color-mix(in srgb, var(--color-primary) 80%, black);
   }
 
   html {
@@ -282,20 +282,20 @@
   /* Custom scrollbar for sidebar panels */
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--color-border) transparent;
+    scrollbar-color: var(--color-primary) rgb(var(--rgb-primary) / 0.08);
   }
   .custom-scrollbar::-webkit-scrollbar {
     width: 5px;
   }
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgb(var(--rgb-primary) / 0.08);
   }
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background-color: var(--color-border);
+    background-color: var(--color-primary);
     border-radius: 9999px;
   }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-text-muted);
+    background-color: color-mix(in srgb, var(--color-primary) 80%, black);
   }
 
   /* Hide scrollbar but keep functionality */

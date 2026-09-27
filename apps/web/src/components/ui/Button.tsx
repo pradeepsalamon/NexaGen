@@ -5,7 +5,7 @@ import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 items-center justify-center gap-2 rounded-control border text-sm font-bold transition disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-full border text-sm font-bold transition disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
   {
     variants: {
       variant: {
@@ -14,9 +14,9 @@ const buttonVariants = cva(
         ghost:
           "border-transparent bg-transparent text-app-text hover:bg-app-soft hover:text-app-text",
         outline:
-          "border-app-border bg-app-surface text-app-text shadow-card hover:bg-app-soft",
+          "border-primary bg-app-surface text-primary hover:bg-primary/5 dark:border-app-text dark:text-app-text dark:hover:bg-white/5",
         primary:
-          "border-transparent bg-primary text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--color-primary)_26%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]",
+          "border-transparent bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] text-white shadow-[0_2px_6px_-1px_color-mix(in_srgb,var(--color-primary)_35%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)]",
         secondary:
           "border-[color-mix(in_srgb,var(--color-secondary)_70%,var(--color-border))] bg-secondary text-black shadow-card hover:bg-[color-mix(in_srgb,var(--color-secondary)_84%,white)]"
       },
@@ -27,6 +27,10 @@ const buttonVariants = cva(
         sm: "min-h-9 px-3 py-1.5"
       }
     },
+    // The pressed-key bottom edge only on text buttons; icon buttons stay evenly bordered.
+    compoundVariants: [
+      { class: "border-b-2", size: ["default", "lg", "sm"], variant: "outline" }
+    ],
     defaultVariants: {
       variant: "primary",
       size: "default"

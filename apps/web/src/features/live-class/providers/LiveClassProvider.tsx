@@ -79,10 +79,13 @@ interface LiveClassContextValue {
   /** Revoke everyone — back to coach-only. */
   clearBoardControl: () => void;
 
-  /** Whether the class is currently being recorded */
-  isRecording: boolean;
-  setIsRecording: (val: boolean) => void;
-  toggleRecording: () => void;
+  /**
+   * Recording state known before LiveKit's own `isRecording` catches up (it
+   * lags a stop by the egress finalize). null = trust LiveKit. Read it through
+   * `useRecordingState`, not directly.
+   */
+  recordingOverride: boolean | null;
+  setRecordingOverride: (val: boolean | null) => void;
 
   /**
    * Resolved pre-class settings enforced for this session (null = legacy class
@@ -168,7 +171,7 @@ export function LiveClassProvider({
   const [boardControlStudents, setBoardControlStudentsState] = useState<
     Record<string, BoardControlSide>
   >({});
-  const [isRecording, setIsRecording] = useState(false);
+  const [recordingOverride, setRecordingOverrideState] = useState<boolean | null>(null);
   const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
   const [activePuzzle, setActivePuzzle] = useState<LivePuzzleAssignment | null>(null);
   const [puzzleSolverOpen, setPuzzleSolverOpen] = useState(false);
@@ -302,9 +305,17 @@ export function LiveClassProvider({
     setBoardControlStudentsState((prev) => (Object.keys(prev).length === 0 ? prev : {}));
   }, []);
 
-  const toggleRecording = useCallback(() => {
-    setIsRecording((prev) => !prev);
+  const setRecordingOverride = useCallback((val: boolean | null) => {
+    setRecordingOverrideState(val);
   }, []);
+
+  // Never let an override outlive a failed egress: after a minute LiveKit is
+  // the only authority again.
+  useEffect(() => {
+    if (recordingOverride === null) return;
+    const timer = window.setTimeout(() => setRecordingOverrideState(null), 60_000);
+    return () => window.clearTimeout(timer);
+  }, [recordingOverride]);
 
   const applyPuzzleAssignment = useCallback((assignment: LivePuzzleAssignment | null) => {
     setActivePuzzle((prev) => {
@@ -380,9 +391,8 @@ export function LiveClassProvider({
         setBoardControlSide,
         setBoardControlStudents,
         clearBoardControl,
-        isRecording,
-        setIsRecording,
-        toggleRecording,
+        recordingOverride,
+        setRecordingOverride,
         settings,
         applySettingsUpdate,
         activePuzzle,

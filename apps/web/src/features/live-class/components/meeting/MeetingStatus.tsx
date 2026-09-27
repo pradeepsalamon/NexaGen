@@ -4,13 +4,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   useConnectionState,
   useConnectionQualityIndicator,
-  useIsRecording,
   useLocalParticipant,
 } from "@livekit/components-react";
 import { ConnectionState, ConnectionQuality, type Participant } from "livekit-client";
 import { cn } from "@/lib/utils";
 import { useMeetingTimer } from "../../hooks/useMeetingTimer";
-import { useOptionalLiveClassState } from "../../providers/LiveClassProvider";
+import { useRecordingState } from "../../hooks/useRecordingState";
 import { Z, useReducedMotion } from "../../lib/meetingUi";
 import { Timer, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
@@ -313,10 +312,8 @@ export function RecordingBadge({
   isRecording?: boolean;
   className?: string;
 }) {
-  const lkRecording = useIsRecording();
-  const contextState = useOptionalLiveClassState();
-  const isRecording =
-    isRecordingProp ?? (lkRecording || contextState?.isRecording || false);
+  const { isRecording: liveRecording } = useRecordingState();
+  const isRecording = isRecordingProp ?? liveRecording;
 
   if (!isRecording) return null;
 

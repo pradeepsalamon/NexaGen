@@ -30,7 +30,7 @@ export function PasswordInput({
       <Button
         aria-controls={id}
         aria-label={buttonLabel}
-        className="absolute right-1.5 top-1 inline-flex size-9 items-center justify-center rounded-control text-app-muted transition hover:bg-app-soft hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+        className="absolute right-1.5 top-1 inline-flex size-9 items-center justify-center rounded-full text-app-muted transition hover:bg-app-soft hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
         onClick={() => setIsVisible((current) => !current)}
         size="icon"
         type="button"

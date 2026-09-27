@@ -52,6 +52,7 @@ export function LogoutButton() {
       <ConfirmationModal
         cancelLabel="Stay logged in"
         confirmLabel="Logout"
+        icon={LogOut}
         isConfirming={logoutMutation.isPending}
         isOpen={isConfirmOpen}
         onCancel={() => setIsConfirmOpen(false)}

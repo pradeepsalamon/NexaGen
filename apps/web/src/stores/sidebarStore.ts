@@ -6,6 +6,7 @@ type SidebarState = {
   open: boolean;
   close: () => void;
   setAvailable: (available: boolean) => void;
+  show: () => void;
   toggle: () => void;
 };
 
@@ -15,5 +16,6 @@ export const useSidebarStore = create<SidebarState>((set) => ({
   open: false,
   close: () => set({ open: false }),
   setAvailable: (available) => set(available ? { available } : { available, open: false }),
+  show: () => set({ open: true }),
   toggle: () => set((state) => ({ open: !state.open }))
 }));

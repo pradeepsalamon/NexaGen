@@ -1,23 +1,23 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { X } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/AlertDialog";
-import { Button } from "@/components/ui/Button";
+import { cn } from "@/lib/utils";
 
 type ConfirmationModalProps = {
   cancelLabel?: string;
   children?: ReactNode;
   confirmLabel?: string;
+  /** Shown in a tinted circle above the title. */
+  icon?: LucideIcon;
   isConfirming?: boolean;
   isOpen: boolean;
   onCancel: () => void;
@@ -25,10 +25,14 @@ type ConfirmationModalProps = {
   title: string;
 };
 
+const PILL =
+  "inline-flex h-10 min-w-[108px] items-center justify-center gap-2 rounded-full px-5 text-sm font-bold transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:cursor-not-allowed disabled:opacity-60";
+
 export function ConfirmationModal({
   cancelLabel = "Cancel",
   children,
   confirmLabel = "Confirm",
+  icon: Icon,
   isConfirming = false,
   isOpen,
   onCancel,
@@ -44,47 +48,47 @@ export function ConfirmationModal({
         }
       }}
     >
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <div>
-            <AlertDialogTitle>{title}</AlertDialogTitle>
-            {children ? (
-              <AlertDialogDescription className="mt-2">
-                {children}
-              </AlertDialogDescription>
+      <AlertDialogContent className="justify-items-center text-center">
+        {Icon ? (
+          <span className="flex size-14 items-center justify-center rounded-full bg-app-danger/10 text-app-danger">
+            <Icon aria-hidden="true" className="size-6" strokeWidth={2.25} />
+          </span>
+        ) : null}
+        <div className="space-y-2">
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          {children ? <AlertDialogDescription>{children}</AlertDialogDescription> : null}
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2.5">
+          <AlertDialogCancel
+            className={cn(
+              PILL,
+              "border border-b-2 border-primary bg-app-surface text-primary hover:bg-primary/5 dark:border-app-text dark:text-app-text dark:hover:bg-white/5"
+            )}
+            disabled={isConfirming}
+          >
+            {cancelLabel}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            className={cn(
+              PILL,
+              "bg-app-danger text-white shadow-[0_4px_12px_-4px_color-mix(in_srgb,var(--color-danger)_60%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-danger)_88%,black)]"
+            )}
+            disabled={isConfirming}
+            onClick={(event) => {
+              // Keep the dialog open while the action runs; the caller closes it.
+              event.preventDefault();
+              onConfirm();
+            }}
+          >
+            {isConfirming ? (
+              <span
+                aria-hidden="true"
+                className="size-4 animate-spin rounded-full border-2 border-current border-r-transparent"
+              />
             ) : null}
-          </div>
-          <AlertDialogCancel asChild>
-            <Button
-              aria-label="Close confirmation"
-              className="text-app-muted shadow-none hover:text-app-text"
-              size="icon"
-              variant="ghost"
-            >
-              <X aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            </Button>
-          </AlertDialogCancel>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel asChild>
-            <Button
-              disabled={isConfirming}
-              variant="primary"
-            >
-              {cancelLabel}
-            </Button>
-          </AlertDialogCancel>
-          <AlertDialogAction asChild>
-            <Button
-              className="border-transparent bg-app-danger text-white shadow-[0_12px_28px_color-mix(in_srgb,var(--color-danger)_24%,transparent)] hover:bg-[color-mix(in_srgb,var(--color-danger)_88%,black)]"
-              isLoading={isConfirming}
-              onClick={onConfirm}
-              variant="primary"
-            >
-              {confirmLabel}
-            </Button>
+            {confirmLabel}
           </AlertDialogAction>
-        </AlertDialogFooter>
+        </div>
       </AlertDialogContent>
     </AlertDialog>
   );

@@ -2507,6 +2507,7 @@ export class AttendanceService {
   ): number {
     const cap = openSessionEnd.getTime();
     let total = 0;
+    const intervals: Array<[number, number]> = [];
     for (const log of logs) {
       const isSession =
         log.eventType === AttendanceEventType.JOIN ||
@@ -2516,14 +2517,33 @@ export class AttendanceService {
       if (!isSession) continue;
 
       if (log.sessionStart) {
+        const start = log.sessionStart.getTime();
         const end = Math.min(log.sessionEnd?.getTime() ?? cap, cap);
-        total += Math.max(0, Math.floor((end - log.sessionStart.getTime()) / 1000));
+        if (end > start) intervals.push([start, end]);
       } else if (log.sessionDuration) {
         // No start to clamp against (legacy row) — trust the stored value.
         total += log.sessionDuration;
       }
     }
-    return total;
+
+    // Overlapping sessions (two tabs, or a token JOIN beside its webhook
+    // RECONNECT) count their shared time once.
+    intervals.sort((a, b) => a[0] - b[0]);
+    let curStart = -1;
+    let curEnd = -1;
+    let mergedMs = 0;
+    for (const [start, end] of intervals) {
+      if (start > curEnd) {
+        if (curEnd > curStart) mergedMs += curEnd - curStart;
+        curStart = start;
+        curEnd = end;
+      } else if (end > curEnd) {
+        curEnd = end;
+      }
+    }
+    if (curEnd > curStart) mergedMs += curEnd - curStart;
+
+    return total + Math.floor(mergedMs / 1000);
   }
 
   /**

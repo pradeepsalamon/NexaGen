@@ -13,7 +13,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
     <input
       aria-invalid={hasError}
       className={cn(
-        "flex min-h-11 w-full rounded-control border bg-app-surface px-3.5 text-sm text-app-text shadow-sm transition placeholder:text-app-muted/70 hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] disabled:cursor-not-allowed disabled:opacity-60 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] focus:outline-none",
+        "flex min-h-11 w-full rounded-full border bg-app-surface px-4 text-sm text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] transition placeholder:text-app-muted/70 hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] disabled:cursor-not-allowed disabled:opacity-60 focus:border-primary focus:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)] focus:outline-none",
         hasError ? "border-app-danger" : "border-app-border",
         className
       )}

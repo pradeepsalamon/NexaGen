@@ -107,15 +107,15 @@ export function DatePicker({
         <Button
           variant="outline"
           className={cn(
-            "h-10 min-h-10 justify-start rounded-md border-zinc-300 bg-white px-3 py-2 text-left text-sm font-medium text-zinc-950 shadow-none hover:bg-zinc-50 hover:text-zinc-950 focus-visible:outline-blue-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900 dark:hover:text-zinc-50",
+            "min-h-11 justify-start rounded-full px-4 py-2 text-left text-sm font-medium border border-app-border bg-app-surface text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] hover:bg-app-surface hover:text-app-text dark:border-app-border dark:text-app-text dark:hover:bg-app-surface",
             withTime ? "w-full" : "w-[266px]",
-            !value && "text-zinc-500 dark:text-zinc-400",
+            !value && "text-app-muted dark:text-app-muted",
             className
           )}
         >
           <CalendarIcon
             aria-hidden="true"
-            className="mr-2 size-4 shrink-0 text-zinc-500 dark:text-zinc-400"
+            className="mr-2 size-4 shrink-0 text-app-muted"
           />
           <span className="min-w-0 flex-1 truncate">
             {selectedDate

@@ -25,7 +25,6 @@ import {
   useTrackToggle,
   useParticipants,
   useLocalParticipant,
-  useIsRecording,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
@@ -41,6 +40,7 @@ import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { Z, useReducedMotion } from "../../lib/meetingUi";
 import { useParams } from "next/navigation";
+import { useRecordingState } from "../../hooks/useRecordingState";
 import { startRecording, stopRecording, requestScreenShare, endScreenShare } from "../../api/live-class";
 import { toast } from "sonner";
 
@@ -58,16 +58,13 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     toggleFullscreen,
     isChessboardOpen,
     toggleChessboard,
-    isRecording: contextRecording,
-    setIsRecording,
     settings,
     activePuzzle,
     screenShareRequests,
     upsertScreenShareRequest,
   } = useLiveClassState();
 
-  const lkRecording = useIsRecording();
-  const isRecording = lkRecording || contextRecording;
+  const { isRecording, setRecordingOverride } = useRecordingState();
   const [isTogglingRecording, setIsTogglingRecording] = useState(false);
 
   const user = useAuthStore((state) => state.user);
@@ -157,11 +154,11 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     try {
       if (isRecording) {
         await stopRecording(roomId);
-        setIsRecording(false);
+        setRecordingOverride?.(false);
         toast.success("Recording stopped and saved to backup storage.");
       } else {
         await startRecording(roomId);
-        setIsRecording(true);
+        setRecordingOverride?.(true);
         toast.success("Recording started successfully.");
       }
     } catch (error) {

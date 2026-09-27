@@ -215,7 +215,7 @@ export function ComboboxInput({
   return (
     <div
       className={cn(
-        "flex min-h-11 w-full items-center gap-2 rounded-control border border-app-border bg-app-surface px-3.5 text-sm text-app-text shadow-sm transition hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] focus-within:border-primary focus-within:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)]",
+        "flex min-h-11 w-full items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 text-sm text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] transition hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] focus-within:border-primary focus-within:shadow-[0_0_0_4px_color-mix(in_srgb,var(--color-primary)_16%,transparent)]",
         isDisabled && "cursor-not-allowed opacity-60"
       )}
     >

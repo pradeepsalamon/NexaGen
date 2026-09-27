@@ -15,9 +15,11 @@ type LogoProps = {
   size?: number;
   /** Crop to the knight below `sm`, so the wordmark never crowds a phone header. */
   iconOnlyOnMobile?: boolean;
+  /** Always use the light-on-dark lockup, for placement on a dark/brand surface in either theme. */
+  onDark?: boolean;
 };
 
-export function Logo({ compact = false, stacked = false, size, iconOnlyOnMobile = false }: LogoProps) {
+export function Logo({ compact = false, stacked = false, size, iconOnlyOnMobile = false, onDark = false }: LogoProps) {
   const height = size ?? (stacked ? 96 : compact ? 32 : 40);
   const fullWidth = Math.round(height * LOCKUP_RATIO);
   const iconWidth = Math.round(height * ICON_RATIO);
@@ -50,8 +52,14 @@ export function Logo({ compact = false, stacked = false, size, iconOnlyOnMobile 
         style={frameStyle}
       >
         {/* Both ship; the theme selector shows one (the other is display:none) with no hydration flash. */}
-        <Image {...imageProps} alt="Nexa Chess" src={logoLight} className={cn(imageProps.className, "dark:hidden")} />
-        <Image {...imageProps} alt="Nexa Chess" src={logoDark} className={cn(imageProps.className, "hidden dark:block")} />
+        {onDark ? (
+          <Image {...imageProps} alt="Nexa Chess" src={logoDark} />
+        ) : (
+          <>
+            <Image {...imageProps} alt="Nexa Chess" src={logoLight} className={cn(imageProps.className, "dark:hidden")} />
+            <Image {...imageProps} alt="Nexa Chess" src={logoDark} className={cn(imageProps.className, "hidden dark:block")} />
+          </>
+        )}
       </div>
       {stacked && !compact ? (
         <span className="block text-sm font-medium text-app-muted">Learn. Practice. Master.</span>

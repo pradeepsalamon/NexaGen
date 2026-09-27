@@ -29,7 +29,7 @@ const TableHeader = forwardRef<
 >(function TableHeader({ className, ...props }, ref) {
   return (
     <thead
-      className={cn("[&_tr]:border-b [&_tr]:border-app-border", className)}
+      className={cn("[&_tr]:border-0 [&_tr]:hover:bg-transparent", className)}
       ref={ref}
       {...props}
     />
@@ -43,7 +43,7 @@ const TableBody = forwardRef<
 >(function TableBody({ className, ...props }, ref) {
   return (
     <tbody
-      className={cn("[&_tr:last-child]:border-0", className)}
+      className={cn("[&>tr:last-child]:border-0 [&>tr:nth-child(even)]:bg-app-soft/50", className)}
       ref={ref}
       {...props}
     />
@@ -75,7 +75,7 @@ const TableRow = forwardRef<
   return (
     <tr
       className={cn(
-        "border-b border-app-border transition hover:bg-app-soft/60 data-[state=selected]:bg-app-soft",
+        "border-b border-app-border transition-colors hover:bg-primary/5 data-[state=selected]:bg-primary/10",
         className
       )}
       ref={ref}
@@ -92,7 +92,7 @@ const TableHead = forwardRef<
   return (
     <th
       className={cn(
-        "h-11 px-3 text-center align-middle text-xs font-extrabold uppercase text-app-muted [&:has([role=checkbox])]:pr-0",
+        "h-12 bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-3 text-center align-middle text-xs font-bold uppercase tracking-wide text-white [&:has([role=checkbox])]:pr-0",
         className
       )}
       ref={ref}

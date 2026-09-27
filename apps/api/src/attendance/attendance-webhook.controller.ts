@@ -324,6 +324,12 @@ export class AttendanceWebhookController {
             // participant_joined. Treating that as a re-join produced a
             // phantom "Ghost drop" and an inflated reconnectCount on every
             // single join. See AUDIT.md H3.
+            if (action.adoptLogId && clientId) {
+              await this.prisma.attendanceLog.update({
+                where: { id: action.adoptLogId },
+                data: { clientId },
+              });
+            }
             this.logger.debug(
               `Skipping duplicate join for user=${userId} class=${classId}`
             );

@@ -102,25 +102,29 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/analytics/recordings", label: "Recordings & Storage", icon: Database, group: "Analytics" },
   { href: "/admin/analytics/engagement", label: "Engagement", icon: Activity, group: "Analytics" },
   { href: "/admin/analytics/operations", label: "Operations", icon: Clock, group: "Analytics" },
-  // Manage
-  { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "Manage" },
-  { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Manage" },
-  { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Manage" },
-  { href: "/admin/class-requests", label: "Class Requests", icon: CalendarClock, group: "Manage" },
-  { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Manage" },
-  { href: "/admin/puzzles", label: "Puzzle Library", icon: Puzzle, group: "Manage" },
-  { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Manage" },
-  { href: "/admin/users", label: "Users", icon: Users, group: "Manage" },
-  { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Manage" },
-  { href: "/admin/reliability", label: "Live Reliability", icon: Wifi, group: "Manage" },
-  { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Manage" },
-  { href: "/admin/chess-appearance", label: "Chess Appearance", icon: Palette, group: "Manage" },
-  { href: "/admin/typography", label: "Fonts & Text", icon: Type, group: "Manage" },
-  { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "Manage" },
-  { href: "/admin/feedback", label: "Coach Feedback", icon: MessageSquareHeart, group: "Manage" },
-  { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Manage" },
-  { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Manage" },
-  { href: "/admin/finance/coach-payroll", label: "Coach Payroll", icon: Wallet, group: "Manage" },
+  // People & communication
+  { href: "/admin/users", label: "Users", icon: Users, group: "People" },
+  { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "People" },
+  { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "People" },
+  { href: "/admin/feedback", label: "Coach Feedback", icon: MessageSquareHeart, group: "People" },
+  // Classes & scheduling
+  { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Classes" },
+  { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Classes" },
+  { href: "/admin/class-requests", label: "Class Requests", icon: CalendarClock, group: "Classes" },
+  { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Classes" },
+  { href: "/admin/reliability", label: "Live Reliability", icon: Wifi, group: "Classes" },
+  // Learning content
+  { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Learning" },
+  { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Learning" },
+  { href: "/admin/puzzles", label: "Puzzle Library", icon: Puzzle, group: "Learning" },
+  // Finance
+  { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance" },
+  { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Finance" },
+  { href: "/admin/finance/coach-payroll", label: "Coach Payroll", icon: Wallet, group: "Finance" },
+  // Platform settings
+  { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Settings" },
+  { href: "/admin/chess-appearance", label: "Chess Appearance", icon: Palette, group: "Settings" },
+  { href: "/admin/typography", label: "Fonts & Text", icon: Type, group: "Settings" },
   // Super Admin
   { href: "/admin/backups", label: "DB Backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
@@ -144,7 +148,11 @@ export type NavGroup = { group: string; icon?: LucideIcon; items: NavItem[] };
 /** Icon shown on each admin sidebar group box. */
 const ADMIN_GROUP_ICONS: Record<string, LucideIcon> = {
   Analytics: BarChart3,
-  Manage: SlidersHorizontal,
+  Classes: CalendarDays,
+  Finance: Wallet,
+  Learning: BookOpen,
+  People: Users,
+  Settings: Settings,
   "Super Admin": ShieldCheck
 };
 

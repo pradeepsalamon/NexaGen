@@ -14,18 +14,36 @@ function calculateTotalDuration(
 ): number {
   const cap = openSessionEnd.getTime();
   let total = 0;
+  const intervals: Array<[number, number]> = [];
   for (const log of logs) {
     const isSession = log.eventType === 'JOIN' || log.eventType === 'RECONNECT';
     if (!isSession) continue;
 
     if (log.sessionStart) {
+      const start = log.sessionStart.getTime();
       const end = Math.min(log.sessionEnd?.getTime() ?? cap, cap);
-      total += Math.max(0, Math.floor((end - log.sessionStart.getTime()) / 1000));
+      if (end > start) intervals.push([start, end]);
     } else if (log.sessionDuration) {
       total += log.sessionDuration;
     }
   }
-  return total;
+
+  intervals.sort((a, b) => a[0] - b[0]);
+  let curStart = -1;
+  let curEnd = -1;
+  let mergedMs = 0;
+  for (const [start, end] of intervals) {
+    if (start > curEnd) {
+      if (curEnd > curStart) mergedMs += curEnd - curStart;
+      curStart = start;
+      curEnd = end;
+    } else if (end > curEnd) {
+      curEnd = end;
+    }
+  }
+  if (curEnd > curStart) mergedMs += curEnd - curStart;
+
+  return total + Math.floor(mergedMs / 1000);
 }
 
 function determineStatus(
@@ -172,6 +190,24 @@ describe('Attendance Calculations', () => {
       expect(
         calculateTotalDuration(logs, new Date('2026-01-01T10:20:00Z')),
       ).toBe(1200);
+    });
+
+    it('counts overlapping sessions (token JOIN beside webhook RECONNECT) once', () => {
+      const logs = [
+        {
+          eventType: 'JOIN',
+          sessionStart: new Date('2026-01-01T10:00:00Z'),
+          sessionEnd: new Date('2026-01-01T10:07:00Z'),
+          sessionDuration: 420,
+        },
+        {
+          eventType: 'RECONNECT',
+          sessionStart: new Date('2026-01-01T10:00:05Z'),
+          sessionEnd: new Date('2026-01-01T10:02:00Z'),
+          sessionDuration: 115,
+        },
+      ];
+      expect(calculateTotalDuration(logs)).toBe(420);
     });
 
     it('recomputes from timestamps rather than trusting an inflated sessionDuration', () => {

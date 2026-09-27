@@ -2166,3 +2166,30 @@ export * from "./class-requests";
 // Student progress: puzzle rating + practice streak.
 // ──────────────────────────────────────────────
 export * from "./progress";
+
+// ──────────────────────────────────────────────
+// Student dashboard hero: the class live right now, and the featured class
+// (today's, or the next one when nothing is on today).
+// ──────────────────────────────────────────────
+export type StudentDashboardLiveClass = {
+  id: string;
+  topic: string;
+  coachName: string;
+  startsAt: string;
+  endsAt: string;
+  /** When the coach actually started the room; null for rows predating it. */
+  startedAt: string | null;
+  /** Distinct people in the room, or null when LiveKit could not be asked. */
+  participantCount: number | null;
+  coachPresent: boolean | null;
+};
+
+export type StudentDashboardFeaturedClass = {
+  id: string;
+  topic: string;
+  coachName: string;
+  startsAt: string;
+  endsAt: string;
+  durationMinutes: number;
+  status: string;
+};

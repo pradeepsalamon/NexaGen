@@ -26,11 +26,11 @@ function useStudentNavBadges(): Record<string, NavBadge | undefined> {
 
   const todaysClass = data.todaysClass;
   const upcoming: { startsAt: string }[] = data.upcomingClasses ?? [];
-  const isLive =
-    todaysClass?.status === "LIVE" || todaysClass?.status === "IN_PROGRESS";
+  const isLive = !!data.liveClass;
 
+  // The featured class may be a later day's when nothing is on today.
   const todayCount =
-    (todaysClass ? 1 : 0) +
+    (todaysClass && formatRelativeDay(todaysClass.startsAt, timeZone) === "Today" ? 1 : 0) +
     upcoming.filter((cls) => formatRelativeDay(cls.startsAt, timeZone) === "Today")
       .length;
 

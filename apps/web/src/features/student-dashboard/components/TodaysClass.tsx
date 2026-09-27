@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { Panel, PanelBody, PanelEmpty, PanelHeader } from "@/components/ui/Panel";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatTime } from "@/lib/datetime";
+import { formatRelativeDay, formatTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 interface TodaysClassProps {
@@ -31,12 +31,12 @@ export function TodaysClass({
   if (!topic) {
     return (
       <Panel className="flex h-full flex-col">
-        <PanelHeader icon={Calendar} title="Today's Class" tone="primary" />
+        <PanelHeader icon={Calendar} title="Next Class" tone="primary" />
         <div className="flex flex-1 items-center justify-center">
           <PanelEmpty
             icon={CalendarOff}
             message="Enjoy your free time, or get ahead with some practice."
-            title="Nothing scheduled today"
+            title="No upcoming classes"
             tone="primary"
           />
         </div>
@@ -45,6 +45,8 @@ export function TodaysClass({
   }
 
   const isLive = status === "IN_PROGRESS" || status === "LIVE";
+  const day = formatRelativeDay(startsAt, timeZone);
+  const title = isLive ? "Live Now" : day === "Today" ? "Today's Class" : "Next Class";
 
   return (
     <Panel
@@ -53,7 +55,7 @@ export function TodaysClass({
       <PanelHeader
         actions={<ClassStatusBadge status={status ?? ""} />}
         icon={Calendar}
-        title="Today's Class"
+        title={title}
         tone="primary"
       />
       <PanelBody className="flex flex-1 flex-col justify-between gap-5">
@@ -75,6 +77,7 @@ export function TodaysClass({
               </span>
               <dt className="sr-only">Time</dt>
               <dd className="font-bold text-app-text">
+                {day !== "Today" ? `${day}, ` : ""}
                 {formatTime(startsAt, timeZone)}
                 <span className="ml-1.5 font-medium text-app-muted">
                   · {durationMinutes} min

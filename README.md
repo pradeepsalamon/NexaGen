@@ -1082,6 +1082,7 @@ Developers should always prefer existing shadcn/ui components before creating cu
 
 **Data Display**
 
+- Alert (tinted `error` / `warning` / `info` / `success` inline message with the right `role`/`aria-live`; `WidgetError` is built on it)
 - Badge
 - Table (with TableHeader, TableBody, TableFooter, TableRow, TableHead, TableCell, TableCaption)
 - Tooltip
