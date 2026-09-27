@@ -92,6 +92,10 @@ export const API_ROUTES = {
     puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
     // Coach-owner+admin: manual +/- points for one student on the active puzzle.
     puzzleAdjust: (id: string = ":id") => `/live-class/${id}/puzzle/adjust`,
+    // Move poll ("Response"): POST start / PATCH close-reveal / DELETE end (coach-owner+admin), GET current (any participant).
+    movePoll: (id: string = ":id") => `/live-class/${id}/move-poll`,
+    // Student submits (or changes) their move while the poll is open.
+    movePollAnswer: (id: string = ":id") => `/live-class/${id}/move-poll/answer`,
     // Simul: POST start / DELETE end (coach-owner+admin), GET current (any participant).
     simul: (id: string = ":id") => `/live-class/${id}/simul`,
     // Coach-owner+admin: add one more student to the running simul.

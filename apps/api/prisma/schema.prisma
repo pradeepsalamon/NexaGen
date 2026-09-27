@@ -303,6 +303,8 @@ model User {
   assignedLivePuzzles             LiveClassPuzzleAssignment[]    @relation("LiveClassPuzzleAssignedBy")
   startedSimuls                   LiveClassSimul[]               @relation("LiveClassSimulStartedBy")
   simulGames                      LiveClassSimulGame[]           @relation("LiveClassSimulGameStudent")
+  startedMovePolls                LiveClassMovePoll[]            @relation("LiveClassMovePollStartedBy")
+  movePollAnswers                 LiveClassMovePollAnswer[]      @relation("LiveClassMovePollAnswerStudent")
   activities                      StudentActivity[]              @relation("StudentActivity")
   classAttendances                ClassAttendance[]
   attendanceLogs                  AttendanceLog[]                @relation("UserAttendanceLogs")
@@ -710,6 +712,7 @@ model CoachClass {
   recordingWatchProgresses RecordingWatchProgress[]
   puzzleAssignments        LiveClassPuzzleAssignment[]
   simuls                   LiveClassSimul[]
+  movePolls                LiveClassMovePoll[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                      @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]          @relation("FeedbackResponseClass")
@@ -2110,14 +2113,14 @@ model LiveClassSimulGame {
   coachIsWhite  Boolean
   fen           String
   /// SimulMove[] (san, uci, by, engine?).
-  movesJson     Json            @default("[]")
+  movesJson     Json             @default("[]")
   /// Half-moves played — the optimistic-concurrency guard for every move.
-  ply           Int             @default(0)
-  status        SimulGameStatus @default(ONGOING)
+  ply           Int              @default(0)
+  status        SimulGameStatus  @default(ONGOING)
   result        SimulGameResult?
   endReason     SimulEndReason?
   drawOfferedBy SimulSide?
-  engineMoves   Int             @default(0)
+  engineMoves   Int              @default(0)
   lastMoveAt    DateTime?
   finishedAt    DateTime?
 
@@ -2127,6 +2130,61 @@ model LiveClassSimulGame {
   @@unique([simulId, studentId])
   @@index([studentId])
   @@map("live_class_simul_games")
+}
+
+enum LiveClassMovePollStatus {
+  OPEN
+  CLOSED
+  ENDED
+}
+
+/// A coach's "what would you play?" question on one position.
+model LiveClassMovePoll {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  startedById String?
+  startedBy   User?   @relation("LiveClassMovePollStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+
+  status     LiveClassMovePollStatus @default(OPEN)
+  fen        String
+  prompt     String?
+  revealed   Boolean                 @default(false)
+  correctUci String?
+  startedAt  DateTime                @default(now())
+  closedAt   DateTime?
+  endedAt    DateTime?
+
+  answers LiveClassMovePollAnswer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId])
+  @@map("live_class_move_polls")
+}
+
+model LiveClassMovePollAnswer {
+  id String @id @default(cuid())
+
+  pollId String
+  poll   LiveClassMovePoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("LiveClassMovePollAnswerStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  uci        String
+  san        String
+  answeredAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pollId, studentId])
+  @@index([studentId])
+  @@map("live_class_move_poll_answers")
 }
 
 // Platform default points + leaderboard rules for live-class puzzles

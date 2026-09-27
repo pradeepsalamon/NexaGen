@@ -182,6 +182,9 @@ export const queryKeys = {
   liveSimul: {
     state: (classId: string) => ["live-simul", "state", classId] as const,
   },
+  liveMovePoll: {
+    state: (classId: string) => ["live-move-poll", "state", classId] as const,
+  },
   payroll: {
     all: ["payroll"] as const,
     mine: ["payroll", "mine"] as const,

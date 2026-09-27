@@ -29,12 +29,19 @@ import { PuzzleGridTile } from "./video-grid/PuzzleGridTile";
 const GRID_GAP = 12;
 const SCROLLBAR_GUTTER = 16;
 
-export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
+export function MeetingVideoGrid({
+  compact = false,
+  hideBoard = false,
+}: {
+  compact?: boolean;
+  /** The single-page layout already shows the board beside the video. */
+  hideBoard?: boolean;
+}) {
   const { pinnedParticipantSid, setPinnedParticipantSid, isChessboardOpen, activePuzzle } =
     useLiveClassState();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const showBoardTile = isChessboardOpen && !isCoach;
+  const showBoardTile = isChessboardOpen && !isCoach && !hideBoard;
   // A freshly shared board opens across the whole stage; the student can drop
   // back to the grid, and the next share opens it big again.
   const [boardStage, setBoardStage] = useState(true);

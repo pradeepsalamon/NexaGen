@@ -17,6 +17,9 @@ interface LiveClassContextValue {
   activeSidebar: SidebarTab;
   setActiveSidebar: (sidebar: SidebarTab) => void;
   toggleSidebar: (tab: Exclude<SidebarTab, null>) => void;
+  /** The board-first classroom layout has its Chat tab on screen. */
+  classroomChatOpen: boolean;
+  setClassroomChatOpen: (open: boolean) => void;
 
   /** Pinned participant track key for focus view */
   pinnedParticipantSid: string | null;
@@ -163,6 +166,7 @@ export function LiveClassProvider({
   settings?: LiveClassSettings | null;
 }) {
   const [activeSidebar, setActiveSidebar] = useState<SidebarTab>(null);
+  const [classroomChatOpen, setClassroomChatOpen] = useState(false);
   const [pinnedParticipantSid, setPinnedParticipantSid] = useState<string | null>(null);
   const [handRaised, setHandRaised] = useState(false);
   const [raisedHands, setRaisedHands] = useState<Record<string, RaisedHand>>({});
@@ -366,6 +370,8 @@ export function LiveClassProvider({
         activeSidebar,
         setActiveSidebar,
         toggleSidebar,
+        classroomChatOpen,
+        setClassroomChatOpen,
         pinnedParticipantSid,
         setPinnedParticipantSid,
         handRaised,

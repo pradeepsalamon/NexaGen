@@ -40,7 +40,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     chess, fen, turn, orientation, moveHistory, historyIndex,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
-    isDetached, localFlip
+    isDetached, localFlip, overlayArrows
   } = useBoardStore();
   const viewOrientation = localFlip ? (orientation === "white" ? "black" : "white") : orientation;
 
@@ -332,6 +332,18 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     });
     cg.setShapes(shapes);
   }, [cg, arrows]);
+
+  useEffect(() => {
+    if (!cg) return;
+    cg.setAutoShapes(
+      overlayArrows.map((a) => ({
+        orig: a.orig as any,
+        dest: a.dest as any,
+        brush: a.brush,
+        modifiers: { lineWidth: Math.round(4 + a.weight * 10) }
+      }))
+    );
+  }, [cg, overlayArrows]);
 
   return (
     <div

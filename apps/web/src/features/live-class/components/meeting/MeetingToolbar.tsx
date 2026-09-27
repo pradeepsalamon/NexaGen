@@ -15,7 +15,6 @@ import {
   Hand,
   Maximize,
   Minimize,
-  Crown,
   Circle,
   PictureInPicture2,
   Puzzle as PuzzleIcon,
@@ -25,7 +24,6 @@ import {
 import {
   useTrackToggle,
   useParticipants,
-  useLocalParticipant,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
@@ -58,8 +56,6 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     toggleHandRaised,
     isFullscreen,
     toggleFullscreen,
-    isChessboardOpen,
-    toggleChessboard,
     settings,
     activePuzzle,
     screenShareRequests,
@@ -95,7 +91,6 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     else simul.setStartOpen(true);
   };
   const simulLabel = simul?.isManager && !simul.simul ? "Play simul" : "Simul boards";
-  const { localParticipant } = useLocalParticipant();
   const pip = useOptionalPip();
 
   // Capture failures are reported by MediaDeviceProvider (see ignoreDeviceError).
@@ -182,24 +177,6 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       toast.error(error instanceof Error ? error.message : "Failed to toggle recording");
     } finally {
       setIsTogglingRecording(false);
-    }
-  };
-
-  const handleToggleBoard = () => {
-    const opening = !isChessboardOpen;
-    toggleChessboard();
-    // Students watch this attribute to mirror the board open/close.
-    localParticipant?.setAttributes({ isChessboardOpen: opening.toString() }).catch(console.warn);
-    if (opening) {
-      window.open(`/live-class/${roomId}/board`, `board-${roomId}`);
-    } else {
-      try {
-        const channel = new BroadcastChannel(`live-class-board-${roomId}`);
-        channel.postMessage({ type: "CLOSE_BOARD_TAB" });
-        channel.close();
-      } catch {
-        /* BroadcastChannel unsupported — the coach can close the tab manually */
-      }
     }
   };
 
@@ -327,22 +304,6 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
             />
           )}
         </div>
-
-        {/* Shared board — coach, large screens (the board page needs a desktop) */}
-        {isCoach && (
-          <div className="hidden lg:block">
-            <MeetingControlButton
-              icon={
-                <Crown
-                  className={cn("size-5", isChessboardOpen && "text-amber-500")}
-                />
-              }
-              label={isChessboardOpen ? "Close board" : "Share board"}
-              variant={isChessboardOpen ? "active" : "default"}
-              onClick={handleToggleBoard}
-            />
-          </div>
-        )}
 
         <span className="mx-0.5 hidden h-7 w-px bg-app-border sm:block" aria-hidden="true" />
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { cn } from "@/lib/utils";
 import { MeetingTopBar } from "./MeetingTopBar";
 import { MeetingVideoGrid } from "./MeetingVideoGrid";
 import { MeetingToolbar } from "./MeetingToolbar";
@@ -13,25 +15,23 @@ import { BoardControlToasts } from "./BoardControlToasts";
 import { MiniPlayer } from "./MiniPlayer";
 import { VideoPipSurface } from "./VideoPipSurface";
 import { PipProvider } from "../../providers/PipProvider";
+import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
+import { ClassroomLayout, CLASSROOM_PANEL_OFFSET } from "./classroom/ClassroomLayout";
 
 /**
  * Main meeting layout orchestrator.
  *
- *  ┌─────────────────────────────────┐
- *  │  MeetingTopBar                  │
- *  ├───────────────────────┬─────────┤
- *  │  MeetingVideoGrid     │ Sidebar │
- *  ├───────────────────────┴─────────┤
- *  │  MeetingToolbar (floating)      │
- *  └─────────────────────────────────┘
- *
- * The coach's shared board opens in its own tab (`/live-class/:id/board`); the
- * meeting screen stays a meeting. Students see a synced board tile inside
- * `MeetingVideoGrid` while the coach has it open.
+ * md and up is a single page — `ClassroomLayout`: board (or video grid) on
+ * the left, video + one tab bar on the right, the coach's board always shared.
+ * Phones keep the video grid, with the student's full-stage `BoardStage`.
  */
 export function MeetingLayout() {
   useKeyboardShortcuts();
-  useCoachBoardOpen();
+  const wide = useIsBoardViewport();
+  useCoachBoardOpen({ autoShare: wide });
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const classroom = wide;
 
   return (
     <PipProvider>
@@ -43,18 +43,25 @@ export function MeetingLayout() {
           <BoardProvider>
             <LiveBoardSyncBridge>
               <BoardControlToasts />
-              <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-                <div className="custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto">
-                  <MeetingVideoGrid />
+              {classroom ? (
+                <ClassroomLayout isCoach={isCoach} />
+              ) : (
+                <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+                  <div className="custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+                    <MeetingVideoGrid />
+                  </div>
                 </div>
-              </div>
+              )}
             </LiveBoardSyncBridge>
           </BoardProvider>
 
-          <MeetingSidebar />
+          <MeetingSidebar inlinePanels={classroom} />
         </main>
 
-        <MeetingToolbar />
+        {/* In the classroom layout the toolbar centres on the board, clear of the side panel. */}
+        <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 top-0", classroom && CLASSROOM_PANEL_OFFSET)}>
+          <MeetingToolbar />
+        </div>
       </div>
 
       {/* Whichever mini player this browser supports; each no-ops otherwise. */}

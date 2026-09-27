@@ -103,7 +103,7 @@ function threadOf(msg: ChatMessageData, selfId: string | null): ChatThreadId {
 export function ChatProvider({ children, classId }: { children: ReactNode; classId: string }) {
   const { send: livekitSend, chatMessages: rawChatMessages } = useChat();
   const [isSending, setIsSending] = useState(false);
-  const { activeSidebar, settings } = useLiveClassState();
+  const { activeSidebar, classroomChatOpen, settings } = useLiveClassState();
   const [draft, setDraft] = useState("");
   const [dbHistory, setDbHistory] = useState<ChatMessageData[]>([]);
   const [directMessages, setDirectMessages] = useState<ChatMessageData[]>([]);
@@ -304,7 +304,7 @@ export function ChatProvider({ children, classId }: { children: ReactNode; class
   // panel is on screen; anything else accrues, so a private message that
   // arrives while the room thread is open still shows a badge.
   const [seenIds, setSeenIds] = useState<Set<string>>(() => new Set());
-  const chatVisible = activeSidebar === "chat";
+  const chatVisible = activeSidebar === "chat" || classroomChatOpen;
 
   useEffect(() => {
     if (!chatVisible) return;

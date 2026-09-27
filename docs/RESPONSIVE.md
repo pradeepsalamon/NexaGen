@@ -239,11 +239,21 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   — Logo + class title + LIVE/REC + connection pill + timer + Leave. `h-14`, fixed.
   The same bar (no live widgets) fronts the pre-join / error screens through
   [`ClassroomStateShell.tsx`](../apps/web/src/features/live-class/components/states/ClassroomStateShell.tsx).
+- **`≥ 768 px` is a single page** —
+  [`classroom/ClassroomLayout.tsx`](../apps/web/src/features/live-class/components/meeting/classroom/ClassroomLayout.tsx):
+  the shared board (or, via the Board / Video switch, the video grid) fills the
+  left; a fixed-width right column (`340 / 380 / 420px` at `md / lg / xl`) holds
+  the spotlight video + filmstrip and one scrollable tab bar (Moves, Chat, People,
+  Puzzles, and for the coach Response, Engine, PGN, Games). The floating toolbar
+  is offset by `CLASSROOM_PANEL_OFFSET` so it centres on the board. `< 768 px`
+  keeps the video grid below, with the student's full-stage `BoardStage`.
 - Video grid: column math in
   [`videoGrid.utils.ts`](../apps/web/src/features/live-class/components/meeting/video-grid/videoGrid.utils.ts);
   tiles keep `aspect-video`, grid reflows by count and viewport.
 - `MeetingSidebar` (chat / people / settings): **full-screen drawer on
   mobile**, docked `w-[360px]` panel on desktop. Panels share `PanelHeader`.
+  On the single page only Settings opens here — chat / people / puzzle requests
+  switch the right column's tab instead.
 - `MeetingToolbar`: floating, centered, **single row (never wraps)** — ~6 primary
   controls + a `More` popover for the rest, at every width. Must stay above the
   `dvh` bottom edge in phone landscape (`iphone-14-landscape` is the stress case).
@@ -255,6 +265,8 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   `--live-class <roomId>`.
 
 ### 6.9 Shared teaching board (`/live-class/[roomId]/board`)
+- **Legacy.** Nothing links here any more — the board lives on the meeting page
+  (§6.8). The route remains for `e2e/analysis-board.spec.ts`.
 - **Desktop/tablet only.** `useIsBoardViewport()` gates on
   `matchMedia("(min-width: 768px)")`.
 - `< 768 px`: renders a "open on a laptop/desktop" notice + "Back to Live Class"

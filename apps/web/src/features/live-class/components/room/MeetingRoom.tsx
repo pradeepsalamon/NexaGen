@@ -17,6 +17,7 @@ import { PuzzleBridge } from "../meeting/PuzzleBridge";
 import { PuzzleSolverHost } from "../meeting/PuzzleSolverHost";
 import { ReactionProvider } from "../../providers/ReactionProvider";
 import { SimulProvider } from "../../providers/SimulProvider";
+import { MovePollStudentHost } from "../meeting/move-poll/MovePollStudentHost";
 import { SimulHost } from "../meeting/simul/SimulHost";
 import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
 import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
@@ -184,6 +185,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
           <HandRaiseBridge />
           <PuzzleBridge classId={classId} />
           <PuzzleSolverHost classId={classId} />
+          <MovePollStudentHost classId={classId} />
           <SimulProvider classId={classId}>
             <SimulHost />
             <ConnectionStateManager classId={classId}>

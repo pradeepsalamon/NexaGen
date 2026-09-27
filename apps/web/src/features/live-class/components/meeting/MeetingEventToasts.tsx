@@ -65,7 +65,7 @@ export function MeetingEventToasts() {
   const room = useRoomContext();
   const connectionState = useConnectionState();
   const { localParticipant } = useLocalParticipant();
-  const { activeSidebar, isChessboardOpen, setActiveSidebar } = useLiveClassState();
+  const { activeSidebar, classroomChatOpen, isChessboardOpen, setActiveSidebar } = useLiveClassState();
   const { activeThread, chatMessages, setActiveThread } = useLiveClassChat();
 
   // ── join / leave, pooled ──────────────────────────────────────────
@@ -213,7 +213,7 @@ export function MeetingEventToasts() {
   // open chat panel never double-reports what the user is already reading.
   const seenChatIds = useRef<Set<string>>(new Set());
   const chatVisibleRef = useRef(false);
-  chatVisibleRef.current = activeSidebar === "chat";
+  chatVisibleRef.current = activeSidebar === "chat" || classroomChatOpen;
   // Anything older than this arrived before we were watching. A seen-set alone
   // is not enough: chat history loads asynchronously (and reloads after a
   // reconnect), so priming on the first render would catch an empty list and

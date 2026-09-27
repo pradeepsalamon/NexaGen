@@ -233,6 +233,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.liveClassSimulGame;
   }
 
+  get liveClassMovePoll() {
+    return this.client.liveClassMovePoll;
+  }
+
+  get liveClassMovePollAnswer() {
+    return this.client.liveClassMovePollAnswer;
+  }
+
   get puzzleScoringSettings() {
     return this.client.puzzleScoringSettings;
   }

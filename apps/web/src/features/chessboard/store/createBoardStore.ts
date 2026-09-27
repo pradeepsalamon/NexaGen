@@ -9,6 +9,14 @@ import {
 } from "../lib/clock";
 import { useBoardStore as usePersistedStore } from "./boardStore";
 
+export type OverlayArrow = {
+  orig: string;
+  dest: string;
+  brush: "primaryGreen" | "blue" | "red" | "yellow";
+  /** Relative thickness, 0-1. */
+  weight: number;
+};
+
 export interface BoardState {
   // Engine
   chess: Chess;
@@ -42,6 +50,8 @@ export interface BoardState {
   // For simplicity and sync, we store as raw arrays/objects which translate to chessground DrawShapes
   arrows: string[][]; // [["e2", "e4", "red"]]
   squareStyles: Record<string, string>; // { e4: "red" }
+  // Local-only arrows (e.g. the move-poll tally); never broadcast.
+  overlayArrows: OverlayArrow[];
   
   // Permissions
   permissionMode: BoardPermissionMode;
@@ -99,6 +109,7 @@ export interface BoardActions {
   // Annotations
   setAnnotations: (arrows: string[][], squares: Record<string, string>) => void;
   clearAnnotations: () => void;
+  setOverlayArrows: (arrows: OverlayArrow[]) => void;
   
   // Permissions
   setPermissionMode: (
@@ -155,6 +166,7 @@ export const createBoardStore = () => {
 
     orientation: "white",
     localFlip: false,
+    overlayArrows: [],
     isDrawingMode: false,
     remoteSyncId: 0,
 
@@ -398,6 +410,7 @@ export const createBoardStore = () => {
 
     setAnnotations: (arrows, squares) => set({ arrows, squareStyles: squares }),
     clearAnnotations: () => set({ arrows: [], squareStyles: {} }),
+    setOverlayArrows: (overlayArrows) => set({ overlayArrows }),
     
     setPermissionMode: (mode, studentIds, studentSides) =>
       set({

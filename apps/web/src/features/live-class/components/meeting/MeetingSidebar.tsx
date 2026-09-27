@@ -96,14 +96,17 @@ const SidebarTabs = memo(function SidebarTabs({
   );
 });
 
-export function MeetingSidebar() {
+/** Panels the single-page layout shows as its own tabs instead of this sidebar. */
+const INLINE_PANELS: SidebarTab[] = ["chat", "participants", "puzzle"];
+
+export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolean }) {
   const { activeSidebar, setActiveSidebar } = useLiveClassState();
   const { unreadCount } = useLiveClassChat();
   const reducedMotion = useReducedMotion();
 
   return (
     <AnimatePresence>
-      {activeSidebar && activeSidebar !== "notes" && (
+      {activeSidebar && activeSidebar !== "notes" && !(inlinePanels && INLINE_PANELS.includes(activeSidebar)) && (
         <motion.aside
           key="meeting-sidebar"
           initial={reducedMotion ? { opacity: 0 } : { x: "100%", opacity: 0 }}
