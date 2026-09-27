@@ -5,7 +5,6 @@ import type {
   CoachClassListResponse,
   CoachClassResponse,
   CoachStudentsResponse,
-  CreateClassRequest,
   UpdateClassRequest
 } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
@@ -28,13 +27,6 @@ export async function getUpcomingClasses(): Promise<CoachClassListResponse> {
 
 export async function getClassHistory(): Promise<CoachClassListResponse> {
   return apiFetch(API_ROUTES.coach.classHistory);
-}
-
-export async function createClass(data: CreateClassRequest): Promise<CoachClassResponse> {
-  return apiFetch(API_ROUTES.coach.createClass, {
-    method: "POST",
-    body: data
-  });
 }
 
 export async function getClassById(id: string): Promise<CoachClassResponse> {

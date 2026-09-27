@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
-import { Plus } from "lucide-react";
+import { useState } from "react";
+import { CalendarClock, CalendarPlus } from "lucide-react";
 import type { CoachClass } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -10,21 +9,27 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
-import { useUpcomingClasses, useCoachBatches } from "../hooks/useCoachApi";
+import { ClassRequestDialog } from "@/features/class-requests/components/ClassRequestDialog";
+import { CoachClassRequestsSection } from "@/features/class-requests/components/CoachClassRequestsSection";
+import { useCoachBatches, useUpcomingClasses } from "../hooks/useCoachApi";
 import { cancelClass } from "../api/coachApi";
 import { ClassCard } from "./ClassCard";
-import { ScheduleClassDialog } from "./ScheduleClassDialog";
+import { ClassNotesDialog } from "./ClassNotesDialog";
 
 export function CoachScheduleClient() {
-  const searchParams = useSearchParams();
-  const openQuery = searchParams.get("openModal") === "true" || searchParams.has("batchId");
-  const batchIdQuery = searchParams.get("batchId") || undefined;
-
   const { data: upcomingData, isLoading: upcomingLoading } = useUpcomingClasses();
-  const { data: batchesData, isLoading: batchesLoading } = useCoachBatches();
 
-  const [dialogOpen, setDialogOpen] = useState(openQuery);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [classToEdit, setClassToEdit] = useState<CoachClass | null>(null);
+  const { data: batchesData } = useCoachBatches();
+  const batches = batchesData?.batches ?? [];
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [rescheduleClass, setRescheduleClass] = useState<CoachClass | null>(null);
+
+  const openRequest = (cls: CoachClass | null) => {
+    setRescheduleClass(cls);
+    setRequestOpen(true);
+  };
 
   const { run: handleCancel } = useUndoableMutation({
     strategy: "defer",
@@ -39,37 +44,28 @@ export function CoachScheduleClient() {
     ]
   });
 
-  useEffect(() => {
-    if (openQuery) {
-      setDialogOpen(true);
-    }
-  }, [openQuery]);
-
-
   const handleEdit = (classItem: CoachClass) => {
     setClassToEdit(classItem);
     setDialogOpen(true);
   };
-
-  const openNewClassDialog = () => {
-    setClassToEdit(null);
-    setDialogOpen(true);
-  };
-
-  const batches = batchesData?.batches || [];
 
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-extrabold text-app-text tracking-tight">Schedule</h1>
-          <p className="text-app-muted mt-1">Manage your upcoming classes and schedules.</p>
+          <p className="text-app-muted mt-1">
+            Your batches&apos; classes, scheduled by the academy. Add notes to any of them, or ask
+            for an extra class or a new time.
+          </p>
         </div>
-        <Button onClick={openNewClassDialog} disabled={batchesLoading || batches.length === 0}>
-          <Plus className="mr-2 h-4 w-4" />
-          Schedule Class
+        <Button onClick={() => openRequest(null)} disabled={batches.length === 0}>
+          <CalendarPlus className="mr-2 size-4" strokeWidth={2.5} />
+          Request extra class
         </Button>
       </div>
+
+      <CoachClassRequestsSection />
 
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-app-text">Upcoming Classes</h2>
@@ -90,31 +86,27 @@ export function CoachScheduleClient() {
                 classItem={cls}
                 onEdit={handleEdit}
                 onCancel={handleCancel}
+                onRequestReschedule={openRequest}
               />
             ))}
           </div>
         ) : (
           <Card className="p-6 sm:p-12">
             <EmptyState
-              icon={Plus}
+              icon={CalendarClock}
               title="No upcoming classes"
-              description={batches.length === 0 ? "You need to be assigned to a batch before you can schedule classes." : "You have no upcoming classes. Click 'Schedule Class' to add one."}
-              action={
-                batches.length > 0
-                  ? { label: "Schedule Class", onClick: openNewClassDialog }
-                  : undefined
-              }
+              description="Classes appear here once the academy schedules them for your batches."
             />
           </Card>
         )}
       </div>
 
-      <ScheduleClassDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        classToEdit={classToEdit}
+      <ClassNotesDialog open={dialogOpen} onOpenChange={setDialogOpen} classItem={classToEdit} />
+      <ClassRequestDialog
+        open={requestOpen}
+        onOpenChange={setRequestOpen}
         batches={batches}
-        defaultBatchId={batchIdQuery}
+        rescheduleClass={rescheduleClass}
       />
 
     </div>

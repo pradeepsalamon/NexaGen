@@ -4,11 +4,10 @@ import {
   Get,
   Param,
   Patch,
-  Post,
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
-import { API_ROUTES, createClassRequestSchema, updateClassRequestSchema, type CreateClassRequest, type UpdateClassRequest } from "@nexa-chess/types";
+import { API_ROUTES, updateClassRequestSchema, type UpdateClassRequest } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 // Field-level Zod validation (AUDIT M30) — was a bare "Validation failed".
 import { ZodBodyPipe } from "../common/zod-body.pipe";
@@ -41,14 +40,6 @@ export class CoachController {
   @Get(API_ROUTES.coach.classHistory)
   getClassHistory(@Req() request: Request) {
     return this.coachService.getClassHistory(this.getAccessToken(request));
-  }
-
-  @Post(API_ROUTES.coach.createClass)
-  createClass(
-    @Body(new ZodBodyPipe(createClassRequestSchema)) body: CreateClassRequest, 
-    @Req() request: Request
-  ) {
-    return this.coachService.createClass(this.getAccessToken(request), body);
   }
 
   @Get(API_ROUTES.coach.getClass())

@@ -31,6 +31,8 @@ export interface PracticeBoardProps {
   /** Hint overlay: circles the origin, and draws an arrow when `to` is known. */
   hintSquares?: { from?: string | null; to?: string | null } | null;
   onMove?: (move: PracticeBoardMove) => void;
+  /** Change it to snap the board back to `fen` (e.g. after a rejected move) without remounting. */
+  resetKey?: number | string;
   className?: string;
 }
 
@@ -45,6 +47,7 @@ export function PracticeBoard({
   lastMove,
   hintSquares,
   onMove,
+  resetKey,
   className
 }: PracticeBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -170,7 +173,7 @@ export function PracticeBoard({
     });
   }, [
     fen, orientation, turnColor, lastMove, movableColor, dests, game,
-    showCoordinates, animationEnabled, highlightSettings
+    showCoordinates, animationEnabled, highlightSettings, resetKey
   ]);
 
   useEffect(() => {

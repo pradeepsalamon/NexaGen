@@ -4,6 +4,7 @@ import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 import { AssignmentModule } from "../assignment/assignment.module";
 import { LiveClassModule } from "../live-class/live-class.module";
 import { PrismaModule } from "../prisma/prisma.module";
+import { ProgressModule } from "../progress/progress.module";
 import { TrashModule } from "../trash/trash.module";
 import { LiveClassPuzzleController } from "./live-class-puzzle.controller";
 import { LiveClassPuzzleService } from "./live-class-puzzle.service";
@@ -21,6 +22,7 @@ import { PuzzleService } from "./puzzle.service";
     JwtModule,
     LiveClassModule,
     PrismaModule,
+    ProgressModule,
     TrashModule
   ],
   providers: [

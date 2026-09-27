@@ -30,6 +30,7 @@ import { Chess } from "chess.js";
 import type { AccessTokenPayload } from "../auth/types";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
@@ -52,7 +53,8 @@ export class AssignmentAttemptService {
     private readonly prisma: PrismaService,
     private readonly evaluation: AssignmentEvaluationService,
     private readonly messaging: MessagingDispatchService,
-    private readonly analyticsEvents: AnalyticsEventService
+    private readonly analyticsEvents: AnalyticsEventService,
+    private readonly progress: ProgressRecorderService
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -306,6 +308,7 @@ export class AssignmentAttemptService {
     const canReview = passed || alreadyComplete || attemptsRemaining === 0;
 
     void this.analyticsEvents.record(student.id, "ASSIGNMENT_ATTEMPT", assignment.id);
+    void this.progress.recordPractice(student.id);
 
     return {
       attempt: this.toAttempt(persisted),

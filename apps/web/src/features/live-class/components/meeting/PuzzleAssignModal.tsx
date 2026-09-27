@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, Trophy } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, FileText, Folder, Trophy } from "lucide-react";
 import {
   resolvePuzzleLeaderboard,
   resolvePuzzleScoring,
@@ -22,7 +22,7 @@ import {
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { usePuzzleScoringSettings, usePuzzles } from "@/features/puzzles/hooks/usePuzzlesApi";
+import { usePuzzleScoringSettings, usePuzzleTopics, usePuzzles } from "@/features/puzzles/hooks/usePuzzlesApi";
 import {
   PuzzleLeaderboardFields,
   PuzzleScoringFields,
@@ -85,6 +85,7 @@ export function PuzzleAssignModal({
   const [scoringOverride, setScoringOverride] = useState<PuzzleScoringOverride>({});
   const [leaderboardOverride, setLeaderboardOverride] = useState<PuzzleLeaderboardOverride>({});
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [folder, setFolder] = useState<{ id: string; name: string } | null>(null);
   const defaults = usePuzzleScoringSettings(open);
 
   useEffect(() => {
@@ -108,13 +109,17 @@ export function PuzzleAssignModal({
   const customized =
     Object.keys(scoringOverride).length + Object.keys(leaderboardOverride).length > 0;
   const debouncedSearch = useDebouncedValue(search, 300);
+  // Topics are the folders; a search looks across every folder at once.
+  const browsingFolders = !folder && !debouncedSearch;
+  const topics = usePuzzleTopics(open);
 
   const puzzles = usePuzzles({
     status: "PUBLISHED",
     scope: "all",
     search: debouncedSearch || undefined,
     difficulty: difficulty || undefined,
-    pageSize: 25
+    topicId: folder?.id,
+    pageSize: folder ? 100 : 25
   });
 
   const assign = useAssignLivePuzzle(classId);
@@ -231,7 +236,42 @@ export function PuzzleAssignModal({
         ) : null}
 
         <div className={`${optionsOpen ? "max-h-[24vh]" : "max-h-[46vh]"} space-y-2 overflow-y-auto`}>
-          {puzzles.isLoading ? (
+          {!browsingFolders && folder ? (
+            <button
+              type="button"
+              onClick={() => setFolder(null)}
+              className="flex items-center gap-1 text-sm font-semibold text-primary"
+            >
+              <ChevronLeft className="size-4" strokeWidth={2.5} />
+              All folders
+              <span className="font-normal text-app-muted">/ {folder.name}</span>
+            </button>
+          ) : null}
+          {browsingFolders ? (
+            topics.isLoading ? (
+              <>
+                <Skeleton className="h-12 w-full" />
+                <Skeleton className="h-12 w-full" />
+              </>
+            ) : (topics.data?.topics ?? []).length === 0 ? (
+              <p className="py-8 text-center text-sm text-app-muted">No puzzle folders yet.</p>
+            ) : (
+              (topics.data?.topics ?? []).map((topic) => (
+                <button
+                  key={topic.id}
+                  type="button"
+                  onClick={() => setFolder({ id: topic.id, name: topic.name })}
+                  className="flex w-full items-center gap-3 rounded-app border border-app-border bg-app-surface p-3 text-left transition-colors hover:border-primary/50 hover:bg-app-soft"
+                >
+                  <Folder className="size-5 shrink-0 fill-amber-400/30 text-amber-500" strokeWidth={2} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-text">
+                    {topic.name}
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-app-muted" strokeWidth={2.5} />
+                </button>
+              ))
+            )
+          ) : puzzles.isLoading ? (
             <>
               <Skeleton className="h-14 w-full" />
               <Skeleton className="h-14 w-full" />
@@ -245,10 +285,11 @@ export function PuzzleAssignModal({
                 key={puzzle.id}
                 className="flex items-center justify-between gap-3 rounded-app border border-app-border bg-app-surface p-3"
               >
-                <div className="min-w-0">
+                <FileText className="size-5 shrink-0 text-primary" strokeWidth={2} />
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-app-text">{puzzle.title}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <Badge variant="secondary">{puzzle.topicName}</Badge>
+                    {!folder ? <Badge variant="secondary">{puzzle.topicName}</Badge> : null}
                     <Badge variant="outline">{PUZZLE_TYPE_LABELS[puzzle.puzzleType]}</Badge>
                     <Badge variant={difficultyBadgeVariant(puzzle.difficulty)}>
                       {PUZZLE_DIFFICULTY_LABELS[puzzle.difficulty]}

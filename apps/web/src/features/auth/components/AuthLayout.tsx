@@ -52,7 +52,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           aria-labelledby="auth-hero-title"
         >
           <div className="relative z-10 mx-auto my-auto flex max-w-2xl flex-col items-center text-center">
-            <Logo size={200} stacked />
+            <Logo compact size={120} stacked />
             <span className="block max-w-lg text-sm leading-6 text-app-muted md:text-base">
               Premium chess learning for focused students and families.
             </span>

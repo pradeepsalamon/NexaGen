@@ -1,130 +1,143 @@
 "use client";
 
-import { ChevronDown, PanelLeftClose, PanelLeftOpen, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, type ReactNode } from "react";
 import type { NavItem } from "@/components/layout/navItems";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
-import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { useSidebarStore } from "@/stores/sidebarStore";
 import { cn } from "@/lib/utils";
 
 /**
- * Desktop rail. The layout only ever reserves the collapsed rail's width — the
- * panel itself is `fixed`, so expanding it slides out as an **overlay** above the
- * page content instead of reflowing it. Clicking outside or pressing Escape
- * collapses it back to the rail.
+ * Off-canvas role nav. Closed by default with a 12px edge peeking out; opens as
+ * an overlay above the page (and header) with a backdrop. Escape, the backdrop,
+ * a link click or any route change closes it.
  */
-export function SidebarContainer({
+export function NavDrawer({
   children,
-  collapsed,
   footer,
-  onDismiss
+  subtitle,
+  title
 }: {
   children: ReactNode;
-  collapsed: boolean;
-  /** Pinned below the scrolling nav; hidden on the collapsed rail. */
   footer?: ReactNode;
-  onDismiss: () => void;
+  subtitle?: string;
+  title: string;
 }) {
-  const asideRef = useRef<HTMLElement>(null);
+  const pathname = usePathname();
+  const open = useSidebarStore((state) => state.open);
+  const close = useSidebarStore((state) => state.close);
+  const toggle = useSidebarStore((state) => state.toggle);
+  const setAvailable = useSidebarStore((state) => state.setAvailable);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (collapsed) return;
+    setAvailable(true);
+    return () => setAvailable(false);
+  }, [setAvailable]);
 
-    const onPointerDown = (event: PointerEvent) => {
-      if (!asideRef.current?.contains(event.target as Node)) onDismiss();
-    };
+  useEffect(() => {
+    close();
+  }, [close, pathname]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onDismiss();
+      if (event.key === "Escape") close();
     };
-
-    document.addEventListener("pointerdown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [collapsed, onDismiss]);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [close, open]);
+
+  // React 18 has no `inert` prop; keeps the hidden nav out of the tab order.
+  useEffect(() => {
+    bodyRef.current?.toggleAttribute("inert", !open);
+  }, [open]);
 
   return (
     <>
-      {/* Reserves only the rail's width in the flow; the panel overlays the rest. */}
-      <div aria-hidden className="hidden w-[4.75rem] flex-shrink-0 md:block" />
-      <aside
+      {open ? (
+        <button
+          aria-label="Close sidebar"
+          className="fixed inset-0 z-[45] cursor-default bg-black/40 transition-opacity duration-300"
+          onClick={close}
+          type="button"
+        />
+      ) : null}
+
+      <button
+        aria-expanded={open}
+        aria-label={open ? "Close sidebar" : "Open sidebar"}
         className={cn(
-          "fixed left-0 top-16 z-30 hidden h-[calc(100vh-4rem)] flex-col overflow-x-hidden border-r border-app-border bg-app-surface transition-[width] duration-200 ease-out md:flex",
-          collapsed ? "w-[4.75rem]" : "w-60 shadow-soft"
+          "fixed top-20 z-[55] flex size-8 items-center justify-center rounded-full bg-secondary text-black shadow-lg transition-all duration-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
+          open ? "left-[264px] max-md:left-[224px]" : "left-0"
         )}
-        data-collapsed={collapsed}
-        ref={asideRef}
+        onClick={toggle}
+        type="button"
       >
-        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">{children}</nav>
-        {footer && !collapsed ? (
-          <div className="shrink-0 space-y-3 border-t border-app-border p-3">{footer}</div>
-        ) : null}
+        <ChevronLeft
+          aria-hidden="true"
+          className={cn("size-3.5 transition-transform duration-300", open ? "" : "rotate-180")}
+          strokeWidth={2.75}
+        />
+      </button>
+
+      <aside
+        aria-label="Main navigation"
+        className={cn(
+          "fixed bottom-0 left-0 top-0 z-50 flex w-[280px] flex-col overflow-y-auto overflow-x-hidden rounded-r-[20px] bg-primary transition-transform duration-300 [scrollbar-width:none] max-md:w-[240px] dark:border-r dark:border-app-border dark:bg-app-surface [&::-webkit-scrollbar]:hidden",
+          open ? "translate-x-0" : "-translate-x-[calc(100%-12px)]"
+        )}
+      >
+        <div
+          className={cn(
+            "flex min-h-full flex-col transition-opacity duration-200",
+            open ? "opacity-100" : "opacity-0"
+          )}
+          ref={bodyRef}
+        >
+          <div className="px-5 pb-7 pt-6 text-center">
+            <h2 className="text-base font-bold leading-snug text-white">{title}</h2>
+            {subtitle ? (
+              <p className="mt-0.5 text-xs font-medium text-white/60">{subtitle}</p>
+            ) : null}
+          </div>
+
+          <nav className="flex flex-1 flex-col gap-2 px-[14px] pb-6">{children}</nav>
+
+          {footer ? <div className="flex flex-col gap-2 px-[14px] pb-6">{footer}</div> : null}
+        </div>
       </aside>
     </>
   );
 }
 
-export function SidebarToggle({
-  collapsed,
-  onToggle
-}: {
-  collapsed: boolean;
-  onToggle: () => void;
-}) {
-  const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
-  const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
-  return (
-    <div className={cn("mb-1 flex", collapsed ? "justify-center" : "justify-end")}>
-      <SimpleTooltip label={label} side="right">
-        <button
-          aria-label={label}
-          className="inline-flex size-8 items-center justify-center rounded-control text-app-muted transition hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
-          onClick={onToggle}
-          type="button"
-        >
-          <Icon className="size-4" strokeWidth={2.25} />
-        </button>
-      </SimpleTooltip>
-    </div>
-  );
-}
-
 const BADGE_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
-  accent: "border-accent/50 bg-accent/20 text-accent-ink",
-  danger: "border-app-danger/25 bg-app-danger/10 text-app-danger",
-  primary: "border-app-border bg-app-soft text-primary",
-  secondary: "border-secondary/40 bg-secondary/20 text-secondary-ink",
-  warm: "border-warm/50 bg-warm/25 text-warm-ink"
+  accent: "bg-accent text-accent-ink",
+  danger: "bg-app-danger text-white",
+  primary: "bg-white text-primary",
+  secondary: "bg-secondary text-black",
+  warm: "bg-warm text-warm-ink"
 };
 
 const DOT_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
   accent: "bg-accent",
   danger: "bg-app-danger",
-  primary: "bg-primary",
+  primary: "bg-white",
   secondary: "bg-secondary",
   warm: "bg-warm"
 };
 
-/** Trailing chip/dot on a nav link. On the collapsed rail it shrinks to a dot. */
-function SidebarBadge({
-  badge,
-  collapsed
-}: {
-  badge: NonNullable<NavItem["badge"]>;
-  collapsed: boolean;
-}) {
-  if (collapsed || badge.variant === "dot" || !badge.label) {
+/** Trailing chip/dot on a nav link, solid so it reads on the drawer's filled background. */
+function NavBadge({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
+  if (badge.variant === "dot" || !badge.label) {
     return (
       <span
         aria-hidden="true"
         className={cn(
-          "size-2 shrink-0 rounded-full",
+          "size-2 shrink-0 rounded-full ring-1 ring-black/10",
           DOT_TONE[badge.tone],
-          collapsed && "absolute right-1 top-1",
           badge.pulse && "motion-safe:animate-pulse"
         )}
       />
@@ -132,173 +145,120 @@ function SidebarBadge({
   }
 
   return (
-    // Capped and truncating: a real batch name is far longer than a mock's
-    // "Batch A" and would otherwise squeeze the link's own label away.
     <span
       className={cn(
-        "inline-flex max-w-[6.5rem] items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-bold",
-        BADGE_TONE[badge.tone]
+        "inline-flex max-w-[6.5rem] shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-bold ring-1 ring-black/10",
+        BADGE_TONE[badge.tone],
+        badge.pulse && "motion-safe:animate-pulse"
       )}
     >
-      {badge.pulse ? (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "size-1.5 shrink-0 rounded-full motion-safe:animate-pulse",
-            DOT_TONE[badge.tone]
-          )}
-        />
-      ) : null}
       <span className="truncate">{badge.label}</span>
     </span>
   );
 }
 
-export function SidebarLink({
-  active,
-  collapsed,
-  item
-}: {
-  active: boolean;
-  collapsed: boolean;
-  item: NavItem;
-}) {
+const ROW_BASE =
+  "flex h-10 w-full items-center gap-1.5 rounded-[10px] px-2.5 text-base font-semibold leading-5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50";
+const ROW_ACTIVE = "bg-secondary text-black shadow-[0px_1px_2px_rgba(14,15,17,0.06)]";
+const ROW_IDLE = "bg-white/[0.04] text-white hover:bg-white/[0.08]";
+
+/** Top-level direct link. */
+export function NavDrawerLink({ active, item }: { active: boolean; item: NavItem }) {
   const Icon = item.icon;
-  const link = (
+  const close = useSidebarStore((state) => state.close);
+
+  return (
     <Link
-      aria-label={collapsed ? item.label : undefined}
-      className={cn(
-        "relative flex items-center rounded-control text-sm font-semibold transition",
-        collapsed ? "size-10 justify-center" : "justify-between gap-2.5 px-3 py-2",
-        active
-          ? "bg-secondary text-black shadow-card"
-          : "text-app-muted hover:bg-app-soft hover:text-primary"
-      )}
+      aria-current={active ? "page" : undefined}
+      className={cn(ROW_BASE, active ? ROW_ACTIVE : ROW_IDLE)}
       href={item.href}
+      onClick={close}
     >
-      <span
-        className={cn("flex min-w-0 items-center", collapsed ? "" : "gap-2.5")}
-      >
-        <Icon className="size-4 shrink-0" strokeWidth={2.25} />
-        {collapsed ? null : <span className="truncate">{item.label}</span>}
+      <span className="flex size-6 shrink-0 items-center justify-center">
+        <Icon aria-hidden="true" className="size-[18px]" strokeWidth={2.25} />
       </span>
-      {item.badge ? <SidebarBadge badge={item.badge} collapsed={collapsed} /> : null}
+      <span className="flex-1 truncate">{item.label}</span>
+      {item.badge ? <NavBadge badge={item.badge} /> : null}
     </Link>
   );
-
-  if (collapsed) {
-    return (
-      <SimpleTooltip label={item.label} side="right">
-        {link}
-      </SimpleTooltip>
-    );
-  }
-  return link;
 }
 
-/**
- * Boxed, collapsible nav group for the admin sidebar. Expanded: a filled box
- * header with the group's links nested in an inset panel. Collapsed rail: an
- * icon button that opens the group's links in a flyout popover.
- */
-export function SidebarGroupBox({
-  collapsed,
-  group,
-  hasActive,
-  icon,
+/** Collapsible section; its header turns active while expanded, children sit in an inset panel. */
+export function NavDrawerAccordion({
+  icon: Icon,
+  id,
   isItemActive,
   items,
+  label,
   onToggle,
   open
 }: {
-  collapsed: boolean;
-  group: string;
-  hasActive: boolean;
-  icon?: LucideIcon;
+  icon: LucideIcon;
+  id: string;
   isItemActive: (href: string) => boolean;
   items: NavItem[];
+  label: string;
   onToggle: () => void;
   open: boolean;
 }) {
-  const Icon = icon ?? SlidersHorizontal;
-
-  if (collapsed) {
-    return (
-      <Popover>
-        <SimpleTooltip label={group} side="right">
-          <PopoverTrigger asChild>
-            <button
-              aria-label={group}
-              className={cn(
-                "inline-flex size-10 items-center justify-center rounded-control transition",
-                hasActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-app-muted hover:bg-app-soft hover:text-primary"
-              )}
-              type="button"
-            >
-              <Icon className="size-4" strokeWidth={2.25} />
-            </button>
-          </PopoverTrigger>
-        </SimpleTooltip>
-        <PopoverContent align="start" className="w-56 p-1.5" side="right">
-          <p className="px-2 pb-1 pt-1.5 text-[10px] font-bold uppercase tracking-widest text-app-muted">
-            {group}
-          </p>
-          <div className="space-y-0.5">
-            {items.map((item) => (
-              <SidebarLink
-                active={isItemActive(item.href)}
-                collapsed={false}
-                item={item}
-                key={item.href}
-              />
-            ))}
-          </div>
-        </PopoverContent>
-      </Popover>
-    );
-  }
+  const close = useSidebarStore((state) => state.close);
+  const panelId = `sidebar-submenu-${id}`;
 
   return (
-    <div>
+    <div className="flex flex-col">
       <button
+        aria-controls={panelId}
         aria-expanded={open}
-        className={cn(
-          "flex w-full items-center gap-2.5 rounded-panel border px-3 py-2.5 text-sm font-bold transition",
-          open || hasActive
-            ? "border-primary/30 bg-primary/10 text-primary"
-            : "border-app-border bg-app-soft text-app-text hover:border-primary/30 hover:text-primary"
-        )}
+        className={cn(ROW_BASE, "text-left", open ? ROW_ACTIVE : ROW_IDLE)}
         onClick={onToggle}
         type="button"
       >
-        <span
-          className={cn(
-            "inline-flex size-6 shrink-0 items-center justify-center rounded-control transition",
-            open || hasActive ? "bg-primary/15 text-primary" : "bg-app-surface text-app-muted"
-          )}
-        >
-          <Icon className="size-3.5" strokeWidth={2.5} />
+        <span className="flex size-6 shrink-0 items-center justify-center">
+          <Icon aria-hidden="true" className="size-[18px]" strokeWidth={2.25} />
         </span>
-        <span className="flex-1 truncate text-left">{group}</span>
+        <span className="flex-1 truncate">{label}</span>
         <ChevronDown
-          className={cn("size-3.5 shrink-0 transition-transform", open ? "" : "-rotate-90")}
-          strokeWidth={2.5}
+          aria-hidden="true"
+          className={cn("size-4 shrink-0 transition-transform duration-300", open && "rotate-180")}
+          strokeWidth={2.25}
         />
       </button>
-      {open ? (
-        <div className="mb-1.5 mt-1 space-y-0.5 rounded-panel border border-app-border bg-app-background/50 p-1.5">
-          {items.map((item) => (
-            <SidebarLink
-              active={isItemActive(item.href)}
-              collapsed={false}
-              item={item}
-              key={item.href}
-            />
-          ))}
+
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-300 ease-in-out",
+          open ? "max-h-[800px] pt-1.5 opacity-100" : "max-h-0 opacity-0"
+        )}
+        id={panelId}
+      >
+        <div className="flex flex-col gap-1.5 rounded-[10px] bg-white/[0.08] p-2.5 shadow-[0px_1px_2px_rgba(14,15,17,0.06)]">
+          {items.map((item) => {
+            const ItemIcon = item.icon;
+            const active = isItemActive(item.href);
+            return (
+              <Link
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex h-9 items-center gap-1.5 rounded-[10px] px-2.5 text-sm leading-5 transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50",
+                  active
+                    ? "bg-white font-semibold text-primary shadow-[0px_1px_2px_rgba(14,15,17,0.08)]"
+                    : "bg-white/[0.14] font-medium text-white hover:bg-white/20"
+                )}
+                href={item.href}
+                key={item.href}
+                onClick={close}
+                tabIndex={open ? undefined : -1}
+              >
+                <span className="flex size-5 shrink-0 items-center justify-center">
+                  <ItemIcon aria-hidden="true" className="size-4" strokeWidth={2.25} />
+                </span>
+                <span className="flex-1 truncate">{item.label}</span>
+                {item.badge ? <NavBadge badge={item.badge} /> : null}
+              </Link>
+            );
+          })}
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }

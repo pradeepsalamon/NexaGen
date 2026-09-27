@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import { useTracks } from "@livekit/components-react";
 import { Crown, Maximize2 } from "lucide-react";
@@ -21,7 +21,8 @@ import { RequestControlButton } from "./video-grid/RequestControlButton";
 import { VideoTile } from "./video-grid/VideoTile";
 import { CompactVideoTile } from "./video-grid/CompactVideoTile";
 import { FocusOverlay } from "./video-grid/FocusOverlay";
-import { BoardFocusOverlay } from "./video-grid/BoardFocusOverlay";
+import { BoardStage } from "./video-grid/BoardStage";
+import { FlipBoardButton } from "./video-grid/FlipBoardButton";
 import { PuzzleGridTile } from "./video-grid/PuzzleGridTile";
 
 /** Matches the `gap-3` on the grid; the layout maths needs it as a number. */
@@ -33,7 +34,12 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const showBoardTile = isChessboardOpen && !isCoach;
-  const [isBoardFullscreen, setIsBoardFullscreen] = useState(false);
+  // A freshly shared board opens across the whole stage; the student can drop
+  // back to the grid, and the next share opens it big again.
+  const [boardStage, setBoardStage] = useState(true);
+  useEffect(() => {
+    if (showBoardTile) setBoardStage(true);
+  }, [showBoardTile]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const { height, width } = useElementSize(containerRef);
@@ -101,6 +107,23 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
         }
       : {};
 
+  const participantFocus = (
+    <AnimatePresence>
+      {fullscreenTrack && (
+        <FocusOverlay trackRef={fullscreenTrack} onClose={() => setPinnedParticipantSid(null)} />
+      )}
+    </AnimatePresence>
+  );
+
+  if (boardTileShown && boardStage) {
+    return (
+      <>
+        <BoardStage onShowGrid={() => setBoardStage(false)} />
+        {participantFocus}
+      </>
+    );
+  }
+
   if (totalItems === 0 && !compact) {
     return (
       <div className="flex h-full w-full items-center justify-center">
@@ -155,24 +178,15 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                       className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-2xl border border-app-border bg-app-surface transition-shadow duration-200"
                       style={{ containerType: "size", ...tileStyle(puzzleTileShown ? 1 : 0) }}
                     >
-                      {/* Only render ChessgroundBoard when NOT in fullscreen to avoid dual-instance conflicts */}
-                      {!isBoardFullscreen && (
-                        <div
-                          className="relative"
-                          style={{
-                            width: "min(100cqw, 100cqh)",
-                            height: "min(100cqw, 100cqh)",
-                          }}
-                        >
-                          <ChessgroundBoard />
-                        </div>
-                      )}
-                      {isBoardFullscreen && (
-                        <div className="flex flex-col items-center justify-center gap-2 text-app-muted">
-                          <Maximize2 className="size-6" />
-                          <span className="text-xs font-medium">Viewing full screen</span>
-                        </div>
-                      )}
+                      <div
+                        className="relative"
+                        style={{
+                          width: "min(100cqw, 100cqh)",
+                          height: "min(100cqw, 100cqh)",
+                        }}
+                      >
+                        <ChessgroundBoard />
+                      </div>
 
                       {/* Bottom-left name pill & request control button. The clock
                           is intentionally not shown on this small tile — it lives
@@ -186,11 +200,12 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                       </div>
 
                       {/* Top-right pin/fullscreen button — visible on hover */}
-                      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end p-2">
+                      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end gap-1.5 p-2">
+                        <FlipBoardButton className="pointer-events-auto" />
                         <button
                           type="button"
                           className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-sm"
-                          onClick={() => setIsBoardFullscreen(true)}
+                          onClick={() => setBoardStage(true)}
                           aria-label="View board full screen"
                         >
                           <Maximize2 className="size-3.5" />
@@ -198,10 +213,6 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
                       </div>
                     </motion.div>
 
-                    {/* Fullscreen overlay — single ChessgroundBoard instance */}
-                    {isBoardFullscreen && (
-                      <BoardFocusOverlay onClose={() => setIsBoardFullscreen(false)} />
-                    )}
                   </>
                 )}
                 {sortedTracks.map((trackRef, trackIndex) => (
@@ -219,15 +230,7 @@ export function MeetingVideoGrid({ compact = false }: { compact?: boolean }) {
         </div>
       </div>
 
-      {/* Fullscreen / Focus overlay for participant */}
-      <AnimatePresence>
-        {fullscreenTrack && (
-          <FocusOverlay
-            trackRef={fullscreenTrack}
-            onClose={() => setPinnedParticipantSid(null)}
-          />
-        )}
-      </AnimatePresence>
+      {participantFocus}
     </>
   );
 }

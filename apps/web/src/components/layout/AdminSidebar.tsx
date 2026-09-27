@@ -1,30 +1,22 @@
 "use client";
 
+import { SlidersHorizontal } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
-import {
-  SidebarContainer,
-  SidebarGroupBox,
-  SidebarLink,
-  SidebarToggle
-} from "@/components/layout/Sidebar";
+import { NavDrawer, NavDrawerAccordion, NavDrawerLink } from "@/components/layout/Sidebar";
 import { getAdminNavGroups } from "@/components/layout/navItems";
-import { useSidebarCollapse } from "@/components/layout/useSidebarCollapse";
 import { useAuthStore } from "@/stores/authStore";
-import { cn } from "@/lib/utils";
-
-const STORAGE_KEY = "nexa-admin-nav-open-groups";
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.user?.role);
   const groups = useMemo(() => getAdminNavGroups(role), [role]);
-  const { collapse, collapsed, toggle } = useSidebarCollapse();
 
   const isItemActive = (href: string) =>
-    pathname === href || (href !== "/admin" && pathname.startsWith(href));
+    pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));
 
-  const activeGroup = useMemo(() => {
+  // The section that owns the current route — derived from the URL, never from clicks.
+  const routeGroup = useMemo(() => {
     for (const group of groups) {
       if (group.group && group.items.some((item) => isItemActive(item.href))) {
         return group.group;
@@ -34,71 +26,38 @@ export function AdminSidebar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groups, pathname]);
 
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  // One section open at a time; a route change re-opens the section owning it.
+  const [openGroup, setOpenGroup] = useState<string | null>(routeGroup);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) setOpenGroups(JSON.parse(raw) as Record<string, boolean>);
-    } catch {
-      /* no stored preference */
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!activeGroup) return;
-    setOpenGroups((prev) =>
-      prev[activeGroup] ? prev : { ...prev, [activeGroup]: true }
-    );
-  }, [activeGroup]);
-
-  const isGroupOpen = (group: string) =>
-    group in openGroups ? openGroups[group] : group === activeGroup;
-
-  const toggleGroup = (group: string) =>
-    setOpenGroups((prev) => {
-      const next = { ...prev, [group]: !(group in prev ? prev[group] : group === activeGroup) };
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        /* storage unavailable */
-      }
-      return next;
-    });
+    setOpenGroup(routeGroup);
+  }, [routeGroup]);
 
   return (
-    <SidebarContainer collapsed={collapsed} onDismiss={collapse}>
-      <SidebarToggle collapsed={collapsed} onToggle={toggle} />
-      {groups.map((group) => {
-        if (!group.group) {
-          return (
-            <div className={cn("pb-1", collapsed ? "space-y-1" : "space-y-0.5")} key="top">
-              {group.items.map((item) => (
-                <SidebarLink
-                  active={isItemActive(item.href)}
-                  collapsed={collapsed}
-                  item={item}
-                  key={item.href}
-                />
-              ))}
-            </div>
-          );
-        }
-
-        return (
-          <SidebarGroupBox
-            collapsed={collapsed}
-            group={group.group}
-            hasActive={group.items.some((item) => isItemActive(item.href))}
-            icon={group.icon}
+    <NavDrawer
+      subtitle={role === "SUPER_ADMIN" ? "Super Admin Console" : "Admin Console"}
+      title="Nexa Chess"
+    >
+      {groups.map((group) =>
+        group.group ? (
+          <NavDrawerAccordion
+            icon={group.icon ?? SlidersHorizontal}
+            id={group.group.toLowerCase().replace(/\s+/g, "-")}
             isItemActive={isItemActive}
             items={group.items}
             key={group.group}
-            onToggle={() => toggleGroup(group.group)}
-            open={isGroupOpen(group.group)}
+            label={group.group}
+            onToggle={() =>
+              setOpenGroup((prev) => (prev === group.group ? null : group.group))
+            }
+            open={openGroup === group.group}
           />
-        );
-      })}
-    </SidebarContainer>
+        ) : (
+          group.items.map((item) => (
+            <NavDrawerLink active={isItemActive(item.href)} item={item} key={item.href} />
+          ))
+        )
+      )}
+    </NavDrawer>
   );
 }

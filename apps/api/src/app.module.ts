@@ -29,7 +29,10 @@ import { AnnouncementModule } from "./announcement/announcement.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { PayrollModule } from "./payroll/payroll.module";
 import { ChessAppearanceModule } from "./chess-appearance/chess-appearance.module";
+import { TypographyModule } from "./typography/typography.module";
+import { ClassRequestModule } from "./class-request/class-request.module";
 import { FeedbackModule } from "./feedback/feedback.module";
+import { ProgressModule } from "./progress/progress.module";
 import { LeadModule } from "./lead/lead.module";
 
 @Module({
@@ -69,8 +72,11 @@ import { LeadModule } from "./lead/lead.module";
     PaymentsModule,
     PayrollModule,
     ChessAppearanceModule,
+    TypographyModule,
     LeadModule,
-    FeedbackModule
+    FeedbackModule,
+    ClassRequestModule,
+    ProgressModule
   ],
   providers: [
     {

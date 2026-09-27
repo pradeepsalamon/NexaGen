@@ -1,22 +1,26 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import type { SolutionMove } from "@nexa-chess/types";
-import { RotateCcw, Undo2 } from "lucide-react";
+import { ChevronDown, FileUp, RotateCcw, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { Textarea } from "@/components/ui/Textarea";
 import { PracticeBoard, type PracticeBoardMove } from "@/features/chessboard/components/board/PracticeBoard";
+import { parsePgnOrFen, type ImportedLine } from "../lib/importLine";
 
 interface Props {
   startFen: string;
   value: SolutionMove[];
   onChange: (moves: SolutionMove[]) => void;
   orientation?: "white" | "black";
+  /** Enables the "Import PGN / FEN" panel; receives the start position + mainline. */
+  onImport?: (line: ImportedLine) => void;
 }
 
 // Admin builds the expected line by PLAYING it on the board. We capture UCI +
 // SAN so the server never has to parse free-text PGN for scoring.
-export function SolutionEditor({ startFen, value, onChange, orientation = "white" }: Props) {
+export function SolutionEditor({ startFen, value, onChange, orientation = "white", onImport }: Props) {
   const { fen, valid } = useMemo(() => {
     try {
       const chess = new Chess(startFen);
@@ -38,6 +42,8 @@ export function SolutionEditor({ startFen, value, onChange, orientation = "white
   };
 
   return (
+    <div className="space-y-4">
+      {onImport ? <ImportPanel onImport={onImport} /> : null}
     <div className="flex flex-col gap-4 md:flex-row md:items-start">
       <PracticeBoard
         fen={valid ? fen : startFen}
@@ -86,6 +92,77 @@ export function SolutionEditor({ startFen, value, onChange, orientation = "white
           </Button>
         </div>
       </div>
+    </div>
+    </div>
+  );
+}
+
+function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const apply = (raw: string) => {
+    try {
+      onImport(parsePgnOrFen(raw));
+      setError(null);
+      setText("");
+      setOpen(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't import that.");
+    }
+  };
+
+  return (
+    <div className="rounded-app border border-app-border">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-3 py-2 text-sm font-semibold text-primary"
+      >
+        Import PGN / FEN
+        <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} strokeWidth={2.5} />
+      </button>
+      {open ? (
+        <div className="space-y-2 border-t border-app-border p-3">
+          <p className="text-xs text-app-muted">
+            A FEN sets the starting position. A PGN sets it from its [FEN] tag (or the initial
+            position) and fills the solution with its main line. This replaces the current position
+            and solution.
+          </p>
+          <Textarea
+            rows={4}
+            className="font-mono text-xs"
+            value={text}
+            spellCheck={false}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={'1. e4 e5 2. Nf3 ... (add a [FEN "..."] tag for a custom start) — or paste a FEN'}
+          />
+          {error ? <p className="text-xs text-app-danger-ink">{error}</p> : null}
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={() => apply(text)}>
+              Import
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pgn,.fen,.txt"
+              className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) apply(await file.text());
+              }}
+            />
+            <Button type="button" variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+              <FileUp className="mr-1.5 size-4" strokeWidth={2.5} />
+              Upload .pgn
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { History, Eye, Info, Download } from "lucide-react";
+import { History, Eye, Info, Download, NotebookPen } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import type { CoachClass } from "@nexa-chess/types";
@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useClassHistory } from "../hooks/useCoachApi";
 import { formatFullDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { ClassNotesDialog } from "./ClassNotesDialog";
 import { CoachClassDetailsDialog } from "./CoachClassDetailsDialog";
 
 export function CoachHistoryClient() {
@@ -25,6 +26,7 @@ export function CoachHistoryClient() {
   const tz = useUserTimeZone();
   const [detailsClassId, setDetailsClassId] = useState<string | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [notesClass, setNotesClass] = useState<CoachClass | null>(null);
 
   const handleDownload = async (classId: string) => {
     try {
@@ -133,6 +135,24 @@ export function CoachHistoryClient() {
                 </Tooltip>
               )}
 
+              {row.original.status !== "CANCELLED" && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      aria-label="Edit class notes"
+                      className="size-8 rounded-full border-sky-500 p-0 text-app-text transition-colors hover:border-sky-500 hover:bg-sky-500 hover:text-white"
+                      onClick={() => setNotesClass(row.original)}
+                      size="icon"
+                      type="button"
+                      variant="outline"
+                    >
+                      <NotebookPen aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Edit Notes</TooltipContent>
+                </Tooltip>
+              )}
+
               {row.original.hasRecording && (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -191,6 +211,13 @@ export function CoachHistoryClient() {
           </>
         )}
       </div>
+      <ClassNotesDialog
+        classItem={notesClass}
+        open={notesClass !== null}
+        onOpenChange={(open) => {
+          if (!open) setNotesClass(null);
+        }}
+      />
       <CoachClassDetailsDialog
         classId={detailsClassId}
         isOpen={isDetailsOpen}

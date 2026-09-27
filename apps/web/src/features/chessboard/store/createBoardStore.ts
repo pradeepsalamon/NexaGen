@@ -34,6 +34,9 @@ export interface BoardState {
   // store only keeps `orientation`, which is functional live-class state
   // (whose side renders at the bottom right now), not a cosmetic preference.
   orientation: "white" | "black";
+  // Per-client view flip on top of `orientation`; never broadcast, so a
+  // student can look from the other side without moving anyone else's board.
+  localFlip: boolean;
 
   // Annotations (Chessground format: Map of shapes)
   // For simplicity and sync, we store as raw arrays/objects which translate to chessground DrawShapes
@@ -91,6 +94,7 @@ export interface BoardActions {
   
   // UI Actions
   setOrientation: (orientation: "white" | "black") => void;
+  toggleLocalFlip: () => void;
 
   // Annotations
   setAnnotations: (arrows: string[][], squares: Record<string, string>) => void;
@@ -150,6 +154,7 @@ export const createBoardStore = () => {
     historyIndex: -1,
 
     orientation: "white",
+    localFlip: false,
     isDrawingMode: false,
     remoteSyncId: 0,
 
@@ -389,6 +394,7 @@ export const createBoardStore = () => {
     },
     
     setOrientation: (orientation) => set({ orientation }),
+    toggleLocalFlip: () => set((s) => ({ localFlip: !s.localFlip })),
 
     setAnnotations: (arrows, squares) => set({ arrows, squareStyles: squares }),
     clearAnnotations: () => set({ arrows: [], squareStyles: {} }),

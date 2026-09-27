@@ -139,7 +139,8 @@ export function ChessClock({
 }) {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const { clock, orientation } = useBoardStore();
+  const { clock, orientation: syncedOrientation, localFlip } = useBoardStore();
+  const orientation = localFlip ? (syncedOrientation === "white" ? "black" : "white") : syncedOrientation;
 
   useClockTick(clock.running !== null);
 

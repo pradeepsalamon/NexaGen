@@ -61,6 +61,16 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 None currently tracked here.
 
+## Resolved (2026-09-27)
+
+- **Coaches couldn't ask for schedule changes.** Once coaches stopped creating
+  and rescheduling classes themselves, they had no way to get a make-up class or
+  a new time. Added coach → admin class-change requests (extra class /
+  reschedule) with approval that creates or moves the class.
+- **`/student/progress` was a dead nav link.** It now shows a puzzle rating and a
+  daily practice streak, also visible to a student's coaches. (`/student/batches`,
+  `/student/live-classes` and `/student/schedule` are still dead nav links.)
+
 ## Resolved (2026-09-19)
 
 - **P0 classroom reliability, all 6 phases.** Design doc at

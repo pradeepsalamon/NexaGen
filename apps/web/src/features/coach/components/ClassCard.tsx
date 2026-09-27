@@ -17,9 +17,10 @@ interface ClassCardProps {
   classItem: CoachClass;
   onEdit?: (classItem: CoachClass) => void;
   onCancel?: (classItem: CoachClass) => void;
+  onRequestReschedule?: (classItem: CoachClass) => void;
 }
 
-export function ClassCard({ classItem, onEdit, onCancel }: ClassCardProps) {
+export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule }: ClassCardProps) {
   const tz = useUserTimeZone();
 
   const startTime = formatTime(classItem.startsAt, tz);
@@ -56,9 +57,14 @@ export function ClassCard({ classItem, onEdit, onCancel }: ClassCardProps) {
             <DropdownMenuItem asChild>
               <Link href={`/classes/${classItem.id}`}>View Details</Link>
             </DropdownMenuItem>
-            {classItem.status === "SCHEDULED" && onEdit && (
+            {classItem.status !== "CANCELLED" && onEdit && (
               <DropdownMenuItem onClick={() => onEdit(classItem)}>
-                Edit Schedule
+                Edit Notes
+              </DropdownMenuItem>
+            )}
+            {classItem.status === "SCHEDULED" && onRequestReschedule && (
+              <DropdownMenuItem onClick={() => onRequestReschedule(classItem)}>
+                Request Reschedule
               </DropdownMenuItem>
             )}
             {classItem.status === "SCHEDULED" && onCancel && (

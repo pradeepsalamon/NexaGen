@@ -19,6 +19,8 @@ import { queryKeys } from "@/lib/queryKeys";
 import { startLivePuzzleAttempt } from "../../api/liveClassPuzzle";
 import { formatClock, useCountdown } from "../../hooks/useCountdown";
 import { useLivePuzzleLeaderboard } from "../../hooks/useLivePuzzle";
+import { useReactions } from "../../providers/ReactionProvider";
+import { useAuthStore } from "@/stores/authStore";
 
 /**
  * The student's in-class puzzle board. Same server-scored SOLVE_LINE flow as the
@@ -44,6 +46,17 @@ export function InRoomPuzzleSolver({
   const leaderboard = useLivePuzzleLeaderboard(classId, true);
   const self = leaderboard.data?.self ?? null;
   const { scoring } = puzzle;
+
+  const reactions = useReactions();
+  const user = useAuthStore((state) => state.user);
+  const celebrated = useRef(false);
+  useEffect(() => {
+    if (!result?.solved || celebrated.current || !reactions) return;
+    celebrated.current = true;
+    // Only name the solver where the coach lets students see each other's results.
+    const named = puzzle.leaderboard.visibility === "LIVE" && !puzzle.leaderboard.anonymize;
+    reactions.celebrate(named && user ? `${user.firstName} ${user.lastName || ""}`.trim() : null);
+  }, [result, reactions, puzzle.leaderboard, user]);
 
   useEffect(() => {
     if (!result) return;
@@ -100,7 +113,7 @@ export function InRoomPuzzleSolver({
       {session && currentFen ? (
         <div className="mx-auto w-full max-w-[380px]">
           <PracticeBoard
-            key={`${moves.length}-${resetNonce}`}
+            resetKey={`${moves.length}-${resetNonce}`}
             fen={currentFen}
             orientation={session.orientation}
             playerColor={session.studentColor}

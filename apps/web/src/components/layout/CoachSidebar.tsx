@@ -1,31 +1,17 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import {
-  SidebarContainer,
-  SidebarLink,
-  SidebarToggle
-} from "@/components/layout/Sidebar";
+import { NavDrawer, NavDrawerLink } from "@/components/layout/Sidebar";
 import { coachNavItems } from "@/components/layout/navItems";
-import { useSidebarCollapse } from "@/components/layout/useSidebarCollapse";
 
 export function CoachSidebar() {
   const pathname = usePathname();
-  const { collapse, collapsed, toggle } = useSidebarCollapse();
 
   return (
-    <SidebarContainer collapsed={collapsed} onDismiss={collapse}>
-      <SidebarToggle collapsed={collapsed} onToggle={toggle} />
-      <div className="space-y-1">
-        {coachNavItems.map((item) => (
-          <SidebarLink
-            active={pathname === item.href}
-            collapsed={collapsed}
-            item={item}
-            key={item.href}
-          />
-        ))}
-      </div>
-    </SidebarContainer>
+    <NavDrawer subtitle="Coach" title="Nexa Chess">
+      {coachNavItems.map((item) => (
+        <NavDrawerLink active={pathname === item.href} item={item} key={item.href} />
+      ))}
+    </NavDrawer>
   );
 }

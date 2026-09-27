@@ -37,6 +37,7 @@ import {
   paginationMeta
 } from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
+import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { assertStudent, authenticateUser, fullName } from "./puzzle-auth.helper";
 
 const puzzleInclude = {
@@ -53,7 +54,8 @@ export class PuzzleAttemptService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly evaluation: AssignmentEvaluationService,
-    private readonly analyticsEvents: AnalyticsEventService
+    private readonly analyticsEvents: AnalyticsEventService,
+    private readonly progress: ProgressRecorderService
   ) {}
 
   async listForStudent(
@@ -353,6 +355,14 @@ export class PuzzleAttemptService {
       ANALYTICS_EVENT_TYPES.PUZZLE_ATTEMPT,
       puzzle.id
     );
+    void this.progress.recordPuzzleResult({
+      attemptId: persisted.id,
+      difficulty: puzzle.difficulty,
+      hintsUsed: persisted.hintsUsed,
+      puzzleId: puzzle.id,
+      solved: evalResult.solved,
+      studentId: student.id
+    });
 
     return {
       attempt: this.toAttempt(persisted),

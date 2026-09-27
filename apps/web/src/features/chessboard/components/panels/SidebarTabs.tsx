@@ -14,6 +14,7 @@ import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 import { isHumanParticipant } from "@/features/live-class/lib/participants";
 import { BoardControlSideToggle } from "@/features/live-class/components/meeting/BoardControlSideToggle";
+import { MeetingPuzzlePanel } from "@/features/live-class/components/meeting/MeetingPuzzlePanel";
 import type { BoardControlSide } from "../../types/sync";
 import { useParticipants } from "@livekit/components-react";
 import { analyzePosition } from "../../api/stockfishApi";
@@ -168,6 +169,11 @@ export function SidebarTabs() {
               Live Class
             </TabsTrigger>
           )}
+          {isCoach && liveClassState && (
+            <TabsTrigger value="puzzles" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
+              Puzzles
+            </TabsTrigger>
+          )}
           <TabsTrigger value="masterbase" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300 data-[state=active]:shadow-none whitespace-nowrap">
             Masterbase
           </TabsTrigger>
@@ -191,6 +197,11 @@ export function SidebarTabs() {
         {isCoach && liveClassState && (
           <TabsContent value="class" className="flex-1 mt-0 overflow-y-auto">
             <LiveClassControlPanel liveClassState={liveClassState} />
+          </TabsContent>
+        )}
+        {isCoach && liveClassState && (
+          <TabsContent value="puzzles" className="flex-1 min-h-0 mt-0">
+            <MeetingPuzzlePanel />
           </TabsContent>
         )}
         <TabsContent value="masterbase" className="flex-1 min-h-0 overflow-y-auto mt-0">

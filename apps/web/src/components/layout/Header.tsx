@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutDashboard, Loader2, LogIn } from "lucide-react";
+import { LayoutDashboard, Loader2, LogIn, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -8,6 +8,7 @@ import { Logo } from "@/components/Logo";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
+import { useSidebarStore } from "@/stores/sidebarStore";
 import { cn } from "@/lib/utils";
 
 const pageTitles: Record<string, string> = {
@@ -25,6 +26,8 @@ const pageTitles: Record<string, string> = {
   "/admin/backups": "Database Backups",
   "/admin/batches": "Batch management",
   "/admin/feedback": "Coach Feedback",
+  "/admin/typography": "Fonts & Text",
+  "/admin/class-requests": "Class Requests",
   "/admin/finance/invoices": "Invoices",
   "/admin/finance/coach-payroll": "Coach Payroll",
   "/admin/puzzles": "Puzzle Library",
@@ -144,6 +147,9 @@ export function Header({
   const isSessionLoading = useAuthStore((state) => state.isSessionLoading);
   const user = useAuthStore((state) => state.user);
   const pageTitle = formatPageTitle(pathname);
+  const hasSidebar = useSidebarStore((state) => state.available);
+  const sidebarOpen = useSidebarStore((state) => state.open);
+  const toggleSidebar = useSidebarStore((state) => state.toggle);
   const isAuthPending = !isHydrated || isSessionLoading || !isSessionChecked;
   const activeUser = isSessionChecked ? user : undefined;
 
@@ -154,17 +160,24 @@ export function Header({
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface/95 shadow-[0_1px_0_rgba(16,24,40,0.02)] backdrop-blur supports-[backdrop-filter]:bg-app-surface/[0.88]">
       <div className="mx-auto grid h-full w-full max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3 min-w-0 justify-self-start">
+          {hasSidebar ? (
+            <button
+              aria-expanded={sidebarOpen}
+              aria-label="Open menu"
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-primary transition hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:size-10"
+              onClick={toggleSidebar}
+              type="button"
+            >
+              <Menu aria-hidden="true" className="size-5" strokeWidth={2.5} />
+            </button>
+          ) : null}
           <Link
             aria-label={activeUser ? "Go to Dashboard" : "Go to Home"}
             className="shrink-0 rounded-control transition hover:opacity-85 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
             href={homeHref}
             {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           >
-            <Logo
-              compact
-              size={40}
-              wordmarkClassName={compact ? "hidden sm:block" : undefined}
-            />
+            <Logo compact iconOnlyOnMobile size={40} />
           </Link>
           {leftSlot}
         </div>

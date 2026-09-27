@@ -55,7 +55,6 @@ export const API_ROUTES = {
     classes: "/coach/classes",
     upcomingClasses: "/coach/classes/upcoming",
     classHistory: "/coach/classes/history",
-    createClass: "/coach/classes",
     getClass: (id: string = ":id") => `/coach/classes/${id}`,
     updateClass: (id: string = ":id") => `/coach/classes/${id}`,
     cancelClass: (id: string = ":id") => `/coach/classes/${id}/cancel`,
@@ -129,6 +128,16 @@ export const API_ROUTES = {
     admin: "/chess-appearance/admin",
     // Reset the global default back to Nexa Classic — admin only.
     adminReset: "/chess-appearance/admin/reset"
+  },
+  typography: {
+    // Resolved fonts + text size for the caller (user > admin default > system default) — any authed role.
+    get: "/typography",
+    // Caller's own preference. PUT saves a partial override, DELETE resets it.
+    me: "/typography/me",
+    // Admin global default (singleton). GET/PUT admin only.
+    admin: "/typography/admin",
+    // Reset the global default back to Outfit + Nunito Sans — admin only.
+    adminReset: "/typography/admin/reset"
   },
   liveClassPresets: {
     // Layer 4 presets. List returns own PERSONAL + all ORG/system.
@@ -484,5 +493,17 @@ export const API_ROUTES = {
     form: (id: string = ":id") => `/admin/feedback/forms/${id}`,
     responses: "/admin/feedback/responses",
     coachRatings: "/admin/feedback/coach-ratings"
+  },
+  // Coach asks, admin approves (coach sees own, admin sees all).
+  classRequests: {
+    list: "/class-requests",
+    create: "/class-requests",
+    withdraw: (id: string = ":id") => `/class-requests/${id}/withdraw`,
+    approve: (id: string = ":id") => `/class-requests/${id}/approve`,
+    reject: (id: string = ":id") => `/class-requests/${id}/reject`
+  },
+  progress: {
+    mine: "/progress/me",
+    student: (id: string = ":id") => `/progress/students/${id}`
   }
 } as const;

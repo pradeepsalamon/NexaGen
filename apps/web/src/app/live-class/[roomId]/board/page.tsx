@@ -5,7 +5,7 @@ import "@livekit/components-styles/prefabs";
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Crown } from "lucide-react";
+import { Crown, SmilePlus } from "lucide-react";
 import { LiveKitRoom } from "@livekit/components-react";
 import { Button } from "@/components/ui/Button";
 import { BoardWorkspace } from "@/features/chessboard/components/layout/BoardWorkspace";
@@ -16,6 +16,9 @@ import { ConnectionLost, PermissionDenied, ClassNotStarted } from "@/features/li
 import { getWebEnv } from "@nexa-chess/config/web";
 import { LiveBoardSyncBridge } from "@/features/live-class/components/meeting/LiveBoardSyncBridge";
 import { LiveClassSettingsBridge } from "@/features/live-class/components/meeting/LiveClassSettingsBridge";
+import { PuzzleBridge } from "@/features/live-class/components/meeting/PuzzleBridge";
+import { ReactionPicker } from "@/features/live-class/components/meeting/ReactionPicker";
+import { ReactionProvider } from "@/features/live-class/providers/ReactionProvider";
 import { LiveClassProvider, useLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 
 const env = getWebEnv({
@@ -155,12 +158,26 @@ export default function LiveClassBoardPage() {
           {/* LiveClassProvider so LiveBoardSyncBridge can access useLiveClassState */}
           <LiveClassProvider topic="Board" settings={settings}>
             <LiveClassSettingsBridge />
-            <BoardProvider>
-              <LiveBoardSyncBridge>
-                <ForceOpenBoard />
-                <BoardWorkspace />
-              </LiveBoardSyncBridge>
-            </BoardProvider>
+            <PuzzleBridge autoEnd={false} classId={roomId} />
+            <ReactionProvider>
+              <BoardProvider>
+                <LiveBoardSyncBridge>
+                  <ForceOpenBoard />
+                  <BoardWorkspace />
+                </LiveBoardSyncBridge>
+              </BoardProvider>
+              <div className="fixed bottom-4 left-4 z-40">
+                <ReactionPicker side="top">
+                  <button
+                    type="button"
+                    aria-label="Send a reaction"
+                    className="flex size-11 items-center justify-center rounded-full border border-app-border bg-app-surface text-app-muted shadow-card transition hover:scale-105 hover:text-app-text"
+                  >
+                    <SmilePlus className="size-5" strokeWidth={2.5} />
+                  </button>
+                </ReactionPicker>
+              </div>
+            </ReactionProvider>
           </LiveClassProvider>
         </LiveKitRoom>
       </main>

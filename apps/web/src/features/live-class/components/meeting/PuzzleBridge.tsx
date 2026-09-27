@@ -18,7 +18,14 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
  * coach shares or ends a puzzle. Must render inside `<LiveKitRoom>` and
  * `<LiveClassProvider>`.
  */
-export function PuzzleBridge({ classId }: { classId: string }) {
+export function PuzzleBridge({
+  classId,
+  autoEnd = true
+}: {
+  classId: string;
+  /** Off in the coach's board tab, so the meeting tab alone ends a timed puzzle. */
+  autoEnd?: boolean;
+}) {
   const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen } =
     useLiveClassState();
   const qc = useQueryClient();
@@ -37,11 +44,11 @@ export function PuzzleBridge({ classId }: { classId: string }) {
   const { expired } = useCountdown(activePuzzle?.endsAt);
   const autoEndedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (!isCoach || !activePuzzle || !expired) return;
+    if (!autoEnd || !isCoach || !activePuzzle || !expired) return;
     if (autoEndedFor.current === activePuzzle.id) return;
     autoEndedFor.current = activePuzzle.id;
     endPuzzle.mutate();
-  }, [isCoach, activePuzzle, expired, endPuzzle]);
+  }, [autoEnd, isCoach, activePuzzle, expired, endPuzzle]);
 
   const onMessage = useCallback(
     (msg: { payload: Uint8Array }) => {
@@ -51,14 +58,8 @@ export function PuzzleBridge({ classId }: { classId: string }) {
         applyPuzzleAssignment(decoded.assignment);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
-        if (!isCoach) {
-          toast.info("Your coach shared a puzzle", {
-            action: { label: "Solve now", onClick: () => setPuzzleSolverOpen(true) },
-            description: `${decoded.assignment.title} — it's in the video grid too.`,
-            duration: 8000,
-            id: `puzzle-assigned-${decoded.assignment.id}`
-          });
-        }
+        // Straight onto the student's screen — no click-through to find it.
+        if (!isCoach) setPuzzleSolverOpen(true);
       } else if (decoded.type === "PUZZLE_UPDATED") {
         applyPuzzleAssignment(decoded.assignment);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });

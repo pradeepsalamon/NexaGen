@@ -34,13 +34,13 @@ and up.
 |---|---|---|---|
 | _(none)_ | 0 | Phone portrait | Single column, stacked, full-bleed cards |
 | `sm:` | 640 px | Large phone / phone landscape | Header shows text labels, `PageHeader` goes row |
-| `md:` | 768 px | Tablet portrait | **Persistent sidebar appears; mobile drawer hidden.** Shared board mounts |
+| `md:` | 768 px | Tablet portrait | Nav drawer widens 240 → 280 px. Shared board mounts |
 | `lg:` | 1024 px | Tablet landscape / small laptop | Dashboard multi-column grids (`lg:grid-cols-3`), header Dashboard CTA when `compact` |
 | `xl:` | 1280 px | Laptop / desktop | Extra column density where useful |
 | `2xl:` | 1536 px | Large desktop | Rarely needed; container max-width already caps content |
 
-**The load-bearing breakpoint is `md` (768 px)** — it flips the whole navigation
-model and the shared-board experience.
+**The load-bearing breakpoint is `md` (768 px)** for the shared-board
+experience. Navigation is the same off-canvas drawer at every width.
 
 Content width is capped by container max-widths, not by a `2xl:` breakpoint:
 
@@ -72,9 +72,9 @@ Presets live in [`scripts/responsive/devices.mjs`](../scripts/responsive/devices
 | Key | CSS px | Notes |
 |---|---|---|
 | `iphone-14-landscape` | 844 × 390 | **Short height** — sticky/fixed bars must not eat the viewport |
-| `pixel-7-landscape` | 915 × 412 | crosses `md`: sidebar tries to appear at 768–915 |
+| `pixel-7-landscape` | 915 × 412 | crosses `md` |
 
-### Tablets — portrait (all ≥ `md`, sidebar visible)
+### Tablets — portrait (all ≥ `md`)
 | Key | CSS px |
 |---|---|
 | `ipad-mini` | 768 × 1024 |
@@ -116,34 +116,28 @@ ipad-mini, ipad-air-landscape, laptop-13, laptop-15, desktop-1080`.
 
 ```
 ┌───────────────────────────────────────────────┐
-│ Header  fixed inset-x-0 top-0 z-40 h-16        │  ← always fixed, 64 px
-├──────────┬────────────────────────────────────┤
-│ Rail     │  main                              │
-│ w-[4.75  │  p-4 → md:p-6 → lg:p-8             │
-│  rem]    │  pb-24 on mobile (clears the FAB)  │
-│ hidden   │  mx-auto max-w-6xl / 7xl           │
-│ md:block │  overflow-x-hidden  min-w-0        │
-│  (fixed; │                                    │
-│  expands │                                    │
-│  to w-60 │                                    │
-│  as an   │                                    │
-│  overlay)│                                    │
-└──────────┴────────────────────────────────────┘
-       └─ MobileNavDrawer: FAB bottom-right, md:hidden,
-          Radix Dialog sliding sheet (w-[280px] max-w-[85vw])
+│ Header  fixed inset-x-0 top-0 z-40 h-16        │  ← always fixed, 64 px; ☰ opens the drawer
+├───────────────────────────────────────────────┤
+│▌ main  (full width — the drawer never reserves │
+│▌ space)  p-4 → md:p-6 → lg:p-8                 │
+│▌ mx-auto max-w-6xl / 7xl, overflow-x-hidden    │
+└───────────────────────────────────────────────┘
+ ▌= NavDrawer closed: fixed top-0→bottom-0, z-50, only a 12 px edge peeks out.
+   Open: slides over header + content (w-[280px], max-md:w-[240px],
+   rounded-r-[20px]) with a bg-black/40 backdrop; round toggle at top-20.
 ```
 
 Key files:
 
 | Concern | File | Behaviour |
 |---|---|---|
-| App wrapper | [`AppShell.tsx`](../apps/web/src/components/layout/AppShell.tsx) | Renders children + `<MobileNavDrawer/>` |
-| Top bar | [`Header.tsx`](../apps/web/src/components/layout/Header.tsx) | `fixed h-16`; 3-col grid `minmax(0,1fr) auto minmax(0,1fr)`; title `truncate max-w-[42vw] sm:max-w-none`; `compact` prop hides Dashboard CTA / bell / theme toggle on small screens for immersive pages |
-| Sidebar shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | Shared `SidebarContainer` — layout reserves only the `w-[4.75rem]` rail; the panel is `fixed top-16 z-30` and expands to `w-60` as an **overlay** above the content (click-outside / Escape collapses it). Plus `SidebarToggle`, `SidebarLink` (icon-only + tooltip when collapsed), `SidebarGroupBox` (admin boxed group: inline nested panel expanded, flyout `Popover` when collapsed). Rail defaults collapsed; pinned choice in `localStorage` `nexa-sidebar-collapsed` via [`useSidebarCollapse.ts`](../apps/web/src/components/layout/useSidebarCollapse.ts) |
-| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | `hidden md:block`; **collapsible overlay rail** + **boxed collapsible groups** (Analytics / Manage / Super Admin) with per-group icons, open state in `localStorage` `nexa-admin-nav-open-groups`, active group auto-expands |
-| Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | `hidden md:block`, flat list, collapsible rail |
-| Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | `hidden md:block`, flat list, collapsible rail |
-| Mobile nav | [`MobileNavDrawer.tsx`](../apps/web/src/components/layout/MobileNavDrawer.tsx) | `md:hidden` FAB → right-side sheet; **admin gets the same boxed collapsible groups**, coach/student flat; closes on route change |
+| App wrapper | [`AppShell.tsx`](../apps/web/src/components/layout/AppShell.tsx) | Renders `<RoleSidebar/>` + children, so every AppShell page (role dashboards, `/profile`, `/chess-board`, `/classes/[id]`) gets the drawer |
+| Role picker | [`RoleSidebar.tsx`](../apps/web/src/components/layout/RoleSidebar.tsx) | Admin / Super Admin → `AdminSidebar`, Coach → `CoachSidebar`, Student → `StudentSidebar`; nothing before auth hydrates |
+| Top bar | [`Header.tsx`](../apps/web/src/components/layout/Header.tsx) | `fixed h-16`; 3-col grid `minmax(0,1fr) auto minmax(0,1fr)`; title `truncate max-w-[42vw] sm:max-w-none`; `compact` prop hides Dashboard CTA / bell / theme toggle on small screens for immersive pages. Shows a menu button only while a drawer is mounted (`useSidebarStore().available`) |
+| Drawer shell | [`Sidebar.tsx`](../apps/web/src/components/layout/Sidebar.tsx) | `NavDrawer` (off-canvas panel, backdrop, edge toggle, title, optional footer), `NavDrawerLink` (top-level row, active = `bg-secondary`), `NavDrawerAccordion` (section row + inset panel of child links, active child = white). Closes on Escape, backdrop, link click and any route change; the hidden nav is `inert`. Open state is shared in [`stores/sidebarStore.ts`](../apps/web/src/stores/sidebarStore.ts), not persisted — it always starts closed |
+| Admin sidebar | [`AdminSidebar.tsx`](../apps/web/src/components/layout/AdminSidebar.tsx) | "Dashboard" direct link, then accordion sections (Analytics / Manage / Super Admin). **One section open at a time**; the section owning the current route opens itself on navigation |
+| Coach sidebar | [`CoachSidebar.tsx`](../apps/web/src/components/layout/CoachSidebar.tsx) | Flat direct links |
+| Student sidebar | [`StudentSidebar.tsx`](../apps/web/src/components/layout/StudentSidebar.tsx) | Flat direct links with live badges; rating + profile cards in the footer |
 | Page heading | [`PageHeader.tsx`](../apps/web/src/components/layout/PageHeader.tsx) | `flex-col gap-4 sm:flex-row sm:items-center sm:justify-between` — title stacks above actions on phone |
 
 Because `Header` is `fixed`, every routed layout offsets content by 64 px
@@ -185,7 +179,7 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 ### 6.2 Dashboards (`/student`, `/coach`, `/admin`)
 - Card grids: `grid-cols-1` → `lg:grid-cols-2` / `lg:grid-cols-3` (hero + rail),
   KPI rows `grid-cols-2 lg:grid-cols-4`.
-- Vertical rhythm `space-y-6 md:space-y-8`, `pb-10` (clear the mobile FAB).
+- Vertical rhythm `space-y-6 md:space-y-8`, `pb-10`.
 - Verify: phone = one column, KPIs 2-up; laptop = full multi-column.
 
 ### 6.3 List / management pages with tables
@@ -297,8 +291,8 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
    `Dialog`, not `Popover`, so they don't clip on phones.
 9. **Both themes, always** — verify light and dark; colours come from tokens.
 10. **Landscape phones** (short height) must not trap content behind fixed bars.
-11. Test at the **`md` boundary (768/820/915 px)** — sidebar appears here and is
-    the most common regression point.
+11. Test at the **`md` boundary (768/820/915 px)** — the shared board mounts
+    and the drawer widens here; the most common regression point.
 
 ---
 
@@ -403,22 +397,20 @@ Run against `index.html` (or a real device / DevTools device mode).
 
 ### Phone portrait (320–430)
 - [ ] `android-small` (320): nothing clipped, buttons not cut off.
-- [ ] Sidebar hidden; FAB visible bottom-right; drawer opens, closes on nav,
-      `max-w-[85vw]`.
+- [ ] Drawer closed with only its 12 px edge showing; header ☰ and the edge
+      toggle both open it (240 px); backdrop / Escape / a link closes it.
 - [ ] `PageHeader` stacked; primary action reachable (full-width / icon).
 - [ ] Tables scroll inside their box; page does not.
 - [ ] Dialogs: `≤ 90vh`, internal scroll, close button reachable.
 - [ ] `DatePicker` / `TimePicker` open and are fully on-screen.
-- [ ] Bottom content not hidden behind the FAB (`pb-24`).
 
 ### Phone landscape (`iphone-14-landscape` 844×390)
 - [ ] Fixed header + any floating toolbar leave enough usable height.
 - [ ] Meeting toolbar stays above the bottom edge; video grid still usable.
-- [ ] Width 844 > `md`: confirm the persistent sidebar appearing here still looks
-      intentional (this is a known edge — 768–1023 px width on a short screen).
+- [ ] Open drawer scrolls on a short screen; every link reachable.
 
 ### Tablet portrait (768–834)
-- [ ] Sidebar now persistent; no FAB.
+- [ ] Drawer opens at 280 px; content never reflows when it opens.
 - [ ] Dashboard grids: 1–2 columns (not yet full `lg` density).
 - [ ] Shared board mounts at exactly 768.
 
@@ -428,7 +420,7 @@ Run against `index.html` (or a real device / DevTools device mode).
 
 ### Laptop / desktop (1280–3440)
 - [ ] Content capped at container max-width, centered, not stretched edge-to-edge.
-- [ ] Ultrawide (3440): no absurd line lengths; sidebar + centered column look OK.
+- [ ] Ultrawide (3440): no absurd line lengths; centered column looks OK.
 
 ---
 
@@ -475,7 +467,6 @@ There are currently **no web unit tests**; responsive correctness is covered by
 | Calendar / dropdown clipped at screen edge on phone | `Popover` near the viewport edge | Use `DatePicker` (Dialog-based) or raise `collisionPadding` |
 | Content hidden under the fixed header | Missing top offset | `min-h-[calc(100vh-64px)]` container or `pt-16` |
 | Meeting toolbar cut off in phone landscape | `vh` instead of `dvh`, or toolbar not accounting for safe area | Use `h-[100dvh]`; keep toolbar `bottom`-anchored with padding |
-| Sidebar appears on a wide phone landscape (844 px) | `md:` triggers at 768 regardless of height | Accept, or gate nav on `md:` + a height check only where it actually breaks |
 | Hydration mismatch on a viewport-gated screen | Reading `window`/`matchMedia` during render | Start from `null` (= SSR output), measure in `useEffect` (see the shared-board page) |
 | Dark mode shows unstyled colours | Hard-coded `bg-white` / `text-black` instead of tokens | Use `bg-app-surface`, `text-app-text`, etc. |
 | Tap does nothing / tooltip never shows on touch | `title=` attribute used for a tooltip | `SimpleTooltip` + `aria-label` |

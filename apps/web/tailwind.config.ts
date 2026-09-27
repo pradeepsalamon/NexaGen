@@ -79,6 +79,7 @@ const config: Config = {
         "text-muted": "#7a8fa5"
       },
       fontFamily: {
+        display: ["var(--font-display)"],
         sans: ["var(--font-sans)"]
       },
       keyframes: {

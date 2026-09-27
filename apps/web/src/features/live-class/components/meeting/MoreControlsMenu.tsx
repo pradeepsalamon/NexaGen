@@ -11,6 +11,8 @@ export interface MoreControlItem {
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
+  /** Only listed below `sm`, where the toolbar has no room for its own button. */
+  mobileOnly?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export function MoreControlsMenu({ items }: { items: MoreControlItem[] }) {
             className={cn(
               "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-app-text transition-colors hover:bg-app-soft disabled:opacity-60",
               item.active && "bg-primary/10 text-primary",
+              item.mobileOnly && "sm:hidden",
             )}
             onClick={() => {
               item.onClick();

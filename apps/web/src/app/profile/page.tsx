@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LogoutButton } from "../../features/auth/components/LogoutButton";
 import { ProfileForm } from "../../features/auth/components/ProfileForm";
 import { ProfileRoleHeading } from "../../features/auth/components/ProfileRoleHeading";
+import { UserTypographySettings } from "@/features/typography/components/UserTypographySettings";
 
 const accessTokenCookieName = "nexa_access_token";
 
@@ -31,6 +32,19 @@ export default function ProfilePage() {
             <LogoutButton />
           </div>
           <ProfileForm />
+        </section>
+        <section
+          aria-labelledby="text-settings-heading"
+          className="mx-auto mt-5 max-w-4xl rounded-panel border border-app-border bg-app-surface p-5 shadow-card"
+        >
+          <h2 className="text-lg font-bold text-app-text" id="text-settings-heading">
+            Text &amp; fonts
+          </h2>
+          <p className="mb-5 mt-1 text-sm text-app-muted">
+            Choose the fonts and text size that are easiest for you to read. This only changes what
+            you see.
+          </p>
+          <UserTypographySettings />
         </section>
       </main>
     </AppShell>

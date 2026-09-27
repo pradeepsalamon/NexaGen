@@ -65,7 +65,7 @@ export function CoachBatchesClient() {
                     <Link href={`/coach/students?batchId=${batch.id}`}>View Students</Link>
                   </Button>
                   <Button asChild variant="primary" size="sm">
-                    <Link href={`/coach/schedule?batchId=${batch.id}`}>Schedule</Link>
+                    <Link href="/coach/schedule">Schedule</Link>
                   </Button>
                 </div>
               </Card>

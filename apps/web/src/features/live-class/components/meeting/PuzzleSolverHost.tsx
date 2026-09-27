@@ -20,7 +20,11 @@ export function PuzzleSolverHost({ classId }: { classId: string }) {
 
   return (
     <Dialog open={puzzleSolverOpen} onOpenChange={setPuzzleSolverOpen}>
-      <DialogContent className="max-w-lg">
+      {/* No backdrop blur: blurring over live <video> flashes black on mobile GPUs. */}
+      <DialogContent
+        className="max-h-[92dvh] max-w-lg overflow-y-auto"
+        overlayClassName="bg-black/60 backdrop-blur-none"
+      >
         <DialogHeader>
           <DialogTitle>Solve the puzzle</DialogTitle>
         </DialogHeader>

@@ -50,14 +50,14 @@ export type PuzzleScoringOverride = z.infer<typeof puzzleScoringOverrideSchema>;
 
 export const DEFAULT_PUZZLE_SCORING: PuzzleScoring = {
   allowNegative: false,
-  basePoints: 100,
+  basePoints: 10,
   firstSolveBonuses: [],
-  hintPenalty: 10,
+  hintPenalty: 3,
   maxAttempts: null,
   partialCredit: true,
   speedBonusMax: 0,
   speedBonusSeconds: 120,
-  wrongMovePenalty: 10
+  wrongMovePenalty: 3
 };
 
 // ── Leaderboard ──

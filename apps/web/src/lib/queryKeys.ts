@@ -164,6 +164,10 @@ export const queryKeys = {
     catalog: ["chess-appearance", "catalog"] as const,
     admin: ["chess-appearance", "admin"] as const,
   },
+  typography: {
+    resolved: ["typography", "resolved"] as const,
+    admin: ["typography", "admin"] as const,
+  },
   livePuzzle: {
     state: (classId: string) => ["live-puzzle", "state", classId] as const,
     leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
@@ -187,5 +191,13 @@ export const queryKeys = {
       ["payroll", "admin", "compensation-rates", coachId] as const,
     adminRules: ["payroll", "admin", "rules"] as const,
     adminPayouts: (periodId: string) => ["payroll", "admin", "payouts", periodId] as const,
+  },
+  classRequests: {
+    all: ["class-requests"] as const,
+    list: (status?: string) => ["class-requests", "list", status ?? "all"] as const,
+  },
+  progress: {
+    mine: ["progress", "me"] as const,
+    student: (id: string) => ["progress", "student", id] as const,
   },
 } as const;

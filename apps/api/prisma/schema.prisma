@@ -260,75 +260,80 @@ model User {
   createdUsers User[]  @relation("UserCreatedUsers")
 
   studentProfile                  StudentProfile?
-  coachProfile                    CoachProfile?                 @relation("UserCoachProfile")
-  approvedCoaches                 CoachProfile[]                @relation("CoachApprovedBy")
-  createdBatches                  Batch[]                       @relation("BatchCreatedBy")
-  coachedBatches                  BatchCoach[]                  @relation("BatchCoaches")
-  studentBatches                  BatchStudent[]                @relation("BatchStudents")
-  classes                         CoachClass[]                  @relation("ClassCoach")
-  createdFeedbackForms            FeedbackForm[]                @relation("FeedbackFormCreatedBy")
-  givenFeedback                   FeedbackResponse[]            @relation("FeedbackResponseStudent")
-  receivedFeedback                FeedbackResponse[]            @relation("FeedbackResponseCoach")
+  coachProfile                    CoachProfile?                  @relation("UserCoachProfile")
+  approvedCoaches                 CoachProfile[]                 @relation("CoachApprovedBy")
+  createdBatches                  Batch[]                        @relation("BatchCreatedBy")
+  coachedBatches                  BatchCoach[]                   @relation("BatchCoaches")
+  studentBatches                  BatchStudent[]                 @relation("BatchStudents")
+  classes                         CoachClass[]                   @relation("ClassCoach")
+  createdFeedbackForms            FeedbackForm[]                 @relation("FeedbackFormCreatedBy")
+  givenFeedback                   FeedbackResponse[]             @relation("FeedbackResponseStudent")
+  receivedFeedback                FeedbackResponse[]             @relation("FeedbackResponseCoach")
   authSessions                    AuthSession[]
   passwordResets                  PasswordResetToken[]
   emailVerifications              EmailVerificationToken[]
-  deletedRecords                  TrashAuditLog[]               @relation("TrashAuditDeletedBy")
-  deletedStudentProfiles          StudentProfile[]              @relation("StudentProfileDeletedBy")
-  deletedCoachProfiles            CoachProfile[]                @relation("CoachProfileDeletedBy")
-  deletedBatches                  Batch[]                       @relation("BatchDeletedBy")
-  deletedBatchCoaches             BatchCoach[]                  @relation("BatchCoachDeletedBy")
-  deletedBatchStudents            BatchStudent[]                @relation("BatchStudentDeletedBy")
-  liveSessions                    LiveSession[]                 @relation("LiveClassCoach")
-  courseProgress                  StudentCourseProgress[]       @relation("StudentCourseProgress")
-  moduleProgress                  StudentModuleProgress[]       @relation("StudentModuleProgress")
-  authoredCourses                 Course[]                      @relation("AuthoredCourses")
-  deletedCourses                  Course[]                      @relation("CourseDeletedBy")
-  deletedCourseModules            CourseModule[]                @relation("CourseModuleDeletedBy")
-  practices                       StudentPractice[]             @relation("StudentPractice")
-  authoredAssignments             Assignment[]                  @relation("AuthoredAssignments")
-  deployedAssignments             AssignmentBatch[]             @relation("DeployedAssignments")
-  studentAssignments              StudentAssignment[]           @relation("StudentAssignments")
-  createdPuzzleTopics             PuzzleTopic[]                 @relation("PuzzleTopicCreatedBy")
-  deletedPuzzleTopics             PuzzleTopic[]                 @relation("PuzzleTopicDeletedBy")
-  authoredPuzzles                 Puzzle[]                      @relation("AuthoredPuzzles")
-  deletedPuzzles                  Puzzle[]                      @relation("PuzzleDeletedBy")
-  studentPuzzleAttempts           PuzzleAttempt[]               @relation("StudentPuzzleAttempts")
-  assignedLivePuzzles             LiveClassPuzzleAssignment[]   @relation("LiveClassPuzzleAssignedBy")
-  activities                      StudentActivity[]             @relation("StudentActivity")
+  deletedRecords                  TrashAuditLog[]                @relation("TrashAuditDeletedBy")
+  deletedStudentProfiles          StudentProfile[]               @relation("StudentProfileDeletedBy")
+  deletedCoachProfiles            CoachProfile[]                 @relation("CoachProfileDeletedBy")
+  deletedBatches                  Batch[]                        @relation("BatchDeletedBy")
+  deletedBatchCoaches             BatchCoach[]                   @relation("BatchCoachDeletedBy")
+  deletedBatchStudents            BatchStudent[]                 @relation("BatchStudentDeletedBy")
+  liveSessions                    LiveSession[]                  @relation("LiveClassCoach")
+  courseProgress                  StudentCourseProgress[]        @relation("StudentCourseProgress")
+  moduleProgress                  StudentModuleProgress[]        @relation("StudentModuleProgress")
+  authoredCourses                 Course[]                       @relation("AuthoredCourses")
+  deletedCourses                  Course[]                       @relation("CourseDeletedBy")
+  deletedCourseModules            CourseModule[]                 @relation("CourseModuleDeletedBy")
+  practices                       StudentPractice[]              @relation("StudentPractice")
+  authoredAssignments             Assignment[]                   @relation("AuthoredAssignments")
+  deployedAssignments             AssignmentBatch[]              @relation("DeployedAssignments")
+  studentAssignments              StudentAssignment[]            @relation("StudentAssignments")
+  createdPuzzleTopics             PuzzleTopic[]                  @relation("PuzzleTopicCreatedBy")
+  deletedPuzzleTopics             PuzzleTopic[]                  @relation("PuzzleTopicDeletedBy")
+  authoredPuzzles                 Puzzle[]                       @relation("AuthoredPuzzles")
+  deletedPuzzles                  Puzzle[]                       @relation("PuzzleDeletedBy")
+  studentPuzzleAttempts           PuzzleAttempt[]                @relation("StudentPuzzleAttempts")
+  classChangeRequests             ClassChangeRequest[]           @relation("ClassChangeRequestCoach")
+  reviewedClassChangeRequests     ClassChangeRequest[]           @relation("ClassChangeRequestReviewer")
+  studentProgress                 StudentProgress?               @relation("StudentProgress")
+  puzzleRatingChanges             PuzzleRatingChange[]           @relation("StudentPuzzleRatingChanges")
+  assignedLivePuzzles             LiveClassPuzzleAssignment[]    @relation("LiveClassPuzzleAssignedBy")
+  activities                      StudentActivity[]              @relation("StudentActivity")
   classAttendances                ClassAttendance[]
-  attendanceLogs                  AttendanceLog[]               @relation("UserAttendanceLogs")
-  coachAttendances                CoachAttendance[]             @relation("CoachClassAttendance")
-  coachAttendanceLogs             CoachAttendanceLog[]          @relation("UserCoachAttendanceLogs")
-  chatMessages                    LiveChatMessage[]             @relation("UserLiveChatMessages")
-  directChatMessages              LiveChatMessage[]             @relation("UserLiveChatDirectMessages")
-  notifications                   Notification[]                @relation("UserNotifications")
-  createdBatchSchedules           BatchClassSchedule[]          @relation("BatchScheduleCreatedBy")
-  scheduleRules                   BatchClassScheduleRule[]      @relation("BatchScheduleRuleCoach")
-  analyticsEvents                 AnalyticsEvent[]              @relation("UserAnalyticsEvents")
-  liveClassPresets                LiveClassPreset[]             @relation("UserLiveClassPresets")
-  messagingRuleUpdates            MessagingRule[]               @relation("MessagingRuleUpdatedBy")
-  messageDeliveries               MessageDelivery[]             @relation("UserMessageDeliveries")
-  createdAnnouncements            Announcement[]                @relation("AnnouncementCreatedBy")
-  orders                          Order[]                       @relation("UserOrders")
-  payments                        Payment[]                     @relation("UserPayments")
-  subscriptions                   Subscription[]                @relation("UserSubscriptions")
-  invoices                        Invoice[]                     @relation("UserInvoices")
-  creditNotes                     CreditNote[]                  @relation("UserCreditNotes")
-  billingProfile                  BillingProfile?               @relation("UserBillingProfile")
+  attendanceLogs                  AttendanceLog[]                @relation("UserAttendanceLogs")
+  coachAttendances                CoachAttendance[]              @relation("CoachClassAttendance")
+  coachAttendanceLogs             CoachAttendanceLog[]           @relation("UserCoachAttendanceLogs")
+  chatMessages                    LiveChatMessage[]              @relation("UserLiveChatMessages")
+  directChatMessages              LiveChatMessage[]              @relation("UserLiveChatDirectMessages")
+  notifications                   Notification[]                 @relation("UserNotifications")
+  createdBatchSchedules           BatchClassSchedule[]           @relation("BatchScheduleCreatedBy")
+  scheduleRules                   BatchClassScheduleRule[]       @relation("BatchScheduleRuleCoach")
+  analyticsEvents                 AnalyticsEvent[]               @relation("UserAnalyticsEvents")
+  liveClassPresets                LiveClassPreset[]              @relation("UserLiveClassPresets")
+  messagingRuleUpdates            MessagingRule[]                @relation("MessagingRuleUpdatedBy")
+  messageDeliveries               MessageDelivery[]              @relation("UserMessageDeliveries")
+  createdAnnouncements            Announcement[]                 @relation("AnnouncementCreatedBy")
+  orders                          Order[]                        @relation("UserOrders")
+  payments                        Payment[]                      @relation("UserPayments")
+  subscriptions                   Subscription[]                 @relation("UserSubscriptions")
+  invoices                        Invoice[]                      @relation("UserInvoices")
+  creditNotes                     CreditNote[]                   @relation("UserCreditNotes")
+  billingProfile                  BillingProfile?                @relation("UserBillingProfile")
   chessAppearancePreference       UserChessAppearancePreference? @relation("UserChessAppearancePreference")
-  invoiceAuditActions             InvoiceAuditLog[]             @relation("InvoiceAuditActor")
-  invoiceSettingUpdates           InvoiceSettings[]             @relation("InvoiceSettingsUpdatedBy")
-  entitlements                    Entitlement[]                 @relation("UserEntitlements")
-  manualPaymentsRecorded          ManualPaymentRecord[]         @relation("ManualPaymentRecordedBy")
-  manualPaymentsReviewed          ManualPaymentRecord[]         @relation("ManualPaymentReviewedBy")
-  requestedRefunds                Refund[]                      @relation("RefundRequestedBy")
-  paymentSettingUpdates           PaymentSetting[]              @relation("PaymentSettingUpdatedBy")
-  createdDiscounts                Discount[]                    @relation("DiscountCreatedBy")
-  discountRedemptions             DiscountRedemption[]          @relation("DiscountRedemptions")
-  liveClassWaitingRequests        LiveClassWaitingParticipant[] @relation("LiveClassWaitingStudent")
-  liveClassWaitingResolutions     LiveClassWaitingParticipant[] @relation("LiveClassWaitingResolvedBy")
-  liveClassScreenShareRequests    LiveClassScreenShareRequest[] @relation("LiveClassScreenShareStudent")
-  liveClassScreenShareResolutions LiveClassScreenShareRequest[] @relation("LiveClassScreenShareResolvedBy")
+  typographyPreference            UserTypographyPreference?      @relation("UserTypographyPreference")
+  invoiceAuditActions             InvoiceAuditLog[]              @relation("InvoiceAuditActor")
+  invoiceSettingUpdates           InvoiceSettings[]              @relation("InvoiceSettingsUpdatedBy")
+  entitlements                    Entitlement[]                  @relation("UserEntitlements")
+  manualPaymentsRecorded          ManualPaymentRecord[]          @relation("ManualPaymentRecordedBy")
+  manualPaymentsReviewed          ManualPaymentRecord[]          @relation("ManualPaymentReviewedBy")
+  requestedRefunds                Refund[]                       @relation("RefundRequestedBy")
+  paymentSettingUpdates           PaymentSetting[]               @relation("PaymentSettingUpdatedBy")
+  createdDiscounts                Discount[]                     @relation("DiscountCreatedBy")
+  discountRedemptions             DiscountRedemption[]           @relation("DiscountRedemptions")
+  liveClassWaitingRequests        LiveClassWaitingParticipant[]  @relation("LiveClassWaitingStudent")
+  liveClassWaitingResolutions     LiveClassWaitingParticipant[]  @relation("LiveClassWaitingResolvedBy")
+  liveClassScreenShareRequests    LiveClassScreenShareRequest[]  @relation("LiveClassScreenShareStudent")
+  liveClassScreenShareResolutions LiveClassScreenShareRequest[]  @relation("LiveClassScreenShareResolvedBy")
 
   // ── Coach payroll ──
   cancelledClasses                 CoachClass[]               @relation("ClassCancelledBy")
@@ -543,15 +548,16 @@ model Batch {
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  coaches       BatchCoach[]
-  students      BatchStudent[]
-  classes       CoachClass[]
-  liveSessions  LiveSession[]
-  assignments   AssignmentBatch[]
-  schedules     BatchClassSchedule[]
-  announcements Announcement[]       @relation("BatchAnnouncements")
-  plans         Plan[]               @relation("PlanBatch")
-  entitlements  Entitlement[]        @relation("EntitlementBatch")
+  coaches             BatchCoach[]
+  students            BatchStudent[]
+  classes             CoachClass[]
+  liveSessions        LiveSession[]
+  assignments         AssignmentBatch[]
+  schedules           BatchClassSchedule[]
+  announcements       Announcement[]       @relation("BatchAnnouncements")
+  plans               Plan[]               @relation("PlanBatch")
+  entitlements        Entitlement[]        @relation("EntitlementBatch")
+  classChangeRequests ClassChangeRequest[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -697,8 +703,9 @@ model CoachClass {
   recordingWatchProgresses RecordingWatchProgress[]
   puzzleAssignments        LiveClassPuzzleAssignment[]
   demoRegistrations        DemoClassRegistration[]
-  assignedLeads            Lead[]                       @relation("LeadAssignedClass")
-  feedbackResponses        FeedbackResponse[]           @relation("FeedbackResponseClass")
+  assignedLeads            Lead[]                      @relation("LeadAssignedClass")
+  feedbackResponses        FeedbackResponse[]          @relation("FeedbackResponseClass")
+  changeRequests           ClassChangeRequest[]
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@index([batchId])
@@ -723,9 +730,9 @@ enum DemoRegistrationContactMethod {
 /// connects to the LiveKit room (the class is live); a registration with a null
 /// `joinedAt` means they signed up ahead of the class starting.
 model DemoClassRegistration {
-  id            String                         @id @default(cuid())
+  id            String                        @id @default(cuid())
   classId       String
-  class         CoachClass                     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class         CoachClass                    @relation(fields: [classId], references: [id], onDelete: Cascade)
   name          String
   contactMethod DemoRegistrationContactMethod
   /// Normalized (digits-only phone, or lowercased email) — the dedupe key.
@@ -733,7 +740,7 @@ model DemoClassRegistration {
   phoneNumber   String?
   email         String?
   joinedAt      DateTime?
-  createdAt     DateTime                       @default(now())
+  createdAt     DateTime                      @default(now())
 
   @@unique([classId, contactMethod, contactValue])
   @@index([classId])
@@ -807,7 +814,7 @@ model Lead {
   experienceLevel String
   phone           String
 
-  status LeadStatus @default(NEW)
+  status   LeadStatus @default(NEW)
   /// First-touch attribution, derived from the linked `VisitorSession` at
   /// creation time (utmSource, else referrer, else "Organic").
   source   String?
@@ -817,14 +824,14 @@ model Lead {
   convertedAt    DateTime?
 
   visitorSessionId String?
-  visitorSession    VisitorSession? @relation(fields: [visitorSessionId], references: [id], onDelete: SetNull)
+  visitorSession   VisitorSession? @relation(fields: [visitorSessionId], references: [id], onDelete: SetNull)
 
   /// The demo class slot this lead has been booked into, if any (admin
   /// action — see LeadService.assignDemoClass). Mirrored into a real
   /// `DemoClassRegistration` on that class so attendance/join flow works the
   /// same as a self-registered guest.
   assignedClassId String?
-  assignedClass    CoachClass? @relation("LeadAssignedClass", fields: [assignedClassId], references: [id], onDelete: SetNull)
+  assignedClass   CoachClass? @relation("LeadAssignedClass", fields: [assignedClassId], references: [id], onDelete: SetNull)
 
   activities LeadActivity[]
   notes      LeadNote[]
@@ -1391,6 +1398,40 @@ model UserChessAppearancePreference {
   updatedAt DateTime @updatedAt
 
   @@map("user_chess_appearance_preferences")
+}
+
+/// Platform-wide font + text size default (singleton, lazily created). Not
+/// soft-deletable (cosmetic, like ChessAppearanceSettings).
+model TypographySettings {
+  id String @id @default(cuid())
+
+  /// Partial TypographyOverride JSON (validated by @nexa-chess/types).
+  /// Empty object means "untouched" — the system default (Outfit + Nunito Sans) applies.
+  settings Json @default("{}")
+
+  /// When true, the user layer is skipped and nobody may save a personal font preference.
+  locked Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("typography_settings")
+}
+
+/// One user's personal font / text size preference. Row absence means "use
+/// the admin/system default".
+model UserTypographyPreference {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation("UserTypographyPreference", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Partial TypographyOverride JSON (validated by @nexa-chess/types).
+  settings Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_typography_preferences")
 }
 
 //
@@ -3682,4 +3723,97 @@ model FeedbackAnswer {
   @@index([responseId])
   @@index([questionId])
   @@map("feedback_answers")
+}
+
+// ──────────────────────────────────────────────
+// COACH CLASS-CHANGE REQUESTS
+// ──────────────────────────────────────────────
+
+enum ClassRequestType {
+  EXTRA_CLASS
+  RESCHEDULE
+}
+
+enum ClassRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+/// A coach asking for an extra class or to move a scheduled one. Coaches never
+/// create or move classes themselves — an admin approving this does. Not
+/// soft-deletable; a decided request is history. A partial unique index (hand
+/// written in the migration) allows one PENDING reschedule per class.
+model ClassChangeRequest {
+  id     String             @id @default(cuid())
+  type   ClassRequestType
+  status ClassRequestStatus @default(PENDING)
+
+  coachId String
+  coach   User        @relation("ClassChangeRequestCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  batchId String
+  batch   Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  /// RESCHEDULE: the class to move. EXTRA_CLASS: the class created on approval.
+  classId String?
+  class   CoachClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  startsAt         DateTime
+  endsAt           DateTime
+  /// RESCHEDULE: the class's time when asked, so the admin sees from → to.
+  originalStartsAt DateTime?
+  originalEndsAt   DateTime?
+  topic            String?
+  reason           String?
+
+  reviewedById String?
+  reviewedBy   User?     @relation("ClassChangeRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([coachId])
+  @@index([classId])
+  @@map("class_change_requests")
+}
+
+// ──────────────────────────────────────────────
+// STUDENT PROGRESS (puzzle rating + practice streak)
+// ──────────────────────────────────────────────
+
+/// One row per student, created on their first rated puzzle or practice day.
+model StudentProgress {
+  studentId     String    @id
+  student       User      @relation("StudentProgress", fields: [studentId], references: [id], onDelete: Cascade)
+  puzzleRating  Int       @default(1200)
+  peakRating    Int       @default(1200)
+  ratedPuzzles  Int       @default(0)
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  /// Local calendar day (student's timezone) of the last practice.
+  lastActiveDay DateTime? @db.Date
+  updatedAt     DateTime  @updatedAt
+
+  @@map("student_progress")
+}
+
+/// One rated puzzle result. Unique per (student, puzzle): only the first
+/// finished attempt at a puzzle is rated, and a replayed submit can't rate twice.
+model PuzzleRatingChange {
+  id           String   @id @default(cuid())
+  studentId    String
+  student      User     @relation("StudentPuzzleRatingChanges", fields: [studentId], references: [id], onDelete: Cascade)
+  puzzleId     String
+  attemptId    String   @unique
+  puzzleRating Int
+  before       Int
+  after        Int
+  createdAt    DateTime @default(now())
+
+  @@unique([studentId, puzzleId])
+  @@index([studentId, createdAt])
+  @@map("puzzle_rating_changes")
 }

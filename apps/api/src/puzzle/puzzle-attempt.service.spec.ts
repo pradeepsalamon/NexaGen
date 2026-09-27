@@ -6,6 +6,7 @@ import { PuzzleStatus, PuzzleVisibility, UserRole, UserStatus } from "@prisma/cl
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { AssignmentEvaluationService } from "../assignment/assignment-evaluation.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { StockfishService } from "../stockfish/stockfish.service";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
 
@@ -103,6 +104,7 @@ describe("PuzzleAttemptService", () => {
         { provide: JwtService, useValue: { verifyAsync: jest.fn().mockResolvedValue({ sub: STUDENT_ID, type: "access" }) } },
         { provide: PrismaService, useValue: prisma },
         { provide: AnalyticsEventService, useValue: { record: jest.fn() } },
+        { provide: ProgressRecorderService, useValue: { recordPuzzleResult: jest.fn() } },
         {
           provide: AssignmentEvaluationService,
           useValue: new AssignmentEvaluationService({

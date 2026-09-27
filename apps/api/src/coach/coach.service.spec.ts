@@ -1,10 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ConflictException } from "@nestjs/common";
+import { ConflictException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { CoachService } from "./coach.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { LiveClassSettingsService } from "../live-class/live-class-settings.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -14,18 +13,8 @@ describe("CoachService class scheduling", () => {
   let service: CoachService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
-  let batchFindUnique: jest.Mock;
-  let coachClassFindFirst: jest.Mock;
   let coachClassFindUnique: jest.Mock;
-  let coachClassCreate: jest.Mock;
   let coachClassUpdate: jest.Mock;
-
-  const futureClass = (overrides: Partial<{ startsAt: string; endsAt: string }> = {}) => ({
-    batchId: "batch-1",
-    topic: "Endgames",
-    startsAt: overrides.startsAt ?? new Date(Date.now() + 60 * 60_000).toISOString(),
-    endsAt: overrides.endsAt ?? new Date(Date.now() + 2 * 60 * 60_000).toISOString()
-  });
 
   beforeEach(async () => {
     jwtService = { verifyAsync: jest.fn() };
@@ -34,20 +23,7 @@ describe("CoachService class scheduling", () => {
       role: UserRole.COACH,
       status: UserStatus.ACTIVE
     });
-    batchFindUnique = jest.fn().mockResolvedValue({
-      id: "batch-1",
-      isDeleted: false,
-      coaches: [{ coachId: COACH_ID }]
-    });
-    coachClassFindFirst = jest.fn().mockResolvedValue(null); // no scheduling conflicts
     coachClassFindUnique = jest.fn();
-    coachClassCreate = jest.fn().mockImplementation(({ data }) => ({
-      ...data,
-      id: "class-1",
-      createdAt: new Date(),
-      batch: { name: "Batch A", students: [] },
-      liveSession: null
-    }));
     coachClassUpdate = jest.fn().mockImplementation(({ data }) => ({
       id: "class-1",
       batchId: "batch-1",
@@ -80,12 +56,9 @@ describe("CoachService class scheduling", () => {
         {
           provide: PrismaService,
           useValue: {
-            batch: { findUnique: batchFindUnique },
             batchStudent: { findMany: jest.fn() },
             coachClass: {
               count: jest.fn(),
-              create: coachClassCreate,
-              findFirst: coachClassFindFirst,
               findMany: jest.fn(),
               findUnique: coachClassFindUnique,
               update: coachClassUpdate
@@ -93,53 +66,14 @@ describe("CoachService class scheduling", () => {
             user: { findUnique: userFindUnique }
           }
         },
-        { provide: JwtService, useValue: jwtService },
-        {
-          provide: LiveClassSettingsService,
-          useValue: { presetOverrideById: jest.fn().mockResolvedValue({}) }
-        }
+        { provide: JwtService, useValue: jwtService }
       ]
     }).compile();
 
     service = module.get<CoachService>(CoachService);
   });
 
-  describe("createClass (H17)", () => {
-    it("rejects a start time in the past", async () => {
-      await expect(
-        service.createClass(
-          ACCESS_TOKEN,
-          futureClass({
-            startsAt: new Date(Date.now() - 60_000).toISOString(),
-            endsAt: new Date(Date.now() + 60_000).toISOString()
-          })
-        )
-      ).rejects.toBeInstanceOf(ConflictException);
-
-      expect(coachClassCreate).not.toHaveBeenCalled();
-    });
-
-    it("rejects a class that overlaps an existing one", async () => {
-      coachClassFindFirst.mockResolvedValueOnce({
-        topic: "Existing",
-        startsAt: new Date(Date.now() + 30 * 60_000),
-        endsAt: new Date(Date.now() + 90 * 60_000)
-      });
-
-      await expect(service.createClass(ACCESS_TOKEN, futureClass())).rejects.toBeInstanceOf(
-        ConflictException
-      );
-
-      expect(coachClassCreate).not.toHaveBeenCalled();
-    });
-
-    it("creates the class when the time is free and in the future", async () => {
-      await expect(service.createClass(ACCESS_TOKEN, futureClass())).resolves.toBeDefined();
-      expect(coachClassCreate).toHaveBeenCalled();
-    });
-  });
-
-  describe("updateClass (H17 + H18)", () => {
+  describe("updateClass (notes only)", () => {
     const scheduledClass = {
       id: "class-1",
       coachId: COACH_ID,
@@ -148,58 +82,48 @@ describe("CoachService class scheduling", () => {
       endsAt: new Date(Date.now() + 2 * 60 * 60_000)
     };
 
-    it("rejects editing a COMPLETED class", async () => {
-      coachClassFindUnique.mockResolvedValue({ ...scheduledClass, status: ClassStatus.COMPLETED });
+    it("rejects editing a CANCELLED class", async () => {
+      coachClassFindUnique.mockResolvedValue({ ...scheduledClass, status: ClassStatus.CANCELLED });
 
       await expect(
-        service.updateClass(ACCESS_TOKEN, "class-1", { topic: "New topic" })
+        service.updateClass(ACCESS_TOKEN, "class-1", { notes: "Recap" })
       ).rejects.toBeInstanceOf(ConflictException);
 
       expect(coachClassUpdate).not.toHaveBeenCalled();
     });
 
-    it("rejects editing a LIVE class", async () => {
-      coachClassFindUnique.mockResolvedValue({ ...scheduledClass, status: ClassStatus.LIVE });
+    it("lets a coach add notes after the class has run", async () => {
+      coachClassFindUnique.mockResolvedValue({ ...scheduledClass, status: ClassStatus.COMPLETED });
 
       await expect(
-        service.updateClass(ACCESS_TOKEN, "class-1", { topic: "New topic" })
-      ).rejects.toBeInstanceOf(ConflictException);
-    });
-
-    it("rejects rescheduling into the past", async () => {
-      coachClassFindUnique.mockResolvedValue(scheduledClass);
-
-      await expect(
-        service.updateClass(ACCESS_TOKEN, "class-1", {
-          startsAt: new Date(Date.now() - 60_000).toISOString()
-        })
-      ).rejects.toBeInstanceOf(ConflictException);
-    });
-
-    it("rejects rescheduling onto another class", async () => {
-      coachClassFindUnique.mockResolvedValue(scheduledClass);
-      coachClassFindFirst.mockResolvedValueOnce({
-        topic: "Existing",
-        startsAt: new Date(Date.now() + 60 * 60_000),
-        endsAt: new Date(Date.now() + 3 * 60 * 60_000)
-      });
-
-      await expect(
-        service.updateClass(ACCESS_TOKEN, "class-1", {
-          startsAt: new Date(Date.now() + 90 * 60_000).toISOString(),
-          endsAt: new Date(Date.now() + 150 * 60_000).toISOString()
-        })
-      ).rejects.toBeInstanceOf(ConflictException);
-    });
-
-    it("allows editing a SCHEDULED class with a free new time", async () => {
-      coachClassFindUnique.mockResolvedValue(scheduledClass);
-
-      await expect(
-        service.updateClass(ACCESS_TOKEN, "class-1", { topic: "New topic" })
+        service.updateClass(ACCESS_TOKEN, "class-1", { notes: "Recap", homework: "Ex. 4" })
       ).resolves.toBeDefined();
 
       expect(coachClassUpdate).toHaveBeenCalled();
+    });
+
+    it("never writes the schedule, batch or settings", async () => {
+      coachClassFindUnique.mockResolvedValue(scheduledClass);
+
+      await service.updateClass(ACCESS_TOKEN, "class-1", {
+        title: "Rook endings",
+        startsAt: new Date().toISOString(),
+        batchId: "other"
+      } as never);
+
+      const { data } = coachClassUpdate.mock.calls[0][0];
+      expect(Object.keys(data).sort()).toEqual(
+        ["description", "homework", "notes", "objectives", "title", "topic"]
+      );
+      expect(data.title).toBe("Rook endings");
+    });
+
+    it("rejects a class owned by another coach", async () => {
+      coachClassFindUnique.mockResolvedValue({ ...scheduledClass, coachId: "someone-else" });
+
+      await expect(
+        service.updateClass(ACCESS_TOKEN, "class-1", { notes: "x" })
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

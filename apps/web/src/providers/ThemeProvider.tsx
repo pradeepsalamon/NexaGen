@@ -9,121 +9,59 @@ import {
   useMemo,
   useState
 } from "react";
-import {
-  DEFAULT_THEME_COLORS,
-  hexToRgbChannels,
-  type CustomThemeColors,
-  type ThemeMode
-} from "../constants/theme";
+import type { ThemeMode } from "../constants/theme";
 
 type ThemeContextValue = {
-  colors: CustomThemeColors;
   isHydrated: boolean;
   mode: ThemeMode;
-  resetColors: () => void;
-  setColor: (name: keyof CustomThemeColors, value: string) => void;
   toggleMode: () => void;
-};
-
-type StoredTheme = {
-  colors?: Partial<CustomThemeColors>;
-  mode?: ThemeMode;
 };
 
 const STORAGE_KEY = "nexa-chess-theme";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const defaultColors = {
-  primary: DEFAULT_THEME_COLORS.primary,
-  secondary: DEFAULT_THEME_COLORS.secondary,
-  accent: DEFAULT_THEME_COLORS.accent
-};
-
-function getStoredTheme(): {
-  colors: CustomThemeColors;
-  mode: ThemeMode;
-} {
-  if (typeof window === "undefined") {
-    return {
-      colors: defaultColors,
-      mode: "light"
-    };
-  }
-
-  const savedTheme = window.localStorage.getItem(STORAGE_KEY);
-
-  if (!savedTheme) {
-    return {
-      colors: defaultColors,
-      mode: "light"
-    };
-  }
-
+// Colours come only from globals.css; older saves may still carry a `colors` key, which is ignored.
+function getStoredMode(): ThemeMode {
   try {
-    const parsed = JSON.parse(savedTheme) as StoredTheme;
-
-    return {
-      colors: {
-        primary: parsed.colors?.primary ?? DEFAULT_THEME_COLORS.primary,
-        secondary: parsed.colors?.secondary ?? DEFAULT_THEME_COLORS.secondary,
-        accent: parsed.colors?.accent ?? DEFAULT_THEME_COLORS.accent
-      },
-      mode: parsed.mode === "dark" ? "dark" : "light"
+    const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "{}") as {
+      mode?: ThemeMode;
     };
+    return parsed.mode === "dark" ? "dark" : "light";
   } catch {
-    return {
-      colors: defaultColors,
-      mode: "light"
-    };
+    return "light";
   }
 }
 
-function applyTheme(mode: ThemeMode, colors: CustomThemeColors) {
-  const root = document.documentElement;
-  root.dataset.theme = mode;
-
-  (Object.keys(colors) as (keyof CustomThemeColors)[]).forEach((name) => {
-    const channels = hexToRgbChannels(colors[name]);
-
-    // --color-<name> is derived from --rgb-<name>, so only the channels are set.
-    if (channels) {
-      root.style.setProperty(`--rgb-${name}`, channels);
-    } else {
-      root.style.setProperty(`--color-${name}`, colors[name]);
-    }
-  });
+function applyMode(mode: ThemeMode) {
+  document.documentElement.dataset.theme = mode;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [mode, setMode] = useState<ThemeMode>("light");
-  const [colors, setColors] = useState<CustomThemeColors>(defaultColors);
 
   useEffect(() => {
-    const storedTheme = getStoredTheme();
-
-    setMode(storedTheme.mode);
-    setColors(storedTheme.colors);
-    applyTheme(storedTheme.mode, storedTheme.colors);
+    const storedMode = getStoredMode();
+    setMode(storedMode);
+    applyMode(storedMode);
     setIsHydrated(true);
   }, []);
 
   useEffect(() => {
-    function syncStoredTheme(event: StorageEvent) {
+    function syncStoredMode(event: StorageEvent) {
       if (event.key !== STORAGE_KEY && event.key !== null) {
         return;
       }
 
-      const storedTheme = getStoredTheme();
-      setMode(storedTheme.mode);
-      setColors(storedTheme.colors);
-      applyTheme(storedTheme.mode, storedTheme.colors);
+      const storedMode = getStoredMode();
+      setMode(storedMode);
+      applyMode(storedMode);
     }
 
-    window.addEventListener("storage", syncStoredTheme);
+    window.addEventListener("storage", syncStoredMode);
 
     return () => {
-      window.removeEventListener("storage", syncStoredTheme);
+      window.removeEventListener("storage", syncStoredMode);
     };
   }, []);
 
@@ -132,37 +70,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    applyTheme(mode, colors);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ colors, mode }));
-  }, [colors, isHydrated, mode]);
-
-  const resetColors = useCallback(() => {
-    setColors({
-      primary: DEFAULT_THEME_COLORS.primary,
-      secondary: DEFAULT_THEME_COLORS.secondary,
-      accent: DEFAULT_THEME_COLORS.accent
-    });
-  }, []);
-
-  const setColor = useCallback(
-    (name: keyof CustomThemeColors, value: string) => {
-      setColors((currentColors) => ({ ...currentColors, [name]: value }));
-    },
-    []
-  );
+    applyMode(mode);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode }));
+    } catch {
+      /* storage unavailable */
+    }
+  }, [isHydrated, mode]);
 
   const toggleMode = useCallback(() => {
     setMode((currentMode) => (currentMode === "light" ? "dark" : "light"));
   }, []);
 
-  const value = useMemo(
-    () => ({ colors, isHydrated, mode, resetColors, setColor, toggleMode }),
-    [colors, isHydrated, mode, resetColors, setColor, toggleMode]
-  );
+  const value = useMemo(() => ({ isHydrated, mode, toggleMode }), [isHydrated, mode, toggleMode]);
 
-  return (
-    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

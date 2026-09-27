@@ -19,6 +19,7 @@ import {
   Circle,
   PictureInPicture2,
   Puzzle as PuzzleIcon,
+  SmilePlus,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -29,6 +30,7 @@ import {
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
 import { MoreControlsMenu, type MoreControlItem } from "./MoreControlsMenu";
+import { ReactionPicker } from "./ReactionPicker";
 import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
@@ -191,16 +193,17 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
 
   const moreItems: MoreControlItem[] = [
     {
+      icon: <Users className="size-5" />,
+      label: `Participants (${participantCount})`,
+      onClick: () => toggleSidebar("participants"),
+      active: activeSidebar === "participants",
+      mobileOnly: true,
+    },
+    {
       icon: <Hand className={cn("size-5", handRaised && "text-amber-500")} />,
       label: handRaised ? "Lower hand" : "Raise hand",
       onClick: toggleHandRaised,
       active: handRaised,
-    },
-    {
-      icon: <PuzzleIcon className={cn("size-5", activePuzzle && "text-primary")} />,
-      label: "Puzzle",
-      onClick: () => toggleSidebar("puzzle"),
-      active: activeSidebar === "puzzle",
     },
     {
       icon: <Settings className="size-5" />,
@@ -227,7 +230,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   }
 
   if (isCoach) {
-    moreItems.splice(1, 0, {
+    moreItems.splice(2, 0, {
       icon: (
         <Circle className={cn("size-5", isRecording && "fill-app-danger text-app-danger")} />
       ),
@@ -328,13 +331,27 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
           onClick={() => toggleSidebar("chat")}
         />
 
+        <div className="hidden sm:block">
+          <MeetingControlButton
+            icon={<Users className="size-5" />}
+            label="Participants"
+            badge={participantCount}
+            variant={activeSidebar === "participants" ? "active" : "default"}
+            onClick={() => toggleSidebar("participants")}
+          />
+        </div>
+
         <MeetingControlButton
-          icon={<Users className="size-5" />}
-          label="Participants"
-          badge={participantCount}
-          variant={activeSidebar === "participants" ? "active" : "default"}
-          onClick={() => toggleSidebar("participants")}
+          icon={<PuzzleIcon className={cn("size-5", activePuzzle && activeSidebar !== "puzzle" && "text-primary")} />}
+          label={activeSidebar === "puzzle" ? "Close puzzles" : "Puzzles"}
+          badge={activePuzzle && activeSidebar !== "puzzle" ? 1 : 0}
+          variant={activeSidebar === "puzzle" ? "active" : "default"}
+          onClick={() => toggleSidebar("puzzle")}
         />
+
+        <ReactionPicker>
+          <MeetingControlButton icon={<SmilePlus className="size-5" />} label="Reactions" />
+        </ReactionPicker>
 
         <MoreControlsMenu items={moreItems} />
 

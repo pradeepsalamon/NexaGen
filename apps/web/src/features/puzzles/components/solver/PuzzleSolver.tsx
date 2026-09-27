@@ -133,7 +133,7 @@ export function PuzzleSolver({
     <div className="grid gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
       <div>
         <PracticeBoard
-          key={`${moves.length}-${resetNonce}`}
+          resetKey={`${moves.length}-${resetNonce}`}
           fen={currentFen}
           orientation={boardOrientation}
           playerColor={studentColor}

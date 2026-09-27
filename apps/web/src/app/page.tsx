@@ -73,7 +73,7 @@ export default function Home() {
 
         <aside className="rounded-panel border border-app-border bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_18%,var(--color-surface)),color-mix(in_srgb,var(--color-accent)_22%,var(--color-surface)))] p-5 shadow-soft">
           <div className="rounded-app border border-app-border bg-app-surface/90 p-5">
-            <Logo stacked />
+            <Logo size={80} stacked />
             <div className="mt-8 grid gap-4">
               <div className="flex items-center justify-between rounded-app bg-app-soft p-4">
                 <span className="text-sm font-bold text-app-muted">

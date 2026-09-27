@@ -3,6 +3,7 @@ import { JwtModule } from "@nestjs/jwt";
 import { AnalyticsEventModule } from "../analytics/analytics-event.module";
 import { NotificationModule } from "../notification/notification.module";
 import { PrismaModule } from "../prisma/prisma.module";
+import { ProgressModule } from "../progress/progress.module";
 import { StockfishModule } from "../stockfish/stockfish.module";
 import { UploadModule } from "../upload/upload.module";
 import { AssignmentAttemptService } from "./assignment-attempt.service";
@@ -19,6 +20,7 @@ import { MessagingModule } from "../messaging/messaging.module";
     MessagingModule,
     NotificationModule,
     PrismaModule,
+    ProgressModule,
     StockfishModule,
     UploadModule
   ],

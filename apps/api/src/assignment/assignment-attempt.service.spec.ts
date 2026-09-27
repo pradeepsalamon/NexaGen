@@ -7,6 +7,7 @@ import { AssignmentEvaluationService } from "./assignment-evaluation.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { StockfishService } from "../stockfish/stockfish.service";
 
 const TOKEN = "t";
@@ -125,7 +126,8 @@ describe("AssignmentAttemptService", () => {
       prisma as unknown as PrismaService,
       evaluation,
       messaging as unknown as MessagingDispatchService,
-      analyticsEvents as unknown as AnalyticsEventService
+      analyticsEvents as unknown as AnalyticsEventService,
+      { recordPractice: jest.fn() } as unknown as ProgressRecorderService
     );
   });
 

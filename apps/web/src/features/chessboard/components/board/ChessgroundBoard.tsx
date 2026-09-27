@@ -37,8 +37,9 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     chess, fen, turn, orientation, moveHistory, historyIndex,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
-    isDetached
+    isDetached, localFlip
   } = useBoardStore();
+  const viewOrientation = localFlip ? (orientation === "white" ? "black" : "white") : orientation;
 
   // Squares of the last played move, for the last-move highlight — derived
   // from move history rather than tracked separately.
@@ -181,7 +182,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     const config: Config = {
       fen,
       turnColor: turn,
-      orientation,
+      orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
       check: chess.inCheck(),
@@ -293,7 +294,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     cg.set({
       fen,
       turnColor: turn,
-      orientation,
+      orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
       check: chess.inCheck(),
@@ -312,7 +313,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       }
     });
   }, [
-    cg, fen, turn, orientation, showCoordinates, animationEnabled, highlightSettings, chess,
+    cg, fen, turn, viewOrientation, showCoordinates, animationEnabled, highlightSettings, chess,
     lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, isCoach, readOnly
   ]);
   

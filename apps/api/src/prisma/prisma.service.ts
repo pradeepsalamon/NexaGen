@@ -361,6 +361,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.userChessAppearancePreference;
   }
 
+  get typographySettings() {
+    return this.client.typographySettings;
+  }
+
+  get userTypographyPreference() {
+    return this.client.userTypographyPreference;
+  }
+
   get visitorSession() {
     return this.client.visitorSession;
   }
@@ -371,6 +379,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get feedbackForm() {
     return this.client.feedbackForm;
+  }
+
+  get classChangeRequest() {
+    return this.client.classChangeRequest;
+  }
+
+  get studentProgress() {
+    return this.client.studentProgress;
+  }
+
+  get puzzleRatingChange() {
+    return this.client.puzzleRatingChange;
   }
 
   get feedbackResponse() {

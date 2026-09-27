@@ -20,6 +20,7 @@ export * from "./live-class-settings";
 export * from "./live-class-moderation";
 export * from "./live-class-screen-share";
 export * from "./chess-appearance";
+export * from "./typography";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -773,37 +774,19 @@ export type CoachStudentsResponse = {
   students: CoachStudent[];
 };
 
-const classDateRefinement = (value: { startsAt: string; endsAt: string }) => {
-  return new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime();
-};
-const classDateRefinementOptions = { message: "End time must be after start time.", path: ["endsAt"] };
-
-const createClassRequestBaseSchema = z.object({
-  batchId: z.string().min(1, "Batch is required."),
+/**
+ * A coach annotates a class the academy scheduled (admin or a batch's
+ * recurring schedule) — before or after it runs. They never create,
+ * reschedule or move one between batches.
+ */
+export const updateClassRequestSchema = z.object({
   title: z.string().max(120).optional(),
-  topic: z.string().min(1, "Topic is required.").max(120),
+  topic: z.string().min(1, "Topic is required.").max(120).optional(),
   description: z.string().max(2000).optional(),
   objectives: z.string().max(2000).optional(),
   homework: z.string().max(2000).optional(),
-  notes: z.string().max(2000).optional(),
-  startsAt: z.string(),
-  endsAt: z.string(),
-  // Pre-class configuration (partial override on top of batch/system defaults).
-  // `presetId` is resolved server-side into `liveClassSettings` at create time.
-  liveClassSettings: liveClassSettingsOverrideSchema.optional(),
-  presetId: z.string().optional()
+  notes: z.string().max(2000).optional()
 });
-
-export const createClassRequestSchema = createClassRequestBaseSchema.refine(classDateRefinement, classDateRefinementOptions);
-
-export type CreateClassRequest = z.infer<typeof createClassRequestSchema>;
-
-export const updateClassRequestSchema = createClassRequestBaseSchema.partial().refine((val) => {
-  if (val.startsAt && val.endsAt) {
-    return classDateRefinement({ startsAt: val.startsAt, endsAt: val.endsAt });
-  }
-  return true;
-}, classDateRefinementOptions);
 
 export type UpdateClassRequest = z.infer<typeof updateClassRequestSchema>;
 
@@ -2173,3 +2156,13 @@ export * from "./leads";
 // them, and the per-coach rating roll-up.
 // ──────────────────────────────────────────────
 export * from "./feedback";
+
+// ──────────────────────────────────────────────
+// Coach class-change requests (extra class / reschedule → admin approval).
+// ──────────────────────────────────────────────
+export * from "./class-requests";
+
+// ──────────────────────────────────────────────
+// Student progress: puzzle rating + practice streak.
+// ──────────────────────────────────────────────
+export * from "./progress";

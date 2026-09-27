@@ -2,14 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  SidebarContainer,
-  SidebarLink,
-  SidebarToggle
-} from "@/components/layout/Sidebar";
+import { NavDrawer, NavDrawerLink } from "@/components/layout/Sidebar";
 import { RatingCard } from "@/components/layout/RatingCard";
 import { studentNavItems, type NavBadge, type NavItem } from "@/components/layout/navItems";
-import { useSidebarCollapse } from "@/components/layout/useSidebarCollapse";
 import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatRelativeDay } from "@/lib/datetime";
@@ -105,7 +100,6 @@ function ProfileCard() {
 
 export function StudentSidebar() {
   const pathname = usePathname();
-  const { collapse, collapsed, toggle } = useSidebarCollapse();
   const badges = useStudentNavBadges();
   const { data } = useStudentDashboard();
 
@@ -115,27 +109,19 @@ export function StudentSidebar() {
   }));
 
   return (
-    <SidebarContainer
-      collapsed={collapsed}
+    <NavDrawer
       footer={
         <>
           <RatingCard rating={data?.chessRating} />
           <ProfileCard />
         </>
       }
-      onDismiss={collapse}
+      subtitle="Student"
+      title="Nexa Chess"
     >
-      <SidebarToggle collapsed={collapsed} onToggle={toggle} />
-      <div className="space-y-1">
-        {items.map((item) => (
-          <SidebarLink
-            active={pathname === item.href}
-            collapsed={collapsed}
-            item={item}
-            key={item.href}
-          />
-        ))}
-      </div>
-    </SidebarContainer>
+      {items.map((item) => (
+        <NavDrawerLink active={pathname === item.href} item={item} key={item.href} />
+      ))}
+    </NavDrawer>
   );
 }

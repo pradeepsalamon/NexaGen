@@ -3,24 +3,26 @@
 @tailwind utilities;
 
 :root {
-  /* Brand palette: the only four hues in the product. Channel triplets are the
-     source of truth so Tailwind alpha modifiers (bg-primary/10) resolve;
-     --color-* mirrors them for color-mix() and getComputedStyle consumers. */
-  --rgb-primary: 66 120 206;
-  --rgb-secondary: 255 204 0;
-  --rgb-accent: 152 217 182;
-  --rgb-warm: 255 182 145;
-  --rgb-background: 246 248 252;
+  /* "Royal Ink" palette — one deep brand hue that also tints text, borders and
+     surfaces, plus three role hues. Channel triplets are the source of truth so
+     Tailwind alpha modifiers (bg-primary/10) resolve; --color-* mirrors them for
+     color-mix() and getComputedStyle consumers. Nothing overrides these at
+     runtime — ThemeProvider only switches light/dark. */
+  --rgb-primary: 36 71 160;
+  --rgb-secondary: 244 182 63;
+  --rgb-accent: 31 157 120;
+  --rgb-warm: 124 92 214;
+  --rgb-background: 246 247 252;
   --rgb-surface: 255 255 255;
-  --rgb-surface-soft: 238 244 251;
-  --rgb-text: 16 24 40;
-  --rgb-text-muted: 102 112 133;
-  --rgb-border: 216 224 235;
-  --rgb-danger: 217 45 32;
+  --rgb-surface-soft: 238 241 250;
+  --rgb-text: 23 32 73;
+  --rgb-text-muted: 94 103 132;
+  --rgb-border: 221 225 240;
+  --rgb-danger: 207 46 46;
 
   /* Fixed semantic status hues — distinct from the four brand hues above, so
      a badge's meaning (success/warning/info) never overloads a brand color's
-     own meaning (e.g. secondary yellow already means "attention/practice"). */
+     own meaning (e.g. secondary saffron already means "attention/practice"). */
   --rgb-success: 22 163 74;
   --rgb-warning: 217 119 6;
   --rgb-info: 37 99 235;
@@ -41,52 +43,62 @@
   --color-info: rgb(var(--rgb-info));
 
   /* Readable text/icon weight of each hue against a light surface. */
-  --color-primary-ink: color-mix(in srgb, var(--color-primary) 82%, #04122b);
+  --color-primary-ink: color-mix(in srgb, var(--color-primary) 85%, #0b1640);
   --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 40%, #3d2a00);
-  --color-accent-ink: color-mix(in srgb, var(--color-accent) 40%, #05402a);
-  --color-warm-ink: color-mix(in srgb, var(--color-warm) 45%, #5a2410);
+  --color-accent-ink: color-mix(in srgb, var(--color-accent) 70%, #05402a);
+  --color-warm-ink: color-mix(in srgb, var(--color-warm) 80%, #1e0f4a);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 88%, #3d0603);
   --color-success-ink: color-mix(in srgb, var(--color-success) 88%, #052e1d);
   --color-warning-ink: color-mix(in srgb, var(--color-warning) 88%, #3d2a00);
   --color-info-ink: color-mix(in srgb, var(--color-info) 88%, #04122b);
 
   --color-focus: color-mix(in srgb, var(--color-primary) 72%, white);
-  --shadow-soft: 0 24px 80px rgb(var(--rgb-text) / 0.12);
-  --shadow-card: 0 18px 48px rgb(var(--rgb-text) / 0.1);
-  --shadow-lift: 0 22px 56px rgb(var(--rgb-text) / 0.14);
-  --radius-control: 10px;
-  --radius-app: 16px;
+
+  /* Depth is tinted with the brand hue, never neutral black. */
+  --shadow-soft: 0 24px 64px -16px rgb(var(--rgb-primary) / 0.22);
+  --shadow-card: 0 1px 2px rgb(var(--rgb-text) / 0.06), 0 10px 28px -12px rgb(var(--rgb-primary) / 0.18);
+  --shadow-lift: 0 2px 4px rgb(var(--rgb-text) / 0.06), 0 18px 40px -14px rgb(var(--rgb-primary) / 0.28);
+  --radius-control: 12px;
+  --radius-app: 20px;
   --radius-panel: 24px;
-  --font-sans:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+
+  /* Typography. The --font-<id> variables come from next/font (app/fonts.ts);
+     TypographyProvider repoints heading/body and sets the scale from the
+     resolved admin default / user preference, so these are only the fallback. */
+  --font-heading: var(--font-outfit);
+  --font-body: var(--font-nunito-sans);
+  --text-scale: 1;
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-heading), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 :root[data-theme="dark"] {
-  --rgb-background: 0 0 0;
-  --rgb-surface: 10 10 10;
-  --rgb-surface-soft: 20 20 20;
-  --rgb-text: 245 247 251;
-  --rgb-text-muted: 161 161 170;
-  --rgb-border: 56 56 61;
+  /* Ink-navy surfaces instead of pure black, so dark mode stays in the brand family. */
+  --rgb-primary: 91 127 219;
+  --rgb-background: 9 12 26;
+  --rgb-surface: 16 20 40;
+  --rgb-surface-soft: 25 30 56;
+  --rgb-text: 236 239 250;
+  --rgb-text-muted: 150 158 190;
+  --rgb-border: 44 50 84;
   --rgb-danger: 220 38 38;
   --rgb-success: 34 197 94;
   --rgb-warning: 245 158 11;
   --rgb-info: 59 130 246;
 
   /* Inks lighten instead of darken so they stay legible on dark surfaces. */
-  --color-primary-ink: color-mix(in srgb, var(--color-primary) 58%, white);
+  --color-primary-ink: color-mix(in srgb, var(--color-primary) 60%, white);
   --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 82%, white);
-  --color-accent-ink: color-mix(in srgb, var(--color-accent) 80%, white);
-  --color-warm-ink: color-mix(in srgb, var(--color-warm) 82%, white);
+  --color-accent-ink: color-mix(in srgb, var(--color-accent) 60%, white);
+  --color-warm-ink: color-mix(in srgb, var(--color-warm) 60%, white);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 52%, white);
   --color-success-ink: color-mix(in srgb, var(--color-success) 60%, white);
   --color-warning-ink: color-mix(in srgb, var(--color-warning) 60%, white);
   --color-info-ink: color-mix(in srgb, var(--color-info) 60%, white);
 
-  --shadow-soft: 0 24px 90px rgb(0 0 0 / 0.34);
-  --shadow-card: 0 20px 54px rgb(0 0 0 / 0.3);
-  --shadow-lift: 0 24px 64px rgb(0 0 0 / 0.42);
+  --shadow-soft: 0 24px 90px rgb(0 0 0 / 0.45);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.55);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 20px 44px -14px rgb(0 0 0 / 0.65);
 }
 
 @layer base {
@@ -114,13 +126,24 @@
 
   html {
     @apply min-h-full;
+    /* Every rem-based size follows the user's text size choice. */
+    font-size: calc(100% * var(--text-scale));
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
   }
 
   body {
     @apply min-h-full bg-app-background font-sans text-app-text;
     background-image:
       radial-gradient(circle at top left,
-        color-mix(in srgb, var(--color-accent) 18%, transparent),
+        color-mix(in srgb, var(--color-primary) 8%, transparent),
         transparent 30rem),
       linear-gradient(135deg, var(--color-background), var(--color-surface-soft));
   }

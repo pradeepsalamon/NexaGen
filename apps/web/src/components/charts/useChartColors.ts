@@ -18,15 +18,15 @@ export interface ChartColors {
 
 function read(): ChartColors {
   const fallback: ChartColors = {
-    primary: "#4278ce",
-    secondary: "#ffcc00",
-    accent: "#98d9b6",
-    warm: "#ffb691",
+    primary: "#2447a0",
+    secondary: "#f4b63f",
+    accent: "#1f9d78",
+    warm: "#7c5cd6",
     danger: "#d92d20",
-    muted: "#667085",
-    border: "#d8e0eb",
+    muted: "#5e6784",
+    border: "#dde1f0",
     surface: "#ffffff",
-    text: "#101828",
+    text: "#172049",
     categorical: []
   };
   if (typeof window === "undefined") {
@@ -35,7 +35,7 @@ function read(): ChartColors {
       fallback.secondary,
       fallback.accent,
       fallback.warm,
-      "#7c5cff",
+      "#e0685a",
       "#12b5a5"
     ];
     return fallback;
@@ -59,7 +59,7 @@ function read(): ChartColors {
     colors.secondary,
     colors.accent,
     colors.warm,
-    "#7c5cff",
+    "#e0685a",
     "#12b5a5",
     "#f2749b",
     "#8a94a6"

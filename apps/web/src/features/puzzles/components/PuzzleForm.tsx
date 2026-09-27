@@ -313,6 +313,11 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
             setValidation(null);
           }}
           orientation={sideToMove(fen)}
+          onImport={(line) => {
+            setFen(line.startFen);
+            setSolutionMoves(line.moves);
+            setValidation(null);
+          }}
         />
 
         <div className="mt-4 flex flex-wrap items-center gap-2">

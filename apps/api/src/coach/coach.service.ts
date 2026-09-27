@@ -1,6 +1,5 @@
 import {
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException
@@ -13,18 +12,14 @@ import type {
   CoachClassListResponse,
   CoachClassResponse,
   CoachStudentsResponse,
-  CreateClassRequest,
   UpdateClassRequest,
   CoachClass
 } from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
-import { assertNoSchedulingConflict, assertNotInPast } from "./class-scheduling.util";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
-import { LiveClassSettingsService } from "../live-class/live-class-settings.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import type { AccessTokenPayload } from "../auth/types";
-import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 
 type CoachClassWithRelations = Prisma.CoachClassGetPayload<{
   include: {
@@ -46,25 +41,8 @@ export class CoachService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly liveClassSettings: LiveClassSettingsService,
     private readonly messaging: MessagingDispatchService
   ) {}
-
-  /**
-   * Resolve the pre-class settings override to persist on a class from a
-   * create/update payload: an applied preset is copied wholesale (§23),
-   * otherwise the inline override is used verbatim.
-   */
-  private async resolveClassSettingsOverride(
-    userId: string,
-    role: UserRole,
-    payload: { presetId?: string; liveClassSettings?: LiveClassSettingsOverride }
-  ): Promise<LiveClassSettingsOverride | undefined> {
-    if (payload.presetId) {
-      return this.liveClassSettings.presetOverrideById(payload.presetId, { id: userId, role });
-    }
-    return payload.liveClassSettings;
-  }
 
   async getDashboard(accessToken: string | undefined): Promise<CoachDashboardResponse> {
     const coach = await this.getAuthenticatedCoach(accessToken);
@@ -194,52 +172,6 @@ export class CoachService {
     return { classes: classes.map(c => this.toCoachClass(c)) };
   }
 
-  async createClass(
-    accessToken: string | undefined,
-    payload: CreateClassRequest
-  ): Promise<CoachClassResponse> {
-    const coachId = await this.getAuthenticatedCoachId(accessToken);
-    await this.assertCoachInBatch(coachId, payload.batchId);
-
-    const startsAt = new Date(payload.startsAt);
-    const endsAt = new Date(payload.endsAt);
-
-    // AUDIT H17: admin scheduling already enforced both of these; the coach's
-    // own scheduling path did not, so a coach could double-book or schedule
-    // into the past.
-    assertNotInPast(startsAt);
-    await assertNoSchedulingConflict(this.prisma, { coachId, startsAt, endsAt });
-
-    const liveClassSettings = await this.resolveClassSettingsOverride(coachId, UserRole.COACH, payload);
-
-    const cls = await this.prisma.coachClass.create({
-      data: {
-        batchId: payload.batchId,
-        coachId,
-        title: this.toNullableString(payload.title),
-        topic: this.toNullableString(payload.topic),
-        description: this.toNullableString(payload.description),
-        objectives: this.toNullableString(payload.objectives),
-        homework: this.toNullableString(payload.homework),
-        notes: this.toNullableString(payload.notes),
-        startsAt,
-        endsAt,
-        ...(liveClassSettings ? { liveClassSettings: liveClassSettings as object } : {})
-      },
-      include: { 
-        batch: { include: { students: { where: { isDeleted: false } } } },
-        liveSession: true 
-      }
-    });
-
-    this.messaging.dispatchInBackground({
-      event: "CLASS_SCHEDULED",
-      classId: cls.id
-    });
-
-    return { class: this.toCoachClass(cls) };
-  }
-
   async getClassById(accessToken: string | undefined, classId: string): Promise<CoachClassResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
 
@@ -310,53 +242,26 @@ export class CoachService {
       throw new NotFoundException("Class not found.");
     }
 
-    // AUDIT H18: a LIVE/COMPLETED/CANCELLED class must not be editable — most
-    // importantly, rewriting startsAt/endsAt on a COMPLETED class would
-    // retroactively change scheduledDuration and every attendance percentage
-    // computed against it.
-    this.assertClassIsEditable(existing);
-
-    if (payload.batchId) {
-      await this.assertCoachInBatch(coachId, payload.batchId);
+    // Only the class's notes change here, so a finished class stays editable
+    // (post-class notes/homework) — its time, batch and attendance never move.
+    if (existing.status === ClassStatus.CANCELLED) {
+      throw new ConflictException("Cannot edit a cancelled class.");
     }
 
-    const startsAt = payload.startsAt ? new Date(payload.startsAt) : existing.startsAt;
-    const endsAt = payload.endsAt ? new Date(payload.endsAt) : existing.endsAt;
-
-    if (payload.startsAt || payload.endsAt) {
-      // AUDIT H17: mirror createClass's checks so a reschedule can't double-book
-      // the coach or move the class into the past either.
-      if (payload.startsAt) {
-        assertNotInPast(startsAt);
-      }
-      await assertNoSchedulingConflict(this.prisma, {
-        coachId,
-        startsAt,
-        endsAt,
-        excludeClassId: classId
-      });
-    }
-
-    const settingsOverride =
-      payload.presetId || payload.liveClassSettings !== undefined
-        ? await this.resolveClassSettingsOverride(coachId, UserRole.COACH, payload)
-        : undefined;
+    const text = (value: string | undefined) =>
+      value === undefined ? undefined : this.toNullableString(value);
 
     const cls = await this.prisma.coachClass.update({
       where: { id: classId },
       data: {
-        batchId: payload.batchId,
-        title: payload.title === undefined ? undefined : this.toNullableString(payload.title),
-        topic: payload.topic === undefined ? undefined : this.toNullableString(payload.topic),
-        description: payload.description === undefined ? undefined : this.toNullableString(payload.description),
-        objectives: payload.objectives === undefined ? undefined : this.toNullableString(payload.objectives),
-        homework: payload.homework === undefined ? undefined : this.toNullableString(payload.homework),
-        notes: payload.notes === undefined ? undefined : this.toNullableString(payload.notes),
-        startsAt: payload.startsAt ? startsAt : undefined,
-        endsAt: payload.endsAt ? endsAt : undefined,
-        liveClassSettings: settingsOverride === undefined ? undefined : (settingsOverride as object)
+        title: text(payload.title),
+        topic: text(payload.topic),
+        description: text(payload.description),
+        objectives: text(payload.objectives),
+        homework: text(payload.homework),
+        notes: text(payload.notes)
       },
-      include: { 
+      include: {
         batch: { include: { students: { where: { isDeleted: false } } } },
         liveSession: true
       }
@@ -441,34 +346,6 @@ export class CoachService {
     }
 
     return { students: Array.from(studentsMap.values()) };
-  }
-
-  /**
-   * AUDIT H18: a class that is LIVE, COMPLETED, or CANCELLED must not be
-   * editable — e.g. rewriting startsAt/endsAt on a COMPLETED class would
-   * retroactively rewrite every attendance percentage computed against it.
-   */
-  private assertClassIsEditable(cls: { status: ClassStatus }) {
-    if (cls.status !== ClassStatus.SCHEDULED) {
-      throw new ConflictException(
-        `Cannot edit a class that is ${cls.status.toLowerCase()}.`
-      );
-    }
-  }
-
-  private async assertCoachInBatch(coachId: string, batchId: string) {
-    const batch = await this.prisma.batch.findUnique({
-      where: { id: batchId },
-      include: { coaches: { where: { isDeleted: false } } }
-    });
-
-    if (!batch || batch.isDeleted) {
-      throw new NotFoundException("Batch not found.");
-    }
-
-    if (!batch.coaches.some(c => c.coachId === coachId)) {
-      throw new ForbiddenException("You are not assigned to this batch.");
-    }
   }
 
   private async getAuthenticatedCoach(accessToken: string | undefined) {

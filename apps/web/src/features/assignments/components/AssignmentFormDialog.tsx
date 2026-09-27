@@ -435,6 +435,11 @@ export function AssignmentFormDialog({
                       value={field.value}
                       onChange={field.onChange}
                       orientation={form.watch("studentColor")}
+                      onImport={(line) => {
+                        form.setValue("startFen", line.startFen, { shouldDirty: true });
+                        form.setValue("studentColor", line.startFen.includes(" b ") ? "black" : "white");
+                        field.onChange(line.moves);
+                      }}
                     />
                   )}
                 />

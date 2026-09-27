@@ -84,7 +84,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
           <div>
             {session && currentFen ? (
               <PracticeBoard
-                key={`${moves.length}-${resetNonce}`}
+                resetKey={`${moves.length}-${resetNonce}`}
                 fen={currentFen}
                 orientation={session.orientation}
                 playerColor={session.studentColor}

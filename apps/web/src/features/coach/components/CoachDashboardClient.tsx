@@ -92,7 +92,7 @@ export function CoachDashboardClient() {
           <p className="text-app-muted mt-1">Overview of your classes, batches, and students.</p>
         </div>
         <Button asChild>
-          <Link href="/coach/schedule?openModal=true">Schedule Class</Link>
+          <Link href="/coach/schedule">View Schedule</Link>
         </Button>
       </div>
 
@@ -167,10 +167,10 @@ export function CoachDashboardClient() {
             <EmptyState
               icon={Calendar}
               title="No classes today"
-              description="You have no classes scheduled for today. Enjoy your day or schedule a new class."
+              description="You have no classes scheduled for today."
               action={{
-                label: "Schedule Class",
-                onClick: () => router.push("/coach/schedule?openModal=true")
+                label: "View Schedule",
+                onClick: () => router.push("/coach/schedule")
               }}
 
             />

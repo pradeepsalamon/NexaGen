@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   BookOpen,
+  CalendarClock,
   CalendarDays,
   ClipboardList,
   Clock,
@@ -22,6 +23,7 @@ import {
   Target,
   TrendingUp,
   Trash2,
+  Type,
   UserCheck,
   UserPlus,
   UserRoundCheck,
@@ -89,8 +91,8 @@ export const coachNavItems: NavItem[] = [
 ];
 
 export const adminNavItems: NavItem[] = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   // Analytics
-  { href: "/admin", label: "Overview", icon: LayoutDashboard, group: "Analytics" },
   { href: "/admin/analytics/users", label: "Users", icon: Users, group: "Analytics" },
   { href: "/admin/analytics/acquisition", label: "Acquisition", icon: TrendingUp, group: "Analytics" },
   { href: "/admin/analytics/coaches", label: "Coaches", icon: UserRoundCheck, group: "Analytics" },
@@ -104,6 +106,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "Manage" },
   { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Manage" },
   { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Manage" },
+  { href: "/admin/class-requests", label: "Class Requests", icon: CalendarClock, group: "Manage" },
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Manage" },
   { href: "/admin/puzzles", label: "Puzzle Library", icon: Puzzle, group: "Manage" },
   { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Manage" },
@@ -112,6 +115,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/reliability", label: "Live Reliability", icon: Wifi, group: "Manage" },
   { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Manage" },
   { href: "/admin/chess-appearance", label: "Chess Appearance", icon: Palette, group: "Manage" },
+  { href: "/admin/typography", label: "Fonts & Text", icon: Type, group: "Manage" },
   { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "Manage" },
   { href: "/admin/feedback", label: "Coach Feedback", icon: MessageSquareHeart, group: "Manage" },
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Manage" },
@@ -134,6 +138,7 @@ export function getAdminNavItems(role?: string): NavItem[] {
   return adminNavItems.filter((item) => !item.superAdminOnly);
 }
 
+/** `group: ""` holds the top-level direct links; every other group is a sidebar section. */
 export type NavGroup = { group: string; icon?: LucideIcon; items: NavItem[] };
 
 /** Icon shown on each admin sidebar group box. */
