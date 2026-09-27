@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useMediaDeviceSelect } from "@livekit/components-react";
-import { Camera, ChevronDown, Keyboard, Mic, SlidersHorizontal, Volume2 } from "lucide-react";
-import { Select } from "@/components/ui/Select";
+import { ChevronDown, Keyboard, Mic, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { InRoomClassControls } from "../../settings/InRoomClassControls";
+import { MeetingDeviceSettings } from "./MeetingDeviceSettings";
 import { PanelHeader } from "./PanelHeader";
 
 /** One card in the settings panel. Optionally a collapsed disclosure. */
@@ -69,45 +68,6 @@ function PanelSection({
   );
 }
 
-function DeviceSelector({
-  icon,
-  kind,
-  label,
-}: {
-  icon: ReactNode;
-  kind: MediaDeviceKind;
-  label: string;
-}) {
-  const { devices, activeDeviceId, setActiveMediaDevice } = useMediaDeviceSelect({ kind });
-
-  const options = devices.map((device, i) => ({
-    value: device.deviceId,
-    label: device.label || `${label} ${i + 1}`,
-  }));
-
-  return (
-    <div className="min-w-0 space-y-1.5">
-      <label className="flex items-center gap-1.5 text-xs font-semibold text-app-text">
-        <span className="text-app-muted">{icon}</span>
-        {label}
-      </label>
-      {options.length === 0 ? (
-        <p className="rounded-control border border-dashed border-app-border bg-app-soft/50 px-3 py-2 text-xs text-app-muted">
-          No {label.toLowerCase()} found
-        </p>
-      ) : (
-        <Select
-          className="min-h-10 min-w-0 text-sm"
-          options={options}
-          value={activeDeviceId}
-          onChange={(e) => setActiveMediaDevice(e.target.value)}
-          aria-label={`Select ${label.toLowerCase()}`}
-        />
-      )}
-    </div>
-  );
-}
-
 const SHORTCUTS = [
   { key: "M", action: "Toggle microphone" },
   { key: "V", action: "Toggle camera" },
@@ -128,23 +88,7 @@ export function MeetingSettings() {
           title="Your devices"
           description="Only affects you — nobody else in the class sees this change."
         >
-          <div className="space-y-3">
-            <DeviceSelector
-              kind="audioinput"
-              icon={<Mic className="size-3.5" />}
-              label="Microphone"
-            />
-            <DeviceSelector
-              kind="videoinput"
-              icon={<Camera className="size-3.5" />}
-              label="Camera"
-            />
-            <DeviceSelector
-              kind="audiooutput"
-              icon={<Volume2 className="size-3.5" />}
-              label="Speaker"
-            />
-          </div>
+          <MeetingDeviceSettings />
         </PanelSection>
 
         {isCoach && (

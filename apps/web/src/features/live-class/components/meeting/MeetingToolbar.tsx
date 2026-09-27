@@ -29,6 +29,7 @@ import {
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
 import { MoreControlsMenu, type MoreControlItem } from "./MoreControlsMenu";
+import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
@@ -81,8 +82,9 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   const { localParticipant } = useLocalParticipant();
   const pip = useOptionalPip();
 
-  const mic = useTrackToggle({ source: Track.Source.Microphone });
-  const camera = useTrackToggle({ source: Track.Source.Camera });
+  // Capture failures are reported by MediaDeviceProvider (see ignoreDeviceError).
+  const mic = useTrackToggle({ source: Track.Source.Microphone, onDeviceError: ignoreDeviceError });
+  const camera = useTrackToggle({ source: Track.Source.Camera, onDeviceError: ignoreDeviceError });
   const screen = useTrackToggle({
     source: Track.Source.ScreenShare,
     captureOptions: { audio: true, selfBrowserSurface: "include" },

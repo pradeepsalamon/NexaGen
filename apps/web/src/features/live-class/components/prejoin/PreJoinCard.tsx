@@ -1,8 +1,10 @@
 "use client";
 
-import { PreJoin } from "@livekit/components-react";
-import { CalendarClock, GraduationCap, Info } from "lucide-react";
+import { useMemo, useState } from "react";
+import { PreJoin, type LocalUserChoices } from "@livekit/components-react";
+import { AlertTriangle, CalendarClock, GraduationCap, Info } from "lucide-react";
 import { resolveJoinState, type LiveClassSettings } from "@nexa-chess/types";
+import { Button } from "@/components/ui/Button";
 import { Card, CardContent } from "@/components/ui/Card";
 import { RoomEnded } from "../states/ErrorStates";
 import { ClassStatus } from "../../types/live-class";
@@ -10,6 +12,16 @@ import { cn } from "@/lib/utils";
 import { formatDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import {
+  describeMediaError,
+  isMediaCaptureAvailable,
+  loadMediaPrefs,
+  saveDevicePref,
+  saveJoinPrefs,
+  scanMediaDevices,
+  type MediaErrorInfo,
+  type MediaKind,
+} from "../../lib/mediaDevices";
 
 interface PreJoinCardProps {
   status?: ClassStatus;
@@ -71,9 +83,56 @@ export function PreJoinCard({ status, topic, startedAt, endsAt, settings, onJoin
   const tz = useUserTimeZone();
   const schedule = formatSchedule(tz, startedAt, endsAt);
 
+  // Device picks and the last mic / camera toggle are remembered on this
+  // browser (lib/mediaDevices.ts) — the same store the in-room Settings panel
+  // writes, so a switch made mid-class is what the next pre-join shows.
+  const prefs = useMemo(() => loadMediaPrefs(), []);
   const joinState = settings
-    ? resolveJoinState(settings, isStaff ? "COACH" : "STUDENT")
+    ? resolveJoinState(settings, isStaff ? "COACH" : "STUDENT", {
+        camera: prefs.cameraOn,
+        mic: prefs.micOn,
+      })
     : null;
+  const [mediaError, setMediaError] = useState<MediaErrorInfo | null>(() =>
+    isMediaCaptureAvailable() ? null : describeMediaError(null),
+  );
+  const [previewKey, setPreviewKey] = useState(0);
+  const [checking, setChecking] = useState(false);
+
+  const handleSubmit = (values: LocalUserChoices) => {
+    saveJoinPrefs({ cameraOn: values.videoEnabled, micOn: values.audioEnabled });
+    // Save the ids now (the room reads them on connect), then add the labels
+    // that let a device be found again if its id rotates.
+    const picks: Array<[MediaKind, string]> = [
+      ["audioinput", values.audioDeviceId],
+      ["videoinput", values.videoDeviceId],
+    ];
+    for (const [kind, deviceId] of picks) {
+      if (deviceId && deviceId !== "default") saveDevicePref(kind, { deviceId, label: "" });
+    }
+    void (async () => {
+      for (const [kind, deviceId] of picks) {
+        if (!deviceId || deviceId === "default") continue;
+        const { devices } = await scanMediaDevices(kind, false);
+        const device = devices.find((d) => d.deviceId === deviceId);
+        if (device?.label) saveDevicePref(kind, { deviceId, label: device.label });
+      }
+    })();
+    onJoin();
+  };
+
+  const handleCheckAgain = async () => {
+    setChecking(true);
+    const [audio, video] = await Promise.all([
+      scanMediaDevices("audioinput", true),
+      scanMediaDevices("videoinput", true),
+    ]);
+    setChecking(false);
+    const failure = audio.error ?? video.error;
+    setMediaError(failure ? describeMediaError(failure) : null);
+    // Remount the preview so it re-acquires the camera / mic with fresh access.
+    setPreviewKey((k) => k + 1);
+  };
   const micLocked = joinState?.mic.locked ?? false;
   const cameraLocked = joinState?.camera.locked ?? false;
   const summary = settings && !isStaff ? policySummary(settings) : [];
@@ -142,15 +201,47 @@ export function PreJoinCard({ status, topic, startedAt, endsAt, settings, onJoin
             )}
           >
             <PreJoin
-              onSubmit={onJoin}
+              key={previewKey}
+              onSubmit={handleSubmit}
               onValidate={() => true}
-              persistUserChoices
+              onError={(error) => setMediaError(describeMediaError(error))}
+              // Persistence is ours (lib/mediaDevices.ts), not LiveKit's: its
+              // store would override the class policy's join defaults.
+              persistUserChoices={false}
               defaults={{
-                audioEnabled: joinState ? joinState.mic.defaultOn : true,
-                videoEnabled: joinState ? joinState.camera.defaultOn : true,
+                audioDeviceId: prefs.audioinput?.deviceId,
+                audioEnabled: joinState ? joinState.mic.defaultOn : prefs.micOn ?? true,
                 username: displayName,
+                videoDeviceId: prefs.videoinput?.deviceId,
+                videoEnabled: joinState ? joinState.camera.defaultOn : prefs.cameraOn ?? true,
               }}
             />
+            {mediaError && (
+              <div
+                role="alert"
+                className="mt-3 flex gap-2.5 rounded-control border border-app-danger/40 bg-app-danger/10 p-3 text-xs text-app-text"
+              >
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-app-danger" strokeWidth={2.5} />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <p className="font-semibold">{mediaError.title}</p>
+                  <p className="leading-snug text-app-muted">{mediaError.description}</p>
+                  <p className="leading-snug text-app-muted">
+                    You can still join and fix this from Settings inside the class.
+                  </p>
+                  {isMediaCaptureAvailable() && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-8 text-xs"
+                      isLoading={checking}
+                      onClick={() => void handleCheckAgain()}
+                    >
+                      Scan devices again
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

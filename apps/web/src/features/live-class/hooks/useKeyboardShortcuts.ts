@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useTrackToggle } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { useLiveClassState } from "../providers/LiveClassProvider";
+import { ignoreDeviceError } from "../lib/mediaDevices";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 /**
@@ -13,8 +14,9 @@ import { isStaffRole, useAuthStore } from "@/stores/authStore";
  *  Escape — Close sidebar or exit fullscreen
  */
 export function useKeyboardShortcuts() {
-  const mic = useTrackToggle({ source: Track.Source.Microphone });
-  const camera = useTrackToggle({ source: Track.Source.Camera });
+  // Capture failures are reported by MediaDeviceProvider (see ignoreDeviceError).
+  const mic = useTrackToggle({ source: Track.Source.Microphone, onDeviceError: ignoreDeviceError });
+  const camera = useTrackToggle({ source: Track.Source.Camera, onDeviceError: ignoreDeviceError });
   const { activeSidebar, setActiveSidebar, isFullscreen, toggleFullscreen, settings } =
     useLiveClassState();
   const user = useAuthStore((state) => state.user);
