@@ -176,7 +176,6 @@ export class StudentService {
     const progressMetrics = [
       { label: "Classes Attended", value: attendedClassesCount.toString(), trend: "" },
       { label: "Lessons Completed", value: activities.filter((a: any) => a.type === 'LESSON_COMPLETED').length.toString(), trend: "" },
-      { label: "Practice Hrs", value: "0", trend: "" },
       { label: "Attendance", value: `${attendancePercent}%`, trend: "" }
     ];
 

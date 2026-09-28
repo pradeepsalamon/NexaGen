@@ -202,6 +202,8 @@ class EngineInstance {
   process: ChildProcess;
   isBusy = false;
   dead = false;
+  /** True once the UCI handshake and Hash/Threads options have been applied. */
+  ready = false;
   currentTask: AnalysisTask | null = null;
   /** Epoch ms when this engine last finished a task (or was spawned). */
   lastUsedAt = Date.now();
@@ -270,6 +272,8 @@ class EngineInstance {
         this.process.stdin?.write(`setoption name Threads value ${this.tuning.threads}\n`);
         this.process.stdin?.write('isready\n');
       } else if (line.trim() === 'readyok') {
+        this.ready = true;
+        this.lastUsedAt = Date.now();
         this.onReady();
       } else if (this.currentTask && line.startsWith('bestmove')) {
         this.parseBestMove(line);
@@ -566,28 +570,25 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const availableEngine = this.engines.find((e) => !e.isBusy && !e.dead);
+    // Only a handshaken engine takes work; a starting one picks it up via onReady.
+    const availableEngine = this.engines.find((e) => e.ready && !e.isBusy && !e.dead);
     if (availableEngine) {
       const task = this.taskQueue.shift();
       if (task) {
         availableEngine.analyze(task);
       }
-      // After assigning, proactively ensure there's still a standby ready.
       this.ensureWarmStandby();
       return;
     }
 
-    // No idle engine available — spawn a new one if under the cap.
-    // The engine will call onReady → processQueue once UCI handshake completes.
-    if (this.engines.length < this.poolSize) {
+    // One cold start per queued task, up to the cap.
+    const starting = this.engines.filter((e) => !e.ready && !e.dead).length;
+    if (starting < this.taskQueue.length) {
       this.spawnEngine();
     }
   }
 
-  /**
-   * If every live engine is busy, proactively spawn another so the next
-   * request gets an instant assignment instead of waiting for a cold start.
-   */
+  /** Keep minEngines idle-or-starting engines so the next request skips a cold start. */
   private ensureWarmStandby() {
     if (this.shuttingDown) return;
     const idleCount = this.engines.filter((e) => !e.isBusy && !e.dead).length;
@@ -598,4 +599,3 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     }
   }
 }
-

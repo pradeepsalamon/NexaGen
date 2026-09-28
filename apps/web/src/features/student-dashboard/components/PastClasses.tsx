@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 
-import { Clock, Download, History, PlayCircle } from "lucide-react";
+import { Download, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { Panel, PanelEmpty, PanelHeader, PanelList, PanelRow } from "@/components/ui/Panel";
+import { SectionCard } from "@/components/ui/SectionCard";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -46,66 +46,36 @@ export function PastClasses({ classes }: PastClassesProps) {
     }
   };
 
-  const handleWatch = (classId: string, topic: string) => {
-    setRecordingPlayerConfig({ isOpen: true, classId, topic });
-  };
-
   return (
     <>
-      <Panel testId="past-classes">
-        <PanelHeader
-          description="Rewatch a session or download its recording."
-          icon={History}
-          title="Past Classes & Recordings"
-          tone="warm"
-        />
-        {!classes?.length ? (
-          <PanelEmpty
-            icon={History}
-            message="Completed classes and their recordings will appear here."
-            title="No past classes"
-            tone="warm"
-          />
-        ) : (
-          <PanelList>
+      <div data-testid="past-classes">
+        <SectionCard description="Rewatch a session any time." title="Past classes">
+          <ul className="-my-2 divide-y divide-app-border">
             {classes.map((c) => (
-              <PanelRow
-                className="sm:flex-row sm:items-center"
+              <li
+                className="flex items-center justify-between gap-3 py-3"
+                data-testid={`past-class-${c.id}`}
                 key={c.id}
-                testId={`past-class-${c.id}`}
-                tone="warm"
               >
-                <div className="flex items-start gap-4">
-                  <span
-                    aria-hidden="true"
-                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-warm/30 text-warm-ink"
-                  >
-                    <PlayCircle className="size-5" strokeWidth={2.5} />
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="font-extrabold tracking-tight text-app-text">
-                      {c.topic}
-                    </h3>
-                    <p className="mt-0.5 text-sm text-app-muted">Coach {c.coachName}</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <Badge variant="outline">
-                        <Clock aria-hidden="true" className="size-3" strokeWidth={2.5} />
-                        {formatFullDate(c.startsAt, timeZone)}
-                      </Badge>
-                      <Badge variant={c.status === "COMPLETED" ? "success" : "secondary"}>
-                        {c.status.charAt(0) + c.status.slice(1).toLowerCase()}
-                      </Badge>
-                    </div>
-                  </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-app-text">{c.topic}</p>
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-app-muted">
+                    <span>
+                      {c.coachName} · {formatFullDate(c.startsAt, timeZone)}
+                    </span>
+                    {c.status === "CANCELLED" ? <Badge variant="secondary">Cancelled</Badge> : null}
+                  </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                <div className="flex shrink-0 items-center gap-2">
                   {c.hasRecording ? (
                     <>
                       <Button
-                        className="w-full sm:w-auto"
-                        onClick={() => handleWatch(c.id, c.topic)}
+                        onClick={() =>
+                          setRecordingPlayerConfig({ isOpen: true, classId: c.id, topic: c.topic })
+                        }
                         size="sm"
+                        variant="outline"
                       >
                         <PlayCircle aria-hidden="true" className="size-4" strokeWidth={2.5} />
                         Watch
@@ -113,7 +83,7 @@ export function PastClasses({ classes }: PastClassesProps) {
                       <SimpleTooltip label="Download recording">
                         <Button
                           aria-label={`Download recording for ${c.topic}`}
-                          className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                          className="size-8 rounded-full p-0 text-app-muted hover:text-app-text"
                           onClick={() => handleDownload(c.id)}
                           size="icon"
                           variant="ghost"
@@ -123,14 +93,14 @@ export function PastClasses({ classes }: PastClassesProps) {
                       </SimpleTooltip>
                     </>
                   ) : (
-                    <span className="text-xs font-bold text-app-muted">No recording</span>
+                    <span className="text-xs text-app-muted">No recording</span>
                   )}
                 </div>
-              </PanelRow>
+              </li>
             ))}
-          </PanelList>
-        )}
-      </Panel>
+          </ul>
+        </SectionCard>
+      </div>
 
       <RecordingPlayerDialog
         isOpen={recordingPlayerConfig.isOpen}
