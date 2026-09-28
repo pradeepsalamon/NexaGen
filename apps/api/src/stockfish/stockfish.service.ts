@@ -203,6 +203,8 @@ class EngineInstance {
   isBusy = false;
   dead = false;
   currentTask: AnalysisTask | null = null;
+  /** Epoch ms when this engine last finished a task (or was spawned). */
+  lastUsedAt = Date.now();
   private buffer = '';
   private result = emptyRaw();
   private taskTimer: NodeJS.Timeout | null = null;
@@ -289,6 +291,7 @@ class EngineInstance {
       this.currentTask = null;
     }
     this.isBusy = false;
+    this.lastUsedAt = Date.now();
     this.onReady();
   }
 
@@ -336,10 +339,15 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   private taskQueue: AnalysisTask[] = [];
   private readonly path: string;
   private readonly poolSize: number;
+  /** Minimum engines kept warm (always ready for instant assignment). */
+  private readonly minEngines: number;
   private readonly movetimeMs: number;
   private readonly moveMovetimeMs: number;
   private readonly tuning: { hashMb: number; threads: number };
   private shuttingDown = false;
+  /** How long an idle engine stays alive before being reaped (ms). 0 = never reap. */
+  private readonly idleTimeoutMs: number;
+  private idleReaperTimer: NodeJS.Timeout | null = null;
   // Revisiting a position (stepping through a game, re-syncs) is common, so
   // answer it from memory instead of burning another engine slot.
   private readonly cache = new Map<string, StockfishAnalysisResult>();
@@ -349,8 +357,10 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     const env = getApiEnv();
     this.path = env.STOCKFISH_PATH ?? '';
     this.poolSize = env.STOCKFISH_POOL_SIZE;
+    this.minEngines = Math.min(env.STOCKFISH_MIN_ENGINES, this.poolSize);
     this.movetimeMs = env.STOCKFISH_MOVETIME;
     this.moveMovetimeMs = env.STOCKFISH_MOVE_MOVETIME;
+    this.idleTimeoutMs = env.STOCKFISH_IDLE_TIMEOUT_S * 1000;
     this.tuning = {
       hashMb: env.STOCKFISH_HASH_MB,
       // Share the cores across the pool rather than oversubscribing them.
@@ -364,13 +374,22 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    this.logger.log(`Initializing Stockfish pool (size: ${this.poolSize})...`);
-    for (let i = 0; i < this.poolSize; i++) {
+    // Dynamic pool: start with minEngines warm, scale up to poolSize on demand.
+    this.logger.log(
+      `Stockfish dynamic pool ready (min: ${this.minEngines}, max: ${this.poolSize}, idle timeout: ${this.idleTimeoutMs / 1000}s)`,
+    );
+    for (let i = 0; i < this.minEngines; i++) {
       this.spawnEngine();
     }
+    this.startIdleReaper();
   }
 
-  private spawnEngine() {
+  /**
+   * Spawn a new engine and add it to the pool. Returns the engine, or null if
+   * the pool is already at capacity or spawn fails.
+   */
+  private spawnEngine(): EngineInstance | null {
+    if (this.engines.length >= this.poolSize) return null;
     try {
       const engine = new EngineInstance(
         this.path,
@@ -380,20 +399,28 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
         (dead) => this.replaceEngine(dead),
       );
       this.engines.push(engine);
+      this.logger.log(`Stockfish engine spawned (pool: ${this.engines.length}/${this.poolSize})`);
+      return engine;
     } catch {
       this.logger.error(`Failed to spawn Stockfish process at ${this.path}`);
+      return null;
     }
   }
 
-  /** A crashed engine leaves the pool and a fresh one takes its place. */
+  /** A crashed engine leaves the pool and a fresh one takes its place if needed. */
   private replaceEngine(dead: EngineInstance) {
     this.engines = this.engines.filter((e) => e !== dead);
+    this.logger.log(`Stockfish engine removed (pool: ${this.engines.length}/${this.poolSize})`);
     if (this.shuttingDown) return;
-    setTimeout(() => {
-      if (this.shuttingDown) return;
-      this.spawnEngine();
-      this.processQueue();
-    }, 1000);
+    // Respawn if there is pending work OR we're below the warm minimum.
+    const needsRespawn = this.taskQueue.length > 0 || this.engines.length < this.minEngines;
+    if (needsRespawn) {
+      setTimeout(() => {
+        if (this.shuttingDown) return;
+        this.spawnEngine();
+        this.processQueue();
+      }, 1000);
+    }
   }
 
   /** Throws a 400 naming the problem when Stockfish must not see `fen`. */
@@ -405,6 +432,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     this.shuttingDown = true;
+    this.stopIdleReaper();
     this.logger.log('Shutting down Stockfish engines...');
     for (const engine of this.engines) {
       engine.kill();
@@ -412,11 +440,45 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     this.engines = [];
   }
 
+  /** Periodically kill engines that have been idle longer than the timeout. */
+  private startIdleReaper() {
+    if (this.idleTimeoutMs <= 0) return; // disabled
+    // Check every half the timeout period (minimum 5s) for responsiveness.
+    const interval = Math.max(5000, Math.floor(this.idleTimeoutMs / 2));
+    this.idleReaperTimer = setInterval(() => this.reapIdleEngines(), interval);
+    // Allow the process to exit even if the timer is still active.
+    this.idleReaperTimer.unref();
+  }
+
+  private stopIdleReaper() {
+    if (this.idleReaperTimer) {
+      clearInterval(this.idleReaperTimer);
+      this.idleReaperTimer = null;
+    }
+  }
+
+  private reapIdleEngines() {
+    if (this.shuttingDown) return;
+    const now = Date.now();
+    const toReap = this.engines.filter(
+      (e) => !e.isBusy && !e.dead && now - e.lastUsedAt > this.idleTimeoutMs,
+    );
+    for (const engine of toReap) {
+      // Never reap below the warm minimum.
+      if (this.engines.length <= this.minEngines) break;
+      this.logger.log(
+        `Reaping idle Stockfish engine (idle ${Math.round((now - engine.lastUsedAt) / 1000)}s, pool: ${this.engines.length - 1}/${this.poolSize})`,
+      );
+      engine.kill();
+      this.engines = this.engines.filter((e) => e !== engine);
+    }
+  }
+
   async analyzePosition(
     inputFen: string,
     opts: { movetimeMs?: number; mode?: 'analysis' | 'move' } = {},
   ): Promise<StockfishAnalysisResult> {
-    if (this.engines.length === 0) {
+    if (!this.path) {
       throw new ServiceUnavailableException(
         'Engine analysis is not available on this server.',
       );
@@ -460,9 +522,9 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     return result;
   }
 
-  /** True when at least one engine process is alive. */
+  /** True when the engine path is configured (engines will spawn on demand). */
   isAvailable(): boolean {
-    return this.engines.length > 0;
+    return !!this.path;
   }
 
   /**
@@ -474,7 +536,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     inputFen: string,
     opts: { skillLevel?: number; movetimeMs?: number } = {},
   ): Promise<{ uci: string; san: string | null } | null> {
-    if (this.engines.length === 0) {
+    if (!this.path) {
       throw new ServiceUnavailableException(
         'Engine play is not available on this server.',
       );
@@ -498,7 +560,11 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   }
 
   private processQueue() {
-    if (this.taskQueue.length === 0) return;
+    if (this.taskQueue.length === 0) {
+      // No pending work — but ensure we still have a warm standby.
+      this.ensureWarmStandby();
+      return;
+    }
 
     const availableEngine = this.engines.find((e) => !e.isBusy && !e.dead);
     if (availableEngine) {
@@ -506,6 +572,30 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       if (task) {
         availableEngine.analyze(task);
       }
+      // After assigning, proactively ensure there's still a standby ready.
+      this.ensureWarmStandby();
+      return;
+    }
+
+    // No idle engine available — spawn a new one if under the cap.
+    // The engine will call onReady → processQueue once UCI handshake completes.
+    if (this.engines.length < this.poolSize) {
+      this.spawnEngine();
+    }
+  }
+
+  /**
+   * If every live engine is busy, proactively spawn another so the next
+   * request gets an instant assignment instead of waiting for a cold start.
+   */
+  private ensureWarmStandby() {
+    if (this.shuttingDown) return;
+    const idleCount = this.engines.filter((e) => !e.isBusy && !e.dead).length;
+    const deficit = Math.max(0, this.minEngines - idleCount);
+    for (let i = 0; i < deficit; i++) {
+      if (this.engines.length >= this.poolSize) break;
+      this.spawnEngine();
     }
   }
 }
+
