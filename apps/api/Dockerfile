@@ -46,20 +46,46 @@ RUN npm prune --omit=dev
 
 
 # ============================
-# Stage 3 - Runtime
+# Stage 3 - Stockfish
+# ============================
+# Built from source for the host CPU: Debian's package is an old generic build
+# without the dot-product (NEON) or AVX2 paths the NNUE evaluation needs to be
+# fast. ARCH=native targets the machine running `docker compose build`, which
+# is the production box itself — don't run this image on a different CPU.
+FROM debian:bookworm-slim AS stockfish
+
+ARG STOCKFISH_VERSION=sf_17.1
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        curl \
+        git && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 --branch "${STOCKFISH_VERSION}" \
+        https://github.com/official-stockfish/Stockfish.git /stockfish && \
+    cd /stockfish/src && \
+    make -j"$(nproc)" build ARCH=native && \
+    strip stockfish
+
+
+# ============================
+# Stage 4 - Runtime
 # ============================
 FROM node:20-bookworm-slim AS runner
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         openssl \
-        stockfish \
         postgresql-client \
         ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
+COPY --from=stockfish /stockfish/src/stockfish /usr/local/bin/stockfish
+
 ENV NODE_ENV=production
-ENV PATH="/usr/games:${PATH}"
 
 WORKDIR /app
 

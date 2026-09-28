@@ -1,4 +1,9 @@
-import { normalizeEngineFen, parseUciInfoLine, uciLineToSan } from './stockfish.service';
+import {
+  normalizeEngineFen,
+  parseUciInfoLine,
+  searchDepthFor,
+  uciLineToSan,
+} from './stockfish.service';
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -57,6 +62,25 @@ describe('uciLineToSan', () => {
 
   it('handles promotion moves', () => {
     expect(uciLineToSan('8/P6k/8/8/8/8/7K/8 w - - 0 1', ['a7a8q'])).toEqual(['a8=Q']);
+  });
+});
+
+describe('searchDepthFor', () => {
+  it('stops a weakened engine one ply past its skill level', () => {
+    expect(searchDepthFor(0, 20)).toBe(1);
+    expect(searchDepthFor(5, 20)).toBe(6);
+    expect(searchDepthFor(19, 0)).toBe(20);
+  });
+
+  it('clamps and rounds the skill level', () => {
+    expect(searchDepthFor(-3, 0)).toBe(1);
+    expect(searchDepthFor(4.6, 0)).toBe(6);
+  });
+
+  it('falls back to the analysis cap at full strength', () => {
+    expect(searchDepthFor(20, 18)).toBe(18);
+    expect(searchDepthFor(undefined, 18)).toBe(18);
+    expect(searchDepthFor(undefined, 0)).toBeUndefined();
   });
 });
 

@@ -48,6 +48,7 @@ describe("MailService", () => {
       STOCKFISH_MOVETIME: 800,
       STOCKFISH_MOVE_MOVETIME: 2000,
       STOCKFISH_HASH_MB: 64,
+      STOCKFISH_MAX_DEPTH: 20,
       COOKIE_DOMAIN: undefined,
       TRUST_PROXY_HOPS: 0,
       RECORDING_STORAGE_DIR: "/recordings",

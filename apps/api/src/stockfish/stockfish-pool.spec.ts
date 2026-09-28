@@ -37,14 +37,21 @@ class FakeEngine extends EventEmitter {
   gotTask() {
     return this.writes().some((line) => line.startsWith('go '));
   }
+
+  lastGo() {
+    return this.writes().filter((line) => line.startsWith('go ')).pop()?.trim();
+  }
 }
 
 let procs: FakeEngine[] = [];
 
-function makeService(env: { min?: number; pool?: number; idleS?: number; path?: string } = {}) {
+function makeService(
+  env: { maxDepth?: number; min?: number; pool?: number; idleS?: number; path?: string } = {},
+) {
   jest.mocked(getApiEnv).mockReturnValue({
     STOCKFISH_HASH_MB: 64,
     STOCKFISH_IDLE_TIMEOUT_S: env.idleS ?? 60,
+    STOCKFISH_MAX_DEPTH: env.maxDepth ?? 20,
     STOCKFISH_MIN_ENGINES: env.min ?? 1,
     STOCKFISH_MOVE_MOVETIME: 2000,
     STOCKFISH_MOVETIME: 800,
@@ -173,6 +180,54 @@ describe('StockfishService dynamic pool', () => {
 
     jest.advanceTimersByTime(1000);
     expect(spawn).toHaveBeenCalledTimes(2);
+  });
+
+  describe('search limits', () => {
+    const run = async (
+      service: StockfishService,
+      call: (s: StockfishService) => Promise<unknown>,
+    ) => {
+      procs[0].handshake();
+      const pending = call(service);
+      procs[0].answer();
+      await pending;
+      return procs[0].lastGo();
+    };
+
+    it('lets analysis stop early at the depth cap', async () => {
+      service = makeService({ maxDepth: 20 });
+      await expect(run(service, (s) => s.analyzePosition(START_FEN))).resolves.toBe(
+        'go depth 20 movetime 800',
+      );
+    });
+
+    it('always uses the full time when the cap is 0', async () => {
+      service = makeService({ maxDepth: 0 });
+      await expect(run(service, (s) => s.analyzePosition(START_FEN))).resolves.toBe(
+        'go movetime 800',
+      );
+    });
+
+    it('keeps the full think for the engine-move button', async () => {
+      service = makeService({ maxDepth: 20 });
+      await expect(
+        run(service, (s) => s.analyzePosition(START_FEN, { mode: 'move' })),
+      ).resolves.toBe('go movetime 2000');
+    });
+
+    it('stops a weakened engine at the depth it picks its move', async () => {
+      service = makeService();
+      await expect(
+        run(service, (s) => s.getBestMove(START_FEN, { skillLevel: 5, movetimeMs: 400 })),
+      ).resolves.toBe('go depth 6 movetime 400');
+    });
+
+    it('gives a full-strength engine move no depth cap', async () => {
+      service = makeService();
+      await expect(run(service, (s) => s.getBestMove(START_FEN))).resolves.toBe(
+        'go movetime 800',
+      );
+    });
   });
 
   it('does not replace a crashed extra engine with no work waiting', async () => {

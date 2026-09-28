@@ -196,6 +196,21 @@ interface AnalysisTask {
   skillLevel?: number;
   /** Override the pool's default movetime for this one task. */
   movetimeMs?: number;
+  /** Stop once this depth completes, even if movetime has not run out. */
+  depth?: number;
+}
+
+/**
+ * A weakened engine picks its move at depth `level + 1` and ignores everything
+ * searched after that, so stopping there returns the same move without waiting
+ * out the clock. Full strength (20) keeps the pool's analysis cap.
+ */
+export function searchDepthFor(skillLevel: number | undefined, maxDepth: number): number | undefined {
+  if (skillLevel !== undefined) {
+    const level = Math.max(0, Math.min(20, Math.round(skillLevel)));
+    if (level < 20) return level + 1;
+  }
+  return maxDepth > 0 ? maxDepth : undefined;
 }
 
 class EngineInstance {
@@ -318,7 +333,9 @@ class EngineInstance {
     this.process.stdin?.write(`setoption name Skill Level value ${skill}\n`);
     const movetime = task.movetimeMs ?? this.movetimeMs;
     this.process.stdin?.write(`position fen ${task.fen}\n`);
-    this.process.stdin?.write(`go movetime ${movetime}\n`);
+    // With both limits Stockfish stops at whichever comes first.
+    const depth = task.depth ? `depth ${task.depth} ` : '';
+    this.process.stdin?.write(`go ${depth}movetime ${movetime}\n`);
 
     // A hung engine would otherwise hold the request (and its pool slot)
     // forever. Killing it fires 'close', which rejects the task and respawns.
@@ -347,6 +364,8 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   private readonly minEngines: number;
   private readonly movetimeMs: number;
   private readonly moveMovetimeMs: number;
+  /** Analysis stops at this depth if it gets there before movetime. 0 = no cap. */
+  private readonly maxDepth: number;
   private readonly tuning: { hashMb: number; threads: number };
   private shuttingDown = false;
   /** How long an idle engine stays alive before being reaped (ms). 0 = never reap. */
@@ -364,6 +383,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     this.minEngines = Math.min(env.STOCKFISH_MIN_ENGINES, this.poolSize);
     this.movetimeMs = env.STOCKFISH_MOVETIME;
     this.moveMovetimeMs = env.STOCKFISH_MOVE_MOVETIME;
+    this.maxDepth = env.STOCKFISH_MAX_DEPTH;
     this.idleTimeoutMs = env.STOCKFISH_IDLE_TIMEOUT_S * 1000;
     this.tuning = {
       hashMb: env.STOCKFISH_HASH_MB,
@@ -492,12 +512,14 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     // "move" = the engine plays: full strength (Skill 20) and a longer think.
     const movetimeMs =
       opts.movetimeMs ?? (opts.mode === 'move' ? this.moveMovetimeMs : this.movetimeMs);
-    const cacheKey = `${movetimeMs}:${fen}`;
+    // The engine-move button keeps its full think; analysis may finish early.
+    const depth = opts.mode === 'move' ? undefined : searchDepthFor(undefined, this.maxDepth);
+    const cacheKey = `${movetimeMs}:${depth ?? ''}:${fen}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
     const raw = await new Promise<RawAnalysis>((resolve, reject) => {
-      this.taskQueue.push({ fen, resolve, reject, movetimeMs });
+      this.taskQueue.push({ fen, resolve, reject, movetimeMs, depth });
       this.processQueue();
     });
 
@@ -554,6 +576,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
         reject,
         skillLevel: opts.skillLevel,
         movetimeMs: opts.movetimeMs,
+        depth: searchDepthFor(opts.skillLevel, 0),
       });
       this.processQueue();
     });
