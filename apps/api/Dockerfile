@@ -65,8 +65,25 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN git clone --depth 1 --branch "${STOCKFISH_VERSION}" \
-        https://github.com/official-stockfish/Stockfish.git /stockfish && \
-    cd /stockfish/src && \
+        https://github.com/official-stockfish/Stockfish.git /stockfish
+
+# Pre-fetch the NNUE net(s) from GitHub's networks mirror before `make` runs
+# its own `scripts/net.sh`. That script tries tests.stockfishchess.org first,
+# and on this VPS that host has been observed throttling to ~25 KB/s, turning
+# the ~62 MB default net into a 40+ minute stall that blows the deploy
+# workflow's SSH command timeout. net.sh checksum-validates and skips any
+# file already present, so seeding it here from the GitHub mirror (CDN-backed,
+# fast) makes the build skip the slow host entirely without touching the
+# `net.sh` fallback URL itself, in case the filenames change on a future
+# STOCKFISH_VERSION bump.
+RUN cd /stockfish/src && \
+    for net in $(grep -ohE 'nn-[a-z0-9]{12}\.nnue' evaluate.h | sort -u); do \
+        curl --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 15 -fSL \
+            -o "$net" \
+            "https://github.com/official-stockfish/networks/raw/master/$net"; \
+    done
+
+RUN cd /stockfish/src && \
     make -j"$(nproc)" build ARCH=native && \
     strip stockfish
 
