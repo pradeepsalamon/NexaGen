@@ -67,7 +67,11 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   (position + solution line + topic + type + difficulty + ownership + lifecycle)
   — `puzzle` API module, `features/puzzles` on web, `/admin/puzzles`,
   `/coach/puzzles`, `/student/puzzles`. Every puzzle belongs to one
-  admin-managed `PuzzleTopic` (Fork, Pin, Back Rank, …). Admin puzzles are
+  admin-managed `PuzzleTopic` (Fork, Pin, Back Rank, …). Topics are a folder
+  tree (`parentId`, up to `MAX_PUZZLE_TOPIC_DEPTH` levels; names unique among
+  siblings); filtering by a folder includes its subfolders unless
+  `topicScope=direct`, and archiving one archives its subtree as one Trash
+  group. Tree helpers live in `@nexa-chess/types` (`puzzle.ts`). Admin puzzles are
   `GLOBAL` (every coach sees them); coach puzzles are `PRIVATE` (author + admins
   only) and can never be made global. Lifecycle is `DRAFT` → `PUBLISHED` →
   `ARCHIVED` (all reversible), with a separate soft delete through the Trash
@@ -463,8 +467,8 @@ every 5 minutes, and the assignment-due sweep hourly.
 | Assignment due soon | `MessagingScheduler`, on the rule's lead time |
 | Assignment submitted / graded | a student finishing an assignment |
 | Announcement | an admin publishing one (Announcements tab) |
-| Welcome message | self-registration, or an admin creating an account |
-| Account approved | an admin re-activating an account |
+| Welcome message | not fired by self-registration any more — student and coach sign-ups both wait for approval |
+| Account approved | an admin approving a pending student, or re-activating an account |
 
 Each rule carries: a master on/off, per-channel toggles (**WhatsApp** and the
 **in-app bell**), an audience, **when to send** (immediately, daily at a time,

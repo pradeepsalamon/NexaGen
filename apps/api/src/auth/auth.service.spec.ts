@@ -15,7 +15,6 @@ import { hashSecret } from "./auth.utils";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 type MockPrismaService = {
   authSession: {
@@ -110,10 +109,6 @@ describe("AuthService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
-        {
-          provide: MessagingDispatchService,
-          useValue: { dispatchInBackground: jest.fn() }
-        },
         { provide: JwtService, useValue: jwtService },
         { provide: MailService, useValue: mailService },
         { provide: PrismaService, useValue: prismaService },
@@ -178,12 +173,12 @@ describe("AuthService", () => {
   });
 
   describe("register", () => {
-    it("hashes the password, formats the student name, and creates a user", async () => {
+    it("creates a PENDING student and issues no session", async () => {
       prismaService.user.findUnique.mockResolvedValueOnce(null);
-      prismaService.user.create.mockResolvedValueOnce(activeUser);
-      prismaService.authSession.create.mockResolvedValueOnce({ id: "sess-1" });
-      prismaService.authSession.update.mockResolvedValueOnce({ id: "sess-1" });
-      jwtService.signAsync.mockResolvedValue("mocked-token");
+      prismaService.user.create.mockResolvedValueOnce({
+        ...activeUser,
+        status: UserStatus.PENDING
+      });
 
       const result = await service.register(registerPayload, {
         ipAddress: "127.0.0.1",
@@ -200,13 +195,16 @@ describe("AuthService", () => {
       expect(createCall.data.firstName).toBe("John");
       expect(createCall.data.lastName).toBe("Doe");
       expect(createCall.data.phoneNumber).toBe(registerPayload.contactNumber);
+      expect(createCall.data.status).toBe(UserStatus.PENDING);
       expect(createCall.data.studentProfile.create.referralSource).toBe(
         ReferralSource.ADS
       );
 
-      expect(result.user.email).toBe("test@example.com");
-      expect(result.accessToken).toBe("mocked-token");
-      expect(result.refreshToken).toBe("mocked-token");
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+      expect(result).toEqual({
+        email: "test@example.com",
+        status: "PENDING_APPROVAL"
+      });
     });
 
     it("throws ConflictException if email is already in use", async () => {
@@ -225,6 +223,20 @@ describe("AuthService", () => {
       await expect(
         service.login({ email: "invalid@example.com", password: "pwd" }, {})
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("rejects a student whose registration is still pending", async () => {
+      const password = "password123";
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...activeUser,
+        password: await hashSecret(password),
+        status: UserStatus.PENDING
+      });
+
+      await expect(
+        service.login({ email: activeUser.email, password }, {})
+      ).rejects.toThrow("Your registration is awaiting admin approval.");
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
     });
 
     it("logs in successfully and returns tokens", async () => {

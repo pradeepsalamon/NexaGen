@@ -84,6 +84,7 @@ export function getPuzzles(query: PuzzleListQuery): Promise<PuzzleListResponse> 
         sort: query.sort,
         order: query.order,
         topicId: query.topicId,
+        topicScope: query.topicScope,
         puzzleType: query.puzzleType,
         difficulty: query.difficulty,
         status: query.status,
@@ -159,6 +160,7 @@ export function getMyPuzzles(
         pageSize: query.pageSize,
         search: query.search,
         topicId: query.topicId,
+        topicScope: query.topicScope,
         puzzleType: query.puzzleType,
         difficulty: query.difficulty,
         solved: query.solved

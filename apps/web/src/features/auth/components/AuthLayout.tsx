@@ -1,7 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { ChessKnight, Crown } from "lucide-react";
 import { Logo } from "@/components/Logo";
+import { HeroFeatureCarousel } from "./HeroFeatureCarousel";
 import { PageContainer } from "@/components/PageContainer";
 
 import { useRouter, useSearchParams } from "next/navigation";
@@ -46,16 +48,42 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <PageContainer>
-      <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,0.78fr)] lg:items-stretch lg:gap-3">
+      <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,5fr)_minmax(420px,7fr)] lg:items-stretch lg:gap-6">
         <section
-          className="relative hidden min-h-0 flex-col gap-4 overflow-hidden rounded-panel border border-app-border bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_22%,var(--color-surface)),color-mix(in_srgb,var(--color-accent)_22%,var(--color-surface)))] p-6 before:pointer-events-none before:absolute before:inset-0 before:bg-[linear-gradient(90deg,color-mix(in_srgb,var(--color-primary)_18%,transparent)_1px,transparent_1px),linear-gradient(color-mix(in_srgb,var(--color-primary)_16%,transparent)_1px,transparent_1px)] before:bg-[length:42px_42px] before:opacity-30 lg:flex lg:max-h-[calc(100vh-6.5rem)]"
+          className="relative hidden min-h-0 flex-col justify-between gap-8 overflow-hidden rounded-panel bg-[linear-gradient(150deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_55%,black))] p-8 text-white shadow-soft lg:flex lg:max-h-[calc(100vh-6.5rem)]"
           aria-labelledby="auth-hero-title"
         >
-          <div className="relative z-10 mx-auto my-auto flex max-w-2xl flex-col items-center text-center">
-            <Logo compact size={120} stacked />
-            <span className="block max-w-lg text-sm leading-6 text-app-muted md:text-base">
-              Premium chess learning for focused students and families.
+          <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl" />
+          <div aria-hidden="true" className="pointer-events-none absolute -bottom-20 -left-20 size-80 rounded-full bg-secondary/20 blur-3xl" />
+          <ChessKnight
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-6 -right-10 size-80 text-white/10"
+            strokeWidth={1.25}
+          />
+
+          <div className="relative z-10 grid justify-items-center gap-6 text-center">
+            <div className="flex justify-center [@media(max-height:700px)]:hidden">
+              <Logo onDark size={96} />
+            </div>
+            <div className="hidden justify-center [@media(max-height:700px)]:flex">
+              <Logo onDark size={64} />
+            </div>
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold">
+              <Crown aria-hidden="true" className="size-4 text-secondary" strokeWidth={2.5} />
+              Live chess coaching academy
             </span>
+            <div className="grid gap-3">
+              <h1 className="text-4xl font-extrabold leading-tight tracking-tight" id="auth-hero-title">
+                Master the board with expert coaches.
+              </h1>
+              <p className="mx-auto max-w-md text-base leading-relaxed text-white/80">
+                Premium chess learning for focused students, ambitious juniors and supportive families.
+              </p>
+            </div>
+          </div>
+
+          <div className="relative z-10 border-t border-white/20 pt-6 [@media(max-height:700px)]:pt-4">
+            <HeroFeatureCarousel />
           </div>
         </section>
         <section

@@ -35,19 +35,9 @@ export class AuthController {
 
   @Post(API_ROUTES.auth.register)
   @Throttle({ default: { limit: 5, ttl: 60000 } })
-  async register(
-    @Body() body: RegisterDto,
-    @Req() request: Request,
-    @Res({ passthrough: true }) response: Response
-  ) {
-    const result = await this.authService.register(
-      body,
-      this.getSessionContext(request)
-    );
-
-    this.setAuthCookies(response, result);
-
-    return { user: result.user };
+  async register(@Body() body: RegisterDto, @Req() request: Request) {
+    // No auth cookies: a student account is pending until an admin approves it.
+    return this.authService.register(body, this.getSessionContext(request));
   }
 
   @Post(API_ROUTES.auth.registerCoach)

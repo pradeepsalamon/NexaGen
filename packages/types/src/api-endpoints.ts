@@ -41,6 +41,8 @@ export const API_ROUTES = {
   admin: {
     pendingCoaches: "/admin/coaches/pending",
     updateCoachStatus: (id: string = ":id") => `/admin/coaches/${id}/status`,
+    pendingStudents: "/admin/students/pending",
+    updateStudentStatus: (id: string = ":id") => `/admin/students/${id}/status`,
     demoClasses: "/admin/demo-classes",
     updateDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}`,
     cancelDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}/cancel`,

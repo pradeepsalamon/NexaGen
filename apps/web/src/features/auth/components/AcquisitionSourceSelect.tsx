@@ -44,8 +44,8 @@ export function AcquisitionSourceSelect({
     value === "coach_referral" ? "Which coach?" : "Tell us more";
 
   return (
-    <div className="grid gap-3.5">
-      <FormField id="acquisition-source" label="How did you hear about NexaChess?">
+    <div className="grid gap-3">
+      <FormField id="acquisition-source" label="How did you hear about us?" required={required}>
         <Select
           id="acquisition-source"
           onChange={(event) =>

@@ -3,7 +3,7 @@
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { AtSign, CheckCircle2, Lock, Phone, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -125,99 +125,99 @@ export function CoachRegisterForm() {
   }
 
   return (
-    <form className="grid gap-3.5" onSubmit={handleSubmit}>
-      <FormField id="coach-name" label="Full Name">
+    <form className="grid gap-3 [@media(max-height:700px)]:gap-2" onSubmit={handleSubmit}>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="coach-name" label="Full Name" required>
           <Input
             autoComplete="name"
             id="coach-name"
+            leadingIcon={<UserRound strokeWidth={2.25} />}
             onChange={(event) => updateField("coachName", event.target.value)}
             placeholder="John Doe"
             required
             value={values.coachName}
           />
         </FormField>
-        
-        <div className="grid gap-3.5 md:grid-cols-2">
-          <FormField id="contact-number" label="Contact Number">
-            <Input
-              autoComplete="tel"
-              id="contact-number"
-              inputMode="tel"
-              onChange={(event) =>
-                updateField("contactNumber", event.target.value)
-              }
-              placeholder="Contact number"
-              required
-              type="tel"
-              value={values.contactNumber}
-            />
-          </FormField>
-          <FormField id="email" label="Email Address">
-            <Input
-              autoComplete="email"
-              id="email"
-              inputMode="email"
-              onChange={(event) => updateField("email", event.target.value)}
-              placeholder="coach@example.com"
-              required
-              type="email"
-              value={values.email}
-            />
-          </FormField>
-        </div>
-
-        <div className="grid gap-3.5 md:grid-cols-2">
-          <FormField id="title" label="FIDE Title">
-            <Select
-              id="title"
-              onChange={(event) =>
-                updateField(
-                  "title",
-                  event.target.value as RegisterCoachRequest["title"]
-                )
-              }
-              options={titleOptions}
-              placeholder="Choose Title"
-              value={values.title ?? "NONE"}
-            />
-          </FormField>
-          <FormField id="fide-id" label="FIDE ID (Optional)">
-            <Input
-              id="fide-id"
-              onChange={(event) => updateField("fideId", event.target.value)}
-              placeholder="123456"
-              value={values.fideId ?? ""}
-            />
-          </FormField>
-        </div>
-
-        <div className="grid gap-3.5 md:grid-cols-2">
-          <FormField id="fide-rating" label="FIDE Rating (Optional)">
-            <Input
-              id="fide-rating"
-              inputMode="numeric"
-              onChange={(event) =>
-                updateField("fideRating", parseInt(event.target.value) || undefined)
-              }
-              placeholder="e.g. 2000"
-              type="number"
-              value={values.fideRating ?? ""}
-            />
-          </FormField>
-          <FormField id="years-of-experience" label="Years of Experience">
-            <Input
-              id="years-of-experience"
-              inputMode="numeric"
-              onChange={(event) =>
-                updateField("yearsOfExperience", parseInt(event.target.value) || undefined)
-              }
-              placeholder="e.g. 5"
-              type="number"
-              value={values.yearsOfExperience ?? ""}
-            />
-          </FormField>
-        </div>
-
+        <FormField id="email" label="Email Address" required>
+          <Input
+            autoComplete="email"
+            id="email"
+            inputMode="email"
+            leadingIcon={<AtSign strokeWidth={2.25} />}
+            onChange={(event) => updateField("email", event.target.value)}
+            placeholder="coach@example.com"
+            required
+            type="email"
+            value={values.email}
+          />
+        </FormField>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="contact-number" label="WhatsApp / Phone Number" required>
+          <Input
+            autoComplete="tel"
+            id="contact-number"
+            inputMode="tel"
+            leadingIcon={<Phone strokeWidth={2.25} />}
+            onChange={(event) =>
+              updateField("contactNumber", event.target.value)
+            }
+            placeholder="98765 43210"
+            required
+            type="tel"
+            value={values.contactNumber}
+          />
+        </FormField>
+        <FormField id="title" label="FIDE Title">
+          <Select
+            id="title"
+            onChange={(event) =>
+              updateField(
+                "title",
+                event.target.value as RegisterCoachRequest["title"]
+              )
+            }
+            options={titleOptions}
+            placeholder="Choose Title"
+            value={values.title ?? "NONE"}
+          />
+        </FormField>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="fide-id" label="FIDE ID (Optional)">
+          <Input
+            id="fide-id"
+            onChange={(event) => updateField("fideId", event.target.value)}
+            placeholder="123456"
+            value={values.fideId ?? ""}
+          />
+        </FormField>
+        <FormField id="fide-rating" label="FIDE Rating (Optional)">
+          <Input
+            id="fide-rating"
+            inputMode="numeric"
+            onChange={(event) =>
+              updateField("fideRating", parseInt(event.target.value) || undefined)
+            }
+            placeholder="e.g. 2000"
+            type="number"
+            value={values.fideRating ?? ""}
+          />
+        </FormField>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="years-of-experience" label="Years of Experience">
+          <Input
+            id="years-of-experience"
+            inputMode="numeric"
+            onChange={(event) =>
+              updateField("yearsOfExperience", parseInt(event.target.value) || undefined)
+            }
+            placeholder="e.g. 5"
+            type="number"
+            value={values.yearsOfExperience ?? ""}
+          />
+        </FormField>
         <AcquisitionSourceSelect
           detail={acquisitionDetail}
           onDetailChange={setAcquisitionDetail}
@@ -225,36 +225,38 @@ export function CoachRegisterForm() {
           required
           value={acquisitionSource}
         />
-
-        <div className="grid gap-3.5 md:grid-cols-2">
-          <FormField id="password" label="Password">
-            <PasswordInput
-              autoComplete="new-password"
-              id="password"
-              onChange={(event) => updateField("password", event.target.value)}
-              placeholder="Create password"
-              required
-              value={values.password}
-            />
-          </FormField>
-          <FormField id="confirm-password" label="Confirm Password">
-            <PasswordInput
-              autoComplete="new-password"
-              id="confirm-password"
-              name="confirmPassword"
-              onChange={(event) => {
-                event.target.setCustomValidity("");
-                updateField("confirmPassword", event.target.value);
-              }}
-              placeholder="Confirm password"
-              required
-              value={values.confirmPassword}
-            />
-          </FormField>
-        </div>
-        <Button fullWidth isLoading={registerMutation.isPending} type="submit">
-          {registerMutation.isPending ? "Submitting..." : "Submit Application"}
-        </Button>
-      </form>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="password" label="Password" required>
+          <PasswordInput
+            autoComplete="new-password"
+            id="password"
+            leadingIcon={<Lock strokeWidth={2.25} />}
+            onChange={(event) => updateField("password", event.target.value)}
+            placeholder="8+ chars, letters & numbers"
+            required
+            value={values.password}
+          />
+        </FormField>
+        <FormField id="confirm-password" label="Confirm Password" required>
+          <PasswordInput
+            autoComplete="new-password"
+            id="confirm-password"
+            leadingIcon={<Lock strokeWidth={2.25} />}
+            name="confirmPassword"
+            onChange={(event) => {
+              event.target.setCustomValidity("");
+              updateField("confirmPassword", event.target.value);
+            }}
+            placeholder="Confirm password"
+            required
+            value={values.confirmPassword}
+          />
+        </FormField>
+      </div>
+      <Button className="mt-1 [@media(max-height:700px)]:mt-0" fullWidth isLoading={registerMutation.isPending} type="submit">
+        {registerMutation.isPending ? "Submitting..." : "Submit Application"}
+      </Button>
+    </form>
   );
 }

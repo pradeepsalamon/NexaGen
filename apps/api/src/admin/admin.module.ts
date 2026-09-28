@@ -4,9 +4,10 @@ import { AdminService } from './admin.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { TrashModule } from '../trash/trash.module';
 import { JwtModule } from '@nestjs/jwt';
+import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
-  imports: [PrismaModule, JwtModule, TrashModule],
+  imports: [PrismaModule, JwtModule, MessagingModule, TrashModule],
   controllers: [AdminController],
   providers: [AdminService]
 })

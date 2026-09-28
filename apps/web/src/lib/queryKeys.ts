@@ -32,6 +32,7 @@ export const queryKeys = {
   },
   admin: {
     base: ["admin"] as const,
+    pendingStudents: ["admin", "pending-students"] as const,
   },
   feedback: {
     all: ["feedback"] as const,

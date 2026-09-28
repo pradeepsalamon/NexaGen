@@ -1,13 +1,11 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
-import { useState, type InputHTMLAttributes } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { Input, type InputProps } from "@/components/ui/Input";
 
-type PasswordInputProps = InputHTMLAttributes<HTMLInputElement> & {
-  hasError?: boolean;
-};
+type PasswordInputProps = Omit<InputProps, "type">;
 
 export function PasswordInput({
   hasError = false,

@@ -1,8 +1,19 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { type FormEvent, useState } from "react";
+import {
+  AtSign,
+  CalendarDays,
+  CheckCircle2,
+  ChessKnight,
+  Lock,
+  Phone,
+  ShieldCheck,
+  UserRound,
+  UsersRound
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
@@ -10,7 +21,6 @@ import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { getStoredAcquisition } from "@/lib/acquisition";
-import { useAuthStore } from "@/stores/authStore";
 import { register } from "../api/authApi";
 import type { RegisterFormValues } from "../types/auth";
 import { AcquisitionSourceSelect } from "./AcquisitionSourceSelect";
@@ -28,10 +38,10 @@ const initialValues: RegisterFormValues = {
 };
 
 export function RegisterForm() {
-  const router = useRouter();
   const toast = useToast();
-  const setUser = useAuthStore((state) => state.setUser);
   const [values, setValues] = useState<RegisterFormValues>(initialValues);
+  const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
+  // No session until an admin approves the registration.
   const registerMutation = useMutation({
     mutationFn: register,
     onError: (error) => {
@@ -40,13 +50,12 @@ export function RegisterForm() {
         title: "Registration failed"
       });
     },
-    onSuccess: ({ user }) => {
-      setUser(user);
+    onSuccess: ({ email }) => {
+      setSubmittedEmail(email);
       toast.success({
-        message: "Your account is ready.",
-        title: "Registration successful"
+        message: "Your registration is submitted and under review.",
+        title: "Registration received"
       });
-      router.push("/");
     }
   });
 
@@ -87,115 +96,146 @@ export function RegisterForm() {
     });
   }
 
-  return (
-    <form className="grid gap-3.5" onSubmit={handleSubmit}>
+  if (submittedEmail) {
+    return (
+      <div className="grid gap-4 text-center">
+        <CheckCircle2
+          aria-hidden="true"
+          className="mx-auto size-12 text-primary-ink"
+          strokeWidth={2.5}
+        />
+        <div className="grid gap-1.5">
+          <h2 className="text-lg font-semibold text-app-text">
+            Registration received
+          </h2>
+          <p className="text-sm text-app-muted">
+            We have your registration for{" "}
+            <span className="font-medium text-app-text">{submittedEmail}</span>.
+            An admin reviews every student account before it is activated — you
+            will be able to sign in once yours is approved.
+          </p>
+        </div>
+        <Link href="/login">
+          <Button fullWidth variant="outline">
+            Back to sign in
+          </Button>
+        </Link>
+      </div>
+    );
+  }
 
-          <div className="grid gap-3.5 md:grid-cols-2">
-            <FormField id="student-name" label="Student Name">
-              <Input
-                autoComplete="name"
-                id="student-name"
-                onChange={(event) =>
-                  updateField("studentName", event.target.value)
-                }
-                placeholder="Student name"
-                required
-                value={values.studentName}
-              />
-            </FormField>
-            <FormField id="parent-name" label="Parent Name">
-              <Input
-                autoComplete="name"
-                id="parent-name"
-                onChange={(event) =>
-                  updateField("parentName", event.target.value)
-                }
-                placeholder="Parent name"
-                required
-                value={values.parentName}
-              />
-            </FormField>
-          </div>
-          <FormField id="student-age" label="Student Age">
-            <Input
-              id="student-age"
-              inputMode="numeric"
-              min={4}
-              onChange={(event) =>
-                updateField("studentAge", event.target.value)
-              }
-              placeholder="Age"
-              required
-              type="number"
-              value={values.studentAge}
-            />
-          </FormField>
-          <AcquisitionSourceSelect
-            detail={values.acquisitionDetail}
-            onDetailChange={(detail) =>
-              updateField("acquisitionDetail", detail)
-            }
-            onValueChange={(value) => updateField("acquisitionSource", value)}
+  return (
+    <form className="grid gap-3 [@media(max-height:700px)]:gap-2" onSubmit={handleSubmit}>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="student-name" label="Student Full Name" required>
+          <Input
+            autoComplete="name"
+            id="student-name"
+            leadingIcon={<UserRound strokeWidth={2.25} />}
+            onChange={(event) => updateField("studentName", event.target.value)}
+            placeholder="e.g. Aarav Sharma"
             required
-            value={values.acquisitionSource}
+            value={values.studentName}
           />
-          <FormField id="contact-number" label="Contact Number">
-            <Input
-              autoComplete="tel"
-              id="contact-number"
-              inputMode="tel"
-              onChange={(event) =>
-                updateField("contactNumber", event.target.value)
-              }
-              placeholder="Contact number"
-              required
-              type="tel"
-              value={values.contactNumber}
-            />
-          </FormField>
-          <FormField id="email" label="Email Address">
-            <Input
-              autoComplete="email"
-              id="email"
-              inputMode="email"
-              onChange={(event) => updateField("email", event.target.value)}
-              placeholder="student@example.com"
-              required
-              type="email"
-              value={values.email}
-            />
-          </FormField>
-          <div className="grid gap-3.5 md:grid-cols-2">
-            <FormField id="password" label="Password">
-              <PasswordInput
-                autoComplete="new-password"
-                id="password"
-                onChange={(event) =>
-                  updateField("password", event.target.value)
-                }
-                placeholder="Create password"
-                required
-                value={values.password}
-              />
-            </FormField>
-            <FormField id="confirm-password" label="Confirm Password">
-              <PasswordInput
-                autoComplete="new-password"
-                id="confirm-password"
-                name="confirmPassword"
-                onChange={(event) => {
-                  event.target.setCustomValidity("");
-                  updateField("confirmPassword", event.target.value);
-                }}
-                placeholder="Confirm password"
-                required
-                value={values.confirmPassword}
-              />
-            </FormField>
-          </div>
-        <Button fullWidth isLoading={registerMutation.isPending} type="submit">
-          {registerMutation.isPending ? "Registering..." : "Register"}
-        </Button>
-      </form>
+        </FormField>
+        <FormField id="parent-name" label="Parent / Guardian Name" required>
+          <Input
+            autoComplete="name"
+            id="parent-name"
+            leadingIcon={<UsersRound strokeWidth={2.25} />}
+            onChange={(event) => updateField("parentName", event.target.value)}
+            placeholder="e.g. Rajesh Sharma"
+            required
+            value={values.parentName}
+          />
+        </FormField>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="student-age" label="Student Age" required>
+          <Input
+            id="student-age"
+            inputMode="numeric"
+            leadingIcon={<CalendarDays strokeWidth={2.25} />}
+            min={4}
+            onChange={(event) => updateField("studentAge", event.target.value)}
+            placeholder="e.g. 9"
+            required
+            type="number"
+            value={values.studentAge}
+          />
+        </FormField>
+        <FormField id="contact-number" label="WhatsApp / Phone Number" required>
+          <Input
+            autoComplete="tel"
+            id="contact-number"
+            inputMode="tel"
+            leadingIcon={<Phone strokeWidth={2.25} />}
+            onChange={(event) => updateField("contactNumber", event.target.value)}
+            placeholder="98765 43210"
+            required
+            type="tel"
+            value={values.contactNumber}
+          />
+        </FormField>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <AcquisitionSourceSelect
+          detail={values.acquisitionDetail}
+          onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
+          onValueChange={(value) => updateField("acquisitionSource", value)}
+          required
+          value={values.acquisitionSource}
+        />
+        <FormField id="email" label="Email Address" required>
+          <Input
+            autoComplete="email"
+            id="email"
+            inputMode="email"
+            leadingIcon={<AtSign strokeWidth={2.25} />}
+            onChange={(event) => updateField("email", event.target.value)}
+            placeholder="student@example.com"
+            required
+            type="email"
+            value={values.email}
+          />
+        </FormField>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+        <FormField id="password" label="Password" required>
+          <PasswordInput
+            autoComplete="new-password"
+            id="password"
+            leadingIcon={<Lock strokeWidth={2.25} />}
+            onChange={(event) => updateField("password", event.target.value)}
+            placeholder="8+ chars, letters & numbers"
+            required
+            value={values.password}
+          />
+        </FormField>
+        <FormField id="confirm-password" label="Confirm Password" required>
+          <PasswordInput
+            autoComplete="new-password"
+            id="confirm-password"
+            leadingIcon={<Lock strokeWidth={2.25} />}
+            name="confirmPassword"
+            onChange={(event) => {
+              event.target.setCustomValidity("");
+              updateField("confirmPassword", event.target.value);
+            }}
+            placeholder="Confirm password"
+            required
+            value={values.confirmPassword}
+          />
+        </FormField>
+      </div>
+      <Button className="mt-1 [@media(max-height:700px)]:mt-0" fullWidth isLoading={registerMutation.isPending} type="submit">
+        {registerMutation.isPending ? "Submitting..." : "Complete Registration"}
+        {!registerMutation.isPending && <ChessKnight aria-hidden="true" className="size-4" strokeWidth={2.5} />}
+      </Button>
+      <p className="flex items-start justify-center gap-2 text-center text-xs leading-5 text-app-muted">
+        <ShieldCheck aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-success-ink" strokeWidth={2.5} />
+        Our team reviews every registration. You can sign in once it is approved.
+      </p>
+    </form>
   );
 }

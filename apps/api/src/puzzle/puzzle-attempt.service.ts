@@ -37,6 +37,7 @@ import {
   paginationMeta
 } from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
+import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { assertStudent, authenticateUser, fullName } from "./puzzle-auth.helper";
 
@@ -75,7 +76,9 @@ export class PuzzleAttemptService {
 
     const where = await this.studentVisibilityWhere(student);
     const and: Prisma.PuzzleWhereInput[] = [];
-    if (query.topicId) and.push({ topicId: query.topicId });
+    if (query.topicId) {
+      and.push(await puzzleTopicWhere(this.prisma, query.topicId, query.topicScope));
+    }
     if (query.puzzleType) and.push({ puzzleType: query.puzzleType });
     if (query.difficulty) and.push({ difficulty: query.difficulty });
     if (search) {

@@ -19,7 +19,8 @@ import {
   PUZZLE_DIFFICULTY_OPTIONS,
   PUZZLE_TYPE_LABELS,
   PUZZLE_TYPE_OPTIONS,
-  difficultyBadgeVariant
+  difficultyBadgeVariant,
+  puzzleTopicOptions
 } from "../lib/puzzleMeta";
 
 export function StudentPuzzlesClient() {
@@ -50,7 +51,7 @@ export function StudentPuzzlesClient() {
   const puzzles = data?.puzzles ?? [];
   const pagination = data?.pagination;
 
-  const topicOptions = (topicsData?.topics ?? []).map((t) => ({ value: t.id, label: t.name }));
+  const topicOptions = puzzleTopicOptions(topicsData?.topics ?? []);
   const hasFilters = Boolean(searchInput || topicId || puzzleType || difficulty || solved);
 
   const clear = () => {

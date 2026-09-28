@@ -1876,6 +1876,11 @@ model PuzzleTopic {
   icon        String? // lucide icon name or emoji
   sortOrder   Int     @default(0)
 
+  // Folder tree: null = a root folder.
+  parentId String?
+  parent   PuzzleTopic?  @relation("PuzzleTopicTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children PuzzleTopic[] @relation("PuzzleTopicTree")
+
   createdById String?
   createdBy   User?   @relation("PuzzleTopicCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
@@ -1894,6 +1899,7 @@ model PuzzleTopic {
   @@index([deletedById])
   @@index([deleteGroupId])
   @@index([sortOrder])
+  @@index([parentId])
   @@map("puzzle_topics")
 }
 

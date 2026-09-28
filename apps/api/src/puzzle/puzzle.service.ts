@@ -36,6 +36,7 @@ import {
   resolveOrderBy
 } from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
+import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { TrashRepository } from "../trash/trash.repository";
 import {
   assertStaffOrCoach,
@@ -82,7 +83,9 @@ export class PuzzleService {
     const where: Prisma.PuzzleWhereInput = { ...this.visibilityWhere(user) };
     const and: Prisma.PuzzleWhereInput[] = [];
 
-    if (query.topicId) and.push({ topicId: query.topicId });
+    if (query.topicId) {
+      and.push(await puzzleTopicWhere(this.prisma, query.topicId, query.topicScope));
+    }
     if (query.puzzleType) and.push({ puzzleType: query.puzzleType });
     if (query.difficulty) and.push({ difficulty: query.difficulty });
     if (query.status) and.push({ status: query.status });

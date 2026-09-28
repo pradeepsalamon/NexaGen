@@ -396,6 +396,9 @@ export type RegisterCoachResponse = {
   status: "PENDING_APPROVAL";
 };
 
+/** Student self-registration is also pending until an admin approves it. */
+export type RegisterResponse = RegisterCoachResponse;
+
 export type UserListResponse = {
   users: AuthUser[];
   pagination?: PaginationMeta;
@@ -532,6 +535,24 @@ export type PendingCoachesResponse = {
 
 export type UpdateCoachStatusRequest = {
   status: "ACTIVE" | "ARCHIVED" | "DELETED";
+};
+
+export type PendingStudent = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string | null;
+  phoneNumber: string | null;
+  parentName: string | null;
+  createdAt: string;
+};
+
+export type PendingStudentsResponse = {
+  students: PendingStudent[];
+};
+
+export type UpdateStudentStatusRequest = {
+  status: "ACTIVE" | "ARCHIVED";
 };
 
 //

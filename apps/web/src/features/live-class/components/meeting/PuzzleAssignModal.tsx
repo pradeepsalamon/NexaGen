@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, Folder, Trophy } from "lucide-react";
 import {
+  buildPuzzleTopicTree,
+  flattenPuzzleTopicTree,
+  puzzleTopicPath,
   resolvePuzzleLeaderboard,
   resolvePuzzleScoring,
   type PuzzleDifficulty,
@@ -97,7 +100,7 @@ export function PuzzleAssignModal({
   const [scoringOverride, setScoringOverride] = useState<PuzzleScoringOverride>({});
   const [leaderboardOverride, setLeaderboardOverride] = useState<PuzzleLeaderboardOverride>({});
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [folder, setFolder] = useState<{ id: string; name: string } | null>(null);
+  const [folderId, setFolderId] = useState<string | null>(null);
   const defaults = usePuzzleScoringSettings(open);
 
   useEffect(() => {
@@ -124,17 +127,32 @@ export function PuzzleAssignModal({
   const customized =
     Object.keys(scoringOverride).length + Object.keys(leaderboardOverride).length > 0;
   const debouncedSearch = useDebouncedValue(search, 300);
-  // Topics are the folders; a search looks across every folder at once.
-  const browsingFolders = !folder && !debouncedSearch;
+  // Topics are the folders; a search looks across the open folder and all its subfolders.
+  const searching = Boolean(debouncedSearch);
   const topics = usePuzzleTopics(open);
+  const allTopics = useMemo(() => topics.data?.topics ?? [], [topics.data]);
+  const tree = useMemo(() => buildPuzzleTopicTree(allTopics), [allTopics]);
+  const subfolders = useMemo(
+    () =>
+      folderId
+        ? (flattenPuzzleTopicTree(tree).find((n) => n.topic.id === folderId)?.children ?? [])
+        : tree,
+    [tree, folderId]
+  );
+  const folderPath = useMemo(
+    () => (folderId ? puzzleTopicPath(allTopics, folderId) : []),
+    [allTopics, folderId]
+  );
+  const browsingRoot = !folderId && !searching;
 
   const puzzles = usePuzzles({
     status: "PUBLISHED",
     scope: "all",
     search: debouncedSearch || undefined,
     difficulty: difficulty || undefined,
-    topicId: folder?.id,
-    pageSize: folder ? 100 : 25
+    topicId: folderId ?? undefined,
+    topicScope: searching ? "subtree" : "direct",
+    pageSize: folderId ? 100 : 25
   });
 
   const assign = useAssignLivePuzzle(classId);
@@ -296,41 +314,71 @@ export function PuzzleAssignModal({
         ) : null}
 
         <div className={`${optionsOpen ? "max-h-[24vh]" : "max-h-[46vh]"} space-y-2 overflow-y-auto`}>
-          {!browsingFolders && folder ? (
-            <button
-              type="button"
-              onClick={() => setFolder(null)}
-              className="flex items-center gap-1 text-sm font-semibold text-primary-ink"
-            >
-              <ChevronLeft className="size-4" strokeWidth={2.5} />
-              All folders
-              <span className="font-normal text-app-muted">/ {folder.name}</span>
-            </button>
+          {folderId ? (
+            <nav aria-label="Folder path" className="flex flex-wrap items-center gap-1 text-sm">
+              <button
+                type="button"
+                onClick={() => setFolderId(folderPath.at(-2)?.id ?? null)}
+                className="flex items-center gap-1 font-semibold text-primary-ink"
+              >
+                <ChevronLeft className="size-4" strokeWidth={2.5} />
+                Back
+              </button>
+              <span className="text-app-muted">·</span>
+              <button
+                type="button"
+                onClick={() => setFolderId(null)}
+                className="text-app-muted hover:text-app-text"
+              >
+                All folders
+              </button>
+              {folderPath.map((crumb, i) => (
+                <span key={crumb.id} className="flex items-center gap-1">
+                  <span className="text-app-muted">/</span>
+                  {i === folderPath.length - 1 ? (
+                    <span className="font-semibold text-app-text">{crumb.name}</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setFolderId(crumb.id)}
+                      className="text-app-muted hover:text-app-text"
+                    >
+                      {crumb.name}
+                    </button>
+                  )}
+                </span>
+              ))}
+            </nav>
           ) : null}
-          {browsingFolders ? (
+          {!searching
+            ? subfolders.map((node) => (
+                <button
+                  key={node.topic.id}
+                  type="button"
+                  onClick={() => setFolderId(node.topic.id)}
+                  className="flex w-full items-center gap-3 rounded-app border border-app-border bg-app-surface p-3 text-left transition-colors hover:border-primary/50 hover:bg-app-soft"
+                >
+                  <Folder className="size-5 shrink-0 fill-amber-400/30 text-amber-500" strokeWidth={2} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-text">
+                    {node.topic.name}
+                  </span>
+                  <span className="text-xs text-app-muted">
+                    {node.children.length ? `${node.children.length} folders · ` : ""}
+                    {node.totalPuzzleCount} puzzles
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-app-muted" strokeWidth={2.5} />
+                </button>
+              ))
+            : null}
+          {browsingRoot ? (
             topics.isLoading ? (
               <>
                 <Skeleton className="h-12 w-full" />
                 <Skeleton className="h-12 w-full" />
               </>
-            ) : (topics.data?.topics ?? []).length === 0 ? (
+            ) : tree.length === 0 ? (
               <p className="py-8 text-center text-sm text-app-muted">No puzzle folders yet.</p>
-            ) : (
-              (topics.data?.topics ?? []).map((topic) => (
-                <button
-                  key={topic.id}
-                  type="button"
-                  onClick={() => setFolder({ id: topic.id, name: topic.name })}
-                  className="flex w-full items-center gap-3 rounded-app border border-app-border bg-app-surface p-3 text-left transition-colors hover:border-primary/50 hover:bg-app-soft"
-                >
-                  <Folder className="size-5 shrink-0 fill-amber-400/30 text-amber-500" strokeWidth={2} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-text">
-                    {topic.name}
-                  </span>
-                  <ChevronRight className="size-4 shrink-0 text-app-muted" strokeWidth={2.5} />
-                </button>
-              ))
-            )
+            ) : null
           ) : puzzles.isLoading ? (
             <>
               <Skeleton className="h-14 w-full" />
@@ -338,7 +386,9 @@ export function PuzzleAssignModal({
               <Skeleton className="h-14 w-full" />
             </>
           ) : rows.length === 0 ? (
-            <p className="py-8 text-center text-sm text-app-muted">No published puzzles match.</p>
+            subfolders.length > 0 && !searching ? null : (
+              <p className="py-8 text-center text-sm text-app-muted">No published puzzles match.</p>
+            )
           ) : (
             rows.map((puzzle) => (
               <div
@@ -349,7 +399,7 @@ export function PuzzleAssignModal({
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-app-text">{puzzle.title}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    {!folder ? <Badge variant="secondary">{puzzle.topicName}</Badge> : null}
+                    {searching ? <Badge variant="secondary">{puzzle.topicName}</Badge> : null}
                     <Badge variant="outline">{PUZZLE_TYPE_LABELS[puzzle.puzzleType]}</Badge>
                     <Badge variant={difficultyBadgeVariant(puzzle.difficulty)}>
                       {PUZZLE_DIFFICULTY_LABELS[puzzle.difficulty]}

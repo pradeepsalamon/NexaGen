@@ -1,14 +1,16 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { MessagingDispatchService } from '../messaging/messaging-dispatch.service';
 import { assertNoSchedulingConflict, assertNotInPast } from '../coach/class-scheduling.util';
 import { paginationMeta, resolveOrderBy, resolvePagination } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrashRepository } from '../trash/trash.repository';
-import type { PaginatedQuery, PendingCoachesResponse, UpdateCoachStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
+import type { PaginatedQuery, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
 import { Prisma, UserStatus } from '@prisma/client';
 
 @Injectable()
 export class AdminService {
   constructor(
+    private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
     private readonly trashRepository: TrashRepository
   ) {}
@@ -86,6 +88,48 @@ export class AdminService {
         data: { status: data.status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE' }
       });
     });
+
+    return { ok: true };
+  }
+
+  async getPendingStudents(): Promise<PendingStudentsResponse> {
+    const users = await this.prisma.user.findMany({
+      where: { role: 'STUDENT', status: UserStatus.PENDING },
+      include: { studentProfile: true },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    return {
+      students: users.map(user => ({
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phoneNumber: user.phoneNumber,
+        parentName: user.studentProfile?.parentName ?? null,
+        createdAt: user.createdAt.toISOString()
+      }))
+    };
+  }
+
+  async updateStudentStatus(studentId: string, data: UpdateStudentStatusRequest): Promise<{ ok: boolean }> {
+    if (data.status !== 'ACTIVE' && data.status !== 'ARCHIVED') {
+      throw new ConflictException('Unsupported status.');
+    }
+
+    // Status-filtered so a double click or a second admin can't review twice.
+    const { count } = await this.prisma.user.updateMany({
+      where: { id: studentId, role: 'STUDENT', status: UserStatus.PENDING },
+      data: { status: data.status === 'ACTIVE' ? UserStatus.ACTIVE : UserStatus.ARCHIVED }
+    });
+
+    if (count === 0) {
+      throw new NotFoundException('Pending student not found or already reviewed.');
+    }
+
+    if (data.status === 'ACTIVE') {
+      this.messaging.dispatchInBackground({ event: 'ACCOUNT_APPROVED', userId: studentId });
+    }
 
     return { ok: true };
   }

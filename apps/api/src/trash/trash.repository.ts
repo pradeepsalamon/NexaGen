@@ -220,6 +220,35 @@ export class TrashRepository {
   }
 
   /**
+   * Soft-delete several rows of one model under a single `deleteGroupId`, so
+   * restoring any of them brings the whole set back (e.g. a folder subtree).
+   */
+  async softDeleteGroup(
+    client: PrismaClientLike,
+    entityName: string,
+    ids: string[],
+    userId: string
+  ) {
+    const entity = this.getEntityOrThrow(entityName);
+    const deleteGroupId = randomUUID();
+    const deletedAt = new Date();
+
+    for (const id of ids) {
+      await this.getDelegate(client, entity.delegate).update({
+        data: { deleteGroupId, deletedAt, deletedById: userId, isDeleted: true },
+        where: { id }
+      });
+      await this.log(client, {
+        action: "SOFT_DELETE",
+        entity: entity.label,
+        entityId: id,
+        metadata: { deleteGroupId },
+        userId
+      });
+    }
+  }
+
+  /**
    * Soft-delete a parent row and every child row that belongs with it (a User's
    * profiles, a Batch's coach/student assignments), tagging them all with one
    * `deleteGroupId` so {@link restore} can bring the group back together

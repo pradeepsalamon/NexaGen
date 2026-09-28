@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import type {
-  PuzzleListQuery,
-  PuzzleStatus,
-  PuzzleSummary,
-  PuzzleVisibility
+import {
+  puzzleTopicPathLabel,
+  type PuzzleListQuery,
+  type PuzzleStatus,
+  type PuzzleSummary,
+  type PuzzleVisibility
 } from "@nexa-chess/types";
 import {
   Archive,
@@ -47,7 +48,7 @@ import {
   setPuzzleArchived,
   setPuzzlePublished
 } from "../api/puzzleApi";
-import { usePuzzleStats, usePuzzles } from "../hooks/usePuzzlesApi";
+import { usePuzzleStats, usePuzzles, usePuzzleTopics } from "../hooks/usePuzzlesApi";
 import {
   PUZZLE_DIFFICULTY_LABELS,
   PUZZLE_DIFFICULTY_OPTIONS,
@@ -55,6 +56,7 @@ import {
   PUZZLE_TYPE_LABELS,
   PUZZLE_TYPE_OPTIONS,
   difficultyBadgeVariant,
+  puzzleTopicOptions,
   statusBadgeVariant
 } from "../lib/puzzleMeta";
 import { TopicManager } from "./TopicManager";
@@ -183,6 +185,11 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
   );
 
   const { data, isLoading, isPlaceholderData } = usePuzzles(query);
+  const { data: topicsData } = usePuzzleTopics();
+  const topicOptions = useMemo(
+    () => puzzleTopicOptions(topicsData?.topics ?? []),
+    [topicsData]
+  );
 
   const invalidates = [queryKeys.puzzles.all];
   const { run: runPublish } = useUndoableMutation({
@@ -242,6 +249,17 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
           }}
           placeholder="Search puzzles…"
           className="w-full sm:w-56"
+        />
+        <Select
+          aria-label="Filter by folder"
+          value={topicId}
+          placeholder="All folders"
+          options={topicOptions}
+          onChange={(e) => {
+            setTopicId(e.target.value);
+            setPage(1);
+          }}
+          className="w-auto max-w-56"
         />
         <Select
           aria-label="Filter by type"
@@ -326,7 +344,9 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
                       {p.title}
                     </Link>
                   </TableCell>
-                  <TableCell>{p.topicName}</TableCell>
+                  <TableCell>
+                    {puzzleTopicPathLabel(topicsData?.topics ?? [], p.topicId) || p.topicName}
+                  </TableCell>
                   <TableCell>{PUZZLE_TYPE_LABELS[p.puzzleType]}</TableCell>
                   <TableCell>
                     <Badge variant={difficultyBadgeVariant(p.difficulty)}>

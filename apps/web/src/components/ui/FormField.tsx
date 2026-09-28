@@ -7,6 +7,7 @@ type FormFieldProps = {
   hint?: string;
   id: string;
   label: string;
+  required?: boolean;
 };
 
 export function FormField({
@@ -14,12 +15,18 @@ export function FormField({
   error,
   hint,
   id,
-  label
+  label,
+  required = false
 }: FormFieldProps) {
   return (
     <div className="grid gap-1.5">
       <Label htmlFor={id}>
         {label}
+        {required && (
+          <span aria-hidden="true" className="ml-0.5 text-app-danger-ink">
+            *
+          </span>
+        )}
       </Label>
       {children}
       {error ? (

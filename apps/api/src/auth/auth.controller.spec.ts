@@ -91,7 +91,7 @@ describe("AuthController", () => {
   };
 
   describe("register", () => {
-    it("calls authService.register and sets cookies", async () => {
+    it("calls authService.register without setting cookies", async () => {
       const dto: RegisterRequest = {
         confirmPassword: "password123",
         contactNumber: "1234567890",
@@ -103,18 +103,17 @@ describe("AuthController", () => {
         studentName: "Test Student"
       };
       const req = mockRequest("127.0.0.1", "test-agent");
-      const res = mockResponse();
+      const pending = { email: dto.email, status: "PENDING_APPROVAL" as const };
 
-      authService.register.mockResolvedValueOnce(authResult);
+      authService.register.mockResolvedValueOnce(pending);
 
-      const result = await controller.register(dto, req, res);
+      const result = await controller.register(dto, req);
 
       expect(authService.register).toHaveBeenCalledWith(dto, {
         ipAddress: "127.0.0.1",
         userAgent: "test-agent"
       });
-      expect(res.cookie).toHaveBeenCalledTimes(2);
-      expect(result.user).toBeDefined();
+      expect(result).toEqual(pending);
     });
   });
 

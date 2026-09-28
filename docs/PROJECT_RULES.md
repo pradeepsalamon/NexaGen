@@ -163,6 +163,17 @@ admin approves it on **Admin → Pending Coach Applications**
 (`AdminService.updateCoachStatus`, which flips both `user.status` and
 `approvalStatus`).
 
+**Student self-registration requires approval too.** `POST /auth/register`
+creates the student with `status: PENDING`, issues **no session**, and returns
+the same `{ email, status: "PENDING_APPROVAL" }`. `login()` tells a pending
+student their registration is awaiting approval; every other auth path already
+requires `status: ACTIVE`. Admins and super admins approve or decline on
+**Admin → Student Approvals** (`/admin/students`,
+`AdminService.updateStudentStatus`: a status-filtered `updateMany` from
+`PENDING` to `ACTIVE`/`ARCHIVED`, so a second review is a 404). Approval fires
+the `ACCOUNT_APPROVED` messaging rule. Students created by an admin are `ACTIVE`
+immediately.
+
 Consequences to respect when you touch this area:
 
 - A coach created *by an admin* (`UserService.create`/`update`) is approved on

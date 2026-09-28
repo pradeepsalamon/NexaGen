@@ -26,6 +26,7 @@ import type {
   RegisterRequest,
   RegisterCoachRequest,
   RegisterCoachResponse,
+  RegisterResponse,
   ResetPasswordRequest,
   UpdateProfileRequest
 } from "@nexa-chess/types";
@@ -45,7 +46,6 @@ import {
   splitStudentName,
   verifySecret
 } from "./auth.utils";
-import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 
 type SessionContext = {
   ipAddress?: string;
@@ -110,7 +110,6 @@ export class AuthService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
-    private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
     private readonly analyticsEvents: AnalyticsEventService
   ) {}
@@ -122,10 +121,15 @@ export class AuthService {
     };
   }
 
+  /**
+   * Student self-registration is an application like the coach one: the
+   * account is created PENDING and no session is issued until an admin
+   * approves it from the Pending Students screen.
+   */
   async register(
     payload: RegisterRequest,
-    context: SessionContext
-  ): Promise<AuthResult> {
+    _context: SessionContext
+  ): Promise<RegisterResponse> {
     if (payload.password !== payload.confirmPassword) {
       throw new BadRequestException("Passwords must match.");
     }
@@ -160,7 +164,7 @@ export class AuthService {
         lastName,
         phoneNumber: payload.contactNumber,
         role: UserRole.STUDENT,
-        status: UserStatus.ACTIVE,
+        status: UserStatus.PENDING,
         timezone: "Asia/Kolkata",
         isEmailVerified: true,
         emailVerifiedAt: new Date(),
@@ -175,23 +179,9 @@ export class AuthService {
       }
     });
 
-    const tokenPair = await this.createSession(
-      user,
-      context,
-      this.refreshTokenShortMaxAge,
-      this.refreshTokenShortTtl
-    );
-
-    this.messaging.dispatchInBackground({
-      event: "ACCOUNT_WELCOME",
-      userId: user.id
-    });
-
     return {
-      ...tokenPair,
-      accessTokenMaxAge: this.accessTokenMaxAge,
-      refreshTokenMaxAge: this.refreshTokenShortMaxAge,
-      user: this.toAuthUser(user)
+      email: user.email,
+      status: "PENDING_APPROVAL"
     };
   }
 
@@ -298,6 +288,13 @@ export class AuthService {
       await this.waitForLoginResponseDelay(startedAt);
       throw new UnauthorizedException(
         "Your coach application is awaiting admin approval."
+      );
+    }
+
+    if (user.role === UserRole.STUDENT && user.status === UserStatus.PENDING) {
+      await this.waitForLoginResponseDelay(startedAt);
+      throw new UnauthorizedException(
+        "Your registration is awaiting admin approval."
       );
     }
 

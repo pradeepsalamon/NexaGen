@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Post, Param, Body, Query, Req, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Patch, Post, Param, Body, Query, Req, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
   API_ROUTES,
@@ -9,7 +9,8 @@ import type {
   CreateDemoClassRequest,
   PaginatedQuery,
   UpdateCoachStatusRequest,
-  UpdateDemoClassRequest
+  UpdateDemoClassRequest,
+  UpdateStudentStatusRequest
 } from '@nexa-chess/types';
 import { ZodBodyPipe } from './dto/demo-class.dto';
 import type { Request } from 'express';
@@ -46,6 +47,42 @@ export class AdminController {
       throw new UnauthorizedException('Only Super Admins can perform this action.');
     }
     return user.id;
+  }
+
+  // Student approvals are open to ADMIN as well, unlike the super-admin-only routes.
+  private async assertStaffAdmin(request: Request): Promise<void> {
+    const token = request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
+    if (!token) throw new UnauthorizedException();
+
+    let payload: AccessTokenPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
+        secret: getApiEnv().JWT_ACCESS_SECRET
+      });
+    } catch {
+      throw new UnauthorizedException();
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || user.status !== 'ACTIVE' || (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN')) {
+      throw new ForbiddenException('Only admins can review student registrations.');
+    }
+  }
+
+  @Get(API_ROUTES.admin.pendingStudents)
+  async getPendingStudents(@Req() request: Request) {
+    await this.assertStaffAdmin(request);
+    return this.adminService.getPendingStudents();
+  }
+
+  @Patch(API_ROUTES.admin.updateStudentStatus())
+  async updateStudentStatus(
+    @Param('id') id: string,
+    @Body() body: UpdateStudentStatusRequest,
+    @Req() request: Request
+  ) {
+    await this.assertStaffAdmin(request);
+    return this.adminService.updateStudentStatus(id, body);
   }
 
   @Get(API_ROUTES.admin.pendingCoaches)

@@ -35,7 +35,8 @@ import {
 import { PuzzleScoringFields, PuzzleScoringPreview } from "./scoring/PuzzleScoringFields";
 import {
   PUZZLE_DIFFICULTY_OPTIONS,
-  PUZZLE_TYPE_OPTIONS
+  PUZZLE_TYPE_OPTIONS,
+  puzzleTopicOptions
 } from "../lib/puzzleMeta";
 import { PuzzleSolver } from "./solver/PuzzleSolver";
 import { sideToMove } from "./solver/puzzleSolverEngine";
@@ -105,7 +106,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
   const [saving, setSaving] = useState(false);
 
   const topicOptions = useMemo(
-    () => (topicsData?.topics ?? []).map((t) => ({ value: t.id, label: t.name })),
+    () => puzzleTopicOptions(topicsData?.topics ?? []),
     [topicsData]
   );
 

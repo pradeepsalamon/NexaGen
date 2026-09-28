@@ -1,8 +1,12 @@
-import type {
-  PuzzleDifficulty,
-  PuzzleStatus,
-  PuzzleType,
-  PuzzleVisibility
+import {
+  buildPuzzleTopicTree,
+  flattenPuzzleTopicTree,
+  puzzleTopicPathLabel,
+  type PuzzleDifficulty,
+  type PuzzleStatus,
+  type PuzzleTopicDto,
+  type PuzzleType,
+  type PuzzleVisibility
 } from "@nexa-chess/types";
 
 export const PUZZLE_TYPE_LABELS: Record<PuzzleType, string> = {
@@ -69,4 +73,14 @@ export function statusBadgeVariant(
   if (status === "PUBLISHED") return "success";
   if (status === "ARCHIVED") return "outline";
   return "secondary";
+}
+
+/** Folder picker options in tree order, labelled with their full path. */
+export function puzzleTopicOptions(
+  topics: PuzzleTopicDto[],
+  exclude: ReadonlySet<string> = new Set()
+): { value: string; label: string }[] {
+  return flattenPuzzleTopicTree(buildPuzzleTopicTree(topics))
+    .filter((node) => !exclude.has(node.topic.id))
+    .map((node) => ({ value: node.topic.id, label: puzzleTopicPathLabel(topics, node.topic.id) }));
 }

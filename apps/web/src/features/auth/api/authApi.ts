@@ -9,6 +9,7 @@ import type {
   RegisterRequest,
   RegisterCoachRequest,
   RegisterCoachResponse,
+  RegisterResponse,
   ResetPasswordRequest,
   UpdateProfileRequest,
   VerifyEmailRequest
@@ -17,7 +18,7 @@ import { API_ROUTES } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
 
 export function register(payload: RegisterRequest) {
-  return apiFetch<AuthResponse>(API_ROUTES.auth.register, {
+  return apiFetch<RegisterResponse>(API_ROUTES.auth.register, {
     body: payload,
     method: "POST"
   });

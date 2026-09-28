@@ -5,13 +5,11 @@ import { MailModule } from "../mail/mail.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
-import { MessagingModule } from "../messaging/messaging.module";
 
 @Module({
   imports: [
     JwtModule.register({}),
     MailModule,
-    MessagingModule,
     PrismaModule,
     AnalyticsEventModule
   ],

@@ -68,11 +68,15 @@ export const MAX_PUZZLE_FEN_LENGTH = 120;
 
 // ── Topics (admin-authored) ──
 
+/** Deepest folder level allowed (a root folder is level 1). */
+export const MAX_PUZZLE_TOPIC_DEPTH = 6;
+
 export const createPuzzleTopicRequestSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(500).optional(),
   icon: z.string().trim().max(40).optional(),
-  sortOrder: z.number().int().min(0).max(9999).optional()
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  parentId: z.string().min(1).nullable().optional()
 });
 export type CreatePuzzleTopicRequest = z.infer<typeof createPuzzleTopicRequestSchema>;
 
@@ -80,7 +84,9 @@ export const updatePuzzleTopicRequestSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   description: z.string().trim().max(500).nullable().optional(),
   icon: z.string().trim().max(40).nullable().optional(),
-  sortOrder: z.number().int().min(0).max(9999).optional()
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+  /** Move the folder: another folder's id, or null for the top level. */
+  parentId: z.string().min(1).nullable().optional()
 });
 export type UpdatePuzzleTopicRequest = z.infer<typeof updatePuzzleTopicRequestSchema>;
 
@@ -96,6 +102,8 @@ export type PuzzleTopicDto = {
   description: string | null;
   icon: string | null;
   sortOrder: number;
+  parentId: string | null;
+  /** Puzzles filed directly in this folder (subfolders not included). */
   puzzleCount: number;
   createdByName: string | null;
   canManage: boolean;
@@ -104,6 +112,102 @@ export type PuzzleTopicDto = {
 };
 export type PuzzleTopicListResponse = { topics: PuzzleTopicDto[] };
 export type PuzzleTopicResponse = { topic: PuzzleTopicDto };
+
+// ── Topic tree helpers (shared by the API and every folder picker) ──
+
+type TopicNodeInput = { id: string; parentId: string | null };
+
+export type PuzzleTopicTreeNode<T extends TopicNodeInput = PuzzleTopicDto> = {
+  topic: T;
+  depth: number;
+  children: PuzzleTopicTreeNode<T>[];
+  /** Puzzles in this folder and every subfolder (needs `puzzleCount`). */
+  totalPuzzleCount: number;
+};
+
+/**
+ * Build the folder tree from a flat list. A topic whose parent is missing
+ * (e.g. archived on its own) is shown at the top level rather than lost.
+ * Input order is kept among siblings.
+ */
+export function buildPuzzleTopicTree<T extends TopicNodeInput & { puzzleCount?: number }>(
+  topics: T[]
+): PuzzleTopicTreeNode<T>[] {
+  const ids = new Set(topics.map((t) => t.id));
+  const byParent = new Map<string | null, T[]>();
+  for (const topic of topics) {
+    const key = topic.parentId && ids.has(topic.parentId) ? topic.parentId : null;
+    const list = byParent.get(key) ?? [];
+    list.push(topic);
+    byParent.set(key, list);
+  }
+  // A parent cycle is never reachable from a root, so this always terminates.
+  const build = (parentId: string | null, depth: number): PuzzleTopicTreeNode<T>[] =>
+    (byParent.get(parentId) ?? []).map((topic) => {
+      const children = build(topic.id, depth + 1);
+      return {
+        topic,
+        depth,
+        children,
+        totalPuzzleCount:
+          (topic.puzzleCount ?? 0) + children.reduce((sum, c) => sum + c.totalPuzzleCount, 0)
+      };
+    });
+  return build(null, 0);
+}
+
+/** Depth-first flattening of a tree, parents before children. */
+export function flattenPuzzleTopicTree<T extends TopicNodeInput>(
+  nodes: PuzzleTopicTreeNode<T>[]
+): PuzzleTopicTreeNode<T>[] {
+  return nodes.flatMap((node) => [node, ...flattenPuzzleTopicTree(node.children)]);
+}
+
+/** The topic's id plus every descendant's id. */
+export function collectPuzzleTopicSubtreeIds(topics: TopicNodeInput[], rootId: string): string[] {
+  const byParent = new Map<string, string[]>();
+  for (const topic of topics) {
+    if (!topic.parentId) continue;
+    const list = byParent.get(topic.parentId) ?? [];
+    list.push(topic.id);
+    byParent.set(topic.parentId, list);
+  }
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const stack = [rootId];
+  while (stack.length) {
+    const id = stack.pop() as string;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+    stack.push(...(byParent.get(id) ?? []));
+  }
+  return out;
+}
+
+/** Ancestors root-first, ending with the topic itself. */
+export function puzzleTopicPath<T extends TopicNodeInput>(topics: T[], id: string): T[] {
+  const byId = new Map(topics.map((t) => [t.id, t]));
+  const path: T[] = [];
+  const seen = new Set<string>();
+  let current = byId.get(id);
+  while (current && !seen.has(current.id)) {
+    seen.add(current.id);
+    path.unshift(current);
+    current = current.parentId ? byId.get(current.parentId) : undefined;
+  }
+  return path;
+}
+
+/** "Tactics / Forks / Knight forks" */
+export function puzzleTopicPathLabel(
+  topics: (TopicNodeInput & { name: string })[],
+  id: string
+): string {
+  return puzzleTopicPath(topics, id)
+    .map((t) => t.name)
+    .join(" / ");
+}
 
 // ── Puzzle CRUD ──
 
@@ -198,6 +302,8 @@ export const puzzleListQuerySchema = z.object({
   sort: z.string().optional(),
   order: z.enum(["asc", "desc"]).optional(),
   topicId: z.string().optional(),
+  /** `subtree` (default) includes every subfolder of `topicId`. */
+  topicScope: z.enum(["direct", "subtree"]).optional(),
   puzzleType: puzzleTypeSchema.optional(),
   difficulty: puzzleDifficultySchema.optional(),
   status: puzzleStatusSchema.optional(),
@@ -327,6 +433,7 @@ export const studentPuzzleListQuerySchema = z.object({
   sort: z.string().optional(),
   order: z.enum(["asc", "desc"]).optional(),
   topicId: z.string().optional(),
+  topicScope: z.enum(["direct", "subtree"]).optional(),
   puzzleType: puzzleTypeSchema.optional(),
   difficulty: puzzleDifficultySchema.optional(),
   solved: z.enum(["yes", "no"]).optional()

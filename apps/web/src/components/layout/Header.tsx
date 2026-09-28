@@ -33,6 +33,7 @@ const pageTitles: Record<string, string> = {
   "/admin/puzzles": "Puzzle Library",
   "/admin/courses": "Courses",
   "/admin/coaches": "Coach applications",
+  "/admin/students": "Student approvals",
   "/admin/trash": "Trash",
   "/admin/users": "User management",
   "/coach": "Coach Dashboard",
