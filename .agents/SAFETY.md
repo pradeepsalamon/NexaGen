@@ -132,7 +132,7 @@ STOP and request human approval.
 ## Push / merge rule
 
 - **Autonomous worker steps never push and never merge.** They commit to
-  `dev_vps` and stop. Nothing in an autonomous loop reaches a remote on its own.
+  `dev` and stop. Nothing in an autonomous loop reaches a remote on its own.
 - **Only a human-approved actor may `merge` / `push`,** and only when the human
   asks for it explicitly. A passing task is not a request.
 - **Pushing `main` is a production deployment.**

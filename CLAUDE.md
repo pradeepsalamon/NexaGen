@@ -689,9 +689,10 @@ old system from git history (`git log --all -- .nexa-agent`) if needed.
 
 Two things still matter if you touch this repo:
 
-- **`dev_vps` is the base branch** for autonomous / VPS-side work and `vps_dev`
-  is the database. The names are near-anagrams and are easy to swap by accident.
-- **A merge into `dev_vps` only ever happens on explicit human approval.**
+- **`dev` is the base branch** for autonomous / VPS-side work and `vps_dev` is
+  the database. (The old `dev_vps` branch was retired 2026-09-28; its last
+  commit is kept as the tag `archive/dev_vps`.)
+- **A merge into `dev` only ever happens on explicit human approval.**
   Passing tests are not permission.
 
 The production/dev safety boundary any future agent system must enforce is
