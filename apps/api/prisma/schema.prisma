@@ -1171,6 +1171,9 @@ model LiveSession {
 
   attendanceFinalizedAt DateTime?
 
+  // First sweep that found the coach missing from the room; cleared when they're back.
+  coachAbsentSince DateTime?
+
   // Frozen fully-resolved LiveClassSettings captured at class start (§38). Null
   // for sessions started before this feature — token grants fall back to the
   // pre-feature logic for those.

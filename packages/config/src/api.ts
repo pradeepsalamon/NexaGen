@@ -52,6 +52,10 @@ const apiEnvSchema = z.object({
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
   RECORDING_MIN_RETENTION_DAYS: z.coerce.number().nonnegative().default(14),
+  // Auto-end a live class once the coach has been out of the room this long (0 = off).
+  LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES: z.coerce.number().int().nonnegative().default(10),
+  // Auto-end a live class this long past its scheduled end even with the coach present (0 = off).
+  LIVE_CLASS_MAX_OVERRUN_MINUTES: z.coerce.number().int().nonnegative().default(60),
   // Where LiveKit egress writes a class recording. "local" (the default) writes
   // to RECORDING_STORAGE_DIR, which is what the quota, retention prune, storage
   // analytics and the signed stream endpoint all read. "oci" makes egress

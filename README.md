@@ -284,6 +284,10 @@ ANALYTICS_STORAGE_CRITICAL_PERCENT=85
 ANALYTICS_LOW_ATTENDANCE_PERCENT=75
 ANALYTICS_INACTIVE_DAYS=30
 ANALYTICS_CACHE_TTL_SECONDS=300   # 0 disables the analytics in-process cache
+
+# Live-class auto-end (per-minute sweep; 0 disables either rule)
+LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES=10   # coach out of the room this long mid-class
+LIVE_CLASS_MAX_OVERRUN_MINUTES=60          # this far past the scheduled end, coach or not
 ```
 
 For production, replace JWT secrets with long random values and set `FRONTEND_URL` / `CORS_ORIGIN` to the live frontend origin.

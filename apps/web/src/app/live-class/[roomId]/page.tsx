@@ -153,7 +153,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     return (
       <ClassroomStateShell topic={topic}>
-        <ConnectionLost onRetry={() => window.location.reload()} />
+        <ConnectionLost classId={roomId} onRetry={() => window.location.reload()} />
       </ClassroomStateShell>
     );
   }

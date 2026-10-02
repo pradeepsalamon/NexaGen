@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleAlert, DoorClosed, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
+import { getRoleDashboardHref, isStaffRole, useAuthStore } from "@/stores/authStore";
 import { getLiveClass, requestWaitingRoomAdmission, startLiveClass } from "../../api/live-class";
+import { EndClassButton } from "../EndClassButton";
 
 const COACH_JOIN_POLL_INTERVAL_MS = 5000;
 const WAITING_FOR_ADMIT_POLL_INTERVAL_MS = 5000;
@@ -40,8 +41,19 @@ function useDashboardHref() {
   return getRoleDashboardHref(user?.role);
 }
 
-export function ConnectionLost({ onRetry }: { onRetry?: () => void }) {
+export function ConnectionLost({
+  classId,
+  onEnded,
+  onRetry,
+}: {
+  /** Lets a coach/admin end the class from here when they can't get back in. */
+  classId?: string;
+  onEnded?: () => void;
+  onRetry?: () => void;
+}) {
   const dashboardUrl = useDashboardHref();
+  const role = useAuthStore((state) => state.user?.role);
+  const canEnd = Boolean(classId) && (role === "COACH" || isStaffRole(role));
   return (
     <StateLayout
       icon={<WifiOff className="size-8" />}
@@ -57,6 +69,11 @@ export function ConnectionLost({ onRetry }: { onRetry?: () => void }) {
       <Button asChild>
         <a href={dashboardUrl}>Return to dashboard</a>
       </Button>
+      {canEnd && classId && (
+        <div className="basis-full pt-2">
+          <EndClassButton classId={classId} onEnded={onEnded ?? (() => window.location.reload())} />
+        </div>
+      )}
     </StateLayout>
   );
 }

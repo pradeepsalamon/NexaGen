@@ -120,6 +120,11 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   if (error) {
     return (
       <ConnectionLost
+        classId={classId}
+        onEnded={() => {
+          clearJoined();
+          setEnded(true);
+        }}
         onRetry={() => {
           setError(null);
           // `hasJoined` is persisted in sessionStorage (AUDIT H16), so this

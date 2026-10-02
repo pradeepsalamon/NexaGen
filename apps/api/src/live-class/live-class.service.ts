@@ -281,7 +281,8 @@ export class LiveClassService {
         where: { id: liveSession.id },
         data: {
           status: LiveSessionStatus.LIVE,
-          startedAt: new Date()
+          startedAt: new Date(),
+          coachAbsentSince: null
         }
       });
     }
@@ -664,36 +665,62 @@ export class LiveClassService {
   }
 
   private async sweepStaleClasses() {
-      const now = new Date();
+    const now = new Date();
+    const graceMs = this.env.LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES * 60_000;
+    const overrunMs = this.env.LIVE_CLASS_MAX_OVERRUN_MINUTES * 60_000;
 
-      // Find all LIVE sessions whose scheduled end time has passed
-      const activeSessions = await this.prisma.liveSession.findMany({
-        where: {
-          status: LiveSessionStatus.LIVE,
-          class: {
-            endsAt: {
-              lte: now
-            }
-          }
-        },
-        include: {
-          class: true
-        }
-      });
+    const activeSessions = await this.prisma.liveSession.findMany({
+      where: { status: LiveSessionStatus.LIVE },
+      include: { class: true }
+    });
 
-      for (const session of activeSessions) {
-        try {
-          const participants = await this.livekit.listParticipants(session.roomName);
-          const coachParticipant = participants.find(p => LiveClassService.isCoachParticipant(p.identity, session.coachId));
-          
-          if (!coachParticipant) {
-            this.logger.log(`Automatically ending class ${session.classId} because coach left after scheduled end time.`);
-            await this.internalEndClass(session.classId, session.id, session.roomName);
-          }
-        } catch (error) {
-          this.logger.error(`Failed to auto-end class ${session.classId}`, error);
+    for (const session of activeSessions) {
+      try {
+        const reason = await this.getAutoEndReason(session, now, graceMs, overrunMs);
+        if (reason) {
+          this.logger.log(`Automatically ending class ${session.classId}: ${reason}.`);
+          await this.internalEndClass(session.classId, session.id, session.roomName);
         }
+      } catch (error) {
+        this.logger.error(`Failed to auto-end class ${session.classId}`, error);
       }
+    }
+  }
+
+  /** Decides whether a LIVE session should be auto-ended; also tracks coach absence. */
+  private async getAutoEndReason(
+    session: { id: string; coachId: string; roomName: string; coachAbsentSince: Date | null; class: { endsAt: Date } },
+    now: Date,
+    graceMs: number,
+    overrunMs: number
+  ): Promise<string | null> {
+    const pastEnd = session.class.endsAt <= now;
+    if (overrunMs > 0 && now.getTime() - session.class.endsAt.getTime() >= overrunMs) {
+      return "ran past the maximum overrun";
+    }
+
+    // Throws on a real LiveKit outage — never mistake that for an empty room.
+    const participants = await this.livekit.listParticipants(session.roomName);
+    const coachPresent = participants.some(p => LiveClassService.isCoachParticipant(p.identity, session.coachId));
+
+    if (coachPresent) {
+      if (session.coachAbsentSince) {
+        await this.prisma.liveSession.update({ where: { id: session.id }, data: { coachAbsentSince: null } });
+      }
+      return null;
+    }
+
+    if (pastEnd) return "coach left after the scheduled end time";
+
+    if (!session.coachAbsentSince) {
+      await this.prisma.liveSession.update({ where: { id: session.id }, data: { coachAbsentSince: now } });
+      return null;
+    }
+
+    if (graceMs > 0 && now.getTime() - session.coachAbsentSince.getTime() >= graceMs) {
+      return "coach has been out of the room past the grace period";
+    }
+    return null;
   }
 
   async getLiveClass(accessToken: string | undefined, classId: string) {
