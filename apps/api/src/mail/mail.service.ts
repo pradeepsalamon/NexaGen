@@ -197,6 +197,53 @@ export class MailService {
     });
   }
 
+  async sendDemoClassInvitation(input: {
+    to: string;
+    guestName: string;
+    classTopic: string;
+    startsAt: Date;
+    joinUrl: string;
+  }) {
+    const transporter = this.createTransporter();
+    const when = input.startsAt.toLocaleString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+      timeZoneName: "short"
+    });
+
+    await transporter.sendMail({
+      from: this.from,
+      to: input.to,
+      subject: `You're invited: ${input.classTopic}`,
+      text: [
+        `Hi ${input.guestName},`,
+        "",
+        `You're invited to the demo class "${input.classTopic}", scheduled for ${when}.`,
+        "",
+        `Your personal join link — open it once the class starts: ${input.joinUrl}`,
+        "",
+        "See you there!"
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>You're invited!</h2>
+          <p>Hi ${escapeHtml(input.guestName)}, you're invited to the demo class <strong>${escapeHtml(input.classTopic)}</strong>, scheduled for ${escapeHtml(when)}.</p>
+          <p>
+            <a href="${input.joinUrl}" style="display:inline-block;background:#4278ce;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:700">
+              Join once it starts
+            </a>
+          </p>
+          <p>This link is personal to you. If it doesn't work, open the class page and enter this email address (<strong>${escapeHtml(input.to)}</strong>).</p>
+          <p>See you there!</p>
+        </div>
+      `
+    });
+  }
+
   /**
    * Notifies staff of a new academy "book a demo" lead. Skips silently (no
    * throw) when either SMTP or `ADMIN_EMAILS` is unset — callers treat this

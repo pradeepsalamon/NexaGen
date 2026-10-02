@@ -2,8 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useToast } from "@/providers/ToastProvider";
 import { queryKeys } from "@/lib/queryKeys";
 import type { ListParams } from "@/lib/pagination";
-import { getDemoClasses, createDemoClass, updateDemoClass, cancelDemoClass, restoreDemoClass, getDemoClassDetails } from "../api/adminApi";
-import type { CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse } from "@nexa-chess/types";
+import { addDemoInvitees, createDemoSchedule, getDemoClasses, getDemoSchedules, createDemoClass, updateDemoClass, cancelDemoClass, restoreDemoClass, getDemoClassDetails, updateDemoSchedule } from "../api/adminApi";
+import type { AddDemoInviteesRequest, AddDemoInviteesResponse, CreateDemoClassRequest, CreateDemoScheduleRequest, DemoScheduleResponse, ListDemoSchedulesResponse, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse } from "@nexa-chess/types";
 
 export function useDemoClassesQuery(params: ListParams = {}) {
   return useQuery<ListDemoClassesResponse, Error>({
@@ -82,5 +82,73 @@ export function useDemoClassDetailsQuery(classId: string, enabled: boolean = tru
     queryKey: [...queryKeys.admin.base, "demo-class", classId],
     queryFn: () => getDemoClassDetails(classId),
     enabled
+  });
+}
+
+export const demoQueryKeys = {
+  classes: [...queryKeys.admin.base, "demo-classes"] as const,
+  classDetails: (classId: string) => [...queryKeys.admin.base, "demo-class", classId] as const,
+  schedules: [...queryKeys.admin.base, "demo-schedules"] as const
+};
+
+export function useAddDemoInviteesMutation(classId: string) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation<AddDemoInviteesResponse, Error, AddDemoInviteesRequest>({
+    mutationFn: (body) => addDemoInvitees(classId, body),
+    onSuccess: ({ added, skipped }) => {
+      toast.success({
+        title: added === 1 ? "1 guest invited" : `${added} guests invited`,
+        message: skipped > 0 ? `${skipped} already on the list.` : undefined
+      });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classDetails(classId) });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.leads.all });
+    },
+    onError: (error) => {
+      toast.error({ title: "Failed to invite guests", message: error.message });
+    }
+  });
+}
+
+export function useDemoSchedulesQuery() {
+  return useQuery<ListDemoSchedulesResponse, Error>({
+    queryKey: demoQueryKeys.schedules,
+    queryFn: getDemoSchedules
+  });
+}
+
+export function useSaveDemoScheduleMutation(scheduleId: string | null) {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation<DemoScheduleResponse, Error, CreateDemoScheduleRequest>({
+    mutationFn: (body) => (scheduleId ? updateDemoSchedule(scheduleId, body) : createDemoSchedule(body)),
+    onSuccess: () => {
+      toast.success({ title: scheduleId ? "Demo schedule updated" : "Demo schedule created" });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.schedules });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
+    },
+    onError: (error) => {
+      toast.error({ title: "Failed to save demo schedule", message: error.message });
+    }
+  });
+}
+
+export function useToggleDemoScheduleMutation() {
+  const queryClient = useQueryClient();
+  const toast = useToast();
+
+  return useMutation<DemoScheduleResponse, Error, { id: string; isActive: boolean }>({
+    mutationFn: ({ id, isActive }) => updateDemoSchedule(id, { isActive }),
+    onSuccess: ({ schedule }) => {
+      toast.success({ title: schedule.isActive ? "Demo schedule resumed" : "Demo schedule paused" });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.schedules });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
+    },
+    onError: (error) => {
+      toast.error({ title: "Failed to update demo schedule", message: error.message });
+    }
   });
 }

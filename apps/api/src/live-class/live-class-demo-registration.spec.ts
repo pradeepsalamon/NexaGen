@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { ClassStatus, DemoRegistrationContactMethod } from "@prisma/client";
+import { ClassStatus, DemoClassAccessMode, DemoGuestApproval, DemoRegistrationContactMethod } from "@prisma/client";
 import type { GuestJoinDemoRequest } from "@nexa-chess/types";
 import { LiveClassService } from "./live-class.service";
 import { LiveKitService } from "./livekit.service";
@@ -25,6 +25,8 @@ describe("LiveClassService.joinDemoClass", () => {
   let normalizeRecipient: jest.Mock;
   let trySendText: jest.Mock;
   let sendDemoClassRegistrationConfirmation: jest.Mock;
+  let broadcastData: jest.Mock;
+  let leadUpdateMany: jest.Mock;
 
   const DEMO_CLASS = {
     id: "class-1",
@@ -33,6 +35,8 @@ describe("LiveClassService.joinDemoClass", () => {
     topic: "Rook Endgames",
     title: null,
     startsAt: new Date("2026-09-25T10:00:00.000Z"),
+    demoAccessMode: DemoClassAccessMode.PUBLIC as DemoClassAccessMode,
+    demoPasscode: null as string | null,
     liveSession: null as { id: string; status: LiveSessionStatus; roomName: string } | null
   };
 
@@ -52,13 +56,15 @@ describe("LiveClassService.joinDemoClass", () => {
     coachClassFindUnique = jest.fn().mockResolvedValue(DEMO_CLASS);
     registrationFindUnique = jest.fn().mockResolvedValue(null);
     registrationCreate = jest.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-      Promise.resolve({ id: "reg-1", joinedAt: null, ...data })
+      Promise.resolve({ id: "reg-1", joinedAt: null, createdAt: new Date(), ...data })
     );
     registrationUpdate = jest.fn().mockResolvedValue(undefined);
     generateAccessToken = jest.fn().mockResolvedValue("livekit-token");
     normalizeRecipient = jest.fn().mockImplementation((raw: string) => raw || null);
     trySendText = jest.fn().mockResolvedValue({ ok: true });
     sendDemoClassRegistrationConfirmation = jest.fn().mockResolvedValue(undefined);
+    broadcastData = jest.fn().mockResolvedValue(undefined);
+    leadUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -71,11 +77,13 @@ describe("LiveClassService.joinDemoClass", () => {
               findUnique: registrationFindUnique,
               create: registrationCreate,
               update: registrationUpdate
-            }
+            },
+            lead: { updateMany: leadUpdateMany },
+            leadActivity: { create: jest.fn().mockResolvedValue(undefined) }
           }
         },
         { provide: JwtService, useValue: {} },
-        { provide: LiveKitService, useValue: { generateAccessToken } },
+        { provide: LiveKitService, useValue: { generateAccessToken, broadcastData } },
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: {} },
         { provide: RecordingStorageService, useValue: {} },
@@ -180,5 +188,121 @@ describe("LiveClassService.joinDemoClass", () => {
     });
 
     await expect(service.joinDemoClass("class-1", phoneRequest)).rejects.toThrow(NotFoundException);
+  });
+
+  const LIVE = { id: "session-1", status: LiveSessionStatus.LIVE, roomName: "room-1" };
+
+  describe("passcode classes", () => {
+    beforeEach(() => {
+      coachClassFindUnique.mockResolvedValue({
+        ...DEMO_CLASS,
+        demoAccessMode: DemoClassAccessMode.PASSCODE,
+        demoPasscode: "KNIGHT7"
+      });
+    });
+
+    it("refuses a new guest without the right passcode and registers nothing", async () => {
+      await expect(
+        service.joinDemoClass("class-1", { ...phoneRequest, passcode: "wrong" })
+      ).rejects.toThrow(ForbiddenException);
+      await expect(service.joinDemoClass("class-1", phoneRequest)).rejects.toThrow(ForbiddenException);
+      expect(registrationCreate).not.toHaveBeenCalled();
+    });
+
+    it("accepts the passcode case-insensitively", async () => {
+      const result = await service.joinDemoClass("class-1", { ...phoneRequest, passcode: "knight7" });
+      expect(result.registered).toBe(true);
+      expect(registrationCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets an already-registered (e.g. invited) contact in without the passcode", async () => {
+      registrationFindUnique.mockResolvedValue({ id: "reg-1", name: "Asha", approval: DemoGuestApproval.APPROVED, joinedAt: null });
+      const result = await service.joinDemoClass("class-1", phoneRequest);
+      expect(result.registered).toBe(true);
+    });
+  });
+
+  describe("invite-only classes", () => {
+    it("files an uninvited guest as PENDING and asks the coach instead of minting a token", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        ...DEMO_CLASS,
+        demoAccessMode: DemoClassAccessMode.INVITE_ONLY,
+        liveSession: LIVE
+      });
+
+      const result = await service.joinDemoClass("class-1", phoneRequest);
+
+      expect(result.awaitingApproval).toBe(true);
+      expect(result.token).toBeNull();
+      expect(registrationCreate.mock.calls[0][0].data).toMatchObject({ approval: DemoGuestApproval.PENDING });
+      expect(generateAccessToken).not.toHaveBeenCalled();
+      expect(broadcastData).toHaveBeenCalledTimes(1);
+      // No confirmation goes out for a request the coach hasn't accepted.
+      await Promise.resolve();
+      expect(trySendText).not.toHaveBeenCalled();
+    });
+
+    it("does not re-announce a pending guest who is polling", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        ...DEMO_CLASS,
+        demoAccessMode: DemoClassAccessMode.INVITE_ONLY,
+        liveSession: LIVE
+      });
+      registrationFindUnique.mockResolvedValue({
+        id: "reg-1", name: "Asha", approval: DemoGuestApproval.PENDING, createdAt: new Date(), joinedAt: null
+      });
+
+      const result = await service.joinDemoClass("class-1", phoneRequest);
+      expect(result.awaitingApproval).toBe(true);
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+
+    it("joins a guest the coach admitted", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        ...DEMO_CLASS,
+        demoAccessMode: DemoClassAccessMode.INVITE_ONLY,
+        liveSession: LIVE
+      });
+      registrationFindUnique.mockResolvedValue({
+        id: "reg-1", name: "Asha", approval: DemoGuestApproval.APPROVED, joinedAt: null, leadId: null
+      });
+
+      const result = await service.joinDemoClass("class-1", phoneRequest);
+      expect(result.joined).toBe(true);
+    });
+
+    it("refuses a guest the coach denied", async () => {
+      registrationFindUnique.mockResolvedValue({ id: "reg-1", name: "Asha", approval: DemoGuestApproval.DENIED, joinedAt: null });
+      await expect(service.joinDemoClass("class-1", phoneRequest)).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe("personal invite links", () => {
+    it("admits by token with no contact details, using the invited name", async () => {
+      coachClassFindUnique.mockResolvedValue({
+        ...DEMO_CLASS,
+        demoAccessMode: DemoClassAccessMode.INVITE_ONLY,
+        liveSession: LIVE
+      });
+      registrationFindUnique.mockResolvedValue({
+        id: "reg-9", classId: "class-1", name: "Meera", approval: DemoGuestApproval.APPROVED, joinedAt: null, leadId: "lead-1"
+      });
+
+      const result = await service.joinDemoClass("class-1", { inviteToken: "tok" });
+
+      expect(registrationFindUnique).toHaveBeenCalledWith({ where: { inviteToken: "tok" } });
+      expect(result.joined).toBe(true);
+      expect(generateAccessToken).toHaveBeenCalledWith(expect.objectContaining({ participantName: "Meera" }));
+      // A booked lead who actually joins moves to DEMO_ATTENDED.
+      await Promise.resolve();
+      expect(leadUpdateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: "lead-1" }), data: expect.objectContaining({ status: "DEMO_ATTENDED" }) })
+      );
+    });
+
+    it("rejects a token that belongs to a different class", async () => {
+      registrationFindUnique.mockResolvedValue({ id: "reg-9", classId: "other-class", name: "Meera" });
+      await expect(service.joinDemoClass("class-1", { inviteToken: "tok" })).rejects.toThrow(ForbiddenException);
+    });
   });
 });

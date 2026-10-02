@@ -29,6 +29,12 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - Password reset magic link sent through SMTP with neutral account-existence messaging and timing
 - Login timing protection for unknown-email and wrong-password attempts
 - Batch management with soft delete into the Super Admin Trash workspace
+- Demo classes (`/admin/demo-classes`, public `/demo/<id-or-slug>`): per-class
+  access (anyone with the link / link + passcode / invited guests only, where an
+  uninvited guest waits for the coach to admit them), guests invited from leads
+  or by phone/email with a personal join link, and **static demo schedules**:
+  recurring weekly slots behind one permanent `/demo/<slug>` link, sessions
+  generated two weeks ahead. See CLAUDE.md §3.6k.
 - Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
 - Assignments: admin-authored shared library + coach-authored items, deployed
   to batches with a due date (`assignment` API module, `features/assignments` on

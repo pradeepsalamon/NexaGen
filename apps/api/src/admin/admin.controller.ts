@@ -1,11 +1,13 @@
-import { Controller, Get, Patch, Post, Param, Body, Query, Req, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Controller, Delete, Get, Patch, Post, Param, Body, Query, Req, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
   API_ROUTES,
+  addDemoInviteesRequestSchema,
   createDemoClassRequestSchema,
   updateDemoClassRequestSchema
 } from '@nexa-chess/types';
 import type {
+  AddDemoInviteesRequest,
   CreateDemoClassRequest,
   PaginatedQuery,
   UpdateCoachStatusRequest,
@@ -147,6 +149,26 @@ export class AdminController {
   ) {
     await this.getAdminId(request);
     return this.adminService.listDemoClasses(query);
+  }
+
+  @Post(API_ROUTES.admin.demoClassInvitees())
+  async addDemoInvitees(
+    @Param('id') id: string,
+    @Body(new ZodBodyPipe(addDemoInviteesRequestSchema)) body: AddDemoInviteesRequest,
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.addDemoInvitees(adminId, id, body);
+  }
+
+  @Delete(API_ROUTES.admin.removeDemoClassInvitee())
+  async removeDemoInvitee(
+    @Param('id') id: string,
+    @Param('registrationId') registrationId: string,
+    @Req() request: Request
+  ) {
+    const adminId = await this.getAdminId(request);
+    return this.adminService.removeDemoInvitee(adminId, id, registrationId);
   }
 
   @Get(API_ROUTES.admin.demoClassDetails())

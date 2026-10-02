@@ -9,6 +9,7 @@ import {
   Body,
   Query,
 } from "@nestjs/common";
+import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
@@ -188,6 +189,14 @@ export class LiveClassController {
     return this.liveClassService.getChatHistory(this.getAccessToken(request), id);
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get(API_ROUTES.liveClass.demoInfo())
+  getDemoInfo(@Param("id") id: string, @Query("invite") invite?: string) {
+    return this.liveClassService.getDemoInfo(id, invite || undefined);
+  }
+
+  // Throttled harder than the global limit so a passcode can't be brute-forced.
+  @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post(API_ROUTES.liveClass.demoJoin())
   joinDemoClass(
     @Param("id") id: string,

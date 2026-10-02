@@ -592,6 +592,48 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   `app/layout.tsx` reads so there is no font flash on reload.
 - Neither model is soft-deletable or Trash-registered (cosmetic).
 
+### 3.6k Demo classes (guest access, invites, static schedules)
+
+`apps/api/src/demo-class/` (`DemoInviteService`, `DemoScheduleService`) +
+`AdminService` demo methods + `LiveClassService.getDemoInfo`/`joinDemoClass`;
+web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
+`app/demo/[classId]`; routes `API_ROUTES.admin.demoClass*` / `.demoSchedule*`,
+`API_ROUTES.liveClass.demoInfo` / `.demoJoin`. Super-admin only (admin side).
+
+- **A guest is a `DemoClassRegistration`, not a user.** One row per
+  `(classId, contactMethod, contactValue)`; `contactValue` is the normalized
+  phone (`WhatsAppService.normalizeRecipient`, so `98765…` and `+91 98765…`
+  match) or lowercased email. **Any existing row admits its contact in every
+  access mode** — an invite, a lead booking, or an earlier self-registration.
+- **Access mode** (`CoachClass.demoAccessMode`): `PUBLIC` / `PASSCODE`
+  (`demoPasscode`, stored readable so the admin can share it; compared
+  case-insensitively in constant time) / `INVITE_ONLY`. The mode only gates a
+  *new* registration. An uninvited guest of an `INVITE_ONLY` class is **never
+  turned away**: their row is `approval: PENDING` and appears in the room's
+  existing waiting-room list as `studentId: "guest:<registrationId>"`, so the
+  coach admits/denies with the same People-panel UI (`resolveWaitingRoomEntry`
+  branches on the prefix). `POST .../demo/:id/join` is throttled to 20/min.
+- **Personal invite links**: every admin-added guest (lead or new invitee) gets
+  a unique `inviteToken`; `/demo/<classId>?invite=<token>` admits them with no
+  typing. The phone/email is the fallback. Invitations go out by email /
+  WhatsApp free text (best effort — outside the 24h window WhatsApp won't
+  deliver; an approved template is the fix).
+- **`DemoInviteService` is the only way to add a guest** — both the demo-class
+  "Invite guests" panel and the leads CRM's "assign demo class" go through
+  `bookLead` / `addInvitees`, so lead status/timeline stay consistent. A lead
+  who actually joins is moved to `DEMO_ATTENDED` (`markLeadAttended`).
+- **Static demo schedules** (`DemoSchedule`, admin → Demo Classes →
+  Schedules): weekly slots + one permanent `/demo/<slug>` link that resolves to
+  the LIVE occurrence, else the next one. Occurrences are ordinary demo
+  `CoachClass` rows with `demoScheduleId`, generated `DEMO_SCHEDULE_HORIZON_DAYS`
+  ahead on save and by an hourly cron (advisory lock `73002080`), idempotent on
+  unique `(demoScheduleId, startsAt)`. A slot that clashes with the coach's
+  other classes is skipped, not double-booked. An edit/pause deletes only
+  **unbooked** future occurrences and re-generates; booked ones are kept. A
+  cancelled occurrence keeps its row, so it is not re-created. Rescheduling an
+  occurrence by hand detaches it from the schedule.
+- None of these models are soft-deletable or Trash-registered.
+
 ### 3.7 Live class / LiveKit
 
 - **Render cost in the room** (mobile is the budget): `LiveClassProvider` is a per-room zustand store — read it as `useLiveClassState("activePuzzle", "setPuzzleSolverOpen")` (or `useOptionalLiveClassState((s) => …)`) so a component re-renders only for those fields; the no-arg form subscribes to everything. Plain `useParticipants()` / `useTracks()` re-render on every active-speaker and connection-quality event — use `useRoster()` when you only need who is present, `useGridTracks()` for tile lists, and keep hooks with LiveKit subscriptions out of `MeetingLayout` itself (`MeetingLayoutEffects` is the leaf for room-wide hooks). Board-store reads take a selector (`useBoardStore((s) => s.fen)` or `useShallow`), never the bare `useBoardStore()`.
@@ -774,4 +816,6 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | `DAU/WAU/MAU` shows "Data unavailable" | no `analytics_events` rows yet — they accrue from deploy (login / class-join / assignment-attempt / recording-watch) |
 | A student never gets asked for feedback | the form must be active and inside its `startsAt`/`endsAt`; an `AFTER_CLASS` form only counts classes that ended *after* the form's start (or creation), that were `COMPLETED`, belonged to a batch in `batchIds` (empty = all), and that the student attended (not `ABSENT`). `RECURRING`/`ONE_TIME` need at least one such class with that coach. Then check the placement — the class-end screen only shows `CLASS_END` forms |
 | Feedback shows up again after the student answered | it's a different `contextKey` — the next class, or the next `RECURRING` period — by design. Same key twice would be a 409 |
+| A demo guest is told to wait for the coach / can't get in | The class is `INVITE_ONLY` and their phone/email doesn't match an invite — normalization is `normalizeRecipient` (`WHATSAPP_DEFAULT_COUNTRY_CODE`). The coach admits them from the People panel's waiting list; an admin can also add them in Demo Classes → details, which approves the pending row |
+| `/demo/<slug>` says "no upcoming session" | The schedule is paused, or every generated slot clashed with the coach's other classes (logged as "coach busy … slot skipped"), or the hourly top-up cron isn't running |
 | Analytics timezone off by a day | all bucketing goes through `zonedDayBounds`/`zonedMonthBounds` + `date_trunc(... AT TIME ZONE tz)` using the requesting admin's `User.timezone`; check that column |

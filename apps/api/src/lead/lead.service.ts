@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -20,8 +19,6 @@ import type {
   UpdateLeadStatusRequest
 } from "@nexa-chess/types";
 import {
-  ClassStatus,
-  DemoRegistrationContactMethod,
   LeadStatus,
   Prisma,
   User,
@@ -34,9 +31,9 @@ import {
   resolveOrderBy,
   resolvePagination
 } from "../common/pagination";
+import { DemoInviteService } from "../demo-class/demo-invite.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
@@ -67,7 +64,7 @@ export class LeadService {
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
-    private readonly whatsapp: WhatsAppService
+    private readonly demoInvites: DemoInviteService
   ) {}
 
   // ── Public ──
@@ -324,12 +321,9 @@ export class LeadService {
   }
 
   /**
-   * Books a lead into an actual scheduled demo class: mirrors the same
-   * `DemoClassRegistration` a self-registered guest would get (via
-   * `LiveClassService.joinDemoClass`'s `registerDemoGuest`, upsert-style —
-   * re-assigning to the same class is a no-op, not a duplicate), so
-   * attendance/join work identically either way. Also advances the lead's
-   * status unless it's already past this point in the pipeline.
+   * Books a lead into a scheduled/live demo class via `DemoInviteService`
+   * (shared with the demo-class side's "add from leads"), so the lead gets the
+   * same `DemoClassRegistration` — and the same join rights — either way.
    */
   async assignDemoClass(
     accessToken: string | undefined,
@@ -343,64 +337,10 @@ export class LeadService {
       throw new NotFoundException("Lead not found.");
     }
 
-    const demoClass = await this.prisma.coachClass.findUnique({
-      where: { id: body.classId },
-      include: { coach: true }
-    });
+    const demoClass = await this.demoInvites.getInvitableClass(body.classId);
+    await this.demoInvites.bookLead(demoClass, lead, user.id);
 
-    if (!demoClass || !demoClass.isDemo) {
-      throw new BadRequestException("Demo class not found.");
-    }
-    if (demoClass.status !== ClassStatus.SCHEDULED) {
-      throw new BadRequestException("Only a scheduled demo class can be assigned.");
-    }
-
-    const contactValue =
-      this.whatsapp.normalizeRecipient(lead.phone) ?? lead.phone.replace(/\D/g, "");
-
-    const existingRegistration = await this.prisma.demoClassRegistration.findUnique({
-      where: {
-        classId_contactMethod_contactValue: {
-          classId: demoClass.id,
-          contactMethod: DemoRegistrationContactMethod.PHONE,
-          contactValue
-        }
-      }
-    });
-
-    if (!existingRegistration) {
-      await this.prisma.demoClassRegistration.create({
-        data: {
-          classId: demoClass.id,
-          name: lead.studentName,
-          contactMethod: DemoRegistrationContactMethod.PHONE,
-          contactValue,
-          phoneNumber: lead.phone
-        }
-      });
-    }
-
-    const demoClassTopic = demoClass.topic ?? "Demo class";
-    const now = new Date();
-    const updated = await this.prisma.lead.update({
-      where: { id },
-      data: {
-        assignedClassId: demoClass.id,
-        status: CONVERTING_STATUSES.includes(lead.status) || lead.status === "LOST"
-          ? lead.status
-          : "DEMO_SCHEDULED",
-        lastActivityAt: now,
-        activities: {
-          create: {
-            activityType: "DEMO_CLASS_ASSIGNED",
-            title: `Assigned to demo class: ${demoClassTopic}`,
-            description: `Scheduled for ${demoClass.startsAt.toISOString()} with ${demoClass.coach.firstName} ${demoClass.coach.lastName || ""}`.trim(),
-            createdById: user.id
-          }
-        }
-      }
-    });
-
+    const updated = await this.prisma.lead.findUniqueOrThrow({ where: { id } });
     return {
       lead: {
         ...this.toLeadListItem(updated),

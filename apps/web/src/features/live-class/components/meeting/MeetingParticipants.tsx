@@ -34,7 +34,7 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { useParticipantActivity } from "../../hooks/useParticipantActivity";
-import { isActivelySpeaking, sortByActivity } from "../../lib/participantActivity";
+import { isActivelySpeaking, isSharingScreen, sortByActivity } from "../../lib/participantActivity";
 import { moderateParticipant, resolveScreenShareRequest, resolveWaitingRoomEntry } from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -55,6 +55,11 @@ function parseMeta(participant: LkParticipant): ParticipantMeta {
     }
   }
   return meta;
+}
+
+function isCoachParticipant(participant: LkParticipant) {
+  const role = parseMeta(participant).role?.toLowerCase();
+  return role === "coach" || role === "teacher";
 }
 
 function ConnectionDot({ participant }: { participant: LkParticipant }) {
@@ -497,16 +502,49 @@ export function MeetingParticipants() {
   // Active people float to the top of each group — sharing, speaking, hand
   // up, spoke recently, camera/mic on — like Zoom / Meet (lib/participantActivity.ts).
   const activity = useParticipantActivity();
+  // Whoever is sharing their screen is pinned above every other section.
   const grouped = useMemo(() => {
+    const sharing: LkParticipant[] = [];
     const coaches: LkParticipant[] = [];
     const students: LkParticipant[] = [];
     sortByActivity(filteredParticipants, (p) => p, activity).forEach((p) => {
-      const role = parseMeta(p).role?.toLowerCase();
-      if (role === "coach" || role === "teacher") coaches.push(p);
+      if (isSharingScreen(p)) sharing.push(p);
+      else if (isCoachParticipant(p)) coaches.push(p);
       else students.push(p);
     });
-    return { coaches, students };
+    return { sharing, coaches, students };
   }, [activity, filteredParticipants]);
+
+  const renderCoachRow = (p: LkParticipant) => (
+    <ParticipantListItem
+      key={p.identity}
+      participant={p}
+      isCoachRow
+      handRaised={!!raisedHands[p.identity]}
+      speaking={isActivelySpeaking(p, activity)}
+      onMessagePrivately={
+        canMessagePrivately(p.identity.split("_")[0]) ? handleMessagePrivately : undefined
+      }
+      canModerate={canMessagePrivately(p.identity.split("_")[0])}
+    />
+  );
+
+  const renderStudentRow = (p: LkParticipant) => (
+    <ParticipantListItem
+      key={p.identity}
+      participant={p}
+      handRaised={!!raisedHands[p.identity]}
+      speaking={isActivelySpeaking(p, activity)}
+      canModerate={isCoach}
+      onModerate={isCoach ? handleModerate : undefined}
+      onMessagePrivately={
+        canMessagePrivately(p.identity.split("_")[0]) ? handleMessagePrivately : undefined
+      }
+      showBoardControl={isChessboardOpen && isCoach}
+      boardControlSide={boardControlStudents[p.identity] ?? null}
+      onSetBoardControlSide={setBoardControlSide}
+    />
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -549,6 +587,17 @@ export function MeetingParticipants() {
       )}
 
       <div className="custom-scrollbar flex-1 overflow-y-auto overscroll-contain px-2 py-3" role="list">
+        {grouped.sharing.length > 0 && (
+          <div className="mb-2">
+            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
+              Sharing screen ({grouped.sharing.length})
+            </h3>
+            <div className="flex flex-col gap-0.5">
+              {grouped.sharing.map((p) => (isCoachParticipant(p) ? renderCoachRow(p) : renderStudentRow(p)))}
+            </div>
+          </div>
+        )}
+
         {isCoach && waitingList.length > 0 && (
           <div className="mb-2">
             <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
@@ -581,50 +630,19 @@ export function MeetingParticipants() {
               Coaches ({grouped.coaches.length})
             </h3>
             <div className="flex flex-col gap-0.5">
-              {grouped.coaches.map((p) => (
-                <ParticipantListItem
-                  key={p.identity}
-                  participant={p}
-                  isCoachRow
-                  handRaised={!!raisedHands[p.identity]}
-                  speaking={isActivelySpeaking(p, activity)}
-                  onMessagePrivately={
-                    canMessagePrivately(p.identity.split("_")[0])
-                      ? handleMessagePrivately
-                      : undefined
-                  }
-                  canModerate={canMessagePrivately(p.identity.split("_")[0])}
-                />
-              ))}
+              {grouped.coaches.map(renderCoachRow)}
             </div>
           </div>
         )}
 
         <div>
-          {grouped.coaches.length > 0 && (
+          {(grouped.coaches.length > 0 || grouped.sharing.length > 0) && (
             <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-app-muted">
               Students ({grouped.students.length})
             </h3>
           )}
           <div className="flex flex-col gap-0.5">
-            {grouped.students.map((p) => (
-              <ParticipantListItem
-                key={p.identity}
-                participant={p}
-                handRaised={!!raisedHands[p.identity]}
-                speaking={isActivelySpeaking(p, activity)}
-                canModerate={isCoach}
-                onModerate={isCoach ? handleModerate : undefined}
-                onMessagePrivately={
-                  canMessagePrivately(p.identity.split("_")[0])
-                    ? handleMessagePrivately
-                    : undefined
-                }
-                showBoardControl={isChessboardOpen && isCoach}
-                boardControlSide={boardControlStudents[p.identity] ?? null}
-                onSetBoardControlSide={setBoardControlSide}
-              />
-            ))}
+            {grouped.students.map(renderStudentRow)}
           </div>
         </div>
 

@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Save } from "lucide-react";
+import { demoPasscodeSchema, type DemoClass, type DemoClassAccessMode } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Form } from "@/components/forms/Form";
@@ -10,11 +11,18 @@ import { FormInput } from "@/components/forms/FormInput";
 import { FormSelect } from "@/components/forms/FormSelect";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
+import { Switch } from "@/components/ui/Switch";
 import { Textarea } from "@/components/ui/Textarea";
 import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { useAssignableUsersQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useCreateDemoClassMutation, useUpdateDemoClassMutation } from "../hooks/useAdminDemoClasses";
-import type { DemoClass } from "@nexa-chess/types";
+import { DemoAccessFields } from "./demo-classes/DemoAccessFields";
+import {
+  DemoInviteePicker,
+  EMPTY_PENDING_INVITEES,
+  pendingInviteeCount,
+  type PendingInvitees
+} from "./demo-classes/DemoInviteePicker";
 
 const formSchema = z.object({
   coachId: z.string().min(1, "Coach is required"),
@@ -29,11 +37,14 @@ interface DemoClassFormProps {
   selectedClass?: DemoClass | null;
 }
 
-import { useState } from "react";
-
 export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) {
   const [duration, setDuration] = useState("60");
   const [isDurationDropdownOpen, setIsDurationDropdownOpen] = useState(false);
+  const [accessMode, setAccessMode] = useState<DemoClassAccessMode>(selectedClass?.accessMode ?? "PUBLIC");
+  const [passcode, setPasscode] = useState(selectedClass?.passcode ?? "");
+  const [passcodeError, setPasscodeError] = useState<string | undefined>();
+  const [invitees, setInvitees] = useState<PendingInvitees>(EMPTY_PENDING_INVITEES);
+  const [notifyInvitees, setNotifyInvitees] = useState(true);
   const { data: usersData, isLoading: isLoadingUsers } = useAssignableUsersQuery();
   const createMutation = useCreateDemoClassMutation();
   const updateMutation = useUpdateDemoClassMutation(selectedClass?.id || "");
@@ -52,7 +63,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
   useEffect(() => {
     if (selectedClass) {
       form.reset({
-        coachId: usersData?.coaches?.find(c => `${c.firstName} ${c.lastName || ""}`.trim() === selectedClass.coachName)?.id || "",
+        coachId: selectedClass.coachId,
         topic: selectedClass.topic,
         description: selectedClass.description || "",
         startsAt: selectedClass.startsAt,
@@ -71,16 +82,27 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
       });
       setDuration("60");
     }
-  }, [selectedClass, form, usersData]);
+  }, [selectedClass, form]);
 
   const onSubmit = (values: z.infer<typeof formSchema>) => {
+    if (accessMode === "PASSCODE") {
+      const parsed = demoPasscodeSchema.safeParse(passcode);
+      if (!parsed.success) {
+        setPasscodeError(parsed.error.issues[0]?.message);
+        return;
+      }
+    }
+    setPasscodeError(undefined);
+
     const startObj = new Date(values.startsAt);
     const endsAtObj = new Date(startObj.getTime() + parseInt(duration) * 60000);
-    
+
     const submitData = {
       ...values,
       startsAt: startObj.toISOString(),
       endsAt: endsAtObj.toISOString(),
+      accessMode,
+      ...(accessMode === "PASSCODE" ? { passcode } : {}),
     };
     if (selectedClass) {
       updateMutation.mutate(submitData, {
@@ -90,12 +112,21 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
         }
       });
     } else {
-      createMutation.mutate(submitData, {
-        onSuccess: () => {
-          form.reset();
-          onSuccess?.();
+      createMutation.mutate(
+        {
+          ...submitData,
+          leadIds: invitees.leads.map((l) => l.id),
+          invitees: invitees.invitees,
+          notifyInvitees,
+        },
+        {
+          onSuccess: () => {
+            form.reset();
+            setInvitees(EMPTY_PENDING_INVITEES);
+            onSuccess?.();
+          }
         }
-      });
+      );
     }
   };
 
@@ -113,7 +144,9 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
           {selectedClass ? "Edit Demo Class" : "Create Demo Class"}
         </h2>
         <p className="mt-1 text-sm text-app-text-muted">
-          {selectedClass ? "Update details for this demo class." : "Schedule a new demo class and assign a coach."}
+          {selectedClass
+            ? "Update details for this demo class. Manage its guests from the class details."
+            : "Schedule a one-off demo class. For a recurring slot with a permanent link, use Schedules."}
         </p>
       </div>
 
@@ -194,6 +227,38 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
               rows={3}
             />
           </BaseFormField>
+
+          <div className="border-t border-app-border pt-4">
+            <DemoAccessFields
+              accessMode={accessMode}
+              passcode={passcode}
+              onAccessModeChange={setAccessMode}
+              onPasscodeChange={(value) => {
+                setPasscode(value);
+                setPasscodeError(undefined);
+              }}
+              passcodeError={passcodeError}
+              disabled={isPending}
+            />
+          </div>
+
+          {!selectedClass && (
+            <div className="grid gap-3 border-t border-app-border pt-4">
+              <div>
+                <p className="text-sm font-medium text-app-text">Invite guests (optional)</p>
+                <p className="text-xs text-app-muted">You can also add guests later from the class details.</p>
+              </div>
+              <DemoInviteePicker value={invitees} onChange={setInvitees} disabled={isPending} />
+              {pendingInviteeCount(invitees) > 0 && (
+                <Switch
+                  checked={notifyInvitees}
+                  onCheckedChange={setNotifyInvitees}
+                  label="Send each guest their personal link (email / WhatsApp)"
+                />
+              )}
+            </div>
+          )}
+
           <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-app-border">
             <Button
               type="button"

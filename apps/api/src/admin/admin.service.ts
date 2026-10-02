@@ -4,12 +4,26 @@ import { assertNoSchedulingConflict, assertNotInPast } from '../coach/class-sche
 import { paginationMeta, resolveOrderBy, resolvePagination } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrashRepository } from '../trash/trash.repository';
-import type { PaginatedQuery, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
-import { Prisma, UserStatus } from '@prisma/client';
+import type { AddDemoInviteesRequest, DemoClass, DemoClassDetailsResponse, PaginatedQuery, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
+import { Prisma, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
+import { DemoInviteService, demoInvitePath } from '../demo-class/demo-invite.service';
+
+type DemoClassRow = CoachClass & {
+  coach: Pick<User, 'firstName' | 'lastName'>;
+  demoSchedule: Pick<DemoSchedule, 'id' | 'slug'> | null;
+  _count: { demoRegistrations: number };
+};
+
+const DEMO_CLASS_INCLUDE = {
+  coach: { select: { firstName: true, lastName: true } },
+  demoSchedule: { select: { id: true, slug: true } },
+  _count: { select: { demoRegistrations: true } }
+} satisfies Prisma.CoachClassInclude;
 
 @Injectable()
 export class AdminService {
   constructor(
+    private readonly demoInvites: DemoInviteService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
     private readonly trashRepository: TrashRepository
@@ -134,7 +148,7 @@ export class AdminService {
     return { ok: true };
   }
 
-  async createDemoClass(_adminId: string, data: CreateDemoClassRequest) {
+  async createDemoClass(adminId: string, data: CreateDemoClassRequest) {
     const coach = await this.prisma.user.findUnique({
       where: { id: data.coachId }
     });
@@ -164,10 +178,20 @@ export class AdminService {
         endsAt,
         isDemo: true,
         status: 'SCHEDULED',
+        demoAccessMode: data.accessMode ?? 'PUBLIC',
+        demoPasscode: data.accessMode === 'PASSCODE' ? data.passcode ?? null : null
       }
     });
 
-    return { class: demoClass };
+    if (data.leadIds?.length || data.invitees?.length) {
+      await this.demoInvites.addInvitees(demoClass.id, adminId, {
+        leadIds: data.leadIds,
+        invitees: data.invitees,
+        notify: data.notifyInvitees ?? true
+      });
+    }
+
+    return { class: await this.getDemoClassDto(demoClass.id) };
   }
 
   async updateDemoClass(_adminId: string, classId: string, data: UpdateDemoClassRequest) {
@@ -191,6 +215,14 @@ export class AdminService {
     const startsAt = data.startsAt ? new Date(data.startsAt) : existingClass.startsAt;
     const endsAt = data.endsAt ? new Date(data.endsAt) : existingClass.endsAt;
     const coachId = data.coachId || existingClass.coachId;
+    const accessMode = data.accessMode ?? existingClass.demoAccessMode;
+    const passcode = accessMode === 'PASSCODE' ? data.passcode ?? existingClass.demoPasscode : null;
+    if (accessMode === 'PASSCODE' && !passcode) {
+      throw new ConflictException('A passcode is required for this access mode.');
+    }
+    const timeMoved =
+      startsAt.getTime() !== existingClass.startsAt.getTime() ||
+      endsAt.getTime() !== existingClass.endsAt.getTime();
 
     if (data.startsAt || data.endsAt || data.coachId) {
       if (data.startsAt) {
@@ -212,10 +244,15 @@ export class AdminService {
         description: data.description === undefined ? undefined : (data.description || null),
         startsAt: data.startsAt ? new Date(data.startsAt) : undefined,
         endsAt: data.endsAt ? new Date(data.endsAt) : undefined,
+        demoAccessMode: accessMode,
+        demoPasscode: passcode,
+        // A rescheduled occurrence leaves its static schedule, which then
+        // re-creates the regular slot rather than counting this one as it.
+        ...(timeMoved && existingClass.demoScheduleId ? { demoScheduleId: null } : {})
       }
     });
 
-    return { class: updatedClass };
+    return { class: await this.getDemoClassDto(updatedClass.id) };
   }
 
   async cancelDemoClass(adminId: string, classId: string) {
@@ -285,7 +322,7 @@ export class AdminService {
     const [classes, total] = await Promise.all([
       this.prisma.coachClass.findMany({
         where,
-        include: { coach: true },
+        include: DEMO_CLASS_INCLUDE,
         orderBy,
         skip,
         take
@@ -294,17 +331,42 @@ export class AdminService {
     ]);
 
     return {
-      classes: classes.map(c => ({
-        id: c.id,
-        topic: c.topic,
-        description: c.description,
-        startsAt: c.startsAt.toISOString(),
-        endsAt: c.endsAt.toISOString(),
-        status: c.status,
-        coachName: `${c.coach.firstName} ${c.coach.lastName || ''}`.trim()
-      })),
+      classes: classes.map((c) => this.toDemoClassDto(c)),
       pagination: paginationMeta(total, page, pageSize)
     };
+  }
+
+  private async getDemoClassDto(classId: string): Promise<DemoClass> {
+    const row = await this.prisma.coachClass.findUniqueOrThrow({
+      where: { id: classId },
+      include: DEMO_CLASS_INCLUDE
+    });
+    return this.toDemoClassDto(row);
+  }
+
+  private toDemoClassDto(c: DemoClassRow): DemoClass {
+    return {
+      id: c.id,
+      topic: c.topic ?? 'Demo class',
+      description: c.description,
+      startsAt: c.startsAt.toISOString(),
+      endsAt: c.endsAt.toISOString(),
+      status: c.status === 'IN_PROGRESS' ? 'LIVE' : c.status,
+      coachId: c.coachId,
+      coachName: `${c.coach.firstName} ${c.coach.lastName || ''}`.trim(),
+      accessMode: c.demoAccessMode,
+      passcode: c.demoPasscode,
+      registrationCount: c._count.demoRegistrations,
+      schedule: c.demoSchedule ? { id: c.demoSchedule.id, slug: c.demoSchedule.slug } : null
+    };
+  }
+
+  async addDemoInvitees(adminId: string, classId: string, body: AddDemoInviteesRequest) {
+    return this.demoInvites.addInvitees(classId, adminId, body);
+  }
+
+  async removeDemoInvitee(adminId: string, classId: string, registrationId: string) {
+    return this.demoInvites.removeInvitee(classId, registrationId, adminId);
   }
 
   /**
@@ -333,11 +395,11 @@ export class AdminService {
     return where;
   }
 
-  async getDemoClassDetails(_adminId: string, classId: string) {
+  async getDemoClassDetails(_adminId: string, classId: string): Promise<DemoClassDetailsResponse> {
     const existingClass = await this.prisma.coachClass.findUnique({
       where: { id: classId, isDemo: true },
       include: {
-        coach: true,
+        ...DEMO_CLASS_INCLUDE,
         liveSession: true,
         demoRegistrations: { orderBy: { createdAt: 'desc' } }
       }
@@ -349,19 +411,18 @@ export class AdminService {
 
     return {
       class: {
-        id: existingClass.id,
-        topic: existingClass.topic,
-        description: existingClass.description,
-        startsAt: existingClass.startsAt.toISOString(),
-        endsAt: existingClass.endsAt.toISOString(),
-        status: existingClass.status,
-        coachName: `${existingClass.coach.firstName} ${existingClass.coach.lastName || ''}`.trim(),
+        ...this.toDemoClassDto(existingClass),
         actualStartsAt: existingClass.liveSession?.startedAt?.toISOString() || null,
         actualEndsAt: existingClass.liveSession?.endedAt?.toISOString() || null,
         registrations: existingClass.demoRegistrations.map((r) => ({
+          id: r.id,
           name: r.name,
+          source: r.source,
+          approval: r.approval,
+          leadId: r.leadId,
           contactMethod: r.contactMethod,
           contact: r.contactMethod === 'EMAIL' ? (r.email ?? r.contactValue) : (r.phoneNumber ?? r.contactValue),
+          invitePath: r.inviteToken ? demoInvitePath(existingClass.id, r.inviteToken) : null,
           registeredAt: r.createdAt.toISOString(),
           joined: !!r.joinedAt
         }))

@@ -11,6 +11,7 @@ import { LeadService } from "./lead.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { MailService } from "../mail/mail.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
+import { DemoInviteService } from "../demo-class/demo-invite.service";
 
 const ACCESS_TOKEN = "access-token";
 const ADMIN_ID = "admin-1";
@@ -26,6 +27,7 @@ describe("LeadService", () => {
       create: jest.Mock;
       findMany: jest.Mock;
       findUnique: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
       update: jest.Mock;
       delete: jest.Mock;
       count: jest.Mock;
@@ -34,7 +36,7 @@ describe("LeadService", () => {
     leadNote: { create: jest.Mock };
     leadActivity: { create: jest.Mock };
     coachClass: { findUnique: jest.Mock };
-    demoClassRegistration: { findUnique: jest.Mock; create: jest.Mock };
+    demoClassRegistration: { findUnique: jest.Mock; create: jest.Mock; update: jest.Mock };
     user: { findUnique: jest.Mock };
     $transaction: jest.Mock;
   };
@@ -55,6 +57,21 @@ describe("LeadService", () => {
         create: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
         findUnique: jest.fn(),
+        findUniqueOrThrow: jest.fn().mockResolvedValue({
+          id: "lead-1",
+          studentName: "Kid",
+          parentName: "Parent",
+          studentAge: 10,
+          experienceLevel: "beginner",
+          phone: "9876543210",
+          status: "DEMO_SCHEDULED",
+          source: "Organic",
+          campaign: null,
+          lastActivityAt: new Date(),
+          convertedAt: null,
+          assignedClassId: "class-1",
+          createdAt: new Date()
+        }),
         update: jest.fn(),
         delete: jest.fn(),
         count: jest.fn().mockResolvedValue(0),
@@ -63,7 +80,7 @@ describe("LeadService", () => {
       leadNote: { create: jest.fn() },
       leadActivity: { create: jest.fn() },
       coachClass: { findUnique: jest.fn() },
-      demoClassRegistration: { findUnique: jest.fn(), create: jest.fn() },
+      demoClassRegistration: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
       user: {
         findUnique: jest.fn().mockResolvedValue({
           id: ADMIN_ID,
@@ -79,6 +96,7 @@ describe("LeadService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LeadService,
+        DemoInviteService,
         { provide: JwtService, useValue: jwtService },
         { provide: PrismaService, useValue: prisma },
         { provide: MailService, useValue: { sendNewLeadNotification } },
@@ -305,7 +323,13 @@ describe("LeadService", () => {
 
       expect(prisma.demoClassRegistration.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ classId: "class-1", contactValue: "9876543210" })
+          data: expect.objectContaining({
+            classId: "class-1",
+            contactValue: "9876543210",
+            source: "LEAD",
+            leadId: "lead-1",
+            inviteToken: expect.any(String)
+          })
         })
       );
       expect(prisma.lead.update).toHaveBeenCalledWith(
@@ -319,7 +343,13 @@ describe("LeadService", () => {
     it("does not duplicate the registration when one already exists for this contact", async () => {
       prisma.lead.findUnique.mockResolvedValue({ id: "lead-1", phone: "9876543210", status: "NEW" });
       prisma.coachClass.findUnique.mockResolvedValue(scheduledClass);
-      prisma.demoClassRegistration.findUnique.mockResolvedValue({ id: "existing-reg" });
+      prisma.demoClassRegistration.findUnique.mockResolvedValue({
+        id: "existing-reg",
+        source: "SELF",
+        leadId: null,
+        inviteToken: null,
+        invitedById: null
+      });
       prisma.lead.update.mockResolvedValue({
         id: "lead-1",
         studentName: "Kid",
@@ -339,6 +369,13 @@ describe("LeadService", () => {
       await service.assignDemoClass(ACCESS_TOKEN, "lead-1", { classId: "class-1" });
 
       expect(prisma.demoClassRegistration.create).not.toHaveBeenCalled();
+      // A self-registered guest becomes this lead's approved, linked invite.
+      expect(prisma.demoClassRegistration.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "existing-reg" },
+          data: expect.objectContaining({ source: "LEAD", leadId: "lead-1", approval: "APPROVED" })
+        })
+      );
     });
 
     it("never downgrades a converted lead's status", async () => {
@@ -371,10 +408,10 @@ describe("LeadService", () => {
 
       await expect(
         service.assignDemoClass(ACCESS_TOKEN, "lead-1", { classId: "class-1" })
-      ).rejects.toBeInstanceOf(BadRequestException);
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
 
-    it("rejects a demo class that isn't SCHEDULED", async () => {
+    it("rejects a demo class that is cancelled or over", async () => {
       prisma.lead.findUnique.mockResolvedValue({ id: "lead-1", phone: "9876543210", status: "NEW" });
       prisma.coachClass.findUnique.mockResolvedValue({ ...scheduledClass, status: ClassStatus.CANCELLED });
 

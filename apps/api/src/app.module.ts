@@ -36,6 +36,7 @@ import { TypographyModule } from "./typography/typography.module";
 import { ClassRequestModule } from "./class-request/class-request.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { ProgressModule } from "./progress/progress.module";
+import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
 
 @Module({
@@ -79,6 +80,7 @@ import { LeadModule } from "./lead/lead.module";
     PayrollModule,
     ChessAppearanceModule,
     TypographyModule,
+    DemoClassModule,
     LeadModule,
     FeedbackModule,
     ClassRequestModule,

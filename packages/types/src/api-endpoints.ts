@@ -48,6 +48,11 @@ export const API_ROUTES = {
     cancelDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}/cancel`,
     restoreDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}/restore`,
     demoClassDetails: (id: string = ":id") => `/admin/demo-classes/${id}/details`,
+    demoClassInvitees: (id: string = ":id") => `/admin/demo-classes/${id}/invitees`,
+    removeDemoClassInvitee: (id: string = ":id", registrationId: string = ":registrationId") =>
+      `/admin/demo-classes/${id}/invitees/${registrationId}`,
+    demoSchedules: "/admin/demo-schedules",
+    demoSchedule: (id: string = ":id") => `/admin/demo-schedules/${id}`,
     batchClasses: "/admin/classes",
     batchClassDetails: (id: string = ":id") => `/admin/classes/${id}/details`
   },
@@ -71,6 +76,7 @@ export const API_ROUTES = {
     participants: (id: string = ":id") => `/live-class/${id}/participants`,
     chat: (id: string = ":id") => `/live-class/${id}/chat`,
     heartbeat: (id: string = ":id") => `/live-class/${id}/heartbeat`,
+    demoInfo: (id: string = ":id") => `/live-class/demo/${id}`,
     demoJoin: (id: string = ":id") => `/live-class/demo/${id}/join`,
     startRecording: (id: string = ":id") => `/live-class/${id}/recording/start`,
     stopRecording: (id: string = ":id") => `/live-class/${id}/recording/stop`,

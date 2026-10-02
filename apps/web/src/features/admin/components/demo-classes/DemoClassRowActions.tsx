@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { Ban, Copy, Info, Pencil, RotateCcw } from "lucide-react";
+import { Ban, Copy, Pencil, RotateCcw, Users } from "lucide-react";
 import type { DemoClass } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -14,7 +14,7 @@ import {
 export interface DemoClassRowActionsProps {
   demoClass: DemoClass;
   onEdit: (demoClass: DemoClass) => void;
-  onCopyLink: (id: string) => void;
+  onCopyLink: (demoClass: DemoClass) => void;
   onCancel: (id: string) => void;
   onRestore: (id: string) => void;
   onViewDetails: (id: string) => void;
@@ -44,7 +44,7 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
               <Button
                 aria-label={`Copy link for ${demoClass.topic}`}
                 className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
-                onClick={() => onCopyLink(demoClass.id)}
+                onClick={() => onCopyLink(demoClass)}
                 size="icon"
                 type="button"
                 variant="ghost"
@@ -52,7 +52,9 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
                 <Copy aria-hidden="true" className="size-4" strokeWidth={2.5} />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Copy Invite Link</TooltipContent>
+            <TooltipContent>
+              {demoClass.accessMode === "PASSCODE" ? "Copy link + passcode" : "Copy class link"}
+            </TooltipContent>
           </Tooltip>
         )}
 
@@ -75,23 +77,21 @@ export const DemoClassRowActions = memo(function DemoClassRowActions({
           </Tooltip>
         )}
 
-        {demoClass.status === "COMPLETED" && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                aria-label="View demo class details"
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
-                onClick={() => onViewDetails(demoClass.id)}
-                size="icon"
-                type="button"
-                variant="ghost"
-              >
-                <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>View Details</TooltipContent>
-          </Tooltip>
-        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              aria-label={`Details and guests for ${demoClass.topic}`}
+              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+              onClick={() => onViewDetails(demoClass.id)}
+              size="icon"
+              type="button"
+              variant="ghost"
+            >
+              <Users aria-hidden="true" className="size-4" strokeWidth={2.5} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Details &amp; guests</TooltipContent>
+        </Tooltip>
 
         {canEditOrCancel && (
           <>

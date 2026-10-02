@@ -10,7 +10,7 @@ import {
   Inject,
   forwardRef
 } from "@nestjs/common";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
@@ -29,6 +29,7 @@ import {
   LIVE_CLASS_SCREEN_SHARE_TOPIC,
   LIVE_CLASS_SETTINGS_TOPIC,
   LIVE_CLASS_WAITING_ROOM_TOPIC,
+  type DemoClassPublicInfo,
   type DerivedLiveKitGrants,
   type GuestJoinDemoRequest,
   type GuestJoinDemoResponse,
@@ -57,7 +58,11 @@ import {
   UserRole,
   UserStatus,
   ClassStatus,
+  DemoClassAccessMode,
+  DemoGuestApproval,
   DemoRegistrationContactMethod,
+  LeadStatus,
+  Prisma,
   ScreenShareRequestStatus,
   WaitingRoomStatus,
 } from "@prisma/client";
@@ -87,6 +92,8 @@ type EgressFileResult = {
 export class LiveClassService {
   // Postgres advisory-lock key for the stale-class sweep (AUDIT M21).
   private static readonly STALE_CLASS_LOCK_ID = 73002002;
+  /** Waiting-room entries for demo guests key on this + the registration id. */
+  static readonly GUEST_WAITING_PREFIX = "guest:";
 
   private readonly env = getApiEnv();
   private readonly logger = new Logger(LiveClassService.name);
@@ -778,13 +785,74 @@ export class LiveClassService {
   }
 
   /**
-   * Registers a visitor for a demo class — name plus a phone number or email,
-   * standing in for a full account — and, if the class happens to be live
-   * right now, immediately mints a guest LiveKit token too. A visitor who
-   * registers before the coach starts gets back `joined: false` with the
-   * scheduled time instead of an error; the join page re-submits the same
-   * details once the class goes live (see `registerDemoGuest` for why that
-   * retry never re-registers or re-sends the confirmation).
+   * Public: what the join page shows before its form. `idOrSlug` is a demo
+   * class id or a static demo schedule's slug — the latter resolves to the
+   * schedule's LIVE occurrence, else its next one. Never returns the passcode.
+   */
+  async getDemoInfo(idOrSlug: string, inviteToken?: string): Promise<DemoClassPublicInfo> {
+    const include = { coach: { select: { firstName: true, lastName: true } } } as const;
+    let coachClass = await this.prisma.coachClass.findUnique({ where: { id: idOrSlug }, include });
+
+    if (!coachClass) {
+      const schedule = await this.prisma.demoSchedule.findUnique({
+        where: { slug: idOrSlug.toLowerCase() }
+      });
+      if (schedule?.isActive) {
+        coachClass =
+          (await this.prisma.coachClass.findFirst({
+            where: { demoScheduleId: schedule.id, status: ClassStatus.LIVE },
+            include
+          })) ??
+          (await this.prisma.coachClass.findFirst({
+            where: {
+              demoScheduleId: schedule.id,
+              status: ClassStatus.SCHEDULED,
+              endsAt: { gt: new Date() }
+            },
+            orderBy: { startsAt: "asc" },
+            include
+          }));
+        if (!coachClass) {
+          throw new NotFoundException("There is no upcoming session for this demo class right now.");
+        }
+      }
+    }
+
+    if (!coachClass || !coachClass.isDemo) {
+      throw new NotFoundException("This demo class was not found.");
+    }
+
+    let invitee: DemoClassPublicInfo["invitee"] = null;
+    if (inviteToken) {
+      const registration = await this.prisma.demoClassRegistration.findUnique({
+        where: { inviteToken }
+      });
+      if (registration?.classId === coachClass.id) invitee = { name: registration.name };
+    }
+
+    return {
+      classId: coachClass.id,
+      topic: coachClass.topic || coachClass.title || "Demo Class",
+      description: coachClass.description,
+      startsAt: coachClass.startsAt.toISOString(),
+      endsAt: coachClass.endsAt.toISOString(),
+      status: coachClass.status === ClassStatus.IN_PROGRESS ? ClassStatus.LIVE : coachClass.status,
+      accessMode: coachClass.demoAccessMode,
+      coachName: `${coachClass.coach.firstName} ${coachClass.coach.lastName || ""}`.trim(),
+      invitee
+    };
+  }
+
+  /**
+   * Admits a demo guest. Three ways in:
+   * - a personal invite token (admin-added guest — admitted in every mode);
+   * - a phone/email that already has a registration on this class (an invite
+   *   typed by hand, or a returning guest re-polling while they wait);
+   * - a new registration, which the class's access mode gates: PASSCODE checks
+   *   the passcode first, INVITE_ONLY files it as PENDING for the coach to
+   *   admit from the waiting room instead of turning the guest away.
+   * A token is only minted once the class is LIVE; before that the guest gets
+   * `joined: false` and the join page polls the same request again.
    */
   async joinDemoClass(
     classId: string,
@@ -811,9 +879,39 @@ export class LiveClassService {
     }
 
     const topic = coachClass.topic || coachClass.title || "Demo Class";
-    const registration = await this.registerDemoGuest(classId, coachClass.startsAt, topic, body);
+    const isLive = liveSession?.status === LiveSessionStatus.LIVE;
+    const { registration, created } = await this.resolveDemoRegistration(coachClass, topic, body);
 
-    if (liveSession?.status !== LiveSessionStatus.LIVE) {
+    if (registration.approval === DemoGuestApproval.DENIED) {
+      throw new ForbiddenException({
+        message: "The coach has not admitted you to this class.",
+        code: "JOIN_DENIED"
+      });
+    }
+
+    if (registration.approval === DemoGuestApproval.PENDING) {
+      if (created && isLive && liveSession) {
+        await this.announceWaitingRoomEvent(
+          liveSession.roomName,
+          "JOIN_REQUESTED",
+          LiveClassService.toGuestWaitingRoomEntry(registration)
+        );
+      }
+      return {
+        registered: true,
+        joined: false,
+        awaitingApproval: true,
+        token: null,
+        roomName: null,
+        topic,
+        startsAt: coachClass.startsAt.toISOString(),
+        message: isLive
+          ? "This class is for invited guests. The coach has been asked to let you in."
+          : "This class is for invited guests. Your request is saved, and the coach can let you in once the class starts."
+      };
+    }
+
+    if (!isLive || !liveSession) {
       // Guest demo registration — no account/timezone; state the schedule in UTC.
       const formattedTime = coachClass.startsAt.toLocaleString('en-US', {
         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -822,6 +920,7 @@ export class LiveClassService {
       return {
         registered: true,
         joined: false,
+        awaitingApproval: false,
         token: null,
         roomName: null,
         topic,
@@ -838,7 +937,7 @@ export class LiveClassService {
     const tokenOptions: LiveKitTokenOptions = {
       roomName: liveSession.roomName,
       participantIdentity,
-      participantName: body.guestName,
+      participantName: body.guestName || registration.name,
       isCoach: false
     };
 
@@ -848,11 +947,13 @@ export class LiveClassService {
       await this.prisma.demoClassRegistration
         .update({ where: { id: registration.id }, data: { joinedAt: new Date() } })
         .catch(() => undefined);
+      if (registration.leadId) void this.markLeadAttended(registration.leadId, topic);
     }
 
     return {
       registered: true,
       joined: true,
+      awaitingApproval: false,
       token: livekitToken,
       roomName: liveSession.roomName,
       topic,
@@ -862,19 +963,29 @@ export class LiveClassService {
   }
 
   /**
-   * Upserts the guest's registration (one row per class per contact — see the
-   * `@@unique([classId, contactMethod, contactValue])` index) and, only the
-   * first time, fires a best-effort confirmation on whichever channel they
-   * picked. The join page re-submits the same details while it waits for the
-   * class to go live, and that retry must reuse the existing row rather than
-   * re-registering or spamming a second confirmation.
+   * Finds or creates the guest's registration (one row per class per contact
+   * — `@@unique([classId, contactMethod, contactValue])`). The join page
+   * re-submits while it waits, and that retry must reuse the row rather than
+   * re-registering, re-asking the coach, or re-sending a confirmation.
    */
-  private async registerDemoGuest(
-    classId: string,
-    startsAt: Date,
+  private async resolveDemoRegistration(
+    coachClass: { id: string; startsAt: Date; demoAccessMode: DemoClassAccessMode; demoPasscode: string | null },
     topic: string,
     body: GuestJoinDemoRequest
   ) {
+    if (body.inviteToken) {
+      const registration = await this.prisma.demoClassRegistration.findUnique({
+        where: { inviteToken: body.inviteToken }
+      });
+      if (!registration || registration.classId !== coachClass.id) {
+        throw new ForbiddenException({
+          message: "This invite link isn't valid for this class. Enter your details instead.",
+          code: "DEMO_INVITE_INVALID"
+        });
+      }
+      return { registration, created: false };
+    }
+
     const contactMethod: DemoRegistrationContactMethod =
       body.contactMethod === "EMAIL"
         ? DemoRegistrationContactMethod.EMAIL
@@ -884,33 +995,99 @@ export class LiveClassService {
       contactMethod === DemoRegistrationContactMethod.EMAIL
         ? (body.email as string)
         : this.whatsapp.normalizeRecipient(body.phoneNumber) ??
-          (body.phoneNumber as string).replace(/\D/g, "");
+          (body.phoneNumber ?? "").replace(/\D/g, "");
 
     if (!contactValue) {
       throw new BadRequestException("Enter a valid phone number or email address.");
     }
 
+    const key = { classId: coachClass.id, contactMethod, contactValue };
     const existing = await this.prisma.demoClassRegistration.findUnique({
-      where: {
-        classId_contactMethod_contactValue: { classId, contactMethod, contactValue }
-      }
+      where: { classId_contactMethod_contactValue: key }
     });
-    if (existing) return existing;
+    if (existing) return { registration: existing, created: false };
 
-    const created = await this.prisma.demoClassRegistration.create({
-      data: {
-        classId,
-        name: body.guestName,
-        contactMethod,
-        contactValue,
-        phoneNumber: contactMethod === DemoRegistrationContactMethod.PHONE ? body.phoneNumber : null,
-        email: contactMethod === DemoRegistrationContactMethod.EMAIL ? body.email : null
+    if (
+      coachClass.demoAccessMode === DemoClassAccessMode.PASSCODE &&
+      !LiveClassService.passcodeMatches(body.passcode, coachClass.demoPasscode)
+    ) {
+      throw new ForbiddenException({
+        message: body.passcode ? "That passcode is incorrect." : "Enter the class passcode.",
+        code: "DEMO_PASSCODE_INVALID"
+      });
+    }
+
+    const approval =
+      coachClass.demoAccessMode === DemoClassAccessMode.INVITE_ONLY
+        ? DemoGuestApproval.PENDING
+        : DemoGuestApproval.APPROVED;
+
+    let created;
+    try {
+      created = await this.prisma.demoClassRegistration.create({
+        data: {
+          ...key,
+          name: body.guestName as string,
+          phoneNumber: contactMethod === DemoRegistrationContactMethod.PHONE ? body.phoneNumber : null,
+          email: contactMethod === DemoRegistrationContactMethod.EMAIL ? body.email : null,
+          approval
+        }
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const raced = await this.prisma.demoClassRegistration.findUniqueOrThrow({
+          where: { classId_contactMethod_contactValue: key }
+        });
+        return { registration: raced, created: false };
       }
-    });
+      throw error;
+    }
 
-    void this.sendDemoRegistrationConfirmation(classId, created, startsAt, topic);
+    if (approval === DemoGuestApproval.APPROVED) {
+      void this.sendDemoRegistrationConfirmation(coachClass.id, created, coachClass.startsAt, topic);
+    }
 
-    return created;
+    return { registration: created, created: true };
+  }
+
+  private static passcodeMatches(given: string | undefined, expected: string | null): boolean {
+    if (!given || !expected) return false;
+    const digest = (value: string) => createHash("sha256").update(value.trim().toUpperCase()).digest();
+    return timingSafeEqual(digest(given), digest(expected));
+  }
+
+  /** Best-effort: a booked lead who actually joined moves to DEMO_ATTENDED. */
+  private async markLeadAttended(leadId: string, topic: string) {
+    try {
+      await this.prisma.lead.updateMany({
+        where: {
+          id: leadId,
+          status: { in: [LeadStatus.NEW, LeadStatus.CONTACTED, LeadStatus.INTERESTED, LeadStatus.DEMO_SCHEDULED] }
+        },
+        data: { status: LeadStatus.DEMO_ATTENDED, lastActivityAt: new Date() }
+      });
+      await this.prisma.leadActivity.create({
+        data: { leadId, activityType: "DEMO_ATTENDED", title: `Joined demo class: ${topic}` }
+      });
+    } catch (error) {
+      this.logger.warn(`Could not mark lead ${leadId} as attended: ${(error as Error).message}`);
+    }
+  }
+
+  private static toGuestWaitingRoomEntry(row: {
+    id: string;
+    name: string;
+    approval: DemoGuestApproval;
+    createdAt: Date;
+  }): WaitingRoomEntry {
+    return {
+      id: row.id,
+      studentId: `${LiveClassService.GUEST_WAITING_PREFIX}${row.id}`,
+      studentName: `${row.name} (guest)`,
+      avatarUrl: null,
+      status: row.approval === DemoGuestApproval.APPROVED ? "ADMITTED" : row.approval,
+      requestedAt: row.createdAt.toISOString()
+    };
   }
 
   /** Best-effort — a failed confirmation never blocks registration or join. */
@@ -1287,13 +1464,24 @@ export class LiveClassService {
   ): Promise<WaitingRoomListResponse> {
     const { liveSession } = await this.resolveClassManager(accessToken, classId);
 
-    const rows = await this.prisma.liveClassWaitingParticipant.findMany({
-      where: { liveSessionId: liveSession.id, status: WaitingRoomStatus.PENDING },
-      include: { student: { select: { firstName: true, lastName: true, avatarUrl: true } } },
-      orderBy: { requestedAt: "asc" },
-    });
+    const [rows, guests] = await Promise.all([
+      this.prisma.liveClassWaitingParticipant.findMany({
+        where: { liveSessionId: liveSession.id, status: WaitingRoomStatus.PENDING },
+        include: { student: { select: { firstName: true, lastName: true, avatarUrl: true } } },
+        orderBy: { requestedAt: "asc" },
+      }),
+      this.prisma.demoClassRegistration.findMany({
+        where: { classId, approval: DemoGuestApproval.PENDING },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
 
-    return { entries: rows.map((row) => LiveClassService.toWaitingRoomEntry(row)) };
+    return {
+      entries: [
+        ...rows.map((row) => LiveClassService.toWaitingRoomEntry(row)),
+        ...guests.map((guest) => LiveClassService.toGuestWaitingRoomEntry(guest)),
+      ],
+    };
   }
 
   /** Coach-owner/admin: admit or deny one pending student. */
@@ -1303,6 +1491,10 @@ export class LiveClassService {
     body: ResolveWaitingRoomRequest,
   ): Promise<WaitingRoomEntry> {
     const { user, liveSession } = await this.resolveClassManager(accessToken, classId);
+
+    if (body.studentId.startsWith(LiveClassService.GUEST_WAITING_PREFIX)) {
+      return this.resolveDemoGuest(classId, liveSession.roomName, body);
+    }
 
     const status = body.action === "ADMIT" ? WaitingRoomStatus.ADMITTED : WaitingRoomStatus.DENIED;
     // The `status: PENDING` filter is the idempotency guard against a
@@ -1323,6 +1515,31 @@ export class LiveClassService {
 
     const entry = LiveClassService.toWaitingRoomEntry(updated);
     await this.announceWaitingRoomEvent(liveSession.roomName, "REQUEST_RESOLVED", entry);
+    return entry;
+  }
+
+  /** Coach-owner/admin: admit or deny an uninvited demo guest (INVITE_ONLY). */
+  private async resolveDemoGuest(
+    classId: string,
+    roomName: string,
+    body: ResolveWaitingRoomRequest,
+  ): Promise<WaitingRoomEntry> {
+    const registrationId = body.studentId.slice(LiveClassService.GUEST_WAITING_PREFIX.length);
+    // Status-filtered, like the student path: a double-click resolves once.
+    const { count } = await this.prisma.demoClassRegistration.updateMany({
+      where: { id: registrationId, classId, approval: DemoGuestApproval.PENDING },
+      data: {
+        approval: body.action === "ADMIT" ? DemoGuestApproval.APPROVED : DemoGuestApproval.DENIED,
+        approvalAt: new Date(),
+      },
+    });
+    if (count === 0) {
+      throw new NotFoundException("No pending request for that guest.");
+    }
+
+    const updated = await this.prisma.demoClassRegistration.findUniqueOrThrow({ where: { id: registrationId } });
+    const entry = LiveClassService.toGuestWaitingRoomEntry(updated);
+    await this.announceWaitingRoomEvent(roomName, "REQUEST_RESOLVED", entry);
     return entry;
   }
 

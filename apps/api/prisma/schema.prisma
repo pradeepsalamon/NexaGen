@@ -347,6 +347,9 @@ model User {
 
   // ── Coach payroll ──
   cancelledClasses                 CoachClass[]               @relation("ClassCancelledBy")
+  invitedDemoRegistrations         DemoClassRegistration[]    @relation("DemoRegistrationInvitedBy")
+  coachedDemoSchedules             DemoSchedule[]             @relation("DemoScheduleCoach")
+  createdDemoSchedules             DemoSchedule[]             @relation("DemoScheduleCreatedBy")
   coachCompensationProfile         CoachCompensationProfile?  @relation("CoachCompensationProfile")
   createdCoachCompensationProfiles CoachCompensationProfile[] @relation("CoachCompensationProfileCreatedBy")
   coachCompensationRates           CoachCompensationRate[]    @relation("CoachCompensationRate")
@@ -666,7 +669,14 @@ model CoachClass {
   coachId String
   coach   User   @relation("ClassCoach", fields: [coachId], references: [id], onDelete: Cascade)
 
-  isDemo Boolean @default(false)
+  isDemo         Boolean             @default(false)
+  /// Who may join a demo class (ignored for batch classes).
+  demoAccessMode DemoClassAccessMode @default(PUBLIC)
+  /// Shared with guests by the admin, so stored readable; required for PASSCODE.
+  demoPasscode   String?
+  /// The static demo schedule that generated this occurrence, if any.
+  demoScheduleId String?
+  demoSchedule   DemoSchedule?       @relation(fields: [demoScheduleId], references: [id], onDelete: SetNull)
 
   title       String?
   topic       String?
@@ -721,6 +731,7 @@ model CoachClass {
   changeRequests           ClassChangeRequest[]
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
+  @@unique([demoScheduleId, startsAt])
   @@index([batchId])
   @@index([coachId])
   @@index([status])
@@ -734,6 +745,55 @@ model CoachClass {
 enum DemoRegistrationContactMethod {
   PHONE
   EMAIL
+}
+
+enum DemoClassAccessMode {
+  PUBLIC
+  PASSCODE
+  INVITE_ONLY
+}
+
+enum DemoRegistrationSource {
+  SELF
+  LEAD
+  INVITE
+}
+
+/// Only an uninvited guest of an INVITE_ONLY class is ever PENDING — the coach
+/// admits or denies them from the in-room waiting list.
+enum DemoGuestApproval {
+  APPROVED
+  PENDING
+  DENIED
+}
+
+/// A recurring demo slot ("Trial class, Tue/Thu/Sat 5 PM") behind one
+/// permanent link, `/demo/<slug>`, which always resolves to the live or next
+/// occurrence. Occurrences are ordinary demo `CoachClass` rows, generated
+/// ahead by `DemoScheduleService`; not soft-deletable.
+model DemoSchedule {
+  id              String              @id @default(cuid())
+  slug            String              @unique
+  topic           String
+  description     String?
+  coachId         String
+  coach           User                @relation("DemoScheduleCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  timezone        String              @default("Asia/Kolkata")
+  /// `DemoScheduleSlot[]` — `{ dayOfWeek: 0-6, startTime: "HH:MM" }` in `timezone`.
+  slots           Json
+  durationMinutes Int                 @default(60)
+  accessMode      DemoClassAccessMode @default(PUBLIC)
+  passcode        String?
+  isActive        Boolean             @default(true)
+  createdById     String?
+  createdBy       User?               @relation("DemoScheduleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  classes CoachClass[]
+
+  @@index([isActive])
+  @@map("demo_schedules")
 }
 
 /// A visitor's sign-up for a demo class, captured in place of a full account —
@@ -752,11 +812,23 @@ model DemoClassRegistration {
   contactValue  String
   phoneNumber   String?
   email         String?
+  /// SELF = the guest registered on the join page; LEAD / INVITE = an admin
+  /// assigned them. Any row admits its contact, whatever the access mode.
+  source        DemoRegistrationSource        @default(SELF)
+  leadId        String?
+  lead          Lead?                         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  invitedById   String?
+  invitedBy     User?                         @relation("DemoRegistrationInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+  /// Personal-link secret (`/demo/<classId>?invite=<token>`) for admin-added guests.
+  inviteToken   String?                       @unique
+  approval      DemoGuestApproval             @default(APPROVED)
+  approvalAt    DateTime?
   joinedAt      DateTime?
   createdAt     DateTime                      @default(now())
 
   @@unique([classId, contactMethod, contactValue])
   @@index([classId])
+  @@index([leadId])
   @@map("demo_class_registrations")
 }
 
@@ -846,8 +918,9 @@ model Lead {
   assignedClassId String?
   assignedClass   CoachClass? @relation("LeadAssignedClass", fields: [assignedClassId], references: [id], onDelete: SetNull)
 
-  activities LeadActivity[]
-  notes      LeadNote[]
+  activities        LeadActivity[]
+  notes             LeadNote[]
+  demoRegistrations DemoClassRegistration[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
