@@ -27,7 +27,7 @@ export interface PresencePull {
 }
 
 export interface PresenceHeartbeatResponse {
-  /** Students only; null for every other role. */
+  /** A student's live class, or a coach's own; null for other roles. */
   liveClass: PresenceLiveClass | null;
   pull: PresencePull | null;
 }

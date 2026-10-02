@@ -44,8 +44,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
       date: (r) => r.actualStart ?? r.date,
       teaching: (r) => r.teachingDuration,
       topic: (r) => r.topic
-    },
-    initialKey: "date"
+    }
   });
 
   const toggleClass = (id: string) =>

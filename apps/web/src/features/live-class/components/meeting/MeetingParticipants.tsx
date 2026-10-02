@@ -20,7 +20,7 @@ import {
 import { useConnectionQualityIndicator, useParticipants } from "@livekit/components-react";
 import { ConnectionQuality } from "livekit-client";
 import type { ModeratableSource, ScreenShareRequestEntry, WaitingRoomEntry } from "@nexa-chess/types";
-import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
+import { MODERATED_SOURCE_LABEL, compareNatural } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { PullStudentsSection } from "./PullStudentsSection";
 import { CoachRoomControls } from "./CoachRoomControls";
@@ -34,7 +34,7 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { useParticipantActivity } from "../../hooks/useParticipantActivity";
-import { isActivelySpeaking, isSharingScreen, sortByActivity } from "../../lib/participantActivity";
+import { isActivelySpeaking, isSharingScreen } from "../../lib/participantActivity";
 import { moderateParticipant, resolveScreenShareRequest, resolveWaitingRoomEntry } from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -499,20 +499,25 @@ export function MeetingParticipants() {
     [screenShareRequests],
   );
 
-  // Active people float to the top of each group — sharing, speaking, hand
-  // up, spoke recently, camera/mic on — like Zoom / Meet (lib/participantActivity.ts).
+  // Still needed for the speaking indicator on each row.
   const activity = useParticipantActivity();
-  // Whoever is sharing their screen is pinned above every other section.
+  // A–Z within each group, so rows don't jump around as people talk. Whoever
+  // is sharing their screen is pinned above every other section.
   const grouped = useMemo(() => {
     const sharing: LkParticipant[] = [];
     const coaches: LkParticipant[] = [];
     const students: LkParticipant[] = [];
-    sortByActivity(filteredParticipants, (p) => p, activity).forEach((p) => {
-      if (isSharingScreen(p)) sharing.push(p);
-      else if (isCoachParticipant(p)) coaches.push(p);
-      else students.push(p);
-    });
+    const nameOf = (p: LkParticipant) => p.name || p.identity;
+    [...filteredParticipants]
+      .sort((a, b) => compareNatural(nameOf(a), nameOf(b)))
+      .forEach((p) => {
+        if (isSharingScreen(p)) sharing.push(p);
+        else if (isCoachParticipant(p)) coaches.push(p);
+        else students.push(p);
+      });
     return { sharing, coaches, students };
+    // `activity` re-runs this when someone starts / stops sharing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activity, filteredParticipants]);
 
   const renderCoachRow = (p: LkParticipant) => (

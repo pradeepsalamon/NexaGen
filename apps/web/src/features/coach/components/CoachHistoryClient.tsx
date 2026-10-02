@@ -180,8 +180,7 @@ export function CoachHistoryClient() {
 
   const { table } = useDataTable({
     data: data?.classes || [],
-    columns,
-    initialSorting: [{ id: "date", desc: false }]
+    columns
   });
 
   return (

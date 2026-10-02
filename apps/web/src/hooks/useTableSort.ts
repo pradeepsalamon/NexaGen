@@ -6,7 +6,6 @@ type SortValue = string | number | boolean | null | undefined;
 interface UseTableSortOptions<Row, Key extends string> {
   rows: readonly Row[] | undefined;
   accessors: Record<Key, (row: Row) => SortValue>;
-  initialKey: NoInfer<Key>;
 }
 
 function compareValues(a: SortValue, b: SortValue): number {
@@ -16,22 +15,19 @@ function compareValues(a: SortValue, b: SortValue): number {
 }
 
 /**
- * Client-side sorting for plain `<Table>`s. Defaults to ascending on
- * `initialKey`; clicking a new column sorts it ascending, clicking the active
- * one flips direction. Empty values always sort last.
+ * Opt-in client-side sorting for plain `<Table>`s. Rows keep the order the API
+ * returned until a header is clicked: a new column sorts ascending, the active
+ * one flips to descending, then back to unsorted. Empty values always sort last.
  */
 export function useTableSort<Row, Key extends string>({
   rows,
-  accessors,
-  initialKey
+  accessors
 }: UseTableSortOptions<Row, Key>) {
-  const [sort, setSort] = useState<{ key: Key; direction: SortDirection }>({
-    key: initialKey,
-    direction: "asc"
-  });
+  const [sort, setSort] = useState<{ key: Key; direction: SortDirection } | null>(null);
 
   const sortedRows = useMemo(() => {
     if (!rows) return [];
+    if (!sort) return rows as Row[];
     const get = accessors[sort.key];
     const sign = sort.direction === "asc" ? 1 : -1;
     return rows
@@ -48,16 +44,15 @@ export function useTableSort<Row, Key extends string>({
   }, [rows, sort]);
 
   const toggle = useCallback((key: Key) => {
-    setSort((prev) =>
-      prev.key === key
-        ? { key, direction: prev.direction === "asc" ? "desc" : "asc" }
-        : { key, direction: "asc" }
-    );
+    setSort((prev) => {
+      if (prev?.key !== key) return { key, direction: "asc" };
+      return prev.direction === "asc" ? { key, direction: "desc" } : null;
+    });
   }, []);
 
   const sortProps = useCallback(
     (key: Key) => ({
-      direction: sort.key === key ? sort.direction : (false as const),
+      direction: sort?.key === key ? sort.direction : (false as const),
       onClick: () => toggle(key)
     }),
     [sort, toggle]

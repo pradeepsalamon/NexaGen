@@ -457,3 +457,10 @@ export const puzzleHintRequestSchema = z.object({
   level: z.number().int().min(1).max(3)
 });
 export type PuzzleHintRequest = z.infer<typeof puzzleHintRequestSchema>;
+
+const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+/** "Puzzle 2" before "Puzzle 10" — the order a coach numbering puzzles expects. */
+export function compareNatural(a: string, b: string): number {
+  return naturalCollator.compare(a, b);
+}

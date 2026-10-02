@@ -86,7 +86,12 @@
  * top of the squares/pieces with no z-index; `pointer-events: none` (base CSS)
  * keeps it from blocking piece dragging.
  */
-[data-nexa-board-theme] {
+/* Frame on cg-container, not the wrap: chessground floors the container to a
+   multiple of 8px, so it can be a few px smaller than the wrap. Centred so
+   the leftover is split evenly instead of pooling on the right/bottom. */
+[data-nexa-board-theme] cg-container {
+  inset: 0;
+  margin: auto;
   border-radius: 2px;
   box-shadow: 0 0 0 3px var(--nexa-border, transparent);
 }

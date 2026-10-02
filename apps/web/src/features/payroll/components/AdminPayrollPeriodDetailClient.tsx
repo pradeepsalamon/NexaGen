@@ -53,8 +53,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
       hours: (r) => r.totalTeachingSeconds,
       net: (r) => r.netPayableMinor,
       status: (r) => r.status
-    },
-    initialKey: "coach"
+    }
   });
   const payoutsByRecord = new Map((payoutsData?.payouts ?? []).map((p) => [p.payrollRecordId, p]));
 

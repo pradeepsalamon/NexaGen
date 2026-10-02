@@ -28,8 +28,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
       source: (s) => s.label,
       trend: (s) => s.deltaPct,
       users: (s) => s.users
-    },
-    initialKey: "source"
+    }
   });
 
   return (

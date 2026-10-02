@@ -28,8 +28,7 @@ export function PayrollRulesPanel() {
       name: (r) => r.name,
       priority: (r) => r.priority,
       type: (r) => PAYROLL_RULE_TYPE_LABELS[r.ruleType]
-    },
-    initialKey: "name"
+    }
   });
   const toggleEnabled = useUpdatePayrollRule();
   const [creating, setCreating] = useState(false);

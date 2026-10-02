@@ -76,8 +76,7 @@ export function ManualPaymentsPanel() {
       recordedBy: (r) => r.recordedByName,
       status: (r) => r.status,
       student: (r) => r.studentName
-    },
-    initialKey: "date"
+    }
   });
 
   return (

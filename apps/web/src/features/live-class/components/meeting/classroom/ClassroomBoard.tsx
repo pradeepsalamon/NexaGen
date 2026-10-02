@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState, type ReactNode } from "react";
-import { ChevronsRight, Crown, Loader2, Puzzle as PuzzleIcon } from "lucide-react";
+import { ChevronsRight, Crown, FolderOpen, Loader2, Puzzle as PuzzleIcon } from "lucide-react";
 import { useParams } from "next/navigation";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
@@ -94,35 +94,47 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
   );
 }
 
-/** Ask = share a puzzle (opens where the coach left off); Load next = next puzzle onto the board, not shared. */
+/**
+ * Ask = share the next puzzle in the current folder straight away (last share
+ * options); Load next = the same puzzle onto the board, not shared; the folder
+ * button opens the picker to choose any puzzle or switch folder.
+ */
 function CoachPuzzleButtons() {
   const params = useParams();
   const classId = (params?.roomId as string) ?? "";
   const [assignOpen, setAssignOpen] = useState(false);
-  const openAsk = useCallback(() => setAssignOpen(true), []);
-  const { loadNext, loading } = useLoadNextPuzzle({ onNoFolder: openAsk });
+  const openPicker = useCallback(() => setAssignOpen(true), []);
+  const { askNext, loadNext, loading } = useLoadNextPuzzle({ classId, onNoFolder: openPicker });
 
   return (
     <div className="mt-4 flex items-center gap-2 text-app-muted">
-      <SimpleTooltip label="Ask — share a puzzle">
+      <SimpleTooltip label="Ask — share the next puzzle">
         <NavIconButton
-          aria-label="Ask — share a puzzle"
-          icon={<PuzzleIcon className="size-4" strokeWidth={2.5} />}
-          onClick={openAsk}
+          aria-label="Ask — share the next puzzle"
+          icon={
+            loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <PuzzleIcon className="size-4" strokeWidth={2.5} />
+            )
+          }
+          onClick={() => void askNext()}
+          disabled={loading}
         />
       </SimpleTooltip>
       <SimpleTooltip label="Load next puzzle (not shared)">
         <NavIconButton
           aria-label="Load next puzzle"
-          icon={
-            loading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <ChevronsRight className="size-4" strokeWidth={2.5} />
-            )
-          }
+          icon={<ChevronsRight className="size-4" strokeWidth={2.5} />}
           onClick={() => void loadNext()}
           disabled={loading}
+        />
+      </SimpleTooltip>
+      <SimpleTooltip label="Choose a puzzle to share">
+        <NavIconButton
+          aria-label="Choose a puzzle to share"
+          icon={<FolderOpen className="size-4" strokeWidth={2.5} />}
+          onClick={openPicker}
         />
       </SimpleTooltip>
       <PuzzleAssignModal classId={classId} open={assignOpen} onOpenChange={setAssignOpen} />

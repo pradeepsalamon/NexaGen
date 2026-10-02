@@ -7,7 +7,7 @@ import {
   useLocalParticipant,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { Hand, Mic, MicOff, Undo2, Video, VideoOff } from "lucide-react";
+import { Hand, Mic, MicOff, Pin, PinOff, Scaling, Undo2, Video, VideoOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
@@ -16,7 +16,7 @@ import { useSpotlightTrack } from "../../hooks/useSpotlightTrack";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 
 function MiniPlayerContent() {
-  const { close } = usePip();
+  const { close, cycleSize, pinned, togglePinned } = usePip();
   const { pinnedParticipantSid, raisedHands, settings } = useLiveClassState(
     "pinnedParticipantSid",
     "raisedHands",
@@ -119,6 +119,32 @@ function MiniPlayerContent() {
           )}
         >
           {cameraOn ? <Video className="size-4" /> : <VideoOff className="size-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={togglePinned}
+          aria-label={pinned ? "Unpin mini player" : "Keep open in class"}
+          aria-pressed={pinned}
+          title={pinned ? "Unpin — closes when you return to the class" : "Keep open while in the class tab"}
+          className={cn(
+            pillButton,
+            pinned
+              ? "border-primary/40 bg-primary/10 text-primary-ink hover:bg-primary/20"
+              : "border-app-border bg-app-surface text-app-text hover:bg-app-soft",
+          )}
+        >
+          {pinned ? <PinOff className="size-4" /> : <Pin className="size-4" />}
+        </button>
+
+        <button
+          type="button"
+          onClick={cycleSize}
+          aria-label="Change mini player size"
+          title="Change size (or drag the window edges)"
+          className={cn(pillButton, "border-app-border bg-app-surface text-app-text hover:bg-app-soft")}
+        >
+          <Scaling className="size-4" />
         </button>
 
         <button

@@ -69,8 +69,7 @@ export default function AdminCoachTeachingPage() {
       name: (c) => c.coachName,
       scheduledHours: (c) => c.totalScheduledHours,
       total: (c) => c.totalClasses
-    },
-    initialKey: "name"
+    }
   });
   const totalClasses = coaches.reduce(
     (sum: number, c: AdminCoachTeachingItem) => sum + c.totalClasses,

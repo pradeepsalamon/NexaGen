@@ -42,8 +42,7 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
       duration: (cls) => cls.durationMinutes,
       status: (cls) => cls.status,
       topic: (cls) => cls.topic
-    },
-    initialKey: "date"
+    }
   });
 
   if (isError) {

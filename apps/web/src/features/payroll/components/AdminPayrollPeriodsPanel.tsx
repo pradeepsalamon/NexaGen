@@ -28,8 +28,7 @@ export function AdminPayrollPeriodsPanel() {
       period: (p) => p.periodType,
       range: (p) => p.startDate,
       status: (p) => p.status
-    },
-    initialKey: "range"
+    }
   });
   const [creating, setCreating] = useState(false);
 

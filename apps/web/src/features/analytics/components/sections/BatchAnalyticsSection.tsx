@@ -28,8 +28,7 @@ export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
       name: (b) => b.name,
       status: (b) => b.status,
       students: (b) => b.students
-    },
-    initialKey: "name"
+    }
   });
   const k = data?.kpis;
 

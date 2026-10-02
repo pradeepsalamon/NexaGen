@@ -30,8 +30,7 @@ export function AdminCreditNotesPanel() {
       invoice: (c) => c.invoiceNumber,
       number: (c) => c.number,
       reason: (c) => CREDIT_NOTE_REASON_LABELS[c.reason]
-    },
-    initialKey: "date"
+    }
   });
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;

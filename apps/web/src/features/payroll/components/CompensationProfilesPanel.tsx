@@ -22,8 +22,7 @@ export function CompensationProfilesPanel() {
       currency: (p) => p.currency,
       engagement: (p) => COACH_ENGAGEMENT_TYPE_LABELS[p.engagementType],
       model: (p) => COACH_COMPENSATION_MODEL_LABELS[p.defaultCompensationModel]
-    },
-    initialKey: "coach"
+    }
   });
   const [editingCoachId, setEditingCoachId] = useState<string | null>(null);
 

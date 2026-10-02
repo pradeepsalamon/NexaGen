@@ -3,7 +3,7 @@
 import { memo, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Magnet, Search, X } from "lucide-react";
-import type { PullRosterStudent } from "@nexa-chess/types";
+import { compareNatural, type PullRosterStudent } from "@nexa-chess/types";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
@@ -134,7 +134,10 @@ export function PullStudentsSection({ classId }: { classId: string }) {
   });
 
   const absent = useMemo(
-    () => (roster.data?.students ?? []).filter((s) => !s.inClass),
+    () =>
+      (roster.data?.students ?? [])
+        .filter((s) => !s.inClass)
+        .sort((a, b) => compareNatural(a.name, b.name)),
     [roster.data]
   );
   const shown = useMemo(() => {

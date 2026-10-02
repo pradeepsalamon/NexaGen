@@ -33,8 +33,7 @@ export function AttendanceAnalyticsSection({
       batch: (s) => s.batchName,
       lastActive: (s) => s.lastActiveAt,
       name: (s) => s.name
-    },
-    initialKey: "name"
+    }
   });
 
   return (

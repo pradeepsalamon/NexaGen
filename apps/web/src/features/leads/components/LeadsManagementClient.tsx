@@ -19,7 +19,7 @@ import { useLeadColumns } from "./useLeadColumns";
 import { LeadDetailsDialog } from "./LeadDetailsDialog";
 
 export function LeadsManagementClient() {
-  const serverTable = useServerTable({ pageSize: 20, initialSorting: [{ id: "createdAt", desc: false }] });
+  const serverTable = useServerTable({ pageSize: 20 });
   const { clampToPageCount } = serverTable;
   const { data, isLoading } = useLeadsQuery(serverTable.params);
   const leads = useMemo(() => data?.items ?? [], [data?.items]);

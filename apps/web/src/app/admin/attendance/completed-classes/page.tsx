@@ -75,8 +75,7 @@ export default function AdminCompletedClassesPage() {
       status: (c) => c.status,
       teaching: (c) => c.coachTeachingDuration,
       topic: (c) => c.topic
-    },
-    initialKey: "date"
+    }
   });
 
   return (

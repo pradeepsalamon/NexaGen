@@ -65,7 +65,7 @@ export function UserManagementClient() {
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   // Server-side pagination / search / sort / status filter (AUDIT H26).
-  const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "firstName", desc: false }] });
+  const serverTable = useServerTable({ pageSize: 10 });
   const { clampToPageCount } = serverTable;
   const usersQuery = useUsersQuery(serverTable.params);
   const pageCount = usersQuery.data?.pagination?.totalPages ?? 1;

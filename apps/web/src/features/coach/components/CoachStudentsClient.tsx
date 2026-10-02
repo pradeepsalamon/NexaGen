@@ -140,8 +140,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
 
   const { table } = useDataTable({
     data: filteredStudents,
-    columns,
-    initialSorting: [{ id: "name", desc: false }]
+    columns
   });
 
   return (

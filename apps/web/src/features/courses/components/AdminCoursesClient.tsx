@@ -57,8 +57,7 @@ export function AdminCoursesClient() {
       modules: (c) => c.moduleCount,
       status: (c) => c.status,
       title: (c) => c.title
-    },
-    initialKey: "title"
+    }
   });
   const pagination = data?.pagination;
   const hasFilters = Boolean(searchInput || status);

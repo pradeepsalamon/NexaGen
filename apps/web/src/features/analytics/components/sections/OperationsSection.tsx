@@ -55,8 +55,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
       students: (c) => c.studentCount,
       time: (c) => c.time,
       topic: (c) => c.topic
-    },
-    initialKey: "time"
+    }
   });
 
   return (

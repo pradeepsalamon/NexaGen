@@ -17,6 +17,8 @@ import {
   Minimize,
   Circle,
   PictureInPicture2,
+  Pin,
+  PinOff,
   Puzzle as PuzzleIcon,
   SmilePlus,
   Swords,
@@ -228,6 +230,12 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       label: pip.active ? "Close mini player" : "Mini player",
       onClick: pip.toggle,
       active: pip.active,
+    });
+    moreItems.push({
+      icon: pip.pinned ? <PinOff className="size-5" /> : <Pin className="size-5" />,
+      label: pip.pinned ? "Close mini player in class" : "Keep mini player open in class",
+      onClick: pip.togglePinned,
+      active: pip.pinned,
     });
   }
 

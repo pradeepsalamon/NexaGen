@@ -113,8 +113,7 @@ export function AdminInvoicesPanel() {
       payment: (i) => (i.payment.provider ? PAYMENT_SOURCE_LABELS[i.payment.provider] : null),
       status: (i) => i.status,
       tax: (i) => i.taxTotal
-    },
-    initialKey: "date"
+    }
   });
   const retryPdf = useRetryInvoicePdf();
   const resendEmail = useResendInvoiceEmail();

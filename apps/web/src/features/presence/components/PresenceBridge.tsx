@@ -48,7 +48,14 @@ export function PresenceBridge() {
     retry: false
   });
 
-  if (!enabled || user?.role !== "STUDENT") return null;
+  if (!enabled) return null;
+
+  // A coach only gets the pill back into their own running class.
+  if (user?.role === "COACH") {
+    return <LiveClassFab liveClass={data?.liveClass ?? null} variant="coach" />;
+  }
+
+  if (user?.role !== "STUDENT") return null;
 
   return (
     <>

@@ -45,8 +45,7 @@ export default function AdminAttendanceDashboardPage() {
       classes: (t) => t.classes,
       month: (t) => t.order,
       rate: (t) => t.percent
-    },
-    initialKey: "month"
+    }
   });
 
   if (isLoading) {

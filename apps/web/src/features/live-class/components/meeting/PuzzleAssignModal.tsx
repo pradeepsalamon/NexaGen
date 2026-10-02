@@ -40,39 +40,7 @@ import {
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAssignLivePuzzle } from "../../hooks/useLivePuzzle";
 import { loadPuzzleCursor, savePuzzleCursor } from "../../lib/puzzleCursor";
-
-/**
- * The coach's last share options, remembered per browser so a coach who always
- * runs "−10 per wrong move, leaderboard after the end" sets it once. Only the
- * fields they actually changed are kept (and sent), so a puzzle's own points
- * still apply to everything else.
- */
-const LAST_OPTIONS_KEY = "nexa-live-puzzle-share-options";
-
-type ShareOptions = {
-  durationSeconds: string;
-  leaderboard: PuzzleLeaderboardOverride;
-  scoring: PuzzleScoringOverride;
-};
-
-function loadLastOptions(): ShareOptions {
-  const empty: ShareOptions = { durationSeconds: "", leaderboard: {}, scoring: {} };
-  if (typeof window === "undefined") return empty;
-  try {
-    const raw = window.localStorage.getItem(LAST_OPTIONS_KEY);
-    return raw ? { ...empty, ...(JSON.parse(raw) as Partial<ShareOptions>) } : empty;
-  } catch {
-    return empty;
-  }
-}
-
-function saveLastOptions(options: ShareOptions) {
-  try {
-    window.localStorage.setItem(LAST_OPTIONS_KEY, JSON.stringify(options));
-  } catch {
-    // Storage blocked — the options just aren't remembered.
-  }
-}
+import { loadLastShareOptions, saveLastShareOptions } from "../../lib/puzzleShareOptions";
 
 // Mirrors the API's bounds on `durationSeconds` (live-class-puzzle.ts).
 const TIMER_MIN_SECONDS = 30;
@@ -110,7 +78,7 @@ export function PuzzleAssignModal({
 
   useEffect(() => {
     if (!open) return;
-    const last = loadLastOptions();
+    const last = loadLastShareOptions();
     setDurationSeconds(last.durationSeconds);
     setCustomTimer(
       !!last.durationSeconds && !TIMER_PRESETS.some((p) => p.value === last.durationSeconds)
@@ -164,7 +132,10 @@ export function PuzzleAssignModal({
     difficulty: difficulty || undefined,
     topicId: folderId ?? undefined,
     topicScope: searching ? "subtree" : "direct",
-    pageSize: folderId ? 100 : 25
+    pageSize: folderId ? 100 : 25,
+    // Always ascending in class, so it matches the order Ask / Load next step through.
+    sort: "title",
+    order: "asc"
   });
 
   const assign = useAssignLivePuzzle(classId);
@@ -190,7 +161,7 @@ export function PuzzleAssignModal({
       },
       {
         onSuccess: () => {
-          saveLastOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
+          saveLastShareOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
           savePuzzleCursor({ folderId: topicId, puzzleId });
           onOpenChange(false);
         }

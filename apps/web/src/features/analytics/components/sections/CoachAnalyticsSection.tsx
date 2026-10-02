@@ -37,8 +37,7 @@ export function CoachAnalyticsSection({
       hours: (c) => c.teachingHours,
       name: (c) => c.name,
       students: (c) => c.students
-    },
-    initialKey: "name"
+    }
   });
   const tz = useUserTimeZone();
   const k = data?.kpis;

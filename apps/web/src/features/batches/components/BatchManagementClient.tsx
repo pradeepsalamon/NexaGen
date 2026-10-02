@@ -65,7 +65,7 @@ export function BatchManagementClient() {
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
 
   // Server-side pagination / search / sort / status filter (AUDIT H26).
-  const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "name", desc: false }] });
+  const serverTable = useServerTable({ pageSize: 10 });
   const { clampToPageCount } = serverTable;
   const batchesQuery = useBatchesQuery(serverTable.params);
   const pageCount = batchesQuery.data?.pagination?.totalPages ?? 1;

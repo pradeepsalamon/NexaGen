@@ -22,7 +22,7 @@ import type {
   ValidatePuzzleRequest,
   ValidatePuzzleResponse
 } from "@nexa-chess/types";
-import { parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
+import { compareNatural, parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
 import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import {
@@ -105,6 +105,28 @@ export class PuzzleService {
     if (and.length > 0) where.AND = and;
 
     const orderBy = resolveOrderBy(query, ORDERABLE, { title: "asc" });
+
+    // Postgres sorts titles as text ("Puzzle 10" before "Puzzle 2"), so a title
+    // sort ranks the matching ids naturally here and loads just the page.
+    const titleOrder = !Array.isArray(orderBy) ? orderBy.title : undefined;
+    if (titleOrder) {
+      const keys = await this.prisma.puzzle.findMany({ where, select: { id: true, title: true } });
+      const sign = titleOrder === "desc" ? -1 : 1;
+      keys.sort((a, b) => sign * compareNatural(a.title, b.title) || a.id.localeCompare(b.id));
+      const pageIds = keys.slice((page - 1) * pageSize, page * pageSize).map((k) => k.id);
+      const pageRows = await this.prisma.puzzle.findMany({
+        where: { id: { in: pageIds } },
+        include: puzzleInclude
+      });
+      const byId = new Map(pageRows.map((row) => [row.id, row]));
+      return {
+        puzzles: pageIds.flatMap((id) => {
+          const row = byId.get(id);
+          return row ? [this.toSummary(row, user)] : [];
+        }),
+        pagination: paginationMeta(keys.length, page, pageSize)
+      };
+    }
 
     const [rows, total] = await Promise.all([
       this.prisma.puzzle.findMany({

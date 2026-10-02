@@ -78,8 +78,7 @@ export function PaymentsTablePanel() {
       status: (p) => PAYMENT_STATUS_LABELS[p.status],
       transaction: (p) => p.providerPaymentId,
       user: (p) => p.userName
-    },
-    initialKey: "date"
+    }
   });
   const reconcile = useReconcilePayment();
 

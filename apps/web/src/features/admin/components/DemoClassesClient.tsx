@@ -38,7 +38,7 @@ export function DemoClassesClient() {
   const toast = useToast();
 
   // Server-side pagination / search / sort / status filter (AUDIT H26).
-  const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "startsAt", desc: false }] });
+  const serverTable = useServerTable({ pageSize: 10 });
   const { clampToPageCount } = serverTable;
   const { data, isLoading } = useDemoClassesQuery(serverTable.params);
   const classes = useMemo(() => data?.classes ?? [], [data?.classes]);

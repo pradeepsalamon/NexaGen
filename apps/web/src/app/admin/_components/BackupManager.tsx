@@ -48,8 +48,7 @@ export function BackupManager() {
       filename: (b) => b.filename,
       size: (b) => b.size,
       type: (b) => b.type
-    },
-    initialKey: "date"
+    }
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);

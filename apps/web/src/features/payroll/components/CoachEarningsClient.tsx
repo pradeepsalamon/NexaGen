@@ -29,8 +29,7 @@ export function CoachEarningsClient() {
       net: (r) => r.netPayableMinor,
       period: (r) => r.period.startDate,
       status: (r) => r.status
-    },
-    initialKey: "period"
+    }
   });
   const payslipByRecord = new Map((payslipsData?.payslips ?? []).map((p) => [p.payrollRecordId, p]));
 

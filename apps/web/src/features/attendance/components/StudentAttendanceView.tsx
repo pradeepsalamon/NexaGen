@@ -73,8 +73,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
       engagement: (r) => r.attendancePercent,
       instructor: (r) => r.coachName,
       status: (r) => r.status
-    },
-    initialKey: "class"
+    }
   });
 
   const handleExportCSV = () => {

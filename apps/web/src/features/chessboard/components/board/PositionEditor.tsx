@@ -131,7 +131,7 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
           data-nexa-board-theme={currentBoardTheme}
           data-nexa-piece-set={currentPieceSet}
           data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
-          className="cg-wrap my-2 aspect-square w-full rounded-app border border-app-border"
+          className="cg-wrap my-2 aspect-square w-full"
         />
         <SpareRow
           color="white"

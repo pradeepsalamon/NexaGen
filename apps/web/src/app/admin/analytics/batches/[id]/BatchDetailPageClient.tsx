@@ -45,8 +45,7 @@ function Body({
       attended: (s) => s.classesAttended,
       lastActive: (s) => s.lastActiveAt,
       name: (s) => s.name
-    },
-    initialKey: "name"
+    }
   });
 
   if (isError) {

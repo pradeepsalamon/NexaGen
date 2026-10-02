@@ -224,8 +224,7 @@ function EvaluatedShell({
       result: (a) => a.result ?? a.status,
       score: (a) => a.scorePercent,
       time: (a) => a.durationSeconds
-    },
-    initialKey: "attempt"
+    }
   });
 
   if (practicing) {

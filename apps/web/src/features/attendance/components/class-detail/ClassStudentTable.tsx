@@ -35,8 +35,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
       name: (s) => s.name,
       reconnects: (s) => s.reconnectCount,
       status: (s) => s.status
-    },
-    initialKey: "name"
+    }
   });
 
   const toggleStudent = (id: string) =>

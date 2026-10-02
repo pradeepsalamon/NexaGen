@@ -87,8 +87,7 @@ function StudentTable({
       hours: (s) => s.learningHours,
       lastActive: (s) => s.lastActiveAt,
       name: (s) => s.name
-    },
-    initialKey: "name"
+    }
   });
   return (
     <div className="overflow-x-auto">

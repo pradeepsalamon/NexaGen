@@ -171,19 +171,16 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
   const [difficulty, setDifficulty] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<{ key: PuzzleSortKey; order: SortDirection }>({
-    key: "title",
-    order: "asc"
-  });
+  // Unsorted (the API's own order) until a header is clicked: asc → desc → off.
+  const [sort, setSort] = useState<{ key: PuzzleSortKey; order: SortDirection } | null>(null);
   const sortProps = (key: PuzzleSortKey) => ({
-    direction: sort.key === key ? sort.order : (false as const),
+    direction: sort?.key === key ? sort.order : (false as const),
     onClick: () => {
       setPage(1);
-      setSort((prev) =>
-        prev.key === key
-          ? { key, order: prev.order === "asc" ? "desc" : "asc" }
-          : { key, order: "asc" }
-      );
+      setSort((prev) => {
+        if (prev?.key !== key) return { key, order: "asc" };
+        return prev.order === "asc" ? { key, order: "desc" } : null;
+      });
     }
   });
 
@@ -192,8 +189,8 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
       page,
       pageSize: 20,
       search: search || undefined,
-      sort: sort.key,
-      order: sort.order,
+      sort: sort?.key,
+      order: sort?.order,
       scope: cfg.scope,
       visibility: cfg.visibility,
       topicId: topicId || undefined,

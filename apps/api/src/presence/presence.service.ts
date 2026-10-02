@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { getApiEnv } from "@nexa-chess/config/api";
-import type { PresenceHeartbeatResponse } from "@nexa-chess/types";
+import type { PresenceHeartbeatResponse, PresenceLiveClass } from "@nexa-chess/types";
 import type { AccessTokenPayload } from "../auth/types";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -45,6 +45,18 @@ export class PresenceService {
       data: { lastSeenAt: now }
     });
 
+    if (user.role === UserRole.COACH) {
+      const own = await this.prisma.liveSession.findFirst({
+        where: { status: "LIVE", coachId: user.id },
+        orderBy: { startedAt: "desc" },
+        include: {
+          class: { select: { id: true, title: true, topic: true } },
+          coach: { select: { firstName: true, lastName: true } }
+        }
+      });
+      return { liveClass: own ? this.toLiveClass(own) : null, pull: null };
+    }
+
     if (user.role !== UserRole.STUDENT) {
       return { liveClass: null, pull: null };
     }
@@ -77,14 +89,7 @@ export class PresenceService {
     ]);
 
     return {
-      liveClass: live
-        ? {
-            classId: live.classId,
-            topic: classTopic(live.class),
-            coachName: personName(live.coach),
-            startedAt: live.startedAt?.toISOString() ?? null
-          }
-        : null,
+      liveClass: live ? this.toLiveClass(live) : null,
       pull: pull
         ? {
             id: pull.id,
@@ -94,6 +99,20 @@ export class PresenceService {
             requestedAt: pull.requestedAt.toISOString()
           }
         : null
+    };
+  }
+
+  private toLiveClass(live: {
+    classId: string;
+    class: { topic: string | null; title: string | null } | null;
+    coach: { firstName: string; lastName: string | null };
+    startedAt: Date | null;
+  }): PresenceLiveClass {
+    return {
+      classId: live.classId,
+      topic: classTopic(live.class),
+      coachName: personName(live.coach),
+      startedAt: live.startedAt?.toISOString() ?? null
     };
   }
 

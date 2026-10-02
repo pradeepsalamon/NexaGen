@@ -155,4 +155,20 @@ describe("PuzzleService", () => {
     expect(trash.softDelete).toHaveBeenCalledWith(prisma, "Puzzle", "pz-1", COACH_A);
     expect(prisma.puzzle.delete).not.toHaveBeenCalled();
   });
+
+  it("sorts titles naturally and pages after sorting", async () => {
+    const titles = ["Puzzle 10", "Puzzle 2", "Puzzle 1", "Puzzle 3"];
+    prisma.puzzle.findMany.mockImplementation((args: any) =>
+      args.select
+        ? Promise.resolve(titles.map((title) => ({ id: title, title })))
+        : Promise.resolve(args.where.id.in.map((id: string) => puzzleRow({ id, title: id })))
+    );
+
+    const first = await service.list(TOKEN, { page: 1, pageSize: 3 } as any);
+    expect(first.puzzles.map((p) => p.title)).toEqual(["Puzzle 1", "Puzzle 2", "Puzzle 3"]);
+    expect(first.pagination?.total).toBe(4);
+
+    const desc = await service.list(TOKEN, { page: 1, pageSize: 2, sort: "title", order: "desc" } as any);
+    expect(desc.puzzles.map((p) => p.title)).toEqual(["Puzzle 10", "Puzzle 3"]);
+  });
 });
