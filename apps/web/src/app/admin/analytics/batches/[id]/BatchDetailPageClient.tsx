@@ -16,6 +16,8 @@ import {
 } from "@/features/analytics/lib/format";
 import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function BatchDetailPageClient({ batchId }: { batchId: string }) {
@@ -36,6 +38,16 @@ function Body({
   const { data, isLoading, isError, refetch } = useBatchDetailQuery(batchId, query);
   const tz = useUserTimeZone();
   const b = data?.batch;
+  const { rows: students, sortProps } = useTableSort({
+    rows: data?.students,
+    accessors: {
+      attendance: (s) => s.attendancePercent,
+      attended: (s) => s.classesAttended,
+      lastActive: (s) => s.lastActiveAt,
+      name: (s) => s.name
+    },
+    initialKey: "name"
+  });
 
   if (isError) {
     return <WidgetError message="Couldn't load this batch." onRetry={() => refetch()} />;
@@ -90,14 +102,14 @@ function Body({
           <Table className="w-full min-w-[480px] text-left text-sm">
             <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
               <TableRow>
-                <TableHead className="pb-2">Student</TableHead>
-                <TableHead className="pb-2 text-right">Attendance</TableHead>
-                <TableHead className="pb-2 text-right">Attended</TableHead>
-                <TableHead className="pb-2 text-right">Last active</TableHead>
+                <TableHead className="pb-2"><SortButton label="Student" {...sortProps("name")} /></TableHead>
+                <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>
+                <TableHead className="pb-2 text-right"><SortButton label="Attended" {...sortProps("attended")} /></TableHead>
+                <TableHead className="pb-2 text-right"><SortButton label="Last active" {...sortProps("lastActive")} /></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-app-border">
-              {(data?.students ?? []).map((s) => (
+              {students.map((s) => (
                 <TableRow key={s.studentId}>
                   <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
                   <TableCell className="py-2 text-right">{formatPercent(s.attendancePercent)}</TableCell>

@@ -97,7 +97,7 @@ export function RecordingsAnalyticsPageClient() {
                   )
                 }
               ]}
-              defaultSort={{ key: "recordingCompletedAt", order: "desc" }}
+              defaultSort={{ key: "recordingCompletedAt", order: "asc" }}
               emptyMessage="No recordings for this period."
               extraParams={{
                 preset: query.preset,

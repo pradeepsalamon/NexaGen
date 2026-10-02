@@ -70,7 +70,7 @@ export class UserService {
     const orderBy = resolveOrderBy(
       query,
       ["firstName", "email", "role", "status", "createdAt"] as const,
-      [{ createdAt: "desc" }]
+      [{ firstName: "asc" }, { lastName: "asc" }]
     ) as Prisma.UserOrderByWithRelationInput | Prisma.UserOrderByWithRelationInput[];
 
     const [users, total] = await Promise.all([

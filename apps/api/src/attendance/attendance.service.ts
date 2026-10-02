@@ -1255,7 +1255,7 @@ export class AttendanceService {
             where: { status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.LATE] } },
           },
         },
-        orderBy: { startsAt: "desc" },
+        orderBy: { startsAt: "asc" },
         skip,
         take: limit,
       }),

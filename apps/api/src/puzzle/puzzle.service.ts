@@ -104,7 +104,7 @@ export class PuzzleService {
     }
     if (and.length > 0) where.AND = and;
 
-    const orderBy = resolveOrderBy(query, ORDERABLE, { createdAt: "desc" });
+    const orderBy = resolveOrderBy(query, ORDERABLE, { title: "asc" });
 
     const [rows, total] = await Promise.all([
       this.prisma.puzzle.findMany({

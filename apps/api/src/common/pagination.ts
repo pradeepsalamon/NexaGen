@@ -55,7 +55,7 @@ export function resolveOrderBy<T extends string>(
   fallback: Record<string, "asc" | "desc"> | Array<Record<string, "asc" | "desc">>
 ): Record<string, "asc" | "desc"> | Array<Record<string, "asc" | "desc">> {
   const sort = query?.sort;
-  const order: "asc" | "desc" = query?.order === "asc" ? "asc" : "desc";
+  const order: "asc" | "desc" = query?.order === "desc" ? "desc" : "asc";
   if (sort && (allowed as readonly string[]).includes(sort)) {
     return { [sort]: order };
   }

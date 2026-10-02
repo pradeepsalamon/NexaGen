@@ -54,7 +54,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Topic"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -74,7 +74,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Assigned Coach"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => <div>{row.getValue("coachName")}</div>,
@@ -85,7 +85,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Schedule"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => {
@@ -104,7 +104,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => {

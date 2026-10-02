@@ -53,6 +53,7 @@ describe("resolveOrderBy", () => {
     expect(resolveOrderBy({ sort: "name", order: "asc" }, ["name"] as const, fallback)).toEqual({
       name: "asc"
     });
-    expect(resolveOrderBy({ sort: "name" }, ["name"] as const, fallback)).toEqual({ name: "desc" });
+    expect(resolveOrderBy({ sort: "name", order: "desc" }, ["name"] as const, fallback)).toEqual({ name: "desc" });
+    expect(resolveOrderBy({ sort: "name" }, ["name"] as const, fallback)).toEqual({ name: "asc" });
   });
 });

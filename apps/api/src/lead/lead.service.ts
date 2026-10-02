@@ -204,7 +204,7 @@ export class LeadService {
     const orderBy = resolveOrderBy(
       query,
       ["createdAt", "status", "lastActivityAt"] as const,
-      { createdAt: "desc" }
+      { createdAt: "asc" }
     ) as Prisma.LeadOrderByWithRelationInput;
 
     const [leads, total] = await Promise.all([

@@ -1,6 +1,7 @@
 "use client";
 
 import type { AnalyticsRangeQuery } from "@nexa-chess/types";
+import { useMemo } from "react";
 import Link from "next/link";
 import { KpiCard } from "@/components/ui/KpiCard";
 import { KpiCardRow } from "@/components/ui/KpiCardRow";
@@ -9,10 +10,27 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { useBatchAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent } from "../../lib/format";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Badge } from "@/components/ui/Badge";
 
 export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery }) {
   const { data, isLoading, isError, refetch } = useBatchAnalyticsQuery(query);
+  const topBatches = useMemo(() => data?.batches.slice(0, 12), [data]);
+  const { rows: batches, sortProps } = useTableSort({
+    rows: topBatches,
+    accessors: {
+      attendance: (b) => b.attendancePercent,
+      classes: (b) => b.classes,
+      coach: (b) => b.coachNames.join(", "),
+      completed: (b) => b.completedClasses,
+      hours: (b) => b.teachingHours,
+      name: (b) => b.name,
+      status: (b) => b.status,
+      students: (b) => b.students
+    },
+    initialKey: "name"
+  });
   const k = data?.kpis;
 
   return (
@@ -39,18 +57,18 @@ export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
             <Table className="w-full min-w-[720px] text-left text-sm">
               <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
                 <TableRow>
-                  <TableHead className="pb-2">Batch</TableHead>
-                  <TableHead className="pb-2">Coach</TableHead>
-                  <TableHead className="pb-2 text-right">Students</TableHead>
-                  <TableHead className="pb-2 text-right">Classes</TableHead>
-                  <TableHead className="pb-2 text-right">Completed</TableHead>
-                  <TableHead className="pb-2 text-right">Attendance</TableHead>
-                  <TableHead className="pb-2 text-right">Hours</TableHead>
-                  <TableHead className="pb-2">Status</TableHead>
+                  <TableHead className="pb-2"><SortButton label="Batch" {...sortProps("name")} /></TableHead>
+                  <TableHead className="pb-2"><SortButton label="Coach" {...sortProps("coach")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="Students" {...sortProps("students")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="Classes" {...sortProps("classes")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="Completed" {...sortProps("completed")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="Hours" {...sortProps("hours")} /></TableHead>
+                  <TableHead className="pb-2"><SortButton label="Status" {...sortProps("status")} /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-app-border">
-                {(data?.batches ?? []).slice(0, 12).map((b) => (
+                {batches.map((b) => (
                   <TableRow key={b.batchId}>
                     <TableCell className="text-left py-2">
                       <Link

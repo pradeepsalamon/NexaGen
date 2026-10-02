@@ -19,6 +19,8 @@ import { EventTimeline } from "./class-detail/EventTimeline";
 import { formatDate, formatDuration, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 interface CoachAttendanceViewProps {
   data: CoachTeachingResponse;
@@ -33,6 +35,18 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
   const { stats, history } = data;
   const tz = useUserTimeZone();
   const [expandedClass, setExpandedClass] = useState<string | null>(null);
+  const { rows: sortedHistory, sortProps } = useTableSort({
+    rows: history,
+    accessors: {
+      attendance: (r) => r.attendancePercent,
+      board: (r) => r.boardDuration ?? 0,
+      coachTime: (r) => r.coachTotalDuration ?? 0,
+      date: (r) => r.actualStart ?? r.date,
+      teaching: (r) => r.teachingDuration,
+      topic: (r) => r.topic
+    },
+    initialKey: "date"
+  });
 
   const toggleClass = (id: string) =>
     setExpandedClass((current) => (current === id ? null : id));
@@ -122,16 +136,16 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                 <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
                   <TableRow className="text-center">
                     <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
-                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Date &amp; Time</TableHead>
-                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Topic / Batch</TableHead>
-                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">Student Attendance</TableHead>
-                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Teaching Time</TableHead>
-                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Coach Attendance</TableHead>
-                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Board Usage</TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Date & Time" {...sortProps("date")} /></TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Topic / Batch" {...sortProps("topic")} /></TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]"><SortButton label="Student Attendance" {...sortProps("attendance")} /></TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Teaching Time" {...sortProps("teaching")} /></TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Coach Attendance" {...sortProps("coachTime")} /></TableHead>
+                    <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Board Usage" {...sortProps("board")} /></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-app-border text-center">
-                  {history.map((record: CoachTeachingHistory) => {
+                  {sortedHistory.map((record: CoachTeachingHistory) => {
                     const logs = record.logs ?? [];
                     const isExpanded = expandedClass === record.id;
                     return (

@@ -14,11 +14,25 @@ import { formatFullDate } from "@/lib/datetime";
 import { adminCreditNotePdfUrl } from "../api/invoicesApi";
 import { useAdminCreditNotes } from "../hooks/useInvoicesApi";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 /** Every credit note raised, newest first (§19). */
 export function AdminCreditNotesPanel() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = useAdminCreditNotes();
+  const { rows: creditNotes, sortProps } = useTableSort({
+    rows: data?.creditNotes,
+    accessors: {
+      amount: (c) => c.total,
+      customer: (c) => c.billing.name,
+      date: (c) => c.issuedAt,
+      invoice: (c) => c.invoiceNumber,
+      number: (c) => c.number,
+      reason: (c) => CREDIT_NOTE_REASON_LABELS[c.reason]
+    },
+    initialKey: "date"
+  });
 
   if (isLoading) return <Skeleton className="h-96 w-full" />;
 
@@ -37,26 +51,28 @@ export function AdminCreditNotesPanel() {
         <Table className="w-full min-w-[760px] border-collapse">
           <TableHeader>
             <TableRow className="border-b border-app-border">
-              {[
-                "Credit note",
-                "Against",
-                "Customer",
-                "Date",
-                "Amount",
-                "Reason",
-                ""
-              ].map((heading) => (
+              {(
+                [
+                  ["Credit note", "number"],
+                  ["Against", "invoice"],
+                  ["Customer", "customer"],
+                  ["Date", "date"],
+                  ["Amount", "amount"],
+                  ["Reason", "reason"],
+                  ["", null]
+                ] as const
+              ).map(([heading, key]) => (
                 <TableHead
                   className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                   key={heading}
                 >
-                  {heading}
+                  {key ? <SortButton label={heading} {...sortProps(key)} /> : heading}
                 </TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.creditNotes.map((creditNote) => (
+            {creditNotes.map((creditNote) => (
               <TableRow
                 className="border-b border-app-border last:border-0"
                 key={creditNote.id}

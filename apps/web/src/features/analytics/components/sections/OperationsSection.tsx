@@ -20,6 +20,8 @@ import {
   useTodayQuery
 } from "../../hooks/useAnalyticsApi";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 const SEVERITY: Record<
   AnalyticsAlert["severity"],
@@ -45,6 +47,17 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
   const alerts = useAlertsQuery(query);
   const t = today.data;
   const tz = useUserTimeZone();
+  const { rows: schedule, sortProps } = useTableSort({
+    rows: t?.schedule,
+    accessors: {
+      coach: (c) => c.coachName,
+      status: (c) => c.status,
+      students: (c) => c.studentCount,
+      time: (c) => c.time,
+      topic: (c) => c.topic
+    },
+    initialKey: "time"
+  });
 
   return (
     <>
@@ -104,15 +117,15 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
                 <Table className="w-full min-w-[560px] text-left text-sm">
                   <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
                     <TableRow>
-                      <TableHead className="pb-2">Time</TableHead>
-                      <TableHead className="pb-2">Class</TableHead>
-                      <TableHead className="pb-2">Coach</TableHead>
-                      <TableHead className="pb-2 text-right">Students</TableHead>
-                      <TableHead className="pb-2">Status</TableHead>
+                      <TableHead className="pb-2"><SortButton label="Time" {...sortProps("time")} /></TableHead>
+                      <TableHead className="pb-2"><SortButton label="Class" {...sortProps("topic")} /></TableHead>
+                      <TableHead className="pb-2"><SortButton label="Coach" {...sortProps("coach")} /></TableHead>
+                      <TableHead className="pb-2 text-right"><SortButton label="Students" {...sortProps("students")} /></TableHead>
+                      <TableHead className="pb-2"><SortButton label="Status" {...sortProps("status")} /></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="divide-y divide-app-border">
-                    {t.schedule.map((c) => (
+                    {schedule.map((c) => (
                       <TableRow key={c.classId}>
                         <TableCell className="text-left py-2 text-app-muted">
                           {formatTime(c.time, tz)}

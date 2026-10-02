@@ -65,7 +65,7 @@ export function BatchManagementClient() {
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
 
   // Server-side pagination / search / sort / status filter (AUDIT H26).
-  const serverTable = useServerTable({ pageSize: 10 });
+  const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "name", desc: false }] });
   const { clampToPageCount } = serverTable;
   const batchesQuery = useBatchesQuery(serverTable.params);
   const pageCount = batchesQuery.data?.pagination?.totalPages ?? 1;
@@ -156,7 +156,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Name"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -176,7 +176,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Date range"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -200,7 +200,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Schedule"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -237,7 +237,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (

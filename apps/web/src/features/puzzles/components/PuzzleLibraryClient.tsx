@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { SortButton, type SortDirection } from "@/components/ui/DataTableSortButton";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
@@ -160,6 +161,8 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
   );
 }
 
+type PuzzleSortKey = "title" | "puzzleType" | "difficulty" | "status";
+
 function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) {
   const [searchInput, setSearchInput] = useState("");
   const search = useDebouncedValue(searchInput, 350);
@@ -168,12 +171,29 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
   const [difficulty, setDifficulty] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{ key: PuzzleSortKey; order: SortDirection }>({
+    key: "title",
+    order: "asc"
+  });
+  const sortProps = (key: PuzzleSortKey) => ({
+    direction: sort.key === key ? sort.order : (false as const),
+    onClick: () => {
+      setPage(1);
+      setSort((prev) =>
+        prev.key === key
+          ? { key, order: prev.order === "asc" ? "desc" : "asc" }
+          : { key, order: "asc" }
+      );
+    }
+  });
 
   const query: PuzzleListQuery = useMemo(
     () => ({
       page,
       pageSize: 20,
       search: search || undefined,
+      sort: sort.key,
+      order: sort.order,
       scope: cfg.scope,
       visibility: cfg.visibility,
       topicId: topicId || undefined,
@@ -181,7 +201,7 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
       difficulty: (difficulty || undefined) as PuzzleListQuery["difficulty"],
       status: (status || undefined) as PuzzleStatus | undefined
     }),
-    [page, search, cfg, topicId, puzzleType, difficulty, status]
+    [page, search, sort, cfg, topicId, puzzleType, difficulty, status]
   );
 
   const { data, isLoading, isPlaceholderData } = usePuzzles(query);
@@ -327,12 +347,12 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
           <Table className={isPlaceholderData ? "opacity-60" : undefined}>
             <TableHeader>
               <TableRow>
-                <TableHead>Puzzle</TableHead>
+                <TableHead><SortButton label="Puzzle" {...sortProps("title")} /></TableHead>
                 <TableHead>Topic</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Difficulty</TableHead>
+                <TableHead><SortButton label="Type" {...sortProps("puzzleType")} /></TableHead>
+                <TableHead><SortButton label="Difficulty" {...sortProps("difficulty")} /></TableHead>
                 <TableHead>Creator</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead><SortButton label="Status" {...sortProps("status")} /></TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>

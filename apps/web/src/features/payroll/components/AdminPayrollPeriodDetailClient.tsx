@@ -24,6 +24,8 @@ import {
 import { PayrollPeriodStatusBadge, PayrollRecordStatusBadge } from "./PayrollBadges";
 import { PayrollRecordDetailPanel } from "./PayrollRecordDetailPanel";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 /** One payroll period: teaching summary, lifecycle actions, per-coach breakdown. */
 export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string }) {
@@ -42,6 +44,18 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
 
   const period = periodData?.period;
   const records = recordsData?.records ?? [];
+  const { rows: sortedRecords, sortProps } = useTableSort({
+    rows: recordsData?.records,
+    accessors: {
+      classes: (r) => r.completedClassesCount,
+      coach: (r) => r.coachName,
+      gross: (r) => r.grossEarningsMinor,
+      hours: (r) => r.totalTeachingSeconds,
+      net: (r) => r.netPayableMinor,
+      status: (r) => r.status
+    },
+    initialKey: "coach"
+  });
   const payoutsByRecord = new Map((payoutsData?.payouts ?? []).map((p) => [p.payrollRecordId, p]));
 
   const currency = "INR";
@@ -173,18 +187,18 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                 <Table className="w-full min-w-[760px] border-collapse">
                   <TableHeader>
                     <TableRow className="border-b border-app-border">
-                      {["Coach", "Classes", "Hours", "Gross", "Net", "Status", ""].map((heading) => (
+                      {([["Coach", "coach"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["Net", "net"], ["Status", "status"], ["", null]] as const).map(([heading, sortKey]) => (
                         <TableHead
                           className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                           key={heading}
                         >
-                          {heading}
+                          {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}
                         </TableHead>
                       ))}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {records.map((record) => (
+                    {sortedRecords.map((record) => (
                       <Fragment key={record.id}>
                         <TableRow
                           className="cursor-pointer border-b border-app-border last:border-0 hover:bg-app-soft/60"

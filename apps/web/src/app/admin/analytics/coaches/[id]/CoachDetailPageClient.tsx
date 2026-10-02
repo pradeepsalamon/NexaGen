@@ -17,6 +17,8 @@ import {
 } from "@/features/analytics/lib/format";
 import { formatDayMonth, formatFullDate } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function CoachDetailPageClient({ coachId }: { coachId: string }) {
@@ -31,6 +33,18 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
   const { data, isLoading, isError, refetch } = useCoachDetailQuery(coachId, query);
   const tz = useUserTimeZone();
   const c = data?.coach;
+  const { rows: classes, sortProps } = useTableSort({
+    rows: data?.recentClasses,
+    accessors: {
+      attendance: (cls) => cls.attendancePercent,
+      batch: (cls) => cls.batchName,
+      date: (cls) => cls.date,
+      duration: (cls) => cls.durationMinutes,
+      status: (cls) => cls.status,
+      topic: (cls) => cls.topic
+    },
+    initialKey: "date"
+  });
 
   if (isError) {
     return <WidgetError message="Couldn't load this coach." onRetry={() => refetch()} />;
@@ -95,16 +109,16 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
           <Table className="w-full min-w-[560px] text-left text-sm">
             <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
               <TableRow>
-                <TableHead className="pb-2">Class</TableHead>
-                <TableHead className="pb-2">Batch</TableHead>
-                <TableHead className="pb-2">Date</TableHead>
-                <TableHead className="pb-2 text-right">Duration</TableHead>
-                <TableHead className="pb-2 text-right">Attendance</TableHead>
-                <TableHead className="pb-2">Status</TableHead>
+                <TableHead className="pb-2"><SortButton label="Class" {...sortProps("topic")} /></TableHead>
+                <TableHead className="pb-2"><SortButton label="Batch" {...sortProps("batch")} /></TableHead>
+                <TableHead className="pb-2"><SortButton label="Date" {...sortProps("date")} /></TableHead>
+                <TableHead className="pb-2 text-right"><SortButton label="Duration" {...sortProps("duration")} /></TableHead>
+                <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>
+                <TableHead className="pb-2"><SortButton label="Status" {...sortProps("status")} /></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-app-border">
-              {(data?.recentClasses ?? []).map((cls) => (
+              {classes.map((cls) => (
                 <TableRow key={cls.classId}>
                   <TableCell className="text-left py-2">
                     <Link className="text-primary-ink hover:underline" href={`/classes/${cls.classId}`}>

@@ -55,6 +55,8 @@ import {
 import { CreditNoteDialog } from "./CreditNoteDialog";
 import { InvoicePdfBadge, InvoiceStatusBadge } from "./InvoiceBadges";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 
 const INVOICE_STATUSES = Object.keys(
@@ -100,6 +102,20 @@ export function AdminInvoicesPanel() {
   } | null>(null);
 
   const { data, isLoading } = useAdminInvoices(filters);
+  const { rows: invoices, sortProps } = useTableSort({
+    rows: data?.invoices,
+    accessors: {
+      amount: (i) => i.total,
+      customer: (i) => i.billing.name,
+      date: (i) => i.invoiceDate,
+      number: (i) => i.number,
+      order: (i) => i.orderNumber,
+      payment: (i) => (i.payment.provider ? PAYMENT_SOURCE_LABELS[i.payment.provider] : null),
+      status: (i) => i.status,
+      tax: (i) => i.taxTotal
+    },
+    initialKey: "date"
+  });
   const retryPdf = useRetryInvoicePdf();
   const resendEmail = useResendInvoiceEmail();
 
@@ -291,28 +307,30 @@ export function AdminInvoicesPanel() {
             <Table className="w-full min-w-[880px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
-                  {[
-                    "Invoice",
-                    "Customer",
-                    "Order",
-                    "Date",
-                    "Amount",
-                    "Tax",
-                    "Payment",
-                    "Status",
-                    ""
-                  ].map((heading) => (
+                  {(
+                    [
+                      ["Invoice", "number"],
+                      ["Customer", "customer"],
+                      ["Order", "order"],
+                      ["Date", "date"],
+                      ["Amount", "amount"],
+                      ["Tax", "tax"],
+                      ["Payment", "payment"],
+                      ["Status", "status"],
+                      ["", null]
+                    ] as const
+                  ).map(([heading, key]) => (
                     <TableHead
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
-                      {heading}
+                      {key ? <SortButton label={heading} {...sortProps(key)} /> : heading}
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.invoices.map((invoice) => (
+                {invoices.map((invoice) => (
                   <TableRow
                     className="border-b border-app-border last:border-0"
                     key={invoice.id}

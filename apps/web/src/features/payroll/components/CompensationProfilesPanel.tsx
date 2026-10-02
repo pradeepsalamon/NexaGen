@@ -9,10 +9,22 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useCompensationProfiles } from "../hooks/usePayrollApi";
 import { CompensationProfileDialog } from "./CompensationProfileDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 /** Admin → Finance → Coach Payroll → Compensation (§13/§14/§26). */
 export function CompensationProfilesPanel() {
   const { data, isLoading } = useCompensationProfiles();
+  const { rows: profiles, sortProps } = useTableSort({
+    rows: data?.profiles,
+    accessors: {
+      coach: (p) => p.coachName,
+      currency: (p) => p.currency,
+      engagement: (p) => COACH_ENGAGEMENT_TYPE_LABELS[p.engagementType],
+      model: (p) => COACH_COMPENSATION_MODEL_LABELS[p.defaultCompensationModel]
+    },
+    initialKey: "coach"
+  });
   const [editingCoachId, setEditingCoachId] = useState<string | null>(null);
 
   return (
@@ -35,18 +47,18 @@ export function CompensationProfilesPanel() {
             <Table className="w-full min-w-[640px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
-                  {["Coach", "Engagement", "Compensation model", "Currency", ""].map((heading) => (
+                  {([["Coach", "coach"], ["Engagement", "engagement"], ["Compensation model", "model"], ["Currency", "currency"], ["", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
-                      {heading}
+                      {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.profiles.map((profile) => (
+                {profiles.map((profile) => (
                   <TableRow className="border-b border-app-border last:border-0" key={profile.coachId}>
                     <TableCell className="text-left px-4 py-3">
                       <p className="text-sm font-semibold text-app-text">{profile.coachName}</p>

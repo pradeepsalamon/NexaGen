@@ -360,7 +360,7 @@ export class InvoiceService {
       this.prisma.invoice.findMany({
         where,
         include: INVOICE_INCLUDE,
-        orderBy: { invoiceDate: "desc" },
+        orderBy: { invoiceDate: "asc" },
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize
       }),

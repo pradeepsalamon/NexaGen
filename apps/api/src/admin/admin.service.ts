@@ -279,7 +279,7 @@ export class AdminService {
     const orderBy = resolveOrderBy(
       query,
       ['startsAt', 'status', 'topic', 'createdAt'] as const,
-      { startsAt: 'desc' }
+      { startsAt: 'asc' }
     ) as Prisma.CoachClassOrderByWithRelationInput;
 
     const [classes, total] = await Promise.all([
@@ -375,7 +375,7 @@ export class AdminService {
     const orderBy = resolveOrderBy(
       query,
       ['startsAt', 'status', 'topic', 'title', 'createdAt'] as const,
-      { startsAt: 'desc' }
+      { startsAt: 'asc' }
     ) as Prisma.CoachClassOrderByWithRelationInput;
 
     const [classes, total] = await Promise.all([

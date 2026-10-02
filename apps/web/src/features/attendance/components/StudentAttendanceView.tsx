@@ -21,6 +21,8 @@ import { AttendancePercentBar } from "./AttendancePercentBar";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate, formatTime } from "@/lib/datetime";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Input } from "@/components/ui/Input";
 
 interface StudentAttendanceViewProps {
@@ -63,6 +65,17 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
       return true;
     });
   }, [history, statusFilter, searchQuery]);
+  const { rows: sortedHistory, sortProps } = useTableSort({
+    rows: filteredHistory,
+    accessors: {
+      class: (r) => r.actualStart ?? r.date,
+      duration: (r) => r.actualDuration,
+      engagement: (r) => r.attendancePercent,
+      instructor: (r) => r.coachName,
+      status: (r) => r.status
+    },
+    initialKey: "class"
+  });
 
   const handleExportCSV = () => {
     if (!history.length) return;
@@ -277,16 +290,16 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
             <Table className="w-full text-left border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border bg-app-soft/50 text-xs font-semibold uppercase tracking-wider text-app-muted">
-                  <TableHead scope="col" className="px-5 py-3.5">Class / Topic</TableHead>
-                  <TableHead scope="col" className="px-5 py-3.5">Instructor</TableHead>
-                  <TableHead scope="col" className="px-5 py-3.5">Status</TableHead>
-                  <TableHead scope="col" className="px-5 py-3.5">Duration</TableHead>
-                  <TableHead scope="col" className="px-5 py-3.5 md:w-[180px]">Engagement</TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5"><SortButton label="Class / Topic" {...sortProps("class")} /></TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5"><SortButton label="Instructor" {...sortProps("instructor")} /></TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5"><SortButton label="Status" {...sortProps("status")} /></TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5"><SortButton label="Duration" {...sortProps("duration")} /></TableHead>
+                  <TableHead scope="col" className="px-5 py-3.5 md:w-[180px]"><SortButton label="Engagement" {...sortProps("engagement")} /></TableHead>
                   <TableHead scope="col" className="px-5 py-3.5 text-right">Logs</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-app-border">
-                {filteredHistory.map((record) => {
+                {sortedHistory.map((record) => {
                   const rawDate = record.actualStart ?? record.date;
                   const formattedDate = formatFullDate(rawDate, timeZone);
                   const formattedTime = formatTime(rawDate, timeZone);

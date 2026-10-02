@@ -99,7 +99,7 @@ export class BatchService {
     const orderBy = resolveOrderBy(
       query,
       ["name", "status", "createdAt", "startsAt"] as const,
-      [{ status: "asc" }, { createdAt: "desc" }]
+      [{ status: "asc" }, { name: "asc" }]
     ) as Prisma.BatchOrderByWithRelationInput | Prisma.BatchOrderByWithRelationInput[];
 
     const [batches, total] = await Promise.all([

@@ -383,7 +383,7 @@ export class TrashRepository {
     entity: (typeof trashEntities)[number],
     options: TrashFindOptions
   ) {
-    const direction = options.sortOrder ?? "desc";
+    const direction = options.sortOrder ?? "asc";
 
     switch (options.sortBy) {
       case "title":

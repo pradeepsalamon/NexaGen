@@ -13,6 +13,8 @@ import { AttendanceStatusBadge } from "../AttendanceStatusBadge";
 import { AttendancePercentBar } from "../AttendancePercentBar";
 import { EventTimeline } from "./EventTimeline";
 import { formatDuration } from "@/lib/datetime";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 interface ClassStudentTableProps {
@@ -25,6 +27,17 @@ export const ClassStudentTable = memo(function ClassStudentTable({
   onViewHistory,
 }: ClassStudentTableProps) {
   const [expandedStudent, setExpandedStudent] = useState<string | null>(null);
+  const { rows: sortedStudents, sortProps } = useTableSort({
+    rows: students,
+    accessors: {
+      attendance: (s) => s.attendancePercent,
+      duration: (s) => s.duration,
+      name: (s) => s.name,
+      reconnects: (s) => s.reconnectCount,
+      status: (s) => s.status
+    },
+    initialKey: "name"
+  });
 
   const toggleStudent = (id: string) =>
     setExpandedStudent((current) => (current === id ? null : id));
@@ -45,14 +58,14 @@ export const ClassStudentTable = memo(function ClassStudentTable({
             <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
               <TableRow>
                 <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
-                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">Name</TableHead>
-                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">Status</TableHead>
-                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">Duration</TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Name" {...sortProps("name")} /></TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Status" {...sortProps("status")} /></TableHead>
+                <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Duration" {...sortProps("duration")} /></TableHead>
                 <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[160px]">
-                  Attendance %
+                  <SortButton label="Attendance %" {...sortProps("attendance")} />
                 </TableHead>
                 <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                  Reconnects
+                  <SortButton label="Reconnects" {...sortProps("reconnects")} />
                 </TableHead>
                 <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold text-right">
                   History
@@ -60,7 +73,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
               </TableRow>
             </TableHeader>
             <TableBody className="divide-y divide-app-border">
-              {students.map((student) => (
+              {sortedStudents.map((student) => (
                 <Fragment key={student.id}>
                   <TableRow
                     onClick={() => toggleStudent(student.id)}

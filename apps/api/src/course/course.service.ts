@@ -84,7 +84,7 @@ export class CourseService {
       this.prisma.course.findMany({
         where,
         include: courseListInclude,
-        orderBy: { createdAt: "desc" },
+        orderBy: { title: "asc" },
         skip: (page - 1) * pageSize,
         take: pageSize
       }),

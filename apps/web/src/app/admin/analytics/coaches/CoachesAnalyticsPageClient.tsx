@@ -38,7 +38,7 @@ export function CoachesAnalyticsPageClient() {
                 { key: "avgClassDurationMinutes", header: "Avg duration", sortable: true, align: "right", render: (r) => (r.avgClassDurationMinutes ? `${r.avgClassDurationMinutes} min` : "—") },
                 { key: "cancelledClasses", header: "Cancelled", sortable: true, align: "right", render: (r) => r.cancelledClasses }
               ]}
-              defaultSort={{ key: "teachingHours", order: "desc" }}
+              defaultSort={{ key: "teachingHours", order: "asc" }}
               extraParams={{ preset: query.preset, from: query.from, to: query.to }}
               fetcher={(params) => analyticsApi.coachesTable(params as never)}
               name="coaches"

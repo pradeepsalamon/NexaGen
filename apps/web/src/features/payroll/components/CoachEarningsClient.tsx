@@ -12,13 +12,26 @@ import { myPayslipPdfUrl } from "../api/payrollApi";
 import { useMyPayrollRecords, useMyPayslips } from "../hooks/usePayrollApi";
 import { PayrollRecordStatusBadge } from "./PayrollBadges";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 /** Coach → Earnings (§18): payroll history + payslip downloads, read-only. */
 export function CoachEarningsClient() {
   const { data: recordsData, isLoading } = useMyPayrollRecords();
   const { data: payslipsData } = useMyPayslips();
 
-  const records = recordsData?.records ?? [];
+  const { rows: records, sortProps } = useTableSort({
+    rows: recordsData?.records,
+    accessors: {
+      classes: (r) => r.completedClassesCount,
+      gross: (r) => r.grossEarningsMinor,
+      hours: (r) => r.totalTeachingSeconds,
+      net: (r) => r.netPayableMinor,
+      period: (r) => r.period.startDate,
+      status: (r) => r.status
+    },
+    initialKey: "period"
+  });
   const payslipByRecord = new Map((payslipsData?.payslips ?? []).map((p) => [p.payrollRecordId, p]));
 
   return (
@@ -46,12 +59,12 @@ export function CoachEarningsClient() {
             <Table className="w-full min-w-[720px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
-                  {["Period", "Classes", "Hours", "Gross", "Net", "Status", "Payslip"].map((heading) => (
+                  {([["Period", "period"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["Net", "net"], ["Status", "status"], ["Payslip", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
-                      {heading}
+                      {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}
                     </TableHead>
                   ))}
                 </TableRow>

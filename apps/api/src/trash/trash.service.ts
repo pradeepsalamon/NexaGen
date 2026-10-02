@@ -56,7 +56,7 @@ export class TrashService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     const sortBy = this.toSortBy(query.sortBy);
-    const sortOrder = query.sortOrder ?? "desc";
+    const sortOrder = query.sortOrder ?? "asc";
     const result = await this.trashRepository.list({
       deletedById: query.deletedById,
       deletedFrom: this.toDate(query.deletedFrom),

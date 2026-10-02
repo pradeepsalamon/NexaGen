@@ -39,6 +39,8 @@ import {
 } from "../hooks/usePaymentsApi";
 import { RecordManualPaymentDialog } from "./RecordManualPaymentDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 const STATUS_VARIANT: Record<
   ManualPaymentReviewStatus,
@@ -64,7 +66,19 @@ export function ManualPaymentsPanel() {
   const { data, isLoading } = useAdminManualPayments(status || undefined);
   const approve = useApproveManualPayment();
 
-  const records = data?.records ?? [];
+  const { rows: records, sortProps } = useTableSort({
+    rows: data?.records,
+    accessors: {
+      amount: (r) => r.amount,
+      date: (r) => r.createdAt,
+      method: (r) => r.methodLabel,
+      plan: (r) => r.planName,
+      recordedBy: (r) => r.recordedByName,
+      status: (r) => r.status,
+      student: (r) => r.studentName
+    },
+    initialKey: "date"
+  });
 
   return (
     <div className="space-y-6">
@@ -113,13 +127,13 @@ export function ManualPaymentsPanel() {
             <Table className="w-full min-w-[900px] text-sm">
               <TableHeader className="border-b border-app-border bg-app-soft text-left">
                 <TableRow className="text-xs uppercase tracking-wide text-app-muted">
-                  <TableHead className="px-4 py-3">Date</TableHead>
-                  <TableHead className="px-4 py-3">Student</TableHead>
-                  <TableHead className="px-4 py-3">Plan</TableHead>
-                  <TableHead className="px-4 py-3 text-right">Amount</TableHead>
-                  <TableHead className="px-4 py-3">Method</TableHead>
-                  <TableHead className="px-4 py-3">Recorded by</TableHead>
-                  <TableHead className="px-4 py-3">Status</TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Date" {...sortProps("date")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Student" {...sortProps("student")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Plan" {...sortProps("plan")} /></TableHead>
+                  <TableHead className="px-4 py-3 text-right"><SortButton label="Amount" {...sortProps("amount")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Method" {...sortProps("method")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Recorded by" {...sortProps("recordedBy")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Status" {...sortProps("status")} /></TableHead>
                   <TableHead className="px-4 py-3 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
