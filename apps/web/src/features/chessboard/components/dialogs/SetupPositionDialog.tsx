@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { loadPgnIntoBoard } from "../../lib/loadPgn";
 import { START_FEN, validateFen } from "../../lib/fen";
 import { PositionEditor } from "../board/PositionEditor";
@@ -11,7 +12,13 @@ import { Upload } from "lucide-react";
 import { Textarea } from "@/components/ui/Textarea";
 
 export function SetupPositionDialog() {
-  const { isSetupPositionOpen, setIsSetupPositionOpen, pushHistory } = useBoardStore();
+  const { isSetupPositionOpen, setIsSetupPositionOpen, pushHistory } = useBoardStore(
+    useShallow((s) => ({
+      isSetupPositionOpen: s.isSetupPositionOpen,
+      setIsSetupPositionOpen: s.setIsSetupPositionOpen,
+      pushHistory: s.pushHistory,
+    })),
+  );
   const [tab, setTab] = useState<"setup" | "game">("setup");
 
   const [fen, setFen] = useState(START_FEN);

@@ -101,6 +101,17 @@
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 20px 44px -14px rgb(0 0 0 / 0.65);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer base {
   * {
     @apply box-border;
@@ -210,7 +221,7 @@
   }
 
   .custom-prejoin .lk-button-group {
-    @apply flex min-w-0 flex-1 items-stretch overflow-hidden rounded-control border border-app-border bg-app-surface shadow-sm transition-all sm:min-w-[10rem] sm:flex-none;
+    @apply flex min-w-0 flex-1 items-stretch overflow-hidden rounded-control border border-app-border bg-app-surface shadow-sm transition sm:min-w-[10rem] sm:flex-none;
   }
 
   .custom-prejoin .lk-button-group:hover {
@@ -232,7 +243,7 @@
   }
 
   .custom-prejoin button[type="submit"] {
-    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-white shadow-[0_10px_28px_rgba(66,120,206,0.24)] transition-all hover:opacity-90 active:scale-[0.98] sm:text-lg;
+    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-white shadow-[0_10px_28px_rgba(66,120,206,0.24)] transition hover:opacity-90 active:scale-[0.98] sm:text-lg;
     background: linear-gradient(to right, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, transparent));
     border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
   }
@@ -271,7 +282,7 @@
 
   /* Meeting room — override LiveKit StartAudio button */
   .lk-start-audio-button {
-    @apply fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border border-app-border bg-app-surface px-6 py-3 text-sm font-semibold text-app-text shadow-lg backdrop-blur-xl transition-all hover:bg-app-soft;
+    @apply fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-full border border-app-border bg-app-surface px-6 py-3 text-sm font-semibold text-app-text shadow-lg backdrop-blur-xl transition hover:bg-app-soft;
   }
 
   /* Meeting room — screen share gets priority sizing */

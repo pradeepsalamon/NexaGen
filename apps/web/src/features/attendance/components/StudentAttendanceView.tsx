@@ -148,7 +148,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
       {/* KPI Grid (5 Cards matching Stitch layout) */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {/* KPI 1: Overall Attendance */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-md">
           <div className="relative w-16 h-16 flex items-center justify-center mb-2">
             <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
               <path
@@ -158,7 +158,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                 d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
               />
               <path
-                className="text-success transition-all duration-700 ease-out stroke-current"
+                className="text-success transition-[stroke-dashoffset] duration-700 ease-out stroke-current"
                 strokeDasharray={`${Math.min(100, Math.max(0, stats.percentage))}, 100`}
                 strokeWidth="3.5"
                 strokeLinecap="round"
@@ -172,7 +172,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 2: Classes Attended */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-md">
           <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mb-3">
             <CheckCircle2 className="size-6" strokeWidth={2.5} />
           </div>
@@ -181,7 +181,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 3: Total Learning Time */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-md">
           <div className="w-12 h-12 bg-purple-500/10 text-purple-600 rounded-full flex items-center justify-center mb-3">
             <Clock className="size-6" strokeWidth={2.5} />
           </div>
@@ -190,7 +190,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 4: Current Streak */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-md">
           <div className="w-12 h-12 bg-orange-500/10 text-orange-600 rounded-full flex items-center justify-center mb-3">
             <Flame className="size-6" strokeWidth={2.5} />
           </div>
@@ -199,7 +199,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         </div>
 
         {/* KPI 5: This Month */}
-        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition-all hover:shadow-md col-span-2 sm:col-span-1">
+        <div className="bg-app-surface border border-app-border rounded-app p-5 shadow-card flex flex-col items-center justify-center text-center transition hover:shadow-md col-span-2 sm:col-span-1">
           <div className="w-12 h-12 bg-primary/10 text-primary-ink rounded-full flex items-center justify-center mb-3">
             <Calendar className="size-6" strokeWidth={2.5} />
           </div>
@@ -232,7 +232,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                     key={status}
                     type="button"
                     onClick={() => setStatusFilter(status)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-control transition-all ${
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-control transition ${
                       isActive
                         ? "bg-app-surface text-app-text shadow-xs font-bold"
                         : "text-app-muted hover:text-app-text hover:bg-app-surface/50"

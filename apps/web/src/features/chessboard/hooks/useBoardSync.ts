@@ -9,7 +9,6 @@ import {
 import {
   useDataChannel,
   useLocalParticipant,
-  useParticipants,
   useConnectionState,
 } from "@livekit/components-react";
 import { ConnectionState, type DataPublishOptions } from "livekit-client";
@@ -19,8 +18,9 @@ import { BoardControlSide, BoardSyncMessage } from "../types/sync";
 import { moverColorFromFen, senderMayMutateBoard } from "../lib/boardSyncRules";
 import { applyMoveToClock } from "../lib/clock";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
+import { useOptionalLiveClassStore } from "@/features/live-class/providers/LiveClassProvider";
 import { toast } from "sonner";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 const BOARD_SYNC_TOPIC = "board_sync";
 
@@ -73,8 +73,8 @@ export function useBoardSyncEngine(): BoardSyncActions {
   // they were students (AUDIT L6).
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
-  const participants = useParticipants();
-  const liveClassState = useOptionalLiveClassState();
+  const participants = useRoster();
+  const liveClassStore = useOptionalLiveClassStore();
 
   const store = useContext(BoardContext);
 
@@ -290,9 +290,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
               selectedStudentIds: grantedIds,
               selectedStudentSides: grantedSides,
             });
-            if (liveClassState?.setBoardControlStudents) {
-              liveClassState.setBoardControlStudents(grantedSides);
-            }
+            liveClassStore?.getState().setBoardControlStudents(grantedSides);
           }
           break;
         case "SET_CLOCK":
@@ -340,8 +338,8 @@ export function useBoardSyncEngine(): BoardSyncActions {
               action: {
                 label: side === "both" ? "Grant Control" : `Grant ${sideLabel}`,
                 onClick: () => {
-                  if (liveClassState?.grantBoardControl) {
-                    liveClassState.grantBoardControl(identity, side);
+                  if (liveClassStore) {
+                    liveClassStore.getState().grantBoardControl(identity, side);
                     toast.success(`Granted ${sideLabel} to ${studentName}`, {
                       id: `grant-board-control-${identity}`,
                     });
@@ -354,7 +352,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
           break;
       }
     },
-    [isCoach, store, syncFromRemote, broadcastMsg, liveClassState, snapshot, suppressBroadcast],
+    [isCoach, store, syncFromRemote, broadcastMsg, liveClassStore, snapshot, suppressBroadcast],
   );
 
   // Zustand store subscription for immediate syncing. Bypasses React batching
@@ -462,11 +460,14 @@ export function useBoardSyncEngine(): BoardSyncActions {
     }
   }, [connectionState, isCoach, broadcastMsg]);
 
-  return {
-    broadcastState,
-    broadcastAnnotations,
-    broadcastPermissions,
-    requestControl,
-    requestResync,
-  };
+  return useMemo(
+    () => ({
+      broadcastState,
+      broadcastAnnotations,
+      broadcastPermissions,
+      requestControl,
+      requestResync,
+    }),
+    [broadcastState, broadcastAnnotations, broadcastPermissions, requestControl, requestResync],
+  );
 }

@@ -9,6 +9,7 @@ import {
   PenTool
 } from "lucide-react";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 
 export function BoardNavigation() {
@@ -25,7 +26,22 @@ export function BoardNavigation() {
     moveHistory,
     isDrawingMode,
     setIsDrawingMode
-  } = useBoardStore();
+  } = useBoardStore(
+    useShallow((s) => ({
+      orientation: s.orientation,
+      setOrientation: s.setOrientation,
+      reset: s.reset,
+      undo: s.undo,
+      redo: s.redo,
+      jumpToStart: s.jumpToStart,
+      jumpToEnd: s.jumpToEnd,
+      permissionMode: s.permissionMode,
+      historyIndex: s.historyIndex,
+      moveHistory: s.moveHistory,
+      isDrawingMode: s.isDrawingMode,
+      setIsDrawingMode: s.setIsDrawingMode,
+    })),
+  );
   
   const canModify = permissionMode !== "VIEW_ONLY"; 
   const canUndo = historyIndex >= 0;

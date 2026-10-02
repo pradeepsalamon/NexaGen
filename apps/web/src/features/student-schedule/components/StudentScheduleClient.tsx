@@ -278,7 +278,7 @@ export function StudentScheduleClient() {
                     key={dayKey}
                     type="button"
                     onClick={() => setSelectedDayKey(dayKey)}
-                    className={`min-h-14 p-1.5 flex flex-col justify-between items-center rounded-control border text-xs transition-all ${
+                    className={`min-h-14 p-1.5 flex flex-col justify-between items-center rounded-control border text-xs transition ${
                       isSelected
                         ? "border-primary bg-primary/10 shadow-sm"
                         : isToday

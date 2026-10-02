@@ -27,7 +27,8 @@ export function ThemeToggle() {
         >
           <span
             aria-hidden="true"
-            className="absolute flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_38%,transparent)] transition-all duration-300 ease-in-out z-10"
+            className="absolute flex size-6 items-center justify-center rounded-full bg-primary text-white shadow-[0_8px_18px_color-mix(in_srgb,var(--color-primary)_38%,transparent)] transition-transform duration-300 ease-in-out z-10"
+            data-theme-keep-transition=""
             style={{
               transform: isDark ? "translateX(36px)" : "translateX(0)",
               left: "4px",

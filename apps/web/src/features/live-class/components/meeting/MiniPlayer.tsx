@@ -17,7 +17,11 @@ import { ParticipantAvatar } from "./ParticipantAvatar";
 
 function MiniPlayerContent() {
   const { close } = usePip();
-  const { pinnedParticipantSid, raisedHands, settings } = useLiveClassState();
+  const { pinnedParticipantSid, raisedHands, settings } = useLiveClassState(
+    "pinnedParticipantSid",
+    "raisedHands",
+    "settings",
+  );
   const { localParticipant } = useLocalParticipant();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);

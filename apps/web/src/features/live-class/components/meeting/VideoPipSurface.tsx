@@ -56,7 +56,7 @@ function paintPlaceholder(canvas: HTMLCanvasElement, name: string, subtitle: str
  */
 export function VideoPipSurface() {
   const { mode, registerPipVideo } = usePip();
-  const { pinnedParticipantSid } = useLiveClassState();
+  const { pinnedParticipantSid } = useLiveClassState("pinnedParticipantSid");
   const user = useAuthStore((state) => state.user);
   const spotlight = useSpotlightTrack(pinnedParticipantSid);
 

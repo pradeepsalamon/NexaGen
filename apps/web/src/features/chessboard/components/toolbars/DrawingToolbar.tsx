@@ -1,11 +1,18 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { useAuthStore } from "@/stores/authStore";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
 
 export function DrawingToolbar() {
-  const { activeBrush, setActiveBrush, clearAnnotations } = useBoardStore();
+  const { activeBrush, setActiveBrush, clearAnnotations } = useBoardStore(
+    useShallow((s) => ({
+      activeBrush: s.activeBrush,
+      setActiveBrush: s.setActiveBrush,
+      clearAnnotations: s.clearAnnotations,
+    })),
+  );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH";
 
@@ -36,7 +43,7 @@ export function DrawingToolbar() {
                 variant="ghost" 
                 size="icon"
                 onClick={() => setActiveBrush(color.id)}
-                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                className={`w-8 h-8 rounded-full border-2 transition ${
                   activeBrush === color.id 
                     ? 'border-primary scale-110 shadow-card' 
                     : 'border-transparent hover:scale-105'

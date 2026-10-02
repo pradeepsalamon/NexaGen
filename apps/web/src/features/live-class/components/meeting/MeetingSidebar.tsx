@@ -100,7 +100,10 @@ const SidebarTabs = memo(function SidebarTabs({
 const INLINE_PANELS: SidebarTab[] = ["chat", "participants", "puzzle"];
 
 export function MeetingSidebar({ inlinePanels = false }: { inlinePanels?: boolean }) {
-  const { activeSidebar, setActiveSidebar } = useLiveClassState();
+  const { activeSidebar, setActiveSidebar } = useLiveClassState(
+    "activeSidebar",
+    "setActiveSidebar",
+  );
   const { unreadCount } = useLiveClassChat();
   const reducedMotion = useReducedMotion();
 

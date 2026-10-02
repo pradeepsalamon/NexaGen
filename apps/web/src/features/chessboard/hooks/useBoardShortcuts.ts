@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useBoardStore } from "../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
 const ARROW_ACTIONS = {
@@ -13,7 +14,18 @@ export function useBoardShortcuts() {
   const {
     undo, redo, jumpToStart, jumpToEnd, setOrientation, orientation,
     isEditingPosition, setEditingPosition
-  } = useBoardStore();
+  } = useBoardStore(
+    useShallow((s) => ({
+      undo: s.undo,
+      redo: s.redo,
+      jumpToStart: s.jumpToStart,
+      jumpToEnd: s.jumpToEnd,
+      setOrientation: s.setOrientation,
+      orientation: s.orientation,
+      isEditingPosition: s.isEditingPosition,
+      setEditingPosition: s.setEditingPosition,
+    })),
+  );
   const { showCoordinates, updatePreference } = useChessAppearance();
 
   useEffect(() => {

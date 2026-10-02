@@ -36,7 +36,7 @@ export function FlipBoardButton({ className }: { className?: string }) {
         aria-pressed={isCoach ? undefined : pressed}
         onClick={onClick}
         className={cn(
-          "flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text shadow-card backdrop-blur-sm transition-all duration-150 hover:scale-105 hover:bg-app-surface",
+          "flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text shadow-card backdrop-blur-sm transition duration-150 hover:scale-105 hover:bg-app-surface",
           pressed && "border-primary text-primary-ink",
           className,
         )}

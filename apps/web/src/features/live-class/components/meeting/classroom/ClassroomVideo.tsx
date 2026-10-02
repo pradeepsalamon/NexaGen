@@ -1,15 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { isTrackReference, ParticipantTile, useTracks } from "@livekit/components-react";
+import { isTrackReference, ParticipantTile } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useSpotlightTrack } from "../../../hooks/useSpotlightTrack";
-import { isHumanParticipant } from "../../../lib/participants";
 import { ParticipantAvatar } from "../ParticipantAvatar";
 import { CompactVideoTile } from "../video-grid/CompactVideoTile";
-import { getRole, getTrackKey, useSortedTracks } from "../video-grid/videoGrid.utils";
+import { getRole, getTrackKey, useGridTracks, useSortedTracks } from "../video-grid/videoGrid.utils";
 
 /**
  * Video above the classroom tabs: one large spotlight (a student sees the
@@ -18,13 +17,7 @@ import { getRole, getTrackKey, useSortedTracks } from "../video-grid/videoGrid.u
  */
 export function ClassroomVideo({ isCoach }: { isCoach: boolean }) {
   const [collapsed, setCollapsed] = useState(false);
-  const tracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: true },
-      { source: Track.Source.ScreenShare, withPlaceholder: false }
-    ],
-    { onlySubscribed: false }
-  ).filter((t) => isHumanParticipant(t.participant));
+  const tracks = useGridTracks();
   const sorted = useSortedTracks(tracks);
   const speakerSpotlight = useSpotlightTrack(null);
 

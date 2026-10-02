@@ -29,7 +29,10 @@ const env = getWebEnv({
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 function ForceOpenBoard() {
-  const { isChessboardOpen, setIsChessboardOpen } = useLiveClassState();
+  const { isChessboardOpen, setIsChessboardOpen } = useLiveClassState(
+    "isChessboardOpen",
+    "setIsChessboardOpen",
+  );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   

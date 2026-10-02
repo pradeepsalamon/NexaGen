@@ -17,7 +17,7 @@ export function AttendancePercentBar({ percent, className, showText = true }: At
     <div className={cn("flex items-center gap-2", className)}>
       <div className="flex-1 h-2 bg-app-border rounded-full overflow-hidden">
         <div 
-          className={cn("h-full transition-all duration-500 rounded-full", colorClass)} 
+          className={cn("h-full transition-[width] duration-500 rounded-full", colorClass)} 
           style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} 
         />
       </div>

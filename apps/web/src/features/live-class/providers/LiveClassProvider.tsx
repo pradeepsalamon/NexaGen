@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createStore, useStore, type StoreApi } from "zustand";
+import { useShallow } from "zustand/react/shallow";
 import type {
   LiveClassSettings,
   LivePuzzleAssignment,
@@ -12,7 +14,7 @@ import type { RaisedHand } from "../lib/handRaise";
 
 export type SidebarTab = "chat" | "participants" | "settings" | "notes" | "puzzle" | null;
 
-interface LiveClassContextValue {
+export interface LiveClassState {
   /** Which sidebar panel is currently open */
   activeSidebar: SidebarTab;
   setActiveSidebar: (sidebar: SidebarTab) => void;
@@ -150,8 +152,158 @@ interface LiveClassContextValue {
   upsertScreenShareRequest: (entry: ScreenShareRequestEntry) => void;
 }
 
-const LiveClassContext = createContext<LiveClassContextValue | undefined>(undefined);
+type LiveClassStore = StoreApi<LiveClassState>;
 
+const LiveClassContext = createContext<LiveClassStore | null>(null);
+
+function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  if (!(key in record)) return record;
+  const { [key]: _removed, ...rest } = record;
+  return rest;
+}
+
+function createLiveClassStore(init: {
+  topic: string | null;
+  startedAt: string | null;
+  endsAt: string | null;
+  settings: LiveClassSettings | null;
+}): LiveClassStore {
+  return createStore<LiveClassState>()((set, get) => {
+    // Keeps `boardControlStudentIds` derived from the same write.
+    const setBoardControl = (
+      update: (prev: Record<string, BoardControlSide>) => Record<string, BoardControlSide>,
+    ) => {
+      const prev = get().boardControlStudents;
+      const next = update(prev);
+      if (next !== prev) set({ boardControlStudents: next, boardControlStudentIds: Object.keys(next) });
+    };
+
+    return {
+      ...init,
+      activeSidebar: null,
+      setActiveSidebar: (activeSidebar) => set({ activeSidebar }),
+      toggleSidebar: (tab) => set((s) => ({ activeSidebar: s.activeSidebar === tab ? null : tab })),
+      classroomChatOpen: false,
+      setClassroomChatOpen: (classroomChatOpen) => set({ classroomChatOpen }),
+
+      pinnedParticipantSid: null,
+      setPinnedParticipantSid: (pinnedParticipantSid) => set({ pinnedParticipantSid }),
+
+      handRaised: false,
+      setHandRaised: (handRaised) => set({ handRaised }),
+      toggleHandRaised: () => set((s) => ({ handRaised: !s.handRaised })),
+
+      raisedHands: {},
+      applyHandRaise: (hand, raised) => {
+        const prev = get().raisedHands;
+        if (!raised) {
+          const next = withoutKey(prev, hand.identity);
+          if (next !== prev) set({ raisedHands: next });
+          return;
+        }
+        // Keep the original `at` so re-announcements (a late joiner's query)
+        // don't reorder who asked first.
+        const existing = prev[hand.identity];
+        if (existing && existing.at === hand.at && existing.name === hand.name) return;
+        set({ raisedHands: { ...prev, [hand.identity]: existing ? { ...hand, at: existing.at } : hand } });
+      },
+      pruneRaisedHands: (presentIdentities) => {
+        const prev = get().raisedHands;
+        const present = new Set(presentIdentities);
+        const kept = Object.keys(prev).filter((id) => present.has(id));
+        if (kept.length === Object.keys(prev).length) return;
+        set({ raisedHands: Object.fromEntries(kept.map((id) => [id, prev[id]])) });
+      },
+
+      isFullscreen: false,
+      setIsFullscreen: (isFullscreen) => set({ isFullscreen }),
+      toggleFullscreen: () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {
+            // Fullscreen request denied — ignore silently
+          });
+          set({ isFullscreen: true });
+        } else {
+          document.exitFullscreen().catch(() => {});
+          set({ isFullscreen: false });
+        }
+      },
+
+      isChessboardOpen: false,
+      setIsChessboardOpen: (isChessboardOpen) => set({ isChessboardOpen }),
+      toggleChessboard: () => set((s) => ({ isChessboardOpen: !s.isChessboardOpen })),
+
+      boardControlStudents: {},
+      boardControlStudentIds: [],
+      grantBoardControl: (identity, side = "both") =>
+        setBoardControl((prev) => (prev[identity] === side ? prev : { ...prev, [identity]: side })),
+      revokeBoardControl: (identity) => setBoardControl((prev) => withoutKey(prev, identity)),
+      toggleBoardControl: (identity, side = "both") =>
+        setBoardControl((prev) =>
+          prev[identity] === side ? withoutKey(prev, identity) : { ...prev, [identity]: side },
+        ),
+      setBoardControlSide: (identity, side) =>
+        setBoardControl((prev) => {
+          if (side === null) return withoutKey(prev, identity);
+          return prev[identity] === side ? prev : { ...prev, [identity]: side };
+        }),
+      setBoardControlStudents: (students) =>
+        setBoardControl((prev) => {
+          const prevKeys = Object.keys(prev);
+          const nextKeys = Object.keys(students);
+          const same =
+            prevKeys.length === nextKeys.length && nextKeys.every((id) => prev[id] === students[id]);
+          return same ? prev : students;
+        }),
+      clearBoardControl: () =>
+        setBoardControl((prev) => (Object.keys(prev).length === 0 ? prev : {})),
+
+      recordingOverride: null,
+      setRecordingOverride: (recordingOverride) => set({ recordingOverride }),
+
+      applySettingsUpdate: (settings) => set({ settings }),
+
+      activePuzzle: null,
+      applyPuzzleAssignment: (assignment) => {
+        const prev = get().activePuzzle;
+        // Same assignment, same content → keep the reference (no re-render).
+        // A PUZZLE_UPDATED edit keeps the id but changes the rules, so compare
+        // the payload rather than just the id.
+        if (prev && assignment && JSON.stringify(prev) === JSON.stringify(assignment)) return;
+        if (prev !== assignment) set({ activePuzzle: assignment });
+      },
+      clearActivePuzzle: (assignmentId) => {
+        const prev = get().activePuzzle;
+        const keep = !prev || (assignmentId !== undefined && prev.id !== assignmentId);
+        set({ ...(keep ? {} : { activePuzzle: null }), puzzleSolverOpen: false });
+      },
+      puzzleSolverOpen: false,
+      setPuzzleSolverOpen: (puzzleSolverOpen) => set({ puzzleSolverOpen }),
+
+      waitingRoomEntries: {},
+      setWaitingRoomEntries: (entries) =>
+        set({ waitingRoomEntries: Object.fromEntries(entries.map((e) => [e.studentId, e])) }),
+      upsertWaitingRoomEntry: (entry) =>
+        set((s) => ({ waitingRoomEntries: { ...s.waitingRoomEntries, [entry.studentId]: entry } })),
+      removeWaitingRoomEntry: (studentId) => {
+        const prev = get().waitingRoomEntries;
+        const next = withoutKey(prev, studentId);
+        if (next !== prev) set({ waitingRoomEntries: next });
+      },
+
+      screenShareRequests: {},
+      setScreenShareRequests: (entries) =>
+        set({ screenShareRequests: Object.fromEntries(entries.map((e) => [e.studentId, e])) }),
+      upsertScreenShareRequest: (entry) =>
+        set((s) => ({ screenShareRequests: { ...s.screenShareRequests, [entry.studentId]: entry } })),
+    };
+  });
+}
+
+/**
+ * Per-room UI state. Backed by a store rather than a context value so a
+ * consumer re-renders only for the fields it asks for — see `useLiveClassState`.
+ */
 export function LiveClassProvider({
   children,
   topic,
@@ -165,269 +317,76 @@ export function LiveClassProvider({
   endsAt?: string | null;
   settings?: LiveClassSettings | null;
 }) {
-  const [activeSidebar, setActiveSidebar] = useState<SidebarTab>(null);
-  const [classroomChatOpen, setClassroomChatOpen] = useState(false);
-  const [pinnedParticipantSid, setPinnedParticipantSid] = useState<string | null>(null);
-  const [handRaised, setHandRaised] = useState(false);
-  const [raisedHands, setRaisedHands] = useState<Record<string, RaisedHand>>({});
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [isChessboardOpen, setIsChessboardOpen] = useState(false);
-  const [boardControlStudents, setBoardControlStudentsState] = useState<
-    Record<string, BoardControlSide>
-  >({});
-  const [recordingOverride, setRecordingOverrideState] = useState<boolean | null>(null);
-  const [settings, setSettings] = useState<LiveClassSettings | null>(initialSettings);
-  const [activePuzzle, setActivePuzzle] = useState<LivePuzzleAssignment | null>(null);
-  const [puzzleSolverOpen, setPuzzleSolverOpen] = useState(false);
-  const [waitingRoomEntries, setWaitingRoomEntriesState] = useState<Record<string, WaitingRoomEntry>>({});
-  const [screenShareRequests, setScreenShareRequestsState] = useState<
-    Record<string, ScreenShareRequestEntry>
-  >({});
+  const [store] = useState(() =>
+    createLiveClassStore({
+      topic: topic ?? null,
+      startedAt: startedAt ?? null,
+      endsAt: endsAt ?? null,
+      settings: initialSettings,
+    }),
+  );
+
+  useEffect(() => {
+    store.setState({ topic: topic ?? null, startedAt: startedAt ?? null, endsAt: endsAt ?? null });
+  }, [store, topic, startedAt, endsAt]);
 
   // Adopt a fresh snapshot from the token response (e.g. after a reconnect /
   // token refresh) without clobbering a newer mid-class update.
   useEffect(() => {
-    if (initialSettings) setSettings(initialSettings);
-  }, [initialSettings]);
-
-  const applySettingsUpdate = useCallback((next: LiveClassSettings) => {
-    setSettings(next);
-  }, []);
-
-  const toggleSidebar = useCallback(
-    (tab: Exclude<SidebarTab, null>) => {
-      setActiveSidebar((prev) => (prev === tab ? null : tab));
-    },
-    [],
-  );
-
-  const toggleHandRaised = useCallback(() => {
-    setHandRaised((prev) => !prev);
-  }, []);
-
-  const applyHandRaise = useCallback((hand: RaisedHand, raised: boolean) => {
-    setRaisedHands((prev) => {
-      if (!raised) {
-        if (!(hand.identity in prev)) return prev;
-        const { [hand.identity]: _removed, ...rest } = prev;
-        return rest;
-      }
-      // Keep the original `at` so re-announcements (a late joiner's query)
-      // don't reorder who asked first.
-      const existing = prev[hand.identity];
-      if (existing && existing.at === hand.at && existing.name === hand.name) return prev;
-      return { ...prev, [hand.identity]: existing ? { ...hand, at: existing.at } : hand };
-    });
-  }, []);
-
-  const pruneRaisedHands = useCallback((presentIdentities: string[]) => {
-    setRaisedHands((prev) => {
-      const present = new Set(presentIdentities);
-      const kept = Object.keys(prev).filter((id) => present.has(id));
-      if (kept.length === Object.keys(prev).length) return prev;
-      return Object.fromEntries(kept.map((id) => [id, prev[id]]));
-    });
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {
-        // Fullscreen request denied — ignore silently
-      });
-      setIsFullscreen(true);
-    } else {
-      document.exitFullscreen().catch(() => {});
-      setIsFullscreen(false);
-    }
-  }, []);
-
-  const toggleChessboard = useCallback(() => {
-    setIsChessboardOpen((prev) => !prev);
-  }, []);
-
-  const boardControlStudentIds = useMemo(
-    () => Object.keys(boardControlStudents),
-    [boardControlStudents],
-  );
-
-  const grantBoardControl = useCallback(
-    (identity: string, side: BoardControlSide = "both") => {
-      setBoardControlStudentsState((prev) =>
-        prev[identity] === side ? prev : { ...prev, [identity]: side },
-      );
-    },
-    [],
-  );
-
-  const revokeBoardControl = useCallback((identity: string) => {
-    setBoardControlStudentsState((prev) => {
-      if (!(identity in prev)) return prev;
-      const { [identity]: _removed, ...rest } = prev;
-      return rest;
-    });
-  }, []);
-
-  const setBoardControlSide = useCallback(
-    (identity: string, side: BoardControlSide | null) => {
-      setBoardControlStudentsState((prev) => {
-        if (side === null) {
-          if (!(identity in prev)) return prev;
-          const { [identity]: _removed, ...rest } = prev;
-          return rest;
-        }
-        return prev[identity] === side ? prev : { ...prev, [identity]: side };
-      });
-    },
-    [],
-  );
-
-  const toggleBoardControl = useCallback(
-    (identity: string, side: BoardControlSide = "both") => {
-      setBoardControlStudentsState((prev) => {
-        if (prev[identity] === side) {
-          const { [identity]: _removed, ...rest } = prev;
-          return rest;
-        }
-        return { ...prev, [identity]: side };
-      });
-    },
-    [],
-  );
-
-  const setBoardControlStudents = useCallback((students: Record<string, BoardControlSide>) => {
-    setBoardControlStudentsState((prev) => {
-      const prevKeys = Object.keys(prev);
-      const nextKeys = Object.keys(students);
-      const same =
-        prevKeys.length === nextKeys.length &&
-        nextKeys.every((id) => prev[id] === students[id]);
-      return same ? prev : students;
-    });
-  }, []);
-
-  const clearBoardControl = useCallback(() => {
-    setBoardControlStudentsState((prev) => (Object.keys(prev).length === 0 ? prev : {}));
-  }, []);
-
-  const setRecordingOverride = useCallback((val: boolean | null) => {
-    setRecordingOverrideState(val);
-  }, []);
+    if (initialSettings) store.setState({ settings: initialSettings });
+  }, [store, initialSettings]);
 
   // Never let an override outlive a failed egress: after a minute LiveKit is
   // the only authority again.
+  const recordingOverride = useStore(store, (s) => s.recordingOverride);
   useEffect(() => {
     if (recordingOverride === null) return;
-    const timer = window.setTimeout(() => setRecordingOverrideState(null), 60_000);
+    const timer = window.setTimeout(() => store.setState({ recordingOverride: null }), 60_000);
     return () => window.clearTimeout(timer);
-  }, [recordingOverride]);
+  }, [store, recordingOverride]);
 
-  const applyPuzzleAssignment = useCallback((assignment: LivePuzzleAssignment | null) => {
-    setActivePuzzle((prev) => {
-      // Same assignment, same content → keep the reference (no re-render).
-      // A PUZZLE_UPDATED edit keeps the id but changes the rules, so compare
-      // the payload rather than just the id.
-      if (prev && assignment && JSON.stringify(prev) === JSON.stringify(assignment)) return prev;
-      return assignment;
-    });
-  }, []);
+  return <LiveClassContext.Provider value={store}>{children}</LiveClassContext.Provider>;
+}
 
-  const clearActivePuzzle = useCallback((assignmentId?: string) => {
-    setActivePuzzle((prev) => {
-      if (!prev) return prev;
-      if (assignmentId && prev.id !== assignmentId) return prev;
-      return null;
-    });
-    setPuzzleSolverOpen(false);
-  }, []);
+function pick<K extends keyof LiveClassState>(state: LiveClassState, keys: readonly K[]) {
+  const out = {} as Pick<LiveClassState, K>;
+  for (const key of keys) out[key] = state[key];
+  return out;
+}
 
-  const setWaitingRoomEntries = useCallback((entries: WaitingRoomEntry[]) => {
-    setWaitingRoomEntriesState(Object.fromEntries(entries.map((e) => [e.studentId, e])));
-  }, []);
+const EMPTY_STORE = createStore<LiveClassState | undefined>()(() => undefined);
 
-  const upsertWaitingRoomEntry = useCallback((entry: WaitingRoomEntry) => {
-    setWaitingRoomEntriesState((prev) => ({ ...prev, [entry.studentId]: entry }));
-  }, []);
-
-  const removeWaitingRoomEntry = useCallback((studentId: string) => {
-    setWaitingRoomEntriesState((prev) => {
-      if (!(studentId in prev)) return prev;
-      const { [studentId]: _removed, ...rest } = prev;
-      return rest;
-    });
-  }, []);
-
-  const setScreenShareRequests = useCallback((entries: ScreenShareRequestEntry[]) => {
-    setScreenShareRequestsState(Object.fromEntries(entries.map((e) => [e.studentId, e])));
-  }, []);
-
-  const upsertScreenShareRequest = useCallback((entry: ScreenShareRequestEntry) => {
-    setScreenShareRequestsState((prev) => ({ ...prev, [entry.studentId]: entry }));
-  }, []);
-
-  return (
-    <LiveClassContext.Provider
-      value={{
-        activeSidebar,
-        setActiveSidebar,
-        toggleSidebar,
-        classroomChatOpen,
-        setClassroomChatOpen,
-        pinnedParticipantSid,
-        setPinnedParticipantSid,
-        handRaised,
-        setHandRaised,
-        toggleHandRaised,
-        raisedHands,
-        applyHandRaise,
-        pruneRaisedHands,
-        isFullscreen,
-        setIsFullscreen,
-        toggleFullscreen,
-        topic: topic ?? null,
-        startedAt: startedAt ?? null,
-        endsAt: endsAt ?? null,
-        isChessboardOpen,
-        setIsChessboardOpen,
-        toggleChessboard,
-        boardControlStudents,
-        boardControlStudentIds,
-        grantBoardControl,
-        revokeBoardControl,
-        toggleBoardControl,
-        setBoardControlSide,
-        setBoardControlStudents,
-        clearBoardControl,
-        recordingOverride,
-        setRecordingOverride,
-        settings,
-        applySettingsUpdate,
-        activePuzzle,
-        puzzleSolverOpen,
-        setPuzzleSolverOpen,
-        applyPuzzleAssignment,
-        clearActivePuzzle,
-        waitingRoomEntries,
-        setWaitingRoomEntries,
-        upsertWaitingRoomEntry,
-        removeWaitingRoomEntry,
-        screenShareRequests,
-        setScreenShareRequests,
-        upsertScreenShareRequest,
-      }}
-    >
-      {children}
-    </LiveClassContext.Provider>
+/**
+ * Pass the fields you read — `useLiveClassState("activePuzzle", "puzzleSolverOpen")` —
+ * and the component re-renders only when one of them changes. With no keys it
+ * subscribes to everything.
+ */
+export function useLiveClassState(): LiveClassState;
+export function useLiveClassState<K extends keyof LiveClassState>(
+  ...keys: K[]
+): Pick<LiveClassState, K>;
+export function useLiveClassState<K extends keyof LiveClassState>(...keys: K[]) {
+  const store = useContext(LiveClassContext);
+  if (!store) {
+    throw new Error("useLiveClassState must be used within a LiveClassProvider");
+  }
+  return useStore(
+    store,
+    useShallow((state: LiveClassState) => (keys.length ? pick(state, keys) : state)),
   );
 }
 
-export function useLiveClassState() {
-  const context = useContext(LiveClassContext);
-  if (!context) {
-    throw new Error("useLiveClassState must be used within a LiveClassProvider");
-  }
-  return context;
+/** Outside a LiveClassProvider this yields undefined. The selector must return a stable value. */
+export function useOptionalLiveClassState(): LiveClassState | undefined;
+export function useOptionalLiveClassState<T>(selector: (state: LiveClassState) => T): T | undefined;
+export function useOptionalLiveClassState<T>(selector?: (state: LiveClassState) => T) {
+  const store = useContext(LiveClassContext);
+  return useStore(store ?? EMPTY_STORE, (state) =>
+    state === undefined ? undefined : selector ? selector(state) : state,
+  );
 }
 
-export function useOptionalLiveClassState() {
+/** The store itself, for reading state inside callbacks without subscribing. */
+export function useOptionalLiveClassStore(): LiveClassStore | null {
   return useContext(LiveClassContext);
 }

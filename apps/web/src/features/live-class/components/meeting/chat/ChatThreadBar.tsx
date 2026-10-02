@@ -2,11 +2,11 @@
 
 import { memo, useMemo } from "react";
 import { Lock, Users } from "lucide-react";
-import { useParticipants } from "@livekit/components-react";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../../providers/ChatProvider";
 import { isHumanParticipant } from "../../../lib/participants";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 function staffFromMetadata(metadata: string | undefined): boolean {
   if (!metadata) return false;
@@ -29,7 +29,7 @@ function staffFromMetadata(metadata: string | undefined): boolean {
 export const ChatThreadBar = memo(function ChatThreadBar() {
   const { activeThread, openPrivateThread, privateChatEnabled, setActiveThread, threads } =
     useLiveClassChat();
-  const participants = useParticipants();
+  const participants = useRoster();
   const user = useAuthStore((state) => state.user);
   const isStaff = user?.role === "COACH" || isStaffRole(user?.role);
 

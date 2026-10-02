@@ -2,12 +2,9 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { useTracks } from "@livekit/components-react";
 import { Crown, Maximize2 } from "lucide-react";
-import { Track } from "livekit-client";
 import { EmptyMeetingState } from "./EmptyMeetingState";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
-import { isHumanParticipant } from "../../lib/participants";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import {
@@ -15,6 +12,7 @@ import {
   getTrackKey,
   lastRowIndent,
   useElementSize,
+  useGridTracks,
   useSortedTracks
 } from "./video-grid/videoGrid.utils";
 import { RequestControlButton } from "./video-grid/RequestControlButton";
@@ -29,6 +27,9 @@ import { PuzzleGridTile } from "./video-grid/PuzzleGridTile";
 /** Matches the `gap-3` on the grid; the layout maths needs it as a number. */
 const GRID_GAP = 12;
 const SCROLLBAR_GUTTER = 16;
+// Shared references so memoized tiles skip re-rendering when nothing moved.
+const UNMEASURED_TILE_STYLE: CSSProperties = {};
+const SPAN_TWO_TILE_STYLE: CSSProperties = { gridColumn: "span 2" };
 
 export function MeetingVideoGrid({
   compact = false,
@@ -44,7 +45,13 @@ export function MeetingVideoGrid({
     isChessboardOpen,
     activePuzzle,
     puzzleSolverOpen,
-  } = useLiveClassState();
+  } = useLiveClassState(
+    "pinnedParticipantSid",
+    "setPinnedParticipantSid",
+    "isChessboardOpen",
+    "activePuzzle",
+    "puzzleSolverOpen",
+  );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const showBoardTile = isChessboardOpen && !isCoach && !hideBoard;
@@ -57,13 +64,7 @@ export function MeetingVideoGrid({
 
   const { height, width, ref: containerRef } = useElementSize<HTMLDivElement>();
 
-  const tracks = useTracks(
-    [
-      { source: Track.Source.Camera, withPlaceholder: true },
-      { source: Track.Source.ScreenShare, withPlaceholder: false },
-    ],
-    { onlySubscribed: false },
-  ).filter((t) => isHumanParticipant(t.participant));
+  const tracks = useGridTracks();
 
   const sortedTracks = useSortedTracks(tracks);
 
@@ -112,14 +113,11 @@ export function MeetingVideoGrid({
       };
 
   const tileStyle = (index: number): CSSProperties =>
-    measured
-      ? {
-          gridColumn:
-            indent > 0 && index === lastRowStartIndex
-              ? `${indent + 1} / span 2`
-              : "span 2",
-        }
-      : {};
+    !measured
+      ? UNMEASURED_TILE_STYLE
+      : indent > 0 && index === lastRowStartIndex
+        ? { gridColumn: `${indent + 1} / span 2` }
+        : SPAN_TWO_TILE_STYLE;
 
   const participantFocus = (
     <AnimatePresence>
@@ -227,7 +225,7 @@ export function MeetingVideoGrid({
                         <FlipBoardButton className="pointer-events-auto" />
                         <button
                           type="button"
-                          className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-card"
+                          className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-card"
                           onClick={() => setBoardStage(true)}
                           aria-label="View board full screen"
                         >

@@ -388,7 +388,17 @@ export function MeetingParticipants() {
     removeWaitingRoomEntry,
     screenShareRequests,
     upsertScreenShareRequest,
-  } = useLiveClassState();
+  } = useLiveClassState(
+    "boardControlStudents",
+    "isChessboardOpen",
+    "raisedHands",
+    "setActiveSidebar",
+    "setBoardControlSide",
+    "waitingRoomEntries",
+    "removeWaitingRoomEntry",
+    "screenShareRequests",
+    "upsertScreenShareRequest",
+  );
   const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
   const params = useParams();
   const roomId = params?.roomId as string | undefined;

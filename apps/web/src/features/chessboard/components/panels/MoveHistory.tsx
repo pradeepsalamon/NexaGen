@@ -1,8 +1,15 @@
 import { useEffect, useRef } from "react";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 
 export function MoveHistory() {
-  const { moveHistory, historyIndex, jumpToPly } = useBoardStore();
+  const { moveHistory, historyIndex, jumpToPly } = useBoardStore(
+    useShallow((s) => ({
+      moveHistory: s.moveHistory,
+      historyIndex: s.historyIndex,
+      jumpToPly: s.jumpToPly,
+    })),
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom

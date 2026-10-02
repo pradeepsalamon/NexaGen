@@ -95,7 +95,7 @@ export function MediaDeviceProvider({ children }: { children: ReactNode }) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
   const connected = connectionState === ConnectionState.Connected;
-  const { settings, setActiveSidebar } = useLiveClassState();
+  const { settings, setActiveSidebar } = useLiveClassState("settings", "setActiveSidebar");
   const user = useAuthStore((s) => s.user);
   const isStaff = user?.role === "COACH" || isStaffRole(user?.role);
 

@@ -27,7 +27,10 @@ import { getRole } from "./videoGrid.utils";
  */
 export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
   const stageRef = useRef<HTMLDivElement>(null);
-  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState();
+  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState(
+    "activePuzzle",
+    "setPuzzleSolverOpen",
+  );
 
   return (
     <div

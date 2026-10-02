@@ -88,8 +88,11 @@ export function ClassroomPanel({
   showVideo: boolean;
 }) {
   const [tab, setTab] = useState<TabId>(isCoach ? "moves" : "chat");
-  const { activeSidebar, setActiveSidebar, setClassroomChatOpen } =
-    useLiveClassState();
+  const { activeSidebar, setActiveSidebar, setClassroomChatOpen } = useLiveClassState(
+    "activeSidebar",
+    "setActiveSidebar",
+    "setClassroomChatOpen",
+  );
   const { unreadCount } = useLiveClassChat();
 
   useEffect(() => {

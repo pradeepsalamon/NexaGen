@@ -15,7 +15,7 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
  * Must render inside both `<LiveKitRoom>` and `<LiveClassProvider>`.
  */
 export function LiveClassSettingsBridge() {
-  const { applySettingsUpdate } = useLiveClassState();
+  const { applySettingsUpdate } = useLiveClassState("applySettingsUpdate");
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 

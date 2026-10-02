@@ -27,7 +27,11 @@ function CoachBoardShortcuts() {
 /** The board half of the classroom layout. Coaches author; students watch (or play with granted control). */
 export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; stageSwitch: ReactNode }) {
   const fen = useBoardStore((s) => s.fen);
-  const { activePuzzle, setPuzzleSolverOpen, isChessboardOpen } = useLiveClassState();
+  const { activePuzzle, setPuzzleSolverOpen, isChessboardOpen } = useLiveClassState(
+    "activePuzzle",
+    "setPuzzleSolverOpen",
+    "isChessboardOpen",
+  );
   const waiting = !isCoach && !isChessboardOpen;
 
   return (

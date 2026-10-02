@@ -9,12 +9,24 @@ import { uploadPgn } from "@/lib/uploadApi";
 import { cn } from "@/lib/utils";
 import { analyzePosition } from "../../api/stockfishApi";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { NavIconButton } from "../toolbars/BoardNavigation";
 
 /** Coach's board actions: save, setup position, undo/redo, PGN copy/paste, engine move. */
 export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => void; className?: string }) {
-  const { fen, pgn, undo, redo, historyIndex, moveHistory, isGameOver, makeMove, setIsSetupPositionOpen } =
-    useBoardStore();
+  const { fen, pgn, undo, redo, historyIndex, moveHistory, isGameOver, makeMove, setIsSetupPositionOpen } = useBoardStore(
+    useShallow((s) => ({
+      fen: s.fen,
+      pgn: s.pgn,
+      undo: s.undo,
+      redo: s.redo,
+      historyIndex: s.historyIndex,
+      moveHistory: s.moveHistory,
+      isGameOver: s.isGameOver,
+      makeMove: s.makeMove,
+      setIsSetupPositionOpen: s.setIsSetupPositionOpen,
+    })),
+  );
   const [isEngineMoving, setIsEngineMoving] = useState(false);
 
   const handleSaveToCloud = async () => {

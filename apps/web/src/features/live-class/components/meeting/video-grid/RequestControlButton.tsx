@@ -14,8 +14,10 @@ export function RequestControlButton() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { localParticipant } = useLocalParticipant();
-  const { permissionMode, selectedStudentIds, selectedStudentSides, isDetached } =
-    useBoardStore();
+  const permissionMode = useBoardStore((s) => s.permissionMode);
+  const selectedStudentIds = useBoardStore((s) => s.selectedStudentIds);
+  const selectedStudentSides = useBoardStore((s) => s.selectedStudentSides);
+  const isDetached = useBoardStore((s) => s.isDetached);
   const { requestControl, requestResync } = useBoardSync();
 
   if (isCoach) return null;
@@ -34,7 +36,7 @@ export function RequestControlButton() {
         : "You have control";
 
   const pill =
-    "flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold shadow-card backdrop-blur-md transition-all active:scale-95";
+    "flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold shadow-card backdrop-blur-md transition active:scale-95";
 
   return (
     <div className="flex items-center gap-1.5">

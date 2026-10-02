@@ -1,8 +1,9 @@
 import { useEffect } from "react";
-import { useConnectionState, useLocalParticipant, useParticipants } from "@livekit/components-react";
+import { useConnectionState, useLocalParticipant } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../providers/LiveClassProvider";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 /**
  * Mirrors the coach's shared-board state onto students. On the single-page
@@ -14,8 +15,11 @@ import { useLiveClassState } from "../providers/LiveClassProvider";
 export function useCoachBoardOpen({ autoShare }: { autoShare: boolean }) {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const { isChessboardOpen, setIsChessboardOpen } = useLiveClassState();
-  const participants = useParticipants();
+  const { isChessboardOpen, setIsChessboardOpen } = useLiveClassState(
+    "isChessboardOpen",
+    "setIsChessboardOpen",
+  );
+  const participants = useRoster();
   const { localParticipant } = useLocalParticipant();
   const connected = useConnectionState() === ConnectionState.Connected;
 

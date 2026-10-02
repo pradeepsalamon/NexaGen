@@ -1,8 +1,16 @@
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/Button";
 
 export function PromotionDialog() {
-  const { pendingPromotion, setPendingPromotion, makeMove, turn } = useBoardStore();
+  const { pendingPromotion, setPendingPromotion, makeMove, turn } = useBoardStore(
+    useShallow((s) => ({
+      pendingPromotion: s.pendingPromotion,
+      setPendingPromotion: s.setPendingPromotion,
+      makeMove: s.makeMove,
+      turn: s.turn,
+    })),
+  );
 
   if (!pendingPromotion) return null;
 

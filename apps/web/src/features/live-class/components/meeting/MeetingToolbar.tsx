@@ -23,7 +23,6 @@ import {
 } from "lucide-react";
 import {
   useTrackToggle,
-  useParticipants,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
@@ -43,6 +42,7 @@ import { useParams } from "next/navigation";
 import { useRecordingState } from "../../hooks/useRecordingState";
 import { startRecording, stopRecording, requestScreenShare, endScreenShare } from "../../api/live-class";
 import { toast } from "sonner";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
   const params = useParams();
@@ -60,7 +60,18 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     activePuzzle,
     screenShareRequests,
     upsertScreenShareRequest,
-  } = useLiveClassState();
+  } = useLiveClassState(
+    "activeSidebar",
+    "toggleSidebar",
+    "handRaised",
+    "toggleHandRaised",
+    "isFullscreen",
+    "toggleFullscreen",
+    "settings",
+    "activePuzzle",
+    "screenShareRequests",
+    "upsertScreenShareRequest",
+  );
 
   const { isRecording, setRecordingOverride } = useRecordingState();
   const [isTogglingRecording, setIsTogglingRecording] = useState(false);
@@ -114,7 +125,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       );
     },
   });
-  const participants = useParticipants();
+  const participants = useRoster();
 
   // Screen-share request -> coach approval (Phase 3 of pre-class settings).
   // `screenShareLocked` is the class-wide policy; an APPROVED per-student

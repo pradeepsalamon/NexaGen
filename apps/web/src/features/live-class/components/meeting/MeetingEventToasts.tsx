@@ -65,7 +65,12 @@ export function MeetingEventToasts() {
   const room = useRoomContext();
   const connectionState = useConnectionState();
   const { localParticipant } = useLocalParticipant();
-  const { activeSidebar, classroomChatOpen, isChessboardOpen, setActiveSidebar } = useLiveClassState();
+  const { activeSidebar, classroomChatOpen, isChessboardOpen, setActiveSidebar } = useLiveClassState(
+    "activeSidebar",
+    "classroomChatOpen",
+    "isChessboardOpen",
+    "setActiveSidebar",
+  );
   const { activeThread, chatMessages, setActiveThread } = useLiveClassChat();
 
   // ── join / leave, pooled ──────────────────────────────────────────

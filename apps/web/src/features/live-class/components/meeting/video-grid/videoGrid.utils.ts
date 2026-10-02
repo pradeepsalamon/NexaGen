@@ -1,8 +1,37 @@
 import { useEffect, useMemo, useState } from "react";
-import { isTrackReference, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import {
+  isTrackReference,
+  useTracks,
+  type TrackReferenceOrPlaceholder,
+} from "@livekit/components-react";
+import { RoomEvent, Track } from "livekit-client";
 import { useParticipantActivity } from "../../../hooks/useParticipantActivity";
 import { compareByActivity } from "../../../lib/participantActivity";
+import { isHumanParticipant } from "../../../lib/participants";
+
+const GRID_SOURCES = [
+  { source: Track.Source.Camera, withPlaceholder: true },
+  { source: Track.Source.ScreenShare, withPlaceholder: false },
+] as const;
+
+// What a tile renders from the track list. Speaking / connection-quality churn
+// is left out: tiles subscribe to those themselves and ordering comes from
+// useParticipantActivity, so the trackRefs stay stable while people talk.
+const GRID_TRACK_EVENTS: RoomEvent[] = [
+  RoomEvent.ParticipantMetadataChanged,
+  RoomEvent.ParticipantNameChanged,
+  RoomEvent.TrackMuted,
+  RoomEvent.TrackUnmuted,
+];
+
+/** Camera (with placeholders) + screen-share tracks of real people. */
+export function useGridTracks() {
+  const tracks = useTracks([...GRID_SOURCES], {
+    onlySubscribed: false,
+    updateOnlyOn: GRID_TRACK_EVENTS,
+  });
+  return useMemo(() => tracks.filter((t) => isHumanParticipant(t.participant)), [tracks]);
+}
 
 /**
  * Live content-box size of an element, so layout can follow the real container.

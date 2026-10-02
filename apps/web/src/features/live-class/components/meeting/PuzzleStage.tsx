@@ -15,7 +15,10 @@ import { InRoomPuzzleSolver } from "./InRoomPuzzleSolver";
 export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNode; className?: string }) {
   const params = useParams();
   const classId = (params?.roomId as string) ?? "";
-  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState();
+  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState(
+    "activePuzzle",
+    "setPuzzleSolverOpen",
+  );
   if (!activePuzzle) return null;
 
   return (

@@ -26,8 +26,12 @@ export function PuzzleBridge({
   /** Off in the coach's board tab, so the meeting tab alone ends a timed puzzle. */
   autoEnd?: boolean;
 }) {
-  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen } =
-    useLiveClassState();
+  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen } = useLiveClassState(
+    "activePuzzle",
+    "applyPuzzleAssignment",
+    "clearActivePuzzle",
+    "setPuzzleSolverOpen",
+  );
   const qc = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);

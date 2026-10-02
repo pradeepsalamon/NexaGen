@@ -70,8 +70,8 @@ export function NavDrawer({
   const panelRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [peek, setPeek] = useState(false);
-  // Pixels the card has been pulled out from fully hidden; null when not dragging.
-  const [pullOffset, setPullOffset] = useState<number | null>(null);
+  // The drag itself writes the transform straight to the element, not React state.
+  const [dragging, setDragging] = useState(false);
   const pull = useRef<{ base: number; moved: boolean; offset: number; startX: number } | null>(null);
   const suppressClick = useRef(false);
 
@@ -113,9 +113,16 @@ export function NavDrawer({
     if (!state) return;
     const dx = event.clientX - state.startX;
     if (!state.moved && Math.abs(dx) < 6) return;
-    state.moved = true;
+    if (!state.moved) {
+      state.moved = true;
+      setDragging(true);
+    }
     state.offset = Math.min(maxPull(), Math.max(0, state.base + dx));
-    setPullOffset(state.offset);
+    const el = wrapperRef.current;
+    if (el) {
+      el.style.transition = "none";
+      el.style.transform = `translateX(calc(-100% - ${EDGE_GAP_PX}px + ${state.offset}px))`;
+    }
   };
 
   const onPullEnd = () => {
@@ -127,7 +134,12 @@ export function NavDrawer({
       suppressClick.current = true;
       if (state.offset > maxPull() * PULL_OPEN_RATIO) show();
     }
-    setPullOffset(null);
+    const el = wrapperRef.current;
+    if (el) {
+      el.style.transition = "";
+      el.style.transform = "";
+    }
+    setDragging(false);
   };
 
   const pullHandlers = {
@@ -179,14 +191,6 @@ export function NavDrawer({
           if (!pull.current) setPeek(false);
         }}
         ref={wrapperRef}
-        style={
-          pullOffset === null
-            ? undefined
-            : {
-                transform: `translateX(calc(-100% - ${EDGE_GAP_PX}px + ${pullOffset}px))`,
-                transition: "none"
-              }
-        }
       >
         <aside
           aria-label={`${title} navigation`}
@@ -202,7 +206,7 @@ export function NavDrawer({
             ) : null}
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-primary px-[14px] py-4 [contain:content] [scrollbar-width:none] [will-change:transform] dark:bg-app-surface [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-primary px-[14px] py-4 [contain:content] [scrollbar-width:none] dark:bg-app-surface [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
             {children}
           </nav>
 
@@ -224,7 +228,7 @@ export function NavDrawer({
             <span
               className={cn(
                 "h-12 w-1 rounded-full bg-white/50 transition-opacity duration-200",
-                peek || pullOffset !== null ? "opacity-100" : "opacity-0"
+                peek || dragging ? "opacity-100" : "opacity-0"
               )}
             />
           </button>

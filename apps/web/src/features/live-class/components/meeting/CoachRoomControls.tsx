@@ -20,7 +20,7 @@ type Source = "microphone" | "camera";
  * every student's grants at once and also cover late joiners.
  */
 export function CoachRoomControls({ classId }: { classId: string }) {
-  const { settings } = useLiveClassState();
+  const { settings } = useLiveClassState("settings");
   const classSettings = useClassLiveSettings(classId);
   const apply = useUpdateLiveSettingsMidClass(classId);
   const [busy, setBusy] = useState<Source | null>(null);

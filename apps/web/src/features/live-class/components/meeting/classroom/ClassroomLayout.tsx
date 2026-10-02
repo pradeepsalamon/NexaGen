@@ -54,7 +54,7 @@ export function StageSwitch({ stage, onChange }: { stage: ClassroomStage; onChan
  */
 export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const [stage, setStage] = useState<ClassroomStage>("board");
-  const { activePuzzle, puzzleSolverOpen } = useLiveClassState();
+  const { activePuzzle, puzzleSolverOpen } = useLiveClassState("activePuzzle", "puzzleSolverOpen");
   const solving = !isCoach && !!activePuzzle && puzzleSolverOpen;
 
   // Opening the puzzle (or the coach sharing one) brings the student back from the video stage.

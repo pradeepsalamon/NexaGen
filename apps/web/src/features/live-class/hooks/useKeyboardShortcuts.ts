@@ -17,8 +17,13 @@ export function useKeyboardShortcuts() {
   // Capture failures are reported by MediaDeviceProvider (see ignoreDeviceError).
   const mic = useTrackToggle({ source: Track.Source.Microphone, onDeviceError: ignoreDeviceError });
   const camera = useTrackToggle({ source: Track.Source.Camera, onDeviceError: ignoreDeviceError });
-  const { activeSidebar, setActiveSidebar, isFullscreen, toggleFullscreen, settings } =
-    useLiveClassState();
+  const { activeSidebar, setActiveSidebar, isFullscreen, toggleFullscreen, settings } = useLiveClassState(
+    "activeSidebar",
+    "setActiveSidebar",
+    "isFullscreen",
+    "toggleFullscreen",
+    "settings",
+  );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const micLocked = !isCoach && settings?.student.mic === "FORCED_OFF";

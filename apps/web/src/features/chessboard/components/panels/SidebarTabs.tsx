@@ -6,20 +6,21 @@ import { PgnPanel } from "./PgnPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { useBoardStore } from "../../context/BoardProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import { useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
+import { useLiveClassState, useOptionalLiveClassState } from "@/features/live-class/providers/LiveClassProvider";
 import { isHumanParticipant } from "@/features/live-class/lib/participants";
 import { BoardControlSideToggle } from "@/features/live-class/components/meeting/BoardControlSideToggle";
 import { MeetingPuzzlePanel } from "@/features/live-class/components/meeting/MeetingPuzzlePanel";
 import { MovePollCoachPanel } from "@/features/live-class/components/meeting/move-poll/MovePollCoachPanel";
 import type { BoardControlSide } from "../../types/sync";
-import { useParticipants } from "@livekit/components-react";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 export function SidebarTabs() {
-  const { activeTab, setActiveTab } = useBoardStore();
+  const activeTab = useBoardStore((s) => s.activeTab);
+  const setActiveTab = useBoardStore((s) => s.setActiveTab);
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   // Live class context (only defined when board is inside a live class)
-  const liveClassState = useOptionalLiveClassState();
+  const liveClassState = useOptionalLiveClassState(() => true);
 
   return (
     <div className="flex flex-col h-full w-full bg-app-surface text-app-text p-4 shadow-card border-l border-app-border">
@@ -83,7 +84,7 @@ export function SidebarTabs() {
         )}
         {isCoach && liveClassState && (
           <TabsContent value="class" className="flex-1 mt-0 overflow-y-auto">
-            <LiveClassControlPanel liveClassState={liveClassState} />
+            <LiveClassControlPanel />
           </TabsContent>
         )}
         {isCoach && liveClassState && (
@@ -113,9 +114,14 @@ function parseParticipantMeta(raw?: string) {
   }
 }
 
-function LiveClassControlPanel({ liveClassState }: { liveClassState: any }) {
-  const participants = useParticipants();
-  const granted: Record<string, BoardControlSide> = liveClassState.boardControlStudents ?? {};
+function LiveClassControlPanel() {
+  const participants = useRoster();
+  const liveClassState = useLiveClassState(
+    "boardControlStudents",
+    "clearBoardControl",
+    "setBoardControlSide",
+  );
+  const granted: Record<string, BoardControlSide> = liveClassState.boardControlStudents;
   const grantedIds = Object.keys(granted);
 
   // Everyone in the meeting except the coach's own board pop-out and the

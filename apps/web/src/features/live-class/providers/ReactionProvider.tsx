@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -55,7 +56,9 @@ const MAX_FLOATING = 40;
 export function ReactionProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Someone";
-  const studentReactionsOff = useOptionalLiveClassState()?.settings?.student.reactions === "DISABLED";
+  const studentReactionsOff = !!useOptionalLiveClassState(
+    (s) => s.settings?.student.reactions === "DISABLED",
+  );
   const isStaff = user?.role === "COACH" || isStaffRole(user?.role);
   const canReact = isStaff || !studentReactionsOff;
   const reducedMotion = useReducedMotion();
@@ -142,10 +145,15 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
     [broadcast],
   );
 
+  const value = useMemo(
+    () => ({ canReact, celebrate, sendReaction }),
+    [canReact, celebrate, sendReaction],
+  );
+
   const remove = (id: number) => setFloating((prev) => prev.filter((f) => f.id !== id));
 
   return (
-    <ReactionContext.Provider value={{ canReact, celebrate, sendReaction }}>
+    <ReactionContext.Provider value={value}>
       {children}
       {mounted
         ? createPortal(

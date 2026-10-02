@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { useParticipants } from "@livekit/components-react";
 import { Eye, EyeOff, Lock, LockOpen, MessageCircleQuestion, Plus, X } from "lucide-react";
 import type { LiveMovePoll } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -20,6 +19,7 @@ import {
   useUpdateLiveMovePoll
 } from "../../../hooks/useLiveMovePoll";
 import { MovePollResults } from "./MovePollResults";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 /** Placement + side to move; move counters don't make it a different question. */
 const positionKey = (fen: string) => fen.split(" ").slice(0, 2).join(" ");
@@ -34,7 +34,7 @@ function studentRole(metadata: string | undefined): boolean {
 }
 
 function useStudentsInRoom() {
-  const participants = useParticipants();
+  const participants = useRoster();
   return useMemo(
     () =>
       participants

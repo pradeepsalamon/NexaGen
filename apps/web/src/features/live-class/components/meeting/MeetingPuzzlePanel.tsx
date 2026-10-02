@@ -515,7 +515,10 @@ export function MeetingPuzzlePanel() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState();
+  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState(
+    "activePuzzle",
+    "setPuzzleSolverOpen",
+  );
   const [assignOpen, setAssignOpen] = useState(false);
   const [boardsOpen, setBoardsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);

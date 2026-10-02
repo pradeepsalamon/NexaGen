@@ -18,6 +18,13 @@ import { PipProvider } from "../../providers/PipProvider";
 import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
 import { ClassroomLayout, CLASSROOM_PANEL_OFFSET } from "./classroom/ClassroomLayout";
 
+/** Room-wide hooks, rendered as a leaf so their LiveKit / store updates don't re-render the layout. */
+function MeetingLayoutEffects({ autoShare }: { autoShare: boolean }) {
+  useKeyboardShortcuts();
+  useCoachBoardOpen({ autoShare });
+  return null;
+}
+
 /**
  * Main meeting layout orchestrator.
  *
@@ -26,15 +33,14 @@ import { ClassroomLayout, CLASSROOM_PANEL_OFFSET } from "./classroom/ClassroomLa
  * Phones keep the video grid, with the student's full-stage `BoardStage`.
  */
 export function MeetingLayout() {
-  useKeyboardShortcuts();
   const wide = useIsBoardViewport();
-  useCoachBoardOpen({ autoShare: wide });
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const classroom = wide;
 
   return (
     <PipProvider>
+      <MeetingLayoutEffects autoShare={wide} />
       <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-16 text-app-text">
         <MeetingTopBar />
         <ConnectionBanner />
