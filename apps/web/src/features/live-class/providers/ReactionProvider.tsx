@@ -12,7 +12,8 @@ import {
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { useDataChannel } from "@livekit/components-react";
-import { useAuthStore } from "@/stores/authStore";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { useOptionalLiveClassState } from "./LiveClassProvider";
 import {
   CELEBRATION_EMOJIS,
   REACTION_TOPIC,
@@ -27,9 +28,20 @@ import { useReducedMotion } from "../lib/meetingUi";
 type Floating = { id: number; emoji: string; left: number; name?: string; delay: number };
 
 type ReactionContextValue = {
+  /** False for a student while the coach has turned student reactions off. */
+  canReact: boolean;
   sendReaction: (emoji: ReactionEmoji) => void;
   celebrate: (name: string | null) => void;
 };
+
+/** The signed `{ role }` the API puts in every LiveKit token's metadata. */
+function senderRole(from: { metadata?: string } | undefined): string | null {
+  try {
+    return from?.metadata ? (JSON.parse(from.metadata) as { role?: string }).role ?? null : null;
+  } catch {
+    return null;
+  }
+}
 
 const ReactionContext = createContext<ReactionContextValue | null>(null);
 
@@ -43,6 +55,9 @@ const MAX_FLOATING = 40;
 export function ReactionProvider({ children }: { children: ReactNode }) {
   const user = useAuthStore((state) => state.user);
   const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "Someone";
+  const studentReactionsOff = useOptionalLiveClassState()?.settings?.student.reactions === "DISABLED";
+  const isStaff = user?.role === "COACH" || isStaffRole(user?.role);
+  const canReact = isStaff || !studentReactionsOff;
   const reducedMotion = useReducedMotion();
   const [floating, setFloating] = useState<Floating[]>([]);
   const [banner, setBanner] = useState<{ id: number; text: string } | null>(null);
@@ -88,11 +103,15 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
   );
 
   const onMessage = useCallback(
-    (packet: { payload: Uint8Array }) => {
+    (packet: { payload: Uint8Array; from?: { metadata?: string } }) => {
       const msg = decodeReaction(packet.payload);
-      if (msg) show(msg);
+      if (!msg) return;
+      // Peer packets never pass the API, so the receiver enforces the switch.
+      // A puzzle-solve celebration is not a student's own reaction and still shows.
+      if (msg.type === "REACTION" && studentReactionsOff && senderRole(packet.from) !== "COACH") return;
+      show(msg);
     },
-    [show],
+    [show, studentReactionsOff],
   );
 
   const { send } = useDataChannel(REACTION_TOPIC, onMessage);
@@ -109,12 +128,13 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
 
   const sendReaction = useCallback(
     (emoji: ReactionEmoji) => {
+      if (!canReact) return;
       const now = Date.now();
       if (now - lastSent.current < SEND_COOLDOWN_MS) return;
       lastSent.current = now;
       broadcast({ type: "REACTION", emoji, name: localName });
     },
-    [broadcast, localName],
+    [broadcast, localName, canReact],
   );
 
   const celebrate = useCallback(
@@ -125,7 +145,7 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
   const remove = (id: number) => setFloating((prev) => prev.filter((f) => f.id !== id));
 
   return (
-    <ReactionContext.Provider value={{ celebrate, sendReaction }}>
+    <ReactionContext.Provider value={{ canReact, celebrate, sendReaction }}>
       {children}
       {mounted
         ? createPortal(

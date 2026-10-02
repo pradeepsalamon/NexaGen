@@ -23,6 +23,7 @@ import type { ModeratableSource, ScreenShareRequestEntry, WaitingRoomEntry } fro
 import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { PullStudentsSection } from "./PullStudentsSection";
+import { CoachRoomControls } from "./CoachRoomControls";
 import { PanelHeader } from "./PanelHeader";
 import { BoardControlSideToggle, boardControlSideLabel } from "./BoardControlSideToggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -519,6 +520,8 @@ export function MeetingParticipants() {
           </button>
         }
       />
+
+      {isCoach && roomId ? <CoachRoomControls classId={roomId} /> : null}
 
       {showSearch && (
         <div className="shrink-0 border-b border-app-border/40 px-3 py-2">

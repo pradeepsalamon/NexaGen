@@ -115,9 +115,9 @@ interface LiveClassContextValue {
   /** Clear the active puzzle after a `PUZZLE_ENDED` message. */
   clearActivePuzzle: (assignmentId?: string) => void;
   /**
-   * Whether the student's puzzle solver is open. One solver (`PuzzleSolverHost`)
-   * serves the grid tile, the Puzzle panel and the "shared a puzzle" toast, so
-   * two boards never run the same attempt.
+   * Whether the student's main stage shows the puzzle (`PuzzleStage`) instead
+   * of the shared board. The grid tile, the Puzzle panel, the "Solve puzzle"
+   * pills and a new assignment all set it, so two boards never run one attempt.
    */
   puzzleSolverOpen: boolean;
   setPuzzleSolverOpen: (open: boolean) => void;

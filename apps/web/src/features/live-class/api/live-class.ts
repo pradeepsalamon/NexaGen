@@ -3,6 +3,8 @@ import {
   API_ROUTES,
   type ClassSummaryResponse,
   type LiveChatMessageResponse,
+  type ModerateAllRequest,
+  type ModerateAllResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
   type PullRosterResponse,
@@ -79,6 +81,17 @@ export const moderateParticipant = (
   body: ModerateParticipantRequest
 ): Promise<ModerateParticipantResponse> => {
   return apiFetch<ModerateParticipantResponse>(API_ROUTES.liveClass.moderate(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/** Coach-only: switch mic and/or camera off for every student. Off only. */
+export const moderateAll = (
+  roomId: string,
+  body: ModerateAllRequest
+): Promise<ModerateAllResponse> => {
+  return apiFetch<ModerateAllResponse>(API_ROUTES.liveClass.moderateAll(roomId), {
     method: "POST",
     body,
   });

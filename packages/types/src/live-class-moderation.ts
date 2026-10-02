@@ -32,6 +32,18 @@ export interface ModerateParticipantResponse {
   source: ModeratableSource;
 }
 
+/** Coach turns one or both sources off for every student at once. Off only — never on. */
+export const moderateAllRequestSchema = z.object({
+  sources: z.array(z.enum(["microphone", "camera"])).min(1).max(2),
+});
+
+export type ModerateAllRequest = z.infer<typeof moderateAllRequestSchema>;
+
+export interface ModerateAllResponse {
+  /** Students who had at least one of those sources switched off. */
+  mutedCount: number;
+}
+
 /**
  * Topic the API injects a moderation notice on so the room can explain a track
  * that just went dead. Purely cosmetic — the mute itself already happened at

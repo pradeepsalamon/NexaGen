@@ -546,4 +546,73 @@ describe("LiveClassPuzzleService", () => {
       expect(data.revealLeaderboard).toBe(false);
     });
   });
+
+  describe("class leaderboard", () => {
+    const OTHER_ID = "student-2";
+    const first = assignmentRow({ id: "a-1", status: "ENDED", startedAt: new Date("2026-09-06T10:00:00Z") });
+    const second = assignmentRow({ id: "a-2", status: "ACTIVE", startedAt: new Date("2026-09-06T10:10:00Z") });
+
+    beforeEach(() => {
+      prisma.liveClassPuzzleAssignment.findMany = jest.fn().mockResolvedValue([first, second]);
+      prisma.liveClassLeaderboardAdjustment = {
+        findMany: jest.fn().mockResolvedValue([]),
+        upsert: jest.fn().mockResolvedValue({})
+      };
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: {
+          students: [
+            { student: { id: STUDENT_ID, firstName: "Sam", lastName: "Student" } },
+            { student: { id: OTHER_ID, firstName: "Olive", lastName: "Other" } }
+          ]
+        }
+      });
+      // Same puzzle shared twice: each attempt belongs to the window it started in.
+      prisma.puzzleAttempt.findMany.mockResolvedValue([
+        attempt({ puzzleId: "pz-1", startedAt: new Date("2026-09-06T10:00:30Z") }),
+        attempt({ puzzleId: "pz-1", startedAt: new Date("2026-09-06T10:10:30Z") })
+      ]);
+    });
+
+    it("sums every shared puzzle once per window and lists the whole roster", async () => {
+      liveClass.resolveParticipant.mockResolvedValue({ user: asUser(COACH_ID, UserRole.COACH), liveSession });
+      const res = await service.classLeaderboard(TOKEN, CLASS_ID);
+      const sam = res.entries.find((e) => e.studentId === STUDENT_ID)!;
+      expect(res.puzzleCount).toBe(2);
+      expect(sam).toMatchObject({ attemptedCount: 2, rank: 1, solvedCount: 2 });
+      expect(sam.points).toBeGreaterThan(0);
+      expect(sam.puzzlePoints).toBe(sam.points);
+      expect(res.entries.find((e) => e.studentId === OTHER_ID)).toMatchObject({ points: 0, rank: 2 });
+    });
+
+    it("adds the coach's class-level adjustment on top", async () => {
+      prisma.liveClassLeaderboardAdjustment.findMany.mockResolvedValue([
+        { studentId: OTHER_ID, points: 5000 }
+      ]);
+      liveClass.resolveParticipant.mockResolvedValue({ user: asUser(COACH_ID, UserRole.COACH), liveSession });
+      const res = await service.classLeaderboard(TOKEN, CLASS_ID);
+      expect(res.entries[0]).toMatchObject({ studentId: OTHER_ID, adjustment: 5000, points: 5000, rank: 1 });
+    });
+
+    it("hides a puzzle a student may not see yet from their totals", async () => {
+      prisma.liveClassPuzzleAssignment.findMany.mockResolvedValue([
+        first,
+        { ...second, leaderboardJson: { visibility: "AFTER_END" } }
+      ]);
+      const res = await service.classLeaderboard(TOKEN, CLASS_ID);
+      expect(res.puzzleCount).toBe(1);
+      expect(res.totalPuzzleCount).toBe(2);
+      expect(res.entries.find((e) => e.isSelf)?.solvedCount).toBe(1);
+    });
+
+    it("increments the adjustment atomically, or replaces it", async () => {
+      await service.adjustClassLeaderboard(TOKEN, CLASS_ID, { studentId: OTHER_ID, delta: 5 });
+      expect(prisma.liveClassLeaderboardAdjustment.upsert).toHaveBeenLastCalledWith(
+        expect.objectContaining({ update: { points: { increment: 5 } } })
+      );
+      await service.adjustClassLeaderboard(TOKEN, CLASS_ID, { studentId: OTHER_ID, delta: 0, replace: true });
+      expect(prisma.liveClassLeaderboardAdjustment.upsert).toHaveBeenLastCalledWith(
+        expect.objectContaining({ update: { points: 0 } })
+      );
+    });
+  });
 });

@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover
 import { REACTION_EMOJIS } from "../../lib/reactions";
 import { useReactions } from "../../providers/ReactionProvider";
 
-/** Emoji tray; `children` is the trigger button. Renders nothing outside a ReactionProvider. */
+/** Emoji tray; `children` is the trigger button. Renders nothing outside a ReactionProvider, or while the coach has student reactions off. */
 export function ReactionPicker({
   children,
   side = "top",
@@ -15,7 +15,7 @@ export function ReactionPicker({
 }) {
   const reactions = useReactions();
   const [open, setOpen] = useState(false);
-  if (!reactions) return null;
+  if (!reactions?.canReact) return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

@@ -2,9 +2,16 @@ import { useEffect } from "react";
 import { useBoardStore } from "../context/BoardProvider";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 
+const ARROW_ACTIONS = {
+  ArrowRight: "redo",
+  ArrowLeft: "undo",
+  ArrowUp: "jumpToEnd",
+  ArrowDown: "jumpToStart"
+} as const;
+
 export function useBoardShortcuts() {
   const {
-    undo, redo, setOrientation, orientation,
+    undo, redo, jumpToStart, jumpToEnd, setOrientation, orientation,
     isEditingPosition, setEditingPosition
   } = useBoardStore();
   const { showCoordinates, updatePreference } = useChessAppearance();
@@ -12,7 +19,24 @@ export function useBoardShortcuts() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger shortcuts if user is typing in an input
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement ||
+        (e.target instanceof HTMLElement && e.target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (e.key in ARROW_ACTIONS && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        // Arrows inside an open dialog or an arrow-driven widget (tabs, sliders, menus) belong to it.
+        const target = e.target instanceof Element ? e.target : null;
+        if (e.defaultPrevented || target?.closest('[role="dialog"],[role="tablist"],[role="slider"],[role="menu"],[role="listbox"]')) {
+          return;
+        }
+        e.preventDefault();
+        const action = ARROW_ACTIONS[e.key as keyof typeof ARROW_ACTIONS];
+        ({ undo, redo, jumpToStart, jumpToEnd })[action]();
         return;
       }
 
@@ -37,12 +61,11 @@ export function useBoardShortcuts() {
               setEditingPosition(false);
             }
             break;
-          // Arrow keys can be used for history navigation in the future
         }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, setOrientation, orientation, showCoordinates, updatePreference, isEditingPosition, setEditingPosition]);
+  }, [undo, redo, jumpToStart, jumpToEnd, setOrientation, orientation, showCoordinates, updatePreference, isEditingPosition, setEditingPosition]);
 }

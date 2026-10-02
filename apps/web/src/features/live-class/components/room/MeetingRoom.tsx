@@ -14,7 +14,6 @@ import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
 import { PuzzleBridge } from "../meeting/PuzzleBridge";
-import { PuzzleSolverHost } from "../meeting/PuzzleSolverHost";
 import { ReactionProvider } from "../../providers/ReactionProvider";
 import { SimulProvider } from "../../providers/SimulProvider";
 import { MovePollStudentHost } from "../meeting/move-poll/MovePollStudentHost";
@@ -184,7 +183,6 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
           <ScreenShareRequestBridge classId={classId} />
           <HandRaiseBridge />
           <PuzzleBridge classId={classId} />
-          <PuzzleSolverHost classId={classId} />
           <MovePollStudentHost classId={classId} />
           <SimulProvider classId={classId}>
             <SimulHost />

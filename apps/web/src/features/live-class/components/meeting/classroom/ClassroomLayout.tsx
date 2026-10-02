@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Crown, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { MeetingVideoGrid } from "../MeetingVideoGrid";
+import { PuzzleStage } from "../PuzzleStage";
 import { ClassroomBoard } from "./ClassroomBoard";
 import { ClassroomPanel } from "./ClassroomPanel";
 
@@ -52,16 +54,25 @@ export function StageSwitch({ stage, onChange }: { stage: ClassroomStage; onChan
  */
 export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const [stage, setStage] = useState<ClassroomStage>("board");
+  const { activePuzzle, puzzleSolverOpen } = useLiveClassState();
+  const solving = !isCoach && !!activePuzzle && puzzleSolverOpen;
+
+  // Opening the puzzle (or the coach sharing one) brings the student back from the video stage.
+  useEffect(() => {
+    if (solving) setStage("board");
+  }, [solving]);
+
+  const stageSwitch = <StageSwitch stage={stage} onChange={setStage} />;
 
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex-row">
-      {stage === "board" ? (
-        <ClassroomBoard isCoach={isCoach} stageSwitch={<StageSwitch stage={stage} onChange={setStage} />} />
+      {stage === "board" && solving ? (
+        <PuzzleStage stageSwitch={stageSwitch} className="px-3 pb-3 pt-3 lg:px-6 lg:pb-24" />
+      ) : stage === "board" ? (
+        <ClassroomBoard isCoach={isCoach} stageSwitch={stageSwitch} />
       ) : (
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex shrink-0 justify-end px-3 pt-3 lg:px-6">
-            <StageSwitch stage={stage} onChange={setStage} />
-          </div>
+          <div className="flex shrink-0 justify-end px-3 pt-3 lg:px-6">{stageSwitch}</div>
           <MeetingVideoGrid hideBoard />
         </section>
       )}

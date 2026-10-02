@@ -15,6 +15,7 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import {
   API_ROUTES,
   guestJoinDemoRequestSchema,
+  moderateAllRequestSchema,
   moderateParticipantRequestSchema,
   resolveScreenShareRequestSchema,
   pullStudentRequestSchema,
@@ -22,6 +23,7 @@ import {
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
   type GuestJoinDemoRequest,
+  type ModerateAllRequest,
   type ModerateParticipantRequest,
   type ResolveScreenShareRequest,
   type PullStudentRequest,
@@ -170,6 +172,15 @@ export class LiveClassController {
     @Body(new ZodBodyPipe(moderateParticipantRequestSchema)) body: ModerateParticipantRequest
   ) {
     return this.liveClassService.moderateParticipant(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.moderateAll())
+  moderateAll(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(moderateAllRequestSchema)) body: ModerateAllRequest
+  ) {
+    return this.liveClassService.moderateAll(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.chat())

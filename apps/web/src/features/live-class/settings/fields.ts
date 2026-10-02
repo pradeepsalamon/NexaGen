@@ -73,6 +73,16 @@ export const SETTINGS_FIELDS: SettingsFieldDef[] = [
     ],
   },
   {
+    path: "student.reactions",
+    group: "participants",
+    label: "Student reactions",
+    help: "Emoji reactions students send to the room. The coach can always react.",
+    options: [
+      { value: "ENABLED", label: "Can react" },
+      { value: "DISABLED", label: "Reactions disabled" },
+    ],
+  },
+  {
     path: "student.board",
     group: "participants",
     label: "Chessboard interaction",

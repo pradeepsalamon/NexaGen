@@ -2,9 +2,11 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/
 import type { Request } from "express";
 import {
   API_ROUTES,
+  adjustClassLeaderboardRequestSchema,
   adjustLivePuzzlePointsRequestSchema,
   assignLivePuzzleRequestSchema,
   updateLivePuzzleRequestSchema,
+  type AdjustClassLeaderboardRequest,
   type AdjustLivePuzzlePointsRequest,
   type AssignLivePuzzleRequest,
   type UpdateLivePuzzleRequest
@@ -42,6 +44,20 @@ export class LiveClassPuzzleController {
     @Req() request: Request
   ) {
     return this.service.adjust(this.token(request), id, body);
+  }
+
+  @Get(API_ROUTES.liveClass.puzzleClassLeaderboard())
+  classLeaderboard(@Param("id") id: string, @Req() request: Request) {
+    return this.service.classLeaderboard(this.token(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.puzzleClassLeaderboardAdjust())
+  adjustClassLeaderboard(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(adjustClassLeaderboardRequestSchema)) body: AdjustClassLeaderboardRequest,
+    @Req() request: Request
+  ) {
+    return this.service.adjustClassLeaderboard(this.token(request), id, body);
   }
 
   @Delete(API_ROUTES.liveClass.puzzle())

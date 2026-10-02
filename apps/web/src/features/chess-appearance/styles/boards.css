@@ -22,21 +22,18 @@
     transparent 1px,
     transparent 3px
   );
-  --nexa-coord-color: rgba(66, 42, 20, 0.75);
   --nexa-border: #7a5330;
 }
 
 [data-nexa-board-theme="classic-green"] {
   --nexa-light: #eeeed2;
   --nexa-dark: #6e9552;
-  --nexa-coord-color: rgba(45, 58, 36, 0.75);
   --nexa-border: #4c6938;
 }
 
 [data-nexa-board-theme="blue"] {
   --nexa-light: #e4eaf3;
   --nexa-dark: #6c8ebf;
-  --nexa-coord-color: rgba(30, 42, 64, 0.7);
   --nexa-border: #4c6a94;
 }
 
@@ -50,21 +47,18 @@
     transparent 1px,
     transparent 3px
   );
-  --nexa-coord-color: rgba(72, 72, 72, 0.8);
   --nexa-border: #8a5f3d;
 }
 
 [data-nexa-board-theme="dark"] {
   --nexa-light: #5b6472;
   --nexa-dark: #2e333b;
-  --nexa-coord-color: rgba(215, 220, 230, 0.75);
   --nexa-border: #1c1f24;
 }
 
 [data-nexa-board-theme="minimal"] {
   --nexa-light: #f7f7f7;
   --nexa-dark: #c4c4c4;
-  --nexa-coord-color: rgba(60, 60, 60, 0.6);
   --nexa-border: #a8a8a8;
 }
 
@@ -78,21 +72,18 @@
     transparent 1px,
     transparent 4px
   );
-  --nexa-coord-color: rgba(64, 38, 16, 0.8);
   --nexa-border: #6b4423;
 }
 
 /*
- * Coordinate labels render as a small overlay on top of the board's own
- * edge squares (the corner of the a-file / rank-1 squares) — matching how
- * lichess/chess.com show them — instead of chessground's own default
- * coords.ranks/coords.files placement, which uses negative offsets tuned
- * for lichess's fixed page padding and bleeds outside this app's wrap
- * (which has no such reserved margin).
+ * Coordinate labels sit inside the edge squares, lichess-style: ranks in the
+ * top-right corner of the right-hand column, files in the bottom-left corner
+ * of the bottom row, each in the opposite square colour. Chessground's own
+ * placement uses negative offsets tuned for lichess's page padding and bleeds
+ * outside this app's wrap.
  *
- * cg-board keeps its full 100% box; coords is a later sibling of cg-board
- * inside cg-container, so it paints on top of the squares/pieces with no
- * z-index needed. `pointer-events: none` (chessground's own base CSS)
+ * coords is a later sibling of cg-board inside cg-container, so it paints on
+ * top of the squares/pieces with no z-index; `pointer-events: none` (base CSS)
  * keeps it from blocking piece dragging.
  */
 [data-nexa-board-theme] {
@@ -128,13 +119,22 @@
     0 0;
 }
 
-/* Override chessground's own (lichess-tuned) negative-offset placement —
-   ours sits fully inside cg-board's own box, overlaid on the corner of the
-   edge squares, rather than bleeding outside the wrap. */
+/* Each strip spans exactly one column / row of squares, so every coord box
+   is one square and its corner is the square's corner. */
+[data-nexa-board-theme] coords {
+  opacity: 1;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: none;
+}
+
 [data-nexa-board-theme] coords.ranks {
   top: 0;
-  left: 0;
-  width: 6%;
+  right: 0;
+  left: auto;
+  width: 12.5%;
   height: 100%;
 }
 
@@ -142,14 +142,41 @@
   left: 0;
   bottom: 0;
   width: 100%;
-  height: 6%;
+  height: 12.5%;
 }
 
 [data-nexa-board-theme] coords coord {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--nexa-coord-color);
-  font-weight: 600;
-  font-size: 11px;
+  flex: 1 1 0;
+}
+
+[data-nexa-board-theme] coords.ranks coord {
+  transform: none;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 3px 4px 0 0;
+}
+
+[data-nexa-board-theme] coords.files coord {
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 0 2px 4px;
+}
+
+/* DOM order is always 1→8 / a→h; only the flex direction flips for black.
+   White: the right column is the h-file (h1 light) and the bottom row is
+   rank 1 (a1 dark). Black: the a-file (a1 dark) and rank 8 (a8 light). Each
+   label takes the opposite square's colour. */
+[data-nexa-board-theme] coords.ranks:not(.black) coord:nth-child(odd),
+[data-nexa-board-theme] coords.ranks.black coord:nth-child(even),
+[data-nexa-board-theme] coords.files:not(.black) coord:nth-child(even),
+[data-nexa-board-theme] coords.files.black coord:nth-child(odd) {
+  color: var(--nexa-dark);
+}
+
+[data-nexa-board-theme] coords.ranks:not(.black) coord:nth-child(even),
+[data-nexa-board-theme] coords.ranks.black coord:nth-child(odd),
+[data-nexa-board-theme] coords.files:not(.black) coord:nth-child(odd),
+[data-nexa-board-theme] coords.files.black coord:nth-child(even) {
+  color: var(--nexa-light);
 }

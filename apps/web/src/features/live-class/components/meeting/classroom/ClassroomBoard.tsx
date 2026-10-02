@@ -1,17 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Crown, Loader2, Puzzle as PuzzleIcon } from "lucide-react";
+import { useCallback, useState, type ReactNode } from "react";
+import { ChevronsRight, Crown, Loader2, Puzzle as PuzzleIcon } from "lucide-react";
+import { useParams } from "next/navigation";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
 import { SetupPositionDialog } from "@/features/chessboard/components/dialogs/SetupPositionDialog";
 import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
-import { BoardNavigation } from "@/features/chessboard/components/toolbars/BoardNavigation";
+import { BoardNavigation, NavIconButton } from "@/features/chessboard/components/toolbars/BoardNavigation";
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useBoardShortcuts } from "@/features/chessboard/hooks/useBoardShortcuts";
+import { useLoadNextPuzzle } from "../../../hooks/useLoadNextPuzzle";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
+import { PuzzleAssignModal } from "../PuzzleAssignModal";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 
@@ -57,6 +61,7 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
             </button>
           ) : null}
         </div>
+        {isCoach ? <DrawingToolbar /> : null}
         <FlipBoardButton className="size-8 shrink-0" />
         {stageSwitch}
       </div>
@@ -78,9 +83,45 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
       {isCoach ? (
         <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
           <BoardNavigation />
-          <DrawingToolbar />
+          <CoachPuzzleButtons />
         </div>
       ) : null}
     </section>
+  );
+}
+
+/** Ask = share a puzzle (opens where the coach left off); Load next = next puzzle onto the board, not shared. */
+function CoachPuzzleButtons() {
+  const params = useParams();
+  const classId = (params?.roomId as string) ?? "";
+  const [assignOpen, setAssignOpen] = useState(false);
+  const openAsk = useCallback(() => setAssignOpen(true), []);
+  const { loadNext, loading } = useLoadNextPuzzle({ onNoFolder: openAsk });
+
+  return (
+    <div className="mt-4 flex items-center gap-2 text-app-muted">
+      <SimpleTooltip label="Ask — share a puzzle">
+        <NavIconButton
+          aria-label="Ask — share a puzzle"
+          icon={<PuzzleIcon className="size-4" strokeWidth={2.5} />}
+          onClick={openAsk}
+        />
+      </SimpleTooltip>
+      <SimpleTooltip label="Load next puzzle (not shared)">
+        <NavIconButton
+          aria-label="Load next puzzle"
+          icon={
+            loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <ChevronsRight className="size-4" strokeWidth={2.5} />
+            )
+          }
+          onClick={() => void loadNext()}
+          disabled={loading}
+        />
+      </SimpleTooltip>
+      <PuzzleAssignModal classId={classId} open={assignOpen} onOpenChange={setAssignOpen} />
+    </div>
   );
 }

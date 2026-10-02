@@ -225,6 +225,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.liveClassPuzzleAssignment;
   }
 
+  get liveClassLeaderboardAdjustment() {
+    return this.client.liveClassLeaderboardAdjustment;
+  }
+
   get liveClassSimul() {
     return this.client.liveClassSimul;
   }

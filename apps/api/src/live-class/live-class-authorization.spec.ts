@@ -372,6 +372,58 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
     expect(broadcastData).not.toHaveBeenCalled();
   });
 
+  it("mute-all switches the chosen sources off for students only, never the coach", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    listParticipants.mockResolvedValue([
+      {
+        identity: "coach-1",
+        metadata: JSON.stringify({ role: "COACH" }),
+        tracks: [{ sid: "TR_coach_mic", source: 2, muted: false }]
+      },
+      {
+        identity: "student-1_tab-a",
+        metadata: JSON.stringify({ role: "STUDENT" }),
+        tracks: [
+          { sid: "TR_mic", source: 2, muted: false },
+          { sid: "TR_cam", source: 1, muted: false }
+        ]
+      },
+      {
+        identity: "student-2_tab-b",
+        metadata: JSON.stringify({ role: "STUDENT" }),
+        tracks: [{ sid: "TR_mic2", source: 2, muted: true }]
+      }
+    ]);
+
+    const result = await service.moderateAll(ACCESS_TOKEN, "class-1", { sources: ["microphone"] });
+
+    expect(result).toEqual({ mutedCount: 1 });
+    expect(muteParticipantTrack).toHaveBeenCalledTimes(1);
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_mic");
+    expect(broadcastData).toHaveBeenCalledTimes(1);
+  });
+
+  it("mute-all can switch both mic and camera off", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+
+    const result = await service.moderateAll(ACCESS_TOKEN, "class-1", {
+      sources: ["microphone", "camera"]
+    });
+
+    expect(result).toEqual({ mutedCount: 1 });
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_mic");
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_cam");
+  });
+
+  it("rejects a student trying to mute everyone", async () => {
+    authenticateAs("student-2", UserRole.STUDENT);
+
+    await expect(
+      service.moderateAll(ACCESS_TOKEN, "class-1", { sources: ["microphone"] })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(muteParticipantTrack).not.toHaveBeenCalled();
+  });
+
   it("rejects a student trying to mute someone", async () => {
     authenticateAs("student-2", UserRole.STUDENT);
 

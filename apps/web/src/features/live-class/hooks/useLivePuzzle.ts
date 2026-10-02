@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  AdjustClassLeaderboardRequest,
   AdjustLivePuzzlePointsRequest,
   AssignLivePuzzleRequest,
   UpdateLivePuzzleRequest
@@ -7,9 +8,11 @@ import type {
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
+  adjustClassLeaderboard,
   adjustLivePuzzlePoints,
   assignLivePuzzle,
   endLivePuzzle,
+  getClassLeaderboard,
   getLivePuzzleBoards,
   getLivePuzzleLeaderboard,
   getLivePuzzleState,
@@ -96,6 +99,29 @@ export function useUpdateLivePuzzle(classId: string, opts: { quiet?: boolean } =
     },
     onError: (error: Error) =>
       toast.error({ title: "Couldn't update the puzzle", message: error.message })
+  });
+}
+
+export function useClassLeaderboard(classId: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.livePuzzle.classLeaderboard(classId),
+    queryFn: () => getClassLeaderboard(classId),
+    enabled: enabled && !!classId,
+    refetchInterval: enabled ? 5000 : false
+  });
+}
+
+// undo: intentionally excluded — same reasoning as useAdjustLivePuzzlePoints.
+export function useAdjustClassLeaderboard(classId: string) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (body: AdjustClassLeaderboardRequest) => adjustClassLeaderboard(classId, body),
+    onSuccess: (data) => {
+      qc.setQueryData(queryKeys.livePuzzle.classLeaderboard(classId), data);
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Couldn't adjust points", message: error.message })
   });
 }
 

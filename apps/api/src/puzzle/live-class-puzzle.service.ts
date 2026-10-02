@@ -5,9 +5,12 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import type {
+  AdjustClassLeaderboardRequest,
   AdjustLivePuzzlePointsRequest,
   AssignLivePuzzleRequest,
   AttemptMove,
+  ClassLeaderboardEntry,
+  ClassLeaderboardResponse,
   LivePuzzleAssignment,
   LivePuzzleBoardEntry,
   LivePuzzleBoardsResponse,
@@ -200,6 +203,148 @@ export class LiveClassPuzzleService {
 
     await this.broadcast(liveSession.roomName, { type: "LEADERBOARD_DIRTY" });
     return this.leaderboard(accessToken, classId);
+  }
+
+  /** Coach-owner / admin: manual +/- points for one student on the whole-class standings. */
+  async adjustClassLeaderboard(
+    accessToken: string | undefined,
+    classId: string,
+    dto: AdjustClassLeaderboardRequest
+  ): Promise<ClassLeaderboardResponse> {
+    const { liveSession } = await this.liveClass.resolveClassManager(accessToken, classId);
+    const key = { liveClassId_studentId: { liveClassId: classId, studentId: dto.studentId } };
+
+    if (dto.replace) {
+      await this.prisma.liveClassLeaderboardAdjustment.upsert({
+        where: key,
+        create: { liveClassId: classId, studentId: dto.studentId, points: dto.delta },
+        update: { points: dto.delta }
+      });
+    } else {
+      // Atomic increment, so two quick clicks both land.
+      await this.prisma.liveClassLeaderboardAdjustment.upsert({
+        where: key,
+        create: { liveClassId: classId, studentId: dto.studentId, points: dto.delta },
+        update: { points: { increment: dto.delta } }
+      });
+    }
+
+    await this.broadcast(liveSession.roomName, { type: "LEADERBOARD_DIRTY" });
+    return this.classLeaderboard(accessToken, classId);
+  }
+
+  /**
+   * Standings across every puzzle shared in this class: each puzzle's points
+   * (scored exactly as its own board does) summed per student, plus the
+   * coach's class-level adjustment. Every enrolled student gets a row.
+   */
+  async classLeaderboard(
+    accessToken: string | undefined,
+    classId: string
+  ): Promise<ClassLeaderboardResponse> {
+    const { user } = await this.liveClass.resolveParticipant(accessToken, classId);
+    const isStudent = user.role === UserRole.STUDENT;
+
+    const [assignments, rows, roster, classAdjustments] = await Promise.all([
+      this.prisma.liveClassPuzzleAssignment.findMany({
+        where: { liveClassId: classId },
+        orderBy: { startedAt: "asc" },
+        include: puzzleInclude
+      }),
+      this.prisma.puzzleAttempt.findMany({
+        where: { liveClassId: classId },
+        include: { student: { select: { id: true, firstName: true, lastName: true } } }
+      }),
+      this.loadRoster(classId),
+      this.prisma.liveClassLeaderboardAdjustment.findMany({ where: { liveClassId: classId } })
+    ]);
+
+    // A student only sees totals built from boards they could see themselves.
+    const counted = assignments.filter((a) => {
+      if (!isStudent) return true;
+      const { visibility } = this.leaderboardOf(a);
+      return visibility === "LIVE" || (visibility === "AFTER_END" && a.status === "ENDED");
+    });
+    const anonymize = isStudent && counted.some((a) => this.leaderboardOf(a).anonymize);
+
+    const names = new Map<string, string>(roster.map((s) => [s.id, fullName(s) ?? "Student"]));
+    for (const row of rows) {
+      if (!names.has(row.studentId)) names.set(row.studentId, fullName(row.student) ?? "Student");
+    }
+
+    type Total = { puzzlePoints: number; solvedCount: number; attemptedCount: number };
+    const totals = new Map<string, Total>();
+    const totalFor = (studentId: string): Total => {
+      let t = totals.get(studentId);
+      if (!t) {
+        t = { attemptedCount: 0, puzzlePoints: 0, solvedCount: 0 };
+        totals.set(studentId, t);
+      }
+      return t;
+    };
+
+    for (const assignment of counted) {
+      // Each assignment owns the attempts made until the next one was shared,
+      // so re-sharing a puzzle later never counts the same attempt twice.
+      const next = assignments[assignments.indexOf(assignment) + 1];
+      const windowRows = rows.filter(
+        (r) =>
+          r.puzzleId === assignment.puzzleId &&
+          r.startedAt >= assignment.startedAt &&
+          (!next || r.startedAt < next.startedAt)
+      );
+      const ranked = this.rankStudents(
+        windowRows,
+        this.scoringOf(assignment),
+        this.leaderboardOf(assignment),
+        this.adjustmentsOf(assignment.adjustmentsJson),
+        roster,
+        user.id
+      );
+      for (const entry of ranked) {
+        const t = totalFor(entry.studentId);
+        t.puzzlePoints += entry.points;
+        if (entry.solved) t.solvedCount += 1;
+        if (entry.attemptsUsed > 0) t.attemptedCount += 1;
+      }
+    }
+
+    const adjustmentByStudent = new Map(classAdjustments.map((a) => [a.studentId, a.points]));
+
+    // Everyone enrolled, plus anyone with an attempt who has since left the batch.
+    const entries: ClassLeaderboardEntry[] = [...names.keys()]
+      .map((studentId) => {
+        const t = totals.get(studentId) ?? { attemptedCount: 0, puzzlePoints: 0, solvedCount: 0 };
+        const adjustment = adjustmentByStudent.get(studentId) ?? 0;
+        return {
+          adjustment,
+          attemptedCount: t.attemptedCount,
+          isSelf: studentId === user.id,
+          points: t.puzzlePoints + adjustment,
+          puzzlePoints: t.puzzlePoints,
+          rank: 0,
+          solvedCount: t.solvedCount,
+          studentId,
+          studentName: names.get(studentId) ?? "Student"
+        };
+      })
+      .sort(
+        (a, b) =>
+          b.points - a.points ||
+          b.solvedCount - a.solvedCount ||
+          a.studentName.localeCompare(b.studentName)
+      )
+      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+    return {
+      entries: anonymize
+        ? entries.map((e) =>
+            e.isSelf ? e : { ...e, studentId: `anon-${e.rank}`, studentName: `Student ${e.rank}` }
+          )
+        : entries,
+      puzzleCount: counted.length,
+      totalPuzzleCount: assignments.length
+    };
   }
 
   /** Any participant reads the active assignment (solution stripped). */

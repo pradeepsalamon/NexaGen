@@ -22,6 +22,7 @@ import { VideoTile } from "./video-grid/VideoTile";
 import { CompactVideoTile } from "./video-grid/CompactVideoTile";
 import { FocusOverlay } from "./video-grid/FocusOverlay";
 import { BoardStage } from "./video-grid/BoardStage";
+import { PuzzleStage } from "./PuzzleStage";
 import { FlipBoardButton } from "./video-grid/FlipBoardButton";
 import { PuzzleGridTile } from "./video-grid/PuzzleGridTile";
 
@@ -37,8 +38,13 @@ export function MeetingVideoGrid({
   /** The single-page layout already shows the board beside the video. */
   hideBoard?: boolean;
 }) {
-  const { pinnedParticipantSid, setPinnedParticipantSid, isChessboardOpen, activePuzzle } =
-    useLiveClassState();
+  const {
+    pinnedParticipantSid,
+    setPinnedParticipantSid,
+    isChessboardOpen,
+    activePuzzle,
+    puzzleSolverOpen,
+  } = useLiveClassState();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const showBoardTile = isChessboardOpen && !isCoach && !hideBoard;
@@ -122,6 +128,15 @@ export function MeetingVideoGrid({
       )}
     </AnimatePresence>
   );
+
+  if (!isCoach && !compact && !hideBoard && activePuzzle && puzzleSolverOpen) {
+    return (
+      <>
+        <PuzzleStage className="px-2 pt-2 pb-28 sm:px-4 sm:pt-3 sm:pb-24" />
+        {participantFocus}
+      </>
+    );
+  }
 
   if (boardTileShown && boardStage) {
     return (

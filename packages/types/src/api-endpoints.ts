@@ -83,6 +83,8 @@ export const API_ROUTES = {
     liveSettings: (id: string = ":id") => `/live-class/${id}/live-settings`,
     // Force-mute one participant's mic / camera / screen share (coach-owner or admin).
     moderate: (id: string = ":id") => `/live-class/${id}/moderate`,
+    // Coach-owner+admin: switch mic and/or camera off for every student (off only).
+    moderateAll: (id: string = ":id") => `/live-class/${id}/moderate-all`,
     // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
     // for write, any participant for read).
     puzzle: (id: string = ":id") => `/live-class/${id}/puzzle`,
@@ -94,6 +96,11 @@ export const API_ROUTES = {
     puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
     // Coach-owner+admin: manual +/- points for one student on the active puzzle.
     puzzleAdjust: (id: string = ":id") => `/live-class/${id}/puzzle/adjust`,
+    // Whole-class standings across every puzzle shared in the class (GET any participant).
+    puzzleClassLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/class-leaderboard`,
+    // Coach-owner+admin: manual +/- points for one student on the class standings.
+    puzzleClassLeaderboardAdjust: (id: string = ":id") =>
+      `/live-class/${id}/puzzle/class-leaderboard/adjust`,
     // Move poll ("Response"): POST start / PATCH close-reveal / DELETE end (coach-owner+admin), GET current (any participant).
     movePoll: (id: string = ":id") => `/live-class/${id}/move-poll`,
     // Student submits (or changes) their move while the poll is open.
