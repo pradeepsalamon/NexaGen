@@ -76,9 +76,10 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const sound = useCallback((kind: "pop" | "celebrate") => {
+  const sound = useCallback((kind: ReactionEmoji | "celebrate") => {
     const now = Date.now();
-    if (kind === "pop" && now - lastSound.current < 150) return;
+    // A burst of reactions would otherwise stack into noise.
+    if (kind !== "celebrate" && now - lastSound.current < 250) return;
     lastSound.current = now;
     playReactionSound(kind);
   }, []);
@@ -87,7 +88,7 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
     (msg: ReactionMessage) => {
       if (msg.type === "REACTION") {
         spawn([{ emoji: msg.emoji, left: 8 + Math.random() * 84, name: msg.name, delay: 0 }]);
-        sound("pop");
+        sound(msg.emoji);
         return;
       }
       spawn(

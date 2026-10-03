@@ -24,6 +24,7 @@ import {
   WaitingForCoach,
   WaitingForAdmit,
   JoinDenied,
+  RemovedFromClass,
 } from "@/features/live-class/components/states/ErrorStates";
 import { ClassSummary } from "@/features/live-class/components/summary/ClassSummary";
 import { loadMediaPrefs } from "@/features/live-class/lib/mediaDevices";
@@ -40,6 +41,16 @@ export default function LiveClassPage() {
 }
 
 function LiveClassPageContent({ roomId }: { roomId: string }) {
+  // Back/forward cache restores this page with a dead LiveKit socket ("Connection
+  // lost"); reload instead so the student reconnects cleanly.
+  useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) window.location.reload();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
+
   // `hasJoined`/`join` now live in ClassroomSessionManager (sessionStorage-backed
   // PreJoin flag, AUDIT H16) — relocated, not rewritten, so a mid-class refresh
   // still skips PreJoin instead of forcing a full re-join.
@@ -131,6 +142,14 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
       );
     }
 
+    if (errorCode === "REMOVED_FROM_CLASS") {
+      return (
+        <ClassroomStateShell topic={topic}>
+          <RemovedFromClass />
+        </ClassroomStateShell>
+      );
+    }
+
     if (errorCode === "JOIN_DENIED") {
       return (
         <ClassroomStateShell topic={topic}>
@@ -153,7 +172,7 @@ function LiveClassPageContent({ roomId }: { roomId: string }) {
 
     return (
       <ClassroomStateShell topic={topic}>
-        <ConnectionLost classId={roomId} onRetry={() => window.location.reload()} />
+        <ConnectionLost classId={roomId} detail={error} onRetry={() => window.location.reload()} />
       </ClassroomStateShell>
     );
   }

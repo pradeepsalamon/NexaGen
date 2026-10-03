@@ -498,6 +498,8 @@ describe("LiveClassService.getToken coach-presence gate", () => {
   let listParticipants: jest.Mock;
   let generateAccessToken: jest.Mock;
   let recordJoinEvent: jest.Mock;
+  let waitingFindUnique: jest.Mock;
+  let pullFindFirst: jest.Mock;
 
   const authenticateAs = (id: string, role: UserRole) => {
     jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
@@ -526,6 +528,8 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     listParticipants = jest.fn().mockResolvedValue([]);
     generateAccessToken = jest.fn().mockResolvedValue("livekit-token");
     recordJoinEvent = jest.fn().mockResolvedValue(undefined);
+    waitingFindUnique = jest.fn().mockResolvedValue(null);
+    pullFindFirst = jest.fn().mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -533,7 +537,8 @@ describe("LiveClassService.getToken coach-presence gate", () => {
         {
           provide: PrismaService,
           useValue: {
-            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassPull: { findFirst: pullFindFirst, updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassWaitingParticipant: { findUnique: waitingFindUnique },
             coachClass: { findUnique: coachClassFindUnique },
             liveSession: { findUnique: liveSessionFindUnique },
             user: { findUnique: userFindUnique },
@@ -588,6 +593,34 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({
       token: "livekit-token"
     });
+  });
+
+  it("refuses a student the coach removed (no waiting room)", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+    waitingFindUnique.mockResolvedValue({ status: "DENIED" });
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
+      response: { code: "REMOVED_FROM_CLASS" }
+    });
+  });
+
+  it("admits a student from another batch who was pulled in, as a STUDENT", async () => {
+    authenticateAs("student-9", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+    pullFindFirst.mockResolvedValue({ id: "pull-1" });
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({
+      token: "livekit-token"
+    });
+    expect(generateAccessToken).toHaveBeenCalledWith(expect.objectContaining({ isCoach: false }));
+  });
+
+  it("refuses a student outside the batch who was not pulled in", async () => {
+    authenticateAs("student-9", UserRole.STUDENT);
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
   });
 
   it("does not treat another student as the coach", async () => {
@@ -1074,6 +1107,7 @@ describe("LiveClassService screen-share requests", () => {
           provide: PrismaService,
           useValue: {
             liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassWaitingParticipant: { findUnique: jest.fn().mockResolvedValue(null) },
             coachClass: { findUnique: coachClassFindUnique, update: coachClassUpdate },
             liveSession: { findUnique: liveSessionFindUnique, updateMany: liveSessionUpdateMany },
             user: { findUnique: userFindUnique },
@@ -1323,5 +1357,105 @@ describe("LiveClassService screen-share requests", () => {
         })
       );
     });
+  });
+});
+
+describe("LiveClassService.kickParticipant", () => {
+  let service: LiveClassService;
+  let jwtService: { verifyAsync: jest.Mock };
+  let userFindUnique: jest.Mock;
+  let userFindFirst: jest.Mock;
+  let waitingUpsert: jest.Mock;
+  let pullUpdateMany: jest.Mock;
+  let removeParticipant: jest.Mock;
+
+  beforeEach(async () => {
+    jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) };
+    userFindUnique = jest.fn().mockResolvedValue({
+      id: "coach-1",
+      role: UserRole.COACH,
+      status: UserStatus.ACTIVE,
+      firstName: "Ada",
+      lastName: "Coach"
+    });
+    userFindFirst = jest.fn().mockResolvedValue({ id: "student-1" });
+    waitingUpsert = jest.fn().mockResolvedValue({});
+    pullUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    removeParticipant = jest.fn().mockResolvedValue(undefined);
+
+    const prisma = {
+      liveSession: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "session-1",
+          classId: "class-1",
+          coachId: "coach-1",
+          roomName: "room-1",
+          status: "LIVE"
+        })
+      },
+      user: { findUnique: userFindUnique, findFirst: userFindFirst },
+      liveClassWaitingParticipant: { upsert: waitingUpsert },
+      liveClassPull: { updateMany: pullUpdateMany },
+      $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops))
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        LiveClassService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: JwtService, useValue: jwtService },
+        {
+          provide: LiveKitService,
+          useValue: {
+            listParticipants: jest.fn().mockResolvedValue([
+              { identity: "coach-1" },
+              { identity: "student-1_tab-a" },
+              { identity: "student-1_tab-b" },
+              { identity: "student-2_tab-c" }
+            ]),
+            removeParticipant
+          }
+        },
+        { provide: AttendanceService, useValue: {} },
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
+        { provide: LiveClassSettingsService, useValue: {} },
+        {
+          provide: AnalyticsEventService,
+          useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() }
+        }
+      ]
+    }).compile();
+
+    service = module.get<LiveClassService>(LiveClassService);
+  });
+
+  it("disconnects every tab of the student and blocks their rejoin", async () => {
+    const res = await service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a" });
+
+    expect(res.removed).toBe(2);
+    expect(removeParticipant.mock.calls.map((c) => c[1])).toEqual(["student-1_tab-a", "student-1_tab-b"]);
+    expect(waitingUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ status: "DENIED" }) })
+    );
+    expect(pullUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "CANCELLED" }) })
+    );
+  });
+
+  it("refuses to remove the coach", async () => {
+    await expect(
+      service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "coach-1_tab-x" })
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(removeParticipant).not.toHaveBeenCalled();
+  });
+
+  it("refuses to remove someone who is not a student", async () => {
+    userFindFirst.mockResolvedValue(null);
+    await expect(
+      service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "admin-1_tab-x" })
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

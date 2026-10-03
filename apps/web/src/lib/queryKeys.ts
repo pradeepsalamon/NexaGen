@@ -174,6 +174,7 @@ export const queryKeys = {
   },
   livePull: {
     roster: (classId: string) => ["live-pull", "roster", classId] as const,
+    search: (classId: string, q: string) => ["live-pull", "roster", classId, q] as const,
   },
   livePuzzle: {
     state: (classId: string) => ["live-puzzle", "state", classId] as const,

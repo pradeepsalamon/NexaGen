@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, Magnet, Search, X } from "lucide-react";
 import { compareNatural, type PullRosterStudent } from "@nexa-chess/types";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
@@ -50,7 +51,14 @@ const PullRow = memo(function PullRow({
           />
         </span>
         <div className="min-w-0">
-          <div className="truncate text-sm font-medium text-app-text">{student.name}</div>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate text-sm font-medium text-app-text">{student.name}</span>
+            {!student.inBatch ? (
+              <span className="shrink-0 rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] font-semibold text-app-muted">
+                Other batch
+              </span>
+            ) : null}
+          </div>
           <div
             className={cn(
               "truncate text-[11px] font-semibold",
@@ -100,7 +108,8 @@ const PullRow = memo(function PullRow({
 /**
  * Coach-only: the batch's students who are not in the room, with whether they
  * have the app open. "Pull" sends them straight in — immediately if they are
- * online, or the moment they next open the app.
+ * online, or the moment they next open the app. Searching also finds students
+ * from any other batch.
  */
 export function PullStudentsSection({ classId }: { classId: string }) {
   const qc = useQueryClient();
@@ -133,6 +142,15 @@ export function PullStudentsSection({ classId }: { classId: string }) {
     onError: (error: Error) => toast.error({ title: "Couldn't cancel", message: error.message })
   });
 
+  const debounced = useDebouncedValue(query.trim(), 300);
+  const searching = debounced.length >= 2;
+  const search = useQuery({
+    queryKey: queryKeys.livePull.search(classId, debounced),
+    queryFn: () => getPullRoster(classId, debounced),
+    enabled: searching,
+    staleTime: 10_000
+  });
+
   const absent = useMemo(
     () =>
       (roster.data?.students ?? [])
@@ -142,11 +160,18 @@ export function PullStudentsSection({ classId }: { classId: string }) {
   );
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? absent.filter((s) => s.name.toLowerCase().includes(q)) : absent;
-  }, [absent, query]);
+    if (!q) return absent;
+    const local = absent.filter((s) => s.name.toLowerCase().includes(q));
+    if (!searching || !search.data) return local;
+    const seen = new Set(local.map((s) => s.studentId));
+    const others = search.data.students
+      .filter((s) => !s.inClass && !seen.has(s.studentId))
+      .sort((a, b) => Number(b.inBatch) - Number(a.inBatch) || compareNatural(a.name, b.name));
+    return [...local, ...others];
+  }, [absent, query, searching, search.data]);
   const onlineIdle = absent.filter((s) => s.online && s.pull?.status !== "PENDING");
 
-  if (!roster.data || absent.length === 0) return null;
+  if (!roster.data) return null;
 
   const busyId = pull.isPending ? pull.variables?.studentId : cancel.isPending ? cancel.variables?.studentId : null;
 
@@ -176,20 +201,18 @@ export function PullStudentsSection({ classId }: { classId: string }) {
 
       {open ? (
         <>
-          {absent.length > 5 ? (
-            <div className="px-3 pb-2">
-              <div className="flex items-center gap-2 rounded-full bg-app-soft px-3 py-1.5 ring-1 ring-app-border/50 focus-within:ring-primary/40">
-                <Search className="size-3.5 shrink-0 text-app-muted" />
-                <input
-                  aria-label="Search batch students"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search batch students…"
-                  className="w-full bg-transparent text-[13px] font-medium text-app-text outline-none placeholder:text-app-muted"
-                />
-              </div>
+          <div className="px-3 pb-2">
+            <div className="flex items-center gap-2 rounded-full bg-app-soft px-3 py-1.5 ring-1 ring-app-border/50 focus-within:ring-primary/40">
+              <Search className="size-3.5 shrink-0 text-app-muted" />
+              <input
+                aria-label="Search all students"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search any student…"
+                className="w-full bg-transparent text-[13px] font-medium text-app-text outline-none placeholder:text-app-muted"
+              />
             </div>
-          ) : null}
+          </div>
           <div className="flex flex-col gap-0.5" role="list">
             {shown.map((s) => (
               <PullRow
@@ -201,7 +224,15 @@ export function PullStudentsSection({ classId }: { classId: string }) {
               />
             ))}
             {shown.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-app-muted">No students match.</p>
+              <p className="px-3 py-2 text-xs text-app-muted">
+                {query.trim()
+                  ? searching && search.isFetching
+                    ? "Searching…"
+                    : query.trim().length < 2
+                      ? "Type at least 2 letters to search every batch."
+                      : "No students match."
+                  : "Everyone in the batch is here. Search to pull in someone else."}
+              </p>
             ) : null}
           </div>
         </>

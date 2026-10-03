@@ -112,8 +112,9 @@ export function ClassroomPanel({
   return (
     // Below lg the panel sits under the stage (video beside the tabs); the floating toolbar overlays its bottom.
     <aside
-      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border/70 bg-app-surface/40 pb-24 lg:h-auto lg:w-[380px] lg:flex-col lg:border-l lg:border-t-0 lg:pb-0 xl:w-[420px]"
+      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border/70 bg-app-surface/40 pb-24 lg:h-auto lg:w-[var(--classroom-panel-w,380px)] lg:flex-col lg:border-l lg:border-t-0 lg:pb-0 xl:w-[var(--classroom-panel-w,420px)] lg:max-w-[calc(100vw-420px)]"
       aria-label="Class panel"
+      data-classroom-panel
     >
       {showVideo ? (
         <div className="custom-scrollbar w-[260px] shrink-0 overflow-y-auto border-r border-app-border/60 lg:w-auto lg:overflow-visible lg:border-r-0">

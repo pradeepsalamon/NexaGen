@@ -4,6 +4,8 @@ import {
   type ClassSummaryResponse,
   type LiveChatMessageResponse,
   type ModerateAllRequest,
+  type KickParticipantRequest,
+  type KickParticipantResponse,
   type ModerateAllResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
@@ -81,6 +83,17 @@ export const moderateParticipant = (
   body: ModerateParticipantRequest
 ): Promise<ModerateParticipantResponse> => {
   return apiFetch<ModerateParticipantResponse>(API_ROUTES.liveClass.moderate(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/** Coach-only: remove a student; they can't rejoin until pulled back in. */
+export const kickParticipant = (
+  roomId: string,
+  body: KickParticipantRequest
+): Promise<KickParticipantResponse> => {
+  return apiFetch<KickParticipantResponse>(API_ROUTES.liveClass.kick(roomId), {
     method: "POST",
     body,
   });
@@ -174,8 +187,10 @@ export const updateRecordingProgress = (roomId: string, watchedSeconds: number):
 };
 
 // Pull a student into class (coach-owner/admin).
-export const getPullRoster = (roomId: string) =>
-  apiFetch<PullRosterResponse>(API_ROUTES.liveClass.pullRoster(roomId));
+export const getPullRoster = (roomId: string, q?: string) =>
+  apiFetch<PullRosterResponse>(
+    q ? `${API_ROUTES.liveClass.pullRoster(roomId)}?${new URLSearchParams({ q })}` : API_ROUTES.liveClass.pullRoster(roomId)
+  );
 
 export const pullStudent = (roomId: string, studentId: string) =>
   apiFetch<{ status: "PENDING" }>(API_ROUTES.liveClass.pullStudent(roomId), {

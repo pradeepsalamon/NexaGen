@@ -59,9 +59,9 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
   return (
     <div className="space-y-5">
       <Button variant="ghost" size="sm" asChild>
-        <Link href="/student/puzzles">
+        <Link href="/student/courses">
           <ArrowLeft className="mr-1.5 size-4" strokeWidth={2.5} />
-          Puzzles
+          My Courses
         </Link>
       </Button>
 

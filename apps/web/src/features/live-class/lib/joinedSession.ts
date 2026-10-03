@@ -43,9 +43,13 @@ export function getTabClientId(): string {
   const key = "nexa:live-tab-id";
   try {
     let id = window.sessionStorage.getItem(key);
-    if (!id) {
+    // Chrome copies sessionStorage into a tab opened from a link (or duplicated);
+    // window.name is not copied, so a mismatch means the id belongs to another tab
+    // and reusing it would make LiveKit disconnect that tab as a duplicate.
+    if (!id || window.name !== `nexa-tab:${id}`) {
       id = `tab-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
       window.sessionStorage.setItem(key, id);
+      window.name = `nexa-tab:${id}`;
     }
     return id;
   } catch {

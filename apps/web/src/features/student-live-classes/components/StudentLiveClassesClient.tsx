@@ -202,12 +202,12 @@ export function StudentLiveClassesClient() {
                 <div>
                   <h2 className="font-extrabold text-lg text-app-text">No classes live right now</h2>
                   <p className="text-sm text-app-muted">
-                    Check the upcoming schedule below or solve chess puzzles in the meantime.
+                    Check the upcoming schedule below, or work on your assignments in the meantime.
                   </p>
                 </div>
               </div>
               <Button asChild variant="outline">
-                <Link href="/student/puzzles">Solve Puzzles</Link>
+                <Link href="/student/practice">View Assignments</Link>
               </Button>
             </Card>
           )}

@@ -21,9 +21,8 @@ import { RequestControlButton } from "./RequestControlButton";
 import { getRole } from "./videoGrid.utils";
 
 /**
- * Student view while the coach shares the board: the board takes the whole
- * stage and the coach's camera floats in a draggable popup, instead of the
- * board being squeezed into one grid tile.
+ * Opt-in full-screen board for a student on a phone (the grid tile's expand
+ * button); the coach's camera floats in a draggable popup.
  */
 export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
   const stageRef = useRef<HTMLDivElement>(null);

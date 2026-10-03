@@ -91,6 +91,7 @@ export const API_ROUTES = {
     moderate: (id: string = ":id") => `/live-class/${id}/moderate`,
     // Coach-owner+admin: switch mic and/or camera off for every student (off only).
     moderateAll: (id: string = ":id") => `/live-class/${id}/moderate-all`,
+    kick: (id: string = ":id") => `/live-class/${id}/kick`,
     // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
     // for write, any participant for read).
     puzzle: (id: string = ":id") => `/live-class/${id}/puzzle`,

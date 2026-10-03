@@ -17,6 +17,7 @@ import {
   API_ROUTES,
   guestJoinDemoRequestSchema,
   moderateAllRequestSchema,
+  kickParticipantRequestSchema,
   moderateParticipantRequestSchema,
   resolveScreenShareRequestSchema,
   pullStudentRequestSchema,
@@ -25,6 +26,7 @@ import {
   updateLiveClassSettingsRequestSchema,
   type GuestJoinDemoRequest,
   type ModerateAllRequest,
+  type KickParticipantRequest,
   type ModerateParticipantRequest,
   type ResolveScreenShareRequest,
   type PullStudentRequest,
@@ -101,8 +103,8 @@ export class LiveClassController {
   }
 
   @Get(API_ROUTES.liveClass.pullRoster())
-  getPullRoster(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.getPullRoster(this.getAccessToken(request), id);
+  getPullRoster(@Param("id") id: string, @Query("q") q: string | undefined, @Req() request: Request) {
+    return this.liveClassService.getPullRoster(this.getAccessToken(request), id, q);
   }
 
   @Post(API_ROUTES.liveClass.pullStudent())
@@ -182,6 +184,15 @@ export class LiveClassController {
     @Body(new ZodBodyPipe(moderateAllRequestSchema)) body: ModerateAllRequest
   ) {
     return this.liveClassService.moderateAll(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.kick())
+  kickParticipant(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(kickParticipantRequestSchema)) body: KickParticipantRequest
+  ) {
+    return this.liveClassService.kickParticipant(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.chat())

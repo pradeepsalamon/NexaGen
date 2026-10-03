@@ -14,6 +14,7 @@ import {
   Hand,
   Crown,
   UserCheck,
+  UserMinus,
   UserX,
   X,
 } from "lucide-react";
@@ -35,7 +36,12 @@ import { useLiveClassChat } from "../../providers/ChatProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { useParticipantActivity } from "../../hooks/useParticipantActivity";
 import { isActivelySpeaking, isSharingScreen } from "../../lib/participantActivity";
-import { moderateParticipant, resolveScreenShareRequest, resolveWaitingRoomEntry } from "../../api/live-class";
+import {
+  kickParticipant,
+  moderateParticipant,
+  resolveScreenShareRequest,
+  resolveWaitingRoomEntry,
+} from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
@@ -126,6 +132,7 @@ interface ParticipantItemProps {
   /** Coach/admin viewing a student: enables the force-mute + private-message actions. */
   canModerate?: boolean;
   onModerate?: (identity: string, source: ModeratableSource, name: string) => void;
+  onKick?: (identity: string, name: string) => void;
   onMessagePrivately?: (userId: string, name: string) => void;
   /** Side this student may move, or null when they hold no control. */
   boardControlSide?: BoardControlSide | null;
@@ -140,6 +147,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
   speaking = false,
   canModerate,
   onModerate,
+  onKick,
   onMessagePrivately,
   boardControlSide = null,
   onSetBoardControlSide,
@@ -268,6 +276,36 @@ const ParticipantListItem = memo(function ParticipantListItem({
                 value={boardControlSide}
                 onChange={(side) => onSetBoardControlSide(participant.identity, side)}
               />
+            </PopoverContent>
+          </Popover>
+        )}
+
+        {canAct && onKick && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                // `title` rather than SimpleTooltip: already an `asChild` Radix trigger.
+                title={`Remove ${name} from class`}
+                aria-label={`Remove ${name} from class`}
+                className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+              >
+                <UserMinus className="size-3.5" strokeWidth={2.5} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-3">
+              <p className="text-xs font-semibold text-app-text">Remove {name}?</p>
+              <p className="mt-1 text-[11px] leading-snug text-app-muted">
+                They are disconnected and can&apos;t rejoin this class unless you pull them back in
+                from &ldquo;Not in class&rdquo;.
+              </p>
+              <button
+                type="button"
+                onClick={() => onKick(participant.identity, name)}
+                className="mt-2.5 w-full rounded-control bg-app-danger px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+              >
+                Remove from class
+              </button>
             </PopoverContent>
           </Popover>
         )}
@@ -436,6 +474,27 @@ export function MeetingParticipants() {
     [roomId],
   );
 
+  const handleKick = useCallback(
+    async (identity: string, name: string) => {
+      if (!roomId) return;
+      try {
+        await kickParticipant(roomId, { identity });
+        meetingToast({
+          tone: "warning",
+          title: `Removed ${name} from the class`,
+          description: "Pull them back in from \"Not in class\" to let them rejoin.",
+        });
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't remove ${name}`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId],
+  );
+
   const handleResolveWaiting = useCallback(
     async (studentId: string, action: "ADMIT" | "DENY", name: string) => {
       if (!roomId) return;
@@ -542,6 +601,7 @@ export function MeetingParticipants() {
       speaking={isActivelySpeaking(p, activity)}
       canModerate={isCoach}
       onModerate={isCoach ? handleModerate : undefined}
+      onKick={isCoach ? handleKick : undefined}
       onMessagePrivately={
         canMessagePrivately(p.identity.split("_")[0]) ? handleMessagePrivately : undefined
       }

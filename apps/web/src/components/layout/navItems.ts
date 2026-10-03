@@ -65,7 +65,6 @@ export const studentNavItems: NavItem[] = [
   { href: "/student/live-classes", label: "Live Classes", icon: Video },
   { href: "/student/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/student/practice", label: "Assignments", icon: Target },
-  { href: "/student/puzzles", label: "Puzzles", icon: Puzzle },
   { href: "/student/progress", label: "Progress", icon: TrendingUp },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard },

@@ -89,7 +89,7 @@ export function InRoomPuzzleSolver({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
-      <div className="flex shrink-0 flex-wrap items-center justify-center gap-1.5">
+      <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
         <Badge variant="secondary">{puzzle.topicName}</Badge>
         <Badge variant={difficultyBadgeVariant(puzzle.difficulty)}>
           {PUZZLE_DIFFICULTY_LABELS[puzzle.difficulty]}
@@ -99,17 +99,16 @@ export function InRoomPuzzleSolver({
             {expired ? "Time's up" : formatClock(secondsLeft)}
           </Badge>
         ) : null}
+        <span className="text-xs text-app-muted">
+          {scoring.basePoints} pts to solve
+          {scoring.wrongMovePenalty > 0 ? ` · −${scoring.wrongMovePenalty} per wrong move` : ""}
+          {scoring.speedBonusMax > 0 ? ` · up to +${scoring.speedBonusMax} for speed` : ""}
+          {scoring.firstSolveBonuses[0] ? ` · +${scoring.firstSolveBonuses[0]} for solving first` : ""}
+          {self?.attemptsLeft !== null && self?.attemptsLeft !== undefined
+            ? ` · ${self.attemptsLeft} ${self.attemptsLeft === 1 ? "try" : "tries"} left`
+            : ""}
+        </span>
       </div>
-
-      <p className="shrink-0 text-center text-xs text-app-muted">
-        {scoring.basePoints} pts to solve
-        {scoring.wrongMovePenalty > 0 ? ` · −${scoring.wrongMovePenalty} per wrong move` : ""}
-        {scoring.speedBonusMax > 0 ? ` · up to +${scoring.speedBonusMax} for speed` : ""}
-        {scoring.firstSolveBonuses[0] ? ` · +${scoring.firstSolveBonuses[0]} for solving first` : ""}
-        {self?.attemptsLeft !== null && self?.attemptsLeft !== undefined
-          ? ` · ${self.attemptsLeft} ${self.attemptsLeft === 1 ? "try" : "tries"} left`
-          : ""}
-      </p>
 
       {pendingSubmit && !result ? (
         <Card className="space-y-2 border-app-danger/40 p-3 text-sm text-app-text">
@@ -131,7 +130,7 @@ export function InRoomPuzzleSolver({
 
       {session && currentFen ? (
         <div className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-          <div className="shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
+          <div className="touch-none shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
             <PracticeBoard
               resetKey={`${moves.length}-${resetNonce}`}
               fen={currentFen}

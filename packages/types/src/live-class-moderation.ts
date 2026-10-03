@@ -44,6 +44,18 @@ export interface ModerateAllResponse {
   mutedCount: number;
 }
 
+/** Coach: remove a student from the room; they cannot rejoin until pulled back in. */
+export const kickParticipantRequestSchema = z.object({
+  identity: z.string().trim().min(1).max(200),
+});
+
+export type KickParticipantRequest = z.infer<typeof kickParticipantRequestSchema>;
+
+export interface KickParticipantResponse {
+  /** Connections (tabs) that were disconnected. */
+  removed: number;
+}
+
 /**
  * Topic the API injects a moderation notice on so the room can explain a track
  * that just went dead. Purely cosmetic — the mute itself already happened at

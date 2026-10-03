@@ -43,6 +43,8 @@ export interface PullRosterStudent {
   lastSeenAt: string | null;
   /** Connected to this class's room. */
   inClass: boolean;
+  /** Enrolled in the class's batch (others came from a search or an earlier pull). */
+  inBatch: boolean;
   pull: { status: LiveClassPullStatus; requestedAt: string } | null;
 }
 

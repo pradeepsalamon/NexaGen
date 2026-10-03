@@ -50,7 +50,6 @@ const pageTitles: Record<string, string> = {
   "/student/live-classes": "Live Classes",
   "/student/schedule": "Schedule",
   "/student/practice": "Practice",
-  "/student/puzzles": "Puzzles",
   "/student/progress": "Progress",
   "/student/attendance": "Attendance",
   "/student/billing": "Billing",

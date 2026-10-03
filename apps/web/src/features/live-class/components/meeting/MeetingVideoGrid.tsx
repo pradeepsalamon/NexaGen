@@ -55,11 +55,10 @@ export function MeetingVideoGrid({
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const showBoardTile = isChessboardOpen && !isCoach && !hideBoard;
-  // A freshly shared board opens across the whole stage; the student can drop
-  // back to the grid, and the next share opens it big again.
-  const [boardStage, setBoardStage] = useState(true);
+  // A shared board is a grid tile; full screen is opt-in and ends with the share.
+  const [boardStage, setBoardStage] = useState(false);
   useEffect(() => {
-    if (showBoardTile) setBoardStage(true);
+    if (!showBoardTile) setBoardStage(false);
   }, [showBoardTile]);
 
   const { height, width, ref: containerRef } = useElementSize<HTMLDivElement>();
@@ -220,12 +219,12 @@ export function MeetingVideoGrid({
                         <RequestControlButton />
                       </div>
 
-                      {/* Top-right pin/fullscreen button — visible on hover */}
+                      {/* Top-right flip + full-screen buttons (hover-revealed only where hover exists) */}
                       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end gap-1.5 p-2">
                         <FlipBoardButton className="pointer-events-auto" />
                         <button
                           type="button"
-                          className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text opacity-0 backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 group-hover:opacity-100 shadow-card"
+                          className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                           onClick={() => setBoardStage(true)}
                           aria-label="View board full screen"
                         >

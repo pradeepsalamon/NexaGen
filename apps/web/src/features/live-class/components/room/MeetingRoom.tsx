@@ -52,6 +52,8 @@ const IGNORABLE_ROOM_ERRORS = new Set([
   "room deleted"
 ]);
 
+const DUPLICATE_TAB_ERROR = "This class was opened in another tab or window.";
+
 function isIgnorableRoomError(message: string) {
   return IGNORABLE_ROOM_ERRORS.has(message.trim().toLowerCase());
 }
@@ -121,6 +123,13 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
     return (
       <ConnectionLost
         classId={classId}
+        title={error === DUPLICATE_TAB_ERROR ? "Opened somewhere else" : undefined}
+        message={
+          error === DUPLICATE_TAB_ERROR
+            ? "You joined this class from another tab or window, so this one was disconnected. Use the other one, or rejoin here."
+            : undefined
+        }
+        detail={error === DUPLICATE_TAB_ERROR ? undefined : error}
         onEnded={() => {
           clearJoined();
           setEnded(true);
@@ -161,6 +170,15 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
           // summary (coach/admin get the full report, students their own row).
           clearJoined();
           setEnded(true);
+          return;
+        }
+        if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+          // Removed by the coach — the reload lands on the "removed" screen.
+          window.location.reload();
+          return;
+        }
+        if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+          setError(DUPLICATE_TAB_ERROR);
           return;
         }
         if (!reason || reason === DisconnectReason.CLIENT_INITIATED) {
