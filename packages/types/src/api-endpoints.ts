@@ -238,6 +238,7 @@ export const API_ROUTES = {
     stats: "/puzzles/stats",
     validate: "/puzzles/validate",
     bulk: "/puzzles/bulk",
+    import: "/puzzles/import",
     get: (id: string = ":id") => `/puzzles/${id}`,
     update: (id: string = ":id") => `/puzzles/${id}`,
     delete: (id: string = ":id") => `/puzzles/${id}`,

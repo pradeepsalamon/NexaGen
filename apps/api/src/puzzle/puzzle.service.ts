@@ -9,6 +9,8 @@ import type {
   BulkPuzzleActionRequest,
   BulkPuzzleActionResponse,
   CreatePuzzleRequest,
+  ImportPuzzlesRequest,
+  ImportPuzzlesResponse,
   PuzzleDetail,
   PuzzleListQuery,
   PuzzleListResponse,
@@ -161,7 +163,39 @@ export class PuzzleService {
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
     await this.assertTopicExists(dto.topicId);
+    const created = await this.createOne(user, dto);
+    return { puzzle: this.toDetail(created, user, true) };
+  }
 
+  // One bad game in a PGN must not sink the rest, so failures are per item.
+  async importMany(
+    accessToken: string | undefined,
+    dto: ImportPuzzlesRequest
+  ): Promise<ImportPuzzlesResponse> {
+    const user = assertStaffOrCoach(
+      await authenticateUser(this.jwtService, this.prisma, accessToken)
+    );
+    const topicIds = [...new Set(dto.puzzles.map((p) => p.topicId))];
+    for (const topicId of topicIds) await this.assertTopicExists(topicId);
+
+    let created = 0;
+    const failed: ImportPuzzlesResponse["failed"] = [];
+    for (const [index, item] of dto.puzzles.entries()) {
+      try {
+        await this.createOne(user, item);
+        created += 1;
+      } catch (error) {
+        failed.push({
+          index,
+          title: item.title,
+          error: error instanceof Error ? error.message : "Could not create puzzle."
+        });
+      }
+    }
+    return { created, failed };
+  }
+
+  private async createOne(user: User, dto: CreatePuzzleRequest) {
     const fen = assertValidFen(dto.fen);
     const solution = this.evaluation.normalizeSolution(fen, dto.solutionMoves ?? []);
 
@@ -174,7 +208,7 @@ export class PuzzleService {
       throw new BadRequestException("A published puzzle needs at least one solution move.");
     }
 
-    const created = await this.prisma.puzzle.create({
+    return this.prisma.puzzle.create({
       data: {
         topicId: dto.topicId,
         title: dto.title.trim(),
@@ -198,7 +232,6 @@ export class PuzzleService {
       },
       include: puzzleInclude
     });
-    return { puzzle: this.toDetail(created, user, true) };
   }
 
   async update(

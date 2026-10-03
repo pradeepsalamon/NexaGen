@@ -14,6 +14,7 @@ import {
   ArchiveRestore,
   Copy,
   Eye,
+  FileUp,
   Pencil,
   Plus,
   Send,
@@ -60,6 +61,7 @@ import {
   puzzleTopicOptions,
   statusBadgeVariant
 } from "../lib/puzzleMeta";
+import { PuzzleImportDialog } from "./PuzzleImportDialog";
 import { TopicManager } from "./TopicManager";
 
 const iconBtn =
@@ -87,6 +89,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
         ];
 
   const stats = usePuzzleStats(role === "admin");
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -108,6 +111,10 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
               </Link>
             </Button>
           ) : null}
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileUp className="mr-2 size-4" strokeWidth={2.5} />
+            Import PGN
+          </Button>
           <Button asChild>
             <Link href={`${basePath}/new`}>
               <Plus className="mr-2 size-4" />
@@ -157,6 +164,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
           <TopicManager canManage={role === "admin"} />
         </TabsContent>
       </Tabs>
+      <PuzzleImportDialog open={importOpen} onOpenChange={setImportOpen} role={role} />
     </div>
   );
 }

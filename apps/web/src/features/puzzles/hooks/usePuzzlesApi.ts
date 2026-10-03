@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import type {
   CreatePuzzleRequest,
   CreatePuzzleTopicRequest,
+  ImportPuzzlesRequest,
   PuzzleListQuery,
   StudentPuzzleListQuery,
   UpdatePuzzleRequest,
@@ -18,6 +19,7 @@ import {
   getPuzzle,
   getPuzzleScoringSettings,
   getPuzzleStats,
+  importPuzzles,
   getPuzzleTopics,
   getPuzzles,
   updatePuzzle,
@@ -67,6 +69,16 @@ export function useCreatePuzzle() {
     },
     onError: (error: Error) =>
       toast.error({ title: "Could not save puzzle", message: error.message })
+  });
+}
+
+export function useImportPuzzles() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: ImportPuzzlesRequest) => importPuzzles(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all });
+    }
   });
 }
 

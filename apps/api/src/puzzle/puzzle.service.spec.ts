@@ -140,6 +140,26 @@ describe("PuzzleService", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
+  it("importMany creates every valid puzzle and reports the bad ones", async () => {
+    const base = {
+      topicId: "topic-1",
+      puzzleType: "TACTICAL" as const,
+      difficulty: "EASY" as const,
+      solutionMoves: []
+    };
+    const res = await service.importMany(TOKEN, {
+      puzzles: [
+        { ...base, title: "Good", fen: MATE_FEN, solutionMoves: [MATE_MOVE] },
+        { ...base, title: "Bad", fen: "not a fen" },
+        { ...base, title: "Position only", fen: MATE_FEN }
+      ]
+    });
+    expect(res.created).toBe(2);
+    expect(res.failed).toEqual([expect.objectContaining({ index: 1, title: "Bad" })]);
+    expect(prisma.puzzle.create).toHaveBeenCalledTimes(2);
+    expect(prisma.puzzleTopic.findUnique).toHaveBeenCalledTimes(1);
+  });
+
   it("duplicate creates a PRIVATE DRAFT owned by the caller", async () => {
     prisma.puzzle.findUnique.mockResolvedValue(puzzleRow({ status: PuzzleStatus.PUBLISHED }));
     await service.duplicate(TOKEN, "pz-1");

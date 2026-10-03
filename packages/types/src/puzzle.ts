@@ -291,6 +291,18 @@ export const bulkPuzzleActionRequestSchema = z.object({
 export type BulkPuzzleActionRequest = z.infer<typeof bulkPuzzleActionRequestSchema>;
 export type BulkPuzzleActionResponse = { updated: number };
 
+export const MAX_PUZZLE_IMPORT = 200;
+
+/** Many puzzles at once, e.g. every game of a multi-game PGN file. */
+export const importPuzzlesRequestSchema = z.object({
+  puzzles: z.array(createPuzzleRequestSchema).min(1).max(MAX_PUZZLE_IMPORT)
+});
+export type ImportPuzzlesRequest = z.infer<typeof importPuzzlesRequestSchema>;
+export type ImportPuzzlesResponse = {
+  created: number;
+  failed: { index: number; title: string; error: string }[];
+};
+
 export const puzzleScopeSchema = z.enum(["all", "mine", "admin"]);
 export type PuzzleScope = z.infer<typeof puzzleScopeSchema>;
 
