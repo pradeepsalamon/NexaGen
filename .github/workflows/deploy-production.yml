@@ -4,6 +4,15 @@ on:
   push:
     branches:
       - main
+  # Manual redeploy, e.g. after a failed run (a later push that touches no app
+  # files would otherwise never deploy it).
+  workflow_dispatch:
+    inputs:
+      services:
+        description: Services to deploy
+        type: choice
+        options: [both, api, web]
+        default: both
 
 concurrency:
   group: production
@@ -13,13 +22,15 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      web: ${{ steps.filter.outputs.web }}
-      api: ${{ steps.filter.outputs.api }}
+      web: ${{ github.event_name == 'workflow_dispatch' && (inputs.services == 'both' || inputs.services == 'web') || steps.filter.outputs.web }}
+      api: ${{ github.event_name == 'workflow_dispatch' && (inputs.services == 'both' || inputs.services == 'api') || steps.filter.outputs.api }}
     steps:
       - name: Checkout code
+        if: github.event_name == 'push'
         uses: actions/checkout@v4
 
       - name: Detect affected services
+        if: github.event_name == 'push'
         uses: dorny/paths-filter@v3
         id: filter
         with:

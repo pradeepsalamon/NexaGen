@@ -763,6 +763,7 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
 ## 6. Deployment & ops (context — don't run these yourself)
 
 - Push to `main` → GitHub Action detects whether `apps/web/**` / `apps/api/**` / `packages/**` changed → **runs `.github/workflows/ci.yml` as a gate** (typecheck, lint, API unit tests, every migration applied to an empty Postgres + `prisma migrate diff --exit-code` against `schema.prisma`, DB integration tests on that Postgres, and `npm run build`; any failure means no deploy) → SSH to VPS → `scripts/deploy-production.sh <sha> <services>` → `docker compose up -d --build` for the affected services only.
+- Change detection only diffs the latest push, so a failed deploy is not retried by a later push that touches no app files. Redeploy with Actions → Deploy Production → **Run workflow** (`workflow_dispatch`, services `both`/`api`/`web`), which runs the full CI gate first.
 - `scripts/deploy-production.sh` applies `prisma migrate deploy` from the newly built image *before* replacing the running API, so a failed migration aborts the deploy without downtime. `apps/api`'s `entrypoint.sh` also runs it on container start (idempotent; the safety net for manual starts).
 - DB backup: `scripts/backup_db.sh` via cron (OCI CLI to object storage). Restore procedure in `docs/DATABASE_RESTORE.md`. Prod-container commands in `docs/PROD_DOCKER_COMMANDS.md`.
 - `NEXT_PUBLIC_*` vars are build-time — they must be set before `docker compose build` for web.
