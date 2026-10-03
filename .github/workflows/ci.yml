@@ -93,6 +93,10 @@ jobs:
       - name: Generate Prisma client
         run: npm run db:generate
 
+      # The API imports the shared packages from their dist/ output.
+      - name: Build shared packages
+        run: npx turbo run build --filter="./packages/*"
+
       # Real-Postgres tests (`*.int-spec.ts`), with a non-UTC session zone.
       # Runs after the drift check: global setup sets the database timezone.
       - name: DB integration tests
