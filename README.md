@@ -47,7 +47,11 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
     scores `correct required moves / required moves`. When the assignment allows
     hints, `POST .../:attemptId/hint` returns a progressive hint derived from the
     stored line (piece → origin square → full move) and counts against
-    `hintsUsed`.
+    `hintsUsed`. **Any mate wins**: when the stored line ends in checkmate, a
+    different legal mating move at any student ply also completes it
+    (`isAcceptedMateAlternative`, mirrored client-side; shared cases in
+    `SOLVE_LINE_MATE_FIXTURES`). A line that doesn't end in mate is never
+    reinterpreted.
   - `PLAY_VS_ENGINE` — the student plays a position out against the pooled
     Stockfish engine (skill level configurable); scored from the game result,
     with move accuracy computed from per-move engine analysis (falls back to
@@ -83,6 +87,10 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   `ARCHIVED` (all reversible), with a separate soft delete through the Trash
   module. Students browse published puzzles and solve them; `PuzzleAttempt`
   rows are scored by the same `AssignmentEvaluationService` SOLVE_LINE engine.
+  A puzzle with no text hints offers that engine's progressive server hint
+  (piece → origin square → arrow). `puzzles.title` uses the ICU
+  `natural_sort` collation, so the library sorts and pages titles in SQL in
+  natural order ("Puzzle 2" before "Puzzle 10").
 - Course Library: a curated, ordered playlist of *existing* library content —
   each `CourseModule` references an Assignment or a Puzzle (never new authored
   content) — `course` API module, `features/courses` on web, `/admin/courses`,

@@ -49,6 +49,36 @@ function playUci(chess: Chess, uci: string, ply: number): AttemptMove {
 }
 
 /**
+ * "Any mate wins" — a mirror of the server's `isAcceptedMateAlternative`
+ * (assignment-evaluation.service.ts), the only place mate-equivalence is
+ * decided. A move off the book line completes it when, at a student ply, it is
+ * legal and mates, and the book line itself ends in mate. Both sides run
+ * `SOLVE_LINE_MATE_FIXTURES` from `@nexa-chess/types`; keep them identical.
+ */
+export function isAcceptedMateAlternative(
+  startFen: string,
+  solution: SolutionMove[],
+  playedBefore: AttemptMove[],
+  candidateUci: string,
+  studentColor: SolverColor
+): boolean {
+  if (playedBefore.length >= solution.length) return false;
+  try {
+    const position = new Chess(startFen);
+    for (const m of playedBefore) playUci(position, m.uci, 0);
+    if (position.turn() !== (studentColor === "white" ? "w" : "b")) return false;
+    playUci(position, candidateUci, 0);
+    if (!position.isCheckmate()) return false;
+
+    const book = new Chess(startFen);
+    for (const m of solution) playUci(book, m.uci, 0);
+    return book.isCheckmate();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Fully client-side SOLVE_LINE runner for the puzzle preview + practice board.
  * Mirrors the server's `solveLineFeedback`: the student plays their side, forced
  * opponent replies auto-play, a wrong move is rejected.
@@ -63,7 +93,13 @@ export function applyStudentMove(
   const index = moves.length;
   const expected = solution[index]?.uci?.toLowerCase();
   if (!expected) return { kind: "ignored" };
-  if (uci.toLowerCase() !== expected) return { kind: "wrong" };
+  if (uci.toLowerCase() !== expected) {
+    if (!isAcceptedMateAlternative(startFen, solution, moves, uci, studentColor)) {
+      return { kind: "wrong" };
+    }
+    const mated = new Chess(replayLine(startFen, moves.map((m) => m.uci)));
+    return { kind: "solved", studentMove: playUci(mated, uci, index + 1), autoReply: null };
+  }
 
   const chess = new Chess(replayLine(startFen, moves.map((m) => m.uci)));
   const studentMove = playUci(chess, uci, index + 1);

@@ -1,9 +1,11 @@
 import { BadRequestException } from "@nestjs/common";
-import type { AttemptMove, SolutionMove } from "@nexa-chess/types";
+import { SOLVE_LINE_MATE_FIXTURES, type AttemptMove, type SolutionMove } from "@nexa-chess/types";
+import { Chess } from "chess.js";
 import {
   AssignmentEvaluationService,
   assertValidFen,
   cpToWinPercent,
+  isAcceptedMateAlternative,
   moveAccuracy
 } from "./assignment-evaluation.service";
 import { StockfishService } from "../stockfish/stockfish.service";
@@ -144,6 +146,70 @@ describe("AssignmentEvaluationService", () => {
       const played = SCHOLARS.map((m) => move(m.uci));
       const hint = service.solveLineHint(START, SCHOLARS, played, "white", 1);
       expect(hint.lineComplete).toBe(true);
+    });
+  });
+
+  describe("isAcceptedMateAlternative", () => {
+    const line = (ucis: string[]): SolutionMove[] => ucis.map((uci) => ({ uci, san: uci }));
+    const studentOf = (fen: string) => (new Chess(fen).turn() === "w" ? "white" : "black");
+
+    it.each(SOLVE_LINE_MATE_FIXTURES)("$name", (fx) => {
+      expect(
+        isAcceptedMateAlternative(
+          fx.fen,
+          line(fx.solution),
+          fx.played.map(move),
+          move(fx.candidate),
+          studentOf(fx.fen)
+        )
+      ).toBe(fx.accepted);
+    });
+
+    it("refuses a candidate on the opponent's ply", () => {
+      const fx = SOLVE_LINE_MATE_FIXTURES[0];
+      expect(
+        isAcceptedMateAlternative(fx.fen, line(fx.solution), [], move(fx.candidate), "black")
+      ).toBe(false);
+    });
+  });
+
+  describe("any mate solves a mate line", () => {
+    const BACK_RANK_LONG = "7k/6pp/8/2p5/8/8/1R6/R5K1 w - - 0 1";
+    const LINE: SolutionMove[] = [
+      { uci: "b2b7", san: "Rb7" },
+      { uci: "c5c4", san: "c4" },
+      { uci: "a1a8", san: "Ra8#" }
+    ];
+
+    it("scores an alternative final mate as a full solve", () => {
+      const played = [move("b2b7"), move("c5c4"), { ...move("b7b8"), san: "Rb8#" }];
+      const result = service.evaluateSolveLine(BACK_RANK_LONG, LINE, played, "white");
+      expect(result).toMatchObject({ solved: true, scorePercent: 100, accuracyPercent: 100 });
+      expect(result.review[1]).toMatchObject({ yourMove: "Rb8#", expectedMove: "Ra8#", correct: true });
+    });
+
+    it("scores an early mate as a full solve and drops the unplayed book plies", () => {
+      const result = service.evaluateSolveLine(BACK_RANK_LONG, LINE, [move("a1a8")], "white");
+      expect(result).toMatchObject({ solved: true, scorePercent: 100, accuracyPercent: 100 });
+      expect(result.review).toHaveLength(1);
+      expect(result.review[0]).toMatchObject({ expectedMove: "Rb7", correct: true });
+    });
+
+    it("completes the line in move feedback with no opponent reply", () => {
+      const fb = service.solveLineFeedback(BACK_RANK_LONG, LINE, [move("a1a8")], "white");
+      expect(fb).toMatchObject({ correct: true, lineComplete: true, opponentReply: null });
+    });
+
+    it("gives no further hint once mated", () => {
+      const hint = service.solveLineHint(BACK_RANK_LONG, LINE, [move("a1a8")], "white", 3);
+      expect(hint).toMatchObject({ onTrack: true, lineComplete: true, san: null });
+    });
+
+    it("still rejects a mate when the book line does not end in mate", () => {
+      const quiet: SolutionMove[] = [{ uci: "a1a7", san: "Ra7" }];
+      const fen = "7k/6pp/8/8/8/8/1R6/R5K1 w - - 0 1";
+      const fb = service.solveLineFeedback(fen, quiet, [move("a1a8")], "white");
+      expect(fb).toMatchObject({ correct: false, lineComplete: false });
     });
   });
 

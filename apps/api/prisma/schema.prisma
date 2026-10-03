@@ -2010,6 +2010,9 @@ model Puzzle {
   id          String      @id @default(cuid())
   topicId     String
   topic       PuzzleTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  /// COLLATE "natural_sort" (ICU, numeric) — set by migration
+  /// 20261003190000_puzzle_title_natural_collation, which Prisma cannot express.
+  /// ORDER BY title is natural order ("Puzzle 2" before "Puzzle 10").
   title       String
   description String?
 

@@ -176,19 +176,17 @@ describe("PuzzleService", () => {
     expect(prisma.puzzle.delete).not.toHaveBeenCalled();
   });
 
-  it("sorts titles naturally and pages after sorting", async () => {
-    const titles = ["Puzzle 10", "Puzzle 2", "Puzzle 1", "Puzzle 3"];
-    prisma.puzzle.findMany.mockImplementation((args: any) =>
-      args.select
-        ? Promise.resolve(titles.map((title) => ({ id: title, title })))
-        : Promise.resolve(args.where.id.in.map((id: string) => puzzleRow({ id, title: id })))
+  it("sorts and pages titles in the database, tie-broken by id", async () => {
+    prisma.puzzle.findMany.mockResolvedValue([]);
+
+    await service.list(TOKEN, { page: 2, pageSize: 3 } as any);
+    expect(prisma.puzzle.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orderBy: [{ title: "asc" }, { id: "asc" }], skip: 3, take: 3 })
     );
 
-    const first = await service.list(TOKEN, { page: 1, pageSize: 3 } as any);
-    expect(first.puzzles.map((p) => p.title)).toEqual(["Puzzle 1", "Puzzle 2", "Puzzle 3"]);
-    expect(first.pagination?.total).toBe(4);
-
-    const desc = await service.list(TOKEN, { page: 1, pageSize: 2, sort: "title", order: "desc" } as any);
-    expect(desc.puzzles.map((p) => p.title)).toEqual(["Puzzle 10", "Puzzle 3"]);
+    await service.list(TOKEN, { page: 1, pageSize: 2, sort: "title", order: "desc" } as any);
+    expect(prisma.puzzle.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orderBy: [{ title: "desc" }, { id: "asc" }] })
+    );
   });
 });
