@@ -147,7 +147,7 @@ None currently tracked here.
   with every branch producing an explainable line item, never just a final
   number. Payslip PDFs render via pdfmake off a BullMQ queue (mirrors
   `payments/invoice-*`: `--`-separated job ids, inline-render fallback when
-  `REDIS_URL` is unset, advisory-lock `73002080` retry sweep) and auto-queue
+  `REDIS_URL` is unset, job-lock `payroll.payslip-pdf-sweep` retry sweep) and auto-queue
   on period finalize. Two new messaging events, `PAYROLL_FINALIZED` /
   `PAYROLL_PAID` (enabled, in-app only, coach audience, no bank/payment
   detail in the body). Web: `/admin/finance/coach-payroll` (periods, an

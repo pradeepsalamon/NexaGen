@@ -12,6 +12,8 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -79,6 +81,7 @@ describe("LiveClassService chat authorization", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -312,6 +315,7 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -534,6 +538,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -741,6 +746,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -887,6 +893,7 @@ describe("LiveClassService waiting room", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -1103,6 +1110,7 @@ describe("LiveClassService screen-share requests", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -1402,6 +1410,7 @@ describe("LiveClassService.kickParticipant", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
         {

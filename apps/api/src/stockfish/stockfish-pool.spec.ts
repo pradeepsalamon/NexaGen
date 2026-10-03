@@ -6,6 +6,8 @@ import { StockfishService } from './stockfish.service';
 
 jest.mock('child_process', () => ({ spawn: jest.fn() }));
 jest.mock('@nexa-chess/config/api', () => ({ getApiEnv: jest.fn() }));
+// Pin the host size so the thread maths doesn't depend on the machine running the suite.
+jest.mock('os', () => ({ ...jest.requireActual('os'), cpus: () => new Array(4).fill({}) }));
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -322,14 +324,13 @@ describe('StockfishService dynamic pool', () => {
       service.analyzePosition(START_FEN, { movetimeMs: 101 }).catch(() => undefined);
       const threadsSet = (i: number) =>
         procs[i].writes().filter((l) => l.startsWith('setoption name Threads'));
-      // Uncontended: more than the pool-share default (1) when the host has spare CPUs.
-      const lone = threadsSet(0).pop();
-      expect(lone).toMatch(/^setoption name Threads value \d+/);
+      // Uncontended: every core (4) rather than the pool share.
+      expect(threadsSet(0).pop()).toMatch(/value 4\b/);
 
       procs[1].handshake();
       service.analyzePosition(START_FEN, { movetimeMs: 102 }).catch(() => undefined);
-      // A second search starts while the first is running => 1 thread each.
-      expect(threadsSet(1).pop()).toMatch(/value 1\b/);
+      // A second search while the first runs => the pool share, 4 cores / 2 engines.
+      expect(threadsSet(1).pop()).toMatch(/value 2\b/);
     });
   });
 

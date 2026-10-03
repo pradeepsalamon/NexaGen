@@ -189,9 +189,12 @@ Consequences to respect when you touch this area:
 - Names: `nexa_access_token`, `nexa_refresh_token` (`AUTH_COOKIE_NAMES`).
   Paths in `AUTH_COOKIE_PATHS`.
 - Access token TTL `15m`; refresh `1d` default, `7d` with "remember me".
-- Refresh tokens rotate on every `/auth/refresh`, are bcrypt-hashed, and stored in
-  `auth_sessions`. Logout and password reset revoke sessions.
-- `sameSite`/`secure` are derived at runtime from whether `FRONTEND_URL` is https
+- Refresh tokens rotate on every `/auth/refresh`, are sha256-hashed, and stored in
+  `auth_sessions`. A rotated session (`rotatedAt`) gets a 30s grace for concurrent
+  tabs; a revoked one (`revokedAt`: logout, password reset, detected reuse) never
+  comes back. Replaying a rotated token after the grace revokes the device's whole
+  `familyId` chain, and logout revokes the family.
+- `secure` is derived from whether `FRONTEND_URL` is https; `sameSite` comes from `COOKIE_SAME_SITE` (default `lax`). State-changing requests from an origin outside `CORS_ORIGIN` are rejected (`common/security/origin-check.ts`)
   (`auth.controller.ts`). In production `CORS_ORIGIN`/`FRONTEND_URL` must be the https
   origin or cookies won't be set cross-site.
 - Neutral messaging + fixed response delays protect login and password-reset from
@@ -240,7 +243,7 @@ shape exactly to the `@nexa-chess/types` response type.
   `relationToModel` / `filterableRelationNames`, add **partial unique indexes**
   (`... WHERE "isDeleted" = false`) so deleted rows don't block reuse, update shared
   types and the Trash UI.
-- Automatic retention cleanup (`trash.scheduler.ts`) uses a Postgres advisory lock so
+- Automatic retention cleanup (`trash.scheduler.ts`) uses a job lock (`JobLockService`, `trash.cleanup`) so
   multiple API instances don't collide. Retention days: `TRASH_RETENTION_DAYS` (30).
 
 ### 4.7 Scheduled jobs
@@ -248,6 +251,10 @@ shape exactly to the `@nexa-chess/types` response type.
 `@nestjs/schedule` `@Cron(...)` methods live in the owning service
 (`trash.scheduler.ts`, cleanup in `live-class.service.ts`, backups in
 `backup.service.ts`). `ScheduleModule.forRoot()` is in `app.module.ts`.
+A cron that must run once across instances wraps its body in
+`JobLockService.runExclusive(JOB_LOCKS.<name>, ...)` (a `job_locks` lease row).
+Don't use session advisory locks through Prisma — the pool can unlock on a
+different connection and leak the lock.
 
 ### 4.8 Rate limiting
 

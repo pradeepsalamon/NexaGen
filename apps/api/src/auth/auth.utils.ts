@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { compare, hash } from "bcryptjs";
 
 const bcryptSaltRounds = 12;
@@ -17,6 +17,21 @@ export function createOpaqueToken() {
 
 export function hashOpaqueToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
+}
+
+// bcrypt reads only the first 72 bytes, which for a JWT is the header plus a
+// sliver of the payload — so refresh tokens are stored as sha256 instead.
+export function hashRefreshToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export async function refreshTokenMatches(token: string, storedHash: string) {
+  if (storedHash.startsWith("$2")) {
+    return compare(token, storedHash); // sessions issued before the sha256 switch
+  }
+  const expected = Buffer.from(storedHash, "hex");
+  const actual = createHash("sha256").update(token).digest();
+  return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
 export function parseDurationMs(value: string, fallbackMs: number) {

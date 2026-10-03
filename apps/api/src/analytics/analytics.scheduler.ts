@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { RecordingStorageService } from "../live-class/recording-storage.service";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { DEFAULT_TIME_ZONE, zonedDayBounds } from "../common/time";
 
@@ -11,10 +12,10 @@ import { DEFAULT_TIME_ZONE, zonedDayBounds } from "../common/time";
  */
 @Injectable()
 export class AnalyticsScheduler {
-  private static readonly SNAPSHOT_LOCK_ID = 73_002_050;
   private readonly logger = new Logger(AnalyticsScheduler.name);
 
   constructor(
+    private readonly jobLocks: JobLockService,
     private readonly prisma: PrismaService,
     private readonly storage: RecordingStorageService
   ) {}
@@ -22,18 +23,9 @@ export class AnalyticsScheduler {
   @Cron(CronExpression.EVERY_DAY_AT_1AM)
   async captureStorageSnapshot(): Promise<void> {
     try {
-      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_lock(${AnalyticsScheduler.SNAPSHOT_LOCK_ID}) AS locked
-      `;
-      if (!lock?.locked) return;
-
-      try {
-        await this.snapshot();
-      } finally {
-        await this.prisma.$queryRaw`
-          SELECT pg_advisory_unlock(${AnalyticsScheduler.SNAPSHOT_LOCK_ID})
-        `;
-      }
+      await this.jobLocks.runExclusive(JOB_LOCKS.analyticsStorageSnapshot, () =>
+        this.snapshot()
+      );
     } catch (error) {
       this.logger.error("Storage snapshot cron failed", error as Error);
     }

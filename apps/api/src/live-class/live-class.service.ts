@@ -12,6 +12,7 @@ import {
 } from "@nestjs/common";
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { JwtService } from "@nestjs/jwt";
@@ -68,7 +69,6 @@ import {
   ScreenShareRequestStatus,
   WaitingRoomStatus,
 } from "@prisma/client";
-import type { AccessTokenPayload } from "../auth/types";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
 import { RecordingStorageService } from "./recording-storage.service";
@@ -77,6 +77,7 @@ import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
 import type { Request, Response } from "express";
+import { authenticateUser } from "../auth/authenticate";
 
 /**
  * One entry of an egress `fileResults` array as it arrives on the webhook.
@@ -92,8 +93,6 @@ type EgressFileResult = {
 
 @Injectable()
 export class LiveClassService {
-  // Postgres advisory-lock key for the stale-class sweep (AUDIT M21).
-  private static readonly STALE_CLASS_LOCK_ID = 73002002;
   /** Waiting-room entries for demo guests key on this + the registration id. */
   static readonly GUEST_WAITING_PREFIX = "guest:";
 
@@ -102,6 +101,7 @@ export class LiveClassService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly jobLocks: JobLockService,
     private readonly livekit: LiveKitService,
     private readonly jwtService: JwtService,
     @Inject(forwardRef(() => AttendanceService))
@@ -142,29 +142,10 @@ export class LiveClassService {
     };
   }
 
-  private async getAuthenticatedUser(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
-    try {
-      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-        accessToken,
-        { secret: this.env.JWT_ACCESS_SECRET }
-      );
-      if (payload.type !== "access") {
-        throw new UnauthorizedException("Invalid token type.");
-      }
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-        include: { coachProfile: true, studentProfile: true }
-      });
-      if (!user || user.status !== UserStatus.ACTIVE) {
-        throw new UnauthorizedException("Invalid session.");
-      }
-      return user;
-    } catch (error) {
-      throw new UnauthorizedException("Invalid or expired token.");
-    }
+  private getAuthenticatedUser(accessToken: string | undefined) {
+    return authenticateUser(this.jwtService, this.prisma, accessToken, {
+      include: { coachProfile: true, studentProfile: true }
+    });
   }
 
   /**
@@ -678,20 +659,9 @@ export class LiveClassService {
   async handleStaleClasses() {
     try {
       // Only one instance should sweep stale classes per tick (AUDIT M21).
-      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_lock(${LiveClassService.STALE_CLASS_LOCK_ID}) AS locked
-      `;
-      if (!lock?.locked) {
-        return;
-      }
-
-      try {
-        await this.sweepStaleClasses();
-      } finally {
-        await this.prisma.$queryRaw`
-          SELECT pg_advisory_unlock(${LiveClassService.STALE_CLASS_LOCK_ID})
-        `;
-      }
+      await this.jobLocks.runExclusive(JOB_LOCKS.liveClassStaleSweep, () =>
+        this.sweepStaleClasses()
+      );
     } catch (error) {
       this.logger.error("Error in handleStaleClasses cron job", error);
     }

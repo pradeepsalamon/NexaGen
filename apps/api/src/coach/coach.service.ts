@@ -5,7 +5,6 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   CoachDashboardResponse,
   CoachBatchesResponse,
@@ -15,11 +14,11 @@ import type {
   UpdateClassRequest,
   CoachClass
 } from "@nexa-chess/types";
-import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
+import { ClassStatus, Prisma, UserRole } from "@prisma/client";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
-import type { AccessTokenPayload } from "../auth/types";
+import { authenticateUser } from "../auth/authenticate";
 
 type CoachClassWithRelations = Prisma.CoachClassGetPayload<{
   include: {
@@ -36,7 +35,6 @@ type CoachClassWithRelations = Prisma.CoachClassGetPayload<{
 
 @Injectable()
 export class CoachService {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -349,19 +347,8 @@ export class CoachService {
   }
 
   private async getAuthenticatedCoach(accessToken: string | undefined) {
-    if (!accessToken) throw new UnauthorizedException("Access token is missing.");
-
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-      secret: this.env.JWT_ACCESS_SECRET
-    });
-
-    if (payload.type !== "access") throw new UnauthorizedException("Invalid token type.");
-
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user || user.status !== UserStatus.ACTIVE || user.role !== UserRole.COACH) {
-      throw new UnauthorizedException("Unauthorized.");
-    }
-
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    if (user.role !== UserRole.COACH) throw new UnauthorizedException("Unauthorized.");
     return user;
   }
 

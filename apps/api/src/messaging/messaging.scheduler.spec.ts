@@ -1,5 +1,7 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import type { MessagingEvent } from "@nexa-chess/types";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { MessagingDispatchService } from "./messaging-dispatch.service";
 import { MessagingRuleService } from "./messaging-rule.service";
@@ -14,20 +16,19 @@ function rule(event: MessagingEvent, overrides: Record<string, unknown> = {}) {
 describe("MessagingScheduler", () => {
   let scheduler: MessagingScheduler;
   let prisma: {
-    $queryRaw: jest.Mock;
     coachClass: { findMany: jest.Mock };
     studentAssignment: { findMany: jest.Mock };
   };
   let dispatch: { dispatch: jest.Mock };
+  let jobLocks: ReturnType<typeof createJobLockStub>;
   let rules: Record<string, jest.Mock>;
 
   const setup = async (byEvent: Record<string, ReturnType<typeof rule>>) => {
     prisma = {
-      // First call is pg_try_advisory_lock; the unlock returns nothing useful.
-      $queryRaw: jest.fn().mockResolvedValue([{ locked: true }]),
       coachClass: { findMany: jest.fn().mockResolvedValue([{ id: "class_1" }]) },
       studentAssignment: { findMany: jest.fn().mockResolvedValue([]) }
     };
+    jobLocks = createJobLockStub();
     dispatch = {
       dispatch: jest.fn().mockResolvedValue({
         ruleEnabled: true,
@@ -45,6 +46,7 @@ describe("MessagingScheduler", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MessagingScheduler,
+        { provide: JobLockService, useValue: jobLocks },
         { provide: PrismaService, useValue: prisma },
         { provide: MessagingDispatchService, useValue: dispatch },
         { provide: MessagingRuleService, useValue: rules }
@@ -94,7 +96,7 @@ describe("MessagingScheduler", () => {
 
   it("does nothing when another instance holds the lock", async () => {
     await setup({});
-    prisma.$queryRaw.mockResolvedValue([{ locked: false }]);
+    jobLocks.runExclusive.mockResolvedValueOnce({ acquired: false });
 
     await scheduler.classReminders();
 

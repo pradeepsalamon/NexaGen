@@ -9,6 +9,7 @@ import {
 } from "@nexa-chess/types";
 import { PayslipPdfStatus } from "@prisma/client";
 import type { Queue } from "bullmq";
+import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isQueueEnabled } from "../queue/queue.config";
 import { fullName } from "../payments/payments-auth.helper";
@@ -29,13 +30,13 @@ const MAX_PDF_ATTEMPTS = 5;
  */
 @Injectable()
 export class PayslipGenerationService {
-  private static readonly SWEEP_LOCK_ID = 73_002_080;
 
   private readonly logger = new Logger(PayslipGenerationService.name);
   private readonly queueEnabled = isQueueEnabled(getApiEnv());
 
   constructor(
     @InjectQueue(PAYSLIP_QUEUE) private readonly queue: Queue,
+    private readonly jobLocks: JobLockService,
     private readonly pdf: PayslipPdfService,
     private readonly prisma: PrismaService,
     private readonly storage: PayslipStorageService
@@ -270,7 +271,7 @@ export class PayslipGenerationService {
 
   @Cron(CronExpression.EVERY_10_MINUTES)
   async sweepFailedGenerations(): Promise<void> {
-    await this.withLock(PayslipGenerationService.SWEEP_LOCK_ID, async () => {
+    await this.withLock(JOB_LOCKS.payslipPdfSweep, async () => {
       const staleBefore = new Date(Date.now() - 15 * 60_000);
 
       await this.prisma.payslip.updateMany({
@@ -297,18 +298,9 @@ export class PayslipGenerationService {
     });
   }
 
-  private async withLock(lockId: number, run: () => Promise<void>): Promise<void> {
+  private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_lock(${lockId}) AS locked
-      `;
-      if (!lock?.locked) return;
-
-      try {
-        await run();
-      } finally {
-        await this.prisma.$queryRaw`SELECT pg_advisory_unlock(${lockId})`;
-      }
+      await this.jobLocks.runExclusive(name, run);
     } catch (error) {
       this.logger.error("Payslip generation cron failed", error as Error);
     }

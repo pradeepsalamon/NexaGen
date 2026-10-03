@@ -2,6 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { AttendanceStatus, UserRole, UserStatus } from "@prisma/client";
 import { AttendanceService } from "./attendance.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -55,6 +57,7 @@ describe("AttendanceService.getStudentAttendance stats", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {

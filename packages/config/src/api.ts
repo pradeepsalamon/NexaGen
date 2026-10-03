@@ -50,6 +50,9 @@ const apiEnvSchema = z.object({
   STOCKFISH_MAX_DEPTH: z.coerce.number().int().nonnegative().default(20),
   STOCKFISH_IDLE_TIMEOUT_S: z.coerce.number().int().nonnegative().default(60),
   COOKIE_DOMAIN: z.string().optional(),
+  // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
+  // "none" only for a deployment where the API sits on a different registrable domain.
+  COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
@@ -191,6 +194,18 @@ export function getCookieDomain(
   } catch {
     return undefined;
   }
+}
+
+export function getCookieBaseOptions(
+  env: Pick<ApiEnv, "CORS_ORIGIN" | "FRONTEND_URL" | "COOKIE_SAME_SITE"> & {
+    COOKIE_DOMAIN?: string;
+  }
+): { domain?: string; sameSite: "lax" | "strict" | "none"; secure: boolean } {
+  const secure = getFrontendUrl(env).startsWith("https://");
+  // Browsers drop SameSite=None cookies that are not Secure.
+  const sameSite = env.COOKIE_SAME_SITE === "none" && !secure ? "lax" : env.COOKIE_SAME_SITE;
+  const domain = getCookieDomain(env);
+  return { sameSite, secure, ...(domain ? { domain } : {}) };
 }
 
 // Second-level labels that sit under a country-code TLD (e.g. "co" in

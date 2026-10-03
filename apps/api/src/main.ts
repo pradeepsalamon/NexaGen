@@ -7,12 +7,16 @@ import { API_ROUTES } from "@nexa-chess/types";
 import type { NextFunction, Request, Response } from "express";
 import * as express from "express";
 import { AppModule } from "./app.module";
+import { createOriginCheckMiddleware } from "./common/security/origin-check";
 
 const HTTP_LOG_EXCLUDED_PREFIXES = ["/stockfish", "/health"];
 
 async function bootstrap() {
   const env = getApiEnv();
+  // Body parsers are registered by hand below: JSON only. The default set also
+  // parses urlencoded bodies, which is what lets a cross-site <form> post fill a DTO.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
     logger: ["error", "warn"]
   });
   // Trust exactly the number of proxy hops in front of us (nginx = 1). Trusting
@@ -47,6 +51,14 @@ async function bootstrap() {
     next();
   });
 
+  const webhookPaths = [
+    API_ROUTES.attendance.webhook,
+    API_ROUTES.payments.webhookRazorpay,
+    API_ROUTES.payments.webhookCashfree,
+    API_ROUTES.payments.webhookStripe
+  ];
+  app.use(createOriginCheckMiddleware(corsOrigins, webhookPaths));
+
   // LiveKit sends 'application/webhook+json'. Parse it as raw text so we can verify the signature.
   app.use(
     "/webhooks/livekit",
@@ -63,6 +75,7 @@ async function bootstrap() {
   ]) {
     app.use(path, express.text({ type: "*/*", limit: "1mb" }));
   }
+  app.useBodyParser("json");
 
   app.use(cookieParser());
   app.useGlobalPipes(

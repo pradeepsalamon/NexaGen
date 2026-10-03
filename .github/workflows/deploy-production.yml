@@ -42,8 +42,15 @@ jobs:
               - 'package-lock.json'
               - 'turbo.json'
 
-  deploy:
+  # Nothing reaches the VPS unless typecheck, lint, tests, migrations and the
+  # production build all pass on this exact commit.
+  verify:
     needs: detect-changes
+    if: needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: [detect-changes, verify]
     if: needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true'
     runs-on: ubuntu-latest
     steps:

@@ -5,6 +5,8 @@ import { AttendanceEventType } from "@prisma/client";
 import { AttendanceWebhookController } from "./attendance-webhook.controller";
 import { AttendanceService } from "./attendance.service";
 import { LiveClassService } from "../live-class/live-class.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 /**
@@ -166,6 +168,7 @@ describe("Multi-tab attendance — AttendanceService session selection", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: { verifyAsync: jest.fn() } },
       ],

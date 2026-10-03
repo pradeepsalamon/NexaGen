@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 type Role = "student" | "coach";
 
 const TRIGGER_CLASS =
-  "relative z-10 px-6 data-[state=active]:border-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none";
+  "relative z-10 px-6 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:hover:bg-transparent";
 
 export default function RegisterPage() {
   const [role, setRole] = useState<Role>("student");
@@ -42,7 +42,7 @@ export default function RegisterPage() {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-lg border border-app-border bg-app-surface shadow-sm motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    "absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-lg bg-primary shadow-[0_4px_12px_-4px_rgb(var(--rgb-primary)/0.7)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]",
                     role === "coach" && "translate-x-[calc(100%+4px)]"
                   )}
                 />

@@ -3,6 +3,8 @@ import { ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { AttendanceService } from "./attendance.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 type MockPrismaService = {
@@ -41,6 +43,7 @@ describe("AttendanceService authorization", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: { ...prismaService, user: { findUnique: userFindUnique } }

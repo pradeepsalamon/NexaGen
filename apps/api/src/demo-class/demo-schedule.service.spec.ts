@@ -2,6 +2,8 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ConflictException, ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Prisma, UserRole, UserStatus } from "@prisma/client";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { DemoScheduleService, expandDemoSlots, isValidTimeZone } from "./demo-schedule.service";
 
@@ -114,6 +116,7 @@ describe("DemoScheduleService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DemoScheduleService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prisma },
         {
           provide: JwtService,

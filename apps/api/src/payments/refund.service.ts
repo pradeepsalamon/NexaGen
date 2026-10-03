@@ -15,6 +15,7 @@ import {
   type User
 } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import {
   PrismaService,
   type PrismaTransactionClient
@@ -71,6 +72,7 @@ export class RefundService {
     private readonly invoiceAudit: InvoiceAuditService,
     private readonly invoiceGeneration: InvoiceGenerationService,
     private readonly invoices: InvoiceService,
+    private readonly jobLocks: JobLockService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
     private readonly registry: ProviderRegistry
@@ -362,6 +364,12 @@ export class RefundService {
    */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async reconcilePending(): Promise<void> {
+    await this.jobLocks.runExclusive(JOB_LOCKS.refundReconciliation, () =>
+      this.reconcilePendingNow()
+    );
+  }
+
+  private async reconcilePendingNow(): Promise<void> {
     const pending = await this.prisma.refund.findMany({
       where: {
         status: { in: [RefundStatus.PENDING, RefundStatus.PROCESSING] },

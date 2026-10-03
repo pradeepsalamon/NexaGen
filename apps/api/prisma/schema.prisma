@@ -497,7 +497,14 @@ model AuthSession {
   userAgent String?
   ipAddress String?
 
+  // One device's rotation chain: the first session's id. Null on rows created
+  // before families existed — treat as the row's own id.
+  familyId String?
+
   expiresAt DateTime
+  // Superseded by a successor during a normal refresh. Distinct from
+  // revokedAt (logout / password reset / reuse), which is never revived.
+  rotatedAt DateTime?
   revokedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -505,6 +512,7 @@ model AuthSession {
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([familyId])
   @@map("auth_sessions")
 }
 
@@ -2832,7 +2840,7 @@ model Order {
   orderNumber String @unique
 
   userId String
-  user   User   @relation("UserOrders", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserOrders", fields: [userId], references: [id], onDelete: Restrict)
 
   planId String?
   plan   Plan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
@@ -2886,7 +2894,7 @@ model Payment {
   id String @id @default(cuid())
 
   orderId String
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   userId String?
   user   User?   @relation("UserPayments", fields: [userId], references: [id], onDelete: SetNull)
@@ -2949,7 +2957,7 @@ model PaymentAttempt {
   id String @id @default(cuid())
 
   orderId String
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   paymentId String?
   payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
@@ -3019,7 +3027,7 @@ model Refund {
   id String @id @default(cuid())
 
   paymentId String
-  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
 
   provider         PaymentProvider
   providerRefundId String?
@@ -3061,7 +3069,7 @@ model Subscription {
   id String @id @default(cuid())
 
   userId String
-  user   User   @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Restrict)
 
   planId String
   plan   Plan   @relation(fields: [planId], references: [id])
@@ -3119,13 +3127,13 @@ model Invoice {
   number String @unique
 
   orderId String @unique
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   paymentId String?  @unique
   payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
   userId String
-  user   User   @relation("UserInvoices", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserInvoices", fields: [userId], references: [id], onDelete: Restrict)
 
   status InvoiceStatus @default(ISSUED)
 
@@ -3226,10 +3234,10 @@ model CreditNote {
   number String @unique
 
   invoiceId String
-  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
 
   userId String
-  user   User   @relation("UserCreditNotes", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserCreditNotes", fields: [userId], references: [id], onDelete: Restrict)
 
   /// The refund that caused it. Unique, so one refund can only ever produce
   /// one credit note however many times reconciliation re-runs.
@@ -3409,7 +3417,7 @@ model Entitlement {
   id String @id @default(cuid())
 
   userId String
-  user   User   @relation("UserEntitlements", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserEntitlements", fields: [userId], references: [id], onDelete: Restrict)
 
   planId String
   plan   Plan   @relation(fields: [planId], references: [id])
@@ -3483,7 +3491,7 @@ model ManualPaymentRecord {
   id String @id @default(cuid())
 
   paymentId String  @unique
-  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  payment   Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
 
   methodId String
   method   OfflinePaymentMethod @relation(fields: [methodId], references: [id], onDelete: Restrict)
@@ -3492,7 +3500,7 @@ model ManualPaymentRecord {
   reference String?
 
   recordedByUserId String
-  recordedByUser   User     @relation("ManualPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Cascade)
+  recordedByUser   User     @relation("ManualPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: Restrict)
   recordedByRole   UserRole
 
   status OfflinePaymentReviewStatus @default(PENDING)
@@ -3630,13 +3638,13 @@ model DiscountRedemption {
   id String @id @default(cuid())
 
   discountId String
-  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Restrict)
 
   userId String
-  user   User   @relation("DiscountRedemptions", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("DiscountRedemptions", fields: [userId], references: [id], onDelete: Restrict)
 
   orderId String @unique
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Restrict)
 
   /// Minor units actually taken off.
   amount Int
@@ -3755,7 +3763,7 @@ model CoachCompensationProfile {
   id String @id @default(cuid())
 
   coachId String @unique
-  coach   User   @relation("CoachCompensationProfile", fields: [coachId], references: [id], onDelete: Cascade)
+  coach   User   @relation("CoachCompensationProfile", fields: [coachId], references: [id], onDelete: Restrict)
 
   engagementType           CoachEngagementType    @default(EMPLOYEE)
   defaultCompensationModel CoachCompensationModel @default(HOURLY)
@@ -3794,7 +3802,7 @@ model CoachCompensationRate {
   id String @id @default(cuid())
 
   coachId String
-  coach   User   @relation("CoachCompensationRate", fields: [coachId], references: [id], onDelete: Cascade)
+  coach   User   @relation("CoachCompensationRate", fields: [coachId], references: [id], onDelete: Restrict)
 
   compensationProfileId String?
   compensationProfile   CoachCompensationProfile? @relation(fields: [compensationProfileId], references: [id], onDelete: SetNull)
@@ -3907,10 +3915,10 @@ model CoachPayrollRecord {
   id String @id @default(cuid())
 
   periodId String
-  period   PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  period   PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Restrict)
 
   coachId String
-  coach   User   @relation("CoachPayrollRecordCoach", fields: [coachId], references: [id], onDelete: Cascade)
+  coach   User   @relation("CoachPayrollRecordCoach", fields: [coachId], references: [id], onDelete: Restrict)
 
   status CoachPayrollRecordStatus @default(PENDING)
 
@@ -3962,7 +3970,7 @@ model PayrollAdjustment {
   id String @id @default(cuid())
 
   payrollRecordId String
-  payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+  payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Restrict)
 
   type        PayrollAdjustmentType
   description String
@@ -4020,7 +4028,7 @@ model Payslip {
   documentNumber String @unique
 
   payrollRecordId String             @unique
-  payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Cascade)
+  payrollRecord   CoachPayrollRecord @relation(fields: [payrollRecordId], references: [id], onDelete: Restrict)
 
   documentKind          PayslipDocumentKind
   engagementTypeAtIssue CoachEngagementType
@@ -4261,4 +4269,18 @@ model PuzzleRatingChange {
   @@unique([studentId, puzzleId])
   @@index([studentId, createdAt])
   @@map("puzzle_rating_changes")
+}
+
+// ──────────────────────────────────────────────
+// JOB LOCKS (cron single-runner leases, see JobLockService)
+// ──────────────────────────────────────────────
+
+/// One row per cron. A run holds it while `lockedUntil` is in the future.
+model JobLock {
+  name        String   @id
+  owner       String
+  acquiredAt  DateTime
+  lockedUntil DateTime
+
+  @@map("job_locks")
 }

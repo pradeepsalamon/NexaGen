@@ -3,12 +3,10 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Cron, CronExpression } from "@nestjs/schedule";
-import { getApiEnv } from "@nexa-chess/config/api";
 import {
   DEMO_SCHEDULE_HORIZON_DAYS,
   demoScheduleSlotSchema,
@@ -26,10 +24,11 @@ import {
   type User
 } from "@prisma/client";
 import { z } from "zod";
-import type { AccessTokenPayload } from "../auth/types";
 import { toLocalDateParts, zonedWallTimeToUtc } from "../batch-schedule/recurrence.util";
 import { assertNoSchedulingConflict } from "../coach/class-scheduling.util";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { authenticateUser } from "../auth/authenticate";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const slotsSchema = z.array(demoScheduleSlotSchema);
@@ -103,12 +102,10 @@ export function isValidTimeZone(timeZone: string): boolean {
  */
 @Injectable()
 export class DemoScheduleService {
-  static readonly GENERATE_LOCK_ID = 73002080;
-
-  private readonly env = getApiEnv();
   private readonly logger = new Logger(DemoScheduleService.name);
 
   constructor(
+    private readonly jobLocks: JobLockService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService
   ) {}
@@ -206,11 +203,7 @@ export class DemoScheduleService {
   @Cron(CronExpression.EVERY_HOUR)
   async topUpOccurrences() {
     try {
-      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_lock(${DemoScheduleService.GENERATE_LOCK_ID}) AS locked
-      `;
-      if (!lock?.locked) return;
-      try {
+      await this.jobLocks.runExclusive(JOB_LOCKS.demoScheduleTopUp, async () => {
         const active = await this.prisma.demoSchedule.findMany({
           where: { isActive: true },
           select: { id: true }
@@ -220,9 +213,7 @@ export class DemoScheduleService {
             this.logger.error(`Demo schedule ${id} generation failed`, error as Error)
           );
         }
-      } finally {
-        await this.prisma.$queryRaw`SELECT pg_advisory_unlock(${DemoScheduleService.GENERATE_LOCK_ID})`;
-      }
+      });
     } catch (error) {
       this.logger.error("Error in demo schedule top-up cron", error as Error);
     }
@@ -427,24 +418,7 @@ export class DemoScheduleService {
   }
 
   private async getSuperAdmin(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
-    let payload: AccessTokenPayload;
-    try {
-      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-        secret: this.env.JWT_ACCESS_SECRET
-      });
-    } catch {
-      throw new UnauthorizedException("Invalid session.");
-    }
-    if (payload.type !== "access") {
-      throw new UnauthorizedException("Invalid token type.");
-    }
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session.");
-    }
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
     if (user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException("Only Super Admins can manage demo schedules.");
     }

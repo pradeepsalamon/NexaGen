@@ -55,6 +55,7 @@ describe("WhatsAppService", () => {
       STOCKFISH_MOVE_MAX_DEPTH: 22,
       STOCKFISH_HASH_MB: 64,
       STOCKFISH_MAX_DEPTH: 20,
+      COOKIE_SAME_SITE: "lax",
       TRUST_PROXY_HOPS: 0,
       RECORDING_STORAGE_DIR: "/recordings",
       RECORDING_STORAGE_LIMIT_GB: 130,

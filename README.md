@@ -173,7 +173,7 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   Every metric's calculation is surfaced in a "How is this calculated?" tooltip.
   New infra: `AnalyticsEvent` + `StorageSnapshot` models, a global
   `ActivityTrackingInterceptor` (throttled `User.lastActiveAt`), a daily
-  storage-snapshot cron (`AnalyticsScheduler`, advisory lock `73002050`), and an
+  storage-snapshot cron (`AnalyticsScheduler`, job lock `analytics.storage-snapshot`), and an
   in-process 5-minute cache for the heavier sections (`?fresh=1` bypasses).
   Config: `ANALYTICS_STORAGE_WARN_PERCENT` (70), `ANALYTICS_STORAGE_CRITICAL_PERCENT`
   (85), `ANALYTICS_LOW_ATTENDANCE_PERCENT` (75), `ANALYTICS_INACTIVE_DAYS` (30),
@@ -373,9 +373,11 @@ CREATE UNIQUE INDEX "example_key" ON "table"("field") WHERE "isDeleted" = false;
 
 A cascading delete (`cascadeSoftDelete`) tags the parent and its children with one `deleteGroupId`; `TrashRepository.restore` on any member of the group brings the whole group back. Deleting a User cascades to its student/coach profile; deleting a Batch cascades to its coach/student assignments.
 
+**A user with financial or payroll history is never hard-deleted.** Orders, payments, invoices, credit notes, refunds, entitlements, subscriptions, discount redemptions, manual payment records and coach compensation/payroll rows reference `User` with `onDelete: Restrict` (never `Cascade`). The retention sweep and "Empty trash" skip such a user together with the rest of their delete group, and a manual permanent delete returns 400. They can stay in the trash or be restored. `TrashRepository.findUserIdsWithRetainedHistory` is the list of tables checked — extend it when a new financial model references `User`.
+
 The Trash list merges rows from all trash-entity tables in memory. Sorting and paging stay exact within the newest `MAX_TRASH_SCAN` (500) deleted rows per entity; deeper offsets are not supported.
 
-Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally scaled API instances do not run the cleanup concurrently.
+Automatic cleanup takes the `trash.cleanup` job lock (`JobLockService`) so horizontally scaled API instances do not run the cleanup concurrently.
 
 ## Background Jobs (BullMQ)
 
@@ -535,7 +537,7 @@ Things worth knowing before you touch it:
 - **Sends are idempotent** through a `dedupeKey` unique per `(channel, key)`.
   Because the row is written *before* anything is sent, a repeated sweep
   collides on insert rather than racing a second send. The two lead-time crons
-  take a Postgres advisory lock first, and the outbox worker claims rows with
+  take a job lock (`JobLockService`) first, and the outbox worker claims rows with
   `FOR UPDATE SKIP LOCKED` + a `claimedAt` stamp (stale claims reaped after 5
   minutes), so a second API container takes different rows instead of the same
   ones.
@@ -916,10 +918,10 @@ audit trail. Routes are `API_ROUTES.invoices.*` / `.adminInvoices.*`.
 
 | Job | Cadence | What it does |
 |---|---|---|
-| `PaymentReconciliationService.sweep` | 5 min (advisory lock `73002060`) | Asks each gateway about in-flight payments; expires unpaid orders past their TTL |
+| `PaymentReconciliationService.sweep` | 5 min (job lock `payments.reconciliation`) | Asks each gateway about in-flight payments; expires unpaid orders past their TTL |
 | `PaymentWebhookService.recoverFailedEvents` | 10 min | Replays stored webhook events whose handler threw |
 | `InvoiceProcessor` (BullMQ `invoice` queue) | on demand | Renders + archives an invoice or credit-note PDF, then emails and WhatsApps it. 5 attempts with exponential backoff; failures kept 7 days |
-| `InvoiceGenerationService.sweepFailedGenerations` | 10 min (advisory lock `73002070`) | Retries failed/pending invoice PDFs, and reclaims rows stuck `GENERATING` over 15 min |
+| `InvoiceGenerationService.sweepFailedGenerations` | 10 min (job lock `invoice.pdf-sweep`) | Retries failed/pending invoice PDFs, and reclaims rows stuck `GENERATING` over 15 min |
 | `RefundService.reconcilePending` | 30 min | Reads the gateway for refunds it has not reported on |
 | `InvoiceGenerationService.sweepUnsentEmails` | 30 min | Re-sends invoice emails that failed after a successful render |
 | `EntitlementService.expireLapsed` | hourly | Marks entitlements past `endsAt` as expired |
@@ -1139,6 +1141,7 @@ The provided `docker-compose.yml` has been hardened for production environments 
 - **Service Isolation**: PostgreSQL and Redis are bound exclusively to `127.0.0.1` or internal Docker networks, reducing the external attack surface.
 - **Health Checks**: Robust container health checks have been added for all services (API, Web, LiveKit, Redis, and PostgreSQL) ensuring that dependent services wait for their prerequisites before starting.
 - **Persistence**: Both PostgreSQL and Redis use Docker named volumes for persistent data storage across restarts.
+- **CI Gate**: A push to `main` deploys only after `.github/workflows/ci.yml` passes on that commit: typecheck, lint, API unit tests, every migration applied to an empty PostgreSQL plus a `prisma migrate diff --exit-code` check that `schema.prisma` has no unmigrated changes, and `npm run build`. The same workflow runs on pull requests into `main`/`dev`.
 - **Pinned Versions**: Container images are explicitly pinned to stable versions that support `ARM64` architecture (e.g. `postgres:15.6-alpine`, `redis:7.2.4-alpine`, `livekit/livekit-server:v1.6.0`).
 
 ## Project Rule

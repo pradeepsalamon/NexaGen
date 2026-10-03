@@ -18,7 +18,7 @@ npm-workspaces monorepo driven by **Turborepo**.
 | `packages/config` | `@nexa-chess/config` | Env parsing/validation (`getApiEnv`, `getWebEnv`) with Zod |
 | `packages/tsconfig` | `@nexa-chess/tsconfig` | Shared base tsconfig |
 
-Infra: `docker-compose.yml` (web, api, postgres, redis, livekit), self-hosted on an Oracle Cloud ARM64 Ubuntu box. CI in `.github/workflows/deploy-production.yml` SSHes to the VPS and runs `scripts/deploy-production.sh` on push to `main`.
+Infra: `docker-compose.yml` (web, api, postgres, redis, livekit), self-hosted on an Oracle Cloud ARM64 Ubuntu box. CI in `.github/workflows/deploy-production.yml` waits on `ci.yml` (also run on PRs into `main`/`dev`), then SSHes to the VPS and runs `scripts/deploy-production.sh` on push to `main`.
 
 ---
 
@@ -131,17 +131,20 @@ Auth is **not** done with `@UseGuards` or param decorators. The established patt
    }
    ```
    It passes the raw token string into the service method as the first argument.
-2. **Service** has a private `getAuthenticatedUser(accessToken: string | undefined)` that:
-   - throws `UnauthorizedException` if missing,
-   - `jwtService.verifyAsync<AccessTokenPayload>(token, { secret: env.JWT_ACCESS_SECRET })`,
-   - checks `payload.type === "access"`,
-   - loads the user via Prisma and checks `user.status === UserStatus.ACTIVE`.
+2. **Service** has a private `getAuthenticatedUser(accessToken: string | undefined)` that calls
+   **`authenticateUser(this.jwtService, this.prisma, accessToken)` from `auth/authenticate.ts`** —
+   the single implementation: missing token / bad or expired signature / non-`access` type /
+   user not `ACTIVE` all become a 401 (never the 500 a raw `TokenExpiredError` turns into).
+   Pass `{ include: { … } }` as a 4th argument to load relations; `verifyAccessToken` is the
+   no-DB variant. **Never hand-roll `jwtService.verifyAsync` for an access token** — the 25
+   copies this replaced had drifted (admin/backup skipped the ACTIVE check, Stockfish trusted
+   the token's role). The module `*-auth.helper.ts` files re-export it.
 3. **Role checks** are private `assertCanX(user)` / inline `if (user.role !== ...) throw new ForbiddenException(...)` helpers in the service.
 4. **Row-level visibility** is a private `getXVisibilityWhere(user)` returning a `Prisma.WhereInput` (admins get `{}`, coaches/students get scoped filters). See `batch.service.ts` for the reference implementation.
 
-When adding a new module, **copy this pattern** — do not introduce a guard-based approach unless you are deliberately refactoring all modules and the maintainer agreed.
+When adding a new module, **follow this pattern** — do not introduce a guard-based approach unless you are deliberately refactoring all modules and the maintainer agreed.
 
-Cookies: `AUTH_COOKIE_NAMES` = `nexa_access_token` / `nexa_refresh_token` (see `apps/api/src/auth/types/`). Access TTL 15m, refresh 1d (no "remember me") or 7d (remember me). Refresh tokens rotate on every use and are bcrypt-hashed in `auth_sessions`. `main.ts` decides `sameSite`/`secure` from whether `FRONTEND_URL` is https.
+Cookies: `AUTH_COOKIE_NAMES` = `nexa_access_token` / `nexa_refresh_token` (see `apps/api/src/auth/types/`). Access TTL 15m, refresh 1d (no "remember me") or 7d (remember me). Refresh tokens rotate on every use and are sha256-hashed in `auth_sessions` (bcrypt would only read the JWT's first 72 bytes; old bcrypt rows still verify). A rotation sets `rotatedAt` (claimed atomically); `revokedAt` means logout / password reset / reuse and is **never** revived. Within 30s of a rotation the old token may mint a sibling in the same `familyId` (concurrent tabs); after that a replay revokes the whole family. Logout revokes the family. `getCookieBaseOptions` (`@nexa-chess/config/api`) sets every cookie: `secure` when `FRONTEND_URL` is https, `sameSite` from `COOKIE_SAME_SITE` (default `lax` — web and API are same-site subdomains). **CSRF defence**: `main.ts` registers only the JSON body parser (no urlencoded) and `common/security/origin-check.ts` rejects a POST/PUT/PATCH/DELETE whose `Origin` (or `Referer`) is not in `CORS_ORIGIN` with 403; webhook paths are exempt. A new webhook route must be added to that exempt list.
 
 ### 3.3 Validation
 
@@ -158,6 +161,7 @@ Cookies: `AUTH_COOKIE_NAMES` = `nexa_access_token` / `nexa_refresh_token` (see `
 - Soft delete is centralized in `apps/api/src/prisma/soft-delete.extension.ts` (a Prisma `$extends` query extension that injects `isDeleted: false` into reads) + the `trash` module. Soft-deletable models: `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`.
 - Feature delete routes go through `TrashRepository.softDelete(tx, "<Model>", id, userId)` inside a `$transaction` — see `batch.service.ts#delete`. This keeps audit logging (`trash_audit_logs`) and retention consistent.
 - Adding a new trash-enabled model: follow the 7-step checklist in `README.md` § "Trash And Soft Delete" (schema fields + indexes, `softDeleteModels`, `trashEntities`, `relationToModel`, `filterableRelationNames`, partial unique indexes `WHERE "isDeleted" = false`, shared types, Trash UI).
+- **Financial/payroll relations to `User` (and within the payment/invoice/payroll chain) are `onDelete: Restrict`, never `Cascade`** — the 30-day trash purge hard-deletes users, and a cascade would erase invoices and payroll. The purge skips a user with such history (`TrashRepository.findUserIdsWithRetainedHistory`); add any new financial model there.
 - To read including deleted rows, pass `includeDeleted: true` in query args (the extension strips it) or use `prisma.withDeleted`.
 - **Uniqueness pre-checks MUST use `prisma.withDeleted`.** `users.email`/`users.username` are uniquely indexed across deleted rows, so a filtered read misses the conflict and the write dies with P2002 → unhandled 500. A deleted user's email stays permanently reserved by design (see `docs/PROJECT_RULES.md` §4.6).
 - **Timestamps are UTC, stored tz-naive.** `DateTime` columns map to `timestamp WITHOUT time zone` and Prisma round-trips UTC wall-clock through them — consistent *only* while the Prisma ORM is the sole reader/writer. In raw SQL (`$queryRaw`/`$executeRaw`), never put a bound JS `Date` (Prisma sends it as `timestamptz`) or a `::timestamptz` cast next to one of these columns: PostgreSQL coerces through the session timezone, a no-op on a UTC box (prod) but an offset shift everywhere else (any non-UTC dev box). Bind `${d.toISOString()}::timestamp` — the ISO digits are UTC and `::timestamp` keeps them. Analytics bucketing (`date_trunc(... AT TIME ZONE tz)`) depends on this naive-UTC convention. Services serialize dates with `.toISOString()` and never pre-format (Node would use the server's zone — AUDIT H11). See `.agents/AGENTS.md` "Date & Time Rule".
@@ -204,6 +208,16 @@ constant and imports `QueueModule.registerQueue(NAME)`. Processors take
 `DEFAULT_JOB_OPTIONS` (5 attempts, exponential backoff, failed jobs kept 7d).
 Pass a `jobId` derived from your own row for idempotency. See README
 § "Background Jobs (BullMQ)".
+
+**Cron single-runner: `JobLockService.runExclusive(JOB_LOCKS.x, run)`**
+(`prisma/job-lock.service.ts`, global via `PrismaModule`). A lease row in
+`job_locks` (DB time, renewed every ttl/3, expires if the process dies), so it
+holds no connection while the job runs. **Never use session
+`pg_try_advisory_lock` / `pg_advisory_unlock` through Prisma**: the pool can run
+the two on different connections, the unlock no-ops and the lock leaks, and the
+cron then silently skips on every other connection. Add each new cron's name to
+`JOB_LOCKS` (one name per job — two crons once shared id `73002080`). Specs
+provide `createJobLockStub()` from `prisma/job-lock.testing.ts`.
 
 ### 3.6c Rate limiting
 
@@ -267,8 +281,8 @@ use them, don't reimplement, or the admin preview stops matching the send.
 - The outbox row IS the idempotency guard: `dedupeKey` is unique per
   `(channel, key)` and the row is written before any send, so a repeated sweep
   collides on insert (P2002 → "already queued") instead of racing a send. The
-  two lead-time crons in `messaging.scheduler.ts` also take advisory locks
-  `73002051` / `73002052`.
+  two lead-time crons in `messaging.scheduler.ts` also take job locks
+  (§3.6b).
 - `INVOICE_ISSUED` ships **enabled, in-app only**, and is the one event that can
   carry an attachment: `DispatchRequest` takes an optional `document`
   (`mediaId`/`link`/`filename`) which the CALLER resolves — dispatch persists it
@@ -434,7 +448,7 @@ for India.
 - **PDF generation NEVER touches the payment (§20).** It runs after the capture
   commits, on the BullMQ `invoice` queue. A failure sets `pdfStatus: FAILED` and
   leaves the financial `status: PAID` alone; `sweepFailedGenerations` (10 min,
-  advisory lock `73002070`) retries, and a download of a missing archive
+  job lock `invoice.pdf-sweep`) retries, and a download of a missing archive
   re-renders on the spot. Do not move generation into the capture transaction.
 - **The queue is a nudge, not the source of truth.** `pdfStatus` + the sweep is
   what guarantees a PDF exists; BullMQ just means a restart mid-render does not
@@ -626,7 +640,7 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
   Schedules): weekly slots + one permanent `/demo/<slug>` link that resolves to
   the LIVE occurrence, else the next one. Occurrences are ordinary demo
   `CoachClass` rows with `demoScheduleId`, generated `DEMO_SCHEDULE_HORIZON_DAYS`
-  ahead on save and by an hourly cron (advisory lock `73002080`), idempotent on
+  ahead on save and by an hourly cron (job lock `demo-schedule.top-up`), idempotent on
   unique `(demoScheduleId, startsAt)`. A slot that clashes with the coach's
   other classes is skipped, not double-booked. An edit/pause deletes only
   **unbooked** future occurrences and re-generates; booked ones are kept. A
@@ -707,7 +721,7 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
 
 ## 6. Deployment & ops (context — don't run these yourself)
 
-- Push to `main` → GitHub Action detects whether `apps/web/**` / `apps/api/**` / `packages/**` changed → SSH to VPS → `scripts/deploy-production.sh <sha> <services>` → `docker compose up -d --build` for the affected services only.
+- Push to `main` → GitHub Action detects whether `apps/web/**` / `apps/api/**` / `packages/**` changed → **runs `.github/workflows/ci.yml` as a gate** (typecheck, lint, API unit tests, every migration applied to an empty Postgres + `prisma migrate diff --exit-code` against `schema.prisma`, and `npm run build`; any failure means no deploy) → SSH to VPS → `scripts/deploy-production.sh <sha> <services>` → `docker compose up -d --build` for the affected services only.
 - `scripts/deploy-production.sh` applies `prisma migrate deploy` from the newly built image *before* replacing the running API, so a failed migration aborts the deploy without downtime. `apps/api`'s `entrypoint.sh` also runs it on container start (idempotent; the safety net for manual starts).
 - DB backup: `scripts/backup_db.sh` via cron (OCI CLI to object storage). Restore procedure in `docs/DATABASE_RESTORE.md`. Prod-container commands in `docs/PROD_DOCKER_COMMANDS.md`.
 - `NEXT_PUBLIC_*` vars are build-time — they must be set before `docker compose build` for web.
@@ -753,13 +767,13 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 
 | Symptom | Start here |
 |---|---|
-| 401 loops / session drops | `src/lib/api.ts` interceptor, `auth.service.ts#refresh`, cookie `sameSite`/`secure` in `auth.controller.ts` + `main.ts`, `middleware.ts` |
+| 401 loops / session drops | `src/lib/api.ts` interceptor, `auth.service.ts#refresh`, cookie options in `getCookieBaseOptions` (`COOKIE_SAME_SITE`), `middleware.ts`. A 403 "Request origin is not allowed" means the caller's origin is missing from `CORS_ORIGIN` |
 | "model X does not exist on PrismaService" | missing getter in `prisma.service.ts` |
 | Deleted rows still showing / unique constraint on re-create | `soft-delete.extension.ts` relation filters, missing partial unique index |
 | Prod missing a table | migration not committed / `db push` was used |
 | Web: unstyled HTML or missing `.next/server` chunk | `npm run dev:web:clean` |
 | API: missing module from `dist` | `npm run dev:api:clean` |
-| A class ended by itself / a class stayed LIVE after the coach left | `LiveClassService.sweepStaleClasses` (per-minute, advisory lock `73002002`): coach absent mid-class → `coachAbsentSince` → ends after `LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES`; coach absent after `endsAt` → ends at once; `LIVE_CLASS_MAX_OVERRUN_MINUTES` past `endsAt` → ends regardless (0 disables a rule). A coach/admin who can't get back in can end it from `/classes/:id` or the Connection lost screen (`EndClassButton`) |
+| A class ended by itself / a class stayed LIVE after the coach left | `LiveClassService.sweepStaleClasses` (per-minute, job lock `live-class.stale-sweep`): coach absent mid-class → `coachAbsentSince` → ends after `LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES`; coach absent after `endsAt` → ends at once; `LIVE_CLASS_MAX_OVERRUN_MINUTES` past `endsAt` → ends regardless (0 disables a rule). A coach/admin who can't get back in can end it from `/classes/:id` or the Connection lost screen (`EndClassButton`) |
 | Live class attendance wrong | `attendance` module calc + `AttendancePolicy` row, LiveKit webhook parsing in `main.ts` |
 | Attendance duration absurdly large locally / `Left: —` beside a real duration | LiveKit webhooks can't reach `localhost`, so `participant_left` never arrives and finalize closes the session itself. `finalizeClassAttendance` clamps every session (open or closed) to the class end and derives `joinedAt`/`leftAt` from the logs — if a duration is still hours long, the raw SQL in `closeOpenAttendanceLogs` must bind the cutoff as `${iso}::timestamp` (the columns are `timestamp WITHOUT time zone` holding UTC; a `Date` param is `timestamptz` and PG shifts it by the box's offset unless the DB runs in UTC) |
 | A student's attendance looks truncated (marked "left") while they were still in class | They likely had two tabs open. Session closing is `clientId`-scoped (`AttendanceLog.clientId`, `attendance-session.util.ts#selectSessionToClose`) so one tab's leave can't close a different tab's still-open session — if it did, something bypassed `AttendanceService.recordLeaveEvent`/`recordDisconnectEvent`'s clientId param. See `docs/RELIABILITY_DESIGN.md` §2.8 |
@@ -788,7 +802,7 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | A limited code shows fewer uses than expected | redemptions are recorded at CAPTURE — abandoned checkouts deliberately do not count |
 | A batch's price does not appear at checkout | the price option is a `Plan` with that `batchId`; check it is `isActive`, and that its `allowedMethods` still intersect what the gateways can serve |
 | A monthly plan charged once and never again | it opened a one-off payment instead of a mandate — check the router had a `supportsRecurring` gateway for that currency, and that the provider's subscription webhooks reach `/payments/webhooks/*` |
-| Payment stuck "pending" forever | the reconciliation sweep (`payment-reconciliation.service.ts`, every 5 min, advisory lock `73002060`) asks the gateway directly — check it is running and that the payment has a `providerPaymentId`/`providerOrderId` to ask about. A payment with neither never reached the gateway and expires after `PAYMENTS_ORDER_TTL_MINUTES` |
+| Payment stuck "pending" forever | the reconciliation sweep (`payment-reconciliation.service.ts`, every 5 min, job lock `payments.reconciliation`) asks the gateway directly — check it is running and that the payment has a `providerPaymentId`/`providerOrderId` to ask about. A payment with neither never reached the gateway and expires after `PAYMENTS_ORDER_TTL_MINUTES` |
 | Payment succeeded at the gateway but no access | the entitlement is what grants access, not the payment. Check `entitlements` for `(orderId, planId)`; if the payment is PAID and there is no row, the plan was deleted (logged) or the capture transaction rolled back. `POST /admin/payments/:id/reconcile` re-runs it safely |
 | A coach's manual payment never grants access | expected — it sits `PENDING` until an admin approves it in Admin → Payments → "Manual payments". Check `ManualPaymentRecord.status`; an admin's own record instead auto-approves |
 | "Manual payments don't reconcile with a gateway" / "have no gateway adapter" | expected — someone clicked reconcile/retry, or tried to refund, a `Payment` with `provider: MANUAL`. There is no gateway to ask; approve/reject the `ManualPaymentRecord` instead, and reversal is a separate operational step (§3.6f), not a refund |
@@ -814,7 +828,7 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | Board looks unstyled for a split second / flashes brown | expected only while `ChessAppearanceProvider`'s query is loading — it should fall back to `DEFAULT_CHESS_APPEARANCE` (Nexa Classic), never blank chessground defaults; if it's showing chessground's own brown/cburnett, a component still imports `chessground/assets/*.css` directly instead of relying on the shared stylesheet |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
 | A student's puzzle points look wrong | Points are computed on read by `computePuzzlePoints` from the assignment's frozen `scoringJson` (not the admin default *now*, and not the puzzle's current override) plus `adjustmentsJson`. Wrong moves come from `PuzzleAttempt.wrongMoves` — a client that never calls `saveProgress` for a move can't have it counted. A student who sees only their own row is being filtered by `leaderboardJson.visibility` / `topN` on purpose |
-| Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, advisory lock `73002050`) |
+| Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, job lock `analytics.storage-snapshot`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |
 | `DAU/WAU/MAU` shows "Data unavailable" | no `analytics_events` rows yet — they accrue from deploy (login / class-join / assignment-attempt / recording-watch) |
 | A student never gets asked for feedback | the form must be active and inside its `startsAt`/`endsAt`; an `AFTER_CLASS` form only counts classes that ended *after* the form's start (or creation), that were `COMPLETED`, belonged to a batch in `batchIds` (empty = all), and that the student attended (not `ABSENT`). `RECURRING`/`ONE_TIME` need at least one such class with that coach. Then check the placement — the class-end screen only shows `CLASS_END` forms |

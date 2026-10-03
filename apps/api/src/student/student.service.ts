@@ -3,7 +3,6 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   StudentDashboardFeaturedClass,
   StudentDashboardLiveClass
@@ -12,13 +11,12 @@ import { AttendanceService } from "../attendance/attendance.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
-import type { AccessTokenPayload } from "../auth/types";
-import { UserStatus } from "@prisma/client";
+import { UserRole } from "@prisma/client";
+import { authenticateUser } from "../auth/authenticate";
 
 
 @Injectable()
 export class StudentService {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly attendanceService: AttendanceService,
@@ -310,27 +308,10 @@ export class StudentService {
   }
 
   private async getAuthenticatedUser(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
-
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-      accessToken,
-      { secret: this.env.JWT_ACCESS_SECRET }
-    );
-
-    if (payload.type !== "access") {
-      throw new UnauthorizedException("Invalid token type.");
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub }
-    });
-
-    if (!user || user.status !== UserStatus.ACTIVE || user.role !== "STUDENT") {
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    if (user.role !== UserRole.STUDENT) {
       throw new UnauthorizedException("Invalid session or unauthorized.");
     }
-
     return user;
   }
 }

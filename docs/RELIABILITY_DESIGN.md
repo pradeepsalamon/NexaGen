@@ -71,7 +71,7 @@ missing the reliability layer the spec asks for) · **NET-NEW** (not present).
 | `startClass` | `live-class.service.ts:106` | Coach-only, creates-or-resumes `LiveSession`, flips `CoachClass.status → LIVE`. Rejects if already `LIVE` (`ConflictException`). |
 | `getToken` (join) | `live-class.service.ts:176` | Validates class is `LIVE`, checks coach-presence for students via `listParticipants` (not a DB read — a live LiveKit call), issues token, auto-opens `ClassAttendance` via `recordJoinEvent(..., { source: "TOKEN_REQUEST" })`. |
 | `endClass` / `internalEndClass` | `live-class.service.ts:270,294` | **Idempotent by construction**: `updateMany({ where: { status: LIVE } })` — only the caller that actually flips `LIVE→ENDED` proceeds to delete the LiveKit room and finalize attendance. Safe against the cron sweep racing a manual end. |
-| Stale-class sweep | `live-class.service.ts:331,354` (`@Cron(EVERY_MINUTE)`) | Postgres advisory lock (`pg_try_advisory_lock`) so only one API instance sweeps. Finds `LIVE` sessions past `class.endsAt` with no coach participant in the LiveKit room, auto-ends them. Since 2026-10-02 it scans every `LIVE` session: a coach missing mid-class starts `LiveSession.coachAbsentSince` and the class ends after `LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES` (default 10); any class `LIVE_CLASS_MAX_OVERRUN_MINUTES` (default 60) past `endsAt` ends even with the coach present. A LiveKit outage (list call throws) is never read as an empty room. |
+| Stale-class sweep | `live-class.service.ts:331,354` (`@Cron(EVERY_MINUTE)`) | Job lock `live-class.stale-sweep` (`JobLockService`, a `job_locks` lease) so only one API instance sweeps. Finds `LIVE` sessions past `class.endsAt` with no coach participant in the LiveKit room, auto-ends them. Since 2026-10-02 it scans every `LIVE` session: a coach missing mid-class starts `LiveSession.coachAbsentSince` and the class ends after `LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES` (default 10); any class `LIVE_CLASS_MAX_OVERRUN_MINUTES` (default 60) past `endsAt` ends even with the coach present. A LiveKit outage (list call throws) is never read as an empty room. |
 
 **Design implication:** rather than adding a third status field, Phase 1
 should (a) confirm `IN_PROGRESS` is truly dead and drop it in the same
@@ -144,8 +144,8 @@ sweep needs; wire it in rather than writing a new one (§4.1).
 
 **Phase 1 update (2026-09-05):** `recordDisconnectEvent` is now called from
 `AttendanceService.sweepStaleHeartbeats` (`@Cron(EVERY_30_SECONDS)`,
-`handleStaleHeartbeats`, same advisory-lock pattern as `handleStaleClasses`,
-distinct lock id `73002003`). A new symmetric `recordCoachDisconnectEvent` was
+`handleStaleHeartbeats`, same job-lock pattern as `handleStaleClasses`,
+lock `attendance.heartbeat-sweep`). A new symmetric `recordCoachDisconnectEvent` was
 added alongside it — the spec named only the student-side function, but since
 `CoachAttendance.lastHeartbeatAt` also went in this phase (below), leaving the
 coach side unswept would make half the new column dead weight. Both recorders

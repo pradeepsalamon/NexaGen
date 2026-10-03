@@ -13,8 +13,7 @@ import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
 import {
   getApiEnv,
-  getCookieDomain,
-  getFrontendUrl
+  getCookieBaseOptions
 } from "@nexa-chess/config/api";
 import { API_ROUTES } from "@nexa-chess/types";
 import { AuthService } from "./auth.service";
@@ -158,48 +157,32 @@ export class AuthController {
       refreshTokenMaxAge: number;
     }
   ) {
-    const env = getApiEnv();
-    const isHttps = getFrontendUrl(env).startsWith("https://");
-    const sameSite = isHttps ? "none" : "lax";
-    const secure = isHttps;
-    const domain = getCookieDomain(env);
+    const base = getCookieBaseOptions(getApiEnv());
 
     response.cookie(AUTH_COOKIE_NAMES.accessToken, tokens.accessToken, {
+      ...base,
       httpOnly: true,
       maxAge: tokens.accessTokenMaxAge,
-      path: AUTH_COOKIE_PATHS.accessToken,
-      sameSite,
-      secure,
-      ...(domain ? { domain } : {})
+      path: AUTH_COOKIE_PATHS.accessToken
     });
     response.cookie(AUTH_COOKIE_NAMES.refreshToken, tokens.refreshToken, {
+      ...base,
       httpOnly: true,
       maxAge: tokens.refreshTokenMaxAge,
-      path: AUTH_COOKIE_PATHS.refreshToken,
-      sameSite,
-      secure,
-      ...(domain ? { domain } : {})
+      path: AUTH_COOKIE_PATHS.refreshToken
     });
   }
 
   private clearAuthCookies(response: Response) {
-    const env = getApiEnv();
-    const isHttps = getFrontendUrl(env).startsWith("https://");
-    const sameSite = isHttps ? "none" : "lax";
-    const secure = isHttps;
-    const domain = getCookieDomain(env);
+    const base = getCookieBaseOptions(getApiEnv());
 
     response.clearCookie(AUTH_COOKIE_NAMES.accessToken, {
-      path: AUTH_COOKIE_PATHS.accessToken,
-      sameSite,
-      secure,
-      ...(domain ? { domain } : {})
+      ...base,
+      path: AUTH_COOKIE_PATHS.accessToken
     });
     response.clearCookie(AUTH_COOKIE_NAMES.refreshToken, {
-      path: AUTH_COOKIE_PATHS.refreshToken,
-      sameSite,
-      secure,
-      ...(domain ? { domain } : {})
+      ...base,
+      path: AUTH_COOKIE_PATHS.refreshToken
     });
   }
 

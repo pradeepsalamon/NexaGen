@@ -461,7 +461,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   >();
   /** Streaming callers get at most one intermediate update per this many ms. */
   private static readonly PROGRESS_INTERVAL_MS = 80;
-  /** Most threads a lone request may use; busy pools drop back to 1 each. */
+  /** Most threads a lone request may use; busy pools drop back to `tuning.threads` each. */
   private readonly maxThreads: number;
   private static readonly CACHE_LIMIT = 500;
 

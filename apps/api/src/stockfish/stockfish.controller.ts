@@ -9,27 +9,26 @@ import {
   Post,
   Req,
   Res,
-  ServiceUnavailableException,
-  UnauthorizedException,
+  ServiceUnavailableException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { Request, Response } from 'express';
-import { getApiEnv } from '@nexa-chess/config/api';
 import type { StockfishStreamEvent } from '@nexa-chess/types';
-import type { AccessTokenPayload } from '../auth/types';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { AnalyzePositionDto } from './dto/analyze-position.dto';
 import { normalizeEngineFen, StockfishService } from './stockfish.service';
+import { authenticateUser } from '../auth/authenticate';
+import { PrismaService } from '../prisma/prisma.service';
 
 const ANALYSIS_ROLES = new Set(['COACH', 'ADMIN', 'SUPER_ADMIN']);
 
 @Controller('stockfish')
 export class StockfishController {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly stockfishService: StockfishService,
     private readonly jwtService: JwtService,
+    private readonly prisma: PrismaService,
   ) {}
 
   private getAccessToken(request: Request) {
@@ -37,25 +36,9 @@ export class StockfishController {
   }
 
   private async assertCanAnalyze(request: Request) {
-    const token = this.getAccessToken(request);
-    if (!token) {
-      throw new UnauthorizedException('Access token is missing.');
-    }
-
-    let payload: AccessTokenPayload;
-    try {
-      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: this.env.JWT_ACCESS_SECRET,
-      });
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token.');
-    }
-
-    if (payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid token type.');
-    }
-
-    if (!ANALYSIS_ROLES.has(payload.role)) {
+    // Loads the user, so a suspended account or a role change applies at once.
+    const user = await authenticateUser(this.jwtService, this.prisma, this.getAccessToken(request));
+    if (!ANALYSIS_ROLES.has(user.role)) {
       throw new ForbiddenException(
         'You do not have permission to use engine analysis.',
       );

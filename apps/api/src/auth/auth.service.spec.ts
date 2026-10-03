@@ -11,7 +11,7 @@ import {
   UserStatus
 } from "@prisma/client";
 import { AuthService } from "./auth.service";
-import { hashSecret } from "./auth.utils";
+import { hashRefreshToken, hashSecret } from "./auth.utils";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -267,6 +267,16 @@ describe("AuthService", () => {
 
   describe("refresh", () => {
     const REFRESH_TOKEN = "refresh-token";
+    const liveSession = (overrides: Record<string, unknown> = {}) => ({
+      expiresAt: new Date(Date.now() + 86_400_000),
+      familyId: "fam-1",
+      id: "sess-1",
+      refreshTokenHash: hashRefreshToken(REFRESH_TOKEN),
+      revokedAt: null,
+      rotatedAt: null,
+      user: { ...activeUser },
+      ...overrides
+    });
 
     beforeEach(() => {
       jwtService.verifyAsync.mockResolvedValue({
@@ -277,52 +287,88 @@ describe("AuthService", () => {
       jwtService.signAsync.mockResolvedValue("mocked-token");
       prismaService.authSession.create.mockResolvedValue({ id: "sess-2" });
       prismaService.authSession.update.mockResolvedValue({ id: "sess-2" });
+      prismaService.authSession.updateMany.mockResolvedValue({ count: 1 });
     });
 
-    it("re-issues a session when the token was rotated within the grace window", async () => {
-      const graceSession = {
-        expiresAt: new Date(Date.now() + 86_400_000),
-        id: "sess-1",
-        refreshTokenHash: await hashSecret(REFRESH_TOKEN),
-        user: { ...activeUser }
-      };
-      // active lookup misses (session already revoked); grace lookup hits.
-      prismaService.authSession.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(graceSession);
+    it("rotates a live session into a successor in the same family", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(liveSession());
 
       const result = await service.refresh(REFRESH_TOKEN, {});
 
       expect(result.refreshToken).toBe("mocked-token");
-      expect(prismaService.authSession.create).toHaveBeenCalledTimes(1);
-      // Only createSession's hash write — the already-revoked grace session is
-      // not revoked a second time.
-      expect(prismaService.authSession.update).toHaveBeenCalledTimes(1);
-    });
-
-    it("throws when there is no live session and nothing rotated recently", async () => {
-      prismaService.authSession.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-
-      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(
-        UnauthorizedException
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { rotatedAt: expect.any(Date) },
+        where: { id: "sess-1", revokedAt: null, rotatedAt: null }
+      });
+      expect(prismaService.authSession.create.mock.calls[0][0].data.familyId).toBe("fam-1");
+      expect(prismaService.authSession.update.mock.calls[0][0].data.refreshTokenHash).toBe(
+        hashRefreshToken("mocked-token")
       );
     });
 
-    it("rotates normally when the session is still live", async () => {
-      prismaService.authSession.findFirst.mockResolvedValueOnce({
-        expiresAt: new Date(Date.now() + 86_400_000),
-        id: "sess-1",
-        refreshTokenHash: await hashSecret(REFRESH_TOKEN),
-        user: { ...activeUser }
-      });
+    it("re-issues within the grace window when the token was just rotated", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(
+        liveSession({ rotatedAt: new Date(Date.now() - 5_000) })
+      );
 
       const result = await service.refresh(REFRESH_TOKEN, {});
 
       expect(result.refreshToken).toBe("mocked-token");
-      // revoke + createSession hash write.
-      expect(prismaService.authSession.update).toHaveBeenCalledTimes(2);
+      expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
+      expect(prismaService.authSession.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("treats a concurrent refresh that lost the rotation claim as within grace", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(liveSession());
+      prismaService.authSession.updateMany.mockResolvedValueOnce({ count: 0 });
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).resolves.toBeDefined();
+      expect(prismaService.authSession.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("revokes the whole family when a rotated token is replayed after the grace window", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(
+        liveSession({ rotatedAt: new Date(Date.now() - 60_000) })
+      );
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: { OR: [{ id: "fam-1" }, { familyId: "fam-1" }], revokedAt: null }
+      });
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+    });
+
+    it("never revives a revoked session, even moments after logout", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(
+        liveSession({ revokedAt: new Date(Date.now() - 1_000) })
+      );
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a token that does not match the stored hash", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(
+        liveSession({ refreshTokenHash: hashRefreshToken("another-token") })
+      );
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
+    });
+
+    it("still accepts a session hashed with bcrypt before the sha256 switch", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(
+        liveSession({ familyId: null, refreshTokenHash: await hashSecret(REFRESH_TOKEN) })
+      );
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).resolves.toBeDefined();
+      expect(prismaService.authSession.create.mock.calls[0][0].data.familyId).toBe("sess-1");
+    });
+
+    it("throws when there is no session", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(null);
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
     });
   });
 
@@ -428,16 +474,21 @@ describe("AuthService", () => {
   });
 
   describe("logout", () => {
-    it("revokes the refresh session", async () => {
+    it("revokes the session's whole family", async () => {
       jwtService.verifyAsync.mockResolvedValueOnce({
         sessionId: "sess-1",
         sub: "usr-123",
         type: "refresh"
       });
 
+      prismaService.authSession.findFirst.mockResolvedValueOnce({ familyId: "fam-1", id: "sess-1" });
+
       const result = await service.logout("refresh-token");
 
-      expect(prismaService.authSession.updateMany).toHaveBeenCalled();
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: { OR: [{ id: "fam-1" }, { familyId: "fam-1" }], revokedAt: null }
+      });
       expect(result.ok).toBe(true);
     });
   });

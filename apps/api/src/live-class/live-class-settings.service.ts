@@ -3,11 +3,10 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  NotFoundException,
-  UnauthorizedException,
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { UserRole, UserStatus } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import {
   DEFAULT_LIVE_CLASS_SETTINGS,
   liveClassSettingsSchema,
@@ -25,9 +24,8 @@ import {
   type UpdateLiveClassPolicyRequest,
   type UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
-import { getApiEnv } from "@nexa-chess/config/api";
 import { PrismaService } from "../prisma/prisma.service";
-import type { AccessTokenPayload } from "../auth/types";
+import { authenticateUser } from "../auth/authenticate";
 
 type AuthUser = { id: string; role: UserRole };
 
@@ -41,7 +39,6 @@ export interface ResolvedClassSettings {
 
 @Injectable()
 export class LiveClassSettingsService {
-  private readonly env = getApiEnv();
   private readonly logger = new Logger(LiveClassSettingsService.name);
 
   constructor(
@@ -51,25 +48,8 @@ export class LiveClassSettingsService {
 
   // ── Auth (token-string pattern; no guards) ──
 
-  private async getAuthenticatedUser(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
-    try {
-      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-        secret: this.env.JWT_ACCESS_SECRET,
-      });
-      if (payload.type !== "access") {
-        throw new UnauthorizedException("Invalid token type.");
-      }
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!user || user.status !== UserStatus.ACTIVE) {
-        throw new UnauthorizedException("Invalid session.");
-      }
-      return user;
-    } catch {
-      throw new UnauthorizedException("Invalid or expired token.");
-    }
+  private getAuthenticatedUser(accessToken: string | undefined) {
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 
   private static isAdmin(role: UserRole) {

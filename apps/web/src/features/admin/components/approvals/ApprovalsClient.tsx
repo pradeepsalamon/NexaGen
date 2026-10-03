@@ -16,7 +16,7 @@ type Tab = "students" | "coaches";
 function CountBadge({ count }: { count?: number }) {
   if (!count) return null;
   return (
-    <span className="min-w-5 rounded-full bg-primary px-1.5 text-center text-xs font-bold leading-5 text-white">
+    <span className="min-w-5 rounded-full bg-primary/15 px-1.5 text-center text-xs font-bold leading-5 text-primary-ink group-data-[state=active]:bg-white/25 group-data-[state=active]:text-white">
       {count}
     </span>
   );

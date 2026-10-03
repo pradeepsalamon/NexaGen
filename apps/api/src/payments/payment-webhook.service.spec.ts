@@ -1,6 +1,8 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { Prisma, WebhookEventStatus } from "@prisma/client";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentWebhookService } from "./payment-webhook.service";
 import { PaymentService } from "./payment.service";
@@ -69,6 +71,7 @@ describe("PaymentWebhookService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PaymentWebhookService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {

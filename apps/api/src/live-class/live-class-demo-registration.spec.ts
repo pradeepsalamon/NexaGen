@@ -12,6 +12,8 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveSessionStatus } from "./types/live-class.types";
 
@@ -69,6 +71,7 @@ describe("LiveClassService.joinDemoClass", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LiveClassService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {

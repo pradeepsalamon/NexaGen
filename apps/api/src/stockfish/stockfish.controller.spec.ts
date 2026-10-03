@@ -9,6 +9,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter } from 'events';
 import type { Request, Response } from 'express';
 import type { StockfishAnalysisResult } from '@nexa-chess/types';
+import { PrismaService } from '../prisma/prisma.service';
 import { StockfishController } from './stockfish.controller';
 import { StockfishService } from './stockfish.service';
 
@@ -28,6 +29,7 @@ describe('StockfishController', () => {
   let controller: StockfishController;
   let stockfish: { analyzePosition: jest.Mock; isAvailable: jest.Mock };
   let jwt: { verifyAsync: jest.Mock };
+  let prisma: { user: { findUnique: jest.Mock } };
 
   const req = (token?: string) =>
     ({ cookies: token ? { nexa_access_token: token } : {} }) as unknown as Request;
@@ -66,7 +68,17 @@ describe('StockfishController', () => {
       isAvailable: jest.fn().mockReturnValue(true),
     };
     jwt = {
-      verifyAsync: jest.fn().mockResolvedValue({ type: 'access', role: 'COACH' }),
+      verifyAsync: jest.fn().mockResolvedValue({ type: 'access', sub: 'user_1', role: 'COACH' }),
+    };
+
+    // The controller loads the user; the stored role is the one in the token.
+    prisma = {
+      user: {
+        findUnique: jest.fn(async () => {
+          const payload = await jwt.verifyAsync.mock.results.at(-1)?.value;
+          return { id: 'user_1', role: payload?.role, status: 'ACTIVE' };
+        }),
+      },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -74,6 +86,7 @@ describe('StockfishController', () => {
       providers: [
         { provide: StockfishService, useValue: stockfish },
         { provide: JwtService, useValue: jwt },
+        { provide: PrismaService, useValue: prisma },
       ],
     }).compile();
 
@@ -94,14 +107,14 @@ describe('StockfishController', () => {
   });
 
   it('rejects a non-access token type', async () => {
-    jwt.verifyAsync.mockResolvedValueOnce({ type: 'refresh', role: 'COACH' });
+    jwt.verifyAsync.mockResolvedValueOnce({ type: 'refresh', sub: 'user_1', role: 'COACH' });
     await expect(
       controller.analyze(req('t'), res(), { fen: START_FEN }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('forbids a student', async () => {
-    jwt.verifyAsync.mockResolvedValueOnce({ type: 'access', role: 'STUDENT' });
+    jwt.verifyAsync.mockResolvedValueOnce({ type: 'access', sub: 'user_1', role: 'STUDENT' });
     await expect(
       controller.analyze(req('t'), res(), { fen: START_FEN }),
     ).rejects.toBeInstanceOf(ForbiddenException);
@@ -125,7 +138,7 @@ describe('StockfishController', () => {
   });
 
   it('allows an admin', async () => {
-    jwt.verifyAsync.mockResolvedValueOnce({ type: 'access', role: 'ADMIN' });
+    jwt.verifyAsync.mockResolvedValueOnce({ type: 'access', sub: 'user_1', role: 'ADMIN' });
     await expect(
       controller.analyze(req('t'), res(), { fen: START_FEN }),
     ).resolves.toEqual(RESULT);

@@ -3,14 +3,13 @@ import {
   Injectable,
   Logger,
   NotFoundException,
-  ForbiddenException,
-  UnauthorizedException,
+  ForbiddenException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { zonedDayBounds } from "../common/time";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { getApiEnv } from "@nexa-chess/config/api";
 import {
   AttendanceStatus,
   AttendanceEventType,
@@ -20,9 +19,9 @@ import {
   ClassStatus,
   LiveSessionStatus,
 } from "@prisma/client";
-import type { AccessTokenPayload } from "../auth/types";
 import type { ParticipantPresence } from "@nexa-chess/types";
 import { selectSessionToClose } from "./attendance-session.util";
+import { authenticateUser } from "../auth/authenticate";
 
 const CLASS_DETAIL_INCLUDE = {
   coach: true,
@@ -44,10 +43,6 @@ type ClassDetailPayload = Prisma.CoachClassGetPayload<{
 
 @Injectable()
 export class AttendanceService {
-  // Postgres advisory-lock key for the heartbeat-timeout sweep (P0 reliability
-  // Phase 1). Distinct from LiveClassService.STALE_CLASS_LOCK_ID (73002002).
-  private static readonly HEARTBEAT_SWEEP_LOCK_ID = 73002003;
-
   // Presence classification for getLiveClassMonitoring (P0 reliability Phase
   // 2). A heartbeat younger than this is ONLINE; older but still inside the
   // active policy's gracePeriodMinutes is RECONNECTING; beyond that is
@@ -57,11 +52,11 @@ export class AttendanceService {
   // DESIGN.md §4.1) rather than reading it from policy.
   private static readonly HEARTBEAT_FRESH_MS = 30_000;
 
-  private readonly env = getApiEnv();
   private readonly logger = new Logger(AttendanceService.name);
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly jobLocks: JobLockService,
     private readonly jwtService: JwtService
   ) {}
 
@@ -349,20 +344,9 @@ export class AttendanceService {
   @Cron(CronExpression.EVERY_30_SECONDS)
   async handleStaleHeartbeats() {
     try {
-      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_lock(${AttendanceService.HEARTBEAT_SWEEP_LOCK_ID}) AS locked
-      `;
-      if (!lock?.locked) {
-        return;
-      }
-
-      try {
-        await this.sweepStaleHeartbeats();
-      } finally {
-        await this.prisma.$queryRaw`
-          SELECT pg_advisory_unlock(${AttendanceService.HEARTBEAT_SWEEP_LOCK_ID})
-        `;
-      }
+      await this.jobLocks.runExclusive(JOB_LOCKS.attendanceHeartbeatSweep, () =>
+        this.sweepStaleHeartbeats()
+      );
     } catch (error) {
       this.logger.error("Error in handleStaleHeartbeats cron job", error);
     }
@@ -2635,28 +2619,7 @@ export class AttendanceService {
     return AttendanceStatus.ABSENT;
   }
 
-  private async getAuthenticatedUser(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
-
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-      accessToken,
-      { secret: this.env.JWT_ACCESS_SECRET }
-    );
-
-    if (payload.type !== "access") {
-      throw new UnauthorizedException("Invalid token type.");
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session.");
-    }
-
-    return user;
+  private getAuthenticatedUser(accessToken: string | undefined) {
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 }

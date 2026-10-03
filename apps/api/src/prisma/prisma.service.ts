@@ -433,6 +433,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.puzzleRatingChange;
   }
 
+  get jobLock() {
+    return this.client.jobLock;
+  }
+
   get feedbackResponse() {
     return this.client.feedbackResponse;
   }

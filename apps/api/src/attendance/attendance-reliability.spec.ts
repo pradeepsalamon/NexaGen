@@ -3,6 +3,8 @@ import { ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus, LiveSessionStatus, AttendanceEventType } from "@prisma/client";
 import { AttendanceService } from "./attendance.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 // P0 reliability Phase 5 (RELIABILITY_DESIGN.md §4.5): admin-only, cross-class
@@ -58,6 +60,7 @@ describe("AttendanceService.getLiveReliabilityOverview", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prismaService },
         { provide: JwtService, useValue: jwtService },
       ],
@@ -242,6 +245,7 @@ describe("AttendanceService.getReliabilityMetrics", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prismaService },
         { provide: JwtService, useValue: jwtService },
       ],
