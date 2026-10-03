@@ -3,7 +3,7 @@ import { getWebEnv } from "@nexa-chess/config/web";
 import { API_ROUTES } from "@nexa-chess/types";
 import { useAuthStore } from "../stores/authStore";
 
-const API_BASE_URL = getWebEnv({
+export const API_BASE_URL = getWebEnv({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
 }).NEXT_PUBLIC_API_URL;
 

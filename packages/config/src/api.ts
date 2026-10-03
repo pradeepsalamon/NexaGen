@@ -43,7 +43,9 @@ const apiEnvSchema = z.object({
   STOCKFISH_POOL_SIZE: z.coerce.number().int().positive().default(4),
   STOCKFISH_MIN_ENGINES: z.coerce.number().int().nonnegative().default(1),
   STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800),
-  STOCKFISH_MOVE_MOVETIME: z.coerce.number().int().positive().default(2000),
+  STOCKFISH_MOVE_MOVETIME: z.coerce.number().int().positive().default(1000),
+  // Engine moves stop early once this depth completes (0 = always use the full time).
+  STOCKFISH_MOVE_MAX_DEPTH: z.coerce.number().int().nonnegative().default(22),
   STOCKFISH_HASH_MB: z.coerce.number().int().positive().default(64),
   STOCKFISH_MAX_DEPTH: z.coerce.number().int().nonnegative().default(20),
   STOCKFISH_IDLE_TIMEOUT_S: z.coerce.number().int().nonnegative().default(60),
