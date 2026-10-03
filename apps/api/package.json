@@ -22,6 +22,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
+    "test:integration": "jest --config jest.integration.config.ts --runInBand",
     "test:payments:integration": "node scripts/payments-integration-check.cjs",
     "test:payments:webhooks": "node scripts/payments-webhook-check.cjs",
     "test:payments:pricing": "node scripts/payments-pricing-check.cjs",

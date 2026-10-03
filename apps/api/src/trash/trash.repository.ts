@@ -17,7 +17,7 @@ type PrismaDelegateLike = {
   update: (args: unknown) => Promise<unknown>;
   updateMany: (args: unknown) => Promise<{ count: number }>;
 };
-type PrismaClientLike = Record<string, unknown>;
+type PrismaClientLike = object;
 type TrashRecord = {
   deleteGroupId?: string | null;
   deletedAt: Date | string | null;

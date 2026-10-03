@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
+import { AttendanceReportService } from "./attendance-report.service";
 import { AttendanceService } from "./attendance.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
@@ -17,8 +18,9 @@ type MockPrismaService = {
 
 const ACCESS_TOKEN = "access-token";
 
-describe("AttendanceService authorization", () => {
-  let service: AttendanceService;
+describe("AttendanceReportService authorization", () => {
+  let service: AttendanceReportService;
+  let attendance: AttendanceService;
   let jwtService: { verifyAsync: jest.Mock };
   let prismaService: MockPrismaService;
   let userFindUnique: jest.Mock;
@@ -42,6 +44,7 @@ describe("AttendanceService authorization", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        AttendanceReportService,
         AttendanceService,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
@@ -52,7 +55,8 @@ describe("AttendanceService authorization", () => {
       ]
     }).compile();
 
-    service = module.get<AttendanceService>(AttendanceService);
+    service = module.get(AttendanceReportService);
+    attendance = module.get(AttendanceService);
   });
 
   describe("getStudentAttendance", () => {
@@ -222,7 +226,7 @@ describe("AttendanceService authorization", () => {
         .mockResolvedValueOnce(unfinalized)
         .mockResolvedValue(baseClass());
       const finalizeSpy = jest
-        .spyOn(service, "finalizeClassAttendance")
+        .spyOn(attendance, "finalizeClassAttendance")
         .mockResolvedValue(undefined);
 
       const res = await service.getClassSummary(ACCESS_TOKEN, "class-1");

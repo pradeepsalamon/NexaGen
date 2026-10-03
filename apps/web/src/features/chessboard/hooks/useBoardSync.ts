@@ -12,11 +12,14 @@ import {
   useConnectionState,
 } from "@livekit/components-react";
 import { ConnectionState, type DataPublishOptions } from "livekit-client";
+import { useParams } from "next/navigation";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardControlSide, BoardSyncMessage } from "../types/sync";
 import { moverColorFromFen, senderMayMutateBoard } from "../lib/boardSyncRules";
 import { applyMoveToClock } from "../lib/clock";
+import { toLiveBoardState } from "../lib/boardSnapshot";
+import { useBoardPersistence, type RestoreGate } from "./useBoardPersistence";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useOptionalLiveClassStore } from "@/features/live-class/providers/LiveClassProvider";
 import { toast } from "sonner";
@@ -119,25 +122,22 @@ export function useBoardSyncEngine(): BoardSyncActions {
     [localParticipant, connectionState],
   );
 
+  // Full mainline + the viewed ply so receivers step history with us instead
+  // of snapping to the end (AUDIT H21).
   const snapshot = useCallback(() => {
     const s = store?.getState();
-    if (!s) return null;
-    return {
-      fen: s.fen,
-      // Full mainline + the viewed ply so receivers step history with us
-      // instead of snapping to the end (AUDIT H21).
-      pgn: s.fullPgn || s.pgn,
-      historyIndex: s.historyIndex,
-      orientation: s.orientation,
-      arrows: s.arrows,
-      squares: s.squareStyles,
-      activeTab: s.activeTab,
-      clock: s.clock,
-    };
+    return s ? toLiveBoardState(s) : null;
   }, [store]);
+
+  // Closed while a refreshed coach is still restoring the saved board.
+  const restoreGate = useRef<RestoreGate>({ ready: !isCoach, pendingForceSync: false });
 
   const broadcastState = useCallback(
     (type: BoardSyncMessage["type"] = "MOVE") => {
+      if (type === "FORCE_SYNC" && !restoreGate.current.ready) {
+        restoreGate.current.pendingForceSync = true;
+        return;
+      }
       const snap = snapshot();
       if (!snap) return;
       broadcastMsg({
@@ -308,6 +308,10 @@ export function useBoardSyncEngine(): BoardSyncActions {
           // state. Read straight from the store so this callback doesn't close
           // over ~10 reactive fields (AUDIT M28).
           if (isCoach && !suppressBroadcast) {
+            if (!restoreGate.current.ready) {
+              restoreGate.current.pendingForceSync = true;
+              break;
+            }
             const snap = snapshot();
             if (!snap) break;
             broadcastMsg({
@@ -431,6 +435,30 @@ export function useBoardSyncEngine(): BoardSyncActions {
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
+
+  // A FORCE_SYNC held back by the restore gate goes out once the board is
+  // restored and the room is connected.
+  const flushForceSync = useCallback(() => {
+    const gate = restoreGate.current;
+    if (!gate.ready || !gate.pendingForceSync || connectionState !== ConnectionState.Connected) return;
+    gate.pendingForceSync = false;
+    broadcastState("FORCE_SYNC");
+  }, [connectionState, broadcastState]);
+
+  useEffect(() => {
+    flushForceSync();
+  }, [flushForceSync]);
+
+  const params = useParams<{ roomId?: string }>();
+  useBoardPersistence({
+    store,
+    classId: params?.roomId,
+    writer: isCoach && !suppressBroadcast,
+    // Signed-in students only: a demo guest has no session to read with.
+    reader: !isCoach && !!user,
+    gate: restoreGate,
+    flushForceSync,
+  });
 
   // On mount, if student, request current state from coach.
   useEffect(() => {

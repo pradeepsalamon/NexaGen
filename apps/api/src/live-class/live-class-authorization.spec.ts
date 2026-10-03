@@ -4,6 +4,11 @@ import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { liveClassSettingsSchema } from "@nexa-chess/types";
 import { LiveClassService } from "./live-class.service";
+import { LiveClassChatService } from "./live-class-chat.service";
+import { LiveClassModerationService } from "./live-class-moderation.service";
+import { LiveClassScreenShareService } from "./live-class-screen-share.service";
+import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
+import { LIVE_CLASS_SERVICES } from "./live-class.testing";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
@@ -18,8 +23,8 @@ import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
 
-describe("LiveClassService chat authorization", () => {
-  let service: LiveClassService;
+describe("LiveClassChatService chat authorization", () => {
+  let service: LiveClassChatService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let liveSessionFindUnique: jest.Mock;
@@ -80,7 +85,7 @@ describe("LiveClassService chat authorization", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
@@ -112,7 +117,7 @@ describe("LiveClassService chat authorization", () => {
       ]
     }).compile();
 
-    service = module.get<LiveClassService>(LiveClassService);
+    service = module.get(LiveClassChatService);
   });
 
   describe("getChatHistory", () => {
@@ -267,8 +272,8 @@ describe("LiveClassService chat authorization", () => {
   });
 });
 
-describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
-  let service: LiveClassService;
+describe("LiveClassModerationService.moderateParticipant (coach force-mute)", () => {
+  let service: LiveClassModerationService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let liveSessionFindUnique: jest.Mock;
@@ -314,7 +319,7 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
@@ -339,7 +344,7 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
       ]
     }).compile();
 
-    service = module.get<LiveClassService>(LiveClassService);
+    service = module.get(LiveClassModerationService);
   });
 
   it("mutes only the requested source and announces it", async () => {
@@ -537,7 +542,7 @@ describe("LiveClassService.getToken coach-presence gate", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
@@ -745,7 +750,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
@@ -828,6 +833,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
 
 describe("LiveClassService waiting room", () => {
   let service: LiveClassService;
+  let waitingRoom: LiveClassWaitingRoomService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let coachClassFindUnique: jest.Mock;
@@ -892,7 +898,7 @@ describe("LiveClassService waiting room", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
@@ -926,6 +932,8 @@ describe("LiveClassService waiting room", () => {
     }).compile();
 
     service = module.get<LiveClassService>(LiveClassService);
+
+    waitingRoom = module.get(LiveClassWaitingRoomService);
   });
 
   describe("getToken", () => {
@@ -988,7 +996,7 @@ describe("LiveClassService waiting room", () => {
     it("admits a pending student and broadcasts the resolution", async () => {
       authenticateAs("coach-1", UserRole.COACH);
 
-      const result = await service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+      const result = await waitingRoom.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "ADMIT"
       });
@@ -1008,7 +1016,7 @@ describe("LiveClassService waiting room", () => {
       waitingUpdateMany.mockResolvedValue({ count: 0 });
 
       await expect(
-        service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+        waitingRoom.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
           studentId: "student-1",
           action: "ADMIT"
         })
@@ -1021,7 +1029,7 @@ describe("LiveClassService waiting room", () => {
       authenticateAs("coach-2", UserRole.COACH);
 
       await expect(
-        service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+        waitingRoom.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
           studentId: "student-1",
           action: "ADMIT"
         })
@@ -1034,6 +1042,7 @@ describe("LiveClassService waiting room", () => {
 
 describe("LiveClassService screen-share requests", () => {
   let service: LiveClassService;
+  let screenShare: LiveClassScreenShareService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let coachClassFindUnique: jest.Mock;
@@ -1109,7 +1118,7 @@ describe("LiveClassService screen-share requests", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
@@ -1153,6 +1162,8 @@ describe("LiveClassService screen-share requests", () => {
     }).compile();
 
     service = module.get<LiveClassService>(LiveClassService);
+
+    screenShare = module.get(LiveClassScreenShareService);
   });
 
   describe("requestScreenShare", () => {
@@ -1168,14 +1179,14 @@ describe("LiveClassService screen-share requests", () => {
         effectiveSettings: allowedSettings
       });
 
-      await expect(service.requestScreenShare(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(BadRequestException);
+      await expect(screenShare.requestScreenShare(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(BadRequestException);
       expect(shareUpsert).not.toHaveBeenCalled();
     });
 
     it("creates a PENDING row and announces on first request", async () => {
       authenticateAs("student-1", UserRole.STUDENT);
 
-      const entry = await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+      const entry = await screenShare.requestScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(shareUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ create: { liveSessionId: "session-1", studentId: "student-1" } })
@@ -1188,7 +1199,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("student-1", UserRole.STUDENT);
       shareFindUnique.mockResolvedValue(shareRow({ status: "DENIED" }));
 
-      await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+      await screenShare.requestScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(shareUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1201,7 +1212,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("student-1", UserRole.STUDENT);
       shareFindUnique.mockResolvedValue(shareRow({ status: "PENDING" }));
 
-      const entry = await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+      const entry = await screenShare.requestScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(entry.status).toBe("PENDING");
       expect(shareUpsert).not.toHaveBeenCalled();
@@ -1214,7 +1225,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("coach-1", UserRole.COACH);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "APPROVED" }));
 
-      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+      const result = await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "APPROVE"
       });
@@ -1242,7 +1253,7 @@ describe("LiveClassService screen-share requests", () => {
       shareUpdateMany.mockResolvedValue({ count: 0 });
 
       await expect(
-        service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", { studentId: "student-1", action: "APPROVE" })
+        screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", { studentId: "student-1", action: "APPROVE" })
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(shareFindUniqueOrThrow).not.toHaveBeenCalled();
@@ -1253,7 +1264,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("coach-1", UserRole.COACH);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "DENIED" }));
 
-      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+      const result = await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "DENY"
       });
@@ -1272,7 +1283,7 @@ describe("LiveClassService screen-share requests", () => {
       ]);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
 
-      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+      const result = await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "REVOKE"
       });
@@ -1297,7 +1308,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("student-1", UserRole.STUDENT);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
 
-      const result = await service.endScreenShare(ACCESS_TOKEN, "class-1");
+      const result = await screenShare.endScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(shareUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1313,7 +1324,7 @@ describe("LiveClassService screen-share requests", () => {
       shareUpdateMany.mockResolvedValue({ count: 0 });
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "DENIED" }));
 
-      const result = await service.endScreenShare(ACCESS_TOKEN, "class-1");
+      const result = await screenShare.endScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(result.status).toBe("DENIED");
       expect(updateParticipantPermissions).not.toHaveBeenCalled();
@@ -1368,8 +1379,8 @@ describe("LiveClassService screen-share requests", () => {
   });
 });
 
-describe("LiveClassService.kickParticipant", () => {
-  let service: LiveClassService;
+describe("LiveClassModerationService.kickParticipant", () => {
+  let service: LiveClassModerationService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let userFindFirst: jest.Mock;
@@ -1409,7 +1420,7 @@ describe("LiveClassService.kickParticipant", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prisma },
         { provide: JwtService, useValue: jwtService },
@@ -1438,7 +1449,7 @@ describe("LiveClassService.kickParticipant", () => {
       ]
     }).compile();
 
-    service = module.get<LiveClassService>(LiveClassService);
+    service = module.get(LiveClassModerationService);
   });
 
   it("disconnects every tab of the student and blocks their rejoin", async () => {

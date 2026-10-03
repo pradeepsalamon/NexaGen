@@ -3,7 +3,8 @@ import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ClassStatus, DemoClassAccessMode, DemoGuestApproval, DemoRegistrationContactMethod } from "@prisma/client";
 import type { GuestJoinDemoRequest } from "@nexa-chess/types";
-import { LiveClassService } from "./live-class.service";
+import { LiveClassDemoService } from "./live-class-demo.service";
+import { LIVE_CLASS_SERVICES } from "./live-class.testing";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
@@ -17,8 +18,8 @@ import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveSessionStatus } from "./types/live-class.types";
 
-describe("LiveClassService.joinDemoClass", () => {
-  let service: LiveClassService;
+describe("LiveClassDemoService.joinDemoClass", () => {
+  let service: LiveClassDemoService;
   let coachClassFindUnique: jest.Mock;
   let registrationFindUnique: jest.Mock;
   let registrationCreate: jest.Mock;
@@ -70,7 +71,7 @@ describe("LiveClassService.joinDemoClass", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
@@ -97,7 +98,7 @@ describe("LiveClassService.joinDemoClass", () => {
       ]
     }).compile();
 
-    service = module.get<LiveClassService>(LiveClassService);
+    service = module.get(LiveClassDemoService);
   });
 
   it("rejects a class that is not a demo class", async () => {

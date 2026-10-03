@@ -147,6 +147,7 @@ export const API_ROUTES = {
     // Waiting room (student): (re)request admission after a denial.
     requestWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/request`,
     // Screen-share request (coach-owner/admin): pending + currently-approved requests.
+    boardState: (id: string = ":id") => `/live-class/${id}/board-state`,
     screenShareRequests: (id: string = ":id") => `/live-class/${id}/screen-share-requests`,
     // Screen-share request (student): ask to share while the class-wide policy is DISABLED.
     requestScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/request`,

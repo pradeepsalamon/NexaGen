@@ -4,7 +4,8 @@ import { JwtService } from "@nestjs/jwt";
 import { AttendanceEventType } from "@prisma/client";
 import { AttendanceWebhookController } from "./attendance-webhook.controller";
 import { AttendanceService } from "./attendance.service";
-import { LiveClassService } from "../live-class/live-class.service";
+import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
+import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { JobLockService } from "../prisma/job-lock.service";
 import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
@@ -39,7 +40,7 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
     classAttendance: { findUnique: jest.Mock };
     attendanceLog: { findMany: jest.Mock };
   };
-  let liveClassService: { endScreenShareOnDisconnect: jest.Mock };
+  let screenShare: { endScreenShareOnDisconnect: jest.Mock };
   let receiver: { receive: jest.Mock };
 
   const CLASS_ID = "class-1";
@@ -55,7 +56,7 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
       recordReconnectEvent: jest.fn().mockResolvedValue(undefined),
       recordLeaveEvent: jest.fn().mockResolvedValue(undefined),
     };
-    liveClassService = {
+    screenShare = {
       endScreenShareOnDisconnect: jest.fn().mockResolvedValue(undefined),
     };
     prisma = {
@@ -69,7 +70,8 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
 
     controller = new AttendanceWebhookController(
       attendanceService as unknown as AttendanceService,
-      liveClassService as unknown as LiveClassService,
+      screenShare as unknown as LiveClassScreenShareService,
+      {} as unknown as LiveClassRecordingService,
       prisma as unknown as PrismaService
     );
     receiver = { receive: jest.fn() };

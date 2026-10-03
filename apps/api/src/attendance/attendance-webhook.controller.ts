@@ -17,7 +17,8 @@ import { DisconnectReason } from "@livekit/protocol";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { AttendanceService } from "./attendance.service";
 import { resolveJoinAction } from "./attendance-session.util";
-import { LiveClassService } from "../live-class/live-class.service";
+import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
+import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { API_ROUTES } from "@nexa-chess/types";
 
@@ -67,8 +68,10 @@ export class AttendanceWebhookController {
 
   constructor(
     private readonly attendanceService: AttendanceService,
-    @Inject(forwardRef(() => LiveClassService))
-    private readonly liveClassService: LiveClassService,
+    @Inject(forwardRef(() => LiveClassScreenShareService))
+    private readonly screenShare: LiveClassScreenShareService,
+    @Inject(forwardRef(() => LiveClassRecordingService))
+    private readonly recording: LiveClassRecordingService,
     private readonly prisma: PrismaService
   ) {
     try {
@@ -372,7 +375,7 @@ export class AttendanceWebhookController {
         // endScreenShare, but a crash/closed-tab disconnect wouldn't. Never
         // let this disrupt attendance recording above.
         try {
-          await this.liveClassService.endScreenShareOnDisconnect(classId, userId);
+          await this.screenShare.endScreenShareOnDisconnect(classId, userId);
         } catch (error) {
           this.logger.warn(`Failed to clean up screen-share request for ${userId} in ${classId}`, error as Error);
         }
@@ -391,7 +394,7 @@ export class AttendanceWebhookController {
   private async handleEgressEvent(event: any) {
     const egressInfo = event.egressInfo ?? event.egress_info;
     if (!egressInfo) return;
-    await this.liveClassService.handleEgressEnded({
+    await this.recording.handleEgressEnded({
       eventType: typeof event.event === "string" ? event.event : undefined,
       egressId: egressInfo.egressId ?? egressInfo.egress_id,
       roomName: egressInfo.roomName ?? egressInfo.room_name,

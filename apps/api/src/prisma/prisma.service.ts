@@ -2,7 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
 import { softDeleteExtension } from "./soft-delete.extension";
 
-const createPrismaClient = () => new PrismaClient().$extends(softDeleteExtension);
+const createPrismaClient = (base: PrismaClient) => base.$extends(softDeleteExtension);
 
 export type ExtendedPrismaClient = ReturnType<typeof createPrismaClient>;
 
@@ -18,20 +18,11 @@ export type PrismaTransactionClient = Omit<
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
-  private readonly client = createPrismaClient();
-  readonly withDeleted = this.client.$extends({
-    name: "with-deleted",
-    query: {
-      $allModels: {
-        async $allOperations({ args, query }) {
-          const queryArgs = { ...(args as object) } as Record<string, unknown>;
-          delete queryArgs.includeDeleted;
-
-          return (query as (queryArgs: unknown) => unknown)(queryArgs);
-        }
-      }
-    }
-  });
+  private readonly base = new PrismaClient();
+  private readonly client = createPrismaClient(this.base);
+  // The unextended client (same connection pool). Layering another extension on
+  // `client` cannot undo the soft-delete filter, which runs after it.
+  readonly withDeleted = this.base;
 
   get user() {
     return this.client.user;

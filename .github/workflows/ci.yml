@@ -47,7 +47,7 @@ jobs:
         run: npm test
 
   migrations:
-    name: Migrations apply cleanly and match the schema
+    name: Migrations, schema drift, DB integration tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:
@@ -67,6 +67,7 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nexa_ci?schema=public
+      INTEGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nexa_ci?schema=public
     steps:
       - uses: actions/checkout@v4
 
@@ -88,6 +89,14 @@ jobs:
             --from-url "$DATABASE_URL" \
             --to-schema-datamodel prisma/schema.prisma \
             --exit-code --script
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      # Real-Postgres tests (`*.int-spec.ts`), with a non-UTC session zone.
+      # Runs after the drift check: global setup sets the database timezone.
+      - name: DB integration tests
+        run: npm run test:integration
 
   build:
     name: Production build

@@ -11,11 +11,20 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
+import { LiveClassBoardStateService } from "./live-class-board-state.service";
+import { LiveClassChatService } from "./live-class-chat.service";
+import { LiveClassDemoService } from "./live-class-demo.service";
+import { LiveClassModerationService } from "./live-class-moderation.service";
+import { LiveClassPullService } from "./live-class-pull.service";
+import { LiveClassRecordingService } from "./live-class-recording.service";
+import { LiveClassScreenShareService } from "./live-class-screen-share.service";
+import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import {
   API_ROUTES,
   guestJoinDemoRequestSchema,
+  liveBoardStateSchema,
   moderateAllRequestSchema,
   kickParticipantRequestSchema,
   moderateParticipantRequestSchema,
@@ -25,6 +34,7 @@ import {
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
   type GuestJoinDemoRequest,
+  type LiveBoardState,
   type ModerateAllRequest,
   type KickParticipantRequest,
   type ModerateParticipantRequest,
@@ -38,7 +48,17 @@ import { ZodBodyPipe } from "../common/zod-body.pipe";
 
 @Controller()
 export class LiveClassController {
-  constructor(private readonly liveClassService: LiveClassService) { }
+  constructor(
+    private readonly liveClassService: LiveClassService,
+    private readonly boardState: LiveClassBoardStateService,
+    private readonly chat: LiveClassChatService,
+    private readonly demo: LiveClassDemoService,
+    private readonly moderation: LiveClassModerationService,
+    private readonly pulls: LiveClassPullService,
+    private readonly recording: LiveClassRecordingService,
+    private readonly screenShare: LiveClassScreenShareService,
+    private readonly waitingRoom: LiveClassWaitingRoomService
+  ) {}
 
   private getAccessToken(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
@@ -93,7 +113,7 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(saveLiveChatMessageRequestSchema)) body: SaveLiveChatMessageRequest
   ) {
-    return this.liveClassService.saveChatMessage(
+    return this.chat.saveChatMessage(
       this.getAccessToken(request),
       id,
       body.message,
@@ -104,7 +124,7 @@ export class LiveClassController {
 
   @Get(API_ROUTES.liveClass.pullRoster())
   getPullRoster(@Param("id") id: string, @Query("q") q: string | undefined, @Req() request: Request) {
-    return this.liveClassService.getPullRoster(this.getAccessToken(request), id, q);
+    return this.pulls.getPullRoster(this.getAccessToken(request), id, q);
   }
 
   @Post(API_ROUTES.liveClass.pullStudent())
@@ -113,7 +133,7 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(pullStudentRequestSchema)) body: PullStudentRequest
   ) {
-    return this.liveClassService.pullStudent(this.getAccessToken(request), id, body.studentId);
+    return this.pulls.pullStudent(this.getAccessToken(request), id, body.studentId);
   }
 
   @Post(API_ROUTES.liveClass.cancelPull())
@@ -122,12 +142,12 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(pullStudentRequestSchema)) body: PullStudentRequest
   ) {
-    return this.liveClassService.cancelPull(this.getAccessToken(request), id, body.studentId);
+    return this.pulls.cancelPull(this.getAccessToken(request), id, body.studentId);
   }
 
   @Get(API_ROUTES.liveClass.waitingRoom())
   getWaitingRoom(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.getWaitingRoomList(this.getAccessToken(request), id);
+    return this.waitingRoom.getWaitingRoomList(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.resolveWaitingRoom())
@@ -136,22 +156,36 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(resolveWaitingRoomRequestSchema)) body: ResolveWaitingRoomRequest
   ) {
-    return this.liveClassService.resolveWaitingRoomEntry(this.getAccessToken(request), id, body);
+    return this.waitingRoom.resolveWaitingRoomEntry(this.getAccessToken(request), id, body);
   }
 
   @Post(API_ROUTES.liveClass.requestWaitingRoom())
   requestWaitingRoom(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.requestWaitingRoomAdmission(this.getAccessToken(request), id);
+    return this.waitingRoom.requestWaitingRoomAdmission(this.getAccessToken(request), id);
+  }
+
+  @Get(API_ROUTES.liveClass.boardState())
+  getBoardState(@Param("id") id: string, @Req() request: Request) {
+    return this.boardState.getBoardState(this.getAccessToken(request), id);
+  }
+
+  @Put(API_ROUTES.liveClass.boardState())
+  saveBoardState(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(liveBoardStateSchema)) body: LiveBoardState
+  ) {
+    return this.boardState.saveBoardState(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.screenShareRequests())
   getScreenShareRequests(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.getScreenShareRequestList(this.getAccessToken(request), id);
+    return this.screenShare.getScreenShareRequestList(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.requestScreenShare())
   requestScreenShare(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.requestScreenShare(this.getAccessToken(request), id);
+    return this.screenShare.requestScreenShare(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.resolveScreenShareRequest())
@@ -160,12 +194,12 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(resolveScreenShareRequestSchema)) body: ResolveScreenShareRequest
   ) {
-    return this.liveClassService.resolveScreenShareRequest(this.getAccessToken(request), id, body);
+    return this.screenShare.resolveScreenShareRequest(this.getAccessToken(request), id, body);
   }
 
   @Post(API_ROUTES.liveClass.endScreenShare())
   endScreenShare(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.endScreenShare(this.getAccessToken(request), id);
+    return this.screenShare.endScreenShare(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.moderate())
@@ -174,7 +208,7 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(moderateParticipantRequestSchema)) body: ModerateParticipantRequest
   ) {
-    return this.liveClassService.moderateParticipant(this.getAccessToken(request), id, body);
+    return this.moderation.moderateParticipant(this.getAccessToken(request), id, body);
   }
 
   @Post(API_ROUTES.liveClass.moderateAll())
@@ -183,7 +217,7 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(moderateAllRequestSchema)) body: ModerateAllRequest
   ) {
-    return this.liveClassService.moderateAll(this.getAccessToken(request), id, body);
+    return this.moderation.moderateAll(this.getAccessToken(request), id, body);
   }
 
   @Post(API_ROUTES.liveClass.kick())
@@ -192,18 +226,18 @@ export class LiveClassController {
     @Req() request: Request,
     @Body(new ZodBodyPipe(kickParticipantRequestSchema)) body: KickParticipantRequest
   ) {
-    return this.liveClassService.kickParticipant(this.getAccessToken(request), id, body);
+    return this.moderation.kickParticipant(this.getAccessToken(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.chat())
   getChatHistory(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.getChatHistory(this.getAccessToken(request), id);
+    return this.chat.getChatHistory(this.getAccessToken(request), id);
   }
 
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Get(API_ROUTES.liveClass.demoInfo())
   getDemoInfo(@Param("id") id: string, @Query("invite") invite?: string) {
-    return this.liveClassService.getDemoInfo(id, invite || undefined);
+    return this.demo.getDemoInfo(id, invite || undefined);
   }
 
   // Throttled harder than the global limit so a passcode can't be brute-forced.
@@ -213,17 +247,17 @@ export class LiveClassController {
     @Param("id") id: string,
     @Body(new ZodBodyPipe(guestJoinDemoRequestSchema)) body: GuestJoinDemoRequest
   ) {
-    return this.liveClassService.joinDemoClass(id, body);
+    return this.demo.joinDemoClass(id, body);
   }
 
   @Post(API_ROUTES.liveClass.startRecording())
   startRecording(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.startRecording(this.getAccessToken(request), id);
+    return this.recording.startRecording(this.getAccessToken(request), id);
   }
 
   @Post(API_ROUTES.liveClass.stopRecording())
   stopRecording(@Param("id") id: string, @Req() request: Request) {
-    return this.liveClassService.stopRecording(this.getAccessToken(request), id);
+    return this.recording.stopRecording(this.getAccessToken(request), id);
   }
 
   @Get(API_ROUTES.liveClass.downloadRecording())
@@ -232,7 +266,7 @@ export class LiveClassController {
     @Req() request: Request,
     @Query("download") download?: string
   ) {
-    return this.liveClassService.downloadRecording(
+    return this.recording.downloadRecording(
       this.getAccessToken(request),
       id,
       request,
@@ -248,7 +282,7 @@ export class LiveClassController {
     @Query("st") streamToken?: string,
     @Query("dl") download?: string
   ) {
-    return this.liveClassService.streamRecording(
+    return this.recording.streamRecording(
       this.getAccessToken(request),
       streamToken,
       id,
@@ -260,7 +294,7 @@ export class LiveClassController {
 
   @Get(API_ROUTES.liveClass.storageUsage())
   getStorageUsage(@Req() request: Request) {
-    return this.liveClassService.getRecordingStorageUsage(this.getAccessToken(request));
+    return this.recording.getRecordingStorageUsage(this.getAccessToken(request));
   }
 
   @Post(API_ROUTES.liveClass.recordingProgress())
@@ -269,7 +303,7 @@ export class LiveClassController {
     @Req() request: Request,
     @Body() body: { watchedSeconds: number }
   ) {
-    return this.liveClassService.updateRecordingProgress(
+    return this.recording.updateRecordingProgress(
       this.getAccessToken(request),
       id,
       body.watchedSeconds

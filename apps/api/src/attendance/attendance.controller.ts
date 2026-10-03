@@ -10,13 +10,19 @@ import {
 } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { AttendanceMonitoringService } from "./attendance-monitoring.service";
+import { AttendanceReportService } from "./attendance-report.service";
 import { AttendanceService } from "./attendance.service";
 import { UpdateAttendancePolicyDto } from "./dto/attendance-policy.dto";
 import { API_ROUTES } from "@nexa-chess/types";
 
 @Controller()
 export class AttendanceController {
-  constructor(private readonly attendanceService: AttendanceService) {}
+  constructor(
+    private readonly attendanceService: AttendanceService,
+    private readonly monitoring: AttendanceMonitoringService,
+    private readonly reports: AttendanceReportService
+  ) {}
 
   private getAccessToken(request: Request) {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
@@ -26,7 +32,7 @@ export class AttendanceController {
 
   @Get(API_ROUTES.attendance.student)
   getStudentAttendance(@Req() request: Request) {
-    return this.attendanceService.getStudentAttendance(
+    return this.reports.getStudentAttendance(
       this.getAccessToken(request)
     );
   }
@@ -36,7 +42,7 @@ export class AttendanceController {
     @Param("id") id: string,
     @Req() request: Request
   ) {
-    return this.attendanceService.getStudentAttendance(
+    return this.reports.getStudentAttendance(
       this.getAccessToken(request),
       id
     );
@@ -46,7 +52,7 @@ export class AttendanceController {
 
   @Get(API_ROUTES.attendance.coach)
   getCoachTeachingStats(@Req() request: Request) {
-    return this.attendanceService.getCoachTeachingStats(
+    return this.reports.getCoachTeachingStats(
       this.getAccessToken(request)
     );
   }
@@ -56,7 +62,7 @@ export class AttendanceController {
     @Param("id") id: string,
     @Req() request: Request
   ) {
-    return this.attendanceService.getCoachTeachingStats(
+    return this.reports.getCoachTeachingStats(
       this.getAccessToken(request),
       id
     );
@@ -69,7 +75,7 @@ export class AttendanceController {
     @Param("id") id: string,
     @Req() request: Request
   ) {
-    return this.attendanceService.getClassAttendanceReport(
+    return this.reports.getClassAttendanceReport(
       this.getAccessToken(request),
       id
     );
@@ -83,7 +89,7 @@ export class AttendanceController {
     @Param("studentId") studentId: string,
     @Req() request: Request
   ) {
-    return this.attendanceService.getAttendanceLogs(
+    return this.reports.getAttendanceLogs(
       this.getAccessToken(request),
       classId,
       studentId
@@ -97,7 +103,7 @@ export class AttendanceController {
     @Param("id") id: string,
     @Req() request: Request
   ) {
-    return this.attendanceService.getLiveClassMonitoring(
+    return this.monitoring.getLiveClassMonitoring(
       this.getAccessToken(request),
       id
     );
@@ -107,7 +113,7 @@ export class AttendanceController {
 
   @Get(API_ROUTES.attendance.adminDashboard)
   getAdminDashboard(@Req() request: Request) {
-    return this.attendanceService.getAdminDashboard(
+    return this.monitoring.getAdminDashboard(
       this.getAccessToken(request)
     );
   }
@@ -116,7 +122,7 @@ export class AttendanceController {
 
   @Get(API_ROUTES.attendance.adminLiveReliability)
   getLiveReliabilityOverview(@Req() request: Request) {
-    return this.attendanceService.getLiveReliabilityOverview(
+    return this.monitoring.getLiveReliabilityOverview(
       this.getAccessToken(request)
     );
   }
@@ -128,7 +134,7 @@ export class AttendanceController {
     @Req() request: Request,
     @Query("days") days?: string
   ) {
-    return this.attendanceService.getReliabilityMetrics(
+    return this.monitoring.getReliabilityMetrics(
       this.getAccessToken(request),
       days ? Number(days) : undefined
     );
@@ -146,7 +152,7 @@ export class AttendanceController {
     @Query("page") page?: string,
     @Query("limit") limit?: string,
   ) {
-    return this.attendanceService.getCompletedClasses(
+    return this.reports.getCompletedClasses(
       this.getAccessToken(request),
       {
         dateFrom,
@@ -168,7 +174,7 @@ export class AttendanceController {
     @Query("dateTo") dateTo?: string,
     @Query("coachId") coachId?: string,
   ) {
-    return this.attendanceService.getAdminCoachTeachingReport(
+    return this.reports.getAdminCoachTeachingReport(
       this.getAccessToken(request),
       { dateFrom, dateTo, coachId }
     );
@@ -181,7 +187,7 @@ export class AttendanceController {
     @Param("id") id: string,
     @Req() request: Request
   ) {
-    return this.attendanceService.getClassDetailReport(
+    return this.reports.getClassDetailReport(
       this.getAccessToken(request),
       id
     );
@@ -194,7 +200,7 @@ export class AttendanceController {
     @Param("id") id: string,
     @Req() request: Request
   ) {
-    return this.attendanceService.getClassSummary(
+    return this.reports.getClassSummary(
       this.getAccessToken(request),
       id
     );
@@ -212,7 +218,7 @@ export class AttendanceController {
     @Query("coachId") coachId?: string,
     @Query("status") status?: string,
   ) {
-    const result = await this.attendanceService.exportAttendanceReport(
+    const result = await this.reports.exportAttendanceReport(
       this.getAccessToken(request),
       { dateFrom, dateTo, batchId, coachId, status }
     );

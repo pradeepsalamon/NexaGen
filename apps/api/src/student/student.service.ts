@@ -7,7 +7,7 @@ import type {
   StudentDashboardFeaturedClass,
   StudentDashboardLiveClass
 } from "@nexa-chess/types";
-import { AttendanceService } from "../attendance/attendance.service";
+import { AttendanceReportService } from "../attendance/attendance-report.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
@@ -19,7 +19,7 @@ import { authenticateUser } from "../auth/authenticate";
 export class StudentService {
 
   constructor(
-    private readonly attendanceService: AttendanceService,
+    private readonly attendanceReports: AttendanceReportService,
     private readonly jwtService: JwtService,
     private readonly livekit: LiveKitService,
     private readonly prisma: PrismaService
@@ -163,9 +163,9 @@ export class StudentService {
       include: { coach: true, liveSession: true }
     });
 
-    // Attendance is owned by AttendanceService — the dashboard must not compute
+    // Attendance is owned by AttendanceReportService — the dashboard must not compute
     // its own percentage, or /student and /student/attendance disagree (AUDIT H10).
-    const { stats: attendanceStats } = await this.attendanceService.getStudentAttendance(
+    const { stats: attendanceStats } = await this.attendanceReports.getStudentAttendance(
       accessToken
     );
     const attendedClassesCount = attendanceStats.attended;

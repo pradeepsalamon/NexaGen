@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { LiveClassService } from "./live-class.service";
+import { LIVE_CLASS_SERVICES } from "./live-class.testing";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
@@ -44,7 +45,7 @@ describe("LiveClassService auto-end sweep", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
         { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: { liveSession: { findMany, update } } },
         { provide: JwtService, useValue: {} },

@@ -1,4 +1,4 @@
-import { apiFetch } from "@/lib/api";
+import { API_BASE_URL, apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
   type ClassSummaryResponse,
@@ -6,6 +6,8 @@ import {
   type ModerateAllRequest,
   type KickParticipantRequest,
   type KickParticipantResponse,
+  type LiveBoardState,
+  type LiveBoardStateResponse,
   type ModerateAllResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
@@ -49,6 +51,25 @@ export const pingHeartbeat = (roomId: string, clientId?: string): Promise<{ ok: 
     method: "POST",
     body: clientId ? { clientId } : {},
   });
+};
+
+export const getBoardState = (roomId: string): Promise<LiveBoardStateResponse> => {
+  return apiFetch<LiveBoardStateResponse>(API_ROUTES.liveClass.boardState(roomId));
+};
+
+export const saveBoardState = (roomId: string, state: LiveBoardState): Promise<LiveBoardStateResponse> => {
+  return apiFetch<LiveBoardStateResponse>(API_ROUTES.liveClass.boardState(roomId), { method: "PUT", body: state });
+};
+
+/** Fire-and-forget save that survives the page unloading (axios cannot keepalive). */
+export const saveBoardStateOnUnload = (roomId: string, state: LiveBoardState) => {
+  void fetch(`${API_BASE_URL}${API_ROUTES.liveClass.boardState(roomId)}`, {
+    method: "PUT",
+    credentials: "include",
+    keepalive: true,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(state),
+  }).catch(() => undefined);
 };
 
 export const getChatHistory = (roomId: string): Promise<LiveChatMessageResponse[]> => {

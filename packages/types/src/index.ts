@@ -19,6 +19,7 @@ export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
 export * from "./live-class-screen-share";
+export * from "./live-class-board-state";
 export * from "./chess-appearance";
 export * from "./typography";
 

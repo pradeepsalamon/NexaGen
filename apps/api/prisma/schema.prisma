@@ -1267,6 +1267,11 @@ model LiveSession {
   effectiveSettings  Json?
   settingsSnapshotAt DateTime?
 
+  // Durable copy of the shared board (LiveBoardState), written by the coach's
+  // client so a refresh / crash can restore it. Null until the first save.
+  boardState          Json?
+  boardStateUpdatedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
