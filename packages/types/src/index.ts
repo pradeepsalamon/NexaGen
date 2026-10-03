@@ -2081,7 +2081,11 @@ export const stockfishAnalyzeRequestSchema = z.object({
 export type StockfishAnalyzeRequest = z.infer<typeof stockfishAnalyzeRequestSchema>;
 
 export interface StockfishAnalysisResult {
-  /** Centipawn evaluation in pawns (white-positive). `null` when a mate is seen. */
+  /**
+   * Centipawn evaluation in pawns from the SIDE TO MOVE's point of view (UCI
+   * convention; the assignment accuracy maths relies on it). Negate when black
+   * is to move to show a white-positive score. `null` when a mate is seen.
+   */
   evaluation: number | null;
   /** Moves-to-mate (sign = side to deliver it). `null` when it is a cp score. */
   mate: number | null;
@@ -2095,6 +2099,16 @@ export interface StockfishAnalysisResult {
   /** Principal variation in raw UCI. */
   pvUci: string[];
 }
+
+/**
+ * One frame of `POST /stockfish/analyze/stream`, sent as a server-sent event
+ * (`data: <json>`). `info` frames carry the result so far as the search
+ * deepens; exactly one `done` (the final result) or `error` ends the stream.
+ */
+export type StockfishStreamEvent =
+  | { type: "info"; result: StockfishAnalysisResult }
+  | { type: "done"; result: StockfishAnalysisResult }
+  | { type: "error"; message: string };
 
 //
 // NOTIFICATIONS

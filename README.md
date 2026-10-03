@@ -1144,3 +1144,23 @@ The provided `docker-compose.yml` has been hardened for production environments 
 ## Project Rule
 
 When implementing or updating a feature, update the relevant README in the same change so setup, commands, env variables, and behavior stay current.
+
+### Engine pool & benchmarks
+
+The analysis panel uses `POST /stockfish/analyze/stream` (server-sent events,
+`StockfishStreamEvent`): an `info` frame each time the search deepens (at most
+one per 80 ms), then `done` with the same final result `POST /stockfish/analyze`
+returns. The first evaluation shows in milliseconds instead of after the full
+`STOCKFISH_MOVETIME`. The endpoint sends `X-Accel-Buffering: no`; any proxy in
+front of the API must not buffer `text/event-stream`. If the stream fails (401,
+older API), the panel falls back to the one-shot request. Scores are from the
+side to move (UCI convention); the panel flips them to White's view.
+
+`POST /stockfish/analyze` is cancellable: when the client aborts (the position
+changed) a queued search is dropped and a running one receives UCI `stop`;
+identical in-flight requests share one search; a request that has the box to
+itself gets up to `min(4, cpus)` threads, contended ones get 1. Benchmarks:
+`node scripts/engine-bench/bench.mjs --bin <stockfish> [--warm --threads N --hash MB --multipv N --concurrency N]`
+and `scripts/engine-bench/pool-scenario.ts` / `stream-latency.ts` (run with
+`ts-node` from `apps/api`) for the rapid-stepping and time-to-first-eval
+scenarios against the real `StockfishService`.

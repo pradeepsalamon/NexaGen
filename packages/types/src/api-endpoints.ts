@@ -211,7 +211,9 @@ export const API_ROUTES = {
     dashboard: "/student/dashboard"
   },
   stockfish: {
-    analyze: "/stockfish/analyze"
+    analyze: "/stockfish/analyze",
+    // Same request; answers as server-sent events (`StockfishStreamEvent`).
+    analyzeStream: "/stockfish/analyze/stream"
   },
   assignments: {
     // Library (admin: shared items; coach: shared + own)

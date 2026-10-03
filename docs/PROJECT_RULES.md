@@ -356,7 +356,7 @@ helper for dirty-state UX.
   `JWT_REFRESH_SHORT_TTL`, `LOGIN_RESPONSE_DELAY`, `PASSWORD_RESET_RESPONSE_DELAY`,
   `CORS_ORIGIN` (comma-separated), `FRONTEND_URL`, `TRASH_RETENTION_DAYS`,
   `SMTP_*`, `LIVEKIT_URL`/`LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`,
-  `CLOUDINARY_*`, `STOCKFISH_PATH`, `STOCKFISH_POOL_SIZE` (max engines), `STOCKFISH_MIN_ENGINES` (kept running at rest, default 1), `STOCKFISH_IDLE_TIMEOUT_S` (extra engines stop after this idle time, default 60), `STOCKFISH_MOVETIME`, `STOCKFISH_MOVE_MOVETIME`, `STOCKFISH_HASH_MB`, `STOCKFISH_MAX_DEPTH` (analysis stops early at this depth, default 20, 0 = off)
+  `CLOUDINARY_*`, `STOCKFISH_PATH`, `STOCKFISH_POOL_SIZE` (max engines), `STOCKFISH_MIN_ENGINES` (kept running at rest, default 1), `STOCKFISH_IDLE_TIMEOUT_S` (extra engines stop after this idle time, default 60), `STOCKFISH_MOVETIME`, `STOCKFISH_MOVE_MOVETIME` (engine-move think, default 1000), `STOCKFISH_MOVE_MAX_DEPTH` (engine moves stop early at this depth, default 22, 0 = off), `STOCKFISH_HASH_MB`, `STOCKFISH_MAX_DEPTH` (analysis stops early at this depth, default 20, 0 = off)
   (per-position engine search time in ms, default 800).
 - **Web:** `getWebEnv()` in `packages/config/src/web.ts` validates
   `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_LIVEKIT_URL` (with localhost defaults).
