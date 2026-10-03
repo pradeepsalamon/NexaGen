@@ -352,6 +352,10 @@ npm run build:prod
 
 More Prisma notes live in `apps/api/prisma/README.md`.
 
+## Data Retention
+
+A daily sweep (`apps/api/src/retention/`, 4 AM, single-runner via the `retention.sweep` job lock) deletes rows nothing reads any more: expired login sessions and password-reset / email-verification tokens (1 day after expiry), LiveKit webhook dedupe rows older than 30 days, and anonymous visitor sessions idle for 180 days that never became a lead. It deletes in batches of 5,000 so a large first run never holds long locks. The rules live in `retention.rules.ts`. Business records (chat, notifications, message deliveries, analytics events, payments) are not touched.
+
 ## Trash And Soft Delete
 
 Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `Course`, and `CourseModule`.
@@ -1140,6 +1144,8 @@ The provided `docker-compose.yml` has been hardened for production environments 
 - **LiveKit Security**: LiveKit reads its API keys securely via environment variables (`LIVEKIT_KEYS`) rather than hardcoded configuration files, eliminating placeholder values.
 - **Service Isolation**: PostgreSQL and Redis are bound exclusively to `127.0.0.1` or internal Docker networks, reducing the external attack surface.
 - **Health Checks**: Robust container health checks have been added for all services (API, Web, LiveKit, Redis, and PostgreSQL) ensuring that dependent services wait for their prerequisites before starting.
+- **Error Reporting (Sentry)**: Optional. Set `SENTRY_DSN` (API, runtime) and `NEXT_PUBLIC_SENTRY_DSN` (web, build time) in the root `.env` — create one Sentry project per app. Add `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_WEB_PROJECT` to upload web source maps during `docker compose build`. The deploy script tags every error with the commit SHA (`SENTRY_RELEASE`). Only unexpected errors are reported, and events are scrubbed to the user id: no names, emails, cookies, request bodies, query strings or local variables. See CLAUDE.md §3.6d2.
+- **API Health Endpoints**: `GET /health` is liveness only (no dependency touched). `GET /health/ready` runs `SELECT 1` against PostgreSQL and pings Redis, each with a 2s timeout: `200 ok`, `200 degraded` (Redis down; the API still serves because Redis is optional), or `503 unavailable` (PostgreSQL down). Both are public, unauthenticated, not rate limited and kept out of the HTTP access log; failure reasons are logged, never returned. The `api` container healthcheck and the deploy gate use `/health/ready`, and it is the URL to point an external uptime monitor at.
 - **Persistence**: Both PostgreSQL and Redis use Docker named volumes for persistent data storage across restarts.
 - **CI Gate**: A push to `main` deploys only after `.github/workflows/ci.yml` passes on that commit: typecheck, lint, API unit tests, every migration applied to an empty PostgreSQL plus a `prisma migrate diff --exit-code` check that `schema.prisma` has no unmigrated changes, and `npm run build`. The same workflow runs on pull requests into `main`/`dev`.
 - **Pinned Versions**: Container images are explicitly pinned to stable versions that support `ARM64` architecture (e.g. `postgres:15.6-alpine`, `redis:7.2.4-alpine`, `livekit/livekit-server:v1.6.0`).

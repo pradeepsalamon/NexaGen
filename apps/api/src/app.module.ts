@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
+import { APP_FILTER, APP_GUARD } from "@nestjs/core";
+import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { ResilientThrottlerStorage } from "./common/throttler/resilient-throttler-storage";
 import { createThrottlerStorage } from "./common/throttler/throttler-storage.factory";
@@ -39,9 +40,12 @@ import { FeedbackModule } from "./feedback/feedback.module";
 import { ProgressModule } from "./progress/progress.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
+import { HealthModule } from "./health/health.module";
+import { RetentionModule } from "./retention/retention.module";
 
 @Module({
   imports: [
+    SentryModule.forRoot(),
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const storage = createThrottlerStorage();
@@ -86,9 +90,16 @@ import { LeadModule } from "./lead/lead.module";
     LeadModule,
     FeedbackModule,
     ClassRequestModule,
-    ProgressModule
+    ProgressModule,
+    HealthModule,
+    RetentionModule
   ],
   providers: [
+    // Reports unexpected errors only; HttpExceptions (4xx, deliberate 5xx) are skipped.
+    {
+      provide: APP_FILTER,
+      useClass: SentryGlobalFilter,
+    },
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,

@@ -63,6 +63,22 @@ None currently tracked here.
 
 ## Resolved (2026-10-03)
 
+- **Session and log tables grew forever.** Every refresh-token rotation (every
+  ~15 min per active tab) inserts an `auth_sessions` row and nothing deleted
+  them; locally 480 of 487 rows were long expired. Added a daily retention
+  sweep (`apps/api/src/retention/`) for expired sessions and tokens, old
+  LiveKit webhook dedupe rows, and stale anonymous visitor sessions. Still
+  open: retention policies for chat, notifications, message deliveries and
+  analytics events.
+- **No error reporting.** Crashes were only visible in `docker logs`, which
+  rotate within days, and browser errors were invisible. Added Sentry to the
+  API and web (optional; unset DSN sends nothing), errors only, scrubbed to the
+  user id. See CLAUDE.md §3.6d2.
+- **No health endpoints.** The API container's healthcheck only opened a TCP
+  socket, so an API that booted but couldn't reach Postgres still passed the
+  deploy gate. Added `GET /health` (liveness) and `GET /health/ready` (Postgres
+  required, Redis optional ⇒ `degraded`); the compose healthcheck now uses
+  `/health/ready`.
 - **Live board had no durable recovery.** Board state lived only in each
   client's memory. A coach refresh reset the coach's board to the start
   position, the next coach move overwrote every student's board, and a class

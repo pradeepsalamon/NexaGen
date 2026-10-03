@@ -1,5 +1,6 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useQuery } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -21,6 +22,7 @@ export function SessionBootstrap() {
   const setSessionChecked = useAuthStore((state) => state.setSessionChecked);
   const setSessionLoading = useAuthStore((state) => state.setSessionLoading);
   const setUser = useAuthStore((state) => state.setUser);
+  const userId = useAuthStore((state) => state.user?.id);
 
   // Skip the /auth/me call (and its 401 → refresh → 401) for anonymous visitors
   // on public pages, unless we already hold a persisted user (AUDIT L5).
@@ -57,6 +59,11 @@ export function SessionBootstrap() {
     sessionQuery.isLoading,
     setSessionLoading
   ]);
+
+  // Id only: error reports never carry names or contact details.
+  useEffect(() => {
+    Sentry.setUser(userId ? { id: userId } : null);
+  }, [userId]);
 
   useEffect(() => {
     if (sessionQuery.data) {

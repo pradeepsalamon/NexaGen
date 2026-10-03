@@ -898,6 +898,7 @@ model VisitorSession {
   leads Lead[]
 
   @@index([visitorId])
+  @@index([lastVisit])
   @@map("visitor_sessions")
 }
 

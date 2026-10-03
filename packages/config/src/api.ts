@@ -83,6 +83,12 @@ const apiEnvSchema = z.object({
   // BullMQ. Unset disables every queue: producers run their job inline and no
   // worker starts, so `npm run dev:api` needs no Redis. Compose always sets it.
   REDIS_URL: optionalUrlSchema,
+  // Error reporting. Unset SENTRY_DSN sends nothing. Read directly by
+  // src/instrument.ts (it runs before this schema is parsed); listed here so
+  // the variable is documented and validated with the rest.
+  SENTRY_DSN: optionalUrlSchema,
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
   // Namespaces every BullMQ key, so a shared Redis (LiveKit and egress already
   // use this one) can never collide with a queue.
   QUEUE_PREFIX: z.string().default("nexa"),

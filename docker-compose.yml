@@ -199,6 +199,11 @@ services:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
 
+      # Error reporting (optional). Unset SENTRY_DSN sends nothing.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
+
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
@@ -303,13 +308,15 @@ services:
     ports:
       - "3001:3001"
 
+    # /health/ready fails (503) when Postgres is unreachable, so the deploy
+    # gate rejects an API that boots but can't reach its database.
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "require('net').connect(3001,'127.0.0.1',()=>process.exit(0)).on('error',()=>process.exit(1))"
+          "fetch('http://127.0.0.1:3001/health/ready').then((r)=>process.exit(r.ok?0:1),()=>process.exit(1))"
         ]
       interval: 15s
       timeout: 5s
@@ -331,6 +338,13 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
+        # Error reporting (optional). The DSN is baked in at build time.
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+        SENTRY_ORG: ${SENTRY_ORG:-}
+        SENTRY_PROJECT: ${SENTRY_WEB_PROJECT:-}
+        SENTRY_RELEASE: ${SENTRY_RELEASE:-}
 
     container_name: nexa_web
     restart: unless-stopped

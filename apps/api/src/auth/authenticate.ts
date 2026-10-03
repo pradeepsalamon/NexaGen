@@ -1,6 +1,7 @@
 import { UnauthorizedException } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
+import { setTag, setUser } from "@sentry/nestjs";
 import { type Prisma, UserRole, UserStatus } from "@prisma/client";
 import type { PrismaService } from "../prisma/prisma.service";
 import type { AccessTokenPayload } from "./types";
@@ -57,6 +58,9 @@ export async function authenticateUser(
   if (!user || user.status !== UserStatus.ACTIVE) {
     throw new UnauthorizedException("Invalid session.");
   }
+  // Request-scoped; id and role only, never contact details.
+  setUser({ id: user.id });
+  setTag("role", user.role);
   return user;
 }
 

@@ -220,6 +220,16 @@ cron then silently skips on every other connection. Add each new cron's name to
 `JOB_LOCKS` (one name per job — two crons once shared id `73002080`). Specs
 provide `createJobLockStub()` from `prisma/job-lock.testing.ts`.
 
+**Retention sweep** (`apps/api/src/retention/`): one daily cron (4 AM, job lock
+`retention.sweep`) deletes operational rows nothing reads any more, in batches
+of 5,000, per `RETENTION_RULES`: expired `auth_sessions` and reset/verification
+tokens (+1 day), `processed_webhook_events` (30 days), and `visitor_sessions`
+idle 180 days with no lead. Before this, every 15-minute token refresh left a
+row behind for good. A new log-style table that only ever grows belongs in
+`RETENTION_RULES`. Business and audit records (chat, notifications, message
+deliveries, analytics events, payment webhooks) are deliberately excluded —
+their retention is a policy decision.
+
 ### 3.6c Rate limiting
 
 `ThrottlerModule.forRootAsync` in `app.module.ts` (global `APP_GUARD`, 100/min;
@@ -248,6 +258,34 @@ call** — retries belong to a BullMQ job, which should branch on
 `WhatsAppSendError.retryable`. `trySendText` / `trySendTemplate` / `sendTextToMany`
 return outcomes instead of throwing, for paths that must survive WhatsApp being
 down. See README § "WhatsApp Messaging".
+
+### 3.6d2 Error reporting (Sentry)
+
+`@sentry/nestjs` (API) + `@sentry/nextjs` (web), hosted Sentry, one project per
+app. **Optional**: unset `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` ⇒ `init` never
+runs and nothing is sent. Errors only — no tracing, replay or logs.
+
+- **API**: `src/instrument.ts` is the first import in `main.ts` (Sentry must patch
+  http/express before they load). It reads `SENTRY_*` itself — `getApiEnv()` must
+  not be called there, because `apps/api/.env` is otherwise only loaded later by
+  Prisma. `SentryGlobalFilter` (`APP_FILTER`) reports unexpected errors only; any
+  `HttpException` (4xx, a deliberate 503) is skipped. Cron, `@OnEvent` and BullMQ
+  processor failures are captured by the SDK automatically.
+- **Web**: `src/instrumentation.ts` (server + edge, `onRequestError`),
+  `src/instrumentation-client.ts` (browser), `app/global-error.tsx`. Options are
+  in `lib/sentry.ts`. `next.config.mjs` imports `withSentryConfig` from
+  `@sentry/nextjs/config` (not the package root in v11), uploads source maps only
+  when `SENTRY_AUTH_TOKEN` is set at build, and tree-shakes tracing.
+- **Privacy (students are minors)**: SDK v11 collects bodies, cookies, query
+  params, local variables, DB query data and job args **by default**, so both
+  apps set a restrictive `dataCollection` *and* scrub in `beforeSend` /
+  `beforeBreadcrumb` (`common/sentry/sentry-scrub.ts`, `lib/sentry.ts`): only
+  `user.id` + a `role` tag, no query strings (they carry signed tokens). Never
+  `setUser` with an email/name, and never loosen `dataCollection` without
+  checking the privacy policy.
+- The user id is set in `authenticateUser` (API, request-scoped) and
+  `SessionBootstrap` (web). `SENTRY_RELEASE` = the commit SHA, exported by
+  `scripts/deploy-production.sh`.
 
 ### 3.6e Admin messaging rules
 
@@ -832,6 +870,10 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | Board looks unstyled for a split second / flashes brown | expected only while `ChessAppearanceProvider`'s query is loading — it should fall back to `DEFAULT_CHESS_APPEARANCE` (Nexa Classic), never blank chessground defaults; if it's showing chessground's own brown/cburnett, a component still imports `chessground/assets/*.css` directly instead of relying on the shared stylesheet |
 | Type mismatch web↔api | `packages/types` is the single source; rebuild/typecheck both |
 | A student's puzzle points look wrong | Points are computed on read by `computePuzzlePoints` from the assignment's frozen `scoringJson` (not the admin default *now*, and not the puzzle's current override) plus `adjustmentsJson`. Wrong moves come from `PuzzleAttempt.wrongMoves` — a client that never calls `saveProgress` for a move can't have it counted. A student who sees only their own row is being filtered by `leaderboardJson.visibility` / `topN` on purpose |
+| `nexa_api` unhealthy / deploy aborted on the health gate | `curl localhost:3001/health/ready` on the box: `503` with `database: down` means the API can't reach Postgres (`DATABASE_URL`, `nexa_postgres` up?); the reason is in `docker logs nexa_api` as `Health check "database" failed: …`. `degraded` (Redis down) does not fail the healthcheck. `/health` alone answering means the process is up |
+| `auth_sessions` / token tables keep growing | the retention sweep isn't running or can't take its lock — look for `Pruned …` / `Retention sweep failed for …` from `RetentionService` in `docker logs nexa_api`, and the `retention.sweep` row in `job_locks` |
+| Nothing arrives in Sentry | DSN unset (API: `SENTRY_DSN` at runtime; web: `NEXT_PUBLIC_SENTRY_DSN` is baked in at **build** time, so rebuild web). An `HttpException` is never reported by design. Browser events can be blocked by ad blockers |
+| Sentry web stack traces are minified | the web build had no `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_WEB_PROJECT`, so no source maps were uploaded. Turbo only passes them through because `turbo.json` declares them |
 | Admin analytics numbers look stale | in-process 5-min cache in `analytics-cache.ts`; hit Refresh (adds `?fresh=1`) or set `ANALYTICS_CACHE_TTL_SECONDS=0`. Storage growth/forecast empty until ~14 `storage_snapshots` rows exist (daily `AnalyticsScheduler` cron, job lock `analytics.storage-snapshot`) |
 | Analytics endpoint 403 for an admin | `assertCanViewAnalytics` allows only `ADMIN`/`SUPER_ADMIN`; coaches/students get 403 by design |
 | `DAU/WAU/MAU` shows "Data unavailable" | no `analytics_events` rows yet — they accrue from deploy (login / class-join / assignment-attempt / recording-watch) |

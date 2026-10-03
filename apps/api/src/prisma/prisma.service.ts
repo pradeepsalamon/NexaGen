@@ -465,6 +465,9 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     this.client
   );
 
+  $executeRawUnsafe: typeof this.client.$executeRawUnsafe =
+    this.client.$executeRawUnsafe.bind(this.client);
+
   async onModuleInit() {
     await this.$connect();
   }

@@ -23,7 +23,7 @@ describe("shouldWriteLastActive", () => {
 });
 
 describe("isNonActivityPath", () => {
-  it.each(["/health", "/stockfish/analyze", "/webhooks/livekit"])(
+  it.each(["/health", "/health/ready", "/stockfish/analyze", "/webhooks/livekit"])(
     "ignores %s",
     (path) => {
       expect(isNonActivityPath(path)).toBe(true);

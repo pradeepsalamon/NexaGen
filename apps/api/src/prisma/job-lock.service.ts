@@ -16,6 +16,7 @@ export const JOB_LOCKS = {
   paymentWebhookRecovery: "payments.webhook-recovery",
   payslipPdfSweep: "payroll.payslip-pdf-sweep",
   refundReconciliation: "payments.refund-reconciliation",
+  retentionSweep: "retention.sweep",
   trashCleanup: "trash.cleanup"
 } as const;
 

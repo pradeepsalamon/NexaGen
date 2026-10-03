@@ -567,5 +567,11 @@ export const API_ROUTES = {
   progress: {
     mine: "/progress/me",
     student: (id: string = ":id") => `/progress/students/${id}`
+  },
+  health: {
+    // Public, unauthenticated, not rate limited. `live` never touches a
+    // dependency; `ready` checks Postgres (required) and Redis (optional).
+    live: "/health",
+    ready: "/health/ready"
   }
 } as const;
