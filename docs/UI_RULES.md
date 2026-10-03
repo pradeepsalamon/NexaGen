@@ -44,7 +44,7 @@ and are mapped in `tailwind.config.ts`.
 
 | Element | Radius token |
 |---|---|
-| Buttons, inputs, selects, badges, pills, tabs, avatars, icon buttons | `rounded-full` (the components already do this) |
+| Buttons, inputs, selects, badges, pills, avatars, icon buttons | `rounded-full` (the components already do this) |
 | Small tiles, chips, list rows, menu items, textareas-in-panels | `rounded-control` (12px) |
 | Cards, panels, tables, dialogs | `rounded-app` (20px) / `rounded-[20px]` |
 | Large feature panels | `rounded-panel` (24px) |
@@ -73,7 +73,7 @@ disagree.
 | Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". |
 | Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
-| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Pill track, emerald active tab. |
+| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | shadcn segmented style: soft `rounded-xl` track, active tab is a raised surface chip (border + `shadow-sm`). |
 | Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Correct `role`/`aria-live` built in. |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |

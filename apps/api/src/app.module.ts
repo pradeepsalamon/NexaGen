@@ -24,6 +24,7 @@ import { NotificationModule } from "./notification/notification.module";
 import { AnalyticsModule } from "./analytics/analytics.module";
 import { PuzzleModule } from "./puzzle/puzzle.module";
 import { SimulModule } from "./simul/simul.module";
+import { StudentMatchModule } from "./student-match/student-match.module";
 import { MovePollModule } from "./move-poll/move-poll.module";
 import { CourseModule } from "./course/course.module";
 import { QueueModule } from "./queue/queue.module";
@@ -72,6 +73,7 @@ import { LeadModule } from "./lead/lead.module";
     AnalyticsModule,
     PuzzleModule,
     SimulModule,
+    StudentMatchModule,
     MovePollModule,
     CourseModule,
     MessagingModule,

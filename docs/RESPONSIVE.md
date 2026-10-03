@@ -186,7 +186,7 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 
 ### 6.3 List / management pages with tables
 (`/admin/users`, `/admin/batches`, `/admin/assignments`, `/admin/attendance*`,
-`/coach/students`, `/coach/history`, `/admin/coaches`, `/admin/demo-classes`,
+`/coach/students`, `/coach/history`, `/admin/approvals`, `/admin/demo-classes`,
 `/admin/classes`, `/admin/trash`)
 - `PageHeader` stacks on phone; primary action is full-width or icon there.
 - Table body scrolls **horizontally inside its wrapper** on phone/tablet.

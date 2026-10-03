@@ -32,6 +32,7 @@ export const queryKeys = {
   },
   admin: {
     base: ["admin"] as const,
+    pendingCoaches: ["admin", "pending-coaches"] as const,
     pendingStudents: ["admin", "pending-students"] as const,
   },
   feedback: {
@@ -184,6 +185,9 @@ export const queryKeys = {
   },
   liveSimul: {
     state: (classId: string) => ["live-simul", "state", classId] as const,
+  },
+  liveMatch: {
+    state: (classId: string) => ["live-match", "state", classId] as const,
   },
   liveMovePoll: {
     state: (classId: string) => ["live-move-poll", "state", classId] as const,

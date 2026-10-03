@@ -1508,7 +1508,8 @@ export class LiveClassService {
   }
 
   /** User ids connected to the room; empty (not an error) if LiveKit can't be asked. */
-  private async connectedUserIds(roomName: string): Promise<Set<string>> {
+  /** Public: user ids connected to the room right now (empty when LiveKit is unreachable). */
+  async connectedUserIds(roomName: string): Promise<Set<string>> {
     try {
       const participants = await this.livekit.listParticipants(roomName);
       return new Set(participants.map((p) => p.identity.split("_")[0]));

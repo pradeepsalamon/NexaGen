@@ -2345,6 +2345,7 @@ export * from "./puzzle";
 export * from "./puzzle-scoring";
 export * from "./live-class-puzzle";
 export * from "./live-class-simul";
+export * from "./live-class-match";
 export * from "./live-class-move-poll";
 
 // ──────────────────────────────────────────────

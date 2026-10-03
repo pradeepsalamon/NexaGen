@@ -22,6 +22,7 @@ import {
   Puzzle as PuzzleIcon,
   SmilePlus,
   Swords,
+  Trophy,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -34,6 +35,7 @@ import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useOptionalMatch } from "../../providers/MatchProvider";
 import { useOptionalSimul } from "../../providers/SimulProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { cn } from "@/lib/utils";
@@ -104,6 +106,24 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     else simul.setStartOpen(true);
   };
   const simulLabel = simul?.isManager && !simul.simul ? "Play simul" : "Simul boards";
+  const match = useOptionalMatch();
+  const matchActive = match?.round?.status === "ACTIVE";
+  const showMatch = !!match && (match.isManager || matchActive || !!match.myGame);
+  const matchBadge =
+    !match || match.isManager || match.studentOpen
+      ? 0
+      : match.incoming.length +
+        (match.myGame?.status === "ONGOING" &&
+        (match.myGame.white.id === match.myId ? "white" : "black") === match.myGame.turn
+          ? 1
+          : 0);
+  const openMatch = () => {
+    if (!match) return;
+    if (!match.isManager) match.setStudentOpen(true);
+    else if (matchActive) match.setCoachOpen(true);
+    else match.setStartOpen(true);
+  };
+  const matchLabel = match?.isManager && !matchActive ? "Student matches" : "Match boards";
   const pip = useOptionalPip();
 
   // Capture failures are reported by MediaDeviceProvider (see ignoreDeviceError).
@@ -248,6 +268,15 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     });
   }
 
+  if (showMatch && isCoach) {
+    moreItems.push({
+      icon: <Trophy className="size-5" />,
+      label: matchLabel,
+      onClick: openMatch,
+      mobileOnly: true,
+    });
+  }
+
   if (isCoach) {
     moreItems.splice(2, 0, {
       icon: (
@@ -359,6 +388,17 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
               label={simulLabel}
               badge={simulBadge}
               onClick={openSimul}
+            />
+          </div>
+        ) : null}
+
+        {showMatch ? (
+          <div className={cn(isCoach && "hidden sm:block")}>
+            <MeetingControlButton
+              icon={<Trophy className={cn("size-5", matchActive && "text-primary-ink")} />}
+              label={matchLabel}
+              badge={matchBadge}
+              onClick={openMatch}
             />
           </div>
         ) : null}

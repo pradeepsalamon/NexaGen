@@ -125,6 +125,21 @@ export const API_ROUTES = {
     // Resign / draw offer / accept / decline / (coach) adjudicate.
     simulGameAction: (id: string = ":id", gameId: string = ":gameId") =>
       `/live-class/${id}/simul/games/${gameId}/action`,
+    // Student matches: POST start / PATCH pairing mode / DELETE end (coach-owner+admin), GET current (any participant).
+    matchRound: (id: string = ":id") => `/live-class/${id}/matches`,
+    // Coach-owner+admin: pair more students (auto or by hand) into the running round.
+    matchPairs: (id: string = ":id") => `/live-class/${id}/matches/pairs`,
+    // Student: challenge a classmate (students-choose rounds).
+    matchChallenges: (id: string = ":id") => `/live-class/${id}/matches/challenges`,
+    // Accept / decline (opponent) or cancel (challenger) one challenge.
+    matchChallenge: (id: string = ":id", challengeId: string = ":challengeId") =>
+      `/live-class/${id}/matches/challenges/${challengeId}`,
+    // A player of that game plays a move.
+    matchMove: (id: string = ":id", gameId: string = ":gameId") =>
+      `/live-class/${id}/matches/games/${gameId}/move`,
+    // Resign / draw / claim timeout; coach adjudicate / abort.
+    matchGameAction: (id: string = ":id", gameId: string = ":gameId") =>
+      `/live-class/${id}/matches/games/${gameId}/action`,
     // Waiting room (coach-owner/admin): list of students pending admission.
     waitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room`,
     // Waiting room (coach-owner/admin): admit or deny one pending student.

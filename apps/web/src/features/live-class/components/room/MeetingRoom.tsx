@@ -15,8 +15,10 @@ import { MeetingLayout } from "../meeting/MeetingLayout";
 import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
 import { PuzzleBridge } from "../meeting/PuzzleBridge";
 import { ReactionProvider } from "../../providers/ReactionProvider";
+import { MatchProvider } from "../../providers/MatchProvider";
 import { SimulProvider } from "../../providers/SimulProvider";
 import { MovePollStudentHost } from "../meeting/move-poll/MovePollStudentHost";
+import { MatchHost } from "../meeting/match/MatchHost";
 import { SimulHost } from "../meeting/simul/SimulHost";
 import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
 import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
@@ -208,14 +210,17 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
           <PuzzleBridge classId={classId} />
           <MovePollStudentHost classId={classId} />
           <SimulProvider classId={classId}>
-            <SimulHost />
-            <ConnectionStateManager classId={classId}>
-              <ChatProvider classId={classId}>
-                {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
-                <MeetingEventToasts />
-                <MeetingLayout />
-              </ChatProvider>
-            </ConnectionStateManager>
+            <MatchProvider classId={classId}>
+              <SimulHost />
+              <MatchHost />
+              <ConnectionStateManager classId={classId}>
+                <ChatProvider classId={classId}>
+                  {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
+                  <MeetingEventToasts />
+                  <MeetingLayout />
+                </ChatProvider>
+              </ConnectionStateManager>
+            </MatchProvider>
           </SimulProvider>
         </ReactionProvider>
       </MediaDeviceProvider>

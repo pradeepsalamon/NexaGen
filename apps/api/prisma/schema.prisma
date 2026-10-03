@@ -304,6 +304,11 @@ model User {
   classLeaderboardAdjustments     LiveClassLeaderboardAdjustment[] @relation("LiveClassLeaderboardAdjustmentStudent")
   startedSimuls                   LiveClassSimul[]                 @relation("LiveClassSimulStartedBy")
   simulGames                      LiveClassSimulGame[]             @relation("LiveClassSimulGameStudent")
+  startedMatchRounds              LiveClassMatchRound[]            @relation("LiveClassMatchRoundStartedBy")
+  matchGamesAsWhite               LiveClassMatchGame[]             @relation("LiveClassMatchGameWhite")
+  matchGamesAsBlack               LiveClassMatchGame[]             @relation("LiveClassMatchGameBlack")
+  matchChallengesSent             LiveClassMatchChallenge[]        @relation("LiveClassMatchChallengeFrom")
+  matchChallengesReceived         LiveClassMatchChallenge[]        @relation("LiveClassMatchChallengeTo")
   startedMovePolls                LiveClassMovePoll[]              @relation("LiveClassMovePollStartedBy")
   movePollAnswers                 LiveClassMovePollAnswer[]        @relation("LiveClassMovePollAnswerStudent")
   activities                      StudentActivity[]                @relation("StudentActivity")
@@ -724,6 +729,7 @@ model CoachClass {
   puzzleAssignments        LiveClassPuzzleAssignment[]
   leaderboardAdjustments   LiveClassLeaderboardAdjustment[]
   simuls                   LiveClassSimul[]
+  matchRounds              LiveClassMatchRound[]
   movePolls                LiveClassMovePoll[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
@@ -2235,6 +2241,142 @@ model LiveClassSimulGame {
   @@unique([simulId, studentId])
   @@index([studentId])
   @@map("live_class_simul_games")
+}
+
+enum LiveClassMatchRoundStatus {
+  ACTIVE
+  ENDED
+}
+
+enum MatchPairingMode {
+  AUTO
+  COACH
+  STUDENT_CHOICE
+}
+
+enum MatchGameStatus {
+  ONGOING
+  FINISHED
+}
+
+enum MatchGameResult {
+  WHITE_WON
+  BLACK_WON
+  DRAW
+}
+
+enum MatchEndReason {
+  CHECKMATE
+  STALEMATE
+  INSUFFICIENT_MATERIAL
+  THREEFOLD_REPETITION
+  FIFTY_MOVE_RULE
+  RESIGNATION
+  DRAW_AGREED
+  TIMEOUT
+  ADJUDICATED
+  ABORTED
+  ROUND_ENDED
+}
+
+enum MatchColor {
+  WHITE
+  BLACK
+}
+
+enum MatchChallengeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+/// Students play each other in a live class while the coach monitors every
+/// board. One ACTIVE per class (partial unique index in the migration).
+/// Operational class state — not soft-deletable, not Trash-registered.
+model LiveClassMatchRound {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  startedById String?
+  startedBy   User?   @relation("LiveClassMatchRoundStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+
+  status           LiveClassMatchRoundStatus @default(ACTIVE)
+  pairingMode      MatchPairingMode
+  startFen         String
+  /// null = untimed.
+  clockInitialMs   Int?
+  clockIncrementMs Int                       @default(0)
+  startedAt        DateTime                  @default(now())
+  endedAt          DateTime?
+
+  games      LiveClassMatchGame[]
+  challenges LiveClassMatchChallenge[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId])
+  @@map("live_class_match_rounds")
+}
+
+model LiveClassMatchGame {
+  id String @id @default(cuid())
+
+  roundId String
+  round   LiveClassMatchRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  whiteId String
+  white   User   @relation("LiveClassMatchGameWhite", fields: [whiteId], references: [id], onDelete: Cascade)
+  blackId String
+  black   User   @relation("LiveClassMatchGameBlack", fields: [blackId], references: [id], onDelete: Cascade)
+
+  fen           String
+  /// MatchMove[] (san, uci).
+  movesJson     Json             @default("[]")
+  /// Half-moves played — the optimistic-concurrency guard for every move.
+  ply           Int              @default(0)
+  /// Remaining ms at `turnSince`; null when untimed.
+  whiteClockMs  Int?
+  blackClockMs  Int?
+  turnSince     DateTime         @default(now())
+  status        MatchGameStatus  @default(ONGOING)
+  result        MatchGameResult?
+  endReason     MatchEndReason?
+  drawOfferedBy MatchColor?
+  finishedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundId])
+  @@index([whiteId])
+  @@index([blackId])
+  @@map("live_class_match_games")
+}
+
+model LiveClassMatchChallenge {
+  id String @id @default(cuid())
+
+  roundId String
+  round   LiveClassMatchRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  fromId String
+  from   User   @relation("LiveClassMatchChallengeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  toId   String
+  to     User   @relation("LiveClassMatchChallengeTo", fields: [toId], references: [id], onDelete: Cascade)
+
+  status     MatchChallengeStatus @default(PENDING)
+  resolvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([roundId])
+  @@index([toId])
+  @@map("live_class_match_challenges")
 }
 
 enum LiveClassMovePollStatus {

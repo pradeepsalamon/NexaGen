@@ -120,6 +120,14 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   can ask Stockfish for a hint or have it play the move at a chosen strength
   (needs `STOCKFISH_PATH`). `LiveClassSimul` / `LiveClassSimulGame` are
   per-class operational rows — not soft-deletable, not trash-registered.
+- Live-class student matches: students play each other while the coach
+  watches every board (`API_ROUTES.liveClass.match*`, `apps/api/src/student-match/`,
+  toolbar "Student matches"). A round pairs players automatically (Swiss-style,
+  no rematches), by the coach, or by the students themselves (challenge →
+  accept), and the coach can switch mode or pair the waiting students mid-round.
+  Optional clock (increment, server-validated flags). `LiveClassMatchRound` /
+  `LiveClassMatchGame` / `LiveClassMatchChallenge` are per-class operational
+  rows — not soft-deletable, not trash-registered.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student
