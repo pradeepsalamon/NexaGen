@@ -118,6 +118,8 @@ docker system prune -af
 
 A backup script has been provided at `scripts/backup_db.sh`. It creates a gzipped SQL dump of your PostgreSQL database and automatically deletes backups older than 7 days.
 
+The dump skips the **rows** of the Lichess puzzle catalogue (`lichess_puzzles`, ~6M re-loadable rows); the table definition and everything NexaChess-owned are included. After a restore, reload the catalogue — see [DATABASE_RESTORE.md](DATABASE_RESTORE.md) § "Lichess puzzle catalogue".
+
 **To set it up to run automatically every night at 2:00 AM:**
 
 1. Make the script executable:

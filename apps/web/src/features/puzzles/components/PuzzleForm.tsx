@@ -12,9 +12,10 @@ import type {
   SolutionMove,
   UpdatePuzzleRequest
 } from "@nexa-chess/types";
-import { resolvePuzzleScoring } from "@nexa-chess/types";
+import { isLichessFolder, resolvePuzzleScoring } from "@nexa-chess/types";
 import { CheckCircle2, Eye, Loader2, X, XCircle } from "lucide-react";
 import { FormPageShell } from "@/components/layout/FormPageShell";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FormField } from "@/components/ui/FormField";
@@ -105,9 +106,14 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // A catalogue copy's position and line are frozen (spec §3) — duplicate to edit.
+  const lichessCopy = puzzle?.source === "LICHESS";
   const topicOptions = useMemo(
-    () => puzzleTopicOptions(topicsData?.topics ?? []),
-    [topicsData]
+    () =>
+      puzzleTopicOptions(
+        (topicsData?.topics ?? []).filter((t) => !isLichessFolder(t) || t.id === puzzle?.topicId)
+      ),
+    [topicsData, puzzle?.topicId]
   );
 
   const tags = useMemo(
@@ -171,7 +177,8 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         toast.success({ title: publish ? "Puzzle published" : "Draft saved" });
         router.push(`${basePath}/${created.puzzle.id}`);
       } else if (puzzle) {
-        const payload: UpdatePuzzleRequest = buildPayload();
+        const { fen: _fen, solutionMoves: _line, ...editable } = buildPayload();
+        const payload: UpdatePuzzleRequest = lichessCopy ? editable : buildPayload();
         await updateMut.mutateAsync({ id: puzzle.id, data: payload });
         if (publish && puzzle.status !== "PUBLISHED") {
           await setPuzzlePublished(puzzle.id, { published: true });
@@ -306,7 +313,11 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
           title="Chess position"
           hint="Set the starting position. Side to move is the side the student plays."
         />
-        <PositionEditor value={fen} onChange={setFen} />
+        {lichessCopy ? (
+          <LichessLockedNote />
+        ) : (
+          <PositionEditor value={fen} onChange={setFen} />
+        )}
       </Card>
 
       <Card className="p-4 sm:p-6">
@@ -315,20 +326,26 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
           title="Solution"
           hint="Play the solution line on the board — student moves and forced replies."
         />
-        <SolutionEditor
-          startFen={fen}
-          value={solutionMoves}
-          onChange={(v) => {
-            setSolutionMoves(v);
-            setValidation(null);
-          }}
-          orientation={sideToMove(fen)}
-          onImport={(line) => {
-            setFen(line.startFen);
-            setSolutionMoves(line.moves);
-            setValidation(null);
-          }}
-        />
+        {lichessCopy ? (
+          <p className="text-sm text-app-text">
+            {solutionMoves.map((m) => m.san).join(" ")}
+          </p>
+        ) : (
+          <SolutionEditor
+            startFen={fen}
+            value={solutionMoves}
+            onChange={(v) => {
+              setSolutionMoves(v);
+              setValidation(null);
+            }}
+            orientation={sideToMove(fen)}
+            onImport={(line) => {
+              setFen(line.startFen);
+              setSolutionMoves(line.moves);
+              setValidation(null);
+            }}
+          />
+        )}
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={runValidate} disabled={validating}>
@@ -470,5 +487,14 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         </dl>
       </Card>
     </FormPageShell>
+  );
+}
+
+function LichessLockedNote() {
+  return (
+    <Alert variant="info">
+      This puzzle comes from the Lichess catalogue, so its position and solution are fixed.
+      Duplicate it to make an editable copy.
+    </Alert>
   );
 }

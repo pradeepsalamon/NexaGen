@@ -17,20 +17,35 @@ export const PUZZLE_DIFFICULTY_RATINGS: Record<PuzzleDifficulty, number> = {
   EXPERT: 1900
 };
 
-/** 1 for a clean solve, ½ for a solve that needed hints, 0 otherwise. */
-export function puzzleResultScore(solved: boolean, hintsUsed: number): number {
+/**
+ * The rating a student plays against: the puzzle's own rating (a Lichess
+ * puzzle carries one), else the fixed rating of its difficulty bucket.
+ */
+export function puzzleOpponentRating(puzzle: {
+  rating?: number | null;
+  difficulty: PuzzleDifficulty;
+}): number {
+  return puzzle.rating ?? PUZZLE_DIFFICULTY_RATINGS[puzzle.difficulty];
+}
+
+/**
+ * 1 for a clean solve. Using hints, or exactly one wrong move, costs half
+ * (spec D1/D2); both together, or a second wrong move, score 0 like a miss,
+ * so guessing through a line can't raise a rating.
+ */
+export function puzzleResultScore(solved: boolean, hintsUsed: number, wrongMoves: number): number {
   if (!solved) return 0;
-  return hintsUsed > 0 ? 0.5 : 1;
+  const slips = (hintsUsed > 0 ? 1 : 0) + wrongMoves;
+  return slips === 0 ? 1 : slips === 1 ? 0.5 : 0;
 }
 
 export function nextPuzzleRating(params: {
   rating: number;
   ratedPuzzles: number;
-  difficulty: PuzzleDifficulty;
+  opponentRating: number;
   score: number;
 }): number {
-  const opponent = PUZZLE_DIFFICULTY_RATINGS[params.difficulty];
-  const expected = 1 / (1 + 10 ** ((opponent - params.rating) / 400));
+  const expected = 1 / (1 + 10 ** ((params.opponentRating - params.rating) / 400));
   const k = params.ratedPuzzles < PROVISIONAL_RATED_PUZZLES ? 40 : 20;
   return Math.max(MIN_PUZZLE_RATING, Math.round(params.rating + k * (params.score - expected)));
 }

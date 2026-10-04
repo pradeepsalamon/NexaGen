@@ -6,8 +6,8 @@ import { useChessAppearance } from "@/features/chess-appearance/context/ChessApp
 const ARROW_ACTIONS = {
   ArrowRight: "redo",
   ArrowLeft: "undo",
-  ArrowUp: "jumpToEnd",
-  ArrowDown: "jumpToStart"
+  ArrowUp: "jumpToStart",
+  ArrowDown: "jumpToEnd"
 } as const;
 
 export function useBoardShortcuts() {

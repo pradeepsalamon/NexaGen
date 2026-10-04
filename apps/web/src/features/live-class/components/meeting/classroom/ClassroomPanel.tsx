@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
   Cpu,
@@ -87,7 +87,10 @@ export function ClassroomPanel({
   isCoach: boolean;
   showVideo: boolean;
 }) {
-  const [tab, setTab] = useState<TabId>(isCoach ? "moves" : "chat");
+  // A student opens on the leaderboard.
+  const [tab, setTab] = useState<TabId>(isCoach ? "moves" : "puzzles");
+  const [videoCollapsed, setVideoCollapsed] = useState(false);
+  const video = useVideoHeight();
   const { activeSidebar, setActiveSidebar, setClassroomChatOpen } = useLiveClassState(
     "activeSidebar",
     "setActiveSidebar",
@@ -117,9 +120,24 @@ export function ClassroomPanel({
       data-classroom-panel
     >
       {showVideo ? (
-        <div className="custom-scrollbar w-[260px] shrink-0 overflow-y-auto border-r border-app-border/60 lg:w-auto lg:overflow-visible lg:border-r-0">
-          <ClassroomVideo isCoach={isCoach} />
-        </div>
+        <>
+          <div
+            ref={video.ref}
+            className={cn(
+              "custom-scrollbar w-[260px] shrink-0 overflow-y-auto border-r border-app-border/60 lg:w-auto lg:overflow-visible lg:border-r-0",
+              video.height !== null && !videoCollapsed && "lg:h-[var(--classroom-video-h)] lg:overflow-hidden"
+            )}
+            style={video.height !== null ? ({ "--classroom-video-h": `${video.height}px` } as React.CSSProperties) : undefined}
+          >
+            <ClassroomVideo
+              isCoach={isCoach}
+              collapsed={videoCollapsed}
+              onCollapsedChange={setVideoCollapsed}
+              fill={video.height !== null}
+            />
+          </div>
+          {!videoCollapsed ? <VideoResizer video={video} /> : null}
+        </>
       ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -189,5 +207,95 @@ export function ClassroomPanel({
         </div>
       </div>
     </aside>
+  );
+}
+
+const VIDEO_HEIGHT_KEY = "nexa-live-class-video-height";
+const VIDEO_MIN = 140;
+const TOOLS_MIN = 200;
+
+/** Height of the panel's video section (lg+), null = natural 16:9. Remembered per browser. */
+function useVideoHeight() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number | null>(null);
+
+  const clamp = (value: number) => {
+    const panel = ref.current?.parentElement?.offsetHeight ?? window.innerHeight;
+    return Math.round(Math.min(Math.max(VIDEO_MIN, panel - TOOLS_MIN), Math.max(VIDEO_MIN, value)));
+  };
+
+  useEffect(() => {
+    try {
+      // A height saved on a taller window must still leave room for the tools.
+      const raw = Number(window.localStorage.getItem(VIDEO_HEIGHT_KEY));
+      if (raw > 0) setHeight(clamp(raw));
+    } catch {
+      // per-browser convenience only
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const commit = (next: number | null) => {
+    setHeight(next);
+    try {
+      if (next === null) window.localStorage.removeItem(VIDEO_HEIGHT_KEY);
+      else window.localStorage.setItem(VIDEO_HEIGHT_KEY, String(next));
+    } catch {
+      // per-browser convenience only
+    }
+  };
+
+  return { clamp, commit, height, ref, setHeight };
+}
+
+/** Drag handle between the video and the tools under it (lg+). Double-click resets to 16:9. */
+function VideoResizer({ video }: { video: ReturnType<typeof useVideoHeight> }) {
+  const current = () => video.height ?? video.ref.current?.offsetHeight ?? 280;
+
+  const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+    const top = video.ref.current?.getBoundingClientRect().top;
+    if (top === undefined) return;
+    event.preventDefault();
+    const handle = event.currentTarget;
+    handle.setPointerCapture(event.pointerId);
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+    let latest = current();
+    const onMove = (e: PointerEvent) => {
+      latest = video.clamp(e.clientY - top);
+      video.setHeight(latest);
+    };
+    const onUp = () => {
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointercancel", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      video.commit(latest);
+    };
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-orientation="horizontal"
+      aria-label="Resize video and tools"
+      aria-valuenow={video.height ?? undefined}
+      tabIndex={0}
+      onPointerDown={onPointerDown}
+      onDoubleClick={() => video.commit(null)}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowUp") video.commit(video.clamp(current() - 24));
+        else if (e.key === "ArrowDown") video.commit(video.clamp(current() + 24));
+        else return;
+        e.preventDefault();
+      }}
+      className="group relative z-10 -my-1.5 hidden h-3 shrink-0 cursor-row-resize touch-none items-center justify-center outline-none lg:flex"
+    >
+      <span className="h-1 w-12 rounded-full bg-app-border transition-colors group-hover:bg-primary group-focus-visible:bg-primary group-active:bg-primary" />
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowLeft, Gavel, Shuffle, Swords, Trophy, Users, X } from "lucide-react";
 import {
   compareMatchGamesForCoach,
@@ -168,8 +168,12 @@ function FocusedGame({ game, onBack }: { game: LiveMatchGame; onBack: () => void
   );
 }
 
-/** Coach-only, full-screen: every student-vs-student board, pairing tools and standings. */
-export function MatchCoachView() {
+/**
+ * Coach-only: every student-vs-student board, pairing tools and standings. Full-screen on phones; with
+ * `stageSwitch` it renders inline as a classroom stage tab instead.
+ */
+export function MatchCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}) {
+  const inline = stageSwitch !== undefined;
   const { classId, round, coachOpen, setCoachOpen, setStartOpen, focusedGameId, setFocusedGameId } = useMatch();
   const pair = usePairLiveMatch(classId);
   const setMode = useUpdateLiveMatchMode(classId);
@@ -214,7 +218,16 @@ export function MatchCoachView() {
   if (!coachOpen || !round) return null;
 
   return (
-    <div className={cn("fixed inset-0 flex flex-col bg-app-background", Z.overlay)} role="dialog" aria-modal="true" aria-label="Student matches">
+    <div
+      className={
+        inline
+          ? "flex min-h-0 min-w-0 flex-1 flex-col lg:pb-20"
+          : cn("fixed inset-0 flex flex-col bg-app-background", Z.overlay)
+      }
+      role={inline ? "region" : "dialog"}
+      aria-modal={inline ? undefined : true}
+      aria-label="Student matches"
+    >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-app-border bg-app-surface px-4 py-2.5">
         <div className="flex items-center gap-2">
           <Swords className="size-5 text-primary-ink" />
@@ -264,11 +277,15 @@ export function MatchCoachView() {
               New round
             </Button>
           )}
-          <SimpleTooltip label="Back to class (Esc)">
-            <Button size="icon" variant="ghost" className="rounded-full" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
-              <X className="size-5" strokeWidth={2.5} />
-            </Button>
-          </SimpleTooltip>
+          {inline ? (
+            stageSwitch
+          ) : (
+            <SimpleTooltip label="Back to class (Esc)">
+              <Button size="icon" variant="ghost" className="rounded-full" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
+                <X className="size-5" strokeWidth={2.5} />
+              </Button>
+            </SimpleTooltip>
+          )}
         </div>
       </header>
 

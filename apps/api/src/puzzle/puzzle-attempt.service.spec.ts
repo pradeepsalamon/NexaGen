@@ -21,6 +21,7 @@ const asRole = (id: string, role: UserRole) => ({ id, role, status: UserStatus.A
 
 describe("PuzzleAttemptService", () => {
   let service: PuzzleAttemptService;
+  let progress: { recordPuzzleResult: jest.Mock };
   let prisma: any;
 
   const globalPuzzle = (over: Record<string, unknown> = {}) => ({
@@ -115,6 +116,7 @@ describe("PuzzleAttemptService", () => {
     }).compile();
 
     service = moduleRef.get(PuzzleAttemptService);
+    progress = moduleRef.get(ProgressRecorderService);
   });
 
   it("404s on an unpublished puzzle", async () => {
@@ -206,6 +208,34 @@ describe("PuzzleAttemptService", () => {
     });
     const res = await service.submit(TOKEN, "pz-1", "att-1", { moves: solvedLine });
     expect(res.solved).toBe(true);
+  });
+
+  it("rates a submit against the puzzle's own rating with the server-counted wrong moves", async () => {
+    const solvedLine = [{ ply: 1, uci: "a1a8", san: "Ra8#", fenAfter: "R5k1/5ppp/8/8/8/8/8/6K1 b - - 1 1" }];
+    prisma.puzzle.findUnique.mockResolvedValue(globalPuzzle({ rating: 1450 }));
+    prisma.puzzleAttempt.findUnique.mockResolvedValue({
+      id: "att-1",
+      puzzleId: "pz-1",
+      studentId: STUDENT_ID,
+      status: "IN_PROGRESS",
+      liveClassId: null,
+      movesJson: solvedLine,
+      hintsUsed: 0,
+      durationSeconds: 0,
+      wrongMoves: 2
+    });
+    prisma.puzzleAttempt.update.mockImplementationOnce(({ data }: { data: object }) => ({
+      id: "att-1",
+      puzzleId: "pz-1",
+      hintsUsed: 0,
+      startedAt: new Date(),
+      wrongMoves: 2,
+      ...data
+    }));
+    await service.submit(TOKEN, "pz-1", "att-1", { moves: solvedLine });
+    expect(progress.recordPuzzleResult).toHaveBeenCalledWith(
+      expect.objectContaining({ rating: 1450, solved: true, wrongMoves: 2 })
+    );
   });
 
   it("only resumes an in-class attempt opened during the current share", async () => {

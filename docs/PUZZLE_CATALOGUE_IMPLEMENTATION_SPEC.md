@@ -1,7 +1,9 @@
 # Lichess Puzzle Catalogue — Implementation Spec
 
-Status: **v2 — final architecture.** Nothing is implemented and nothing is
-imported. v1 was reviewed externally; §0 records what changed and why.
+Status: **v2 — final architecture.** §15 PRs 1–5b are built (fixes, schema +
+contract, backup exclusion, prepare/load tooling, rating maths and switch-over);
+PR 6 (catalogue API + UI) is in review. The 2026-10-02 release is loaded into
+`vps_dev` only. v1 was reviewed externally; §0 records what changed and why.
 [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) holds the
 audit and its measurements. Each numbered section answers one review question.
 
@@ -10,7 +12,7 @@ Owner decisions. Each carries the recommendation this spec is built on:
 | # | Decision | Recommendation (assumed below) |
 |---|---|---|
 | D0 | Can students self-train, given today's "puzzles are classroom material" stance? | **Yes, per-batch opt-in** (`Batch.puzzleTrainingEnabled`, off by default). §0.4 explains why it lives on `Batch`, not `Entitlement`. |
-| D1 | Rated score of a solve that needed a wrong move | **0.** Lichess ratings assume a first-try solve; anything above 0 lets brute-forcing raise a rating. This is a behaviour change; see §9 for the safeguards. |
+| D1 | Rated score of a solve that needed a wrong move | **½ for exactly one wrong move, 0 for two or more** (softened 2026-10-04 from a flat 0). One slip costs the same as using hints; a slip *and* hints, or repeated guessing, scores like a miss, so brute-forcing still can't raise a rating. Measured on the 62 rated production attempts, a flat 0 would have hit 48% of them, most after a single slip. Behaviour change; see §9 for the safeguards. |
 | D2 | Rated score of a clean solve that used hints | **½** (unchanged) |
 | D3 | Are live-class attempts rated? | **Unchanged** (yes). Out of scope, flagged only. |
 
@@ -26,7 +28,7 @@ Owner decisions. Each carries the recommendation this spec is built on:
 | 4 | D0 owner: entitlement vs batch | **Checked; batch kept** | No capability/entitlement system exists to reuse (§0.4) |
 | 5 | Rating change needs caution | **Accepted** | Pure functions + table-driven tests first; history never recalculated; switch-over in its own PR (§9) |
 | 6 | Isolate alternative-mate logic | **Accepted, narrowed** | Dedicated `isAcceptedMateAlternative`, only when the book line itself ends in mate (§8) |
-| 7 | Content fingerprint | **Accepted, and upgraded from optional to required** | The dump has **21,809 exact duplicate puzzles** (same position + line, different ids, measured). `contentHash` on both tables; duplicates fail the quality gate; seen-set is by content (§0.3, §1, §7) |
+| 7 | Content fingerprint | **Accepted, and upgraded from optional to required** | The 2026-10-02 dump has **29,942 duplicate puzzles** by `contentHash` (same post-setup position + solution line, different ids, measured by prepare; see §1 for why this is not the raw-CSV 21,809). `contentHash` on both tables; duplicates fail the quality gate; seen-set is by content (§0.3, §1, §7) |
 | + | Don't send solutions from catalogue browse | **Accepted** | Browse DTO has no solution; separate staff-only preview endpoint (§11) |
 | + | Resource gates over a load-time target | **Accepted** | Pause/abort on live class, host load, API latency; time is a guideline (§13, §16) |
 | — | Review diagram shows Assignment consuming `Puzzle` | **Corrected** | Homework is a *copy* into the separate `Assignment` model, not a `Puzzle` reference (§11). Final diagram in §0.5 |
@@ -45,7 +47,7 @@ A catalogue release is the prepared artifact, identified by
   "preparedSha256": "…",
   "preparedAt": "2026-10-04T10:12:00Z",
   "preparerGitSha": "…",
-  "rows": { "total": 6157341, "valid": 6157341, "rejected": 0, "duplicates": 21809, "passesQualityGate": 4030000 },
+  "rows": { "total": 6157341, "valid": 6157341, "rejected": 0, "duplicates": 29942, "passesQualityGate": 4034433 },
   "rejectReasons": {}, "unknownThemes": []
 }
 ```
@@ -181,8 +183,17 @@ Derived columns, computed by the prepare script (never by the API):
   - Without the duplicate rule this is 4,052,640 rows today (measured). Slightly
     fewer once duplicates are removed.
   - `isCanonicalForContentHash`: among rows sharing a `contentHash`, only the
-    one with the highest `nbPlays` (ties: smallest id) passes. The other 21,809
-    stay in the catalogue but are never auto-served.
+    one with the highest `nbPlays` (ties: smallest id) passes. The other 29,942
+    (2026-10-02 dump) stay in the catalogue but are never auto-served.
+  - Why 29,942 and not 21,809: `contentHash` is `puzzleContentHash` of the
+    position *after* Lichess's setup move (`moves[0]`) plus the solution
+    `moves[1..]`, which is what a student sees and what a materialised `puzzles`
+    row hashes to. The earlier 21,809 was measured on the raw CSV (FEN's first
+    four fields + the full `Moves` column, setup move included). On the same
+    6,157,341-row dump that raw key gives exactly 21,809; the post-setup key
+    merges a further 8,133 rows whose different setup moves reach the same
+    position and line. Those are real duplicates for us, so 29,942 is correct.
+    (The full raw FEN, move counters included, gives only 51.)
 
 Not stored: `DailyDate` (1,787 rows, no consumer), and no validation-status
 column (validation happens before a row exists). Rollback is a `TRUNCATE`
@@ -327,10 +338,12 @@ the course `AttachModuleModal` never show the training cache. An admin can
 still open the "Lichess" folder deliberately. `stats()` counts them separately
 (`trainingCache`).
 
-**System folder:** `PuzzleTopic` with slug `lichess`, name "Lichess", created
-lazily on first use (the same lazy-seed pattern as `PuzzleScoringSettings`).
-It's found by slug through `withDeleted`; if it was trashed, it's restored
-rather than duplicated.
+**System folder:** `PuzzleTopic` with slug `__lichess` (`LICHESS_FOLDER_SLUG`),
+name "Lichess", created lazily on first use (the same lazy-seed pattern as
+`PuzzleScoringSettings`). The slug is one `slugify` can never produce, so an
+admin's own folder named "Lichess" (slug `lichess`) is never taken for it, and a
+rename keeps it. It's found by slug through `withDeleted`; if it was trashed,
+it's restored rather than duplicated.
 
 **Edit rules for a `LICHESS` puzzle** (`PuzzleService.update`):
 
@@ -454,7 +467,11 @@ LIMIT $pageSize + 1;                                     -- the extra row ⇒ ha
   The UI says "Load more", never "of N". (A filtered `COUNT(*)` was measured
   at 32 s.)
 - **Guard:** every catalogue query runs in a Prisma interactive transaction
-  that first runs `SET LOCAL statement_timeout = '3s'`. A timeout returns
+  that first runs `SET LOCAL statement_timeout = '3s'` and
+  `SET LOCAL plan_cache_mode = force_custom_plan`. Prisma prepares every
+  statement, and after five executions Postgres may switch to a generic plan
+  that cannot see the band bounds; the §16 benchmarks only met their targets
+  with custom plans. A timeout returns
   `200 { puzzles: [], hasMore: false, timedOut: true }` and the UI says
   "narrow the filters". A very rare theme over a wide rating window is the
   only realistic way to hit it.
@@ -469,7 +486,7 @@ LIMIT $pageSize + 1;                                     -- the extra row ⇒ ha
 **Seen** = any attempt the student has ever started at the same *content*,
 from any source, in any context and any status. Matching on content (not on
 `sourceId`) means a NexaChess-authored copy of the same position also counts,
-and so do the 21,809 Lichess duplicates. The duplicates are already outside the
+and so do the 29,942 Lichess duplicates. The duplicates are already outside the
 quality gate; this is the backstop.
 
 ```sql
@@ -584,10 +601,11 @@ opponent        = puzzle.rating ?? PUZZLE_DIFFICULTY_RATINGS[puzzle.difficulty]
 hints           = attempt.hintsUsed (max of the server-counted and client-reported values)
 wrong           = attempt.wrongMoves (server-counted in saveProgress)
 
+slips = (hints > 0 ? 1 : 0) + wrong
 score = 0    if not solved                    (incl. "Give up", time-out, skipped training puzzle)
-      = 0    if solved and wrong > 0          ← D1 (today: counts as a clean solve)
-      = 0.5  if solved and wrong = 0 and hints > 0     ← D2 (unchanged)
-      = 1    if solved and wrong = 0 and hints = 0
+      = 1    if solved and slips = 0
+      = 0.5  if solved and slips = 1          ← hints only (D2, unchanged) or exactly one wrong move (D1)
+      = 0    if solved and slips ≥ 2          ← D1: hints + a wrong move, or two or more wrong moves
 
 expected = 1 / (1 + 10^((opponent − rating) / 400))
 K        = 40 if ratedPuzzles < 20 else 20
@@ -600,7 +618,8 @@ Worked example: a student rated 1200 (30 rated) solving a 1450 puzzle.
 |---|---|---|
 | Clean | 1 | +16 |
 | With hints | ½ | +6 |
-| After a wrong move | 0 | −4 |
+| After one wrong move | ½ | +6 |
+| After two wrong moves, or a wrong move + hints | 0 | −4 |
 | Failed | 0 | −4 |
 
 Unchanged from today: the provisional K, the 100 floor, the peak tracking, the
@@ -810,11 +829,19 @@ tests).
   `randKey`, post-setup FEN → `contentHash`, then a second pass marks the
   canonical row per `contentHash` → `passesQualityGate` → TSV → GNU `sort` by `(ratingBand, randKey, id)` →
   `zstd`.
-- **Outputs:**
-  - `lichess_puzzles.<YYYY-MM>.tsv.zst`
-  - `rejects.<YYYY-MM>.tsv`
-  - `manifest.<YYYY-MM>.json`: source sha256, row counts by outcome, reject
-    reasons, unknown themes, TSV sha256
+- **Outputs** (as built in PR 4), laid out exactly as stored in OCI:
+  - `<out>/<preparedSha256>/catalogue.tsv.zst`
+  - `<out>/<preparedSha256>/rejects.tsv`
+  - `<out>/<preparedSha256>/manifest.json`: the §0.1 fields plus `columns`,
+    `files` (compressed size + sha256, uncompressed bytes), `qualityGate`,
+    `unknownThemes`, `flagged`, `ratingBands`
+  - `preparedSha256` = sha256 of the **uncompressed** sorted TSV, so it does
+    not depend on the zstd version. The core is
+    `apps/api/src/puzzle/catalogue/lichess-prepare.core.ts` (TS, unit-tested);
+    the script loads it from the API build, so the content hash is the API's
+    own `puzzleContentHash`.
+  - The TSV carries neither `retiredAt` nor `releaseId`: the load fills
+    `releaseId` (the release id is only known once the file is hashed).
 - **Resume/retry:** none needed. It is a pure function of the input file;
   re-run it (~1.75 h on 1 core, faster with workers).
 - **Exit non-zero** if rejects exceed 0.1% of rows.
@@ -830,7 +857,7 @@ tests).
 | 1 | preflight: artifact fetched from `lichess/<preparedSha256>/` and its sha256 matches; manifest `formatVersion` supported; migration present; free disk > 3× TSV; not 19:30–21:30 UTC (backup); resource gate green (below); then `INSERT INTO lichess_catalogue_releases (id, …) ON CONFLICT (id) DO NOTHING` | refuses with a reason; nothing changed. Re-running the same release reuses its row |
 | 2 | session settings: `synchronous_commit=off`, `max_parallel_maintenance_workers=0`, `maintenance_work_mem=256MB`, `statement_timeout=0`, `lock_timeout=5s` | per session |
 | 3 | `DROP TABLE IF EXISTS lichess_puzzles_staging; CREATE UNLOGGED TABLE … (LIKE lichess_puzzles)`; `\copy` from the decompressed stream; `CREATE INDEX` on staging `(id)` and `("ratingBand")` | always rebuilt from scratch (~2 min) — re-running is the resume |
-| 4 | for each band in ascending order: `INSERT INTO lichess_puzzles SELECT … FROM staging WHERE "ratingBand" = $b ORDER BY "randKey", id ON CONFLICT (id) DO UPDATE SET <all columns> WHERE (lichess_puzzles.*) IS DISTINCT FROM (EXCLUDED.*)`; commit; re-check LIVE classes (pause and poll every 60 s while any); sleep 2 s | each band is its own transaction. A re-run re-executes every band; finished bands write zero rows (the `IS DISTINCT FROM` guard), so resume needs no ledger |
+| 4 | for each band in ascending order: `INSERT INTO lichess_puzzles SELECT … FROM staging WHERE "ratingBand" = $b ORDER BY "randKey", id ON CONFLICT (id) DO UPDATE SET <all columns> WHERE (<every column but id, releaseId>) IS DISTINCT FROM (EXCLUDED.…)` — `releaseId` is left out of the comparison, otherwise every new release would rewrite all 6M rows; it therefore names the release that last *changed* a row; commit; re-check LIVE classes (pause and poll every 60 s while any); sleep 2 s | each band is its own transaction. A re-run re-executes every band; finished bands write zero rows (the `IS DISTINCT FROM` guard), so resume needs no ledger |
 | 5 | retire: `UPDATE lichess_puzzles c SET "retiredAt" = now(), "passesQualityGate" = false WHERE c."retiredAt" IS NULL AND NOT EXISTS (SELECT 1 FROM staging s WHERE s.id = c.id)` | idempotent. A reappearing id is un-retired by step 4 (`retiredAt` NULL and a recomputed `passesQualityGate` come from staging) |
 | 6 | `VACUUM (FREEZE, ANALYZE, PARALLEL 0) lichess_puzzles` | safe to repeat |
 | 7 | `UPDATE lichess_catalogue_releases SET "loadCompletedAt" = now() WHERE id = $release`; `DROP TABLE lichess_puzzles_staging`; print a report (inserted / updated / unchanged / retired, duration, rows/s) and append it to `lichess-load.log` | — |
@@ -883,6 +910,11 @@ metrics. Every pause is logged with its reason in the run report.
   - The table definition is still dumped; only the rows are skipped.
   - Applied to `nexa_chess`. `vps_dev` has no backup job today; the same rule
     applies if one is added.
+  - Also applied to the API's own dumps in `apps/api/src/backup/backup.service.ts`
+    (admin "Backup now" and the pre-restore safety dump), and to the load's
+    `lichess_puzzles_staging` table. *(Done in PR 3; verified on a scratch
+    Postgres 15: the dump succeeds while the tables don't exist yet, and a
+    restore gives the table with 0 rows beside intact releases/puzzles.)*
   - Effect: nightly dumps stay at today's size plus materialised puzzles,
     instead of about 400–500 MB gzipped per night × 14 retained (*estimate*).
 - **What stays backed up:** everything NexaChess-owned, including every
@@ -924,7 +956,7 @@ deployable alone.
 | 4 | **Tooling:** prepare + load scripts, `puzzles:prepare` npm script, README section | — | none (not part of the app build) | revert |
 | 5a | **Rating maths, pure functions only** (§9 safeguard 1) | — | no behaviour change | revert |
 | 5b | **Rating switch-over** (recorder passes rating + wrongMoves; D1 in the PR description) | — | affects only new rated attempts; history untouched | revert (rows written in between stay as recorded) |
-| 6 | **Catalogue API + UI:** browse (no solution) / preview (staff, with solution) / materialise / adopt; system folder hidden from list by default; duplicate-content warnings; `CatalogBrowser` in the library and `PuzzleAssignModal`; "Create homework" prefill; edit rules for `LICHESS` rows; "Lichess" author label | — | safe on an empty catalogue (empty results) | revert; any materialised puzzles remain ordinary puzzles |
+| 6 ✅ | **Catalogue API + UI:** browse (no solution) / preview (staff, with solution) / materialise / adopt; system folder hidden from list by default; duplicate-content warnings; `CatalogBrowser` in the library and `PuzzleAssignModal`; "Create homework" prefill; edit rules for `LICHESS` rows; "Lichess" author label | — | safe on an empty catalogue (empty results) | revert; any materialised puzzles remain ordinary puzzles |
 | — | **Load into `vps_dev`**; run the §16 benchmarks; e2e there | — | ops | `TRUNCATE` |
 | 7 | **Production load** (ops, not a deploy): window 21:30–23:30 UTC, after confirming step 3 ran | — | `scripts/lichess-puzzles-load.sh` | §13 rollback |
 | 8 | **Training** (after D0): service, policy, `/student/training`, nav, progress theme stats | none, or the D0 column if not added in step 2 | normal | revert; TRAINING attempts remain valid history |
@@ -944,7 +976,7 @@ is over ≥ 300 runs with random parameters, after one warm-up pass.
 | Gate | Metric | Pass |
 |---|---|---|
 | Data | prepare rejects | < 0.1% (expected ≈ 0) |
-| Data | duplicates | manifest `duplicates` ≈ 21,809 for this dump; exactly one row per `contentHash` passes the gate (int query) |
+| Data | duplicates | manifest `duplicates` = 29,942 for the 2026-10-02 dump (post-setup key, §1; not the raw-CSV 21,809); exactly one row per `contentHash` passes the gate (int query) |
 | Data | content hash parity | TS `puzzleContentHash` = SQL backfill expression on the fixture set (int-spec) |
 | Data | row counts | catalogue = manifest valid rows; `passesQualityGate` count equals the manifest |
 | Data | spot check | 1,000 random materialisations: post-setup FEN equals chess.js after `moves[0]`; solution replays; mate-themed puzzles end in mate |

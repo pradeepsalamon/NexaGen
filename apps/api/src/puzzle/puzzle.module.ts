@@ -9,6 +9,7 @@ import { TrashModule } from "../trash/trash.module";
 import { LiveClassPuzzleController } from "./live-class-puzzle.controller";
 import { LiveClassPuzzleService } from "./live-class-puzzle.service";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
+import { PuzzleCatalogService } from "./puzzle-catalog.service";
 import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 import { PuzzleTopicService } from "./puzzle-topic.service";
 import { PuzzleController } from "./puzzle.controller";
@@ -29,6 +30,7 @@ import { PuzzleService } from "./puzzle.service";
     PuzzleTopicService,
     PuzzleService,
     PuzzleAttemptService,
+    PuzzleCatalogService,
     PuzzleScoringSettingsService,
     LiveClassPuzzleService
   ]

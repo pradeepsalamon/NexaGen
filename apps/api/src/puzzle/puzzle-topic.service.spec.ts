@@ -2,7 +2,7 @@
 import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
-import { MAX_PUZZLE_TOPIC_DEPTH } from "@nexa-chess/types";
+import { LICHESS_FOLDER_SLUG, MAX_PUZZLE_TOPIC_DEPTH } from "@nexa-chess/types";
 import { UserRole, UserStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
@@ -143,6 +143,14 @@ describe("PuzzleTopicService", () => {
     await expect(
       service.create(TOKEN, { name: "Too deep", parentId: `c${MAX_PUZZLE_TOPIC_DEPTH - 1}` } as never)
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("keeps the system Lichess folder's slug when it is renamed", async () => {
+    prisma.puzzleTopic.findUnique.mockResolvedValue({ id: "t9", name: "Lichess", slug: LICHESS_FOLDER_SLUG, parentId: null });
+    await service.update(TOKEN, "t9", { name: "Lichess cache" });
+    expect(prisma.puzzleTopic.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ name: "Lichess cache", slug: LICHESS_FOLDER_SLUG }) })
+    );
   });
 
   it("moves a folder to the top level", async () => {

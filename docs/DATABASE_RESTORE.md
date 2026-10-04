@@ -51,3 +51,35 @@ docker compose start api web
 1. Open the Nexa web application.
 2. Log in as an administrator.
 3. Check the Users and Classes pages to ensure the data matches the expected state from the time of the backup.
+
+## 6. Lichess puzzle catalogue
+
+Every backup — the nightly `scripts/backup_db.sh`, the admin "Backup now" button
+and the API's pre-restore safety dump — skips the **rows** of `lichess_puzzles`
+(and its transient `lichess_puzzles_staging`). The table definitions are
+dumped; only the ~6M rows of re-loadable source data are not. Everything
+NexaChess-owned is backed up as before, including every `puzzles` row copied
+from the catalogue, all attempts, ratings and progress, and the small
+`lichess_catalogue_releases` table. No backed-up row references the catalogue
+by foreign key, so a restore never loses student history.
+
+After a restore the catalogue is therefore **empty**. Until it is reloaded the
+catalogue tab shows no results and student training (if enabled) falls back to
+review / 404; every existing puzzle, course and class works normally.
+
+To reload it:
+
+1. Ask the restored database which release it had loaded:
+   ```bash
+   docker exec -i nexa_postgres psql -U postgres -d nexa_chess -tA -c \
+     'SELECT id FROM lichess_catalogue_releases WHERE "loadCompletedAt" IS NOT NULL ORDER BY "loadCompletedAt" DESC LIMIT 1'
+   ```
+   No row means the catalogue was never loaded — there is nothing to do.
+2. That id is the prepared artifact's `preparedSha256`. Its files live,
+   write-once, in the backup bucket at `lichess/<id>/catalogue.tsv.zst` and
+   `lichess/<id>/manifest.json`. Fetch both.
+3. Run `scripts/lichess-puzzles-load.sh <manifest>` (about 15–30 min; it pauses
+   on its own while a live class is running or the host is loaded). It does not
+   need Lichess to be reachable.
+
+Spec: [PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md](PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md) §13–§14.

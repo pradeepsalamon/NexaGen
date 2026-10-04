@@ -124,6 +124,10 @@ interface Props {
   initialFen?: string;
   /** Prefill the activity type on create. */
   initialActivityType?: AssignmentActivityType;
+  /** Prefill a SOLVE_LINE's solution on create (e.g. a catalogue puzzle's line). */
+  initialSolutionMoves?: SolutionMove[];
+  /** Prefill the title on create. */
+  initialTitle?: string;
 }
 
 export function AssignmentFormDialog({
@@ -133,7 +137,9 @@ export function AssignmentFormDialog({
   assignment,
   coachBatches,
   initialFen,
-  initialActivityType
+  initialActivityType,
+  initialSolutionMoves,
+  initialTitle
 }: Props) {
   const { run: runCreate, isPending: isCreating } = useUndoableMutation({
     strategy: "immediate",
@@ -187,12 +193,14 @@ export function AssignmentFormDialog({
     } else {
       form.reset({
         ...DEFAULTS,
+        title: initialTitle ?? DEFAULTS.title,
         activityType: initialActivityType ?? DEFAULTS.activityType,
         startFen: initialFen ?? DEFAULTS.startFen,
+        solutionMoves: initialSolutionMoves ?? DEFAULTS.solutionMoves,
         studentColor: initialFen && initialFen.includes(" b ") ? "black" : "white"
       });
     }
-  }, [open, mode, assignment, form, initialFen, initialActivityType]);
+  }, [open, mode, assignment, form, initialFen, initialActivityType, initialSolutionMoves, initialTitle]);
 
   const errors = form.formState.errors;
   const isPending = isCreating || isUpdating;

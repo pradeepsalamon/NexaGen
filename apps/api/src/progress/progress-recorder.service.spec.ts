@@ -1,18 +1,18 @@
-import { addDays, liveStreak, nextPuzzleRating, nextStreak } from "@nexa-chess/types";
+import { addDays, liveStreak, nextPuzzleRating, nextStreak, PUZZLE_DIFFICULTY_RATINGS } from "@nexa-chess/types";
 import { PrismaService } from "../prisma/prisma.service";
 import { localDay, ProgressRecorderService } from "./progress-recorder.service";
 
 describe("progress maths", () => {
   it("gains more for beating a harder puzzle", () => {
     const base = { rating: 1200, ratedPuzzles: 50, score: 1 };
-    const hard = nextPuzzleRating({ ...base, difficulty: "EXPERT" });
-    const easy = nextPuzzleRating({ ...base, difficulty: "BEGINNER" });
+    const hard = nextPuzzleRating({ ...base, opponentRating: PUZZLE_DIFFICULTY_RATINGS.EXPERT });
+    const easy = nextPuzzleRating({ ...base, opponentRating: PUZZLE_DIFFICULTY_RATINGS.BEGINNER });
     expect(hard - 1200).toBeGreaterThan(easy - 1200);
     expect(easy).toBeGreaterThanOrEqual(1200);
   });
 
   it("moves a provisional rating faster", () => {
-    const args = { rating: 1200, difficulty: "INTERMEDIATE" as const, score: 0 };
+    const args = { opponentRating: PUZZLE_DIFFICULTY_RATINGS.INTERMEDIATE, rating: 1200, score: 0 };
     expect(nextPuzzleRating({ ...args, ratedPuzzles: 0 })).toBeLessThan(
       nextPuzzleRating({ ...args, ratedPuzzles: 100 })
     );
@@ -46,8 +46,10 @@ describe("ProgressRecorderService", () => {
     difficulty: "INTERMEDIATE" as const,
     hintsUsed: 0,
     puzzleId: "pz-1",
+    rating: null,
     solved: true,
-    studentId: "stu-1"
+    studentId: "stu-1",
+    wrongMoves: 0
   };
 
   function buildPrisma() {
@@ -96,6 +98,31 @@ describe("ProgressRecorderService", () => {
     expect(prisma.puzzleRatingChange.create).not.toHaveBeenCalled();
     const { data } = prisma.studentProgress.update.mock.calls[0][0];
     expect(data.puzzleRating).toBe(1200);
+  });
+
+  it("plays against the puzzle's own rating and records it", async () => {
+    await service.recordPuzzleResult({ ...input, rating: 1450 });
+    const { data } = prisma.puzzleRatingChange.create.mock.calls[0][0];
+    expect(data.puzzleRating).toBe(1450);
+    // 1200 with 0 rated (K = 40) beating a 1450 puzzle: +32
+    expect(data.after).toBe(1232);
+  });
+
+  it("falls back to the difficulty bucket for an unrated puzzle", async () => {
+    await service.recordPuzzleResult(input);
+    const { data } = prisma.puzzleRatingChange.create.mock.calls[0][0];
+    expect(data.puzzleRating).toBe(PUZZLE_DIFFICULTY_RATINGS.INTERMEDIATE);
+  });
+
+  it("scores one wrong move like hints and two like a failure (D1)", async () => {
+    const after = async (over: Partial<typeof input>) => {
+      prisma.puzzleRatingChange.create.mockClear();
+      await service.recordPuzzleResult({ ...input, ...over });
+      return prisma.puzzleRatingChange.create.mock.calls[0][0].data.after as number;
+    };
+    expect(await after({ wrongMoves: 1 })).toBe(await after({ hintsUsed: 1 }));
+    expect(await after({ wrongMoves: 2 })).toBe(await after({ solved: false }));
+    expect(await after({ wrongMoves: 2 })).toBeLessThan(1200);
   });
 
   it("never throws into the submit that called it", async () => {

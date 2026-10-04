@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { PuzzleListQuery, PuzzleSummary } from "@nexa-chess/types";
-import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
+import { BoardContext } from "@/features/chessboard/context/BoardProvider";
 import { getPuzzle, getPuzzles } from "@/features/puzzles/api/puzzleApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
@@ -12,13 +12,35 @@ import { loadLastShareOptions } from "../lib/puzzleShareOptions";
 import { useAssignLivePuzzle } from "./useLivePuzzle";
 
 /**
- * Steps through the coach's current folder, by title, from the last puzzle
- * shared or loaded.
+ * Puts a puzzle's position on the shared board — a plain position, no timer or
+ * attempt. Null outside a `BoardProvider` (the phone sidebar has no board).
+ */
+export function useLoadPuzzleOnBoard() {
+  const store = useContext(BoardContext);
+
+  const load = useCallback(
+    async (puzzleId: string) => {
+      const { puzzle } = await getPuzzle(puzzleId);
+      if (store) {
+        store.getState().pushHistory(puzzle.fen, "");
+        store.getState().setOrientation(puzzle.orientation);
+      }
+      return puzzle;
+    },
+    [store]
+  );
+  return store ? load : null;
+}
+
+/**
+ * Steps through the coach's current folder, by title. Ask and Load keep their
+ * own place (`askedId` / `loadedId` in the cursor), so loading ahead never
+ * skips a puzzle the class hasn't been asked yet.
  *
- * - `loadNext` puts it on the shared board as a plain position — no timer,
+ * - `loadNext` puts the next puzzle on the shared board — no timer,
  *   leaderboard or student attempt; the coach just shows it.
- * - `askNext` shares it as a live puzzle with the coach's last share options
- *   (the same ones the Ask dialog remembers), replacing any active one.
+ * - `askNext` / `askPrevious` share a puzzle as a live puzzle with the coach's
+ *   last share options, replacing any active one, and load it on the board too.
  */
 export function useLoadNextPuzzle({
   classId,
@@ -29,88 +51,100 @@ export function useLoadNextPuzzle({
 }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const pushHistory = useBoardStore((s) => s.pushHistory);
-  const setOrientation = useBoardStore((s) => s.setOrientation);
+  const loadOnBoard = useLoadPuzzleOnBoard();
+  if (!loadOnBoard) throw new Error("useLoadNextPuzzle must be used within a BoardProvider");
   const assign = useAssignLivePuzzle(classId);
   const [loading, setLoading] = useState(false);
 
-  const findNext = useCallback(async (): Promise<PuzzleSummary | null> => {
-    const cursor = loadPuzzleCursor();
-    if (!cursor.folderId) {
-      toast.info({ title: "Pick a folder first" });
-      onNoFolder();
-      return null;
-    }
-    const query: PuzzleListQuery = {
-      topicId: cursor.folderId,
-      topicScope: "direct",
-      status: "PUBLISHED",
-      scope: "all",
-      sort: "title",
-      order: "asc",
-      pageSize: 100
-    };
-    const list = await qc.fetchQuery({
-      queryKey: queryKeys.puzzles.list(query),
-      queryFn: () => getPuzzles(query),
-      staleTime: 30_000
-    });
-    const puzzles = list.puzzles;
-    if (puzzles.length === 0) {
-      toast.info({ title: "No published puzzles in this folder" });
-      return null;
-    }
-    const index = cursor.puzzleId ? puzzles.findIndex((p) => p.id === cursor.puzzleId) : -1;
-    const next = puzzles[index + 1];
-    if (!next) {
-      toast.info({ title: "Last puzzle in this folder" });
-      return null;
-    }
-    return next;
-  }, [qc, toast, onNoFolder]);
+  const findStep = useCallback(
+    async (fromId: string | null, step: 1 | -1): Promise<PuzzleSummary | null> => {
+      const { folderId } = loadPuzzleCursor();
+      if (!folderId) {
+        toast.info({ title: "Pick a folder first" });
+        onNoFolder();
+        return null;
+      }
+      const query: PuzzleListQuery = {
+        topicId: folderId,
+        topicScope: "direct",
+        status: "PUBLISHED",
+        scope: "all",
+        sort: "title",
+        order: "asc",
+        pageSize: 100
+      };
+      const list = await qc.fetchQuery({
+        queryKey: queryKeys.puzzles.list(query),
+        queryFn: () => getPuzzles(query),
+        staleTime: 30_000
+      });
+      const puzzles = list.puzzles;
+      if (puzzles.length === 0) {
+        toast.info({ title: "No published puzzles in this folder" });
+        return null;
+      }
+      const index = fromId ? puzzles.findIndex((p) => p.id === fromId) : -1;
+      if (step === -1 && index === -1) {
+        toast.info({ title: "No earlier puzzle shared in this folder" });
+        return null;
+      }
+      const target = puzzles[index + step];
+      if (!target) {
+        toast.info({ title: step === 1 ? "Last puzzle in this folder" : "First puzzle in this folder" });
+        return null;
+      }
+      return target;
+    },
+    [qc, toast, onNoFolder]
+  );
 
   const loadNext = useCallback(async () => {
     setLoading(true);
     try {
-      const next = await findNext();
+      const next = await findStep(loadPuzzleCursor().loadedId, 1);
       if (!next) return;
-      const { puzzle } = await getPuzzle(next.id);
-      pushHistory(puzzle.fen, "");
-      setOrientation(puzzle.orientation);
-      savePuzzleCursor({ puzzleId: puzzle.id });
+      const puzzle = await loadOnBoard(next.id);
+      savePuzzleCursor({ loadedId: puzzle.id });
       toast.success({ title: `Loaded: ${puzzle.title}` });
     } catch (error) {
       toast.error({ title: "Couldn't load the next puzzle", message: (error as Error).message });
     } finally {
       setLoading(false);
     }
-  }, [findNext, pushHistory, setOrientation, toast]);
+  }, [findStep, loadOnBoard, toast]);
 
-  const askNext = useCallback(async () => {
-    setLoading(true);
-    try {
-      let next: PuzzleSummary | null;
+  const ask = useCallback(
+    async (step: 1 | -1) => {
+      setLoading(true);
       try {
-        next = await findNext();
-      } catch (error) {
-        toast.error({ title: "Couldn't find the next puzzle", message: (error as Error).message });
-        return;
+        let target: PuzzleSummary | null;
+        try {
+          target = await findStep(loadPuzzleCursor().askedId, step);
+        } catch (error) {
+          toast.error({ title: "Couldn't find the puzzle", message: (error as Error).message });
+          return;
+        }
+        if (!target) return;
+        const last = loadLastShareOptions();
+        await assign.mutateAsync({
+          puzzleId: target.id,
+          durationSeconds: last.durationSeconds ? Number(last.durationSeconds) : null,
+          leaderboard: last.leaderboard,
+          scoring: last.scoring
+        });
+        savePuzzleCursor({ askedId: target.id });
+        await loadOnBoard(target.id).catch(() => undefined);
+      } catch {
+        // Already toasted by useAssignLivePuzzle.
+      } finally {
+        setLoading(false);
       }
-      if (!next) return;
-      const last = loadLastShareOptions();
-      await assign.mutateAsync({
-        puzzleId: next.id,
-        durationSeconds: last.durationSeconds ? Number(last.durationSeconds) : null,
-        leaderboard: last.leaderboard,
-        scoring: last.scoring
-      });
-      savePuzzleCursor({ puzzleId: next.id });
-    } catch {
-      // Already toasted by useAssignLivePuzzle.
-    } finally {
-      setLoading(false);
-    }
-  }, [assign, findNext, toast]);
+    },
+    [assign, findStep, loadOnBoard, toast]
+  );
 
-  return { askNext, loadNext, loading };
+  const askNext = useCallback(() => ask(1), [ask]);
+  const askPrevious = useCallback(() => ask(-1), [ask]);
+
+  return { askNext, askPrevious, loadNext, loading };
 }

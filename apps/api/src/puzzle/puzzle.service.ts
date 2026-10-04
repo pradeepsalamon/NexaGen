@@ -24,7 +24,7 @@ import type {
   ValidatePuzzleRequest,
   ValidatePuzzleResponse
 } from "@nexa-chess/types";
-import { parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
+import { LICHESS_FOLDER_SLUG, parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
 import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import {
@@ -44,8 +44,8 @@ import { TrashRepository } from "../trash/trash.repository";
 import {
   assertStaffOrCoach,
   authenticateUser,
-  fullName,
-  isAdminRole
+  isAdminRole,
+  puzzleAuthorName
 } from "./puzzle-auth.helper";
 
 
@@ -88,6 +88,13 @@ export class PuzzleService {
 
     if (query.topicId) {
       and.push(await puzzleTopicWhere(this.prisma, query.topicId, query.topicScope));
+    }
+    // Materialised-but-not-adopted catalogue copies sit in the system "Lichess"
+    // folder and stay out of the library, the share dialog and the course
+    // picker unless that folder is opened directly (spec §0.2).
+    const lichessFolderId = await this.findLichessFolderId();
+    if (lichessFolderId && query.topicId !== lichessFolderId) {
+      and.push({ topicId: { not: lichessFolderId } });
     }
     if (query.puzzleType) and.push({ puzzleType: query.puzzleType });
     if (query.difficulty) and.push({ difficulty: query.difficulty });
@@ -159,12 +166,12 @@ export class PuzzleService {
     const topicIds = [...new Set(dto.puzzles.map((p) => p.topicId))];
     for (const topicId of topicIds) await this.assertTopicExists(topicId);
 
-    let created = 0;
     const failed: ImportPuzzlesResponse["failed"] = [];
+    const imported: { index: number; id: string; title: string; contentHash: string | null }[] = [];
     for (const [index, item] of dto.puzzles.entries()) {
       try {
-        await this.createOne(user, item);
-        created += 1;
+        const row = await this.createOne(user, item);
+        imported.push({ index, id: row.id, title: row.title, contentHash: row.contentHash });
       } catch (error) {
         failed.push({
           index,
@@ -173,7 +180,39 @@ export class PuzzleService {
         });
       }
     }
-    return { created, failed };
+    return { created: imported.length, failed, duplicates: await this.findImportDuplicates(user, imported) };
+  }
+
+  /**
+   * "Same puzzle already in library" (spec §1): an imported puzzle whose
+   * position + line the viewer can already see. A warning only — it was created.
+   */
+  private async findImportDuplicates(
+    user: User,
+    imported: { index: number; id: string; title: string; contentHash: string | null }[]
+  ): Promise<ImportPuzzlesResponse["duplicates"]> {
+    const hashes = [...new Set(imported.flatMap((p) => (p.contentHash ? [p.contentHash] : [])))];
+    if (hashes.length === 0) return [];
+    const existing = await this.prisma.puzzle.findMany({
+      where: {
+        ...this.visibilityWhere(user),
+        contentHash: { in: hashes },
+        id: { notIn: imported.map((p) => p.id) },
+        topic: { slug: { not: LICHESS_FOLDER_SLUG } }
+      },
+      select: { id: true, title: true, contentHash: true },
+      orderBy: { createdAt: "asc" }
+    });
+    const byHash = new Map<string, { id: string; title: string }>();
+    for (const row of existing) {
+      if (row.contentHash && !byHash.has(row.contentHash)) byHash.set(row.contentHash, row);
+    }
+    return imported.flatMap((p) => {
+      const match = p.contentHash ? byHash.get(p.contentHash) : undefined;
+      return match
+        ? [{ index: p.index, title: p.title, existingPuzzleId: match.id, existingTitle: match.title }]
+        : [];
+    });
   }
 
   private async createOne(user: User, dto: CreatePuzzleRequest) {
@@ -460,19 +499,24 @@ export class PuzzleService {
     const user = assertStaffOrCoach(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
-    const where = this.visibilityWhere(user);
+    const lichessFolderId = await this.findLichessFolderId();
+    const where: Prisma.PuzzleWhereInput = {
+      ...this.visibilityWhere(user),
+      ...(lichessFolderId ? { topicId: { not: lichessFolderId } } : {})
+    };
 
-    const [total, published, draft, archived, global, priv, topics] = await Promise.all([
+    const [total, published, draft, archived, global, priv, topics, trainingCache] = await Promise.all([
       this.prisma.puzzle.count({ where }),
       this.prisma.puzzle.count({ where: { ...where, status: PuzzleStatus.PUBLISHED } }),
       this.prisma.puzzle.count({ where: { ...where, status: PuzzleStatus.DRAFT } }),
       this.prisma.puzzle.count({ where: { ...where, status: PuzzleStatus.ARCHIVED } }),
       this.prisma.puzzle.count({ where: { ...where, visibility: PuzzleVisibility.GLOBAL } }),
       this.prisma.puzzle.count({ where: { ...where, visibility: PuzzleVisibility.PRIVATE } }),
-      this.prisma.puzzleTopic.count()
+      this.prisma.puzzleTopic.count({ where: { slug: { not: LICHESS_FOLDER_SLUG } } }),
+      lichessFolderId ? this.prisma.puzzle.count({ where: { topicId: lichessFolderId } }) : 0
     ]);
 
-    return { total, published, draft, archived, global, private: priv, topics };
+    return { total, published, draft, archived, global, private: priv, topics, trainingCache };
   }
 
   async validate(
@@ -494,6 +538,16 @@ export class PuzzleService {
   }
 
   // ── internals ──
+
+  /** The system "Lichess" folder, if anything has been materialised yet. */
+  private async findLichessFolderId(): Promise<string | null> {
+    const folder = await this.prisma.puzzleTopic.findFirst({
+      where: { slug: LICHESS_FOLDER_SLUG },
+      orderBy: { createdAt: "asc" },
+      select: { id: true }
+    });
+    return folder?.id ?? null;
+  }
 
   private visibilityWhere(user: User): Prisma.PuzzleWhereInput {
     if (isAdminRole(user.role)) return {};
@@ -558,10 +612,12 @@ export class PuzzleService {
       tags: row.tags,
       estimatedSeconds: row.estimatedSeconds,
       scoring: parseScoringOverride(row.scoringJson),
+      source: row.source,
+      rating: row.rating,
       sideToMove: this.sideToMove(row.fen),
       solutionLength: this.solutionFromRow(row.solutionMovesJson).length,
       createdById: row.createdById,
-      createdByName: fullName(row.createdBy) ?? this.roleLabel(row.createdByRole),
+      createdByName: puzzleAuthorName(row),
       createdByRole: row.createdByRole as UserRole,
       attemptCount: row._count.attempts,
       canManage: this.canManage(row, viewer),
@@ -583,10 +639,6 @@ export class PuzzleService {
       explanation: row.explanation,
       hints
     };
-  }
-
-  private roleLabel(role: UserRole): string {
-    return role === UserRole.COACH ? "Coach" : "Admin";
   }
 
   /** An empty override is stored as NULL so the admin default visibly applies. */

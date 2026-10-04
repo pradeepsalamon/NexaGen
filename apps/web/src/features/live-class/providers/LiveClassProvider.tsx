@@ -123,6 +123,9 @@ export interface LiveClassState {
    */
   puzzleSolverOpen: boolean;
   setPuzzleSolverOpen: (open: boolean) => void;
+  /** Coach: whether the main stage shows every student's live puzzle board. */
+  puzzleBoardsOpen: boolean;
+  setPuzzleBoardsOpen: (open: boolean) => void;
 
   /**
    * Students currently pending admission (coach/admin view only), keyed by
@@ -275,9 +278,11 @@ function createLiveClassStore(init: {
       clearActivePuzzle: (assignmentId) => {
         const prev = get().activePuzzle;
         const keep = !prev || (assignmentId !== undefined && prev.id !== assignmentId);
-        set({ ...(keep ? {} : { activePuzzle: null }), puzzleSolverOpen: false });
+        set({ ...(keep ? {} : { activePuzzle: null }), puzzleBoardsOpen: false, puzzleSolverOpen: false });
       },
+      puzzleBoardsOpen: false,
       puzzleSolverOpen: false,
+      setPuzzleBoardsOpen: (puzzleBoardsOpen) => set({ puzzleBoardsOpen }),
       setPuzzleSolverOpen: (puzzleSolverOpen) => set({ puzzleSolverOpen }),
 
       waitingRoomEntries: {},

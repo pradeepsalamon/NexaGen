@@ -980,6 +980,90 @@ currency, billing interval, tax percent and — optionally — the batch a
 successful purchase enrols the student into. For a batch, pricing it from the
 batch's own **Pricing** tab is usually easier (see above).
 
+## Lichess Puzzle Catalogue (import tooling)
+
+The ~6M-puzzle Lichess dump (CC0) loads into `lichess_puzzles` in two stages.
+The app only reads it through the catalogue routes below; see
+`docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md` §13–§14.
+
+**1. Prepare — off the production box** (about 1.75 CPU-hours of chess.js
+validation; it runs in parallel worker threads). Needs `zstd` and GNU `sort`.
+
+```bash
+curl -fLO https://database.lichess.org/lichess_db_puzzle.csv.zst
+npm run puzzles:prepare -w apps/api -- --in lichess_db_puzzle.csv.zst --out ./lichess-release \
+  --dump-date 2026-10-01          # optional: --workers N, --sort-mem 2G
+```
+
+It writes `./lichess-release/<preparedSha256>/{catalogue.tsv.zst, manifest.json, rejects.tsv}`
+and prints the counts. `preparedSha256` is the sha256 of the uncompressed,
+sorted TSV and is the release's identity. Every row is validated (§F.3 of the
+architecture doc), duplicate content keeps only its most-played row in the
+quality gate, and the file is sorted in walk-index order. It exits 1 if more
+than 0.1% of rows are rejected; don't load that release. The core logic is
+`apps/api/src/puzzle/catalogue/lichess-prepare.core.ts` (unit-tested).
+
+**2. Store the release** (write-once — it is the recovery artifact, because
+backups skip the catalogue rows):
+
+```bash
+oci os object bulk-upload -ns "$OCI_NAMESPACE" -bn "$OCI_BUCKET_NAME" --no-overwrite \
+  --src-dir ./lichess-release/<sha> --object-prefix lichess/<sha>/
+```
+
+**3. Load — on the box, off-peak** (about 15–30 min for a full release):
+
+```bash
+oci os object bulk-download -ns "$OCI_NAMESPACE" -bn "$OCI_BUCKET_NAME" --prefix lichess/<sha>/ --dest-dir /tmp/lr
+scripts/lichess-puzzles-load.sh /tmp/lr/lichess/<sha>/manifest.json
+```
+
+The load checks both checksums and that the migration is deployed. It refuses
+to start inside the 19:30–21:30 UTC backup window. Before each rating band it
+pauses while a class is live, the load average is ≥ 1.5, memory is short or
+`/health/ready` is twice its baseline latency. It aborts if the API stays slow
+for 15 minutes or the disk runs short. Each band is its own transaction, and an
+identical row is never rewritten, so **resume = re-run the same command**. Ids
+missing from a newer release are retired (`retiredAt`), and re-appear if a
+later release has them again. The run's report is appended to
+`lichess-load.log`. Thresholds and the target database are environment
+variables documented at the top of the script. To undo: `TRUNCATE
+lichess_puzzles` — no `puzzles` row, attempt or rating references it.
+
+**Using it** (`PuzzleCatalogService`, `API_ROUTES.puzzles.catalog*`, admin and
+coach only — never students):
+
+- `GET /puzzles/catalog` browses by rating window / themes / opening, in
+  walk-index order from a random `seed`, with a keyset cursor and no totals
+  ("Load more"). Rows carry **no solution**. Every query runs in a transaction
+  with `statement_timeout = 3s` (a timeout is `timedOut: true`, "narrow the
+  filters") and `plan_cache_mode = force_custom_plan` — Prisma prepares every
+  statement, and the generic plan Postgres switches to after five runs can't
+  see the band bounds. Below-gate rows are admin-only (`includeBelowGate`).
+- `GET /puzzles/catalog/:sourceId/preview` is the only route that returns the
+  solution line.
+- `POST /puzzles/catalog/materialise` (a coach sharing in class) copies the
+  puzzle into the system **Lichess** folder (slug `__lichess`, created lazily).
+  That folder is the hidden training cache: the library, the share dialog and
+  the course picker leave it out unless it is opened directly, and stats count
+  it as `trainingCache`.
+- `POST /puzzles/catalog/adopt` (admin) copies into — or moves out of the
+  Lichess folder into — a curated folder, with a per-item outcome. A copy
+  already in another curated folder is never moved.
+
+There is at most one `puzzles` row per Lichess id (unique `(source, sourceId)`
+across soft-deleted rows; a concurrent create re-reads the winner). A copy is a
+frozen snapshot — position after the setup move, line, rating, themes as tags —
+whose position and line can't be edited (duplicate it instead), and whose author
+shows as "Lichess". Adopt and PGN import warn, without blocking, when the same
+position + line (`contentHash`) is already in the library.
+
+In the app: Puzzle Library → **Lichess catalogue** tab (admins select puzzles and
+"Add to folder"; anyone can preview with the solution or "Create homework",
+which opens the assignment form with the position and line filled in), and the
+live-class share dialog's **Lichess catalogue** tab, which shares a puzzle
+straight from the catalogue.
+
 ## Rate Limiting
 
 `@nestjs/throttler` runs as a global `APP_GUARD` (100 req/min; auth routes drop

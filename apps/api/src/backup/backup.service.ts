@@ -8,6 +8,19 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+/**
+ * Tables whose rows are re-loadable source data, not NexaChess-owned records:
+ * the Lichess puzzle catalogue (~6M rows) and its transient load staging table.
+ * Their definitions are still dumped; only the rows are skipped. A restored
+ * database names the release to reload in `lichess_catalogue_releases`, which
+ * IS backed up (docs/DATABASE_RESTORE.md § "Lichess puzzle catalogue"). Keep in
+ * step with `scripts/backup_db.sh`.
+ */
+const EXCLUDED_TABLE_DATA = ['lichess_puzzles', 'lichess_puzzles_staging'];
+const PG_DUMP_EXCLUDE_ARGS = EXCLUDED_TABLE_DATA.map(
+  (table) => `--exclude-table-data=${table}`,
+).join(' ');
+
 export interface BackupItem {
   key: string;
   filename: string;
@@ -161,7 +174,7 @@ export class BackupService {
       const cleanDbUrl = dbUrl.split('?')[0];
       
       // Use bash with pipefail so if pg_dump fails, the entire command fails
-      const pgDumpCommand = `/bin/bash -c "set -o pipefail; pg_dump \\"${cleanDbUrl}\\" | gzip > ${backupFilePath}"`;
+      const pgDumpCommand = `/bin/bash -c "set -o pipefail; pg_dump ${PG_DUMP_EXCLUDE_ARGS} \\"${cleanDbUrl}\\" | gzip > ${backupFilePath}"`;
       
       await execAsync(pgDumpCommand);
       this.logger.log('Database dump completed. Uploading to OCI Object Storage...');
@@ -247,9 +260,11 @@ export class BackupService {
       }
 
       // Take a local safety dump so an operator can roll back a bad restore.
+      // Like every dump, it skips the Lichess catalogue rows: a rollback leaves
+      // the catalogue empty until it is reloaded, never the app broken.
       this.logger.log(`Taking pre-restore safety dump to ${safetyDumpPath}...`);
       await execAsync(
-        `/bin/bash -c "set -o pipefail; pg_dump \\"${cleanDbUrl}\\" | gzip > ${safetyDumpPath}"`
+        `/bin/bash -c "set -o pipefail; pg_dump ${PG_DUMP_EXCLUDE_ARGS} \\"${cleanDbUrl}\\" | gzip > ${safetyDumpPath}"`
       );
 
       this.logger.log(`Restoring database from ${downloadPath}...`);
@@ -266,6 +281,9 @@ export class BackupService {
 
       restoreSucceeded = true;
       this.logger.log(`Database successfully restored from ${key}.`);
+      this.logger.warn(
+        'Backups exclude the Lichess puzzle catalogue rows — reload the release named in lichess_catalogue_releases (docs/DATABASE_RESTORE.md).',
+      );
       return { message: 'Database successfully restored from backup.' };
     } catch (error) {
       this.logger.error('Restore process failed:', error);
