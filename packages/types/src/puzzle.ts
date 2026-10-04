@@ -53,6 +53,14 @@ export type PuzzleStatus = z.infer<typeof puzzleStatusSchema>;
 export const puzzleVisibilitySchema = z.enum(["GLOBAL", "PRIVATE"]);
 export type PuzzleVisibility = z.infer<typeof puzzleVisibilitySchema>;
 
+/** Where a puzzle came from; LICHESS rows are copies of a catalogue puzzle. */
+export const puzzleSourceSchema = z.enum(["NEXA", "LICHESS"]);
+export type PuzzleSource = z.infer<typeof puzzleSourceSchema>;
+
+/** How an attempt was started — set by the server, never by the client. */
+export const puzzleAttemptContextSchema = z.enum(["DIRECT", "LIVE_CLASS", "TRAINING"]);
+export type PuzzleAttemptContext = z.infer<typeof puzzleAttemptContextSchema>;
+
 export const puzzleAttemptStatusSchema = z.enum([
   "IN_PROGRESS",
   "SOLVED",

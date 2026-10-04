@@ -184,6 +184,17 @@ enum PuzzleVisibility {
   PRIVATE
 }
 
+enum PuzzleSource {
+  NEXA // authored in NexaChess (every row before the Lichess catalogue)
+  LICHESS
+}
+
+enum PuzzleAttemptContext {
+  DIRECT // /student/puzzles/:id, course module
+  LIVE_CLASS // started from a live-class assignment (liveClassId set)
+  TRAINING // served by student training
+}
+
 // Lifecycle of one PuzzleAttempt by a student.
 enum PuzzleAttemptStatus {
   IN_PROGRESS
@@ -570,6 +581,10 @@ model Batch {
   // inherit system defaults). Validated by the shared Zod schema in
   // `@nexa-chess/types`, never queried by key.
   liveClassSettings Json?
+
+  /// Students of this batch may self-train on the puzzle catalogue (decision D0
+  /// in docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md). Off by default.
+  puzzleTrainingEnabled Boolean @default(false)
 
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2029,6 +2044,18 @@ model Puzzle {
   /// validated by @nexa-chess/types). null = the admin default applies.
   scoringJson       Json?
 
+  /// Origin of the puzzle; (source, sourceId) is unique across soft-deleted
+  /// rows, so a Lichess puzzle is materialised at most once, ever.
+  source       PuzzleSource @default(NEXA)
+  sourceId     String? // LichessPuzzle.id when source = LICHESS (no FK: the catalogue is reloadable)
+  /// NexaChess-owned difficulty rating; null ⇒ PUZZLE_DIFFICULTY_RATINGS[difficulty].
+  rating       Int?
+  /// Opponent move that produced `fen` (Lichess moves[0]); display only.
+  setupMoveUci String?
+  /// puzzleContentHash(fen, solution) — identity of content, never unique.
+  /// Set by every write path that touches fen or the solution.
+  contentHash  String?
+
   status     PuzzleStatus     @default(DRAFT)
   visibility PuzzleVisibility @default(PRIVATE)
 
@@ -2053,6 +2080,7 @@ model Puzzle {
   deletedBy     User?     @relation("PuzzleDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
   deleteGroupId String?
 
+  @@unique([source, sourceId], map: "puzzles_source_sourceId_key")
   @@index([topicId])
   @@index([createdById])
   @@index([puzzleType])
@@ -2064,6 +2092,7 @@ model Puzzle {
   @@index([deletedAt])
   @@index([deletedById])
   @@index([deleteGroupId])
+  @@index([contentHash])
   @@map("puzzles")
 }
 
@@ -2082,6 +2111,7 @@ model PuzzleAttempt {
   student   User   @relation("StudentPuzzleAttempts", fields: [studentId], references: [id], onDelete: Cascade)
 
   liveClassId String?
+  context     PuzzleAttemptContext @default(DIRECT)
 
   attemptNumber   Int
   status          PuzzleAttemptStatus @default(IN_PROGRESS)
@@ -2102,6 +2132,7 @@ model PuzzleAttempt {
   @@index([puzzleId])
   @@index([studentId])
   @@index([liveClassId])
+  @@index([studentId, completedAt])
   @@map("puzzle_attempts")
 }
 
@@ -4292,4 +4323,52 @@ model JobLock {
   lockedUntil DateTime
 
   @@map("job_locks")
+}
+
+/// Raw Lichess puzzle dump (CC0, database.lichess.org). SOURCE DATA ONLY:
+/// written exclusively by the catalogue load script, never by the API.
+/// Not soft-deletable, not Trash-registered, no FK in or out, table data
+/// excluded from backups (reproducible from the prepared release in OCI).
+/// See docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md §1.
+model LichessPuzzle {
+  id                String    @id // Lichess PuzzleId, e.g. "0000D"
+  fen               String // position BEFORE moves[0], as published
+  moves             String // UCI, space separated, as published (2–34 plies)
+  rating            Int       @db.SmallInt // Lichess Glicko-2 puzzle rating
+  ratingDeviation   Int       @db.SmallInt
+  popularity        Int       @db.SmallInt // −100…100
+  nbPlays           Int
+  themes            String[] // Lichess theme keys (LICHESS_THEMES)
+  openingTags       String[]  @default([])
+  gameUrl           String
+  ratingBand        Int       @db.SmallInt // floor(rating / 50)
+  randKey           Int // stable: first 31 bits of sha1(id)
+  contentHash       String // puzzleContentHash of the post-setup position + line
+  /// Passes the catalogue INGESTION gate (source quality + not a duplicate +
+  /// not retired). Says nothing about whether a puzzle suits a student — that
+  /// is the training policy's job, computed per request.
+  passesQualityGate Boolean
+  retiredAt         DateTime? // set when a refresh no longer contains the id
+  releaseId         String // LichessCatalogueRelease.id that last wrote the row (no FK)
+
+  @@index([ratingBand, randKey, id], map: "lichess_puzzles_walk_idx")
+  @@index([themes], type: Gin, map: "lichess_puzzles_themes_gin")
+  @@index([openingTags], type: Gin, map: "lichess_puzzles_opening_gin")
+  @@map("lichess_puzzles")
+}
+
+/// One loaded catalogue release. Tiny and backed up: after a restore it names
+/// the exact OCI artifact to reload. Also the load script's resume state.
+model LichessCatalogueRelease {
+  id              String    @id // preparedSha256
+  formatVersion   Int
+  lichessDumpDate DateTime  @db.Date
+  sourceSha256    String
+  manifest        Json // the full manifest, verbatim
+  validRows       Int
+  qualityGateRows Int
+  loadStartedAt   DateTime  @default(now())
+  loadCompletedAt DateTime? // null = load in progress or interrupted
+
+  @@map("lichess_catalogue_releases")
 }

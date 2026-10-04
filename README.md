@@ -91,6 +91,11 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   (piece → origin square → arrow). `puzzles.title` uses the ICU
   `natural_sort` collation, so the library sorts and pages titles in SQL in
   natural order ("Puzzle 2" before "Puzzle 10").
+  Every puzzle carries a `contentHash` (identity of content, shared with the
+  Lichess catalogue's seen-set) and a `source` (`NEXA` or `LICHESS`); attempts
+  record how they were started (`context`). The Lichess catalogue tables
+  (`lichess_puzzles`, `lichess_catalogue_releases`) exist but are empty until
+  the catalogue is loaded — see `docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md`.
 - Course Library: a curated, ordered playlist of *existing* library content —
   each `CourseModule` references an Assignment or a Puzzle (never new authored
   content) — `course` API module, `features/courses` on web, `/admin/courses`,

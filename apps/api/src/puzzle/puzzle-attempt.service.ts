@@ -23,7 +23,7 @@ import type {
   SubmitPuzzleAttemptRequest
 } from "@nexa-chess/types";
 import { parseScoringOverride } from "@nexa-chess/types";
-import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
+import { Prisma, PuzzleAttemptContext, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { ANALYTICS_EVENT_TYPES } from "../analytics/analytics-events.constants";
@@ -202,7 +202,13 @@ export class PuzzleAttemptService {
       });
       try {
         attempt = await this.prisma.puzzleAttempt.create({
-          data: { puzzleId, studentId: student.id, attemptNumber: count + 1, liveClassId }
+          data: {
+            puzzleId,
+            studentId: student.id,
+            attemptNumber: count + 1,
+            liveClassId,
+            context: liveClassId ? PuzzleAttemptContext.LIVE_CLASS : PuzzleAttemptContext.DIRECT
+          }
         });
       } catch (error) {
         if (

@@ -25,7 +25,7 @@ import type {
   ValidatePuzzleResponse
 } from "@nexa-chess/types";
 import { parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
-import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
+import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import {
   AssignmentEvaluationService,
@@ -38,6 +38,7 @@ import {
   resolveOrderBy
 } from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
+import { puzzleContentHash } from "./puzzle-content-hash";
 import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { TrashRepository } from "../trash/trash.repository";
 import {
@@ -197,6 +198,7 @@ export class PuzzleService {
         difficulty: dto.difficulty,
         fen,
         solutionMovesJson: solution as unknown as Prisma.InputJsonValue,
+        contentHash: puzzleContentHash(fen, solution),
         explanation: dto.explanation?.trim() || null,
         hintsJson: (dto.hints ?? []) as unknown as Prisma.InputJsonValue,
         tags: dto.tags ?? [],
@@ -223,6 +225,15 @@ export class PuzzleService {
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
     const existing = await this.loadManageable(id, user);
+
+    if (
+      existing.source === PuzzleSource.LICHESS &&
+      (dto.fen !== undefined || dto.solutionMoves !== undefined)
+    ) {
+      throw new BadRequestException(
+        "This puzzle comes from the Lichess catalogue — duplicate it to edit the position."
+      );
+    }
 
     if (dto.topicId && dto.topicId !== existing.topicId) {
       await this.assertTopicExists(dto.topicId);
@@ -251,6 +262,7 @@ export class PuzzleService {
     if (dto.fen !== undefined || dto.solutionMoves !== undefined) {
       data.fen = nextFen;
       data.solutionMovesJson = solution as unknown as Prisma.InputJsonValue;
+      data.contentHash = puzzleContentHash(nextFen, solution);
     }
     if (dto.explanation !== undefined) data.explanation = dto.explanation?.trim() || null;
     if (dto.hints !== undefined) {
@@ -344,6 +356,10 @@ export class PuzzleService {
         difficulty: source.difficulty,
         fen: source.fen,
         solutionMovesJson: source.solutionMovesJson ?? [],
+        // A copy is a new NEXA puzzle with the same content (spec §4.5).
+        contentHash: puzzleContentHash(source.fen, this.solutionFromRow(source.solutionMovesJson)),
+        rating: source.rating,
+        setupMoveUci: source.setupMoveUci,
         explanation: source.explanation,
         hintsJson: source.hintsJson ?? [],
         tags: source.tags,

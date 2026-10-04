@@ -216,6 +216,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.puzzleAttempt;
   }
 
+  get lichessPuzzle() {
+    return this.client.lichessPuzzle;
+  }
+
+  get lichessCatalogueRelease() {
+    return this.client.lichessCatalogueRelease;
+  }
+
   get liveClassPuzzleAssignment() {
     return this.client.liveClassPuzzleAssignment;
   }

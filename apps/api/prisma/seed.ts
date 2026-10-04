@@ -13,6 +13,7 @@ import {
 import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 import { Chess } from "chess.js";
 import { hashSecret } from "../src/auth/auth.utils";
+import { puzzleContentHash } from "../src/puzzle/puzzle-content-hash";
 
 const prisma = new PrismaClient();
 const seedPassword = "Test@12345";
@@ -396,6 +397,7 @@ async function seedPuzzles(
         difficulty: row.difficulty,
         fen: row.fen,
         solutionMovesJson: solution,
+        contentHash: puzzleContentHash(row.fen, solution),
         explanation: row.explanation,
         hintsJson: row.hints,
         tags: row.tags,
