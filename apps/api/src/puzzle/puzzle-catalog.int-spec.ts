@@ -48,9 +48,12 @@ describe("Lichess catalogue (real Postgres)", () => {
   it("concurrent materialisations of one Lichess id make one row and one system folder", async () => {
     await seed([{ id: "KsvGQ", rating: 1444, randKey: 1 }]);
 
-    const ids = await Promise.all(
+    // allSettled, so a failure can't leave the other calls running into the next test's reset.
+    const settled = await Promise.allSettled(
       Array.from({ length: 6 }, () => service.materialiseOne("t", { sourceId: "KsvGQ" }))
     );
+    expect(settled.filter((r) => r.status === "rejected")).toEqual([]);
+    const ids = settled.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));
 
     expect(new Set(ids.map((r) => r.puzzleId)).size).toBe(1);
     expect(await prisma.puzzle.count({ where: { source: PuzzleSource.LICHESS, sourceId: "KsvGQ" } })).toBe(1);
@@ -101,5 +104,15 @@ describe("Lichess catalogue (real Postgres)", () => {
 
     const after = await service.list("t", {});
     expect(after.puzzles[0].inLibrary).toEqual({ puzzleId, topicName: "Forks", adopted: true });
+  });
+
+  it("names the system folder around an admin's own folder called Lichess", async () => {
+    await seed([{ id: "KsvGQ", rating: 1444, randKey: 1 }]);
+    await prisma.puzzleTopic.create({ data: { name: "Lichess", slug: "lichess" } });
+
+    await service.materialiseOne("t", { sourceId: "KsvGQ" });
+
+    const system = await prisma.puzzleTopic.findFirst({ where: { slug: LICHESS_FOLDER_SLUG } });
+    expect(system?.name).toBe("Lichess catalogue");
   });
 });
