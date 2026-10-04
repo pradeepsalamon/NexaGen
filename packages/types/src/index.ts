@@ -2355,6 +2355,8 @@ export * from "./analytics";
 // ──────────────────────────────────────────────
 export * from "./puzzle";
 export * from "./solve-line-fixtures";
+export * from "./puzzle-catalog";
+export * from "./lichess-themes";
 
 // ──────────────────────────────────────────────
 // Live-class puzzle assignment (depends on ./puzzle)

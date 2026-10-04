@@ -137,6 +137,15 @@ describe("PuzzleAttemptService", () => {
     expect(res.attempt.fen).toContain("R5K1");
   });
 
+  it("records how the attempt was started", async () => {
+    await service.start(TOKEN, "pz-1");
+    expect(prisma.puzzleAttempt.create.mock.calls[0][0].data.context).toBe("DIRECT");
+
+    await service.start(TOKEN, "pz-1", { liveClassId: "class-1" }).catch(() => undefined);
+    const inClass = prisma.puzzleAttempt.create.mock.calls[1]?.[0].data;
+    expect(inClass?.context).toBe("LIVE_CLASS");
+  });
+
   it("scores a correct submission as solved", async () => {
     prisma.puzzleAttempt.findUnique.mockResolvedValue({
       id: "att-1",
