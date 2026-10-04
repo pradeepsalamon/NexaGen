@@ -46,8 +46,10 @@ describe("ProgressRecorderService", () => {
     difficulty: "INTERMEDIATE" as const,
     hintsUsed: 0,
     puzzleId: "pz-1",
+    rating: null,
     solved: true,
-    studentId: "stu-1"
+    studentId: "stu-1",
+    wrongMoves: 0
   };
 
   function buildPrisma() {
@@ -96,6 +98,30 @@ describe("ProgressRecorderService", () => {
     expect(prisma.puzzleRatingChange.create).not.toHaveBeenCalled();
     const { data } = prisma.studentProgress.update.mock.calls[0][0];
     expect(data.puzzleRating).toBe(1200);
+  });
+
+  it("plays against the puzzle's own rating and records it", async () => {
+    await service.recordPuzzleResult({ ...input, rating: 1450 });
+    const { data } = prisma.puzzleRatingChange.create.mock.calls[0][0];
+    expect(data.puzzleRating).toBe(1450);
+    // 1200 with 0 rated (K = 40) beating a 1450 puzzle: +32
+    expect(data.after).toBe(1232);
+  });
+
+  it("falls back to the difficulty bucket for an unrated puzzle", async () => {
+    await service.recordPuzzleResult(input);
+    const { data } = prisma.puzzleRatingChange.create.mock.calls[0][0];
+    expect(data.puzzleRating).toBe(PUZZLE_DIFFICULTY_RATINGS.INTERMEDIATE);
+  });
+
+  it("scores a solve that needed a wrong move like a failure (D1)", async () => {
+    await service.recordPuzzleResult({ ...input, wrongMoves: 1 });
+    const afterWrong = prisma.puzzleRatingChange.create.mock.calls[0][0].data.after;
+    prisma.puzzleRatingChange.create.mockClear();
+    await service.recordPuzzleResult({ ...input, solved: false });
+    const afterFailed = prisma.puzzleRatingChange.create.mock.calls[0][0].data.after;
+    expect(afterWrong).toBeLessThan(1200);
+    expect(afterWrong).toBe(afterFailed);
   });
 
   it("never throws into the submit that called it", async () => {

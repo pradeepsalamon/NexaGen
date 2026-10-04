@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import {
   nextPuzzleRating,
   nextStreak,
-  PUZZLE_DIFFICULTY_RATINGS,
+  puzzleOpponentRating,
   puzzleResultScore,
   type PuzzleDifficulty
 } from "@nexa-chess/types";
@@ -15,8 +15,12 @@ export type PuzzleResultInput = {
   puzzleId: string;
   attemptId: string;
   difficulty: PuzzleDifficulty;
+  /** The puzzle's own rating; null ⇒ its difficulty bucket. */
+  rating: number | null;
   solved: boolean;
   hintsUsed: number;
+  /** Server-counted in PuzzleAttemptService.saveProgress. */
+  wrongMoves: number;
 };
 
 export function localDay(timeZone: string | null | undefined, ref = new Date()): string {
@@ -80,14 +84,12 @@ export class ProgressRecorderService {
           select: { id: true }
         });
         if (!alreadyRated) {
-          // The bucket rating and wrongMoves 0 keep today's scoring; the
-          // switch to the puzzle's own rating and D1 is a separate change (spec §9, PR 5b).
-          const opponentRating = PUZZLE_DIFFICULTY_RATINGS[puzzle.difficulty];
+          const opponentRating = puzzleOpponentRating(puzzle);
           const after = nextPuzzleRating({
             opponentRating,
             rating: puzzleRating,
             ratedPuzzles,
-            score: puzzleResultScore(puzzle.solved, puzzle.hintsUsed, 0)
+            score: puzzleResultScore(puzzle.solved, puzzle.hintsUsed, puzzle.wrongMoves)
           });
           await tx.puzzleRatingChange.create({
             data: {

@@ -6,9 +6,8 @@ import {
   puzzleResultScore
 } from "@nexa-chess/types";
 
-// Spec §9 (docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md). Pure maths only —
-// ProgressRecorderService still scores with the difficulty bucket and
-// wrongMoves 0 until the switch-over (PR 5b).
+// Spec §9 (docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md). ProgressRecorderService
+// feeds these the puzzle's own rating and the server-counted wrongMoves.
 
 describe("puzzleResultScore", () => {
   it.each([

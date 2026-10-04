@@ -393,8 +393,10 @@ export class PuzzleAttemptService {
       difficulty: puzzle.difficulty,
       hintsUsed: persisted.hintsUsed,
       puzzleId: puzzle.id,
+      rating: puzzle.rating,
       solved: evalResult.solved,
-      studentId: student.id
+      studentId: student.id,
+      wrongMoves: persisted.wrongMoves
     });
 
     return {
