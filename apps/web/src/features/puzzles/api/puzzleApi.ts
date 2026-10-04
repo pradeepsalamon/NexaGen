@@ -4,6 +4,8 @@ import type {
   BulkPuzzleActionResponse,
   CreatePuzzleRequest,
   CreatePuzzleTopicRequest,
+  ImportPuzzlesRequest,
+  ImportPuzzlesResponse,
   PuzzleAttemptHistoryResponse,
   PuzzleAttemptProgressResponse,
   PuzzleAttemptResultResponse,
@@ -140,6 +142,10 @@ export function bulkPuzzleAction(
   data: BulkPuzzleActionRequest
 ): Promise<BulkPuzzleActionResponse> {
   return apiFetch(API_ROUTES.puzzles.bulk, { method: "POST", body: data });
+}
+
+export function importPuzzles(data: ImportPuzzlesRequest): Promise<ImportPuzzlesResponse> {
+  return apiFetch(API_ROUTES.puzzles.import, { method: "POST", body: data });
 }
 
 export function validatePuzzle(

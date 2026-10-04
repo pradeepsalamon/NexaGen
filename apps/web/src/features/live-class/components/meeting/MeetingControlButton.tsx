@@ -48,7 +48,7 @@ export const MeetingControlButton = forwardRef<
           ref={ref}
           type="button"
           className={cn(
-            "relative flex size-11 items-center justify-center rounded-full transition-all duration-150 ease-out sm:size-12",
+            "relative flex size-11 items-center justify-center rounded-full transition duration-150 ease-out sm:size-12",
             "hover:scale-105 active:scale-95 motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:active:scale-100",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
             variantStyles[variant],

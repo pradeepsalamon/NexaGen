@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/Label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import type { BoardColor } from "../../types/sync";
 import { formatClock, remainingMs } from "../../lib/clock";
 
@@ -21,16 +22,18 @@ function useClockTick(active: boolean) {
   }, [active]);
 }
 
+// Props are the rendered text, not raw ms, so memo skips the 100ms ticks that don't change it.
 const TimeChip = memo(function TimeChip({
   color,
-  ms,
+  text,
+  low,
   active,
 }: {
   color: BoardColor;
-  ms: number;
+  text: string;
+  low: boolean;
   active: boolean;
 }) {
-  const low = ms <= 20_000;
   return (
     <div
       className={cn(
@@ -51,16 +54,27 @@ const TimeChip = memo(function TimeChip({
         {color}
       </span>
       <span className={cn("font-mono text-sm font-semibold", low && "text-red-500")}>
-        {formatClock(ms)}
+        {text}
       </span>
     </div>
   );
 });
 
-function CoachClockControls() {
-  const { clock, configureClock, startClock, pauseClock, resetClock } = useBoardStore();
-  const [minutes, setMinutes] = useState(String(Math.round(clock.initialMs / 60000) || 5));
-  const [increment, setIncrement] = useState(String(Math.round(clock.incrementMs / 1000)));
+const CoachClockControls = memo(function CoachClockControls() {
+  const { initialMs, incrementMs, running, configureClock, startClock, pauseClock, resetClock } =
+    useBoardStore(
+      useShallow((s) => ({
+        initialMs: s.clock.initialMs,
+        incrementMs: s.clock.incrementMs,
+        running: s.clock.running,
+        configureClock: s.configureClock,
+        startClock: s.startClock,
+        pauseClock: s.pauseClock,
+        resetClock: s.resetClock,
+      })),
+    );
+  const [minutes, setMinutes] = useState(String(Math.round(initialMs / 60000) || 5));
+  const [increment, setIncrement] = useState(String(Math.round(incrementMs / 1000)));
 
   const apply = () => {
     const initialMs = Math.max(1, Number(minutes) || 5) * 60_000;
@@ -106,7 +120,7 @@ function CoachClockControls() {
           Set {minutes || 5}+{increment || 0}
         </Button>
         <div className="flex gap-2">
-          {clock.running ? (
+          {running ? (
             <Button size="sm" variant="outline" className="flex-1" onClick={pauseClock}>
               <Pause className="size-3.5" /> Pause
             </Button>
@@ -122,7 +136,7 @@ function CoachClockControls() {
       </PopoverContent>
     </Popover>
   );
-}
+});
 
 /**
  * Shared chess clock display. Coaches also get a settings/start/pause control.
@@ -139,7 +153,9 @@ export function ChessClock({
 }) {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const { clock, orientation: syncedOrientation, localFlip } = useBoardStore();
+  const { clock, orientation: syncedOrientation, localFlip } = useBoardStore(
+    useShallow((s) => ({ clock: s.clock, orientation: s.orientation, localFlip: s.localFlip })),
+  );
   const orientation = localFlip ? (syncedOrientation === "white" ? "black" : "white") : syncedOrientation;
 
   useClockTick(clock.running !== null);
@@ -155,12 +171,24 @@ export function ChessClock({
   const now = Date.now();
   const top: BoardColor = orientation === "white" ? "black" : "white";
   const bottom: BoardColor = orientation === "white" ? "white" : "black";
+  const topMs = remainingMs(clock, top, now);
+  const bottomMs = remainingMs(clock, bottom, now);
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
       <div className={cn("flex gap-1", layout === "horizontal" ? "flex-row" : "flex-col")}>
-        <TimeChip color={top} ms={remainingMs(clock, top, now)} active={clock.running === top} />
-        <TimeChip color={bottom} ms={remainingMs(clock, bottom, now)} active={clock.running === bottom} />
+        <TimeChip
+          color={top}
+          text={formatClock(topMs)}
+          low={topMs <= 20_000}
+          active={clock.running === top}
+        />
+        <TimeChip
+          color={bottom}
+          text={formatClock(bottomMs)}
+          low={bottomMs <= 20_000}
+          active={clock.running === bottom}
+        />
       </div>
       {isCoach && <CoachClockControls />}
     </div>

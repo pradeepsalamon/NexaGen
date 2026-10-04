@@ -17,7 +17,7 @@ type PrismaDelegateLike = {
   update: (args: unknown) => Promise<unknown>;
   updateMany: (args: unknown) => Promise<{ count: number }>;
 };
-type PrismaClientLike = Record<string, unknown>;
+type PrismaClientLike = object;
 type TrashRecord = {
   deleteGroupId?: string | null;
   deletedAt: Date | string | null;
@@ -325,7 +325,7 @@ export class TrashRepository {
           client,
           entity.delegate
         ).findMany({
-          select: { id: true },
+          select: { deleteGroupId: true, id: true },
           where: {
             deletedAt: { lt: cutoff },
             isDeleted: true
@@ -333,6 +333,7 @@ export class TrashRepository {
         });
 
         return items.map((item) => ({
+          deleteGroupId: item.deleteGroupId ?? null,
           entity: entity.label,
           id: item.id
         }));
@@ -340,6 +341,37 @@ export class TrashRepository {
     );
 
     return results.flat();
+  }
+
+  /** Users whose payment, invoice or payroll history must be kept, so they are never hard-deleted. */
+  async findUserIdsWithRetainedHistory(userIds: string[]): Promise<Set<string>> {
+    if (userIds.length === 0) return new Set();
+
+    const byUser = { userId: { in: userIds } };
+    const byCoach = { coachId: { in: userIds } };
+    const [orders, subscriptions, invoices, creditNotes, entitlements, redemptions, manualRecords, profiles, rates, payrollRecords] =
+      await Promise.all([
+        this.prisma.order.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.subscription.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.invoice.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.creditNote.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.entitlement.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.discountRedemption.findMany({ distinct: ["userId"], select: { userId: true }, where: byUser }),
+        this.prisma.manualPaymentRecord.findMany({
+          distinct: ["recordedByUserId"],
+          select: { recordedByUserId: true },
+          where: { recordedByUserId: { in: userIds } }
+        }),
+        this.prisma.coachCompensationProfile.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
+        this.prisma.coachCompensationRate.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach }),
+        this.prisma.coachPayrollRecord.findMany({ distinct: ["coachId"], select: { coachId: true }, where: byCoach })
+      ]);
+
+    return new Set([
+      ...[orders, subscriptions, invoices, creditNotes, entitlements, redemptions].flat().map((row) => row.userId),
+      ...manualRecords.map((row) => row.recordedByUserId),
+      ...[profiles, rates, payrollRecords].flat().map((row) => row.coachId)
+    ]);
   }
 
   async log(
@@ -383,7 +415,7 @@ export class TrashRepository {
     entity: (typeof trashEntities)[number],
     options: TrashFindOptions
   ) {
-    const direction = options.sortOrder ?? "desc";
+    const direction = options.sortOrder ?? "asc";
 
     switch (options.sortBy) {
       case "title":

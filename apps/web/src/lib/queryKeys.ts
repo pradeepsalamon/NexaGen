@@ -32,6 +32,7 @@ export const queryKeys = {
   },
   admin: {
     base: ["admin"] as const,
+    pendingCoaches: ["admin", "pending-coaches"] as const,
     pendingStudents: ["admin", "pending-students"] as const,
   },
   feedback: {
@@ -174,14 +175,19 @@ export const queryKeys = {
   },
   livePull: {
     roster: (classId: string) => ["live-pull", "roster", classId] as const,
+    search: (classId: string, q: string) => ["live-pull", "roster", classId, q] as const,
   },
   livePuzzle: {
     state: (classId: string) => ["live-puzzle", "state", classId] as const,
     leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
+    classLeaderboard: (classId: string) => ["live-puzzle", "class-leaderboard", classId] as const,
     boards: (classId: string) => ["live-puzzle", "boards", classId] as const,
   },
   liveSimul: {
     state: (classId: string) => ["live-simul", "state", classId] as const,
+  },
+  liveMatch: {
+    state: (classId: string) => ["live-match", "state", classId] as const,
   },
   liveMovePoll: {
     state: (classId: string) => ["live-move-poll", "state", classId] as const,

@@ -14,10 +14,11 @@ import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { MeetingLayout } from "../meeting/MeetingLayout";
 import { HandRaiseBridge } from "../meeting/HandRaiseBridge";
 import { PuzzleBridge } from "../meeting/PuzzleBridge";
-import { PuzzleSolverHost } from "../meeting/PuzzleSolverHost";
 import { ReactionProvider } from "../../providers/ReactionProvider";
+import { MatchProvider } from "../../providers/MatchProvider";
 import { SimulProvider } from "../../providers/SimulProvider";
 import { MovePollStudentHost } from "../meeting/move-poll/MovePollStudentHost";
+import { MatchHost } from "../meeting/match/MatchHost";
 import { SimulHost } from "../meeting/simul/SimulHost";
 import { AudioSessionBridge } from "../meeting/AudioSessionBridge";
 import { PipMicCaptureBridge } from "../meeting/PipMicCaptureBridge";
@@ -52,6 +53,8 @@ const IGNORABLE_ROOM_ERRORS = new Set([
   "a participant with the same identity has been disconnected",
   "room deleted"
 ]);
+
+const DUPLICATE_TAB_ERROR = "This class was opened in another tab or window.";
 
 function isIgnorableRoomError(message: string) {
   return IGNORABLE_ROOM_ERRORS.has(message.trim().toLowerCase());
@@ -121,6 +124,18 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
   if (error) {
     return (
       <ConnectionLost
+        classId={classId}
+        title={error === DUPLICATE_TAB_ERROR ? "Opened somewhere else" : undefined}
+        message={
+          error === DUPLICATE_TAB_ERROR
+            ? "You joined this class from another tab or window, so this one was disconnected. Use the other one, or rejoin here."
+            : undefined
+        }
+        detail={error === DUPLICATE_TAB_ERROR ? undefined : error}
+        onEnded={() => {
+          clearJoined();
+          setEnded(true);
+        }}
         onRetry={() => {
           setError(null);
           // `hasJoined` is persisted in sessionStorage (AUDIT H16), so this
@@ -159,6 +174,15 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
           setEnded(true);
           return;
         }
+        if (reason === DisconnectReason.PARTICIPANT_REMOVED) {
+          // Removed by the coach — the reload lands on the "removed" screen.
+          window.location.reload();
+          return;
+        }
+        if (reason === DisconnectReason.DUPLICATE_IDENTITY) {
+          setError(DUPLICATE_TAB_ERROR);
+          return;
+        }
         if (!reason || reason === DisconnectReason.CLIENT_INITIATED) {
           // Intentional leave — this tab is done with the room.
           clearJoined();
@@ -184,17 +208,19 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
           <ScreenShareRequestBridge classId={classId} />
           <HandRaiseBridge />
           <PuzzleBridge classId={classId} />
-          <PuzzleSolverHost classId={classId} />
           <MovePollStudentHost classId={classId} />
           <SimulProvider classId={classId}>
-            <SimulHost />
-            <ConnectionStateManager classId={classId}>
-              <ChatProvider classId={classId}>
-                {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
-                <MeetingEventToasts />
-                <MeetingLayout />
-              </ChatProvider>
-            </ConnectionStateManager>
+            <MatchProvider classId={classId}>
+              <SimulHost />
+              <MatchHost />
+              <ConnectionStateManager classId={classId}>
+                <ChatProvider classId={classId}>
+                  {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
+                  <MeetingEventToasts />
+                  <MeetingLayout />
+                </ChatProvider>
+              </ConnectionStateManager>
+            </MatchProvider>
           </SimulProvider>
         </ReactionProvider>
       </MediaDeviceProvider>

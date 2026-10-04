@@ -45,7 +45,7 @@ export function ClassesAnalyticsPageClient() {
                 { key: "recording", header: "Rec", render: (r) => (r.hasRecording ? "✓" : "—") },
                 { key: "attendancePercent", header: "Attn", align: "right", render: (r) => formatPercent(r.attendancePercent) }
               ]}
-              defaultSort={{ key: "date", order: "desc" }}
+              defaultSort={{ key: "date", order: "asc" }}
               extraParams={{
                 preset: query.preset,
                 from: query.from,

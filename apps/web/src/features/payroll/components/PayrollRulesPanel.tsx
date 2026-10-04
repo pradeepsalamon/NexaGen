@@ -13,11 +13,23 @@ import { formatFullDate } from "@/lib/datetime";
 import { usePayrollRules, useUpdatePayrollRule } from "../hooks/usePayrollApi";
 import { RuleDialog } from "./RuleDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 /** Admin → Finance → Coach Payroll → Rules (§7/§26). */
 export function PayrollRulesPanel() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = usePayrollRules();
+  const { rows: rules, sortProps } = useTableSort({
+    rows: data?.rules,
+    accessors: {
+      effectiveFrom: (r) => r.effectiveFrom,
+      enabled: (r) => r.enabled,
+      name: (r) => r.name,
+      priority: (r) => r.priority,
+      type: (r) => PAYROLL_RULE_TYPE_LABELS[r.ruleType]
+    }
+  });
   const toggleEnabled = useUpdatePayrollRule();
   const [creating, setCreating] = useState(false);
 
@@ -50,18 +62,18 @@ export function PayrollRulesPanel() {
             <Table className="w-full min-w-[640px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
-                  {["Name", "Type", "Priority", "Effective from", "Enabled", ""].map((heading) => (
+                  {([["Name", "name"], ["Type", "type"], ["Priority", "priority"], ["Effective from", "effectiveFrom"], ["Enabled", "enabled"], ["", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
-                      {heading}
+                      {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.rules.map((rule) => (
+                {rules.map((rule) => (
                   <TableRow className="border-b border-app-border last:border-0" key={rule.id}>
                     <TableCell className="text-left px-4 py-3">
                       <p className="text-sm font-semibold text-app-text">{rule.name}</p>

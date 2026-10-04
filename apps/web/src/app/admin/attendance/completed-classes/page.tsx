@@ -22,6 +22,8 @@ import {
 } from "@nexa-chess/types";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 
 export default function AdminCompletedClassesPage() {
@@ -63,6 +65,18 @@ export default function AdminCompletedClassesPage() {
       (cls) =>
         statusFilter === "all" || cls.status.toLowerCase() === statusFilter
     ) || [];
+  const { rows: sortedClasses, sortProps } = useTableSort({
+    rows: filteredClasses,
+    accessors: {
+      attendance: (c) => c.attendancePercent,
+      coach: (c) => c.coachName,
+      date: (c) => c.actualStart ?? c.scheduledStart,
+      duration: (c) => (c.actualDuration > 0 ? c.actualDuration : c.scheduledDuration),
+      status: (c) => c.status,
+      teaching: (c) => c.coachTeachingDuration,
+      topic: (c) => c.topic
+    }
+  });
 
   return (
     <div className="space-y-6 max-w-7xl p-4 sm:p-6">
@@ -164,25 +178,25 @@ export default function AdminCompletedClassesPage() {
                   <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
                     <TableRow>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Date
+                        <SortButton label="Date" {...sortProps("date")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Topic / Batch
+                        <SortButton label="Topic / Batch" {...sortProps("topic")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Coach
+                        <SortButton label="Coach" {...sortProps("coach")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[200px]">
-                        Attendance
+                        <SortButton label="Attendance" {...sortProps("attendance")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Duration
+                        <SortButton label="Duration" {...sortProps("duration")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Teaching
+                        <SortButton label="Teaching" {...sortProps("teaching")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Status
+                        <SortButton label="Status" {...sortProps("status")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         Action
@@ -190,7 +204,7 @@ export default function AdminCompletedClassesPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody className="divide-y divide-app-border">
-                    {filteredClasses.map((cls: CompletedClassItem) => (
+                    {sortedClasses.map((cls: CompletedClassItem) => (
                       <TableRow
                         key={cls.id}
                         className="hover:bg-app-soft/50 transition-colors"

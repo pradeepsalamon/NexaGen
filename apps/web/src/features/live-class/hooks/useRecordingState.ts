@@ -16,9 +16,8 @@ import { useOptionalLiveClassState } from "../providers/LiveClassProvider";
  */
 export function useRecordingState() {
   const lkRecording = useIsRecording();
-  const ctx = useOptionalLiveClassState();
-  const override = ctx?.recordingOverride ?? null;
-  const setOverride = ctx?.setRecordingOverride;
+  const override = useOptionalLiveClassState((s) => s.recordingOverride) ?? null;
+  const setOverride = useOptionalLiveClassState((s) => s.setRecordingOverride);
 
   const onNotice = useCallback(
     (msg: { payload: Uint8Array }) => {

@@ -61,6 +61,64 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 None currently tracked here.
 
+## Resolved (2026-10-03)
+
+- **Session and log tables grew forever.** Every refresh-token rotation (every
+  ~15 min per active tab) inserts an `auth_sessions` row and nothing deleted
+  them; locally 480 of 487 rows were long expired. Added a daily retention
+  sweep (`apps/api/src/retention/`) for expired sessions and tokens, old
+  LiveKit webhook dedupe rows, and stale anonymous visitor sessions. Still
+  open: retention policies for chat, notifications, message deliveries and
+  analytics events.
+- **No error reporting.** Crashes were only visible in `docker logs`, which
+  rotate within days, and browser errors were invisible. Added Sentry to the
+  API and web (optional; unset DSN sends nothing), errors only, scrubbed to the
+  user id. See CLAUDE.md §3.6d2.
+- **No health endpoints.** The API container's healthcheck only opened a TCP
+  socket, so an API that booted but couldn't reach Postgres still passed the
+  deploy gate. Added `GET /health` (liveness) and `GET /health/ready` (Postgres
+  required, Redis optional ⇒ `degraded`); the compose healthcheck now uses
+  `/health/ready`.
+- **Live board had no durable recovery.** Board state lived only in each
+  client's memory. A coach refresh reset the coach's board to the start
+  position, the next coach move overwrote every student's board, and a class
+  where everyone reloaded lost the position entirely. The coach's client now
+  saves a snapshot to `LiveSession.boardState` (throttled, with a keepalive flush
+  on unload) and restores it on load. A restore gate stops a refreshed coach from
+  sending FORCE_SYNC with an empty board, and students fall back to the snapshot
+  when no coach answers. Board-control grants are deliberately not restored. Not
+  yet covered: the recorder template still relies on the coach's FORCE_SYNC
+  (it has no user session to read the snapshot with).
+
+- **No DB integration tests.** Added `npm run test:integration`: `*.int-spec.ts`
+  files run against a real, disposable Postgres with a non-UTC session timezone,
+  and CI runs them in the `migrations` job. The first suites cover the
+  soft-delete extension, `JobLockService` leases and attendance finalize. They
+  found two bugs, both now fixed:
+  - **`prisma.withDeleted` never returned deleted rows.** It was another
+    extension layered on the soft-delete client, and the soft-delete filter ran
+    after it. The result: email/username pre-checks in `auth.service` /
+    `user.service` missed a deleted user, so the create hit P2002 and returned a
+    500. Trash purge also never deleted a removed user's Cloudinary avatar.
+    `withDeleted` is now the unextended base client on the same pool.
+  - **Finalize gave every no-show a `joinedAt` timestamp.** The ABSENT row was
+    created with the column's `now()` default; a second finalize cleared it, so
+    the result depended on how many times finalize ran.
+
+- **2,600-line `LiveClassService` / `AttendanceService`.** Split by concern, with
+  method bodies moved unchanged. `live-class/` now has `LiveClassAccessService` (auth +
+  participant/manager checks every other service uses), `-waiting-room`,
+  `-pull`, `-demo`, `-chat`, `-screen-share`, `-moderation` and `-recording`
+  services, plus `live-class.util.ts`. `LiveClassService` keeps
+  start/token/settings/end/sweep, plus thin `resolveParticipant` /
+  `resolveClassManager` / `connectedUserIds` delegators for the puzzle, simul,
+  match and move-poll modules. Attendance keeps events, finalize and the policy in
+  `AttendanceService`. Reports and export moved to `AttendanceReportService`, the
+  dashboard, monitoring and reliability views to `AttendanceMonitoringService`,
+  and the pure maths to `attendance-calc.util.ts`, which the calculations spec now
+  imports instead of keeping a copy. Specs build the live-class graph from
+  `LIVE_CLASS_SERVICES` (`live-class.testing.ts`).
+
 ## Resolved (2026-09-27)
 
 - **Coaches couldn't ask for schedule changes.** Once coaches stopped creating
@@ -96,7 +154,7 @@ None currently tracked here.
   leave-closing logic to the tab that actually sent the event, student-side
   only (coach path unchanged — see design doc §2.8 for why). Tests:
   `attendance-session.util.spec.ts`, `attendance-multi-tab.spec.ts`.
-  **Phase 5**: `AttendanceService.getLiveReliabilityOverview`
+  **Phase 5**: `AttendanceMonitoringService.getLiveReliabilityOverview`
   (`API_ROUTES.attendance.adminLiveReliability`) is a genuinely new
   cross-class query — every `LIVE` session with a coach or student in
   `RECONNECTING`/`OFFLINE` presence — built from `ClassAttendance`/
@@ -108,7 +166,7 @@ None currently tracked here.
   (`AdminLiveReliabilityClient`, nav "Live Reliability"), polling every 15s.
   Tests: `attendance-reliability.spec.ts`; verified in-browser via `npm run
   shots -- --path admin/reliability --login admin`.
-  **Phase 6**: `AttendanceService.getReliabilityMetrics`
+  **Phase 6**: `AttendanceMonitoringService.getReliabilityMetrics`
   (`API_ROUTES.attendance.adminReliabilityMetrics`) reports webhook-loss rate
   and heartbeat-fallback rate over a trailing window, surfaced on
   `/admin/reliability` as a "Last 30 days" panel — buildable and fully tested
@@ -147,7 +205,7 @@ None currently tracked here.
   with every branch producing an explainable line item, never just a final
   number. Payslip PDFs render via pdfmake off a BullMQ queue (mirrors
   `payments/invoice-*`: `--`-separated job ids, inline-render fallback when
-  `REDIS_URL` is unset, advisory-lock `73002080` retry sweep) and auto-queue
+  `REDIS_URL` is unset, job-lock `payroll.payslip-pdf-sweep` retry sweep) and auto-queue
   on period finalize. Two new messaging events, `PAYROLL_FINALIZED` /
   `PAYROLL_PAID` (enabled, in-app only, coach audience, no bank/payment
   detail in the body). Web: `/admin/finance/coach-payroll` (periods, an
@@ -422,7 +480,7 @@ None currently tracked here.
 
 - **Post-class summary screen.** The "class ended" state was a dead-end
   `<RoomEnded />`. Now `GET /attendance/class/:id/summary`
-  (`API_ROUTES.attendance.classSummary`, `AttendanceService.getClassSummary`)
+  (`API_ROUTES.attendance.classSummary`, `AttendanceReportService.getClassSummary`)
   returns a role-aware payload — coaches/admins get the full `ClassDetailReport`,
   students get their own attendance row — plus a `finalized` flag the client
   (`useClassSummary`) polls on. `LiveSession.attendanceFinalizedAt` marks

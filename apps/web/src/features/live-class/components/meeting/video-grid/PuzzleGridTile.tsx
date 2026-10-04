@@ -29,7 +29,10 @@ export function PuzzleGridTile({
   const classId = (params?.roomId as string) ?? "";
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const { setActiveSidebar, setPuzzleSolverOpen } = useLiveClassState();
+  const { setActiveSidebar, setPuzzleSolverOpen } = useLiveClassState(
+    "setActiveSidebar",
+    "setPuzzleSolverOpen",
+  );
   // Same query key as the Puzzle panel, so the two share one poll.
   const leaderboard = useLivePuzzleLeaderboard(classId, true);
   const { secondsLeft, expired } = useCountdown(puzzle.endsAt);

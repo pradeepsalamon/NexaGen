@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, Pencil, Plus } from "lucide-react";
+import { CalendarDays, Pencil, Plus, Repeat } from "lucide-react";
 import type { DemoClass } from "@nexa-chess/types";
 
 import { Card } from "@/components/ui/Card";
@@ -22,8 +22,10 @@ import { DemoClassForm } from "./DemoClassForm";
 import { DemoClassDetailsDialog } from "./DemoClassDetailsDialog";
 import { useDemoClassColumns } from "./demo-classes/useDemoClassColumns";
 import { ColumnVisibilityMenu } from "./demo-classes/ColumnVisibilityMenu";
+import { DemoSchedulesPanel } from "./demo-classes/DemoSchedulesPanel";
+import { demoShareText } from "../lib/demoLinks";
 
-type DemoClassManagementTab = "all" | "create";
+type DemoClassManagementTab = "all" | "schedules" | "create";
 
 const statusOptions = [
   { label: "Scheduled", value: "SCHEDULED" },
@@ -36,7 +38,7 @@ export function DemoClassesClient() {
   const toast = useToast();
 
   // Server-side pagination / search / sort / status filter (AUDIT H26).
-  const serverTable = useServerTable({ pageSize: 10, initialSorting: [{ id: "startsAt", desc: true }] });
+  const serverTable = useServerTable({ pageSize: 10 });
   const { clampToPageCount } = serverTable;
   const { data, isLoading } = useDemoClassesQuery(serverTable.params);
   const classes = useMemo(() => data?.classes ?? [], [data?.classes]);
@@ -66,10 +68,13 @@ export function DemoClassesClient() {
   }, []);
 
   const handleCopyLink = useCallback(
-    (id: string) => {
-      const link = `${window.location.origin}/demo/${id}`;
-      navigator.clipboard.writeText(link);
-      toast.success({ title: "Link copied to clipboard!" });
+    (demoClass: DemoClass) => {
+      void navigator.clipboard.writeText(
+        demoShareText(`/demo/${demoClass.id}`, demoClass.accessMode, demoClass.passcode)
+      );
+      toast.success({
+        title: demoClass.accessMode === "PASSCODE" ? "Link and passcode copied" : "Link copied to clipboard!"
+      });
     },
     [toast]
   );
@@ -144,6 +149,10 @@ export function DemoClassesClient() {
                 <CalendarDays aria-hidden="true" className="size-4" />
                 All Classes
               </TabsTrigger>
+              <TabsTrigger value="schedules">
+                <Repeat aria-hidden="true" className="size-4" />
+                Schedules
+              </TabsTrigger>
               <TabsTrigger value="create">
                 {editingClassId ? (
                   <Pencil aria-hidden="true" className="size-4" />
@@ -191,6 +200,10 @@ export function DemoClassesClient() {
                 totalRows={data?.pagination?.total ?? 0}
               />
             </Card>
+          </TabsContent>
+
+          <TabsContent value="schedules" className="mt-6 outline-none">
+            <DemoSchedulesPanel />
           </TabsContent>
 
           <TabsContent value="create" className="mt-6 outline-none">

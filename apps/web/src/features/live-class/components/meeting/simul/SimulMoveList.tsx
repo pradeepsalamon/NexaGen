@@ -4,6 +4,8 @@ import { useEffect, useRef } from "react";
 import type { SimulMove } from "@nexa-chess/types";
 import { cn } from "@/lib/utils";
 
+type ListMove = Pick<SimulMove, "san" | "uci" | "engine">;
+
 /** Numbered SAN pairs; `blackStarts` when the start position had Black to move. */
 export function SimulMoveList({
   moves,
@@ -11,7 +13,7 @@ export function SimulMoveList({
   showEngine = false,
   className
 }: {
-  moves: SimulMove[];
+  moves: ListMove[];
   blackStarts?: boolean;
   /** Coach only: mark moves the engine played. */
   showEngine?: boolean;
@@ -22,13 +24,13 @@ export function SimulMoveList({
     endRef.current?.scrollIntoView({ block: "nearest" });
   }, [moves.length]);
 
-  const cells: (SimulMove | null)[] = blackStarts ? [null, ...moves] : moves;
-  const rows: { no: number; white: SimulMove | null; black: SimulMove | null }[] = [];
+  const cells: (ListMove | null)[] = blackStarts ? [null, ...moves] : moves;
+  const rows: { no: number; white: ListMove | null; black: ListMove | null }[] = [];
   for (let i = 0; i < cells.length; i += 2) {
     rows.push({ no: i / 2 + 1, white: cells[i] ?? null, black: cells[i + 1] ?? null });
   }
 
-  const cell = (move: SimulMove | null) =>
+  const cell = (move: ListMove | null) =>
     move ? (
       <span className={cn("font-medium text-app-text", showEngine && move.engine && "text-info-ink")}>
         {move.san}

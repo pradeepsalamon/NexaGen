@@ -196,6 +196,10 @@ export class LiveKitService implements OnModuleInit {
     await this.roomClient.mutePublishedTrack(roomName, identity, trackSid, true);
   }
 
+  async removeParticipant(roomName: string, identity: string): Promise<void> {
+    await this.roomClient.removeParticipant(roomName, identity);
+  }
+
   /**
    * Server-inject a data packet onto a topic every participant can listen on.
    * Pass `destinationIdentities` to address it to specific participants only —

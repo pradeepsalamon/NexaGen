@@ -63,7 +63,7 @@ export const ChatComposer = memo(function ChatComposer({
       <form
         onSubmit={handleSubmit}
         className={cn(
-          "flex items-end gap-2 rounded-full border bg-app-background px-3 py-1.5 transition-all duration-200 shadow-card",
+          "flex items-end gap-2 rounded-full border bg-app-background px-3 py-1.5 transition duration-200 shadow-card",
           draft.trim() || isSending
             ? "border-primary/40 ring-2 ring-primary/5 shadow-primary/5"
             : "border-app-border/60 focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/5 hover:border-app-border",
@@ -108,7 +108,7 @@ export const ChatComposer = memo(function ChatComposer({
           type="submit"
           disabled={disabled || !draft.trim() || isSending}
           className={cn(
-            "flex size-8 shrink-0 items-center justify-center rounded-full transition-all duration-300",
+            "flex size-8 shrink-0 items-center justify-center rounded-full transition duration-300",
             draft.trim()
               ? "bg-primary text-white shadow-lift shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95"
               : "bg-app-border/40 text-app-muted/50 cursor-not-allowed",

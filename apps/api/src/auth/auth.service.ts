@@ -41,11 +41,14 @@ import type {
 import {
   createOpaqueToken,
   hashOpaqueToken,
+  hashRefreshToken,
   hashSecret,
   parseDurationMs,
+  refreshTokenMatches,
   splitStudentName,
   verifySecret
 } from "./auth.utils";
+import { verifyAccessToken as verifySharedAccessToken } from "./authenticate";
 
 type SessionContext = {
   ipAddress?: string;
@@ -99,11 +102,12 @@ export class AuthService {
   /**
    * Grace window after a refresh token is rotated during which the *previous*
    * token is still honoured. Without it, two tabs (or a retried request)
-   * refreshing at the same instant race: the first rotates and revokes the
-   * session, the second presents the now-revoked token and gets logged out —
-   * and because the response also clears cookies, both tabs drop. Re-issuing a
-   * fresh session for a token revoked <30s ago keeps concurrent tabs alive
-   * while still catching genuine token reuse outside the window.
+   * refreshing at the same instant race: the first rotates the session, the
+   * second presents the old token and gets logged out — and because the
+   * response also clears cookies, both tabs drop. Within the window the late
+   * caller gets a sibling session in the same family; outside it the replay
+   * revokes the family. Only `rotatedAt` gets grace — a `revokedAt` session
+   * (logout, password reset) is never revived.
    */
   private readonly refreshRotationGraceMs = 30_000;
 
@@ -342,68 +346,48 @@ export class AuthService {
     }
 
     const payload = await this.verifyRefreshToken(refreshToken);
-    const sessionInclude = {
-      user: { include: { coachProfile: true, studentProfile: true } }
-    } as const;
 
-    let session = await this.prisma.authSession.findFirst({
-      include: sessionInclude,
+    const session = await this.prisma.authSession.findFirst({
+      include: {
+        user: { include: { coachProfile: true, studentProfile: true } }
+      },
       where: {
         expiresAt: { gt: new Date() },
         id: payload.sessionId,
-        revokedAt: null,
         userId: payload.sub,
         user: { isDeleted: false }
       }
     });
 
-    // No live session for this token. If it was rotated moments ago (a
-    // concurrent refresh from another tab), honour it within the grace window
-    // instead of logging every tab out. The session is already revoked, so
-    // don't revoke it again below.
-    let alreadyRevoked = false;
-    if (!session) {
-      session = await this.prisma.authSession.findFirst({
-        include: sessionInclude,
-        where: {
-          expiresAt: { gt: new Date() },
-          id: payload.sessionId,
-          revokedAt: {
-            gt: new Date(Date.now() - this.refreshRotationGraceMs)
-          },
-          userId: payload.sub,
-          user: { isDeleted: false }
-        }
-      });
-      if (session) {
-        alreadyRevoked = true;
-      }
-    }
-
-    if (!session) {
+    if (!session || !(await refreshTokenMatches(refreshToken, session.refreshTokenHash))) {
       throw new UnauthorizedException("Session expired.");
     }
 
-    const refreshTokenMatches = await verifySecret(
-      refreshToken,
-      session.refreshTokenHash
-    );
-
-    if (!refreshTokenMatches) {
-      if (!alreadyRevoked) {
-        await this.prisma.authSession.update({
-          data: { revokedAt: new Date() },
-          where: { id: session.id }
-        });
-      }
-      throw new UnauthorizedException("Invalid refresh token.");
+    // Logout, password reset and detected reuse are final — never revived.
+    if (session.revokedAt) {
+      throw new UnauthorizedException("Session expired.");
     }
 
-    if (!alreadyRevoked) {
-      await this.prisma.authSession.update({
-        data: { revokedAt: new Date() },
-        where: { id: session.id }
-      });
+    const familyId = session.familyId ?? session.id;
+
+    // Claim the rotation atomically: of two concurrent refreshes only one wins.
+    const claimed = session.rotatedAt
+      ? 0
+      : (
+          await this.prisma.authSession.updateMany({
+            data: { rotatedAt: new Date() },
+            where: { id: session.id, revokedAt: null, rotatedAt: null }
+          })
+        ).count;
+
+    if (claimed === 0) {
+      const rotatedAt = session.rotatedAt ?? new Date();
+      // A token that was already rotated, presented after the grace window, is a
+      // replay of a stolen copy: end the whole device chain.
+      if (Date.now() - rotatedAt.getTime() > this.refreshRotationGraceMs) {
+        await this.revokeFamily(familyId);
+        throw new UnauthorizedException("Session expired.");
+      }
     }
 
     const refreshTokenMaxAge = Math.max(
@@ -418,7 +402,8 @@ export class AuthService {
       session.user,
       context,
       refreshTokenMaxAge,
-      refreshTokenTtl
+      refreshTokenTtl,
+      familyId
     );
 
     return {
@@ -436,19 +421,26 @@ export class AuthService {
 
     try {
       const payload = await this.verifyRefreshToken(refreshToken);
-      await this.prisma.authSession.updateMany({
-        data: { revokedAt: new Date() },
-        where: {
-          id: payload.sessionId,
-          userId: payload.sub,
-          revokedAt: null
-        }
+      const session = await this.prisma.authSession.findFirst({
+        select: { familyId: true, id: true },
+        where: { id: payload.sessionId, userId: payload.sub }
       });
+      // The whole chain, so a sibling minted in the grace window can't outlive logout.
+      if (session) {
+        await this.revokeFamily(session.familyId ?? session.id);
+      }
     } catch {
       return { ok: true as const };
     }
 
     return { ok: true as const };
+  }
+
+  private async revokeFamily(familyId: string) {
+    await this.prisma.authSession.updateMany({
+      data: { revokedAt: new Date() },
+      where: { OR: [{ id: familyId }, { familyId }], revokedAt: null }
+    });
   }
 
   async me(accessToken: string | undefined): Promise<AuthResponse> {
@@ -699,11 +691,13 @@ export class AuthService {
     user: User,
     context: SessionContext,
     refreshTokenMaxAge: number,
-    refreshTokenTtl: JwtDuration
+    refreshTokenTtl: JwtDuration,
+    familyId?: string
   ): Promise<TokenPair> {
     const session = await this.prisma.authSession.create({
       data: {
         expiresAt: new Date(Date.now() + refreshTokenMaxAge),
+        familyId,
         refreshTokenHash: "",
         ipAddress: context.ipAddress,
         userAgent: context.userAgent,
@@ -737,24 +731,15 @@ export class AuthService {
     );
 
     await this.prisma.authSession.update({
-      data: { refreshTokenHash: await hashSecret(refreshToken) },
+      data: { refreshTokenHash: hashRefreshToken(refreshToken) },
       where: { id: session.id }
     });
 
     return { accessToken, refreshToken };
   }
 
-  private async verifyAccessToken(token: string) {
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-      token,
-      { secret: this.accessSecret }
-    );
-
-    if (payload.type !== "access") {
-      throw new UnauthorizedException("Invalid token type.");
-    }
-
-    return payload;
+  private verifyAccessToken(token: string) {
+    return verifySharedAccessToken(this.jwtService, token);
   }
 
   private async verifyRefreshToken(token: string) {

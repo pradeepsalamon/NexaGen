@@ -4,8 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Request } from 'express';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
-import type { AccessTokenPayload } from '../auth/types';
-import { getApiEnv } from '@nexa-chess/config/api';
+import { authenticateUser } from '../auth/authenticate';
 
 @Controller('admin/backups')
 export class BackupController {
@@ -16,21 +15,15 @@ export class BackupController {
   ) {}
 
   private async getAdminId(request: Request): Promise<string> {
-    const token = request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
-    if (!token) throw new UnauthorizedException();
-    
-    try {
-      const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(token, {
-        secret: getApiEnv().JWT_ACCESS_SECRET
-      });
-      const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-      if (!user || user.role !== 'SUPER_ADMIN') {
-        throw new UnauthorizedException('Only Super Admins can perform this action.');
-      }
-      return user.id;
-    } catch {
-      throw new UnauthorizedException();
+    const user = await authenticateUser(
+      this.jwtService,
+      this.prisma,
+      request.cookies?.[AUTH_COOKIE_NAMES.accessToken]
+    );
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new UnauthorizedException('Only Super Admins can perform this action.');
     }
+    return user.id;
   }
 
   @Get()

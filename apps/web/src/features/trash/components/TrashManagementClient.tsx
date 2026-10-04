@@ -69,9 +69,7 @@ export function TrashManagementClient() {
   // the selection — both of which would otherwise create a cycle with the
   // table. See AUDIT.md H4.
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "deletedAt", desc: true }
-  ]);
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10
@@ -199,7 +197,7 @@ export function TrashManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Entity"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => <Badge variant="secondary">{formatEntity(row.original.entity)}</Badge>
@@ -209,7 +207,7 @@ export function TrashManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Title"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -228,7 +226,7 @@ export function TrashManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Deleted At"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => formatDate(row.original.deletedAt)
@@ -239,7 +237,7 @@ export function TrashManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Deleted By"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => formatDeletedBy(row.original)

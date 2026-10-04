@@ -10,24 +10,21 @@ import {
   MaxFileSizeValidator,
   FileTypeValidator,
   BadRequestException,
-  ForbiddenException,
-  UnauthorizedException,
+  ForbiddenException
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtService } from '@nestjs/jwt';
-import { getApiEnv } from '@nexa-chess/config/api';
-import { UserRole, UserStatus } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import type { Request } from 'express';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
-import type { AccessTokenPayload } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadService } from './upload.service';
+import { authenticateUser } from '../auth/authenticate';
 
 const MAX_PGN_LENGTH = 512 * 1024; // 512KB of PGN text
 
 @Controller('upload')
 export class UploadController {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly uploadService: UploadService,
@@ -95,30 +92,11 @@ export class UploadController {
     return { url: result.secure_url };
   }
 
-  private async getAuthenticatedUser(request: Request) {
-    const accessToken = request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
-
-    if (!accessToken) {
-      throw new UnauthorizedException('Access token is missing.');
-    }
-
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-      accessToken,
-      { secret: this.env.JWT_ACCESS_SECRET },
+  private getAuthenticatedUser(request: Request) {
+    return authenticateUser(
+      this.jwtService,
+      this.prisma,
+      request.cookies?.[AUTH_COOKIE_NAMES.accessToken],
     );
-
-    if (payload.type !== 'access') {
-      throw new UnauthorizedException('Invalid token type.');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException('Invalid session.');
-    }
-
-    return user;
   }
 }

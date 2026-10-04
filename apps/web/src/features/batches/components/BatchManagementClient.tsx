@@ -156,7 +156,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Name"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -176,7 +176,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Date range"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -200,7 +200,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Schedule"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -237,7 +237,7 @@ export function BatchManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (

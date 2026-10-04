@@ -1,8 +1,10 @@
 import { apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
+  type AdjustClassLeaderboardRequest,
   type AdjustLivePuzzlePointsRequest,
   type AssignLivePuzzleRequest,
+  type ClassLeaderboardResponse,
   type LivePuzzleBoardsResponse,
   type LivePuzzleLeaderboardResponse,
   type LivePuzzleStateResponse,
@@ -49,6 +51,18 @@ export const updateLivePuzzle = (
 ): Promise<LivePuzzleStateResponse> =>
   apiFetch<LivePuzzleStateResponse>(API_ROUTES.liveClass.puzzle(classId), {
     method: "PATCH",
+    body
+  });
+
+export const getClassLeaderboard = (classId: string): Promise<ClassLeaderboardResponse> =>
+  apiFetch<ClassLeaderboardResponse>(API_ROUTES.liveClass.puzzleClassLeaderboard(classId));
+
+export const adjustClassLeaderboard = (
+  classId: string,
+  body: AdjustClassLeaderboardRequest
+): Promise<ClassLeaderboardResponse> =>
+  apiFetch<ClassLeaderboardResponse>(API_ROUTES.liveClass.puzzleClassLeaderboardAdjust(classId), {
+    method: "POST",
     body
   });
 

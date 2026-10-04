@@ -39,7 +39,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
         header: ({ column }) => (
           <DataTableSortButton 
             label="First Name" 
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} 
+            column={column}
           />
         ),
         cell: ({ row }) => {
@@ -74,7 +74,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
         header: ({ column }) => (
           <DataTableSortButton 
             label="Rating" 
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} 
+            column={column}
           />
         ),
         cell: ({ row }) => (

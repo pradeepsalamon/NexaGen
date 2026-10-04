@@ -3,8 +3,9 @@
 import type { PaginatedQuery, PaginationMeta } from "@nexa-chess/types";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { type ReactNode, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Input } from "@/components/ui/Input";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/lib/queryKeys";
@@ -72,7 +73,7 @@ export function AnalyticsDrillTable<Row>({
     setSort((prev) =>
       prev?.key === key
         ? { key, order: prev.order === "asc" ? "desc" : "asc" }
-        : { key, order: "desc" }
+        : { key, order: "asc" }
     );
   };
 
@@ -105,22 +106,11 @@ export function AnalyticsDrillTable<Row>({
                   key={col.key}
                 >
                   {col.sortable ? (
-                    <button
-                      className="inline-flex items-center gap-1 hover:text-app-text"
+                    <SortButton
+                      direction={sort?.key === col.key ? sort.order : false}
+                      label={col.header}
                       onClick={() => toggleSort(col.key)}
-                      type="button"
-                    >
-                      {col.header}
-                      {sort?.key === col.key ? (
-                        sort.order === "asc" ? (
-                          <ArrowUp className="size-3" />
-                        ) : (
-                          <ArrowDown className="size-3" />
-                        )
-                      ) : (
-                        <ArrowUpDown className="size-3 opacity-40" />
-                      )}
-                    </button>
+                    />
                   ) : (
                     col.header
                   )}

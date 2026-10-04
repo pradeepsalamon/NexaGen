@@ -1,14 +1,22 @@
 import { useEffect, useState, useRef } from 'react';
 import { useBoardStore as usePersistedStore } from "../../context/BoardProvider";
-import { analyzePosition, StockfishAnalysisResult } from '../../api/stockfishApi';
+import { analyzePositionStream, StockfishAnalysisResult } from '../../api/stockfishApi';
 import { Loader2, Pause, Play } from 'lucide-react';
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 const ANALYSIS_DEBOUNCE_MS = 150;
 
+/** The engine scores for the side to move; the panel shows White's view. */
+function whitePerspective(fen: string, result: StockfishAnalysisResult) {
+  const blackToMove = fen.split(' ')[1] === 'b';
+  const flip = (n: number | null) => (n === null || !blackToMove ? n : -n);
+  return { evaluation: flip(result.evaluation), mate: flip(result.mate) };
+}
+
 export function StockfishPanel() {
   const fen = usePersistedStore(state => state.fen);
-  const [analysis, setAnalysis] = useState<StockfishAnalysisResult | null>(null);
+  // Kept with the FEN it describes, so the score's sign uses the right side to move.
+  const [analysis, setAnalysis] = useState<(StockfishAnalysisResult & { fen: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEnabled, setIsEnabled] = useState(true);
@@ -23,13 +31,20 @@ export function StockfishPanel() {
         abortControllerRef.current.abort();
       }
 
-      abortControllerRef.current = new AbortController();
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       setIsAnalyzing(true);
       setError(null);
 
       try {
-        const result = await analyzePosition(fen, abortControllerRef.current.signal);
-        setAnalysis(result);
+        const result = await analyzePositionStream(fen, {
+          signal: controller.signal,
+          // Paint each deeper line as it arrives; a superseded stream stays silent.
+          onUpdate: (partial) => {
+            if (!controller.signal.aborted) setAnalysis({ ...partial, fen });
+          },
+        });
+        if (!controller.signal.aborted) setAnalysis({ ...result, fen });
         setError(null);
       } catch (err: any) {
         const aborted =
@@ -41,7 +56,7 @@ export function StockfishPanel() {
           setError(err?.message || 'Failed to fetch analysis');
         }
       } finally {
-        setIsAnalyzing(false);
+        if (!controller.signal.aborted) setIsAnalyzing(false);
       }
     };
 
@@ -99,9 +114,10 @@ export function StockfishPanel() {
     );
   }
 
-  const scoreText = analysis.mate !== null 
-    ? `M${Math.abs(analysis.mate)}`
-    : (analysis.evaluation !== null ? (analysis.evaluation > 0 ? `+${analysis.evaluation.toFixed(2)}` : analysis.evaluation.toFixed(2)) : '0.00');
+  const score = whitePerspective(analysis.fen, analysis);
+  const scoreText = score.mate !== null
+    ? `${score.mate < 0 ? '-' : ''}M${Math.abs(score.mate)}`
+    : (score.evaluation !== null ? (score.evaluation > 0 ? `+${score.evaluation.toFixed(2)}` : score.evaluation.toFixed(2)) : '0.00');
 
   return (
     <div className="flex flex-col h-full text-sm p-4 text-app-text">

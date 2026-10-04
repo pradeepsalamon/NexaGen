@@ -39,8 +39,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
   // Raised hands ride a data channel, not participant attributes — see
   // `lib/handRaise.ts`. Optional: the recorder template renders tiles outside
   // the provider stack.
-  const liveClassState = useOptionalLiveClassState();
-  const handRaised = !!liveClassState?.raisedHands[participant.identity];
+  const handRaised = !!useOptionalLiveClassState((s) => !!s.raisedHands[participant.identity]);
   const isLocal = participant.isLocal;
   const reducedMotion = useReducedMotion();
 
@@ -135,7 +134,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
         {onPin && (
           <button
             type="button"
-            className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/60 opacity-0 backdrop-blur-sm transition-all duration-150 hover:bg-black/70 hover:text-white group-hover:opacity-100"
+            className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/60 opacity-0 backdrop-blur-sm transition duration-150 hover:bg-black/70 hover:text-white group-hover:opacity-100"
             onClick={() => onPin(trackKey)}
             aria-label={
               isScreenShare

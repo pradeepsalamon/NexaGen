@@ -5,7 +5,6 @@ import {
   useConnectionState,
   useDataChannel,
   useLocalParticipant,
-  useParticipants,
 } from "@livekit/components-react";
 import { ConnectionState } from "livekit-client";
 import { toast } from "sonner";
@@ -18,6 +17,7 @@ import {
   type HandRaiseMessage,
 } from "../../lib/handRaise";
 import { isHumanParticipant } from "../../lib/participants";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 function toastId(identity: string) {
   return `hand-raised-${identity}`;
@@ -28,9 +28,14 @@ function toastId(identity: string) {
  * Must render inside both `<LiveKitRoom>` and `<LiveClassProvider>`.
  */
 export function HandRaiseBridge() {
-  const { applyHandRaise, handRaised, pruneRaisedHands, setActiveSidebar } = useLiveClassState();
+  const { applyHandRaise, handRaised, pruneRaisedHands, setActiveSidebar } = useLiveClassState(
+    "applyHandRaise",
+    "handRaised",
+    "pruneRaisedHands",
+    "setActiveSidebar",
+  );
   const { localParticipant } = useLocalParticipant();
-  const participants = useParticipants();
+  const participants = useRoster();
   const connectionState = useConnectionState();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);

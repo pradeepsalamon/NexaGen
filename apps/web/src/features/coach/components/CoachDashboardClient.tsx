@@ -114,7 +114,7 @@ export function CoachDashboardClient() {
             const Icon = card.icon;
             return (
               <Link key={card.label} href={card.href} className="block group">
-                <Card className="p-6 transition-all hover:border-primary/50 hover:shadow-md">
+                <Card className="p-6 transition hover:border-primary/50 hover:shadow-md">
                   <div className="flex items-center gap-4">
                     <div className={`p-3 rounded-control ${card.bg}`}>
                       <Icon className={`h-6 w-6 ${card.color}`} strokeWidth={2.5} />

@@ -4,6 +4,11 @@ import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { liveClassSettingsSchema } from "@nexa-chess/types";
 import { LiveClassService } from "./live-class.service";
+import { LiveClassChatService } from "./live-class-chat.service";
+import { LiveClassModerationService } from "./live-class-moderation.service";
+import { LiveClassScreenShareService } from "./live-class-screen-share.service";
+import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
+import { LIVE_CLASS_SERVICES } from "./live-class.testing";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
@@ -12,12 +17,14 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
 
-describe("LiveClassService chat authorization", () => {
-  let service: LiveClassService;
+describe("LiveClassChatService chat authorization", () => {
+  let service: LiveClassChatService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let liveSessionFindUnique: jest.Mock;
@@ -78,7 +85,8 @@ describe("LiveClassService chat authorization", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -109,7 +117,7 @@ describe("LiveClassService chat authorization", () => {
       ]
     }).compile();
 
-    service = module.get<LiveClassService>(LiveClassService);
+    service = module.get(LiveClassChatService);
   });
 
   describe("getChatHistory", () => {
@@ -264,8 +272,8 @@ describe("LiveClassService chat authorization", () => {
   });
 });
 
-describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
-  let service: LiveClassService;
+describe("LiveClassModerationService.moderateParticipant (coach force-mute)", () => {
+  let service: LiveClassModerationService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let liveSessionFindUnique: jest.Mock;
@@ -311,7 +319,8 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -335,7 +344,7 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
       ]
     }).compile();
 
-    service = module.get<LiveClassService>(LiveClassService);
+    service = module.get(LiveClassModerationService);
   });
 
   it("mutes only the requested source and announces it", async () => {
@@ -370,6 +379,58 @@ describe("LiveClassService.moderateParticipant (coach force-mute)", () => {
     expect(result.muted).toBe(false);
     expect(muteParticipantTrack).not.toHaveBeenCalled();
     expect(broadcastData).not.toHaveBeenCalled();
+  });
+
+  it("mute-all switches the chosen sources off for students only, never the coach", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+    listParticipants.mockResolvedValue([
+      {
+        identity: "coach-1",
+        metadata: JSON.stringify({ role: "COACH" }),
+        tracks: [{ sid: "TR_coach_mic", source: 2, muted: false }]
+      },
+      {
+        identity: "student-1_tab-a",
+        metadata: JSON.stringify({ role: "STUDENT" }),
+        tracks: [
+          { sid: "TR_mic", source: 2, muted: false },
+          { sid: "TR_cam", source: 1, muted: false }
+        ]
+      },
+      {
+        identity: "student-2_tab-b",
+        metadata: JSON.stringify({ role: "STUDENT" }),
+        tracks: [{ sid: "TR_mic2", source: 2, muted: true }]
+      }
+    ]);
+
+    const result = await service.moderateAll(ACCESS_TOKEN, "class-1", { sources: ["microphone"] });
+
+    expect(result).toEqual({ mutedCount: 1 });
+    expect(muteParticipantTrack).toHaveBeenCalledTimes(1);
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_mic");
+    expect(broadcastData).toHaveBeenCalledTimes(1);
+  });
+
+  it("mute-all can switch both mic and camera off", async () => {
+    authenticateAs("coach-1", UserRole.COACH);
+
+    const result = await service.moderateAll(ACCESS_TOKEN, "class-1", {
+      sources: ["microphone", "camera"]
+    });
+
+    expect(result).toEqual({ mutedCount: 1 });
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_mic");
+    expect(muteParticipantTrack).toHaveBeenCalledWith("room-1", "student-1_tab-a", "TR_cam");
+  });
+
+  it("rejects a student trying to mute everyone", async () => {
+    authenticateAs("student-2", UserRole.STUDENT);
+
+    await expect(
+      service.moderateAll(ACCESS_TOKEN, "class-1", { sources: ["microphone"] })
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(muteParticipantTrack).not.toHaveBeenCalled();
   });
 
   it("rejects a student trying to mute someone", async () => {
@@ -446,6 +507,8 @@ describe("LiveClassService.getToken coach-presence gate", () => {
   let listParticipants: jest.Mock;
   let generateAccessToken: jest.Mock;
   let recordJoinEvent: jest.Mock;
+  let waitingFindUnique: jest.Mock;
+  let pullFindFirst: jest.Mock;
 
   const authenticateAs = (id: string, role: UserRole) => {
     jwtService.verifyAsync.mockResolvedValue({ sub: id, type: "access" });
@@ -474,14 +537,18 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     listParticipants = jest.fn().mockResolvedValue([]);
     generateAccessToken = jest.fn().mockResolvedValue("livekit-token");
     recordJoinEvent = jest.fn().mockResolvedValue(undefined);
+    waitingFindUnique = jest.fn().mockResolvedValue(null);
+    pullFindFirst = jest.fn().mockResolvedValue(null);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
-            liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassPull: { findFirst: pullFindFirst, updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassWaitingParticipant: { findUnique: waitingFindUnique },
             coachClass: { findUnique: coachClassFindUnique },
             liveSession: { findUnique: liveSessionFindUnique },
             user: { findUnique: userFindUnique },
@@ -536,6 +603,34 @@ describe("LiveClassService.getToken coach-presence gate", () => {
     await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({
       token: "livekit-token"
     });
+  });
+
+  it("refuses a student the coach removed (no waiting room)", async () => {
+    authenticateAs("student-1", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+    waitingFindUnique.mockResolvedValue({ status: "DENIED" });
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toMatchObject({
+      response: { code: "REMOVED_FROM_CLASS" }
+    });
+  });
+
+  it("admits a student from another batch who was pulled in, as a STUDENT", async () => {
+    authenticateAs("student-9", UserRole.STUDENT);
+    listParticipants.mockResolvedValue([{ identity: "coach-1" }]);
+    pullFindFirst.mockResolvedValue({ id: "pull-1" });
+
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({
+      token: "livekit-token"
+    });
+    expect(generateAccessToken).toHaveBeenCalledWith(expect.objectContaining({ isCoach: false }));
+  });
+
+  it("refuses a student outside the batch who was not pulled in", async () => {
+    authenticateAs("student-9", UserRole.STUDENT);
+    await expect(service.getToken(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(
+      ForbiddenException
+    );
   });
 
   it("does not treat another student as the coach", async () => {
@@ -655,7 +750,8 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -737,6 +833,7 @@ describe("LiveClassService.updateLiveSettings (mid-class change)", () => {
 
 describe("LiveClassService waiting room", () => {
   let service: LiveClassService;
+  let waitingRoom: LiveClassWaitingRoomService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let coachClassFindUnique: jest.Mock;
@@ -801,7 +898,8 @@ describe("LiveClassService waiting room", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -834,6 +932,8 @@ describe("LiveClassService waiting room", () => {
     }).compile();
 
     service = module.get<LiveClassService>(LiveClassService);
+
+    waitingRoom = module.get(LiveClassWaitingRoomService);
   });
 
   describe("getToken", () => {
@@ -896,7 +996,7 @@ describe("LiveClassService waiting room", () => {
     it("admits a pending student and broadcasts the resolution", async () => {
       authenticateAs("coach-1", UserRole.COACH);
 
-      const result = await service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+      const result = await waitingRoom.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "ADMIT"
       });
@@ -916,7 +1016,7 @@ describe("LiveClassService waiting room", () => {
       waitingUpdateMany.mockResolvedValue({ count: 0 });
 
       await expect(
-        service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+        waitingRoom.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
           studentId: "student-1",
           action: "ADMIT"
         })
@@ -929,7 +1029,7 @@ describe("LiveClassService waiting room", () => {
       authenticateAs("coach-2", UserRole.COACH);
 
       await expect(
-        service.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
+        waitingRoom.resolveWaitingRoomEntry(ACCESS_TOKEN, "class-1", {
           studentId: "student-1",
           action: "ADMIT"
         })
@@ -942,6 +1042,7 @@ describe("LiveClassService waiting room", () => {
 
 describe("LiveClassService screen-share requests", () => {
   let service: LiveClassService;
+  let screenShare: LiveClassScreenShareService;
   let jwtService: { verifyAsync: jest.Mock };
   let userFindUnique: jest.Mock;
   let coachClassFindUnique: jest.Mock;
@@ -1017,11 +1118,13 @@ describe("LiveClassService screen-share requests", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
             liveClassPull: { findFirst: jest.fn().mockResolvedValue(null), updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
+            liveClassWaitingParticipant: { findUnique: jest.fn().mockResolvedValue(null) },
             coachClass: { findUnique: coachClassFindUnique, update: coachClassUpdate },
             liveSession: { findUnique: liveSessionFindUnique, updateMany: liveSessionUpdateMany },
             user: { findUnique: userFindUnique },
@@ -1059,6 +1162,8 @@ describe("LiveClassService screen-share requests", () => {
     }).compile();
 
     service = module.get<LiveClassService>(LiveClassService);
+
+    screenShare = module.get(LiveClassScreenShareService);
   });
 
   describe("requestScreenShare", () => {
@@ -1074,14 +1179,14 @@ describe("LiveClassService screen-share requests", () => {
         effectiveSettings: allowedSettings
       });
 
-      await expect(service.requestScreenShare(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(BadRequestException);
+      await expect(screenShare.requestScreenShare(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(BadRequestException);
       expect(shareUpsert).not.toHaveBeenCalled();
     });
 
     it("creates a PENDING row and announces on first request", async () => {
       authenticateAs("student-1", UserRole.STUDENT);
 
-      const entry = await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+      const entry = await screenShare.requestScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(shareUpsert).toHaveBeenCalledWith(
         expect.objectContaining({ create: { liveSessionId: "session-1", studentId: "student-1" } })
@@ -1094,7 +1199,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("student-1", UserRole.STUDENT);
       shareFindUnique.mockResolvedValue(shareRow({ status: "DENIED" }));
 
-      await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+      await screenShare.requestScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(shareUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1107,7 +1212,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("student-1", UserRole.STUDENT);
       shareFindUnique.mockResolvedValue(shareRow({ status: "PENDING" }));
 
-      const entry = await service.requestScreenShare(ACCESS_TOKEN, "class-1");
+      const entry = await screenShare.requestScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(entry.status).toBe("PENDING");
       expect(shareUpsert).not.toHaveBeenCalled();
@@ -1120,7 +1225,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("coach-1", UserRole.COACH);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "APPROVED" }));
 
-      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+      const result = await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "APPROVE"
       });
@@ -1148,7 +1253,7 @@ describe("LiveClassService screen-share requests", () => {
       shareUpdateMany.mockResolvedValue({ count: 0 });
 
       await expect(
-        service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", { studentId: "student-1", action: "APPROVE" })
+        screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", { studentId: "student-1", action: "APPROVE" })
       ).rejects.toBeInstanceOf(NotFoundException);
 
       expect(shareFindUniqueOrThrow).not.toHaveBeenCalled();
@@ -1159,7 +1264,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("coach-1", UserRole.COACH);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "DENIED" }));
 
-      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+      const result = await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "DENY"
       });
@@ -1178,7 +1283,7 @@ describe("LiveClassService screen-share requests", () => {
       ]);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
 
-      const result = await service.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
+      const result = await screenShare.resolveScreenShareRequest(ACCESS_TOKEN, "class-1", {
         studentId: "student-1",
         action: "REVOKE"
       });
@@ -1203,7 +1308,7 @@ describe("LiveClassService screen-share requests", () => {
       authenticateAs("student-1", UserRole.STUDENT);
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "REVOKED" }));
 
-      const result = await service.endScreenShare(ACCESS_TOKEN, "class-1");
+      const result = await screenShare.endScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(shareUpdateMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -1219,7 +1324,7 @@ describe("LiveClassService screen-share requests", () => {
       shareUpdateMany.mockResolvedValue({ count: 0 });
       shareFindUniqueOrThrow.mockResolvedValue(shareRow({ status: "DENIED" }));
 
-      const result = await service.endScreenShare(ACCESS_TOKEN, "class-1");
+      const result = await screenShare.endScreenShare(ACCESS_TOKEN, "class-1");
 
       expect(result.status).toBe("DENIED");
       expect(updateParticipantPermissions).not.toHaveBeenCalled();
@@ -1271,5 +1376,106 @@ describe("LiveClassService screen-share requests", () => {
         })
       );
     });
+  });
+});
+
+describe("LiveClassModerationService.kickParticipant", () => {
+  let service: LiveClassModerationService;
+  let jwtService: { verifyAsync: jest.Mock };
+  let userFindUnique: jest.Mock;
+  let userFindFirst: jest.Mock;
+  let waitingUpsert: jest.Mock;
+  let pullUpdateMany: jest.Mock;
+  let removeParticipant: jest.Mock;
+
+  beforeEach(async () => {
+    jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) };
+    userFindUnique = jest.fn().mockResolvedValue({
+      id: "coach-1",
+      role: UserRole.COACH,
+      status: UserStatus.ACTIVE,
+      firstName: "Ada",
+      lastName: "Coach"
+    });
+    userFindFirst = jest.fn().mockResolvedValue({ id: "student-1" });
+    waitingUpsert = jest.fn().mockResolvedValue({});
+    pullUpdateMany = jest.fn().mockResolvedValue({ count: 0 });
+    removeParticipant = jest.fn().mockResolvedValue(undefined);
+
+    const prisma = {
+      liveSession: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: "session-1",
+          classId: "class-1",
+          coachId: "coach-1",
+          roomName: "room-1",
+          status: "LIVE"
+        })
+      },
+      user: { findUnique: userFindUnique, findFirst: userFindFirst },
+      liveClassWaitingParticipant: { upsert: waitingUpsert },
+      liveClassPull: { updateMany: pullUpdateMany },
+      $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops))
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
+        { provide: PrismaService, useValue: prisma },
+        { provide: JwtService, useValue: jwtService },
+        {
+          provide: LiveKitService,
+          useValue: {
+            listParticipants: jest.fn().mockResolvedValue([
+              { identity: "coach-1" },
+              { identity: "student-1_tab-a" },
+              { identity: "student-1_tab-b" },
+              { identity: "student-2_tab-c" }
+            ]),
+            removeParticipant
+          }
+        },
+        { provide: AttendanceService, useValue: {} },
+        { provide: BackupService, useValue: {} },
+        { provide: RecordingStorageService, useValue: {} },
+        { provide: WhatsAppService, useValue: {} },
+        { provide: MailService, useValue: {} },
+        { provide: LiveClassSettingsService, useValue: {} },
+        {
+          provide: AnalyticsEventService,
+          useValue: { record: jest.fn(), recordRecordingWatchOncePerDay: jest.fn() }
+        }
+      ]
+    }).compile();
+
+    service = module.get(LiveClassModerationService);
+  });
+
+  it("disconnects every tab of the student and blocks their rejoin", async () => {
+    const res = await service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a" });
+
+    expect(res.removed).toBe(2);
+    expect(removeParticipant.mock.calls.map((c) => c[1])).toEqual(["student-1_tab-a", "student-1_tab-b"]);
+    expect(waitingUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ update: expect.objectContaining({ status: "DENIED" }) })
+    );
+    expect(pullUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ status: "CANCELLED" }) })
+    );
+  });
+
+  it("refuses to remove the coach", async () => {
+    await expect(
+      service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "coach-1_tab-x" })
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(removeParticipant).not.toHaveBeenCalled();
+  });
+
+  it("refuses to remove someone who is not a student", async () => {
+    userFindFirst.mockResolvedValue(null);
+    await expect(
+      service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "admin-1_tab-x" })
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

@@ -32,6 +32,8 @@ import {
 } from "../hooks/usePaymentsApi";
 import { RefundDialog } from "./RefundDialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 
 const STATUS_VARIANT: Record<
@@ -65,6 +67,19 @@ export function PaymentsTablePanel() {
   const [refunding, setRefunding] = useState<PaymentListItem | null>(null);
 
   const { data, isLoading } = useAdminPayments(filters);
+  const { rows: payments, sortProps } = useTableSort({
+    rows: data?.payments,
+    accessors: {
+      amount: (p) => p.amount,
+      date: (p) => p.createdAt,
+      gateway: (p) => PAYMENT_SOURCE_LABELS[p.provider],
+      method: (p) => (p.method ? PAYMENT_METHOD_LABELS[p.method] : null),
+      order: (p) => p.orderNumber,
+      status: (p) => PAYMENT_STATUS_LABELS[p.status],
+      transaction: (p) => p.providerPaymentId,
+      user: (p) => p.userName
+    }
+  });
   const reconcile = useReconcilePayment();
 
   const set = (patch: Partial<PaymentListQuery>) =>
@@ -188,19 +203,19 @@ export function PaymentsTablePanel() {
             <Table className="w-full min-w-[900px] text-sm">
               <TableHeader className="border-b border-app-border bg-app-soft text-left">
                 <TableRow className="text-xs uppercase tracking-wide text-app-muted">
-                  <TableHead className="px-4 py-3">Date</TableHead>
-                  <TableHead className="px-4 py-3">User</TableHead>
-                  <TableHead className="px-4 py-3">Order</TableHead>
-                  <TableHead className="px-4 py-3 text-right">Amount</TableHead>
-                  <TableHead className="px-4 py-3">Method</TableHead>
-                  <TableHead className="px-4 py-3">Gateway</TableHead>
-                  <TableHead className="px-4 py-3">Status</TableHead>
-                  <TableHead className="px-4 py-3">Transaction ID</TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Date" {...sortProps("date")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="User" {...sortProps("user")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Order" {...sortProps("order")} /></TableHead>
+                  <TableHead className="px-4 py-3 text-right"><SortButton label="Amount" {...sortProps("amount")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Method" {...sortProps("method")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Gateway" {...sortProps("gateway")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Status" {...sortProps("status")} /></TableHead>
+                  <TableHead className="px-4 py-3"><SortButton label="Transaction ID" {...sortProps("transaction")} /></TableHead>
                   <TableHead className="px-4 py-3 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.payments.map((payment) => (
+                {payments.map((payment) => (
                   <TableRow
                     className="border-b border-app-border last:border-b-0"
                     key={payment.id}

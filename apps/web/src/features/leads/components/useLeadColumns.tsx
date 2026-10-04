@@ -22,7 +22,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Student"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -62,7 +62,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => {
@@ -80,7 +80,7 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Received"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => {

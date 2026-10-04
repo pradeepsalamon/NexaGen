@@ -7,6 +7,7 @@ import { InvoicePdfStatus } from "@prisma/client";
 import type { Queue } from "bullmq";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { MessagingRuleService } from "../messaging/messaging-rule.service";
+import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { isQueueEnabled } from "../queue/queue.config";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
@@ -36,7 +37,6 @@ const MAX_PDF_ATTEMPTS = 5;
  */
 @Injectable()
 export class InvoiceGenerationService {
-  private static readonly SWEEP_LOCK_ID = 73_002_070;
 
   private readonly logger = new Logger(InvoiceGenerationService.name);
 
@@ -49,6 +49,7 @@ export class InvoiceGenerationService {
     private readonly email: InvoiceEmailService,
     @InjectQueue(INVOICE_QUEUE) private readonly queue: Queue,
     private readonly invoices: InvoiceService,
+    private readonly jobLocks: JobLockService,
     private readonly messaging: MessagingDispatchService,
     private readonly messagingRules: MessagingRuleService,
     private readonly pdf: InvoicePdfService,
@@ -448,7 +449,7 @@ export class InvoiceGenerationService {
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async sweepFailedGenerations(): Promise<void> {
-    await this.withLock(InvoiceGenerationService.SWEEP_LOCK_ID, async () => {
+    await this.withLock(JOB_LOCKS.invoicePdfSweep, async () => {
       const staleBefore = new Date(Date.now() - 15 * 60_000);
 
       await this.prisma.invoice.updateMany({
@@ -486,7 +487,7 @@ export class InvoiceGenerationService {
   /** Retries the invoice emails that failed after a successful render (§18). */
   @Cron(CronExpression.EVERY_30_MINUTES)
   async sweepUnsentEmails(): Promise<void> {
-    await this.withLock(InvoiceGenerationService.SWEEP_LOCK_ID + 1, async () => {
+    await this.withLock(JOB_LOCKS.invoiceEmailSweep, async () => {
       const unsent = await this.prisma.invoice.findMany({
         where: {
           emailSent: false,
@@ -504,18 +505,9 @@ export class InvoiceGenerationService {
     });
   }
 
-  private async withLock(lockId: number, run: () => Promise<void>): Promise<void> {
+  private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_lock(${lockId}) AS locked
-      `;
-      if (!lock?.locked) return;
-
-      try {
-        await run();
-      } finally {
-        await this.prisma.$queryRaw`SELECT pg_advisory_unlock(${lockId})`;
-      }
+      await this.jobLocks.runExclusive(name, run);
     } catch (error) {
       this.logger.error("Invoice generation cron failed", error as Error);
     }

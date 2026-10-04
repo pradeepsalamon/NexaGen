@@ -9,6 +9,8 @@ import { useStudentAnalyticsQuery } from "../../hooks/useAnalyticsApi";
 import { asKpi, formatHours, formatPercent, relativeTime } from "../../lib/format";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 export function StudentAnalyticsSection({
   query
@@ -78,19 +80,28 @@ function StudentTable({
   danger?: boolean;
 }) {
   const tz = useUserTimeZone();
+  const { rows: sorted, sortProps } = useTableSort({
+    rows,
+    accessors: {
+      attendance: (s) => s.attendancePercent,
+      hours: (s) => s.learningHours,
+      lastActive: (s) => s.lastActiveAt,
+      name: (s) => s.name
+    }
+  });
   return (
     <div className="overflow-x-auto">
       <Table className="w-full min-w-[420px] text-left text-sm">
         <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
           <TableRow>
-            <TableHead className="pb-2">Student</TableHead>
-            <TableHead className="pb-2 text-right">Attendance</TableHead>
-            <TableHead className="pb-2 text-right">Hours</TableHead>
-            <TableHead className="pb-2 text-right">Last active</TableHead>
+            <TableHead className="pb-2"><SortButton label="Student" {...sortProps("name")} /></TableHead>
+            <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>
+            <TableHead className="pb-2 text-right"><SortButton label="Hours" {...sortProps("hours")} /></TableHead>
+            <TableHead className="pb-2 text-right"><SortButton label="Last active" {...sortProps("lastActive")} /></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody className="divide-y divide-app-border">
-          {rows.map((s) => (
+          {sorted.map((s) => (
             <TableRow key={s.studentId}>
               <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
               <TableCell

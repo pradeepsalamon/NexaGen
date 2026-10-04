@@ -1,3 +1,4 @@
+import { withSentryConfig } from "@sentry/nextjs/config";
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
@@ -20,4 +21,19 @@ const nextConfig = (phase) => ({
   }
 });
 
-export default nextConfig;
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN || undefined;
+
+// Source maps are uploaded (then deleted from the bundle) only when a build
+// carries SENTRY_AUTH_TOKEN + SENTRY_ORG + SENTRY_PROJECT.
+export default withSentryConfig(nextConfig, {
+  authToken: sentryAuthToken,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  release: { name: process.env.SENTRY_RELEASE || undefined },
+  silent: !process.env.CI,
+  sourcemaps: { disable: !sentryAuthToken },
+  telemetry: false,
+  // Errors only: no tracing or replay, so their code is dropped from the bundle.
+  webpack: { treeshake: { removeDebugLogging: true, removeTracing: true } },
+  widenClientFileUpload: true
+});

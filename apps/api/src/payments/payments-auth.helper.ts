@@ -1,40 +1,9 @@
-import { ForbiddenException, UnauthorizedException } from "@nestjs/common";
-import type { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
-import { UserRole, UserStatus, type User } from "@prisma/client";
-import type { AccessTokenPayload } from "../auth/types";
-import type { PrismaService } from "../prisma/prisma.service";
+import { ForbiddenException } from "@nestjs/common";
+import { UserRole, type User } from "@prisma/client";
+import { isAdminRole } from "../auth/authenticate";
 
-const env = getApiEnv();
-
-/**
- * Token-string auth — the codebase pattern (CLAUDE.md §3.2). No NestJS guards:
- * the controller pulls the raw cookie value and the service verifies it.
- */
-export async function authenticateUser(
-  jwtService: JwtService,
-  prisma: PrismaService,
-  accessToken: string | undefined
-): Promise<User> {
-  if (!accessToken) throw new UnauthorizedException("Access token is missing.");
-
-  const payload = await jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-    secret: env.JWT_ACCESS_SECRET
-  });
-  if (payload.type !== "access") {
-    throw new UnauthorizedException("Invalid token type.");
-  }
-
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user || user.status !== UserStatus.ACTIVE) {
-    throw new UnauthorizedException("Invalid session.");
-  }
-  return user;
-}
-
-export function isAdminRole(role: UserRole): boolean {
-  return role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
-}
+// Token verification is shared (auth/authenticate.ts); this module keeps only its role rules.
+export { authenticateUser, isAdminRole } from "../auth/authenticate";
 
 export function assertAdmin(user: User): User {
   if (!isAdminRole(user.role)) {

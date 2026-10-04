@@ -6,11 +6,10 @@ import {
   NestInterceptor
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import type { Request } from "express";
 import { Observable } from "rxjs";
+import { verifyAccessToken } from "../../auth/authenticate";
 import { AUTH_COOKIE_NAMES } from "../../auth/types";
-import type { AccessTokenPayload } from "../../auth/types/jwt-payload.types";
 import { PrismaService } from "../../prisma/prisma.service";
 import {
   ACTIVITY_WRITE_WINDOW_MS,
@@ -30,7 +29,6 @@ import {
 @Injectable()
 export class ActivityTrackingInterceptor implements NestInterceptor {
   private readonly logger = new Logger(ActivityTrackingInterceptor.name);
-  private readonly env = getApiEnv();
   private readonly lastWriteByUser = new Map<string, number>();
 
   constructor(
@@ -54,12 +52,7 @@ export class ActivityTrackingInterceptor implements NestInterceptor {
 
       let userId: string;
       try {
-        const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-          token,
-          { secret: this.env.JWT_ACCESS_SECRET }
-        );
-        if (payload.type !== "access") return;
-        userId = payload.sub;
+        userId = (await verifyAccessToken(this.jwtService, token)).sub;
       } catch {
         return; // expired / invalid — not our concern here
       }

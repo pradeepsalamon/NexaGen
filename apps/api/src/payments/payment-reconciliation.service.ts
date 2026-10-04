@@ -2,12 +2,10 @@ import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentService } from "./payment.service";
 import { SubscriptionService } from "./subscription.service";
-
-/** Postgres advisory lock, so only one API replica sweeps at a time. */
-const RECONCILIATION_LOCK = 73002060;
 
 /** How many in-flight payments one sweep will chase. */
 const BATCH_SIZE = 40;
@@ -30,6 +28,7 @@ export class PaymentReconciliationService {
   private readonly logger = new Logger(PaymentReconciliationService.name);
 
   constructor(
+    private readonly jobLocks: JobLockService,
     private readonly payments: PaymentService,
     private readonly prisma: PrismaService,
     private readonly subscriptions: SubscriptionService
@@ -39,19 +38,16 @@ export class PaymentReconciliationService {
   async sweep(): Promise<void> {
     if (!this.env.PAYMENTS_ENABLED) return;
 
-    const locked = await this.acquireLock();
-    if (!locked) return;
-
     try {
-      await this.reconcileInFlight();
-      await this.expireStaleOrders();
-      await this.subscriptions.expireLapsed();
+      await this.jobLocks.runExclusive(JOB_LOCKS.paymentReconciliation, async () => {
+        await this.reconcileInFlight();
+        await this.expireStaleOrders();
+        await this.subscriptions.expireLapsed();
+      });
     } catch (error) {
       this.logger.error(
         `Payment reconciliation sweep failed: ${(error as Error).message}`
       );
-    } finally {
-      await this.releaseLock();
     }
   }
 
@@ -130,17 +126,5 @@ export class PaymentReconciliationService {
     if (count > 0) {
       this.logger.log(`Expired ${count} unpaid orders.`);
     }
-  }
-
-  private async acquireLock(): Promise<boolean> {
-    const rows = await this.prisma.$queryRaw<{ locked: boolean }[]>`
-      SELECT pg_try_advisory_lock(${RECONCILIATION_LOCK}) AS locked
-    `;
-    return rows[0]?.locked === true;
-  }
-
-  private async releaseLock(): Promise<void> {
-    await this.prisma
-      .$queryRaw`SELECT pg_advisory_unlock(${RECONCILIATION_LOCK})`;
   }
 }

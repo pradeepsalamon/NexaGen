@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { PieceSymbol } from "chess.js";
 
 interface CapturedPiecesProps {
@@ -25,7 +26,9 @@ const PIECE_SYMBOLS: Record<PieceSymbol, string> = {
 };
 
 export function CapturedPieces({ color }: CapturedPiecesProps) {
-  const { fen } = useBoardStore();
+  const { fen } = useBoardStore(
+    useShallow((s) => ({ fen: s.fen })),
+  );
 
   const { captured, scoreDifference } = useMemo(() => {
     // A simple material counter based on FEN

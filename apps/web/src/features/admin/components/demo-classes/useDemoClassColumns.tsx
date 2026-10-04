@@ -3,7 +3,8 @@
 import { useMemo } from "react";
 import { format } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { DemoClass } from "@nexa-chess/types";
+import { DEMO_CLASS_ACCESS_MODE_LABELS, type DemoClass } from "@nexa-chess/types";
+import { Repeat } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
@@ -54,12 +55,17 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Topic"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
           <div className="min-w-52">
             <p className="font-extrabold text-app-text">{row.original.topic}</p>
+            {row.original.schedule && (
+              <Badge variant="info" className="mt-1 gap-1 text-[10px]">
+                <Repeat aria-hidden="true" className="size-3" /> /demo/{row.original.schedule.slug}
+              </Badge>
+            )}
             {row.original.description && (
               <p className="mt-1 line-clamp-2 text-xs text-app-muted">
                 {row.original.description}
@@ -74,7 +80,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Assigned Coach"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => <div>{row.getValue("coachName")}</div>,
@@ -85,7 +91,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         header: ({ column }) => (
           <DataTableSortButton
             label="Schedule"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => {
@@ -99,12 +105,26 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
         },
       },
       {
+        id: "access",
+        enableSorting: false,
+        header: "Access",
+        cell: ({ row }) => (
+          <span className="text-sm">{DEMO_CLASS_ACCESS_MODE_LABELS[row.original.accessMode]}</span>
+        ),
+      },
+      {
+        id: "guests",
+        enableSorting: false,
+        header: "Guests",
+        cell: ({ row }) => <span className="text-sm font-semibold">{row.original.registrationCount}</span>,
+      },
+      {
         accessorKey: "status",
         enableColumnFilter: true,
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => {

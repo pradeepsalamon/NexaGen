@@ -40,3 +40,6 @@ blob-report/
 /recordings/
 
 test-results/
+
+# Performance outputs
+scripts/perf/out/

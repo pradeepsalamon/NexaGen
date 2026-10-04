@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Users, CalendarX, TrendingUp, Presentation, CheckCircle2, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/Card";
@@ -9,6 +9,8 @@ import { API_ROUTES, type AdminAttendanceDashboard } from "@nexa-chess/types";
 import { getWebEnv } from "@nexa-chess/config/web";
 import { AttendancePercentBar } from "@/features/attendance/components/AttendancePercentBar";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 const attendanceExportUrl =
   getWebEnv({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
@@ -32,6 +34,20 @@ export default function AdminAttendanceDashboardPage() {
     loadDashboard();
   }, []);
 
+  const trendRows = useMemo(
+    () => data?.monthlyTrend.map((trend, order) => ({ ...trend, order })),
+    [data]
+  );
+  const { rows: monthlyTrend, sortProps } = useTableSort({
+    rows: trendRows,
+    accessors: {
+      attended: (t) => t.attended,
+      classes: (t) => t.classes,
+      month: (t) => t.order,
+      rate: (t) => t.percent
+    }
+  });
+
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center min-h-[50vh]">
@@ -54,7 +70,7 @@ export default function AdminAttendanceDashboardPage() {
     );
   }
 
-  const { today, monthlyTrend } = data;
+  const { today } = data;
 
   return (
     <div className="space-y-6 max-w-6xl p-4 sm:p-6">
@@ -141,10 +157,10 @@ export default function AdminAttendanceDashboardPage() {
             <Table className="w-full text-sm text-left">
               <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
                 <TableRow>
-                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Month</TableHead>
-                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Classes</TableHead>
-                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[250px]">Attendance Rate</TableHead>
-                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold">Attended / Total</TableHead>
+                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Month" {...sortProps("month")} /></TableHead>
+                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Classes" {...sortProps("classes")} /></TableHead>
+                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold md:w-[250px]"><SortButton label="Attendance Rate" {...sortProps("rate")} /></TableHead>
+                  <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Attended / Total" {...sortProps("attended")} /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-app-border">

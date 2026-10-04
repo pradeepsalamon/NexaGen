@@ -1,6 +1,8 @@
 import { Module, forwardRef } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PrismaModule } from "../prisma/prisma.module";
+import { AttendanceMonitoringService } from "./attendance-monitoring.service";
+import { AttendanceReportService } from "./attendance-report.service";
 import { AttendanceService } from "./attendance.service";
 import { AttendanceController } from "./attendance.controller";
 import { AttendanceWebhookController } from "./attendance-webhook.controller";
@@ -13,7 +15,7 @@ import { LiveClassModule } from "../live-class/live-class.module";
     forwardRef(() => LiveClassModule),
   ],
   controllers: [AttendanceController, AttendanceWebhookController],
-  providers: [AttendanceService],
-  exports: [AttendanceService],
+  providers: [AttendanceService, AttendanceReportService, AttendanceMonitoringService],
+  exports: [AttendanceService, AttendanceReportService],
 })
 export class AttendanceModule {}

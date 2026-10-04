@@ -30,7 +30,7 @@ export function PipMicCaptureBridge() {
   const state = useConnectionState();
   const { localParticipant } = useLocalParticipant();
   const room = useRoomContext();
-  const { settings } = useLiveClassState();
+  const { settings } = useLiveClassState("settings");
   const user = useAuthStore((s) => s.user);
   const doneRef = useRef(false);
   // Wait for MediaDeviceProvider's join-time restore: it may be about to turn

@@ -37,17 +37,16 @@ function NavDrawerUser() {
   );
 }
 
-// Gap between the card and the screen edge, and how much of it slides out on an edge hover.
+// Gap between the card and the screen edge.
 const EDGE_GAP_PX = 12;
-const PEEK_PX = 28;
 // A pull that reveals this share of the card opens it; less snaps back.
 const PULL_OPEN_RATIO = 0.35;
 
 /**
  * Off-canvas role nav: a floating card that slides in over the page (and
  * header). Fully hidden when closed except for its tab handle; a mouse at the
- * left screen edge makes a piece of it peek out, and the handle or peeked
- * piece can be dragged out to open it. Escape, the backdrop, a link click or
+ * left screen edge or on the handle slides it fully out until the pointer
+ * leaves, and the handle can be dragged out to open it. Escape, the backdrop, a link click or
  * any route change closes it.
  */
 export function NavDrawer({
@@ -71,8 +70,8 @@ export function NavDrawer({
   const panelRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [peek, setPeek] = useState(false);
-  // Pixels the card has been pulled out from fully hidden; null when not dragging.
-  const [pullOffset, setPullOffset] = useState<number | null>(null);
+  // The drag itself writes the transform straight to the element, not React state.
+  const [dragging, setDragging] = useState(false);
   const pull = useRef<{ base: number; moved: boolean; offset: number; startX: number } | null>(null);
   const suppressClick = useRef(false);
 
@@ -96,15 +95,15 @@ export function NavDrawer({
 
   // React 18 has no `inert` prop; keeps the hidden panel out of the tab order.
   useEffect(() => {
-    panelRef.current?.toggleAttribute("inert", !open);
+    panelRef.current?.toggleAttribute("inert", !open && !peek);
     if (open) setPeek(false);
-  }, [open]);
+  }, [open, peek]);
 
   const maxPull = () => (wrapperRef.current?.offsetWidth ?? 280) + EDGE_GAP_PX;
 
   const onPullStart = (event: PointerEvent<HTMLElement>) => {
     if (open || (event.pointerType === "mouse" && event.button !== 0)) return;
-    const base = peek ? PEEK_PX : 0;
+    const base = peek ? maxPull() : 0;
     pull.current = { base, moved: false, offset: base, startX: event.clientX };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -114,9 +113,16 @@ export function NavDrawer({
     if (!state) return;
     const dx = event.clientX - state.startX;
     if (!state.moved && Math.abs(dx) < 6) return;
-    state.moved = true;
+    if (!state.moved) {
+      state.moved = true;
+      setDragging(true);
+    }
     state.offset = Math.min(maxPull(), Math.max(0, state.base + dx));
-    setPullOffset(state.offset);
+    const el = wrapperRef.current;
+    if (el) {
+      el.style.transition = "none";
+      el.style.transform = `translateX(calc(-100% - ${EDGE_GAP_PX}px + ${state.offset}px))`;
+    }
   };
 
   const onPullEnd = () => {
@@ -128,7 +134,12 @@ export function NavDrawer({
       suppressClick.current = true;
       if (state.offset > maxPull() * PULL_OPEN_RATIO) show();
     }
-    setPullOffset(null);
+    const el = wrapperRef.current;
+    if (el) {
+      el.style.transition = "";
+      el.style.transform = "";
+    }
+    setDragging(false);
   };
 
   const pullHandlers = {
@@ -158,7 +169,7 @@ export function NavDrawer({
         />
       ) : null}
 
-      {/* Mouse-only hot zone on the screen edge: hovering it slides a piece of the card out. */}
+      {/* Mouse-only hot zone on the screen edge: hovering it slides the card fully out. */}
       {!open ? (
         <div
           aria-hidden="true"
@@ -173,21 +184,13 @@ export function NavDrawer({
           open
             ? "translate-x-0"
             : peek
-              ? "-translate-x-[calc(100%-16px)]"
+              ? "translate-x-0"
               : "-translate-x-[calc(100%+12px)]"
         )}
         onPointerLeave={() => {
           if (!pull.current) setPeek(false);
         }}
         ref={wrapperRef}
-        style={
-          pullOffset === null
-            ? undefined
-            : {
-                transform: `translateX(calc(-100% - ${EDGE_GAP_PX}px + ${pullOffset}px))`,
-                transition: "none"
-              }
-        }
       >
         <aside
           aria-label={`${title} navigation`}
@@ -203,7 +206,7 @@ export function NavDrawer({
             ) : null}
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-primary px-[14px] py-4 [contain:content] [scrollbar-width:none] [will-change:transform] dark:bg-app-surface [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-primary px-[14px] py-4 [contain:content] [scrollbar-width:none] dark:bg-app-surface [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
             {children}
           </nav>
 
@@ -213,7 +216,7 @@ export function NavDrawer({
         </aside>
 
         {/* The visible slice of a closed card: click to open, or drag it out. */}
-        {!open ? (
+        {!open && !peek ? (
           <button
             aria-hidden="true"
             className="group absolute inset-y-0 right-0 flex w-10 cursor-grab touch-none items-center justify-end pr-2 active:cursor-grabbing"
@@ -225,7 +228,7 @@ export function NavDrawer({
             <span
               className={cn(
                 "h-12 w-1 rounded-full bg-white/50 transition-opacity duration-200",
-                peek || pullOffset !== null ? "opacity-100" : "opacity-0"
+                peek || dragging ? "opacity-100" : "opacity-0"
               )}
             />
           </button>
@@ -240,6 +243,9 @@ export function NavDrawer({
             open ? "ml-2 w-7 rounded-app" : "w-5 touch-none rounded-r-app hover:w-6"
           )}
           onClick={unlessDragged(toggle)}
+          onPointerEnter={(event) => {
+            if (!open && event.pointerType === "mouse") setPeek(true);
+          }}
           type="button"
           {...(open ? {} : pullHandlers)}
         >

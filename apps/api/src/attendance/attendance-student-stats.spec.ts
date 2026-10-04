@@ -1,7 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { JwtService } from "@nestjs/jwt";
 import { AttendanceStatus, UserRole, UserStatus } from "@prisma/client";
+import { AttendanceReportService } from "./attendance-report.service";
 import { AttendanceService } from "./attendance.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "access-token";
@@ -10,8 +13,8 @@ const ACCESS_TOKEN = "access-token";
  * `getStudentAttendance` reads classes newest-first, so the streak counters are
  * easy to get wrong. These drive the real service against a mocked Prisma.
  */
-describe("AttendanceService.getStudentAttendance stats", () => {
-  let service: AttendanceService;
+describe("AttendanceReportService.getStudentAttendance stats", () => {
+  let service: AttendanceReportService;
   let coachClassFindMany: jest.Mock;
 
   /** One completed class, `attended` deciding whether a record exists. */
@@ -54,7 +57,9 @@ describe("AttendanceService.getStudentAttendance stats", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        AttendanceReportService,
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -82,7 +87,7 @@ describe("AttendanceService.getStudentAttendance stats", () => {
       ]
     }).compile();
 
-    service = module.get<AttendanceService>(AttendanceService);
+    service = module.get(AttendanceReportService);
   });
 
   const statsFor = async (pattern: string) => {

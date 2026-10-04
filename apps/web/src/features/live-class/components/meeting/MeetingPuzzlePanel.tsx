@@ -30,7 +30,9 @@ import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { formatClock, useCountdown } from "../../hooks/useCountdown";
 import {
+  useAdjustClassLeaderboard,
   useAdjustLivePuzzlePoints,
+  useClassLeaderboard,
   useEndLivePuzzle,
   useLivePuzzleLeaderboard,
   useUpdateLivePuzzle
@@ -40,7 +42,7 @@ import { PuzzleAssignModal } from "./PuzzleAssignModal";
 import { PuzzleLiveBoardsPanel } from "./PuzzleLiveBoardsPanel";
 import { Switch } from "@/components/ui/Switch";
 
-/** Coach-only: manual +/- points for one student (a verbal answer, a bonus, a deduction). */
+/** Coach-only: manual +/- points for one student on the puzzle board. */
 function AdjustPointsPopover({
   classId,
   entry
@@ -49,12 +51,31 @@ function AdjustPointsPopover({
   entry: LivePuzzleLeaderboardEntry;
 }) {
   const adjust = useAdjustLivePuzzlePoints(classId);
-  const [custom, setCustom] = useState("");
-  const current = entry.breakdown.adjustment;
-  const label = `Adjust ${entry.studentName}'s points`;
+  return (
+    <AdjustPopover
+      name={entry.studentName}
+      current={entry.breakdown.adjustment}
+      pending={adjust.isPending}
+      onApply={(delta, replace) => adjust.mutate({ delta, replace, studentId: entry.studentId })}
+    />
+  );
+}
 
-  const apply = (delta: number, replace = false) =>
-    adjust.mutate({ delta, replace, studentId: entry.studentId });
+/** Coach-only: manual +/- points for one student (a verbal answer, a bonus, a deduction). */
+function AdjustPopover({
+  name,
+  current,
+  pending,
+  onApply
+}: {
+  name: string;
+  current: number;
+  pending: boolean;
+  onApply: (delta: number, replace: boolean) => void;
+}) {
+  const [custom, setCustom] = useState("");
+  const label = `Adjust ${name}'s points`;
+  const apply = (delta: number, replace = false) => onApply(delta, replace);
 
   return (
     <Popover>
@@ -70,7 +91,7 @@ function AdjustPointsPopover({
         </PopoverTrigger>
       </SimpleTooltip>
       <PopoverContent align="end" className="w-60 space-y-2 p-3">
-        <p className="text-xs font-semibold text-app-text">{entry.studentName}</p>
+        <p className="text-xs font-semibold text-app-text">{name}</p>
         <p className="text-xs text-app-muted">
           Manual adjustment: {current > 0 ? `+${current}` : current} pts
         </p>
@@ -82,7 +103,7 @@ function AdjustPointsPopover({
               size="sm"
               variant="outline"
               className="min-h-8 px-0 text-xs"
-              disabled={adjust.isPending}
+              disabled={pending}
               onClick={() => apply(delta)}
             >
               {delta > 0 ? `+${delta}` : delta}
@@ -108,7 +129,7 @@ function AdjustPointsPopover({
             onChange={(e) => setCustom(e.target.value)}
             className="min-h-8"
           />
-          <Button type="submit" size="sm" className="min-h-8" disabled={adjust.isPending}>
+          <Button type="submit" size="sm" className="min-h-8" disabled={pending}>
             Add
           </Button>
         </form>
@@ -335,6 +356,82 @@ function LeaderboardSection({
   );
 }
 
+/** Standings across every puzzle shared in this class; the coach can +/- anyone's total. */
+function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoach: boolean }) {
+  const board = useClassLeaderboard(classId, true);
+  const adjust = useAdjustClassLeaderboard(classId);
+  const data = board.data;
+
+  if (!data) {
+    return <p className="py-6 text-center text-xs text-app-muted">Loading standings…</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs text-app-muted">
+        {data.puzzleCount} {data.puzzleCount === 1 ? "puzzle" : "puzzles"} this class
+        {!isCoach && data.puzzleCount < data.totalPuzzleCount
+          ? " · hidden puzzles count once your coach reveals them"
+          : ""}
+      </p>
+      <div className="overflow-hidden rounded-app border border-app-border">
+        <Table>
+          <TableHeader className="bg-app-soft">
+            <TableRow>
+              <TableHead className="h-10 w-20 px-3 text-xs">Position</TableHead>
+              <TableHead className="h-10 px-2 text-xs">Name</TableHead>
+              <TableHead className="h-10 px-2 text-right text-xs">Points</TableHead>
+              <TableHead className="h-10 px-3 text-right text-xs">Solved</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.entries.map((entry) => (
+              <TableRow key={entry.studentId} className={cn(entry.isSelf && "bg-primary/[0.08]")}>
+                <TableCell className="px-3 py-2">
+                  <RankMark rank={entry.rank} />
+                </TableCell>
+                <TableCell className="max-w-0 px-2 py-2">
+                  <span className="block truncate font-medium text-app-text">{entry.studentName}</span>
+                  {entry.adjustment !== 0 ? (
+                    <span className="block truncate text-[11px] tabular-nums text-app-muted">
+                      {entry.puzzlePoints} puzzles · {entry.adjustment > 0 ? "+" : ""}
+                      {entry.adjustment} coach
+                    </span>
+                  ) : null}
+                </TableCell>
+                <TableCell className="px-2 py-2 text-right">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="font-semibold tabular-nums text-app-text">{entry.points}</span>
+                    {isCoach ? (
+                      <AdjustPopover
+                        name={entry.studentName}
+                        current={entry.adjustment}
+                        pending={adjust.isPending}
+                        onApply={(delta, replace) =>
+                          adjust.mutate({ delta, replace, studentId: entry.studentId })
+                        }
+                      />
+                    ) : null}
+                  </span>
+                </TableCell>
+                <TableCell className="px-3 py-2 text-right tabular-nums text-app-text">
+                  {entry.solvedCount}/{data.puzzleCount}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {data.entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-app-muted">
+            <Inbox aria-hidden="true" className="size-8 opacity-50" strokeWidth={1.75} />
+            <span className="text-xs">No students yet</span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /** Mid-class: the coach edits the running puzzle's points / leaderboard rules. */
 function EditRulesDialog({
   classId,
@@ -418,10 +515,14 @@ export function MeetingPuzzlePanel() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState();
+  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState(
+    "activePuzzle",
+    "setPuzzleSolverOpen",
+  );
   const [assignOpen, setAssignOpen] = useState(false);
   const [boardsOpen, setBoardsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [boardView, setBoardView] = useState<"puzzle" | "class">("puzzle");
   const endPuzzle = useEndLivePuzzle(classId);
   // Always on while the panel is open: after a puzzle ends it still shows the
   // last results (that's when an AFTER_END board is revealed).
@@ -531,6 +632,35 @@ export function MeetingPuzzlePanel() {
       )}
 
       {activePuzzle || lastResults ? (
+        <div role="tablist" aria-label="Leaderboard" className="flex rounded-full border border-app-border bg-app-surface p-0.5">
+          {(
+            [
+              ["puzzle", "This puzzle"],
+              ["class", "Whole class"]
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={boardView === id}
+              onClick={() => setBoardView(id)}
+              className={cn(
+                "flex h-7 flex-1 items-center justify-center rounded-full text-xs font-semibold transition-colors",
+                boardView === id ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {(activePuzzle || lastResults) && boardView === "class" ? (
+        <ClassLeaderboardSection classId={classId} isCoach={isCoach} />
+      ) : null}
+
+      {(activePuzzle || lastResults) && boardView === "puzzle" ? (
         <div>
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted">
             {activePuzzle ? "Leaderboard" : `Last puzzle — ${lastResults?.title ?? ""}`}

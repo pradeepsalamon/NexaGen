@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -117,16 +118,17 @@ export function ConnectionStateManager({
     };
   }, [connectionState, classId, clientId]);
 
+  const value = useMemo(
+    () => ({
+      connectionState,
+      presenceState: toPresenceState(connectionState),
+      lastHeartbeatAckAt,
+      reconnectEpoch,
+    }),
+    [connectionState, lastHeartbeatAckAt, reconnectEpoch],
+  );
+
   return (
-    <ConnectionStateContext.Provider
-      value={{
-        connectionState,
-        presenceState: toPresenceState(connectionState),
-        lastHeartbeatAckAt,
-        reconnectEpoch,
-      }}
-    >
-      {children}
-    </ConnectionStateContext.Provider>
+    <ConnectionStateContext.Provider value={value}>{children}</ConnectionStateContext.Provider>
   );
 }

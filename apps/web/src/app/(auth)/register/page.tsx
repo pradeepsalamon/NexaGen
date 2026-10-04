@@ -42,7 +42,7 @@ export default function RegisterPage() {
                 <span
                   aria-hidden="true"
                   className={cn(
-                    "absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-full bg-accent shadow-[0_4px_12px_-4px_rgb(var(--rgb-accent)/0.6)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    "absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-lg bg-primary shadow-[0_4px_12px_-4px_rgb(var(--rgb-primary)/0.7)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]",
                     role === "coach" && "translate-x-[calc(100%+4px)]"
                   )}
                 />

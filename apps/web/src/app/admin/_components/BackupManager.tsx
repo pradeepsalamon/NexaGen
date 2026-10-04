@@ -6,6 +6,8 @@ import { toast } from "sonner";
 import { apiFetch } from "@/lib/api";
 import { formatDateTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Button } from "@/components/ui/Button";
 import {
   Table,
@@ -38,7 +40,16 @@ export interface BackupItem {
 
 export function BackupManager() {
   const tz = useUserTimeZone();
-  const [backups, setBackups] = useState<BackupItem[]>([]);
+  const [backupItems, setBackups] = useState<BackupItem[]>([]);
+  const { rows: backups, sortProps } = useTableSort({
+    rows: backupItems,
+    accessors: {
+      date: (b) => b.date,
+      filename: (b) => b.filename,
+      size: (b) => b.size,
+      type: (b) => b.type
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
@@ -167,10 +178,10 @@ export function BackupManager() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="text-left pl-5">Filename</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Size</TableHead>
-              <TableHead>Date</TableHead>
+              <TableHead className="text-left pl-5"><SortButton label="Filename" {...sortProps("filename")} /></TableHead>
+              <TableHead><SortButton label="Type" {...sortProps("type")} /></TableHead>
+              <TableHead><SortButton label="Size" {...sortProps("size")} /></TableHead>
+              <TableHead><SortButton label="Date" {...sortProps("date")} /></TableHead>
               <TableHead className="text-right pr-5">Actions</TableHead>
             </TableRow>
           </TableHeader>

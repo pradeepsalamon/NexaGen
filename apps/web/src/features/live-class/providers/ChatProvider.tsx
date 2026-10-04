@@ -10,7 +10,7 @@ import React, {
   useRef,
   type ReactNode,
 } from "react";
-import { useChat, useDataChannel, useParticipants } from "@livekit/components-react";
+import { useChat, useDataChannel } from "@livekit/components-react";
 import type { ChatMessage } from "@livekit/components-core";
 import { toast } from "sonner";
 import {
@@ -24,6 +24,7 @@ import { useLiveClassState } from "./LiveClassProvider";
 import { useConnectionStateManager } from "./ConnectionStateManager";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { isHumanParticipant } from "../lib/participants";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 /**
  * `"room"` is the everyone-can-see thread; any other value is the **user id**
@@ -103,13 +104,17 @@ function threadOf(msg: ChatMessageData, selfId: string | null): ChatThreadId {
 export function ChatProvider({ children, classId }: { children: ReactNode; classId: string }) {
   const { send: livekitSend, chatMessages: rawChatMessages } = useChat();
   const [isSending, setIsSending] = useState(false);
-  const { activeSidebar, classroomChatOpen, settings } = useLiveClassState();
+  const { activeSidebar, classroomChatOpen, settings } = useLiveClassState(
+    "activeSidebar",
+    "classroomChatOpen",
+    "settings",
+  );
   const [draft, setDraft] = useState("");
   const [dbHistory, setDbHistory] = useState<ChatMessageData[]>([]);
   const [directMessages, setDirectMessages] = useState<ChatMessageData[]>([]);
   const [activeThread, setActiveThreadState] = useState<ChatThreadId>(ROOM_THREAD);
   const { reconnectEpoch } = useConnectionStateManager();
-  const participants = useParticipants();
+  const participants = useRoster();
 
   const user = useAuthStore((state) => state.user);
   const userId = user?.id ?? null;

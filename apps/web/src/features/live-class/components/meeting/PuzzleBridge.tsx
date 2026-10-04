@@ -26,8 +26,12 @@ export function PuzzleBridge({
   /** Off in the coach's board tab, so the meeting tab alone ends a timed puzzle. */
   autoEnd?: boolean;
 }) {
-  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen } =
-    useLiveClassState();
+  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen } = useLiveClassState(
+    "activePuzzle",
+    "applyPuzzleAssignment",
+    "clearActivePuzzle",
+    "setPuzzleSolverOpen",
+  );
   const qc = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
@@ -69,8 +73,9 @@ export function PuzzleBridge({
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
       } else {
-        // LEADERBOARD_DIRTY — a student started or finished.
+        // LEADERBOARD_DIRTY — a student started or finished, or the coach adjusted points.
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
+        qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.classLeaderboard(classId) });
         if (isCoach) qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
       }
     },

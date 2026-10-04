@@ -27,7 +27,7 @@ export interface PresencePull {
 }
 
 export interface PresenceHeartbeatResponse {
-  /** Students only; null for every other role. */
+  /** A student's live class, or a coach's own; null for other roles. */
   liveClass: PresenceLiveClass | null;
   pull: PresencePull | null;
 }
@@ -43,6 +43,8 @@ export interface PullRosterStudent {
   lastSeenAt: string | null;
   /** Connected to this class's room. */
   inClass: boolean;
+  /** Enrolled in the class's batch (others came from a search or an earlier pull). */
+  inBatch: boolean;
   pull: { status: LiveClassPullStatus; requestedAt: string } | null;
 }
 

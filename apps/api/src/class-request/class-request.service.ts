@@ -2,11 +2,9 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   ClassChangeRequestDto,
   ClassChangeRequestListResponse,
@@ -15,11 +13,11 @@ import type {
   CreateClassChangeRequest,
   ReviewClassChangeRequest
 } from "@nexa-chess/types";
-import { ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
-import type { AccessTokenPayload } from "../auth/types";
+import { ClassStatus, Prisma, UserRole } from "@prisma/client";
 import { assertNoSchedulingConflict, assertNotInPast } from "../coach/class-scheduling.util";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { authenticateUser } from "../auth/authenticate";
 
 const requestInclude = {
   batch: { select: { name: true } },
@@ -36,7 +34,6 @@ const fullName = (u: { firstName: string; lastName: string | null }) =>
 
 @Injectable()
 export class ClassRequestService {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -283,17 +280,7 @@ export class ClassRequestService {
     return user;
   }
 
-  private async getAuthenticatedUser(accessToken: string | undefined): Promise<AuthenticatedUser> {
-    if (!accessToken) throw new UnauthorizedException("Access token is missing.");
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-      secret: this.env.JWT_ACCESS_SECRET
-    });
-    if (payload.type !== "access") throw new UnauthorizedException("Invalid token type.");
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { id: true, role: true, status: true, timezone: true }
-    });
-    if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException("Invalid session.");
-    return user;
+  private getAuthenticatedUser(accessToken: string | undefined): Promise<AuthenticatedUser> {
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 }

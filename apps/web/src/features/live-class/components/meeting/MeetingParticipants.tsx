@@ -14,15 +14,17 @@ import {
   Hand,
   Crown,
   UserCheck,
+  UserMinus,
   UserX,
   X,
 } from "lucide-react";
 import { useConnectionQualityIndicator, useParticipants } from "@livekit/components-react";
 import { ConnectionQuality } from "livekit-client";
 import type { ModeratableSource, ScreenShareRequestEntry, WaitingRoomEntry } from "@nexa-chess/types";
-import { MODERATED_SOURCE_LABEL } from "@nexa-chess/types";
+import { MODERATED_SOURCE_LABEL, compareNatural } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { PullStudentsSection } from "./PullStudentsSection";
+import { CoachRoomControls } from "./CoachRoomControls";
 import { PanelHeader } from "./PanelHeader";
 import { BoardControlSideToggle, boardControlSideLabel } from "./BoardControlSideToggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -33,8 +35,13 @@ import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { useParticipantActivity } from "../../hooks/useParticipantActivity";
-import { isActivelySpeaking, sortByActivity } from "../../lib/participantActivity";
-import { moderateParticipant, resolveScreenShareRequest, resolveWaitingRoomEntry } from "../../api/live-class";
+import { isActivelySpeaking, isSharingScreen } from "../../lib/participantActivity";
+import {
+  kickParticipant,
+  moderateParticipant,
+  resolveScreenShareRequest,
+  resolveWaitingRoomEntry,
+} from "../../api/live-class";
 import { meetingToast } from "../../lib/meetingToasts";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
@@ -54,6 +61,11 @@ function parseMeta(participant: LkParticipant): ParticipantMeta {
     }
   }
   return meta;
+}
+
+function isCoachParticipant(participant: LkParticipant) {
+  const role = parseMeta(participant).role?.toLowerCase();
+  return role === "coach" || role === "teacher";
 }
 
 function ConnectionDot({ participant }: { participant: LkParticipant }) {
@@ -120,6 +132,7 @@ interface ParticipantItemProps {
   /** Coach/admin viewing a student: enables the force-mute + private-message actions. */
   canModerate?: boolean;
   onModerate?: (identity: string, source: ModeratableSource, name: string) => void;
+  onKick?: (identity: string, name: string) => void;
   onMessagePrivately?: (userId: string, name: string) => void;
   /** Side this student may move, or null when they hold no control. */
   boardControlSide?: BoardControlSide | null;
@@ -134,6 +147,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
   speaking = false,
   canModerate,
   onModerate,
+  onKick,
   onMessagePrivately,
   boardControlSide = null,
   onSetBoardControlSide,
@@ -265,6 +279,36 @@ const ParticipantListItem = memo(function ParticipantListItem({
             </PopoverContent>
           </Popover>
         )}
+
+        {canAct && onKick && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                // `title` rather than SimpleTooltip: already an `asChild` Radix trigger.
+                title={`Remove ${name} from class`}
+                aria-label={`Remove ${name} from class`}
+                className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-danger hover:text-white"
+              >
+                <UserMinus className="size-3.5" strokeWidth={2.5} />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-64 p-3">
+              <p className="text-xs font-semibold text-app-text">Remove {name}?</p>
+              <p className="mt-1 text-[11px] leading-snug text-app-muted">
+                They are disconnected and can&apos;t rejoin this class unless you pull them back in
+                from &ldquo;Not in class&rdquo;.
+              </p>
+              <button
+                type="button"
+                onClick={() => onKick(participant.identity, name)}
+                className="mt-2.5 w-full rounded-control bg-app-danger px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+              >
+                Remove from class
+              </button>
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
     </div>
   );
@@ -387,7 +431,17 @@ export function MeetingParticipants() {
     removeWaitingRoomEntry,
     screenShareRequests,
     upsertScreenShareRequest,
-  } = useLiveClassState();
+  } = useLiveClassState(
+    "boardControlStudents",
+    "isChessboardOpen",
+    "raisedHands",
+    "setActiveSidebar",
+    "setBoardControlSide",
+    "waitingRoomEntries",
+    "removeWaitingRoomEntry",
+    "screenShareRequests",
+    "upsertScreenShareRequest",
+  );
   const { canMessagePrivately, openPrivateThread } = useLiveClassChat();
   const params = useParams();
   const roomId = params?.roomId as string | undefined;
@@ -413,6 +467,27 @@ export function MeetingParticipants() {
         meetingToast({
           tone: "warning",
           title: `Couldn't turn off ${name}'s ${label}`,
+          description: error instanceof Error ? error.message : undefined,
+        });
+      }
+    },
+    [roomId],
+  );
+
+  const handleKick = useCallback(
+    async (identity: string, name: string) => {
+      if (!roomId) return;
+      try {
+        await kickParticipant(roomId, { identity });
+        meetingToast({
+          tone: "warning",
+          title: `Removed ${name} from the class`,
+          description: "Pull them back in from \"Not in class\" to let them rejoin.",
+        });
+      } catch (error) {
+        meetingToast({
+          tone: "warning",
+          title: `Couldn't remove ${name}`,
           description: error instanceof Error ? error.message : undefined,
         });
       }
@@ -483,19 +558,58 @@ export function MeetingParticipants() {
     [screenShareRequests],
   );
 
-  // Active people float to the top of each group — sharing, speaking, hand
-  // up, spoke recently, camera/mic on — like Zoom / Meet (lib/participantActivity.ts).
+  // Still needed for the speaking indicator on each row.
   const activity = useParticipantActivity();
+  // A–Z within each group, so rows don't jump around as people talk. Whoever
+  // is sharing their screen is pinned above every other section.
   const grouped = useMemo(() => {
+    const sharing: LkParticipant[] = [];
     const coaches: LkParticipant[] = [];
     const students: LkParticipant[] = [];
-    sortByActivity(filteredParticipants, (p) => p, activity).forEach((p) => {
-      const role = parseMeta(p).role?.toLowerCase();
-      if (role === "coach" || role === "teacher") coaches.push(p);
-      else students.push(p);
-    });
-    return { coaches, students };
+    const nameOf = (p: LkParticipant) => p.name || p.identity;
+    [...filteredParticipants]
+      .sort((a, b) => compareNatural(nameOf(a), nameOf(b)))
+      .forEach((p) => {
+        if (isSharingScreen(p)) sharing.push(p);
+        else if (isCoachParticipant(p)) coaches.push(p);
+        else students.push(p);
+      });
+    return { sharing, coaches, students };
+    // `activity` re-runs this when someone starts / stops sharing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activity, filteredParticipants]);
+
+  const renderCoachRow = (p: LkParticipant) => (
+    <ParticipantListItem
+      key={p.identity}
+      participant={p}
+      isCoachRow
+      handRaised={!!raisedHands[p.identity]}
+      speaking={isActivelySpeaking(p, activity)}
+      onMessagePrivately={
+        canMessagePrivately(p.identity.split("_")[0]) ? handleMessagePrivately : undefined
+      }
+      canModerate={canMessagePrivately(p.identity.split("_")[0])}
+    />
+  );
+
+  const renderStudentRow = (p: LkParticipant) => (
+    <ParticipantListItem
+      key={p.identity}
+      participant={p}
+      handRaised={!!raisedHands[p.identity]}
+      speaking={isActivelySpeaking(p, activity)}
+      canModerate={isCoach}
+      onModerate={isCoach ? handleModerate : undefined}
+      onKick={isCoach ? handleKick : undefined}
+      onMessagePrivately={
+        canMessagePrivately(p.identity.split("_")[0]) ? handleMessagePrivately : undefined
+      }
+      showBoardControl={isChessboardOpen && isCoach}
+      boardControlSide={boardControlStudents[p.identity] ?? null}
+      onSetBoardControlSide={setBoardControlSide}
+    />
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -520,6 +634,8 @@ export function MeetingParticipants() {
         }
       />
 
+      {isCoach && roomId ? <CoachRoomControls classId={roomId} /> : null}
+
       {showSearch && (
         <div className="shrink-0 border-b border-app-border/40 px-3 py-2">
           <div className="flex items-center gap-2 rounded-full bg-app-soft px-3 py-1.5 ring-1 ring-app-border/50 focus-within:ring-primary/40">
@@ -536,6 +652,17 @@ export function MeetingParticipants() {
       )}
 
       <div className="custom-scrollbar flex-1 overflow-y-auto overscroll-contain px-2 py-3" role="list">
+        {grouped.sharing.length > 0 && (
+          <div className="mb-2">
+            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
+              Sharing screen ({grouped.sharing.length})
+            </h3>
+            <div className="flex flex-col gap-0.5">
+              {grouped.sharing.map((p) => (isCoachParticipant(p) ? renderCoachRow(p) : renderStudentRow(p)))}
+            </div>
+          </div>
+        )}
+
         {isCoach && waitingList.length > 0 && (
           <div className="mb-2">
             <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
@@ -568,50 +695,19 @@ export function MeetingParticipants() {
               Coaches ({grouped.coaches.length})
             </h3>
             <div className="flex flex-col gap-0.5">
-              {grouped.coaches.map((p) => (
-                <ParticipantListItem
-                  key={p.identity}
-                  participant={p}
-                  isCoachRow
-                  handRaised={!!raisedHands[p.identity]}
-                  speaking={isActivelySpeaking(p, activity)}
-                  onMessagePrivately={
-                    canMessagePrivately(p.identity.split("_")[0])
-                      ? handleMessagePrivately
-                      : undefined
-                  }
-                  canModerate={canMessagePrivately(p.identity.split("_")[0])}
-                />
-              ))}
+              {grouped.coaches.map(renderCoachRow)}
             </div>
           </div>
         )}
 
         <div>
-          {grouped.coaches.length > 0 && (
+          {(grouped.coaches.length > 0 || grouped.sharing.length > 0) && (
             <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-app-muted">
               Students ({grouped.students.length})
             </h3>
           )}
           <div className="flex flex-col gap-0.5">
-            {grouped.students.map((p) => (
-              <ParticipantListItem
-                key={p.identity}
-                participant={p}
-                handRaised={!!raisedHands[p.identity]}
-                speaking={isActivelySpeaking(p, activity)}
-                canModerate={isCoach}
-                onModerate={isCoach ? handleModerate : undefined}
-                onMessagePrivately={
-                  canMessagePrivately(p.identity.split("_")[0])
-                    ? handleMessagePrivately
-                    : undefined
-                }
-                showBoardControl={isChessboardOpen && isCoach}
-                boardControlSide={boardControlStudents[p.identity] ?? null}
-                onSetBoardControlSide={setBoardControlSide}
-              />
-            ))}
+            {grouped.students.map(renderStudentRow)}
           </div>
         </div>
 

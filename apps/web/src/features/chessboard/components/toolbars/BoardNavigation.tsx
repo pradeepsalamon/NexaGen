@@ -9,6 +9,7 @@ import {
   PenTool
 } from "lucide-react";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
 
 export function BoardNavigation() {
@@ -25,7 +26,22 @@ export function BoardNavigation() {
     moveHistory,
     isDrawingMode,
     setIsDrawingMode
-  } = useBoardStore();
+  } = useBoardStore(
+    useShallow((s) => ({
+      orientation: s.orientation,
+      setOrientation: s.setOrientation,
+      reset: s.reset,
+      undo: s.undo,
+      redo: s.redo,
+      jumpToStart: s.jumpToStart,
+      jumpToEnd: s.jumpToEnd,
+      permissionMode: s.permissionMode,
+      historyIndex: s.historyIndex,
+      moveHistory: s.moveHistory,
+      isDrawingMode: s.isDrawingMode,
+      setIsDrawingMode: s.setIsDrawingMode,
+    })),
+  );
   
   const canModify = permissionMode !== "VIEW_ONLY"; 
   const canUndo = historyIndex >= 0;
@@ -39,14 +55,14 @@ export function BoardNavigation() {
           <TooltipTrigger asChild>
             <NavIconButton icon={<SkipBack className="size-4" />} onClick={jumpToStart} disabled={!canUndo} />
           </TooltipTrigger>
-          <TooltipContent>Jump to Start</TooltipContent>
+          <TooltipContent>Jump to Start (↓)</TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
             <NavIconButton icon={<ChevronLeft className="size-[18px]" />} onClick={undo} disabled={!canUndo} />
           </TooltipTrigger>
-          <TooltipContent>Previous Move</TooltipContent>
+          <TooltipContent>Previous Move (←)</TooltipContent>
         </Tooltip>
         
         <Tooltip>
@@ -81,14 +97,14 @@ export function BoardNavigation() {
           <TooltipTrigger asChild>
             <NavIconButton icon={<ChevronRight className="size-[18px]" />} onClick={redo} disabled={!canRedo} />
           </TooltipTrigger>
-          <TooltipContent>Next Move</TooltipContent>
+          <TooltipContent>Next Move (→)</TooltipContent>
         </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
             <NavIconButton icon={<SkipForward className="size-4" />} onClick={jumpToEnd} disabled={!canRedo} />
           </TooltipTrigger>
-          <TooltipContent>Jump to End</TooltipContent>
+          <TooltipContent>Jump to End (↑)</TooltipContent>
         </Tooltip>
 
       </div>

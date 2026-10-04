@@ -4,6 +4,7 @@ import type { Api } from "chessground/api";
 import { Config } from "chessground/config";
 import { useLocalParticipant } from "@livekit/components-react";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { controlSideForIdentity } from "../../lib/boardSyncRules";
 import type { BoardControlSide } from "../../types/sync";
 import { preloadSounds } from "../../audio/sounds";
@@ -41,7 +42,30 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
     isDetached, localFlip, overlayArrows
-  } = useBoardStore();
+  } = useBoardStore(
+    useShallow((s) => ({
+      chess: s.chess,
+      fen: s.fen,
+      turn: s.turn,
+      orientation: s.orientation,
+      moveHistory: s.moveHistory,
+      historyIndex: s.historyIndex,
+      makeMove: s.makeMove,
+      isGameOver: s.isGameOver,
+      arrows: s.arrows,
+      setAnnotations: s.setAnnotations,
+      permissionMode: s.permissionMode,
+      selectedStudentIds: s.selectedStudentIds,
+      selectedStudentSides: s.selectedStudentSides,
+      isEditingPosition: s.isEditingPosition,
+      setPendingPromotion: s.setPendingPromotion,
+      activeBrush: s.activeBrush,
+      isDrawingMode: s.isDrawingMode,
+      isDetached: s.isDetached,
+      localFlip: s.localFlip,
+      overlayArrows: s.overlayArrows,
+    })),
+  );
   const viewOrientation = localFlip ? (orientation === "white" ? "black" : "white") : orientation;
 
   // Squares of the last played move, for the last-move highlight — derived

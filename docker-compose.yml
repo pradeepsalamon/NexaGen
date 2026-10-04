@@ -192,11 +192,17 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN}
       FRONTEND_URL: ${FRONTEND_URL}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN}
+      COOKIE_SAME_SITE: ${COOKIE_SAME_SITE:-lax}
       TRUST_PROXY_HOPS: ${TRUST_PROXY_HOPS:-1}
 
       LIVEKIT_URL: ${LIVEKIT_URL}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+
+      # Error reporting (optional). Unset SENTRY_DSN sends nothing.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      SENTRY_RELEASE: ${SENTRY_RELEASE:-}
 
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
@@ -224,8 +230,10 @@ services:
       STOCKFISH_MIN_ENGINES: ${STOCKFISH_MIN_ENGINES:-1}
       STOCKFISH_IDLE_TIMEOUT_S: ${STOCKFISH_IDLE_TIMEOUT_S:-60}
       STOCKFISH_MOVETIME: ${STOCKFISH_MOVETIME:-800}
-      STOCKFISH_MOVE_MOVETIME: ${STOCKFISH_MOVE_MOVETIME:-2000}
+      STOCKFISH_MOVE_MOVETIME: ${STOCKFISH_MOVE_MOVETIME:-1000}
+      STOCKFISH_MOVE_MAX_DEPTH: ${STOCKFISH_MOVE_MAX_DEPTH:-22}
       STOCKFISH_HASH_MB: ${STOCKFISH_HASH_MB:-64}
+      STOCKFISH_MAX_DEPTH: ${STOCKFISH_MAX_DEPTH:-20}
 
       # WhatsApp Cloud API. Unset ACCESS_TOKEN/PHONE_NUMBER_ID leaves
       # WhatsAppService unconfigured — callers degrade, nothing breaks.
@@ -246,6 +254,8 @@ services:
       RECORDING_STORAGE_DIR: ${RECORDING_STORAGE_DIR:-/recordings}
       RECORDING_STORAGE_LIMIT_GB: ${RECORDING_STORAGE_LIMIT_GB:-130}
       RECORDING_MIN_RETENTION_DAYS: ${RECORDING_MIN_RETENTION_DAYS:-14}
+      LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES: ${LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES:-10}
+      LIVE_CLASS_MAX_OVERRUN_MINUTES: ${LIVE_CLASS_MAX_OVERRUN_MINUTES:-60}
       RECORDING_STORAGE_TARGET: ${RECORDING_STORAGE_TARGET:-local}
       # Reached by the egress container over the compose network, so this is the
       # `web` service, not the public hostname.
@@ -298,13 +308,15 @@ services:
     ports:
       - "3001:3001"
 
+    # /health/ready fails (503) when Postgres is unreachable, so the deploy
+    # gate rejects an API that boots but can't reach its database.
     healthcheck:
       test:
         [
           "CMD",
           "node",
           "-e",
-          "require('net').connect(3001,'127.0.0.1',()=>process.exit(0)).on('error',()=>process.exit(1))"
+          "fetch('http://127.0.0.1:3001/health/ready').then((r)=>process.exit(r.ok?0:1),()=>process.exit(1))"
         ]
       interval: 15s
       timeout: 5s
@@ -326,6 +338,13 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_LIVEKIT_URL: ${NEXT_PUBLIC_LIVEKIT_URL}
+        # Error reporting (optional). The DSN is baked in at build time.
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+        SENTRY_AUTH_TOKEN: ${SENTRY_AUTH_TOKEN:-}
+        SENTRY_ORG: ${SENTRY_ORG:-}
+        SENTRY_PROJECT: ${SENTRY_WEB_PROJECT:-}
+        SENTRY_RELEASE: ${SENTRY_RELEASE:-}
 
     container_name: nexa_web
     restart: unless-stopped

@@ -32,6 +32,9 @@ echo "Checking out target commit $COMMIT_SHA..."
 # Ensure we check out the exact commit to avoid race conditions
 git checkout -f "$COMMIT_SHA"
 
+# Tags Sentry errors with the commit that produced them (compose reads it).
+export SENTRY_RELEASE="$COMMIT_SHA"
+
 # Rebuild only the affected services
 echo "Building services: ${SERVICES[*]}..."
 docker compose build "${SERVICES[@]}"

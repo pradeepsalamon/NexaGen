@@ -1,7 +1,7 @@
 import { randomUUID } from "crypto";
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
-import { getApiEnv, getCookieDomain, getFrontendUrl } from "@nexa-chess/config/api";
+import { getApiEnv, getCookieBaseOptions } from "@nexa-chess/config/api";
 import {
   API_ROUTES,
   assignLeadDemoClassRequestSchema,
@@ -81,27 +81,19 @@ export class LeadController {
   }
 
   private setTrackingCookies(response: Response, visitorId: string, sessionId: string) {
-    const env = getApiEnv();
-    const isHttps = getFrontendUrl(env).startsWith("https://");
-    const sameSite = isHttps ? "none" : "lax";
-    const secure = isHttps;
-    const domain = getCookieDomain(env);
+    const base = getCookieBaseOptions(getApiEnv());
 
     response.cookie(TRACKING_COOKIE_NAMES.visitorId, visitorId, {
+      ...base,
       httpOnly: true,
       maxAge: VISITOR_ID_MAX_AGE,
-      path: TRACKING_COOKIE_PATH,
-      sameSite,
-      secure,
-      ...(domain ? { domain } : {})
+      path: TRACKING_COOKIE_PATH
     });
     // Session cookie — no `maxAge`, expires when the browser session ends.
     response.cookie(TRACKING_COOKIE_NAMES.sessionId, sessionId, {
+      ...base,
       httpOnly: true,
-      path: TRACKING_COOKIE_PATH,
-      sameSite,
-      secure,
-      ...(domain ? { domain } : {})
+      path: TRACKING_COOKIE_PATH
     });
   }
 

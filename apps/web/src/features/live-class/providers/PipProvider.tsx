@@ -44,14 +44,40 @@ interface PipContextValue {
   open: () => Promise<void>;
   close: () => void;
   toggle: () => void;
+  /** Pinned: the window stays open after returning to the class tab. */
+  pinned: boolean;
+  togglePinned: () => void;
+  /** `document` mode: steps the window through the size presets. */
+  cycleSize: () => void;
   /** `video` mode: the surface component hands us the element to project. */
   registerPipVideo: (el: HTMLVideoElement | null) => void;
 }
 
 const PipContext = createContext<PipContextValue | undefined>(undefined);
 
-const WIDTH = 360;
-const HEIGHT = 232;
+const SIZES = [
+  { width: 360, height: 232 },
+  { width: 480, height: 300 },
+  { width: 640, height: 392 },
+] as const;
+const SIZE_KEY = "nexa-live-class-pip-size";
+const PINNED_KEY = "nexa-live-class-pip-pinned";
+
+function readStored(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeStored(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* storage blocked — the choice just isn't remembered */
+  }
+}
 
 function detectMode(): PipMode {
   if (isDocumentPipSupported()) return "document";
@@ -77,15 +103,41 @@ export function PipProvider({
   // A window the user closed by hand should not be reopened by the very next
   // tab switch, or the feature turns into a popup they cannot get rid of.
   const dismissedRef = useRef(false);
+  // Set while we close the window ourselves, so its pagehide isn't read as the
+  // user dismissing it (that blocked every second auto-open).
+  const closingRef = useRef(false);
+  const [pinned, setPinned] = useState(false);
+  const pinnedRef = useRef(false);
+  const sizeIndexRef = useRef(0);
 
-  useEffect(() => setMode(detectMode()), []);
+  useEffect(() => {
+    setMode(detectMode());
+    const storedPinned = readStored(PINNED_KEY) === "1";
+    pinnedRef.current = storedPinned;
+    setPinned(storedPinned);
+    const storedSize = Number(readStored(SIZE_KEY));
+    if (Number.isInteger(storedSize) && storedSize >= 0 && storedSize < SIZES.length) {
+      sizeIndexRef.current = storedSize;
+    }
+  }, []);
+
+  const togglePinned = useCallback(() => {
+    const next = !pinnedRef.current;
+    pinnedRef.current = next;
+    setPinned(next);
+    writeStored(PINNED_KEY, next ? "1" : "0");
+  }, []);
 
   const registerPipVideo = useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el;
   }, []);
 
   const close = useCallback(() => {
-    getExistingPipWindow()?.close();
+    const win = getExistingPipWindow();
+    if (win) {
+      closingRef.current = true;
+      win.close();
+    }
     setPipWindow(null);
     exitVideoPip(videoRef.current);
     setVideoActive(false);
@@ -97,9 +149,10 @@ export function PipProvider({
       setPipWindow(existing);
       return;
     }
+    const size = SIZES[sizeIndexRef.current] ?? SIZES[0];
     const win = await requestPipWindow({
-      width: WIDTH,
-      height: HEIGHT,
+      width: size.width,
+      height: size.height,
       disallowReturnToOpener: false,
     });
     if (!win) return;
@@ -113,7 +166,13 @@ export function PipProvider({
       "pagehide",
       () => {
         stopThemeSync();
-        dismissedRef.current = true;
+        // Only a window the user closed while away from the class counts as
+        // "don't reopen". Our own close and Chrome closing its auto-PiP when
+        // the tab comes back both happen while the tab is visible.
+        if (!closingRef.current && document.visibilityState === "hidden") {
+          dismissedRef.current = true;
+        }
+        closingRef.current = false;
         setPipWindow(null);
       },
       { once: true },
@@ -153,6 +212,20 @@ export function PipProvider({
   }, [mode, openDocumentPip, openVideoPip]);
 
   const active = !!pipWindow || videoActive;
+
+  const cycleSize = useCallback(() => {
+    const win = getExistingPipWindow();
+    if (!win) return;
+    const next = (sizeIndexRef.current + 1) % SIZES.length;
+    sizeIndexRef.current = next;
+    writeStored(SIZE_KEY, String(next));
+    try {
+      // Needs a user gesture inside the PiP window — the size button is one.
+      win.resizeTo(SIZES[next].width, SIZES[next].height);
+    } catch {
+      /* resize refused — the user can still drag the window's edges */
+    }
+  }, []);
 
   const toggle = useCallback(() => {
     if (active) {
@@ -241,6 +314,7 @@ export function PipProvider({
     const onVisibility = () => {
       if (document.visibilityState !== "visible") return;
       dismissedRef.current = false;
+      if (pinnedRef.current) return;
       if (getExistingPipWindow() || isVideoPipActive(videoRef.current)) close();
     };
     document.addEventListener("visibilitychange", onVisibility);
@@ -266,6 +340,9 @@ export function PipProvider({
         open,
         close,
         toggle,
+        pinned,
+        togglePinned,
+        cycleSize,
         registerPipVideo,
       }}
     >

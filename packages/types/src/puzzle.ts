@@ -291,6 +291,18 @@ export const bulkPuzzleActionRequestSchema = z.object({
 export type BulkPuzzleActionRequest = z.infer<typeof bulkPuzzleActionRequestSchema>;
 export type BulkPuzzleActionResponse = { updated: number };
 
+export const MAX_PUZZLE_IMPORT = 200;
+
+/** Many puzzles at once, e.g. every game of a multi-game PGN file. */
+export const importPuzzlesRequestSchema = z.object({
+  puzzles: z.array(createPuzzleRequestSchema).min(1).max(MAX_PUZZLE_IMPORT)
+});
+export type ImportPuzzlesRequest = z.infer<typeof importPuzzlesRequestSchema>;
+export type ImportPuzzlesResponse = {
+  created: number;
+  failed: { index: number; title: string; error: string }[];
+};
+
 export const puzzleScopeSchema = z.enum(["all", "mine", "admin"]);
 export type PuzzleScope = z.infer<typeof puzzleScopeSchema>;
 
@@ -457,3 +469,10 @@ export const puzzleHintRequestSchema = z.object({
   level: z.number().int().min(1).max(3)
 });
 export type PuzzleHintRequest = z.infer<typeof puzzleHintRequestSchema>;
+
+const naturalCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+
+/** "Puzzle 2" before "Puzzle 10" — the order a coach numbering puzzles expects. */
+export function compareNatural(a: string, b: string): number {
+  return naturalCollator.compare(a, b);
+}

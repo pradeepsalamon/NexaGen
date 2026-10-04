@@ -24,7 +24,7 @@ export function shouldWriteLastActive(
  */
 export function isNonActivityPath(path: string): boolean {
   return (
-    path === "/health" ||
+    path.startsWith("/health") ||
     path.startsWith("/stockfish") ||
     path.startsWith("/webhooks")
   );

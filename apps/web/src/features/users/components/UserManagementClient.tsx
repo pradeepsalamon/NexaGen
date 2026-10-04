@@ -156,7 +156,7 @@ export function UserManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Name"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -173,7 +173,7 @@ export function UserManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Email"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => row.original.email
@@ -184,7 +184,7 @@ export function UserManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Role"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -199,7 +199,7 @@ export function UserManagementClient() {
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            column={column}
           />
         ),
         cell: ({ row }) => (

@@ -32,8 +32,18 @@ function getStoredMode(): ThemeMode {
   }
 }
 
+// Swaps the palette in one paint: otherwise every `transition-colors` element
+// animates the change on its own, repainting the whole page for ~300ms.
 function applyMode(mode: ThemeMode) {
-  document.documentElement.dataset.theme = mode;
+  const root = document.documentElement;
+  if (root.dataset.theme === mode) return;
+  const freeze = document.createElement("style");
+  freeze.textContent =
+    "*:not([data-theme-keep-transition]),*::before,*::after{transition:none!important}";
+  document.head.appendChild(freeze);
+  root.dataset.theme = mode;
+  void window.getComputedStyle(document.body).backgroundColor;
+  window.setTimeout(() => freeze.remove(), 1);
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

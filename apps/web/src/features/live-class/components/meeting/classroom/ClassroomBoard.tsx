@@ -1,17 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Crown, Loader2, Puzzle as PuzzleIcon } from "lucide-react";
+import { useCallback, useState, type ReactNode } from "react";
+import { ChevronsRight, Crown, FolderOpen, Loader2, Puzzle as PuzzleIcon } from "lucide-react";
+import { useParams } from "next/navigation";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
 import { SetupPositionDialog } from "@/features/chessboard/components/dialogs/SetupPositionDialog";
 import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
-import { BoardNavigation } from "@/features/chessboard/components/toolbars/BoardNavigation";
+import { BoardNavigation, NavIconButton } from "@/features/chessboard/components/toolbars/BoardNavigation";
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useBoardShortcuts } from "@/features/chessboard/hooks/useBoardShortcuts";
+import { useLoadNextPuzzle } from "../../../hooks/useLoadNextPuzzle";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
+import { PuzzleAssignModal } from "../PuzzleAssignModal";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 
@@ -23,7 +27,11 @@ function CoachBoardShortcuts() {
 /** The board half of the classroom layout. Coaches author; students watch (or play with granted control). */
 export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; stageSwitch: ReactNode }) {
   const fen = useBoardStore((s) => s.fen);
-  const { activePuzzle, setPuzzleSolverOpen, isChessboardOpen } = useLiveClassState();
+  const { activePuzzle, setPuzzleSolverOpen, isChessboardOpen } = useLiveClassState(
+    "activePuzzle",
+    "setPuzzleSolverOpen",
+    "isChessboardOpen",
+  );
   const waiting = !isCoach && !isChessboardOpen;
 
   return (
@@ -57,6 +65,7 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
             </button>
           ) : null}
         </div>
+        {isCoach ? <DrawingToolbar /> : null}
         <FlipBoardButton className="size-8 shrink-0" />
         {stageSwitch}
       </div>
@@ -78,9 +87,57 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
       {isCoach ? (
         <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
           <BoardNavigation />
-          <DrawingToolbar />
+          <CoachPuzzleButtons />
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * Ask = share the next puzzle in the current folder straight away (last share
+ * options); Load next = the same puzzle onto the board, not shared; the folder
+ * button opens the picker to choose any puzzle or switch folder.
+ */
+function CoachPuzzleButtons() {
+  const params = useParams();
+  const classId = (params?.roomId as string) ?? "";
+  const [assignOpen, setAssignOpen] = useState(false);
+  const openPicker = useCallback(() => setAssignOpen(true), []);
+  const { askNext, loadNext, loading } = useLoadNextPuzzle({ classId, onNoFolder: openPicker });
+
+  return (
+    <div className="mt-4 flex items-center gap-2 text-app-muted">
+      <SimpleTooltip label="Ask — share the next puzzle">
+        <NavIconButton
+          aria-label="Ask — share the next puzzle"
+          icon={
+            loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <PuzzleIcon className="size-4" strokeWidth={2.5} />
+            )
+          }
+          onClick={() => void askNext()}
+          disabled={loading}
+        />
+      </SimpleTooltip>
+      <SimpleTooltip label="Load next puzzle (not shared)">
+        <NavIconButton
+          aria-label="Load next puzzle"
+          icon={<ChevronsRight className="size-4" strokeWidth={2.5} />}
+          onClick={() => void loadNext()}
+          disabled={loading}
+        />
+      </SimpleTooltip>
+      <SimpleTooltip label="Choose a puzzle to share">
+        <NavIconButton
+          aria-label="Choose a puzzle to share"
+          icon={<FolderOpen className="size-4" strokeWidth={2.5} />}
+          onClick={openPicker}
+        />
+      </SimpleTooltip>
+      <PuzzleAssignModal classId={classId} open={assignOpen} onOpenChange={setAssignOpen} />
+    </div>
   );
 }

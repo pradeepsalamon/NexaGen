@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleAlert, DoorClosed, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
+import { getRoleDashboardHref, isStaffRole, useAuthStore } from "@/stores/authStore";
 import { getLiveClass, requestWaitingRoomAdmission, startLiveClass } from "../../api/live-class";
+import { EndClassButton } from "../EndClassButton";
 
 const COACH_JOIN_POLL_INTERVAL_MS = 5000;
 const WAITING_FOR_ADMIT_POLL_INTERVAL_MS = 5000;
@@ -40,20 +41,60 @@ function useDashboardHref() {
   return getRoleDashboardHref(user?.role);
 }
 
-export function ConnectionLost({ onRetry }: { onRetry?: () => void }) {
+export function ConnectionLost({
+  classId,
+  onEnded,
+  onRetry,
+  title = "Connection lost",
+  message = "We lost the connection to the classroom. Check your internet and try again.",
+  detail,
+}: {
+  /** Lets a coach/admin end the class from here when they can't get back in. */
+  classId?: string;
+  onEnded?: () => void;
+  onRetry?: () => void;
+  title?: string;
+  message?: string;
+  /** The raw reason, small print — what support needs to diagnose a report. */
+  detail?: string | null;
+}) {
   const dashboardUrl = useDashboardHref();
+  const role = useAuthStore((state) => state.user?.role);
+  const canEnd = Boolean(classId) && (role === "COACH" || isStaffRole(role));
   return (
     <StateLayout
       icon={<WifiOff className="size-8" />}
       tone="danger"
-      title="Connection lost"
-      message="We lost the connection to the classroom. Check your internet and try again."
+      title={title}
+      message={message}
     >
       {onRetry && (
         <Button onClick={onRetry} variant="outline">
           Try again
         </Button>
       )}
+      <Button asChild>
+        <a href={dashboardUrl}>Return to dashboard</a>
+      </Button>
+      {canEnd && classId && (
+        <div className="basis-full pt-2">
+          <EndClassButton classId={classId} onEnded={onEnded ?? (() => window.location.reload())} />
+        </div>
+      )}
+      {detail ? <p className="basis-full pt-2 text-center text-xs text-app-muted">{detail}</p> : null}
+    </StateLayout>
+  );
+}
+
+export function RemovedFromClass() {
+  const dashboardUrl = useDashboardHref();
+  return (
+    <StateLayout
+      icon={<DoorClosed className="size-8" />}
+      tone="danger"
+      title="Removed from class"
+      message="Your coach removed you from this class. If you think this was a mistake, ask them to bring you back in."
+    >
       <Button asChild>
         <a href={dashboardUrl}>Return to dashboard</a>
       </Button>

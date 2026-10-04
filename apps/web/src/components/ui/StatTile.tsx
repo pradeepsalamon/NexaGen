@@ -64,9 +64,13 @@ export function StatTile({
         ) : (
           <span
             aria-hidden="true"
-            className="flex size-10 items-center justify-center rounded-full [background:linear-gradient(var(--color-surface),var(--color-surface))_padding-box,linear-gradient(160deg,rgb(var(--rgb-primary)/0.1),rgb(var(--rgb-primary)),rgb(var(--rgb-secondary)))_border-box] border-2 border-transparent"
+            className={cn(
+              "flex size-10 items-center justify-center rounded-xl border shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]",
+              style.chip,
+              style.border
+            )}
           >
-            <Icon className={cn("size-4", style.text)} strokeWidth={2.5} />
+            <Icon className="size-4" strokeWidth={2.5} />
           </span>
         )}
 

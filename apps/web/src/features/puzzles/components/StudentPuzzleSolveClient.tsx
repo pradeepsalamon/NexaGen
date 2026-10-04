@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
+import { hintSquaresFor, hintText } from "@/features/assignments/lib/solveLineHint";
 import { startPuzzleAttempt } from "../api/puzzleApi";
 import { usePuzzleAttempt } from "../hooks/usePuzzleAttempt";
 import { useMyPuzzle } from "../hooks/usePuzzlesApi";
@@ -35,7 +36,9 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
     begin,
     handleMove,
     giveUp,
-    showHint
+    showHint,
+    serverHint,
+    requestHint
   } = attempt;
 
   if (detail.isLoading || (!session && !startError)) {
@@ -59,9 +62,9 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
   return (
     <div className="space-y-5">
       <Button variant="ghost" size="sm" asChild>
-        <Link href="/student/puzzles">
+        <Link href="/student/courses">
           <ArrowLeft className="mr-1.5 size-4" strokeWidth={2.5} />
-          Puzzles
+          My Courses
         </Link>
       </Button>
 
@@ -97,6 +100,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
                       ]
                     : null
                 }
+                hintSquares={phase === "solving" ? hintSquaresFor(serverHint) : null}
                 onMove={handleMove}
               />
             ) : null}
@@ -167,6 +171,23 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
                   <Button type="button" variant="outline" size="sm" onClick={showHint}>
                     <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
                     Show a hint
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {hints.length === 0 && phase === "solving" && (
+              <div className="space-y-2">
+                {serverHint && (
+                  <Card className="p-3 text-sm text-app-text">
+                    <Lightbulb className="mr-1 inline size-4 align-text-bottom text-primary" strokeWidth={2.5} />
+                    {hintText(serverHint)}
+                  </Card>
+                )}
+                {serverHint?.level !== 3 && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => void requestHint()}>
+                    <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
+                    {serverHint ? "More hint" : "Show a hint"}
                   </Button>
                 )}
               </div>

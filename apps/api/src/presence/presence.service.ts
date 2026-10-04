@@ -1,10 +1,9 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { UserRole, UserStatus } from "@prisma/client";
-import { getApiEnv } from "@nexa-chess/config/api";
-import type { PresenceHeartbeatResponse } from "@nexa-chess/types";
-import type { AccessTokenPayload } from "../auth/types";
+import { UserRole } from "@prisma/client";
+import type { PresenceHeartbeatResponse, PresenceLiveClass } from "@nexa-chess/types";
 import { PrismaService } from "../prisma/prisma.service";
+import { authenticateUser } from "../auth/authenticate";
 
 /** Skip the write when the last one is this recent — tabs ping every ~15s. */
 const WRITE_THROTTLE_MS = 10_000;
@@ -17,7 +16,6 @@ const personName = (u: { firstName: string; lastName: string | null }) =>
 
 @Injectable()
 export class PresenceService {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -44,6 +42,18 @@ export class PresenceService {
       },
       data: { lastSeenAt: now }
     });
+
+    if (user.role === UserRole.COACH) {
+      const own = await this.prisma.liveSession.findFirst({
+        where: { status: "LIVE", coachId: user.id },
+        orderBy: { startedAt: "desc" },
+        include: {
+          class: { select: { id: true, title: true, topic: true } },
+          coach: { select: { firstName: true, lastName: true } }
+        }
+      });
+      return { liveClass: own ? this.toLiveClass(own) : null, pull: null };
+    }
 
     if (user.role !== UserRole.STUDENT) {
       return { liveClass: null, pull: null };
@@ -77,14 +87,7 @@ export class PresenceService {
     ]);
 
     return {
-      liveClass: live
-        ? {
-            classId: live.classId,
-            topic: classTopic(live.class),
-            coachName: personName(live.coach),
-            startedAt: live.startedAt?.toISOString() ?? null
-          }
-        : null,
+      liveClass: live ? this.toLiveClass(live) : null,
       pull: pull
         ? {
             id: pull.id,
@@ -97,33 +100,21 @@ export class PresenceService {
     };
   }
 
-  private async getAuthenticatedUser(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
+  private toLiveClass(live: {
+    classId: string;
+    class: { topic: string | null; title: string | null } | null;
+    coach: { firstName: string; lastName: string | null };
+    startedAt: Date | null;
+  }): PresenceLiveClass {
+    return {
+      classId: live.classId,
+      topic: classTopic(live.class),
+      coachName: personName(live.coach),
+      startedAt: live.startedAt?.toISOString() ?? null
+    };
+  }
 
-    let payload: AccessTokenPayload;
-    try {
-      payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-        secret: this.env.JWT_ACCESS_SECRET
-      });
-    } catch {
-      throw new UnauthorizedException("Invalid or expired token.");
-    }
-
-    if (payload.type !== "access") {
-      throw new UnauthorizedException("Invalid token type.");
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { id: true, role: true, status: true }
-    });
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session or unauthorized.");
-    }
-
-    return user;
+  private getAuthenticatedUser(accessToken: string | undefined) {
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 }

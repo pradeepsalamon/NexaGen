@@ -48,6 +48,11 @@ export const API_ROUTES = {
     cancelDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}/cancel`,
     restoreDemoClass: (id: string = ":id") => `/admin/demo-classes/${id}/restore`,
     demoClassDetails: (id: string = ":id") => `/admin/demo-classes/${id}/details`,
+    demoClassInvitees: (id: string = ":id") => `/admin/demo-classes/${id}/invitees`,
+    removeDemoClassInvitee: (id: string = ":id", registrationId: string = ":registrationId") =>
+      `/admin/demo-classes/${id}/invitees/${registrationId}`,
+    demoSchedules: "/admin/demo-schedules",
+    demoSchedule: (id: string = ":id") => `/admin/demo-schedules/${id}`,
     batchClasses: "/admin/classes",
     batchClassDetails: (id: string = ":id") => `/admin/classes/${id}/details`
   },
@@ -71,6 +76,7 @@ export const API_ROUTES = {
     participants: (id: string = ":id") => `/live-class/${id}/participants`,
     chat: (id: string = ":id") => `/live-class/${id}/chat`,
     heartbeat: (id: string = ":id") => `/live-class/${id}/heartbeat`,
+    demoInfo: (id: string = ":id") => `/live-class/demo/${id}`,
     demoJoin: (id: string = ":id") => `/live-class/demo/${id}/join`,
     startRecording: (id: string = ":id") => `/live-class/${id}/recording/start`,
     stopRecording: (id: string = ":id") => `/live-class/${id}/recording/stop`,
@@ -83,6 +89,9 @@ export const API_ROUTES = {
     liveSettings: (id: string = ":id") => `/live-class/${id}/live-settings`,
     // Force-mute one participant's mic / camera / screen share (coach-owner or admin).
     moderate: (id: string = ":id") => `/live-class/${id}/moderate`,
+    // Coach-owner+admin: switch mic and/or camera off for every student (off only).
+    moderateAll: (id: string = ":id") => `/live-class/${id}/moderate-all`,
+    kick: (id: string = ":id") => `/live-class/${id}/kick`,
     // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
     // for write, any participant for read).
     puzzle: (id: string = ":id") => `/live-class/${id}/puzzle`,
@@ -94,6 +103,11 @@ export const API_ROUTES = {
     puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
     // Coach-owner+admin: manual +/- points for one student on the active puzzle.
     puzzleAdjust: (id: string = ":id") => `/live-class/${id}/puzzle/adjust`,
+    // Whole-class standings across every puzzle shared in the class (GET any participant).
+    puzzleClassLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/class-leaderboard`,
+    // Coach-owner+admin: manual +/- points for one student on the class standings.
+    puzzleClassLeaderboardAdjust: (id: string = ":id") =>
+      `/live-class/${id}/puzzle/class-leaderboard/adjust`,
     // Move poll ("Response"): POST start / PATCH close-reveal / DELETE end (coach-owner+admin), GET current (any participant).
     movePoll: (id: string = ":id") => `/live-class/${id}/move-poll`,
     // Student submits (or changes) their move while the poll is open.
@@ -111,6 +125,21 @@ export const API_ROUTES = {
     // Resign / draw offer / accept / decline / (coach) adjudicate.
     simulGameAction: (id: string = ":id", gameId: string = ":gameId") =>
       `/live-class/${id}/simul/games/${gameId}/action`,
+    // Student matches: POST start / PATCH pairing mode / DELETE end (coach-owner+admin), GET current (any participant).
+    matchRound: (id: string = ":id") => `/live-class/${id}/matches`,
+    // Coach-owner+admin: pair more students (auto or by hand) into the running round.
+    matchPairs: (id: string = ":id") => `/live-class/${id}/matches/pairs`,
+    // Student: challenge a classmate (students-choose rounds).
+    matchChallenges: (id: string = ":id") => `/live-class/${id}/matches/challenges`,
+    // Accept / decline (opponent) or cancel (challenger) one challenge.
+    matchChallenge: (id: string = ":id", challengeId: string = ":challengeId") =>
+      `/live-class/${id}/matches/challenges/${challengeId}`,
+    // A player of that game plays a move.
+    matchMove: (id: string = ":id", gameId: string = ":gameId") =>
+      `/live-class/${id}/matches/games/${gameId}/move`,
+    // Resign / draw / claim timeout; coach adjudicate / abort.
+    matchGameAction: (id: string = ":id", gameId: string = ":gameId") =>
+      `/live-class/${id}/matches/games/${gameId}/action`,
     // Waiting room (coach-owner/admin): list of students pending admission.
     waitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room`,
     // Waiting room (coach-owner/admin): admit or deny one pending student.
@@ -118,6 +147,7 @@ export const API_ROUTES = {
     // Waiting room (student): (re)request admission after a denial.
     requestWaitingRoom: (id: string = ":id") => `/live-class/${id}/waiting-room/request`,
     // Screen-share request (coach-owner/admin): pending + currently-approved requests.
+    boardState: (id: string = ":id") => `/live-class/${id}/board-state`,
     screenShareRequests: (id: string = ":id") => `/live-class/${id}/screen-share-requests`,
     // Screen-share request (student): ask to share while the class-wide policy is DISABLED.
     requestScreenShare: (id: string = ":id") => `/live-class/${id}/screen-share-requests/request`,
@@ -182,7 +212,9 @@ export const API_ROUTES = {
     dashboard: "/student/dashboard"
   },
   stockfish: {
-    analyze: "/stockfish/analyze"
+    analyze: "/stockfish/analyze",
+    // Same request; answers as server-sent events (`StockfishStreamEvent`).
+    analyzeStream: "/stockfish/analyze/stream"
   },
   assignments: {
     // Library (admin: shared items; coach: shared + own)
@@ -225,6 +257,7 @@ export const API_ROUTES = {
     stats: "/puzzles/stats",
     validate: "/puzzles/validate",
     bulk: "/puzzles/bulk",
+    import: "/puzzles/import",
     get: (id: string = ":id") => `/puzzles/${id}`,
     update: (id: string = ":id") => `/puzzles/${id}`,
     delete: (id: string = ":id") => `/puzzles/${id}`,
@@ -534,5 +567,11 @@ export const API_ROUTES = {
   progress: {
     mine: "/progress/me",
     student: (id: string = ":id") => `/progress/students/${id}`
+  },
+  health: {
+    // Public, unauthenticated, not rate limited. `live` never touches a
+    // dependency; `ready` checks Postgres (required) and Redis (optional).
+    live: "/health",
+    ready: "/health/ready"
   }
 } as const;

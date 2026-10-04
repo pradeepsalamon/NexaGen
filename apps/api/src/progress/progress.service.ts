@@ -1,20 +1,18 @@
 import {
   ForbiddenException,
   Injectable,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import {
   INITIAL_PUZZLE_RATING,
   liveStreak,
   type StudentProgressResponse
 } from "@nexa-chess/types";
-import { UserRole, UserStatus } from "@prisma/client";
-import type { AccessTokenPayload } from "../auth/types";
+import { UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { dateToDay, localDay } from "./progress-recorder.service";
+import { authenticateUser } from "../auth/authenticate";
 
 type AuthenticatedUser = { id: string; role: UserRole };
 
@@ -23,7 +21,6 @@ const RECENT_PUZZLES = 10;
 
 @Injectable()
 export class ProgressService {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -136,17 +133,7 @@ export class ProgressService {
     };
   }
 
-  private async getAuthenticatedUser(accessToken: string | undefined): Promise<AuthenticatedUser> {
-    if (!accessToken) throw new UnauthorizedException("Access token is missing.");
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-      secret: this.env.JWT_ACCESS_SECRET
-    });
-    if (payload.type !== "access") throw new UnauthorizedException("Invalid token type.");
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: { id: true, role: true, status: true }
-    });
-    if (!user || user.status !== UserStatus.ACTIVE) throw new UnauthorizedException("Invalid session.");
-    return user;
+  private getAuthenticatedUser(accessToken: string | undefined): Promise<AuthenticatedUser> {
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 }

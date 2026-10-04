@@ -168,7 +168,8 @@ creates the student with `status: PENDING`, issues **no session**, and returns
 the same `{ email, status: "PENDING_APPROVAL" }`. `login()` tells a pending
 student their registration is awaiting approval; every other auth path already
 requires `status: ACTIVE`. Admins and super admins approve or decline on
-**Admin → Student Approvals** (`/admin/students`,
+**Admin → Approvals → Students** (`/admin/approvals`; coach applications are the
+super-admin-only Coaches tab on the same page;
 `AdminService.updateStudentStatus`: a status-filtered `updateMany` from
 `PENDING` to `ACTIVE`/`ARCHIVED`, so a second review is a 404). Approval fires
 the `ACCOUNT_APPROVED` messaging rule. Students created by an admin are `ACTIVE`
@@ -188,9 +189,12 @@ Consequences to respect when you touch this area:
 - Names: `nexa_access_token`, `nexa_refresh_token` (`AUTH_COOKIE_NAMES`).
   Paths in `AUTH_COOKIE_PATHS`.
 - Access token TTL `15m`; refresh `1d` default, `7d` with "remember me".
-- Refresh tokens rotate on every `/auth/refresh`, are bcrypt-hashed, and stored in
-  `auth_sessions`. Logout and password reset revoke sessions.
-- `sameSite`/`secure` are derived at runtime from whether `FRONTEND_URL` is https
+- Refresh tokens rotate on every `/auth/refresh`, are sha256-hashed, and stored in
+  `auth_sessions`. A rotated session (`rotatedAt`) gets a 30s grace for concurrent
+  tabs; a revoked one (`revokedAt`: logout, password reset, detected reuse) never
+  comes back. Replaying a rotated token after the grace revokes the device's whole
+  `familyId` chain, and logout revokes the family.
+- `secure` is derived from whether `FRONTEND_URL` is https; `sameSite` comes from `COOKIE_SAME_SITE` (default `lax`). State-changing requests from an origin outside `CORS_ORIGIN` are rejected (`common/security/origin-check.ts`)
   (`auth.controller.ts`). In production `CORS_ORIGIN`/`FRONTEND_URL` must be the https
   origin or cookies won't be set cross-site.
 - Neutral messaging + fixed response delays protect login and password-reset from
@@ -239,7 +243,7 @@ shape exactly to the `@nexa-chess/types` response type.
   `relationToModel` / `filterableRelationNames`, add **partial unique indexes**
   (`... WHERE "isDeleted" = false`) so deleted rows don't block reuse, update shared
   types and the Trash UI.
-- Automatic retention cleanup (`trash.scheduler.ts`) uses a Postgres advisory lock so
+- Automatic retention cleanup (`trash.scheduler.ts`) uses a job lock (`JobLockService`, `trash.cleanup`) so
   multiple API instances don't collide. Retention days: `TRASH_RETENTION_DAYS` (30).
 
 ### 4.7 Scheduled jobs
@@ -247,6 +251,10 @@ shape exactly to the `@nexa-chess/types` response type.
 `@nestjs/schedule` `@Cron(...)` methods live in the owning service
 (`trash.scheduler.ts`, cleanup in `live-class.service.ts`, backups in
 `backup.service.ts`). `ScheduleModule.forRoot()` is in `app.module.ts`.
+A cron that must run once across instances wraps its body in
+`JobLockService.runExclusive(JOB_LOCKS.<name>, ...)` (a `job_locks` lease row).
+Don't use session advisory locks through Prisma — the pool can unlock on a
+different connection and leak the lock.
 
 ### 4.8 Rate limiting
 
@@ -355,7 +363,7 @@ helper for dirty-state UX.
   `JWT_REFRESH_SHORT_TTL`, `LOGIN_RESPONSE_DELAY`, `PASSWORD_RESET_RESPONSE_DELAY`,
   `CORS_ORIGIN` (comma-separated), `FRONTEND_URL`, `TRASH_RETENTION_DAYS`,
   `SMTP_*`, `LIVEKIT_URL`/`LIVEKIT_API_KEY`/`LIVEKIT_API_SECRET`,
-  `CLOUDINARY_*`, `STOCKFISH_PATH`, `STOCKFISH_POOL_SIZE` (max engines), `STOCKFISH_MIN_ENGINES` (kept running at rest, default 1), `STOCKFISH_IDLE_TIMEOUT_S` (extra engines stop after this idle time, default 60), `STOCKFISH_MOVETIME`, `STOCKFISH_MOVE_MOVETIME`, `STOCKFISH_HASH_MB`
+  `CLOUDINARY_*`, `STOCKFISH_PATH`, `STOCKFISH_POOL_SIZE` (max engines), `STOCKFISH_MIN_ENGINES` (kept running at rest, default 1), `STOCKFISH_IDLE_TIMEOUT_S` (extra engines stop after this idle time, default 60), `STOCKFISH_MOVETIME`, `STOCKFISH_MOVE_MOVETIME` (engine-move think, default 1000), `STOCKFISH_MOVE_MAX_DEPTH` (engine moves stop early at this depth, default 22, 0 = off), `STOCKFISH_HASH_MB`, `STOCKFISH_MAX_DEPTH` (analysis stops early at this depth, default 20, 0 = off)
   (per-position engine search time in ms, default 800).
 - **Web:** `getWebEnv()` in `packages/config/src/web.ts` validates
   `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_LIVEKIT_URL` (with localhost defaults).

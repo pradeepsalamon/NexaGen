@@ -26,10 +26,30 @@ describe("PresenceService.heartbeat", () => {
     await expect(service.heartbeat(undefined)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
-  it("marks a coach online without looking up classes", async () => {
+  it("hands a coach their own live class and never a pull", async () => {
     signedInAs(UserRole.COACH);
-    await expect(service.heartbeat("t")).resolves.toEqual({ liveClass: null, pull: null });
+    prisma.liveSession.findFirst.mockResolvedValue({
+      classId: "class-1",
+      startedAt: null,
+      class: { id: "class-1", title: "Weekly", topic: null },
+      coach: { firstName: "Test", lastName: null }
+    });
+
+    const res = await service.heartbeat("t");
     expect(prisma.user.updateMany).toHaveBeenCalled();
+    expect(prisma.liveSession.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: "LIVE", coachId: "u-1" } })
+    );
+    expect(prisma.liveClassPull.findFirst).not.toHaveBeenCalled();
+    expect(res).toEqual({
+      liveClass: { classId: "class-1", topic: "Weekly", coachName: "Test", startedAt: null },
+      pull: null
+    });
+  });
+
+  it("looks up no classes for an admin", async () => {
+    signedInAs(UserRole.ADMIN);
+    await expect(service.heartbeat("t")).resolves.toEqual({ liveClass: null, pull: null });
     expect(prisma.liveSession.findFirst).not.toHaveBeenCalled();
   });
 

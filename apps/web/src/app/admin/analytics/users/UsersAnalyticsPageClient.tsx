@@ -80,7 +80,7 @@ export function UsersAnalyticsPageClient() {
                     )
                 }
               ]}
-              defaultSort={{ key: "createdAt", order: "desc" }}
+              defaultSort={{ key: "createdAt", order: "asc" }}
               extraParams={{
                 role: query.role,
                 status: query.status,

@@ -7,6 +7,7 @@ import {
   WebhookEventStatus,
   type Payment
 } from "@prisma/client";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentService } from "./payment.service";
 import { toJson } from "./payments.util";
@@ -41,6 +42,7 @@ export class PaymentWebhookService {
   private readonly logger = new Logger(PaymentWebhookService.name);
 
   constructor(
+    private readonly jobLocks: JobLockService,
     private readonly payments: PaymentService,
     private readonly prisma: PrismaService,
     private readonly refunds: RefundService,
@@ -297,6 +299,12 @@ export class PaymentWebhookService {
    */
   @Cron(CronExpression.EVERY_10_MINUTES)
   async recoverFailedEvents(): Promise<void> {
+    await this.jobLocks.runExclusive(JOB_LOCKS.paymentWebhookRecovery, () =>
+      this.recoverFailedEventsNow()
+    );
+  }
+
+  private async recoverFailedEventsNow(): Promise<void> {
     const since = new Date(Date.now() - RECOVERY_WINDOW_HOURS * 60 * 60 * 1000);
 
     const failed = await this.prisma.paymentWebhookEvent.findMany({

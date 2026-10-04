@@ -3,7 +3,8 @@ import { BadRequestException, ForbiddenException, NotFoundException } from "@nes
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { LiveSessionStatus } from "./types/live-class.types";
-import { LiveClassService } from "./live-class.service";
+import { LiveClassRecordingService } from "./live-class-recording.service";
+import { LIVE_CLASS_SERVICES } from "./live-class.testing";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
@@ -12,12 +13,14 @@ import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 import { MailService } from "../mail/mail.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 const ACCESS_TOKEN = "test-access-token";
 
-describe("LiveClassService recording feature", () => {
-  let service: LiveClassService;
+describe("LiveClassRecordingService recording feature", () => {
+  let service: LiveClassRecordingService;
   let jwtService: { verifyAsync: jest.Mock; signAsync: jest.Mock };
   let livekitService: {
     startRecording: jest.Mock;
@@ -80,7 +83,8 @@ describe("LiveClassService recording feature", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        LiveClassService,
+        ...LIVE_CLASS_SERVICES,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -115,7 +119,7 @@ describe("LiveClassService recording feature", () => {
       ],
     }).compile();
 
-    service = module.get<LiveClassService>(LiveClassService);
+    service = module.get(LiveClassRecordingService);
   });
 
   // ─────────────────────────────────────────────────────────────────────────────

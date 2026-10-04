@@ -65,7 +65,6 @@ export const studentNavItems: NavItem[] = [
   { href: "/student/live-classes", label: "Live Classes", icon: Video },
   { href: "/student/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/student/practice", label: "Assignments", icon: Target },
-  { href: "/student/puzzles", label: "Puzzles", icon: Puzzle },
   { href: "/student/progress", label: "Progress", icon: TrendingUp },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard },
@@ -104,7 +103,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/analytics/operations", label: "Operations", icon: Clock, group: "Analytics" },
   // People & communication
   { href: "/admin/users", label: "Users", icon: Users, group: "People" },
-  { href: "/admin/students", label: "Student Approvals", icon: UserRoundCheck, group: "People" },
+  { href: "/admin/approvals", label: "Approvals", icon: UserRoundCheck, group: "People" },
   { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "People" },
   { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "People" },
   { href: "/admin/feedback", label: "Coach Feedback", icon: MessageSquareHeart, group: "People" },
@@ -129,7 +128,6 @@ export const adminNavItems: NavItem[] = [
   // Super Admin
   { href: "/admin/backups", label: "DB Backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
-  { href: "/admin/coaches", label: "Coach Apps", icon: Users, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/demo-classes", label: "Demo Classes", icon: Video, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/classes", label: "Batch Classes", icon: LineChart, group: "Super Admin", superAdminOnly: true }
 ];

@@ -100,12 +100,12 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
           <div>
             <h2 className="font-extrabold text-app-text">No classes scheduled</h2>
             <p className="mt-0.5 text-sm text-app-muted">
-              Your next class will show up here. Meanwhile, keep your tactics sharp.
+              Your next class will show up here. Meanwhile, catch up on your assignments.
             </p>
           </div>
         </div>
         <Button asChild className="shrink-0" variant="outline">
-          <Link href="/student/puzzles">Solve puzzles</Link>
+          <Link href="/student/practice">View assignments</Link>
         </Button>
       </Card>
     );

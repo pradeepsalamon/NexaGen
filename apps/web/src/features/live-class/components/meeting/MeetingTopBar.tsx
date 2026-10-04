@@ -6,7 +6,7 @@ import { ClassroomTopBar } from "./ClassroomTopBar";
 import { ConnectionPill, RecordingBadge, TimerBadge } from "./MeetingStatus";
 
 export const MeetingTopBar = memo(function MeetingTopBar() {
-  const { topic, startedAt, endsAt } = useLiveClassState();
+  const { topic, startedAt, endsAt } = useLiveClassState("topic", "startedAt", "endsAt");
 
   return (
     <ClassroomTopBar

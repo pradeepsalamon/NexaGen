@@ -56,6 +56,8 @@ export const liveClassSettingsSchema = z
         // Student <-> coach direct messages. There is deliberately no
         // student <-> student option: see `privateChatRecipientAllowed`.
         privateChat: toggleModeSchema.default("ENABLED"),
+        // Emoji reactions (the `reaction` data topic) sent by students.
+        reactions: toggleModeSchema.default("ENABLED"),
         board: boardInteractionModeSchema.default("VIEW_ONLY"),
       })
       .prefault({}),
@@ -93,6 +95,7 @@ export const liveClassSettingsOverrideSchema = z.object({
       screenShare: screenShareModeSchema.optional(),
       chat: toggleModeSchema.optional(),
       privateChat: toggleModeSchema.optional(),
+      reactions: toggleModeSchema.optional(),
       board: boardInteractionModeSchema.optional(),
     })
     .optional(),
@@ -342,6 +345,9 @@ export function getLiveClassSettingsWarnings(settings: LiveClassSettings): strin
   }
   if (settings.student.privateChat === "DISABLED") {
     warnings.push("Students will not be able to message the coach privately.");
+  }
+  if (settings.student.reactions === "DISABLED") {
+    warnings.push("Students will not be able to send emoji reactions.");
   }
   return warnings;
 }

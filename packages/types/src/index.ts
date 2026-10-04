@@ -19,6 +19,8 @@ export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
 export * from "./live-class-screen-share";
+export * from "./live-class-board-state";
+export * from "./health";
 export * from "./chess-appearance";
 export * from "./typography";
 
@@ -1274,15 +1276,104 @@ export type ClassSummaryResponse = z.infer<typeof classSummaryResponseSchema>;
 
 // -- DEMO CLASS TYPES --
 
+/** PUBLIC = anyone with the link; PASSCODE = link + passcode; INVITE_ONLY =
+ *  invited guests get straight in, anyone else waits for the coach to admit
+ *  them. An admin-added guest is admitted in every mode. */
+export const demoClassAccessModeSchema = z.enum(["PUBLIC", "PASSCODE", "INVITE_ONLY"]);
+export type DemoClassAccessMode = z.infer<typeof demoClassAccessModeSchema>;
+
+export const DEMO_CLASS_ACCESS_MODE_LABELS: Record<DemoClassAccessMode, string> = {
+  PUBLIC: "Anyone with the link",
+  PASSCODE: "Link + passcode",
+  INVITE_ONLY: "Invited guests only"
+};
+
+export const DEMO_CLASS_ACCESS_MODE_DESCRIPTIONS: Record<DemoClassAccessMode, string> = {
+  PUBLIC: "Anyone who opens the link can register and join.",
+  PASSCODE: "Guests need the passcode. Invited guests skip it.",
+  INVITE_ONLY: "Invited guests join directly; anyone else waits for the coach to admit them."
+};
+
+export const demoPasscodeSchema = z
+  .string()
+  .trim()
+  .min(4, "Passcode must be at least 4 characters")
+  .max(12, "Passcode must be at most 12 characters")
+  .regex(/^[A-Za-z0-9]+$/, "Use letters and numbers only");
+
+export const demoRegistrationContactMethodSchema = z.enum(["PHONE", "EMAIL"]);
+export type DemoRegistrationContactMethod = z.infer<
+  typeof demoRegistrationContactMethodSchema
+>;
+
+export const demoRegistrationSourceSchema = z.enum(["SELF", "LEAD", "INVITE"]);
+export type DemoRegistrationSource = z.infer<typeof demoRegistrationSourceSchema>;
+
+export const demoGuestApprovalSchema = z.enum(["APPROVED", "PENDING", "DENIED"]);
+export type DemoGuestApproval = z.infer<typeof demoGuestApprovalSchema>;
+
+const hasValidDemoContact = (value: {
+  contactMethod?: DemoRegistrationContactMethod;
+  email?: string;
+  phoneNumber?: string;
+}) =>
+  value.contactMethod === "EMAIL"
+    ? !!value.email
+    : !!value.phoneNumber && value.phoneNumber.replace(/\D/g, "").length >= 7;
+
+/** A brand-new invitee: their personal link admits them, and their phone or
+ *  email is the fallback they can type on the join page. */
+export const demoInviteeInputSchema = z
+  .object({
+    name: z.string().trim().min(1, "Name is required").max(50),
+    contactMethod: demoRegistrationContactMethodSchema,
+    phoneNumber: z.string().trim().max(20).optional(),
+    email: z.string().trim().toLowerCase().email("Enter a valid email address").max(200).optional()
+  })
+  .refine(hasValidDemoContact, {
+    message: "Enter a valid phone number or email address.",
+    path: ["contactMethod"]
+  });
+export type DemoInviteeInput = z.infer<typeof demoInviteeInputSchema>;
+
+export const addDemoInviteesRequestSchema = z
+  .object({
+    leadIds: z.array(z.string().trim().min(1)).max(100).default([]),
+    invitees: z.array(demoInviteeInputSchema).max(100).default([]),
+    /** Send the personal invite link (email / WhatsApp) to each new invitee. */
+    notify: z.boolean().default(true)
+  })
+  .refine((value) => value.leadIds.length + value.invitees.length > 0, {
+    message: "Add at least one lead or invitee.",
+    path: ["invitees"]
+  });
+export type AddDemoInviteesRequest = z.input<typeof addDemoInviteesRequestSchema>;
+
+export interface AddDemoInviteesResponse {
+  added: number;
+  skipped: number;
+}
+
+const passcodeRequiredRefine = (value: { accessMode?: DemoClassAccessMode; passcode?: string | null }) =>
+  value.accessMode !== "PASSCODE" || !!value.passcode;
+
 export const createDemoClassRequestSchema = z.object({
   coachId: z.string().cuid(),
   topic: z.string().min(1).max(120),
   description: z.string().max(2000).optional(),
   startsAt: z.string().datetime(),
-  endsAt: z.string().datetime()
+  endsAt: z.string().datetime(),
+  accessMode: demoClassAccessModeSchema.default("PUBLIC"),
+  passcode: demoPasscodeSchema.optional(),
+  leadIds: z.array(z.string().trim().min(1)).max(100).optional(),
+  invitees: z.array(demoInviteeInputSchema).max(100).optional(),
+  notifyInvitees: z.boolean().optional()
 }).refine((value) => new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime(), {
   message: "End time must be after start time.",
   path: ["endsAt"]
+}).refine(passcodeRequiredRefine, {
+  message: "A passcode is required for this access mode.",
+  path: ["passcode"]
 });
 
 export const updateDemoClassRequestSchema = z.object({
@@ -1290,7 +1381,9 @@ export const updateDemoClassRequestSchema = z.object({
   topic: z.string().min(1).max(120).optional(),
   description: z.string().max(2000).optional(),
   startsAt: z.string().datetime().optional(),
-  endsAt: z.string().datetime().optional()
+  endsAt: z.string().datetime().optional(),
+  accessMode: demoClassAccessModeSchema.optional(),
+  passcode: demoPasscodeSchema.optional()
 }).refine((value) => {
   if (value.startsAt && value.endsAt) {
     return new Date(value.startsAt).getTime() <= new Date(value.endsAt).getTime();
@@ -1299,16 +1392,16 @@ export const updateDemoClassRequestSchema = z.object({
 }, {
   message: "End time must be after start time.",
   path: ["endsAt"]
+}).refine(passcodeRequiredRefine, {
+  message: "A passcode is required for this access mode.",
+  path: ["passcode"]
 });
 
-export const demoRegistrationContactMethodSchema = z.enum(["PHONE", "EMAIL"]);
-export type DemoRegistrationContactMethod = z.infer<
-  typeof demoRegistrationContactMethodSchema
->;
-
+/** Either a personal invite token, or a name + contact (the classic form). */
 export const guestJoinDemoRequestSchema = z
   .object({
-    guestName: z.string().trim().min(1, "Name is required").max(50),
+    inviteToken: z.string().trim().min(1).max(64).optional(),
+    guestName: z.string().trim().max(50).optional(),
     contactMethod: demoRegistrationContactMethodSchema.default("PHONE"),
     phoneNumber: z.string().trim().max(20).optional(),
     email: z
@@ -1317,30 +1410,46 @@ export const guestJoinDemoRequestSchema = z
       .toLowerCase()
       .email("Enter a valid email address")
       .max(200)
-      .optional()
+      .optional(),
+    passcode: z.string().trim().max(12).optional()
   })
-  .refine(
-    (value) =>
-      value.contactMethod === "EMAIL"
-        ? !!value.email
-        : !!value.phoneNumber && value.phoneNumber.replace(/\D/g, "").length >= 7,
-    {
-      message: "Enter a valid phone number or email address.",
-      path: ["contactMethod"]
-    }
-  );
+  .refine((value) => !!value.inviteToken || !!value.guestName, {
+    message: "Name is required",
+    path: ["guestName"]
+  })
+  .refine((value) => !!value.inviteToken || hasValidDemoContact(value), {
+    message: "Enter a valid phone number or email address.",
+    path: ["contactMethod"]
+  });
 
 export const guestJoinDemoResponseSchema = z.object({
   registered: z.literal(true),
-  /** True once a LiveKit token was minted — false means registered but the
-   *  class has not gone live yet; the visitor comes back once it has. */
+  /** True once a LiveKit token was minted. */
   joined: z.boolean(),
+  /** An uninvited guest of an INVITE_ONLY class, waiting for the coach. */
+  awaitingApproval: z.boolean(),
   token: z.string().nullable(),
   roomName: z.string().nullable(),
   topic: z.string(),
   startsAt: z.string().datetime().nullable(),
   message: z.string().nullable()
 });
+
+/** What the public join page needs before showing its form — never the passcode. */
+export const demoClassPublicInfoSchema = z.object({
+  /** The resolved occurrence — a slug link points at the live or next one. */
+  classId: z.string(),
+  topic: z.string(),
+  description: z.string().nullable(),
+  startsAt: z.string().datetime(),
+  endsAt: z.string().datetime(),
+  status: z.enum(["SCHEDULED", "LIVE", "COMPLETED", "CANCELLED"]),
+  accessMode: demoClassAccessModeSchema,
+  coachName: z.string(),
+  /** Set when the page was opened with a valid personal invite token. */
+  invitee: z.object({ name: z.string() }).nullable()
+});
+export type DemoClassPublicInfo = z.infer<typeof demoClassPublicInfoSchema>;
 
 export const demoClassSchema = z.object({
   id: z.string(),
@@ -1349,7 +1458,14 @@ export const demoClassSchema = z.object({
   startsAt: z.string().datetime(),
   endsAt: z.string().datetime(),
   status: z.enum(["SCHEDULED", "LIVE", "COMPLETED", "CANCELLED"]),
-  coachName: z.string()
+  coachName: z.string(),
+  coachId: z.string(),
+  accessMode: demoClassAccessModeSchema,
+  /** Admin-only payload, so the passcode is included for sharing. */
+  passcode: z.string().nullable(),
+  registrationCount: z.number().int(),
+  /** Set when a static demo schedule generated this occurrence. */
+  schedule: z.object({ id: z.string(), slug: z.string() }).nullable()
 });
 
 export const listDemoClassesResponseSchema = z.object({
@@ -1358,9 +1474,15 @@ export const listDemoClassesResponseSchema = z.object({
 });
 
 export const demoClassRegistrationItemSchema = z.object({
+  id: z.string(),
   name: z.string(),
+  source: demoRegistrationSourceSchema,
+  approval: demoGuestApprovalSchema,
+  leadId: z.string().nullable(),
   contactMethod: demoRegistrationContactMethodSchema,
   contact: z.string(),
+  /** Personal join path (`/demo/<classId>?invite=…`) for admin-added guests. */
+  invitePath: z.string().nullable(),
   registeredAt: z.string().datetime(),
   joined: z.boolean()
 });
@@ -1378,14 +1500,96 @@ export const demoClassDetailsResponseSchema = z.object({
   class: demoClassDetailsSchema
 });
 
-export type CreateDemoClassRequest = z.infer<typeof createDemoClassRequestSchema>;
+export type CreateDemoClassRequest = z.input<typeof createDemoClassRequestSchema>;
 export type UpdateDemoClassRequest = z.infer<typeof updateDemoClassRequestSchema>;
-export type GuestJoinDemoRequest = z.infer<typeof guestJoinDemoRequestSchema>;
+export type GuestJoinDemoRequest = z.input<typeof guestJoinDemoRequestSchema>;
 export type GuestJoinDemoResponse = z.infer<typeof guestJoinDemoResponseSchema>;
 export type DemoClass = z.infer<typeof demoClassSchema>;
 export type ListDemoClassesResponse = z.infer<typeof listDemoClassesResponseSchema>;
 export type DemoClassDetails = z.infer<typeof demoClassDetailsSchema>;
 export type DemoClassDetailsResponse = z.infer<typeof demoClassDetailsResponseSchema>;
+
+// -- STATIC DEMO SCHEDULES --
+
+export const DEMO_SCHEDULE_HORIZON_DAYS = 14;
+
+export const demoScheduleSlugSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "At least 3 characters")
+  .max(40, "At most 40 characters")
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Lowercase letters, numbers and single hyphens only");
+
+export const demoScheduleSlotSchema = z.object({
+  /** 0 = Sunday … 6 = Saturday. */
+  dayOfWeek: z.number().int().min(0).max(6),
+  /** "HH:MM" 24h wall-clock in the schedule's timezone. */
+  startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM")
+});
+export type DemoScheduleSlot = z.infer<typeof demoScheduleSlotSchema>;
+
+const demoScheduleFields = {
+  slug: demoScheduleSlugSchema,
+  topic: z.string().trim().min(1).max(120),
+  description: z.string().max(2000).optional(),
+  coachId: z.string().cuid(),
+  timezone: z.string().trim().min(1).max(64),
+  slots: z.array(demoScheduleSlotSchema).min(1, "Add at least one weekly slot").max(28),
+  durationMinutes: z.number().int().min(15).max(240),
+  accessMode: demoClassAccessModeSchema,
+  passcode: demoPasscodeSchema.optional(),
+  isActive: z.boolean()
+};
+
+export const createDemoScheduleRequestSchema = z
+  .object({
+    ...demoScheduleFields,
+    accessMode: demoClassAccessModeSchema.default("PUBLIC"),
+    isActive: z.boolean().default(true),
+    timezone: demoScheduleFields.timezone.default("Asia/Kolkata"),
+    durationMinutes: demoScheduleFields.durationMinutes.default(60)
+  })
+  .refine(passcodeRequiredRefine, {
+    message: "A passcode is required for this access mode.",
+    path: ["passcode"]
+  });
+export type CreateDemoScheduleRequest = z.input<typeof createDemoScheduleRequestSchema>;
+
+export const updateDemoScheduleRequestSchema = z
+  .object(demoScheduleFields)
+  .partial()
+  .refine(passcodeRequiredRefine, {
+    message: "A passcode is required for this access mode.",
+    path: ["passcode"]
+  });
+export type UpdateDemoScheduleRequest = z.infer<typeof updateDemoScheduleRequestSchema>;
+
+export interface DemoScheduleDto {
+  id: string;
+  slug: string;
+  topic: string;
+  description: string | null;
+  coachId: string;
+  coachName: string;
+  timezone: string;
+  slots: DemoScheduleSlot[];
+  durationMinutes: number;
+  accessMode: DemoClassAccessMode;
+  passcode: string | null;
+  isActive: boolean;
+  /** The live or next occurrence, if one is generated. */
+  nextSession: { classId: string; startsAt: string; status: "SCHEDULED" | "LIVE" } | null;
+  createdAt: string;
+}
+
+export interface ListDemoSchedulesResponse {
+  schedules: DemoScheduleDto[];
+}
+
+export interface DemoScheduleResponse {
+  schedule: DemoScheduleDto;
+}
 
 export type AdminBatchClass = CoachClass & {
   coachName: string;
@@ -1879,7 +2083,11 @@ export const stockfishAnalyzeRequestSchema = z.object({
 export type StockfishAnalyzeRequest = z.infer<typeof stockfishAnalyzeRequestSchema>;
 
 export interface StockfishAnalysisResult {
-  /** Centipawn evaluation in pawns (white-positive). `null` when a mate is seen. */
+  /**
+   * Centipawn evaluation in pawns from the SIDE TO MOVE's point of view (UCI
+   * convention; the assignment accuracy maths relies on it). Negate when black
+   * is to move to show a white-positive score. `null` when a mate is seen.
+   */
   evaluation: number | null;
   /** Moves-to-mate (sign = side to deliver it). `null` when it is a cp score. */
   mate: number | null;
@@ -1893,6 +2101,16 @@ export interface StockfishAnalysisResult {
   /** Principal variation in raw UCI. */
   pvUci: string[];
 }
+
+/**
+ * One frame of `POST /stockfish/analyze/stream`, sent as a server-sent event
+ * (`data: <json>`). `info` frames carry the result so far as the search
+ * deepens; exactly one `done` (the final result) or `error` ends the stream.
+ */
+export type StockfishStreamEvent =
+  | { type: "info"; result: StockfishAnalysisResult }
+  | { type: "done"; result: StockfishAnalysisResult }
+  | { type: "error"; message: string };
 
 //
 // NOTIFICATIONS
@@ -2136,6 +2354,7 @@ export * from "./analytics";
 // Puzzle library contract (kept in its own module)
 // ──────────────────────────────────────────────
 export * from "./puzzle";
+export * from "./solve-line-fixtures";
 
 // ──────────────────────────────────────────────
 // Live-class puzzle assignment (depends on ./puzzle)
@@ -2143,6 +2362,7 @@ export * from "./puzzle";
 export * from "./puzzle-scoring";
 export * from "./live-class-puzzle";
 export * from "./live-class-simul";
+export * from "./live-class-match";
 export * from "./live-class-move-poll";
 
 // ──────────────────────────────────────────────

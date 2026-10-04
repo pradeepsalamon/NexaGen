@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { ClassStatus } from "@prisma/client";
+import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { MessagingDispatchService } from "./messaging-dispatch.service";
 import { MessagingRuleService } from "./messaging-rule.service";
@@ -14,19 +15,18 @@ const CLASS_SWEEP_WINDOW_MINUTES = 5;
 /**
  * The two rules that fire ahead of a moment rather than from an action.
  *
- * Both take an advisory lock first: the crons are only safe to run once per
+ * Both take a job lock first: the crons are only safe to run once per
  * tick, and a second API container would otherwise duplicate the sweep between
  * the dedupe read and the delivery write.
  */
 @Injectable()
 export class MessagingScheduler {
-  private static readonly CLASS_REMINDER_LOCK_ID = 73_002_051;
-  private static readonly DUE_SOON_LOCK_ID = 73_002_052;
 
   private readonly logger = new Logger(MessagingScheduler.name);
 
   constructor(
     private readonly dispatch: MessagingDispatchService,
+    private readonly jobLocks: JobLockService,
     private readonly prisma: PrismaService,
     private readonly rules: MessagingRuleService
   ) {}
@@ -41,7 +41,7 @@ export class MessagingScheduler {
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async classReminders(): Promise<void> {
-    await this.withLock(MessagingScheduler.CLASS_REMINDER_LOCK_ID, async () => {
+    await this.withLock(JOB_LOCKS.messagingClassReminders, async () => {
       for (const event of CLASS_REMINDER_EVENTS) {
         await this.sweepClassReminder(event);
       }
@@ -80,7 +80,7 @@ export class MessagingScheduler {
    */
   @Cron(CronExpression.EVERY_HOUR)
   async assignmentDueReminders(): Promise<void> {
-    await this.withLock(MessagingScheduler.DUE_SOON_LOCK_ID, async () => {
+    await this.withLock(JOB_LOCKS.messagingDueSoonReminders, async () => {
       const rule = await this.rules.getRule("ASSIGNMENT_DUE_SOON");
       if (!rule.enabled) return;
 
@@ -109,18 +109,9 @@ export class MessagingScheduler {
     });
   }
 
-  private async withLock(lockId: number, run: () => Promise<void>): Promise<void> {
+  private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {
     try {
-      const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-        SELECT pg_try_advisory_lock(${lockId}) AS locked
-      `;
-      if (!lock?.locked) return;
-
-      try {
-        await run();
-      } finally {
-        await this.prisma.$queryRaw`SELECT pg_advisory_unlock(${lockId})`;
-      }
+      await this.jobLocks.runExclusive(name, run);
     } catch (error) {
       this.logger.error("Messaging cron failed", error as Error);
     }

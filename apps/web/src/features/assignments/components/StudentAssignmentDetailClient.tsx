@@ -18,6 +18,8 @@ import { EvaluatedActivity } from "./activities/EvaluatedActivity";
 import { PgnBoardViewer } from "./PgnBoardViewer";
 import { ActivityBadge, DifficultyBadge, DueBadge, StatusBadge } from "./assignmentBadges";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 function formatTime(seconds: number) {
   const m = Math.floor(seconds / 60);
@@ -214,12 +216,21 @@ function EvaluatedShell({
   const [practicing, setPracticing] = useState(assignment.attemptCount === 0);
   const showSummary = !practicing;
   const { data: history } = useAttemptHistory(assignmentId, showSummary);
+  const { rows: attempts, sortProps } = useTableSort({
+    rows: history?.attempts,
+    accessors: {
+      accuracy: (a) => a.accuracyPercent,
+      attempt: (a) => a.attemptNumber,
+      result: (a) => a.result ?? a.status,
+      score: (a) => a.scorePercent,
+      time: (a) => a.durationSeconds
+    }
+  });
 
   if (practicing) {
     return <EvaluatedActivity assignmentId={assignmentId} onBack={onBack} />;
   }
 
-  const attempts = history?.attempts ?? [];
   const canRetry =
     assignment.status !== "COMPLETED" &&
     (assignment.maxAttempts === null || assignment.attemptCount < assignment.maxAttempts);
@@ -268,11 +279,11 @@ function EvaluatedShell({
             <Table className="w-full text-sm">
               <TableHeader>
                 <TableRow className="text-left text-xs uppercase tracking-wide text-app-muted">
-                  <TableHead className="py-1 pr-4">Attempt</TableHead>
-                  <TableHead className="py-1 pr-4">Score</TableHead>
-                  <TableHead className="py-1 pr-4">Accuracy</TableHead>
-                  <TableHead className="py-1 pr-4">Result</TableHead>
-                  <TableHead className="py-1">Time</TableHead>
+                  <TableHead className="py-1 pr-4"><SortButton label="Attempt" {...sortProps("attempt")} /></TableHead>
+                  <TableHead className="py-1 pr-4"><SortButton label="Score" {...sortProps("score")} /></TableHead>
+                  <TableHead className="py-1 pr-4"><SortButton label="Accuracy" {...sortProps("accuracy")} /></TableHead>
+                  <TableHead className="py-1 pr-4"><SortButton label="Result" {...sortProps("result")} /></TableHead>
+                  <TableHead className="py-1"><SortButton label="Time" {...sortProps("time")} /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

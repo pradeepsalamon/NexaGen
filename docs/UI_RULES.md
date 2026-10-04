@@ -44,7 +44,7 @@ and are mapped in `tailwind.config.ts`.
 
 | Element | Radius token |
 |---|---|
-| Buttons, inputs, selects, badges, pills, tabs, avatars, icon buttons | `rounded-full` (the components already do this) |
+| Buttons, inputs, selects, badges, pills, avatars, icon buttons | `rounded-full` (the components already do this) |
 | Small tiles, chips, list rows, menu items, textareas-in-panels | `rounded-control` (12px) |
 | Cards, panels, tables, dialogs | `rounded-app` (20px) / `rounded-[20px]` |
 | Large feature panels | `rounded-panel` (24px) |
@@ -67,12 +67,13 @@ disagree.
 | Confirm / dismiss pairs | `Button` | The positive action (Apply, Save, Confirm, Done) is **filled** — `primary`, or `destructive` when it deletes. The negative one (Cancel, Clear, Reset, Close, Skip, Decline) is **`outline`**, never `ghost` — a borderless dismiss reads as plain text. |
 | Table row actions | `RowActions` | Filled round icon buttons by `tone` (`default` blue, `warning` saffron, `danger` red). Everything inline by default; `inline={n}` groups the rest behind "⋮" only when asked. A hand-written action button must use the same filled classes **and `variant="ghost"`** — never `outline`, whose dark styling repaints it. |
 | Data lists | `DataTable` (TanStack) or `Table` + `TableHeader/Body/Row/Head/Cell` | Never a raw `<table>`. The header is the blue brand row; don't colour `TableHead` yourself. Body cells that need left/right alignment say so (`text-left`/`text-right`). |
+| Sortable column header | `DataTableSortButton` (TanStack `column`) / `SortButton` + `useTableSort` (plain `Table`) | Sorting is **opt-in**: lists load in the API's own order and nothing is sorted (no `initialKey` / `initialSorting`) until the user clicks a header. Each sortable header shows ↑ asc / ↓ desc / faint ↕ unsorted; a click cycles asc → desc → unsorted. Server-paginated lists sort on the server (`sort`/`order`; with none sent, `resolveOrderBy` uses the endpoint's fallback order) — client-sorting one page would misorder the rest. Document-order tables (invoice lines, move lists, ranked leaderboards, the topic folder tree) keep their natural order and have no sort arrows. |
 | Status labels | `Badge` (`default`, `secondary`, `success`, `warning`, `info`, `destructive`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
 | Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". |
 | Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
-| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Pill track, emerald active tab. |
+| Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: primary-tinted `rounded-xl` track, active tab is a solid primary chip with white text. |
 | Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Correct `role`/`aria-live` built in. |
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |

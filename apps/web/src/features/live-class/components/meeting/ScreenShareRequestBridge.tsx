@@ -22,7 +22,11 @@ function toastId(studentId: string) {
  * `<LiveClassProvider>`.
  */
 export function ScreenShareRequestBridge({ classId }: { classId: string }) {
-  const { setScreenShareRequests, upsertScreenShareRequest, setActiveSidebar } = useLiveClassState();
+  const { setScreenShareRequests, upsertScreenShareRequest, setActiveSidebar } = useLiveClassState(
+    "setScreenShareRequests",
+    "upsertScreenShareRequest",
+    "setActiveSidebar",
+  );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 

@@ -14,6 +14,8 @@ import { formatDayMonth } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { RankBarList } from "../RankBarList";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 export function AttendanceAnalyticsSection({
   query
@@ -23,6 +25,16 @@ export function AttendanceAnalyticsSection({
   const { data, isLoading, isError, refetch } = useAttendanceAnalyticsQuery(query);
   const tz = useUserTimeZone();
   const k = data?.kpis;
+  const { rows: lowStudents, sortProps } = useTableSort({
+    rows: data?.lowAttendanceStudents,
+    accessors: {
+      attendance: (s) => s.attendancePercent,
+      attended: (s) => s.classesAttended,
+      batch: (s) => s.batchName,
+      lastActive: (s) => s.lastActiveAt,
+      name: (s) => s.name
+    }
+  });
 
   return (
     <SectionCard
@@ -100,15 +112,15 @@ export function AttendanceAnalyticsSection({
               <Table className="w-full min-w-[520px] text-left text-sm">
                 <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
                   <TableRow>
-                    <TableHead className="pb-2">Student</TableHead>
-                    <TableHead className="pb-2">Batch</TableHead>
-                    <TableHead className="pb-2 text-right">Attendance</TableHead>
-                    <TableHead className="pb-2 text-right">Attended</TableHead>
-                    <TableHead className="pb-2 text-right">Last active</TableHead>
+                    <TableHead className="pb-2"><SortButton label="Student" {...sortProps("name")} /></TableHead>
+                    <TableHead className="pb-2"><SortButton label="Batch" {...sortProps("batch")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Attended" {...sortProps("attended")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Last active" {...sortProps("lastActive")} /></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-app-border">
-                  {(data?.lowAttendanceStudents ?? []).map((s) => (
+                  {lowStudents.map((s) => (
                     <TableRow key={s.studentId}>
                       <TableCell className="text-left py-2 font-medium text-app-text">{s.name}</TableCell>
                       <TableCell className="text-left py-2 text-app-muted">{s.batchName ?? "—"}</TableCell>

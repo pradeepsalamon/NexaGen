@@ -7,6 +7,8 @@ import { BarChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { useAcquisitionQuery } from "../../hooks/useAnalyticsApi";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
@@ -19,6 +21,15 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
 
   const totalKnown = data?.knownCount ?? 0;
   const totalUnknown = data?.unknownCount ?? 0;
+  const { rows: sources, sortProps } = useTableSort({
+    rows: data?.sources,
+    accessors: {
+      percent: (s) => s.percent,
+      source: (s) => s.label,
+      trend: (s) => s.deltaPct,
+      users: (s) => s.users
+    }
+  });
 
   return (
     <SectionCard
@@ -58,14 +69,14 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
             <Table className="w-full text-left text-sm">
               <TableHeader>
                 <TableRow className="text-xs uppercase tracking-wide text-app-muted">
-                  <TableHead className="pb-2">Source</TableHead>
-                  <TableHead className="pb-2 text-right">Users</TableHead>
-                  <TableHead className="pb-2 text-right">%</TableHead>
-                  <TableHead className="pb-2 text-right">Trend</TableHead>
+                  <TableHead className="pb-2"><SortButton label="Source" {...sortProps("source")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="Users" {...sortProps("users")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="%" {...sortProps("percent")} /></TableHead>
+                  <TableHead className="pb-2 text-right"><SortButton label="Trend" {...sortProps("trend")} /></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-app-border">
-                {(data?.sources ?? []).map((s) => (
+                {sources.map((s) => (
                   <TableRow key={s.key}>
                     <TableCell className="text-left py-2">
                       <Link

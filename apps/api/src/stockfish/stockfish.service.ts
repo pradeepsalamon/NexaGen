@@ -196,6 +196,63 @@ interface AnalysisTask {
   skillLevel?: number;
   /** Override the pool's default movetime for this one task. */
   movetimeMs?: number;
+  /** Stop once this depth completes, even if movetime has not run out. */
+  depth?: number;
+  /** Search threads for this task (1 under load, more for a lone request). */
+  threads?: number;
+  /** Called with the running result each time the engine reports a new line. */
+  onProgress?: (partial: RawAnalysis) => void;
+}
+
+/** Thrown to a caller whose request was abandoned before the engine answered. */
+export class AnalysisAbortedError extends Error {
+  constructor() {
+    super('Analysis aborted');
+    this.name = 'AnalysisAbortedError';
+  }
+}
+
+/**
+ * A weakened engine picks its move at depth `level + 1` and ignores everything
+ * searched after that, so stopping there returns the same move without waiting
+ * out the clock. Full strength (20) keeps the pool's analysis cap.
+ */
+export function searchDepthFor(skillLevel: number | undefined, maxDepth: number): number | undefined {
+  if (skillLevel !== undefined) {
+    const level = Math.max(0, Math.min(20, Math.round(skillLevel)));
+    if (level < 20) return level + 1;
+  }
+  return maxDepth > 0 ? maxDepth : undefined;
+}
+
+/** Raw engine output → the API shape (SAN replayed from `fen`). */
+function toAnalysisResult(fen: string, raw: RawAnalysis): StockfishAnalysisResult {
+  const pvUci = raw.pv;
+  const bestMoveUci = raw.bestMove || pvUci[0] || '';
+  return {
+    evaluation: raw.evaluation,
+    mate: raw.mate,
+    bestMove: bestMoveUci ? uciLineToSan(fen, [bestMoveUci])[0] : '',
+    bestMoveUci,
+    depth: raw.depth,
+    pv: uciLineToSan(fen, pvUci),
+    pvUci,
+  };
+}
+
+/**
+ * Pass the first update straight through, then at most one per `intervalMs`.
+ * Dropped frames are fine: each one is a complete snapshot and the caller
+ * gets the final result separately.
+ */
+export function throttleProgress<T>(fn: (value: T) => void, intervalMs: number) {
+  let last = -Infinity;
+  return (value: T) => {
+    const now = Date.now();
+    if (now - last < intervalMs) return;
+    last = now;
+    fn(value);
+  };
 }
 
 class EngineInstance {
@@ -205,6 +262,9 @@ class EngineInstance {
   /** True once the UCI handshake and Hash/Threads options have been applied. */
   ready = false;
   currentTask: AnalysisTask | null = null;
+  /** A `stop` was sent; the engine is still busy until its `bestmove` arrives. */
+  private stopping = false;
+  private appliedThreads: number;
   /** Epoch ms when this engine last finished a task (or was spawned). */
   lastUsedAt = Date.now();
   private buffer = '';
@@ -218,6 +278,7 @@ class EngineInstance {
     private onReady: () => void,
     private onDead: (engine: EngineInstance) => void,
   ) {
+    this.appliedThreads = tuning.threads;
     this.process = spawn(path);
 
     // Writing to a crashed engine's stdin emits EPIPE; unhandled, that takes
@@ -275,10 +336,20 @@ class EngineInstance {
         this.ready = true;
         this.lastUsedAt = Date.now();
         this.onReady();
+      } else if (this.stopping && line.startsWith('bestmove')) {
+        // The search we abandoned has wound down; the engine is free again.
+        this.stopping = false;
+        this.clearTimer();
+        this.isBusy = false;
+        this.lastUsedAt = Date.now();
+        this.onReady();
       } else if (this.currentTask && line.startsWith('bestmove')) {
         this.parseBestMove(line);
       } else if (this.currentTask && line.startsWith('info ')) {
         parseUciInfoLine(line, this.result);
+        if (this.currentTask.onProgress && line.includes(' pv ')) {
+          this.currentTask.onProgress({ ...this.result, pv: [...this.result.pv] });
+        }
       }
     }
   }
@@ -316,9 +387,16 @@ class EngineInstance {
         ? 20
         : Math.max(0, Math.min(20, Math.round(task.skillLevel)));
     this.process.stdin?.write(`setoption name Skill Level value ${skill}\n`);
+    const threads = task.threads ?? this.tuning.threads;
+    if (threads !== this.appliedThreads) {
+      this.process.stdin?.write(`setoption name Threads value ${threads}\n`);
+      this.appliedThreads = threads;
+    }
     const movetime = task.movetimeMs ?? this.movetimeMs;
     this.process.stdin?.write(`position fen ${task.fen}\n`);
-    this.process.stdin?.write(`go movetime ${movetime}\n`);
+    // With both limits Stockfish stops at whichever comes first.
+    const depth = task.depth ? `depth ${task.depth} ` : '';
+    this.process.stdin?.write(`go ${depth}movetime ${movetime}\n`);
 
     // A hung engine would otherwise hold the request (and its pool slot)
     // forever. Killing it fires 'close', which rejects the task and respawns.
@@ -326,6 +404,18 @@ class EngineInstance {
       Logger.warn('Stockfish did not answer in time; restarting it', 'StockfishEngine');
       this.process.kill();
     }, movetime + 5000);
+  }
+
+  /**
+   * Abandon the running search with UCI `stop` instead of letting it burn its
+   * full movetime. The engine stays busy until its (discarded) bestmove lands.
+   */
+  cancel(task: AnalysisTask, reason: Error) {
+    if (this.currentTask !== task) return;
+    this.currentTask = null;
+    this.stopping = true;
+    task.reject(reason);
+    this.process.stdin?.write('stop\n');
   }
 
   kill() {
@@ -347,6 +437,10 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   private readonly minEngines: number;
   private readonly movetimeMs: number;
   private readonly moveMovetimeMs: number;
+  /** Engine moves stop at this depth if they get there before movetime. 0 = no cap. */
+  private readonly moveMaxDepth: number;
+  /** Analysis stops at this depth if it gets there before movetime. 0 = no cap. */
+  private readonly maxDepth: number;
   private readonly tuning: { hashMb: number; threads: number };
   private shuttingDown = false;
   /** How long an idle engine stays alive before being reaped (ms). 0 = never reap. */
@@ -355,6 +449,20 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   // Revisiting a position (stepping through a game, re-syncs) is common, so
   // answer it from memory instead of burning another engine slot.
   private readonly cache = new Map<string, StockfishAnalysisResult>();
+  // Identical requests already searching share one engine slot.
+  private readonly inflight = new Map<
+    string,
+    {
+      task: AnalysisTask;
+      refs: number;
+      promise: Promise<RawAnalysis>;
+      listeners: Set<(partial: RawAnalysis) => void>;
+    }
+  >();
+  /** Streaming callers get at most one intermediate update per this many ms. */
+  private static readonly PROGRESS_INTERVAL_MS = 80;
+  /** Most threads a lone request may use; busy pools drop back to `tuning.threads` each. */
+  private readonly maxThreads: number;
   private static readonly CACHE_LIMIT = 500;
 
   constructor() {
@@ -364,7 +472,10 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     this.minEngines = Math.min(env.STOCKFISH_MIN_ENGINES, this.poolSize);
     this.movetimeMs = env.STOCKFISH_MOVETIME;
     this.moveMovetimeMs = env.STOCKFISH_MOVE_MOVETIME;
+    this.moveMaxDepth = env.STOCKFISH_MOVE_MAX_DEPTH;
+    this.maxDepth = env.STOCKFISH_MAX_DEPTH;
     this.idleTimeoutMs = env.STOCKFISH_IDLE_TIMEOUT_S * 1000;
+    this.maxThreads = Math.max(1, Math.min(4, cpus().length));
     this.tuning = {
       hashMb: env.STOCKFISH_HASH_MB,
       // Share the cores across the pool rather than oversubscribing them.
@@ -480,7 +591,17 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
 
   async analyzePosition(
     inputFen: string,
-    opts: { movetimeMs?: number; mode?: 'analysis' | 'move' } = {},
+    opts: {
+      movetimeMs?: number;
+      mode?: 'analysis' | 'move';
+      signal?: AbortSignal;
+      /**
+       * Receives the result-so-far as the search deepens (throttled), so a
+       * panel can show an evaluation within milliseconds instead of waiting
+       * out the movetime. The promise still resolves with the final result.
+       */
+      onUpdate?: (partial: StockfishAnalysisResult) => void;
+    } = {},
   ): Promise<StockfishAnalysisResult> {
     if (!this.path) {
       throw new ServiceUnavailableException(
@@ -492,31 +613,23 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     // "move" = the engine plays: full strength (Skill 20) and a longer think.
     const movetimeMs =
       opts.movetimeMs ?? (opts.mode === 'move' ? this.moveMovetimeMs : this.movetimeMs);
-    const cacheKey = `${movetimeMs}:${fen}`;
+    // Both stop early once deep enough; an engine move is allowed to go deeper.
+    const depth = searchDepthFor(
+      undefined,
+      opts.mode === 'move' ? this.moveMaxDepth : this.maxDepth,
+    );
+    const cacheKey = `${movetimeMs}:${depth ?? ''}:${fen}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
-    const raw = await new Promise<RawAnalysis>((resolve, reject) => {
-      this.taskQueue.push({ fen, resolve, reject, movetimeMs });
-      this.processQueue();
-    });
-
-    const pvUci = raw.pv;
-    const bestMoveUci = raw.bestMove || pvUci[0] || '';
-    const pv = uciLineToSan(fen, pvUci);
-    const bestMove = bestMoveUci
-      ? uciLineToSan(fen, [bestMoveUci])[0]
-      : '';
-
-    const result: StockfishAnalysisResult = {
-      evaluation: raw.evaluation,
-      mate: raw.mate,
-      bestMove,
-      bestMoveUci,
-      depth: raw.depth,
-      pv,
-      pvUci,
-    };
+    const onUpdate = opts.onUpdate;
+    const raw = await this.search(
+      cacheKey,
+      { fen, movetimeMs, depth },
+      opts.signal,
+      onUpdate && ((partial) => onUpdate(toAnalysisResult(fen, partial))),
+    );
+    const result = toAnalysisResult(fen, raw);
 
     this.cache.set(cacheKey, result);
     if (this.cache.size > StockfishService.CACHE_LIMIT) {
@@ -524,6 +637,73 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       if (oldest !== undefined) this.cache.delete(oldest);
     }
     return result;
+  }
+
+  /**
+   * Queue (or join) a search. Aborting detaches this caller; the search itself
+   * is cancelled — dequeued, or `stop`ped on its engine — once nobody waits.
+   */
+  private search(
+    key: string,
+    spec: Pick<AnalysisTask, 'fen' | 'movetimeMs' | 'depth'>,
+    signal?: AbortSignal,
+    onProgress?: (partial: RawAnalysis) => void,
+  ): Promise<RawAnalysis> {
+    if (signal?.aborted) return Promise.reject(new AnalysisAbortedError());
+
+    let entry = this.inflight.get(key);
+    if (!entry) {
+      let task!: AnalysisTask;
+      const listeners = new Set<(partial: RawAnalysis) => void>();
+      const promise = new Promise<RawAnalysis>((resolve, reject) => {
+        task = {
+          ...spec,
+          resolve,
+          reject,
+          onProgress: (partial) => listeners.forEach((listener) => listener(partial)),
+        };
+      });
+      promise.catch(() => undefined).finally(() => {
+        if (this.inflight.get(key) === created) this.inflight.delete(key);
+      });
+      const created = { task, refs: 0, promise, listeners };
+      entry = created;
+      this.inflight.set(key, entry);
+      this.taskQueue.push(task);
+      this.processQueue();
+    }
+
+    const joined = entry;
+    joined.refs++;
+    const listener = onProgress && throttleProgress(onProgress, StockfishService.PROGRESS_INTERVAL_MS);
+    if (listener) joined.listeners.add(listener);
+    return new Promise<RawAnalysis>((resolve, reject) => {
+      const onAbort = () => {
+        if (listener) joined.listeners.delete(listener);
+        joined.refs--;
+        if (joined.refs <= 0) {
+          this.inflight.delete(key);
+          this.cancelTask(joined.task);
+        }
+        reject(new AnalysisAbortedError());
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+      joined.promise.then(resolve, reject).finally(() => {
+        if (listener) joined.listeners.delete(listener);
+        signal?.removeEventListener('abort', onAbort);
+      });
+    });
+  }
+
+  private cancelTask(task: AnalysisTask) {
+    const reason = new AnalysisAbortedError();
+    const queued = this.taskQueue.indexOf(task);
+    if (queued !== -1) {
+      this.taskQueue.splice(queued, 1);
+      task.reject(reason);
+      return;
+    }
+    this.engines.find((e) => e.currentTask === task)?.cancel(task, reason);
   }
 
   /** True when the engine path is configured (engines will spawn on demand). */
@@ -554,6 +734,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
         reject,
         skillLevel: opts.skillLevel,
         movetimeMs: opts.movetimeMs,
+        depth: searchDepthFor(opts.skillLevel, this.moveMaxDepth),
       });
       this.processQueue();
     });
@@ -575,6 +756,9 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     if (availableEngine) {
       const task = this.taskQueue.shift();
       if (task) {
+        // Alone on the box, use the spare cores; any contention means 1 each.
+        const contended = this.taskQueue.length > 0 || this.engines.some((e) => e.isBusy);
+        task.threads ??= contended ? this.tuning.threads : this.maxThreads;
         availableEngine.analyze(task);
       }
       this.ensureWarmStandby();

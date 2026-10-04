@@ -13,11 +13,23 @@ import { useAdminPayrollPeriods } from "../hooks/usePayrollApi";
 import { CreatePeriodDialog } from "./CreatePeriodDialog";
 import { PayrollPeriodStatusBadge } from "./PayrollBadges";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 /** Admin → Finance → Coach Payroll → Periods. */
 export function AdminPayrollPeriodsPanel() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = useAdminPayrollPeriods();
+  const { rows: periods, sortProps } = useTableSort({
+    rows: data?.periods,
+    accessors: {
+      calculated: (p) => p.calculatedAt,
+      finalized: (p) => p.finalizedAt,
+      period: (p) => p.periodType,
+      range: (p) => p.startDate,
+      status: (p) => p.status
+    }
+  });
   const [creating, setCreating] = useState(false);
 
   return (
@@ -49,18 +61,18 @@ export function AdminPayrollPeriodsPanel() {
             <Table className="w-full min-w-[640px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
-                  {["Period", "Range", "Status", "Calculated", "Finalized", ""].map((heading) => (
+                  {([["Period", "period"], ["Range", "range"], ["Status", "status"], ["Calculated", "calculated"], ["Finalized", "finalized"], ["", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
                       className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
                       key={heading}
                     >
-                      {heading}
+                      {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}
                     </TableHead>
                   ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.periods.map((period) => (
+                {periods.map((period) => (
                   <TableRow className="border-b border-app-border last:border-0" key={period.id}>
                     <TableCell className="text-left px-4 py-3 text-sm font-semibold text-app-text">
                       {period.periodType}

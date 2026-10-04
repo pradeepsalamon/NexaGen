@@ -1,7 +1,7 @@
-import { StudentPuzzlesClient } from "@/features/puzzles/components/StudentPuzzlesClient";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Puzzles" };
-
+// Puzzles are classroom material: students only get one when a coach shares it
+// in class (or it is part of a course), so there is no student library.
 export default function StudentPuzzlesPage() {
-  return <StudentPuzzlesClient />;
+  redirect("/student/practice");
 }

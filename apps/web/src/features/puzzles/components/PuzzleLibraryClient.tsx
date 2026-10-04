@@ -14,6 +14,7 @@ import {
   ArchiveRestore,
   Copy,
   Eye,
+  FileUp,
   Pencil,
   Plus,
   Send,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { SortButton, type SortDirection } from "@/components/ui/DataTableSortButton";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
@@ -59,6 +61,7 @@ import {
   puzzleTopicOptions,
   statusBadgeVariant
 } from "../lib/puzzleMeta";
+import { PuzzleImportDialog } from "./PuzzleImportDialog";
 import { TopicManager } from "./TopicManager";
 
 const iconBtn =
@@ -86,6 +89,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
         ];
 
   const stats = usePuzzleStats(role === "admin");
+  const [importOpen, setImportOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -107,6 +111,10 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
               </Link>
             </Button>
           ) : null}
+          <Button variant="outline" onClick={() => setImportOpen(true)}>
+            <FileUp className="mr-2 size-4" strokeWidth={2.5} />
+            Import PGN
+          </Button>
           <Button asChild>
             <Link href={`${basePath}/new`}>
               <Plus className="mr-2 size-4" />
@@ -156,9 +164,12 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
           <TopicManager canManage={role === "admin"} />
         </TabsContent>
       </Tabs>
+      <PuzzleImportDialog open={importOpen} onOpenChange={setImportOpen} role={role} />
     </div>
   );
 }
+
+type PuzzleSortKey = "title" | "puzzleType" | "difficulty" | "status";
 
 function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) {
   const [searchInput, setSearchInput] = useState("");
@@ -168,12 +179,26 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
   const [difficulty, setDifficulty] = useState("");
   const [status, setStatus] = useState("");
   const [page, setPage] = useState(1);
+  // Unsorted (the API's own order) until a header is clicked: asc → desc → off.
+  const [sort, setSort] = useState<{ key: PuzzleSortKey; order: SortDirection } | null>(null);
+  const sortProps = (key: PuzzleSortKey) => ({
+    direction: sort?.key === key ? sort.order : (false as const),
+    onClick: () => {
+      setPage(1);
+      setSort((prev) => {
+        if (prev?.key !== key) return { key, order: "asc" };
+        return prev.order === "asc" ? { key, order: "desc" } : null;
+      });
+    }
+  });
 
   const query: PuzzleListQuery = useMemo(
     () => ({
       page,
       pageSize: 20,
       search: search || undefined,
+      sort: sort?.key,
+      order: sort?.order,
       scope: cfg.scope,
       visibility: cfg.visibility,
       topicId: topicId || undefined,
@@ -181,7 +206,7 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
       difficulty: (difficulty || undefined) as PuzzleListQuery["difficulty"],
       status: (status || undefined) as PuzzleStatus | undefined
     }),
-    [page, search, cfg, topicId, puzzleType, difficulty, status]
+    [page, search, sort, cfg, topicId, puzzleType, difficulty, status]
   );
 
   const { data, isLoading, isPlaceholderData } = usePuzzles(query);
@@ -327,12 +352,12 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
           <Table className={isPlaceholderData ? "opacity-60" : undefined}>
             <TableHeader>
               <TableRow>
-                <TableHead>Puzzle</TableHead>
+                <TableHead><SortButton label="Puzzle" {...sortProps("title")} /></TableHead>
                 <TableHead>Topic</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Difficulty</TableHead>
+                <TableHead><SortButton label="Type" {...sortProps("puzzleType")} /></TableHead>
+                <TableHead><SortButton label="Difficulty" {...sortProps("difficulty")} /></TableHead>
                 <TableHead>Creator</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead><SortButton label="Status" {...sortProps("status")} /></TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>

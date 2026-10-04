@@ -39,39 +39,8 @@ import {
 } from "@/features/puzzles/lib/puzzleMeta";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAssignLivePuzzle } from "../../hooks/useLivePuzzle";
-
-/**
- * The coach's last share options, remembered per browser so a coach who always
- * runs "−10 per wrong move, leaderboard after the end" sets it once. Only the
- * fields they actually changed are kept (and sent), so a puzzle's own points
- * still apply to everything else.
- */
-const LAST_OPTIONS_KEY = "nexa-live-puzzle-share-options";
-
-type ShareOptions = {
-  durationSeconds: string;
-  leaderboard: PuzzleLeaderboardOverride;
-  scoring: PuzzleScoringOverride;
-};
-
-function loadLastOptions(): ShareOptions {
-  const empty: ShareOptions = { durationSeconds: "", leaderboard: {}, scoring: {} };
-  if (typeof window === "undefined") return empty;
-  try {
-    const raw = window.localStorage.getItem(LAST_OPTIONS_KEY);
-    return raw ? { ...empty, ...(JSON.parse(raw) as Partial<ShareOptions>) } : empty;
-  } catch {
-    return empty;
-  }
-}
-
-function saveLastOptions(options: ShareOptions) {
-  try {
-    window.localStorage.setItem(LAST_OPTIONS_KEY, JSON.stringify(options));
-  } catch {
-    // Storage blocked — the options just aren't remembered.
-  }
-}
+import { loadPuzzleCursor, savePuzzleCursor } from "../../lib/puzzleCursor";
+import { loadLastShareOptions, saveLastShareOptions } from "../../lib/puzzleShareOptions";
 
 // Mirrors the API's bounds on `durationSeconds` (live-class-puzzle.ts).
 const TIMER_MIN_SECONDS = 30;
@@ -100,12 +69,16 @@ export function PuzzleAssignModal({
   const [scoringOverride, setScoringOverride] = useState<PuzzleScoringOverride>({});
   const [leaderboardOverride, setLeaderboardOverride] = useState<PuzzleLeaderboardOverride>({});
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const [folderId, setFolderId] = useState<string | null>(null);
+  const [folderId, setFolderIdState] = useState<string | null>(null);
+  const setFolderId = (id: string | null) => {
+    setFolderIdState(id);
+    savePuzzleCursor({ folderId: id });
+  };
   const defaults = usePuzzleScoringSettings(open);
 
   useEffect(() => {
     if (!open) return;
-    const last = loadLastOptions();
+    const last = loadLastShareOptions();
     setDurationSeconds(last.durationSeconds);
     setCustomTimer(
       !!last.durationSeconds && !TIMER_PRESETS.some((p) => p.value === last.durationSeconds)
@@ -145,6 +118,13 @@ export function PuzzleAssignModal({
   );
   const browsingRoot = !folderId && !searching;
 
+  // Reopen where the coach left off, unless that folder has since gone away.
+  useEffect(() => {
+    if (!open || !topics.data) return;
+    const last = loadPuzzleCursor().folderId;
+    setFolderIdState(last && allTopics.some((t) => t.id === last) ? last : null);
+  }, [open, topics.data, allTopics]);
+
   const puzzles = usePuzzles({
     status: "PUBLISHED",
     scope: "all",
@@ -152,7 +132,10 @@ export function PuzzleAssignModal({
     difficulty: difficulty || undefined,
     topicId: folderId ?? undefined,
     topicScope: searching ? "subtree" : "direct",
-    pageSize: folderId ? 100 : 25
+    pageSize: folderId ? 100 : 25,
+    // Always ascending in class, so it matches the order Ask / Load next step through.
+    sort: "title",
+    order: "asc"
   });
 
   const assign = useAssignLivePuzzle(classId);
@@ -167,7 +150,7 @@ export function PuzzleAssignModal({
     !!durationSeconds &&
     (Number(durationSeconds) < TIMER_MIN_SECONDS || Number(durationSeconds) > TIMER_MAX_SECONDS);
 
-  const handleAssign = (puzzleId: string) => {
+  const handleAssign = (puzzleId: string, topicId: string) => {
     if (timerInvalid) return;
     assign.mutate(
       {
@@ -178,7 +161,8 @@ export function PuzzleAssignModal({
       },
       {
         onSuccess: () => {
-          saveLastOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
+          saveLastShareOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
+          savePuzzleCursor({ folderId: topicId, puzzleId });
           onOpenChange(false);
         }
       }
@@ -412,7 +396,7 @@ export function PuzzleAssignModal({
                 <Button
                   type="button"
                   size="sm"
-                  onClick={() => handleAssign(puzzle.id)}
+                  onClick={() => handleAssign(puzzle.id, puzzle.topicId)}
                   disabled={assign.isPending}
                 >
                   Share

@@ -21,6 +21,8 @@ import {
   TableRow
 } from "@/components/ui/Table";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { useCourses, useDeleteCourse, useSetCourseArchived, useSetCoursePublished } from "../hooks/useCoursesApi";
 import { COURSE_STATUS_OPTIONS, courseStatusBadgeVariant } from "../lib/courseMeta";
 
@@ -48,7 +50,15 @@ export function AdminCoursesClient() {
   const { run: runArchive } = useSetCourseArchived();
   const { run: runDelete } = useDeleteCourse();
 
-  const courses = data?.courses ?? [];
+  const { rows: courses, sortProps } = useTableSort({
+    rows: data?.courses,
+    accessors: {
+      createdBy: (c) => c.createdByName,
+      modules: (c) => c.moduleCount,
+      status: (c) => c.status,
+      title: (c) => c.title
+    }
+  });
   const pagination = data?.pagination;
   const hasFilters = Boolean(searchInput || status);
 
@@ -126,10 +136,10 @@ export function AdminCoursesClient() {
             <Table className={isPlaceholderData ? "opacity-60" : undefined}>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Modules</TableHead>
-                  <TableHead>Created by</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead><SortButton label="Course" {...sortProps("title")} /></TableHead>
+                  <TableHead><SortButton label="Modules" {...sortProps("modules")} /></TableHead>
+                  <TableHead><SortButton label="Created by" {...sortProps("createdBy")} /></TableHead>
+                  <TableHead><SortButton label="Status" {...sortProps("status")} /></TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>

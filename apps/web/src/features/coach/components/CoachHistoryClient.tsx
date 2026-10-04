@@ -47,7 +47,7 @@ export function CoachHistoryClient() {
         header: ({ column }) => (
           <DataTableSortButton 
             label="Date & Time" 
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} 
+            column={column}
           />
         ),
         cell: ({ row }) => (
@@ -69,7 +69,7 @@ export function CoachHistoryClient() {
         header: ({ column }) => (
           <DataTableSortButton 
             label="Batch" 
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} 
+            column={column}
           />
         ),
       },
@@ -180,8 +180,7 @@ export function CoachHistoryClient() {
 
   const { table } = useDataTable({
     data: data?.classes || [],
-    columns,
-    initialSorting: [{ id: "date", desc: true }]
+    columns
   });
 
   return (

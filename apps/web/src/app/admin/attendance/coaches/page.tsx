@@ -14,6 +14,8 @@ import { AttendancePercentBar } from "@/features/attendance/components/Attendanc
 import { CoachAttendanceDialog } from "@/features/attendance/components/CoachAttendanceDialog";
 import { BackButton } from "@/components/ui/BackButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 
 export default function AdminCoachTeachingPage() {
@@ -56,6 +58,19 @@ export default function AdminCoachTeachingPage() {
   };
 
   const coaches = data?.coaches ?? [];
+  const { rows: sortedCoaches, sortProps } = useTableSort({
+    rows: data?.coaches,
+    accessors: {
+      actualHours: (c) => c.totalActualHours,
+      avgDuration: (c) => c.avgDurationMinutes,
+      cancelled: (c) => c.cancelledClasses,
+      completed: (c) => c.completedClasses,
+      completion: (c) => c.completionPercent,
+      name: (c) => c.coachName,
+      scheduledHours: (c) => c.totalScheduledHours,
+      total: (c) => c.totalClasses
+    }
+  });
   const totalClasses = coaches.reduce(
     (sum: number, c: AdminCoachTeachingItem) => sum + c.totalClasses,
     0
@@ -192,33 +207,33 @@ export default function AdminCoachTeachingPage() {
                   <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
                     <TableRow>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Coach Name
+                        <SortButton label="Coach Name" {...sortProps("name")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Total Classes
+                        <SortButton label="Total Classes" {...sortProps("total")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Completed
+                        <SortButton label="Completed" {...sortProps("completed")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Cancelled
+                        <SortButton label="Cancelled" {...sortProps("cancelled")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Scheduled Hours
+                        <SortButton label="Scheduled Hours" {...sortProps("scheduledHours")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Actual Hours
+                        <SortButton label="Actual Hours" {...sortProps("actualHours")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Avg Duration
+                        <SortButton label="Avg Duration" {...sortProps("avgDuration")} />
                       </TableHead>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
-                        Completion %
+                        <SortButton label="Completion %" {...sortProps("completion")} />
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody className="divide-y divide-app-border">
-                    {coaches.map((coach: AdminCoachTeachingItem) => (
+                    {sortedCoaches.map((coach: AdminCoachTeachingItem) => (
                       <TableRow
                         key={coach.coachId}
                         role="button"

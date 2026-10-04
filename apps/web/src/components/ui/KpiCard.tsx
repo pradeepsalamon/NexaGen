@@ -51,7 +51,7 @@ export function KpiCard({
           {Icon ? (
             <span
               aria-hidden="true"
-              className="flex size-9 shrink-0 items-center justify-center rounded-full text-primary [background:linear-gradient(var(--color-surface),var(--color-surface))_padding-box,linear-gradient(160deg,rgb(var(--rgb-primary)/0.1),rgb(var(--rgb-primary)),rgb(var(--rgb-secondary)))_border-box] border-2 border-transparent"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] transition-colors group-hover:bg-primary/15"
             >
               <Icon className="size-4" strokeWidth={2.25} />
             </span>

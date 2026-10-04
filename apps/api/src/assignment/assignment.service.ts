@@ -3,11 +3,9 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   AssignmentActivityConfig,
   AssignmentActivityType,
@@ -32,14 +30,14 @@ import type {
   UpdateAssignmentRequest,
   UpdateAssignmentStatusRequest
 } from "@nexa-chess/types";
-import { Prisma, UserRole, UserStatus } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { Chess } from "chess.js";
-import type { AccessTokenPayload } from "../auth/types";
 import { isForeignKeyRestrictError } from "../prisma/prisma-errors";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
+import { authenticateUser } from "../auth/authenticate";
 
 /**
  * The interactive-transaction client as seen inside `prisma.$transaction(cb)`.
@@ -104,7 +102,6 @@ const studentInclude = {
 
 @Injectable()
 export class AssignmentService {
-  private readonly env = getApiEnv();
   private readonly logger = new Logger(AssignmentService.name);
 
   constructor(
@@ -857,21 +854,8 @@ export class AssignmentService {
 
   // ── auth helpers (token-string pattern; no guards) ──
 
-  private async getAuthenticatedUser(accessToken: string | undefined) {
-    if (!accessToken) throw new UnauthorizedException("Access token is missing.");
-
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(accessToken, {
-      secret: this.env.JWT_ACCESS_SECRET
-    });
-
-    if (payload.type !== "access") throw new UnauthorizedException("Invalid token type.");
-
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session.");
-    }
-
-    return user;
+  private getAuthenticatedUser(accessToken: string | undefined) {
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 
   private async getStaffOrCoach(accessToken: string | undefined) {

@@ -2,6 +2,8 @@ import { BadRequestException, ConflictException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PaymentStatus, RefundStatus } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { EntitlementService } from "./entitlement.service";
 import { CreditNoteService } from "./credit-note.service";
@@ -67,6 +69,7 @@ describe("RefundService.create", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RefundService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {
@@ -248,6 +251,7 @@ describe("RefundService.applyProviderState", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RefundService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {

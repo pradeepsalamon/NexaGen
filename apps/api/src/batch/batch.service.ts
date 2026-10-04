@@ -2,11 +2,9 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { getApiEnv } from "@nexa-chess/config/api";
 import type {
   Batch,
   BatchAssignableUsersResponse,
@@ -30,8 +28,8 @@ import {
   resolvePagination
 } from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
-import type { AccessTokenPayload } from "../auth/types";
 import { TrashRepository } from "../trash/trash.repository";
+import { authenticateUser } from "../auth/authenticate";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type BatchWithAssignments = Prisma.BatchGetPayload<{
@@ -65,7 +63,6 @@ const batchInclude = {
 
 @Injectable()
 export class BatchService {
-  private readonly env = getApiEnv();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -99,7 +96,7 @@ export class BatchService {
     const orderBy = resolveOrderBy(
       query,
       ["name", "status", "createdAt", "startsAt"] as const,
-      [{ status: "asc" }, { createdAt: "desc" }]
+      [{ status: "asc" }, { name: "asc" }]
     ) as Prisma.BatchOrderByWithRelationInput | Prisma.BatchOrderByWithRelationInput[];
 
     const [batches, total] = await Promise.all([
@@ -339,29 +336,8 @@ export class BatchService {
     return { ok: true };
   }
 
-  private async getAuthenticatedUser(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
-
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-      accessToken,
-      { secret: this.env.JWT_ACCESS_SECRET }
-    );
-
-    if (payload.type !== "access") {
-      throw new UnauthorizedException("Invalid token type.");
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub }
-    });
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session.");
-    }
-
-    return user;
+  private getAuthenticatedUser(accessToken: string | undefined) {
+    return authenticateUser(this.jwtService, this.prisma, accessToken);
   }
 
   private assertCanManageBatches(user: AuthenticatedUser) {

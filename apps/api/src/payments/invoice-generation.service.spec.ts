@@ -11,6 +11,8 @@ import { INVOICE_QUEUE } from "./invoice-queue";
 import { InvoiceService } from "./invoice.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { MessagingRuleService } from "../messaging/messaging-rule.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { WhatsAppService } from "../whatsapp/whatsapp.service";
 
@@ -44,6 +46,7 @@ describe("InvoiceGenerationService", () => {
     warnIfUnconfigured: jest.Mock;
   };
   let email: { sendInvoiceIssued: jest.Mock };
+  let jobLocks: ReturnType<typeof createJobLockStub>;
   let queue: { add: jest.Mock };
   let messaging: { dispatchInBackground: jest.Mock };
   let rules: { getRule: jest.Mock };
@@ -106,10 +109,12 @@ describe("InvoiceGenerationService", () => {
         .mockResolvedValue({ ok: true, mediaId: "media_abc123" })
     };
 
+    jobLocks = createJobLockStub();
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         InvoiceGenerationService,
         InvoiceAuditService,
+        { provide: JobLockService, useValue: jobLocks },
         { provide: InvoiceService, useValue: { getById: jest.fn().mockResolvedValue(invoice) } },
         { provide: CreditNoteService, useValue: { getById: jest.fn() } },
         { provide: InvoicePdfService, useValue: pdf },
@@ -215,6 +220,7 @@ describe("InvoiceGenerationService", () => {
         { provide: MessagingDispatchService, useValue: messaging },
         { provide: MessagingRuleService, useValue: rules },
         { provide: WhatsAppService, useValue: whatsapp },
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prisma }
       ]
     }).compile();
@@ -274,7 +280,7 @@ describe("InvoiceGenerationService", () => {
   });
 
   it("does not sweep when another container holds the lock", async () => {
-    prisma.$queryRaw.mockResolvedValue([{ locked: false }]);
+    jobLocks.runExclusive.mockResolvedValueOnce({ acquired: false });
 
     await service.sweepFailedGenerations();
 
@@ -341,6 +347,7 @@ describe("InvoiceGenerationService queueing", () => {
           invoiceDate: "2026-09-14T10:32:00.000Z"
         })
       } as never,
+      createJobLockStub() as never,
       { dispatchInBackground: jest.fn() } as never,
       {
         getRule: jest.fn().mockResolvedValue({
@@ -456,6 +463,7 @@ describe("InvoiceGenerationService WhatsApp delivery", () => {
       { sendInvoiceIssued: jest.fn().mockResolvedValue(true) } as never,
       { add: jest.fn() } as never,
       { getById: jest.fn().mockResolvedValue(invoice) } as never,
+      createJobLockStub() as never,
       messaging as never,
       rules as never,
       {

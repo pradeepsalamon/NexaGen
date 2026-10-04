@@ -7,6 +7,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import {
   collectPuzzleTopicSubtreeIds,
+  compareNatural,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
   type CreatePuzzleTopicRequest,
@@ -61,6 +62,8 @@ export class PuzzleTopicService {
       include: topicInclude,
       orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
     });
+    // Postgres orders names as text ("Set 10" before "Set 2"); re-sort naturally.
+    rows.sort((x, y) => x.sortOrder - y.sortOrder || compareNatural(x.name, y.name));
     return { topics: rows.map((row) => this.toDto(row, user)) };
   }
 

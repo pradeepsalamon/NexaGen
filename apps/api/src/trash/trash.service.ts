@@ -3,21 +3,21 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { UserRole, UserStatus } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import { parseDurationMs } from "../auth/auth.utils";
-import type { AccessTokenPayload } from "../auth/types";
 import { isForeignKeyRestrictError } from "../prisma/prisma-errors";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import type { TrashAction } from "../prisma/soft-delete.extension";
 import { UploadService } from "../upload/upload.service";
 import type { TrashBulkActionDto } from "./dto/trash-bulk-action.dto";
 import type { TrashQueryDto } from "./dto/trash-query.dto";
 import { TrashRepository } from "./trash.repository";
+import { authenticateUser } from "../auth/authenticate";
 
 type TrashListItem = {
   deletedAt: Date | string | null;
@@ -26,8 +26,6 @@ type TrashListItem = {
   id: string;
   title: string;
 };
-
-const cleanupExpiredTrashLockId = 73002001;
 
 // The trash list merges rows from six tables in memory, so a naive offset page
 // would scan `page * pageSize` rows per table (AUDIT M9). Cap the per-table scan:
@@ -44,6 +42,7 @@ export class TrashService {
   private readonly logger = new Logger(TrashService.name);
 
   constructor(
+    private readonly jobLocks: JobLockService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly trashRepository: TrashRepository,
@@ -56,7 +55,7 @@ export class TrashService {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     const sortBy = this.toSortBy(query.sortBy);
-    const sortOrder = query.sortOrder ?? "desc";
+    const sortOrder = query.sortOrder ?? "asc";
     const result = await this.trashRepository.list({
       deletedById: query.deletedById,
       deletedFrom: this.toDate(query.deletedFrom),
@@ -111,6 +110,7 @@ export class TrashService {
   ) {
     const user = await this.getSuperAdmin(accessToken);
     await this.trashRepository.findDeleted(entity, id);
+    await this.assertNoRetainedHistory([{ entity, id }]);
 
     try {
       await this.prisma.$transaction(async (transaction) => {
@@ -136,6 +136,7 @@ export class TrashService {
     payload: TrashBulkActionDto
   ) {
     const user = await this.getSuperAdmin(accessToken);
+    await this.assertNoRetainedHistory(payload.items);
 
     // A selection can contain both a User and a row that cascades from it (e.g.
     // their StudentProfile). Delete child rows before their parents so the
@@ -181,6 +182,38 @@ export class TrashService {
     return { ok: true, deletedCount };
   }
 
+  private async assertNoRetainedHistory(items: Array<{ entity: string; id: string }>) {
+    const userIds = items.filter((item) => item.entity === "User").map((item) => item.id);
+    const retained = await this.trashRepository.findUserIdsWithRetainedHistory(userIds);
+    if (retained.size > 0) {
+      throw new BadRequestException(
+        "This user has payment, invoice or payroll history, which is kept permanently. They can stay in the trash or be restored."
+      );
+    }
+  }
+
+  // A user with financial history stays in the trash, and so does the rest of their delete group.
+  private async withoutRetainedHistory<T extends { deleteGroupId: string | null; entity: string; id: string }>(
+    items: T[]
+  ): Promise<T[]> {
+    const retained = await this.trashRepository.findUserIdsWithRetainedHistory(
+      items.filter((item) => item.entity === "User").map((item) => item.id)
+    );
+    if (retained.size === 0) return items;
+
+    const keptGroups = new Set(
+      items
+        .filter((item) => item.entity === "User" && retained.has(item.id) && item.deleteGroupId)
+        .map((item) => item.deleteGroupId)
+    );
+    this.logger.log(`Keeping ${retained.size} trashed user(s) with financial history.`);
+    return items.filter(
+      (item) =>
+        !(item.entity === "User" && retained.has(item.id)) &&
+        !(item.deleteGroupId && keptGroups.has(item.deleteGroupId))
+    );
+  }
+
   /** Lower = delete earlier. Children before the parents that cascade to them. */
   private static deleteOrder(entity: string): number {
     switch (entity) {
@@ -201,7 +234,9 @@ export class TrashService {
 
   async emptyTrash(accessToken: string | undefined) {
     const user = await this.getSuperAdmin(accessToken);
-    const items = await this.trashRepository.findExpired(new Date());
+    const items = await this.withoutRetainedHistory(
+      await this.trashRepository.findExpired(new Date())
+    );
     const deletedCount = await this.hardDeleteInChunks(items, user.id, "PERMANENT_DELETE");
     return { deletedCount, ok: true };
   }
@@ -210,22 +245,15 @@ export class TrashService {
     const retentionMs = parseDurationMs(`${this.getRetentionDays()}d`, 30 * 86_400_000);
     const cutoff = new Date(Date.now() - retentionMs);
 
-    // Session-scoped advisory lock so no other instance sweeps concurrently,
-    // held across all chunks (AUDIT M11 — the whole delete used to run in one
-    // long transaction, risking lock contention / timeouts at volume).
-    const [lock] = await this.prisma.$queryRaw<[{ locked: boolean }]>`
-      SELECT pg_try_advisory_lock(${cleanupExpiredTrashLockId}) AS locked
-    `;
-    if (!lock?.locked) {
-      return 0;
-    }
-
-    try {
-      const items = await this.trashRepository.findExpired(cutoff);
-      return await this.hardDeleteInChunks(items, null, "AUTOMATIC_CLEANUP");
-    } finally {
-      await this.prisma.$queryRaw`SELECT pg_advisory_unlock(${cleanupExpiredTrashLockId})`;
-    }
+    // One sweeper across instances, held across all chunks (AUDIT M11 — the
+    // whole delete used to run in one long transaction).
+    const outcome = await this.jobLocks.runExclusive(JOB_LOCKS.trashCleanup, async () => {
+      const items = await this.withoutRetainedHistory(
+        await this.trashRepository.findExpired(cutoff)
+      );
+      return this.hardDeleteInChunks(items, null, "AUTOMATIC_CLEANUP");
+    });
+    return outcome.acquired ? outcome.result : 0;
   }
 
   /**
@@ -298,31 +326,10 @@ export class TrashService {
   }
 
   private async getSuperAdmin(accessToken: string | undefined) {
-    if (!accessToken) {
-      throw new UnauthorizedException("Access token is missing.");
-    }
-
-    const payload = await this.jwtService.verifyAsync<AccessTokenPayload>(
-      accessToken,
-      { secret: this.env.JWT_ACCESS_SECRET }
-    );
-
-    if (payload.type !== "access") {
-      throw new UnauthorizedException("Invalid token type.");
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub }
-    });
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session.");
-    }
-
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
     if (user.role !== UserRole.SUPER_ADMIN) {
       throw new ForbiddenException("Only Super Admin can access Trash.");
     }
-
     return user;
   }
 

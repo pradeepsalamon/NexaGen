@@ -95,7 +95,7 @@ export function MediaDeviceProvider({ children }: { children: ReactNode }) {
   const room = useRoomContext();
   const connectionState = useConnectionState();
   const connected = connectionState === ConnectionState.Connected;
-  const { settings, setActiveSidebar } = useLiveClassState();
+  const { settings, setActiveSidebar } = useLiveClassState("settings", "setActiveSidebar");
   const user = useAuthStore((s) => s.user);
   const isStaff = user?.role === "COACH" || isStaffRole(user?.role);
 
@@ -296,6 +296,58 @@ export function MediaDeviceProvider({ children }: { children: ReactNode }) {
       trackCleanups.forEach((cleanup) => cleanup());
     };
   }, [applySavedDevice, clearIssue, openSettings, reportIssue, room]);
+
+  // ── Coming back from the background (mobile). The OS mutes or ends capture
+  //    while the browser is backgrounded, and LiveKit's own recovery misses
+  //    cases: it pauses upstream after 5s of OS mute and never resumes once
+  //    the track is restarted, and it skips a user-muted mic that is merely
+  //    OS-muted — so unmuting later sends silence.
+  useEffect(() => {
+    if (!connected) return;
+    let timer = 0;
+
+    const recover = async (attempt: number) => {
+      let failed = false;
+      for (const kind of ["audioinput", "videoinput"] as const) {
+        const pub = room.localParticipant.getTrackPublication(KIND_TO_SOURCE[kind]);
+        const track = pub?.track as LocalTrack | undefined;
+        const mst = track?.mediaStreamTrack;
+        if (!track || !mst) continue;
+        const dead = mst.readyState !== "live" || mst.muted;
+        try {
+          // A muted mic that ended is re-acquired by LiveKit on unmute; one that
+          // is only OS-muted is not. A muted camera is left alone.
+          const restart = track.isMuted
+            ? kind === "audioinput" && mst.readyState === "live" && mst.muted
+            : dead;
+          if (restart) await track.restartTrack();
+          if (track.isUpstreamPaused) await track.resumeUpstream();
+        } catch (error) {
+          failed = true;
+          // iOS can refuse capture for a moment right after resuming.
+          if (attempt > 0) reportIssue(kind, error);
+        }
+      }
+      if (failed && attempt === 0) {
+        timer = window.setTimeout(() => void recover(1), 1500);
+      }
+    };
+
+    const onResume = () => {
+      if (document.visibilityState !== "visible") return;
+      window.clearTimeout(timer);
+      // Give LiveKit's own visibility restart a moment to run first.
+      timer = window.setTimeout(() => void recover(0), 800);
+    };
+
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("pageshow", onResume);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("pageshow", onResume);
+    };
+  }, [connected, reportIssue, room]);
 
   // ── Hot-plug: announce removed / added devices and restore the saved one.
   useEffect(() => {

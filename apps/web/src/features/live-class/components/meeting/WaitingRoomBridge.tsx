@@ -21,8 +21,12 @@ function toastId(studentId: string) {
  * `<LiveClassProvider>`.
  */
 export function WaitingRoomBridge({ classId }: { classId: string }) {
-  const { setWaitingRoomEntries, upsertWaitingRoomEntry, removeWaitingRoomEntry, setActiveSidebar } =
-    useLiveClassState();
+  const { setWaitingRoomEntries, upsertWaitingRoomEntry, removeWaitingRoomEntry, setActiveSidebar } = useLiveClassState(
+    "setWaitingRoomEntries",
+    "upsertWaitingRoomEntry",
+    "removeWaitingRoomEntry",
+    "setActiveSidebar",
+  );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 

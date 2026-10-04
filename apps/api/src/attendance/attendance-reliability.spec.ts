@@ -2,7 +2,10 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { ForbiddenException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus, LiveSessionStatus, AttendanceEventType } from "@prisma/client";
+import { AttendanceMonitoringService } from "./attendance-monitoring.service";
 import { AttendanceService } from "./attendance.service";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 
 // P0 reliability Phase 5 (RELIABILITY_DESIGN.md §4.5): admin-only, cross-class
@@ -17,8 +20,8 @@ type MockPrismaService = {
   user: { findUnique: jest.Mock };
 };
 
-describe("AttendanceService.getLiveReliabilityOverview", () => {
-  let service: AttendanceService;
+describe("AttendanceMonitoringService.getLiveReliabilityOverview", () => {
+  let service: AttendanceMonitoringService;
   let jwtService: { verifyAsync: jest.Mock };
   let prismaService: MockPrismaService;
 
@@ -57,13 +60,15 @@ describe("AttendanceService.getLiveReliabilityOverview", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        AttendanceMonitoringService,
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prismaService },
         { provide: JwtService, useValue: jwtService },
       ],
     }).compile();
 
-    service = module.get(AttendanceService);
+    service = module.get(AttendanceMonitoringService);
   });
 
   it("rejects a coach", async () => {
@@ -215,8 +220,8 @@ describe("AttendanceService.getLiveReliabilityOverview", () => {
 
 // P0 reliability Phase 6 (RELIABILITY_DESIGN.md §6): admin-only,
 // webhook-loss / heartbeat-fallback rate over a trailing window.
-describe("AttendanceService.getReliabilityMetrics", () => {
-  let service: AttendanceService;
+describe("AttendanceMonitoringService.getReliabilityMetrics", () => {
+  let service: AttendanceMonitoringService;
   let jwtService: { verifyAsync: jest.Mock };
   let prismaService: {
     liveSession: { findMany: jest.Mock };
@@ -241,13 +246,15 @@ describe("AttendanceService.getReliabilityMetrics", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        AttendanceMonitoringService,
         AttendanceService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: prismaService },
         { provide: JwtService, useValue: jwtService },
       ],
     }).compile();
 
-    service = module.get(AttendanceService);
+    service = module.get(AttendanceMonitoringService);
   });
 
   it("rejects a coach", async () => {

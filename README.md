@@ -29,6 +29,12 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
 - Password reset magic link sent through SMTP with neutral account-existence messaging and timing
 - Login timing protection for unknown-email and wrong-password attempts
 - Batch management with soft delete into the Super Admin Trash workspace
+- Demo classes (`/admin/demo-classes`, public `/demo/<id-or-slug>`): per-class
+  access (anyone with the link / link + passcode / invited guests only, where an
+  uninvited guest waits for the coach to admit them), guests invited from leads
+  or by phone/email with a personal join link, and **static demo schedules**:
+  recurring weekly slots behind one permanent `/demo/<slug>` link, sessions
+  generated two weeks ahead. See CLAUDE.md §3.6k.
 - Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
 - Assignments: admin-authored shared library + coach-authored items, deployed
   to batches with a due date (`assignment` API module, `features/assignments` on
@@ -41,7 +47,11 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
     scores `correct required moves / required moves`. When the assignment allows
     hints, `POST .../:attemptId/hint` returns a progressive hint derived from the
     stored line (piece → origin square → full move) and counts against
-    `hintsUsed`.
+    `hintsUsed`. **Any mate wins**: when the stored line ends in checkmate, a
+    different legal mating move at any student ply also completes it
+    (`isAcceptedMateAlternative`, mirrored client-side; shared cases in
+    `SOLVE_LINE_MATE_FIXTURES`). A line that doesn't end in mate is never
+    reinterpreted.
   - `PLAY_VS_ENGINE` — the student plays a position out against the pooled
     Stockfish engine (skill level configurable); scored from the game result,
     with move accuracy computed from per-move engine analysis (falls back to
@@ -77,6 +87,10 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   `ARCHIVED` (all reversible), with a separate soft delete through the Trash
   module. Students browse published puzzles and solve them; `PuzzleAttempt`
   rows are scored by the same `AssignmentEvaluationService` SOLVE_LINE engine.
+  A puzzle with no text hints offers that engine's progressive server hint
+  (piece → origin square → arrow). `puzzles.title` uses the ICU
+  `natural_sort` collation, so the library sorts and pages titles in SQL in
+  natural order ("Puzzle 2" before "Puzzle 10").
 - Course Library: a curated, ordered playlist of *existing* library content —
   each `CourseModule` references an Assignment or a Puzzle (never new authored
   content) — `course` API module, `features/courses` on web, `/admin/courses`,
@@ -114,6 +128,14 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   can ask Stockfish for a hint or have it play the move at a chosen strength
   (needs `STOCKFISH_PATH`). `LiveClassSimul` / `LiveClassSimulGame` are
   per-class operational rows — not soft-deletable, not trash-registered.
+- Live-class student matches: students play each other while the coach
+  watches every board (`API_ROUTES.liveClass.match*`, `apps/api/src/student-match/`,
+  toolbar "Student matches"). A round pairs players automatically (Swiss-style,
+  no rematches), by the coach, or by the students themselves (challenge →
+  accept), and the coach can switch mode or pair the waiting students mid-round.
+  Optional clock (increment, server-validated flags). `LiveClassMatchRound` /
+  `LiveClassMatchGame` / `LiveClassMatchChallenge` are per-class operational
+  rows — not soft-deletable, not trash-registered.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student
@@ -159,7 +181,7 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   Every metric's calculation is surfaced in a "How is this calculated?" tooltip.
   New infra: `AnalyticsEvent` + `StorageSnapshot` models, a global
   `ActivityTrackingInterceptor` (throttled `User.lastActiveAt`), a daily
-  storage-snapshot cron (`AnalyticsScheduler`, advisory lock `73002050`), and an
+  storage-snapshot cron (`AnalyticsScheduler`, job lock `analytics.storage-snapshot`), and an
   in-process 5-minute cache for the heavier sections (`?fresh=1` bypasses).
   Config: `ANALYTICS_STORAGE_WARN_PERCENT` (70), `ANALYTICS_STORAGE_CRITICAL_PERCENT`
   (85), `ANALYTICS_LOW_ATTENDANCE_PERCENT` (75), `ANALYTICS_INACTIVE_DAYS` (30),
@@ -284,6 +306,10 @@ ANALYTICS_STORAGE_CRITICAL_PERCENT=85
 ANALYTICS_LOW_ATTENDANCE_PERCENT=75
 ANALYTICS_INACTIVE_DAYS=30
 ANALYTICS_CACHE_TTL_SECONDS=300   # 0 disables the analytics in-process cache
+
+# Live-class auto-end (per-minute sweep; 0 disables either rule)
+LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES=10   # coach out of the room this long mid-class
+LIVE_CLASS_MAX_OVERRUN_MINUTES=60          # this far past the scheduled end, coach or not
 ```
 
 For production, replace JWT secrets with long random values and set `FRONTEND_URL` / `CORS_ORIGIN` to the live frontend origin.
@@ -334,6 +360,10 @@ npm run build:prod
 
 More Prisma notes live in `apps/api/prisma/README.md`.
 
+## Data Retention
+
+A daily sweep (`apps/api/src/retention/`, 4 AM, single-runner via the `retention.sweep` job lock) deletes rows nothing reads any more: expired login sessions and password-reset / email-verification tokens (1 day after expiry), LiveKit webhook dedupe rows older than 30 days, and anonymous visitor sessions idle for 180 days that never became a lead. It deletes in batches of 5,000 so a large first run never holds long locks. The rules live in `retention.rules.ts`. Business records (chat, notifications, message deliveries, analytics events, payments) are not touched.
+
 ## Trash And Soft Delete
 
 Soft-delete behavior is centralized in `apps/api/src/prisma/soft-delete.extension.ts` and exposed through the Trash module in `apps/api/src/trash`. Current trash entities are `User`, `StudentProfile`, `CoachProfile`, `Batch`, `BatchCoach`, `BatchStudent`, `Puzzle`, `PuzzleTopic`, `Course`, and `CourseModule`.
@@ -355,9 +385,11 @@ CREATE UNIQUE INDEX "example_key" ON "table"("field") WHERE "isDeleted" = false;
 
 A cascading delete (`cascadeSoftDelete`) tags the parent and its children with one `deleteGroupId`; `TrashRepository.restore` on any member of the group brings the whole group back. Deleting a User cascades to its student/coach profile; deleting a Batch cascades to its coach/student assignments.
 
+**A user with financial or payroll history is never hard-deleted.** Orders, payments, invoices, credit notes, refunds, entitlements, subscriptions, discount redemptions, manual payment records and coach compensation/payroll rows reference `User` with `onDelete: Restrict` (never `Cascade`). The retention sweep and "Empty trash" skip such a user together with the rest of their delete group, and a manual permanent delete returns 400. They can stay in the trash or be restored. `TrashRepository.findUserIdsWithRetainedHistory` is the list of tables checked — extend it when a new financial model references `User`.
+
 The Trash list merges rows from all trash-entity tables in memory. Sorting and paging stay exact within the newest `MAX_TRASH_SCAN` (500) deleted rows per entity; deeper offsets are not supported.
 
-Automatic cleanup uses a PostgreSQL transaction advisory lock so horizontally scaled API instances do not run the cleanup concurrently.
+Automatic cleanup takes the `trash.cleanup` job lock (`JobLockService`) so horizontally scaled API instances do not run the cleanup concurrently.
 
 ## Background Jobs (BullMQ)
 
@@ -517,7 +549,7 @@ Things worth knowing before you touch it:
 - **Sends are idempotent** through a `dedupeKey` unique per `(channel, key)`.
   Because the row is written *before* anything is sent, a repeated sweep
   collides on insert rather than racing a second send. The two lead-time crons
-  take a Postgres advisory lock first, and the outbox worker claims rows with
+  take a job lock (`JobLockService`) first, and the outbox worker claims rows with
   `FOR UPDATE SKIP LOCKED` + a `claimedAt` stamp (stale claims reaped after 5
   minutes), so a second API container takes different rows instead of the same
   ones.
@@ -898,10 +930,10 @@ audit trail. Routes are `API_ROUTES.invoices.*` / `.adminInvoices.*`.
 
 | Job | Cadence | What it does |
 |---|---|---|
-| `PaymentReconciliationService.sweep` | 5 min (advisory lock `73002060`) | Asks each gateway about in-flight payments; expires unpaid orders past their TTL |
+| `PaymentReconciliationService.sweep` | 5 min (job lock `payments.reconciliation`) | Asks each gateway about in-flight payments; expires unpaid orders past their TTL |
 | `PaymentWebhookService.recoverFailedEvents` | 10 min | Replays stored webhook events whose handler threw |
 | `InvoiceProcessor` (BullMQ `invoice` queue) | on demand | Renders + archives an invoice or credit-note PDF, then emails and WhatsApps it. 5 attempts with exponential backoff; failures kept 7 days |
-| `InvoiceGenerationService.sweepFailedGenerations` | 10 min (advisory lock `73002070`) | Retries failed/pending invoice PDFs, and reclaims rows stuck `GENERATING` over 15 min |
+| `InvoiceGenerationService.sweepFailedGenerations` | 10 min (job lock `invoice.pdf-sweep`) | Retries failed/pending invoice PDFs, and reclaims rows stuck `GENERATING` over 15 min |
 | `RefundService.reconcilePending` | 30 min | Reads the gateway for refunds it has not reported on |
 | `InvoiceGenerationService.sweepUnsentEmails` | 30 min | Re-sends invoice emails that failed after a successful render |
 | `EntitlementService.expireLapsed` | hourly | Marks entitlements past `endsAt` as expired |
@@ -1120,9 +1152,32 @@ The provided `docker-compose.yml` has been hardened for production environments 
 - **LiveKit Security**: LiveKit reads its API keys securely via environment variables (`LIVEKIT_KEYS`) rather than hardcoded configuration files, eliminating placeholder values.
 - **Service Isolation**: PostgreSQL and Redis are bound exclusively to `127.0.0.1` or internal Docker networks, reducing the external attack surface.
 - **Health Checks**: Robust container health checks have been added for all services (API, Web, LiveKit, Redis, and PostgreSQL) ensuring that dependent services wait for their prerequisites before starting.
+- **Error Reporting (Sentry)**: Optional. Set `SENTRY_DSN` (API, runtime) and `NEXT_PUBLIC_SENTRY_DSN` (web, build time) in the root `.env` — create one Sentry project per app. Add `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`, `SENTRY_WEB_PROJECT` to upload web source maps during `docker compose build`. The deploy script tags every error with the commit SHA (`SENTRY_RELEASE`). Only unexpected errors are reported, and events are scrubbed to the user id: no names, emails, cookies, request bodies, query strings or local variables. See CLAUDE.md §3.6d2.
+- **API Health Endpoints**: `GET /health` is liveness only (no dependency touched). `GET /health/ready` runs `SELECT 1` against PostgreSQL and pings Redis, each with a 2s timeout: `200 ok`, `200 degraded` (Redis down; the API still serves because Redis is optional), or `503 unavailable` (PostgreSQL down). Both are public, unauthenticated, not rate limited and kept out of the HTTP access log; failure reasons are logged, never returned. The `api` container healthcheck and the deploy gate use `/health/ready`, and it is the URL to point an external uptime monitor at.
 - **Persistence**: Both PostgreSQL and Redis use Docker named volumes for persistent data storage across restarts.
+- **CI Gate**: A push to `main` deploys only after `.github/workflows/ci.yml` passes on that commit: typecheck, lint, API unit tests, every migration applied to an empty PostgreSQL plus a `prisma migrate diff --exit-code` check that `schema.prisma` has no unmigrated changes, and `npm run build`. The same workflow runs on pull requests into `main`/`dev`.
 - **Pinned Versions**: Container images are explicitly pinned to stable versions that support `ARM64` architecture (e.g. `postgres:15.6-alpine`, `redis:7.2.4-alpine`, `livekit/livekit-server:v1.6.0`).
 
 ## Project Rule
 
 When implementing or updating a feature, update the relevant README in the same change so setup, commands, env variables, and behavior stay current.
+
+### Engine pool & benchmarks
+
+The analysis panel uses `POST /stockfish/analyze/stream` (server-sent events,
+`StockfishStreamEvent`): an `info` frame each time the search deepens (at most
+one per 80 ms), then `done` with the same final result `POST /stockfish/analyze`
+returns. The first evaluation shows in milliseconds instead of after the full
+`STOCKFISH_MOVETIME`. The endpoint sends `X-Accel-Buffering: no`; any proxy in
+front of the API must not buffer `text/event-stream`. If the stream fails (401,
+older API), the panel falls back to the one-shot request. Scores are from the
+side to move (UCI convention); the panel flips them to White's view.
+
+`POST /stockfish/analyze` is cancellable: when the client aborts (the position
+changed) a queued search is dropped and a running one receives UCI `stop`;
+identical in-flight requests share one search; a request that has the box to
+itself gets up to `min(4, cpus)` threads, contended ones get 1. Benchmarks:
+`node scripts/engine-bench/bench.mjs --bin <stockfish> [--warm --threads N --hash MB --multipv N --concurrency N]`
+and `scripts/engine-bench/pool-scenario.ts` / `stream-latency.ts` (run with
+`ts-node` from `apps/api`) for the rapid-stepping and time-to-first-eval
+scenarios against the real `StockfishService`.

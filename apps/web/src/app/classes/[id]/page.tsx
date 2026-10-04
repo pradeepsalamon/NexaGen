@@ -14,6 +14,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { formatFullDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { useStartLiveClass } from "../../../features/live-class/hooks/useLiveClassApi";
+import { EndClassButton } from "@/features/live-class/components/EndClassButton";
 import { LiveClassMonitor } from "@/features/attendance/components/LiveClassMonitor";
 import { LiveClassSettingsSection } from "@/features/live-class/settings/LiveClassSettingsSection";
 
@@ -114,14 +115,15 @@ export default function ClassDetailsPage() {
                 ) : (cls.status === "IN_PROGRESS" || cls.status === "LIVE") ? (
                   <>
                     <h2 className="text-2xl font-bold text-app-text">Class is Live!</h2>
-                    <p className="text-app-muted">The live session is currently active.</p>
-                    <Button 
-                      className="mt-4 w-full sm:w-auto" 
-                      size="lg"
-                      onClick={() => router.push(`/live-class/${id}`)}
-                    >
-                      Return to Live Class
-                    </Button>
+                    <p className="text-app-muted">
+                      The live session is currently active. If you left without ending it, rejoin or end it here.
+                    </p>
+                    <div className="mt-4 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                      <Button size="lg" onClick={() => router.push(`/live-class/${id}`)}>
+                        Return to Live Class
+                      </Button>
+                      <EndClassButton classId={id} size="lg" />
+                    </div>
                   </>
                 ) : (
                   <>
@@ -139,13 +141,12 @@ export default function ClassDetailsPage() {
                   <>
                     <h2 className="text-2xl font-bold text-app-text">Class is Live!</h2>
                     <p className="text-app-muted">The coach has started the live session. Join now!</p>
-                    <Button 
-                      className="mt-4 w-full sm:w-auto" 
-                      size="lg"
-                      onClick={() => router.push(`/live-class/${id}`)}
-                    >
-                      Join Live Class
-                    </Button>
+                    <div className="mt-4 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+                      <Button size="lg" onClick={() => router.push(`/live-class/${id}`)}>
+                        Join Live Class
+                      </Button>
+                      {isStaff && <EndClassButton classId={id} size="lg" />}
+                    </div>
                   </>
                 ) : cls.status === "SCHEDULED" ? (
                   <>

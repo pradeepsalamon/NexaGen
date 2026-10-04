@@ -7,7 +7,8 @@ import { ChevronDown, FileUp, RotateCcw, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
 import { PracticeBoard, type PracticeBoardMove } from "@/features/chessboard/components/board/PracticeBoard";
-import { parsePgnOrFen, type ImportedLine } from "../lib/importLine";
+import { Select } from "@/components/ui/Select";
+import { parsePgnGames, parsePgnOrFen, type ImportedLine } from "../lib/importLine";
 
 interface Props {
   startFen: string;
@@ -101,13 +102,23 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [games, setGames] = useState<{ raw: string; titles: string[] } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const apply = (raw: string) => {
+  const apply = (raw: string, gameIndex?: number) => {
     try {
-      onImport(parsePgnOrFen(raw));
+      if (gameIndex === undefined) {
+        const found = raw.includes("[") ? parsePgnGames(raw) : [];
+        if (found.length > 1) {
+          setGames({ raw, titles: found.map((g) => g.title) });
+          setError(null);
+          return;
+        }
+      }
+      onImport(parsePgnOrFen(raw, gameIndex));
       setError(null);
       setText("");
+      setGames(null);
       setOpen(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't import that.");
@@ -137,9 +148,28 @@ function ImportPanel({ onImport }: { onImport: (line: ImportedLine) => void }) {
             className="font-mono text-xs"
             value={text}
             spellCheck={false}
-            onChange={(e) => setText(e.target.value)}
+            onChange={(e) => {
+              setText(e.target.value);
+              setGames(null);
+            }}
             placeholder={'1. e4 e5 2. Nf3 ... (add a [FEN "..."] tag for a custom start) — or paste a FEN'}
           />
+          {games ? (
+            <div className="space-y-1">
+              <p className="text-xs text-app-muted">
+                This PGN has {games.titles.length} games — pick the one to load.
+              </p>
+              <Select
+                aria-label="Game to import"
+                value=""
+                placeholder="Choose a game"
+                options={games.titles.map((t, i) => ({ value: String(i), label: `${i + 1}. ${t}` }))}
+                onChange={(e) => {
+                  if (e.target.value) apply(games.raw, Number(e.target.value));
+                }}
+              />
+            </div>
+          ) : null}
           {error ? <p className="text-xs text-app-danger-ink">{error}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" onClick={() => apply(text)}>

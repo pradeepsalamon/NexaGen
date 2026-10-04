@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
+import { useShallow } from "zustand/react/shallow";
 import { loadPgnIntoBoard } from "../../lib/loadPgn";
 import { Textarea } from "@/components/ui/Textarea";
 
@@ -13,7 +14,9 @@ import { Textarea } from "@/components/ui/Textarea";
  * move updates it immediately) until the coach explicitly loads an edit.
  */
 export function PgnPanel() {
-  const { pgn, pushHistory } = useBoardStore();
+  const { pgn, pushHistory } = useBoardStore(
+    useShallow((s) => ({ pgn: s.pgn, pushHistory: s.pushHistory })),
+  );
   const [draft, setDraft] = useState(pgn);
 
   useEffect(() => {

@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   AttemptMove,
   PuzzleAttemptResultResponse,
+  PuzzleHintResponse,
   StartPuzzleAttemptResponse
 } from "@nexa-chess/types";
 import type { PracticeBoardMove } from "@/features/chessboard/components/board/PracticeBoard";
 import { useToast } from "@/providers/ToastProvider";
-import { savePuzzleAttempt, submitPuzzleAttempt } from "../api/puzzleApi";
+import { getPuzzleHint, savePuzzleAttempt, submitPuzzleAttempt } from "../api/puzzleApi";
 import { replayLine } from "../components/solver/puzzleSolverEngine";
 
 type StartFn = () => Promise<{ attempt: StartPuzzleAttemptResponse }>;
@@ -30,6 +31,9 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
   const [wrong, setWrong] = useState(false);
   const [resetNonce, setResetNonce] = useState(0);
   const [revealedHints, setRevealedHints] = useState(0);
+  // The server's progressive hint (piece → origin → move) for puzzles with no
+  // text hints. It points at the next student move, so a played move clears it.
+  const [serverHint, setServerHint] = useState<PuzzleHintResponse | null>(null);
   const [result, setResult] = useState<PuzzleAttemptResultResponse | null>(null);
   // Moves of a finished line whose submit never reached the server; kept so the
   // student can send it again instead of the attempt staying open forever.
@@ -46,6 +50,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       setPhase("solving");
       setWrong(false);
       setRevealedHints(0);
+      setServerHint(null);
       setResult(null);
       setPendingSubmit(null);
       startedAt.current = Date.now();
@@ -136,6 +141,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
           await savePuzzleAttempt(puzzleId, attemptId, { moves: nextMoves });
         }
         setWrong(false);
+        setServerHint(null);
         setMoves(nextMoves);
         if (fb?.lineComplete) {
           await submit(nextMoves);
@@ -156,6 +162,18 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
     [submit, pendingSubmit]
   );
   const showHint = useCallback(() => setRevealedHints((n) => n + 1), []);
+  const requestHint = useCallback(async () => {
+    if (!puzzleId || !attemptId || phase !== "solving" || busy.current) return;
+    busy.current = true;
+    try {
+      const level = Math.min(3, (serverHint?.level ?? 0) + 1);
+      setServerHint(await getPuzzleHint(puzzleId, attemptId, { moves, level }));
+    } catch (error) {
+      toast.error({ title: "Hint unavailable", message: (error as Error).message });
+    } finally {
+      busy.current = false;
+    }
+  }, [puzzleId, attemptId, phase, serverHint, moves, toast]);
 
   return {
     session,
@@ -173,6 +191,8 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
     retrySubmit,
     submit,
     giveUp,
-    showHint
+    showHint,
+    serverHint,
+    requestHint
   };
 }

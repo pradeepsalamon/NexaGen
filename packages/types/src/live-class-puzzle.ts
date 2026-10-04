@@ -114,6 +114,10 @@ export const adjustLivePuzzlePointsRequestSchema = z.object({
 });
 export type AdjustLivePuzzlePointsRequest = z.infer<typeof adjustLivePuzzlePointsRequestSchema>;
 
+/** Coach's manual +/- points on the whole-class leaderboard (same shape as a per-puzzle adjustment). */
+export const adjustClassLeaderboardRequestSchema = adjustLivePuzzlePointsRequestSchema;
+export type AdjustClassLeaderboardRequest = AdjustLivePuzzlePointsRequest;
+
 // ── Responses ──
 
 export type LivePuzzleStateResponse = {
@@ -178,6 +182,34 @@ export type LivePuzzleLeaderboardResponse = {
   showingAll: boolean;
   /** Students only. */
   self: LivePuzzleSelfStatus | null;
+};
+
+// ── Whole-class leaderboard ──
+// Every puzzle shared in the class summed per student, plus the coach's
+// class-level adjustment. A student's view only counts puzzles whose own board
+// they may see (LIVE, or AFTER_END once ended), so it never leaks a hidden one.
+
+export type ClassLeaderboardEntry = {
+  studentId: string;
+  studentName: string;
+  rank: number;
+  /** `puzzlePoints + adjustment`. */
+  points: number;
+  /** Sum of each counted puzzle's points (its own coach adjustments included). */
+  puzzlePoints: number;
+  /** The coach's class-level +/- for this student. */
+  adjustment: number;
+  solvedCount: number;
+  attemptedCount: number;
+  isSelf: boolean;
+};
+
+export type ClassLeaderboardResponse = {
+  entries: ClassLeaderboardEntry[];
+  /** Puzzles that count toward this view. */
+  puzzleCount: number;
+  /** Puzzles shared in the class so far, counted or not. */
+  totalPuzzleCount: number;
 };
 
 // ── Coach live-board view ──

@@ -172,7 +172,7 @@ export class PaymentsAdminService {
           invoice: { select: { id: true, number: true } },
           attempts: { select: { id: true } }
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: "asc" },
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize
       })

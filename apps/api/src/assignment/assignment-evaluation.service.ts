@@ -36,6 +36,46 @@ function colorChar(color: ChessColor): "w" | "b" {
   return color === "white" ? "w" : "b";
 }
 
+/**
+ * The ONLY place mate-equivalence is decided ("any mate wins"). A move off the
+ * book line still completes it when, at a student ply, it is legal and mates,
+ * and the book line itself ends in mate — so a line that doesn't end in mate is
+ * never reinterpreted. Mirrored on the client in `puzzleSolverEngine.ts`; both
+ * run `SOLVE_LINE_MATE_FIXTURES`.
+ */
+export function isAcceptedMateAlternative(
+  startFen: string,
+  solution: SolutionMove[],
+  playedBefore: AttemptMove[],
+  candidate: AttemptMove,
+  studentColor: ChessColor
+): boolean {
+  if (playedBefore.length >= solution.length) return false;
+
+  const position = new Chess(startFen);
+  try {
+    for (const m of playedBefore) applyUci(position, m.uci);
+  } catch {
+    return false;
+  }
+  if (position.turn() !== colorChar(studentColor)) return false;
+
+  try {
+    applyUci(position, candidate.uci);
+  } catch {
+    return false;
+  }
+  if (!position.isCheckmate()) return false;
+
+  const book = new Chess(startFen);
+  try {
+    for (const m of solution) applyUci(book, m.uci);
+  } catch {
+    return false;
+  }
+  return book.isCheckmate();
+}
+
 /** Win probability (0-100) for the side to move, from a centipawn score. */
 export function cpToWinPercent(cp: number): number {
   return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * cp)) - 1);
@@ -121,8 +161,17 @@ export class AssignmentEvaluationService {
     return new Chess(assertValidFen(startFen)).pgn();
   }
 
-  /** Longest prefix of `studentMoves` that matches `solution` move-for-move (by UCI). */
-  private matchedPrefix(solution: SolutionMove[], studentMoves: AttemptMove[]): number {
+  /**
+   * How far `studentMoves` follows `solution`: `prefix` counts the moves that
+   * match by UCI, plus a mating alternative at the first mismatch (see
+   * `isAcceptedMateAlternative`), which also makes the line `complete`.
+   */
+  private matchSolveLine(
+    fen: string,
+    solution: SolutionMove[],
+    studentMoves: AttemptMove[],
+    student: ChessColor
+  ): { prefix: number; complete: boolean; byMate: boolean } {
     let k = 0;
     while (
       k < solution.length &&
@@ -131,7 +180,14 @@ export class AssignmentEvaluationService {
     ) {
       k += 1;
     }
-    return k;
+    if (
+      k < solution.length &&
+      k < studentMoves.length &&
+      isAcceptedMateAlternative(fen, solution, studentMoves.slice(0, k), studentMoves[k], student)
+    ) {
+      return { prefix: k + 1, complete: true, byMate: true };
+    }
+    return { prefix: k, complete: k === solution.length && solution.length > 0, byMate: false };
   }
 
   /** Indices of `solution` where it is the student's turn to move. */
@@ -159,14 +215,20 @@ export class AssignmentEvaluationService {
     const fen = assertValidFen(startFen);
     const studentIdx = this.studentPlyIndices(fen, solution, student);
     const totalStudentPlies = studentIdx.length;
-    const prefix = this.matchedPrefix(solution, studentMoves);
+    const { prefix, complete, byMate } = this.matchSolveLine(fen, solution, studentMoves, student);
 
-    const correctStudentPlies = studentIdx.filter((i) => i < prefix).length;
+    // A mate off the book line ends the game, so the book plies after it are
+    // never played: they count as solved and are left out of the review.
+    const correctStudentPlies = byMate
+      ? totalStudentPlies
+      : studentIdx.filter((i) => i < prefix).length;
+    const correctAttemptedPlies = studentIdx.filter((i) => i < prefix).length;
     const attemptedStudentPlies = studentIdx.filter((i) => i < studentMoves.length).length;
 
     const review: AttemptReviewMove[] = [];
     const replay = new Chess(fen);
     for (let i = 0; i < solution.length; i += 1) {
+      if (byMate && i >= prefix) break;
       const fenBefore = replay.fen();
       if (studentIdx.includes(i)) {
         const played = studentMoves[i];
@@ -190,12 +252,12 @@ export class AssignmentEvaluationService {
     const accuracyPercent =
       attemptedStudentPlies === 0
         ? 0
-        : Math.round((correctStudentPlies / attemptedStudentPlies) * 100);
+        : Math.round((correctAttemptedPlies / attemptedStudentPlies) * 100);
 
     return {
       scorePercent,
       accuracyPercent,
-      solved: prefix === solution.length && solution.length > 0,
+      solved: complete,
       correctStudentPlies,
       totalStudentPlies,
       attemptedStudentPlies,
@@ -214,12 +276,12 @@ export class AssignmentEvaluationService {
     student: ChessColor
   ): SolveLineMoveFeedback {
     const fen = assertValidFen(startFen);
-    const prefix = this.matchedPrefix(solution, studentMoves);
+    const { prefix, complete } = this.matchSolveLine(fen, solution, studentMoves, student);
     const allMatch = prefix === studentMoves.length;
     const ply = studentMoves.length;
 
     let opponentReply: SolveLineMoveFeedback["opponentReply"] = null;
-    let lineComplete = prefix === solution.length && solution.length > 0;
+    let lineComplete = complete;
 
     if (allMatch && !lineComplete && studentMoves.length < solution.length) {
       const replay = new Chess(fen);
@@ -259,15 +321,13 @@ export class AssignmentEvaluationService {
     startFen: string,
     solution: SolutionMove[],
     studentMoves: AttemptMove[],
-    _student: ChessColor,
+    student: ChessColor,
     level: number
   ): Omit<SolveLineHint, "hintsUsed"> {
     const fen = assertValidFen(startFen);
-    const prefix = this.matchedPrefix(solution, studentMoves);
+    const { prefix, complete } = this.matchSolveLine(fen, solution, studentMoves, student);
     const onTrack = prefix === studentMoves.length;
-    const lineComplete =
-      studentMoves.length >= solution.length ||
-      (prefix === solution.length && solution.length > 0);
+    const lineComplete = studentMoves.length >= solution.length || complete;
 
     const blank = {
       level: 1 as const,

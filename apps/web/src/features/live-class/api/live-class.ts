@@ -1,8 +1,14 @@
-import { apiFetch } from "@/lib/api";
+import { API_BASE_URL, apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
   type ClassSummaryResponse,
   type LiveChatMessageResponse,
+  type ModerateAllRequest,
+  type KickParticipantRequest,
+  type KickParticipantResponse,
+  type LiveBoardState,
+  type LiveBoardStateResponse,
+  type ModerateAllResponse,
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
   type PullRosterResponse,
@@ -47,6 +53,25 @@ export const pingHeartbeat = (roomId: string, clientId?: string): Promise<{ ok: 
   });
 };
 
+export const getBoardState = (roomId: string): Promise<LiveBoardStateResponse> => {
+  return apiFetch<LiveBoardStateResponse>(API_ROUTES.liveClass.boardState(roomId));
+};
+
+export const saveBoardState = (roomId: string, state: LiveBoardState): Promise<LiveBoardStateResponse> => {
+  return apiFetch<LiveBoardStateResponse>(API_ROUTES.liveClass.boardState(roomId), { method: "PUT", body: state });
+};
+
+/** Fire-and-forget save that survives the page unloading (axios cannot keepalive). */
+export const saveBoardStateOnUnload = (roomId: string, state: LiveBoardState) => {
+  void fetch(`${API_BASE_URL}${API_ROUTES.liveClass.boardState(roomId)}`, {
+    method: "PUT",
+    credentials: "include",
+    keepalive: true,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(state),
+  }).catch(() => undefined);
+};
+
 export const getChatHistory = (roomId: string): Promise<LiveChatMessageResponse[]> => {
   return apiFetch<LiveChatMessageResponse[]>(API_ROUTES.liveClass.chat(roomId));
 };
@@ -79,6 +104,28 @@ export const moderateParticipant = (
   body: ModerateParticipantRequest
 ): Promise<ModerateParticipantResponse> => {
   return apiFetch<ModerateParticipantResponse>(API_ROUTES.liveClass.moderate(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/** Coach-only: remove a student; they can't rejoin until pulled back in. */
+export const kickParticipant = (
+  roomId: string,
+  body: KickParticipantRequest
+): Promise<KickParticipantResponse> => {
+  return apiFetch<KickParticipantResponse>(API_ROUTES.liveClass.kick(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/** Coach-only: switch mic and/or camera off for every student. Off only. */
+export const moderateAll = (
+  roomId: string,
+  body: ModerateAllRequest
+): Promise<ModerateAllResponse> => {
+  return apiFetch<ModerateAllResponse>(API_ROUTES.liveClass.moderateAll(roomId), {
     method: "POST",
     body,
   });
@@ -161,8 +208,10 @@ export const updateRecordingProgress = (roomId: string, watchedSeconds: number):
 };
 
 // Pull a student into class (coach-owner/admin).
-export const getPullRoster = (roomId: string) =>
-  apiFetch<PullRosterResponse>(API_ROUTES.liveClass.pullRoster(roomId));
+export const getPullRoster = (roomId: string, q?: string) =>
+  apiFetch<PullRosterResponse>(
+    q ? `${API_ROUTES.liveClass.pullRoster(roomId)}?${new URLSearchParams({ q })}` : API_ROUTES.liveClass.pullRoster(roomId)
+  );
 
 export const pullStudent = (roomId: string, studentId: string) =>
   apiFetch<{ status: "PENDING" }>(API_ROUTES.liveClass.pullStudent(roomId), {

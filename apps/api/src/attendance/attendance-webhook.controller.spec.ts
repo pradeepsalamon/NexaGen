@@ -2,7 +2,8 @@ import { UnauthorizedException } from "@nestjs/common";
 import type { Request } from "express";
 import { AttendanceWebhookController } from "./attendance-webhook.controller";
 import { AttendanceService } from "./attendance.service";
-import { LiveClassService } from "../live-class/live-class.service";
+import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
+import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 /**
@@ -12,7 +13,7 @@ import { PrismaService } from "../prisma/prisma.service";
  */
 describe("AttendanceWebhookController signature handling", () => {
   let controller: AttendanceWebhookController;
-  let liveClassService: { handleEgressEnded: jest.Mock };
+  let recording: { handleEgressEnded: jest.Mock };
   let prisma: { processedWebhookEvent: { create: jest.Mock } };
   let receiver: { receive: jest.Mock };
 
@@ -23,13 +24,14 @@ describe("AttendanceWebhookController signature handling", () => {
     }) as unknown as Request;
 
   beforeEach(() => {
-    liveClassService = { handleEgressEnded: jest.fn().mockResolvedValue(undefined) };
+    recording = { handleEgressEnded: jest.fn().mockResolvedValue(undefined) };
     prisma = { processedWebhookEvent: { create: jest.fn().mockResolvedValue({}) } };
     receiver = { receive: jest.fn() };
 
     controller = new AttendanceWebhookController(
       {} as unknown as AttendanceService,
-      liveClassService as unknown as LiveClassService,
+      {} as unknown as LiveClassScreenShareService,
+      recording as unknown as LiveClassRecordingService,
       prisma as unknown as PrismaService
     );
     // The constructor builds its own receiver from env; swap in a stub.
@@ -45,7 +47,7 @@ describe("AttendanceWebhookController signature handling", () => {
       )
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
-    expect(liveClassService.handleEgressEnded).not.toHaveBeenCalled();
+    expect(recording.handleEgressEnded).not.toHaveBeenCalled();
   });
 
   it("has no bypass header that skips verification", async () => {
@@ -60,7 +62,7 @@ describe("AttendanceWebhookController signature handling", () => {
       )
     ).rejects.toBeInstanceOf(UnauthorizedException);
 
-    expect(liveClassService.handleEgressEnded).not.toHaveBeenCalled();
+    expect(recording.handleEgressEnded).not.toHaveBeenCalled();
   });
 
   it("processes an egress event once the signature verifies", async () => {
@@ -76,7 +78,7 @@ describe("AttendanceWebhookController signature handling", () => {
     );
 
     expect(result).toEqual({ ok: true });
-    expect(liveClassService.handleEgressEnded).toHaveBeenCalledWith(
+    expect(recording.handleEgressEnded).toHaveBeenCalledWith(
       expect.objectContaining({ eventType: "egress_ended", roomName: "class_1" })
     );
   });
@@ -84,7 +86,7 @@ describe("AttendanceWebhookController signature handling", () => {
   it("swallows a processing failure so LiveKit does not retry forever", async () => {
     const event = { event: "egress_ended", id: "evt-2", egressInfo: { roomName: "r" } };
     receiver.receive.mockResolvedValue(event);
-    liveClassService.handleEgressEnded.mockRejectedValue(new Error("db down"));
+    recording.handleEgressEnded.mockRejectedValue(new Error("db down"));
 
     await expect(
       controller.handleWebhook(requestWith(JSON.stringify(event), "valid-signature"))

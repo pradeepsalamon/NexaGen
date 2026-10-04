@@ -1,5 +1,5 @@
 import { API_ROUTES } from "@nexa-chess/types";
-import type { PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse, DemoClassDetailsResponse } from "@nexa-chess/types";
+import type { AddDemoInviteesRequest, AddDemoInviteesResponse, CreateDemoScheduleRequest, DemoScheduleResponse, ListDemoSchedulesResponse, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateDemoScheduleRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse, DemoClassDetailsResponse } from "@nexa-chess/types";
 import { apiFetch } from "@/lib/api";
 import { toQueryString, type ListParams } from "@/lib/pagination";
 
@@ -61,4 +61,33 @@ export async function restoreDemoClass(id: string): Promise<DemoClass> {
 
 export async function getDemoClassDetails(id: string): Promise<DemoClassDetailsResponse> {
   return await apiFetch<DemoClassDetailsResponse>(API_ROUTES.admin.demoClassDetails(id));
+}
+
+export async function addDemoInvitees(id: string, body: AddDemoInviteesRequest): Promise<AddDemoInviteesResponse> {
+  return apiFetch<AddDemoInviteesResponse>(API_ROUTES.admin.demoClassInvitees(id), {
+    body,
+    method: "POST"
+  });
+}
+
+export async function removeDemoInvitee(id: string, registrationId: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(API_ROUTES.admin.removeDemoClassInvitee(id, registrationId), {
+    method: "DELETE"
+  });
+}
+
+export async function getDemoSchedules(): Promise<ListDemoSchedulesResponse> {
+  return apiFetch<ListDemoSchedulesResponse>(API_ROUTES.admin.demoSchedules);
+}
+
+export async function createDemoSchedule(body: CreateDemoScheduleRequest): Promise<DemoScheduleResponse> {
+  return apiFetch<DemoScheduleResponse>(API_ROUTES.admin.demoSchedules, { body, method: "POST" });
+}
+
+export async function updateDemoSchedule(id: string, body: UpdateDemoScheduleRequest): Promise<DemoScheduleResponse> {
+  return apiFetch<DemoScheduleResponse>(API_ROUTES.admin.demoSchedule(id), { body, method: "PATCH" });
+}
+
+export async function deleteDemoSchedule(id: string): Promise<{ ok: boolean }> {
+  return apiFetch<{ ok: boolean }>(API_ROUTES.admin.demoSchedule(id), { method: "DELETE" });
 }

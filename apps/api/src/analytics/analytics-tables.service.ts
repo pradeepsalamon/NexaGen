@@ -64,7 +64,7 @@ export class AnalyticsTablesService {
     const orderBy = resolveOrderBy(
       query,
       ["createdAt", "lastActiveAt", "firstName", "email", "role"],
-      { createdAt: "desc" }
+      { createdAt: "asc" }
     );
 
     const [total, rows] = await Promise.all([
@@ -140,7 +140,7 @@ export class AnalyticsTablesService {
     }
 
     const orderBy = resolveOrderBy(query, ["startsAt", "status"], {
-      startsAt: "desc"
+      startsAt: "asc"
     });
 
     const [total, rows] = await Promise.all([
@@ -231,7 +231,7 @@ export class AnalyticsTablesService {
     const orderBy = resolveOrderBy(
       query,
       ["recordingCompletedAt", "recordingBytes", "recordingDurationSeconds"],
-      { recordingCompletedAt: "desc" }
+      { recordingCompletedAt: "asc" }
     );
 
     const [total, rows] = await Promise.all([

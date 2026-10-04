@@ -1,6 +1,7 @@
 "use client";
 
 import type { AnalyticsRangeQuery } from "@nexa-chess/types";
+import { useMemo } from "react";
 import Link from "next/link";
 import { AreaChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
@@ -15,6 +16,8 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { METRIC_TOOLTIPS } from "../../lib/metricTooltips";
 import { RankBarList } from "../RankBarList";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
+import { useTableSort } from "@/hooks/useTableSort";
+import { SortButton } from "@/components/ui/DataTableSortButton";
 
 export function CoachAnalyticsSection({
   query,
@@ -24,6 +27,18 @@ export function CoachAnalyticsSection({
   showTable?: boolean;
 }) {
   const { data, isLoading, isError, refetch } = useCoachAnalyticsQuery(query);
+  const topCoaches = useMemo(() => data?.leaderboard.slice(0, 8), [data]);
+  const { rows: coaches, sortProps } = useTableSort({
+    rows: topCoaches,
+    accessors: {
+      attendance: (c) => c.avgAttendancePercent,
+      classes: (c) => c.completedClasses,
+      duration: (c) => c.avgClassDurationMinutes,
+      hours: (c) => c.teachingHours,
+      name: (c) => c.name,
+      students: (c) => c.students
+    }
+  });
   const tz = useUserTimeZone();
   const k = data?.kpis;
 
@@ -92,16 +107,16 @@ export function CoachAnalyticsSection({
               <Table className="w-full min-w-[640px] text-left text-sm">
                 <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
                   <TableRow>
-                    <TableHead className="pb-2">Coach</TableHead>
-                    <TableHead className="pb-2 text-right">Classes</TableHead>
-                    <TableHead className="pb-2 text-right">Hours</TableHead>
-                    <TableHead className="pb-2 text-right">Students</TableHead>
-                    <TableHead className="pb-2 text-right">Attendance</TableHead>
-                    <TableHead className="pb-2 text-right">Avg duration</TableHead>
+                    <TableHead className="pb-2"><SortButton label="Coach" {...sortProps("name")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Classes" {...sortProps("classes")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Hours" {...sortProps("hours")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Students" {...sortProps("students")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>
+                    <TableHead className="pb-2 text-right"><SortButton label="Avg duration" {...sortProps("duration")} /></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody className="divide-y divide-app-border">
-                  {(data?.leaderboard ?? []).slice(0, 8).map((c) => (
+                  {coaches.map((c) => (
                     <TableRow key={c.coachId}>
                       <TableCell className="text-left py-2">
                         <Link className="font-medium text-primary-ink hover:underline" href={`/admin/analytics/coaches/${c.coachId}`}>

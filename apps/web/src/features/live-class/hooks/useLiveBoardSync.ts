@@ -22,10 +22,16 @@ function permissionSignature(
 }
 
 export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
-  const { boardControlStudents, boardControlStudentIds, isChessboardOpen, settings } =
-    useLiveClassState();
-  const { setPermissionMode, permissionMode, selectedStudentIds, selectedStudentSides } =
-    useBoardStore();
+  const { boardControlStudents, boardControlStudentIds, isChessboardOpen, settings } = useLiveClassState(
+    "boardControlStudents",
+    "boardControlStudentIds",
+    "isChessboardOpen",
+    "settings",
+  );
+  const setPermissionMode = useBoardStore((s) => s.setPermissionMode);
+  const permissionMode = useBoardStore((s) => s.permissionMode);
+  const selectedStudentIds = useBoardStore((s) => s.selectedStudentIds);
+  const selectedStudentSides = useBoardStore((s) => s.selectedStudentSides);
   const { broadcastState, broadcastPermissions } = actions;
   const hasInitialized = useRef(false);
   const lastBroadcastSig = useRef<string | null>(null);

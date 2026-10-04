@@ -20,7 +20,7 @@ import {
  */
 export function useParticipantActivity(): ActivityContext {
   const room = useRoomContext();
-  const { raisedHands } = useLiveClassState();
+  const { raisedHands } = useLiveClassState("raisedHands");
   const tracker = useRef(createSpeakerTracker());
   const [version, setVersion] = useState(0);
 

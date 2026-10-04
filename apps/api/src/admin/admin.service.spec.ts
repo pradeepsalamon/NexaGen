@@ -4,6 +4,7 @@ import { AdminService } from './admin.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrashRepository } from '../trash/trash.repository';
 import { MessagingDispatchService } from '../messaging/messaging-dispatch.service';
+import { DemoInviteService } from '../demo-class/demo-invite.service';
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -29,6 +30,7 @@ describe('AdminService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
+        { provide: DemoInviteService, useValue: { addInvitees: jest.fn(), removeInvitee: jest.fn() } },
         { provide: MessagingDispatchService, useValue: messaging },
         { provide: PrismaService, useValue: prismaService },
         {

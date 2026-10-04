@@ -43,14 +43,24 @@ const apiEnvSchema = z.object({
   STOCKFISH_POOL_SIZE: z.coerce.number().int().positive().default(4),
   STOCKFISH_MIN_ENGINES: z.coerce.number().int().nonnegative().default(1),
   STOCKFISH_MOVETIME: z.coerce.number().int().positive().default(800),
-  STOCKFISH_MOVE_MOVETIME: z.coerce.number().int().positive().default(2000),
+  STOCKFISH_MOVE_MOVETIME: z.coerce.number().int().positive().default(1000),
+  // Engine moves stop early once this depth completes (0 = always use the full time).
+  STOCKFISH_MOVE_MAX_DEPTH: z.coerce.number().int().nonnegative().default(22),
   STOCKFISH_HASH_MB: z.coerce.number().int().positive().default(64),
+  STOCKFISH_MAX_DEPTH: z.coerce.number().int().nonnegative().default(20),
   STOCKFISH_IDLE_TIMEOUT_S: z.coerce.number().int().nonnegative().default(60),
   COOKIE_DOMAIN: z.string().optional(),
+  // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
+  // "none" only for a deployment where the API sits on a different registrable domain.
+  COOKIE_SAME_SITE: z.enum(["lax", "strict", "none"]).default("lax"),
   TRUST_PROXY_HOPS: z.coerce.number().int().nonnegative().default(0),
   RECORDING_STORAGE_DIR: z.string().default("/recordings"),
   RECORDING_STORAGE_LIMIT_GB: z.coerce.number().positive().default(130),
   RECORDING_MIN_RETENTION_DAYS: z.coerce.number().nonnegative().default(14),
+  // Auto-end a live class once the coach has been out of the room this long (0 = off).
+  LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES: z.coerce.number().int().nonnegative().default(10),
+  // Auto-end a live class this long past its scheduled end even with the coach present (0 = off).
+  LIVE_CLASS_MAX_OVERRUN_MINUTES: z.coerce.number().int().nonnegative().default(60),
   // Where LiveKit egress writes a class recording. "local" (the default) writes
   // to RECORDING_STORAGE_DIR, which is what the quota, retention prune, storage
   // analytics and the signed stream endpoint all read. "oci" makes egress
@@ -73,6 +83,12 @@ const apiEnvSchema = z.object({
   // BullMQ. Unset disables every queue: producers run their job inline and no
   // worker starts, so `npm run dev:api` needs no Redis. Compose always sets it.
   REDIS_URL: optionalUrlSchema,
+  // Error reporting. Unset SENTRY_DSN sends nothing. Read directly by
+  // src/instrument.ts (it runs before this schema is parsed); listed here so
+  // the variable is documented and validated with the rest.
+  SENTRY_DSN: optionalUrlSchema,
+  SENTRY_ENVIRONMENT: z.string().optional(),
+  SENTRY_RELEASE: z.string().optional(),
   // Namespaces every BullMQ key, so a shared Redis (LiveKit and egress already
   // use this one) can never collide with a queue.
   QUEUE_PREFIX: z.string().default("nexa"),
@@ -184,6 +200,18 @@ export function getCookieDomain(
   } catch {
     return undefined;
   }
+}
+
+export function getCookieBaseOptions(
+  env: Pick<ApiEnv, "CORS_ORIGIN" | "FRONTEND_URL" | "COOKIE_SAME_SITE"> & {
+    COOKIE_DOMAIN?: string;
+  }
+): { domain?: string; sameSite: "lax" | "strict" | "none"; secure: boolean } {
+  const secure = getFrontendUrl(env).startsWith("https://");
+  // Browsers drop SameSite=None cookies that are not Secure.
+  const sameSite = env.COOKIE_SAME_SITE === "none" && !secure ? "lax" : env.COOKIE_SAME_SITE;
+  const domain = getCookieDomain(env);
+  return { sameSite, secure, ...(domain ? { domain } : {}) };
 }
 
 // Second-level labels that sit under a country-code TLD (e.g. "co" in

@@ -17,13 +17,15 @@ import {
   Minimize,
   Circle,
   PictureInPicture2,
+  Pin,
+  PinOff,
   Puzzle as PuzzleIcon,
   SmilePlus,
   Swords,
+  Trophy,
 } from "lucide-react";
 import {
   useTrackToggle,
-  useParticipants,
 } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
@@ -33,6 +35,7 @@ import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useOptionalMatch } from "../../providers/MatchProvider";
 import { useOptionalSimul } from "../../providers/SimulProvider";
 import { isHumanParticipant } from "../../lib/participants";
 import { cn } from "@/lib/utils";
@@ -43,6 +46,7 @@ import { useParams } from "next/navigation";
 import { useRecordingState } from "../../hooks/useRecordingState";
 import { startRecording, stopRecording, requestScreenShare, endScreenShare } from "../../api/live-class";
 import { toast } from "sonner";
+import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
   const params = useParams();
@@ -60,7 +64,18 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     activePuzzle,
     screenShareRequests,
     upsertScreenShareRequest,
-  } = useLiveClassState();
+  } = useLiveClassState(
+    "activeSidebar",
+    "toggleSidebar",
+    "handRaised",
+    "toggleHandRaised",
+    "isFullscreen",
+    "toggleFullscreen",
+    "settings",
+    "activePuzzle",
+    "screenShareRequests",
+    "upsertScreenShareRequest",
+  );
 
   const { isRecording, setRecordingOverride } = useRecordingState();
   const [isTogglingRecording, setIsTogglingRecording] = useState(false);
@@ -91,6 +106,24 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
     else simul.setStartOpen(true);
   };
   const simulLabel = simul?.isManager && !simul.simul ? "Play simul" : "Simul boards";
+  const match = useOptionalMatch();
+  const matchActive = match?.round?.status === "ACTIVE";
+  const showMatch = !!match && (match.isManager || matchActive || !!match.myGame);
+  const matchBadge =
+    !match || match.isManager || match.studentOpen
+      ? 0
+      : match.incoming.length +
+        (match.myGame?.status === "ONGOING" &&
+        (match.myGame.white.id === match.myId ? "white" : "black") === match.myGame.turn
+          ? 1
+          : 0);
+  const openMatch = () => {
+    if (!match) return;
+    if (!match.isManager) match.setStudentOpen(true);
+    else if (matchActive) match.setCoachOpen(true);
+    else match.setStartOpen(true);
+  };
+  const matchLabel = match?.isManager && !matchActive ? "Student matches" : "Match boards";
   const pip = useOptionalPip();
 
   // Capture failures are reported by MediaDeviceProvider (see ignoreDeviceError).
@@ -114,7 +147,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       );
     },
   });
-  const participants = useParticipants();
+  const participants = useRoster();
 
   // Screen-share request -> coach approval (Phase 3 of pre-class settings).
   // `screenShareLocked` is the class-wide policy; an APPROVED per-student
@@ -218,6 +251,12 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       onClick: pip.toggle,
       active: pip.active,
     });
+    moreItems.push({
+      icon: pip.pinned ? <PinOff className="size-5" /> : <Pin className="size-5" />,
+      label: pip.pinned ? "Close mini player in class" : "Keep mini player open in class",
+      onClick: pip.togglePinned,
+      active: pip.pinned,
+    });
   }
 
   if (showSimul && isCoach) {
@@ -225,6 +264,15 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       icon: <Swords className="size-5" />,
       label: simulLabel,
       onClick: openSimul,
+      mobileOnly: true,
+    });
+  }
+
+  if (showMatch && isCoach) {
+    moreItems.push({
+      icon: <Trophy className="size-5" />,
+      label: matchLabel,
+      onClick: openMatch,
       mobileOnly: true,
     });
   }
@@ -340,6 +388,17 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
               label={simulLabel}
               badge={simulBadge}
               onClick={openSimul}
+            />
+          </div>
+        ) : null}
+
+        {showMatch ? (
+          <div className={cn(isCoach && "hidden sm:block")}>
+            <MeetingControlButton
+              icon={<Trophy className={cn("size-5", matchActive && "text-primary-ink")} />}
+              label={matchLabel}
+              badge={matchBadge}
+              onClick={openMatch}
             />
           </div>
         ) : null}
