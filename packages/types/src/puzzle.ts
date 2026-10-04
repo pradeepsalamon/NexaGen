@@ -309,6 +309,8 @@ export type ImportPuzzlesRequest = z.infer<typeof importPuzzlesRequestSchema>;
 export type ImportPuzzlesResponse = {
   created: number;
   failed: { index: number; title: string; error: string }[];
+  /** Imported anyway (a warning, never a block): the same position + line is already in the library. */
+  duplicates: { index: number; title: string; existingPuzzleId: string; existingTitle: string }[];
 };
 
 export const puzzleScopeSchema = z.enum(["all", "mine", "admin"]);
@@ -349,6 +351,10 @@ export type PuzzleSummary = {
   estimatedSeconds: number | null;
   /** This puzzle's own points / penalties override; null = the admin default. */
   scoring: PuzzleScoringOverride | null;
+  /** LICHESS = a copy of a catalogue puzzle; its position and line can't be edited. */
+  source: PuzzleSource;
+  /** NexaChess difficulty rating; null ⇒ the difficulty bucket's rating. */
+  rating: number | null;
   sideToMove: "white" | "black";
   solutionLength: number;
   createdById: string | null;
@@ -382,6 +388,8 @@ export type PuzzleStatsResponse = {
   global: number;
   private: number;
   topics: number;
+  /** Catalogue puzzles materialised into the hidden "Lichess" folder; not in the counts above. */
+  trainingCache: number;
 };
 
 // ── Attempts (student) ──

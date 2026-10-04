@@ -70,6 +70,7 @@ describe("PuzzleService", () => {
       },
       puzzleTopic: {
         findUnique: jest.fn().mockResolvedValue({ id: "topic-1", name: "Fork" }),
+        findFirst: jest.fn().mockResolvedValue(null),
         count: jest.fn().mockResolvedValue(3)
       },
       $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma))
@@ -234,5 +235,68 @@ describe("PuzzleService", () => {
     expect(prisma.puzzle.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({ orderBy: [{ title: "desc" }, { id: "asc" }] })
     );
+  });
+
+  describe("the system Lichess folder", () => {
+    beforeEach(() => {
+      prisma.puzzleTopic.findFirst.mockResolvedValue({ id: "folder-lichess" });
+    });
+
+    const lastWhere = () => prisma.puzzle.findMany.mock.calls.at(-1)[0].where;
+
+    it("is left out of the library unless it is the folder being opened", async () => {
+      await service.list(TOKEN, {} as any);
+      expect(lastWhere().AND).toContainEqual({ topicId: { not: "folder-lichess" } });
+
+      await service.list(TOKEN, { topicId: "folder-lichess", topicScope: "direct" } as any);
+      expect(lastWhere().AND).not.toContainEqual({ topicId: { not: "folder-lichess" } });
+    });
+
+    it("is counted on its own in stats", async () => {
+      prisma.puzzle.count.mockImplementation(({ where }: any) =>
+        where.topicId === "folder-lichess" ? 7 : 2
+      );
+      const res = await service.stats(TOKEN);
+      expect(res.trainingCache).toBe(7);
+      expect(res.total).toBe(2);
+      expect(prisma.puzzle.count.mock.calls[0][0].where.topicId).toEqual({ not: "folder-lichess" });
+    });
+  });
+
+  it("labels a catalogue copy's author as Lichess", async () => {
+    prisma.puzzle.findUnique.mockResolvedValue(
+      puzzleRow({ source: PuzzleSource.LICHESS, visibility: PuzzleVisibility.GLOBAL, createdById: null, createdBy: null })
+    );
+    const res = await service.get(TOKEN, "pz-1");
+    expect(res.puzzle.createdByName).toBe("Lichess");
+    expect(res.puzzle.source).toBe(PuzzleSource.LICHESS);
+  });
+
+  it("importMany warns about a position + line already in the library, but still creates it", async () => {
+    prisma.puzzle.create.mockImplementation(({ data }: any) => puzzleRow({ ...data, id: "pz-new" }));
+    prisma.puzzle.findMany.mockResolvedValue([
+      { id: "pz-old", title: "Back rank", contentHash: puzzleContentHash(MATE_FEN, [MATE_MOVE]) }
+    ]);
+    const res = await service.importMany(TOKEN, {
+      puzzles: [
+        {
+          topicId: "topic-1",
+          puzzleType: "TACTICAL",
+          difficulty: "EASY",
+          title: "Again",
+          fen: MATE_FEN,
+          solutionMoves: [MATE_MOVE]
+        }
+      ]
+    });
+    expect(res.created).toBe(1);
+    expect(res.duplicates).toEqual([
+      { index: 0, title: "Again", existingPuzzleId: "pz-old", existingTitle: "Back rank" }
+    ]);
+    // Only puzzles the coach can see, other than the ones just created.
+    expect(prisma.puzzle.findMany.mock.calls[0][0].where).toMatchObject({
+      OR: [{ visibility: PuzzleVisibility.GLOBAL }, { createdById: COACH_A }],
+      id: { notIn: ["pz-new"] }
+    });
   });
 });

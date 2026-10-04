@@ -20,7 +20,21 @@ export function puzzleContentKey(fen: string, solutionUcis: readonly string[]): 
   return `${position}|${line}`;
 }
 
+/**
+ * Slug of the system "Lichess" folder that materialised catalogue puzzles land
+ * in (spec §3). The library, the share dialog and the course picker hide it
+ * unless it is opened directly. A slug no `slugify`d folder name can produce, so
+ * an admin's own folder called "Lichess" is never mistaken for it.
+ */
+export const LICHESS_FOLDER_SLUG = "__lichess";
+
+export function isLichessFolder(topic: { slug: string }): boolean {
+  return topic.slug === LICHESS_FOLDER_SLUG;
+}
+
 export const CATALOG_MAX_PAGE_SIZE = 50;
+/** Theme filters per browse request. */
+export const CATALOG_MAX_THEMES = 10;
 export const CATALOG_MAX_ADOPT = 200;
 
 export const catalogThemeModeSchema = z.enum(["any", "all"]);
@@ -34,11 +48,15 @@ const csvOrArray = z
 export const catalogListQuerySchema = z.object({
   ratingMin: z.coerce.number().int().min(0).max(4000).optional(),
   ratingMax: z.coerce.number().int().min(0).max(4000).optional(),
-  themes: csvOrArray.optional(),
+  themes: csvOrArray.pipe(z.array(z.string().max(40)).max(CATALOG_MAX_THEMES)).optional(),
   themeMode: catalogThemeModeSchema.optional(),
   opening: z.string().trim().max(120).optional(),
   /** Admin only: include rows below the quality gate. */
-  includeBelowGate: z.coerce.boolean().optional(),
+  // Not z.coerce.boolean(): that reads the query string "false" as true.
+  includeBelowGate: z
+    .union([z.boolean(), z.enum(["true", "false", "1", "0"])])
+    .transform((v) => v === true || v === "true" || v === "1")
+    .optional(),
   /** Start randKey of the first page; a new seed is a reshuffle. */
   seed: z.coerce.number().int().min(0).max(0x7fffffff).optional(),
   /** Opaque cursor from the previous page's `nextCursor`. */
@@ -117,6 +135,8 @@ export type CatalogAdoptResult = {
   outcome: CatalogAdoptOutcome;
   /** ALREADY_IN_FOLDER: the folder it is already in. */
   topicName?: string;
+  /** CREATED / MOVED: another library puzzle already has this position + line (a warning only). */
+  duplicateOf?: { puzzleId: string; title: string };
 };
 
 export type CatalogAdoptResponse = {
