@@ -27,7 +27,7 @@ Owner decisions. Each carries the recommendation this spec is built on:
 | 4 | D0 owner: entitlement vs batch | **Checked; batch kept** | No capability/entitlement system exists to reuse (§0.4) |
 | 5 | Rating change needs caution | **Accepted** | Pure functions + table-driven tests first; history never recalculated; switch-over in its own PR (§9) |
 | 6 | Isolate alternative-mate logic | **Accepted, narrowed** | Dedicated `isAcceptedMateAlternative`, only when the book line itself ends in mate (§8) |
-| 7 | Content fingerprint | **Accepted, and upgraded from optional to required** | The dump has **21,809 exact duplicate puzzles** (same position + line, different ids, measured). `contentHash` on both tables; duplicates fail the quality gate; seen-set is by content (§0.3, §1, §7) |
+| 7 | Content fingerprint | **Accepted, and upgraded from optional to required** | The 2026-10-02 dump has **29,942 duplicate puzzles** by `contentHash` (same post-setup position + solution line, different ids, measured by prepare; see §1 for why this is not the raw-CSV 21,809). `contentHash` on both tables; duplicates fail the quality gate; seen-set is by content (§0.3, §1, §7) |
 | + | Don't send solutions from catalogue browse | **Accepted** | Browse DTO has no solution; separate staff-only preview endpoint (§11) |
 | + | Resource gates over a load-time target | **Accepted** | Pause/abort on live class, host load, API latency; time is a guideline (§13, §16) |
 | — | Review diagram shows Assignment consuming `Puzzle` | **Corrected** | Homework is a *copy* into the separate `Assignment` model, not a `Puzzle` reference (§11). Final diagram in §0.5 |
@@ -46,7 +46,7 @@ A catalogue release is the prepared artifact, identified by
   "preparedSha256": "…",
   "preparedAt": "2026-10-04T10:12:00Z",
   "preparerGitSha": "…",
-  "rows": { "total": 6157341, "valid": 6157341, "rejected": 0, "duplicates": 21809, "passesQualityGate": 4030000 },
+  "rows": { "total": 6157341, "valid": 6157341, "rejected": 0, "duplicates": 29942, "passesQualityGate": 4034433 },
   "rejectReasons": {}, "unknownThemes": []
 }
 ```
@@ -182,8 +182,17 @@ Derived columns, computed by the prepare script (never by the API):
   - Without the duplicate rule this is 4,052,640 rows today (measured). Slightly
     fewer once duplicates are removed.
   - `isCanonicalForContentHash`: among rows sharing a `contentHash`, only the
-    one with the highest `nbPlays` (ties: smallest id) passes. The other 21,809
-    stay in the catalogue but are never auto-served.
+    one with the highest `nbPlays` (ties: smallest id) passes. The other 29,942
+    (2026-10-02 dump) stay in the catalogue but are never auto-served.
+  - Why 29,942 and not 21,809: `contentHash` is `puzzleContentHash` of the
+    position *after* Lichess's setup move (`moves[0]`) plus the solution
+    `moves[1..]`, which is what a student sees and what a materialised `puzzles`
+    row hashes to. The earlier 21,809 was measured on the raw CSV (FEN's first
+    four fields + the full `Moves` column, setup move included). On the same
+    6,157,341-row dump that raw key gives exactly 21,809; the post-setup key
+    merges a further 8,133 rows whose different setup moves reach the same
+    position and line. Those are real duplicates for us, so 29,942 is correct.
+    (The full raw FEN, move counters included, gives only 51.)
 
 Not stored: `DailyDate` (1,787 rows, no consumer), and no validation-status
 column (validation happens before a row exists). Rollback is a `TRUNCATE`
@@ -470,7 +479,7 @@ LIMIT $pageSize + 1;                                     -- the extra row ⇒ ha
 **Seen** = any attempt the student has ever started at the same *content*,
 from any source, in any context and any status. Matching on content (not on
 `sourceId`) means a NexaChess-authored copy of the same position also counts,
-and so do the 21,809 Lichess duplicates. The duplicates are already outside the
+and so do the 29,942 Lichess duplicates. The duplicates are already outside the
 quality gate; this is the backstop.
 
 ```sql
@@ -958,7 +967,7 @@ is over ≥ 300 runs with random parameters, after one warm-up pass.
 | Gate | Metric | Pass |
 |---|---|---|
 | Data | prepare rejects | < 0.1% (expected ≈ 0) |
-| Data | duplicates | manifest `duplicates` ≈ 21,809 for this dump; exactly one row per `contentHash` passes the gate (int query) |
+| Data | duplicates | manifest `duplicates` = 29,942 for the 2026-10-02 dump (post-setup key, §1; not the raw-CSV 21,809); exactly one row per `contentHash` passes the gate (int query) |
 | Data | content hash parity | TS `puzzleContentHash` = SQL backfill expression on the fixture set (int-spec) |
 | Data | row counts | catalogue = manifest valid rows; `passesQualityGate` count equals the manifest |
 | Data | spot check | 1,000 random materialisations: post-setup FEN equals chess.js after `moves[0]`; solution replays; mate-themed puzzles end in mate |
