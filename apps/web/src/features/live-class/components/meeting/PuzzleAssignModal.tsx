@@ -38,7 +38,9 @@ import {
   difficultyBadgeVariant
 } from "@/features/puzzles/lib/puzzleMeta";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useToast } from "@/providers/ToastProvider";
 import { useAssignLivePuzzle } from "../../hooks/useLivePuzzle";
+import { useLoadPuzzleOnBoard } from "../../hooks/useLoadNextPuzzle";
 import { loadPuzzleCursor, savePuzzleCursor } from "../../lib/puzzleCursor";
 import { loadLastShareOptions, saveLastShareOptions } from "../../lib/puzzleShareOptions";
 
@@ -139,6 +141,9 @@ export function PuzzleAssignModal({
   });
 
   const assign = useAssignLivePuzzle(classId);
+  const loadOnBoard = useLoadPuzzleOnBoard();
+  const toast = useToast();
+  const [loadingId, setLoadingId] = useState<string | null>(null);
 
   const customMinutes = durationSeconds ? Math.floor(Number(durationSeconds) / 60) : 0;
   const customSeconds = durationSeconds ? Number(durationSeconds) % 60 : 0;
@@ -162,11 +167,27 @@ export function PuzzleAssignModal({
       {
         onSuccess: () => {
           saveLastShareOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
-          savePuzzleCursor({ folderId: topicId, puzzleId });
+          savePuzzleCursor({ folderId: topicId, askedId: puzzleId });
+          void loadOnBoard?.(puzzleId).catch(() => undefined);
           onOpenChange(false);
         }
       }
     );
+  };
+
+  const handleLoad = async (puzzleId: string, topicId: string) => {
+    if (!loadOnBoard) return;
+    setLoadingId(puzzleId);
+    try {
+      const puzzle = await loadOnBoard(puzzleId);
+      savePuzzleCursor({ folderId: topicId, loadedId: puzzleId });
+      toast.success({ title: `Loaded: ${puzzle.title}` });
+      onOpenChange(false);
+    } catch (error) {
+      toast.error({ title: "Couldn't load the puzzle", message: (error as Error).message });
+    } finally {
+      setLoadingId(null);
+    }
   };
 
   const rows = puzzles.data?.puzzles ?? [];
@@ -393,14 +414,28 @@ export function PuzzleAssignModal({
                     ) : null}
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => handleAssign(puzzle.id, puzzle.topicId)}
-                  disabled={assign.isPending}
-                >
-                  Share
-                </Button>
+                <div className="flex shrink-0 gap-1.5">
+                  {loadOnBoard ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void handleLoad(puzzle.id, puzzle.topicId)}
+                      isLoading={loadingId === puzzle.id}
+                      disabled={loadingId !== null}
+                    >
+                      Load
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => handleAssign(puzzle.id, puzzle.topicId)}
+                    disabled={assign.isPending}
+                  >
+                    Share
+                  </Button>
+                </div>
               </div>
             ))
           )}
