@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
@@ -94,8 +94,12 @@ function resultText(game: LiveSimulGame): string {
   return `${who} · ${reason}`;
 }
 
-/** Coach-only, full-screen: every simul board, the ones waiting on the coach first. */
-export function SimulCoachView() {
+/**
+ * Coach-only: every simul board, the ones waiting on the coach first. Full-screen on phones; with
+ * `stageSwitch` it renders inline as a classroom stage tab instead.
+ */
+export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}) {
+  const inline = stageSwitch !== undefined;
   const {
     classId,
     simul,
@@ -214,9 +218,13 @@ export function SimulCoachView() {
 
   return (
     <div
-      className={cn("fixed inset-0 flex flex-col bg-app-background", Z.overlay)}
-      role="dialog"
-      aria-modal="true"
+      className={
+        inline
+          ? "flex min-h-0 min-w-0 flex-1 flex-col lg:pb-20"
+          : cn("fixed inset-0 flex flex-col bg-app-background", Z.overlay)
+      }
+      role={inline ? "region" : "dialog"}
+      aria-modal={inline ? undefined : true}
       aria-label="Simul"
     >
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-app-border bg-app-surface px-4 py-2.5">
@@ -282,11 +290,15 @@ export function SimulCoachView() {
               New simul
             </Button>
           )}
-          <SimpleTooltip label="Back to class (Esc)">
-            <Button size="icon" variant="ghost" className="rounded-full" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
-              <X className="size-5" strokeWidth={2.5} />
-            </Button>
-          </SimpleTooltip>
+          {inline ? (
+            stageSwitch
+          ) : (
+            <SimpleTooltip label="Back to class (Esc)">
+              <Button size="icon" variant="ghost" className="rounded-full" aria-label="Back to class" onClick={() => setCoachOpen(false)}>
+                <X className="size-5" strokeWidth={2.5} />
+              </Button>
+            </SimpleTooltip>
+          )}
         </div>
       </header>
 

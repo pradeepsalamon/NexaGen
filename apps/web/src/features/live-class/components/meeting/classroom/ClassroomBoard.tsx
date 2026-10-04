@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
-import { ChevronsRight, Crown, FolderOpen, Loader2, Puzzle as PuzzleIcon } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { ChevronsRight, Crown, FolderOpen, Loader2, Puzzle as PuzzleIcon, StepBack } from "lucide-react";
 import { useParams } from "next/navigation";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
@@ -13,14 +13,32 @@ import { BoardNavigation, NavIconButton } from "@/features/chessboard/components
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useBoardShortcuts } from "@/features/chessboard/hooks/useBoardShortcuts";
+import { useEngineMove } from "@/features/chessboard/hooks/useEngineMove";
 import { useLoadNextPuzzle } from "../../../hooks/useLoadNextPuzzle";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { PuzzleAssignModal } from "../PuzzleAssignModal";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 
+/** Board shortcuts plus Space = engine move. */
 function CoachBoardShortcuts() {
   useBoardShortcuts();
+  const { playEngineMove } = useEngineMove();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      const target = e.target instanceof HTMLElement ? e.target : null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
+      if (target?.closest('[role="dialog"],[role="menu"],[role="listbox"]')) return;
+      // Also stops Space from clicking whichever button still has focus.
+      e.preventDefault();
+      void playEngineMove();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [playEngineMove]);
+
   return null;
 }
 
@@ -95,19 +113,28 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
 }
 
 /**
- * Ask = share the next puzzle in the current folder straight away (last share
- * options); Load next = the same puzzle onto the board, not shared; the folder
- * button opens the picker to choose any puzzle or switch folder.
+ * Ask previous / Ask = share the previous / next puzzle in the current folder
+ * straight away (last share options) and load it on the board; Load next =
+ * the next puzzle onto the board only, stepping on its own; the folder button
+ * opens the picker to choose any puzzle or switch folder.
  */
 function CoachPuzzleButtons() {
   const params = useParams();
   const classId = (params?.roomId as string) ?? "";
   const [assignOpen, setAssignOpen] = useState(false);
   const openPicker = useCallback(() => setAssignOpen(true), []);
-  const { askNext, loadNext, loading } = useLoadNextPuzzle({ classId, onNoFolder: openPicker });
+  const { askNext, askPrevious, loadNext, loading } = useLoadNextPuzzle({ classId, onNoFolder: openPicker });
 
   return (
     <div className="mt-4 flex items-center gap-2 text-app-muted">
+      <SimpleTooltip label="Ask previous — share the previous puzzle">
+        <NavIconButton
+          aria-label="Share the previous puzzle"
+          icon={<StepBack className="size-4" strokeWidth={2.5} />}
+          onClick={() => void askPrevious()}
+          disabled={loading}
+        />
+      </SimpleTooltip>
       <SimpleTooltip label="Ask — share the next puzzle">
         <NavIconButton
           aria-label="Ask — share the next puzzle"

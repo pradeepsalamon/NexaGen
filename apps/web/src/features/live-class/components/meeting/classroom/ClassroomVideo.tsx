@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { isTrackReference, ParticipantTile } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { cn } from "@/lib/utils";
 import { useSpotlightTrack } from "../../../hooks/useSpotlightTrack";
 import { ParticipantAvatar } from "../ParticipantAvatar";
 import { CompactVideoTile } from "../video-grid/CompactVideoTile";
@@ -13,10 +14,20 @@ import { getRole, getTrackKey, useGridTracks, useSortedTracks } from "../video-g
 /**
  * Video above the classroom tabs: one large spotlight (a student sees the
  * coach unless someone shares a screen; the coach sees the class) plus a
- * filmstrip of everyone else.
+ * filmstrip of everyone else. `fill` (lg+) stretches the spotlight to a
+ * height the panel's resizer set, instead of 16:9.
  */
-export function ClassroomVideo({ isCoach }: { isCoach: boolean }) {
-  const [collapsed, setCollapsed] = useState(false);
+export function ClassroomVideo({
+  isCoach,
+  collapsed,
+  onCollapsedChange,
+  fill = false
+}: {
+  isCoach: boolean;
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+  fill?: boolean;
+}) {
   const tracks = useGridTracks();
   const sorted = useSortedTracks(tracks);
   const speakerSpotlight = useSpotlightTrack(null);
@@ -44,8 +55,8 @@ export function ClassroomVideo({ isCoach }: { isCoach: boolean }) {
   const isScreen = spotlight?.source === Track.Source.ScreenShare;
 
   return (
-    <div className="shrink-0 border-b border-app-border/60">
-      <div className="flex h-10 items-center justify-between px-3">
+    <div className={cn("shrink-0 border-b border-app-border/60", fill && "lg:flex lg:h-full lg:flex-col")}>
+      <div className="flex h-10 shrink-0 items-center justify-between px-3">
         <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-app-muted">
           Video
           <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] tabular-nums">{tracks.length}</span>
@@ -55,7 +66,7 @@ export function ClassroomVideo({ isCoach }: { isCoach: boolean }) {
             type="button"
             aria-label={collapsed ? "Show video" : "Hide video"}
             aria-expanded={!collapsed}
-            onClick={() => setCollapsed((c) => !c)}
+            onClick={() => onCollapsedChange(!collapsed)}
             className="flex size-7 items-center justify-center rounded-full text-app-muted transition hover:bg-app-soft hover:text-app-text"
           >
             {collapsed ? <ChevronDown className="size-4" strokeWidth={2.5} /> : <ChevronUp className="size-4" strokeWidth={2.5} />}
@@ -64,8 +75,12 @@ export function ClassroomVideo({ isCoach }: { isCoach: boolean }) {
       </div>
 
       {!collapsed && spotlight ? (
-        <div className="space-y-2 px-3 pb-3">
-          <div className="relative aspect-video w-full overflow-hidden rounded-control border border-app-border bg-app-soft"
+        <div className={cn("space-y-2 px-3 pb-3", fill && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-2 lg:space-y-0")}>
+          <div
+            className={cn(
+              "relative aspect-video w-full overflow-hidden rounded-control border border-app-border bg-app-soft",
+              fill && "lg:aspect-auto lg:min-h-0 lg:flex-1"
+            )}
           >
             {hasVideo ? (
               <ParticipantTile
@@ -87,7 +102,7 @@ export function ClassroomVideo({ isCoach }: { isCoach: boolean }) {
           </div>
 
           {others.length > 0 ? (
-            <div className="custom-scrollbar flex gap-2 overflow-x-auto pb-1">
+            <div className="custom-scrollbar flex shrink-0 gap-2 overflow-x-auto pb-1">
               {others.map((trackRef) => (
                 <CompactVideoTile key={getTrackKey(trackRef)} trackRef={trackRef} />
               ))}

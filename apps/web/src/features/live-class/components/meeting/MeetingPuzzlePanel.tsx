@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { formatClock, useCountdown } from "../../hooks/useCountdown";
+import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
 import {
   useAdjustClassLeaderboard,
   useAdjustLivePuzzlePoints,
@@ -515,14 +516,17 @@ export function MeetingPuzzlePanel() {
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
-  const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState(
+  const { activePuzzle, setPuzzleBoardsOpen, setPuzzleSolverOpen } = useLiveClassState(
     "activePuzzle",
+    "setPuzzleBoardsOpen",
     "setPuzzleSolverOpen",
   );
+  // The classroom layout shows live boards as a stage tab; phones get the dialog.
+  const wide = useIsBoardViewport();
   const [assignOpen, setAssignOpen] = useState(false);
   const [boardsOpen, setBoardsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
-  const [boardView, setBoardView] = useState<"puzzle" | "class">("puzzle");
+  const [boardView, setBoardView] = useState<"puzzle" | "class">("class");
   const endPuzzle = useEndLivePuzzle(classId);
   // Always on while the panel is open: after a puzzle ends it still shows the
   // last results (that's when an AFTER_END board is revealed).
@@ -589,7 +593,12 @@ export function MeetingPuzzlePanel() {
           <div className="flex flex-wrap gap-2 pt-1">
             {isCoach ? (
               <>
-                <Button type="button" variant="outline" size="sm" onClick={() => setBoardsOpen(true)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => (wide ? setPuzzleBoardsOpen(true) : setBoardsOpen(true))}
+                >
                   <LayoutGrid className="mr-1.5 size-3.5" strokeWidth={2.5} />
                   Live boards
                 </Button>
@@ -635,8 +644,8 @@ export function MeetingPuzzlePanel() {
         <div role="tablist" aria-label="Leaderboard" className="flex rounded-full border border-app-border bg-app-surface p-0.5">
           {(
             [
-              ["puzzle", "This puzzle"],
-              ["class", "Whole class"]
+              ["class", "Whole class"],
+              ["puzzle", "This puzzle"]
             ] as const
           ).map(([id, label]) => (
             <button
@@ -692,7 +701,7 @@ export function MeetingPuzzlePanel() {
         <PuzzleAssignModal classId={classId} open={assignOpen} onOpenChange={setAssignOpen} />
       ) : null}
 
-      {isCoach ? (
+      {isCoach && !wide ? (
         <PuzzleLiveBoardsPanel classId={classId} open={boardsOpen} onOpenChange={setBoardsOpen} />
       ) : null}
 

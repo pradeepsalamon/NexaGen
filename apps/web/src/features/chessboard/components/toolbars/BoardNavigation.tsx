@@ -55,7 +55,7 @@ export function BoardNavigation() {
           <TooltipTrigger asChild>
             <NavIconButton icon={<SkipBack className="size-4" />} onClick={jumpToStart} disabled={!canUndo} />
           </TooltipTrigger>
-          <TooltipContent>Jump to Start (↓)</TooltipContent>
+          <TooltipContent>Jump to Start (↑)</TooltipContent>
         </Tooltip>
 
         <Tooltip>
@@ -104,7 +104,7 @@ export function BoardNavigation() {
           <TooltipTrigger asChild>
             <NavIconButton icon={<SkipForward className="size-4" />} onClick={jumpToEnd} disabled={!canRedo} />
           </TooltipTrigger>
-          <TooltipContent>Jump to End (↑)</TooltipContent>
+          <TooltipContent>Jump to End (↓)</TooltipContent>
         </Tooltip>
 
       </div>

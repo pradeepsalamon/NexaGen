@@ -241,10 +241,13 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   [`ClassroomStateShell.tsx`](../apps/web/src/features/live-class/components/states/ClassroomStateShell.tsx).
 - **`≥ 768 px` is a single page** —
   [`classroom/ClassroomLayout.tsx`](../apps/web/src/features/live-class/components/meeting/classroom/ClassroomLayout.tsx):
-  the shared board (or, via the Board / Video switch, the video grid) fills the
-  left; a fixed-width right column (`340 / 380 / 420px` at `md / lg / xl`) holds
-  the spotlight video + filmstrip and one scrollable tab bar (Moves, Chat, People,
-  Puzzles, and for the coach Response, Engine, PGN, Games). The floating toolbar
+  the shared board fills the left, and a stage switch swaps it for the video
+  grid or any running activity (student: Puzzle, their Simul game, Matches;
+  coach: the students' Live boards, Simul, Matches) — those are pop-ups only
+  below 768 px. A right column (`380 / 420px` at `lg / xl`, drag-resizable)
+  holds the spotlight video + filmstrip, a drag handle (lg+) that sets the
+  video's height, and one scrollable tab bar (Moves, Chat, People, Puzzles, and
+  for the coach Response, Engine, PGN, Games). The floating toolbar
   is offset by `CLASSROOM_PANEL_OFFSET` so it centres on the board. `< 768 px`
   keeps the video grid below, with the student's full-stage `BoardStage`.
 - Video grid: column math in

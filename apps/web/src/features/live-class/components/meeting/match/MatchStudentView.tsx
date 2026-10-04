@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Flag, Handshake, Swords, Trophy } from "lucide-react";
 import type { LiveMatchGame, MatchColor } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -16,6 +16,7 @@ import {
 } from "../../../hooks/useLiveMatch";
 import { matchResultText, useMatch } from "../../../providers/MatchProvider";
 import { SimulMoveList } from "../simul/SimulMoveList";
+import { InlineStage } from "../classroom/InlineStage";
 import { MatchClock } from "./MatchClock";
 
 function PlayerRow({ name, game, color, onFlag }: { name: string; game: LiveMatchGame; color: MatchColor; onFlag: () => void }) {
@@ -233,8 +234,11 @@ function Lobby() {
   );
 }
 
-/** The student's match: their board while playing, otherwise the challenge lobby. */
-export function MatchStudentView() {
+/**
+ * The student's match: their board while playing, otherwise the challenge
+ * lobby. A dialog on phones; with `stageSwitch` a classroom stage tab.
+ */
+export function MatchStudentView({ stageSwitch }: { stageSwitch?: ReactNode } = {}) {
   const { round, myGame, studentOpen, setStudentOpen } = useMatch();
   const [lobby, setLobby] = useState(false);
 
@@ -243,30 +247,37 @@ export function MatchStudentView() {
   if (!round) return null;
   const ongoing = myGame?.status === "ONGOING";
   const showBoard = !!myGame && (ongoing || !lobby);
+  const title = showBoard && myGame ? `${myGame.white.name} vs ${myGame.black.name}` : "Student matches";
+  const body =
+    showBoard && myGame ? (
+      <>
+        <MatchBoard game={myGame} />
+        {!ongoing && round.status === "ACTIVE" ? (
+          <Button className="mt-3 w-full" variant="outline" onClick={() => setLobby(true)}>
+            {round.pairingMode === "STUDENT_CHOICE" ? "Find a new opponent" : "Back to the lobby"}
+          </Button>
+        ) : null}
+      </>
+    ) : (
+      <Lobby />
+    );
+
+  if (stageSwitch !== undefined) {
+    return (
+      <InlineStage title={title} stageSwitch={stageSwitch}>
+        {body}
+      </InlineStage>
+    );
+  }
 
   return (
     <Dialog open={studentOpen} onOpenChange={setStudentOpen}>
       {/* No backdrop blur: blurring over live <video> flashes black on mobile GPUs. */}
       <DialogContent className="max-h-[94dvh] max-w-lg overflow-y-auto" overlayClassName="bg-black/60 backdrop-blur-none">
         <DialogHeader>
-          <DialogTitle>
-            {showBoard && myGame
-              ? `${myGame.white.name} vs ${myGame.black.name}`
-              : "Student matches"}
-          </DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        {showBoard && myGame ? (
-          <>
-            <MatchBoard game={myGame} />
-            {!ongoing && round.status === "ACTIVE" ? (
-              <Button className="mt-3 w-full" variant="outline" onClick={() => setLobby(true)}>
-                {round.pairingMode === "STUDENT_CHOICE" ? "Find a new opponent" : "Back to the lobby"}
-              </Button>
-            ) : null}
-          </>
-        ) : (
-          <Lobby />
-        )}
+        {body}
       </DialogContent>
     </Dialog>
   );
