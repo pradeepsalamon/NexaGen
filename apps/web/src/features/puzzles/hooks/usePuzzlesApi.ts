@@ -1,5 +1,13 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient
+} from "@tanstack/react-query";
 import type {
+  CatalogAdoptRequest,
+  CatalogListQuery,
   CreatePuzzleRequest,
   CreatePuzzleTopicRequest,
   ImportPuzzlesRequest,
@@ -12,7 +20,11 @@ import type {
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import {
+  adoptCatalogPuzzles,
   createPuzzle,
+  getCatalogPreview,
+  getCatalogPuzzles,
+  materialiseCatalogPuzzle,
   createPuzzleTopic,
   getMyPuzzle,
   getMyPuzzles,
@@ -163,5 +175,42 @@ export function useUpdatePuzzleScoringSettings() {
     },
     onError: (error: Error) =>
       toast.error({ title: "Could not save scoring defaults", message: error.message })
+  });
+}
+
+// ── Lichess catalogue ──
+
+/** Keyset pages ("Load more"); the API never sends a total. */
+export function useCatalogPuzzles(query: Omit<CatalogListQuery, "cursor">, enabled = true) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.puzzles.catalog(query),
+    queryFn: ({ pageParam }) => getCatalogPuzzles({ ...query, cursor: pageParam ?? undefined }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => (last.hasMore ? last.nextCursor : null),
+    enabled
+  });
+}
+
+export function useCatalogPreview(sourceId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.puzzles.catalogPreview(sourceId ?? ""),
+    queryFn: () => getCatalogPreview(sourceId as string),
+    enabled: !!sourceId
+  });
+}
+
+export function useMaterialiseCatalogPuzzle() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sourceId: string) => materialiseCatalogPuzzle(sourceId),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all })
+  });
+}
+
+export function useAdoptCatalogPuzzles() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CatalogAdoptRequest) => adoptCatalogPuzzles(data),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.puzzles.all })
   });
 }

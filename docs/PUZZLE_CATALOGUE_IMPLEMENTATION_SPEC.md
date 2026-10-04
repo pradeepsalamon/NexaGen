@@ -956,7 +956,7 @@ deployable alone.
 | 4 | **Tooling:** prepare + load scripts, `puzzles:prepare` npm script, README section | — | none (not part of the app build) | revert |
 | 5a | **Rating maths, pure functions only** (§9 safeguard 1) | — | no behaviour change | revert |
 | 5b | **Rating switch-over** (recorder passes rating + wrongMoves; D1 in the PR description) | — | affects only new rated attempts; history untouched | revert (rows written in between stay as recorded) |
-| 6 | **Catalogue API + UI:** browse (no solution) / preview (staff, with solution) / materialise / adopt; system folder hidden from list by default; duplicate-content warnings; `CatalogBrowser` in the library and `PuzzleAssignModal`; "Create homework" prefill; edit rules for `LICHESS` rows; "Lichess" author label | — | safe on an empty catalogue (empty results) | revert; any materialised puzzles remain ordinary puzzles |
+| 6 ✅ | **Catalogue API + UI:** browse (no solution) / preview (staff, with solution) / materialise / adopt; system folder hidden from list by default; duplicate-content warnings; `CatalogBrowser` in the library and `PuzzleAssignModal`; "Create homework" prefill; edit rules for `LICHESS` rows; "Lichess" author label | — | safe on an empty catalogue (empty results) | revert; any materialised puzzles remain ordinary puzzles |
 | — | **Load into `vps_dev`**; run the §16 benchmarks; e2e there | — | ops | `TRUNCATE` |
 | 7 | **Production load** (ops, not a deploy): window 21:30–23:30 UTC, after confirming step 3 ran | — | `scripts/lichess-puzzles-load.sh` | §13 rollback |
 | 8 | **Training** (after D0): service, policy, `/student/training`, nav, progress theme stats | none, or the D0 column if not added in step 2 | normal | revert; TRAINING attempts remain valid history |

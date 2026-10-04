@@ -1058,6 +1058,12 @@ whose position and line can't be edited (duplicate it instead), and whose author
 shows as "Lichess". Adopt and PGN import warn, without blocking, when the same
 position + line (`contentHash`) is already in the library.
 
+In the app: Puzzle Library → **Lichess catalogue** tab (admins select puzzles and
+"Add to folder"; anyone can preview with the solution or "Create homework",
+which opens the assignment form with the position and line filled in), and the
+live-class share dialog's **Lichess catalogue** tab, which shares a puzzle
+straight from the catalogue.
+
 ## Rate Limiting
 
 `@nestjs/throttler` runs as a global `APP_GUARD` (100 req/min; auth routes drop

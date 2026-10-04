@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   MAX_PUZZLE_IMPORT,
   MAX_PUZZLE_SOLUTION_MOVES,
+  isLichessFolder,
   type CreatePuzzleRequest,
   type PuzzleDifficulty,
   type PuzzleType
@@ -53,7 +54,10 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
   const [difficulty, setDifficulty] = useState<PuzzleDifficulty>("BEGINNER");
   const [publish, setPublish] = useState(false);
 
-  const topicOptions = useMemo(() => puzzleTopicOptions(topicsData?.topics ?? []), [topicsData]);
+  const topicOptions = useMemo(
+    () => puzzleTopicOptions((topicsData?.topics ?? []).filter((t) => !isLichessFolder(t))),
+    [topicsData]
+  );
 
   const reset = () => {
     setText("");
@@ -107,7 +111,19 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
     try {
       const res = await importMut.mutateAsync({ puzzles });
       if (res.failed.length === 0) {
-        toast.success({ title: `Imported ${res.created} puzzle${res.created === 1 ? "" : "s"}` });
+        const title = `Imported ${res.created} puzzle${res.created === 1 ? "" : "s"}`;
+        if (res.duplicates.length > 0) {
+          // Imported anyway — the same position + line was already in the library.
+          toast.warning({
+            title,
+            message: `${res.duplicates.length} already in the library: ${res.duplicates
+              .slice(0, 3)
+              .map((d) => `${d.title} = "${d.existingTitle}"`)
+              .join(" · ")}`
+          });
+        } else {
+          toast.success({ title });
+        }
         reset();
         onOpenChange(false);
       } else {
