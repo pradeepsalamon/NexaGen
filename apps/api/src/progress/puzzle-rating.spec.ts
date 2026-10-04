@@ -15,7 +15,9 @@ describe("puzzleResultScore", () => {
     [true, 0, 0, 1],
     [true, 1, 0, 0.5],
     [true, 3, 0, 0.5],
-    [true, 0, 1, 0], // D1: a solve that needed a wrong move scores 0
+    [true, 0, 1, 0.5], // D1: one wrong move costs the same as hints
+    [true, 1, 1, 0], // hints and a wrong move: a miss
+    [true, 0, 2, 0], // a second wrong move: a miss
     [true, 2, 4, 0],
     [false, 0, 0, 0],
     [false, 2, 3, 0]
@@ -40,7 +42,8 @@ describe("nextPuzzleRating", () => {
   it.each([
     ["clean", puzzleResultScore(true, 0, 0), 1216],
     ["with hints", puzzleResultScore(true, 1, 0), 1206],
-    ["after a wrong move", puzzleResultScore(true, 0, 1), 1196],
+    ["after one wrong move", puzzleResultScore(true, 0, 1), 1206],
+    ["after two wrong moves", puzzleResultScore(true, 0, 2), 1196],
     ["failed", puzzleResultScore(false, 0, 0), 1196]
   ])("worked example: %s", (_outcome, score, after) => {
     expect(nextPuzzleRating({ opponentRating: 1450, rating: 1200, ratedPuzzles: 30, score })).toBe(after);

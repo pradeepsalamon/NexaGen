@@ -11,7 +11,7 @@ Owner decisions. Each carries the recommendation this spec is built on:
 | # | Decision | Recommendation (assumed below) |
 |---|---|---|
 | D0 | Can students self-train, given today's "puzzles are classroom material" stance? | **Yes, per-batch opt-in** (`Batch.puzzleTrainingEnabled`, off by default). §0.4 explains why it lives on `Batch`, not `Entitlement`. |
-| D1 | Rated score of a solve that needed a wrong move | **0.** Lichess ratings assume a first-try solve; anything above 0 lets brute-forcing raise a rating. This is a behaviour change; see §9 for the safeguards. |
+| D1 | Rated score of a solve that needed a wrong move | **½ for exactly one wrong move, 0 for two or more** (softened 2026-10-04 from a flat 0). One slip costs the same as using hints; a slip *and* hints, or repeated guessing, scores like a miss, so brute-forcing still can't raise a rating. Measured on the 62 rated production attempts, a flat 0 would have hit 48% of them, most after a single slip. Behaviour change; see §9 for the safeguards. |
 | D2 | Rated score of a clean solve that used hints | **½** (unchanged) |
 | D3 | Are live-class attempts rated? | **Unchanged** (yes). Out of scope, flagged only. |
 
@@ -594,10 +594,11 @@ opponent        = puzzle.rating ?? PUZZLE_DIFFICULTY_RATINGS[puzzle.difficulty]
 hints           = attempt.hintsUsed (max of the server-counted and client-reported values)
 wrong           = attempt.wrongMoves (server-counted in saveProgress)
 
+slips = (hints > 0 ? 1 : 0) + wrong
 score = 0    if not solved                    (incl. "Give up", time-out, skipped training puzzle)
-      = 0    if solved and wrong > 0          ← D1 (today: counts as a clean solve)
-      = 0.5  if solved and wrong = 0 and hints > 0     ← D2 (unchanged)
-      = 1    if solved and wrong = 0 and hints = 0
+      = 1    if solved and slips = 0
+      = 0.5  if solved and slips = 1          ← hints only (D2, unchanged) or exactly one wrong move (D1)
+      = 0    if solved and slips ≥ 2          ← D1: hints + a wrong move, or two or more wrong moves
 
 expected = 1 / (1 + 10^((opponent − rating) / 400))
 K        = 40 if ratedPuzzles < 20 else 20
@@ -610,7 +611,8 @@ Worked example: a student rated 1200 (30 rated) solving a 1450 puzzle.
 |---|---|---|
 | Clean | 1 | +16 |
 | With hints | ½ | +6 |
-| After a wrong move | 0 | −4 |
+| After one wrong move | ½ | +6 |
+| After two wrong moves, or a wrong move + hints | 0 | −4 |
 | Failed | 0 | −4 |
 
 Unchanged from today: the provisional K, the 100 floor, the peak tracking, the

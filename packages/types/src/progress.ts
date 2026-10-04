@@ -29,13 +29,14 @@ export function puzzleOpponentRating(puzzle: {
 }
 
 /**
- * 1 for a clean solve, ½ for a solve that needed hints, 0 otherwise. A solve
- * that needed a wrong move scores 0 (spec D1): puzzle ratings assume a
- * first-try solve, so anything above 0 would let brute-forcing raise one.
+ * 1 for a clean solve. Using hints, or exactly one wrong move, costs half
+ * (spec D1/D2); both together, or a second wrong move, score 0 like a miss,
+ * so guessing through a line can't raise a rating.
  */
 export function puzzleResultScore(solved: boolean, hintsUsed: number, wrongMoves: number): number {
-  if (!solved || wrongMoves > 0) return 0;
-  return hintsUsed > 0 ? 0.5 : 1;
+  if (!solved) return 0;
+  const slips = (hintsUsed > 0 ? 1 : 0) + wrongMoves;
+  return slips === 0 ? 1 : slips === 1 ? 0.5 : 0;
 }
 
 export function nextPuzzleRating(params: {

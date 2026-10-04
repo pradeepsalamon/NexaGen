@@ -114,14 +114,15 @@ describe("ProgressRecorderService", () => {
     expect(data.puzzleRating).toBe(PUZZLE_DIFFICULTY_RATINGS.INTERMEDIATE);
   });
 
-  it("scores a solve that needed a wrong move like a failure (D1)", async () => {
-    await service.recordPuzzleResult({ ...input, wrongMoves: 1 });
-    const afterWrong = prisma.puzzleRatingChange.create.mock.calls[0][0].data.after;
-    prisma.puzzleRatingChange.create.mockClear();
-    await service.recordPuzzleResult({ ...input, solved: false });
-    const afterFailed = prisma.puzzleRatingChange.create.mock.calls[0][0].data.after;
-    expect(afterWrong).toBeLessThan(1200);
-    expect(afterWrong).toBe(afterFailed);
+  it("scores one wrong move like hints and two like a failure (D1)", async () => {
+    const after = async (over: Partial<typeof input>) => {
+      prisma.puzzleRatingChange.create.mockClear();
+      await service.recordPuzzleResult({ ...input, ...over });
+      return prisma.puzzleRatingChange.create.mock.calls[0][0].data.after as number;
+    };
+    expect(await after({ wrongMoves: 1 })).toBe(await after({ hintsUsed: 1 }));
+    expect(await after({ wrongMoves: 2 })).toBe(await after({ solved: false }));
+    expect(await after({ wrongMoves: 2 })).toBeLessThan(1200);
   });
 
   it("never throws into the submit that called it", async () => {
