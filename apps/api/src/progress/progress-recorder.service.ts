@@ -80,11 +80,14 @@ export class ProgressRecorderService {
           select: { id: true }
         });
         if (!alreadyRated) {
+          // The bucket rating and wrongMoves 0 keep today's scoring; the
+          // switch to the puzzle's own rating and D1 is a separate change (spec §9, PR 5b).
+          const opponentRating = PUZZLE_DIFFICULTY_RATINGS[puzzle.difficulty];
           const after = nextPuzzleRating({
-            difficulty: puzzle.difficulty,
+            opponentRating,
             rating: puzzleRating,
             ratedPuzzles,
-            score: puzzleResultScore(puzzle.solved, puzzle.hintsUsed)
+            score: puzzleResultScore(puzzle.solved, puzzle.hintsUsed, 0)
           });
           await tx.puzzleRatingChange.create({
             data: {
@@ -92,7 +95,7 @@ export class ProgressRecorderService {
               attemptId: puzzle.attemptId,
               before: puzzleRating,
               puzzleId: puzzle.puzzleId,
-              puzzleRating: PUZZLE_DIFFICULTY_RATINGS[puzzle.difficulty],
+              puzzleRating: opponentRating,
               studentId
             }
           });

@@ -17,20 +17,34 @@ export const PUZZLE_DIFFICULTY_RATINGS: Record<PuzzleDifficulty, number> = {
   EXPERT: 1900
 };
 
-/** 1 for a clean solve, ½ for a solve that needed hints, 0 otherwise. */
-export function puzzleResultScore(solved: boolean, hintsUsed: number): number {
-  if (!solved) return 0;
+/**
+ * The rating a student plays against: the puzzle's own rating (a Lichess
+ * puzzle carries one), else the fixed rating of its difficulty bucket.
+ */
+export function puzzleOpponentRating(puzzle: {
+  rating?: number | null;
+  difficulty: PuzzleDifficulty;
+}): number {
+  return puzzle.rating ?? PUZZLE_DIFFICULTY_RATINGS[puzzle.difficulty];
+}
+
+/**
+ * 1 for a clean solve, ½ for a solve that needed hints, 0 otherwise. A solve
+ * that needed a wrong move scores 0 (spec D1): puzzle ratings assume a
+ * first-try solve, so anything above 0 would let brute-forcing raise one.
+ */
+export function puzzleResultScore(solved: boolean, hintsUsed: number, wrongMoves: number): number {
+  if (!solved || wrongMoves > 0) return 0;
   return hintsUsed > 0 ? 0.5 : 1;
 }
 
 export function nextPuzzleRating(params: {
   rating: number;
   ratedPuzzles: number;
-  difficulty: PuzzleDifficulty;
+  opponentRating: number;
   score: number;
 }): number {
-  const opponent = PUZZLE_DIFFICULTY_RATINGS[params.difficulty];
-  const expected = 1 / (1 + 10 ** ((opponent - params.rating) / 400));
+  const expected = 1 / (1 + 10 ** ((params.opponentRating - params.rating) / 400));
   const k = params.ratedPuzzles < PROVISIONAL_RATED_PUZZLES ? 40 : 20;
   return Math.max(MIN_PUZZLE_RATING, Math.round(params.rating + k * (params.score - expected)));
 }
