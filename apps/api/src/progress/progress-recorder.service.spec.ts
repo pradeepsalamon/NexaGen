@@ -1,18 +1,18 @@
-import { addDays, liveStreak, nextPuzzleRating, nextStreak } from "@nexa-chess/types";
+import { addDays, liveStreak, nextPuzzleRating, nextStreak, PUZZLE_DIFFICULTY_RATINGS } from "@nexa-chess/types";
 import { PrismaService } from "../prisma/prisma.service";
 import { localDay, ProgressRecorderService } from "./progress-recorder.service";
 
 describe("progress maths", () => {
   it("gains more for beating a harder puzzle", () => {
     const base = { rating: 1200, ratedPuzzles: 50, score: 1 };
-    const hard = nextPuzzleRating({ ...base, difficulty: "EXPERT" });
-    const easy = nextPuzzleRating({ ...base, difficulty: "BEGINNER" });
+    const hard = nextPuzzleRating({ ...base, opponentRating: PUZZLE_DIFFICULTY_RATINGS.EXPERT });
+    const easy = nextPuzzleRating({ ...base, opponentRating: PUZZLE_DIFFICULTY_RATINGS.BEGINNER });
     expect(hard - 1200).toBeGreaterThan(easy - 1200);
     expect(easy).toBeGreaterThanOrEqual(1200);
   });
 
   it("moves a provisional rating faster", () => {
-    const args = { rating: 1200, difficulty: "INTERMEDIATE" as const, score: 0 };
+    const args = { opponentRating: PUZZLE_DIFFICULTY_RATINGS.INTERMEDIATE, rating: 1200, score: 0 };
     expect(nextPuzzleRating({ ...args, ratedPuzzles: 0 })).toBeLessThan(
       nextPuzzleRating({ ...args, ratedPuzzles: 100 })
     );
