@@ -156,7 +156,7 @@ describe("PuzzleCatalogService", () => {
         findUnique: jest.fn().mockResolvedValue({ id: "folder-forks", name: "Forks", slug: "forks" })
       },
       withDeleted: {
-        puzzle: { findUnique: jest.fn().mockResolvedValue(null) },
+        puzzle: { findFirst: jest.fn().mockResolvedValue(null) },
         puzzleTopic: {
           findFirst: jest.fn().mockResolvedValue({ id: "folder-lichess", isDeleted: false }),
           delete: jest.fn()
@@ -262,35 +262,37 @@ describe("PuzzleCatalogService", () => {
     });
 
     it("returns an existing copy instead of creating a second", async () => {
-      prisma.withDeleted.puzzle.findUnique.mockResolvedValue(copy());
+      prisma.withDeleted.puzzle.findFirst.mockResolvedValue(copy());
       await expect(service.materialiseOne(TOKEN, { sourceId: "KsvGQ" })).resolves.toEqual({ puzzleId: "pz-1" });
       expect(prisma.puzzle.create).not.toHaveBeenCalled();
     });
 
     it("re-reads the winner when a concurrent materialise hits the unique index", async () => {
-      prisma.withDeleted.puzzle.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(copy({ id: "pz-race" }));
+      prisma.withDeleted.puzzle.findFirst.mockResolvedValueOnce(null).mockResolvedValueOnce(copy({ id: "pz-race" }));
       prisma.puzzle.create.mockRejectedValue(
-        new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "6" })
+        new Prisma.PrismaClientKnownRequestError("dup", {
+          code: "P2002",
+          clientVersion: "6",
+          meta: { target: ["source", "sourceId"] }
+        })
       );
       await expect(service.materialiseOne(TOKEN, { sourceId: "KsvGQ" })).resolves.toEqual({ puzzleId: "pz-race" });
     });
 
     it("refuses a copy in the Trash or an archived one, and an unknown id", async () => {
-      prisma.withDeleted.puzzle.findUnique.mockResolvedValue(copy({ isDeleted: true }));
+      prisma.withDeleted.puzzle.findFirst.mockResolvedValue(copy({ isDeleted: true }));
       await expect(service.materialiseOne(TOKEN, { sourceId: "KsvGQ" })).rejects.toThrow(ConflictException);
 
-      prisma.withDeleted.puzzle.findUnique.mockResolvedValue(copy({ status: PuzzleStatus.ARCHIVED }));
+      prisma.withDeleted.puzzle.findFirst.mockResolvedValue(copy({ status: PuzzleStatus.ARCHIVED }));
       await expect(service.materialiseOne(TOKEN, { sourceId: "KsvGQ" })).rejects.toThrow(ConflictException);
 
-      prisma.withDeleted.puzzle.findUnique.mockResolvedValue(null);
+      prisma.withDeleted.puzzle.findFirst.mockResolvedValue(null);
       prisma.lichessPuzzle.findUnique.mockResolvedValue(null);
       await expect(service.materialiseOne(TOKEN, { sourceId: "nope0" })).rejects.toThrow(NotFoundException);
     });
 
     it("creates the system folder on first use and restores a trashed one", async () => {
-      prisma.withDeleted.puzzleTopic.findFirst
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ id: "folder-lichess", isDeleted: false });
+      prisma.withDeleted.puzzleTopic.findFirst.mockResolvedValueOnce(null);
       await expect(service.ensureLichessFolder(COACH_ID)).resolves.toBe("folder-lichess");
       expect(prisma.puzzleTopic.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ slug: LICHESS_FOLDER_SLUG }) })
@@ -299,6 +301,21 @@ describe("PuzzleCatalogService", () => {
       prisma.withDeleted.puzzleTopic.findFirst.mockResolvedValueOnce({ id: "folder-old", isDeleted: true });
       await expect(service.ensureLichessFolder(COACH_ID)).resolves.toBe("folder-old");
       expect(trash.restore).toHaveBeenCalledWith("PuzzleTopic", "folder-old", COACH_ID);
+    });
+
+    it("re-reads the folder a concurrent first use created, and steps around an admin's 'Lichess'", async () => {
+      const dup = () =>
+        new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "6", meta: { target: ["slug"] } });
+      prisma.withDeleted.puzzleTopic.findFirst.mockResolvedValue(null);
+      prisma.puzzleTopic.findFirst = jest.fn().mockResolvedValueOnce({ id: "folder-winner" });
+      prisma.puzzleTopic.create.mockRejectedValueOnce(dup());
+      await expect(service.ensureLichessFolder(COACH_ID)).resolves.toBe("folder-winner");
+
+      // Name taken by an admin folder, no live system folder: the next name is tried.
+      prisma.puzzleTopic.findFirst.mockResolvedValue(null);
+      prisma.puzzleTopic.create.mockRejectedValueOnce(dup()).mockResolvedValueOnce({ id: "folder-new" });
+      await expect(service.ensureLichessFolder(COACH_ID)).resolves.toBe("folder-new");
+      expect(prisma.puzzleTopic.create.mock.calls.at(-1)[0].data.name).toBe("Lichess catalogue");
     });
   });
 
@@ -326,8 +343,8 @@ describe("PuzzleCatalogService", () => {
         DRAFT: copy({ id: "pz-draft", status: PuzzleStatus.DRAFT }),
         TRASH: copy({ id: "pz-trash", isDeleted: true })
       };
-      prisma.withDeleted.puzzle.findUnique.mockImplementation(
-        ({ where }: any) => existing[where.source_sourceId.sourceId] ?? null
+      prisma.withDeleted.puzzle.findFirst.mockImplementation(
+        ({ where }: any) => existing[where.sourceId] ?? null
       );
       prisma.lichessPuzzle.findUnique.mockImplementation(({ where }: any) =>
         where.id === "GONE0" ? null : { ...ROW, id: where.id }

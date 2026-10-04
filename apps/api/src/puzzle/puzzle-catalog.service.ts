@@ -181,6 +181,17 @@ export function decodeCatalogCursor(raw: string): Cursor {
   return { band: Number(match[1]), randKey: Number(match[2]), id: match[3] };
 }
 
+/** Folder names to try, in order, if an admin's own folder already has one. */
+const LICHESS_FOLDER_NAMES = ["Lichess", "Lichess catalogue", "Lichess catalogue (system)"];
+
+/** P2002, optionally only when `field` is part of the violated key. */
+function isUniqueViolation(error: unknown, field?: string): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") return false;
+  if (!field) return true;
+  const target = (error.meta as { target?: unknown } | undefined)?.target;
+  return Array.isArray(target) ? target.includes(field) : String(target ?? "").includes(field);
+}
+
 function isStatementTimeout(error: unknown): boolean {
   const e = error as { code?: string; meta?: { code?: string }; message?: string } | null;
   return e?.meta?.code === "57014" || /statement timeout/i.test(e?.message ?? "");
@@ -366,8 +377,11 @@ export class PuzzleCatalogService {
    */
   async materialise(sourceId: string, placement: Placement, retried = false): Promise<MaterialiseResult> {
     // Uniqueness spans soft-deleted rows, so the pre-check must too (CLAUDE.md §3.4).
-    const existing = await this.prisma.withDeleted.puzzle.findUnique({
-      where: { source_sourceId: { source: PuzzleSource.LICHESS, sourceId } },
+    // findFirst, not findUnique: Prisma batches concurrent findUnique calls into
+    // one query, so the re-read after a lost race could be answered by a batch
+    // that started before the winner committed — and miss the row.
+    const existing = await this.prisma.withDeleted.puzzle.findFirst({
+      where: { source: PuzzleSource.LICHESS, sourceId },
       select: copySelect
     });
     if (existing) {
@@ -387,11 +401,13 @@ export class PuzzleCatalogService {
     }
 
     const admin = placement.createdBy;
+    // Resolved outside the try: only a lost race on the puzzle itself is a retry.
+    const topicId = await placement.topicId();
     try {
       const created = await this.prisma.puzzle.create({
         data: {
           ...content,
-          topicId: await placement.topicId(),
+          topicId,
           createdById: admin?.id ?? null,
           createdByRole: UserRole.ADMIN,
           updatedById: admin?.id ?? null,
@@ -403,7 +419,7 @@ export class PuzzleCatalogService {
       return { outcome: "CREATED", puzzle: created };
     } catch (error) {
       // A concurrent materialise won the unique (source, sourceId): use its row.
-      if (!retried && error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      if (!retried && isUniqueViolation(error, "sourceId")) {
         return this.materialise(sourceId, placement, true);
       }
       throw error;
@@ -418,7 +434,7 @@ export class PuzzleCatalogService {
     const find = () =>
       this.prisma.withDeleted.puzzleTopic.findFirst({
         where: { slug: LICHESS_FOLDER_SLUG },
-        orderBy: [{ isDeleted: "asc" }, { createdAt: "asc" }, { id: "asc" }],
+        orderBy: [{ isDeleted: "asc" }, { createdAt: "asc" }],
         select: { id: true, isDeleted: true }
       });
     const existing = await find();
@@ -428,24 +444,32 @@ export class PuzzleCatalogService {
       return existing.id;
     }
 
-    const created = await this.prisma.puzzleTopic.create({
-      data: {
-        name: "Lichess",
-        slug: LICHESS_FOLDER_SLUG,
-        description: "Lichess catalogue puzzles shared in class. Hidden from the library until opened.",
-        sortOrder: 1000
-      },
-      select: { id: true }
-    });
-    // No unique index on slug: if a concurrent first use also created one, the
-    // oldest wins and ours (still empty) goes.
-    const winner = await find();
-    if (winner && winner.id !== created.id) {
-      // Best effort: if something already landed in ours, it simply stays.
-      await this.prisma.withDeleted.puzzleTopic.delete({ where: { id: created.id } }).catch(() => undefined);
-      return winner.id;
+    // Live topic slugs and names are unique (partial indexes), so concurrent
+    // first uses can't make two folders: the loser re-reads the winner. A
+    // name clash with no live system folder means an admin already has a
+    // folder with that name, so try the next one.
+    for (const name of LICHESS_FOLDER_NAMES) {
+      try {
+        const created = await this.prisma.puzzleTopic.create({
+          data: {
+            name,
+            slug: LICHESS_FOLDER_SLUG,
+            description: "Lichess catalogue puzzles shared in class. Hidden from the library until opened.",
+            sortOrder: 1000
+          },
+          select: { id: true }
+        });
+        return created.id;
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+        const winner = await this.prisma.puzzleTopic.findFirst({
+          where: { slug: LICHESS_FOLDER_SLUG },
+          select: { id: true }
+        });
+        if (winner) return winner.id;
+      }
     }
-    return created.id;
+    throw new ConflictException("Could not create the Lichess folder — rename the folders called Lichess.");
   }
 
   // ── internals ──
