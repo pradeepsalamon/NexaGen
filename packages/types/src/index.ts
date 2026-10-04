@@ -2354,6 +2354,9 @@ export * from "./analytics";
 // Puzzle library contract (kept in its own module)
 // ──────────────────────────────────────────────
 export * from "./puzzle";
+export * from "./solve-line-fixtures";
+export * from "./puzzle-catalog";
+export * from "./lichess-themes";
 
 // ──────────────────────────────────────────────
 // Live-class puzzle assignment (depends on ./puzzle)

@@ -24,8 +24,8 @@ import type {
   ValidatePuzzleRequest,
   ValidatePuzzleResponse
 } from "@nexa-chess/types";
-import { compareNatural, parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
-import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
+import { parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
+import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import {
   AssignmentEvaluationService,
@@ -38,6 +38,7 @@ import {
   resolveOrderBy
 } from "../common/pagination";
 import { PrismaService } from "../prisma/prisma.service";
+import { puzzleContentHash } from "./puzzle-content-hash";
 import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { TrashRepository } from "../trash/trash.repository";
 import {
@@ -106,29 +107,9 @@ export class PuzzleService {
     }
     if (and.length > 0) where.AND = and;
 
-    const orderBy = resolveOrderBy(query, ORDERABLE, { title: "asc" });
-
-    // Postgres sorts titles as text ("Puzzle 10" before "Puzzle 2"), so a title
-    // sort ranks the matching ids naturally here and loads just the page.
-    const titleOrder = !Array.isArray(orderBy) ? orderBy.title : undefined;
-    if (titleOrder) {
-      const keys = await this.prisma.puzzle.findMany({ where, select: { id: true, title: true } });
-      const sign = titleOrder === "desc" ? -1 : 1;
-      keys.sort((a, b) => sign * compareNatural(a.title, b.title) || a.id.localeCompare(b.id));
-      const pageIds = keys.slice((page - 1) * pageSize, page * pageSize).map((k) => k.id);
-      const pageRows = await this.prisma.puzzle.findMany({
-        where: { id: { in: pageIds } },
-        include: puzzleInclude
-      });
-      const byId = new Map(pageRows.map((row) => [row.id, row]));
-      return {
-        puzzles: pageIds.flatMap((id) => {
-          const row = byId.get(id);
-          return row ? [this.toSummary(row, user)] : [];
-        }),
-        pagination: paginationMeta(keys.length, page, pageSize)
-      };
-    }
+    // `puzzles.title` uses the ICU "natural_sort" collation, so the database
+    // already puts "Puzzle 2" before "Puzzle 10"; the id keeps paging stable.
+    const orderBy = [resolveOrderBy(query, ORDERABLE, { title: "asc" }), { id: "asc" as const }].flat();
 
     const [rows, total] = await Promise.all([
       this.prisma.puzzle.findMany({
@@ -217,6 +198,7 @@ export class PuzzleService {
         difficulty: dto.difficulty,
         fen,
         solutionMovesJson: solution as unknown as Prisma.InputJsonValue,
+        contentHash: puzzleContentHash(fen, solution),
         explanation: dto.explanation?.trim() || null,
         hintsJson: (dto.hints ?? []) as unknown as Prisma.InputJsonValue,
         tags: dto.tags ?? [],
@@ -243,6 +225,15 @@ export class PuzzleService {
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
     const existing = await this.loadManageable(id, user);
+
+    if (
+      existing.source === PuzzleSource.LICHESS &&
+      (dto.fen !== undefined || dto.solutionMoves !== undefined)
+    ) {
+      throw new BadRequestException(
+        "This puzzle comes from the Lichess catalogue — duplicate it to edit the position."
+      );
+    }
 
     if (dto.topicId && dto.topicId !== existing.topicId) {
       await this.assertTopicExists(dto.topicId);
@@ -271,6 +262,7 @@ export class PuzzleService {
     if (dto.fen !== undefined || dto.solutionMoves !== undefined) {
       data.fen = nextFen;
       data.solutionMovesJson = solution as unknown as Prisma.InputJsonValue;
+      data.contentHash = puzzleContentHash(nextFen, solution);
     }
     if (dto.explanation !== undefined) data.explanation = dto.explanation?.trim() || null;
     if (dto.hints !== undefined) {
@@ -364,6 +356,10 @@ export class PuzzleService {
         difficulty: source.difficulty,
         fen: source.fen,
         solutionMovesJson: source.solutionMovesJson ?? [],
+        // A copy is a new NEXA puzzle with the same content (spec §4.5).
+        contentHash: puzzleContentHash(source.fen, this.solutionFromRow(source.solutionMovesJson)),
+        rating: source.rating,
+        setupMoveUci: source.setupMoveUci,
         explanation: source.explanation,
         hintsJson: source.hintsJson ?? [],
         tags: source.tags,

@@ -2,11 +2,12 @@
 import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
-import { PuzzleStatus, PuzzleVisibility, UserRole, UserStatus } from "@prisma/client";
+import { PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, UserStatus } from "@prisma/client";
 import { AssignmentEvaluationService } from "../assignment/assignment-evaluation.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { StockfishService } from "../stockfish/stockfish.service";
 import { TrashRepository } from "../trash/trash.repository";
+import { puzzleContentHash } from "./puzzle-content-hash";
 import { PuzzleService } from "./puzzle.service";
 
 const TOKEN = "access-token";
@@ -169,6 +170,51 @@ describe("PuzzleService", () => {
     expect(data.createdById).toBe(COACH_A);
   });
 
+  it("stores the content hash on create and when the line changes", async () => {
+    await service.create(TOKEN, {
+      title: "T",
+      topicId: "topic-1",
+      puzzleType: "TACTICAL",
+      difficulty: "EASY",
+      fen: MATE_FEN,
+      solutionMoves: [MATE_MOVE]
+    } as never);
+    expect(prisma.puzzle.create.mock.calls[0][0].data.contentHash).toBe(
+      puzzleContentHash(MATE_FEN, [MATE_MOVE])
+    );
+
+    prisma.puzzle.findUnique.mockResolvedValue(puzzleRow());
+    await service.update(TOKEN, "pz-1", { title: "Renamed" });
+    expect(prisma.puzzle.update.mock.calls[0][0].data).not.toHaveProperty("contentHash");
+
+    await service.update(TOKEN, "pz-1", { solutionMoves: [{ uci: "a1a7", san: "Ra7" }] });
+    expect(prisma.puzzle.update.mock.calls[1][0].data.contentHash).toBe(
+      puzzleContentHash(MATE_FEN, [{ uci: "a1a7" }])
+    );
+  });
+
+  it("refuses a position or line edit on a Lichess puzzle", async () => {
+    prisma.puzzle.findUnique.mockResolvedValue(
+      puzzleRow({ source: PuzzleSource.LICHESS, sourceId: "00abc" })
+    );
+    await expect(
+      service.update(TOKEN, "pz-1", { solutionMoves: [{ uci: "a1a7", san: "Ra7" }] })
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.update(TOKEN, "pz-1", { title: "Renamed" })).resolves.toBeDefined();
+  });
+
+  it("duplicate copies the content hash, rating and setup move as a NEXA puzzle", async () => {
+    prisma.puzzle.findUnique.mockResolvedValue(
+      puzzleRow({ source: PuzzleSource.LICHESS, sourceId: "00abc", rating: 1450, setupMoveUci: "h7h6" })
+    );
+    await service.duplicate(TOKEN, "pz-1");
+    const data = prisma.puzzle.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({ rating: 1450, setupMoveUci: "h7h6" });
+    expect(data.contentHash).toBe(puzzleContentHash(MATE_FEN, [MATE_MOVE]));
+    expect(data).not.toHaveProperty("source");
+    expect(data).not.toHaveProperty("sourceId");
+  });
+
   it("remove soft-deletes through the Trash repository", async () => {
     prisma.puzzle.findUnique.mockResolvedValue(puzzleRow());
     await service.remove(TOKEN, "pz-1");
@@ -176,19 +222,17 @@ describe("PuzzleService", () => {
     expect(prisma.puzzle.delete).not.toHaveBeenCalled();
   });
 
-  it("sorts titles naturally and pages after sorting", async () => {
-    const titles = ["Puzzle 10", "Puzzle 2", "Puzzle 1", "Puzzle 3"];
-    prisma.puzzle.findMany.mockImplementation((args: any) =>
-      args.select
-        ? Promise.resolve(titles.map((title) => ({ id: title, title })))
-        : Promise.resolve(args.where.id.in.map((id: string) => puzzleRow({ id, title: id })))
+  it("sorts and pages titles in the database, tie-broken by id", async () => {
+    prisma.puzzle.findMany.mockResolvedValue([]);
+
+    await service.list(TOKEN, { page: 2, pageSize: 3 } as any);
+    expect(prisma.puzzle.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orderBy: [{ title: "asc" }, { id: "asc" }], skip: 3, take: 3 })
     );
 
-    const first = await service.list(TOKEN, { page: 1, pageSize: 3 } as any);
-    expect(first.puzzles.map((p) => p.title)).toEqual(["Puzzle 1", "Puzzle 2", "Puzzle 3"]);
-    expect(first.pagination?.total).toBe(4);
-
-    const desc = await service.list(TOKEN, { page: 1, pageSize: 2, sort: "title", order: "desc" } as any);
-    expect(desc.puzzles.map((p) => p.title)).toEqual(["Puzzle 10", "Puzzle 3"]);
+    await service.list(TOKEN, { page: 1, pageSize: 2, sort: "title", order: "desc" } as any);
+    expect(prisma.puzzle.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({ orderBy: [{ title: "desc" }, { id: "asc" }] })
+    );
   });
 });

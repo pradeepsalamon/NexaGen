@@ -26,6 +26,7 @@ import {
   useStartAttempt,
   useSubmitAttempt
 } from "../../hooks/useAssignmentsApi";
+import { hintSquaresFor, hintText } from "../../lib/solveLineHint";
 import { AssignmentResultView } from "./AssignmentResultView";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -61,24 +62,6 @@ function replay(startFen: string, moves: AttemptMove[]): string {
   }
 }
 
-const PIECE_NAMES: Record<string, string> = {
-  p: "pawn",
-  n: "knight",
-  b: "bishop",
-  r: "rook",
-  q: "queen",
-  k: "king"
-};
-
-function hintText(h: SolveLineHint): string {
-  if (h.lineComplete) return "You've already played the whole line.";
-  if (!h.onTrack) return "Your line has drifted — take back to your last correct move, then ask again.";
-  const piece = PIECE_NAMES[h.pieceType ?? "p"] ?? "piece";
-  if (h.level >= 3 && h.san) return `Play ${h.san}.`;
-  if (h.level >= 2 && h.fromSquare) return `Move your ${piece} on ${h.fromSquare}.`;
-  return `Look for a ${piece} move.`;
-}
-
 export function EvaluatedActivity({ assignmentId, onBack }: Props) {
   const toast = useToast();
   const startMutation = useStartAttempt(assignmentId);
@@ -107,13 +90,7 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
     return m ? [m.uci.slice(0, 2), m.uci.slice(2, 4)] : null;
   }, [moves]);
 
-  const hintSquares = useMemo(
-    () =>
-      hint && hint.onTrack && !hint.lineComplete && hint.fromSquare
-        ? { from: hint.fromSquare, to: hint.toSquare }
-        : null,
-    [hint]
-  );
+  const hintSquares = useMemo(() => hintSquaresFor(hint), [hint]);
 
   const beginAttempt = useCallback(async () => {
     setPhase("loading");
