@@ -1,7 +1,8 @@
 # Lichess Puzzle Catalogue — Implementation Spec
 
-Status: **v2 — final architecture.** Nothing is implemented and nothing is
-imported. v1 was reviewed externally; §0 records what changed and why.
+Status: **v2 — final architecture.** §15 PRs 1–4 are built (fixes, schema +
+contract, backup exclusion, prepare/load tooling); nothing is imported into any
+database yet. v1 was reviewed externally; §0 records what changed and why.
 [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) holds the
 audit and its measurements. Each numbered section answers one review question.
 
@@ -810,11 +811,19 @@ tests).
   `randKey`, post-setup FEN → `contentHash`, then a second pass marks the
   canonical row per `contentHash` → `passesQualityGate` → TSV → GNU `sort` by `(ratingBand, randKey, id)` →
   `zstd`.
-- **Outputs:**
-  - `lichess_puzzles.<YYYY-MM>.tsv.zst`
-  - `rejects.<YYYY-MM>.tsv`
-  - `manifest.<YYYY-MM>.json`: source sha256, row counts by outcome, reject
-    reasons, unknown themes, TSV sha256
+- **Outputs** (as built in PR 4), laid out exactly as stored in OCI:
+  - `<out>/<preparedSha256>/catalogue.tsv.zst`
+  - `<out>/<preparedSha256>/rejects.tsv`
+  - `<out>/<preparedSha256>/manifest.json`: the §0.1 fields plus `columns`,
+    `files` (compressed size + sha256, uncompressed bytes), `qualityGate`,
+    `unknownThemes`, `flagged`, `ratingBands`
+  - `preparedSha256` = sha256 of the **uncompressed** sorted TSV, so it does
+    not depend on the zstd version. The core is
+    `apps/api/src/puzzle/catalogue/lichess-prepare.core.ts` (TS, unit-tested);
+    the script loads it from the API build, so the content hash is the API's
+    own `puzzleContentHash`.
+  - The TSV carries neither `retiredAt` nor `releaseId`: the load fills
+    `releaseId` (the release id is only known once the file is hashed).
 - **Resume/retry:** none needed. It is a pure function of the input file;
   re-run it (~1.75 h on 1 core, faster with workers).
 - **Exit non-zero** if rejects exceed 0.1% of rows.
@@ -830,7 +839,7 @@ tests).
 | 1 | preflight: artifact fetched from `lichess/<preparedSha256>/` and its sha256 matches; manifest `formatVersion` supported; migration present; free disk > 3× TSV; not 19:30–21:30 UTC (backup); resource gate green (below); then `INSERT INTO lichess_catalogue_releases (id, …) ON CONFLICT (id) DO NOTHING` | refuses with a reason; nothing changed. Re-running the same release reuses its row |
 | 2 | session settings: `synchronous_commit=off`, `max_parallel_maintenance_workers=0`, `maintenance_work_mem=256MB`, `statement_timeout=0`, `lock_timeout=5s` | per session |
 | 3 | `DROP TABLE IF EXISTS lichess_puzzles_staging; CREATE UNLOGGED TABLE … (LIKE lichess_puzzles)`; `\copy` from the decompressed stream; `CREATE INDEX` on staging `(id)` and `("ratingBand")` | always rebuilt from scratch (~2 min) — re-running is the resume |
-| 4 | for each band in ascending order: `INSERT INTO lichess_puzzles SELECT … FROM staging WHERE "ratingBand" = $b ORDER BY "randKey", id ON CONFLICT (id) DO UPDATE SET <all columns> WHERE (lichess_puzzles.*) IS DISTINCT FROM (EXCLUDED.*)`; commit; re-check LIVE classes (pause and poll every 60 s while any); sleep 2 s | each band is its own transaction. A re-run re-executes every band; finished bands write zero rows (the `IS DISTINCT FROM` guard), so resume needs no ledger |
+| 4 | for each band in ascending order: `INSERT INTO lichess_puzzles SELECT … FROM staging WHERE "ratingBand" = $b ORDER BY "randKey", id ON CONFLICT (id) DO UPDATE SET <all columns> WHERE (<every column but id, releaseId>) IS DISTINCT FROM (EXCLUDED.…)` — `releaseId` is left out of the comparison, otherwise every new release would rewrite all 6M rows; it therefore names the release that last *changed* a row; commit; re-check LIVE classes (pause and poll every 60 s while any); sleep 2 s | each band is its own transaction. A re-run re-executes every band; finished bands write zero rows (the `IS DISTINCT FROM` guard), so resume needs no ledger |
 | 5 | retire: `UPDATE lichess_puzzles c SET "retiredAt" = now(), "passesQualityGate" = false WHERE c."retiredAt" IS NULL AND NOT EXISTS (SELECT 1 FROM staging s WHERE s.id = c.id)` | idempotent. A reappearing id is un-retired by step 4 (`retiredAt` NULL and a recomputed `passesQualityGate` come from staging) |
 | 6 | `VACUUM (FREEZE, ANALYZE, PARALLEL 0) lichess_puzzles` | safe to repeat |
 | 7 | `UPDATE lichess_catalogue_releases SET "loadCompletedAt" = now() WHERE id = $release`; `DROP TABLE lichess_puzzles_staging`; print a report (inserted / updated / unchanged / retired, duration, rows/s) and append it to `lichess-load.log` | — |
