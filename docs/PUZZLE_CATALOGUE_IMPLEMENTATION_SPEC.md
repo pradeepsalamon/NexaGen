@@ -883,6 +883,11 @@ metrics. Every pause is logged with its reason in the run report.
   - The table definition is still dumped; only the rows are skipped.
   - Applied to `nexa_chess`. `vps_dev` has no backup job today; the same rule
     applies if one is added.
+  - Also applied to the API's own dumps in `apps/api/src/backup/backup.service.ts`
+    (admin "Backup now" and the pre-restore safety dump), and to the load's
+    `lichess_puzzles_staging` table. *(Done in PR 3; verified on a scratch
+    Postgres 15: the dump succeeds while the tables don't exist yet, and a
+    restore gives the table with 0 rows beside intact releases/puzzles.)*
   - Effect: nightly dumps stay at today's size plus materialised puzzles,
     instead of about 400–500 MB gzipped per night × 14 retained (*estimate*).
 - **What stays backed up:** everything NexaChess-owned, including every
