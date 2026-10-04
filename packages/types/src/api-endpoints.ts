@@ -258,6 +258,14 @@ export const API_ROUTES = {
     validate: "/puzzles/validate",
     bulk: "/puzzles/bulk",
     import: "/puzzles/import",
+    // ── Lichess catalogue (admin + coach; never students) ──
+    // Browse rows carry no solution; preview is the only route that does.
+    catalog: "/puzzles/catalog",
+    catalogPreview: (sourceId: string = ":sourceId") => `/puzzles/catalog/${sourceId}/preview`,
+    // Copy into the hidden "Lichess" folder (in-class share). Admin + coach.
+    catalogMaterialise: "/puzzles/catalog/materialise",
+    // Copy into a curated folder. Admin only.
+    catalogAdopt: "/puzzles/catalog/adopt",
     get: (id: string = ":id") => `/puzzles/${id}`,
     update: (id: string = ":id") => `/puzzles/${id}`,
     delete: (id: string = ":id") => `/puzzles/${id}`,

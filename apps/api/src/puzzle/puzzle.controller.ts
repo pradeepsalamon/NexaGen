@@ -14,6 +14,9 @@ import type { Request } from "express";
 import {
   API_ROUTES,
   bulkPuzzleActionRequestSchema,
+  catalogAdoptRequestSchema,
+  catalogListQuerySchema,
+  catalogMaterialiseRequestSchema,
   importPuzzlesRequestSchema,
   createPuzzleRequestSchema,
   createPuzzleTopicRequestSchema,
@@ -28,6 +31,9 @@ import {
   updatePuzzleTopicRequestSchema,
   validatePuzzleRequestSchema,
   type BulkPuzzleActionRequest,
+  type CatalogAdoptRequest,
+  type CatalogListQuery,
+  type CatalogMaterialiseRequest,
   type ImportPuzzlesRequest,
   type CreatePuzzleRequest,
   type CreatePuzzleTopicRequest,
@@ -47,6 +53,7 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
+import { PuzzleCatalogService } from "./puzzle-catalog.service";
 import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 import { PuzzleTopicService } from "./puzzle-topic.service";
 import { PuzzleService } from "./puzzle.service";
@@ -57,6 +64,7 @@ export class PuzzleController {
     private readonly puzzleService: PuzzleService,
     private readonly topicService: PuzzleTopicService,
     private readonly attemptService: PuzzleAttemptService,
+    private readonly catalogService: PuzzleCatalogService,
     private readonly scoringSettings: PuzzleScoringSettingsService
   ) {}
 
@@ -119,6 +127,38 @@ export class PuzzleController {
     @Req() request: Request
   ) {
     return this.scoringSettings.update(this.token(request), body);
+  }
+
+  // ── Lichess catalogue ──
+  // Also before `/puzzles/:id`, so "catalog" is never captured as a puzzle id.
+
+  @Get(API_ROUTES.puzzles.catalog)
+  catalog(
+    @Query(new ZodBodyPipe(catalogListQuerySchema)) query: CatalogListQuery,
+    @Req() request: Request
+  ) {
+    return this.catalogService.list(this.token(request), query);
+  }
+
+  @Get(API_ROUTES.puzzles.catalogPreview())
+  catalogPreview(@Param("sourceId") sourceId: string, @Req() request: Request) {
+    return this.catalogService.preview(this.token(request), sourceId);
+  }
+
+  @Post(API_ROUTES.puzzles.catalogMaterialise)
+  catalogMaterialise(
+    @Body(new ZodBodyPipe(catalogMaterialiseRequestSchema)) body: CatalogMaterialiseRequest,
+    @Req() request: Request
+  ) {
+    return this.catalogService.materialiseOne(this.token(request), body);
+  }
+
+  @Post(API_ROUTES.puzzles.catalogAdopt)
+  catalogAdopt(
+    @Body(new ZodBodyPipe(catalogAdoptRequestSchema)) body: CatalogAdoptRequest,
+    @Req() request: Request
+  ) {
+    return this.catalogService.adopt(this.token(request), body);
   }
 
   // ── Library ──

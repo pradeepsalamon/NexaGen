@@ -8,6 +8,7 @@ import { JwtService } from "@nestjs/jwt";
 import {
   collectPuzzleTopicSubtreeIds,
   compareNatural,
+  isLichessFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
   type CreatePuzzleTopicRequest,
@@ -120,7 +121,8 @@ export class PuzzleTopicService {
       const slug = slugify(name);
       await this.assertNameFree(name, slug, parentId, id);
       data.name = name;
-      data.slug = slug;
+      // The system "Lichess" folder is found by its slug, so a rename keeps it.
+      data.slug = isLichessFolder(existing) ? existing.slug : slug;
     }
     if (dto.description !== undefined) data.description = dto.description?.trim() || null;
     if (dto.icon !== undefined) data.icon = dto.icon?.trim() || null;

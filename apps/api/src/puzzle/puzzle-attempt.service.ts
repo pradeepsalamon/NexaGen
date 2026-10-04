@@ -39,7 +39,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
-import { assertStudent, authenticateUser, fullName } from "./puzzle-auth.helper";
+import { assertStudent, authenticateUser, puzzleAuthorName } from "./puzzle-auth.helper";
 
 const puzzleInclude = {
   topic: { select: { name: true } },
@@ -561,11 +561,12 @@ export class PuzzleAttemptService {
       tags: row.tags,
       estimatedSeconds: row.estimatedSeconds,
       scoring: parseScoringOverride(row.scoringJson),
+      source: row.source,
+      rating: row.rating,
       sideToMove: this.sideToMove(row.fen),
       solutionLength: this.solutionFromRow(row.solutionMovesJson).length,
       createdById: row.createdById,
-      createdByName:
-        fullName(row.createdBy) ?? (row.createdByRole === UserRole.COACH ? "Coach" : "Admin"),
+      createdByName: puzzleAuthorName(row),
       createdByRole: row.createdByRole as UserRole,
       attemptCount: 0,
       canManage: false,

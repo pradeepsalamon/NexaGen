@@ -1,8 +1,9 @@
 # Lichess Puzzle Catalogue — Implementation Spec
 
-Status: **v2 — final architecture.** §15 PRs 1–4 are built (fixes, schema +
-contract, backup exclusion, prepare/load tooling); nothing is imported into any
-database yet. v1 was reviewed externally; §0 records what changed and why.
+Status: **v2 — final architecture.** §15 PRs 1–5b are built (fixes, schema +
+contract, backup exclusion, prepare/load tooling, rating maths and switch-over);
+PR 6 (catalogue API + UI) is in review. The 2026-10-02 release is loaded into
+`vps_dev` only. v1 was reviewed externally; §0 records what changed and why.
 [PUZZLE_CATALOGUE_ARCHITECTURE.md](PUZZLE_CATALOGUE_ARCHITECTURE.md) holds the
 audit and its measurements. Each numbered section answers one review question.
 
@@ -337,10 +338,12 @@ the course `AttachModuleModal` never show the training cache. An admin can
 still open the "Lichess" folder deliberately. `stats()` counts them separately
 (`trainingCache`).
 
-**System folder:** `PuzzleTopic` with slug `lichess`, name "Lichess", created
-lazily on first use (the same lazy-seed pattern as `PuzzleScoringSettings`).
-It's found by slug through `withDeleted`; if it was trashed, it's restored
-rather than duplicated.
+**System folder:** `PuzzleTopic` with slug `__lichess` (`LICHESS_FOLDER_SLUG`),
+name "Lichess", created lazily on first use (the same lazy-seed pattern as
+`PuzzleScoringSettings`). The slug is one `slugify` can never produce, so an
+admin's own folder named "Lichess" (slug `lichess`) is never taken for it, and a
+rename keeps it. It's found by slug through `withDeleted`; if it was trashed,
+it's restored rather than duplicated.
 
 **Edit rules for a `LICHESS` puzzle** (`PuzzleService.update`):
 
@@ -464,7 +467,11 @@ LIMIT $pageSize + 1;                                     -- the extra row ⇒ ha
   The UI says "Load more", never "of N". (A filtered `COUNT(*)` was measured
   at 32 s.)
 - **Guard:** every catalogue query runs in a Prisma interactive transaction
-  that first runs `SET LOCAL statement_timeout = '3s'`. A timeout returns
+  that first runs `SET LOCAL statement_timeout = '3s'` and
+  `SET LOCAL plan_cache_mode = force_custom_plan`. Prisma prepares every
+  statement, and after five executions Postgres may switch to a generic plan
+  that cannot see the band bounds; the §16 benchmarks only met their targets
+  with custom plans. A timeout returns
   `200 { puzzles: [], hasMore: false, timedOut: true }` and the UI says
   "narrow the filters". A very rare theme over a wide rating window is the
   only realistic way to hit it.
@@ -949,7 +956,7 @@ deployable alone.
 | 4 | **Tooling:** prepare + load scripts, `puzzles:prepare` npm script, README section | — | none (not part of the app build) | revert |
 | 5a | **Rating maths, pure functions only** (§9 safeguard 1) | — | no behaviour change | revert |
 | 5b | **Rating switch-over** (recorder passes rating + wrongMoves; D1 in the PR description) | — | affects only new rated attempts; history untouched | revert (rows written in between stay as recorded) |
-| 6 | **Catalogue API + UI:** browse (no solution) / preview (staff, with solution) / materialise / adopt; system folder hidden from list by default; duplicate-content warnings; `CatalogBrowser` in the library and `PuzzleAssignModal`; "Create homework" prefill; edit rules for `LICHESS` rows; "Lichess" author label | — | safe on an empty catalogue (empty results) | revert; any materialised puzzles remain ordinary puzzles |
+| 6 ✅ | **Catalogue API + UI:** browse (no solution) / preview (staff, with solution) / materialise / adopt; system folder hidden from list by default; duplicate-content warnings; `CatalogBrowser` in the library and `PuzzleAssignModal`; "Create homework" prefill; edit rules for `LICHESS` rows; "Lichess" author label | — | safe on an empty catalogue (empty results) | revert; any materialised puzzles remain ordinary puzzles |
 | — | **Load into `vps_dev`**; run the §16 benchmarks; e2e there | — | ops | `TRUNCATE` |
 | 7 | **Production load** (ops, not a deploy): window 21:30–23:30 UTC, after confirming step 3 ran | — | `scripts/lichess-puzzles-load.sh` | §13 rollback |
 | 8 | **Training** (after D0): service, policy, `/student/training`, nav, progress theme stats | none, or the D0 column if not added in step 2 | normal | revert; TRAINING attempts remain valid history |

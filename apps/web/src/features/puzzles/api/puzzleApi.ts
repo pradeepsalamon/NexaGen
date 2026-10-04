@@ -2,6 +2,12 @@ import { API_ROUTES } from "@nexa-chess/types";
 import type {
   BulkPuzzleActionRequest,
   BulkPuzzleActionResponse,
+  CatalogAdoptRequest,
+  CatalogAdoptResponse,
+  CatalogListQuery,
+  CatalogListResponse,
+  CatalogMaterialiseResponse,
+  CatalogPreviewResponse,
   CreatePuzzleRequest,
   CreatePuzzleTopicRequest,
   ImportPuzzlesRequest,
@@ -233,4 +239,36 @@ export function updatePuzzleScoringSettings(
   data: UpdatePuzzleScoringSettingsRequest
 ): Promise<PuzzleScoringSettingsResponse> {
   return apiFetch(API_ROUTES.puzzles.scoringSettings, { method: "PUT", body: data });
+}
+
+// ── Lichess catalogue (admin + coach) ──
+
+export function getCatalogPuzzles(query: CatalogListQuery): Promise<CatalogListResponse> {
+  return apiFetch(
+    `${API_ROUTES.puzzles.catalog}${qs({
+      ratingMin: query.ratingMin,
+      ratingMax: query.ratingMax,
+      themes: query.themes?.length ? query.themes.join(",") : undefined,
+      themeMode: query.themeMode,
+      opening: query.opening,
+      includeBelowGate: query.includeBelowGate ? "true" : undefined,
+      seed: query.seed,
+      cursor: query.cursor,
+      pageSize: query.pageSize
+    })}`
+  );
+}
+
+/** The one catalogue call that returns the solution line. */
+export function getCatalogPreview(sourceId: string): Promise<CatalogPreviewResponse> {
+  return apiFetch(API_ROUTES.puzzles.catalogPreview(sourceId));
+}
+
+/** Copy into the hidden "Lichess" folder (or find the existing copy). */
+export function materialiseCatalogPuzzle(sourceId: string): Promise<CatalogMaterialiseResponse> {
+  return apiFetch(API_ROUTES.puzzles.catalogMaterialise, { method: "POST", body: { sourceId } });
+}
+
+export function adoptCatalogPuzzles(data: CatalogAdoptRequest): Promise<CatalogAdoptResponse> {
+  return apiFetch(API_ROUTES.puzzles.catalogAdopt, { method: "POST", body: data });
 }

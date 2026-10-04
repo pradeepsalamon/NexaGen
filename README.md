@@ -983,7 +983,7 @@ batch's own **Pricing** tab is usually easier (see above).
 ## Lichess Puzzle Catalogue (import tooling)
 
 The ~6M-puzzle Lichess dump (CC0) loads into `lichess_puzzles` in two stages.
-Nothing in the app reads it yet; see
+The app only reads it through the catalogue routes below; see
 `docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md` §13–§14.
 
 **1. Prepare — off the production box** (about 1.75 CPU-hours of chess.js
@@ -1029,6 +1029,40 @@ later release has them again. The run's report is appended to
 `lichess-load.log`. Thresholds and the target database are environment
 variables documented at the top of the script. To undo: `TRUNCATE
 lichess_puzzles` — no `puzzles` row, attempt or rating references it.
+
+**Using it** (`PuzzleCatalogService`, `API_ROUTES.puzzles.catalog*`, admin and
+coach only — never students):
+
+- `GET /puzzles/catalog` browses by rating window / themes / opening, in
+  walk-index order from a random `seed`, with a keyset cursor and no totals
+  ("Load more"). Rows carry **no solution**. Every query runs in a transaction
+  with `statement_timeout = 3s` (a timeout is `timedOut: true`, "narrow the
+  filters") and `plan_cache_mode = force_custom_plan` — Prisma prepares every
+  statement, and the generic plan Postgres switches to after five runs can't
+  see the band bounds. Below-gate rows are admin-only (`includeBelowGate`).
+- `GET /puzzles/catalog/:sourceId/preview` is the only route that returns the
+  solution line.
+- `POST /puzzles/catalog/materialise` (a coach sharing in class) copies the
+  puzzle into the system **Lichess** folder (slug `__lichess`, created lazily).
+  That folder is the hidden training cache: the library, the share dialog and
+  the course picker leave it out unless it is opened directly, and stats count
+  it as `trainingCache`.
+- `POST /puzzles/catalog/adopt` (admin) copies into — or moves out of the
+  Lichess folder into — a curated folder, with a per-item outcome. A copy
+  already in another curated folder is never moved.
+
+There is at most one `puzzles` row per Lichess id (unique `(source, sourceId)`
+across soft-deleted rows; a concurrent create re-reads the winner). A copy is a
+frozen snapshot — position after the setup move, line, rating, themes as tags —
+whose position and line can't be edited (duplicate it instead), and whose author
+shows as "Lichess". Adopt and PGN import warn, without blocking, when the same
+position + line (`contentHash`) is already in the library.
+
+In the app: Puzzle Library → **Lichess catalogue** tab (admins select puzzles and
+"Add to folder"; anyone can preview with the solution or "Create homework",
+which opens the assignment form with the position and line filled in), and the
+live-class share dialog's **Lichess catalogue** tab, which shares a puzzle
+straight from the catalogue.
 
 ## Rate Limiting
 

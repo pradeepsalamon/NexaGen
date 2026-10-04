@@ -61,6 +61,7 @@ import {
   puzzleTopicOptions,
   statusBadgeVariant
 } from "../lib/puzzleMeta";
+import { CatalogBrowser } from "./catalog/CatalogBrowser";
 import { PuzzleImportDialog } from "./PuzzleImportDialog";
 import { TopicManager } from "./TopicManager";
 
@@ -125,7 +126,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
       </div>
 
       {role === "admin" && stats.data && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
           {[
             ["Total", stats.data.total],
             ["Published", stats.data.published],
@@ -133,7 +134,8 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
             ["Archived", stats.data.archived],
             ["Global", stats.data.global],
             ["Coach", stats.data.private],
-            ["Topics", stats.data.topics]
+            ["Topics", stats.data.topics],
+            ["Lichess copies", stats.data.trainingCache]
           ].map(([label, value]) => (
             <Card key={label as string} className="p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
@@ -152,6 +154,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
               {t.label}
             </TabsTrigger>
           ))}
+          <TabsTrigger value="catalog">Lichess catalogue</TabsTrigger>
           <TabsTrigger value="topics">Topics</TabsTrigger>
         </TabsList>
 
@@ -160,6 +163,9 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
             <PuzzleTable basePath={basePath} cfg={t.cfg} />
           </TabsContent>
         ))}
+        <TabsContent value="catalog">
+          <CatalogBrowser role={role} />
+        </TabsContent>
         <TabsContent value="topics">
           <TopicManager canManage={role === "admin"} />
         </TabsContent>
