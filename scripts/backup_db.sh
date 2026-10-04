@@ -70,8 +70,16 @@ if ! docker ps --format '{{.Names}}' | grep -Eq "^${DB_CONTAINER}\$"; then
 fi
 
 # 2. Run pg_dump and compress
+# The Lichess puzzle catalogue (~6M rows) is re-loadable source data, not a
+# NexaChess-owned record: its table definition is dumped, its rows are not.
+# lichess_catalogue_releases IS dumped, so a restored database names the
+# release to reload (docs/DATABASE_RESTORE.md § "Lichess puzzle catalogue").
+# Keep in step with EXCLUDED_TABLE_DATA in apps/api/src/backup/backup.service.ts.
 echo "Dumping and compressing database '$DB_NAME'..."
-docker exec -i "$DB_CONTAINER" pg_dump -U "$DB_USER" "$DB_NAME" | gzip > "$TEMP_FILE"
+docker exec -i "$DB_CONTAINER" pg_dump -U "$DB_USER" \
+  --exclude-table-data=lichess_puzzles \
+  --exclude-table-data=lichess_puzzles_staging \
+  "$DB_NAME" | gzip > "$TEMP_FILE"
 
 # Verify file was created and is not empty
 if [ ! -s "$TEMP_FILE" ]; then
