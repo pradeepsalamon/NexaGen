@@ -14,13 +14,66 @@ import {
   PUZZLE_DIFFICULTY_LABELS,
   difficultyBadgeVariant
 } from "@/features/puzzles/lib/puzzleMeta";
-import { usePuzzleAttempt } from "@/features/puzzles/hooks/usePuzzleAttempt";
+import { usePuzzleAttempt, type WrongPuzzleMove } from "@/features/puzzles/hooks/usePuzzleAttempt";
 import { queryKeys } from "@/lib/queryKeys";
+import { cn } from "@/lib/utils";
 import { startLivePuzzleAttempt } from "../../api/liveClassPuzzle";
 import { formatClock, useCountdown } from "../../hooks/useCountdown";
 import { useLivePuzzleLeaderboard } from "../../hooks/useLivePuzzle";
 import { useReactions } from "../../providers/ReactionProvider";
 import { useAuthStore } from "@/stores/authStore";
+
+/**
+ * The student's rejected moves, beside the board (lg+) or as a strip above it
+ * (below lg). Always rendered at a fixed size, so a wrong move never moves the board.
+ */
+function WrongMovesList({
+  moves,
+  flash,
+  penalty,
+  variant
+}: {
+  moves: WrongPuzzleMove[];
+  flash: boolean;
+  penalty: number;
+  variant: "column" | "strip";
+}) {
+  const latest = moves[moves.length - 1]?.id;
+  const chip = (m: WrongPuzzleMove) => (
+    <li
+      key={m.id}
+      className={cn(
+        "flex shrink-0 items-center gap-1.5 rounded-control border border-app-danger/30 bg-app-danger/10 px-2 py-1 font-mono text-xs font-semibold text-app-danger-ink transition-shadow",
+        flash && m.id === latest && "ring-2 ring-app-danger/60"
+      )}
+    >
+      <XCircle className="size-3.5 shrink-0" strokeWidth={2.5} />
+      {m.label}
+    </li>
+  );
+  const summary = moves.length
+    ? `${moves.length} wrong ${moves.length === 1 ? "move" : "moves"}${penalty > 0 ? ` · −${moves.length * penalty} pts` : ""}`
+    : "No wrong moves yet";
+
+  if (variant === "strip") {
+    // Newest first, so the latest stays visible on a narrow screen.
+    return (
+      <div className="flex h-8 shrink-0 items-center gap-2 overflow-hidden lg:hidden" aria-label="Wrong moves">
+        <span className="shrink-0 text-xs font-semibold text-app-muted">{summary}</span>
+        <ol className="custom-scrollbar-hide flex min-w-0 gap-1.5 overflow-x-auto">{[...moves].reverse().map(chip)}</ol>
+      </div>
+    );
+  }
+  return (
+    <aside className="hidden w-44 shrink-0 flex-col gap-2 lg:flex" aria-label="Wrong moves">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">Attempts</p>
+        <p className="text-xs text-app-muted">{summary}</p>
+      </div>
+      <ol className="custom-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">{moves.map(chip)}</ol>
+    </aside>
+  );
+}
 
 /**
  * The student's in-class puzzle board. Same server-scored SOLVE_LINE flow as the
@@ -41,7 +94,7 @@ export function InRoomPuzzleSolver({
   const { send } = useDataChannel(LIVE_CLASS_PUZZLE_TOPIC);
   const start = useCallback(() => startLivePuzzleAttempt(classId), [classId]);
   const {
-    session, startError, moves, phase, wrong, resetNonce, result, currentFen,
+    session, startError, moves, phase, wrong, wrongMoves, resetNonce, result, currentFen,
     begin, handleMove, giveUp, pendingSubmit, retrySubmit
   } = usePuzzleAttempt({ start });
   const { secondsLeft, expired } = useCountdown(puzzle.endsAt);
@@ -132,21 +185,28 @@ export function InRoomPuzzleSolver({
       ) : null}
 
       {session && currentFen ? (
-        <div className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-          <div className="touch-none shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
-            <PracticeBoard
-              resetKey={`${moves.length}-${resetNonce}`}
-              fen={currentFen}
-              orientation={session.orientation}
-              playerColor={session.studentColor}
-              interactive={phase === "solving" && !expired}
-              lastMove={
-                moves.length
-                  ? [moves[moves.length - 1].uci.slice(0, 2), moves[moves.length - 1].uci.slice(2, 4)]
-                  : null
-              }
-              onMove={handleMove}
-            />
+        <WrongMovesList moves={wrongMoves} flash={wrong} penalty={scoring.wrongMovePenalty} variant="strip" />
+      ) : null}
+
+      {session && currentFen ? (
+        <div className="flex min-h-0 flex-1 gap-3">
+          <WrongMovesList moves={wrongMoves} flash={wrong} penalty={scoring.wrongMovePenalty} variant="column" />
+          <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
+            <div className="touch-none shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
+              <PracticeBoard
+                resetKey={`${moves.length}-${resetNonce}`}
+                fen={currentFen}
+                orientation={session.orientation}
+                playerColor={session.studentColor}
+                interactive={phase === "solving" && !expired}
+                lastMove={
+                  moves.length
+                    ? [moves[moves.length - 1].uci.slice(0, 2), moves[moves.length - 1].uci.slice(2, 4)]
+                    : null
+                }
+                onMove={handleMove}
+              />
+            </div>
           </div>
         </div>
       ) : (
@@ -154,14 +214,6 @@ export function InRoomPuzzleSolver({
       )}
 
       <div className="mx-auto w-full max-w-xl shrink-0 space-y-2">
-        {wrong ? (
-          <Card className="flex items-center gap-2 border-app-danger/40 p-2.5 text-sm text-app-danger-ink">
-            <XCircle className="size-4 shrink-0" strokeWidth={2.5} />
-            Not the move — try again.
-            {scoring.wrongMovePenalty > 0 ? ` (−${scoring.wrongMovePenalty} pts)` : ""}
-          </Card>
-        ) : null}
-
         {result ? (
           <Card
             className={`flex items-start gap-2 p-2.5 text-sm ${

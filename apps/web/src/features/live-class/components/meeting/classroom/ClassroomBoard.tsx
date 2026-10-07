@@ -29,6 +29,8 @@ import { useLoadNextPuzzle } from "../../../hooks/useLoadNextPuzzle";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { PuzzleAssignModal } from "../PuzzleAssignModal";
 import { SharePositionDialog } from "../SharePositionDialog";
+import { MeetingChat } from "../MeetingChat";
+import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 
@@ -54,8 +56,76 @@ function CoachBoardShortcuts() {
   return null;
 }
 
+export const SIDE_COLUMN_W = 300;
+const SIDE_COLUMN_GAP = 12;
+// Keeps the column from flickering when the spare width sits right at the threshold.
+const SIDE_COLUMN_HYSTERESIS = 16;
+
+/**
+ * Whether the empty space beside the square board fits the coach's side
+ * column. Measured on the board box, adding the column back while it shows,
+ * so showing it never changes the answer.
+ */
+function useSideColumnFit(enabled: boolean, onChange?: (fits: boolean) => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  const shownRef = useRef(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!enabled || !onChange || !el) return;
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const measure = () => {
+      const shown = shownRef.current;
+      const spare = el.clientWidth - el.clientHeight + (shown ? SIDE_COLUMN_W + SIDE_COLUMN_GAP : 0);
+      const need = SIDE_COLUMN_W + SIDE_COLUMN_GAP + (shown ? -SIDE_COLUMN_HYSTERESIS : SIDE_COLUMN_HYSTERESIS);
+      const fits = wide.matches && spare >= need;
+      if (fits !== shown) {
+        shownRef.current = fits;
+        onChange(fits);
+      }
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    wide.addEventListener("change", measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      wide.removeEventListener("change", measure);
+      shownRef.current = false;
+      onChange(false);
+    };
+  }, [enabled, onChange]);
+
+  return ref;
+}
+
+/** The coach's left column: puzzles / leaderboard on top, chat below. */
+function CoachSideColumn() {
+  return (
+    <aside className="flex min-h-0 shrink-0 flex-col gap-3" style={{ width: SIDE_COLUMN_W }} aria-label="Puzzles and chat">
+      <div className="min-h-0 flex-1 overflow-hidden rounded-panel border border-app-border bg-app-surface/60 shadow-card">
+        <MeetingPuzzlePanel />
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden rounded-panel border border-app-border bg-app-surface/60 shadow-card">
+        <MeetingChat />
+      </div>
+    </aside>
+  );
+}
+
 /** The board half of the classroom layout. Coaches author; students watch (or play with granted control). */
-export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; stageSwitch: ReactNode }) {
+export function ClassroomBoard({
+  isCoach,
+  stageSwitch,
+  sideColumn = false,
+  onSideColumnChange
+}: {
+  isCoach: boolean;
+  stageSwitch: ReactNode;
+  /** Coach only: puzzles + chat fill the empty space left of the board. */
+  sideColumn?: boolean;
+  onSideColumnChange?: (fits: boolean) => void;
+}) {
   const fen = useBoardStore((s) => s.fen);
   const { activePuzzle, setPuzzleSolverOpen, isChessboardOpen } = useLiveClassState(
     "activePuzzle",
@@ -63,6 +133,7 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
     "isChessboardOpen",
   );
   const waiting = !isCoach && !isChessboardOpen;
+  const boardBoxRef = useSideColumnFit(isCoach, onSideColumnChange);
 
   return (
     // lg+: bottom padding clears the floating toolbar (below lg it floats over the panel).
@@ -100,26 +171,31 @@ export function ClassroomBoard({ isCoach, stageSwitch }: { isCoach: boolean; sta
         {stageSwitch}
       </div>
 
-      <div className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
-        <div className="relative shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
-          <ChessgroundBoard />
-          {waiting ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-app-background/60 backdrop-blur-[2px]">
-              <span className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 py-2 text-sm font-semibold text-app-muted shadow-card">
-                <Loader2 className="size-4 animate-spin" />
-                Waiting for your coach&apos;s board…
-              </span>
+      <div className="flex min-h-0 flex-1" style={{ gap: SIDE_COLUMN_GAP }}>
+        {sideColumn ? <CoachSideColumn /> : null}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+          <div ref={boardBoxRef} className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
+            <div className="relative shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
+              <ChessgroundBoard />
+              {waiting ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-app-background/60 backdrop-blur-[2px]">
+                  <span className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-4 py-2 text-sm font-semibold text-app-muted shadow-card">
+                    <Loader2 className="size-4 animate-spin" />
+                    Waiting for your coach&apos;s board…
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          {isCoach ? (
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
+              <BoardNavigation />
+              <CoachPuzzleButtons />
             </div>
           ) : null}
         </div>
       </div>
-
-      {isCoach ? (
-        <div className="flex shrink-0 flex-wrap items-center justify-center gap-3">
-          <BoardNavigation />
-          <CoachPuzzleButtons />
-        </div>
-      ) : null}
     </section>
   );
 }

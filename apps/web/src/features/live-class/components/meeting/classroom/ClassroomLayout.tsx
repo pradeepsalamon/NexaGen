@@ -95,6 +95,7 @@ export function StageSwitch({
  */
 export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const [stage, setStage] = useState<ClassroomStage>("board");
+  const [sideColumnFits, setSideColumnFits] = useState(false);
   const { activePuzzle, puzzleSolverOpen, setPuzzleSolverOpen, puzzleBoardsOpen, setPuzzleBoardsOpen } =
     useLiveClassState(
       "activePuzzle",
@@ -229,12 +230,21 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
           <MeetingVideoGrid hideBoard />
         </section>
       ) : (
-        <ClassroomBoard isCoach={isCoach} stageSwitch={stageSwitch} />
+        <ClassroomBoard
+          isCoach={isCoach}
+          stageSwitch={stageSwitch}
+          sideColumn={sideColumnFits}
+          onSideColumnChange={setSideColumnFits}
+        />
       )}
       <PanelResizer />
       {/* Below lg the panel stacks under the stage; give a solving student the whole height. */}
       <div className={solving ? "hidden lg:contents" : "contents"}>
-        <ClassroomPanel isCoach={isCoach} showVideo={stage !== "video"} />
+        <ClassroomPanel
+          isCoach={isCoach}
+          showVideo={stage !== "video"}
+          sideColumn={isCoach && stage === "board" && sideColumnFits}
+        />
       </div>
     </div>
   );

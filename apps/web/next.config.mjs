@@ -11,7 +11,26 @@ const nextConfig = (phase) => ({
     phase === PHASE_PRODUCTION_BUILD || phase === PHASE_PRODUCTION_SERVER
       ? ".next-build"
       : ".next",
+  experimental: {
+    optimizePackageImports: ["framer-motion"]
+  },
+  // public/ files are not content-hashed, so a day's cache, then revalidate.
+  async headers() {
+    return ["/academy/:path*", "/chess/:path*", "/sounds/:path*"].map((source) => ({
+      headers: [
+        {
+          key: "Cache-Control",
+          value: "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ],
+      source
+    }));
+  },
+  images: {
+    formats: ["image/avif", "image/webp"]
+  },
   output: "standalone",
+  poweredByHeader: false,
   webpack(config, { dev }) {
     if (dev) {
       config.cache = false;

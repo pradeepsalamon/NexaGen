@@ -1,6 +1,3 @@
-"use client";
-
-import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 
 const chessPieces = ["♔", "♕", "♖", "♗", "♘", "♙"];
@@ -14,7 +11,7 @@ interface Particle {
   delay: number;
 }
 
-const initialParticles: Particle[] = Array.from({ length: 10 }, (_, i) => ({
+const particles: Particle[] = Array.from({ length: 10 }, (_, i) => ({
   id: i,
   x: (i * 17) % 100,
   y: (i * 23) % 100,
@@ -31,8 +28,6 @@ const heroStats = [
 ];
 
 export function HeroSection() {
-  const [particles] = useState<Particle[]>(initialParticles);
-
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center overflow-hidden">
       {/* Static gradient background (large blurs are not animated to keep

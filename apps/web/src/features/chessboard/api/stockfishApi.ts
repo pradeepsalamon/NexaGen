@@ -7,12 +7,14 @@ export type { StockfishAnalysisResult };
 export async function analyzePosition(
   fen: string,
   signal?: AbortSignal,
-  mode: "analysis" | "move" = "analysis"
+  mode: "analysis" | "move" = "analysis",
+  silent = false
 ): Promise<StockfishAnalysisResult> {
   return apiFetch<StockfishAnalysisResult>(API_ROUTES.stockfish.analyze, {
     method: "POST",
     body: { fen, mode },
-    signal
+    signal,
+    silent
   });
 }
 
@@ -29,7 +31,8 @@ export async function analyzePositionStream(
   options: { signal?: AbortSignal; onUpdate: (partial: StockfishAnalysisResult) => void }
 ): Promise<StockfishAnalysisResult> {
   const { signal, onUpdate } = options;
-  const fallback = () => analyzePosition(fen, signal);
+  // The panel shows its own error, so a dropped fallback stays out of the global toast.
+  const fallback = () => analyzePosition(fen, signal, "analysis", true);
 
   let response: Response;
   try {

@@ -366,7 +366,10 @@ helper for dirty-state UX.
   `CLOUDINARY_*`, `STOCKFISH_PATH`, `STOCKFISH_POOL_SIZE` (max engines), `STOCKFISH_MIN_ENGINES` (kept running at rest, default 1), `STOCKFISH_IDLE_TIMEOUT_S` (extra engines stop after this idle time, default 60), `STOCKFISH_MOVETIME`, `STOCKFISH_MOVE_MOVETIME` (engine-move think, default 1000), `STOCKFISH_MOVE_MAX_DEPTH` (engine moves stop early at this depth, default 22, 0 = off), `STOCKFISH_HASH_MB`, `STOCKFISH_MAX_DEPTH` (analysis stops early at this depth, default 20, 0 = off)
   (per-position engine search time in ms, default 800).
 - **Web:** `getWebEnv()` in `packages/config/src/web.ts` validates
-  `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_LIVEKIT_URL` (with localhost defaults).
+  `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_LIVEKIT_URL` and `NEXT_PUBLIC_SITE_URL`
+  (public origin for canonical URLs, `sitemap.xml`, `robots.txt` and Open Graph;
+  compose defaults it to `https://nexachess.in`) with localhost defaults, and the
+  optional `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (Search Console meta tag).
   `NEXT_PUBLIC_CONTACT_EMAIL` is read directly from `process.env`. **`NEXT_PUBLIC_*`
   is build-time** — set before `docker compose build`.
 - **Root `.env`** feeds `docker-compose.yml` (Postgres creds, build args, all API

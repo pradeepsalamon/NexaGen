@@ -1,5 +1,3 @@
-"use client";
-
 import { MessageCircle, Phone, Mail } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 

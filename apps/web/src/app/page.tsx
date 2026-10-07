@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   CalendarCheck,
   GraduationCap,
@@ -6,6 +7,47 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { HeroActions } from "@/components/home/HeroActions";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
+
+const HOME_TITLE = `${SITE_NAME} | Build better chess habits`;
+const HOME_DESCRIPTION =
+  "A focused learning workspace for chess students, families, and coaches, designed around practice, progress, and consistent class routines.";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  description: HOME_DESCRIPTION,
+  openGraph: {
+    description: HOME_DESCRIPTION,
+    images: [{ alt: SITE_NAME, url: "/academy/nexa_logo_light1.png" }],
+    title: HOME_TITLE,
+    url: "/"
+  },
+  title: { absolute: HOME_TITLE }
+};
+
+// Lets Google show "Nexa Chess" as the site name and pick up the logo.
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@id": `${SITE_URL}/#website`,
+      "@type": "WebSite",
+      alternateName: ["NexaChess", "Nexa Chess Academy", "nexachess.in"],
+      name: SITE_NAME,
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      url: `${SITE_URL}/`
+    },
+    {
+      "@id": `${SITE_URL}/#organization`,
+      "@type": "EducationalOrganization",
+      email: "nexachessacademy@gmail.com",
+      logo: `${SITE_URL}/academy/nexa_logo_light1.png`,
+      name: SITE_NAME,
+      telephone: "+91-7010854643",
+      url: `${SITE_URL}/`
+    }
+  ]
+};
 
 const highlights = [
   {
@@ -28,6 +70,7 @@ const highlights = [
 export default function Home() {
   return (
     <main className="min-h-[calc(100vh-4rem)] overflow-hidden">
+      <script dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} type="application/ld+json" />
       <section className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
         <div className="grid gap-8">
           <div className="max-w-3xl">
