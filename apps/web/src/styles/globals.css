@@ -265,6 +265,11 @@
     height: 100%;
   }
 
+  /* Our tiles draw their own speaker border; LiveKit's blue one has a mismatched radius. */
+  .lk-participant-tile::after {
+    display: none;
+  }
+
   .lk-participant-tile .lk-video-container {
     position: absolute;
     inset: 0;

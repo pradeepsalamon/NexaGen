@@ -1,5 +1,3 @@
-"use client";
-
 import { GraduationCap, Target, Trophy, Laptop, CalendarDays, Handshake } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 

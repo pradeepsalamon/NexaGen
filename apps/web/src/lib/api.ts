@@ -1,5 +1,6 @@
 import axios, { AxiosError, type AxiosRequestConfig, type InternalAxiosRequestConfig } from "axios";
 import { getWebEnv } from "@nexa-chess/config/web";
+import { toast } from "sonner";
 import { API_ROUTES } from "@nexa-chess/types";
 import { useAuthStore } from "../stores/authStore";
 
@@ -95,7 +96,32 @@ apiClient.interceptors.response.use(
 
 type ApiFetchOptions = Omit<AxiosRequestConfig, "data" | "url"> & {
   body?: unknown;
+  /** Background request whose caller shows its own error: never raises the global network toast. */
+  silent?: boolean;
 };
+
+const NETWORK_TOAST_ID = "global-network-error";
+// One dropped request (a mobile blip, a tab waking up) is not an outage.
+const NETWORK_FAILURES_BEFORE_TOAST = 2;
+let consecutiveNetworkFailures = 0;
+
+function reportNetworkFailure(silent: boolean) {
+  if (silent) return;
+  consecutiveNetworkFailures += 1;
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+  const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+  if (!offline && consecutiveNetworkFailures < NETWORK_FAILURES_BEFORE_TOAST) return;
+  toast.error("Connection Error", {
+    description: "Cannot connect to the server. Please check your connection.",
+    id: NETWORK_TOAST_ID
+  });
+}
+
+function reportNetworkSuccess() {
+  if (consecutiveNetworkFailures === 0) return;
+  consecutiveNetworkFailures = 0;
+  toast.dismiss(NETWORK_TOAST_ID);
+}
 
 /**
  * Thrown by `apiFetch` on any non-2xx response. Carries `code` when the API
@@ -114,20 +140,20 @@ export class ApiError extends Error {
   }
 }
 
-import { toast } from "sonner";
 
 export async function apiFetch<TResponse>(
   path: string,
   options: ApiFetchOptions = {}
 ) {
+  const { body, silent = false, ...requestConfig } = options;
   try {
-    const { body, ...requestConfig } = options;
     const response = await apiClient.request<TResponse>({
       ...requestConfig,
       data: body,
       url: path
     });
 
+    reportNetworkSuccess();
     return response.data;
   } catch (error) {
     // A caller-aborted request (e.g. a superseded engine-analysis call) is not
@@ -138,14 +164,9 @@ export async function apiFetch<TResponse>(
 
     if (error instanceof AxiosError) {
       const message = getApiErrorMessage(error);
-      
-      // Globally show a toast for network errors (e.g. server down)
-      if (!error.response) {
-        toast.error("Connection Error", { 
-          description: "Cannot connect to the server. Please check your connection.",
-          id: "global-network-error" 
-        });
-      }
+
+      if (error.response) reportNetworkSuccess();
+      else reportNetworkFailure(silent);
 
       const code = error.response?.data?.code;
       throw new ApiError(message, typeof code === "string" ? code : undefined);

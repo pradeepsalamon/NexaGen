@@ -1,11 +1,30 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { GOOGLE_SITE_VERIFICATION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { AppProviders } from "../providers/AppProviders";
 import { fontVariables } from "./fonts";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
-  title: "Nexa Chess",
-  description: "Online Chess Learning Management System"
+  metadataBase: new URL(SITE_URL),
+  title: SITE_NAME,
+  description: "Online Chess Learning Management System",
+  applicationName: SITE_NAME,
+  openGraph: {
+    description: "Online Chess Learning Management System",
+    locale: "en_US",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    type: "website"
+  },
+  formatDetection: { address: false, email: false, telephone: false },
+  verification: GOOGLE_SITE_VERIFICATION ? { google: GOOGLE_SITE_VERIFICATION } : undefined
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { color: "#f6f7fc", media: "(prefers-color-scheme: light)" },
+    { color: "#090c1a", media: "(prefers-color-scheme: dark)" }
+  ]
 };
 
 // Sets the saved light/dark mode, and the last resolved fonts + text size

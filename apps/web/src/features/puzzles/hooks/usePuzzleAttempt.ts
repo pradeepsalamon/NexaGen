@@ -14,6 +14,14 @@ import { replayLine } from "../components/solver/puzzleSolverEngine";
 
 type StartFn = () => Promise<{ attempt: StartPuzzleAttemptResponse }>;
 
+/** A move the server rejected, labelled with its move number ("12. Nf3", "12… Nf3"). */
+export type WrongPuzzleMove = { id: number; label: string; san: string };
+
+function moveLabel(fen: string, san: string) {
+  const [, side, , , , fullmove] = fen.split(" ");
+  return `${fullmove ?? "1"}${side === "b" ? "…" : "."} ${san}`;
+}
+
 /**
  * The server-backed puzzle-attempt flow: start an attempt, play the student's
  * side move by move (each `savePuzzleAttempt` returns feedback + the forced
@@ -29,6 +37,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
   const [moves, setMoves] = useState<AttemptMove[]>([]);
   const [phase, setPhase] = useState<"solving" | "done">("solving");
   const [wrong, setWrong] = useState(false);
+  const [wrongMoves, setWrongMoves] = useState<WrongPuzzleMove[]>([]);
   const [resetNonce, setResetNonce] = useState(0);
   const [revealedHints, setRevealedHints] = useState(0);
   // The server's progressive hint (piece → origin → move) for puzzles with no
@@ -49,6 +58,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       setMoves(res.attempt.attempt.moves ?? []);
       setPhase("solving");
       setWrong(false);
+      setWrongMoves([]);
       setRevealedHints(0);
       setServerHint(null);
       setResult(null);
@@ -122,6 +132,11 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
         });
         const fb = res.moveFeedback;
         if (fb && !fb.correct) {
+          const fenBefore = moves.length ? moves[moves.length - 1].fenAfter : startFen;
+          setWrongMoves((list) => [
+            ...list,
+            { id: list.length + 1, label: moveLabel(fenBefore ?? "", pmv.san), san: pmv.san }
+          ]);
           setWrong(true);
           setResetNonce((n) => n + 1);
           window.setTimeout(() => setWrong(false), 900);
@@ -153,7 +168,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
         busy.current = false;
       }
     },
-    [puzzleId, attemptId, phase, moves, submit, toast]
+    [puzzleId, attemptId, phase, moves, startFen, submit, toast]
   );
 
   const giveUp = useCallback(() => submit(moves), [submit, moves]);
@@ -181,6 +196,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
     moves,
     phase,
     wrong,
+    wrongMoves,
     resetNonce,
     result,
     currentFen,

@@ -2,10 +2,17 @@
 
 import { memo, useCallback, useEffect, useRef } from "react";
 import { Send, Smile } from "lucide-react";
-import EmojiPicker, { Theme } from "emoji-picker-react";
+import dynamic from "next/dynamic";
+import type { Theme } from "emoji-picker-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
+
+// Large bundle (emoji data); only fetched the first time the popover opens.
+const EmojiPicker = dynamic(() => import("emoji-picker-react"), {
+  loading: () => <div className="h-[450px] w-[350px] rounded-panel bg-app-surface" />,
+  ssr: false
+});
 
 interface ChatComposerProps {
   draft: string;
@@ -98,7 +105,7 @@ export const ChatComposer = memo(function ChatComposer({
                 onDraftChange(draft + emojiData.emoji);
                 textareaRef.current?.focus();
               }}
-              theme={mode === "dark" ? Theme.DARK : Theme.LIGHT}
+              theme={(mode === "dark" ? "dark" : "light") as Theme}
               lazyLoadEmojis={true}
             />
           </PopoverContent>

@@ -1,6 +1,12 @@
 import { z } from "zod";
 
-import { puzzleDifficultySchema, puzzleTypeSchema } from "./puzzle";
+import { solutionMoveSchema } from "./index";
+import {
+  MAX_PUZZLE_FEN_LENGTH,
+  MAX_PUZZLE_SOLUTION_MOVES,
+  puzzleDifficultySchema,
+  puzzleTypeSchema
+} from "./puzzle";
 import {
   puzzleLeaderboardOptionsSchema,
   puzzleLeaderboardOverrideSchema,
@@ -97,6 +103,24 @@ export const assignLivePuzzleRequestSchema = z.object({
   leaderboard: puzzleLeaderboardOverrideSchema.optional()
 });
 export type AssignLivePuzzleRequest = z.infer<typeof assignLivePuzzleRequestSchema>;
+
+/**
+ * Coach shares the main board's position as a new puzzle (the "Share current"
+ * dialog). Saved PRIVATE + PUBLISHED in the hidden live-class folder, then
+ * assigned like any other. When `sourcePuzzleId` is given and nothing was
+ * changed, that puzzle is shared instead of a copy.
+ */
+export const shareLivePuzzleFromBoardRequestSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  fen: z.string().trim().min(1).max(MAX_PUZZLE_FEN_LENGTH),
+  solutionMoves: z.array(solutionMoveSchema).min(1).max(MAX_PUZZLE_SOLUTION_MOVES),
+  orientation: z.enum(["white", "black"]).optional(),
+  sourcePuzzleId: z.string().min(1).optional(),
+  durationSeconds: z.number().int().min(30).max(3600).nullish(),
+  scoring: puzzleScoringOverrideSchema.optional(),
+  leaderboard: puzzleLeaderboardOverrideSchema.optional()
+});
+export type ShareLivePuzzleFromBoardRequest = z.infer<typeof shareLivePuzzleFromBoardRequestSchema>;
 
 /** Coach edits the running puzzle; points are recomputed for everyone. */
 export const updateLivePuzzleRequestSchema = z.object({
@@ -227,6 +251,16 @@ export const LIVE_PUZZLE_BOARD_STATUSES = [
 ] as const;
 export type LivePuzzleBoardStatus = (typeof LIVE_PUZZLE_BOARD_STATUSES)[number];
 
+/** One wrong move a student tried; the board was reset to `fenBefore` afterwards. */
+export type LivePuzzleMistake = {
+  ply: number;
+  uci: string;
+  san: string;
+  fenBefore: string;
+  /** ISO timestamp. */
+  at: string;
+};
+
 export type LivePuzzleBoardEntry = {
   studentId: string;
   studentName: string;
@@ -235,6 +269,8 @@ export type LivePuzzleBoardEntry = {
   fen: string | null;
   moveCount: number;
   lastMoveSan: string | null;
+  /** Wrong moves in the current attempt, oldest first. */
+  mistakes: LivePuzzleMistake[];
   /** ISO timestamp of the student's last saved move, or null when `NOT_STARTED`. */
   updatedAt: string | null;
 };

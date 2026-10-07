@@ -52,12 +52,18 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
       className={cn(
         "group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border bg-app-surface shadow-card transition-[box-shadow,border-color] duration-200",
-        isSpeaking
-          ? "border-primary ring-2 ring-primary/60"
-          : "border-app-border hover:border-app-border/80",
+        isSpeaking ? "border-success" : "border-app-border hover:border-app-border/80",
       )}
       style={{ containerType: "size", ...style }}
     >
+      {/* Inset so the parent's overflow never clips it, and it inherits the tile's radius. */}
+      <div
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute inset-0 z-20 rounded-[inherit] ring-[3px] ring-inset ring-success transition-opacity duration-200",
+          isSpeaking ? "opacity-100" : "opacity-0",
+        )}
+      />
       {/* Video layer */}
       {hasVideo ? (
         <ParticipantTile

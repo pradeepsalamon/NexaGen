@@ -3,6 +3,7 @@ import { Inter, Playfair_Display } from "next/font/google";
 import "@/features/academy/styles/academy.css";
 import { ScrollObserver } from "@/features/academy/components/ScrollObserver";
 import { TrackingProvider } from "@/features/academy/components/TrackingProvider";
+import { SITE_URL } from "@/lib/site";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -44,13 +45,17 @@ export const metadata: Metadata = {
     description: "Master chess with expert coaching. Professional online chess training for all levels.",
     siteName: SITE_NAME,
     type: "website",
-    locale: "en_US"
+    locale: "en_US",
+    url: "/academy",
+    images: [{ url: "/academy/nexa_logo_light1.png", alt: SITE_NAME }]
   },
   twitter: {
     card: "summary_large_image",
     title: `${SITE_NAME} | Professional Online Chess Training`,
-    description: "Master chess with expert coaching. Professional online chess training for all levels."
+    description: "Master chess with expert coaching. Professional online chess training for all levels.",
+    images: ["/academy/nexa_logo_light1.png"]
   },
+  alternates: { canonical: "/academy" },
   category: "education"
 };
 
@@ -59,6 +64,8 @@ const jsonLd = {
   "@type": "EducationalOrganization",
   name: SITE_NAME,
   description: SITE_DESCRIPTION,
+  url: `${SITE_URL}/academy`,
+  logo: `${SITE_URL}/academy/nexa_logo_light1.png`,
   email: "nexachessacademy@gmail.com",
   telephone: "+91-7010854643",
   areaServed: "Worldwide"

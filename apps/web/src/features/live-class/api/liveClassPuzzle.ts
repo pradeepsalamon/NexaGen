@@ -8,6 +8,7 @@ import {
   type LivePuzzleBoardsResponse,
   type LivePuzzleLeaderboardResponse,
   type LivePuzzleStateResponse,
+  type ShareLivePuzzleFromBoardRequest,
   type StartPuzzleAttemptResponse,
   type UpdateLivePuzzleRequest
 } from "@nexa-chess/types";
@@ -20,6 +21,15 @@ export const assignLivePuzzle = (
   body: AssignLivePuzzleRequest
 ): Promise<LivePuzzleStateResponse> =>
   apiFetch<LivePuzzleStateResponse>(API_ROUTES.liveClass.puzzle(classId), {
+    method: "POST",
+    body
+  });
+
+export const shareLivePuzzleFromBoard = (
+  classId: string,
+  body: ShareLivePuzzleFromBoardRequest
+): Promise<LivePuzzleStateResponse> =>
+  apiFetch<LivePuzzleStateResponse>(API_ROUTES.liveClass.puzzleFromBoard(classId), {
     method: "POST",
     body
   });

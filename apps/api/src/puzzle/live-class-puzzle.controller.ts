@@ -5,10 +5,12 @@ import {
   adjustClassLeaderboardRequestSchema,
   adjustLivePuzzlePointsRequestSchema,
   assignLivePuzzleRequestSchema,
+  shareLivePuzzleFromBoardRequestSchema,
   updateLivePuzzleRequestSchema,
   type AdjustClassLeaderboardRequest,
   type AdjustLivePuzzlePointsRequest,
   type AssignLivePuzzleRequest,
+  type ShareLivePuzzleFromBoardRequest,
   type UpdateLivePuzzleRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
@@ -78,6 +80,15 @@ export class LiveClassPuzzleController {
   @Get(API_ROUTES.liveClass.puzzleLeaderboard())
   leaderboard(@Param("id") id: string, @Req() request: Request) {
     return this.service.leaderboard(this.token(request), id);
+  }
+
+  @Post(API_ROUTES.liveClass.puzzleFromBoard())
+  shareFromBoard(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(shareLivePuzzleFromBoardRequestSchema)) body: ShareLivePuzzleFromBoardRequest
+  ) {
+    return this.service.shareFromBoard(this.token(request), id, body);
   }
 
   @Get(API_ROUTES.liveClass.puzzleBoards())

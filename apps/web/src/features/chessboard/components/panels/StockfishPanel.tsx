@@ -5,6 +5,7 @@ import { Loader2, Pause, Play } from 'lucide-react';
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 const ANALYSIS_DEBOUNCE_MS = 150;
+const ANALYSIS_RETRY_MS = 3000;
 
 /** The engine scores for the side to move; the panel shows White's view. */
 function whitePerspective(fen: string, result: StockfishAnalysisResult) {
@@ -20,10 +21,12 @@ export function StockfishPanel() {
   const [error, setError] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEnabled, setIsEnabled] = useState(true);
+  const [retryTick, setRetryTick] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!fen || !isEnabled) return;
+    let retryId: ReturnType<typeof setTimeout> | undefined;
 
     const performAnalysis = async () => {
       // Cancel previous analysis request if exists
@@ -54,6 +57,7 @@ export function StockfishPanel() {
           err?.message === 'canceled';
         if (!aborted) {
           setError(err?.message || 'Failed to fetch analysis');
+          retryId = setTimeout(() => setRetryTick((tick) => tick + 1), ANALYSIS_RETRY_MS);
         }
       } finally {
         if (!controller.signal.aborted) setIsAnalyzing(false);
@@ -67,11 +71,12 @@ export function StockfishPanel() {
 
     return () => {
       clearTimeout(debounceId);
+      clearTimeout(retryId);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [fen, isEnabled]);
+  }, [fen, isEnabled, retryTick]);
 
   if (error) {
     return (

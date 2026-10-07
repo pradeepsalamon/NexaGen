@@ -6,6 +6,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import type {
   AttemptMove,
+  LivePuzzleMistake,
   PuzzleAttemptDto,
   PuzzleAttemptHistoryResponse,
   PuzzleAttemptProgressResponse,
@@ -29,6 +30,7 @@ import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { ANALYTICS_EVENT_TYPES } from "../analytics/analytics-events.constants";
 import {
   AssignmentEvaluationService,
+  applyUci,
   assertValidFen
 } from "../assignment/assignment-evaluation.service";
 import {
@@ -40,6 +42,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { puzzleTopicWhere } from "./puzzle-topic-filter";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { assertStudent, authenticateUser, puzzleAuthorName } from "./puzzle-auth.helper";
+
+const MAX_STORED_MISTAKES = 50;
 
 const puzzleInclude = {
   topic: { select: { name: true } },
@@ -299,13 +303,19 @@ export class PuzzleAttemptService {
     // client cannot skip it (it only learns a move was wrong from this call).
     // The wrong line is not persisted — the client resets to the last good
     // position, and the coach's live board shouldn't show a move that was undone.
+    // The move itself is kept separately (wrongMovesJson) so the coach can see what was tried.
     const wrong = !!moveFeedback && !moveFeedback.correct;
     const updated = await this.prisma.puzzleAttempt.update({
       where: { id: attempt.id },
       data: wrong
         ? {
             durationSeconds: dto.durationSeconds ?? attempt.durationSeconds,
-            wrongMoves: { increment: 1 }
+            wrongMoves: { increment: 1 },
+            wrongMovesJson: this.appendMistake(
+              attempt.wrongMovesJson,
+              puzzle.fen,
+              moves
+            ) as unknown as Prisma.InputJsonValue
           }
         : {
             movesJson: moves as unknown as Prisma.InputJsonValue,
@@ -575,6 +585,25 @@ export class PuzzleAttemptService {
       publishedAt: row.publishedAt ? row.publishedAt.toISOString() : null,
       archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null
     };
+  }
+
+  /** Replays the line with chess.js so the stored SAN/FEN never come from the client. */
+  private appendMistake(stored: Prisma.JsonValue, startFen: string, moves: AttemptMove[]) {
+    const list = Array.isArray(stored) ? (stored as unknown as LivePuzzleMistake[]) : [];
+    const board = new Chess(startFen);
+    for (const m of moves.slice(0, -1)) applyUci(board, m.uci);
+    const wrong = moves[moves.length - 1];
+    if (!wrong) return list;
+    const fenBefore = board.fen();
+    const played = applyUci(board, wrong.uci);
+    const mistake: LivePuzzleMistake = {
+      at: new Date().toISOString(),
+      fenBefore,
+      ply: moves.length,
+      san: played?.san ?? wrong.uci,
+      uci: wrong.uci
+    };
+    return [...list, mistake].slice(-MAX_STORED_MISTAKES);
   }
 
   private toAttempt(row: AttemptRow): PuzzleAttemptDto {

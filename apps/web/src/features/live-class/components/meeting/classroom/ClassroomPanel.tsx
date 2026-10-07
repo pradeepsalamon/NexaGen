@@ -8,7 +8,7 @@ import {
   ListOrdered,
   MessageCircleQuestion,
   MessageSquareText,
-  Puzzle,
+  Trophy,
   Users,
 } from "lucide-react";
 import { BoardActionsRow } from "@/features/chessboard/components/panels/BoardActionsRow";
@@ -42,10 +42,10 @@ const TABS: {
   icon: ReactNode;
   coachOnly?: boolean;
 }[] = [
+  { id: "puzzles", label: "Leaderboard", icon: <Trophy className="size-4" /> },
   { id: "moves", label: "Moves", icon: <ListOrdered className="size-4" /> },
   { id: "chat", label: "Chat", icon: <MessageSquareText className="size-4" /> },
   { id: "people", label: "People", icon: <Users className="size-4" /> },
-  { id: "puzzles", label: "Puzzles", icon: <Puzzle className="size-4" /> },
   {
     id: "response",
     label: "Response",
@@ -79,13 +79,19 @@ const SIDEBAR_TO_TAB = {
   puzzle: "puzzles",
 } as const;
 
+/** Tabs the coach's side column takes over while it is showing. */
+const SIDE_COLUMN_TABS = new Set<TabId>(["chat", "puzzles"]);
+
 /** Right-hand column of the single-page layout: video on top, one tab bar for everything else. */
 export function ClassroomPanel({
   isCoach,
   showVideo,
+  sideColumn = false,
 }: {
   isCoach: boolean;
   showVideo: boolean;
+  /** Puzzles and chat are already shown in the coach's column left of the board. */
+  sideColumn?: boolean;
 }) {
   // A student opens on the leaderboard.
   const [tab, setTab] = useState<TabId>(isCoach ? "moves" : "puzzles");
@@ -97,20 +103,24 @@ export function ClassroomPanel({
     "setClassroomChatOpen",
   );
   const { unreadCount } = useLiveClassChat();
+  const inSideColumn = (id: TabId) => sideColumn && SIDE_COLUMN_TABS.has(id);
+  const activeTab: TabId = inSideColumn(tab) ? "moves" : tab;
 
   useEffect(() => {
     if (activeSidebar && activeSidebar in SIDEBAR_TO_TAB) {
-      setTab(SIDEBAR_TO_TAB[activeSidebar as keyof typeof SIDEBAR_TO_TAB]);
+      const next: TabId = SIDEBAR_TO_TAB[activeSidebar as keyof typeof SIDEBAR_TO_TAB];
+      // Already on screen in the side column; only switch tabs for the rest.
+      if (!(sideColumn && SIDE_COLUMN_TABS.has(next))) setTab(next);
       setActiveSidebar(null);
     }
-  }, [activeSidebar, setActiveSidebar]);
+  }, [activeSidebar, setActiveSidebar, sideColumn]);
 
   useEffect(() => {
-    setClassroomChatOpen(tab === "chat");
+    setClassroomChatOpen(sideColumn || activeTab === "chat");
     return () => setClassroomChatOpen(false);
-  }, [tab, setClassroomChatOpen]);
+  }, [activeTab, sideColumn, setClassroomChatOpen]);
 
-  const tabs = TABS.filter((t) => isCoach || !t.coachOnly);
+  const tabs = TABS.filter((t) => (isCoach || !t.coachOnly) && !inSideColumn(t.id));
 
   return (
     // Below lg the panel sits under the stage (video beside the tabs); the floating toolbar overlays its bottom.
@@ -150,11 +160,11 @@ export function ClassroomPanel({
                   type="button"
                   role="tab"
                   aria-label={t.label}
-                  aria-selected={tab === t.id}
+                  aria-selected={activeTab === t.id}
                   onClick={() => setTab(t.id)}
                   className={cn(
                     "flex min-h-9 shrink-0 items-center gap-1.5 rounded-control px-2.5 text-xs font-semibold transition-colors",
-                    tab === t.id
+                    activeTab === t.id
                       ? "bg-primary/10 text-primary-ink"
                       : "text-app-muted hover:bg-app-soft hover:text-app-text",
                   )}
@@ -167,7 +177,7 @@ export function ClassroomPanel({
                       </span>
                     ) : null}
                   </span>
-                  {tab === t.id ? t.label : null}
+                  {activeTab === t.id ? t.label : null}
                 </button>
               </SimpleTooltip>
             ))}
@@ -175,7 +185,7 @@ export function ClassroomPanel({
         </div>
 
         <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
-          {tab === "moves" ? (
+          {activeTab === "moves" ? (
             <div className="flex h-full flex-col gap-3 overflow-y-auto p-3">
               {isCoach ? (
                 <BoardActionsRow onPastePgn={() => setTab("pgn")} />
@@ -185,21 +195,21 @@ export function ClassroomPanel({
               </div>
             </div>
           ) : null}
-          {tab === "chat" ? <MeetingChat /> : null}
-          {tab === "people" ? <MeetingParticipants /> : null}
-          {tab === "puzzles" ? <MeetingPuzzlePanel /> : null}
-          {tab === "response" ? (
+          {activeTab === "chat" ? <MeetingChat /> : null}
+          {activeTab === "people" ? <MeetingParticipants /> : null}
+          {activeTab === "puzzles" ? <MeetingPuzzlePanel /> : null}
+          {activeTab === "response" ? (
             <div className="h-full overflow-y-auto">
               <MovePollCoachPanel />
             </div>
           ) : null}
-          {tab === "engine" ? <StockfishPanel /> : null}
-          {tab === "pgn" ? (
+          {activeTab === "engine" ? <StockfishPanel /> : null}
+          {activeTab === "pgn" ? (
             <div className="h-full overflow-y-auto">
               <PgnPanel />
             </div>
           ) : null}
-          {tab === "games" ? (
+          {activeTab === "games" ? (
             <div className="h-full overflow-y-auto">
               <MasterbasePanel />
             </div>

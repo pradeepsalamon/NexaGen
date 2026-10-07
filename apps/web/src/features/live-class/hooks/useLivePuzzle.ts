@@ -3,6 +3,7 @@ import type {
   AdjustClassLeaderboardRequest,
   AdjustLivePuzzlePointsRequest,
   AssignLivePuzzleRequest,
+  ShareLivePuzzleFromBoardRequest,
   UpdateLivePuzzleRequest
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
@@ -16,6 +17,7 @@ import {
   getLivePuzzleBoards,
   getLivePuzzleLeaderboard,
   getLivePuzzleState,
+  shareLivePuzzleFromBoard,
   updateLivePuzzle
 } from "../api/liveClassPuzzle";
 
@@ -56,6 +58,23 @@ export function useAssignLivePuzzle(classId: string) {
   const toast = useToast();
   return useMutation({
     mutationFn: (body: AssignLivePuzzleRequest) => assignLivePuzzle(classId, body),
+    onSuccess: () => {
+      toast.success({ title: "Puzzle shared with the class" });
+      qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
+      qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
+      qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
+    },
+    onError: (error: Error) =>
+      toast.error({ title: "Couldn't share the puzzle", message: error.message })
+  });
+}
+
+// undo: intentionally excluded — same reasoning as useAssignLivePuzzle.
+export function useShareLivePuzzleFromBoard(classId: string) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  return useMutation({
+    mutationFn: (body: ShareLivePuzzleFromBoardRequest) => shareLivePuzzleFromBoard(classId, body),
     onSuccess: () => {
       toast.success({ title: "Puzzle shared with the class" });
       qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });

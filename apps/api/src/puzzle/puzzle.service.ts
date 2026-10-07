@@ -24,7 +24,12 @@ import type {
   ValidatePuzzleRequest,
   ValidatePuzzleResponse
 } from "@nexa-chess/types";
-import { LICHESS_FOLDER_SLUG, parseScoringOverride, type PuzzleScoringOverride } from "@nexa-chess/types";
+import {
+  LICHESS_FOLDER_SLUG,
+  SYSTEM_PUZZLE_FOLDER_SLUGS,
+  parseScoringOverride,
+  type PuzzleScoringOverride
+} from "@nexa-chess/types";
 import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "chess.js";
 import {
@@ -89,13 +94,11 @@ export class PuzzleService {
     if (query.topicId) {
       and.push(await puzzleTopicWhere(this.prisma, query.topicId, query.topicScope));
     }
-    // Materialised-but-not-adopted catalogue copies sit in the system "Lichess"
-    // folder and stay out of the library, the share dialog and the course
+    // Materialised-but-not-adopted catalogue copies (and puzzles shared from the
+    // board in class) sit in system folders and stay out of the library, the share dialog and the course
     // picker unless that folder is opened directly (spec §0.2).
-    const lichessFolderId = await this.findLichessFolderId();
-    if (lichessFolderId && query.topicId !== lichessFolderId) {
-      and.push({ topicId: { not: lichessFolderId } });
-    }
+    const hidden = (await this.findSystemFolderIds()).filter((id) => id !== query.topicId);
+    if (hidden.length) and.push({ topicId: { notIn: hidden } });
     if (query.puzzleType) and.push({ puzzleType: query.puzzleType });
     if (query.difficulty) and.push({ difficulty: query.difficulty });
     if (query.status) and.push({ status: query.status });
@@ -198,7 +201,7 @@ export class PuzzleService {
         ...this.visibilityWhere(user),
         contentHash: { in: hashes },
         id: { notIn: imported.map((p) => p.id) },
-        topic: { slug: { not: LICHESS_FOLDER_SLUG } }
+        topic: { slug: { notIn: [...SYSTEM_PUZZLE_FOLDER_SLUGS] } }
       },
       select: { id: true, title: true, contentHash: true },
       orderBy: { createdAt: "asc" }
@@ -499,10 +502,13 @@ export class PuzzleService {
     const user = assertStaffOrCoach(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
-    const lichessFolderId = await this.findLichessFolderId();
+    const [lichessFolderId, systemFolderIds] = await Promise.all([
+      this.findLichessFolderId(),
+      this.findSystemFolderIds()
+    ]);
     const where: Prisma.PuzzleWhereInput = {
       ...this.visibilityWhere(user),
-      ...(lichessFolderId ? { topicId: { not: lichessFolderId } } : {})
+      ...(systemFolderIds.length ? { topicId: { notIn: systemFolderIds } } : {})
     };
 
     const [total, published, draft, archived, global, priv, topics, trainingCache] = await Promise.all([
@@ -512,7 +518,7 @@ export class PuzzleService {
       this.prisma.puzzle.count({ where: { ...where, status: PuzzleStatus.ARCHIVED } }),
       this.prisma.puzzle.count({ where: { ...where, visibility: PuzzleVisibility.GLOBAL } }),
       this.prisma.puzzle.count({ where: { ...where, visibility: PuzzleVisibility.PRIVATE } }),
-      this.prisma.puzzleTopic.count({ where: { slug: { not: LICHESS_FOLDER_SLUG } } }),
+      this.prisma.puzzleTopic.count({ where: { slug: { notIn: [...SYSTEM_PUZZLE_FOLDER_SLUGS] } } }),
       lichessFolderId ? this.prisma.puzzle.count({ where: { topicId: lichessFolderId } }) : 0
     ]);
 
@@ -547,6 +553,14 @@ export class PuzzleService {
       select: { id: true }
     });
     return folder?.id ?? null;
+  }
+
+  private async findSystemFolderIds(): Promise<string[]> {
+    const folders = await this.prisma.puzzleTopic.findMany({
+      where: { slug: { in: [...SYSTEM_PUZZLE_FOLDER_SLUGS] } },
+      select: { id: true }
+    });
+    return folders.map((f) => f.id);
   }
 
   private visibilityWhere(user: User): Prisma.PuzzleWhereInput {

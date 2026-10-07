@@ -12,7 +12,7 @@ import type {
   SolutionMove,
   UpdatePuzzleRequest
 } from "@nexa-chess/types";
-import { isLichessFolder, resolvePuzzleScoring } from "@nexa-chess/types";
+import { isSystemPuzzleFolder, resolvePuzzleScoring } from "@nexa-chess/types";
 import { CheckCircle2, Eye, Loader2, X, XCircle } from "lucide-react";
 import { FormPageShell } from "@/components/layout/FormPageShell";
 import { Alert } from "@/components/ui/Alert";
@@ -111,7 +111,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
   const topicOptions = useMemo(
     () =>
       puzzleTopicOptions(
-        (topicsData?.topics ?? []).filter((t) => !isLichessFolder(t) || t.id === puzzle?.topicId)
+        (topicsData?.topics ?? []).filter((t) => !isSystemPuzzleFolder(t) || t.id === puzzle?.topicId)
       ),
     [topicsData, puzzle?.topicId]
   );

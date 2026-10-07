@@ -2121,6 +2121,8 @@ model PuzzleAttempt {
   hintsUsed       Int                 @default(0)
   /// Wrong moves tried, counted server-side in saveProgress (negative marks).
   wrongMoves      Int                 @default(0)
+  /// The wrong moves themselves ([{ ply, uci, san, fenBefore, at }]), for the coach's live board.
+  wrongMovesJson  Json                @default("[]")
   durationSeconds Int                 @default(0)
   result          String? // "SOLVED" | "FAILED"
   startedAt       DateTime            @default(now())

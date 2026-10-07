@@ -95,6 +95,7 @@ export function StageSwitch({
  */
 export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const [stage, setStage] = useState<ClassroomStage>("board");
+  const [sideColumnFits, setSideColumnFits] = useState(false);
   const { activePuzzle, puzzleSolverOpen, setPuzzleSolverOpen, puzzleBoardsOpen, setPuzzleBoardsOpen } =
     useLiveClassState(
       "activePuzzle",
@@ -107,7 +108,8 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const match = useMatch();
 
   const available: Record<ActivityStage, boolean> = {
-    puzzle: !isCoach && !!activePuzzle,
+    // The coach's "Activity" is a practice copy of the class puzzle.
+    puzzle: !!activePuzzle,
     boards: isCoach && !!activePuzzle,
     simul: simul.isManager ? !!simul.simul : !!simul.myGame,
     match: !!match.round
@@ -182,13 +184,18 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     const all: (StageOption & { show: boolean })[] = [
       { id: "board", label: "Board", icon: <Crown className="size-3.5" strokeWidth={2.5} />, show: true },
       { id: "video", label: "Video", icon: <Video className="size-3.5" strokeWidth={2.5} />, show: true },
-      { id: "puzzle", label: "Puzzle", icon: <Puzzle className="size-3.5" strokeWidth={2.5} />, show: available.puzzle },
+      {
+        id: "puzzle",
+        label: isCoach ? "Activity" : "Puzzle",
+        icon: <Puzzle className="size-3.5" strokeWidth={2.5} />,
+        show: available.puzzle
+      },
       { id: "boards", label: "Live boards", icon: <LayoutGrid className="size-3.5" strokeWidth={2.5} />, show: available.boards },
       { id: "simul", label: "Simul", icon: <Users className="size-3.5" strokeWidth={2.5} />, show: available.simul, badge: simulBadge },
       { id: "match", label: "Matches", icon: <Swords className="size-3.5" strokeWidth={2.5} />, show: available.match, badge: matchBadge }
     ];
     return all.filter((o) => o.show);
-  }, [available.puzzle, available.boards, available.simul, available.match, simulBadge, matchBadge]);
+  }, [isCoach, available.puzzle, available.boards, available.simul, available.match, simulBadge, matchBadge]);
 
   const stageSwitch = <StageSwitch stage={stage} options={options} onChange={changeStage} />;
   const solving = stage === "puzzle";
@@ -223,12 +230,21 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
           <MeetingVideoGrid hideBoard />
         </section>
       ) : (
-        <ClassroomBoard isCoach={isCoach} stageSwitch={stageSwitch} />
+        <ClassroomBoard
+          isCoach={isCoach}
+          stageSwitch={stageSwitch}
+          sideColumn={sideColumnFits}
+          onSideColumnChange={setSideColumnFits}
+        />
       )}
       <PanelResizer />
       {/* Below lg the panel stacks under the stage; give a solving student the whole height. */}
       <div className={solving ? "hidden lg:contents" : "contents"}>
-        <ClassroomPanel isCoach={isCoach} showVideo={stage !== "video"} />
+        <ClassroomPanel
+          isCoach={isCoach}
+          showVideo={stage !== "video"}
+          sideColumn={isCoach && stage === "board" && sideColumnFits}
+        />
       </div>
     </div>
   );

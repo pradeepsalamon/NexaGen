@@ -101,6 +101,7 @@ export const API_ROUTES = {
     puzzleLeaderboard: (id: string = ":id") => `/live-class/${id}/puzzle/leaderboard`,
     // Coach-owner+admin only: every enrolled student's current board position.
     puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
+    puzzleFromBoard: (id: string = ":id") => `/live-class/${id}/puzzle/from-board`,
     // Coach-owner+admin: manual +/- points for one student on the active puzzle.
     puzzleAdjust: (id: string = ":id") => `/live-class/${id}/puzzle/adjust`,
     // Whole-class standings across every puzzle shared in the class (GET any participant).

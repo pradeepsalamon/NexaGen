@@ -291,6 +291,7 @@ describe("PuzzleAttemptService", () => {
       status: "IN_PROGRESS",
       liveClassId: null,
       movesJson: [],
+      wrongMovesJson: [],
       hintsUsed: 0,
       durationSeconds: 0
     };
@@ -304,6 +305,20 @@ describe("PuzzleAttemptService", () => {
       const { data } = prisma.puzzleAttempt.update.mock.calls[0][0];
       expect(data.wrongMoves).toEqual({ increment: 1 });
       expect(data.movesJson).toBeUndefined();
+      expect(data.wrongMovesJson).toEqual([
+        expect.objectContaining({ ply: 1, san: "Ra7", uci: "a1a7" })
+      ]);
+    });
+
+    it("appends to the mistakes already recorded on the attempt", async () => {
+      const earlier = { at: "2026-10-07T00:00:00.000Z", fenBefore: "x", ply: 1, san: "Rb1", uci: "a1b1" };
+      prisma.puzzleAttempt.findUnique.mockResolvedValue({ ...openAttempt, wrongMovesJson: [earlier] });
+      await service.saveProgress(TOKEN, "pz-1", "att-1", {
+        moves: [{ ply: 1, uci: "a1a7", san: "Ra7", fenAfter: "" }]
+      });
+      const { data } = prisma.puzzleAttempt.update.mock.calls[0][0];
+      expect(data.wrongMovesJson).toHaveLength(2);
+      expect(data.wrongMovesJson[0]).toEqual(earlier);
     });
 
     it("persists a correct move without touching the counter", async () => {

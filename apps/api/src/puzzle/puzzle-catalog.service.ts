@@ -9,6 +9,7 @@ import {
   CATALOG_MAX_PAGE_SIZE,
   LICHESS_FOLDER_SLUG,
   LICHESS_THEMES,
+  LIVE_CLASS_FOLDER_SLUG,
   isLichessFolder,
   lichessThemeLabel,
   type CatalogAdoptRequest,
@@ -183,6 +184,7 @@ export function decodeCatalogCursor(raw: string): Cursor {
 
 /** Folder names to try, in order, if an admin's own folder already has one. */
 const LICHESS_FOLDER_NAMES = ["Lichess", "Lichess catalogue", "Lichess catalogue (system)"];
+const LIVE_CLASS_FOLDER_NAMES = ["Asked in class", "Asked in class (system)"];
 
 /** P2002, optionally only when `field` is part of the violated key. */
 function isUniqueViolation(error: unknown, field?: string): boolean {
@@ -431,9 +433,29 @@ export class PuzzleCatalogService {
    * soft-deleted rows; a trashed one is restored rather than duplicated.
    */
   async ensureLichessFolder(actorId: string): Promise<string> {
+    return this.ensureSystemFolder(actorId, {
+      slug: LICHESS_FOLDER_SLUG,
+      names: LICHESS_FOLDER_NAMES,
+      description: "Lichess catalogue puzzles shared in class. Hidden from the library until opened."
+    });
+  }
+
+  /** Where a coach's "share from board" puzzles are kept. Same lifecycle as the Lichess folder. */
+  async ensureLiveClassFolder(actorId: string): Promise<string> {
+    return this.ensureSystemFolder(actorId, {
+      slug: LIVE_CLASS_FOLDER_SLUG,
+      names: LIVE_CLASS_FOLDER_NAMES,
+      description: "Positions coaches shared from the board during class. Hidden from the library until opened."
+    });
+  }
+
+  private async ensureSystemFolder(
+    actorId: string,
+    folder: { slug: string; names: readonly string[]; description: string }
+  ): Promise<string> {
     const find = () =>
       this.prisma.withDeleted.puzzleTopic.findFirst({
-        where: { slug: LICHESS_FOLDER_SLUG },
+        where: { slug: folder.slug },
         orderBy: [{ isDeleted: "asc" }, { createdAt: "asc" }],
         select: { id: true, isDeleted: true }
       });
@@ -448,13 +470,13 @@ export class PuzzleCatalogService {
     // first uses can't make two folders: the loser re-reads the winner. A
     // name clash with no live system folder means an admin already has a
     // folder with that name, so try the next one.
-    for (const name of LICHESS_FOLDER_NAMES) {
+    for (const name of folder.names) {
       try {
         const created = await this.prisma.puzzleTopic.create({
           data: {
             name,
-            slug: LICHESS_FOLDER_SLUG,
-            description: "Lichess catalogue puzzles shared in class. Hidden from the library until opened.",
+            slug: folder.slug,
+            description: folder.description,
             sortOrder: 1000
           },
           select: { id: true }
@@ -463,13 +485,15 @@ export class PuzzleCatalogService {
       } catch (error) {
         if (!isUniqueViolation(error)) throw error;
         const winner = await this.prisma.puzzleTopic.findFirst({
-          where: { slug: LICHESS_FOLDER_SLUG },
+          where: { slug: folder.slug },
           select: { id: true }
         });
         if (winner) return winner.id;
       }
     }
-    throw new ConflictException("Could not create the Lichess folder — rename the folders called Lichess.");
+    throw new ConflictException(
+      `Could not create the "${folder.names[0]}" folder — rename the folders with that name.`
+    );
   }
 
   // ── internals ──

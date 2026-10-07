@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import { ChevronRight, Phone, Mail, Globe } from "lucide-react";
 

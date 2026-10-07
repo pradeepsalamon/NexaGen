@@ -11,7 +11,7 @@ import { useAuthStore } from "../stores/authStore";
 // The only surfaces an anonymous visitor routinely lands on. Everywhere else we
 // still probe the session so a returning user with a valid cookie but no
 // persisted store (e.g. cleared localStorage) is recovered.
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup"]);
+const PUBLIC_PATHS = new Set(["/", "/academy", "/forgot-password", "/login", "/register", "/signup"]);
 
 export function SessionBootstrap() {
   const router = useRouter();
