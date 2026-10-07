@@ -5,7 +5,7 @@ import { useDataChannel } from "@livekit/components-react";
 import type { LivePuzzleAssignment } from "@nexa-chess/types";
 import { encodeLivePuzzle, LIVE_CLASS_PUZZLE_TOPIC } from "@nexa-chess/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Lightbulb, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -15,6 +15,7 @@ import {
   difficultyBadgeVariant
 } from "@/features/puzzles/lib/puzzleMeta";
 import { usePuzzleAttempt, type WrongPuzzleMove } from "@/features/puzzles/hooks/usePuzzleAttempt";
+import { hintSquaresFor } from "@/features/assignments/lib/solveLineHint";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { startLivePuzzleAttempt } from "../../api/liveClassPuzzle";
@@ -95,8 +96,10 @@ export function InRoomPuzzleSolver({
   const start = useCallback(() => startLivePuzzleAttempt(classId), [classId]);
   const {
     session, startError, moves, phase, wrong, wrongMoves, resetNonce, result, currentFen,
-    begin, handleMove, giveUp, pendingSubmit, retrySubmit
+    begin, handleMove, giveUp, pendingSubmit, retrySubmit, serverHint, requestHint
   } = usePuzzleAttempt({ start });
+  // In class a hint only ever lights up the piece to move, never the move itself.
+  const hintSquares = phase === "solving" ? hintSquaresFor(serverHint ? { ...serverHint, toSquare: null } : null) : null;
   const { secondsLeft, expired } = useCountdown(puzzle.endsAt);
   const leaderboard = useLivePuzzleLeaderboard(classId, true);
   const self = leaderboard.data?.self ?? null;
@@ -204,6 +207,7 @@ export function InRoomPuzzleSolver({
                     ? [moves[moves.length - 1].uci.slice(0, 2), moves[moves.length - 1].uci.slice(2, 4)]
                     : null
                 }
+                hintSquares={hintSquares}
                 onMove={handleMove}
               />
             </div>
@@ -245,6 +249,19 @@ export function InRoomPuzzleSolver({
             <span className="text-sm font-medium text-app-muted">
               {session?.studentColor === "white" ? "White" : "Black"} to move
             </span>
+          ) : null}
+          {session && phase === "solving" && !expired ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!!hintSquares}
+              onClick={() => void requestHint(2)}
+            >
+              <Lightbulb className="size-4" strokeWidth={2.5} />
+              {hintSquares ? "Piece highlighted" : "Hint"}
+              {!hintSquares && scoring.hintPenalty > 0 ? ` (−${scoring.hintPenalty} pts)` : ""}
+            </Button>
           ) : null}
           {phase === "done" ? (
             <Button type="button" variant="outline" size="sm" onClick={() => onClose?.()}>

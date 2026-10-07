@@ -41,9 +41,10 @@ export function useBoardShortcuts() {
       }
 
       if (e.key in ARROW_ACTIONS && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
-        // Arrows inside an open dialog or an arrow-driven widget (tabs, sliders, menus) belong to it.
+        // Arrows inside an open dialog or menu belong to it; a widget that uses
+        // arrows itself (Radix tabs, resize handles) has already called preventDefault.
         const target = e.target instanceof Element ? e.target : null;
-        if (e.defaultPrevented || target?.closest('[role="dialog"],[role="tablist"],[role="slider"],[role="menu"],[role="listbox"]')) {
+        if (e.defaultPrevented || target?.closest('[role="dialog"],[role="menu"],[role="listbox"]')) {
           return;
         }
         e.preventDefault();

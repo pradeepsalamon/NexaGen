@@ -8,8 +8,9 @@ import {
   useIsSpeaking,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
-import { Mic, MicOff } from "lucide-react";
+import { Hand, Mic, MicOff } from "lucide-react";
 import { Track } from "livekit-client";
+import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 import { ParticipantAvatar } from "../ParticipantAvatar";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
   const isMuted = !participant.isMicrophoneEnabled;
+  const handRaised = !!useOptionalLiveClassState((s) => !!s.raisedHands[participant.identity]);
 
   return (
     <motion.div
@@ -38,7 +40,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden rounded-control border bg-app-surface transition-shadow duration-150",
         "w-28 h-20 sm:w-36 sm:h-24",
-        isSpeaking ? "border-success" : "border-app-border/60",
+        handRaised && !isScreenShare ? "border-amber-500" : isSpeaking ? "border-success" : "border-app-border/60",
       )}
     >
       <div
@@ -63,6 +65,15 @@ export const CompactVideoTile = memo(function CompactVideoTile({
           <ParticipantAvatar name={name} size="sm" className="size-7 text-[9px]" />
         </div>
       )}
+
+      {handRaised && !isScreenShare ? (
+        <span
+          className="absolute left-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-amber-500 text-white shadow-card"
+          aria-label="Hand raised"
+        >
+          <Hand className="size-3" strokeWidth={2.5} />
+        </span>
+      ) : null}
 
       {/* Name pill */}
       <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-control bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">

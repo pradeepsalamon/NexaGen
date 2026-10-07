@@ -11,6 +11,8 @@ import {
   isSystemPuzzleFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
+  type CopyPuzzleTopicRequest,
+  type CopyPuzzleTopicResponse,
   type CreatePuzzleTopicRequest,
   type PuzzleTopicDto,
   type PuzzleTopicListResponse,
@@ -18,7 +20,7 @@ import {
   type ReassignPuzzleTopicRequest,
   type UpdatePuzzleTopicRequest
 } from "@nexa-chess/types";
-import { Prisma, type User } from "@prisma/client";
+import { Prisma, PuzzleSource, type User } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import {
@@ -193,6 +195,106 @@ export class PuzzleTopicService {
     return { success: true, moved };
   }
 
+  /**
+   * Copy a folder with its subfolders and live puzzles under `parentId`. Puzzles
+   * keep their author, visibility and status; a Lichess copy becomes a plain
+   * NEXA puzzle, since (source, sourceId) may exist only once.
+   */
+  async copy(
+    accessToken: string | undefined,
+    id: string,
+    dto: CopyPuzzleTopicRequest
+  ): Promise<CopyPuzzleTopicResponse> {
+    const user = assertAdmin(await authenticateUser(this.jwtService, this.prisma, accessToken));
+    const source = await this.prisma.puzzleTopic.findUnique({ where: { id } });
+    if (!source) throw new NotFoundException("Topic not found.");
+    if (isSystemPuzzleFolder(source)) {
+      throw new BadRequestException("System folders can't be copied.");
+    }
+
+    const links = await this.loadLinks();
+    const parentId = dto.parentId ?? null;
+    if (parentId) {
+      if (collectPuzzleTopicSubtreeIds(links, id).includes(parentId)) {
+        throw new BadRequestException("A folder can't be copied into itself or its own subfolder.");
+      }
+      this.assertPlacement(links, id, parentId);
+    }
+
+    const subtree = await this.prisma.puzzleTopic.findMany({
+      where: { id: { in: collectPuzzleTopicSubtreeIds(links, id) } }
+    });
+    const rootName = await this.freeCopyName(source.name, parentId);
+
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        const newIds = new Map<string, string>();
+        let puzzles = 0;
+        // Parents before children, so every new parentId already exists.
+        const queue = [source];
+        while (queue.length) {
+          const topic = queue.shift()!;
+          const name = topic.id === source.id ? rootName : topic.name;
+          const created = await tx.puzzleTopic.create({
+            data: {
+              name,
+              slug: slugify(name),
+              parentId: topic.id === source.id ? parentId : newIds.get(topic.parentId!)!,
+              description: topic.description,
+              icon: topic.icon,
+              sortOrder: topic.sortOrder,
+              createdById: user.id
+            }
+          });
+          newIds.set(topic.id, created.id);
+          queue.push(...subtree.filter((t) => t.parentId === topic.id));
+
+          const rows = await tx.puzzle.findMany({ where: { topicId: topic.id } });
+          if (rows.length) {
+            const { count } = await tx.puzzle.createMany({
+              data: rows.map((row) => ({
+                topicId: created.id,
+                title: row.title,
+                description: row.description,
+                puzzleType: row.puzzleType,
+                difficulty: row.difficulty,
+                fen: row.fen,
+                solutionMovesJson: row.solutionMovesJson ?? [],
+                explanation: row.explanation,
+                hintsJson: row.hintsJson ?? Prisma.DbNull,
+                tags: row.tags,
+                estimatedSeconds: row.estimatedSeconds,
+                scoringJson: row.scoringJson ?? Prisma.DbNull,
+                source: PuzzleSource.NEXA,
+                rating: row.rating,
+                setupMoveUci: row.setupMoveUci,
+                contentHash: row.contentHash,
+                status: row.status,
+                visibility: row.visibility,
+                createdById: row.createdById,
+                createdByRole: row.createdByRole,
+                updatedById: user.id,
+                publishedById: row.publishedById,
+                publishedAt: row.publishedAt,
+                archivedById: row.archivedById,
+                archivedAt: row.archivedAt
+              }))
+            });
+            puzzles += count;
+          }
+        }
+        return { rootId: newIds.get(source.id)!, folders: newIds.size, puzzles };
+      },
+      { timeout: 60_000 }
+    );
+
+    const topic = await this.prisma.puzzleTopic.findUniqueOrThrow({
+      where: { id: result.rootId },
+      include: topicInclude
+    });
+    return { topic: this.toDto(topic, user), folders: result.folders, puzzles: result.puzzles };
+  }
+
   // ── internals ──
 
   private async authStaffOrCoach(accessToken: string | undefined): Promise<User> {
@@ -257,6 +359,26 @@ export class PuzzleTopicService {
       }
     });
     if (clash) throw new ConflictException("A folder with that name already exists here.");
+  }
+
+  /** "Tactics", else "Tactics (copy)", "Tactics (copy 2)", … — whichever is free among the siblings. */
+  private async freeCopyName(name: string, parentId: string | null): Promise<string> {
+    const siblings = await this.prisma.puzzleTopic.findMany({
+      where: { parentId },
+      select: { name: true, slug: true }
+    });
+    const taken = (candidate: string) =>
+      siblings.some(
+        (s) =>
+          s.name.toLowerCase() === candidate.toLowerCase() ||
+          s.slug.toLowerCase() === slugify(candidate)
+      );
+    if (!taken(name)) return name;
+    for (let n = 1; ; n += 1) {
+      const suffix = ` (copy${n > 1 ? ` ${n}` : ""})`;
+      const candidate = `${name.slice(0, 80 - suffix.length)}${suffix}`;
+      if (!taken(candidate)) return candidate;
+    }
   }
 
   private toDto(row: TopicRow, viewer: User): PuzzleTopicDto {

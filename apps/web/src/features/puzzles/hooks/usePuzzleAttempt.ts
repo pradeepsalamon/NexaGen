@@ -177,11 +177,12 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
     [submit, pendingSubmit]
   );
   const showHint = useCallback(() => setRevealedHints((n) => n + 1), []);
-  const requestHint = useCallback(async () => {
+  /** `level` jumps straight to a hint level (2 = the piece's square); omitted, it steps up one. */
+  const requestHint = useCallback(async (level?: 1 | 2 | 3) => {
     if (!puzzleId || !attemptId || phase !== "solving" || busy.current) return;
     busy.current = true;
     try {
-      const level = Math.min(3, (serverHint?.level ?? 0) + 1);
+      level ??= Math.min(3, (serverHint?.level ?? 0) + 1) as 1 | 2 | 3;
       setServerHint(await getPuzzleHint(puzzleId, attemptId, { moves, level }));
     } catch (error) {
       toast.error({ title: "Hint unavailable", message: (error as Error).message });

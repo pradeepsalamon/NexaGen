@@ -25,6 +25,8 @@ import type {
   PuzzleTopicListResponse,
   PuzzleTopicResponse,
   ReassignPuzzleTopicRequest,
+  CopyPuzzleTopicRequest,
+  CopyPuzzleTopicResponse,
   SavePuzzleAttemptRequest,
   SetPuzzleArchivedRequest,
   SetPuzzlePublishedRequest,
@@ -78,6 +80,10 @@ export function reassignPuzzleTopic(
   data: ReassignPuzzleTopicRequest
 ): Promise<{ success: true; moved: number }> {
   return apiFetch(API_ROUTES.puzzles.reassignTopic(id), { method: "POST", body: data });
+}
+
+export function copyPuzzleTopic(id: string, data: CopyPuzzleTopicRequest): Promise<CopyPuzzleTopicResponse> {
+  return apiFetch(API_ROUTES.puzzles.copyTopic(id), { method: "POST", body: data });
 }
 
 // ── Library ──

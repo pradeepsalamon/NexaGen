@@ -341,6 +341,8 @@ function PanelResizer() {
       onPointerDown={onPointerDown}
       onDoubleClick={() => commit(null)}
       onKeyDown={(e) => {
+        // Only when reached by keyboard: after a drag the handle keeps focus, and the arrows belong to the board.
+        if (!e.currentTarget.matches(":focus-visible")) return;
         if (e.key === "ArrowLeft") commit(clampPanelWidth(current() + 24));
         else if (e.key === "ArrowRight") commit(clampPanelWidth(current() - 24));
         else return;

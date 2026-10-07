@@ -11,7 +11,7 @@ import {
   type PuzzleTopicDto,
   type PuzzleTopicTreeNode
 } from "@nexa-chess/types";
-import { Archive, ChevronRight, Folder, FolderPlus, Pencil, Plus } from "lucide-react";
+import { Archive, ChevronRight, ClipboardPaste, Copy, Folder, FolderPlus, Pencil, Plus, Scissors, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
@@ -40,7 +40,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
-import { archivePuzzleTopic, reassignPuzzleTopic } from "../api/puzzleApi";
+import { archivePuzzleTopic, copyPuzzleTopic, reassignPuzzleTopic, updatePuzzleTopic } from "../api/puzzleApi";
 import {
   useCreatePuzzleTopic,
   usePuzzleTopics,
@@ -69,13 +69,15 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
   // `undefined` = dialog closed; `null` = new top-level folder.
   const [creatingIn, setCreatingIn] = useState<string | null | undefined>(undefined);
   const [reassigning, setReassigning] = useState<TopicNode | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  // Folders start closed.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [clipboard, setClipboard] = useState<{ mode: "copy" | "cut"; node: TopicNode } | null>(null);
 
   const topics = useMemo(() => data?.topics ?? [], [data]);
   const tree = useMemo(() => buildPuzzleTopicTree(topics), [topics]);
   const rows = useMemo(
-    () => flattenPuzzleTopicTree(tree).filter((node) => isVisible(node, topics, collapsed)),
-    [tree, topics, collapsed]
+    () => flattenPuzzleTopicTree(tree).filter((node) => isVisible(node, topics, expanded)),
+    [tree, topics, expanded]
   );
 
   const { run: runArchive } = useUndoableMutation({
@@ -88,8 +90,40 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
     invalidates: [queryKeys.puzzles.topics, queryKeys.puzzles.all]
   });
 
+  const { run: runCopy } = useUndoableMutation({
+    strategy: "defer",
+    mutationFn: ({ node, parentId }: { node: TopicNode; parentId: string | null }) =>
+      copyPuzzleTopic(node.topic.id, { parentId }),
+    undo: async () => {},
+    toast: ({ node }) => ({ title: `Copying "${node.topic.name}"${node.children.length ? " and its subfolders" : ""}` }),
+    invalidates: [queryKeys.puzzles.topics, queryKeys.puzzles.all]
+  });
+
+  const { run: runMove } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: ({ node, parentId }: { node: TopicNode; parentId: string | null }) =>
+      updatePuzzleTopic(node.topic.id, { parentId }),
+    undo: ({ node }) => updatePuzzleTopic(node.topic.id, { parentId: node.topic.parentId }),
+    toast: ({ node }) => ({ title: `Moved "${node.topic.name}"` }),
+    invalidates: [queryKeys.puzzles.topics, queryKeys.puzzles.all]
+  });
+
+  const paste = (parentId: string | null) => {
+    if (!clipboard) return;
+    if (clipboard.mode === "copy") void runCopy({ node: clipboard.node, parentId });
+    else void runMove({ node: clipboard.node, parentId });
+    setClipboard(null);
+    if (parentId) setExpanded((prev) => new Set(prev).add(parentId));
+  };
+
+  // A folder can't be pasted into itself or anything inside it.
+  const clipboardSubtree = useMemo(
+    () => (clipboard ? new Set(collectPuzzleTopicSubtreeIds(topics, clipboard.node.topic.id)) : null),
+    [clipboard, topics]
+  );
+
   const toggle = (id: string) =>
-    setCollapsed((prev) => {
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -110,6 +144,34 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
           </Button>
         )}
       </div>
+
+      {canManage && clipboard ? (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-control border border-primary/40 bg-primary/5 px-3 py-2 text-sm">
+          <span className="text-app-text">
+            {clipboard.mode === "copy" ? "Copied" : "Cut"} <strong>&quot;{clipboard.node.topic.name}&quot;</strong> — use a
+            folder&apos;s paste button, or paste it at the top level.
+          </span>
+          <div className="flex items-center gap-2">
+            {clipboard.mode === "copy" || clipboard.node.topic.parentId ? (
+              <Button size="sm" variant="outline" onClick={() => paste(null)}>
+                <ClipboardPaste className="mr-1.5 size-4" />
+                Paste at top level
+              </Button>
+            ) : null}
+            <SimpleTooltip label="Clear clipboard">
+              <Button
+                aria-label="Clear clipboard"
+                size="icon"
+                variant="ghost"
+                className="size-8 rounded-full"
+                onClick={() => setClipboard(null)}
+              >
+                <X className="size-4" strokeWidth={2.5} />
+              </Button>
+            </SimpleTooltip>
+          </div>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="space-y-2">
@@ -138,7 +200,11 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
               {rows.map((node) => {
                 const { topic } = node;
                 const hasChildren = node.children.length > 0;
-                const open = !collapsed.has(topic.id);
+                const open = expanded.has(topic.id);
+                const canPasteHere =
+                  !!clipboard &&
+                  !clipboardSubtree?.has(topic.id) &&
+                  !(clipboard.mode === "cut" && clipboard.node.topic.parentId === topic.id);
                 return (
                   <TableRow key={topic.id}>
                     <TableCell className="font-medium text-app-text">
@@ -198,6 +264,41 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
                               </Button>
                             </SimpleTooltip>
                           ) : null}
+                          {canPasteHere ? (
+                            <SimpleTooltip label={`Paste "${clipboard!.node.topic.name}" here`}>
+                              <Button
+                                aria-label={`Paste into ${topic.name}`}
+                                variant="outline"
+                                size="icon"
+                                className={cn(iconBtn, "border-primary text-primary-ink")}
+                                onClick={() => paste(topic.id)}
+                              >
+                                <ClipboardPaste className="size-4" strokeWidth={2.5} />
+                              </Button>
+                            </SimpleTooltip>
+                          ) : null}
+                          <SimpleTooltip label="Copy folder">
+                            <Button
+                              aria-label={`Copy ${topic.name}`}
+                              variant="outline"
+                              size="icon"
+                              className={iconBtn}
+                              onClick={() => setClipboard({ mode: "copy", node })}
+                            >
+                              <Copy className="size-4" strokeWidth={2.5} />
+                            </Button>
+                          </SimpleTooltip>
+                          <SimpleTooltip label="Cut folder (to move it)">
+                            <Button
+                              aria-label={`Cut ${topic.name}`}
+                              variant="outline"
+                              size="icon"
+                              className={iconBtn}
+                              onClick={() => setClipboard({ mode: "cut", node })}
+                            >
+                              <Scissors className="size-4" strokeWidth={2.5} />
+                            </Button>
+                          </SimpleTooltip>
                           <SimpleTooltip label="Edit or move">
                             <Button
                               aria-label={`Edit ${topic.name}`}
@@ -273,11 +374,11 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
   );
 }
 
-/** A row is shown only while none of its ancestors is collapsed. */
-function isVisible(node: TopicNode, topics: PuzzleTopicDto[], collapsed: Set<string>) {
+/** A row is shown only while every one of its ancestors is expanded. */
+function isVisible(node: TopicNode, topics: PuzzleTopicDto[], expanded: Set<string>) {
   return puzzleTopicPath(topics, node.topic.id)
     .slice(0, -1)
-    .every((ancestor) => !collapsed.has(ancestor.id));
+    .every((ancestor) => expanded.has(ancestor.id));
 }
 
 function TopicFormDialog({

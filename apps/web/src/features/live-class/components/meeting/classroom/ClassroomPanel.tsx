@@ -298,6 +298,8 @@ function VideoResizer({ video }: { video: ReturnType<typeof useVideoHeight> }) {
       onPointerDown={onPointerDown}
       onDoubleClick={() => video.commit(null)}
       onKeyDown={(e) => {
+        // Only when reached by keyboard: after a drag the handle keeps focus, and the arrows belong to the board.
+        if (!e.currentTarget.matches(":focus-visible")) return;
         if (e.key === "ArrowUp") video.commit(video.clamp(current() - 24));
         else if (e.key === "ArrowDown") video.commit(video.clamp(current() + 24));
         else return;
