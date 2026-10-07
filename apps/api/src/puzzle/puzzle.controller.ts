@@ -22,6 +22,7 @@ import {
   createPuzzleTopicRequestSchema,
   puzzleHintRequestSchema,
   reassignPuzzleTopicRequestSchema,
+  copyPuzzleTopicRequestSchema,
   savePuzzleAttemptRequestSchema,
   setPuzzleArchivedRequestSchema,
   setPuzzlePublishedRequestSchema,
@@ -40,6 +41,7 @@ import {
   type PuzzleHintRequest,
   type PuzzleListQuery,
   type ReassignPuzzleTopicRequest,
+  type CopyPuzzleTopicRequest,
   type SavePuzzleAttemptRequest,
   type SetPuzzleArchivedRequest,
   type SetPuzzlePublishedRequest,
@@ -109,6 +111,15 @@ export class PuzzleController {
     @Req() request: Request
   ) {
     return this.topicService.reassign(this.token(request), id, body);
+  }
+
+  @Post(API_ROUTES.puzzles.copyTopic())
+  copyTopic(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(copyPuzzleTopicRequestSchema)) body: CopyPuzzleTopicRequest,
+    @Req() request: Request
+  ) {
+    return this.topicService.copy(this.token(request), id, body);
   }
 
   // ── Live-class points & leaderboard defaults ──

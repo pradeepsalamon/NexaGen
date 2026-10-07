@@ -173,4 +173,62 @@ describe("PuzzleTopicService", () => {
     expect(trash.softDelete).toHaveBeenCalledWith(prisma, "PuzzleTopic", "t1", ADMIN_ID);
     expect(res.moved).toBe(2);
   });
+
+  describe("copy", () => {
+    const FULL = [
+      { id: "t1", parentId: null, name: "Tactics", slug: "tactics", description: null, icon: null, sortOrder: 0 },
+      { id: "t2", parentId: "t1", name: "Forks", slug: "forks", description: null, icon: null, sortOrder: 0 },
+      { id: "t3", parentId: "t2", name: "Knight forks", slug: "knight-forks", description: null, icon: null, sortOrder: 0 },
+      { id: "t4", parentId: null, name: "Endgames", slug: "endgames", description: null, icon: null, sortOrder: 0 }
+    ];
+
+    beforeEach(() => {
+      let next = 0;
+      prisma.puzzleTopic.findUnique.mockResolvedValue(FULL[0]);
+      prisma.puzzleTopic.findUniqueOrThrow = jest.fn().mockImplementation(({ where }) => ({
+        ...FULL[0],
+        id: where.id,
+        name: "Tactics (copy)",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        createdBy: null,
+        _count: { puzzles: 1 }
+      }));
+      prisma.puzzleTopic.findMany.mockImplementation(({ where }: any = {}) => {
+        if (where?.id?.in) return FULL.filter((t) => where.id.in.includes(t.id));
+        if (where && "parentId" in where) return FULL.filter((t) => t.parentId === where.parentId);
+        return FULL.map(({ id, parentId }) => ({ id, parentId }));
+      });
+      prisma.puzzleTopic.create.mockImplementation(({ data }: any) => ({ id: `new-${++next}`, ...data }));
+      prisma.puzzle.findMany = jest.fn().mockImplementation(({ where }) =>
+        where.topicId === "t2"
+          ? [{ id: "p1", title: "Fork 1", source: "LICHESS", sourceId: "abc", solutionMovesJson: [], tags: [] }]
+          : []
+      );
+      prisma.puzzle.createMany = jest.fn().mockImplementation(({ data }) => ({ count: data.length }));
+    });
+
+    it("copies the whole subtree with a free name and re-sources Lichess puzzles", async () => {
+      const res = await service.copy(TOKEN, "t1", { parentId: null });
+
+      expect(prisma.puzzleTopic.create).toHaveBeenCalledTimes(3);
+      expect(prisma.puzzleTopic.create.mock.calls[0][0].data).toMatchObject({ name: "Tactics (copy)", parentId: null });
+      expect(prisma.puzzleTopic.create.mock.calls[1][0].data).toMatchObject({ name: "Forks", parentId: "new-1" });
+      expect(prisma.puzzleTopic.create.mock.calls[2][0].data).toMatchObject({ name: "Knight forks", parentId: "new-2" });
+      const copied = prisma.puzzle.createMany.mock.calls[0][0].data[0];
+      expect(copied).toMatchObject({ topicId: "new-2", title: "Fork 1", source: "NEXA" });
+      expect(copied.sourceId).toBeUndefined();
+      expect(res).toMatchObject({ folders: 3, puzzles: 1 });
+    });
+
+    it("refuses to copy a folder into its own subfolder", async () => {
+      await expect(service.copy(TOKEN, "t1", { parentId: "t3" })).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.puzzleTopic.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses to copy a system folder", async () => {
+      prisma.puzzleTopic.findUnique.mockResolvedValue({ ...FULL[3], slug: LICHESS_FOLDER_SLUG });
+      await expect(service.copy(TOKEN, "t4", { parentId: null })).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
 });

@@ -53,6 +53,22 @@ function CoachBoardShortcuts() {
     return () => window.removeEventListener("keydown", onKey);
   }, [playEngineMove]);
 
+  // Chessground cancels mousedown, so clicking the board after typing in chat
+  // never blurs the text box and every shortcut is swallowed by it. Release
+  // focus whenever the press lands on something that can't take focus itself.
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const active = document.activeElement;
+      if (!(active instanceof HTMLElement) || active === document.body) return;
+      const target = e.target instanceof Element ? e.target : null;
+      if (!target || active.contains(target)) return;
+      if (target.closest('input,textarea,select,button,a[href],[contenteditable="true"],[tabindex]')) return;
+      active.blur();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, []);
+
   return null;
 }
 
@@ -206,16 +222,24 @@ type MenuItem = { label: string; hint: string; icon: ReactNode; onSelect: () => 
  * An icon button whose menu opens on hover (mouse) or tap (touch), so the
  * three steps sit behind one button without a click to discover them.
  */
+const MENU_TONES = {
+  // Lichess-style: blue shares to the class, green only loads the board.
+  info: { idle: "border-info/50 bg-info/10 text-info-ink hover:bg-info hover:text-white", open: "bg-info text-white" },
+  success: { idle: "border-success/50 bg-success/10 text-success-ink hover:bg-success hover:text-white", open: "bg-success text-white" }
+} as const;
+
 function HoverMenuButton({
   label,
   icon,
   items,
-  disabled
+  disabled,
+  tone
 }: {
   label: string;
   icon: ReactNode;
   items: MenuItem[];
   disabled?: boolean;
+  tone: keyof typeof MENU_TONES;
 }) {
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<number | null>(null);
@@ -247,8 +271,9 @@ function HoverMenuButton({
           onPointerEnter={onHover}
           onPointerLeave={onLeave}
           className={cn(
-            "grid size-9 place-items-center rounded-full border border-app-border bg-app-surface text-app-text shadow-card transition-colors hover:bg-primary hover:text-white disabled:opacity-50",
-            open && "bg-primary text-white"
+            "grid size-9 place-items-center rounded-full border shadow-card transition-colors disabled:opacity-50",
+            MENU_TONES[tone].idle,
+            open && MENU_TONES[tone].open
           )}
         >
           {icon}
@@ -313,6 +338,7 @@ function CoachPuzzleButtons() {
     <div className="mt-4 flex items-center gap-2 text-app-muted">
       <HoverMenuButton
         label="Share puzzle"
+        tone="info"
         disabled={loading}
         icon={loading ? <Loader2 className="size-4 animate-spin" /> : <PuzzleIcon className="size-4" strokeWidth={2.5} />}
         items={[
@@ -323,6 +349,7 @@ function CoachPuzzleButtons() {
       />
       <HoverMenuButton
         label="Load on board"
+        tone="success"
         disabled={loading}
         icon={<ArrowDownToLine className="size-4" strokeWidth={2.5} />}
         items={[

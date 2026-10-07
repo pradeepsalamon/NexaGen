@@ -50,7 +50,8 @@ export const chessAppearanceSchema = z
     animationEnabled: z.boolean().default(true),
     // Selected-square + last-move square highlighting.
     highlightEnabled: z.boolean().default(true),
-    legalMovesEnabled: z.boolean().default(true),
+    // Off by default: classes want students to find moves, not read them off the board.
+    legalMovesEnabled: z.boolean().default(false),
     checkIndicatorEnabled: z.boolean().default(true),
     // `null` = use the piece set's own colors. Recolors only the piece body
     // fill — outlines/accent details stay put, so a piece never loses its

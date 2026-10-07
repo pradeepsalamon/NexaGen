@@ -3,10 +3,11 @@
 import { useMemo } from "react";
 import { isTrackReference, ParticipantTile } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Hand } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useSpotlightTrack } from "../../../hooks/useSpotlightTrack";
+import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 import { ParticipantAvatar } from "../ParticipantAvatar";
 import { CompactVideoTile } from "../video-grid/CompactVideoTile";
 import { getRole, getTrackKey, useGridTracks, useSortedTracks } from "../video-grid/videoGrid.utils";
@@ -53,6 +54,8 @@ export function ClassroomVideo({
   const name = spotlight ? spotlight.participant.name || spotlight.participant.identity : "";
   const hasVideo = !!spotlight && isTrackReference(spotlight) && !spotlight.publication.isMuted;
   const isScreen = spotlight?.source === Track.Source.ScreenShare;
+  const spotlightIdentity = spotlight?.participant.identity;
+  const spotlightHand = !!useOptionalLiveClassState((s) => !!spotlightIdentity && !!s.raisedHands[spotlightIdentity]);
 
   return (
     <div className={cn("shrink-0 border-b border-app-border/60", fill && "lg:flex lg:h-full lg:flex-col")}>
@@ -96,6 +99,14 @@ export function ClassroomVideo({
                 <ParticipantAvatar name={name} size="sm" />
               </div>
             )}
+            {spotlightHand && !isScreen ? (
+              <span
+                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-amber-500 text-white shadow-card"
+                aria-label="Hand raised"
+              >
+                <Hand className="size-3.5" strokeWidth={2.5} />
+              </span>
+            ) : null}
             <span className="absolute bottom-1.5 left-1.5 max-w-[80%] truncate rounded-control bg-black/60 px-1.5 py-0.5 text-[11px] font-medium text-white/90">
               {isScreen ? `${name} · screen` : name}
             </span>

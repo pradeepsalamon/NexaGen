@@ -103,6 +103,13 @@ export const reassignPuzzleTopicRequestSchema = z.object({
 });
 export type ReassignPuzzleTopicRequest = z.infer<typeof reassignPuzzleTopicRequestSchema>;
 
+/** Copy a folder, its subfolders and their puzzles under `parentId` (null = top level). */
+export const copyPuzzleTopicRequestSchema = z.object({
+  parentId: z.string().min(1).nullable()
+});
+export type CopyPuzzleTopicRequest = z.infer<typeof copyPuzzleTopicRequestSchema>;
+export type CopyPuzzleTopicResponse = { topic: PuzzleTopicDto; folders: number; puzzles: number };
+
 export type PuzzleTopicDto = {
   id: string;
   name: string;

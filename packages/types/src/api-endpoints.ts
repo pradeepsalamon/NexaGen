@@ -250,6 +250,7 @@ export const API_ROUTES = {
     topic: (id: string = ":id") => `/puzzles/topics/${id}`,
     archiveTopic: (id: string = ":id") => `/puzzles/topics/${id}/archive`,
     reassignTopic: (id: string = ":id") => `/puzzles/topics/${id}/reassign`,
+    copyTopic: (id: string = ":id") => `/puzzles/topics/${id}/copy`,
     // ── Library (admin: all; coach: GLOBAL + own) ──
     list: "/puzzles",
     create: "/puzzles",

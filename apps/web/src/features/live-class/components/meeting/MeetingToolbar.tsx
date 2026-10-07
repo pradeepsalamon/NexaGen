@@ -224,12 +224,6 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       mobileOnly: true,
     },
     {
-      icon: <Hand className={cn("size-5", handRaised && "text-amber-500")} />,
-      label: handRaised ? "Lower hand" : "Raise hand",
-      onClick: toggleHandRaised,
-      active: handRaised,
-    },
-    {
       icon: <Settings className="size-5" />,
       label: "Settings",
       onClick: () => toggleSidebar("settings"),
@@ -256,6 +250,16 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       label: pip.pinned ? "Close mini player in class" : "Keep mini player open in class",
       onClick: pip.togglePinned,
       active: pip.pinned,
+    });
+  }
+
+  // Students get a one-tap toolbar button instead.
+  if (isCoach) {
+    moreItems.splice(1, 0, {
+      icon: <Hand className={cn("size-5", handRaised && "text-amber-500")} />,
+      label: handRaised ? "Lower hand" : "Raise hand",
+      onClick: toggleHandRaised,
+      active: handRaised,
     });
   }
 
@@ -306,7 +310,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       role="toolbar"
       aria-label="Meeting controls"
     >
-      <div className="pointer-events-auto flex max-w-full items-center gap-1 rounded-app border border-app-border bg-app-surface/90 px-2 py-2 shadow-card backdrop-blur-xl sm:gap-1.5 sm:px-3 sm:py-2.5">
+      <div className="pointer-events-auto flex max-w-full items-center gap-0.5 rounded-app border border-app-border bg-app-surface/90 px-1.5 py-1.5 shadow-card backdrop-blur-xl sm:gap-1.5 sm:px-3 sm:py-2.5">
         <MeetingControlButton
           icon={mic.enabled ? <Mic className="size-5" /> : <MicOff className="size-5" />}
           label={micLocked ? "Microphone disabled by the coach" : mic.enabled ? "Mute" : "Unmute"}
@@ -401,6 +405,16 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
               onClick={openMatch}
             />
           </div>
+        ) : null}
+
+        {!isCoach ? (
+          <MeetingControlButton
+            icon={<Hand className={cn("size-5", handRaised && "text-amber-500")} />}
+            label={handRaised ? "Lower hand" : "Raise hand"}
+            variant={handRaised ? "active" : "default"}
+            aria-pressed={handRaised}
+            onClick={toggleHandRaised}
+          />
         ) : null}
 
         <ReactionPicker>
