@@ -71,6 +71,7 @@ describe("PuzzleService", () => {
       puzzleTopic: {
         findUnique: jest.fn().mockResolvedValue({ id: "topic-1", name: "Fork" }),
         findFirst: jest.fn().mockResolvedValue(null),
+        findMany: jest.fn().mockResolvedValue([]),
         count: jest.fn().mockResolvedValue(3)
       },
       $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma))
@@ -237,19 +238,20 @@ describe("PuzzleService", () => {
     );
   });
 
-  describe("the system Lichess folder", () => {
+  describe("system folders (Lichess, asked in class)", () => {
     beforeEach(() => {
       prisma.puzzleTopic.findFirst.mockResolvedValue({ id: "folder-lichess" });
+      prisma.puzzleTopic.findMany.mockResolvedValue([{ id: "folder-lichess" }, { id: "folder-live" }]);
     });
 
     const lastWhere = () => prisma.puzzle.findMany.mock.calls.at(-1)[0].where;
 
     it("is left out of the library unless it is the folder being opened", async () => {
       await service.list(TOKEN, {} as any);
-      expect(lastWhere().AND).toContainEqual({ topicId: { not: "folder-lichess" } });
+      expect(lastWhere().AND).toContainEqual({ topicId: { notIn: ["folder-lichess", "folder-live"] } });
 
       await service.list(TOKEN, { topicId: "folder-lichess", topicScope: "direct" } as any);
-      expect(lastWhere().AND).not.toContainEqual({ topicId: { not: "folder-lichess" } });
+      expect(lastWhere().AND).toContainEqual({ topicId: { notIn: ["folder-live"] } });
     });
 
     it("is counted on its own in stats", async () => {
@@ -259,7 +261,9 @@ describe("PuzzleService", () => {
       const res = await service.stats(TOKEN);
       expect(res.trainingCache).toBe(7);
       expect(res.total).toBe(2);
-      expect(prisma.puzzle.count.mock.calls[0][0].where.topicId).toEqual({ not: "folder-lichess" });
+      expect(prisma.puzzle.count.mock.calls[0][0].where.topicId).toEqual({
+        notIn: ["folder-lichess", "folder-live"]
+      });
     });
   });
 

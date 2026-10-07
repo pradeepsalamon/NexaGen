@@ -174,6 +174,29 @@ function RankMark({ rank }: { rank: number }) {
   );
 }
 
+const PODIUM_ROW: Record<number, string> = {
+  1: "bg-amber-500/[0.10]",
+  2: "bg-slate-400/[0.10]",
+  3: "bg-orange-500/[0.08]"
+};
+
+/** Podium rows tinted gold/silver/bronze; the viewer's own row gets a primary bar on the left. */
+function rowClass(rank: number, isSelf: boolean) {
+  return cn(PODIUM_ROW[rank], isSelf && "bg-primary/[0.12] font-semibold");
+}
+
+function selfCellClass(isSelf: boolean) {
+  return cn("px-3 py-2", isSelf && "border-l-[3px] border-l-primary");
+}
+
+function YouTag() {
+  return (
+    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold uppercase leading-4 text-white">
+      You
+    </span>
+  );
+}
+
 function entryStats(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
   return [
     rankByPoints ? `${entry.scorePercent}%` : null,
@@ -310,13 +333,14 @@ function LeaderboardSection({
           </TableHeader>
           <TableBody>
             {data.entries.map((entry) => (
-              <TableRow key={entry.studentId} className={cn(entry.isSelf && "bg-primary/[0.08]")}>
-                <TableCell className="px-3 py-2">
+              <TableRow key={entry.studentId} className={rowClass(entry.rank, entry.isSelf)}>
+                <TableCell className={selfCellClass(entry.isSelf)}>
                   <RankMark rank={entry.rank} />
                 </TableCell>
                 <TableCell className="max-w-0 px-2 py-2">
                   <span className="flex min-w-0 items-center gap-1.5">
                     <span className="truncate font-medium text-app-text">{entry.studentName}</span>
+                    {entry.isSelf ? <YouTag /> : null}
                     {entry.solved ? (
                       <CheckCircle2
                         aria-label="Solved"
@@ -387,12 +411,15 @@ function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoac
           </TableHeader>
           <TableBody>
             {data.entries.map((entry) => (
-              <TableRow key={entry.studentId} className={cn(entry.isSelf && "bg-primary/[0.08]")}>
-                <TableCell className="px-3 py-2">
+              <TableRow key={entry.studentId} className={rowClass(entry.rank, entry.isSelf)}>
+                <TableCell className={selfCellClass(entry.isSelf)}>
                   <RankMark rank={entry.rank} />
                 </TableCell>
                 <TableCell className="max-w-0 px-2 py-2">
-                  <span className="block truncate font-medium text-app-text">{entry.studentName}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="truncate font-medium text-app-text">{entry.studentName}</span>
+                    {entry.isSelf ? <YouTag /> : null}
+                  </span>
                   {entry.adjustment !== 0 ? (
                     <span className="block truncate text-[11px] tabular-nums text-app-muted">
                       {entry.puzzlePoints} puzzles · {entry.adjustment > 0 ? "+" : ""}
@@ -553,6 +580,63 @@ export function MeetingPuzzlePanel() {
 
   return (
     <div className="flex h-full flex-col gap-4 overflow-y-auto p-4">
+      {activePuzzle || lastResults ? (
+        <div role="tablist" aria-label="Leaderboard" className="flex rounded-full border border-app-border bg-app-surface p-0.5">
+          {(
+            [
+              ["class", "Whole class"],
+              ["puzzle", "This puzzle"]
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={boardView === id}
+              onClick={() => setBoardView(id)}
+              className={cn(
+                "flex h-7 flex-1 items-center justify-center rounded-full text-xs font-semibold transition-colors",
+                boardView === id ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {(activePuzzle || lastResults) && boardView === "class" ? (
+        <ClassLeaderboardSection classId={classId} isCoach={isCoach} />
+      ) : null}
+
+      {(activePuzzle || lastResults) && boardView === "puzzle" ? (
+        <div>
+          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted">
+            {activePuzzle ? "Leaderboard" : `Last puzzle — ${lastResults?.title ?? ""}`}
+          </p>
+          {note ? <p className="mb-1.5 text-xs text-app-muted">{note}</p> : null}
+          {data ? (
+            <LeaderboardSection
+              classId={classId}
+              data={data}
+              isCoach={isCoach}
+              canEdit={isCoach && !!activePuzzle}
+              onEditPoints={() => setRulesOpen(true)}
+            />
+          ) : null}
+          {data && data.stillSolving.length > 0 ? (
+            <p className="mt-1.5 truncate text-xs text-app-muted">
+              Still solving: {data.stillSolving.map((s) => s.studentName).join(", ")}
+            </p>
+          ) : null}
+          {isCoach && data && data.notStarted.length > 0 ? (
+            <p className="mt-1 truncate text-xs text-app-muted">
+              Not started: {data.notStarted.map((s) => s.studentName).join(", ")}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       {!activePuzzle ? (
         <div className="flex flex-col items-center justify-center gap-3 py-6 text-center">
           <PuzzleIcon className="size-8 text-app-muted" />
@@ -639,63 +723,6 @@ export function MeetingPuzzlePanel() {
           </div>
         </Card>
       )}
-
-      {activePuzzle || lastResults ? (
-        <div role="tablist" aria-label="Leaderboard" className="flex rounded-full border border-app-border bg-app-surface p-0.5">
-          {(
-            [
-              ["class", "Whole class"],
-              ["puzzle", "This puzzle"]
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={boardView === id}
-              onClick={() => setBoardView(id)}
-              className={cn(
-                "flex h-7 flex-1 items-center justify-center rounded-full text-xs font-semibold transition-colors",
-                boardView === id ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {(activePuzzle || lastResults) && boardView === "class" ? (
-        <ClassLeaderboardSection classId={classId} isCoach={isCoach} />
-      ) : null}
-
-      {(activePuzzle || lastResults) && boardView === "puzzle" ? (
-        <div>
-          <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-app-muted">
-            {activePuzzle ? "Leaderboard" : `Last puzzle — ${lastResults?.title ?? ""}`}
-          </p>
-          {note ? <p className="mb-1.5 text-xs text-app-muted">{note}</p> : null}
-          {data ? (
-            <LeaderboardSection
-              classId={classId}
-              data={data}
-              isCoach={isCoach}
-              canEdit={isCoach && !!activePuzzle}
-              onEditPoints={() => setRulesOpen(true)}
-            />
-          ) : null}
-          {data && data.stillSolving.length > 0 ? (
-            <p className="mt-1.5 truncate text-xs text-app-muted">
-              Still solving: {data.stillSolving.map((s) => s.studentName).join(", ")}
-            </p>
-          ) : null}
-          {isCoach && data && data.notStarted.length > 0 ? (
-            <p className="mt-1 truncate text-xs text-app-muted">
-              Not started: {data.notStarted.map((s) => s.studentName).join(", ")}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
 
       {isCoach ? (
         <PuzzleAssignModal classId={classId} open={assignOpen} onOpenChange={setAssignOpen} />

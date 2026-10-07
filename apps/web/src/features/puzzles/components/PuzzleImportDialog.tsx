@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import {
   MAX_PUZZLE_IMPORT,
   MAX_PUZZLE_SOLUTION_MOVES,
-  isLichessFolder,
+  isSystemPuzzleFolder,
   type CreatePuzzleRequest,
   type PuzzleDifficulty,
   type PuzzleType
@@ -55,7 +55,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
   const [publish, setPublish] = useState(false);
 
   const topicOptions = useMemo(
-    () => puzzleTopicOptions((topicsData?.topics ?? []).filter((t) => !isLichessFolder(t))),
+    () => puzzleTopicOptions((topicsData?.topics ?? []).filter((t) => !isSystemPuzzleFolder(t))),
     [topicsData]
   );
 

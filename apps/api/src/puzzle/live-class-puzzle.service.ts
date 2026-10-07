@@ -13,6 +13,7 @@ import type {
   ClassLeaderboardResponse,
   LivePuzzleAssignment,
   LivePuzzleBoardEntry,
+  LivePuzzleMistake,
   LivePuzzleBoardsResponse,
   LivePuzzleBoardStatus,
   LivePuzzleLeaderboardEntry,
@@ -23,6 +24,8 @@ import type {
   LivePuzzleStateResponse,
   PuzzleLeaderboardOptions,
   PuzzleScoring,
+  ShareLivePuzzleFromBoardRequest,
+  SolutionMove,
   StartPuzzleAttemptResponse,
   UpdateLivePuzzleRequest
 } from "@nexa-chess/types";
@@ -41,6 +44,8 @@ import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
+import { PuzzleCatalogService } from "./puzzle-catalog.service";
+import { PuzzleService } from "./puzzle.service";
 import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 import { fullName } from "./puzzle-auth.helper";
 
@@ -50,6 +55,21 @@ const puzzleInclude = {
 
 type AssignmentRow = Prisma.LiveClassPuzzleAssignmentGetPayload<{ include: typeof puzzleInclude }>;
 
+function isSamePuzzle(
+  source: { fen: string; solutionMovesJson: Prisma.JsonValue; title: string },
+  dto: ShareLivePuzzleFromBoardRequest
+): boolean {
+  const line = Array.isArray(source.solutionMovesJson)
+    ? (source.solutionMovesJson as unknown as SolutionMove[])
+    : [];
+  return (
+    source.title === dto.title &&
+    source.fen.trim() === dto.fen.trim() &&
+    line.length === dto.solutionMoves.length &&
+    line.every((m, i) => m.uci === dto.solutionMoves[i].uci)
+  );
+}
+
 @Injectable()
 export class LiveClassPuzzleService {
   constructor(
@@ -57,8 +77,51 @@ export class LiveClassPuzzleService {
     private readonly livekit: LiveKitService,
     private readonly liveClass: LiveClassService,
     private readonly attempts: PuzzleAttemptService,
-    private readonly scoringSettings: PuzzleScoringSettingsService
+    private readonly scoringSettings: PuzzleScoringSettingsService,
+    private readonly puzzles: PuzzleService,
+    private readonly catalog: PuzzleCatalogService
   ) {}
+
+  /**
+   * "Share current": the coach's main-board position (possibly edited in the
+   * dialog) becomes a PRIVATE puzzle in the hidden live-class folder and is
+   * shared. An unchanged library puzzle is shared as itself, not copied.
+   */
+  async shareFromBoard(
+    accessToken: string | undefined,
+    classId: string,
+    dto: ShareLivePuzzleFromBoardRequest
+  ): Promise<LivePuzzleStateResponse> {
+    const { user } = await this.liveClass.resolveClassManager(accessToken, classId, {
+      requireLive: true
+    });
+    const assignRest = {
+      durationSeconds: dto.durationSeconds,
+      leaderboard: dto.leaderboard,
+      scoring: dto.scoring
+    };
+
+    const source = dto.sourcePuzzleId
+      ? await this.prisma.puzzle.findUnique({ where: { id: dto.sourcePuzzleId } })
+      : null;
+    if (source && isSamePuzzle(source, dto)) {
+      return this.assign(accessToken, classId, { puzzleId: source.id, ...assignRest });
+    }
+
+    const topicId = await this.catalog.ensureLiveClassFolder(user.id);
+    const { puzzle } = await this.puzzles.create(accessToken, {
+      difficulty: source?.difficulty ?? "INTERMEDIATE",
+      fen: dto.fen,
+      orientation: dto.orientation,
+      puzzleType: source?.puzzleType ?? "BEST_MOVE",
+      solutionMoves: dto.solutionMoves,
+      status: "PUBLISHED",
+      title: dto.title,
+      topicId,
+      visibility: "PRIVATE"
+    });
+    return this.assign(accessToken, classId, { puzzleId: puzzle.id, ...assignRest });
+  }
 
   /** Coach-owner / admin pushes a published puzzle into the LIVE class. */
   async assign(
@@ -571,6 +634,7 @@ export class LiveClassPuzzleService {
             fen: null,
             moveCount: 0,
             lastMoveSan: null,
+            mistakes: [],
             updatedAt: null
           };
         }
@@ -583,6 +647,9 @@ export class LiveClassPuzzleService {
           fen: last?.fenAfter ?? assignment.puzzle.fen,
           moveCount: moves.length,
           lastMoveSan: last?.san ?? null,
+          mistakes: Array.isArray(row.wrongMovesJson)
+            ? (row.wrongMovesJson as unknown as LivePuzzleMistake[])
+            : [],
           updatedAt: row.updatedAt.toISOString()
         };
       })

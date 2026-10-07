@@ -2,6 +2,7 @@
 
 import type { LivePuzzleBoardEntry, LivePuzzleBoardStatus } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
+import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { useLivePuzzleBoards } from "../../hooks/useLivePuzzle";
 import { PuzzleBoardTile } from "./PuzzleBoardTile";
@@ -25,6 +26,13 @@ const STATUS_VARIANT: Record<
   ABANDONED: "secondary"
 };
 
+/** "12." / "12…" prefix read off the position the move was played from. */
+function moveNumber(fenBefore: string) {
+  const [, side, , , , fullmove] = fenBefore.split(" ");
+  const n = Number(fullmove) || 1;
+  return side === "b" ? `${n}…` : `${n}.`;
+}
+
 /** Coach-only: every enrolled student's live board for the active class puzzle. */
 export function PuzzleLiveBoardsGrid({ classId, enabled = true }: { classId: string; enabled?: boolean }) {
   const boards = useLivePuzzleBoards(classId, enabled);
@@ -40,12 +48,22 @@ export function PuzzleLiveBoardsGrid({ classId, enabled = true }: { classId: str
 
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,180px),1fr))] gap-4">
-      {data.boards.map((board: LivePuzzleBoardEntry) => (
+      {data.boards.map((board: LivePuzzleBoardEntry) => {
+        const fen = board.fen ?? data.puzzleFen;
+        const lastMistake = board.mistakes[board.mistakes.length - 1];
+        // Arrow only while the student is still on the position they went wrong in.
+        const wrongMove = lastMistake && lastMistake.fenBefore === fen ? lastMistake.uci : undefined;
+        return (
         <div
           key={board.studentId}
-          className="flex flex-col gap-1.5 rounded-app border border-app-border bg-app-surface p-2"
+          className={cn(
+            "flex flex-col gap-1.5 rounded-app border bg-app-surface p-2",
+            board.mistakes.length > 0 && board.status === "IN_PROGRESS"
+              ? "border-app-danger/50"
+              : "border-app-border"
+          )}
         >
-          <PuzzleBoardTile fen={board.fen ?? data.puzzleFen} orientation={data.orientation} />
+          <PuzzleBoardTile fen={fen} orientation={data.orientation} wrongMove={wrongMove} />
           <div className="flex items-center justify-between gap-1.5">
             <span className="truncate text-xs font-semibold text-app-text">{board.studentName}</span>
             <Badge variant={STATUS_VARIANT[board.status]} className="shrink-0">
@@ -58,8 +76,25 @@ export function PuzzleLiveBoardsGrid({ classId, enabled = true }: { classId: str
               {board.lastMoveSan ? ` · last: ${board.lastMoveSan}` : ""}
             </p>
           ) : null}
+          {board.mistakes.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1 text-[11px]">
+              <span className="font-semibold text-app-danger-ink">
+                {board.mistakes.length} wrong:
+              </span>
+              {board.mistakes.map((m, i) => (
+                <span
+                  key={`${m.at}-${i}`}
+                  className="rounded-full bg-app-danger/10 px-1.5 font-medium tabular-nums text-app-danger-ink"
+                >
+                  {moveNumber(m.fenBefore)}
+                  {m.san}
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

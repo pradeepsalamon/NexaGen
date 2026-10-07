@@ -27,7 +27,7 @@ export function assertValidFen(fen: string | null | undefined): string {
   }
 }
 
-function applyUci(chess: Chess, uci: string) {
+export function applyUci(chess: Chess, uci: string) {
   const u = normalizeUci(uci);
   return chess.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u.slice(4) || undefined });
 }

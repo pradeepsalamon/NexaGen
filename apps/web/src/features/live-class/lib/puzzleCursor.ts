@@ -1,23 +1,26 @@
 /**
- * Where the coach is in the puzzle library — the folder last opened in "Ask",
- * the puzzle last shared (Ask next / previous step from it) and the puzzle last
- * loaded onto the board (Load next steps from it). Ask and Load are tracked
- * independently. Per browser, like the share options.
+ * Where the coach is in the puzzle library — the folder last opened in the
+ * share dialog and the puzzle last shared or loaded. Share and Load step from
+ * the same place, so loading a puzzle then sharing "next" moves on past it.
+ * Per browser, like the share options.
  */
 const CURSOR_KEY = "nexa-live-puzzle-cursor";
 
-export type PuzzleCursor = { folderId: string | null; askedId: string | null; loadedId: string | null };
+export type PuzzleCursor = { folderId: string | null; puzzleId: string | null };
 
-const EMPTY: PuzzleCursor = { folderId: null, askedId: null, loadedId: null };
+const EMPTY: PuzzleCursor = { folderId: null, puzzleId: null };
 
 export function loadPuzzleCursor(): PuzzleCursor {
   if (typeof window === "undefined") return EMPTY;
   try {
     const raw = window.localStorage.getItem(CURSOR_KEY);
     if (!raw) return EMPTY;
-    // Older cursors kept one `puzzleId` for both.
-    const { puzzleId, ...rest } = JSON.parse(raw) as Partial<PuzzleCursor> & { puzzleId?: string | null };
-    return { ...EMPTY, askedId: puzzleId ?? null, loadedId: puzzleId ?? null, ...rest };
+    // A short-lived version kept separate `askedId` / `loadedId`.
+    const { folderId, puzzleId, askedId, loadedId } = JSON.parse(raw) as Partial<PuzzleCursor> & {
+      askedId?: string | null;
+      loadedId?: string | null;
+    };
+    return { folderId: folderId ?? null, puzzleId: puzzleId ?? askedId ?? loadedId ?? null };
   } catch {
     return EMPTY;
   }

@@ -87,6 +87,9 @@ export function InRoomPuzzleSolver({
     }
   }, [expired, phase, session, giveUp]);
 
+  // No giving up in class, and the answer stays hidden while another try is possible.
+  const showLine = !!result && !result.solved && self?.attemptsLeft === 0;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
@@ -175,8 +178,8 @@ export function InRoomPuzzleSolver({
               {self?.points !== null && self?.points !== undefined
                 ? ` Your points: ${self.points}${self.rank !== null ? ` (#${self.rank})` : ""}.`
                 : ""}
-              {!result.solved ? " Full line:" : ""}
-              {!result.solved ? (
+              {showLine ? " Full line:" : ""}
+              {showLine ? (
                 <span className="mt-1 block">
                   {result.solutionMoves.map((m) => m.san).join(" ")}
                 </span>
@@ -190,11 +193,6 @@ export function InRoomPuzzleSolver({
             <span className="text-sm font-medium text-app-muted">
               {session?.studentColor === "white" ? "White" : "Black"} to move
             </span>
-          ) : null}
-          {phase === "solving" && !expired ? (
-            <Button type="button" variant="outline" size="sm" onClick={giveUp}>
-              Give up &amp; show solution
-            </Button>
           ) : null}
           {phase === "done" ? (
             <Button type="button" variant="outline" size="sm" onClick={() => onClose?.()}>

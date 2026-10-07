@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   CATALOG_MAX_THEMES,
   LICHESS_THEMES,
-  isLichessFolder,
+  isSystemPuzzleFolder,
   lichessThemeLabel,
   type CatalogAdoptResponse,
   type CatalogPuzzleSummary,
@@ -104,7 +104,7 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
 
   const topics = usePuzzleTopics(isAdmin && !compact);
   const folderOptions = useMemo(
-    () => puzzleTopicOptions((topics.data?.topics ?? []).filter((t) => !isLichessFolder(t))),
+    () => puzzleTopicOptions((topics.data?.topics ?? []).filter((t) => !isSystemPuzzleFolder(t))),
     [topics.data]
   );
   const adopt = useAdoptCatalogPuzzles();

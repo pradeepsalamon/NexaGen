@@ -32,6 +32,16 @@ export function isLichessFolder(topic: { slug: string }): boolean {
   return topic.slug === LICHESS_FOLDER_SLUG;
 }
 
+/** Slug of the system folder a coach's "share from board" puzzles land in. Hidden like the Lichess one. */
+export const LIVE_CLASS_FOLDER_SLUG = "__live_class";
+
+export const SYSTEM_PUZZLE_FOLDER_SLUGS: readonly string[] = [LICHESS_FOLDER_SLUG, LIVE_CLASS_FOLDER_SLUG];
+
+/** A folder the app manages itself — hidden from pickers and the library unless opened directly. */
+export function isSystemPuzzleFolder(topic: { slug: string }): boolean {
+  return SYSTEM_PUZZLE_FOLDER_SLUGS.includes(topic.slug);
+}
+
 export const CATALOG_MAX_PAGE_SIZE = 50;
 /** Theme filters per browse request. */
 export const CATALOG_MAX_THEMES = 10;

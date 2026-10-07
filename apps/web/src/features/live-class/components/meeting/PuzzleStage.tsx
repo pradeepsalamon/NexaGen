@@ -1,16 +1,53 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Crown, Puzzle as PuzzleIcon } from "lucide-react";
 import { useParams } from "next/navigation";
+import { getPuzzle } from "@/features/puzzles/api/puzzleApi";
+import { PuzzleSolver } from "@/features/puzzles/components/solver/PuzzleSolver";
+import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { InRoomPuzzleSolver } from "./InRoomPuzzleSolver";
 
 /**
- * The student's class puzzle as the main stage, in place of the shared board
- * (desktop `ClassroomLayout`, phone `MeetingVideoGrid`). Open while
- * `puzzleSolverOpen` is set, so only one board ever drives the attempt.
+ * The coach's own copy of the class puzzle, to check it plays as intended.
+ * Solved client-side only — no attempt is created, so the coach never lands on
+ * the leaderboard — and independent of the shared main board.
+ */
+function CoachPuzzlePreview({ puzzleId }: { puzzleId: string }) {
+  const detail = useQuery({
+    queryKey: queryKeys.puzzles.detail(puzzleId),
+    queryFn: () => getPuzzle(puzzleId).then((r) => r.puzzle)
+  });
+  const puzzle = detail.data;
+  if (!puzzle) {
+    return (
+      <p className="py-10 text-center text-sm text-app-muted">
+        {detail.isError ? "Couldn't load the puzzle." : "Loading…"}
+      </p>
+    );
+  }
+  return (
+    <div className="mx-auto w-full max-w-3xl overflow-y-auto">
+      <PuzzleSolver
+        fen={puzzle.fen}
+        orientation={puzzle.orientation}
+        solutionMoves={puzzle.solutionMoves ?? []}
+        hints={puzzle.hints}
+        explanation={puzzle.explanation}
+      />
+    </div>
+  );
+}
+
+/**
+ * The class puzzle as the main stage, in place of the shared board (desktop
+ * `ClassroomLayout`, phone `MeetingVideoGrid`). Open while `puzzleSolverOpen`
+ * is set, so only one board ever drives the attempt. A coach (desktop "Activity"
+ * tab) gets a practice copy instead of an attempt.
  */
 export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNode; className?: string }) {
   const params = useParams();
@@ -19,6 +56,8 @@ export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNod
     "activePuzzle",
     "setPuzzleSolverOpen",
   );
+  const user = useAuthStore((state) => state.user);
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   if (!activePuzzle) return null;
 
   return (
@@ -39,12 +78,16 @@ export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNod
         {stageSwitch}
       </div>
       {/* Keyed by assignment so a swapped puzzle starts a fresh attempt. */}
-      <InRoomPuzzleSolver
-        key={activePuzzle.id}
-        classId={classId}
-        puzzle={activePuzzle}
-        onClose={() => setPuzzleSolverOpen(false)}
-      />
+      {isCoach ? (
+        <CoachPuzzlePreview key={activePuzzle.id} puzzleId={activePuzzle.puzzleId} />
+      ) : (
+        <InRoomPuzzleSolver
+          key={activePuzzle.id}
+          classId={classId}
+          puzzle={activePuzzle}
+          onClose={() => setPuzzleSolverOpen(false)}
+        />
+      )}
     </section>
   );
 }

@@ -26,12 +26,14 @@ export function PuzzleBridge({
   /** Off in the coach's board tab, so the meeting tab alone ends a timed puzzle. */
   autoEnd?: boolean;
 }) {
-  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen } = useLiveClassState(
-    "activePuzzle",
-    "applyPuzzleAssignment",
-    "clearActivePuzzle",
-    "setPuzzleSolverOpen",
-  );
+  const { activePuzzle, applyPuzzleAssignment, clearActivePuzzle, setPuzzleBoardsOpen, setPuzzleSolverOpen } =
+    useLiveClassState(
+      "activePuzzle",
+      "applyPuzzleAssignment",
+      "clearActivePuzzle",
+      "setPuzzleBoardsOpen",
+      "setPuzzleSolverOpen",
+    );
   const qc = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
@@ -64,6 +66,8 @@ export function PuzzleBridge({
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
         // Straight onto the student's screen — no click-through to find it.
         if (!isCoach) setPuzzleSolverOpen(true);
+        // The coach lands on every student's board to watch them solve.
+        else setPuzzleBoardsOpen(true);
       } else if (decoded.type === "PUZZLE_UPDATED") {
         applyPuzzleAssignment(decoded.assignment);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
@@ -79,7 +83,7 @@ export function PuzzleBridge({
         if (isCoach) qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.boards(classId) });
       }
     },
-    [applyPuzzleAssignment, clearActivePuzzle, setPuzzleSolverOpen, qc, classId, isCoach]
+    [applyPuzzleAssignment, clearActivePuzzle, setPuzzleBoardsOpen, setPuzzleSolverOpen, qc, classId, isCoach]
   );
 
   useDataChannel(LIVE_CLASS_PUZZLE_TOPIC, onMessage);

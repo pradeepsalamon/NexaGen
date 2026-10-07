@@ -38,11 +38,16 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       className={cn(
         "relative flex shrink-0 items-center justify-center overflow-hidden rounded-control border bg-app-surface transition-shadow duration-150",
         "w-28 h-20 sm:w-36 sm:h-24",
-        isSpeaking
-          ? "border-primary/60 shadow-[0_0_12px_rgba(66,120,206,0.2)]"
-          : "border-app-border/60",
+        isSpeaking ? "border-success" : "border-app-border/60",
       )}
     >
+      <div
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute inset-0 z-20 rounded-[inherit] ring-2 ring-inset ring-success transition-opacity duration-150",
+          isSpeaking ? "opacity-100" : "opacity-0",
+        )}
+      />
       {hasVideo ? (
         <ParticipantTile
           trackRef={trackRef}

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, Folder, Trophy } from "lucide-react";
 import {
   buildPuzzleTopicTree,
-  isLichessFolder,
+  isSystemPuzzleFolder,
   flattenPuzzleTopicTree,
   puzzleTopicPath,
   resolvePuzzleLeaderboard,
@@ -120,7 +120,7 @@ export function PuzzleAssignModal({
   const topics = usePuzzleTopics(open);
   // The hidden "Lichess" folder is the catalogue's cache; the Catalogue tab is the way in.
   const allTopics = useMemo(
-    () => (topics.data?.topics ?? []).filter((t) => !isLichessFolder(t)),
+    () => (topics.data?.topics ?? []).filter((t) => !isSystemPuzzleFolder(t)),
     [topics.data]
   );
   const tree = useMemo(() => buildPuzzleTopicTree(allTopics), [allTopics]);
@@ -185,7 +185,7 @@ export function PuzzleAssignModal({
       {
         onSuccess: () => {
           saveLastShareOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
-          if (topicId) savePuzzleCursor({ folderId: topicId, askedId: puzzleId });
+          if (topicId) savePuzzleCursor({ folderId: topicId, puzzleId });
           void loadOnBoard?.(puzzleId).catch(() => undefined);
           onOpenChange(false);
         }
@@ -209,7 +209,7 @@ export function PuzzleAssignModal({
     setLoadingId(puzzleId);
     try {
       const puzzle = await loadOnBoard(puzzleId);
-      savePuzzleCursor({ folderId: topicId, loadedId: puzzleId });
+      savePuzzleCursor({ folderId: topicId, puzzleId });
       toast.success({ title: `Loaded: ${puzzle.title}` });
       onOpenChange(false);
     } catch (error) {

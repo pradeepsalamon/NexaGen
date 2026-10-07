@@ -8,7 +8,7 @@ import {
   ListOrdered,
   MessageCircleQuestion,
   MessageSquareText,
-  Puzzle,
+  Trophy,
   Users,
 } from "lucide-react";
 import { BoardActionsRow } from "@/features/chessboard/components/panels/BoardActionsRow";
@@ -42,10 +42,10 @@ const TABS: {
   icon: ReactNode;
   coachOnly?: boolean;
 }[] = [
+  { id: "puzzles", label: "Leaderboard", icon: <Trophy className="size-4" /> },
   { id: "moves", label: "Moves", icon: <ListOrdered className="size-4" /> },
   { id: "chat", label: "Chat", icon: <MessageSquareText className="size-4" /> },
   { id: "people", label: "People", icon: <Users className="size-4" /> },
-  { id: "puzzles", label: "Puzzles", icon: <Puzzle className="size-4" /> },
   {
     id: "response",
     label: "Response",

@@ -32,21 +32,25 @@ export function useLoadPuzzleOnBoard() {
   return store ? load : null;
 }
 
+export type PuzzleStep = -1 | 1;
+
 /**
- * Steps through the coach's current folder, by title. Ask and Load keep their
- * own place (`askedId` / `loadedId` in the cursor), so loading ahead never
- * skips a puzzle the class hasn't been asked yet.
+ * Steps through the coach's current folder, by title, from ONE place in the
+ * cursor — Share and Load move it alike.
  *
- * - `loadNext` puts the next puzzle on the shared board — no timer,
- *   leaderboard or student attempt; the coach just shows it.
- * - `askNext` / `askPrevious` share a puzzle as a live puzzle with the coach's
- *   last share options, replacing any active one, and load it on the board too.
+ * - `share(step)` shares the previous / next puzzle with the coach's last share
+ *   options, replacing any active one, and loads it on the board too.
+ * - `load(step)` only puts it on the shared board — no timer or leaderboard.
+ * - `loadCurrent()` puts the puzzle the class is solving back on the board
+ *   (after the coach moved on to something else).
  */
 export function useLoadNextPuzzle({
   classId,
+  activePuzzleId,
   onNoFolder
 }: {
   classId: string;
+  activePuzzleId: string | null;
   onNoFolder: () => void;
 }) {
   const qc = useQueryClient();
@@ -57,8 +61,8 @@ export function useLoadNextPuzzle({
   const [loading, setLoading] = useState(false);
 
   const findStep = useCallback(
-    async (fromId: string | null, step: 1 | -1): Promise<PuzzleSummary | null> => {
-      const { folderId } = loadPuzzleCursor();
+    async (step: PuzzleStep): Promise<PuzzleSummary | null> => {
+      const { folderId, puzzleId: fromId } = loadPuzzleCursor();
       if (!folderId) {
         toast.info({ title: "Pick a folder first" });
         onNoFolder();
@@ -85,7 +89,7 @@ export function useLoadNextPuzzle({
       }
       const index = fromId ? puzzles.findIndex((p) => p.id === fromId) : -1;
       if (step === -1 && index === -1) {
-        toast.info({ title: "No earlier puzzle shared in this folder" });
+        toast.info({ title: "No earlier puzzle in this folder" });
         return null;
       }
       const target = puzzles[index + step];
@@ -98,53 +102,75 @@ export function useLoadNextPuzzle({
     [qc, toast, onNoFolder]
   );
 
-  const loadNext = useCallback(async () => {
+  const run = useCallback(async (work: () => Promise<void>) => {
     setLoading(true);
     try {
-      const next = await findStep(loadPuzzleCursor().loadedId, 1);
-      if (!next) return;
-      const puzzle = await loadOnBoard(next.id);
-      savePuzzleCursor({ loadedId: puzzle.id });
-      toast.success({ title: `Loaded: ${puzzle.title}` });
-    } catch (error) {
-      toast.error({ title: "Couldn't load the next puzzle", message: (error as Error).message });
+      await work();
     } finally {
       setLoading(false);
     }
-  }, [findStep, loadOnBoard, toast]);
+  }, []);
 
-  const ask = useCallback(
-    async (step: 1 | -1) => {
-      setLoading(true);
-      try {
+  const load = useCallback(
+    (step: PuzzleStep) =>
+      run(async () => {
+        try {
+          const target = await findStep(step);
+          if (!target) return;
+          const puzzle = await loadOnBoard(target.id);
+          savePuzzleCursor({ puzzleId: puzzle.id });
+          toast.success({ title: `Loaded: ${puzzle.title}` });
+        } catch (error) {
+          toast.error({ title: "Couldn't load the puzzle", message: (error as Error).message });
+        }
+      }),
+    [run, findStep, loadOnBoard, toast]
+  );
+
+  const loadCurrent = useCallback(
+    () =>
+      run(async () => {
+        if (!activePuzzleId) {
+          toast.info({ title: "No puzzle is shared right now" });
+          return;
+        }
+        try {
+          const puzzle = await loadOnBoard(activePuzzleId);
+          toast.success({ title: `Loaded: ${puzzle.title}` });
+        } catch (error) {
+          toast.error({ title: "Couldn't load the puzzle", message: (error as Error).message });
+        }
+      }),
+    [run, activePuzzleId, loadOnBoard, toast]
+  );
+
+  const share = useCallback(
+    (step: PuzzleStep) =>
+      run(async () => {
         let target: PuzzleSummary | null;
         try {
-          target = await findStep(loadPuzzleCursor().askedId, step);
+          target = await findStep(step);
         } catch (error) {
           toast.error({ title: "Couldn't find the puzzle", message: (error as Error).message });
           return;
         }
         if (!target) return;
         const last = loadLastShareOptions();
-        await assign.mutateAsync({
-          puzzleId: target.id,
-          durationSeconds: last.durationSeconds ? Number(last.durationSeconds) : null,
-          leaderboard: last.leaderboard,
-          scoring: last.scoring
-        });
-        savePuzzleCursor({ askedId: target.id });
+        try {
+          await assign.mutateAsync({
+            puzzleId: target.id,
+            durationSeconds: last.durationSeconds ? Number(last.durationSeconds) : null,
+            leaderboard: last.leaderboard,
+            scoring: last.scoring
+          });
+        } catch {
+          return; // Already toasted by useAssignLivePuzzle.
+        }
+        savePuzzleCursor({ puzzleId: target.id });
         await loadOnBoard(target.id).catch(() => undefined);
-      } catch {
-        // Already toasted by useAssignLivePuzzle.
-      } finally {
-        setLoading(false);
-      }
-    },
-    [assign, findStep, loadOnBoard, toast]
+      }),
+    [run, assign, findStep, loadOnBoard, toast]
   );
 
-  const askNext = useCallback(() => ask(1), [ask]);
-  const askPrevious = useCallback(() => ask(-1), [ask]);
-
-  return { askNext, askPrevious, loadNext, loading };
+  return { share, load, loadCurrent, loading };
 }

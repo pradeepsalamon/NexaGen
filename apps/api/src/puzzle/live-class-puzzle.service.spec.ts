@@ -7,6 +7,8 @@ import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveClassPuzzleService } from "./live-class-puzzle.service";
 import { PuzzleAttemptService } from "./puzzle-attempt.service";
+import { PuzzleCatalogService } from "./puzzle-catalog.service";
+import { PuzzleService } from "./puzzle.service";
 import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 
 const TOKEN = "t";
@@ -66,6 +68,8 @@ describe("LiveClassPuzzleService", () => {
   let prisma: any;
   let liveClass: any;
   let attempts: any;
+  let puzzles: any;
+  let catalog: any;
 
   beforeEach(async () => {
     prisma = {
@@ -89,6 +93,8 @@ describe("LiveClassPuzzleService", () => {
         .mockResolvedValue({ user: asUser(STUDENT_ID, UserRole.STUDENT), liveSession })
     };
     attempts = { start: jest.fn().mockResolvedValue({ attempt: { attempt: { id: "att-1" } } }) };
+    puzzles = { create: jest.fn().mockResolvedValue({ puzzle: { id: "pz-new" } }) };
+    catalog = { ensureLiveClassFolder: jest.fn().mockResolvedValue("folder-live") };
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -97,6 +103,8 @@ describe("LiveClassPuzzleService", () => {
         { provide: LiveKitService, useValue: { broadcastData: jest.fn().mockResolvedValue(undefined) } },
         { provide: LiveClassService, useValue: liveClass },
         { provide: PuzzleAttemptService, useValue: attempts },
+        { provide: PuzzleService, useValue: puzzles },
+        { provide: PuzzleCatalogService, useValue: catalog },
         {
           provide: PuzzleScoringSettingsService,
           useValue: { defaults: jest.fn().mockResolvedValue({ leaderboard: null, scoring: null }) }
@@ -136,6 +144,40 @@ describe("LiveClassPuzzleService", () => {
       expect(prisma.liveClassPuzzleAssignment.create).toHaveBeenCalled();
       expect(res.assignment?.puzzleId).toBe("pz-1");
       expect(res.assignment?.sideToMove).toBe("white");
+    });
+  });
+
+  describe("shareFromBoard", () => {
+    const body = {
+      title: "Mate in one",
+      fen: FEN,
+      solutionMoves: [{ uci: "a1a8", san: "Ra8#" }],
+      sourcePuzzleId: "pz-1",
+      durationSeconds: 60,
+      scoring: { basePoints: 10, wrongMovePenalty: 1 }
+    };
+
+    it("shares an unchanged source puzzle as itself", async () => {
+      const assign = jest.spyOn(service, "assign");
+      await service.shareFromBoard(TOKEN, CLASS_ID, body);
+      expect(puzzles.create).not.toHaveBeenCalled();
+      expect(assign).toHaveBeenCalledWith(TOKEN, CLASS_ID, expect.objectContaining({ puzzleId: "pz-1", durationSeconds: 60 }));
+    });
+
+    it("saves an edited position as a private puzzle in the live-class folder, then shares it", async () => {
+      const assign = jest.spyOn(service, "assign").mockResolvedValue({ assignment: null });
+      await service.shareFromBoard(TOKEN, CLASS_ID, { ...body, title: "Find the mate" });
+      expect(catalog.ensureLiveClassFolder).toHaveBeenCalledWith(COACH_ID);
+      expect(puzzles.create).toHaveBeenCalledWith(
+        TOKEN,
+        expect.objectContaining({ topicId: "folder-live", status: "PUBLISHED", visibility: "PRIVATE", puzzleType: "CHECKMATE" })
+      );
+      expect(assign).toHaveBeenCalledWith(TOKEN, CLASS_ID, expect.objectContaining({ puzzleId: "pz-new" }));
+    });
+
+    it("needs the class to be live", async () => {
+      await service.shareFromBoard(TOKEN, CLASS_ID, body);
+      expect(liveClass.resolveClassManager).toHaveBeenCalledWith(TOKEN, CLASS_ID, { requireLive: true });
     });
   });
 
@@ -284,6 +326,7 @@ describe("LiveClassPuzzleService", () => {
           fen: null,
           moveCount: 0,
           lastMoveSan: null,
+          mistakes: [],
           updatedAt: null
         }
       ]);
@@ -300,7 +343,8 @@ describe("LiveClassPuzzleService", () => {
           status: "IN_PROGRESS",
           attemptNumber: 1,
           scorePercent: null,
-          movesJson: [{ ply: 1, uci: "a1a8", san: "Ra8+", fenAfter: "next-fen" }]
+          movesJson: [{ ply: 1, uci: "a1a8", san: "Ra8+", fenAfter: "next-fen" }],
+          wrongMovesJson: [{ at: "2026-10-07T00:00:00.000Z", fenBefore: FEN, ply: 1, san: "Rb1", uci: "a1b1" }]
         })
       ]);
       const res = await service.boards(TOKEN, CLASS_ID);
@@ -312,6 +356,7 @@ describe("LiveClassPuzzleService", () => {
           fen: "next-fen",
           moveCount: 1,
           lastMoveSan: "Ra8+",
+          mistakes: [{ at: "2026-10-07T00:00:00.000Z", fenBefore: FEN, ply: 1, san: "Rb1", uci: "a1b1" }],
           updatedAt: expect.any(String)
         }
       ]);
