@@ -86,7 +86,54 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
 
   const payrollRecord = await prisma.coachPayrollRecord.create({ data: { coachId: coach.id, periodId } });
 
-  return { attempt, batch, class: klass, coach, invoice, order, payrollRecord, privatePuzzle, student };
+  // A second class that is LIVE right now, for the in-room routes (chat, leaderboards).
+  const liveClass = await prisma.coachClass.create({
+    data: {
+      batchId: batch.id,
+      coachId: coach.id,
+      endsAt: new Date(Date.now() + HOUR),
+      startsAt: new Date(Date.now() - 10 * 60 * 1000),
+      status: "LIVE",
+      title: `Live ${label}`
+    }
+  });
+  await prisma.liveSession.create({
+    data: {
+      batchId: batch.id,
+      classId: liveClass.id,
+      coachId: coach.id,
+      roomName: `room-${label}`,
+      scheduledAt: liveClass.startsAt,
+      startedAt: liveClass.startsAt,
+      status: "LIVE"
+    }
+  });
+
+  const assignment = await prisma.assignment.create({
+    data: { createdById: coach.id, pgn: "1. e4 e5 *", title: `Homework ${label}` }
+  });
+  const deployment = await prisma.assignmentBatch.create({
+    data: { assignedById: coach.id, assignmentId: assignment.id, batchId: batch.id, dueDate: new Date(Date.now() + 24 * HOUR) }
+  });
+  const studentAssignment = await prisma.studentAssignment.create({
+    data: { assignmentBatchId: deployment.id, studentId: student.id }
+  });
+
+  return {
+    assignment,
+    attempt,
+    batch,
+    class: klass,
+    coach,
+    deployment,
+    invoice,
+    liveClass,
+    order,
+    payrollRecord,
+    privatePuzzle,
+    student,
+    studentAssignment
+  };
 }
 
 export type Side = Awaited<ReturnType<typeof createSide>>;
