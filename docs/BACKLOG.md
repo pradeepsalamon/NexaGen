@@ -593,3 +593,7 @@ None currently tracked here.
 - `GET /live-class/:id/participants` answers **500** when LiveKit is
   unconfigured (`LIVEKIT_*` unset) — the room-service call throws. Should be a
   503 like the other optional integrations.
+- **ESLint 8 is end-of-life** (both apps). Web moved off the deprecated
+  `next lint` to the ESLint CLI on 2026-10-08 with the same `.eslintrc.json`;
+  the next step is ESLint 9 + flat config (`eslint.config.mjs`) for web and
+  api together, with `@typescript-eslint` 8 on the api side.
