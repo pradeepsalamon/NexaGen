@@ -1,0 +1,58 @@
+import cookieParser from "cookie-parser";
+import { ValidationPipe } from "@nestjs/common";
+import type { NestExpressApplication } from "@nestjs/platform-express";
+import { type ApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
+import { API_ROUTES } from "@nexa-chess/types";
+import * as express from "express";
+import { createOriginCheckMiddleware } from "./common/security/origin-check";
+
+/**
+ * The HTTP pipeline shared by main.ts and the integration test app. The app
+ * must be created with `bodyParser: false`.
+ */
+export function configureApp(app: NestExpressApplication, env: ApiEnv) {
+  // Trust exactly the number of proxy hops in front of us (nginx = 1). Trusting
+  // every hop lets a client spoof X-Forwarded-For and bypass IP rate limiting.
+  app.set("trust proxy", env.TRUST_PROXY_HOPS);
+  const corsOrigins = getCorsOrigins(env);
+
+  const webhookPaths = [
+    API_ROUTES.attendance.webhook,
+    API_ROUTES.payments.webhookRazorpay,
+    API_ROUTES.payments.webhookCashfree,
+    API_ROUTES.payments.webhookStripe
+  ];
+  app.use(createOriginCheckMiddleware(corsOrigins, webhookPaths));
+
+  // LiveKit sends 'application/webhook+json'. Parse it as raw text so we can verify the signature.
+  app.use(
+    "/webhooks/livekit",
+    express.text({ type: "application/webhook+json" })
+  );
+
+  // Payment gateways sign the exact request body. Parse these three routes as
+  // raw text BEFORE any JSON parser claims them — re-serialising JSON changes
+  // the bytes and every signature check would then fail.
+  for (const path of [
+    API_ROUTES.payments.webhookRazorpay,
+    API_ROUTES.payments.webhookCashfree,
+    API_ROUTES.payments.webhookStripe
+  ]) {
+    app.use(path, express.text({ type: "*/*", limit: "1mb" }));
+  }
+  // JSON only: the default set also parses urlencoded bodies, which is what
+  // lets a cross-site <form> post fill a DTO.
+  app.useBodyParser("json");
+
+  app.use(cookieParser());
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true
+    })
+  );
+  app.enableCors({
+    credentials: true,
+    origin: corsOrigins
+  });
+}

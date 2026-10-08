@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Patch, Post, Param, Body, Query, Req, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { Controller, Delete, Get, Patch, Post, Param, Body, Query, Req, ForbiddenException } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import {
   API_ROUTES,
@@ -37,7 +37,7 @@ export class AdminController {
     );
     // A specific message so it reaches the client (AUDIT L10).
     if (user.role !== 'SUPER_ADMIN') {
-      throw new UnauthorizedException('Only Super Admins can perform this action.');
+      throw new ForbiddenException('Only Super Admins can perform this action.');
     }
     return user.id;
   }
