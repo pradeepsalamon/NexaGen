@@ -43,6 +43,12 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
   // JSON only: the default set also parses urlencoded bodies, which is what
   // lets a cross-site <form> post fill a DTO.
   app.useBodyParser("json");
+  // body-parser 2 (Express 5) leaves req.body undefined when there is no body;
+  // Express 4 gave {}. Body-less POSTs (publish, archive, …) rely on {}.
+  app.use((req: express.Request, _res: express.Response, next: express.NextFunction) => {
+    req.body ??= {};
+    next();
+  });
 
   app.use(cookieParser());
   app.useGlobalPipes(
