@@ -1,18 +1,7 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import { BackupManager } from "../_components/BackupManager";
 import { SuperAdminOnly } from "@/components/layout/SuperAdminOnly";
 
-const accessTokenCookieName = "nexa_access_token";
-
 export default function AdminBackupsPage() {
-  const hasAccessToken = Boolean(cookies().get(accessTokenCookieName)?.value);
-  const hasRefreshToken = Boolean(cookies().get("nexa_refresh_token")?.value);
-
-  if (!hasAccessToken && !hasRefreshToken) {
-    redirect("/login?reason=unauthorized");
-  }
-
   return (
     <div className="space-y-4">
       <div>
@@ -20,8 +9,8 @@ export default function AdminBackupsPage() {
           Database backups
         </h1>
         <p className="text-sm text-app-muted">
-          Download or restore the automated PostgreSQL backups stored in object
-          storage.
+          Download the automated PostgreSQL backups stored in object storage.
+          Restores are run from the server (see docs/DATABASE_RESTORE.md).
         </p>
       </div>
       <SuperAdminOnly>

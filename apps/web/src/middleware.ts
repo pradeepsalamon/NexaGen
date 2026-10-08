@@ -1,53 +1,38 @@
 import { NextResponse, type NextRequest } from "next/server";
+import {
+  AUTH_COOKIES,
+  canAccessPath,
+  getRoleDashboardHref,
+  isProtectedPath,
+  readRoleFromJwt
+} from "./lib/routeAccess";
 
-const accessTokenCookieName = "nexa_access_token";
-const refreshTokenCookieName = "nexa_refresh_token";
-
+// The single page-level auth gate: pages and layouts do not re-check cookies.
+// Rules live in lib/routeAccess.ts (shared with the client guard in SessionBootstrap).
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get(accessTokenCookieName)?.value;
-  const hasAccessToken = Boolean(token);
-  const hasRefreshToken = Boolean(
-    request.cookies.get(refreshTokenCookieName)?.value
-  );
-
+  const accessToken = request.cookies.get(AUTH_COOKIES.accessToken)?.value;
+  const hasSession =
+    Boolean(accessToken) || Boolean(request.cookies.get(AUTH_COOKIES.refreshToken)?.value);
+  // An expired access token still names the role; a refresh-only session has none,
+  // so it passes here and SessionBootstrap redirects once /auth/me resolves.
+  const role = readRoleFromJwt(accessToken);
   const { pathname } = request.nextUrl;
-  const isAuthRoute = pathname === "/login" || pathname === "/signup";
-  const isProtectedRoute =
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/coach") ||
-    pathname.startsWith("/student") ||
-    // Buying requires an account: the order is written against a user.
-    pathname.startsWith("/checkout") ||
-    pathname.startsWith("/plans");
 
-  if (isProtectedRoute && !hasAccessToken && !hasRefreshToken) {
-    const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("reason", "unauthorized");
-    return NextResponse.redirect(loginUrl);
+  if (pathname === "/login" || pathname === "/signup") {
+    return hasSession
+      ? NextResponse.redirect(new URL(getRoleDashboardHref(role ?? "STUDENT"), request.url))
+      : NextResponse.next();
   }
 
-  if (isAuthRoute && (hasAccessToken || hasRefreshToken)) {
-    let dashboardPath = "/student";
-
-    if (token) {
-      try {
-        const base64Url = token.split('.')[1];
-        if (base64Url) {
-          const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-          const jsonPayload = atob(base64);
-          const payload = JSON.parse(jsonPayload);
-          if (payload.role === "SUPER_ADMIN" || payload.role === "ADMIN") {
-            dashboardPath = "/admin";
-          } else if (payload.role === "COACH") {
-            dashboardPath = "/coach";
-          }
-        }
-      } catch (e) {
-        // Ignore decoding errors and fallback to /student
-      }
+  if (isProtectedPath(pathname)) {
+    if (!hasSession) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("reason", "unauthorized");
+      return NextResponse.redirect(loginUrl);
     }
-
-    return NextResponse.redirect(new URL(dashboardPath, request.url));
+    if (role && !canAccessPath(pathname, role)) {
+      return NextResponse.redirect(new URL(getRoleDashboardHref(role), request.url));
+    }
   }
 
   return NextResponse.next();
@@ -59,7 +44,9 @@ export const config = {
     "/coach/:path*",
     "/student/:path*",
     "/checkout/:path*",
+    "/chess-board",
     "/plans",
+    "/profile",
     "/login",
     "/signup"
   ]

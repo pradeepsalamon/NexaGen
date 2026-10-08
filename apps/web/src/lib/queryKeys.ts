@@ -5,6 +5,7 @@ export const queryKeys = {
     // Must match the key SessionBootstrap / AuthLayout use, or invalidating it
     // is a no-op (AUDIT L3).
     session: ["auth", "me"] as const,
+    mfa: ["auth", "mfa"] as const,
   },
   users: {
     all: ["users"] as const,

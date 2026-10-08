@@ -1,4 +1,5 @@
-import { UnauthorizedException } from "@nestjs/common";
+import { ServiceUnavailableException, UnauthorizedException } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import type { Request } from "express";
 import { AttendanceWebhookController } from "./attendance-webhook.controller";
 import { AttendanceService } from "./attendance.service";
@@ -14,7 +15,7 @@ import { PrismaService } from "../prisma/prisma.service";
 describe("AttendanceWebhookController signature handling", () => {
   let controller: AttendanceWebhookController;
   let recording: { handleEgressEnded: jest.Mock };
-  let prisma: { processedWebhookEvent: { create: jest.Mock } };
+  let prisma: { processedWebhookEvent: { create: jest.Mock; delete: jest.Mock } };
   let receiver: { receive: jest.Mock };
 
   const requestWith = (body: string, authorization?: string) =>
@@ -25,7 +26,12 @@ describe("AttendanceWebhookController signature handling", () => {
 
   beforeEach(() => {
     recording = { handleEgressEnded: jest.fn().mockResolvedValue(undefined) };
-    prisma = { processedWebhookEvent: { create: jest.fn().mockResolvedValue({}) } };
+    prisma = {
+      processedWebhookEvent: {
+        create: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({})
+      }
+    };
     receiver = { receive: jest.fn() };
 
     controller = new AttendanceWebhookController(
@@ -83,13 +89,27 @@ describe("AttendanceWebhookController signature handling", () => {
     );
   });
 
-  it("swallows a processing failure so LiveKit does not retry forever", async () => {
+  it("fails a processing error with 503 and releases the dedupe claim so the retry runs", async () => {
     const event = { event: "egress_ended", id: "evt-2", egressInfo: { roomName: "r" } };
     receiver.receive.mockResolvedValue(event);
     recording.handleEgressEnded.mockRejectedValue(new Error("db down"));
 
     await expect(
       controller.handleWebhook(requestWith(JSON.stringify(event), "valid-signature"))
-    ).resolves.toEqual({ ok: false, error: "Processing error" });
+    ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(prisma.processedWebhookEvent.delete).toHaveBeenCalledWith({ where: { id: "evt-2" } });
+  });
+
+  it("skips a delivery that was already processed", async () => {
+    const event = { event: "egress_ended", id: "evt-3", egressInfo: { roomName: "r" } };
+    receiver.receive.mockResolvedValue(event);
+    prisma.processedWebhookEvent.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "test" })
+    );
+
+    await expect(
+      controller.handleWebhook(requestWith(JSON.stringify(event), "valid-signature"))
+    ).resolves.toEqual({ ok: true });
+    expect(recording.handleEgressEnded).not.toHaveBeenCalled();
   });
 });

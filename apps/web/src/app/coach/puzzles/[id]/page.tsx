@@ -2,6 +2,7 @@ import { PuzzlePreviewClient } from "@/features/puzzles/components/PuzzlePreview
 
 export const metadata = { title: "Puzzle - Coach Workspace" };
 
-export default function CoachPuzzlePreviewPage({ params }: { params: { id: string } }) {
+export default async function CoachPuzzlePreviewPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return <PuzzlePreviewClient id={params.id} basePath="/coach/puzzles" />;
 }

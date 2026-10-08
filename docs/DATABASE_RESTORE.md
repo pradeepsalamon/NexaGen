@@ -1,5 +1,8 @@
 # Database Restore Procedure (Manual)
 
+Restores are deliberately CLI-only: the admin web UI can list, download and trigger
+backups but has no restore button, so a stolen admin session cannot wipe production.
+
 This document outlines the procedure for manually restoring the production database from an Oracle Cloud Infrastructure (OCI) Object Storage backup.
 
 > [!WARNING]
@@ -54,8 +57,8 @@ docker compose start api web
 
 ## 6. Lichess puzzle catalogue
 
-Every backup — the nightly `scripts/backup_db.sh`, the admin "Backup now" button
-and the API's pre-restore safety dump — skips the **rows** of `lichess_puzzles`
+Every backup — the nightly `scripts/backup_db.sh` and the admin "Backup now"
+button — skips the **rows** of `lichess_puzzles`
 (and its transient `lichess_puzzles_staging`). The table definitions are
 dumped; only the ~6M rows of re-loadable source data are not. Everything
 NexaChess-owned is backed up as before, including every `puzzles` row copied

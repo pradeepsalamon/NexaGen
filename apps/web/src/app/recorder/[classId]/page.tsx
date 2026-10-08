@@ -21,6 +21,7 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 // Nothing here can be prerendered: everything comes from the query string.
 export const dynamic = "force-dynamic";
 
-export default function RecorderPage({ params }: { params: { classId: string } }) {
-  return <RecorderClient classId={params.classId} />;
+export default async function RecorderPage(props: { params: Promise<{ classId: string }> }) {
+ const params = await props.params;
+ return <RecorderClient classId={params.classId} />;
 }

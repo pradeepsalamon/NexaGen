@@ -78,7 +78,10 @@ export class UploadController {
     @Req() request: Request,
     @Body('filename') filename?: string,
   ) {
-    await this.getAuthenticatedUser(request);
+    const user = await this.getAuthenticatedUser(request);
+    if (user.role === UserRole.STUDENT) {
+      throw new ForbiddenException('Only coaches and admins can save PGNs.');
+    }
 
     if (!pgnContent) {
       throw new BadRequestException('PGN content is required');

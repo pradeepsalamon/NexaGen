@@ -6,9 +6,10 @@ import { redirect } from "next/navigation";
  * authorization is enforced by the API (admin-only); this just avoids rendering
  * a shell for a signed-out visitor. Call at the top of every analytics page.
  */
-export function assertAnalyticsCookie() {
-  const hasAccessToken = Boolean(cookies().get("nexa_access_token")?.value);
-  const hasRefreshToken = Boolean(cookies().get("nexa_refresh_token")?.value);
+export async function assertAnalyticsCookie() {
+  const cookieStore = await cookies();
+  const hasAccessToken = Boolean(cookieStore.get("nexa_access_token")?.value);
+  const hasRefreshToken = Boolean(cookieStore.get("nexa_refresh_token")?.value);
   if (!hasAccessToken && !hasRefreshToken) {
     redirect("/login?reason=unauthorized");
   }

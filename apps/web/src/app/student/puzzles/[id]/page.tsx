@@ -2,6 +2,7 @@ import { StudentPuzzleSolveClient } from "@/features/puzzles/components/StudentP
 
 export const metadata = { title: "Solve puzzle" };
 
-export default function StudentPuzzleSolvePage({ params }: { params: { id: string } }) {
+export default async function StudentPuzzleSolvePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return <StudentPuzzleSolveClient id={params.id} />;
 }

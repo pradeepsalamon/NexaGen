@@ -273,9 +273,10 @@ access log (`[HTTP] METHOD url status durationms - ip`), excluding `/stockfish` 
 
 ### 5.1 Directory model
 
-- `src/app/**` — routes. `page.tsx` is a thin **server component**: check for the auth
-  cookie, `redirect("/login?reason=unauthorized")` if absent, then render a
-  `"use client"` `<FeatureClient />`. Route groups: `(auth)` for login/register/etc.
+- `src/app/**` — routes. `page.tsx` is a thin **server component** that renders a
+  `"use client"` `<FeatureClient />`. It does not check the auth cookie: `middleware.ts`
+  gates sign-in and role per route from `src/lib/routeAccess.ts` (add new protected
+  routes there and to the matcher). Route groups: `(auth)` for login/register/etc.
 - `src/features/<feature>/` — `api/`, `hooks/`, `components/`, sometimes
   `validation/`, `types/`, `store/`, `context/`.
 - `src/components/ui/` — design-system primitives. `src/components/layout/`,

@@ -5,12 +5,10 @@ import { NestFactory } from "@nestjs/core";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 import { getApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
 import { API_ROUTES } from "@nexa-chess/types";
-import type { NextFunction, Request, Response } from "express";
+import { Logger } from "nestjs-pino";
 import * as express from "express";
 import { AppModule } from "./app.module";
 import { createOriginCheckMiddleware } from "./common/security/origin-check";
-
-const HTTP_LOG_EXCLUDED_PREFIXES = ["/stockfish", "/health"];
 
 async function bootstrap() {
   const env = getApiEnv();
@@ -18,39 +16,15 @@ async function bootstrap() {
   // parses urlencoded bodies, which is what lets a cross-site <form> post fill a DTO.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bodyParser: false,
-    logger: ["error", "warn"]
+    bufferLogs: true
   });
+  // JSON request + application logs (nestjs-pino); see common/logging.
+  app.useLogger(app.get(Logger));
+  app.flushLogs();
   // Trust exactly the number of proxy hops in front of us (nginx = 1). Trusting
   // every hop lets a client spoof X-Forwarded-For and bypass IP rate limiting.
   app.set("trust proxy", env.TRUST_PROXY_HOPS);
   const corsOrigins = getCorsOrigins(env);
-
-  app.use((request: Request, response: Response, next: NextFunction) => {
-    const startedAt = Date.now();
-
-    response.on("finish", () => {
-      if (
-        HTTP_LOG_EXCLUDED_PREFIXES.some((prefix) =>
-          request.originalUrl?.startsWith(prefix)
-        )
-      ) {
-        return;
-      }
-
-      const durationMs = Date.now() - startedAt;
-      const ipAddress =
-        request.ip ||
-        request.socket.remoteAddress ||
-        request.headers["x-forwarded-for"] ||
-        "unknown";
-
-      console.log(
-        `[HTTP] ${request.method} ${request.originalUrl} ${response.statusCode} ${durationMs}ms - ${ipAddress}`
-      );
-    });
-
-    next();
-  });
 
   const webhookPaths = [
     API_ROUTES.attendance.webhook,
