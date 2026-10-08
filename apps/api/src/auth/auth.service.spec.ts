@@ -13,6 +13,8 @@ import {
 import { AuthService } from "./auth.service";
 import { hashRefreshToken, hashSecret } from "./auth.utils";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
+import type { LoginOutcome } from "./auth.service";
+import { MfaService } from "./mfa/mfa.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -57,6 +59,12 @@ describe("AuthService", () => {
   let mailService: { sendPasswordResetLink: jest.Mock };
   let prismaService: MockPrismaService;
   let analyticsEvents: { record: jest.Mock };
+  let mfaService: { loginChallenge: jest.Mock };
+
+  const asSession = (outcome: LoginOutcome) => {
+    if (outcome.kind !== "session") throw new Error("Expected a session, got an MFA challenge.");
+    return outcome;
+  };
 
   beforeEach(async () => {
     jwtService = {
@@ -65,6 +73,7 @@ describe("AuthService", () => {
     };
 
     analyticsEvents = { record: jest.fn().mockResolvedValue(undefined) };
+    mfaService = { loginChallenge: jest.fn().mockResolvedValue(null) };
 
     mailService = {
       sendPasswordResetLink: jest.fn()
@@ -112,7 +121,8 @@ describe("AuthService", () => {
         { provide: JwtService, useValue: jwtService },
         { provide: MailService, useValue: mailService },
         { provide: PrismaService, useValue: prismaService },
-        { provide: AnalyticsEventService, useValue: analyticsEvents }
+        { provide: AnalyticsEventService, useValue: analyticsEvents },
+        { provide: MfaService, useValue: mfaService }
       ]
     }).compile();
 
@@ -252,9 +262,8 @@ describe("AuthService", () => {
       prismaService.authSession.update.mockResolvedValueOnce({ id: "sess-1" });
       jwtService.signAsync.mockResolvedValue("mocked-token");
 
-      const result = await service.login(
-        { email: "test@example.com", password, rememberMe: true },
-        {}
+      const result = asSession(
+        await service.login({ email: "test@example.com", password, rememberMe: true }, {})
       );
 
       expect(result.user.id).toBe("usr-123");
@@ -262,6 +271,24 @@ describe("AuthService", () => {
       expect(result.refreshToken).toBe("mocked-token");
       expect(result.refreshTokenMaxAge).toBeGreaterThan(0);
       expect(analyticsEvents.record).toHaveBeenCalledWith("usr-123", "LOGIN");
+    });
+
+    it("stops at the second factor without creating a session", async () => {
+      const password = "password123";
+      prismaService.user.findUnique.mockResolvedValueOnce({
+        ...activeUser,
+        password: await hashSecret(password)
+      });
+      mfaService.loginChallenge.mockResolvedValueOnce({
+        challengeToken: "challenge",
+        mfaRequired: "VERIFY"
+      });
+
+      const result = await service.login({ email: activeUser.email, password }, {});
+
+      expect(result).toEqual({ challengeToken: "challenge", kind: "mfa", mfaRequired: "VERIFY" });
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+      expect(analyticsEvents.record).not.toHaveBeenCalled();
     });
   });
 
@@ -464,9 +491,8 @@ describe("AuthService", () => {
       prismaService.authSession.update.mockResolvedValueOnce({ id: "sess-1" });
       jwtService.signAsync.mockResolvedValue("mocked-token");
 
-      const result = await service.login(
-        { email: "test@example.com", password },
-        {}
+      const result = asSession(
+        await service.login({ email: "test@example.com", password }, {})
       );
 
       expect(result.accessToken).toBe("mocked-token");

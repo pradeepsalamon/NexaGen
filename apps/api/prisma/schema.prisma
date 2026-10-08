@@ -284,6 +284,7 @@ model User {
   givenFeedback                   FeedbackResponse[]               @relation("FeedbackResponseStudent")
   receivedFeedback                FeedbackResponse[]               @relation("FeedbackResponseCoach")
   authSessions                    AuthSession[]
+  mfa                             UserMfa?
   passwordResets                  PasswordResetToken[]
   emailVerifications              EmailVerificationToken[]
   deletedRecords                  TrashAuditLog[]                  @relation("TrashAuditDeletedBy")
@@ -525,6 +526,26 @@ model AuthSession {
   @@index([expiresAt])
   @@index([familyId])
   @@map("auth_sessions")
+}
+
+// TOTP second factor. One row per enrolled (or enrolling) user.
+model UserMfa {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // AES-256-GCM with MFA_ENCRYPTION_KEY; never stored or logged in clear.
+  secretEncrypted    String
+  // Null while enrollment is pending (secret issued, first code not yet confirmed).
+  enabledAt          DateTime?
+  // Last accepted 30s time step, so a code can't be replayed inside its window.
+  lastUsedStep       Int?
+  // sha256 of each unused single-use recovery code.
+  recoveryCodeHashes String[]  @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_mfa")
 }
 
 model PasswordResetToken {

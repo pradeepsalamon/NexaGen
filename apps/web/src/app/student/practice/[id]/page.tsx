@@ -4,6 +4,7 @@ export const metadata = {
   title: "Assignment"
 };
 
-export default function StudentAssignmentPage({ params }: { params: { id: string } }) {
+export default async function StudentAssignmentPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   return <StudentAssignmentDetailClient id={params.id} />;
 }

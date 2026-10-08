@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Query, Req, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Query, Req, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { BackupService } from './backup.service';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -21,7 +21,7 @@ export class BackupController {
       request.cookies?.[AUTH_COOKIE_NAMES.accessToken]
     );
     if (user.role !== 'SUPER_ADMIN') {
-      throw new UnauthorizedException('Only Super Admins can perform this action.');
+      throw new ForbiddenException('Only Super Admins can perform this action.');
     }
     return user.id;
   }
@@ -48,18 +48,6 @@ export class BackupController {
       throw new BadRequestException('Backup key is required');
     }
     return this.backupService.getDownloadUrl(key);
-  }
-
-  @Post('restore')
-  async restoreBackup(
-    @Query('key') key: string,
-    @Req() request: Request
-  ) {
-    await this.getAdminId(request);
-    if (!key) {
-      throw new BadRequestException('Backup key is required');
-    }
-    return this.backupService.restoreBackup(key);
   }
 
   @Delete()

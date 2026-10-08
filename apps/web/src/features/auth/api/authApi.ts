@@ -3,8 +3,15 @@ import type {
   ForgotPasswordRequest,
   ForgotPasswordResponse,
   LoginRequest,
+  LoginResponse,
   LogoutResponse,
   MessageResponse,
+  MfaDisableRequest,
+  MfaEnableRequest,
+  MfaEnableResponse,
+  MfaSetupResponse,
+  MfaStatusResponse,
+  MfaVerifyRequest,
   RefreshSessionResponse,
   RegisterRequest,
   RegisterCoachRequest,
@@ -32,7 +39,40 @@ export function registerCoach(payload: RegisterCoachRequest) {
 }
 
 export function login(payload: LoginRequest) {
-  return apiFetch<AuthResponse>(API_ROUTES.auth.login, {
+  return apiFetch<LoginResponse>(API_ROUTES.auth.login, {
+    body: payload,
+    method: "POST"
+  });
+}
+
+export function verifyMfa(payload: MfaVerifyRequest) {
+  return apiFetch<AuthResponse>(API_ROUTES.auth.mfaVerify, {
+    body: payload,
+    method: "POST"
+  });
+}
+
+export function getMfaStatus() {
+  return apiFetch<MfaStatusResponse>(API_ROUTES.auth.mfa);
+}
+
+/** Pass the login challenge token when enrolling mid-login; omit it from settings. */
+export function startMfaSetup(challengeToken?: string) {
+  return apiFetch<MfaSetupResponse>(API_ROUTES.auth.mfaSetup, {
+    body: { challengeToken },
+    method: "POST"
+  });
+}
+
+export function enableMfa(payload: MfaEnableRequest) {
+  return apiFetch<MfaEnableResponse>(API_ROUTES.auth.mfaEnable, {
+    body: payload,
+    method: "POST"
+  });
+}
+
+export function disableMfa(payload: MfaDisableRequest) {
+  return apiFetch<{ signedOut: boolean }>(API_ROUTES.auth.mfaDisable, {
     body: payload,
     method: "POST"
   });

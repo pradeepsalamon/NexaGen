@@ -10,6 +10,8 @@ const optionalUrlSchema = z
   .optional()
   .or(z.literal("").transform(() => undefined));
 
+const MIN_JWT_SECRET_LENGTH = 32;
+
 const apiEnvSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   FRONTEND_URL: optionalUrlSchema,
@@ -19,6 +21,17 @@ const apiEnvSchema = z.object({
   JWT_REFRESH_SHORT_TTL: durationSchema.default("1d"),
   JWT_REFRESH_TTL: durationSchema.default("7d"),
   LOGIN_RESPONSE_DELAY: durationSchema.default("500ms"),
+  LOG_LEVEL: z
+    .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
+    .optional(),
+  // Encrypts TOTP secrets at rest. Unset = two-factor sign-in is unavailable.
+  MFA_ENCRYPTION_KEY: z
+    .string()
+    .min(32, "MFA_ENCRYPTION_KEY must be at least 32 characters.")
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
+  // Roles that must sign in with two-factor (comma-separated; empty = none).
+  MFA_REQUIRED_ROLES: z.string().default("SUPER_ADMIN,ADMIN"),
   NODE_ENV: z.string().default("development"),
   PASSWORD_RESET_RESPONSE_DELAY: durationSchema.default("5s"),
   PORT: z.coerce.number().int().positive().default(3001),
@@ -154,6 +167,26 @@ const apiEnvSchema = z.object({
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_API_VERSION: z.string().default("2024-06-20")
+}).superRefine((env, ctx) => {
+  if (env.NODE_ENV !== "production") return;
+  // A default, empty or short signing secret lets anyone mint access tokens.
+  for (const key of ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"] as const) {
+    const value = env[key];
+    if (value.length < MIN_JWT_SECRET_LENGTH || value.startsWith("change-this")) {
+      ctx.addIssue({
+        code: "custom",
+        message: `${key} must be a random value of at least ${MIN_JWT_SECRET_LENGTH} characters in production.`,
+        path: [key]
+      });
+    }
+  }
+  if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
+    ctx.addIssue({
+      code: "custom",
+      message: "JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must differ.",
+      path: ["JWT_REFRESH_SECRET"]
+    });
+  }
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

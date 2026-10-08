@@ -583,3 +583,17 @@ None currently tracked here.
   `assignment` service's server-side call to `UploadService.uploadPgn`. Size
   is capped at 512KB in the controller and the shared
   `createAssignmentRequestSchema`.
+- **Unvalidated list query params reach Prisma** (found 2026-10-08 by the
+  cross-user access suite). Several list endpoints pass raw `@Query()` values
+  (`status`, `difficulty`, `visibility`, …) straight into a `where`, e.g.
+  `PuzzleService.list`. A repeated key (`?status=A&status=B`, an array) or an
+  unknown enum value fails Prisma validation and answers **500** instead of
+  400. Fix per endpoint with a Zod/DTO query schema, not a global
+  Prisma-error → 400 mapping (that would also hide real programming errors).
+- `GET /live-class/:id/participants` answers **500** when LiveKit is
+  unconfigured (`LIVEKIT_*` unset) — the room-service call throws. Should be a
+  503 like the other optional integrations.
+- **ESLint 8 is end-of-life** (both apps). Web moved off the deprecated
+  `next lint` to the ESLint CLI on 2026-10-08 with the same `.eslintrc.json`;
+  the next step is ESLint 9 + flat config (`eslint.config.mjs`) for web and
+  api together, with `@typescript-eslint` 8 on the api side.

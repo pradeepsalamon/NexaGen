@@ -10,7 +10,12 @@ export const API_ROUTES = {
     resetPassword: "/auth/reset-password",
     registerCoach: "/auth/register-coach",
     verifyEmail: "/auth/verify-email",
-    resendVerification: "/auth/resend-verification"
+    resendVerification: "/auth/resend-verification",
+    mfa: "/auth/mfa",
+    mfaSetup: "/auth/mfa/setup",
+    mfaEnable: "/auth/mfa/enable",
+    mfaDisable: "/auth/mfa/disable",
+    mfaVerify: "/auth/mfa/verify"
   },
   users: {
     list: "/users",

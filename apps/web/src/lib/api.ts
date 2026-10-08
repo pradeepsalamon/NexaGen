@@ -38,6 +38,13 @@ interface CustomAxiosRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
 }
 
+// Mid-login MFA steps have no session to refresh; a 401 there means the challenge expired.
+function isPreSessionRequest(config: InternalAxiosRequestConfig) {
+  if (config.url === API_ROUTES.auth.mfaVerify) return true;
+  const body = typeof config.data === "string" ? config.data : "";
+  return body.includes('"challengeToken":"');
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -49,7 +56,8 @@ apiClient.interceptors.response.use(
       !originalRequest._retry &&
       originalRequest.url !== API_ROUTES.auth.refresh &&
       originalRequest.url !== API_ROUTES.auth.login &&
-      originalRequest.url !== API_ROUTES.auth.logout
+      originalRequest.url !== API_ROUTES.auth.logout &&
+      !isPreSessionRequest(originalRequest)
     ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {

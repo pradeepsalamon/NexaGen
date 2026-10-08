@@ -7,6 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Inject,
+  ServiceUnavailableException,
   UnauthorizedException,
   forwardRef,
 } from "@nestjs/common";
@@ -146,10 +147,11 @@ export class AttendanceWebhookController {
 
       // LiveKit retries webhooks; process each delivery once so a retry can't
       // add duplicate RECONNECT logs or inflate durations (AUDIT M1).
-      if (event.id) {
+      const dedupeId = event.id ? String(event.id) : null;
+      if (dedupeId) {
         try {
           await this.prisma.processedWebhookEvent.create({
-            data: { id: String(event.id), eventType: String(event.event) },
+            data: { id: dedupeId, eventType: String(event.event) },
           });
         } catch (dedupeError) {
           if (
@@ -163,22 +165,34 @@ export class AttendanceWebhookController {
         }
       }
 
-      if (typeof event.event === "string" && event.event.startsWith("egress_")) {
-        // Recording lifecycle — finalize `recordingUrl` only on success
-        // (AUDIT M20).
-        await this.handleEgressEvent(event);
-      } else {
-        await this.processEvent(event);
+      try {
+        if (typeof event.event === "string" && event.event.startsWith("egress_")) {
+          // Recording lifecycle — finalize `recordingUrl` only on success
+          // (AUDIT M20).
+          await this.handleEgressEvent(event);
+        } else {
+          await this.processEvent(event);
+        }
+      } catch (processingError) {
+        // Release the claim so LiveKit's retry is processed instead of skipped.
+        if (dedupeId) await this.releaseDedupeClaim(dedupeId);
+        throw processingError;
       }
 
       return { ok: true };
     } catch (error) {
-      // Rejections (bad signature) must reach the caller as a 4xx — only
-      // genuine processing failures are swallowed as 200 to stop LiveKit
-      // retrying a payload we will never manage to handle.
       if (error instanceof HttpException) throw error;
       this.logger.error("Error processing LiveKit webhook", error);
-      return { ok: false, error: "Processing error" };
+      // 5xx so LiveKit retries the delivery (it gives up after a bounded number of attempts).
+      throw new ServiceUnavailableException("Webhook processing failed.");
+    }
+  }
+
+  private async releaseDedupeClaim(id: string) {
+    try {
+      await this.prisma.processedWebhookEvent.delete({ where: { id } });
+    } catch (error) {
+      this.logger.error(`Failed to release webhook dedupe claim ${id}`, error);
     }
   }
 

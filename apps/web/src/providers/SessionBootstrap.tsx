@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { getCurrentUser } from "../features/auth/api/authApi";
 import { queryKeys } from "../lib/queryKeys";
+import { canAccessPath, getRoleDashboardHref } from "../lib/routeAccess";
 import { useAuthStore } from "../stores/authStore";
 
 // The only surfaces an anonymous visitor routinely lands on. Everywhere else we
@@ -70,6 +71,15 @@ export function SessionBootstrap() {
       setUser(sessionQuery.data.user);
     }
   }, [sessionQuery.data, setUser]);
+
+  // Client half of the route RBAC in middleware.ts: catches refresh-only sessions
+  // (no role in a cookie) and client-side navigations.
+  const verifiedRole = sessionQuery.data?.user.role;
+  useEffect(() => {
+    if (verifiedRole && pathname && !canAccessPath(pathname, verifiedRole)) {
+      router.replace(getRoleDashboardHref(verifiedRole));
+    }
+  }, [pathname, router, verifiedRole]);
 
   useEffect(() => {
     if (sessionQuery.isError) {

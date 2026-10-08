@@ -1,9 +1,13 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, APP_GUARD } from "@nestjs/core";
 import { SentryGlobalFilter, SentryModule } from "@sentry/nestjs/setup";
-import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
+import { ThrottlerModule } from "@nestjs/throttler";
+import { getApiEnv } from "@nexa-chess/config/api";
+import { LoggerModule } from "nestjs-pino";
+import { buildLoggerParams } from "./common/logging/logger.config";
 import { ResilientThrottlerStorage } from "./common/throttler/resilient-throttler-storage";
 import { createThrottlerStorage } from "./common/throttler/throttler-storage.factory";
+import { UserThrottlerGuard } from "./common/throttler/user-throttler.guard";
 import { AuthModule } from "./auth/auth.module";
 import { BatchModule } from "./batch/batch.module";
 import { BatchScheduleModule } from "./batch-schedule/batch-schedule.module";
@@ -46,6 +50,7 @@ import { RetentionModule } from "./retention/retention.module";
 @Module({
   imports: [
     SentryModule.forRoot(),
+    LoggerModule.forRoot(buildLoggerParams(getApiEnv())),
     ThrottlerModule.forRootAsync({
       useFactory: () => {
         const storage = createThrottlerStorage();
@@ -102,7 +107,7 @@ import { RetentionModule } from "./retention/retention.module";
     },
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: UserThrottlerGuard,
     },
   ]
 })

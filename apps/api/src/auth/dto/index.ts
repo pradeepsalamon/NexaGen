@@ -5,3 +5,4 @@ export * from "./reset-password.dto";
 export * from "./update-profile.dto";
 export * from "./register-coach.dto";
 export * from "./verify-email.dto";
+export * from "./mfa.dto";

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
+import { type AuthUser, isMfaChallenge, type MfaChallengeResponse } from "@nexa-chess/types";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
@@ -17,6 +18,8 @@ import type { LoginFormValues } from "../types/auth";
 import { validateLoginForm } from "../validation/authValidation";
 import { login } from "../api/authApi";
 import { AuthHeader } from "./AuthHeader";
+import { MfaCodeStep } from "./mfa/MfaCodeStep";
+import { MfaEnrollment } from "./mfa/MfaEnrollment";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 
 
@@ -31,6 +34,7 @@ export function LoginForm() {
   const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
   const [values, setValues] = useState<LoginFormValues>(initialValues);
+  const [challenge, setChallenge] = useState<MfaChallengeResponse | null>(null);
   const { touched, touchAll, touchField } = useTouchedFields<LoginFormValues>();
   const errors = useMemo(
     () => validateLoginForm(values, touched),
@@ -44,16 +48,58 @@ export function LoginForm() {
         title: "Login failed"
       });
     },
-    onSuccess: ({ user }) => {
-      setUser(user);
-      toast.success({
-        message: "Welcome back to Nexa Chess.",
-        title: "Login successful"
-      });
-
-      router.push(getRoleDashboardHref(user.role));
+    onSuccess: (response) => {
+      if (isMfaChallenge(response)) {
+        setChallenge(response);
+        return;
+      }
+      finishLogin(response.user);
     }
   });
+
+  function finishLogin(user: AuthUser) {
+    setUser(user);
+    toast.success({
+      message: "Welcome back to Nexa Chess.",
+      title: "Login successful"
+    });
+
+    router.push(getRoleDashboardHref(user.role));
+  }
+
+  function resetChallenge() {
+    setChallenge(null);
+    setValues((currentValues) => ({ ...currentValues, password: "" }));
+  }
+
+  if (challenge) {
+    const enrolling = challenge.mfaRequired === "SETUP";
+    return (
+      <Card className="w-full max-w-[430px] animate-slide-up p-5 sm:p-6">
+        <h2 className="mb-1 text-2xl font-extrabold leading-tight text-app-text">
+          {enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
+        </h2>
+        <p className="mb-4 text-sm leading-6 text-app-muted">
+          {enrolling
+            ? "Your account needs a second step at sign-in. This takes a minute."
+            : "One more step to confirm it's you."}
+        </p>
+        {enrolling ? (
+          <MfaEnrollment
+            challengeToken={challenge.challengeToken}
+            onCancel={resetChallenge}
+            onComplete={(result) => (result.user ? finishLogin(result.user) : resetChallenge())}
+          />
+        ) : (
+          <MfaCodeStep
+            challengeToken={challenge.challengeToken}
+            onCancel={resetChallenge}
+            onVerified={finishLogin}
+          />
+        )}
+      </Card>
+    );
+  }
 
   function updateField<TField extends keyof LoginFormValues>(
     field: TField,

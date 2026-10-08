@@ -66,7 +66,7 @@ services:
       - nexa_network
 
   livekit:
-    image: livekit/livekit-server:latest
+    image: livekit/livekit-server:${LIVEKIT_SERVER_VERSION:-v1.13.9}
     container_name: nexa_livekit
     restart: unless-stopped
 
@@ -84,10 +84,21 @@ services:
           - ""
         rtc:
           tcp_port: 7881
-          port_range_start: 50000
-          port_range_end: 50010
+          # One muxed UDP port for every participant. The old 50000-50010 range
+          # allowed ~11 peer connections before everyone else fell back to TCP.
+          udp_port: 7882
           use_external_ip: true
-          node_ip: 146.56.55.170
+          node_ip: ${LIVEKIT_NODE_IP:-146.56.55.170}
+        # Embedded TURN for students on networks that block UDP / odd ports.
+        # Needs a DNS name pointing at this box and a cert for it (certbot).
+        turn:
+          enabled: ${LIVEKIT_TURN_ENABLED:-false}
+          domain: ${LIVEKIT_TURN_DOMAIN:-}
+          tls_port: ${LIVEKIT_TURN_TLS_PORT:-5349}
+          udp_port: 3478
+          external_tls: false
+          cert_file: /etc/letsencrypt/live/${LIVEKIT_TURN_DOMAIN:-none}/fullchain.pem
+          key_file: /etc/letsencrypt/live/${LIVEKIT_TURN_DOMAIN:-none}/privkey.pem
         redis:
           address: redis:6379
         webhook:
@@ -99,10 +110,16 @@ services:
       redis:
         condition: service_healthy
 
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+
+    # Signalling (7880) is reached through nginx TLS, so it stays on loopback.
     ports:
-      - "7880:7880"
+      - "127.0.0.1:7880:7880"
       - "7881:7881"
-      - "50000-50010:50000-50010/udp"
+      - "7882:7882/udp"
+      - "${LIVEKIT_TURN_TLS_PORT:-5349}:${LIVEKIT_TURN_TLS_PORT:-5349}"
+      - "3478:3478/udp"
 
     logging:
       driver: json-file
@@ -114,7 +131,7 @@ services:
       - nexa_network
 
   egress:
-    image: livekit/egress:latest
+    image: livekit/egress:${LIVEKIT_EGRESS_VERSION:-v1.14.1}
     container_name: nexa_egress
     restart: unless-stopped
     environment:
@@ -177,12 +194,18 @@ services:
 
       NODE_ENV: production
       PORT: 3001
+      # JSON logs to stdout (nestjs-pino). info by default in production.
+      LOG_LEVEL: ${LOG_LEVEL:-info}
 
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       JWT_REFRESH_TTL: ${JWT_REFRESH_TTL:-7d}
       JWT_REFRESH_SHORT_TTL: ${JWT_REFRESH_SHORT_TTL:-1d}
+
+      # Two-factor sign-in. Unset key = MFA unavailable; roles listed must use it.
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      MFA_REQUIRED_ROLES: ${MFA_REQUIRED_ROLES:-SUPER_ADMIN,ADMIN}
 
       # Constant-time-ish auth responses so a client can't tell "wrong password"
       # from "no such account" apart by response latency.
@@ -305,8 +328,10 @@ services:
     volumes:
       - ${RECORDING_STORAGE_HOST_DIR:-./recordings}:${RECORDING_STORAGE_DIR:-/recordings}
 
+    # Loopback only: nginx is the public entry point. Docker bypasses ufw, so a
+    # bare "3001:3001" was reachable from the internet around nginx.
     ports:
-      - "3001:3001"
+      - "127.0.0.1:3001:3001"
 
     # /health/ready fails (503) when Postgres is unreachable, so the deploy
     # gate rejects an API that boots but can't reach its database.
@@ -358,7 +383,7 @@ services:
         condition: service_healthy
 
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
     # Replace with /health if implemented.
     healthcheck:

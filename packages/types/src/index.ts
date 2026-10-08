@@ -389,6 +389,64 @@ export type AuthResponse = {
 };
 
 /**
+ * Second login step. VERIFY: the account has TOTP on, send a code. SETUP: the
+ * role requires TOTP and none is enrolled yet, so enroll before a session exists.
+ */
+export type MfaChallengeResponse = {
+  challengeToken: string;
+  mfaRequired: "SETUP" | "VERIFY";
+};
+
+export type LoginResponse = AuthResponse | MfaChallengeResponse;
+
+export function isMfaChallenge(response: LoginResponse): response is MfaChallengeResponse {
+  return "mfaRequired" in response;
+}
+
+export const mfaVerifyRequestSchema = z.object({
+  challengeToken: z.string().min(1),
+  code: z.string().trim().min(6, "Enter your 6-digit code or a recovery code.").max(20)
+});
+
+export const mfaSetupRequestSchema = z.object({
+  challengeToken: z.string().min(1).optional()
+});
+
+export const mfaEnableRequestSchema = z.object({
+  challengeToken: z.string().min(1).optional(),
+  code: z.string().trim().regex(/^\d{6}$/, "Enter the 6-digit code from your app.")
+});
+
+export const mfaDisableRequestSchema = z.object({
+  code: z.string().trim().min(6, "Enter your 6-digit code or a recovery code.").max(20)
+});
+
+export type MfaVerifyRequest = z.infer<typeof mfaVerifyRequestSchema>;
+export type MfaSetupRequest = z.infer<typeof mfaSetupRequestSchema>;
+export type MfaEnableRequest = z.infer<typeof mfaEnableRequestSchema>;
+export type MfaDisableRequest = z.infer<typeof mfaDisableRequestSchema>;
+
+export type MfaStatusResponse = {
+  /** False when the server has no MFA_ENCRYPTION_KEY; enrollment is unavailable. */
+  available: boolean;
+  enabled: boolean;
+  recoveryCodesRemaining: number;
+  /** The caller's role must use two-factor sign-in. */
+  required: boolean;
+};
+
+export type MfaSetupResponse = {
+  otpauthUrl: string;
+  secret: string;
+};
+
+export type MfaEnableResponse = {
+  recoveryCodes: string[];
+  /** Set when enrollment finished a login (challenge flow); cookies are set too. */
+  user?: AuthUser;
+};
+
+/**
  * Coach self-registration does NOT create a session: the account is created
  * with `status: PENDING` and `coachProfile.approvalStatus: PENDING`, and stays
  * unusable until an admin approves it from the Pending Coaches screen.

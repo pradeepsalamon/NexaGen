@@ -23,6 +23,7 @@ import type {
   ForgotPasswordResponse,
   LoginRequest,
   LogoutResponse,
+  MfaChallengeResponse,
   RegisterRequest,
   RegisterCoachRequest,
   RegisterCoachResponse,
@@ -49,6 +50,7 @@ import {
   verifySecret
 } from "./auth.utils";
 import { verifyAccessToken as verifySharedAccessToken } from "./authenticate";
+import { MfaService } from "./mfa/mfa.service";
 
 type SessionContext = {
   ipAddress?: string;
@@ -61,6 +63,9 @@ type AuthResult = AuthResponse &
     accessTokenMaxAge: number;
     refreshTokenMaxAge: number;
   };
+export type LoginOutcome =
+  | ({ kind: "session" } & AuthResult)
+  | ({ kind: "mfa" } & MfaChallengeResponse);
 type UserWithProfiles = User & {
   coachProfile?: CoachProfile | null;
   studentProfile?: StudentProfile | null;
@@ -115,7 +120,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly mailService: MailService,
     private readonly prisma: PrismaService,
-    private readonly analyticsEvents: AnalyticsEventService
+    private readonly analyticsEvents: AnalyticsEventService,
+    private readonly mfa: MfaService
   ) {}
 
   getCookieMaxAges() {
@@ -265,7 +271,7 @@ export class AuthService {
   async login(
     payload: LoginRequest,
     context: SessionContext
-  ): Promise<AuthResult> {
+  ): Promise<LoginOutcome> {
     const startedAt = Date.now();
     const user = await this.prisma.user.findUnique({
       include: { coachProfile: true, studentProfile: true },
@@ -307,6 +313,39 @@ export class AuthService {
       throw new UnauthorizedException("This account is not active.");
     }
 
+    // The password is right; a second factor may still stand between it and a session.
+    const challenge = await this.mfa.loginChallenge(user, Boolean(payload.rememberMe));
+    if (challenge) {
+      await this.waitForLoginResponseDelay(startedAt);
+      return { kind: "mfa", ...challenge };
+    }
+
+    const result = await this.issueLoginSession(user, Boolean(payload.rememberMe), context);
+    await this.waitForLoginResponseDelay(startedAt);
+    return { kind: "session", ...result };
+  }
+
+  /** Second factor accepted (or just enrolled): finish the login it interrupted. */
+  async completeLogin(
+    userId: string,
+    rememberMe: boolean,
+    context: SessionContext
+  ): Promise<AuthResult> {
+    const user = await this.prisma.user.findUnique({
+      include: { coachProfile: true, studentProfile: true },
+      where: { id: userId }
+    });
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException("This account is not active.");
+    }
+    return this.issueLoginSession(user, rememberMe, context);
+  }
+
+  private async issueLoginSession(
+    user: UserWithProfiles,
+    rememberMe: boolean,
+    context: SessionContext
+  ): Promise<AuthResult> {
     await this.prisma.user.update({
       data: { lastLoginAt: new Date() },
       where: { id: user.id }
@@ -314,10 +353,10 @@ export class AuthService {
 
     void this.analyticsEvents.record(user.id, "LOGIN");
 
-    const refreshTokenMaxAge = payload.rememberMe
+    const refreshTokenMaxAge = rememberMe
       ? this.refreshTokenMaxAge
       : this.refreshTokenShortMaxAge;
-    const refreshTokenTtl = payload.rememberMe
+    const refreshTokenTtl = rememberMe
       ? this.refreshTokenTtl
       : this.refreshTokenShortTtl;
     const tokenPair = await this.createSession(
@@ -326,8 +365,6 @@ export class AuthService {
       refreshTokenMaxAge,
       refreshTokenTtl
     );
-
-    await this.waitForLoginResponseDelay(startedAt);
 
     return {
       ...tokenPair,

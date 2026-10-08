@@ -127,7 +127,7 @@ describe("AuthController", () => {
       const req = mockRequest("127.0.0.1", "test-agent");
       const res = mockResponse();
 
-      authService.login.mockResolvedValueOnce(authResult);
+      authService.login.mockResolvedValueOnce({ kind: "session", ...authResult });
 
       const result = await controller.login(dto, req, res);
 
@@ -136,7 +136,26 @@ describe("AuthController", () => {
         userAgent: "test-agent"
       });
       expect(res.cookie).toHaveBeenCalledTimes(2);
-      expect(result.user).toBeDefined();
+      expect("user" in result && result.user).toBeDefined();
+    });
+
+    it("returns the MFA challenge without setting cookies", async () => {
+      const req = mockRequest("127.0.0.1", "test-agent");
+      const res = mockResponse();
+      authService.login.mockResolvedValueOnce({
+        challengeToken: "challenge",
+        kind: "mfa",
+        mfaRequired: "SETUP"
+      });
+
+      const result = await controller.login(
+        { email: "test@example.com", password: "pwd" },
+        req,
+        res
+      );
+
+      expect(result).toEqual({ challengeToken: "challenge", mfaRequired: "SETUP" });
+      expect(res.cookie).not.toHaveBeenCalled();
     });
   });
 

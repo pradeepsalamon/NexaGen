@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import type { Request } from 'express';
@@ -18,7 +18,7 @@ describe('UploadController — uploadPgn (Save to cloud)', () => {
       uploadPgn: jest.fn().mockResolvedValue({ secure_url: 'https://cdn/game.pgn' }),
     };
     prisma = {
-      user: { findUnique: jest.fn().mockResolvedValue({ id: 'u1', status: 'ACTIVE' }) },
+      user: { findUnique: jest.fn().mockResolvedValue({ id: 'u1', role: 'COACH', status: 'ACTIVE' }) },
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -55,6 +55,14 @@ describe('UploadController — uploadPgn (Save to cloud)', () => {
     const huge = 'x'.repeat(512 * 1024 + 1);
     await expect(controller.uploadPgn(huge, req(), undefined)).rejects.toBeInstanceOf(
       BadRequestException,
+    );
+    expect(uploadService.uploadPgn).not.toHaveBeenCalled();
+  });
+
+  it('rejects a student', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'u1', role: 'STUDENT', status: 'ACTIVE' });
+    await expect(controller.uploadPgn('1. e4 *', req(), 'game.pgn')).rejects.toBeInstanceOf(
+      ForbiddenException,
     );
     expect(uploadService.uploadPgn).not.toHaveBeenCalled();
   });

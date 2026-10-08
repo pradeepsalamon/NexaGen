@@ -2,6 +2,11 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
 import * as streamifier from 'streamifier';
 
+export function safePgnBaseName(filename: string): string {
+  const base = filename.replace(/\.pgn$/i, '').replace(/[^A-Za-z0-9_-]+/g, '_').slice(0, 64);
+  return base || 'game';
+}
+
 @Injectable()
 export class UploadService {
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
@@ -39,7 +44,7 @@ export class UploadService {
         {
           folder: 'nexa_chess/pgns',
           resource_type: 'raw',
-          public_id: `${Date.now()}_${filename.replace('.pgn', '')}.pgn`,
+          public_id: `${Date.now()}_${safePgnBaseName(filename)}.pgn`,
         },
         (error, result) => {
           if (error) return reject(new BadRequestException(error.message));

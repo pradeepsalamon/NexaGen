@@ -82,7 +82,7 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
   );
 }
 
-function CoachVideoPopup({ constraintsRef }: { constraintsRef: RefObject<HTMLDivElement> }) {
+function CoachVideoPopup({ constraintsRef }: { constraintsRef: RefObject<HTMLDivElement | null> }) {
   const [minimized, setMinimized] = useState(false);
   const tracks = useTracks([{ source: Track.Source.Camera, withPlaceholder: true }], {
     onlySubscribed: false,

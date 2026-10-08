@@ -276,8 +276,14 @@ Important values:
 
 ```env
 DATABASE_URL=postgresql://...
+# Production refuses to boot unless both are 32+ random chars and differ.
 JWT_ACCESS_SECRET=...
 JWT_REFRESH_SECRET=...
+# Two-factor sign-in (TOTP). Unset key = unavailable. Listed roles enroll at next login.
+MFA_ENCRYPTION_KEY=...
+MFA_REQUIRED_ROLES=SUPER_ADMIN,ADMIN
+# JSON logs (nestjs-pino); default info in production, debug (pretty) locally.
+LOG_LEVEL=info
 JWT_ACCESS_TTL=15m
 JWT_REFRESH_SHORT_TTL=1d
 JWT_REFRESH_TTL=7d

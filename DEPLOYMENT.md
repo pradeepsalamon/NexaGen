@@ -14,13 +14,21 @@ sudo ufw allow 80/tcp    # HTTP
 sudo ufw allow 443/tcp   # HTTPS
 
 # LiveKit WebRTC Ports (CRITICAL)
-sudo ufw allow 7880/tcp  # LiveKit HTTP/WebSocket
 sudo ufw allow 7881/tcp  # LiveKit TCP fallback
-sudo ufw allow 50000:60000/udp # WebRTC UDP ports
+sudo ufw allow 7882/udp  # LiveKit media (single muxed UDP port)
+sudo ufw allow 3478/udp  # TURN/UDP (when LIVEKIT_TURN_ENABLED=true)
+sudo ufw allow 5349/tcp  # TURN/TLS (when LIVEKIT_TURN_ENABLED=true)
 
 # Enable firewall (if not already enabled)
 sudo ufw enable
 ```
+
+**Docker bypasses ufw.** A port published as `"3001:3001"` is reachable from the
+internet whatever ufw says. `docker-compose.yml` therefore binds web (3000), api
+(3001), LiveKit signalling (7880), Postgres and Redis to `127.0.0.1`; only nginx
+(80/443) and the LiveKit media/TURN ports above are public. Mirror exactly that
+list in the OCI VCN security list (ingress rules), and remove the old
+`50000-60000/udp` and `7880/tcp` rules.
 
 ## Step 2: Configure Environment Variables
 
@@ -94,6 +102,11 @@ Browsers strictly require a secure `https://` connection to access a user's came
            proxy_set_header Upgrade $http_upgrade;
            proxy_set_header Connection 'upgrade';
            proxy_set_header Host $host;
+           # Required: the API trusts exactly one proxy hop (TRUST_PROXY_HOPS=1)
+           # for the client IP. Without this every user shares one rate-limit
+           # bucket, and a client-sent X-Forwarded-For would be believed.
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
        }
 
        # NestJS API
@@ -103,6 +116,11 @@ Browsers strictly require a secure `https://` connection to access a user's came
            proxy_set_header Upgrade $http_upgrade;
            proxy_set_header Connection 'upgrade';
            proxy_set_header Host $host;
+           # Required: the API trusts exactly one proxy hop (TRUST_PROXY_HOPS=1)
+           # for the client IP. Without this every user shares one rate-limit
+           # bucket, and a client-sent X-Forwarded-For would be believed.
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
        }
    }
 
@@ -132,6 +150,25 @@ Browsers strictly require a secure `https://` connection to access a user's came
    # Restart Nginx to apply changes
    sudo systemctl restart nginx
    ```
+
+## Step 4b: TURN for restricted networks
+
+Students on school or office networks often can't reach UDP or port 7881. LiveKit's
+embedded TURN relays media over TLS for them.
+
+1. Add a DNS A record, e.g. `turn.yourdomain.com`, pointing at the server (not
+   proxied by Cloudflare).
+2. Issue a certificate: `sudo certbot certonly --nginx -d turn.yourdomain.com`.
+   The `livekit` container mounts `/etc/letsencrypt` read-only; restart it after
+   each renewal (`docker compose restart livekit`), e.g. from a certbot deploy hook.
+3. In `.env`: `LIVEKIT_TURN_ENABLED=true`, `LIVEKIT_TURN_DOMAIN=turn.yourdomain.com`.
+4. Open 5349/tcp and 3478/udp (ufw + OCI security list), then
+   `docker compose up -d livekit`.
+
+TURN/TLS on 5349 gets past most firewalls. Networks that allow *only* 443 need
+TURN on 443: on this box that means nginx `stream` mode with `ssl_preread`
+routing `turn.` by SNI to LiveKit, or giving LiveKit its own IP / media VM, where
+`LIVEKIT_TURN_TLS_PORT=443` works directly.
 
 ## Step 5: Ongoing Updates
 

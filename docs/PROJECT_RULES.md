@@ -23,7 +23,7 @@ npm-workspaces monorepo, orchestrated by Turborepo.
 ```
 apps/
   web/          Next.js 14 App Router frontend  (@nexa-chess/web)
-  api/          NestJS 10 backend               (@nexa-chess/api)
+  api/          NestJS 11 backend               (@nexa-chess/api)
 packages/
   types/        shared types + Zod schemas + API_ROUTES   (@nexa-chess/types)
   config/       env parsing/validation                    (@nexa-chess/config)
@@ -39,7 +39,7 @@ docker-compose.yml  (livekit-server config is inline as LIVEKIT_CONFIG here)
   with CSS-variable design tokens, shadcn/ui-style primitives, TanStack Query v5
   (server state), Zustand v5 (client/session state), axios, react-hook-form + Zod,
   LiveKit client, chessground + chess.js, framer-motion, sonner, lucide-react.
-- **Backend:** NestJS 10, Prisma 6 + PostgreSQL, JWT (`@nestjs/jwt`) in HTTP-only
+- **Backend:** NestJS 11 (Express 5), Prisma 6 + PostgreSQL, JWT (`@nestjs/jwt`) in HTTP-only
   cookies, `@nestjs/throttler` (rate limiting), `@nestjs/schedule` (cron jobs),
   `livekit-server-sdk`, Cloudinary + `@aws-sdk/client-s3`, Nodemailer, bcryptjs,
   class-validator + nestjs-zod.
@@ -273,9 +273,10 @@ access log (`[HTTP] METHOD url status durationms - ip`), excluding `/stockfish` 
 
 ### 5.1 Directory model
 
-- `src/app/**` — routes. `page.tsx` is a thin **server component**: check for the auth
-  cookie, `redirect("/login?reason=unauthorized")` if absent, then render a
-  `"use client"` `<FeatureClient />`. Route groups: `(auth)` for login/register/etc.
+- `src/app/**` — routes. `page.tsx` is a thin **server component** that renders a
+  `"use client"` `<FeatureClient />`. It does not check the auth cookie: `middleware.ts`
+  gates sign-in and role per route from `src/lib/routeAccess.ts` (add new protected
+  routes there and to the matcher). Route groups: `(auth)` for login/register/etc.
 - `src/features/<feature>/` — `api/`, `hooks/`, `components/`, sometimes
   `validation/`, `types/`, `store/`, `context/`.
 - `src/components/ui/` — design-system primitives. `src/components/layout/`,

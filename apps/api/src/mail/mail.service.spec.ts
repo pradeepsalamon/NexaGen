@@ -32,6 +32,7 @@ describe("MailService", () => {
       JWT_REFRESH_SHORT_TTL: "1d",
       JWT_REFRESH_TTL: "7d",
       LOGIN_RESPONSE_DELAY: "500ms",
+      MFA_REQUIRED_ROLES: "",
       NODE_ENV: "test",
       PASSWORD_RESET_RESPONSE_DELAY: "5s",
       PORT: 3001,

@@ -11,11 +11,8 @@ import {
 } from "@nestjs/common";
 import { Throttle } from "@nestjs/throttler";
 import type { Request, Response } from "express";
-import {
-  getApiEnv,
-  getCookieBaseOptions
-} from "@nexa-chess/config/api";
-import { API_ROUTES } from "@nexa-chess/types";
+import { API_ROUTES, type LoginResponse } from "@nexa-chess/types";
+import { clearAuthCookies, getSessionContext, setAuthCookies } from "./auth-cookies";
 import { AuthService } from "./auth.service";
 import {
   ForgotPasswordDto,
@@ -26,7 +23,7 @@ import {
   RegisterCoachDto,
   VerifyEmailDto
 } from "./dto";
-import { AUTH_COOKIE_NAMES, AUTH_COOKIE_PATHS } from "./types";
+import { AUTH_COOKIE_NAMES } from "./types";
 
 @Controller()
 export class AuthController {
@@ -36,7 +33,7 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async register(@Body() body: RegisterDto, @Req() request: Request) {
     // No auth cookies: a student account is pending until an admin approves it.
-    return this.authService.register(body, this.getSessionContext(request));
+    return this.authService.register(body, getSessionContext(request));
   }
 
   @Post(API_ROUTES.auth.registerCoach)
@@ -46,7 +43,7 @@ export class AuthController {
     @Req() request: Request
   ) {
     // No auth cookies here: the application is pending until an admin approves it.
-    return this.authService.registerCoach(body, this.getSessionContext(request));
+    return this.authService.registerCoach(body, getSessionContext(request));
   }
 
   @Post(API_ROUTES.auth.login)
@@ -56,13 +53,15 @@ export class AuthController {
     @Body() body: LoginDto,
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response
-  ) {
-    const result = await this.authService.login(
-      body,
-      this.getSessionContext(request)
-    );
+  ): Promise<LoginResponse> {
+    const result = await this.authService.login(body, getSessionContext(request));
 
-    this.setAuthCookies(response, result);
+    // A second factor is pending: no cookies until it is satisfied.
+    if (result.kind === "mfa") {
+      return { challengeToken: result.challengeToken, mfaRequired: result.mfaRequired };
+    }
+
+    setAuthCookies(response, result);
 
     return { user: result.user };
   }
@@ -76,14 +75,14 @@ export class AuthController {
     try {
       const result = await this.authService.refresh(
         request.cookies?.[AUTH_COOKIE_NAMES.refreshToken],
-        this.getSessionContext(request)
+        getSessionContext(request)
       );
 
-      this.setAuthCookies(response, result);
+      setAuthCookies(response, result);
 
       return { user: result.user };
     } catch (error) {
-      this.clearAuthCookies(response);
+      clearAuthCookies(response);
       throw error;
     }
   }
@@ -98,7 +97,7 @@ export class AuthController {
       request.cookies?.[AUTH_COOKIE_NAMES.refreshToken]
     );
 
-    this.clearAuthCookies(response);
+    clearAuthCookies(response);
 
     return result;
   }
@@ -146,50 +145,5 @@ export class AuthController {
     return this.authService.resendVerificationEmail(
       request.cookies?.[AUTH_COOKIE_NAMES.accessToken]
     );
-  }
-
-  private setAuthCookies(
-    response: Response,
-    tokens: {
-      accessToken: string;
-      accessTokenMaxAge: number;
-      refreshToken: string;
-      refreshTokenMaxAge: number;
-    }
-  ) {
-    const base = getCookieBaseOptions(getApiEnv());
-
-    response.cookie(AUTH_COOKIE_NAMES.accessToken, tokens.accessToken, {
-      ...base,
-      httpOnly: true,
-      maxAge: tokens.accessTokenMaxAge,
-      path: AUTH_COOKIE_PATHS.accessToken
-    });
-    response.cookie(AUTH_COOKIE_NAMES.refreshToken, tokens.refreshToken, {
-      ...base,
-      httpOnly: true,
-      maxAge: tokens.refreshTokenMaxAge,
-      path: AUTH_COOKIE_PATHS.refreshToken
-    });
-  }
-
-  private clearAuthCookies(response: Response) {
-    const base = getCookieBaseOptions(getApiEnv());
-
-    response.clearCookie(AUTH_COOKIE_NAMES.accessToken, {
-      ...base,
-      path: AUTH_COOKIE_PATHS.accessToken
-    });
-    response.clearCookie(AUTH_COOKIE_NAMES.refreshToken, {
-      ...base,
-      path: AUTH_COOKIE_PATHS.refreshToken
-    });
-  }
-
-  private getSessionContext(request: Request) {
-    return {
-      ipAddress: request.ip,
-      userAgent: request.get("user-agent")
-    };
   }
 }
