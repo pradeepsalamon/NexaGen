@@ -29,7 +29,7 @@ export function AcademyFloatingElements() {
     <>
       {/* Floating WhatsApp button */}
       <a
-        href="https://api.whatsapp.com/send?phone=917010854643&text=Hi! I'm interested in chess classes"
+        href="https://api.whatsapp.com/send?phone=919344967940&text=Hi! I'm interested in chess classes"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-4 md:bottom-6 right-4 md:right-6 z-50 w-12 h-12 md:w-14 md:h-14 rounded-full bg-green-500 flex items-center justify-center text-white text-2xl shadow-lg shadow-green-500/30 hover:shadow-green-500/50 transition-all duration-300 hover:scale-110 active:scale-95 animate-[academy-float_6s_ease-in-out_infinite]"
