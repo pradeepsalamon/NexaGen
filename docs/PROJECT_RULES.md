@@ -433,6 +433,12 @@ Pre-commit hook auto-runs `typecheck` + `lint`. Also confirm:
   serving, instead of being discovered by the health-check timeout after the
   swap. `entrypoint.sh` still runs `migrate deploy` on container start — it is
   idempotent, and remains the safety net for manually started containers.
+- **A failed deploy rolls itself back** to the last healthy images (tagged
+  `:last-good`, restored without a rebuild). To undo a deploy that succeeded but
+  misbehaves: Actions → Deploy Production → Run workflow → `action: rollback`.
+  Neither reverses migrations — keep them additive.
+- **Deploys never overlap or go backwards**: one at a time (GitHub concurrency
+  group + a server-side flock), and a commit older than the live one is skipped.
 - Either way, an un-committed migration = broken prod.
 - Ops references: `docs/PROD_DOCKER_COMMANDS.md`, `docs/DATABASE_RESTORE.md`.
   Backups: `scripts/backup_db.sh` (cron → OCI object storage).

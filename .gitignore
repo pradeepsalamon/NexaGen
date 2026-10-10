@@ -43,3 +43,6 @@ test-results/
 
 # Performance outputs
 scripts/perf/out/
+
+# deploy-production.sh state on the VPS (rollback generations, lock, history)
+.deploy/

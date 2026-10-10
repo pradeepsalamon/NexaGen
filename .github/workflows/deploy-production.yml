@@ -5,21 +5,32 @@ on:
     branches:
       - main
   # Manual redeploy, e.g. after a failed run (a later push that touches no app
-  # files would otherwise never deploy it).
+  # files would otherwise never deploy it), or a manual rollback.
   workflow_dispatch:
     inputs:
+      action:
+        description: "deploy = build + ship main; rollback = restore the images that ran before the last successful deploy (no rebuild, no CI)"
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
       services:
-        description: Services to deploy
+        description: "Services (rollback: 'both' means whatever the last deploy changed)"
         type: choice
         options: [both, api, web]
         default: both
 
+# One production run at a time, never cancelled mid-deploy. GitHub keeps at
+# most one run pending per group and a newer one replaces it, so a burst of
+# pushes deploys the newest commit once. The VPS script adds its own flock and
+# refuses to deploy a commit older than the one live, which also covers a deploy
+# started by hand on the box.
 concurrency:
   group: production
   cancel-in-progress: false
 
 jobs:
   detect-changes:
+    if: github.event_name == 'push' || inputs.action != 'rollback'
     runs-on: ubuntu-latest
     outputs:
       web: ${{ github.event_name == 'workflow_dispatch' && (inputs.services == 'both' || inputs.services == 'web') || steps.filter.outputs.web }}
@@ -157,16 +168,52 @@ jobs:
             
             # Navigate to the project directory
             cd /opt/nexa-chess/NexaGen || { echo "Failed to find project directory"; exit 1; }
-            
+
             # Fetch the latest commit objects so we can extract the deployment script
             git fetch origin main
-            
-            # Ensure the scripts directory exists and fetch the deployment script from the target commit
-            mkdir -p scripts
-            git show "$COMMIT_SHA:scripts/deploy-production.sh" > ./scripts/deploy-production.sh
-            
-            # Ensure the deployment script is executable
-            chmod +x ./scripts/deploy-production.sh
-            
-            # Run the deployment script
-            ./scripts/deploy-production.sh "$COMMIT_SHA" $SERVICES
+
+            # Run the target commit's script from a temp file, never by
+            # overwriting scripts/deploy-production.sh in the checkout: a deploy
+            # already running would be reading that file.
+            DEPLOY_SCRIPT=$(mktemp /tmp/nexa-deploy-production.XXXXXX.sh)
+            git show "$COMMIT_SHA:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT"
+            bash "$DEPLOY_SCRIPT" "$COMMIT_SHA" $SERVICES
+            STATUS=$?
+            rm -f "$DEPLOY_SCRIPT"
+            exit $STATUS
+
+  # Manual rollback (Actions → Deploy Production → Run workflow → rollback).
+  # Restores the images that were live before the last successful deploy and
+  # checks out that commit; nothing is rebuilt, so it takes seconds, and CI is
+  # skipped because those images already ran in production. Migrations are not
+  # reversed. Allowed once per successful deploy.
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Roll back on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ROLLBACK_SERVICES: ${{ inputs.services }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          envs: ROLLBACK_SERVICES
+          command_timeout: 15m
+          script: |
+            echo "========================================"
+            echo "NEXA PRODUCTION ROLLBACK"
+            echo "========================================"
+            cd /opt/nexa-chess/NexaGen || { echo "Failed to find project directory"; exit 1; }
+            git fetch origin main
+            # The rollback logic of main's newest script, not of whatever is
+            # checked out (that may be the very commit being rolled back).
+            DEPLOY_SCRIPT=$(mktemp /tmp/nexa-deploy-production.XXXXXX.sh)
+            git show "origin/main:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT"
+            # "both" = whatever the last successful deploy changed.
+            [ "$ROLLBACK_SERVICES" = "both" ] && ROLLBACK_SERVICES=""
+            bash "$DEPLOY_SCRIPT" --rollback $ROLLBACK_SERVICES
+            STATUS=$?
+            rm -f "$DEPLOY_SCRIPT"
+            exit $STATUS
