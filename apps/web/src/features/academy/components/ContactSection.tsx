@@ -15,8 +15,8 @@ const contactMethods: {
   {
     Icon: MessageCircle,
     label: "WhatsApp",
-    value: "+91 70108 54643",
-    href: "https://api.whatsapp.com/send?phone=9170108 54643&text=Hi! I'm interested in chess classes",
+    value: "+91 93449 67940",
+    href: "https://api.whatsapp.com/send?phone=919344967940&text=Hi! I'm interested in chess classes",
     color: "from-green-500/20 to-green-600/5",
     borderHover: "hover:border-green-500/30",
     iconClass: "!text-green-600 !bg-green-500/[0.1] !border-green-500/25"
