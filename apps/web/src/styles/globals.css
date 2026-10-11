@@ -139,6 +139,21 @@
     @apply min-h-full;
     /* Every rem-based size follows the user's text size choice. */
     font-size: calc(100% * var(--text-scale));
+    /* Tablets: no auto-inflated text on rotate, no grey flash on every tap. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* No double-tap-to-zoom delay on controls (iPad / Android tablets). */
+  a,
+  button,
+  label,
+  summary,
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"] {
+    touch-action: manipulation;
   }
 
   h1,
@@ -321,5 +336,18 @@
   }
   .custom-scrollbar-hide::-webkit-scrollbar {
     display: none; /* Chrome, Safari and Opera */
+  }
+}
+
+/*
+ * iOS Safari zooms (and scrolls) the page into any field whose text is under
+ * 16px, and leaves it zoomed. Touch devices get 16px fields; mouse users keep
+ * the compact `text-sm`. Outside @layer so it beats the utility.
+ */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: max(1rem, 16px);
   }
 }

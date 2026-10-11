@@ -58,7 +58,7 @@ export function CoachAttendanceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl lg:max-w-5xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="max-w-3xl lg:max-w-5xl max-h-[85dvh] overflow-hidden flex flex-col p-0">
         <div className="p-6 pb-4 border-b border-app-border">
           <DialogHeader>
             <DialogTitle className="text-xl">

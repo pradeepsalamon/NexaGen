@@ -87,7 +87,7 @@ export function AttachModuleModal({
           onChange={(e) => setSearch(e.target.value)}
         />
 
-        <div className="max-h-[46vh] space-y-2 overflow-y-auto">
+        <div className="max-h-[46dvh] space-y-2 overflow-y-auto">
           {tab === "PUZZLE" ? (
             puzzles.isLoading ? (
               <>

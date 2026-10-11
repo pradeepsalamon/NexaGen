@@ -197,8 +197,14 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 ### 6.4 Forms & dialogs
 (batch create/edit, assignment dialogs, schedule class dialog, profile)
 - Field grids `grid-cols-1 sm:grid-cols-2`; label + control stacked.
-- Dialog: `max-h-[90vh] overflow-y-auto`, `sm:max-w-[600px]`, full-bleed-ish on
-  phone.
+- Dialog: `DialogContent` already caps at `max-h-[calc(100dvh-2rem)]` with
+  `overflow-y-auto overscroll-contain`; add `sm:max-w-[600px]`, full-bleed-ish
+  on phone. A dialog whose content changes height while open (tabs, activity
+  type, a growing solution) gets a **fixed** height plus a pinned footer
+  (`AssignmentFormDialog`, `SetupPositionDialog`) — a centred dialog that
+  grows or shrinks visibly jumps up and down on every change.
+- On touch (`pointer: coarse`) `DialogContent` focuses the dialog itself on
+  open, not its first field, so the keyboard doesn't pop up uninvited.
 - Native `<input type="date|time">` is **banned** — use `DatePicker` /
   `TimePicker` (they were the "can't edit on mobile" bug).
 
@@ -284,6 +290,15 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
 ### 6.10 Chessboard component (`features/chessboard`)
 - Board is a square that scales to its container; side panels collapse/stack
   under the board on narrow containers.
+- **Student solving screens put the panel beside the board from `md` up**
+  (`PRACTICE_BOARD_GRID` / `PRACTICE_BOARD_BESIDE` in `PracticeBoard.tsx`),
+  board capped by the visible height. Stacked on a tablet, every move made the
+  student scroll down to the feedback and back up to the board.
+- Move lists are fixed-height boxes that scroll themselves to the latest move;
+  feedback/status lines reserve their space instead of mounting and unmounting.
+- `cg-board` and the position editor's spare pieces are `touch-action: none`
+  (`chess-appearance/styles/index.css`): a finger on the board is a drag, never
+  a page scroll or pull-to-refresh.
 - Inside the meeting, students get a responsive inline board **tile** and a
   full-screen view; they never load `BoardWorkspace`.
 
@@ -299,13 +314,20 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
    shrink instead of pushing the layout wide. (`main` already has it.)
 4. **Touch targets ≥ 44 px** on interactive controls (`min-h-11`); `size="sm"`
    (36 px) only for dense desktop toolbars.
-5. **Use `dvh`, not `vh`**, for full-height immersive screens (meeting, board).
+5. **Use `dvh`, not `vh`**, for every viewport-relative height (meeting, board,
+   dialog caps, page `min-h`). iPad/Android `vh` ignores the browser toolbar,
+   so a `90vh` dialog hides its own buttons behind it.
 6. **Images**: `max-w-full` (global reset covers `img`); avatars/thumbs fixed
    size with `shrink-0`.
 7. **Never `title=`** for tooltips on interactive elements — `SimpleTooltip` +
    `aria-label` (native `title` is unusable on touch).
-8. **Modals**: `max-h-[90vh] overflow-y-auto`; pickers that can be tall use
+8. **Modals**: `max-h-[90dvh] overflow-y-auto`; pickers that can be tall use
    `Dialog`, not `Popover`, so they don't clip on phones.
+12. **Never `scrollIntoView` to follow a list** (moves, chat): it scrolls every
+    ancestor too, so the whole page or dialog jumps on each update. Set the
+    list's own `scrollTop` / `scrollTo` instead.
+13. **Fields are 16px on touch** (a `pointer: coarse` rule in `globals.css`);
+    iOS zooms the page into any smaller field on focus and stays zoomed.
 9. **Both themes, always** — verify light and dark; colours come from tokens.
 10. **Landscape phones** (short height) must not trap content behind fixed bars.
 11. Test at the **`md` boundary (768/820/915 px)** — the shared board mounts

@@ -320,7 +320,7 @@ export function PuzzleAssignModal({
         </div>
 
         {optionsOpen ? (
-          <div className="max-h-[40vh] space-y-4 overflow-y-auto rounded-app border border-app-border p-3">
+          <div className="max-h-[40dvh] space-y-4 overflow-y-auto rounded-app border border-app-border p-3">
             <PuzzleScoringFields
               idPrefix="share-scoring"
               value={shownScoring}
@@ -357,7 +357,7 @@ export function PuzzleAssignModal({
         ) : null}
 
         {source === "catalog" ? (
-          <div className={`${optionsOpen ? "max-h-[24vh]" : "max-h-[52vh]"} overflow-y-auto`}>
+          <div className={`${optionsOpen ? "max-h-[24dvh]" : "max-h-[52dvh]"} overflow-y-auto`}>
             <CatalogBrowser
               role={isStaffRole(role) ? "admin" : "coach"}
               variant="compact"
@@ -366,7 +366,7 @@ export function PuzzleAssignModal({
             />
           </div>
         ) : (
-          <div className={`${optionsOpen ? "max-h-[24vh]" : "max-h-[46vh]"} space-y-2 overflow-y-auto`}>
+          <div className={`${optionsOpen ? "max-h-[24dvh]" : "max-h-[46dvh]"} space-y-2 overflow-y-auto`}>
             {folderId ? (
               <nav aria-label="Folder path" className="flex flex-wrap items-center gap-1 text-sm">
                 <button

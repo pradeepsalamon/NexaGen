@@ -119,8 +119,10 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
 
   return (
     <div className={cn("flex flex-col gap-5 md:flex-row md:items-start md:gap-6", className)}>
-      {/* Board + spare pieces */}
-      <div className="w-full max-w-[420px] shrink-0">
+      {/* Board + spare pieces. Capped by the visible height too, so on a
+          landscape tablet the board, both trays and the dialog's buttons fit
+          without scrolling (never narrower than a 6-piece tray). */}
+      <div className="w-full max-w-[min(420px,max(284px,calc(100dvh-19rem)))] shrink-0">
         <SpareRow
           color="black"
           pieceSetId={currentPieceSet}
@@ -254,7 +256,7 @@ function SpareRow({
           tabIndex={0}
           aria-label={`Add ${color} ${label}`}
           title={`${color === "white" ? "White" : "Black"} ${label}`}
-          className="size-10 cursor-grab rounded-control border border-transparent bg-app-soft p-1 transition-colors hover:border-app-border sm:size-11"
+          className="size-11 cursor-grab rounded-control border border-transparent bg-app-soft p-1 transition-colors hover:border-app-border"
           onMouseDown={(e) => onSpawn(e, role, color)}
           onTouchStart={(e) => onSpawn(e, role, color)}
         >

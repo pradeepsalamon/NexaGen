@@ -5,6 +5,7 @@ import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import { Chess } from "@/lib/chess";
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
+import { PRACTICE_BOARD_BESIDE } from "@/features/chessboard/components/board/PracticeBoard";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
@@ -104,8 +105,8 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-      <div className="w-full max-w-[420px]">
+    <div className="flex flex-col gap-4 md:flex-row md:items-start">
+      <div className={cn("w-full max-w-[420px]", PRACTICE_BOARD_BESIDE)}>
         <div
           ref={containerRef}
           className="aspect-square w-full rounded-app border border-app-border"

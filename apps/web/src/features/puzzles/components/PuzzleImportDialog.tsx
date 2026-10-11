@@ -150,7 +150,7 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>Import puzzles from PGN</DialogTitle>
           <DialogDescription>

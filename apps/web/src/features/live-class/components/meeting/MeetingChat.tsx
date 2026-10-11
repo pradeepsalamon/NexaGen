@@ -25,7 +25,6 @@ export function MeetingChat() {
   const isPrivate = activeThread !== ROOM_THREAD;
   const threadLabel = threads.find((t) => t.id === activeThread)?.label ?? "Everyone";
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isScrolledUp, setIsScrolledUp] = useState(false);
 
@@ -36,16 +35,21 @@ export function MeetingChat() {
     setIsScrolledUp(!isNearBottom);
   }, []);
 
+  // Scroll the message list only — scrollIntoView also scrolls every
+  // ancestor, which jolted the whole classroom on each new message.
+  const scrollListToEnd = useCallback(() => {
+    const el = scrollContainerRef.current;
+    el?.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
+
   useEffect(() => {
-    if (!isScrolledUp) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [threadMessages, isScrolledUp]);
+    if (!isScrolledUp) scrollListToEnd();
+  }, [threadMessages, isScrolledUp, scrollListToEnd]);
 
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    scrollListToEnd();
     setIsScrolledUp(false);
-  }, []);
+  }, [scrollListToEnd]);
 
   const handleSubmit = useCallback(async () => {
     if (!draft.trim() || isSending) return;
@@ -100,7 +104,7 @@ export function MeetingChat() {
 
               return <ChatMessage key={msg.id} msg={msg} showHeader={showHeader} />;
             })}
-            <div ref={messagesEndRef} className="h-2" />
+            <div className="h-2" />
           </div>
         )}
 

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
-import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
+import { PRACTICE_BOARD_GRID, PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
 import { usePuzzleAttempt } from "@/features/puzzles/hooks/usePuzzleAttempt";
 import { hintSquaresFor, hintText } from "../../lib/solveLineHint";
 import { startAssignmentPuzzleAttempt } from "../../api/assignmentApi";
@@ -88,7 +88,7 @@ export function AssignmentPuzzleSolver({
   const solutionShown = !!result && result.solutionMoves.length > 0;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
+    <div className={PRACTICE_BOARD_GRID}>
       <div className="min-w-0">
         <PracticeBoard
           resetKey={`${moves.length}-${resetNonce}`}

@@ -72,7 +72,7 @@ export function FilterPopover<T extends object>({
         align="end"
         className={cn("w-[min(19rem,calc(100vw-2rem))] p-0", className)}
       >
-        <div className="max-h-[65vh] space-y-3 overflow-y-auto overflow-x-hidden p-3 [&_.grid]:gap-3 [&_button]:min-h-9 [&_button]:px-3 [&_button]:text-[0.8125rem] [&_input]:min-h-9 [&_input]:px-3 [&_input]:text-[0.8125rem] [&_select]:min-h-9 [&_select]:pl-3 [&_select]:pr-8 [&_select]:text-[0.8125rem]">
+        <div className="max-h-[65dvh] space-y-3 overflow-y-auto overflow-x-hidden p-3 [&_.grid]:gap-3 [&_button]:min-h-9 [&_button]:px-3 [&_button]:text-[0.8125rem] [&_input]:min-h-9 [&_input]:px-3 [&_input]:text-[0.8125rem] [&_select]:min-h-9 [&_select]:pl-3 [&_select]:pr-8 [&_select]:text-[0.8125rem]">
           {children(draft, (patch) =>
             setDraft((current) => ({ ...current, ...patch }))
           )}

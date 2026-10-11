@@ -9,7 +9,7 @@ export default function NotFound() {
   const router = useRouter();
 
   return (
-    <div className="flex min-h-[calc(100vh-200px)] flex-col items-center justify-center p-8 text-center bg-app-background text-app-text">
+    <div className="flex min-h-[calc(100dvh-200px)] flex-col items-center justify-center p-8 text-center bg-app-background text-app-text">
       <div className="mx-auto flex max-w-[420px] flex-col items-center justify-center space-y-4">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-app-surface text-app-muted border border-app-border">
           <FileQuestion className="h-10 w-10" />

@@ -25,20 +25,33 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+function isCoarsePointer() {
+  return typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches === true;
+}
+
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
     hideCloseButton?: boolean;
     overlayClassName?: string;
   }
->(({ className, children, hideCloseButton, overlayClassName, ...props }, ref) => (
+>(({ className, children, hideCloseButton, overlayClassName, onOpenAutoFocus, ...props }, ref) => (
   <DialogPortal>
     <DialogOverlay className={overlayClassName} />
     <DialogPrimitive.Content
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 grid w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 rounded-[20px] border border-app-border bg-app-surface p-6 text-app-text shadow-soft data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
+        "fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 gap-5 overflow-y-auto overscroll-contain rounded-[20px] border border-app-border bg-app-surface p-6 text-app-text shadow-soft data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95",
         className
       )}
+      onOpenAutoFocus={(e) => {
+        onOpenAutoFocus?.(e);
+        if (e.defaultPrevented || !isCoarsePointer()) return;
+        // Touch: focusing the first field pops the on-screen keyboard and
+        // shoves the dialog around before anyone has read it. Focus the
+        // dialog itself (still trapped, still announced) instead.
+        e.preventDefault();
+        (e.currentTarget as HTMLElement | null)?.focus({ preventScroll: true });
+      }}
       onPointerDownOutside={(e) => e.preventDefault()}
       ref={ref}
       {...props}

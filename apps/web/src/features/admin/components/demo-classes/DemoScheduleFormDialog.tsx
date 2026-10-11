@@ -46,7 +46,7 @@ interface DemoScheduleFormDialogProps {
 export function DemoScheduleFormDialog({ open, onOpenChange, schedule }: DemoScheduleFormDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[640px]">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-[640px]">
         <DialogHeader>
           <DialogTitle>{schedule ? "Edit demo schedule" : "New demo schedule"}</DialogTitle>
           <DialogDescription>

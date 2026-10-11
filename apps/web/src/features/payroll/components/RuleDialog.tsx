@@ -82,7 +82,7 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog onOpenChange={(open) => !open && onClose()} open>
-      <DialogContent className="max-h-[85vh] max-w-xl overflow-y-auto">
+      <DialogContent className="max-h-[85dvh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create payroll rule</DialogTitle>
           <DialogDescription>

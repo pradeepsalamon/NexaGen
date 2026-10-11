@@ -69,9 +69,9 @@ const highlights = [
 
 export default function Home() {
   return (
-    <main className="min-h-[calc(100vh-4rem)] overflow-hidden">
+    <main className="min-h-[calc(100dvh-4rem)] overflow-hidden">
       <script dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} type="application/ld+json" />
-      <section className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
+      <section className="mx-auto grid min-h-[calc(100dvh-4rem)] w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
         <div className="grid gap-8">
           <div className="max-w-3xl">
             <p className="mb-3 text-xs font-extrabold uppercase text-primary-ink">

@@ -46,7 +46,7 @@ export function AssignmentSubmissionsDialog({ open, onOpenChange, deploymentId }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className={`${puzzleSet ? "sm:max-w-[960px]" : "sm:max-w-[640px]"} max-h-[85vh] overflow-y-auto`}
+        className={`${puzzleSet ? "sm:max-w-[960px]" : "sm:max-w-[640px]"} max-h-[85dvh] overflow-y-auto`}
       >
         <DialogHeader>
           <DialogTitle>{deployment ? deployment.title : "Submissions"}</DialogTitle>

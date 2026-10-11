@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
-import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
+import { PRACTICE_BOARD_GRID, PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
 import { hintSquaresFor, hintText } from "@/features/assignments/lib/solveLineHint";
 import { startPuzzleAttempt } from "../api/puzzleApi";
 import { usePuzzleAttempt } from "../hooks/usePuzzleAttempt";
@@ -83,7 +83,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
       </div>
 
       <Card className="p-4 sm:p-6">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
+        <div className={PRACTICE_BOARD_GRID}>
           <div>
             {session && currentFen ? (
               <PracticeBoard

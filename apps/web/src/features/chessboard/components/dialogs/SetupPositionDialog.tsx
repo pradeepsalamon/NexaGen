@@ -71,67 +71,75 @@ export function SetupPositionDialog() {
 
   return (
     <Dialog open={isSetupPositionOpen} onOpenChange={setIsSetupPositionOpen}>
-      <DialogContent className="max-w-[820px] w-[95vw] max-h-[calc(100vh-2rem)] overflow-y-auto p-0 bg-app-surface border-app-border">
-        <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-app-border">
+      {/* Fixed height + pinned footer: switching tabs or editing never
+          re-centres the dialog, and the actions stay on screen on a tablet. */}
+      <DialogContent className="flex h-[min(calc(100dvh-2rem),780px)] w-[95vw] max-w-[820px] flex-col gap-0 overflow-hidden p-0 bg-app-surface border-app-border">
+        <DialogHeader className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-b border-app-border">
           <DialogTitle>Load Games / Positions</DialogTitle>
         </DialogHeader>
 
-        <Tabs value={tab} onValueChange={(v) => setTab(v as "setup" | "game")} className="p-4 sm:p-6">
-          <TabsList>
-            <TabsTrigger value="setup">Setup Position</TabsTrigger>
-            <TabsTrigger value="game">Load Game (PGN)</TabsTrigger>
-          </TabsList>
+        <Tabs
+          value={tab}
+          onValueChange={(v) => setTab(v as "setup" | "game")}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="shrink-0 px-4 pt-3 sm:px-6">
+            <TabsList>
+              <TabsTrigger value="setup">Setup Position</TabsTrigger>
+              <TabsTrigger value="game">Load Game (PGN)</TabsTrigger>
+            </TabsList>
+          </div>
 
-          <TabsContent value="setup">
-            <PositionEditor value={fen} onChange={setFen} />
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6">
+            <TabsContent value="setup">
+              <PositionEditor value={fen} onChange={setFen} />
+            </TabsContent>
 
-            <div className="mt-6 flex justify-end gap-3 border-t border-app-border pt-4">
-              <Button variant="outline" onClick={() => setIsSetupPositionOpen(false)}>
-                Cancel
-              </Button>
-              <Button variant="primary" onClick={applyPosition}>
-                Load Position
-              </Button>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="game">
-            <div className="flex flex-col gap-4">
-              <p className="text-sm text-app-muted">
-                Paste a PGN game (or the moves of a study line) and load it onto the board.
-                The move list and navigation controls populate automatically.
-              </p>
-              <Textarea
-                aria-label="PGN"
-                className="min-h-[220px] font-mono"
-                placeholder={'[Event "Casual game"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *'}
-                value={pgnText}
-                onChange={(e) => setPgnText(e.target.value)}
-              />
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pgn,.txt,text/plain"
-                className="hidden"
-                onChange={handleFile}
-              />
-              <div className="flex flex-wrap justify-between gap-3">
-                <Button variant="outline" onClick={() => fileRef.current?.click()}>
-                  <Upload strokeWidth={2.5} className="size-4 mr-2" />
-                  Upload .pgn file
-                </Button>
-                <div className="flex gap-3">
-                  <Button variant="outline" onClick={() => setIsSetupPositionOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button variant="primary" onClick={applyGame} disabled={!pgnText.trim()}>
-                    Load Game
+            <TabsContent value="game">
+              <div className="flex flex-col gap-4">
+                <p className="text-sm text-app-muted">
+                  Paste a PGN game (or the moves of a study line) and load it onto the board.
+                  The move list and navigation controls populate automatically.
+                </p>
+                <Textarea
+                  aria-label="PGN"
+                  className="min-h-[220px] font-mono"
+                  placeholder={'[Event "Casual game"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *'}
+                  value={pgnText}
+                  onChange={(e) => setPgnText(e.target.value)}
+                />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".pgn,.txt,text/plain"
+                  className="hidden"
+                  onChange={handleFile}
+                />
+                <div>
+                  <Button variant="outline" onClick={() => fileRef.current?.click()}>
+                    <Upload strokeWidth={2.5} className="size-4 mr-2" />
+                    Upload .pgn file
                   </Button>
                 </div>
               </div>
-            </div>
-          </TabsContent>
+            </TabsContent>
+          </div>
         </Tabs>
+
+        <div className="flex shrink-0 justify-end gap-3 border-t border-app-border px-4 py-3 sm:px-6">
+          <Button variant="outline" onClick={() => setIsSetupPositionOpen(false)}>
+            Cancel
+          </Button>
+          {tab === "setup" ? (
+            <Button variant="primary" onClick={applyPosition}>
+              Load Position
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={applyGame} disabled={!pgnText.trim()}>
+              Load Game
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

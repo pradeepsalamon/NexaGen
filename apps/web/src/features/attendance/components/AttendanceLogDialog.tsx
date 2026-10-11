@@ -114,7 +114,7 @@ export function AttendanceLogDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md sm:max-w-lg md:max-w-xl max-h-[85vh] overflow-hidden flex flex-col p-0 rounded-app border-app-border bg-app-surface shadow-lift">
+      <DialogContent className="max-w-md sm:max-w-lg md:max-w-xl max-h-[85dvh] overflow-hidden flex flex-col p-0 rounded-app border-app-border bg-app-surface shadow-lift">
         <div className="p-6 pb-4 border-b border-app-border">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold flex items-center justify-between gap-3 text-app-text">

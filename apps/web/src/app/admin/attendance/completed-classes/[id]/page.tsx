@@ -41,7 +41,7 @@ export default function ClassDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-[60vh] items-center justify-center">
+      <div className="flex h-[60dvh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
       </div>
     );
@@ -51,7 +51,7 @@ export default function ClassDetailPage() {
     return (
       <div className="space-y-6 max-w-6xl p-4 sm:p-6">
         <BackButton label="Back to Classes" />
-        <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+        <div className="flex flex-col items-center justify-center h-[50dvh] text-center">
           <div className="p-4 bg-app-soft rounded-full mb-4">
             <CalendarX className="h-10 w-10 text-app-muted" />
           </div>

@@ -170,7 +170,7 @@ export function ScheduleBuilderClient() {
   const hasBlockingConflicts = Boolean(preview && preview.conflicts.length > 0);
 
   return (
-    <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-5xl gap-5">
         <header>
           <p className="text-xs font-extrabold uppercase text-primary-ink">Class Scheduler</p>

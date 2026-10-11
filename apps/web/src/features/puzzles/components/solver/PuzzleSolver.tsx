@@ -7,7 +7,7 @@ import { CheckCircle2, Lightbulb, RotateCcw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
-  PracticeBoard,
+  PRACTICE_BOARD_GRID, PracticeBoard,
   type PracticeBoardMove
 } from "@/features/chessboard/components/board/PracticeBoard";
 import {
@@ -130,7 +130,7 @@ export function PuzzleSolver({
   const failed = phase === "failed";
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)]">
+    <div className={PRACTICE_BOARD_GRID}>
       <div>
         <PracticeBoard
           resetKey={`${moves.length}-${resetNonce}`}

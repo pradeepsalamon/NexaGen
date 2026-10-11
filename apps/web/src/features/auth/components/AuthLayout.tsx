@@ -48,9 +48,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <PageContainer>
-      <div className="mx-auto grid min-h-[calc(100vh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100vh-6.5rem)] lg:grid-cols-[minmax(0,5fr)_minmax(420px,7fr)] lg:items-stretch lg:gap-6">
+      <div className="mx-auto grid min-h-[calc(100dvh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100dvh-6.5rem)] lg:grid-cols-[minmax(0,5fr)_minmax(420px,7fr)] lg:items-stretch lg:gap-6">
         <section
-          className="relative hidden min-h-0 flex-col justify-between gap-8 overflow-hidden rounded-panel bg-[linear-gradient(150deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_55%,black))] p-8 text-white shadow-soft lg:flex lg:max-h-[calc(100vh-6.5rem)]"
+          className="relative hidden min-h-0 flex-col justify-between gap-8 overflow-hidden rounded-panel bg-[linear-gradient(150deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_55%,black))] p-8 text-white shadow-soft lg:flex lg:max-h-[calc(100dvh-6.5rem)]"
           aria-labelledby="auth-hero-title"
         >
           <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl" />
@@ -87,7 +87,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           </div>
         </section>
         <section
-          className="flex min-h-[calc(100vh-5.5rem)] items-center justify-center rounded-panel border border-app-border bg-app-surface/90 p-3 lg:max-h-[calc(100vh-6.5rem)] lg:min-h-0 lg:overflow-y-auto lg:p-2"
+          className="flex min-h-[calc(100dvh-5.5rem)] items-center justify-center rounded-panel border border-app-border bg-app-surface/90 p-3 lg:max-h-[calc(100dvh-6.5rem)] lg:min-h-0 lg:overflow-y-auto lg:p-2"
           aria-label="Authentication form"
         >
           {children}

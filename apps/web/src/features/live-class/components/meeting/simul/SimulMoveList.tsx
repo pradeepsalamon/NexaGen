@@ -19,9 +19,12 @@ export function SimulMoveList({
   showEngine?: boolean;
   className?: string;
 }) {
-  const endRef = useRef<HTMLDivElement>(null);
+  // Scroll this list only. scrollIntoView would also scroll every ancestor,
+  // so each move made the page (or dialog) jump.
+  const listRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "nearest" });
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
   }, [moves.length]);
 
   const cells: (ListMove | null)[] = blackStarts ? [null, ...moves] : moves;
@@ -45,7 +48,7 @@ export function SimulMoveList({
   }
 
   return (
-    <div className={cn("overflow-y-auto text-sm", className)}>
+    <div ref={listRef} className={cn("overflow-y-auto overscroll-contain text-sm", className)}>
       <ol className="grid grid-cols-[2.25rem_1fr_1fr] gap-x-2 gap-y-0.5">
         {rows.map((row) => (
           <li key={row.no} className="contents">
@@ -55,7 +58,6 @@ export function SimulMoveList({
           </li>
         ))}
       </ol>
-      <div ref={endRef} />
     </div>
   );
 }

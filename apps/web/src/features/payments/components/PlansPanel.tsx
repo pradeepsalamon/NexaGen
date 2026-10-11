@@ -204,7 +204,7 @@ function PlanFormDialog({
 
   return (
     <Dialog onOpenChange={(open) => !open && onClose()} open>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
+      <DialogContent className="max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{plan ? `Edit ${plan.name}` : "New plan"}</DialogTitle>
         </DialogHeader>

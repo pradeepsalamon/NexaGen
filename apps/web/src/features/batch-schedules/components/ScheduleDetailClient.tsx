@@ -167,14 +167,14 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
 
   if (isLoading || !schedule) {
     return (
-      <main className="min-h-[calc(100vh-64px)] bg-app-background p-6">
+      <main className="min-h-[calc(100dvh-64px)] bg-app-background p-6">
         <Skeleton className="mx-auto h-64 max-w-5xl w-full" />
       </main>
     );
   }
 
   return (
-    <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
+    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto grid max-w-5xl gap-5">
         <div>
           <Link

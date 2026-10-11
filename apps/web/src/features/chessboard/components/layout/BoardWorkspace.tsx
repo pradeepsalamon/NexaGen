@@ -60,7 +60,7 @@ export function BoardWorkspace() {
       </div>
 
       {/* Right Sidebar Area */}
-      <div className="w-full h-[46vh] md:w-[480px] lg:w-[550px] flex-shrink-0 bg-app-surface shadow-card border border-app-border md:h-full flex flex-col overflow-hidden">
+      <div className="w-full h-[46dvh] md:w-[480px] lg:w-[550px] flex-shrink-0 bg-app-surface shadow-card border border-app-border md:h-full flex flex-col overflow-hidden">
         <SidebarTabs />
       </div>
 

@@ -70,7 +70,7 @@ export default function StudentAttendancePage() {
 
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+      <div className="flex flex-col items-center justify-center h-[50dvh] text-center">
         <div className="p-4 bg-app-soft rounded-full mb-4">
           <CalendarX className="h-10 w-10 text-app-muted" />
         </div>

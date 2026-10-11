@@ -37,6 +37,19 @@ export interface PracticeBoardProps {
   className?: string;
 }
 
+/**
+ * Layouts for a PracticeBoard beside its panel (moves, feedback, buttons).
+ * From tablet width (md) up the two sit side by side, so a student never
+ * scrolls between the board and what just happened; the board is also capped
+ * by the visible height so it fits whole on a landscape tablet, and never
+ * drops below a usable 300px.
+ */
+export const PRACTICE_BOARD_GRID =
+  "grid gap-5 md:grid-cols-[minmax(0,min(440px,max(300px,calc(100dvh-15rem))))_minmax(0,1fr)] md:items-start";
+/** The same sizing for a flex row: put it on the board (`className`). */
+export const PRACTICE_BOARD_BESIDE =
+  "md:w-[min(440px,max(300px,calc(100dvh-15rem)),55%)] md:max-w-none md:shrink-0";
+
 // A LiveKit-free interactive board. Legal-move generation and validation run
 // through chess.js; the parent owns the FEN. Reused by every evaluated
 // assignment activity (SOLVE_LINE, PLAY_VS_ENGINE, FREE_ANALYSIS).

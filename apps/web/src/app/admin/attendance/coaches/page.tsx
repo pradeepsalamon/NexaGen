@@ -130,11 +130,11 @@ export default function AdminCoachTeachingPage() {
       </Card>
 
       {isLoading && !data ? (
-        <div className="flex h-[40vh] items-center justify-center">
+        <div className="flex h-[40dvh] items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
         </div>
       ) : coaches.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-[40vh] text-center">
+        <div className="flex flex-col items-center justify-center h-[40dvh] text-center">
           <div className="p-4 bg-app-soft rounded-full mb-4">
             <CalendarX className="h-10 w-10 text-app-muted" />
           </div>

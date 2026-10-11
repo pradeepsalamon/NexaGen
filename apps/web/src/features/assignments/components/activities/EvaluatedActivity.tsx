@@ -12,8 +12,11 @@ import type {
 import { Flag, Lightbulb, Send, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
 import {
+  PRACTICE_BOARD_BESIDE,
   PracticeBoard,
   type PracticeBoardMove
 } from "@/features/chessboard/components/board/PracticeBoard";
@@ -341,7 +344,16 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
   );
 
   if (phase === "loading") {
-    return <p className="text-sm text-app-muted">Preparing your board…</p>;
+    // Same footprint as the live board, so the page doesn't collapse and
+    // re-grow (a visible scroll jump) while an attempt starts.
+    return (
+      <Card className="p-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+          <Skeleton className={cn("aspect-square w-full", PRACTICE_BOARD_BESIDE)} />
+          <p className="text-sm text-app-muted">Preparing your board…</p>
+        </div>
+      </Card>
+    );
   }
   if (phase === "error" || !start || !config) {
     return (
@@ -380,8 +392,11 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
   return (
     <div className="space-y-4">
       <Card className="p-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+        {/* Board beside the panel from tablet width up, so a student never
+            scrolls between the board and the moves/feedback. */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
           <PracticeBoard
+            className={PRACTICE_BOARD_BESIDE}
             fen={fen}
             orientation={orientation}
             playerColor={playerColor}
@@ -392,7 +407,7 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
           />
 
           <div className="min-w-0 flex-1 space-y-3">
-            <div className="flex flex-wrap items-center gap-2 text-sm">
+            <div className="flex min-h-8 flex-wrap items-center gap-2 text-sm">
               <span className="rounded-app border border-app-border bg-app-background px-2 py-1 font-medium text-app-text">
                 {turnColor === "white" ? "White to move" : "Black to move"}
               </span>
@@ -401,9 +416,15 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                   Attempt {start.attemptCount}/{config.maxAttempts}
                 </span>
               )}
-              {busy && <span className="text-app-muted">Thinking…</span>}
+              {/* Always rendered: toggling it would re-wrap the row on every move. */}
+              <span aria-live="polite" className={cn("text-app-muted", !busy && "invisible")}>
+                Thinking…
+              </span>
             </div>
 
+            {/* The feedback slot keeps its height when empty, so the moves
+                and buttons below don't jump each time it appears / clears. */}
+            <div aria-live="polite" className="min-h-[2.375rem]">
             {feedback && (
               <p
                 className={
@@ -415,6 +436,7 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
                 {feedback}
               </p>
             )}
+            </div>
 
             {hint && (
               <p className="rounded-app border border-primary/40 bg-primary/10 p-2 text-sm text-primary-ink">
@@ -478,17 +500,31 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
 }
 
 function MoveList({ moves }: { moves: AttemptMove[] }) {
-  if (moves.length === 0) {
-    return <p className="text-sm text-app-muted">No moves yet — make your move on the board.</p>;
-  }
+  // A fixed-height box that scrolls itself to the latest move, so a long line
+  // never pushes the buttons down or makes the page scroll.
+  const listRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [moves.length]);
+
   return (
-    <ol className="flex flex-wrap gap-x-2 gap-y-1 text-sm">
-      {moves.map((m, i) => (
-        <li key={i} className="flex items-center gap-1">
-          {i % 2 === 0 && <span className="text-app-muted">{Math.floor(i / 2) + 1}.</span>}
-          <span className="font-medium text-app-text">{m.san}</span>
-        </li>
-      ))}
-    </ol>
+    <div
+      ref={listRef}
+      className="h-28 overflow-y-auto overscroll-contain rounded-app border border-app-border bg-app-background p-2 md:h-40"
+    >
+      {moves.length === 0 ? (
+        <p className="text-sm text-app-muted">No moves yet — make your move on the board.</p>
+      ) : (
+        <ol className="flex flex-wrap gap-x-2 gap-y-1 text-sm">
+          {moves.map((m, i) => (
+            <li key={i} className="flex items-center gap-1">
+              {i % 2 === 0 && <span className="text-app-muted">{Math.floor(i / 2) + 1}.</span>}
+              <span className="font-medium text-app-text">{m.san}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }

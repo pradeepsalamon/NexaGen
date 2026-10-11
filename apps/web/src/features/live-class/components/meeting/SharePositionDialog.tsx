@@ -167,7 +167,7 @@ export function SharePositionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editing ? "Set the solution" : "Share puzzle"}</DialogTitle>
         </DialogHeader>

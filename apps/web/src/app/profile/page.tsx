@@ -8,7 +8,7 @@ import { UserTypographySettings } from "@/features/typography/components/UserTyp
 export default function ProfilePage() {
   return (
     <AppShell>
-      <main className="min-h-[calc(100vh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
+      <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
         <section className="mx-auto max-w-4xl rounded-panel border border-app-border bg-app-surface p-5 shadow-card">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>

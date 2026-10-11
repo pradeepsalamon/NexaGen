@@ -189,7 +189,7 @@ function DemoClassJoin() {
   );
 
   const shell = (children: React.ReactNode) => (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <Header centerSlot={headerCenter} />
       <div className="flex flex-1 items-center justify-center overflow-auto bg-app-soft p-4 pt-16">{children}</div>
     </div>

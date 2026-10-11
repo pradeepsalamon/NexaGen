@@ -95,8 +95,8 @@ export function AssignmentResultView({
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-app-muted">
             Move-by-move review
           </h3>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
-            <PracticeBoard fen={boardFen} interactive={false} className="lg:w-[360px]" />
+          <div className="flex flex-col gap-4 md:flex-row md:items-start">
+            <PracticeBoard fen={boardFen} interactive={false} className="md:w-[min(360px,50%)] md:shrink-0" />
             <div className="min-w-0 flex-1 overflow-x-auto">
               <Table className="w-full text-sm">
                 <TableHeader>

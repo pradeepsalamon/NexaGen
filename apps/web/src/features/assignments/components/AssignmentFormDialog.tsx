@@ -451,8 +451,11 @@ export function AssignmentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+      {/* Fixed height: switching source / activity type changes how tall the
+          form is, and a centred dialog that grows or shrinks jumps up and down
+          on every change. The footer is pinned, so only the form scrolls. */}
       <DialogContent
-        className={`${isSet ? "sm:max-w-[960px]" : "sm:max-w-[720px]"} max-h-[90vh] overflow-y-auto`}
+        className={`${isSet ? "sm:max-w-[960px]" : "sm:max-w-[720px]"} h-[calc(100dvh-2rem)] content-start sm:h-[min(calc(100dvh-4rem),900px)]`}
       >
         <DialogHeader>
           <DialogTitle>{mode === "edit" ? "Edit assignment" : "New assignment"}</DialogTitle>
@@ -895,7 +898,7 @@ export function AssignmentFormDialog({
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 z-10 -mx-6 -mb-8 mt-2 border-t border-app-border bg-app-surface px-6 py-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
               Cancel
             </Button>

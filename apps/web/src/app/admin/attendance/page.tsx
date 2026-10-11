@@ -50,7 +50,7 @@ export default function AdminAttendanceDashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center min-h-[50vh]">
+      <div className="flex h-full items-center justify-center min-h-[50dvh]">
         <Loader2 className="h-8 w-8 animate-spin text-primary-ink" />
       </div>
     );
@@ -58,7 +58,7 @@ export default function AdminAttendanceDashboardPage() {
 
   if (!data) {
     return (
-      <div className="flex flex-col items-center justify-center h-[50vh] text-center">
+      <div className="flex flex-col items-center justify-center h-[50dvh] text-center">
         <div className="p-4 bg-app-soft rounded-full mb-4">
           <CalendarX className="h-10 w-10 text-app-muted" />
         </div>

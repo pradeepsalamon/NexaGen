@@ -235,7 +235,7 @@ export function LiveClassMonitorDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[560px] max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Live class monitor</DialogTitle>
           <DialogDescription>

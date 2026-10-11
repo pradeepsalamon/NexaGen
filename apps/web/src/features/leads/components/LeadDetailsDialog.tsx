@@ -65,7 +65,7 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[560px] max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Lead details</DialogTitle>
         </DialogHeader>

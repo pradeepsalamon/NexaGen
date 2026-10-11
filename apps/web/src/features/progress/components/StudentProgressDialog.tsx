@@ -20,7 +20,7 @@ export function StudentProgressDialog({
 
   return (
     <Dialog open={studentId !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{studentName ? `${studentName}'s progress` : "Progress"}</DialogTitle>
         </DialogHeader>
