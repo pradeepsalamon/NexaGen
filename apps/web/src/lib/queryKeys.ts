@@ -33,6 +33,9 @@ export const queryKeys = {
     classDetail: (id: string) => ["coach", "classes", "detail", id] as const,
     students: ["coach", "students"] as const,
   },
+  studentClasses: {
+    detail: (id: string) => ["student", "classes", "detail", id] as const,
+  },
   admin: {
     base: ["admin"] as const,
     pendingCoaches: ["admin", "pending-coaches"] as const,
@@ -70,6 +73,10 @@ export const queryKeys = {
   attendance: {
     classSummary: (id: string) => ["attendance", "class-summary", id] as const,
     classLive: (id: string) => ["attendance", "class-live", id] as const,
+    // One key per (class, student): the log dialog must never show another
+    // row's cached logs while the right ones load.
+    classLogs: (classId: string, studentId: string) =>
+      ["attendance", "class-logs", classId, studentId] as const,
     liveReliability: ["attendance", "live-reliability"] as const,
     reliabilityMetrics: (days: number) => ["attendance", "reliability-metrics", days] as const,
   },

@@ -177,7 +177,7 @@ Per feature under `apps/web/src/features/<feature>/`:
 - `hooks/use<X>Api.ts` — `useQuery` / `useMutation` wrappers. Query keys come from the central `src/lib/queryKeys.ts` factory. Mutations `invalidateQueries` on success.
 - `components/` — feature components. Page files under `src/app/**` stay thin: a server component that renders a `"use client"` `<XClient />`. **Pages do not check the auth cookie** — `middleware.ts` is the single gate.
 
-**Route RBAC lives in one table, `src/lib/routeAccess.ts`** (`ROUTE_RULES`: `/admin` staff, `/admin/{backups,classes,demo-classes,trash}` SUPER_ADMIN, `/coach` COACH, `/student` STUDENT, `/checkout` `/plans` `/profile` `/chess-board` any signed-in user). `middleware.ts` redirects a visitor with no session cookie to `/login?reason=unauthorized`, and a wrong role to their own dashboard — reading the role from the access-token payload *without verifying it* (an expired token still names the role). A refresh-only session has no role cookie, so `SessionBootstrap` applies the same `canAccessPath` once `/auth/me` resolves. It is a routing affordance only; the API enforces every role. **A new protected route = a `ROUTE_RULES` entry + a `matcher` entry in `middleware.ts`**, never a per-page cookie check.
+**Route RBAC lives in one table, `src/lib/routeAccess.ts`** (`ROUTE_RULES`: `/admin` staff, `/admin/{backups,classes,demo-classes,trash}` SUPER_ADMIN, `/coach` COACH, `/student` STUDENT, `/checkout` `/classes` `/plans` `/profile` `/chess-board` any signed-in user). `middleware.ts` redirects a visitor with no session cookie to `/login?reason=unauthorized`, and a wrong role to their own dashboard — reading the role from the access-token payload *without verifying it* (an expired token still names the role). A refresh-only session has no role cookie, so `SessionBootstrap` applies the same `canAccessPath` once `/auth/me` resolves. It is a routing affordance only; the API enforces every role. **A new protected route = a `ROUTE_RULES` entry + a `matcher` entry in `middleware.ts`**, never a per-page cookie check.
 
 Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `nexa-auth`, only `user` persisted). `SessionBootstrap` calls `/auth/me` on load.
 
@@ -679,6 +679,23 @@ without the library visibility check.
   `AssignmentPuzzleSolver` (reuses `usePuzzleAttempt` with the set's start
   route) + `PuzzleSetLeaderboard`.
 
+### 3.6j1 Class timing rules (start window, upcoming / past, not held)
+
+`@nexa-chess/types` `class-availability.ts` is the one place that decides where
+a class sits in time — use it, don't re-derive from `status`:
+`resolveClassDisplayStatus` (adds `NOT_HELD` = SCHEDULED whose `endsAt` passed;
+the stored status is never rewritten), `isUpcomingClass` / `isPastClass`
+(cancelled is never upcoming, and past only once its date arrives),
+`getClassStartAvailability` (start allowed from `CLASS_EARLY_START_MINUTES`
+before `startsAt` until `endsAt` — `LiveClassService.startClass` enforces it,
+since ending a class is what marks it COMPLETED) and `canJoinClass` (LIVE /
+IN_PROGRESS only). Web: `ClassStatusBadge` takes `endsAt` to show "Not held";
+calendars use `CLASS_STATUS_DOT` + `ClassStatusLegend`. `/classes/:id` renders
+`StudentClassDetailsClient` (`GET /student/classes/:id`) for students and
+`StaffClassDetailsClient` for coach/admin. Batch dates bound their sessions —
+`common/batch-dates.ts` (schedules, regeneration, class requests, and
+narrowing a batch's dates cancels the future SCHEDULED sessions outside them).
+
 ### 3.6j2 Batch type & dashboard upcoming classes
 
 `BatchType` (`GROUP` / `INDIVIDUAL` / `BUDDY`, `@nexa-chess/types`
@@ -872,8 +889,9 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | Prod missing a table | migration not committed / `db push` was used |
 | Web: unstyled HTML or missing `.next/server` chunk | `npm run dev:web:clean` |
 | API: missing module from `dist` | `npm run dev:api:clean` |
-| A class ended by itself / a class stayed LIVE after the coach left | `LiveClassService.sweepStaleClasses` (per-minute, job lock `live-class.stale-sweep`): coach absent mid-class → `coachAbsentSince` → ends after `LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES`; coach absent after `endsAt` → ends at once; `LIVE_CLASS_MAX_OVERRUN_MINUTES` past `endsAt` → ends regardless (0 disables a rule). A coach/admin who can't get back in can end it from `/classes/:id` or the Connection lost screen (`EndClassButton`) |
+| A class ended by itself / a class stayed LIVE after the coach left | `LiveClassService.sweepStaleClasses` (per-minute, job lock `live-class.stale-sweep`): coach absent mid-class → `coachAbsentSince` → ends after `LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES`; coach absent after `endsAt` → ends at once; `LIVE_CLASS_MAX_OVERRUN_MINUTES` past `endsAt` → ends regardless (0 disables a rule). A coach-absence end records `endedAt` = when the coach left, so attendance excludes the grace minutes. A coach/admin who can't get back in can end it from `/classes/:id` or the Connection lost screen (`EndClassButton`) |
 | Live class attendance wrong | `attendance` module calc + `AttendancePolicy` row, LiveKit webhook parsing in `main.ts` |
+| "Start" refused / button says "Opens at …" | The start window (`getClassStartAvailability`, §3.6j1): at most `CLASS_EARLY_START_MINUTES` early, never after `endsAt`. A missed class is rescheduled through a class change request |
 | Attendance duration absurdly large locally / `Left: —` beside a real duration | LiveKit webhooks can't reach `localhost`, so `participant_left` never arrives and finalize closes the session itself. `finalizeClassAttendance` clamps every session (open or closed) to the class end and derives `joinedAt`/`leftAt` from the logs — if a duration is still hours long, the raw SQL in `closeOpenAttendanceLogs` must bind the cutoff as `${iso}::timestamp` (the columns are `timestamp WITHOUT time zone` holding UTC; a `Date` param is `timestamptz` and PG shifts it by the box's offset unless the DB runs in UTC) |
 | A student's attendance looks truncated (marked "left") while they were still in class | They likely had two tabs open. Session closing is `clientId`-scoped (`AttendanceLog.clientId`, `attendance-session.util.ts#selectSessionToClose`) so one tab's leave can't close a different tab's still-open session — if it did, something bypassed `AttendanceService.recordLeaveEvent`/`recordDisconnectEvent`'s clientId param. See `docs/RELIABILITY_DESIGN.md` §2.8 |
 | "No microphone/camera found" or a device error toast in class | The toast/Settings text comes from `describeMediaError` (`lib/mediaDevices.ts`). "Access blocked" = site or OS permission; "busy" = another app/tab holds it; "not found" with devices plugged in usually means the browser is hiding them until permission — Settings → "Scan devices". A stale saved device should never fail a toggle: if it does, something selected with an `exact` constraint (see Media devices in §3.7). Saved picks live in `localStorage` key `nexa-live-class-media` |

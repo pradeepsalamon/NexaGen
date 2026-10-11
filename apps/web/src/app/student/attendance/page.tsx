@@ -1,35 +1,41 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CalendarX } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type StudentAttendanceResponse, type StudentAttendanceHistory } from "@nexa-chess/types";
 import { AttendanceLogDialog } from "@/features/attendance/components/AttendanceLogDialog";
 import { StudentAttendanceView } from "@/features/attendance/components/StudentAttendanceView";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { useAuthStore } from "@/stores/authStore";
 
 export default function StudentAttendancePage() {
   const [data, setData] = useState<StudentAttendanceResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const user = useAuthStore(state => state.user);
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<StudentAttendanceHistory | null>(null);
 
-  useEffect(() => {
-    async function loadAttendance() {
-      try {
-        const result = await apiFetch<StudentAttendanceResponse>(API_ROUTES.attendance.student);
-        setData(result);
-      } catch (error) {
-        console.error("Failed to load attendance", error);
-      } finally {
-        setIsLoading(false);
-      }
+  const loadAttendance = useCallback(async () => {
+    setIsLoading(true);
+    setFailed(false);
+    try {
+      const result = await apiFetch<StudentAttendanceResponse>(API_ROUTES.attendance.student);
+      setData(result);
+    } catch (error) {
+      console.error("Failed to load attendance", error);
+      setFailed(true);
+    } finally {
+      setIsLoading(false);
     }
-    loadAttendance();
   }, []);
+
+  useEffect(() => {
+    loadAttendance();
+  }, [loadAttendance]);
 
   if (isLoading) {
     return (
@@ -47,6 +53,17 @@ export default function StudentAttendancePage() {
           ))}
         </div>
         <div className="h-96 w-full bg-app-surface border border-app-border rounded-app animate-pulse" />
+      </div>
+    );
+  }
+
+  if (failed) {
+    return (
+      <div className="max-w-7xl mx-auto pb-10">
+        <WidgetError
+          message="Couldn't load your attendance. Please check your connection and try again."
+          onRetry={loadAttendance}
+        />
       </div>
     );
   }
@@ -80,7 +97,7 @@ export default function StudentAttendancePage() {
         classId={selectedRecord?.id ?? null}
         studentId={user?.id || null}
         title={selectedRecord?.topic}
-        date={selectedRecord?.date}
+        date={selectedRecord ? (selectedRecord.actualStart ?? selectedRecord.date) : undefined}
       />
     </div>
   );

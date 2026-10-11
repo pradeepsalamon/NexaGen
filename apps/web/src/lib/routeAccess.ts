@@ -24,6 +24,8 @@ const ROUTE_RULES: readonly RouteRule[] = [
   { prefix: "/coach", roles: ["COACH"] },
   { prefix: "/student", roles: ["STUDENT"] },
   { prefix: "/checkout", roles: null },
+  // One class page for every role; it renders the view the role may use.
+  { prefix: "/classes", roles: null },
   { prefix: "/chess-board", roles: null },
   { prefix: "/plans", roles: null },
   { prefix: "/profile", roles: null }

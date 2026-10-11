@@ -24,6 +24,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Input } from "@/components/ui/Input";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
+
+/** Seconds → whole minutes, floored (matches `formatDuration`). */
+const toMinutes = (seconds: number | null | undefined) => Math.floor((seconds || 0) / 60);
 
 interface StudentAttendanceViewProps {
   data: StudentAttendanceResponse;
@@ -100,8 +104,8 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         `"${(r.coachName || "").replace(/"/g, '""')}"`,
         `"${(r.batchName || "").replace(/"/g, '""')}"`,
         r.status,
-        Math.round((r.actualDuration || 0) / 60),
-        Math.round((r.classActualDuration || r.scheduledDuration || 0) / 60),
+        toMinutes(r.actualDuration),
+        toMinutes(r.classActualDuration || r.scheduledDuration),
         `${r.attendancePercent ?? 0}%`,
       ];
     });
@@ -302,9 +306,10 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                   const rawDate = record.actualStart ?? record.date;
                   const formattedDate = formatFullDate(rawDate, timeZone);
                   const formattedTime = formatTime(rawDate, timeZone);
-                  const actualMins = Math.round((record.actualDuration || 0) / 60);
-                  const totalMins = Math.round(
-                    (record.classActualDuration || record.scheduledDuration || 0) / 60
+                  // Whole minutes, floored — the session-log dialog shows the same.
+                  const actualMins = toMinutes(record.actualDuration);
+                  const totalMins = toMinutes(
+                    record.classActualDuration || record.scheduledDuration
                   );
 
                   return (
@@ -336,18 +341,21 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                         <AttendancePercentBar percent={record.attendancePercent} />
                       </TableCell>
                       <TableCell className="px-5 py-4 text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (interactive) onRowClick?.(record);
-                          }}
-                          title="View Attendance Logs"
-                        >
-                          <Info className="size-4" strokeWidth={2.5} />
-                        </Button>
+                        <SimpleTooltip label="View attendance logs">
+                          <Button
+                            aria-label={`View attendance logs for ${record.topic}, ${formattedDate}`}
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                            disabled={!interactive}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (interactive) onRowClick?.(record);
+                            }}
+                          >
+                            <Info aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                          </Button>
+                        </SimpleTooltip>
                       </TableCell>
                     </TableRow>
                   );

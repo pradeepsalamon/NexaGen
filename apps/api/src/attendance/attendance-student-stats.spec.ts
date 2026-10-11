@@ -16,6 +16,7 @@ const ACCESS_TOKEN = "access-token";
 describe("AttendanceReportService.getStudentAttendance stats", () => {
   let service: AttendanceReportService;
   let coachClassFindMany: jest.Mock;
+  let batchStudentFindMany: jest.Mock;
 
   /** One completed class, `attended` deciding whether a record exists. */
   const completedClass = (index: number, status: AttendanceStatus | null) => {
@@ -23,6 +24,7 @@ describe("AttendanceReportService.getStudentAttendance stats", () => {
     const endsAt = new Date(2026, 0, 30 - index, 11, 0, 0);
     return {
       id: `class-${index}`,
+      batchId: "batch-a",
       topic: `Class ${index}`,
       startsAt,
       endsAt,
@@ -54,6 +56,10 @@ describe("AttendanceReportService.getStudentAttendance stats", () => {
 
   beforeEach(async () => {
     coachClassFindMany = jest.fn();
+    // Enrolled long before any of the fixture classes.
+    batchStudentFindMany = jest
+      .fn()
+      .mockResolvedValue([{ batchId: "batch-a", enrolledAt: new Date(2025, 0, 1) }]);
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -64,7 +70,7 @@ describe("AttendanceReportService.getStudentAttendance stats", () => {
           provide: PrismaService,
           useValue: {
             attendancePolicy: { findFirst: jest.fn() },
-            batchStudent: { findFirst: jest.fn() },
+            batchStudent: { findFirst: jest.fn(), findMany: batchStudentFindMany },
             classAttendance: { findUnique: jest.fn() },
             coachClass: { findMany: coachClassFindMany },
             user: {
@@ -141,5 +147,25 @@ describe("AttendanceReportService.getStudentAttendance stats", () => {
     expect(stats.total).toBe(4);
     expect(stats.percentage).toBe(75);
     expect(stats.longestStreak).toBe(3);
+  });
+
+  it("does not count classes that ended before the student joined the batch", async () => {
+    // Classes 0..3 are Jan 30..27; the student joined on Jan 28 at noon.
+    batchStudentFindMany.mockResolvedValue([
+      { batchId: "batch-a", enrolledAt: new Date(2026, 0, 28, 12, 0, 0) }
+    ]);
+    coachClassFindMany.mockResolvedValue([
+      completedClass(0, AttendanceStatus.PRESENT),
+      completedClass(1, null),
+      completedClass(2, null),
+      // Scored before the enrolment date (e.g. pulled into class) — still counts.
+      completedClass(3, AttendanceStatus.LATE)
+    ]);
+
+    const { stats, history } = await service.getStudentAttendance(ACCESS_TOKEN);
+
+    expect(history.map((h) => h.id)).toEqual(["class-0", "class-1", "class-3"]);
+    expect(stats.total).toBe(3);
+    expect(stats.attended).toBe(2);
   });
 });

@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
@@ -45,6 +44,7 @@ type PastClass = {
   topic: string;
   coachName: string;
   startsAt: string;
+  endsAt: string;
   status: string;
   hasRecording: boolean;
 };
@@ -281,8 +281,8 @@ export function StudentLiveClassesClient() {
                           <span>Coach {c.coachName}</span>
                           <span>·</span>
                           <span>{formatFullDate(c.startsAt, timeZone)}</span>
-                          {c.status === "CANCELLED" && (
-                            <Badge variant="secondary">Cancelled</Badge>
+                          {c.status !== "COMPLETED" && (
+                            <ClassStatusBadge endsAt={c.endsAt} status={c.status} />
                           )}
                         </p>
                       </div>

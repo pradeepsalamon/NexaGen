@@ -14,17 +14,24 @@ import {
   Play,
   Video
 } from "lucide-react";
-import type { ScheduleCalendarClass } from "@nexa-chess/types";
+import {
+  canJoinClass,
+  isUpcomingClass,
+  resolveClassDisplayStatus,
+  type ScheduleCalendarClass
+} from "@nexa-chess/types";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
+import { ClassStatusLegend } from "@/components/ui/ClassStatusLegend";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useBatchesQuery } from "@/features/batches/hooks/useBatchesApi";
 import { useScheduleCalendarQuery } from "@/features/batch-schedules/hooks/useBatchScheduleApi";
+import { CLASS_STATUS_DOT, getStatusLabel } from "@/constants/classes";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
   formatFullDate,
@@ -32,14 +39,6 @@ import {
 } from "@/lib/datetime";
 
 const DAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-const STATUS_DOT: Record<string, string> = {
-  SCHEDULED: "bg-primary",
-  LIVE: "bg-accent",
-  IN_PROGRESS: "bg-accent",
-  COMPLETED: "bg-app-muted",
-  CANCELLED: "bg-app-danger"
-};
 
 function zonedDayKey(iso: string, timeZone: string): string {
   try {
@@ -61,14 +60,16 @@ export function StudentScheduleClient() {
 
   const selectedBatchId = searchParams.get("batchId") || "";
 
-  const [cursor, setCursor] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
-  });
-
   const todayKey = useMemo(() => {
     return zonedDayKey(new Date().toISOString(), timeZone);
   }, [timeZone]);
+
+  // Open on the month that contains "today" in the user's zone, not the
+  // browser's — the two disagree near midnight on the first of a month.
+  const [cursor, setCursor] = useState(() => {
+    const [year, month] = todayKey.split("-").map(Number);
+    return { year, month: month - 1 };
+  });
 
   const [selectedDayKey, setSelectedDayKey] = useState<string | null>(todayKey);
   const [activeTab, setActiveTab] = useState<"calendar" | "list">("calendar");
@@ -147,11 +148,12 @@ export function StudentScheduleClient() {
     ? classesByDay.get(selectedDayKey) ?? []
     : [];
 
-  // Chronological upcoming list
+  // Chronological upcoming list — live or scheduled and not over. Cancelled
+  // classes stay on the calendar (marked) but are never "upcoming".
   const upcomingClassesList = useMemo(() => {
     const now = Date.now();
     return [...classes]
-      .filter((c) => new Date(c.endsAt).getTime() >= now || c.status === "LIVE")
+      .filter((c) => isUpcomingClass(c, now))
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
   }, [classes]);
 
@@ -300,15 +302,18 @@ export function StudentScheduleClient() {
 
                     {/* Dot indicators for classes */}
                     <div className="flex items-center gap-1 mt-1 flex-wrap justify-center min-h-2">
-                      {dayClasses.slice(0, 3).map((c) => (
-                        <span
-                          key={c.id}
-                          className={`size-1.5 rounded-full ${
-                            STATUS_DOT[c.status] || "bg-primary"
-                          } ${c.status === "LIVE" ? "animate-ping" : ""}`}
-                          title={`${c.title} (${c.status})`}
-                        />
-                      ))}
+                      {dayClasses.slice(0, 3).map((c) => {
+                        const shown = resolveClassDisplayStatus(c);
+                        return (
+                          <span
+                            key={c.id}
+                            className={`size-1.5 rounded-full ${CLASS_STATUS_DOT[shown]} ${
+                              shown === "LIVE" ? "motion-safe:animate-pulse" : ""
+                            }`}
+                            title={`${c.title} (${getStatusLabel(shown)})`}
+                          />
+                        );
+                      })}
                       {dayClasses.length > 3 && (
                         <span className="text-[9px] font-bold text-app-muted leading-none">
                           +{dayClasses.length - 3}
@@ -322,20 +327,7 @@ export function StudentScheduleClient() {
 
             {/* Legend */}
             <div className="pt-3 border-t border-app-border flex flex-wrap items-center justify-between text-xs text-app-muted gap-2">
-              <div className="flex items-center gap-4 flex-wrap">
-                <div className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-primary" />
-                  <span>Scheduled</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-accent" />
-                  <span>Live</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-full bg-app-muted" />
-                  <span>Completed</span>
-                </div>
-              </div>
+              <ClassStatusLegend />
               {selectedDayKey && (
                 <button
                   type="button"
@@ -387,7 +379,7 @@ export function StudentScheduleClient() {
                               {cls.batchName}
                             </p>
                           </div>
-                          <ClassStatusBadge status={cls.status} />
+                          <ClassStatusBadge endsAt={cls.endsAt} status={cls.status} />
                         </div>
 
                         <div className="space-y-1.5 text-xs text-app-muted">
@@ -404,7 +396,7 @@ export function StudentScheduleClient() {
                         </div>
 
                         <div className="pt-2 border-t border-app-border">
-                          {cls.status === "LIVE" ? (
+                          {canJoinClass(cls) ? (
                             <Button asChild size="sm" variant="destructive" className="w-full">
                               <Link href={`/live-class/${cls.id}`}>
                                 <Play aria-hidden="true" className="size-3.5 fill-current" strokeWidth={2.5} />
@@ -451,7 +443,7 @@ export function StudentScheduleClient() {
                     <div className="space-y-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-bold text-base text-app-text truncate">{cls.title}</h4>
-                        <ClassStatusBadge status={cls.status} />
+                        <ClassStatusBadge endsAt={cls.endsAt} status={cls.status} />
                       </div>
                       <p className="text-xs text-app-muted">
                         <span className="font-semibold text-app-text">{cls.batchName}</span> · Coach {cls.coachName}
@@ -466,7 +458,7 @@ export function StudentScheduleClient() {
                     </div>
 
                     <div className="shrink-0 flex items-center gap-2">
-                      {cls.status === "LIVE" ? (
+                      {canJoinClass(cls) ? (
                         <Button asChild variant="destructive" size="sm">
                           <Link href={`/live-class/${cls.id}`}>
                             <Play aria-hidden="true" className="size-3.5 fill-current" strokeWidth={2.5} />

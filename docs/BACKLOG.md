@@ -61,6 +61,51 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 None currently tracked here.
 
+## Resolved (2026-10-11) — class scheduling & attendance consistency
+
+- **Future classes marked COMPLETED.** `startClass` had no time gate, so a
+  class days ahead could be started and ended (47 dev rows, mostly e2e runs
+  that start classes 48–96h out). The start window is now one shared rule,
+  `getClassStartAvailability` (`@nexa-chess/types` `class-availability.ts`):
+  no earlier than `CLASS_EARLY_START_MINUTES` (30) before `startsAt`, never
+  after `endsAt` (reschedule via a class request). The API enforces it
+  (`CLASS_START_TOO_EARLY` / `CLASS_START_WINDOW_PASSED`) and every Start
+  button renders it. No migration: no row is currently COMPLETED with a future
+  `startsAt`.
+- **Upcoming vs Past.** `resolveClassDisplayStatus` / `isUpcomingClass` /
+  `isPastClass`: a SCHEDULED class whose window passed is shown "Not held"
+  (stored status untouched), a cancelled class is never upcoming and is past
+  only once its date arrives. Student dashboard `pastClasses` and coach
+  history use the same rule server-side.
+- **Cancelled handling + legend.** Shared `CLASS_STATUS_DOT` /
+  `ClassStatusLegend` (Scheduled, Live, Completed, Not held, Cancelled) on the
+  student schedule and the admin schedule calendar.
+- **Attendance row ↔ log dialog.** The dialog is now a React Query keyed by
+  (class, student) — it used to keep the previous row's logs on screen and
+  could be overwritten by a slow earlier response. The logs response carries
+  `topic`, `classStartsAt`, `actualStart` and `classDuration` (actual run
+  length, `classRunSeconds`, the attendance % denominator), so the dialog's
+  date/duration match the row; an enrolled class with no attendance record
+  opens as an empty ABSENT log instead of a 404. Classes that ended before the
+  student joined the batch no longer count as absences.
+- **Auto-end over-credited time.** A class the sweep ended because the coach
+  left now records `endedAt` = when the coach left (not the sweep minute, up
+  to the grace period later), so attendance and coach duration exclude
+  minutes nobody taught.
+- **Batch dates vs sessions.** `common/batch-dates.ts`: a schedule must lie
+  within its batch's dates; regeneration never tops up outside them;
+  shortening a schedule's end date or narrowing a batch's dates cancels (not
+  deletes) the future SCHEDULED sessions now outside; extra-class / reschedule
+  requests are checked on ask and on approval. Existing out-of-range classes
+  (all past, mostly test data) are left as history.
+- **Student class page was blank.** `/classes/:id` called the coach-only API
+  for students. New `GET /student/classes/:id` (`API_ROUTES.student.classDetail`,
+  enrolled students only) + `StudentClassDetailsClient`: class, coach,
+  schedule, Join while live, Watch/Download once recorded, own attendance,
+  loading/error states. `/classes` is now a `ROUTE_RULES` entry (any signed-in
+  user); admins may read `GET /coach/classes/:id` (the analytics pages link
+  there).
+
 ## Resolved (2026-10-03)
 
 - **Session and log tables grew forever.** Every refresh-token rotation (every

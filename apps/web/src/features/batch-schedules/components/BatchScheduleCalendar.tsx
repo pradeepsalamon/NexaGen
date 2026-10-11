@@ -2,18 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { ScheduleCalendarClass } from "@nexa-chess/types";
+import { resolveClassDisplayStatus, type ScheduleCalendarClass } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ClassStatusLegend } from "@/components/ui/ClassStatusLegend";
+import { CLASS_STATUS_DOT, getStatusLabel } from "@/constants/classes";
 import { DAY_SHORT, formatInZone } from "../lib/scheduleFormat";
-
-const STATUS_DOT: Record<string, string> = {
-  SCHEDULED: "bg-primary",
-  LIVE: "bg-emerald-500",
-  IN_PROGRESS: "bg-emerald-500",
-  COMPLETED: "bg-app-muted",
-  CANCELLED: "bg-app-danger"
-};
 
 /** Local Y-M-D key for a class, computed in the schedule timezone. */
 function zonedDayKey(iso: string, timeZone: string): string {
@@ -110,15 +104,19 @@ export function BatchScheduleCalendar({
                 <>
                   <div className="text-[11px] font-bold text-app-muted">{day}</div>
                   <div className="mt-0.5 grid gap-0.5">
-                    {items.slice(0, 3).map((cls) => (
+                    {items.slice(0, 3).map((cls) => {
+                      const shown = resolveClassDisplayStatus(cls);
+                      return (
                       <button
                         key={cls.id}
                         onClick={() => onSelectClass?.(cls)}
-                        className="flex items-center gap-1 truncate rounded bg-app-surface px-1 py-0.5 text-left text-[10px] text-app-text hover:bg-app-soft"
-                        title={`${cls.title} · ${cls.coachName}`}
+                        className={`flex items-center gap-1 truncate rounded bg-app-surface px-1 py-0.5 text-left text-[10px] text-app-text hover:bg-app-soft ${
+                          shown === "CANCELLED" ? "line-through decoration-app-danger/60" : ""
+                        }`}
+                        title={`${cls.title} · ${cls.coachName} · ${getStatusLabel(shown)}`}
                       >
                         <span
-                          className={`size-1.5 shrink-0 rounded-full ${STATUS_DOT[cls.status] ?? "bg-app-muted"}`}
+                          className={`size-1.5 shrink-0 rounded-full ${CLASS_STATUS_DOT[shown]}`}
                         />
                         <span className="truncate">
                           {formatInZone(cls.startsAt, timezone, {
@@ -130,7 +128,8 @@ export function BatchScheduleCalendar({
                           {cls.title}
                         </span>
                       </button>
-                    ))}
+                      );
+                    })}
                     {items.length > 3 && (
                       <span className="px-1 text-[10px] text-app-muted">+{items.length - 3} more</span>
                     )}
@@ -141,6 +140,8 @@ export function BatchScheduleCalendar({
           );
         })}
       </div>
+
+      <ClassStatusLegend className="border-t border-app-border pt-3" />
     </Card>
   );
 }

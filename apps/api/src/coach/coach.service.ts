@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
   UnauthorizedException
@@ -184,8 +185,19 @@ export class CoachService {
   async getClassHistory(accessToken: string | undefined): Promise<CoachClassListResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
 
+    const now = new Date();
+    // Same "past" rule as the student side (`isPastClass` in @nexa-chess/types):
+    // held, cancelled once its date arrived, or never started before its window
+    // ended (shown as "Not held"). A cancelled class still ahead is not history.
     const classes = await this.prisma.coachClass.findMany({
-      where: { coachId, status: { in: [ClassStatus.COMPLETED, ClassStatus.CANCELLED] } },
+      where: {
+        coachId,
+        OR: [
+          { status: ClassStatus.COMPLETED },
+          { status: ClassStatus.CANCELLED, startsAt: { lte: now } },
+          { status: ClassStatus.SCHEDULED, endsAt: { lte: now } }
+        ]
+      },
       include: COACH_CLASS_INCLUDE,
       orderBy: { startsAt: "desc" },
       take: 50
@@ -194,15 +206,23 @@ export class CoachService {
     return { classes: classes.map(c => this.toCoachClass(c)) };
   }
 
+  /**
+   * The owning coach's view of one class. Admins may read any class too — the
+   * analytics pages link to `/classes/:id` — but every write stays coach-only.
+   */
   async getClassById(accessToken: string | undefined, classId: string): Promise<CoachClassResponse> {
-    const coachId = await this.getAuthenticatedCoachId(accessToken);
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
+    const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
+    // 403, not 401: a signed-in student here is the wrong role, not a dead
+    // session, and a 401 sends the web client into refresh-and-retry.
+    if (user.role !== UserRole.COACH && !isAdmin) throw new ForbiddenException("Not your class.");
 
     const cls = await this.prisma.coachClass.findUnique({
       where: { id: classId },
       include: COACH_CLASS_INCLUDE
     });
 
-    if (!cls || cls.coachId !== coachId) {
+    if (!cls || (!isAdmin && cls.coachId !== user.id)) {
       throw new NotFoundException("Class not found.");
     }
 

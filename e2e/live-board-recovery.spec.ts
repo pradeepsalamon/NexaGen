@@ -62,7 +62,9 @@ async function makeLiveClass(request: APIRequestContext, coach: Cookie[], admin:
   const batchId = (batches.batches || batches)[0].id;
 
   // Walk forward from now until approval stops reporting a scheduling conflict.
-  for (let offsetMin = 1; offsetMin < 600; offsetMin += 70) {
+  // Only inside the start window (CLASS_EARLY_START_MINUTES = 30): a class any
+  // further out can't be started yet.
+  for (let offsetMin = 1; offsetMin < 30; offsetMin += 7) {
     const startsAt = new Date(Date.now() + offsetMin * 60_000);
     const created = await api(request, "POST", "/class-requests", coach, {
       type: "EXTRA_CLASS",

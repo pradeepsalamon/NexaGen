@@ -66,6 +66,25 @@ export function toCsvCell(value: unknown): string {
   return `"${str.replace(/"/g, '""')}"`;
 }
 
+/**
+ * How long a class ran, in seconds: the live session's real start → end when
+ * both are known, else the scheduled window. The single denominator for the
+ * attendance %, the history row and the session-log dialog — they used to
+ * disagree (the dialog divided by the schedule).
+ */
+export function classRunSeconds(cls: {
+  startsAt: Date;
+  endsAt: Date;
+  liveSession?: { startedAt: Date | null; endedAt: Date | null } | null;
+}): number {
+  const startedAt = cls.liveSession?.startedAt;
+  const endedAt = cls.liveSession?.endedAt;
+  if (startedAt && endedAt && endedAt > startedAt) {
+    return Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000);
+  }
+  return Math.max(0, Math.floor((cls.endsAt.getTime() - cls.startsAt.getTime()) / 1000));
+}
+
 export function calculateTotalDuration(
   logs: Array<{
     eventType: string | AttendanceEventType;

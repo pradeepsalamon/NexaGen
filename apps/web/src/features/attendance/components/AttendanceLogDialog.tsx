@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,7 @@ import { AttendancePercentBar } from "./AttendancePercentBar";
 import { LogIn, LogOut, WifiOff, RefreshCcw, Clock, AlertCircle } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate, formatTime } from "@/lib/datetime";
+import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 
 interface AttendanceLogDialogProps {
@@ -27,6 +28,7 @@ interface AttendanceLogDialogProps {
   onOpenChange: (open: boolean) => void;
   classId: string | null;
   studentId: string | null;
+  /** Shown while the logs load; the response's own topic/date replace them. */
   title?: string;
   date?: string;
 }
@@ -39,31 +41,25 @@ export function AttendanceLogDialog({
   title = "Class Attendance Details",
   date,
 }: AttendanceLogDialogProps) {
-  const [data, setData] = useState<AttendanceLogsResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const timeZone = useUserTimeZone();
 
-  useEffect(() => {
-    async function fetchLogs() {
-      if (!open || !classId || !studentId) return;
+  // Keyed by (class, student): opening another row can never show this row's
+  // logs (the old effect kept the previous response on screen until the next
+  // one landed, and a slow earlier response could overwrite a later one).
+  const query = useQuery({
+    queryKey: queryKeys.attendance.classLogs(classId ?? "", studentId ?? ""),
+    queryFn: () =>
+      apiFetch<AttendanceLogsResponse>(API_ROUTES.attendance.classLogs(classId!, studentId!)),
+    enabled: open && Boolean(classId && studentId),
+    retry: 1
+  });
+  const data = query.data && query.data.classId === classId ? query.data : null;
+  const isLoading = query.isLoading;
+  const error = query.error ? query.error.message || "Failed to load attendance logs" : null;
 
-      try {
-        setIsLoading(true);
-        setError(null);
-        const res = await apiFetch<AttendanceLogsResponse>(
-          API_ROUTES.attendance.classLogs(classId, studentId)
-        );
-        setData(res);
-      } catch (err: any) {
-        setError(err.message || "Failed to load attendance logs");
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    fetchLogs();
-  }, [open, classId, studentId]);
+  // The same label and date the history row shows: actual start when known.
+  const headerTitle = data?.topic ?? title;
+  const headerDate = data ? (data.actualStart ?? data.classStartsAt) : date;
 
   const getEventIcon = (type: string) => {
     switch (type) {
@@ -126,8 +122,10 @@ export function AttendanceLogDialog({
               {data && <AttendanceStatusBadge status={data.status} className="text-xs" />}
             </DialogTitle>
             <DialogDescription className="text-app-muted text-sm mt-1">
-              <span className="font-medium text-app-text">{title}</span>
-              {date ? ` • ${formatFullDate(date, timeZone)}` : ""}
+              <span className="font-medium text-app-text">{headerTitle}</span>
+              {headerDate
+                ? ` • ${formatFullDate(headerDate, timeZone)} • ${formatTime(headerDate, timeZone)}`
+                : ""}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -159,8 +157,9 @@ export function AttendanceLogDialog({
                   <span className="text-xs font-medium text-app-muted mb-1">Duration</span>
                   <div className="text-base font-bold text-app-text">
                     {formatDuration(data.totalDuration)}{" "}
+                    {/* Same denominator as the row and the %: how long the class ran. */}
                     <span className="text-xs font-normal text-app-muted">
-                      / {formatDuration(data.scheduledDuration)}
+                      / {formatDuration(data.classDuration)}
                     </span>
                   </div>
                 </div>

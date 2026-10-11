@@ -7,8 +7,8 @@ import Link from "next/link";
 import { toast } from "sonner";
 import type { CoachClass } from "@nexa-chess/types";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
-import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
@@ -87,15 +87,10 @@ export function CoachHistoryClient() {
       {
         accessorKey: "status",
         header: "Status",
-        cell: ({ row }) => {
-          const status = row.original.status;
-          const variant = status === "COMPLETED" ? "success" : status === "CANCELLED" ? "destructive" : "secondary";
-          return (
-            <Badge variant={variant} className="text-[10px]">
-              {status}
-            </Badge>
-          );
-        }
+        // Completed, Cancelled, or Not held (scheduled but never started).
+        cell: ({ row }) => (
+          <ClassStatusBadge endsAt={row.original.endsAt} status={row.original.status} />
+        )
       },
       {
         id: "actions",

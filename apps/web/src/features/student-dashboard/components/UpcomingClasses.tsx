@@ -2,7 +2,7 @@
 
 import { ArrowRight, Play } from "lucide-react";
 import Link from "next/link";
-import type { StudentDashboardUpcomingClass } from "@nexa-chess/types";
+import { canJoinClass, type StudentDashboardUpcomingClass } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { SectionCard } from "@/components/ui/SectionCard";
@@ -19,15 +19,11 @@ interface UpcomingClassesProps {
   classes?: StudentDashboardUpcomingClass[];
 }
 
-// Same rule as the schedule and class pages: a student can join once the coach
-// has started the class; before that the room is not open.
-function isJoinable(cls: StudentDashboardUpcomingClass) {
-  return cls.status === "LIVE" || cls.status === "IN_PROGRESS";
-}
-
 function UpcomingClassRow({ cls }: { cls: StudentDashboardUpcomingClass }) {
   const timeZone = useUserTimeZone();
-  const joinable = isJoinable(cls);
+  // Same rule as the schedule and class pages (`canJoinClass`): a student can
+  // join once the coach has started the class; before that the room is not open.
+  const joinable = canJoinClass(cls);
   const hintId = `upcoming-${cls.id}-hint`;
 
   return (
@@ -79,7 +75,7 @@ function UpcomingClassRow({ cls }: { cls: StudentDashboardUpcomingClass }) {
         )}
         <Link
           className="inline-flex items-center justify-center gap-1 rounded-control text-xs font-semibold text-primary-ink hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:justify-end"
-          href={`/live-class/${cls.id}`}
+          href={`/classes/${cls.id}`}
         >
           View class
           <ArrowRight aria-hidden="true" className="size-3.5" strokeWidth={2.5} />

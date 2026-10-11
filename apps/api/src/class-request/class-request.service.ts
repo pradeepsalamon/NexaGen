@@ -15,6 +15,7 @@ import type {
 } from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole } from "@prisma/client";
 import { assertNoSchedulingConflict, assertNotInPast } from "../coach/class-scheduling.util";
+import { assertWithinBatchDates } from "../common/batch-dates";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { authenticateUser } from "../auth/authenticate";
@@ -88,6 +89,12 @@ export class ClassRequestService {
       await this.assertCoachInBatch(coach.id, dto.batchId!);
       batchId = dto.batchId!;
     }
+
+    const batch = await this.prisma.batch.findUnique({
+      where: { id: batchId },
+      select: { endsAt: true, name: true, startsAt: true }
+    });
+    if (batch) assertWithinBatchDates(batch, startsAt);
 
     // Surface an obvious clash now; approval checks again against the schedule then.
     await assertNoSchedulingConflict(this.prisma, {
@@ -163,6 +170,12 @@ export class ClassRequestService {
       throw new ConflictException(`This request was already ${request.status.toLowerCase()}.`);
     }
     assertNotInPast(request.startsAt);
+    // The batch's dates may have changed since the coach asked.
+    const batch = await this.prisma.batch.findUnique({
+      where: { id: request.batchId },
+      select: { endsAt: true, name: true, startsAt: true }
+    });
+    if (batch) assertWithinBatchDates(batch, request.startsAt);
 
     const createdClassId = await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.classChangeRequest.updateMany({

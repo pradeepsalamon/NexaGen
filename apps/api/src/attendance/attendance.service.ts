@@ -17,7 +17,7 @@ import {
 } from "@prisma/client";
 import { selectSessionToClose } from "./attendance-session.util";
 import { authenticateUser } from "../auth/authenticate";
-import { calculateTotalDuration, deriveAttendanceStamps, determineStatus } from "./attendance-calc.util";
+import { calculateTotalDuration, classRunSeconds, deriveAttendanceStamps, determineStatus } from "./attendance-calc.util";
 
 /** Write side of attendance: LiveKit join/leave events, heartbeats, finalize, and the policy. */
 @Injectable()
@@ -620,15 +620,7 @@ export class AttendanceService {
     // the scheduled window. A coach ending early must not mark everyone partial.
     // (`startsAt`/`endsAt` are the immutable schedule — see AUDIT.md H2.)
     const session = coachClass.liveSession;
-    const effectiveDuration =
-      session?.startedAt && session?.endedAt
-        ? Math.floor(
-            (session.endedAt.getTime() - session.startedAt.getTime()) / 1000
-          )
-        : Math.floor(
-            (coachClass.endsAt.getTime() - coachClass.startsAt.getTime()) / 1000
-          );
-    const scheduledDuration = effectiveDuration;
+    const scheduledDuration = classRunSeconds(coachClass);
 
     // The instant the class stopped. Any session log still open when finalize
     // runs (e.g. `room_finished` beat the last `participant_left`, or a webhook

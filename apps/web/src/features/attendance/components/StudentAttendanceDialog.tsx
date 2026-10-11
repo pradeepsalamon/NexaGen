@@ -109,7 +109,7 @@ export function StudentAttendanceDialog({
         classId={logRecord?.id ?? null}
         studentId={studentId}
         title={logRecord?.topic}
-        date={logRecord?.date}
+        date={logRecord ? (logRecord.actualStart ?? logRecord.date) : undefined}
       />
     </>
   );

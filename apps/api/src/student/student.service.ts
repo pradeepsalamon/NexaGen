@@ -1,9 +1,11 @@
 import {
   Injectable,
+  NotFoundException,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
+  StudentClassDetailResponse,
   StudentDashboardFeaturedClass,
   StudentDashboardLiveClass,
   StudentDashboardUpcomingClass
@@ -179,11 +181,19 @@ export class StudentService {
       .slice(0, 3)
       .map(c => this.toNextClass(c));
 
-    // Fetch past classes for the dashboard
+    // Past classes: held, cancelled once their date arrived, or scheduled but
+    // never started before their window ended (shown as "Not held"). A
+    // cancelled class still ahead is in neither list — it will not happen —
+    // and the calendar shows it (`isPastClass` in @nexa-chess/types).
     const pastClasses = await this.prisma.coachClass.findMany({
       where: {
         batch: { students: { some: { studentId: user.id, isDeleted: false } } },
-        status: { in: ["COMPLETED", "CANCELLED"] },
+        isDemo: false,
+        OR: [
+          { status: "COMPLETED" },
+          { status: "CANCELLED", startsAt: { lte: now } },
+          { status: "SCHEDULED", endsAt: { lte: now } }
+        ]
       },
       orderBy: { startsAt: "desc" },
       take: 10,
@@ -268,10 +278,84 @@ export class StudentService {
         topic: c.topic || "Untitled Class",
         coachName: c.coach.firstName,
         startsAt: c.startsAt.toISOString(),
+        endsAt: c.endsAt.toISOString(),
         status: c.status,
         hasRecording: !!c.liveSession?.recordingUrl,
       })),
       progressMetrics
+    };
+  }
+
+  /**
+   * One class for an enrolled student: what it is, who teaches it, when it is
+   * (scheduled and actual), whether there is a recording, and the student's own
+   * attendance once scored. Same access rule as `GET /live-class/:id` and the
+   * recording routes — the student must be in the class's batch — so the
+   * page never offers a Join or Watch the server would refuse.
+   */
+  async getClassDetail(
+    accessToken: string | undefined,
+    classId: string
+  ): Promise<StudentClassDetailResponse> {
+    const user = await this.getAuthenticatedUser(accessToken);
+
+    const cls = await this.prisma.coachClass.findFirst({
+      where: {
+        id: classId,
+        batch: { isDeleted: false, students: { some: { studentId: user.id, isDeleted: false } } }
+      },
+      include: {
+        batch: NEXT_CLASS_BATCH_SELECT,
+        coach: { select: { avatarUrl: true, firstName: true, id: true, lastName: true } },
+        liveSession: { select: { endedAt: true, recordingUrl: true, startedAt: true } },
+        attendances: {
+          where: { studentId: user.id },
+          select: { attendancePercent: true, status: true, totalDuration: true }
+        }
+      }
+    });
+    // Not found and not yours read the same, so ids can't be probed.
+    if (!cls) {
+      throw new NotFoundException("Class not found.");
+    }
+
+    const attendance = cls.status === "COMPLETED" ? cls.attendances[0] : undefined;
+
+    return {
+      class: {
+        id: cls.id,
+        title: cls.title || cls.topic || cls.batch?.name || "Class",
+        topic: cls.topic,
+        description: cls.description,
+        objectives: cls.objectives,
+        homework: cls.homework,
+        batchId: cls.batchId,
+        batchName: cls.batch?.name ?? null,
+        batchType: resolveBatchType({
+          batchDefault: cls.batch?.batchType,
+          classOverride: cls.batchType,
+          studentCount: cls.batch?._count.students ?? 0
+        }).type,
+        coach: {
+          id: cls.coach.id,
+          name: [cls.coach.firstName, cls.coach.lastName].filter(Boolean).join(" "),
+          avatarUrl: cls.coach.avatarUrl
+        },
+        status: cls.status,
+        startsAt: cls.startsAt.toISOString(),
+        endsAt: cls.endsAt.toISOString(),
+        actualStartedAt: cls.liveSession?.startedAt?.toISOString() ?? null,
+        actualEndedAt: cls.liveSession?.endedAt?.toISOString() ?? null,
+        sessionNumber: cls.sessionNumber,
+        hasRecording: !!cls.liveSession?.recordingUrl,
+        attendance: attendance
+          ? {
+              status: attendance.status,
+              attendedSeconds: attendance.totalDuration ?? 0,
+              attendancePercent: attendance.attendancePercent ?? 0
+            }
+          : null
+      }
     };
   }
 

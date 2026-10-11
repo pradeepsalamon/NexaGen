@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { AttendanceReportService } from "./attendance-report.service";
@@ -10,7 +10,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 type MockPrismaService = {
   attendancePolicy: { findFirst: jest.Mock };
-  batchStudent: { findFirst: jest.Mock };
+  batchStudent: { findFirst: jest.Mock; findMany: jest.Mock };
   classAttendance: { findUnique: jest.Mock };
   coachClass: { findMany: jest.Mock; findUnique: jest.Mock };
   liveSession: { updateMany: jest.Mock };
@@ -36,7 +36,7 @@ describe("AttendanceReportService authorization", () => {
 
     prismaService = {
       attendancePolicy: { findFirst: jest.fn() },
-      batchStudent: { findFirst: jest.fn() },
+      batchStudent: { findFirst: jest.fn(), findMany: jest.fn().mockResolvedValue([]) },
       classAttendance: { findUnique: jest.fn() },
       coachClass: { findMany: jest.fn(), findUnique: jest.fn() },
       liveSession: { updateMany: jest.fn() }
@@ -102,23 +102,33 @@ describe("AttendanceReportService authorization", () => {
   });
 
   describe("getAttendanceLogs", () => {
-    const attendanceFor = (coachId: string) => ({
+    const attendanceRow = {
       id: "attendance-1",
       logs: [],
       joinedAt: null,
       leftAt: null,
-      totalDuration: 0,
-      attendancePercent: 0,
-      status: "PRESENT",
-      reconnectCount: 0,
-      class: { id: "class-1", coachId, startsAt: new Date(), endsAt: new Date() }
+      totalDuration: 1800,
+      attendancePercent: 75,
+      status: "LATE",
+      reconnectCount: 0
+    };
+    const classFor = (coachId: string, enrolled = true) => ({
+      id: "class-1",
+      coachId,
+      topic: "Rook endings",
+      startsAt: new Date("2026-10-01T10:00:00.000Z"),
+      endsAt: new Date("2026-10-01T11:00:00.000Z"),
+      liveSession: {
+        startedAt: new Date("2026-10-01T10:05:00.000Z"),
+        endedAt: new Date("2026-10-01T10:45:00.000Z")
+      },
+      batch: { students: enrolled ? [{ id: "enrolment-1" }] : [] }
     });
 
     it("rejects a coach who does not own the class", async () => {
       authenticateAs("coach-1", UserRole.COACH);
-      prismaService.classAttendance.findUnique.mockResolvedValue(
-        attendanceFor("coach-2")
-      );
+      prismaService.coachClass.findUnique.mockResolvedValue(classFor("coach-2"));
+      prismaService.classAttendance.findUnique.mockResolvedValue(attendanceRow);
 
       await expect(
         service.getAttendanceLogs(ACCESS_TOKEN, "class-1", "student-1")
@@ -127,9 +137,8 @@ describe("AttendanceReportService authorization", () => {
 
     it("allows the coach who owns the class", async () => {
       authenticateAs("coach-1", UserRole.COACH);
-      prismaService.classAttendance.findUnique.mockResolvedValue(
-        attendanceFor("coach-1")
-      );
+      prismaService.coachClass.findUnique.mockResolvedValue(classFor("coach-1"));
+      prismaService.classAttendance.findUnique.mockResolvedValue(attendanceRow);
 
       await expect(
         service.getAttendanceLogs(ACCESS_TOKEN, "class-1", "student-1")
@@ -144,6 +153,45 @@ describe("AttendanceReportService authorization", () => {
       ).rejects.toBeInstanceOf(ForbiddenException);
 
       expect(prismaService.classAttendance.findUnique).not.toHaveBeenCalled();
+    });
+
+    it("describes the class the way the history row does (actual run length, topic, start)", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      prismaService.coachClass.findUnique.mockResolvedValue(classFor("coach-1"));
+      prismaService.classAttendance.findUnique.mockResolvedValue(attendanceRow);
+
+      const res = await service.getAttendanceLogs(ACCESS_TOKEN, "class-1", "student-1");
+
+      expect(res).toMatchObject({
+        classId: "class-1",
+        status: "LATE",
+        totalDuration: 1800,
+        scheduledDuration: 3600,
+        classDuration: 2400,
+        topic: "Rook endings",
+        classStartsAt: "2026-10-01T10:00:00.000Z",
+        actualStart: "2026-10-01T10:05:00.000Z"
+      });
+    });
+
+    it("opens an unscored enrolled class as an empty ABSENT log, not a 404", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      prismaService.coachClass.findUnique.mockResolvedValue(classFor("coach-1"));
+      prismaService.classAttendance.findUnique.mockResolvedValue(null);
+
+      const res = await service.getAttendanceLogs(ACCESS_TOKEN, "class-1", "student-1");
+
+      expect(res).toMatchObject({ status: "ABSENT", totalDuration: 0, logs: [] });
+    });
+
+    it("still 404s for a student with no record who is not in the batch", async () => {
+      authenticateAs("student-1", UserRole.STUDENT);
+      prismaService.coachClass.findUnique.mockResolvedValue(classFor("coach-1", false));
+      prismaService.classAttendance.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.getAttendanceLogs(ACCESS_TOKEN, "class-1", "student-1")
+      ).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 

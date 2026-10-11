@@ -17,6 +17,7 @@ import type {
 } from "@nexa-chess/types";
 import {
   BatchStatus,
+  ClassStatus,
   Prisma,
   User,
   UserRole,
@@ -30,8 +31,11 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
+import { batchClassWindow } from "../common/batch-dates";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
+/** The client handed to a `prisma.$transaction(async (tx) => …)` callback. */
+type PrismaTx = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 type BatchWithAssignments = Prisma.BatchGetPayload<{
   include: typeof batchInclude;
 }>;
@@ -207,6 +211,11 @@ export class BatchService {
     if (!existingBatch) {
       throw new NotFoundException("Batch not found.");
     }
+    // Changing one end alone must still leave a valid range.
+    this.assertDateRange(
+      payload.startsAt === undefined ? existingBatch.startsAt?.toISOString() : payload.startsAt,
+      payload.endsAt === undefined ? existingBatch.endsAt?.toISOString() : payload.endsAt
+    );
 
     await this.assertAssignableUsers(payload.coachIds, payload.studentIds);
 
@@ -285,13 +294,54 @@ export class BatchService {
         );
       }
 
-      return transaction.batch.findUniqueOrThrow({
+      const updated = await transaction.batch.findUniqueOrThrow({
         include: batchInclude,
         where: { id: batchId }
       });
+
+      if (payload.startsAt !== undefined || payload.endsAt !== undefined) {
+        await this.cancelClassesOutsideDates(transaction, updated, user.id);
+      }
+
+      return updated;
     });
 
     return { batch: this.toBatch(batch) };
+  }
+
+  /**
+   * Narrowing a batch's dates cancels its sessions that have not happened yet
+   * and now fall outside them, so the batch's dates and its timetable agree.
+   * Only future SCHEDULED classes move — anything held, live or already
+   * cancelled is history and stays as it is. Cancelled, not deleted, so the
+   * admin can restore one from the schedule if the dates were a mistake.
+   */
+  private async cancelClassesOutsideDates(
+    transaction: PrismaTx,
+    batch: { id: string; startsAt: Date | null; endsAt: Date | null },
+    userId: string
+  ) {
+    const { from, until } = batchClassWindow(batch);
+    const outside: Prisma.CoachClassWhereInput[] = [
+      ...(from ? [{ startsAt: { lt: from } }] : []),
+      ...(until ? [{ startsAt: { gte: until } }] : [])
+    ];
+    if (outside.length === 0) return;
+
+    await transaction.coachClass.updateMany({
+      data: {
+        cancellationReason: "Outside the batch's dates",
+        cancelledAt: new Date(),
+        cancelledById: userId,
+        status: ClassStatus.CANCELLED
+      },
+      where: {
+        batchId: batch.id,
+        OR: outside,
+        startsAt: { gt: new Date() },
+        status: ClassStatus.SCHEDULED
+      }
+    });
   }
 
   async archive(

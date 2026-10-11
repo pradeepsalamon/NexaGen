@@ -8,9 +8,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from "@/components/ui/DropdownMenu";
-import type { CoachClass } from "@nexa-chess/types";
+import { getClassStartAvailability, type CoachClass } from "@nexa-chess/types";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { formatFullDate, formatTime } from "@/lib/datetime";
+import { useNow } from "@/hooks/useNow";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 
 interface ClassCardProps {
@@ -22,6 +23,9 @@ interface ClassCardProps {
 
 export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule }: ClassCardProps) {
   const tz = useUserTimeZone();
+  // "Start Class" only inside the start window the server enforces; otherwise
+  // the button just opens the class page, which says when it opens.
+  const canStart = getClassStartAvailability(classItem, useNow()).canStart;
 
   const startTime = formatTime(classItem.startsAt, tz);
   const endTime = formatTime(classItem.endsAt, tz);
@@ -39,7 +43,7 @@ export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule }: 
             <h3 className="font-bold text-app-text line-clamp-1">
               {classItem.title || classItem.topic || "Regular Session"}
             </h3>
-            <ClassStatusBadge status={classItem.status} />
+            <ClassStatusBadge endsAt={classItem.endsAt} status={classItem.status} />
           </div>
           <p className="text-sm font-medium text-app-muted line-clamp-1">
             {classItem.batchName}
@@ -94,7 +98,7 @@ export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule }: 
       <div className="mt-4 pt-4 border-t border-app-border flex gap-2">
         <Button asChild className="flex-1" variant="primary">
           <Link href={`/classes/${classItem.id}`}>
-            {classItem.status === "SCHEDULED" ? "Start Class" : "View Details"}
+            {canStart ? "Start Class" : "View Details"}
           </Link>
         </Button>
       </div>

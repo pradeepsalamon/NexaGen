@@ -44,6 +44,7 @@ export const config = {
     "/coach/:path*",
     "/student/:path*",
     "/checkout/:path*",
+    "/classes/:path*",
     "/chess-board",
     "/plans",
     "/profile",

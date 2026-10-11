@@ -16,7 +16,9 @@ import { LiveKitService } from "./livekit.service";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
 import {
+  CLASS_START_BLOCK_MESSAGES,
   deriveLiveKitGrants,
+  getClassStartAvailability,
   liveClassSettingsSchema,
   LIVE_CLASS_SETTINGS_TOPIC,
   type LiveClassSettings,
@@ -88,6 +90,21 @@ export class LiveClassService {
 
     if (scheduledClass.status === "CANCELLED" || scheduledClass.status === "COMPLETED") {
       throw new BadRequestException("Cannot start a cancelled or completed class.");
+    }
+
+    // The start window (shared with the Start buttons): never more than
+    // CLASS_EARLY_START_MINUTES ahead — ending a class started days early marked
+    // a future class COMPLETED — and not after its window has passed. A class
+    // already marked LIVE is a restart of the same session and stays allowed.
+    if (scheduledClass.status === ClassStatus.SCHEDULED) {
+      const availability = getClassStartAvailability(scheduledClass);
+      if (!availability.canStart) {
+        throw new BadRequestException({
+          message: CLASS_START_BLOCK_MESSAGES[availability.reason],
+          code: `CLASS_START_${availability.reason}`,
+          opensAt: availability.opensAt ?? null
+        });
+      }
     }
 
     let liveSession = await this.prisma.liveSession.findUnique({
@@ -454,7 +471,19 @@ export class LiveClassService {
     return { message: "Class ended successfully" };
   }
 
-  private async internalEndClass(classId: string, liveSessionId: string, roomName: string) {
+  /**
+   * `endedAt` is when the class actually stopped. A manual end is "now"; the
+   * stale sweep passes the moment the coach left, so a class auto-ended after
+   * the absence grace period is not credited with minutes nobody taught —
+   * attendance is scored against `endedAt - startedAt` and every session is
+   * clamped to `endedAt`.
+   */
+  private async internalEndClass(
+    classId: string,
+    liveSessionId: string,
+    roomName: string,
+    endedAt: Date = new Date()
+  ) {
     // Idempotent: only the run that actually flips LIVE -> ENDED does the work,
     // so a retry (or the per-minute cron racing a manual end) can't double-
     // finalize attendance or re-delete the room (AUDIT M21).
@@ -462,7 +491,7 @@ export class LiveClassService {
       where: { id: liveSessionId, status: LiveSessionStatus.LIVE },
       data: {
         status: LiveSessionStatus.ENDED,
-        endedAt: new Date()
+        endedAt
       }
     });
 
@@ -521,10 +550,10 @@ export class LiveClassService {
 
     for (const session of activeSessions) {
       try {
-        const reason = await this.getAutoEndReason(session, now, graceMs, overrunMs);
-        if (reason) {
-          this.logger.log(`Automatically ending class ${session.classId}: ${reason}.`);
-          await this.internalEndClass(session.classId, session.id, session.roomName);
+        const decision = await this.getAutoEndReason(session, now, graceMs, overrunMs);
+        if (decision) {
+          this.logger.log(`Automatically ending class ${session.classId}: ${decision.reason}.`);
+          await this.internalEndClass(session.classId, session.id, session.roomName, decision.endedAt);
         }
       } catch (error) {
         this.logger.error(`Failed to auto-end class ${session.classId}`, error);
@@ -532,16 +561,32 @@ export class LiveClassService {
     }
   }
 
-  /** Decides whether a LIVE session should be auto-ended; also tracks coach absence. */
+  /**
+   * Decides whether a LIVE session should be auto-ended, and when it actually
+   * stopped; also tracks coach absence.
+   */
   private async getAutoEndReason(
-    session: { id: string; coachId: string; roomName: string; coachAbsentSince: Date | null; class: { endsAt: Date } },
+    session: {
+      id: string;
+      coachId: string;
+      roomName: string;
+      coachAbsentSince: Date | null;
+      startedAt?: Date | null;
+      class: { endsAt: Date };
+    },
     now: Date,
     graceMs: number,
     overrunMs: number
-  ): Promise<string | null> {
+  ): Promise<{ reason: string; endedAt: Date } | null> {
+    // The class stopped when the coach walked out, never before it started.
+    const stoppedAt = (since: Date | null) => {
+      const floor = session.startedAt?.getTime() ?? 0;
+      return since && since.getTime() > floor ? since : now;
+    };
+
     const pastEnd = session.class.endsAt <= now;
     if (overrunMs > 0 && now.getTime() - session.class.endsAt.getTime() >= overrunMs) {
-      return "ran past the maximum overrun";
+      return { reason: "ran past the maximum overrun", endedAt: now };
     }
 
     // Throws on a real LiveKit outage — never mistake that for an empty room.
@@ -555,7 +600,12 @@ export class LiveClassService {
       return null;
     }
 
-    if (pastEnd) return "coach left after the scheduled end time";
+    if (pastEnd) {
+      return {
+        reason: "coach left after the scheduled end time",
+        endedAt: stoppedAt(session.coachAbsentSince)
+      };
+    }
 
     if (!session.coachAbsentSince) {
       await this.prisma.liveSession.update({ where: { id: session.id }, data: { coachAbsentSince: now } });
@@ -563,7 +613,10 @@ export class LiveClassService {
     }
 
     if (graceMs > 0 && now.getTime() - session.coachAbsentSince.getTime() >= graceMs) {
-      return "coach has been out of the room past the grace period";
+      return {
+        reason: "coach has been out of the room past the grace period",
+        endedAt: stoppedAt(session.coachAbsentSince)
+      };
     }
     return null;
   }

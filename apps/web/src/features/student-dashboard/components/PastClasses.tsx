@@ -4,7 +4,7 @@ import { useState } from "react";
 
 import { Download, PlayCircle } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/Badge";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
@@ -18,6 +18,7 @@ type PastClass = {
   topic: string;
   coachName: string;
   startsAt: string;
+  endsAt: string;
   status: string;
   hasRecording: boolean;
 };
@@ -63,7 +64,10 @@ export function PastClasses({ classes }: PastClassesProps) {
                     <span>
                       {c.coachName} · {formatFullDate(c.startsAt, timeZone)}
                     </span>
-                    {c.status === "CANCELLED" ? <Badge variant="secondary">Cancelled</Badge> : null}
+                    {/* Cancelled / Not held — a completed class needs no badge here. */}
+                    {c.status !== "COMPLETED" ? (
+                      <ClassStatusBadge endsAt={c.endsAt} status={c.status} />
+                    ) : null}
                   </p>
                 </div>
 

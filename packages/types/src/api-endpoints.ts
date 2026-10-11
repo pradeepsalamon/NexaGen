@@ -215,7 +215,9 @@ export const API_ROUTES = {
     setDefault: (id: string = ":id") => `/live-class-presets/${id}/default`
   },
   student: {
-    dashboard: "/student/dashboard"
+    dashboard: "/student/dashboard",
+    // One class (details, schedule, coach, own attendance) for an enrolled student.
+    classDetail: (id: string = ":id") => `/student/classes/${id}`
   },
   stockfish: {
     analyze: "/stockfish/analyze",

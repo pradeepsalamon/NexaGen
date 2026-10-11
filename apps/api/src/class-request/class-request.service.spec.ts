@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -45,6 +45,9 @@ describe("ClassRequestService", () => {
     return {
       user: {
         findUnique: jest.fn().mockImplementation(async () => ({ ...actor, status: UserStatus.ACTIVE, timezone: "UTC" }))
+      },
+      batch: {
+        findUnique: jest.fn().mockResolvedValue({ name: "Batch A", startsAt: null, endsAt: null })
       },
       batchCoach: { findFirst: jest.fn().mockResolvedValue({ id: "bc-1" }) },
       coachClass: {
@@ -192,6 +195,17 @@ describe("ClassRequestService", () => {
         endsAt: future(25)
       });
       await expect(service.approve(TOKEN, "req-1", {})).rejects.toBeInstanceOf(ConflictException);
+      expect(prisma.coachClass.create).not.toHaveBeenCalled();
+    });
+
+    it("refuses a class outside the batch's dates (they may have changed since the ask)", async () => {
+      prisma.batch.findUnique.mockResolvedValue({
+        name: "Batch A",
+        startsAt: new Date("2020-01-01T00:00:00.000Z"),
+        endsAt: new Date("2020-01-31T00:00:00.000Z")
+      });
+      await expect(service.approve(TOKEN, "req-1", {})).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.classChangeRequest.updateMany).not.toHaveBeenCalled();
       expect(prisma.coachClass.create).not.toHaveBeenCalled();
     });
 

@@ -16,7 +16,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 type SweepInternals = {
   env: Record<string, unknown>;
-  internalEndClass: (classId: string, sessionId: string, roomName: string) => Promise<void>;
+  internalEndClass: (classId: string, sessionId: string, roomName: string, endedAt?: Date) => Promise<void>;
   sweepStaleClasses: () => Promise<void>;
 };
 
@@ -91,14 +91,27 @@ describe("LiveClassService auto-end sweep", () => {
     expect(endSpy).not.toHaveBeenCalled();
   });
 
-  it("ends the class once the coach has been gone past the grace period", async () => {
+  it("ends the class once the coach has been gone past the grace period, as of when they left", async () => {
+    const leftAt = new Date(Date.now() - 11 * MINUTE);
+    findMany.mockResolvedValue([session({ endsInMs: 30 * MINUTE, coachAbsentSince: leftAt })]);
+
+    await internals.sweepStaleClasses();
+
+    // Attendance is scored against endedAt - startedAt, so the grace minutes
+    // nobody taught must not count.
+    expect(endSpy).toHaveBeenCalledWith("class-1", "session-1", "room-1", leftAt);
+  });
+
+  it("never backdates the end to before the session (re)started", async () => {
+    const leftAt = new Date(Date.now() - 11 * MINUTE);
     findMany.mockResolvedValue([
-      session({ endsInMs: 30 * MINUTE, coachAbsentSince: new Date(Date.now() - 11 * MINUTE) })
+      { ...session({ endsInMs: 30 * MINUTE, coachAbsentSince: leftAt }), startedAt: new Date(Date.now() - 5 * MINUTE) }
     ]);
 
     await internals.sweepStaleClasses();
 
-    expect(endSpy).toHaveBeenCalledWith("class-1", "session-1", "room-1");
+    const endedAt = endSpy.mock.calls[0][3] as Date;
+    expect(endedAt.getTime()).toBeGreaterThan(leftAt.getTime());
   });
 
   it("clears the absence clock when the coach comes back", async () => {
@@ -127,7 +140,9 @@ describe("LiveClassService auto-end sweep", () => {
 
     await internals.sweepStaleClasses();
 
-    expect(endSpy).toHaveBeenCalled();
+    // The coach was still teaching, so it ran until now.
+    const endedAt = endSpy.mock.calls[0][3] as Date;
+    expect(Date.now() - endedAt.getTime()).toBeLessThan(MINUTE);
   });
 
   it("does not treat a LiveKit outage as an empty room", async () => {

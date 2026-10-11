@@ -4,16 +4,18 @@ import { useState } from "react";
 import { Loader2, Play, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { CoachClass } from "@nexa-chess/types";
+import { getClassStartAvailability, type CoachClass } from "@nexa-chess/types";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
 import { Button } from "@/components/ui/Button";
+import { useNow } from "@/hooks/useNow";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatDateTime } from "@/lib/datetime";
+import { formatDateTime, formatRelativeDay, formatTime } from "@/lib/datetime";
 import { useStartLiveClass } from "@/features/live-class/hooks/useLiveClassApi";
 
 // Starting opens the LiveKit room and tells students the class is live, so a
-// misclick on a card days ahead gets a confirmation. Inside this window it is
-// one click, like the class page.
+// start well ahead of time gets a confirmation. Inside this window it is one
+// click, like the class page. (Earlier than CLASS_EARLY_START_MINUTES the
+// server refuses outright, and the button says when it opens.)
 const EARLY_START_CONFIRM_MS = 15 * 60_000;
 
 /**
@@ -25,6 +27,7 @@ export function StartClassButton({ classItem }: { classItem: CoachClass }) {
   const timeZone = useUserTimeZone();
   const start = useStartLiveClass(classItem.id);
   const [confirming, setConfirming] = useState(false);
+  const now = useNow();
 
   if (classItem.status === "LIVE" || classItem.status === "IN_PROGRESS") {
     return (
@@ -39,6 +42,23 @@ export function StartClassButton({ classItem }: { classItem: CoachClass }) {
 
   if (classItem.status !== "SCHEDULED") return null;
 
+  const availability = getClassStartAvailability(classItem, now);
+  if (!availability.canStart) {
+    if (availability.reason !== "TOO_EARLY") return null;
+    const hintId = `start-hint-${classItem.id}`;
+    return (
+      <div className="flex flex-1 flex-col items-stretch gap-1">
+        <Button aria-describedby={hintId} disabled variant="outline">
+          <Play aria-hidden="true" className="size-4" strokeWidth={2.5} />
+          Start Class
+        </Button>
+        <span className="text-center text-xs text-app-muted" id={hintId}>
+          {describeOpensAt(availability.opensAt, timeZone)}
+        </span>
+      </div>
+    );
+  }
+
   const doStart = () =>
     start.mutate(undefined, {
       onSettled: () => setConfirming(false),
@@ -46,7 +66,7 @@ export function StartClassButton({ classItem }: { classItem: CoachClass }) {
     });
 
   const onClick = () => {
-    const early = new Date(classItem.startsAt).getTime() - Date.now() > EARLY_START_CONFIRM_MS;
+    const early = new Date(classItem.startsAt).getTime() - now > EARLY_START_CONFIRM_MS;
     if (early) setConfirming(true);
     else doStart();
   };
@@ -74,4 +94,11 @@ export function StartClassButton({ classItem }: { classItem: CoachClass }) {
       </ConfirmationModal>
     </>
   );
+}
+
+/** "Opens today at 5:30 PM" / "Opens on Friday at 5:30 PM". */
+export function describeOpensAt(opensAt: string | undefined, timeZone: string) {
+  const day = formatRelativeDay(opensAt, timeZone);
+  const when = day === "Today" || day === "Tomorrow" ? day.toLowerCase() : `on ${day}`;
+  return `Opens ${when} at ${formatTime(opensAt, timeZone)}`;
 }

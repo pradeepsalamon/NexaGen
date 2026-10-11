@@ -11,9 +11,11 @@ import {
   PauseCircle,
   PlayCircle
 } from "lucide-react";
-import type {
-  ScheduleCalendarClass,
-  ScheduleOccurrenceActionRequest
+import {
+  isUpcomingClass,
+  resolveClassDisplayStatus,
+  type ScheduleCalendarClass,
+  type ScheduleOccurrenceActionRequest
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -147,10 +149,17 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
     [calData, scheduleId]
   );
 
+  // Sessions still ahead that can be acted on: scheduled (reschedule /
+  // cancel) or cancelled (restore). A missed or past one is history — the
+  // server refuses to move or restore it, so it is not offered here.
   const upcoming = useMemo(
     () =>
       [...scheduleClasses]
-        .filter((c) => c.status === "SCHEDULED" || c.status === "CANCELLED")
+        .filter(
+          (c) =>
+            (c.status === "SCHEDULED" && isUpcomingClass(c)) ||
+            (c.status === "CANCELLED" && new Date(c.startsAt).getTime() > Date.now())
+        )
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
         .slice(0, 40),
     [scheduleClasses]
@@ -288,7 +297,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
           classes={scheduleClasses}
           timezone={schedule.timezone}
           onSelectClass={(cls) => {
-            if (cls.status === "SCHEDULED") setRescheduleTarget(cls);
+            if (resolveClassDisplayStatus(cls) === "SCHEDULED") setRescheduleTarget(cls);
           }}
         />
 

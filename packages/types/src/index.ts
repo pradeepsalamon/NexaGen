@@ -38,6 +38,7 @@ export * from "./chess-appearance";
 export * from "./typography";
 export * from "./batch-type";
 export * from "./chess-fen";
+export * from "./class-availability";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -984,6 +985,15 @@ export const attendanceLogsResponseSchema = z.object({
   joinedAt: z.string().nullable(),
   leftAt: z.string().nullable(),
   scheduledDuration: z.number(),
+  /**
+   * How long the class actually ran (seconds), else the scheduled window — the
+   * same denominator the history row and the attendance % use.
+   */
+  classDuration: z.number(),
+  topic: z.string(),
+  /** Scheduled start, and when the coach actually started (null if unknown). */
+  classStartsAt: z.string(),
+  actualStart: z.string().nullable(),
   totalInterruptions: z.number(),
   longestInterruption: z.number(),
   totalDowntime: z.number(),
@@ -2599,6 +2609,37 @@ export type StudentDashboardUpcomingClass = {
   endsAt: string;
   status: ClassStatus;
 };
+
+/** `GET /student/classes/:id` — one class as an enrolled student sees it. */
+export type StudentClassDetail = {
+  id: string;
+  /** Class title, else the topic, else the batch name — never empty. */
+  title: string;
+  topic: string | null;
+  description: string | null;
+  objectives: string | null;
+  homework: string | null;
+  batchId: string | null;
+  batchName: string | null;
+  batchType: BatchType;
+  coach: { id: string; name: string; avatarUrl: string | null };
+  status: ClassStatus;
+  startsAt: string;
+  endsAt: string;
+  /** When the coach actually opened / closed the room; null until it happened. */
+  actualStartedAt: string | null;
+  actualEndedAt: string | null;
+  sessionNumber: number | null;
+  hasRecording: boolean;
+  /** This student's own attendance, once the class has been scored. */
+  attendance: {
+    status: AttendanceStatusType;
+    attendedSeconds: number;
+    attendancePercent: number;
+  } | null;
+};
+
+export type StudentClassDetailResponse = { class: StudentClassDetail };
 
 // ──────────────────────────────────────────────
 // In-app presence + coach "pull a student into class".

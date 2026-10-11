@@ -15,7 +15,8 @@ import {
   ClassStatus,
 } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
-import { parseDateFilter, tallyAttendance, toCsvCell } from "./attendance-calc.util";
+import { classRunSeconds, parseDateFilter, tallyAttendance, toCsvCell } from "./attendance-calc.util";
+import { zonedDateToUtc, zonedMonthBounds, zonedYmd } from "../common/time";
 import { AttendanceService } from "./attendance.service";
 
 const CLASS_DETAIL_INCLUDE = {
@@ -95,7 +96,7 @@ export class AttendanceReportService {
     }
 
     // Fetch completed classes the student was enrolled in
-    const completedClasses = await this.prisma.coachClass.findMany({
+    const [allCompletedClasses, enrolments] = await Promise.all([this.prisma.coachClass.findMany({
       where: {
         batch: {
           students: { some: { studentId, isDeleted: false } },
@@ -112,6 +113,22 @@ export class AttendanceReportService {
         },
       },
       orderBy: { startsAt: "desc" },
+    }),
+      this.prisma.batchStudent.findMany({
+        where: { studentId },
+        select: { batchId: true, enrolledAt: true },
+      }),
+    ]);
+
+    // A class that ended before the student joined its batch is not one they
+    // missed. Without this a student enrolled mid-term showed every earlier
+    // class as ABSENT — rows with no attendance record behind them, whose
+    // "logs" could only 404. A scored attendance row always counts.
+    const enrolledAt = new Map(enrolments.map((e) => [e.batchId, e.enrolledAt]));
+    const completedClasses = allCompletedClasses.filter((cls) => {
+      if (cls.attendances.length > 0) return true;
+      const since = cls.batchId ? enrolledAt.get(cls.batchId) : undefined;
+      return !since || cls.endsAt > since;
     });
 
     // Calculate stats
@@ -154,14 +171,7 @@ export class AttendanceReportService {
       // How long the class ACTUALLY ran, falling back to the scheduled window.
       // Attendance % is already scored against this; the history row should
       // measure "time present / class length", not "time present / schedule".
-      const classActualDuration =
-        cls.liveSession?.startedAt && cls.liveSession?.endedAt
-          ? Math.floor(
-              (cls.liveSession.endedAt.getTime() -
-                cls.liveSession.startedAt.getTime()) /
-                1000
-            )
-          : scheduledDuration;
+      const classActualDuration = classRunSeconds(cls);
 
       return {
         id: cls.id,
@@ -190,11 +200,13 @@ export class AttendanceReportService {
     const totalLearningHours =
       Math.round((totalLearningSeconds / 3600) * 10) / 10;
 
-    // Monthly & weekly stats
+    // Monthly & weekly stats, on the viewer's calendar — not the server's
+    // (the box runs UTC, so "this month" flipped at 05:30 IST).
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const weekStart = new Date(now);
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const monthStart = zonedMonthBounds(user.timezone, now).start;
+    const today = zonedYmd(user.timezone, now);
+    const weekday = new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay();
+    const weekStart = zonedDateToUtc(user.timezone, today.year, today.month, today.day - weekday);
 
     const monthClasses = completedClasses.filter(
       (c) => c.startsAt >= monthStart
@@ -263,25 +275,55 @@ export class AttendanceReportService {
       throw new ForbiddenException("Not authorized to view this student's logs.");
     }
 
-    const attendance = await this.prisma.classAttendance.findUnique({
-      where: { classId_studentId: { classId, studentId } },
+    const coachClass = await this.prisma.coachClass.findUnique({
+      where: { id: classId },
       include: {
-        logs: { orderBy: { timestamp: "asc" } },
-        class: true,
+        liveSession: { select: { startedAt: true, endedAt: true } },
+        batch: {
+          select: { students: { where: { studentId, isDeleted: false }, select: { id: true } } },
+        },
       },
     });
-
-    if (!attendance) {
-      throw new NotFoundException("Attendance record not found.");
+    if (!coachClass) {
+      throw new NotFoundException("Class not found.");
     }
 
     // Coaches may only read logs for classes they teach
-    if (
-      user.role === UserRole.COACH &&
-      attendance.class.coachId !== user.id
-    ) {
+    if (user.role === UserRole.COACH && coachClass.coachId !== user.id) {
       throw new ForbiddenException("Not authorized to view this student's logs.");
     }
+
+    const found = await this.prisma.classAttendance.findUnique({
+      where: { classId_studentId: { classId, studentId } },
+      include: { logs: { orderBy: { timestamp: "asc" } } },
+    });
+
+    // The history lists every completed class of the student's batch, scored
+    // or not; a row with no attendance record behind it is a no-show and must
+    // open as one — not as a 404. Anyone outside the batch with no record
+    // still gets the 404.
+    const enrolled = (coachClass.batch?.students.length ?? 0) > 0;
+    if (!found && !enrolled) {
+      throw new NotFoundException("Attendance record not found.");
+    }
+    const attendance = found ?? {
+      status: AttendanceStatus.ABSENT,
+      totalDuration: 0,
+      attendancePercent: 0,
+      reconnectCount: 0,
+      joinedAt: null,
+      leftAt: null,
+      logs: [] as Array<{
+        id: string;
+        eventType: AttendanceEventType;
+        timestamp: Date;
+        sessionStart: Date | null;
+        sessionEnd: Date | null;
+        sessionDuration: number | null;
+        reason: string | null;
+        source: string;
+      }>,
+    };
 
     // Calculate interruption stats
     const disconnects = attendance.logs.filter(
@@ -316,13 +358,14 @@ export class AttendanceReportService {
       reconnectCount: attendance.reconnectCount,
       joinedAt: attendance.joinedAt?.toISOString() || null,
       leftAt: attendance.leftAt?.toISOString() || null,
-      scheduledDuration: attendance.class
-        ? Math.floor(
-            (attendance.class.endsAt.getTime() -
-              attendance.class.startsAt.getTime()) /
-              1000
-          )
-        : 0,
+      scheduledDuration: Math.floor(
+        (coachClass.endsAt.getTime() - coachClass.startsAt.getTime()) / 1000
+      ),
+      classDuration: classRunSeconds(coachClass),
+      // Same label and date as the student's history row for this class.
+      topic: coachClass.topic || "Untitled Class",
+      classStartsAt: coachClass.startsAt.toISOString(),
+      actualStart: coachClass.liveSession?.startedAt?.toISOString() ?? null,
       totalInterruptions,
       longestInterruption,
       totalDowntime,

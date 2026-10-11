@@ -19,6 +19,7 @@ const DUE_TOMORROW = () => new Date(Date.now() + 24 * 60 * 60 * 1000).toISOStrin
 // GET exists), so a denial can't pass just because the route itself is broken.
 const CROSS_USER: Case[] = [
   // Student A reaching student B
+  { name: "student opens a class of another batch", as: (w) => w.a.student, path: (w) => API_ROUTES.student.classDetail(w.b.class.id) },
   { name: "student reads another student's progress", as: (w) => w.a.student, path: (w) => API_ROUTES.progress.student(w.b.student.id) },
   { name: "student reads another student's attendance", as: (w) => w.a.student, path: (w) => API_ROUTES.attendance.studentById(w.b.student.id) },
   { name: "student reads another student's invoice", as: (w) => w.a.student, path: (w) => API_ROUTES.invoices.get(w.b.invoice.id) },
@@ -73,6 +74,7 @@ const OWN_CASES: Case[] = [
   { name: "student opens own puzzle set", as: (w) => w.a.student, path: (w) => API_ROUTES.assignments.mineGet(w.a.setStudentAssignment.id) },
   { name: "student reads own puzzle-set leaderboard", as: (w) => w.a.student, path: (w) => API_ROUTES.assignments.leaderboard(w.a.setStudentAssignment.id) },
   { name: "student reads own class chat", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chat(w.a.liveClass.id) },
+  { name: "student opens own class", as: (w) => w.a.student, path: (w) => API_ROUTES.student.classDetail(w.a.class.id) },
   { name: "student reads own class leaderboard", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.puzzleClassLeaderboard(w.a.liveClass.id) },
   { name: "coach reads own batch", as: (w) => w.a.coach, path: (w) => API_ROUTES.batches.get(w.a.batch.id) },
   { name: "coach reads own class details", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.classDetails(w.a.class.id) },
@@ -112,6 +114,7 @@ const WRONG_ROLE: Case[] = [
   { name: "student reads admin invoices", as: (w) => w.a.student, path: () => API_ROUTES.adminInvoices.list },
   { name: "coach reads admin payments", as: (w) => w.a.coach, path: () => API_ROUTES.adminPayments.list },
   { name: "coach reads payroll periods", as: (w) => w.a.coach, path: () => API_ROUTES.adminPayroll.periods },
+  { name: "student reads a class through the coach route", as: (w) => w.a.student, path: (w) => API_ROUTES.coach.getClass(w.a.class.id) },
   { name: "student creates a batch", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.batches.create, body: { name: "x" } },
   { name: "ADMIN opens the trash (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.trash.list },
   { name: "ADMIN lists demo classes (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.admin.demoClasses }

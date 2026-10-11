@@ -39,6 +39,7 @@ import {
   type RecurrenceRuleInput
 } from "./recurrence.util";
 import { authenticateUser } from "../auth/authenticate";
+import { describeBatchDates, isDayWithinBatchDates } from "../common/batch-dates";
 
 type AuthUser = { id: string; role: UserRole; status: UserStatus };
 
@@ -108,6 +109,14 @@ export class BatchScheduleService {
     });
     if (!batch) {
       throw new NotFoundException("Batch not found.");
+    }
+    if (
+      !isDayWithinBatchDates(batch, body.startDate) ||
+      !isDayWithinBatchDates(batch, body.endDate)
+    ) {
+      throw new BadRequestException(
+        `The schedule (${body.startDate} – ${body.endDate}) must fall within the batch's dates (${describeBatchDates(batch)}).`
+      );
     }
 
     if (body.courseId) {
@@ -506,10 +515,15 @@ export class BatchScheduleService {
 
     const schedule = await this.prisma.batchClassSchedule.findUnique({
       where: { id },
-      include: { rules: true }
+      include: { batch: { select: { endsAt: true, startsAt: true } }, rules: true }
     });
     if (!schedule) {
       throw new NotFoundException("Schedule not found.");
+    }
+    if (body.endDate && !isDayWithinBatchDates(schedule.batch, body.endDate)) {
+      throw new BadRequestException(
+        `The new end date must fall within the batch's dates (${describeBatchDates(schedule.batch)}).`
+      );
     }
 
     const nextEndDate = body.endDate
@@ -572,6 +586,25 @@ export class BatchScheduleService {
         generatedCount = await this.regenerateWithin(tx, id);
       } else if (body.endDate && nextEndDate > schedule.endDate) {
         generatedCount = await this.regenerateWithin(tx, id);
+      } else if (body.endDate && nextEndDate < schedule.endDate) {
+        // Shortened: the sessions now past the end were generated for a range
+        // the schedule no longer covers. Cancel (not delete) the ones that have
+        // not happened, like `deactivate` — anything held stays as history.
+        const cut = await tx.coachClass.updateMany({
+          where: {
+            scheduleId: id,
+            status: ClassStatus.SCHEDULED,
+            occurrenceDate: { gt: nextEndDate },
+            startsAt: { gt: new Date() }
+          },
+          data: {
+            status: ClassStatus.CANCELLED,
+            cancelledAt: new Date(),
+            cancelledById: user.id,
+            cancellationReason: "Outside the schedule's new end date"
+          }
+        });
+        cancelledCount = cut.count;
       }
     });
 
@@ -610,7 +643,11 @@ export class BatchScheduleService {
   ): Promise<number> {
     const schedule = await tx.batchClassSchedule.findUniqueOrThrow({
       where: { id: scheduleId },
-      include: { rules: true, exceptions: true }
+      include: {
+        batch: { select: { endsAt: true, startsAt: true } },
+        exceptions: true,
+        rules: true
+      }
     });
 
     if (schedule.status === BatchScheduleStatus.ENDED) {
@@ -643,7 +680,11 @@ export class BatchScheduleService {
     }
 
     const now = Date.now();
-    const future = occurrences.filter((o) => o.startsAt.getTime() > now);
+    // The batch's dates may have narrowed since the schedule was saved; never
+    // top up a session outside them.
+    const future = occurrences.filter(
+      (o) => o.startsAt.getTime() > now && isDayWithinBatchDates(schedule.batch, o.date)
+    );
 
     const existing = await tx.coachClass.findMany({
       where: { scheduleId },
