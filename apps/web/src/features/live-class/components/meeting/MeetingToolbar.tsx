@@ -31,6 +31,7 @@ import { Track } from "livekit-client";
 import { MeetingControlButton } from "./MeetingControlButton";
 import { MoreControlsMenu, type MoreControlItem } from "./MoreControlsMenu";
 import { ReactionPicker } from "./ReactionPicker";
+import { SetupPositionControl } from "./SetupPositionControl";
 import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
@@ -330,6 +331,9 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
           {...extractProps(camera.buttonProps)}
           disabled={cameraLocked || camera.buttonProps.disabled}
         />
+
+        {/* Coach's classroom board only; renders nothing elsewhere. */}
+        {isCoach ? <SetupPositionControl /> : null}
 
         {/* Screen share — unreliable on mobile browsers, desktop only */}
         <div className="hidden sm:block">

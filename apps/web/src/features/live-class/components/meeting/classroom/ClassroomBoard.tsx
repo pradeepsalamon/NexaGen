@@ -26,6 +26,11 @@ import { useBoardShortcuts } from "@/features/chessboard/hooks/useBoardShortcuts
 import { useEngineMove } from "@/features/chessboard/hooks/useEngineMove";
 import { cn } from "@/lib/utils";
 import { useLoadNextPuzzle } from "../../../hooks/useLoadNextPuzzle";
+import {
+  COACH_BOARD_SHORTCUT_KEY,
+  matchCoachBoardShortcut,
+  useCoachBoardActions
+} from "../../../lib/coachBoardShortcuts";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { PuzzleAssignModal } from "../PuzzleAssignModal";
 import { SharePositionDialog } from "../SharePositionDialog";
@@ -34,10 +39,26 @@ import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
 
-/** Board shortcuts plus Space = engine move. */
+/** Board shortcuts plus Space = engine move and S = setup position (also offered to the toolbar). */
 function CoachBoardShortcuts() {
   useBoardShortcuts();
   const { playEngineMove } = useEngineMove();
+  const setIsSetupPositionOpen = useBoardStore((s) => s.setIsSetupPositionOpen);
+
+  useEffect(() => {
+    const openSetup = () => setIsSetupPositionOpen(true);
+    useCoachBoardActions.setState({ openSetup });
+    const onKey = (e: KeyboardEvent) => {
+      if (matchCoachBoardShortcut(e) !== "setup") return;
+      e.preventDefault();
+      openSetup();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      useCoachBoardActions.setState({ openSetup: null });
+    };
+  }, [setIsSetupPositionOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -216,7 +237,14 @@ export function ClassroomBoard({
   );
 }
 
-type MenuItem = { label: string; hint: string; icon: ReactNode; onSelect: () => void; disabled?: boolean };
+type MenuItem = {
+  label: string;
+  hint: string;
+  icon: ReactNode;
+  onSelect: () => void;
+  disabled?: boolean;
+  shortcut?: string;
+};
 
 /**
  * An icon button whose menu opens on hover (mouse) or tap (touch), so the
@@ -300,10 +328,15 @@ function HoverMenuButton({
             className="flex w-full items-start gap-2.5 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-app-soft disabled:pointer-events-none disabled:opacity-50"
           >
             <span className="mt-0.5 text-app-muted">{item.icon}</span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
               <span className="block text-sm font-semibold text-app-text">{item.label}</span>
               <span className="block text-xs text-app-muted">{item.hint}</span>
             </span>
+            {item.shortcut ? (
+              <kbd className="mt-0.5 shrink-0 rounded border border-app-border px-1.5 font-mono text-[11px] font-semibold text-app-muted">
+                {item.shortcut}
+              </kbd>
+            ) : null}
           </button>
         ))}
       </PopoverContent>
@@ -334,6 +367,28 @@ function CoachPuzzleButtons() {
     next: <StepForward className="size-4" strokeWidth={2.5} />
   };
 
+  // > / < share, ] / [ load, / asks about the current position — same actions as the menus.
+  const loadingRef = useRef(loading);
+  loadingRef.current = loading;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const id = matchCoachBoardShortcut(e);
+      if (!id || id === "setup") return;
+      e.preventDefault();
+      if (id === "askCurrent") {
+        setShareCurrentOpen(true);
+        return;
+      }
+      if (loadingRef.current) return;
+      if (id === "shareNext") void share(1);
+      else if (id === "sharePrevious") void share(-1);
+      else if (id === "loadNext") void load(1);
+      else void load(-1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [share, load]);
+
   return (
     <div className="mt-4 flex items-center gap-2 text-app-muted">
       <HoverMenuButton
@@ -342,9 +397,27 @@ function CoachPuzzleButtons() {
         disabled={loading}
         icon={loading ? <Loader2 className="size-4 animate-spin" /> : <PuzzleIcon className="size-4" strokeWidth={2.5} />}
         items={[
-          { label: "Share previous", hint: "The puzzle before, in this folder", icon: stepIcons.previous, onSelect: () => void share(-1) },
-          { label: "Share current", hint: "This board position — edit it first", icon: stepIcons.current, onSelect: () => setShareCurrentOpen(true) },
-          { label: "Share next", hint: "The next puzzle in this folder", icon: stepIcons.next, onSelect: () => void share(1) }
+          {
+            label: "Share previous",
+            hint: "The puzzle before, in this folder",
+            icon: stepIcons.previous,
+            onSelect: () => void share(-1),
+            shortcut: COACH_BOARD_SHORTCUT_KEY.sharePrevious
+          },
+          {
+            label: "Share current",
+            hint: "This board position — edit it first",
+            icon: stepIcons.current,
+            onSelect: () => setShareCurrentOpen(true),
+            shortcut: COACH_BOARD_SHORTCUT_KEY.askCurrent
+          },
+          {
+            label: "Share next",
+            hint: "The next puzzle in this folder",
+            icon: stepIcons.next,
+            onSelect: () => void share(1),
+            shortcut: COACH_BOARD_SHORTCUT_KEY.shareNext
+          }
         ]}
       />
       <HoverMenuButton
@@ -353,7 +426,13 @@ function CoachPuzzleButtons() {
         disabled={loading}
         icon={<ArrowDownToLine className="size-4" strokeWidth={2.5} />}
         items={[
-          { label: "Load previous", hint: "Board only — not shared", icon: stepIcons.previous, onSelect: () => void load(-1) },
+          {
+            label: "Load previous",
+            hint: "Board only — not shared",
+            icon: stepIcons.previous,
+            onSelect: () => void load(-1),
+            shortcut: COACH_BOARD_SHORTCUT_KEY.loadPrevious
+          },
           {
             label: "Load current",
             hint: activePuzzle ? "The puzzle the class is solving" : "No puzzle shared right now",
@@ -361,7 +440,13 @@ function CoachPuzzleButtons() {
             onSelect: () => void loadCurrent(),
             disabled: !activePuzzle
           },
-          { label: "Load next", hint: "Board only — not shared", icon: stepIcons.next, onSelect: () => void load(1) }
+          {
+            label: "Load next",
+            hint: "Board only — not shared",
+            icon: stepIcons.next,
+            onSelect: () => void load(1),
+            shortcut: COACH_BOARD_SHORTCUT_KEY.loadNext
+          }
         ]}
       />
       <SimpleTooltip label="Choose a puzzle to share">
