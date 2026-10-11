@@ -8,7 +8,8 @@ import type {
   SolveLineMoveFeedback,
   StockfishAnalysisResult
 } from "@nexa-chess/types";
-import { Chess, type Square } from "chess.js";
+import { type Square } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import { StockfishService } from "../stockfish/stockfish.service";
 
 const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";

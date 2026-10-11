@@ -82,6 +82,11 @@ export class AssignmentController {
     return this.assignmentService.updateStatus(this.getAccessToken(request), id, body);
   }
 
+  @Get(API_ROUTES.assignments.leaderboard())
+  getLeaderboard(@Param("id") id: string, @Req() request: Request) {
+    return this.assignmentService.puzzleSetLeaderboard(this.getAccessToken(request), id);
+  }
+
   // ── Attempts for evaluated activities (student) ──
 
   @Post(API_ROUTES.assignments.attempts())

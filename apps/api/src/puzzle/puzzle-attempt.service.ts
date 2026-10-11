@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException
 } from "@nestjs/common";
@@ -25,7 +26,7 @@ import type {
 } from "@nexa-chess/types";
 import { parseScoringOverride } from "@nexa-chess/types";
 import { Prisma, PuzzleAttemptContext, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
-import { Chess } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { ANALYTICS_EVENT_TYPES } from "../analytics/analytics-events.constants";
 import {
@@ -33,6 +34,7 @@ import {
   applyUci,
   assertValidFen
 } from "../assignment/assignment-evaluation.service";
+import { AssignmentPuzzleSetService } from "../assignment/assignment-puzzle-set.service";
 import {
   DEFAULT_PAGE_SIZE,
   MAX_PAGE_SIZE,
@@ -60,7 +62,8 @@ export class PuzzleAttemptService {
     private readonly prisma: PrismaService,
     private readonly evaluation: AssignmentEvaluationService,
     private readonly analyticsEvents: AnalyticsEventService,
-    private readonly progress: ProgressRecorderService
+    private readonly progress: ProgressRecorderService,
+    private readonly puzzleSets: AssignmentPuzzleSetService
   ) {}
 
   async listForStudent(
@@ -170,12 +173,20 @@ export class PuzzleAttemptService {
   async start(
     accessToken: string | undefined,
     puzzleId: string,
-    context: { liveClassId?: string; startedAfter?: Date } = {}
+    context: { liveClassId?: string; startedAfter?: Date; studentAssignmentId?: string } = {}
   ): Promise<{ attempt: StartPuzzleAttemptResponse }> {
     const student = assertStudent(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
-    const puzzle = await this.loadSolvable(puzzleId, student);
+    // A puzzle-set assignment grants access to its puzzles and owns the tries
+    // and hints rules; anything else goes through the library's visibility.
+    const studentAssignmentId = context.studentAssignmentId ?? null;
+    const setContext = studentAssignmentId
+      ? await this.puzzleSets.startContext(studentAssignmentId, student.id, puzzleId)
+      : null;
+    const puzzle = setContext
+      ? await this.loadAssigned(puzzleId)
+      : await this.loadSolvable(puzzleId, student);
     const fen = assertValidFen(puzzle.fen);
     const solution = this.solutionFromRow(puzzle.solutionMovesJson);
     const hints = Array.isArray(puzzle.hintsJson)
@@ -192,6 +203,7 @@ export class PuzzleAttemptService {
       studentId: student.id,
       status: "IN_PROGRESS" as const,
       liveClassId,
+      studentAssignmentId,
       ...(context.startedAfter ? { startedAt: { gte: context.startedAfter } } : {})
     };
     const existing = await this.prisma.puzzleAttempt.findFirst({
@@ -211,7 +223,12 @@ export class PuzzleAttemptService {
             studentId: student.id,
             attemptNumber: count + 1,
             liveClassId,
-            context: liveClassId ? PuzzleAttemptContext.LIVE_CLASS : PuzzleAttemptContext.DIRECT
+            studentAssignmentId,
+            context: studentAssignmentId
+              ? PuzzleAttemptContext.ASSIGNMENT
+              : liveClassId
+                ? PuzzleAttemptContext.LIVE_CLASS
+                : PuzzleAttemptContext.DIRECT
           }
         });
       } catch (error) {
@@ -226,6 +243,8 @@ export class PuzzleAttemptService {
         }
         if (!attempt) throw error;
       }
+      // The set's status flips to "In progress" with the first try.
+      if (studentAssignmentId) await this.puzzleSets.refreshRollup(studentAssignmentId);
     }
 
     return {
@@ -235,8 +254,8 @@ export class PuzzleAttemptService {
         orientation: this.sideToMove(fen),
         studentColor: this.sideToMove(fen),
         solutionLength: solution.length,
-        allowHints: true,
-        hintCount: hints.length
+        allowHints: setContext ? setContext.allowHints : true,
+        hintCount: setContext && !setContext.allowHints ? 0 : hints.length
       }
     };
   }
@@ -280,10 +299,10 @@ export class PuzzleAttemptService {
     const student = assertStudent(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
-    const puzzle = await this.loadSolvable(puzzleId, student);
     const attempt = this.assertActive(
       await this.loadOwnedAttempt(puzzleId, attemptId, student.id)
     );
+    const puzzle = await this.loadForAttempt(attempt, student);
     await this.assertLiveAssignmentOpen(attempt, 15_000);
 
     const moves = dto.moves as AttemptMove[];
@@ -336,10 +355,10 @@ export class PuzzleAttemptService {
     const student = assertStudent(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
-    const puzzle = await this.loadSolvable(puzzleId, student);
     const attempt = this.assertActive(
       await this.loadOwnedAttempt(puzzleId, attemptId, student.id)
     );
+    const puzzle = await this.loadForAttempt(attempt, student);
 
     const solution = this.solutionFromRow(puzzle.solutionMovesJson);
     if (solution.length === 0) {
@@ -379,8 +398,11 @@ export class PuzzleAttemptService {
       evalResult.scorePercent
     );
 
-    const persisted = await this.prisma.puzzleAttempt.update({
-      where: { id: attempt.id },
+    // Claimed with a status filter: of two submits racing past assertActive
+    // (a double click, a retried request) only one lands; the other is a 409
+    // instead of a second result, rating change or analytics event.
+    const claimed = await this.prisma.puzzleAttempt.updateMany({
+      where: { id: attempt.id, status: "IN_PROGRESS" },
       data: {
         movesJson: moves as unknown as Prisma.InputJsonValue,
         status: evalResult.solved ? "SOLVED" : "FAILED",
@@ -392,6 +414,21 @@ export class PuzzleAttemptService {
         completedAt: new Date()
       }
     });
+    if (claimed.count === 0) {
+      throw new ConflictException("This attempt has already been submitted.");
+    }
+    const persisted = await this.prisma.puzzleAttempt.findUniqueOrThrow({
+      where: { id: attempt.id }
+    });
+
+    // A set's line stays hidden while the student can still retry it.
+    let revealSolution = true;
+    if (attempt.studentAssignmentId) {
+      await this.puzzleSets.refreshRollup(attempt.studentAssignmentId, { notify: true });
+      revealSolution =
+        evalResult.solved ||
+        (await this.puzzleSets.triesLeft(attempt.studentAssignmentId, puzzle.id)) === 0;
+    }
 
     void this.analyticsEvents.record(
       student.id,
@@ -415,7 +452,7 @@ export class PuzzleAttemptService {
       accuracyPercent: evalResult.accuracyPercent,
       solved: evalResult.solved,
       review: evalResult.review,
-      solutionMoves: solution,
+      solutionMoves: revealSolution ? solution : [],
       bestScorePercent
     };
   }
@@ -429,11 +466,14 @@ export class PuzzleAttemptService {
     const student = assertStudent(
       await authenticateUser(this.jwtService, this.prisma, accessToken)
     );
-    const puzzle = await this.loadSolvable(puzzleId, student);
     const attempt = this.assertActive(
       await this.loadOwnedAttempt(puzzleId, attemptId, student.id)
     );
+    const puzzle = await this.loadForAttempt(attempt, student);
     await this.assertLiveAssignmentOpen(attempt);
+    if (attempt.studentAssignmentId) {
+      await this.puzzleSets.assertHintsAllowed(attempt.studentAssignmentId);
+    }
 
     const solution = this.solutionFromRow(puzzle.solutionMovesJson);
     if (solution.length === 0) {
@@ -499,6 +539,27 @@ export class PuzzleAttemptService {
       });
       if (!visible) throw new NotFoundException("Puzzle not found.");
     }
+    return row;
+  }
+
+  /**
+   * The puzzle behind an attempt the caller already owns. An assignment
+   * attempt was admitted by its set (`startContext`), so it skips the library's
+   * status/visibility check — a puzzle archived after it was assigned stays
+   * solvable for the students who have it.
+   */
+  private async loadForAttempt(attempt: AttemptRow, student: User): Promise<PuzzleRow> {
+    return attempt.studentAssignmentId
+      ? this.loadAssigned(attempt.puzzleId)
+      : this.loadSolvable(attempt.puzzleId, student);
+  }
+
+  private async loadAssigned(puzzleId: string): Promise<PuzzleRow> {
+    const row = await this.prisma.puzzle.findUnique({
+      where: { id: puzzleId },
+      include: puzzleInclude
+    });
+    if (!row) throw new NotFoundException("Puzzle not found.");
     return row;
   }
 

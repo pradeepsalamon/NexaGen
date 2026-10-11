@@ -57,8 +57,31 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
     with move accuracy computed from per-move engine analysis (falls back to
     result-only when the engine pool is offline or the student resigned).
   - `FREE_ANALYSIS` — an open interactive board the student submits when done.
+  - `PUZZLE_SET` — an ordered list of published library puzzles
+    (`AssignmentPuzzle`, up to `MAX_ASSIGNMENT_PUZZLES`), built and reordered in
+    the same form ("Puzzle set"). The student solves them one at a time
+    ("Puzzle 4 of 10") through ordinary server-scored `PuzzleAttempt`s
+    (`context: ASSIGNMENT`, `studentAssignmentId` set): `POST
+    /assignments/mine/:id/puzzles/:puzzleId/attempts` starts/resumes one, then the
+    existing `/puzzles/:id/attempts/*` routes save moves (wrong moves counted
+    server-side), give hints and submit. Points use the live-class engine
+    (`computePuzzlePoints`), each puzzle's scoring frozen onto its row when the
+    set is saved (system → admin default → puzzle → the set's override).
+    **A puzzle counts its best finished try once**, so retries and duplicate
+    submits can't inflate a total; a set is COMPLETED once every puzzle has a
+    finished try. Tries per puzzle = the assignment's `maxAttempts`, hints =
+    `allowHints`; a partial unique index allows one open attempt per student per
+    puzzle (racing starts can't spend two tries), and submit is claimed with a
+    status filter (a second submit is a 409). The solution stays hidden while a
+    try is left. Results are computed on read by `puzzle-set-results.util.ts`
+    and rolled up onto `StudentAssignment` (status / tries / points % / time),
+    so lists, dashboards and reminders work unchanged. Coaches see per-student,
+    per-puzzle results + the ranking in the deployment's results dialog;
+    students get `GET /assignments/mine/:id/leaderboard`, limited server-side by
+    the set's leaderboard options (hidden / after the due date / top N /
+    anonymized) and only ever within their own batch's deployment.
 
-  Evaluated activities (everything but `REPLAY`) record `StudentAssignmentAttempt`
+  Evaluated activities (everything but `REPLAY` and `PUZZLE_SET`) record `StudentAssignmentAttempt`
   rows. The server owns all evaluation (`AssignmentEvaluationService`): legal-move
   validation, correctness, score, accuracy, completion and attempt limits. The
   solution line is never sent to a student before completion. Attempt lifecycle:

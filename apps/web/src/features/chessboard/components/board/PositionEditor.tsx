@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef } from "react";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { Color, MouchEvent, Role } from "chessground/types";
-import type { PieceSetId } from "@nexa-chess/types";
+import { possibleCastlingFlags, type PieceSetId } from "@nexa-chess/types";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -48,6 +48,8 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
   const partsRef = useRef<FenParts>(parseFen(value));
   partsRef.current = parseFen(value);
   const parts = partsRef.current;
+  // A flag only counts while its king and rook stand on their home squares.
+  const canCastle = possibleCastlingFlags(parts.placement);
 
   const emit = useCallback(
     (next: Partial<FenParts>) => {
@@ -168,11 +170,16 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold text-app-text">Castling</legend>
           <div className="grid grid-cols-2 gap-2 text-sm text-app-text">
-            <CastlingBox label="White kingside (O-O)" checked={parts.castling.K} onChange={(c) => setCastling("K", c)} />
-            <CastlingBox label="White queenside (O-O-O)" checked={parts.castling.Q} onChange={(c) => setCastling("Q", c)} />
-            <CastlingBox label="Black kingside (O-O)" checked={parts.castling.k} onChange={(c) => setCastling("k", c)} />
-            <CastlingBox label="Black queenside (O-O-O)" checked={parts.castling.q} onChange={(c) => setCastling("q", c)} />
+            <CastlingBox label="White kingside (O-O)" possible={canCastle.K} checked={parts.castling.K} onChange={(c) => setCastling("K", c)} />
+            <CastlingBox label="White queenside (O-O-O)" possible={canCastle.Q} checked={parts.castling.Q} onChange={(c) => setCastling("Q", c)} />
+            <CastlingBox label="Black kingside (O-O)" possible={canCastle.k} checked={parts.castling.k} onChange={(c) => setCastling("k", c)} />
+            <CastlingBox label="Black queenside (O-O-O)" possible={canCastle.q} checked={parts.castling.q} onChange={(c) => setCastling("q", c)} />
           </div>
+          {!(canCastle.K && canCastle.Q && canCastle.k && canCastle.q) && (
+            <p className="text-xs text-app-muted">
+              Castling needs the king on e1/e8 and that rook on its corner square.
+            </p>
+          )}
         </fieldset>
 
         <div className="flex flex-wrap gap-4">
@@ -281,16 +288,20 @@ function SpareRow({
 
 function CastlingBox({
   label,
+  possible,
   checked,
   onChange,
 }: {
   label: string;
+  /** False while the king or rook is off its home square: shown unticked and locked. */
+  possible: boolean;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
   return (
     <Checkbox
-      checked={checked}
+      checked={possible && checked}
+      disabled={!possible}
       id={`castling-${label.replace(/\W+/g, "-").toLowerCase()}`}
       label={label}
       onCheckedChange={(next) => onChange(next === true)}

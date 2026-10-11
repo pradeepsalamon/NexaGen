@@ -1,5 +1,5 @@
 import type { AttemptMove, SolutionMove } from "@nexa-chess/types";
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 
 export type SolverColor = "white" | "black";
 

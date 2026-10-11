@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { lichessTheme } from "@nexa-chess/types";
-import { Chess } from "chess.js";
+import { Chess } from "../../common/chess/chess";
 import { puzzleContentHash } from "../puzzle-content-hash";
 
 /**

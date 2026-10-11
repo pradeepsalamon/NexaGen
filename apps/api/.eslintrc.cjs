@@ -16,6 +16,20 @@ module.exports = {
   root: true,
   rules: {
     "@typescript-eslint/no-explicit-any": "warn",
+    // chess.js trusts a FEN's castling field; common/chess/chess.ts drops the
+    // rights a position can't support before every load.
+    "no-restricted-imports": [
+      "error",
+      {
+        paths: [
+          {
+            name: "chess.js",
+            importNames: ["Chess"],
+            message: "Import Chess from common/chess/chess — it drops castling rights the position can't support."
+          }
+        ]
+      }
+    ],
     "@typescript-eslint/no-unused-vars": [
       "warn",
       { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }
@@ -36,6 +50,10 @@ module.exports = {
     ]
   },
   overrides: [
+    {
+      files: ["src/common/chess/chess.ts"],
+      rules: { "no-restricted-imports": "off" }
+    },
     {
       // Offset-probe helper — legitimately compares the same instant rendered
       // in two zones, both passed explicitly.

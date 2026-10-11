@@ -1,4 +1,5 @@
-import { Chess } from "chess.js";
+import { sanitizeCastlingRights } from "@nexa-chess/types";
+import { Chess } from "@/lib/chess";
 
 // FEN helpers shared by the reusable position editor and its consumers.
 // Pure — no React, no chessground, no LiveKit.
@@ -44,6 +45,9 @@ export function parseFen(fen: string): FenParts {
   };
 }
 
+// Drops any castling flag whose king or rook is off its home square, so the
+// editor's FEN never claims a right the placement can't support (a king
+// dragged from e1 to e4 must not keep "K" and be offered O-O from there).
 export function composeFen(parts: FenParts): string {
   const castling =
     (parts.castling.K ? "K" : "") +
@@ -51,14 +55,16 @@ export function composeFen(parts: FenParts): string {
     (parts.castling.k ? "k" : "") +
     (parts.castling.q ? "q" : "");
 
-  return [
-    parts.placement,
-    parts.turn,
-    castling || "-",
-    parts.enPassant || "-",
-    parts.halfMove || "0",
-    parts.fullMove || "1",
-  ].join(" ");
+  return sanitizeCastlingRights(
+    [
+      parts.placement,
+      parts.turn,
+      castling || "-",
+      parts.enPassant || "-",
+      parts.halfMove || "0",
+      parts.fullMove || "1",
+    ].join(" "),
+  );
 }
 
 export function validateFen(fen: string): { ok: true } | { ok: false; error: string } {

@@ -128,6 +128,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.assignmentBatch;
   }
 
+  get assignmentPuzzle() {
+    return this.client.assignmentPuzzle;
+  }
+
   get studentAssignment() {
     return this.client.studentAssignment;
   }

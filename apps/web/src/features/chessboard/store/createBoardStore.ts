@@ -1,5 +1,6 @@
 import { createStore } from "zustand";
-import { Chess, Move } from "chess.js";
+import { Move } from "chess.js";
+import { Chess } from "@/lib/chess";
 import { BoardControlSide, BoardPermissionMode, ClockState } from "../types/sync";
 import { playSound, SoundType } from "../audio/sounds";
 import {

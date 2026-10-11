@@ -31,7 +31,7 @@ import {
   type PuzzleScoringOverride
 } from "@nexa-chess/types";
 import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
-import { Chess } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import {
   AssignmentEvaluationService,
   assertValidFen

@@ -28,7 +28,7 @@ import {
   SimulSide,
   UserRole
 } from "@prisma/client";
-import { Chess } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";

@@ -8,6 +8,7 @@ import { StockfishModule } from "../stockfish/stockfish.module";
 import { UploadModule } from "../upload/upload.module";
 import { AssignmentAttemptService } from "./assignment-attempt.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
+import { AssignmentPuzzleSetService } from "./assignment-puzzle-set.service";
 import { AssignmentController } from "./assignment.controller";
 import { AssignmentService } from "./assignment.service";
 import { MessagingModule } from "../messaging/messaging.module";
@@ -24,7 +25,12 @@ import { MessagingModule } from "../messaging/messaging.module";
     StockfishModule,
     UploadModule
   ],
-  providers: [AssignmentService, AssignmentAttemptService, AssignmentEvaluationService],
-  exports: [AssignmentEvaluationService]
+  providers: [
+    AssignmentService,
+    AssignmentAttemptService,
+    AssignmentEvaluationService,
+    AssignmentPuzzleSetService
+  ],
+  exports: [AssignmentEvaluationService, AssignmentPuzzleSetService]
 })
 export class AssignmentModule {}

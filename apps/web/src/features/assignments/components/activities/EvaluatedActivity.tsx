@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 import type {
   AssignmentEvaluationResult,
   AttemptMove,

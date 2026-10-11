@@ -5,7 +5,8 @@ import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
 import type { DrawShape } from "chessground/draw";
 import type { Color, Key } from "chessground/types";
-import { Chess, type Square } from "chess.js";
+import { type Square } from "chess.js";
+import { Chess } from "@/lib/chess";
 import { cn } from "@/lib/utils";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
 

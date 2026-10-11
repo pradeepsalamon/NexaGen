@@ -82,6 +82,7 @@ export const queryKeys = {
     mine: ["assignments", "mine"] as const,
     mineItem: (id: string) => ["assignments", "mine", id] as const,
     mineAttempts: (id: string) => ["assignments", "mine", id, "attempts"] as const,
+    mineLeaderboard: (id: string) => ["assignments", "mine", id, "leaderboard"] as const,
   },
   puzzles: {
     all: ["puzzles"] as const,

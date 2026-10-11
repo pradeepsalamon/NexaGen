@@ -27,6 +27,10 @@ const CROSS_USER: Case[] = [
   { name: "student opens another coach's private puzzle", as: (w) => w.a.student, path: (w) => API_ROUTES.puzzles.mineGet(w.b.privatePuzzle.id) },
   { name: "student opens another student's assignment", as: (w) => w.a.student, path: (w) => API_ROUTES.assignments.mineGet(w.b.studentAssignment.id) },
   { name: "student starts an attempt on another student's assignment", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.assignments.attempts(w.b.studentAssignment.id) },
+  { name: "student starts a puzzle of another student's puzzle set", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.assignments.puzzleAttempts(w.b.setStudentAssignment.id, w.b.privatePuzzle.id) },
+  { name: "student starts a puzzle of their own set that is not in it", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.assignments.puzzleAttempts(w.a.setStudentAssignment.id, w.b.privatePuzzle.id) },
+  { name: "student reads another student's puzzle-set leaderboard", as: (w) => w.a.student, path: (w) => API_ROUTES.assignments.leaderboard(w.b.setStudentAssignment.id) },
+  { name: "coach reads another coach's puzzle-set results", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.deployment(w.b.setDeployment.id) },
   // Coach A reaching coach B
   { name: "coach reads a student outside their batches (progress)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.student(w.b.student.id) },
   { name: "coach reads another coach's class", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.getClass(w.b.class.id) },
@@ -66,6 +70,8 @@ const OWN_CASES: Case[] = [
   { name: "student opens own coach's private puzzle", as: (w) => w.a.student, path: (w) => API_ROUTES.puzzles.mineGet(w.a.privatePuzzle.id) },
   { name: "student reads own puzzle attempt", as: (w) => w.a.student, path: (w) => API_ROUTES.puzzles.attempt(w.a.privatePuzzle.id, w.a.attempt.id) },
   { name: "student opens own assignment", as: (w) => w.a.student, path: (w) => API_ROUTES.assignments.mineGet(w.a.studentAssignment.id) },
+  { name: "student opens own puzzle set", as: (w) => w.a.student, path: (w) => API_ROUTES.assignments.mineGet(w.a.setStudentAssignment.id) },
+  { name: "student reads own puzzle-set leaderboard", as: (w) => w.a.student, path: (w) => API_ROUTES.assignments.leaderboard(w.a.setStudentAssignment.id) },
   { name: "student reads own class chat", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chat(w.a.liveClass.id) },
   { name: "student reads own class leaderboard", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.puzzleClassLeaderboard(w.a.liveClass.id) },
   { name: "coach reads own batch", as: (w) => w.a.coach, path: (w) => API_ROUTES.batches.get(w.a.batch.id) },
@@ -77,6 +83,7 @@ const OWN_CASES: Case[] = [
   { name: "coach reads own payroll record", as: (w) => w.a.coach, path: (w) => API_ROUTES.payroll.record(w.a.payrollRecord.id) },
   { name: "coach reads own assignment", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.get(w.a.assignment.id) },
   { name: "coach reads own deployment", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.deployment(w.a.deployment.id) },
+  { name: "coach reads own puzzle-set results", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.deployment(w.a.setDeployment.id) },
   { name: "coach lists own batch's students for a manual payment", as: (w) => w.a.coach, path: (w) => API_ROUTES.payments.manual.batchStudents(w.a.batch.id) },
   { name: "coach reads own class pull roster", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.pullRoster(w.a.liveClass.id) },
   { name: "coach reads own class simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.a.liveClass.id) }
@@ -158,7 +165,9 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(klass.notes).not.toBe("hijacked");
     expect((await t.prisma.puzzle.findUnique({ where: { id: b.privatePuzzle.id } }))?.title).toBe("Private B");
     expect((await t.prisma.assignment.findUnique({ where: { id: b.assignment.id } }))?.title).toBe("Homework B");
-    expect(await t.prisma.assignmentBatch.count({ where: { batchId: b.batch.id } })).toBe(1);
+    // The homework + the puzzle set; no third deployment reached B's batch.
+    expect(await t.prisma.assignmentBatch.count({ where: { batchId: b.batch.id } })).toBe(2);
+    expect(await t.prisma.puzzleAttempt.count({ where: { studentAssignmentId: { not: null } } })).toBe(0);
     expect(await t.prisma.liveSession.findUnique({ where: { classId: b.liveClass.id } })).toMatchObject({ status: "LIVE" });
     expect(await t.prisma.liveChatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
   });

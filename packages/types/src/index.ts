@@ -1,5 +1,17 @@
 import { z } from "zod";
 import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
+import {
+  MAX_ASSIGNMENT_PUZZLES,
+  type AssignmentPuzzleSetResults,
+  type AssignmentSetPuzzle,
+  type StudentPuzzleSetProgress
+} from "./assignment-puzzle-set";
+import {
+  puzzleLeaderboardOverrideSchema,
+  puzzleScoringOverrideSchema,
+  type PuzzleLeaderboardOverride,
+  type PuzzleScoringOverride
+} from "./puzzle-scoring";
 
 import {
   liveClassSettingsOverrideSchema,
@@ -25,6 +37,7 @@ export * from "./health";
 export * from "./chess-appearance";
 export * from "./typography";
 export * from "./batch-type";
+export * from "./chess-fen";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -1728,7 +1741,8 @@ export const assignmentActivityTypeSchema = z.enum([
   "REPLAY",
   "SOLVE_LINE",
   "PLAY_VS_ENGINE",
-  "FREE_ANALYSIS"
+  "FREE_ANALYSIS",
+  "PUZZLE_SET"
 ]);
 export type AssignmentActivityType = z.infer<typeof assignmentActivityTypeSchema>;
 
@@ -1797,7 +1811,14 @@ const assignmentActivityConfigShape = {
   maxAttempts: z.number().int().min(1).max(50).nullable().optional(),
   allowHints: z.boolean().optional(),
   allowRetry: z.boolean().optional(),
-  requiredCompletionPercent: z.number().int().min(1).max(100).optional()
+  requiredCompletionPercent: z.number().int().min(1).max(100).optional(),
+  // ── PUZZLE_SET ──
+  /** Library puzzle ids, in the order the student solves them. */
+  puzzleIds: z.array(z.string().min(1)).max(MAX_ASSIGNMENT_PUZZLES).optional(),
+  /** Points override for every puzzle in the set (on top of the admin default + each puzzle's own). */
+  scoring: puzzleScoringOverrideSchema.optional(),
+  /** Who sees the set's leaderboard; AFTER_END means after the due date. */
+  leaderboard: puzzleLeaderboardOverrideSchema.optional()
 };
 
 type ActivityConfigInput = {
@@ -1805,6 +1826,7 @@ type ActivityConfigInput = {
   pgn?: string;
   startFen?: string;
   solutionMoves?: SolutionMove[];
+  puzzleIds?: string[];
 };
 
 function refineActivityConfig(
@@ -1818,6 +1840,25 @@ function refineActivityConfig(
   if (type === "REPLAY") {
     if (requirePgn && !v.pgn?.trim()) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pgn"], message: "PGN is required." });
+    }
+    return;
+  }
+
+  if (type === "PUZZLE_SET") {
+    // On update the set may be left as is; when it is sent it must be usable.
+    if (v.puzzleIds === undefined ? requirePgn : v.puzzleIds.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["puzzleIds"],
+        message: "Add at least one puzzle."
+      });
+    }
+    if (v.puzzleIds && new Set(v.puzzleIds).size !== v.puzzleIds.length) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["puzzleIds"],
+        message: "A puzzle can only appear once in a set."
+      });
     }
     return;
   }
@@ -1949,6 +1990,11 @@ export type AssignmentLibraryItem = AssignmentActivityConfig & {
   solutionMoves: SolutionMove[] | null;
   /** aggregate performance across every deployment (staff view). */
   performance: AssignmentPerformanceSummary | null;
+  /** PUZZLE_SET only: the puzzles in order (never their solutions). */
+  puzzles: AssignmentSetPuzzle[] | null;
+  /** PUZZLE_SET only: the author's points / leaderboard overrides as saved. */
+  scoring: PuzzleScoringOverride | null;
+  leaderboard: PuzzleLeaderboardOverride | null;
   createdAt: string;
 };
 
@@ -1989,6 +2035,9 @@ export type AssignmentDeployment = {
   dueDate: string;
   createdAt: string;
   stats: AssignmentDeploymentStats;
+  activityType: AssignmentActivityType;
+  /** PUZZLE_SET only; null otherwise. */
+  puzzleCount: number | null;
 };
 
 export type AssignmentDeploymentListResponse = {
@@ -2012,8 +2061,9 @@ export type AssignmentDeploymentDetail = AssignmentDeployment & {
   description: string | null;
   pgn: string;
   pgnUrl: string | null;
-  activityType: AssignmentActivityType;
   submissions: AssignmentSubmission[];
+  /** PUZZLE_SET only: per-student, per-puzzle results + the ranking. */
+  puzzleSet: AssignmentPuzzleSetResults | null;
 };
 
 export type AssignmentDeploymentDetailResponse = {
@@ -2045,6 +2095,8 @@ export type StudentAssignmentItem = AssignmentActivityConfig & {
   solutionLength: number | null;
   /** the expected line — ONLY populated once the student has completed it. */
   solutionMoves: SolutionMove[] | null;
+  /** PUZZLE_SET only: the set and the student's own progress through it. */
+  puzzleSet: StudentPuzzleSetProgress | null;
 };
 
 export type StudentAssignmentListResponse = {
@@ -2462,6 +2514,7 @@ export * from "./live-class-move-poll";
 // Course library (depends on ./puzzle + Assignment types above)
 // ──────────────────────────────────────────────
 export * from "./course";
+export * from "./assignment-puzzle-set";
 
 // ──────────────────────────────────────────────
 // Admin messaging rules + announcements (kept in its own module)

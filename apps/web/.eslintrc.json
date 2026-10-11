@@ -11,6 +11,18 @@
         "selector": "CallExpression[callee.object.type='NewExpression'][callee.object.callee.name='Date'][callee.property.name='toLocaleString']",
         "message": "Don't format a Date with .toLocaleString() — it renders in the machine's zone. Use lib/datetime.ts helpers with useUserTimeZone(). See CLAUDE.md §3.6."
       }
+    ],
+    "no-restricted-imports": [
+      "error",
+      {
+        "paths": [
+          {
+            "name": "chess.js",
+            "importNames": ["Chess"],
+            "message": "Import Chess from @/lib/chess — it drops castling rights the position can't support (a stale KQkq from a set-up position would otherwise offer O-O from a mid-board king)."
+          }
+        ]
+      }
     ]
   },
   "overrides": [
@@ -21,6 +33,10 @@
         "src/features/batch-schedules/lib/scheduleFormat.ts"
       ],
       "rules": { "no-restricted-syntax": "off" }
+    },
+    {
+      "files": ["src/lib/chess.ts"],
+      "rules": { "no-restricted-imports": "off" }
     }
   ]
 }

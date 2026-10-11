@@ -9,12 +9,14 @@ import type {
   AttemptProgressResponse,
   CreateAssignmentRequest,
   DeployAssignmentRequest,
+  PuzzleSetLeaderboardResponse,
   RequestEngineMoveRequest,
   RequestEngineMoveResponse,
   SaveAttemptProgressRequest,
   SolveLineHint,
   SolveLineHintRequest,
   StartAttemptResponse,
+  StartPuzzleAttemptResponse,
   StudentAssignmentDetailResponse,
   StudentAssignmentListResponse,
   SubmitAttemptRequest,
@@ -141,4 +143,18 @@ export function getSolveLineHint(
     method: "POST",
     body: data
   });
+}
+
+// ── Puzzle sets (student) ──
+
+/** Starts or resumes one puzzle of a set; moves / hints / submit use the puzzle attempt routes. */
+export function startAssignmentPuzzleAttempt(
+  assignmentId: string,
+  puzzleId: string
+): Promise<{ attempt: StartPuzzleAttemptResponse }> {
+  return apiFetch(API_ROUTES.assignments.puzzleAttempts(assignmentId, puzzleId), { method: "POST" });
+}
+
+export function getAssignmentLeaderboard(assignmentId: string): Promise<PuzzleSetLeaderboardResponse> {
+  return apiFetch(API_ROUTES.assignments.leaderboard(assignmentId));
 }

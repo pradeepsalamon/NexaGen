@@ -16,6 +16,7 @@ import {
   getAssignmentDeployments,
   getAssignmentLibrary,
   getAssignmentLibraryItem,
+  getAssignmentLeaderboard,
   getAttemptHistory,
   getMyAssignment,
   getMyAssignments,
@@ -103,6 +104,15 @@ export function useMyAssignment(id: string) {
     queryKey: queryKeys.assignments.mineItem(id),
     queryFn: () => getMyAssignment(id),
     enabled: !!id
+  });
+}
+
+/** A puzzle set's leaderboard, as this student may see it (filtered server-side). */
+export function useAssignmentLeaderboard(id: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.assignments.mineLeaderboard(id),
+    queryFn: () => getAssignmentLeaderboard(id),
+    enabled: !!id && enabled
   });
 }
 

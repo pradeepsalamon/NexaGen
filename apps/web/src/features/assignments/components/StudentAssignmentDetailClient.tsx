@@ -17,6 +17,7 @@ import {
 import { EvaluatedActivity } from "./activities/EvaluatedActivity";
 import { PgnBoardViewer } from "./PgnBoardViewer";
 import { ActivityBadge, DifficultyBadge, DueBadge, StatusBadge } from "./assignmentBadges";
+import { StudentPuzzleSet } from "./puzzle-set/StudentPuzzleSet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
@@ -82,6 +83,15 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
       <div className="space-y-5 pb-10 animate-fade-in">
         {header}
         <ReplayActivity assignment={assignment} />
+      </div>
+    );
+  }
+
+  if (assignment.activityType === "PUZZLE_SET") {
+    return (
+      <div className="space-y-5 pb-10 animate-fade-in">
+        {header}
+        <StudentPuzzleSet assignment={assignment} />
       </div>
     );
   }

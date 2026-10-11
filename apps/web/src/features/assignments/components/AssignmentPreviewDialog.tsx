@@ -1,6 +1,12 @@
 "use client";
 
-import type { AssignmentLibraryItem, StudentAssignmentItem } from "@nexa-chess/types";
+import type {
+  AssignmentLibraryItem,
+  AssignmentSetPuzzle,
+  StudentAssignmentItem
+} from "@nexa-chess/types";
+import { Badge } from "@/components/ui/Badge";
+import { PUZZLE_DIFFICULTY_LABELS } from "@/features/puzzles/lib/puzzleMeta";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +21,7 @@ import { ActivityBadge, DifficultyBadge } from "./assignmentBadges";
 type PreviewAssignment = Pick<
   AssignmentLibraryItem | StudentAssignmentItem,
   "title" | "description" | "pgn" | "difficulty" | "pgnUrl" | "activityType"
-> & { id?: string };
+> & { id?: string; puzzles?: AssignmentSetPuzzle[] | null };
 
 interface Props {
   open: boolean;
@@ -64,7 +70,11 @@ export function AssignmentPreviewDialog({ open, onOpenChange, assignment }: Prop
           </div>
         )}
 
-        {assignment && <PgnBoardViewer pgn={assignment.pgn} />}
+        {assignment?.activityType === "PUZZLE_SET" ? (
+          <PuzzleList puzzles={data?.assignment.puzzles ?? assignment.puzzles ?? []} />
+        ) : (
+          assignment && <PgnBoardViewer pgn={assignment.pgn} />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -75,6 +85,41 @@ function PerfStat({ label, value }: { label: string; value: string }) {
     <div className="rounded-app border border-app-border bg-app-background/50 p-2 text-center">
       <p className="text-[10px] uppercase tracking-wide text-app-muted">{label}</p>
       <p className="text-base font-bold text-app-text">{value}</p>
+    </div>
+  );
+}
+
+function PuzzleList({ puzzles }: { puzzles: AssignmentSetPuzzle[] }) {
+  if (puzzles.length === 0) {
+    return <p className="py-4 text-center text-sm text-app-muted">This set has no puzzles.</p>;
+  }
+  const maxPoints = puzzles.reduce((sum, p) => sum + p.maxPoints, 0);
+  return (
+    <div className="space-y-2">
+      <p className="text-sm text-app-muted">
+        {puzzles.length} puzzle{puzzles.length === 1 ? "" : "s"}, solved in this order · up to {maxPoints} points
+      </p>
+      <ol className="space-y-1.5">
+        {puzzles.map((p) => (
+          <li
+            key={p.puzzleId}
+            className="flex items-center gap-3 rounded-control border border-app-border bg-app-surface p-2.5"
+          >
+            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-app-soft text-xs font-bold text-app-text">
+              {p.position + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-app-text">{p.title}</p>
+              <p className="truncate text-xs text-app-muted">
+                {p.sideToMove === "white" ? "White" : "Black"} to move · {p.solutionLength}-move line
+                {p.topicName ? ` · ${p.topicName}` : ""}
+              </p>
+            </div>
+            <Badge variant="outline">{PUZZLE_DIFFICULTY_LABELS[p.difficulty]}</Badge>
+            <span className="shrink-0 text-xs font-semibold text-app-text">{p.maxPoints} pts</span>
+          </li>
+        ))}
+      </ol>
     </div>
   );
 }

@@ -119,6 +119,20 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     data: { assignmentBatchId: deployment.id, studentId: student.id }
   });
 
+  // A puzzle-set assignment holding the coach's private puzzle.
+  const puzzleSet = await prisma.assignment.create({
+    data: { activityType: "PUZZLE_SET", createdById: coach.id, pgn: "*", title: `Puzzle set ${label}` }
+  });
+  await prisma.assignmentPuzzle.create({
+    data: { assignmentId: puzzleSet.id, position: 0, puzzleId: privatePuzzle.id, scoringJson: {} }
+  });
+  const setDeployment = await prisma.assignmentBatch.create({
+    data: { assignedById: coach.id, assignmentId: puzzleSet.id, batchId: batch.id, dueDate: new Date(Date.now() + 24 * HOUR) }
+  });
+  const setStudentAssignment = await prisma.studentAssignment.create({
+    data: { assignmentBatchId: setDeployment.id, studentId: student.id }
+  });
+
   return {
     assignment,
     attempt,
@@ -131,6 +145,8 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     order,
     payrollRecord,
     privatePuzzle,
+    setDeployment,
+    setStudentAssignment,
     student,
     studentAssignment
   };

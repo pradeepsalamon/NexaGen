@@ -19,7 +19,7 @@ import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { AssignmentSubmissionsDialog } from "./AssignmentSubmissionsDialog";
 import { DeployAssignmentDialog } from "./DeployAssignmentDialog";
-import { DifficultyBadge, DueBadge } from "./assignmentBadges";
+import { ActivityBadge, DifficultyBadge, DueBadge } from "./assignmentBadges";
 import { Badge } from "@/components/ui/Badge";
 
 const iconBtn =
@@ -126,6 +126,9 @@ export function CoachAssignmentsClient() {
                     </button>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {item.activityType === "PUZZLE_SET" && (
+                      <ActivityBadge activityType={item.activityType} />
+                    )}
                     <DifficultyBadge difficulty={item.difficulty} />
                     {item.isLibrary && (
                       <Badge variant="outline">
@@ -133,6 +136,7 @@ export function CoachAssignmentsClient() {
                       </Badge>
                     )}
                     <span className="text-xs text-app-muted">
+                      {item.puzzles ? `${item.puzzles.length} puzzles · ` : ""}
                       {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
                     </span>
                   </div>
@@ -203,6 +207,9 @@ export function CoachAssignmentsClient() {
                     <p className="font-semibold text-app-text">{d.title}</p>
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="font-medium text-app-muted">{d.batchName}</span>
+                      {d.puzzleCount !== null && (
+                        <span className="text-app-muted">{d.puzzleCount} puzzles</span>
+                      )}
                       <DueBadge dueDate={d.dueDate} formatted={formatFullDate(d.dueDate, timeZone)} />
                       <span className="text-app-muted">
                         {d.stats.completed}/{d.stats.total} completed
@@ -211,7 +218,7 @@ export function CoachAssignmentsClient() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Button
-                      aria-label="View submissions"
+                      aria-label={d.activityType === "PUZZLE_SET" ? "View results & leaderboard" : "View submissions"}
                       variant="outline"
                       size="icon"
                       className={iconBtn}

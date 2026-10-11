@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import type {
-  AssignmentActivityType,
-  AssignmentLibraryItem,
-  CoachBatch,
-  CreateAssignmentRequest,
-  SolutionMove,
-  UpdateAssignmentRequest
+import {
+  resolvePuzzleLeaderboard,
+  resolvePuzzleScoring,
+  type AssignmentActivityType,
+  type AssignmentLibraryItem,
+  type CoachBatch,
+  type CreateAssignmentRequest,
+  type PuzzleLeaderboardOverride,
+  type PuzzleScoringOverride,
+  type SolutionMove,
+  type UpdateAssignmentRequest
 } from "@nexa-chess/types";
-import { Upload } from "lucide-react";
+import { ChevronDown, Trophy, Upload } from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { DatePicker } from "@/components/ui/DatePicker";
@@ -33,8 +38,31 @@ import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
 import { SolutionEditor } from "./SolutionEditor";
 import { Switch } from "@/components/ui/Switch";
+import {
+  PuzzleLeaderboardFields,
+  PuzzleScoringFields,
+  PuzzleScoringPreview
+} from "@/features/puzzles/components/scoring/PuzzleScoringFields";
+import { usePuzzleScoringSettings } from "@/features/puzzles/hooks/usePuzzlesApi";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { PuzzleSetEditor, type SelectedSetPuzzle } from "./puzzle-set/PuzzleSetEditor";
 
 function toUpdatePayload(assignment: AssignmentLibraryItem): UpdateAssignmentRequest {
+  if (assignment.activityType === "PUZZLE_SET") {
+    return {
+      title: assignment.title,
+      description: assignment.description,
+      difficulty: assignment.difficulty,
+      timeLimitMinutes: assignment.timeLimitMinutes ?? undefined,
+      activityType: "PUZZLE_SET",
+      puzzleIds: (assignment.puzzles ?? []).map((p) => p.puzzleId),
+      scoring: assignment.scoring ?? {},
+      leaderboard: assignment.leaderboard ?? {},
+      maxAttempts: assignment.maxAttempts,
+      allowHints: assignment.allowHints,
+      allowRetry: assignment.allowRetry
+    };
+  }
   return {
     title: assignment.title,
     description: assignment.description,
@@ -72,6 +100,10 @@ type FormValues = {
   passThresholdPercent: string;
   allowRetry: boolean;
   allowHints: boolean;
+  puzzles: SelectedSetPuzzle[];
+  /** Only the fields the author changed; the rest inherit (admin default → each puzzle's own). */
+  scoring: PuzzleScoringOverride;
+  leaderboard: PuzzleLeaderboardOverride;
 };
 
 const DIFFICULTY_OPTIONS = [
@@ -84,7 +116,8 @@ const ACTIVITY_OPTIONS = [
   { label: "Study PGN", value: "REPLAY" },
   { label: "Solve position", value: "SOLVE_LINE" },
   { label: "Play vs engine", value: "PLAY_VS_ENGINE" },
-  { label: "Free analysis", value: "FREE_ANALYSIS" }
+  { label: "Free analysis", value: "FREE_ANALYSIS" },
+  { label: "Puzzle set (several puzzles)", value: "PUZZLE_SET" }
 ];
 
 const ENGINE_LEVELS = [
@@ -111,7 +144,10 @@ const DEFAULTS: FormValues = {
   maxAttempts: "3",
   passThresholdPercent: "100",
   allowRetry: true,
-  allowHints: false
+  allowHints: false,
+  puzzles: [],
+  scoring: {},
+  leaderboard: {}
 };
 
 interface Props {
@@ -166,6 +202,9 @@ export function AssignmentFormDialog({
   });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [assignNow, setAssignNow] = useState(false);
+  const [pointsOpen, setPointsOpen] = useState(false);
+  // An admin's set is a shared library item, so it may hold global puzzles only.
+  const isAdmin = isStaffRole(useAuthStore((state) => state.user?.role));
 
   const form = useForm<FormValues>({ defaultValues: DEFAULTS });
 
@@ -188,7 +227,15 @@ export function AssignmentFormDialog({
         maxAttempts: assignment.maxAttempts ? String(assignment.maxAttempts) : "",
         passThresholdPercent: String(assignment.passThresholdPercent ?? 100),
         allowRetry: assignment.allowRetry,
-        allowHints: assignment.allowHints
+        allowHints: assignment.allowHints,
+        puzzles: (assignment.puzzles ?? []).map((p) => ({
+          difficulty: p.difficulty,
+          puzzleId: p.puzzleId,
+          title: p.title,
+          topicName: p.topicName
+        })),
+        scoring: assignment.scoring ?? {},
+        leaderboard: assignment.leaderboard ?? {}
       });
     } else {
       form.reset({
@@ -207,6 +254,27 @@ export function AssignmentFormDialog({
   const canAssignOnCreate = mode === "create" && !!coachBatches && coachBatches.length > 0;
   const activityType = form.watch("activityType");
   const startFen = form.watch("startFen");
+  const isSet = activityType === "PUZZLE_SET";
+  const scoringOverride = form.watch("scoring");
+  const leaderboardOverride = form.watch("leaderboard");
+  const scoringDefaults = usePuzzleScoringSettings(open && isSet);
+  // What the fields show: the admin default plus the author's changes. A
+  // puzzle's own points still apply server-side to any field left alone.
+  const setTries = form.watch("maxAttempts");
+  const shownScoring = useMemo(
+    () =>
+      resolvePuzzleScoring(scoringDefaults.data?.settings.scoring, scoringOverride, {
+        // A set's tries come from its own "Tries per puzzle" field.
+        maxAttempts: setTries ? Math.max(1, parseInt(setTries, 10) || 1) : null
+      }),
+    [scoringDefaults.data, scoringOverride, setTries]
+  );
+  const shownLeaderboard = useMemo(
+    () => resolvePuzzleLeaderboard(scoringDefaults.data?.settings.leaderboard, leaderboardOverride),
+    [scoringDefaults.data, leaderboardOverride]
+  );
+  const pointsCustomized =
+    Object.keys(scoringOverride ?? {}).length + Object.keys(leaderboardOverride ?? {}).length > 0;
 
   const handleFile = async (file: File) => {
     const text = await file.text();
@@ -227,6 +295,10 @@ export function AssignmentFormDialog({
       form.setError("solutionMoves", { message: "Record at least one solution move." });
       return;
     }
+    if (values.activityType === "PUZZLE_SET" && values.puzzles.length === 0) {
+      form.setError("puzzles", { message: "Add at least one puzzle." });
+      return;
+    }
 
     const base = {
       title: values.title.trim(),
@@ -238,6 +310,13 @@ export function AssignmentFormDialog({
     const activity: Partial<CreateAssignmentRequest> = { activityType: values.activityType };
     if (values.activityType === "REPLAY") {
       activity.pgn = values.pgn;
+    } else if (values.activityType === "PUZZLE_SET") {
+      activity.puzzleIds = values.puzzles.map((p) => p.puzzleId);
+      activity.maxAttempts = values.maxAttempts ? parseInt(values.maxAttempts, 10) : null;
+      activity.allowRetry = true;
+      activity.allowHints = values.allowHints;
+      activity.scoring = values.scoring;
+      activity.leaderboard = values.leaderboard;
     } else {
       activity.startFen = values.startFen;
       activity.studentColor = values.studentColor;
@@ -290,7 +369,9 @@ export function AssignmentFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[720px] max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className={`${isSet ? "sm:max-w-[960px]" : "sm:max-w-[720px]"} max-h-[90vh] overflow-y-auto`}
+      >
         <DialogHeader>
           <DialogTitle>{mode === "edit" ? "Edit assignment" : "New assignment"}</DialogTitle>
           <DialogDescription>
@@ -395,7 +476,102 @@ export function AssignmentFormDialog({
             </FormField>
           )}
 
-          {activityType !== "REPLAY" && (
+          {isSet && (
+            <>
+              <Controller
+                control={form.control}
+                name="puzzles"
+                render={({ field }) => (
+                  <PuzzleSetEditor
+                    value={field.value}
+                    onChange={(next) => {
+                      field.onChange(next);
+                      if (next.length > 0) form.clearErrors("puzzles");
+                    }}
+                    globalOnly={isAdmin}
+                    error={errors.puzzles?.message as string | undefined}
+                  />
+                )}
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField id="setMaxAttempts" label="Tries per puzzle (blank = unlimited)">
+                  <Input id="setMaxAttempts" type="number" min="1" max="50" {...form.register("maxAttempts")} />
+                </FormField>
+                <div className="flex items-end pb-2">
+                  <Controller
+                    control={form.control}
+                    name="allowHints"
+                    render={({ field }) => (
+                      <Switch
+                        id="setAllowHints"
+                        label="Allow hints (each one costs points)"
+                        checked={field.value}
+                        onCheckedChange={(v) => field.onChange(v === true)}
+                      />
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-app border border-app-border">
+                <button
+                  type="button"
+                  onClick={() => setPointsOpen((v) => !v)}
+                  aria-expanded={pointsOpen}
+                  className="flex w-full items-center gap-2 p-3 text-left text-sm font-semibold text-primary-ink"
+                >
+                  <Trophy className="size-4" strokeWidth={2.5} />
+                  Points &amp; leaderboard
+                  {pointsCustomized ? <Badge variant="secondary">Custom</Badge> : null}
+                  <ChevronDown
+                    className={`ml-auto size-4 transition-transform ${pointsOpen ? "rotate-180" : ""}`}
+                    strokeWidth={2.5}
+                  />
+                </button>
+                {pointsOpen ? (
+                  <div className="space-y-4 border-t border-app-border p-3">
+                    <PuzzleScoringFields
+                      idPrefix="set-scoring"
+                      hideTries
+                      value={shownScoring}
+                      onChange={(next, key) =>
+                        form.setValue("scoring", { ...form.getValues("scoring"), [key]: next[key] })
+                      }
+                    />
+                    <PuzzleScoringPreview scoring={shownScoring} />
+                    <PuzzleLeaderboardFields
+                      idPrefix="set-lb"
+                      value={shownLeaderboard}
+                      onChange={(next, key) =>
+                        form.setValue("leaderboard", { ...form.getValues("leaderboard"), [key]: next[key] })
+                      }
+                    />
+                    <p className="text-xs text-app-muted">
+                      Applies to every puzzle in the set. Fields you don&apos;t change use each
+                      puzzle&apos;s own points, else the platform default. &ldquo;After the puzzle
+                      ends&rdquo; means after the due date.
+                    </p>
+                    {pointsCustomized ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          form.setValue("scoring", {});
+                          form.setValue("leaderboard", {});
+                        }}
+                      >
+                        Reset to defaults
+                      </Button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
+
+          {activityType !== "REPLAY" && !isSet && (
             <>
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-app-text">Starting position</p>

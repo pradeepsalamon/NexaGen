@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { AttemptMove, SolutionMove } from "@nexa-chess/types";
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 import { CheckCircle2, Lightbulb, RotateCcw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";

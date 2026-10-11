@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { PuzzleDetail, SolutionMove } from "@nexa-chess/types";
+import { sanitizeCastlingRights, type PuzzleDetail, type SolutionMove } from "@nexa-chess/types";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -28,7 +28,10 @@ const DEFAULT_TITLE = "What is the best move?";
 
 /** Board, side to move, castling and en passant — move counters don't make it a different position. */
 function samePosition(a: string, b: string) {
-  return a.split(" ").slice(0, 4).join(" ") === b.split(" ").slice(0, 4).join(" ");
+  // A stored FEN may carry a castling flag its placement can't support; the
+  // board never does, so compare both after dropping those.
+  const key = (fen: string) => sanitizeCastlingRights(fen).split(" ").slice(0, 4).join(" ");
+  return key(a) === key(b);
 }
 
 function toInt(value: string): number | null {

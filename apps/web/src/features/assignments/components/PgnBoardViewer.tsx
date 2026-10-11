@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Chessground } from "chessground";
 import type { Api } from "chessground/api";
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";

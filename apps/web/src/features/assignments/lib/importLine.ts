@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 import type { SolutionMove } from "@nexa-chess/types";
 
 export type ImportedLine = { startFen: string; moves: SolutionMove[] };

@@ -24,7 +24,7 @@ import type {
   SubmitAttemptRequest
 } from "@nexa-chess/types";
 import { Prisma, UserRole } from "@prisma/client";
-import { Chess } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
@@ -401,6 +401,11 @@ export class AssignmentAttemptService {
   private assertEvaluated(type: AssignmentActivityType) {
     if (type === "REPLAY") {
       throw new BadRequestException("This assignment is a study/replay and does not use attempts.");
+    }
+    if (type === "PUZZLE_SET") {
+      throw new BadRequestException(
+        "A puzzle set is solved one puzzle at a time through its puzzle attempts."
+      );
     }
   }
 

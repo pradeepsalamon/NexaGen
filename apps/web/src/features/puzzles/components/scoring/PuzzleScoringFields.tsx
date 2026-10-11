@@ -74,11 +74,14 @@ function parseBonuses(text: string): number[] {
 export function PuzzleScoringFields({
   idPrefix,
   value,
-  onChange
+  onChange,
+  hideTries = false
 }: {
   idPrefix: string;
   value: PuzzleScoring;
   onChange: (next: PuzzleScoring, key: keyof PuzzleScoring) => void;
+  /** For callers with their own tries setting (a puzzle-set assignment's "Tries per puzzle"). */
+  hideTries?: boolean;
 }) {
   const set = <K extends keyof PuzzleScoring>(key: K, next: PuzzleScoring[K]) =>
     onChange({ ...value, [key]: next }, key);
@@ -117,6 +120,7 @@ export function PuzzleScoringFields({
         value={value.hintPenalty}
         onChange={(n) => set("hintPenalty", n)}
       />
+      {hideTries ? null : (
       <FormField id={`${idPrefix}-tries`} label="Tries per student">
         <Select
           id={`${idPrefix}-tries`}
@@ -128,6 +132,7 @@ export function PuzzleScoringFields({
           ]}
         />
       </FormField>
+      )}
       <NumberField
         id={`${idPrefix}-speed`}
         label="Speed bonus (max)"

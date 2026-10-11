@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 import type { AssignmentActivityType, AssignmentEvaluationResult } from "@nexa-chess/types";
 import { ArrowLeft, CheckCircle2, RotateCcw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";

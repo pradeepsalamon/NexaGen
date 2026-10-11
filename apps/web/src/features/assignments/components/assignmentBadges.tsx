@@ -10,14 +10,16 @@ export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
   REPLAY: "Study PGN",
   SOLVE_LINE: "Solve position",
   PLAY_VS_ENGINE: "Play vs engine",
-  FREE_ANALYSIS: "Free analysis"
+  FREE_ANALYSIS: "Free analysis",
+  PUZZLE_SET: "Puzzle set"
 };
 
 const ACTIVITY_STYLE: Record<AssignmentActivityType, string> = {
   REPLAY: "border-primary/40 bg-primary/10 text-primary-ink",
   SOLVE_LINE: "border-violet-200 bg-violet-50 text-violet-700",
   PLAY_VS_ENGINE: "border-amber-200 bg-amber-50 text-amber-700",
-  FREE_ANALYSIS: "border-app-border bg-app-soft text-app-text"
+  FREE_ANALYSIS: "border-app-border bg-app-soft text-app-text",
+  PUZZLE_SET: "border-secondary/40 bg-secondary/10 text-secondary-ink"
 };
 
 export function ActivityBadge({ activityType }: { activityType: AssignmentActivityType }) {

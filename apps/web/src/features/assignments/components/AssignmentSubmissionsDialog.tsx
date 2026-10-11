@@ -12,7 +12,9 @@ import {
   DialogTitle
 } from "@/components/ui/Dialog";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { useAssignmentDeployment } from "../hooks/useAssignmentsApi";
+import { PuzzleSetResults } from "./puzzle-set/PuzzleSetResults";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Not started",
@@ -34,12 +36,18 @@ interface Props {
 
 export function AssignmentSubmissionsDialog({ open, onOpenChange, deploymentId }: Props) {
   const timeZone = useUserTimeZone();
-  const { data, isLoading } = useAssignmentDeployment(deploymentId ?? "", open && !!deploymentId);
+  const { data, isLoading, isError, refetch } = useAssignmentDeployment(
+    deploymentId ?? "",
+    open && !!deploymentId
+  );
   const deployment = data?.deployment;
+  const puzzleSet = deployment?.puzzleSet ?? null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[640px] max-h-[85vh] overflow-y-auto">
+      <DialogContent
+        className={`${puzzleSet ? "sm:max-w-[960px]" : "sm:max-w-[640px]"} max-h-[85vh] overflow-y-auto`}
+      >
         <DialogHeader>
           <DialogTitle>{deployment ? deployment.title : "Submissions"}</DialogTitle>
           <DialogDescription>
@@ -55,6 +63,10 @@ export function AssignmentSubmissionsDialog({ open, onOpenChange, deploymentId }
               <Skeleton key={i} className="h-10 w-full" />
             ))}
           </div>
+        ) : isError ? (
+          <WidgetError message="Could not load the results." onRetry={() => void refetch()} />
+        ) : puzzleSet ? (
+          <PuzzleSetResults results={puzzleSet} />
         ) : !deployment || deployment.submissions.length === 0 ? (
           <p className="py-6 text-center text-sm text-app-muted">
             No students in this batch yet.

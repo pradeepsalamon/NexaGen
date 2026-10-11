@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { Chess } from "chess.js";
+import { Chess } from "../../common/chess/chess";
 import { AssignmentEvaluationService, assertValidFen } from "../../assignment/assignment-evaluation.service";
 import type { StockfishService } from "../../stockfish/stockfish.service";
 import { puzzleContentHash } from "../puzzle-content-hash";

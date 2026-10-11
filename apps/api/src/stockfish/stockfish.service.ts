@@ -8,9 +8,10 @@ import {
 } from '@nestjs/common';
 import { spawn, ChildProcess } from 'child_process';
 import { cpus } from 'os';
-import { Chess, validateFen } from 'chess.js';
+import { validateFen } from 'chess.js';
+import { Chess } from '../common/chess/chess';
 import { getApiEnv } from '@nexa-chess/config/api';
-import type { StockfishAnalysisResult } from '@nexa-chess/types';
+import { sanitizeCastlingRights, type StockfishAnalysisResult } from '@nexa-chess/types';
 
 export type { StockfishAnalysisResult };
 
@@ -136,23 +137,8 @@ export function normalizeEngineFen(input: string): EngineFenCheck {
     return { ok: false, reason: 'Pawns cannot stand on the first or last rank.' };
   }
 
-  let castling = fields[2] ?? '-';
-  if (castling !== '-') {
-    const rights: Array<[string, string, string, string, string]> = [
-      ['K', 'K', 'e1', 'R', 'h1'],
-      ['Q', 'K', 'e1', 'R', 'a1'],
-      ['k', 'k', 'e8', 'r', 'h8'],
-      ['q', 'k', 'e8', 'r', 'a8'],
-    ];
-    const kept = rights
-      .filter(
-        ([flag, king, kingSq, rook, rookSq]) =>
-          castling.includes(flag) && pieceAt(kingSq) === king && pieceAt(rookSq) === rook,
-      )
-      .map(([flag]) => flag)
-      .join('');
-    castling = kept || '-';
-  }
+  // King or rook off its home square ⇒ that right is gone (shared rule).
+  const castling = sanitizeCastlingRights(`${placement} w ${fields[2] ?? '-'}`).split(' ')[2];
 
   let ep = fields[3] ?? '-';
   if (ep !== '-') {

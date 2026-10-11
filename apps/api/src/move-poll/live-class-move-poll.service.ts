@@ -16,7 +16,7 @@ import type {
 } from "@nexa-chess/types";
 import { encodeLiveMovePoll, LIVE_CLASS_MOVE_POLL_TOPIC, tallyMovePollAnswers } from "@nexa-chess/types";
 import { LiveClassMovePollStatus, Prisma, UserRole } from "@prisma/client";
-import { Chess } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";

@@ -18,7 +18,9 @@ import type {
   AssignmentLibraryItem,
   AssignmentLibraryResponse,
   AssignmentPerformanceSummary,
+  AssignmentPuzzleSetResults,
   AssignmentResponse,
+  AssignmentSetPuzzle,
   AssignmentStatus as AssignmentStatusType,
   ChessColor,
   CreateAssignmentRequest,
@@ -27,15 +29,19 @@ import type {
   StudentAssignmentDetailResponse,
   StudentAssignmentItem,
   StudentAssignmentListResponse,
+  PuzzleSetLeaderboardResponse,
+  StudentPuzzleSetProgress,
   UpdateAssignmentRequest,
   UpdateAssignmentStatusRequest
 } from "@nexa-chess/types";
+import { parseLeaderboardOverride, parseScoringOverride } from "@nexa-chess/types";
 import { Prisma, UserRole } from "@prisma/client";
-import { Chess } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import { isForeignKeyRestrictError } from "../prisma/prisma-errors";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
 import { AssignmentEvaluationService, assertValidFen } from "./assignment-evaluation.service";
+import { AssignmentPuzzleSetService } from "./assignment-puzzle-set.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { authenticateUser } from "../auth/authenticate";
 
@@ -45,7 +51,10 @@ import { authenticateUser } from "../auth/authenticate";
  * matches the callback argument — `Prisma.TransactionClient` does not (it is the
  * un-extended shape).
  */
-type Tx = Pick<PrismaService, "assignment" | "assignmentBatch" | "batchStudent" | "studentAssignment">;
+type Tx = Pick<
+  PrismaService,
+  "assignment" | "assignmentBatch" | "assignmentPuzzle" | "batchStudent" | "studentAssignment"
+>;
 
 type AuthedUser = { id: string; role: UserRole };
 
@@ -109,7 +118,8 @@ export class AssignmentService {
     private readonly prisma: PrismaService,
     private readonly uploadService: UploadService,
     private readonly evaluation: AssignmentEvaluationService,
-    private readonly messaging: MessagingDispatchService
+    private readonly messaging: MessagingDispatchService,
+    private readonly puzzleSets: AssignmentPuzzleSetService
   ) {}
 
   // ────────────────────────────────────────────────────────────
@@ -129,7 +139,10 @@ export class AssignmentService {
       orderBy: { createdAt: "desc" }
     });
 
-    return { assignments: rows.map((row) => this.toLibraryItem(row, user)) };
+    const sets = await this.puzzleSets.loadSets(
+      rows.filter((row) => row.activityType === "PUZZLE_SET").map((row) => row.id)
+    );
+    return { assignments: rows.map((row) => this.toLibraryItem(row, user, null, sets.get(row.id))) };
   }
 
   async getLibraryItem(
@@ -150,8 +163,10 @@ export class AssignmentService {
       row._count.deployments > 0
         ? await this.computePerformance(row.id, row.maxAttempts)
         : null;
+    const sets =
+      row.activityType === "PUZZLE_SET" ? await this.puzzleSets.loadSets([row.id]) : null;
 
-    return { assignment: this.toLibraryItem(row, user, performance) };
+    return { assignment: this.toLibraryItem(row, user, performance, sets?.get(row.id)) };
   }
 
   async create(
@@ -160,6 +175,12 @@ export class AssignmentService {
   ): Promise<AssignmentResponse> {
     const user = await this.getStaffOrCoach(accessToken);
     const activity = this.buildActivityData(dto);
+    const isSet = activity.activityType === "PUZZLE_SET";
+    const scoringOverride = isSet ? (dto.scoring ?? null) : null;
+    const set = isSet
+      ? await this.puzzleSets.resolvePuzzles(user, dto.puzzleIds ?? [], scoringOverride)
+      : null;
+    if (set) activity.pgn = this.evaluation.positionPgn(set.firstFen);
 
     const batchIds = [...new Set(dto.batchIds ?? [])];
     if (batchIds.length > 0) {
@@ -171,7 +192,8 @@ export class AssignmentService {
       await this.assertCoachOwnsBatches(user.id, batchIds);
     }
 
-    const pgnUrl = await this.uploadPgn(dto.title, activity.pgn);
+    // A set has no PGN of its own to download (the placeholder is its first position).
+    const pgnUrl = set ? null : await this.uploadPgn(dto.title, activity.pgn);
 
     const deployments: string[] = [];
     const created = await this.prisma.$transaction(async (tx) => {
@@ -184,9 +206,11 @@ export class AssignmentService {
           pgnUrl,
           difficulty: dto.difficulty,
           timeLimitMinutes: dto.timeLimitMinutes,
-          ...activity
+          ...activity,
+          ...this.setJson(isSet, scoringOverride, dto.leaderboard ?? null)
         }
       });
+      if (set) await this.puzzleSets.replaceSet(tx, assignment.id, set.rows);
 
       if (batchIds.length > 0 && dto.dueDate) {
         deployments.push(
@@ -236,23 +260,60 @@ export class AssignmentService {
       requiredCompletionPercent: existing.requiredCompletionPercent
     });
 
-    const pgnChanged = activity.pgn !== existing.pgn;
-    const pgnUrl = pgnChanged
-      ? await this.uploadPgn(dto.title ?? existing.title, activity.pgn)
-      : undefined;
+    const isSet = activity.activityType === "PUZZLE_SET";
+    const wasSet = existing.activityType === "PUZZLE_SET";
+    const scoringOverride = isSet
+      ? dto.scoring !== undefined
+        ? dto.scoring
+        : wasSet
+          ? parseScoringOverride(existing.scoringJson)
+          : null
+      : null;
+    const leaderboardOverride = isSet
+      ? dto.leaderboard !== undefined
+        ? dto.leaderboard
+        : wasSet
+          ? parseLeaderboardOverride(existing.leaderboardJson)
+          : null
+      : null;
 
-    await this.prisma.assignment.update({
-      where: { id },
-      data: {
-        title: dto.title?.trim(),
-        description:
-          dto.description === undefined ? undefined : dto.description?.trim() || null,
-        pgnUrl,
-        difficulty: dto.difficulty,
-        timeLimitMinutes: dto.timeLimitMinutes,
-        ...activity
-      }
+    // Re-resolve (and re-freeze the scoring of) the set whenever its puzzles or
+    // points change; otherwise the stored set stands untouched.
+    let set: Awaited<ReturnType<AssignmentPuzzleSetService["resolvePuzzles"]>> | null = null;
+    if (isSet && (dto.puzzleIds !== undefined || dto.scoring !== undefined || !wasSet)) {
+      const puzzleIds = dto.puzzleIds ?? (wasSet ? await this.puzzleSets.puzzleIdsOf(id) : []);
+      set = await this.puzzleSets.resolvePuzzles(user, puzzleIds, scoringOverride);
+      activity.pgn = this.evaluation.positionPgn(set.firstFen);
+    } else if (isSet) {
+      activity.pgn = existing.pgn;
+    }
+
+    const pgnChanged = activity.pgn !== existing.pgn;
+    const pgnUrl = isSet
+      ? null
+      : pgnChanged || wasSet
+        ? await this.uploadPgn(dto.title ?? existing.title, activity.pgn)
+        : undefined;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.assignment.update({
+        where: { id },
+        data: {
+          title: dto.title?.trim(),
+          description:
+            dto.description === undefined ? undefined : dto.description?.trim() || null,
+          pgnUrl,
+          difficulty: dto.difficulty,
+          timeLimitMinutes: dto.timeLimitMinutes,
+          ...activity,
+          ...this.setJson(isSet, scoringOverride, leaderboardOverride)
+        }
+      });
+      if (set) await this.puzzleSets.replaceSet(tx, id, set.rows);
+      else if (!isSet && wasSet) await this.puzzleSets.clearSet(tx, id);
     });
+
+    if (set || (wasSet && !isSet)) await this.puzzleSets.refreshAssignmentRollups(id);
 
     return this.getLibraryItem(accessToken, id);
   }
@@ -322,7 +383,11 @@ export class AssignmentService {
 
     const rows = await this.prisma.assignmentBatch.findMany({
       where: { batch: { coaches: { some: { coachId: coach.id, isDeleted: false } } } },
-      include: { assignment: true, batch: true, students: true },
+      include: {
+        assignment: { include: { _count: { select: { puzzles: true } } } },
+        batch: true,
+        students: true
+      },
       orderBy: { createdAt: "desc" }
     });
 
@@ -338,7 +403,7 @@ export class AssignmentService {
     const row = await this.prisma.assignmentBatch.findUnique({
       where: { id },
       include: {
-        assignment: true,
+        assignment: { include: { _count: { select: { puzzles: true } } } },
         batch: { include: { coaches: { where: { isDeleted: false } } } },
         students: { include: { student: true } }
       }
@@ -348,7 +413,12 @@ export class AssignmentService {
       throw new NotFoundException("Assignment not found.");
     }
 
-    return { deployment: this.toDeploymentDetail(row) };
+    const puzzleSet =
+      row.assignment.activityType === "PUZZLE_SET"
+        ? await this.puzzleSets.deploymentResults(row.id, row.assignment)
+        : null;
+
+    return { deployment: this.toDeploymentDetail(row, puzzleSet) };
   }
 
   async undeploy(
@@ -385,7 +455,10 @@ export class AssignmentService {
       orderBy: { assignmentBatch: { dueDate: "asc" } }
     });
 
-    return { assignments: rows.map((row) => this.toStudentItem(row)) };
+    const progress = await this.puzzleSets.studentProgress(
+      rows.filter((row) => row.assignmentBatch.assignment.activityType === "PUZZLE_SET")
+    );
+    return { assignments: rows.map((row) => this.toStudentItem(row, progress.get(row.id))) };
   }
 
   async getForStudent(
@@ -403,7 +476,11 @@ export class AssignmentService {
       throw new NotFoundException("Assignment not found.");
     }
 
-    return { assignment: this.toStudentItem(row) };
+    const progress =
+      row.assignmentBatch.assignment.activityType === "PUZZLE_SET"
+        ? await this.puzzleSets.studentProgress([row])
+        : null;
+    return { assignment: this.toStudentItem(row, progress?.get(row.id)) };
   }
 
   async updateStatus(
@@ -421,6 +498,11 @@ export class AssignmentService {
       throw new NotFoundException("Assignment not found.");
     }
 
+    if (row.assignmentBatch.assignment.activityType === "PUZZLE_SET") {
+      throw new BadRequestException(
+        "A puzzle set's progress comes from solving its puzzles, not from a manual status."
+      );
+    }
     if (
       row.assignmentBatch.assignment.activityType !== "REPLAY" &&
       dto.status === "COMPLETED"
@@ -442,6 +524,15 @@ export class AssignmentService {
     });
 
     return { assignment: this.toStudentItem(updated) };
+  }
+
+  /** PUZZLE_SET: the set's leaderboard, limited server-side by its visibility rules. */
+  async puzzleSetLeaderboard(
+    accessToken: string | undefined,
+    id: string
+  ): Promise<PuzzleSetLeaderboardResponse> {
+    const student = await this.getStudent(accessToken);
+    return this.puzzleSets.leaderboardFor(student.id, id);
   }
 
   // ────────────────────────────────────────────────────────────
@@ -529,6 +620,21 @@ export class AssignmentService {
         input.requiredCompletionPercent ?? current?.requiredCompletionPercent ?? 100
     };
 
+    if (type === "PUZZLE_SET") {
+      // The puzzles carry their own positions and lines (AssignmentPuzzle); the
+      // caller fills `pgn` with the first puzzle's position once the set resolves.
+      return {
+        activityType: "PUZZLE_SET",
+        pgn: current?.activityType === "PUZZLE_SET" ? current.pgn : "",
+        startFen: null,
+        solutionMovesJson: Prisma.DbNull,
+        orientation: null,
+        studentColor: null,
+        engineLevel: null,
+        ...scalar
+      };
+    }
+
     if (type === "REPLAY") {
       const pgn = input.pgn ?? current?.pgn;
       this.assertValidPgn(pgn);
@@ -594,6 +700,19 @@ export class AssignmentService {
       engineLevel,
       ...scalar
     };
+  }
+
+  /** A set's own points / leaderboard overrides; cleared for every other activity. */
+  private setJson(
+    isSet: boolean,
+    scoring: Prisma.InputJsonValue | object | null,
+    leaderboard: Prisma.InputJsonValue | object | null
+  ) {
+    const toJson = (value: Prisma.InputJsonValue | object | null) =>
+      isSet && value && Object.keys(value).length > 0
+        ? (value as Prisma.InputJsonValue)
+        : Prisma.DbNull;
+    return { leaderboardJson: toJson(leaderboard), scoringJson: toJson(scoring) };
   }
 
   private async uploadPgn(title: string, pgn: string): Promise<string | null> {
@@ -730,8 +849,10 @@ export class AssignmentService {
       include: { createdBy: true; _count: { select: { deployments: true } } };
     }>,
     viewer: AuthedUser,
-    performance: AssignmentPerformanceSummary | null = null
+    performance: AssignmentPerformanceSummary | null = null,
+    puzzles?: AssignmentSetPuzzle[]
   ): AssignmentLibraryItem {
+    const isSet = row.activityType === "PUZZLE_SET";
     return {
       id: row.id,
       title: row.title,
@@ -747,6 +868,9 @@ export class AssignmentService {
       deploymentCount: row._count.deployments,
       solutionMoves: this.solutionFromRow(row.solutionMovesJson),
       performance,
+      puzzles: isSet ? (puzzles ?? []) : null,
+      scoring: isSet ? parseScoringOverride(row.scoringJson) : null,
+      leaderboard: isSet ? parseLeaderboardOverride(row.leaderboardJson) : null,
       ...this.toActivityConfig(row),
       createdAt: row.createdAt.toISOString()
     };
@@ -758,7 +882,13 @@ export class AssignmentService {
     batchId: string;
     dueDate: Date;
     createdAt: Date;
-    assignment: { title: string; difficulty: string; timeLimitMinutes: number | null };
+    assignment: {
+      title: string;
+      difficulty: string;
+      timeLimitMinutes: number | null;
+      activityType: AssignmentActivityType;
+      _count: { puzzles: number };
+    };
     batch: { name: string };
     students: { status: string }[];
   }): AssignmentDeployment {
@@ -772,25 +902,29 @@ export class AssignmentService {
       batchName: row.batch.name,
       dueDate: row.dueDate.toISOString(),
       createdAt: row.createdAt.toISOString(),
-      stats: this.statsFrom(row.students)
+      stats: this.statsFrom(row.students),
+      activityType: row.assignment.activityType,
+      puzzleCount:
+        row.assignment.activityType === "PUZZLE_SET" ? row.assignment._count.puzzles : null
     };
   }
 
   private toDeploymentDetail(
     row: Prisma.AssignmentBatchGetPayload<{
       include: {
-        assignment: true;
+        assignment: { include: { _count: { select: { puzzles: true } } } };
         batch: { include: { coaches: true } };
         students: { include: { student: true } };
       };
-    }>
+    }>,
+    puzzleSet: AssignmentPuzzleSetResults | null
   ): AssignmentDeploymentDetail {
     return {
       ...this.toDeployment(row),
       description: row.assignment.description,
       pgn: row.assignment.pgn,
       pgnUrl: row.assignment.pgnUrl,
-      activityType: row.assignment.activityType,
+      puzzleSet,
       submissions: row.students.map((s) => ({
         studentId: s.studentId,
         studentName: this.fullName(s.student) ?? "Unknown",
@@ -807,7 +941,8 @@ export class AssignmentService {
   }
 
   private toStudentItem(
-    row: Prisma.StudentAssignmentGetPayload<{ include: typeof studentInclude }>
+    row: Prisma.StudentAssignmentGetPayload<{ include: typeof studentInclude }>,
+    puzzleSet?: StudentPuzzleSetProgress
   ): StudentAssignmentItem {
     const assignment = row.assignmentBatch.assignment;
     const solution = this.solutionFromRow(assignment.solutionMovesJson);
@@ -834,6 +969,7 @@ export class AssignmentService {
       lastAttemptAt: row.lastAttemptAt ? row.lastAttemptAt.toISOString() : null,
       solutionLength: solution ? solution.length : null,
       solutionMoves: revealSolution ? solution : null,
+      puzzleSet: assignment.activityType === "PUZZLE_SET" ? (puzzleSet ?? null) : null,
       ...this.toActivityConfig(assignment)
     };
   }

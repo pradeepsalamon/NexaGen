@@ -1,10 +1,16 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { PuzzleStatus, PuzzleVisibility, UserRole, UserStatus } from "@prisma/client";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { AssignmentEvaluationService } from "../assignment/assignment-evaluation.service";
+import { AssignmentPuzzleSetService } from "../assignment/assignment-puzzle-set.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProgressRecorderService } from "../progress/progress-recorder.service";
 import { StockfishService } from "../stockfish/stockfish.service";
@@ -22,6 +28,12 @@ const asRole = (id: string, role: UserRole) => ({ id, role, status: UserStatus.A
 describe("PuzzleAttemptService", () => {
   let service: PuzzleAttemptService;
   let progress: { recordPuzzleResult: jest.Mock };
+  let puzzleSets: {
+    startContext: jest.Mock;
+    refreshRollup: jest.Mock;
+    triesLeft: jest.Mock;
+    assertHintsAllowed: jest.Mock;
+  };
   let prisma: any;
 
   const globalPuzzle = (over: Record<string, unknown> = {}) => ({
@@ -93,15 +105,39 @@ describe("PuzzleAttemptService", () => {
           ...data
         })),
         groupBy: jest.fn().mockResolvedValue([]),
-        aggregate: jest.fn().mockResolvedValue({ _max: { scorePercent: null } })
+        aggregate: jest.fn().mockResolvedValue({ _max: { scorePercent: null } }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn().mockImplementation(({ where }) => ({
+          id: where.id,
+          puzzleId: "pz-1",
+          attemptNumber: 1,
+          status: "SOLVED",
+          movesJson: [],
+          scorePercent: 100,
+          accuracyPercent: 100,
+          hintsUsed: 0,
+          wrongMoves: 0,
+          durationSeconds: 0,
+          result: "SOLVED",
+          startedAt: new Date(),
+          completedAt: new Date()
+        }))
       },
       batchStudent: { findMany: jest.fn().mockResolvedValue([]) },
       liveClassPuzzleAssignment: { findFirst: jest.fn().mockResolvedValue(null) }
     };
 
+    puzzleSets = {
+      startContext: jest.fn().mockResolvedValue({ allowHints: false, hasOpenAttempt: false }),
+      refreshRollup: jest.fn().mockResolvedValue(null),
+      triesLeft: jest.fn().mockResolvedValue(2),
+      assertHintsAllowed: jest.fn().mockResolvedValue(undefined)
+    };
+
     const moduleRef = await Test.createTestingModule({
       providers: [
         PuzzleAttemptService,
+        { provide: AssignmentPuzzleSetService, useValue: puzzleSets },
         { provide: JwtService, useValue: { verifyAsync: jest.fn().mockResolvedValue({ sub: STUDENT_ID, type: "access" }) } },
         { provide: PrismaService, useValue: prisma },
         { provide: AnalyticsEventService, useValue: { record: jest.fn() } },
@@ -224,14 +260,16 @@ describe("PuzzleAttemptService", () => {
       durationSeconds: 0,
       wrongMoves: 2
     });
-    prisma.puzzleAttempt.update.mockImplementationOnce(({ data }: { data: object }) => ({
+    prisma.puzzleAttempt.findUniqueOrThrow.mockResolvedValueOnce({
       id: "att-1",
       puzzleId: "pz-1",
       hintsUsed: 0,
       startedAt: new Date(),
-      wrongMoves: 2,
-      ...data
-    }));
+      completedAt: new Date(),
+      status: "SOLVED",
+      movesJson: solvedLine,
+      wrongMoves: 2
+    });
     await service.submit(TOKEN, "pz-1", "att-1", { moves: solvedLine });
     expect(progress.recordPuzzleResult).toHaveBeenCalledWith(
       expect.objectContaining({ rating: 1450, solved: true, wrongMoves: 2 })
@@ -329,6 +367,103 @@ describe("PuzzleAttemptService", () => {
       const { data } = prisma.puzzleAttempt.update.mock.calls[0][0];
       expect(data.wrongMoves).toBeUndefined();
       expect(data.movesJson).toHaveLength(1);
+    });
+  });
+
+  describe("puzzle-set assignment attempts", () => {
+    const assignmentAttempt = (over: Record<string, unknown> = {}) => ({
+      id: "att-1",
+      puzzleId: "pz-1",
+      studentId: STUDENT_ID,
+      attemptNumber: 1,
+      status: "IN_PROGRESS",
+      studentAssignmentId: "sa-1",
+      liveClassId: null,
+      movesJson: [],
+      wrongMovesJson: [],
+      hintsUsed: 0,
+      durationSeconds: 0,
+      ...over
+    });
+
+    it("starts through the set: its rules apply and library visibility is not re-checked", async () => {
+      // A private puzzle no batch coach of this student authored — assigned anyway.
+      prisma.puzzle.findUnique.mockResolvedValue(
+        globalPuzzle({ visibility: PuzzleVisibility.PRIVATE, status: PuzzleStatus.ARCHIVED })
+      );
+      const res = await service.start(TOKEN, "pz-1", { studentAssignmentId: "sa-1" });
+
+      expect(puzzleSets.startContext).toHaveBeenCalledWith("sa-1", STUDENT_ID, "pz-1");
+      expect(prisma.puzzle.findFirst).not.toHaveBeenCalled();
+      expect(prisma.puzzleAttempt.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ context: "ASSIGNMENT", studentAssignmentId: "sa-1" })
+      });
+      expect(res.attempt.allowHints).toBe(false);
+      expect(res.attempt.hintCount).toBe(0);
+      expect(puzzleSets.refreshRollup).toHaveBeenCalledWith("sa-1");
+    });
+
+    it("resumes only an open attempt of the same assignment", async () => {
+      await service.start(TOKEN, "pz-1", { studentAssignmentId: "sa-1" });
+      expect(prisma.puzzleAttempt.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ studentAssignmentId: "sa-1" }) })
+      );
+      // A plain library start never resumes an assignment attempt.
+      await service.start(TOKEN, "pz-1");
+      expect(prisma.puzzleAttempt.findFirst).toHaveBeenLastCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ studentAssignmentId: null }) })
+      );
+    });
+
+    it("refuses a start once the set's tries are used up", async () => {
+      puzzleSets.startContext.mockRejectedValue(
+        new BadRequestException("You have used all your tries at this puzzle.")
+      );
+      await expect(
+        service.start(TOKEN, "pz-1", { studentAssignmentId: "sa-1" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.puzzleAttempt.create).not.toHaveBeenCalled();
+    });
+
+    it("re-rolls the set after a submit and hides the line while tries remain", async () => {
+      prisma.puzzleAttempt.findUnique.mockResolvedValue(assignmentAttempt());
+      prisma.puzzleAttempt.findUniqueOrThrow.mockResolvedValue(
+        assignmentAttempt({ status: "FAILED", scorePercent: 0, startedAt: new Date(), completedAt: new Date() })
+      );
+      const res = await service.submit(TOKEN, "pz-1", "att-1", { moves: [] });
+
+      expect(res.solved).toBe(false);
+      expect(res.solutionMoves).toEqual([]);
+      expect(puzzleSets.refreshRollup).toHaveBeenCalledWith("sa-1", { notify: true });
+    });
+
+    it("reveals the line once the last try is used", async () => {
+      puzzleSets.triesLeft.mockResolvedValue(0);
+      prisma.puzzleAttempt.findUnique.mockResolvedValue(assignmentAttempt());
+      prisma.puzzleAttempt.findUniqueOrThrow.mockResolvedValue(
+        assignmentAttempt({ status: "FAILED", startedAt: new Date(), completedAt: new Date() })
+      );
+      const res = await service.submit(TOKEN, "pz-1", "att-1", { moves: [] });
+      expect(res.solutionMoves).toEqual([MATE_MOVE]);
+    });
+
+    it("lets only one of two racing submits land", async () => {
+      prisma.puzzleAttempt.findUnique.mockResolvedValue(assignmentAttempt());
+      prisma.puzzleAttempt.updateMany.mockResolvedValue({ count: 0 });
+      await expect(
+        service.submit(TOKEN, "pz-1", "att-1", { moves: [] })
+      ).rejects.toBeInstanceOf(ConflictException);
+      expect(progress.recordPuzzleResult).not.toHaveBeenCalled();
+      expect(puzzleSets.refreshRollup).not.toHaveBeenCalled();
+    });
+
+    it("refuses a hint when the assignment turned hints off", async () => {
+      prisma.puzzleAttempt.findUnique.mockResolvedValue(assignmentAttempt());
+      puzzleSets.assertHintsAllowed.mockRejectedValue(new ForbiddenException("off"));
+      await expect(
+        service.hint(TOKEN, "pz-1", "att-1", { moves: [], level: 1 })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.puzzleAttempt.update).not.toHaveBeenCalled();
     });
   });
 });

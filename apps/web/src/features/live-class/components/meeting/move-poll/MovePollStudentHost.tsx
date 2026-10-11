@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Loader2, MessageCircleQuestion } from "lucide-react";
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";

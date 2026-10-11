@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess } from "@/lib/chess";
 
 type PushHistory = (fen: string, pgn: string) => void;
 

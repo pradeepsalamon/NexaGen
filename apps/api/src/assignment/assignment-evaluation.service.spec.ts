@@ -1,6 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { SOLVE_LINE_MATE_FIXTURES, type AttemptMove, type SolutionMove } from "@nexa-chess/types";
-import { Chess } from "chess.js";
+import { Chess } from "../common/chess/chess";
 import {
   AssignmentEvaluationService,
   assertValidFen,

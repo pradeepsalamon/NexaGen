@@ -650,6 +650,35 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   `app/layout.tsx` reads so there is no font flash on reload.
 - Neither model is soft-deletable or Trash-registered (cosmetic).
 
+### 3.6i2 Puzzle-set assignments (multi-puzzle homework)
+
+`activityType: PUZZLE_SET` on the existing `Assignment` (README § Features has
+the routes). The set is ordered `AssignmentPuzzle` rows that **reference**
+library puzzles (Cascade on a Trash purge, like `PuzzleAttempt`), each with its
+resolved `PuzzleScoring` frozen at save. Students solve through ordinary
+`PuzzleAttempt`s (`context: ASSIGNMENT`, `studentAssignmentId`), so
+`PuzzleAttemptService` stays the only puzzle attempt engine — it calls
+`AssignmentPuzzleSetService.startContext` / `refreshRollup` /
+`assertHintsAllowed` for those attempts, and an assignment admits its puzzles
+without the library visibility check.
+
+- **Points are never stored.** `computePuzzleSetResults`
+  (`assignment/puzzle-set-results.util.ts`, pure + specced) takes each puzzle's
+  best finished try (ABANDONED never counts), sums them, ranks, and
+  `studentLeaderboardView` applies the set's leaderboard options server-side.
+  `refreshRollup` *recomputes* the `StudentAssignment` columns — never
+  increments — so a replayed submit can't double-count.
+- Authoring rules (`resolvePuzzles`): published only; an admin set (a shared
+  library item) holds GLOBAL puzzles only; a coach may add GLOBAL or their own
+  PRIVATE ones.
+- One open attempt per (studentAssignmentId, puzzleId) is a hand-written partial
+  unique index (migration `20261011100000`), and `submit` claims the attempt
+  with `updateMany where status = IN_PROGRESS` (409 on a second submit).
+- Web: `features/assignments/components/puzzle-set/*` — `PuzzleSetEditor`
+  (form), `PuzzleSetResults` (coach dialog), `StudentPuzzleSet` +
+  `AssignmentPuzzleSolver` (reuses `usePuzzleAttempt` with the set's start
+  route) + `PuzzleSetLeaderboard`.
+
 ### 3.6j2 Batch type & dashboard upcoming classes
 
 `BatchType` (`GROUP` / `INDIVIDUAL` / `BUDDY`, `@nexa-chess/types`
@@ -770,6 +799,7 @@ web `features/admin/components/DemoClass*` + `demo-classes/*`, public page
 - Object keys and imports are generally kept alphabetized in this codebase — match the file you're in.
 - Services return the shared response types from `@nexa-chess/types`, mapping Prisma rows through private `toX()` helpers (dates → `.toISOString()`, `Decimal` → `.toString()`, exclude soft-deleted relations).
 - Prefer `import type { ... }` for type-only imports.
+- **`Chess` comes from `@/lib/chess` (web) / `common/chess/chess` (API), never from `chess.js` directly** (ESLint enforces it). chess.js trusts a FEN's castling field and castles from wherever the king stands, so a set-up position with stale `KQkq` offered O-O from e4; the wrapper runs `sanitizeCastlingRights` (`@nexa-chess/types` `chess-fen.ts`) on every load, constructor and `loadPgn` included. The position editor's checkboxes lock while a king/rook is off its home square.
 - Web components: `"use client"` only when needed (hooks, browser APIs, event handlers). Keep `app/**/page.tsx` as server components where possible.
 
 ---

@@ -139,6 +139,9 @@ enum AssignmentActivityType {
   SOLVE_LINE
   PLAY_VS_ENGINE
   FREE_ANALYSIS
+  /// An ordered set of library puzzles (AssignmentPuzzle), solved one at a
+  /// time through PuzzleAttempt (context ASSIGNMENT), scored in points.
+  PUZZLE_SET
 }
 
 // Lifecycle of one StudentAssignmentAttempt.
@@ -201,6 +204,7 @@ enum PuzzleAttemptContext {
   DIRECT // /student/puzzles/:id, course module
   LIVE_CLASS // started from a live-class assignment (liveClassId set)
   TRAINING // served by student training
+  ASSIGNMENT // one puzzle of a PUZZLE_SET assignment (studentAssignmentId set)
 }
 
 // Lifecycle of one PuzzleAttempt by a student.
@@ -1793,8 +1797,15 @@ model Assignment {
   allowRetry                Boolean                @default(true)
   requiredCompletionPercent Int                    @default(100)
 
+  // ── PUZZLE_SET only (null otherwise) ──
+  /// The author's points override for every puzzle in the set (PuzzleScoringOverride).
+  scoringJson     Json?
+  /// Who sees the set's leaderboard (PuzzleLeaderboardOverride); AFTER_END = after the due date.
+  leaderboardJson Json?
+
   deployments   AssignmentBatch[]
   courseModules CourseModule[]
+  puzzles       AssignmentPuzzle[]
 
   @@index([createdById])
   @@index([isLibrary])
@@ -1841,7 +1852,8 @@ model StudentAssignment {
   attemptCount        Int       @default(0)
   lastAttemptAt       DateTime?
 
-  attempts StudentAssignmentAttempt[]
+  attempts       StudentAssignmentAttempt[]
+  puzzleAttempts PuzzleAttempt[]
 
   @@unique([assignmentBatchId, studentId])
   @@index([studentId])
@@ -1871,6 +1883,31 @@ model StudentAssignmentAttempt {
   @@unique([studentAssignmentId, attemptNumber])
   @@index([studentAssignmentId])
   @@map("student_assignment_attempts")
+}
+
+// One puzzle of a PUZZLE_SET assignment, in order. References the library
+// puzzle (never copies it); `scoringJson` is the resolved PuzzleScoring frozen
+// when the set was saved (system → admin default → puzzle → assignment
+// override), so an admin changing the default never re-scores homework already
+// out. Points themselves are never stored — computePuzzlePoints runs on read.
+// Not soft-deletable (like Assignment). A puzzle purged from the Trash drops out
+// of the set (Cascade), the same as its attempts.
+model AssignmentPuzzle {
+  id           String     @id @default(cuid())
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  puzzleId     String
+  puzzle       Puzzle     @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  /// 0-based order in the set.
+  position     Int
+  scoringJson  Json
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assignmentId, puzzleId])
+  @@index([assignmentId, position])
+  @@index([puzzleId])
+  @@map("assignment_puzzles")
 }
 
 //
@@ -2106,6 +2143,7 @@ model Puzzle {
   attempts        PuzzleAttempt[]
   liveAssignments LiveClassPuzzleAssignment[]
   courseModules   CourseModule[]
+  assignmentItems AssignmentPuzzle[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -2148,6 +2186,13 @@ model PuzzleAttempt {
   liveClassId String?
   context     PuzzleAttemptContext @default(DIRECT)
 
+  /// Set when the attempt belongs to a PUZZLE_SET assignment (context ASSIGNMENT).
+  /// SetNull: removing the deployment keeps the student's puzzle history.
+  /// One IN_PROGRESS attempt per (studentAssignmentId, puzzleId): a partial unique
+  /// index in migration 20261011100000, which Prisma cannot express.
+  studentAssignmentId String?
+  studentAssignment   StudentAssignment? @relation(fields: [studentAssignmentId], references: [id], onDelete: SetNull)
+
   attemptNumber   Int
   status          PuzzleAttemptStatus @default(IN_PROGRESS)
   movesJson       Json                @default("[]") // [{ ply, uci, san, fenAfter, correct?, … }]
@@ -2170,6 +2215,7 @@ model PuzzleAttempt {
   @@index([studentId])
   @@index([liveClassId])
   @@index([studentId, completedAt])
+  @@index([studentAssignmentId, puzzleId])
   @@map("puzzle_attempts")
 }
 

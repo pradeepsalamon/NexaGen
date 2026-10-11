@@ -247,7 +247,12 @@ export const API_ROUTES = {
     engineMove: (id: string = ":id", attemptId: string = ":attemptId") =>
       `/assignments/mine/${id}/attempts/${attemptId}/engine-move`,
     hint: (id: string = ":id", attemptId: string = ":attemptId") =>
-      `/assignments/mine/${id}/attempts/${attemptId}/hint`
+      `/assignments/mine/${id}/attempts/${attemptId}/hint`,
+    // PUZZLE_SET (student): start/resume one puzzle of the set — moves, hints and
+    // submit then go through the ordinary `puzzles.attempt*` routes.
+    puzzleAttempts: (id: string = ":id", puzzleId: string = ":puzzleId") =>
+      `/assignments/mine/${id}/puzzles/${puzzleId}/attempts`,
+    leaderboard: (id: string = ":id") => `/assignments/mine/${id}/leaderboard`
   },
   puzzles: {
     // ── Topics (admin authors; staff + coach read) ──

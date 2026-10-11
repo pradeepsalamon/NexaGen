@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { AssignmentService } from "./assignment.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
+import { AssignmentPuzzleSetService } from "./assignment-puzzle-set.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { UploadService } from "../upload/upload.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -39,6 +40,16 @@ describe("AssignmentService", () => {
     $transaction: jest.Mock;
   };
   let upload: { uploadPgn: jest.Mock };
+  let puzzleSets: {
+    resolvePuzzles: jest.Mock;
+    replaceSet: jest.Mock;
+    clearSet: jest.Mock;
+    puzzleIdsOf: jest.Mock;
+    loadSets: jest.Mock;
+    refreshAssignmentRollups: jest.Mock;
+    studentProgress: jest.Mock;
+    deploymentResults: jest.Mock;
+  };
 
   const asRole = (id: string, role: UserRole) => ({ id, role, status: UserStatus.ACTIVE });
 
@@ -94,9 +105,27 @@ describe("AssignmentService", () => {
 
     upload = { uploadPgn: jest.fn().mockResolvedValue({ secure_url: "http://cloud/t.pgn" }) };
 
+    puzzleSets = {
+      resolvePuzzles: jest.fn().mockResolvedValue({
+        firstFen: "6k1/5ppp/8/8/8/8/8/R5K1 w - - 0 1",
+        rows: [
+          { puzzleId: "pz-1", position: 0, scoringJson: {} },
+          { puzzleId: "pz-2", position: 1, scoringJson: {} }
+        ]
+      }),
+      replaceSet: jest.fn().mockResolvedValue(undefined),
+      clearSet: jest.fn().mockResolvedValue(undefined),
+      puzzleIdsOf: jest.fn().mockResolvedValue(["pz-1", "pz-2"]),
+      loadSets: jest.fn().mockResolvedValue(new Map()),
+      refreshAssignmentRollups: jest.fn().mockResolvedValue(undefined),
+      studentProgress: jest.fn().mockResolvedValue(new Map()),
+      deploymentResults: jest.fn()
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AssignmentService,
+        { provide: AssignmentPuzzleSetService, useValue: puzzleSets },
         {
           provide: MessagingDispatchService,
           useValue: { dispatchInBackground: jest.fn() }
@@ -256,6 +285,91 @@ describe("AssignmentService", () => {
       expect(prisma.studentAssignment.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ status: "IN_PROGRESS", completedAt: null }) })
       );
+    });
+  });
+
+  describe("puzzle sets", () => {
+    it("creates a set from the ordered puzzles without uploading a PGN", async () => {
+      await service.create(TOKEN, {
+        title: "Mates",
+        difficulty: "BEGINNER",
+        activityType: "PUZZLE_SET",
+        puzzleIds: ["pz-1", "pz-2"],
+        maxAttempts: 2,
+        allowHints: true,
+        scoring: { basePoints: 20 }
+      });
+
+      expect(puzzleSets.resolvePuzzles).toHaveBeenCalledWith(
+        expect.objectContaining({ id: COACH_ID }),
+        ["pz-1", "pz-2"],
+        { basePoints: 20 }
+      );
+      expect(upload.uploadPgn).not.toHaveBeenCalled();
+      expect(prisma.assignment.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            activityType: "PUZZLE_SET",
+            maxAttempts: 2,
+            allowHints: true,
+            pgnUrl: null,
+            scoringJson: { basePoints: 20 },
+            startFen: null
+          })
+        })
+      );
+      expect(puzzleSets.replaceSet).toHaveBeenCalledWith(prisma, "asg-1", [
+        { puzzleId: "pz-1", position: 0, scoringJson: {} },
+        { puzzleId: "pz-2", position: 1, scoringJson: {} }
+      ]);
+    });
+
+    it("reorders a set and re-rolls every student's progress", async () => {
+      prisma.assignment.findUnique.mockResolvedValue({
+        id: "asg-1",
+        title: "Mates",
+        description: null,
+        pgn: "*",
+        pgnUrl: null,
+        difficulty: "BEGINNER",
+        isLibrary: false,
+        createdById: COACH_ID,
+        createdBy: { firstName: "Coach", lastName: "One" },
+        activityType: "PUZZLE_SET",
+        scoringJson: { basePoints: 20 },
+        leaderboardJson: null,
+        maxAttempts: null,
+        allowRetry: true,
+        allowHints: false,
+        passThresholdPercent: 100,
+        requiredCompletionPercent: 100,
+        _count: { deployments: 0 },
+        createdAt: new Date()
+      });
+
+      await service.update(TOKEN, "asg-1", { puzzleIds: ["pz-2", "pz-1"] });
+
+      // The stored points override is kept when only the order changes.
+      expect(puzzleSets.resolvePuzzles).toHaveBeenCalledWith(
+        expect.objectContaining({ id: COACH_ID }),
+        ["pz-2", "pz-1"],
+        { basePoints: 20 }
+      );
+      expect(puzzleSets.replaceSet).toHaveBeenCalled();
+      expect(puzzleSets.refreshAssignmentRollups).toHaveBeenCalledWith("asg-1");
+    });
+
+    it("refuses a manual status change on a puzzle set", async () => {
+      prisma.user.findUnique.mockResolvedValue(asRole(STUDENT_ID, UserRole.STUDENT));
+      prisma.studentAssignment.findUnique.mockResolvedValue({
+        id: "sa-1",
+        studentId: STUDENT_ID,
+        assignmentBatch: { assignment: { activityType: "PUZZLE_SET" } }
+      });
+      await expect(
+        service.updateStatus(TOKEN, "sa-1", { status: "IN_PROGRESS" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.studentAssignment.update).not.toHaveBeenCalled();
     });
   });
 });
