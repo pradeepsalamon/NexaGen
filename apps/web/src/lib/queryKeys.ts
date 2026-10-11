@@ -98,6 +98,7 @@ export const queryKeys = {
     stats: ["puzzles", "stats"] as const,
     scoringSettings: ["puzzles", "scoring-settings"] as const,
     topics: ["puzzles", "topics"] as const,
+    folderHomework: (topicId: string) => ["puzzles", "topics", topicId, "homework"] as const,
     catalog: (params?: Record<string, unknown>) => ["puzzles", "catalog", params ?? null] as const,
     catalogPreview: (sourceId: string) => ["puzzles", "catalog-preview", sourceId] as const,
     mine: (params?: Record<string, unknown>) => ["puzzles", "mine", params ?? null] as const,

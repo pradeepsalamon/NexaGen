@@ -122,6 +122,15 @@ export type PuzzleTopicDto = {
   puzzleCount: number;
   createdByName: string | null;
   canManage: boolean;
+  /** Super Admin's academy-wide homework approval (null = not approved, or revoked). */
+  homeworkApprovedAt: string | null;
+  homeworkApprovedByName: string | null;
+  /** Live published library puzzles filed directly here — what assigning the folder would set. */
+  homeworkPuzzleCount: number;
+  /** Why the folder can't be assigned as homework right now; null = a coach can assign it. */
+  homeworkBlocker: string | null;
+  /** Only the Super Admin approves or revokes. */
+  canApproveHomework: boolean;
   createdAt: string;
   updatedAt: string;
 };

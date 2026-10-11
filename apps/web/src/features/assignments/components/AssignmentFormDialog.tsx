@@ -9,12 +9,13 @@ import {
   type AssignmentLibraryItem,
   type CoachBatch,
   type CreateAssignmentRequest,
+  type PuzzleDifficulty,
   type PuzzleLeaderboardOverride,
   type PuzzleScoringOverride,
   type SolutionMove,
   type UpdateAssignmentRequest
 } from "@nexa-chess/types";
-import { ChevronDown, Trophy, Upload } from "lucide-react";
+import { ChevronDown, FolderCheck, Library, PencilRuler, Trophy, Upload } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Checkbox } from "@/components/ui/Checkbox";
@@ -38,6 +39,7 @@ import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
 import { SolutionEditor } from "./SolutionEditor";
 import { Switch } from "@/components/ui/Switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import {
   PuzzleLeaderboardFields,
   PuzzleScoringFields,
@@ -120,6 +122,56 @@ const ACTIVITY_OPTIONS = [
   { label: "Puzzle set (several puzzles)", value: "PUZZLE_SET" }
 ];
 
+/** Hand-built activities — the "Build an activity" source in a new assignment. */
+const MANUAL_ACTIVITY_OPTIONS = ACTIVITY_OPTIONS.filter((o) => o.value !== "PUZZLE_SET");
+
+const PUZZLE_TO_ASSIGNMENT_DIFFICULTY: Record<PuzzleDifficulty, FormValues["difficulty"]> = {
+  ADVANCED: "ADVANCED",
+  BEGINNER: "BEGINNER",
+  EASY: "BEGINNER",
+  EXPERT: "ADVANCED",
+  INTERMEDIATE: "INTERMEDIATE"
+};
+const DIFFICULTY_RANK: Record<FormValues["difficulty"], number> = { ADVANCED: 2, BEGINNER: 0, INTERMEDIATE: 1 };
+
+/** The set's difficulty = its hardest puzzle's, on the assignment's 3-step scale. */
+function setDifficulty(puzzles: SelectedSetPuzzle[]): FormValues["difficulty"] {
+  return puzzles
+    .map((p) => PUZZLE_TO_ASSIGNMENT_DIFFICULTY[p.difficulty])
+    .reduce<FormValues["difficulty"]>((max, d) => (DIFFICULTY_RANK[d] > DIFFICULTY_RANK[max] ? d : max), "BEGINNER");
+}
+
+/** "Back-rank mate" for one puzzle, "Puzzle set: 5 puzzles" for several. */
+/** A folder's set is fixed: the folder's published library puzzles, in title order. */
+function FolderSetPreview({ folderName, puzzles }: { folderName: string; puzzles: SelectedSetPuzzle[] }) {
+  return (
+    <div className="grid gap-2 rounded-panel border border-app-border bg-app-soft p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <FolderCheck className="size-4 shrink-0 text-success-ink" strokeWidth={2.5} />
+        <p className="text-sm font-semibold text-app-text">{folderName}</p>
+        <Badge variant="success">Approved for homework</Badge>
+      </div>
+      <p className="text-xs text-app-muted">
+        Students get every published library puzzle in this folder, in this order ({puzzles.length}{" "}
+        puzzle{puzzles.length === 1 ? "" : "s"}).
+      </p>
+      <ol className="grid max-h-56 gap-1 overflow-y-auto text-sm text-app-text">
+        {puzzles.map((p, i) => (
+          <li key={p.puzzleId} className="flex items-center gap-2">
+            <span className="w-6 shrink-0 text-right tabular-nums text-app-muted">{i + 1}.</span>
+            <span className="truncate">{p.title}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+export function defaultSetTitle(puzzles: SelectedSetPuzzle[]): string {
+  if (puzzles.length === 1) return puzzles[0].title;
+  return `Puzzle set: ${puzzles.length} puzzles`;
+}
+
 const ENGINE_LEVELS = [
   { label: "Beginner (level 2)", value: "2" },
   { label: "Casual (level 5)", value: "5" },
@@ -164,6 +216,19 @@ interface Props {
   initialSolutionMoves?: SolutionMove[];
   /** Prefill the title on create. */
   initialTitle?: string;
+  /**
+   * Start a library puzzle set on create (the Puzzle Library's "Assign"). The
+   * set references these library puzzles — nothing is copied.
+   */
+  initialPuzzles?: SelectedSetPuzzle[];
+  /**
+   * Assign a homework-approved folder (with `initialPuzzles` = its puzzles, for
+   * display). The list is fixed — the server takes the puzzles from the folder
+   * and refuses it if the Super Admin's approval has been revoked.
+   */
+  sourceFolder?: { id: string; name: string };
+  /** Called once a new assignment is saved (not on cancel). */
+  onCreated?: () => void;
 }
 
 export function AssignmentFormDialog({
@@ -175,13 +240,17 @@ export function AssignmentFormDialog({
   initialFen,
   initialActivityType,
   initialSolutionMoves,
-  initialTitle
+  initialTitle,
+  initialPuzzles,
+  sourceFolder,
+  onCreated
 }: Props) {
   const { run: runCreate, isPending: isCreating } = useUndoableMutation({
     strategy: "immediate",
     mutationFn: async (payload: CreateAssignmentRequest) => {
       const result = await createAssignment(payload);
       onOpenChange(false);
+      onCreated?.();
       return result;
     },
     undo: (_vars, result) => deleteAssignment(result.assignment.id),
@@ -237,6 +306,16 @@ export function AssignmentFormDialog({
         scoring: assignment.scoring ?? {},
         leaderboard: assignment.leaderboard ?? {}
       });
+    } else if (initialPuzzles && initialPuzzles.length > 0) {
+      form.reset({
+        ...DEFAULTS,
+        activityType: "PUZZLE_SET",
+        difficulty: setDifficulty(initialPuzzles),
+        puzzles: initialPuzzles,
+        title: initialTitle ?? sourceFolder?.name ?? defaultSetTitle(initialPuzzles)
+      });
+      // Came here to assign: the batch picker starts open.
+      setAssignNow(true);
     } else {
       form.reset({
         ...DEFAULTS,
@@ -247,7 +326,7 @@ export function AssignmentFormDialog({
         studentColor: initialFen && initialFen.includes(" b ") ? "black" : "white"
       });
     }
-  }, [open, mode, assignment, form, initialFen, initialActivityType, initialSolutionMoves, initialTitle]);
+  }, [open, mode, assignment, form, initialFen, initialActivityType, initialSolutionMoves, initialTitle, initialPuzzles, sourceFolder]);
 
   const errors = form.formState.errors;
   const isPending = isCreating || isUpdating;
@@ -255,6 +334,8 @@ export function AssignmentFormDialog({
   const activityType = form.watch("activityType");
   const startFen = form.watch("startFen");
   const isSet = activityType === "PUZZLE_SET";
+  const fromFolder = mode === "create" && !!sourceFolder;
+  const setCount = form.watch("puzzles").length;
   const scoringOverride = form.watch("scoring");
   const leaderboardOverride = form.watch("leaderboard");
   const scoringDefaults = usePuzzleScoringSettings(open && isSet);
@@ -311,7 +392,8 @@ export function AssignmentFormDialog({
     if (values.activityType === "REPLAY") {
       activity.pgn = values.pgn;
     } else if (values.activityType === "PUZZLE_SET") {
-      activity.puzzleIds = values.puzzles.map((p) => p.puzzleId);
+      if (fromFolder) activity.sourceTopicId = sourceFolder!.id;
+      else activity.puzzleIds = values.puzzles.map((p) => p.puzzleId);
       activity.maxAttempts = values.maxAttempts ? parseInt(values.maxAttempts, 10) : null;
       activity.allowRetry = true;
       activity.allowHints = values.allowHints;
@@ -377,30 +459,61 @@ export function AssignmentFormDialog({
           <DialogDescription>
             {mode === "edit"
               ? "Update this assignment. Changes apply everywhere it is used."
-              : "Choose an activity, then configure the position or line."}
+              : "Assign puzzles from the library, or build an activity yourself."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="grid gap-4 py-2">
+          {mode === "create" && !fromFolder ? (
+            <div className="grid gap-1.5">
+              <p className="text-sm font-semibold text-app-text">What are you assigning?</p>
+              <Tabs
+                value={isSet ? "library" : "manual"}
+                onValueChange={(v) => {
+                  form.clearErrors();
+                  form.setValue("activityType", v === "library" ? "PUZZLE_SET" : "REPLAY");
+                }}
+              >
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger className="min-w-0 gap-1.5 whitespace-normal text-center" value="library">
+                    <Library className="size-4 shrink-0" strokeWidth={2.5} />
+                    Academy Library puzzles
+                  </TabsTrigger>
+                  <TabsTrigger className="min-w-0 gap-1.5 whitespace-normal text-center" value="manual">
+                    <PencilRuler className="size-4 shrink-0" strokeWidth={2.5} />
+                    Build an activity
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+              <p className="text-xs text-app-muted">
+                {isSet
+                  ? "Pick one or more published library puzzles. Students solve them in your order; each keeps its own position, solution, difficulty and tags."
+                  : "Write the activity yourself — paste a PGN, set up a position or record a line."}
+              </p>
+            </div>
+          ) : null}
+
           <FormField id="title" label="Title" error={errors.title?.message as string | undefined}>
             <Input id="title" hasError={!!errors.title} {...form.register("title")} placeholder="e.g. Back-rank mate" />
           </FormField>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <FormField id="activityType" label="Activity type">
-              <Controller
-                control={form.control}
-                name="activityType"
-                render={({ field }) => (
-                  <Select
-                    id="activityType"
-                    options={ACTIVITY_OPTIONS}
-                    value={field.value}
-                    onChange={(e) => field.onChange(e.target.value)}
-                  />
-                )}
-              />
-            </FormField>
+            {mode === "create" && isSet ? null : (
+              <FormField id="activityType" label="Activity type">
+                <Controller
+                  control={form.control}
+                  name="activityType"
+                  render={({ field }) => (
+                    <Select
+                      id="activityType"
+                      options={mode === "create" ? MANUAL_ACTIVITY_OPTIONS : ACTIVITY_OPTIONS}
+                      value={field.value}
+                      onChange={(e) => field.onChange(e.target.value)}
+                    />
+                  )}
+                />
+              </FormField>
+            )}
 
             <FormField id="difficulty" label="Difficulty">
               <Controller
@@ -478,21 +591,37 @@ export function AssignmentFormDialog({
 
           {isSet && (
             <>
-              <Controller
-                control={form.control}
-                name="puzzles"
-                render={({ field }) => (
-                  <PuzzleSetEditor
-                    value={field.value}
-                    onChange={(next) => {
-                      field.onChange(next);
-                      if (next.length > 0) form.clearErrors("puzzles");
-                    }}
-                    globalOnly={isAdmin}
-                    error={errors.puzzles?.message as string | undefined}
-                  />
-                )}
-              />
+              {mode === "edit" && assignment?.sourceTopic ? (
+                <p className="text-xs text-app-muted">
+                  Built from the approved folder <strong>{assignment.sourceTopic.name}</strong> — it can be
+                  assigned again only while that folder stays approved. Changing the puzzles turns it into
+                  an ordinary puzzle set.
+                </p>
+              ) : null}
+              {fromFolder ? (
+                <FolderSetPreview folderName={sourceFolder!.name} puzzles={form.watch("puzzles")} />
+              ) : (
+                <Controller
+                  control={form.control}
+                  name="puzzles"
+                  render={({ field }) => (
+                    <PuzzleSetEditor
+                      value={field.value}
+                      onChange={(next) => {
+                        // Keep an untouched default title in step with the set.
+                        const title = form.getValues("title");
+                        if (mode === "create" && (!title || title === defaultSetTitle(field.value)) && next.length > 0) {
+                          form.setValue("title", defaultSetTitle(next));
+                        }
+                        field.onChange(next);
+                        if (next.length > 0) form.clearErrors("puzzles");
+                      }}
+                      globalOnly={isAdmin}
+                      error={errors.puzzles?.message as string | undefined}
+                    />
+                  )}
+                />
+              )}
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField id="setMaxAttempts" label="Tries per puzzle (blank = unlimited)">
@@ -710,6 +839,11 @@ export function AssignmentFormDialog({
                 <div className="mt-3 grid gap-3">
                   <div className="grid gap-2">
                     <p className="text-sm font-medium text-app-text">Batches</p>
+                    {errors.batchIds ? (
+                      <p className="text-xs font-semibold text-app-danger-ink" role="alert">
+                        {errors.batchIds.message as string}
+                      </p>
+                    ) : null}
                     <Controller
                       control={form.control}
                       name="batchIds"
@@ -723,13 +857,14 @@ export function AssignmentFormDialog({
                                 id={`batch-${batch.id}`}
                                 label={batch.name}
                                 checked={checked}
-                                onCheckedChange={(v) =>
+                                onCheckedChange={(v) => {
                                   field.onChange(
                                     v === true
                                       ? [...field.value, batch.id]
                                       : field.value.filter((bId) => bId !== batch.id)
-                                  )
-                                }
+                                  );
+                                  if (v === true) form.clearErrors("batchIds");
+                                }}
                               />
                             );
                           })}
@@ -765,7 +900,13 @@ export function AssignmentFormDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : mode === "edit" ? "Save changes" : "Create assignment"}
+              {isPending
+                ? "Saving..."
+                : mode === "edit"
+                  ? "Save changes"
+                  : isSet && assignNow && canAssignOnCreate && setCount > 0
+                    ? `Assign ${setCount} puzzle${setCount === 1 ? "" : "s"}`
+                    : "Create assignment"}
             </Button>
           </DialogFooter>
         </form>

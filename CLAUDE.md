@@ -678,6 +678,31 @@ without the library visibility check.
   (form), `PuzzleSetResults` (coach dialog), `StudentPuzzleSet` +
   `AssignmentPuzzleSolver` (reuses `usePuzzleAttempt` with the set's start
   route) + `PuzzleSetLeaderboard`.
+- **Assigning from the library is a PUZZLE_SET** — one puzzle or many, it is
+  the same referenced set (never a copied SOLVE_LINE). Two doors, one dialog:
+  "New assignment" opens on a source choice (Academy Library puzzles vs. build
+  an activity), and the Puzzle Library has row checkboxes (selection kept
+  across tabs/pages, in pick order) + a per-row and bulk "Assign" that open
+  `AssignmentFormDialog` with `initialPuzzles` (assign-now on, title/difficulty
+  prefilled). `assignBlocker` in `PuzzleLibraryClient` mirrors the API rule:
+  published only, and an admin's set global only. `PuzzleQuickPreviewDialog`
+  (board + stepped solution + tags) serves both. Targets are still batches
+  only — there is no per-student or group deployment.
+- **Homework-approved folders** (Super Admin only, academy-wide): approval is
+  `PuzzleTopic.homeworkApprovedAt/ById` — on the folder, never per coach, so a
+  coach who joins later is covered and adding coaches resets nothing. Routes
+  `API_ROUTES.puzzles.topicHomework` (GET set / PUT approve / DELETE revoke;
+  `PuzzleTopicService` → `AssignmentPuzzleSetService.folderHomework`). One rule,
+  `folderHomeworkBlocker` in `@nexa-chess/types`: approved, not a system folder,
+  no live subfolders, 1–`MAX_ASSIGNMENT_PUZZLES` live PUBLISHED GLOBAL puzzles
+  filed directly in it. The API applies it on approve, on `create` with
+  `sourceTopicId` (the server takes the puzzles — a client `puzzleIds` beside it
+  is a 400) and on **every `deploy`** of a set with `Assignment.sourceTopicId`
+  (403 once revoked). Editing such a set's puzzle list detaches it (sets
+  `sourceTopicId` null). Web: the Homework column in `TopicManager` (Super Admin
+  approve/revoke, on `/admin/puzzles` — `/coach/*` is COACH-only) and
+  `AssignFolderDialog` in `PuzzleLibraryClient` (coach, `/coach/puzzles` Topics
+  tab) → `AssignmentFormDialog` with `sourceFolder`.
 
 ### 3.6j1 Class timing rules (start window, upcoming / past, not held)
 

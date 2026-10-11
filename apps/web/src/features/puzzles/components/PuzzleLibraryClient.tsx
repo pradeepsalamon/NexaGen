@@ -1,17 +1,21 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  MAX_ASSIGNMENT_PUZZLES,
   puzzleTopicPathLabel,
+  type CoachBatch,
   type PuzzleListQuery,
   type PuzzleStatus,
   type PuzzleSummary,
+  type PuzzleTopicDto,
   type PuzzleVisibility
 } from "@nexa-chess/types";
 import {
   Archive,
   ArchiveRestore,
+  ClipboardCheck,
   Copy,
   Eye,
   FileUp,
@@ -23,6 +27,8 @@ import {
   Undo2
 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
+import { BulkActionsBar } from "@/components/ui/BulkActionsBar";
+import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
 import { SortButton, type SortDirection } from "@/components/ui/DataTableSortButton";
 import { Card } from "@/components/ui/Card";
@@ -43,14 +49,23 @@ import {
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { useToast } from "@/providers/ToastProvider";
 import { restoreTrashItem } from "@/features/trash/api/trashApi";
+import { AssignmentFormDialog } from "@/features/assignments/components/AssignmentFormDialog";
+import type { SelectedSetPuzzle } from "@/features/assignments/components/puzzle-set/PuzzleSetEditor";
+import { useCoachBatches } from "@/features/coach/hooks/useCoachApi";
 import {
   deletePuzzle,
   duplicatePuzzle,
   setPuzzleArchived,
   setPuzzlePublished
 } from "../api/puzzleApi";
-import { usePuzzleStats, usePuzzles, usePuzzleTopics } from "../hooks/usePuzzlesApi";
+import {
+  useFolderHomework,
+  usePuzzleStats,
+  usePuzzles,
+  usePuzzleTopics
+} from "../hooks/usePuzzlesApi";
 import {
   PUZZLE_DIFFICULTY_LABELS,
   PUZZLE_DIFFICULTY_OPTIONS,
@@ -69,6 +84,33 @@ const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
 type ScopeConfig = { scope?: PuzzleListQuery["scope"]; visibility?: PuzzleVisibility };
+
+/**
+ * Which puzzles can go into an assignment: published ones, and for an admin
+ * (whose assignment is a shared library item) global ones only — the same
+ * rule the API enforces on save.
+ */
+function assignBlocker(p: PuzzleSummary, role: Props["role"]): string | null {
+  if (p.status !== "PUBLISHED") return "Publish this puzzle to assign it";
+  if (role === "admin" && p.visibility !== "GLOBAL") return "Shared assignments use admin-library puzzles only";
+  return null;
+}
+
+const toSetPuzzle = (p: PuzzleSummary): SelectedSetPuzzle => ({
+  difficulty: p.difficulty,
+  puzzleId: p.id,
+  tags: p.tags,
+  title: p.title,
+  topicName: p.topicName
+});
+
+/** The selection, kept across tabs and pages, in the order puzzles were picked. */
+type Selection = {
+  selected: Map<string, PuzzleSummary>;
+  toggle: (p: PuzzleSummary, on: boolean) => void;
+  setMany: (list: PuzzleSummary[], on: boolean) => void;
+  assign: (list: PuzzleSummary[]) => void;
+};
 
 interface Props {
   role: "admin" | "coach";
@@ -91,6 +133,38 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
 
   const stats = usePuzzleStats(role === "admin");
   const [importOpen, setImportOpen] = useState(false);
+
+  // Assign straight from the library: one puzzle (row button) or the selection.
+  const [selected, setSelected] = useState<Map<string, PuzzleSummary>>(() => new Map());
+  const [assigning, setAssigning] = useState<SelectedSetPuzzle[] | null>(null);
+  const coachBatches = useCoachBatches({ enabled: role === "coach" });
+  const toggle = useCallback((p: PuzzleSummary, on: boolean) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      if (on) next.set(p.id, p);
+      else next.delete(p.id);
+      return next;
+    });
+  }, []);
+  const setMany = useCallback((list: PuzzleSummary[], on: boolean) => {
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const p of list) {
+        if (on) next.set(p.id, p);
+        else next.delete(p.id);
+      }
+      return next;
+    });
+  }, []);
+  const selection: Selection = {
+    assign: (list) => setAssigning(list.map(toSetPuzzle)),
+    selected,
+    setMany,
+    toggle
+  };
+  const tooMany = selected.size > MAX_ASSIGNMENT_PUZZLES;
+  // Coach: a homework-approved folder being assigned (Topics tab).
+  const [assigningFolder, setAssigningFolder] = useState<PuzzleTopicDto | null>(null);
 
   return (
     <div className="space-y-6">
@@ -160,24 +234,132 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
 
         {tabs.map((t) => (
           <TabsContent key={t.key} value={t.key}>
-            <PuzzleTable basePath={basePath} cfg={t.cfg} />
+            <PuzzleTable basePath={basePath} cfg={t.cfg} role={role} selection={selection} />
           </TabsContent>
         ))}
         <TabsContent value="catalog">
           <CatalogBrowser role={role} />
         </TabsContent>
         <TabsContent value="topics">
-          <TopicManager canManage={role === "admin"} />
+          <TopicManager
+            canManage={role === "admin"}
+            onAssignFolder={role === "coach" ? setAssigningFolder : undefined}
+          />
         </TabsContent>
       </Tabs>
       <PuzzleImportDialog open={importOpen} onOpenChange={setImportOpen} role={role} />
+
+      <BulkActionsBar
+        actions={[
+          {
+            disabled: tooMany,
+            icon: ClipboardCheck,
+            label: tooMany
+              ? `At most ${MAX_ASSIGNMENT_PUZZLES} per assignment`
+              : role === "coach"
+                ? "Assign"
+                : "Create assignment",
+            onSelect: () => selection.assign([...selected.values()])
+          }
+        ]}
+        count={selected.size}
+        noun="puzzle"
+        onClear={() => setSelected(new Map())}
+      />
+
+      <AssignmentFormDialog
+        open={assigning !== null}
+        onOpenChange={(o) => {
+          if (!o) setAssigning(null);
+        }}
+        mode="create"
+        initialPuzzles={assigning ?? undefined}
+        coachBatches={role === "coach" ? coachBatches.data?.batches ?? [] : undefined}
+        onCreated={() => setSelected(new Map())}
+      />
+
+      {role === "coach" ? (
+        <AssignFolderDialog
+          folder={assigningFolder}
+          coachBatches={coachBatches.data?.batches ?? []}
+          onClose={() => setAssigningFolder(null)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * Assign a homework-approved folder through the ordinary homework dialog. The
+ * folder's set is fetched fresh on open: if the Super Admin revoked it (or it
+ * changed shape) since the list loaded, the coach is told instead.
+ */
+function AssignFolderDialog({
+  folder,
+  coachBatches,
+  onClose
+}: {
+  folder: PuzzleTopicDto | null;
+  coachBatches: CoachBatch[];
+  onClose: () => void;
+}) {
+  const toast = useToast();
+  const { data, error, isFetching } = useFolderHomework(folder?.id ?? null);
+  const ready = !!folder && !isFetching && !!data && data.topicId === folder.id;
+  const blocker = ready ? data.blocker : null;
+
+  useEffect(() => {
+    if (!folder || isFetching) return;
+    if (error || blocker) {
+      toast.error({
+        title: `"${folder.name}" can't be assigned`,
+        message: blocker ?? (error as Error).message
+      });
+      onClose();
+    }
+  }, [folder, isFetching, error, blocker, toast, onClose]);
+
+  const puzzles = useMemo(
+    () =>
+      ready
+        ? data.puzzles.map((p) => ({
+            difficulty: p.difficulty,
+            puzzleId: p.puzzleId,
+            tags: p.tags,
+            title: p.title,
+            topicName: p.topicName
+          }))
+        : undefined,
+    [ready, data]
+  );
+
+  return (
+    <AssignmentFormDialog
+      open={ready && !blocker}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+      mode="create"
+      initialPuzzles={puzzles}
+      sourceFolder={folder ? { id: folder.id, name: folder.name } : undefined}
+      coachBatches={coachBatches}
+    />
   );
 }
 
 type PuzzleSortKey = "title" | "puzzleType" | "difficulty" | "status";
 
-function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) {
+function PuzzleTable({
+  basePath,
+  cfg,
+  role,
+  selection
+}: {
+  basePath: string;
+  cfg: ScopeConfig;
+  role: Props["role"];
+  selection: Selection;
+}) {
   const [searchInput, setSearchInput] = useState("");
   const search = useDebouncedValue(searchInput, 350);
   const [topicId, setTopicId] = useState("");
@@ -256,6 +438,14 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
 
   const puzzles = data?.puzzles ?? [];
   const pagination = data?.pagination;
+  const pageAssignable = puzzles.filter((p) => !assignBlocker(p, role));
+  const pageSelected = pageAssignable.filter((p) => selection.selected.has(p.id)).length;
+  const headerChecked: boolean | "indeterminate" =
+    pageAssignable.length > 0 && pageSelected === pageAssignable.length
+      ? true
+      : pageSelected > 0
+        ? "indeterminate"
+        : false;
   const hasFilters = Boolean(
     searchInput || topicId || puzzleType || difficulty || status
   );
@@ -358,6 +548,14 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
           <Table className={isPlaceholderData ? "opacity-60" : undefined}>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    aria-label="Select every assignable puzzle on this page"
+                    checked={headerChecked}
+                    disabled={pageAssignable.length === 0}
+                    onCheckedChange={(v) => selection.setMany(pageAssignable, v === true)}
+                  />
+                </TableHead>
                 <TableHead><SortButton label="Puzzle" {...sortProps("title")} /></TableHead>
                 <TableHead>Topic</TableHead>
                 <TableHead><SortButton label="Type" {...sortProps("puzzleType")} /></TableHead>
@@ -369,7 +567,27 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
             </TableHeader>
             <TableBody>
               {puzzles.map((p) => (
-                <TableRow key={p.id}>
+                <TableRow key={p.id} data-state={selection.selected.has(p.id) ? "selected" : undefined}>
+                  <TableCell>
+                    {(() => {
+                      const blocker = assignBlocker(p, role);
+                      const box = (
+                        <Checkbox
+                          aria-label={blocker ? `${p.title}: ${blocker}` : `Select ${p.title}`}
+                          checked={selection.selected.has(p.id)}
+                          disabled={!!blocker}
+                          onCheckedChange={(v) => selection.toggle(p, v === true)}
+                        />
+                      );
+                      return blocker ? (
+                        <SimpleTooltip label={blocker}>
+                          <span className="inline-flex">{box}</span>
+                        </SimpleTooltip>
+                      ) : (
+                        box
+                      );
+                    })()}
+                  </TableCell>
                   <TableCell className="font-medium text-app-text">
                     <Link href={`${basePath}/${p.id}`} className="hover:text-primary-ink">
                       {p.title}
@@ -398,6 +616,19 @@ function PuzzleTable({ basePath, cfg }: { basePath: string; cfg: ScopeConfig }) 
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-1.5">
+                      {assignBlocker(p, role) ? null : (
+                        <SimpleTooltip label={role === "coach" ? "Assign" : "Create assignment"}>
+                          <Button
+                            aria-label={`Assign ${p.title}`}
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                            onClick={() => selection.assign([p])}
+                          >
+                            <ClipboardCheck className="size-4" strokeWidth={2.5} />
+                          </Button>
+                        </SimpleTooltip>
+                      )}
                       <SimpleTooltip label="Preview">
                         <Button
                           asChild

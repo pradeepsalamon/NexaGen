@@ -4,12 +4,14 @@ import { JwtService } from "@nestjs/jwt";
 import { Test } from "@nestjs/testing";
 import { LICHESS_FOLDER_SLUG, MAX_PUZZLE_TOPIC_DEPTH } from "@nexa-chess/types";
 import { UserRole, UserStatus } from "@prisma/client";
+import { AssignmentPuzzleSetService } from "../assignment/assignment-puzzle-set.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { PuzzleTopicService } from "./puzzle-topic.service";
 
 const TOKEN = "access-token";
 const ADMIN_ID = "admin-1";
+const SUPER_ID = "super-1";
 const COACH_ID = "coach-1";
 
 // t1 (Tactics) > t2 (Forks) > t3 (Knight forks); t4 is a separate root.
@@ -27,12 +29,17 @@ describe("PuzzleTopicService", () => {
   let jwt: { verifyAsync: jest.Mock };
   let prisma: any;
   let trash: { softDelete: jest.Mock; softDeleteGroup: jest.Mock };
+  let puzzleSets: { folderHomeworkCounts: jest.Mock; folderHomework: jest.Mock };
 
   beforeEach(async () => {
     jwt = { verifyAsync: jest.fn().mockResolvedValue({ sub: ADMIN_ID, type: "access" }) };
     trash = {
       softDelete: jest.fn().mockResolvedValue(undefined),
       softDeleteGroup: jest.fn().mockResolvedValue(undefined)
+    };
+    puzzleSets = {
+      folderHomeworkCounts: jest.fn().mockResolvedValue(new Map()),
+      folderHomework: jest.fn()
     };
     prisma = {
       user: { findUnique: jest.fn().mockResolvedValue(asRole(ADMIN_ID, UserRole.ADMIN)) },
@@ -41,13 +48,15 @@ describe("PuzzleTopicService", () => {
         findUnique: jest.fn(),
         findMany: jest.fn().mockResolvedValue([]),
         count: jest.fn(),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        findUniqueOrThrow: jest.fn(),
         update: jest.fn().mockImplementation(({ where, data }) => ({
           id: where.id,
           name: "Folder",
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: null,
-          _count: { puzzles: 0 },
+          _count: { children: 0, puzzles: 0 },
           ...data
         })),
         create: jest.fn().mockImplementation(({ data }) => ({
@@ -55,7 +64,7 @@ describe("PuzzleTopicService", () => {
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: null,
-          _count: { puzzles: 0 },
+          _count: { children: 0, puzzles: 0 },
           ...data
         }))
       },
@@ -71,7 +80,8 @@ describe("PuzzleTopicService", () => {
         PuzzleTopicService,
         { provide: JwtService, useValue: jwt },
         { provide: PrismaService, useValue: prisma },
-        { provide: TrashRepository, useValue: trash }
+        { provide: TrashRepository, useValue: trash },
+        { provide: AssignmentPuzzleSetService, useValue: puzzleSets }
       ]
     }).compile();
 
@@ -229,6 +239,104 @@ describe("PuzzleTopicService", () => {
     it("refuses to copy a system folder", async () => {
       prisma.puzzleTopic.findUnique.mockResolvedValue({ ...FULL[3], slug: LICHESS_FOLDER_SLUG });
       await expect(service.copy(TOKEN, "t4", { parentId: null })).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+  describe("homework approval", () => {
+    const folder = (over: Record<string, unknown> = {}) => ({
+      id: "t4",
+      name: "Forks",
+      slug: "forks",
+      description: null,
+      icon: null,
+      sortOrder: 0,
+      parentId: null,
+      createdBy: null,
+      homeworkApprovedAt: null,
+      homeworkApprovedBy: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      _count: { children: 0, puzzles: 3 },
+      ...over
+    });
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue(asRole(SUPER_ID, UserRole.SUPER_ADMIN));
+      puzzleSets.folderHomeworkCounts.mockResolvedValue(new Map([["t4", 3]]));
+    });
+
+    it("lets only the Super Admin approve — not an admin, not a coach", async () => {
+      for (const [id, role] of [
+        [ADMIN_ID, UserRole.ADMIN],
+        [COACH_ID, UserRole.COACH]
+      ] as const) {
+        prisma.user.findUnique.mockResolvedValue(asRole(id, role));
+        await expect(service.approveHomework(TOKEN, "t4")).rejects.toBeInstanceOf(ForbiddenException);
+        await expect(service.revokeHomework(TOKEN, "t4")).rejects.toBeInstanceOf(ForbiddenException);
+      }
+      expect(prisma.puzzleTopic.updateMany).not.toHaveBeenCalled();
+      expect(prisma.puzzleTopic.update).not.toHaveBeenCalled();
+    });
+
+    it("approves on the folder itself (academy-wide), keeping an existing approval", async () => {
+      prisma.puzzleTopic.findUnique.mockResolvedValue(folder());
+      const approvedAt = new Date("2026-10-11T10:00:00Z");
+      prisma.puzzleTopic.findUniqueOrThrow.mockResolvedValue(
+        folder({ homeworkApprovedAt: approvedAt, homeworkApprovedBy: { firstName: "Sam", lastName: "Root" } })
+      );
+
+      const { topic } = await service.approveHomework(TOKEN, "t4");
+
+      expect(prisma.puzzleTopic.updateMany).toHaveBeenCalledWith({
+        where: { id: "t4", homeworkApprovedAt: null },
+        data: { homeworkApprovedAt: expect.any(Date), homeworkApprovedById: SUPER_ID }
+      });
+      expect(topic).toMatchObject({
+        homeworkApprovedAt: approvedAt.toISOString(),
+        homeworkApprovedByName: "Sam Root",
+        homeworkBlocker: null,
+        homeworkPuzzleCount: 3,
+        canApproveHomework: true
+      });
+    });
+
+    it("refuses to approve a folder with subfolders, without puzzles, or a system folder", async () => {
+      prisma.puzzleTopic.findUnique.mockResolvedValue(folder({ _count: { children: 1, puzzles: 3 } }));
+      await expect(service.approveHomework(TOKEN, "t4")).rejects.toBeInstanceOf(BadRequestException);
+
+      prisma.puzzleTopic.findUnique.mockResolvedValue(folder());
+      puzzleSets.folderHomeworkCounts.mockResolvedValue(new Map());
+      await expect(service.approveHomework(TOKEN, "t4")).rejects.toBeInstanceOf(BadRequestException);
+
+      puzzleSets.folderHomeworkCounts.mockResolvedValue(new Map([["t4", 3]]));
+      prisma.puzzleTopic.findUnique.mockResolvedValue(folder({ slug: LICHESS_FOLDER_SLUG }));
+      await expect(service.approveHomework(TOKEN, "t4")).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prisma.puzzleTopic.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("revokes academy-wide, after which the folder reports itself unassignable", async () => {
+      prisma.puzzleTopic.findUnique.mockResolvedValue({ id: "t4" });
+      prisma.puzzleTopic.findUniqueOrThrow.mockResolvedValue(folder());
+
+      const { topic } = await service.revokeHomework(TOKEN, "t4");
+
+      expect(prisma.puzzleTopic.update).toHaveBeenCalledWith({
+        where: { id: "t4" },
+        data: { homeworkApprovedAt: null, homeworkApprovedById: null }
+      });
+      expect(topic.homeworkApprovedAt).toBeNull();
+      expect(topic.homeworkBlocker).toMatch(/not approved/i);
+    });
+
+    it("shows a coach the same academy-wide approval, without the approve control", async () => {
+      prisma.user.findUnique.mockResolvedValue(asRole(COACH_ID, UserRole.COACH));
+      prisma.puzzleTopic.findMany.mockResolvedValue([
+        folder({ homeworkApprovedAt: new Date(), homeworkApprovedBy: { firstName: "Sam", lastName: null } })
+      ]);
+
+      const { topics } = await service.list(TOKEN);
+
+      expect(topics[0]).toMatchObject({ homeworkBlocker: null, canApproveHomework: false });
     });
   });
 });

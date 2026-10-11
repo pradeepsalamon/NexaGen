@@ -1837,6 +1837,7 @@ type ActivityConfigInput = {
   startFen?: string;
   solutionMoves?: SolutionMove[];
   puzzleIds?: string[];
+  sourceTopicId?: string;
 };
 
 function refineActivityConfig(
@@ -1855,6 +1856,16 @@ function refineActivityConfig(
   }
 
   if (type === "PUZZLE_SET") {
+    if (v.sourceTopicId) {
+      if (v.puzzleIds !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["puzzleIds"],
+          message: "A folder assignment takes its puzzles from the folder."
+        });
+      }
+      return;
+    }
     // On update the set may be left as is; when it is sent it must be usable.
     if (v.puzzleIds === undefined ? requirePgn : v.puzzleIds.length === 0) {
       ctx.addIssue({
@@ -1899,6 +1910,11 @@ export const createAssignmentRequestSchema = z
     timeLimitMinutes: z.number().int().min(1).optional(),
     batchIds: z.array(z.string().min(1)).optional(),
     dueDate: z.string().datetime({ message: "A valid due date is required." }).optional(),
+  /**
+   * A homework-approved folder to build the set from (create only). The server
+   * takes the folder's puzzles itself — send no `puzzleIds` alongside it.
+   */
+  sourceTopicId: z.string().min(1).optional(),
     ...assignmentActivityConfigShape
   })
   .superRefine((v, ctx) => {
@@ -2002,6 +2018,8 @@ export type AssignmentLibraryItem = AssignmentActivityConfig & {
   performance: AssignmentPerformanceSummary | null;
   /** PUZZLE_SET only: the puzzles in order (never their solutions). */
   puzzles: AssignmentSetPuzzle[] | null;
+  /** The homework-approved folder this set was built from; deploys re-check its approval. */
+  sourceTopic: { id: string; name: string } | null;
   /** PUZZLE_SET only: the author's points / leaderboard overrides as saved. */
   scoring: PuzzleScoringOverride | null;
   leaderboard: PuzzleLeaderboardOverride | null;

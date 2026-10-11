@@ -317,6 +317,7 @@ model User {
   studentAssignments              StudentAssignment[]              @relation("StudentAssignments")
   createdPuzzleTopics             PuzzleTopic[]                    @relation("PuzzleTopicCreatedBy")
   deletedPuzzleTopics             PuzzleTopic[]                    @relation("PuzzleTopicDeletedBy")
+  homeworkApprovedPuzzleTopics    PuzzleTopic[]                    @relation("PuzzleTopicHomeworkApprovedBy")
   authoredPuzzles                 Puzzle[]                         @relation("AuthoredPuzzles")
   deletedPuzzles                  Puzzle[]                         @relation("PuzzleDeletedBy")
   studentPuzzleAttempts           PuzzleAttempt[]                  @relation("StudentPuzzleAttempts")
@@ -1808,8 +1809,13 @@ model Assignment {
   deployments   AssignmentBatch[]
   courseModules CourseModule[]
   puzzles       AssignmentPuzzle[]
+  // Set when the puzzle set was built from a homework-approved folder; every
+  // deploy re-checks that folder's approval. Cleared if the set is edited.
+  sourceTopicId String?
+  sourceTopic   PuzzleTopic?       @relation("AssignmentSourceTopic", fields: [sourceTopicId], references: [id], onDelete: SetNull)
 
   @@index([createdById])
+  @@index([sourceTopicId])
   @@index([isLibrary])
   @@map("assignments")
 }
@@ -2071,7 +2077,15 @@ model PuzzleTopic {
   createdById String?
   createdBy   User?   @relation("PuzzleTopicCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  puzzles Puzzle[]
+  // Super Admin's academy-wide homework approval: set ⇒ every coach (current or
+  // future) may assign this folder as a puzzle set. Lives on the folder, never
+  // per coach, so adding coaches never resets it. Null = not approved / revoked.
+  homeworkApprovedAt   DateTime?
+  homeworkApprovedById String?
+  homeworkApprovedBy   User?     @relation("PuzzleTopicHomeworkApprovedBy", fields: [homeworkApprovedById], references: [id], onDelete: SetNull)
+
+  puzzles             Puzzle[]
+  homeworkAssignments Assignment[] @relation("AssignmentSourceTopic")
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -2087,6 +2101,7 @@ model PuzzleTopic {
   @@index([deleteGroupId])
   @@index([sortOrder])
   @@index([parentId])
+  @@index([homeworkApprovedById])
   @@map("puzzle_topics")
 }
 

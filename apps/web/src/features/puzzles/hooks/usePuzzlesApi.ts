@@ -32,6 +32,7 @@ import {
   getPuzzleScoringSettings,
   getPuzzleStats,
   importPuzzles,
+  getFolderHomework,
   getPuzzleTopics,
   getPuzzles,
   updatePuzzle,
@@ -44,6 +45,17 @@ export function usePuzzleTopics(enabled = true) {
     queryKey: queryKeys.puzzles.topics,
     queryFn: getPuzzleTopics,
     enabled
+  });
+}
+
+/** A homework-approved folder's set, fetched when a coach opens "Assign folder". */
+export function useFolderHomework(topicId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.puzzles.folderHomework(topicId ?? ""),
+    queryFn: () => getFolderHomework(topicId!),
+    enabled: !!topicId,
+    // Approval can be revoked at any moment; always ask again when the dialog opens.
+    staleTime: 0
   });
 }
 

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException
 } from "@nestjs/common";
@@ -8,19 +9,22 @@ import { JwtService } from "@nestjs/jwt";
 import {
   collectPuzzleTopicSubtreeIds,
   compareNatural,
+  folderHomeworkBlocker,
   isSystemPuzzleFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
   type CopyPuzzleTopicRequest,
   type CopyPuzzleTopicResponse,
   type CreatePuzzleTopicRequest,
+  type FolderHomeworkResponse,
   type PuzzleTopicDto,
   type PuzzleTopicListResponse,
   type PuzzleTopicResponse,
   type ReassignPuzzleTopicRequest,
   type UpdatePuzzleTopicRequest
 } from "@nexa-chess/types";
-import { Prisma, PuzzleSource, type User } from "@prisma/client";
+import { Prisma, PuzzleSource, UserRole, type User } from "@prisma/client";
+import { AssignmentPuzzleSetService } from "../assignment/assignment-puzzle-set.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import {
@@ -33,7 +37,13 @@ import {
 
 const topicInclude = {
   createdBy: { select: { firstName: true, lastName: true } },
-  _count: { select: { puzzles: { where: { isDeleted: false } } } }
+  homeworkApprovedBy: { select: { firstName: true, lastName: true } },
+  _count: {
+    select: {
+      children: { where: { isDeleted: false } },
+      puzzles: { where: { isDeleted: false } }
+    }
+  }
 } satisfies Prisma.PuzzleTopicInclude;
 
 type TopicRow = Prisma.PuzzleTopicGetPayload<{ include: typeof topicInclude }>;
@@ -56,25 +66,81 @@ export class PuzzleTopicService {
   constructor(
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
-    private readonly trash: TrashRepository
+    private readonly trash: TrashRepository,
+    private readonly puzzleSets: AssignmentPuzzleSetService
   ) {}
 
   async list(accessToken: string | undefined): Promise<PuzzleTopicListResponse> {
     const user = await this.authStaffOrCoach(accessToken);
-    const rows = await this.prisma.puzzleTopic.findMany({
-      include: topicInclude,
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
-    });
+    const [rows, homework] = await Promise.all([
+      this.prisma.puzzleTopic.findMany({
+        include: topicInclude,
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }]
+      }),
+      this.puzzleSets.folderHomeworkCounts()
+    ]);
     // Postgres orders names as text ("Set 10" before "Set 2"); re-sort naturally.
     rows.sort((x, y) => x.sortOrder - y.sortOrder || compareNatural(x.name, y.name));
-    return { topics: rows.map((row) => this.toDto(row, user)) };
+    return { topics: rows.map((row) => this.toDto(row, user, homework.get(row.id) ?? 0)) };
   }
 
   async get(accessToken: string | undefined, id: string): Promise<PuzzleTopicResponse> {
     const user = await this.authStaffOrCoach(accessToken);
     const row = await this.prisma.puzzleTopic.findUnique({ where: { id }, include: topicInclude });
     if (!row) throw new NotFoundException("Topic not found.");
-    return { topic: this.toDto(row, user) };
+    return { topic: await this.toDtoWithCounts(row, user) };
+  }
+
+  // ── Homework approval (Super Admin, academy-wide) ──
+
+  /**
+   * Approve a folder for homework. The approval is stored on the folder itself,
+   * so it covers every coach — present or future — and adding coaches never
+   * resets it. Only a folder that could be assigned right now may be approved
+   * (no subfolders, has published library puzzles); the same rule is re-checked
+   * on every assignment, so a folder that later changes stops being assignable
+   * without losing its approval. Approving twice keeps the original approval.
+   */
+  async approveHomework(accessToken: string | undefined, id: string): Promise<PuzzleTopicResponse> {
+    const user = this.assertSuperAdmin(await authenticateUser(this.jwtService, this.prisma, accessToken));
+    const row = await this.prisma.puzzleTopic.findUnique({ where: { id }, include: topicInclude });
+    if (!row) throw new NotFoundException("Topic not found.");
+
+    const counts = await this.puzzleSets.folderHomeworkCounts([id]);
+    const blocker = folderHomeworkBlocker({
+      approved: true,
+      isSystem: isSystemPuzzleFolder(row),
+      puzzleCount: counts.get(id) ?? 0,
+      subfolderCount: row._count.children
+    });
+    if (blocker) throw new BadRequestException(blocker);
+
+    await this.prisma.puzzleTopic.updateMany({
+      where: { id, homeworkApprovedAt: null },
+      data: { homeworkApprovedAt: new Date(), homeworkApprovedById: user.id }
+    });
+    return this.reload(id, user);
+  }
+
+  /** Revoke academy-wide: no coach can assign the folder (or re-deploy a set made from it). */
+  async revokeHomework(accessToken: string | undefined, id: string): Promise<PuzzleTopicResponse> {
+    const user = this.assertSuperAdmin(
+      await authenticateUser(this.jwtService, this.prisma, accessToken)
+    );
+    const row = await this.prisma.puzzleTopic.findUnique({ where: { id }, select: { id: true } });
+    if (!row) throw new NotFoundException("Topic not found.");
+
+    await this.prisma.puzzleTopic.update({
+      where: { id },
+      data: { homeworkApprovedAt: null, homeworkApprovedById: null }
+    });
+    return this.reload(id, user);
+  }
+
+  /** The puzzles assigning this folder would set, in order, and whether it can be assigned. */
+  async homework(accessToken: string | undefined, id: string): Promise<FolderHomeworkResponse> {
+    await this.authStaffOrCoach(accessToken);
+    return this.puzzleSets.folderHomework(id);
   }
 
   async create(
@@ -100,7 +166,7 @@ export class PuzzleTopicService {
       },
       include: topicInclude
     });
-    return { topic: this.toDto(created, user) };
+    return { topic: await this.toDtoWithCounts(created, user) };
   }
 
   async update(
@@ -135,7 +201,7 @@ export class PuzzleTopicService {
       data,
       include: topicInclude
     });
-    return { topic: this.toDto(updated, user) };
+    return { topic: await this.toDtoWithCounts(updated, user) };
   }
 
   /**
@@ -292,7 +358,11 @@ export class PuzzleTopicService {
       where: { id: result.rootId },
       include: topicInclude
     });
-    return { topic: this.toDto(topic, user), folders: result.folders, puzzles: result.puzzles };
+    return {
+      topic: await this.toDtoWithCounts(topic, user),
+      folders: result.folders,
+      puzzles: result.puzzles
+    };
   }
 
   // ── internals ──
@@ -302,6 +372,13 @@ export class PuzzleTopicService {
     if (!isAdminRole(user.role) && user.role !== "COACH") {
       // students never see the topic manager, but the list is harmless — still gate.
       throw new NotFoundException("Topic not found.");
+    }
+    return user;
+  }
+
+  private assertSuperAdmin(user: User): User {
+    if (user.role !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException("Only the Super Admin can approve folders for homework.");
     }
     return user;
   }
@@ -381,7 +458,18 @@ export class PuzzleTopicService {
     }
   }
 
-  private toDto(row: TopicRow, viewer: User): PuzzleTopicDto {
+  private async reload(id: string, viewer: User): Promise<PuzzleTopicResponse> {
+    const row = await this.prisma.puzzleTopic.findUniqueOrThrow({ where: { id }, include: topicInclude });
+    return { topic: await this.toDtoWithCounts(row, viewer) };
+  }
+
+  private async toDtoWithCounts(row: TopicRow, viewer: User): Promise<PuzzleTopicDto> {
+    const counts = await this.puzzleSets.folderHomeworkCounts([row.id]);
+    return this.toDto(row, viewer, counts.get(row.id) ?? 0);
+  }
+
+  private toDto(row: TopicRow, viewer: User, homeworkPuzzleCount: number): PuzzleTopicDto {
+    const approved = row.homeworkApprovedAt !== null;
     return {
       id: row.id,
       name: row.name,
@@ -393,6 +481,16 @@ export class PuzzleTopicService {
       puzzleCount: row._count.puzzles,
       createdByName: fullName(row.createdBy),
       canManage: isAdminRole(viewer.role),
+      homeworkApprovedAt: row.homeworkApprovedAt?.toISOString() ?? null,
+      homeworkApprovedByName: approved ? fullName(row.homeworkApprovedBy) : null,
+      homeworkPuzzleCount,
+      homeworkBlocker: folderHomeworkBlocker({
+        approved,
+        isSystem: isSystemPuzzleFolder(row),
+        puzzleCount: homeworkPuzzleCount,
+        subfolderCount: row._count.children
+      }),
+      canApproveHomework: viewer.role === UserRole.SUPER_ADMIN,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString()
     };

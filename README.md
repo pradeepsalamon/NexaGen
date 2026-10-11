@@ -80,6 +80,18 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
     students get `GET /assignments/mine/:id/leaderboard`, limited server-side by
     the set's leaderboard options (hidden / after the due date / top N /
     anonymized) and only ever within their own batch's deployment.
+    **Homework-approved folders**: the Super Admin approves a puzzle folder
+    once, academy-wide (`PUT /puzzles/topics/:id/homework`, revoke with
+    `DELETE`; the approval is two columns on `puzzle_topics`, never per coach,
+    so coaches added later are covered and nothing resets it). A coach then
+    assigns the whole folder from the library's Topics tab: `POST /assignments`
+    with `sourceTopicId` and no `puzzleIds` — the server builds the set from the
+    folder's live PUBLISHED GLOBAL puzzles (title order) and stores
+    `Assignment.sourceTopicId`. Only an approved folder with no subfolders and
+    1–`MAX_ASSIGNMENT_PUZZLES` such puzzles qualifies (`folderHomeworkBlocker`
+    in `@nexa-chess/types`, checked on approve, create and **every deploy** of
+    a folder-built set). Revoking stops new assignments and re-deploys; homework
+    already handed out stays with the students.
 
   Evaluated activities (everything but `REPLAY` and `PUZZLE_SET`) record `StudentAssignmentAttempt`
   rows. The server owns all evaluation (`AssignmentEvaluationService`): legal-move

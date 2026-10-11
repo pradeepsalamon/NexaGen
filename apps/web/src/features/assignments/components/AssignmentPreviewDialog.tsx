@@ -114,6 +114,9 @@ function PuzzleList({ puzzles }: { puzzles: AssignmentSetPuzzle[] }) {
                 {p.sideToMove === "white" ? "White" : "Black"} to move · {p.solutionLength}-move line
                 {p.topicName ? ` · ${p.topicName}` : ""}
               </p>
+              {p.tags?.length ? (
+                <p className="truncate text-xs text-app-muted">{p.tags.map((t) => `#${t}`).join(" ")}</p>
+              ) : null}
             </div>
             <Badge variant="outline">{PUZZLE_DIFFICULTY_LABELS[p.difficulty]}</Badge>
             <span className="shrink-0 text-xs font-semibold text-app-text">{p.maxPoints} pts</span>

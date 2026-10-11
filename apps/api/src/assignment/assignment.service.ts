@@ -103,6 +103,12 @@ type ActivityDefaults = {
   requiredCompletionPercent: number;
 };
 
+const libraryInclude = {
+  createdBy: true,
+  sourceTopic: { select: { id: true, name: true } },
+  _count: { select: { deployments: true } }
+} satisfies Prisma.AssignmentInclude;
+
 const studentInclude = {
   assignmentBatch: {
     include: { assignment: { include: { createdBy: true } }, batch: true }
@@ -135,7 +141,7 @@ export class AssignmentService {
 
     const rows = await this.prisma.assignment.findMany({
       where,
-      include: { createdBy: true, _count: { select: { deployments: true } } },
+      include: libraryInclude,
       orderBy: { createdAt: "desc" }
     });
 
@@ -152,7 +158,7 @@ export class AssignmentService {
     const user = await this.getStaffOrCoach(accessToken);
     const row = await this.prisma.assignment.findUnique({
       where: { id },
-      include: { createdBy: true, _count: { select: { deployments: true } } }
+      include: libraryInclude
     });
 
     if (!row || (!row.isLibrary && row.createdById !== user.id && !this.isAdmin(user.role))) {
@@ -176,9 +182,17 @@ export class AssignmentService {
     const user = await this.getStaffOrCoach(accessToken);
     const activity = this.buildActivityData(dto);
     const isSet = activity.activityType === "PUZZLE_SET";
+    if (dto.sourceTopicId && !isSet) {
+      throw new BadRequestException("A folder can only be assigned as a puzzle set.");
+    }
     const scoringOverride = isSet ? (dto.scoring ?? null) : null;
+    // A folder's puzzles come from the folder itself, and only while the Super
+    // Admin's approval stands (403 otherwise) — never from the client.
+    const puzzleIds = dto.sourceTopicId
+      ? await this.puzzleSets.assignableFolderPuzzleIds(dto.sourceTopicId)
+      : (dto.puzzleIds ?? []);
     const set = isSet
-      ? await this.puzzleSets.resolvePuzzles(user, dto.puzzleIds ?? [], scoringOverride)
+      ? await this.puzzleSets.resolvePuzzles(user, puzzleIds, scoringOverride)
       : null;
     if (set) activity.pgn = this.evaluation.positionPgn(set.firstFen);
 
@@ -201,6 +215,7 @@ export class AssignmentService {
         data: {
           createdById: user.id,
           isLibrary: this.isAdmin(user.role),
+          sourceTopicId: dto.sourceTopicId ?? null,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
           pgnUrl,
@@ -280,6 +295,14 @@ export class AssignmentService {
     // Re-resolve (and re-freeze the scoring of) the set whenever its puzzles or
     // points change; otherwise the stored set stands untouched.
     let set: Awaited<ReturnType<AssignmentPuzzleSetService["resolvePuzzles"]>> | null = null;
+    // A set built from an approved folder stays tied to it (each deploy re-checks
+    // the approval) until its puzzle list is changed by hand.
+    let detachFromFolder = !isSet && !!existing.sourceTopicId;
+    if (isSet && existing.sourceTopicId && dto.puzzleIds !== undefined) {
+      const current = await this.puzzleSets.puzzleIdsOf(id);
+      detachFromFolder =
+        current.length !== dto.puzzleIds.length || current.some((p, i) => p !== dto.puzzleIds![i]);
+    }
     if (isSet && (dto.puzzleIds !== undefined || dto.scoring !== undefined || !wasSet)) {
       const puzzleIds = dto.puzzleIds ?? (wasSet ? await this.puzzleSets.puzzleIdsOf(id) : []);
       set = await this.puzzleSets.resolvePuzzles(user, puzzleIds, scoringOverride);
@@ -305,6 +328,7 @@ export class AssignmentService {
           pgnUrl,
           difficulty: dto.difficulty,
           timeLimitMinutes: dto.timeLimitMinutes,
+          ...(detachFromFolder ? { sourceTopicId: null } : {}),
           ...activity,
           ...this.setJson(isSet, scoringOverride, leaderboardOverride)
         }
@@ -362,6 +386,10 @@ export class AssignmentService {
     if (!assignment) throw new NotFoundException("Assignment not found.");
     if (!assignment.isLibrary && assignment.createdById !== coach.id) {
       throw new ForbiddenException("You cannot assign this item.");
+    }
+    // A set made from a folder is assignable only while that folder is approved.
+    if (assignment.sourceTopicId) {
+      await this.puzzleSets.assignableFolderPuzzleIds(assignment.sourceTopicId);
     }
 
     const batchIds = [...new Set(dto.batchIds)];
@@ -845,9 +873,7 @@ export class AssignmentService {
   }
 
   private toLibraryItem(
-    row: Prisma.AssignmentGetPayload<{
-      include: { createdBy: true; _count: { select: { deployments: true } } };
-    }>,
+    row: Prisma.AssignmentGetPayload<{ include: typeof libraryInclude }>,
     viewer: AuthedUser,
     performance: AssignmentPerformanceSummary | null = null,
     puzzles?: AssignmentSetPuzzle[]
@@ -869,6 +895,7 @@ export class AssignmentService {
       solutionMoves: this.solutionFromRow(row.solutionMovesJson),
       performance,
       puzzles: isSet ? (puzzles ?? []) : null,
+      sourceTopic: row.sourceTopic ? { id: row.sourceTopic.id, name: row.sourceTopic.name } : null,
       scoring: isSet ? parseScoringOverride(row.scoringJson) : null,
       leaderboard: isSet ? parseLeaderboardOverride(row.leaderboardJson) : null,
       ...this.toActivityConfig(row),

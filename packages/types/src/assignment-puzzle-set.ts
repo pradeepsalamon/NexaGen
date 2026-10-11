@@ -33,6 +33,53 @@ import type {
 /** Most puzzles one assignment may hold. */
 export const MAX_ASSIGNMENT_PUZZLES = 50;
 
+// ── Homework-approved folders ──
+// The Super Admin approves a puzzle folder once, academy-wide (the approval is
+// stored on the folder, not per coach). A coach then assigns the whole folder
+// as a PUZZLE_SET through the ordinary homework flow. The set is the folder's
+// live PUBLISHED GLOBAL puzzles, filed directly in it, in title order.
+
+export type FolderHomeworkState = {
+  approved: boolean;
+  isSystem: boolean;
+  /** Live subfolders. */
+  subfolderCount: number;
+  /** Live published library (GLOBAL) puzzles with a solution, filed directly in the folder. */
+  puzzleCount: number;
+};
+
+/**
+ * The one rule for whether a folder may be assigned as homework — the API
+ * enforces it on approve, create and every deploy; the library UI shows it.
+ * Returns why not, or null when it can be assigned.
+ */
+export function folderHomeworkBlocker(state: FolderHomeworkState): string | null {
+  if (state.isSystem) return "System folders can't be assigned as homework.";
+  if (!state.approved) return "Not approved for homework by the Super Admin.";
+  if (state.subfolderCount > 0) {
+    return "Has subfolders — only a folder without subfolders can be assigned.";
+  }
+  if (state.puzzleCount === 0) return "Has no published library puzzles to assign.";
+  if (state.puzzleCount > MAX_ASSIGNMENT_PUZZLES) {
+    return `Holds ${state.puzzleCount} puzzles; an assignment takes at most ${MAX_ASSIGNMENT_PUZZLES}.`;
+  }
+  return null;
+}
+
+/** GET a folder's homework set: the puzzles a coach would assign, in order. */
+export type FolderHomeworkResponse = {
+  topicId: string;
+  topicName: string;
+  blocker: string | null;
+  puzzles: Array<{
+    puzzleId: string;
+    title: string;
+    difficulty: PuzzleDifficulty;
+    tags: string[];
+    topicName: string | null;
+  }>;
+};
+
 /** Points a puzzle can award at most: solve + full speed bonus + the top first-solver bonus. */
 export function maxPuzzlePoints(scoring: PuzzleScoring): number {
   return scoring.basePoints + scoring.speedBonusMax + Math.max(0, ...scoring.firstSolveBonuses);
@@ -47,6 +94,8 @@ export type AssignmentSetPuzzle = {
   difficulty: PuzzleDifficulty;
   puzzleType: PuzzleType;
   topicName: string | null;
+  /** The library puzzle's own tags (read live — the set references the puzzle). */
+  tags: string[];
   sideToMove: ChessColor;
   solutionLength: number;
   /** Resolved and frozen when the set was saved. */

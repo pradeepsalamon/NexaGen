@@ -122,6 +122,21 @@ export class PuzzleController {
     return this.topicService.copy(this.token(request), id, body);
   }
 
+  @Get(API_ROUTES.puzzles.topicHomework())
+  getTopicHomework(@Param("id") id: string, @Req() request: Request) {
+    return this.topicService.homework(this.token(request), id);
+  }
+
+  @Put(API_ROUTES.puzzles.topicHomework())
+  approveTopicHomework(@Param("id") id: string, @Req() request: Request) {
+    return this.topicService.approveHomework(this.token(request), id);
+  }
+
+  @Delete(API_ROUTES.puzzles.topicHomework())
+  revokeTopicHomework(@Param("id") id: string, @Req() request: Request) {
+    return this.topicService.revokeHomework(this.token(request), id);
+  }
+
   // ── Live-class points & leaderboard defaults ──
   // Declared before the `/puzzles/:id` routes so "scoring-settings" is never
   // captured as a puzzle id.

@@ -142,6 +142,85 @@ describe("AssignmentPuzzleSetService", () => {
     });
   });
 
+  describe("homework-approved folders", () => {
+    const topic = (over: Record<string, unknown> = {}) => ({
+      id: "t1",
+      name: "Forks",
+      slug: "forks",
+      homeworkApprovedAt: new Date(),
+      ...over
+    });
+
+    beforeEach(() => {
+      prisma.puzzleTopic = { findUnique: jest.fn().mockResolvedValue(topic()), count: jest.fn().mockResolvedValue(0) };
+      prisma.puzzle.count = jest.fn().mockResolvedValue(2);
+      prisma.puzzle.findMany.mockResolvedValue([
+        { id: "pz-1", title: "Fork 1", difficulty: "EASY", tags: [] },
+        { id: "pz-2", title: "Fork 2", difficulty: "EASY", tags: ["knight"] }
+      ]);
+    });
+
+    it("hands back an approved folder's published library puzzles, in title order", async () => {
+      await expect(service.assignableFolderPuzzleIds("t1")).resolves.toEqual(["pz-1", "pz-2"]);
+      expect(prisma.puzzle.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { status: PuzzleStatus.PUBLISHED, topicId: "t1", visibility: PuzzleVisibility.GLOBAL },
+          orderBy: [{ title: "asc" }, { createdAt: "asc" }]
+        })
+      );
+    });
+
+    it("403s a folder that was never approved, or whose approval was revoked", async () => {
+      prisma.puzzleTopic.findUnique.mockResolvedValue(topic({ homeworkApprovedAt: null }));
+      await expect(service.assignableFolderPuzzleIds("t1")).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("400s an approved folder that gained subfolders or lost its puzzles", async () => {
+      prisma.puzzleTopic.count.mockResolvedValue(1);
+      await expect(service.assignableFolderPuzzleIds("t1")).rejects.toBeInstanceOf(BadRequestException);
+
+      prisma.puzzleTopic.count.mockResolvedValue(0);
+      prisma.puzzle.count.mockResolvedValue(0);
+      await expect(service.assignableFolderPuzzleIds("t1")).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("404s a folder that is gone", async () => {
+      prisma.puzzleTopic.findUnique.mockResolvedValue(null);
+      await expect(service.folderHomework("t1")).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe("loadSets", () => {
+    it("returns each set in order with the library puzzle's live title, difficulty and tags", async () => {
+      prisma.assignmentPuzzle.findMany.mockResolvedValue([
+        {
+          assignmentId: "asg-1",
+          puzzleId: "pz-2",
+          position: 0,
+          scoringJson: {},
+          puzzle: { title: "Fork", fen: FEN, difficulty: "EASY", puzzleType: "TACTIC", solutionMovesJson: [{}, {}], tags: ["fork", "knight"], topic: { name: "Tactics" } }
+        },
+        {
+          assignmentId: "asg-1",
+          puzzleId: "pz-1",
+          position: 1,
+          scoringJson: {},
+          puzzle: { title: "Mate", fen: FEN, difficulty: "ADVANCED", puzzleType: "CHECKMATE", solutionMovesJson: [{}], tags: [], topic: null }
+        }
+      ]);
+
+      const sets = await service.loadSets(["asg-1"]);
+      const set = sets.get("asg-1") ?? [];
+
+      expect(set.map((p) => [p.position, p.puzzleId, p.title, p.difficulty, p.tags])).toEqual([
+        [0, "pz-2", "Fork", "EASY", ["fork", "knight"]],
+        [1, "pz-1", "Mate", "ADVANCED", []]
+      ]);
+      expect(set[0]).toMatchObject({ solutionLength: 2, topicName: "Tactics" });
+      expect(set[1].topicName).toBeNull();
+    });
+  });
+
   describe("refreshRollup", () => {
     it("messages the coach once, when the set first becomes complete", async () => {
       const sa = {

@@ -7,9 +7,10 @@ import {
   isSystemPuzzleFolder,
   MAX_ASSIGNMENT_PUZZLES,
   type PuzzleDifficulty,
-  type PuzzleSummary
+  type PuzzleSummary,
+  type PuzzleType
 } from "@nexa-chess/types";
-import { ArrowDown, ArrowUp, ListPlus, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Eye, ListPlus, Plus, Search, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -17,10 +18,13 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { PuzzleQuickPreviewDialog } from "@/features/puzzles/components/PuzzleQuickPreviewDialog";
 import { usePuzzles, usePuzzleTopics } from "@/features/puzzles/hooks/usePuzzlesApi";
 import {
   PUZZLE_DIFFICULTY_LABELS,
   PUZZLE_DIFFICULTY_OPTIONS,
+  PUZZLE_TYPE_LABELS,
+  PUZZLE_TYPE_OPTIONS,
   difficultyBadgeVariant
 } from "@/features/puzzles/lib/puzzleMeta";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
@@ -32,7 +36,11 @@ export type SelectedSetPuzzle = {
   title: string;
   difficulty: PuzzleDifficulty;
   topicName: string | null;
+  /** Shown on the row when known (the library list carries them; an edit doesn't). */
+  tags?: string[];
 };
+
+const PAGE = 25;
 
 const iconBtn =
   "size-8 shrink-0 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white disabled:opacity-40";
@@ -58,7 +66,17 @@ export function PuzzleSetEditor({
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<PuzzleDifficulty | "">("");
   const [topicId, setTopicId] = useState("");
+  const [puzzleType, setPuzzleType] = useState<PuzzleType | "">("");
+  const [pageSize, setPageSize] = useState(PAGE);
+  const [previewId, setPreviewId] = useState<string | null>(null);
   const debouncedSearch = useDebouncedValue(search, 300);
+  // A new filter starts from the first page again.
+  const filterKey = `${debouncedSearch}|${difficulty}|${topicId}|${puzzleType}`;
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (lastFilterKey !== filterKey) {
+    setLastFilterKey(filterKey);
+    setPageSize(PAGE);
+  }
 
   const topics = usePuzzleTopics();
   const topicOptions = useMemo(() => {
@@ -72,7 +90,8 @@ export function PuzzleSetEditor({
   const puzzles = usePuzzles({
     difficulty: difficulty || undefined,
     order: "asc",
-    pageSize: 25,
+    pageSize,
+    puzzleType: puzzleType || undefined,
     scope: "all",
     search: debouncedSearch || undefined,
     sort: "title",
@@ -87,10 +106,14 @@ export function PuzzleSetEditor({
     (p) => !globalOnly || p.visibility === "GLOBAL"
   );
   const addable = rows.filter((p) => !chosen.has(p.id));
+  const total = puzzles.data?.pagination?.total ?? null;
+  const canLoadMore = total !== null && total > pageSize && pageSize < 100;
+  const previewing = previewId ? rows.find((p) => p.id === previewId) ?? null : null;
 
   const toSelected = (p: PuzzleSummary): SelectedSetPuzzle => ({
     difficulty: p.difficulty,
     puzzleId: p.id,
+    tags: p.tags,
     title: p.title,
     topicName: p.topicName
   });
@@ -136,6 +159,7 @@ export function PuzzleSetEditor({
                   <p className="truncate text-xs text-app-muted">
                     {PUZZLE_DIFFICULTY_LABELS[p.difficulty]}
                     {p.topicName ? ` · ${p.topicName}` : ""}
+                    {p.tags?.length ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
                   </p>
                 </div>
                 <SimpleTooltip label="Move up">
@@ -197,7 +221,7 @@ export function PuzzleSetEditor({
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:grid-cols-3">
           <Select
             aria-label="Folder"
             placeholder="All folders"
@@ -212,7 +236,20 @@ export function PuzzleSetEditor({
             value={difficulty}
             onChange={(e) => setDifficulty(e.target.value as PuzzleDifficulty | "")}
           />
+          <Select
+            aria-label="Puzzle type"
+            placeholder="Any type"
+            options={PUZZLE_TYPE_OPTIONS}
+            value={puzzleType}
+            onChange={(e) => setPuzzleType(e.target.value as PuzzleType | "")}
+          />
         </div>
+        {total !== null && !puzzles.isLoading ? (
+          <p aria-live="polite" className="text-xs text-app-muted">
+            Showing {rows.length} of {total} published puzzle{total === 1 ? "" : "s"}
+            {value.length ? ` · ${value.length} selected` : ""}
+          </p>
+        ) : null}
 
         <div className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
           {puzzles.isLoading ? (
@@ -240,9 +277,24 @@ export function PuzzleSetEditor({
                       <Badge variant={difficultyBadgeVariant(p.difficulty)}>
                         {PUZZLE_DIFFICULTY_LABELS[p.difficulty]}
                       </Badge>
-                      <span className="truncate text-xs text-app-muted">{p.topicName}</span>
+                      <span className="truncate text-xs text-app-muted">
+                        {PUZZLE_TYPE_LABELS[p.puzzleType]} · {p.topicName}
+                        {p.tags.length ? ` · ${p.tags.map((t) => `#${t}`).join(" ")}` : ""}
+                      </span>
                     </div>
                   </div>
+                  <SimpleTooltip label="Preview">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Preview ${p.title}`}
+                      className={iconBtn}
+                      onClick={() => setPreviewId(p.id)}
+                    >
+                      <Eye className="size-4" strokeWidth={2.5} />
+                    </Button>
+                  </SimpleTooltip>
                   <Button
                     type="button"
                     size="sm"
@@ -263,15 +315,50 @@ export function PuzzleSetEditor({
             })
           )}
         </div>
-        {addable.length > 1 && !full ? (
-          <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          {canLoadMore ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={puzzles.isFetching}
+              onClick={() => setPageSize((n) => Math.min(100, n + PAGE))}
+            >
+              {puzzles.isFetching ? "Loading…" : "Show more"}
+            </Button>
+          ) : null}
+          {addable.length > 1 && !full ? (
             <Button type="button" variant="outline" size="sm" onClick={() => add(addable)}>
               <ListPlus className="mr-1.5 size-4" strokeWidth={2.5} />
-              Add all {addable.length} shown
+              Add all {Math.min(addable.length, MAX_ASSIGNMENT_PUZZLES - value.length)} shown
             </Button>
-          </div>
+          ) : null}
+        </div>
+        {full ? (
+          <p className="text-xs font-semibold text-warning-ink">
+            A set holds at most {MAX_ASSIGNMENT_PUZZLES} puzzles — remove one to add another.
+          </p>
         ) : null}
       </section>
+
+      <PuzzleQuickPreviewDialog
+        puzzleId={previewId}
+        onOpenChange={(o) => {
+          if (!o) setPreviewId(null);
+        }}
+        action={
+          previewing
+            ? {
+                disabled: chosen.has(previewing.id) || full,
+                label: chosen.has(previewing.id) ? "Already in the set" : "Add to set",
+                onClick: () => {
+                  add([previewing]);
+                  setPreviewId(null);
+                }
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

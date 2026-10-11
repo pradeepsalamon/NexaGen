@@ -10,6 +10,7 @@ import type {
   CatalogPreviewResponse,
   CreatePuzzleRequest,
   CreatePuzzleTopicRequest,
+  FolderHomeworkResponse,
   ImportPuzzlesRequest,
   ImportPuzzlesResponse,
   PuzzleAttemptHistoryResponse,
@@ -84,6 +85,21 @@ export function reassignPuzzleTopic(
 
 export function copyPuzzleTopic(id: string, data: CopyPuzzleTopicRequest): Promise<CopyPuzzleTopicResponse> {
   return apiFetch(API_ROUTES.puzzles.copyTopic(id), { method: "POST", body: data });
+}
+
+/** Super Admin only: approve a folder for homework, academy-wide. */
+export function approveFolderHomework(id: string): Promise<PuzzleTopicResponse> {
+  return apiFetch(API_ROUTES.puzzles.topicHomework(id), { method: "PUT" });
+}
+
+/** Super Admin only: revoke a folder's homework approval, academy-wide. */
+export function revokeFolderHomework(id: string): Promise<PuzzleTopicResponse> {
+  return apiFetch(API_ROUTES.puzzles.topicHomework(id), { method: "DELETE" });
+}
+
+/** The puzzles assigning a folder would set, in order, and whether it can be assigned. */
+export function getFolderHomework(id: string): Promise<FolderHomeworkResponse> {
+  return apiFetch(API_ROUTES.puzzles.topicHomework(id));
 }
 
 // ── Library ──

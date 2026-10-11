@@ -267,6 +267,8 @@ export const API_ROUTES = {
     archiveTopic: (id: string = ":id") => `/puzzles/topics/${id}/archive`,
     reassignTopic: (id: string = ":id") => `/puzzles/topics/${id}/reassign`,
     copyTopic: (id: string = ":id") => `/puzzles/topics/${id}/copy`,
+    /** PUT approves (Super Admin), DELETE revokes; GET = the folder's homework set. */
+    topicHomework: (id: string = ":id") => `/puzzles/topics/${id}/homework`,
     // ── Library (admin: all; coach: GLOBAL + own) ──
     list: "/puzzles",
     create: "/puzzles",

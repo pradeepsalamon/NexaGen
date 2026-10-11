@@ -6,12 +6,29 @@ import {
   buildPuzzleTopicTree,
   collectPuzzleTopicSubtreeIds,
   flattenPuzzleTopicTree,
+  folderHomeworkBlocker,
+  isSystemPuzzleFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
   type PuzzleTopicDto,
   type PuzzleTopicTreeNode
 } from "@nexa-chess/types";
-import { Archive, ChevronRight, ClipboardPaste, Copy, Folder, FolderPlus, Pencil, Plus, Scissors, X } from "lucide-react";
+import {
+  Archive,
+  ChevronRight,
+  ClipboardCheck,
+  ClipboardPaste,
+  Copy,
+  Folder,
+  FolderPlus,
+  Pencil,
+  Plus,
+  Scissors,
+  ShieldCheck,
+  ShieldOff,
+  X
+} from "lucide-react";
+import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
@@ -36,11 +53,20 @@ import {
   TableHeader,
   TableRow
 } from "@/components/ui/Table";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
-import { archivePuzzleTopic, copyPuzzleTopic, reassignPuzzleTopic, updatePuzzleTopic } from "../api/puzzleApi";
+import {
+  approveFolderHomework,
+  archivePuzzleTopic,
+  copyPuzzleTopic,
+  reassignPuzzleTopic,
+  revokeFolderHomework,
+  updatePuzzleTopic
+} from "../api/puzzleApi";
 import {
   useCreatePuzzleTopic,
   usePuzzleTopics,
@@ -59,7 +85,14 @@ type TopicFormValues = {
   parentId: string | null;
 };
 
-export function TopicManager({ canManage }: { canManage: boolean }) {
+export function TopicManager({
+  canManage,
+  onAssignFolder
+}: {
+  canManage: boolean;
+  /** Coach: assign a homework-approved folder through the ordinary homework dialog. */
+  onAssignFolder?: (topic: PuzzleTopicDto) => void;
+}) {
   const { data, isLoading } = usePuzzleTopics();
   const toast = useToast();
   const createMut = useCreatePuzzleTopic();
@@ -108,6 +141,24 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
     invalidates: [queryKeys.puzzles.topics, queryKeys.puzzles.all]
   });
 
+  // Super Admin: academy-wide homework approval; each is the other's undo.
+  const { run: runHomeworkApproval } = useUndoableMutation({
+    strategy: "immediate",
+    mutationFn: ({ topic, approve }: { topic: PuzzleTopicDto; approve: boolean }) =>
+      approve ? approveFolderHomework(topic.id) : revokeFolderHomework(topic.id),
+    undo: ({ topic, approve }) =>
+      approve ? revokeFolderHomework(topic.id) : approveFolderHomework(topic.id),
+    toast: ({ topic, approve }) => ({
+      title: approve
+        ? `"${topic.name}" approved for homework`
+        : `Homework approval revoked for "${topic.name}"`,
+      message: approve
+        ? "Every coach in the academy can now assign this folder."
+        : "Coaches can no longer assign this folder."
+    }),
+    invalidates: [queryKeys.puzzles.topics]
+  });
+
   const paste = (parentId: string | null) => {
     if (!clipboard) return;
     if (clipboard.mode === "copy") void runCopy({ node: clipboard.node, parentId });
@@ -135,7 +186,12 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-app-muted">
           Folders organise every puzzle and can hold subfolders.{" "}
-          {canManage ? "" : "Managed by admins."}
+          {canManage ? "" : "Managed by admins."}{" "}
+          {onAssignFolder
+            ? "Folders the Super Admin has approved for homework can be assigned to your batches."
+            : topics.some((t) => t.canApproveHomework)
+              ? "Approve a folder for homework to let every coach assign it."
+              : ""}
         </p>
         {canManage && (
           <Button size="sm" onClick={() => setCreatingIn(null)}>
@@ -193,6 +249,7 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
                 <TableHead>Folder</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="text-right">Puzzles</TableHead>
+                <TableHead>Homework</TableHead>
                 {canManage && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
@@ -247,6 +304,13 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
                       {node.totalPuzzleCount !== topic.puzzleCount ? (
                         <span className="text-app-muted"> ({node.totalPuzzleCount} total)</span>
                       ) : null}
+                    </TableCell>
+                    <TableCell>
+                      <HomeworkCell
+                        node={node}
+                        onApprove={(approve) => runHomeworkApproval({ topic, approve })}
+                        onAssign={onAssignFolder ? () => onAssignFolder(topic) : undefined}
+                      />
                     </TableCell>
                     {canManage && (
                       <TableCell>
@@ -371,6 +435,95 @@ export function TopicManager({ canManage }: { canManage: boolean }) {
         />
       )}
     </Card>
+  );
+}
+
+/**
+ * A folder's homework state: approved or not (academy-wide), why an approved
+ * folder can't be assigned right now, the coach's Assign button and the Super
+ * Admin's approve / revoke switch.
+ */
+function HomeworkCell({
+  node,
+  onApprove,
+  onAssign
+}: {
+  node: TopicNode;
+  onApprove: (approve: boolean) => void;
+  onAssign?: () => void;
+}) {
+  const timeZone = useUserTimeZone();
+  const { topic } = node;
+  const approved = topic.homeworkApprovedAt !== null;
+  // What would stop it if it were approved — the same shared rule the API uses.
+  const structuralBlocker = folderHomeworkBlocker({
+    approved: true,
+    isSystem: isSystemPuzzleFolder(topic),
+    puzzleCount: topic.homeworkPuzzleCount,
+    subfolderCount: node.children.length
+  });
+  const approvedBy = approved
+    ? `Approved${topic.homeworkApprovedByName ? ` by ${topic.homeworkApprovedByName}` : ""} on ${formatFullDate(topic.homeworkApprovedAt, timeZone)}`
+    : null;
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {approved ? (
+        <SimpleTooltip label={topic.homeworkBlocker ? `${approvedBy}. ${topic.homeworkBlocker}` : approvedBy!}>
+          <Badge variant={topic.homeworkBlocker ? "warning" : "success"} tabIndex={0}>
+            {topic.homeworkBlocker ? "Approved · blocked" : "Approved"}
+          </Badge>
+        </SimpleTooltip>
+      ) : (
+        <span className="text-sm text-app-muted">—</span>
+      )}
+
+      {onAssign && approved && !topic.homeworkBlocker ? (
+        <SimpleTooltip label={`Assign folder (${topic.homeworkPuzzleCount} puzzle${topic.homeworkPuzzleCount === 1 ? "" : "s"})`}>
+          <Button
+            aria-label={`Assign folder ${topic.name}`}
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+            onClick={onAssign}
+          >
+            <ClipboardCheck className="size-4" strokeWidth={2.5} />
+          </Button>
+        </SimpleTooltip>
+      ) : null}
+
+      {topic.canApproveHomework ? (
+        approved ? (
+          <SimpleTooltip label="Revoke homework approval (academy-wide)">
+            <Button
+              aria-label={`Revoke homework approval for ${topic.name}`}
+              variant="ghost"
+              size="icon"
+              className="size-8 rounded-full border border-secondary bg-secondary p-0 text-black shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-secondary)_75%,white)] hover:text-black"
+              onClick={() => onApprove(false)}
+            >
+              <ShieldOff className="size-4" strokeWidth={2.5} />
+            </Button>
+          </SimpleTooltip>
+        ) : (
+          <SimpleTooltip label={structuralBlocker ?? "Approve for homework (every coach)"}>
+            {/* A disabled button gets no pointer events — the span keeps the tooltip. */}
+            <span className="inline-flex">
+              <Button
+                aria-label={`Approve ${topic.name} for homework`}
+                variant="ghost"
+                size="icon"
+                disabled={!!structuralBlocker}
+                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                onClick={() => onApprove(true)}
+              >
+                <ShieldCheck className="size-4" strokeWidth={2.5} />
+              </Button>
+            </span>
+          </SimpleTooltip>
+        )
+      ) : null}
+    </div>
   );
 }
 

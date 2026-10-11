@@ -49,6 +49,7 @@ describe("AssignmentService", () => {
     refreshAssignmentRollups: jest.Mock;
     studentProgress: jest.Mock;
     deploymentResults: jest.Mock;
+    assignableFolderPuzzleIds: jest.Mock;
   };
 
   const asRole = (id: string, role: UserRole) => ({ id, role, status: UserStatus.ACTIVE });
@@ -119,7 +120,8 @@ describe("AssignmentService", () => {
       loadSets: jest.fn().mockResolvedValue(new Map()),
       refreshAssignmentRollups: jest.fn().mockResolvedValue(undefined),
       studentProgress: jest.fn().mockResolvedValue(new Map()),
-      deploymentResults: jest.fn()
+      deploymentResults: jest.fn(),
+      assignableFolderPuzzleIds: jest.fn().mockResolvedValue(["pz-3", "pz-4"])
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -357,6 +359,118 @@ describe("AssignmentService", () => {
       );
       expect(puzzleSets.replaceSet).toHaveBeenCalled();
       expect(puzzleSets.refreshAssignmentRollups).toHaveBeenCalledWith("asg-1");
+    });
+
+    describe("from a homework-approved folder", () => {
+      const folderSet = {
+        id: "asg-1",
+        title: "Forks",
+        description: null,
+        pgn: "*",
+        pgnUrl: null,
+        difficulty: "BEGINNER",
+        isLibrary: false,
+        createdById: COACH_ID,
+        createdBy: { firstName: "Coach", lastName: "One" },
+        activityType: "PUZZLE_SET",
+        scoringJson: null,
+        leaderboardJson: null,
+        maxAttempts: null,
+        allowRetry: true,
+        allowHints: false,
+        passThresholdPercent: 100,
+        requiredCompletionPercent: 100,
+        sourceTopicId: "topic-1",
+        sourceTopic: { id: "topic-1", name: "Forks" },
+        _count: { deployments: 0 },
+        createdAt: new Date()
+      };
+
+      it("takes the puzzles from the folder, not the client, and remembers the folder", async () => {
+        await service.create(TOKEN, {
+          title: "Forks",
+          difficulty: "BEGINNER",
+          activityType: "PUZZLE_SET",
+          sourceTopicId: "topic-1",
+          batchIds: ["batch-1"],
+          dueDate: new Date(Date.now() + 86_400_000).toISOString()
+        });
+
+        expect(puzzleSets.assignableFolderPuzzleIds).toHaveBeenCalledWith("topic-1");
+        expect(puzzleSets.resolvePuzzles).toHaveBeenCalledWith(
+          expect.objectContaining({ id: COACH_ID }),
+          ["pz-3", "pz-4"],
+          null
+        );
+        expect(prisma.assignment.create).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ sourceTopicId: "topic-1" }) })
+        );
+        expect(prisma.assignmentBatch.upsert).toHaveBeenCalled();
+      });
+
+      it("refuses a folder that is not (or no longer) approved, before writing anything", async () => {
+        puzzleSets.assignableFolderPuzzleIds.mockRejectedValue(
+          new ForbiddenException('"Forks" is not approved for homework.')
+        );
+        await expect(
+          service.create(TOKEN, {
+            title: "Forks",
+            difficulty: "BEGINNER",
+            activityType: "PUZZLE_SET",
+            sourceTopicId: "topic-1"
+          })
+        ).rejects.toBeInstanceOf(ForbiddenException);
+        expect(prisma.assignment.create).not.toHaveBeenCalled();
+      });
+
+      it("refuses a folder for anything but a puzzle set", async () => {
+        await expect(
+          service.create(TOKEN, {
+            title: "Forks",
+            difficulty: "BEGINNER",
+            activityType: "REPLAY",
+            pgn: VALID_PGN,
+            sourceTopicId: "topic-1"
+          })
+        ).rejects.toBeInstanceOf(BadRequestException);
+      });
+
+      it("re-checks the folder's approval on every deploy, so a revoked folder can't be re-assigned", async () => {
+        prisma.assignment.findUnique.mockResolvedValue(folderSet);
+        puzzleSets.assignableFolderPuzzleIds.mockRejectedValue(
+          new ForbiddenException('"Forks" is not approved for homework.')
+        );
+        await expect(
+          service.deploy(TOKEN, {
+            assignmentId: "asg-1",
+            batchIds: ["batch-1"],
+            dueDate: new Date(Date.now() + 86_400_000).toISOString()
+          })
+        ).rejects.toBeInstanceOf(ForbiddenException);
+        expect(prisma.assignmentBatch.upsert).not.toHaveBeenCalled();
+      });
+
+      it("deploys while the folder stays approved", async () => {
+        prisma.assignment.findUnique.mockResolvedValue(folderSet);
+        await service.deploy(TOKEN, {
+          assignmentId: "asg-1",
+          batchIds: ["batch-1"],
+          dueDate: new Date(Date.now() + 86_400_000).toISOString()
+        });
+        expect(puzzleSets.assignableFolderPuzzleIds).toHaveBeenCalledWith("topic-1");
+        expect(prisma.assignmentBatch.upsert).toHaveBeenCalled();
+      });
+
+      it("stays tied to the folder when saved with the same puzzles, and detaches once they change", async () => {
+        prisma.assignment.findUnique.mockResolvedValue(folderSet);
+        puzzleSets.puzzleIdsOf.mockResolvedValue(["pz-3", "pz-4"]);
+
+        await service.update(TOKEN, "asg-1", { puzzleIds: ["pz-3", "pz-4"] });
+        expect(prisma.assignment.update.mock.calls[0][0].data).not.toHaveProperty("sourceTopicId");
+
+        await service.update(TOKEN, "asg-1", { puzzleIds: ["pz-4"] });
+        expect(prisma.assignment.update.mock.calls[1][0].data).toMatchObject({ sourceTopicId: null });
+      });
     });
 
     it("refuses a manual status change on a puzzle set", async () => {

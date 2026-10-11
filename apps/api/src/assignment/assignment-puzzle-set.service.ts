@@ -5,6 +5,9 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import {
+  folderHomeworkBlocker,
+  isSystemPuzzleFolder,
+  MAX_ASSIGNMENT_PUZZLES,
   maxPuzzlePoints,
   parseLeaderboardOverride,
   parseScoringOverride,
@@ -13,6 +16,7 @@ import {
   type AssignmentPuzzleSetResults,
   type AssignmentSetPuzzle,
   type ChessColor,
+  type FolderHomeworkResponse,
   type PuzzleLeaderboardOptions,
   type PuzzleScoringOverride,
   type PuzzleSetLeaderboardResponse,
@@ -52,6 +56,7 @@ const setPuzzleInclude = {
       fen: true,
       puzzleType: true,
       solutionMovesJson: true,
+      tags: true,
       title: true,
       topic: { select: { name: true } }
     }
@@ -59,6 +64,13 @@ const setPuzzleInclude = {
 } satisfies Prisma.AssignmentPuzzleInclude;
 
 type SetPuzzleRow = Prisma.AssignmentPuzzleGetPayload<{ include: typeof setPuzzleInclude }>;
+
+/** A folder's homework set: live published library puzzles filed directly in it. */
+const folderPuzzleWhere = (topicId: Prisma.PuzzleWhereInput["topicId"]): Prisma.PuzzleWhereInput => ({
+  status: PuzzleStatus.PUBLISHED,
+  topicId,
+  visibility: PuzzleVisibility.GLOBAL
+});
 
 const isAdmin = (role: UserRole) => role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN;
 
@@ -191,6 +203,43 @@ export class AssignmentPuzzleSetService {
       out.set(row.assignmentId, list);
     }
     return out;
+  }
+
+  // ── Homework-approved folders ──
+
+  /** Homework-set size per folder (all folders, or just `topicIds`). */
+  async folderHomeworkCounts(topicIds?: string[]): Promise<Map<string, number>> {
+    const rows = await this.prisma.puzzle.groupBy({
+      by: ["topicId"],
+      where: folderPuzzleWhere(topicIds ? { in: topicIds } : undefined),
+      _count: { _all: true }
+    });
+    return new Map(rows.map((row) => [row.topicId, row._count._all]));
+  }
+
+  /**
+   * What assigning a folder sets — its live PUBLISHED GLOBAL puzzles filed
+   * directly in it, in title order (`puzzles.title` sorts naturally) — and,
+   * via `folderHomeworkBlocker`, whether it may be assigned now. The Super
+   * Admin's approval is academy-wide and lives on the folder row, so it is
+   * the same answer for every coach.
+   */
+  async folderHomework(topicId: string): Promise<FolderHomeworkResponse> {
+    return (await this.readFolder(topicId)).response;
+  }
+
+  /**
+   * The puzzle ids of a folder that may be assigned right now — the backend
+   * half of the approval gate. Not approved (or revoked) is a 403; an approved
+   * folder that has subfolders, no puzzles or too many is a 400.
+   */
+  async assignableFolderPuzzleIds(topicId: string): Promise<string[]> {
+    const { approved, response } = await this.readFolder(topicId);
+    if (!response.blocker) return response.puzzles.map((p) => p.puzzleId);
+    if (!approved) {
+      throw new ForbiddenException(`"${response.topicName}" is not approved for homework.`);
+    }
+    throw new BadRequestException(`"${response.topicName}": ${response.blocker}`);
   }
 
   // ── Results ──
@@ -407,6 +456,45 @@ export class AssignmentPuzzleSetService {
 
   // ── internals ──
 
+  private async readFolder(topicId: string) {
+    const topic = await this.prisma.puzzleTopic.findUnique({
+      where: { id: topicId },
+      select: { homeworkApprovedAt: true, id: true, name: true, slug: true }
+    });
+    if (!topic) throw new NotFoundException("Folder not found.");
+
+    const [subfolderCount, puzzleCount, puzzles] = await Promise.all([
+      this.prisma.puzzleTopic.count({ where: { parentId: topicId } }),
+      this.prisma.puzzle.count({ where: folderPuzzleWhere(topicId) }),
+      this.prisma.puzzle.findMany({
+        where: folderPuzzleWhere(topicId),
+        orderBy: [{ title: "asc" }, { createdAt: "asc" }],
+        select: { difficulty: true, id: true, tags: true, title: true },
+        take: MAX_ASSIGNMENT_PUZZLES
+      })
+    ]);
+
+    const approved = topic.homeworkApprovedAt !== null;
+    const response: FolderHomeworkResponse = {
+      blocker: folderHomeworkBlocker({
+        approved,
+        isSystem: isSystemPuzzleFolder(topic),
+        puzzleCount,
+        subfolderCount
+      }),
+      puzzles: puzzles.map((p) => ({
+        difficulty: p.difficulty,
+        puzzleId: p.id,
+        tags: p.tags,
+        title: p.title,
+        topicName: topic.name
+      })),
+      topicId: topic.id,
+      topicName: topic.name
+    };
+    return { approved, response };
+  }
+
   private triesPerPuzzle(assignment: { maxAttempts: number | null; allowRetry: boolean }) {
     return assignment.maxAttempts ?? (assignment.allowRetry ? null : 1);
   }
@@ -496,6 +584,7 @@ export class AssignmentPuzzleSetService {
       solutionLength: Array.isArray(row.puzzle.solutionMovesJson)
         ? row.puzzle.solutionMovesJson.length
         : 0,
+      tags: row.puzzle.tags ?? [],
       title: row.puzzle.title,
       topicName: row.puzzle.topic?.name ?? null
     };
