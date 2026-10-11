@@ -33,10 +33,12 @@ export function useTodayClasses() {
   });
 }
 
-export function useUpcomingClasses() {
+export function useUpcomingClasses(limit?: number) {
   return useQuery({
-    queryKey: queryKeys.coach.upcomingClasses,
-    queryFn: getUpcomingClasses
+    queryKey: limit ? queryKeys.coach.upcomingClassesLimited(limit) : queryKeys.coach.upcomingClasses,
+    queryFn: () => getUpcomingClasses(limit),
+    // A class going live (or ending) changes its card's action, so keep it fresh.
+    refetchInterval: limit ? 60_000 : undefined
   });
 }
 

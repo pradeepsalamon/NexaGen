@@ -12,26 +12,46 @@ import type {
   CoachClassResponse,
   CoachStudentsResponse,
   UpdateClassRequest,
-  CoachClass
+  CoachClass,
+  CoachClassStudent
 } from "@nexa-chess/types";
+import { resolveBatchType } from "@nexa-chess/types";
 import { ClassStatus, Prisma, UserRole } from "@prisma/client";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { authenticateUser } from "../auth/authenticate";
 
-type CoachClassWithRelations = Prisma.CoachClassGetPayload<{
-  include: {
-    batch: {
-      include: {
-        students: {
-          where: { isDeleted: false }
+// Every coach class read loads the same relations, so `toCoachClass` can show
+// the roster (avatar, name, rating, level) and resolve the batch type.
+const COACH_CLASS_INCLUDE = {
+  batch: {
+    include: {
+      students: {
+        where: { isDeleted: false },
+        orderBy: { enrolledAt: "asc" },
+        include: {
+          student: {
+            select: {
+              avatarUrl: true,
+              firstName: true,
+              id: true,
+              isDeleted: true,
+              lastName: true,
+              studentProfile: { select: { chessRating: true, experienceLevel: true } }
+            }
+          }
         }
       }
-    },
-    liveSession: true
-  }
-}>;
+    }
+  },
+  liveSession: true
+} satisfies Prisma.CoachClassInclude;
+
+type CoachClassWithRelations = Prisma.CoachClassGetPayload<{ include: typeof COACH_CLASS_INCLUDE }>;
+
+/** Upper bound for `?limit=` on the upcoming list (the dashboard asks for 3). */
+const MAX_UPCOMING_LIMIT = 50;
 
 @Injectable()
 export class CoachService {
@@ -124,19 +144,27 @@ export class CoachService {
 
     const classes = await this.prisma.coachClass.findMany({
       where: { coachId, startsAt: { gte: startOfDay, lt: endOfDay } },
-      include: { 
-        batch: { include: { students: { where: { isDeleted: false } } } },
-        liveSession: true 
-      },
+      include: COACH_CLASS_INCLUDE,
       orderBy: { startsAt: "asc" }
     });
 
     return { classes: classes.map(c => this.toCoachClass(c)) };
   }
 
-  async getUpcomingClasses(accessToken: string | undefined): Promise<CoachClassListResponse> {
+  /**
+   * Classes not yet over, soonest first. `limit` caps the list (the dashboard's
+   * "Latest upcoming classes" asks for 3); omitted returns every one.
+   */
+  async getUpcomingClasses(
+    accessToken: string | undefined,
+    limit?: number
+  ): Promise<CoachClassListResponse> {
     const coachId = await this.getAuthenticatedCoachId(accessToken);
     const now = new Date();
+    const take =
+      limit !== undefined && Number.isInteger(limit) && limit > 0
+        ? Math.min(limit, MAX_UPCOMING_LIMIT)
+        : undefined;
 
     const classes = await this.prisma.coachClass.findMany({
       where: { 
@@ -144,11 +172,10 @@ export class CoachService {
         status: { in: [ClassStatus.SCHEDULED, ClassStatus.LIVE] }, 
         endsAt: { gte: now } 
       },
-      include: { 
-        batch: { include: { students: { where: { isDeleted: false } } } },
-        liveSession: true
-      },
-      orderBy: { startsAt: "asc" }
+      include: COACH_CLASS_INCLUDE,
+      // id breaks ties so two classes at the same minute keep a stable order.
+      orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+      take
     });
 
     return { classes: classes.map(c => this.toCoachClass(c)) };
@@ -159,10 +186,7 @@ export class CoachService {
 
     const classes = await this.prisma.coachClass.findMany({
       where: { coachId, status: { in: [ClassStatus.COMPLETED, ClassStatus.CANCELLED] } },
-      include: { 
-        batch: { include: { students: { where: { isDeleted: false } } } },
-        liveSession: true 
-      },
+      include: COACH_CLASS_INCLUDE,
       orderBy: { startsAt: "desc" },
       take: 50
     });
@@ -175,10 +199,7 @@ export class CoachService {
 
     const cls = await this.prisma.coachClass.findUnique({
       where: { id: classId },
-      include: { 
-        batch: { include: { students: { where: { isDeleted: false } } } },
-        liveSession: true 
-      }
+      include: COACH_CLASS_INCLUDE
     });
 
     if (!cls || cls.coachId !== coachId) {
@@ -194,10 +215,7 @@ export class CoachService {
     const existingClass = await this.prisma.coachClass.findUnique({
       where: { id: classId },
       include: {
-        batch: {
-          include: { students: true }
-        },
-        liveSession: true,
+        ...COACH_CLASS_INCLUDE,
         attendances: {
           include: {
             student: true
@@ -257,12 +275,12 @@ export class CoachService {
         description: text(payload.description),
         objectives: text(payload.objectives),
         homework: text(payload.homework),
-        notes: text(payload.notes)
+        notes: text(payload.notes),
+        // This class only — the batch default and sibling classes are untouched.
+        // null clears the override (inherit); undefined leaves it alone.
+        batchType: payload.batchType
       },
-      include: {
-        batch: { include: { students: { where: { isDeleted: false } } } },
-        liveSession: true
-      }
+      include: COACH_CLASS_INCLUDE
     });
 
     return { class: this.toCoachClass(cls) };
@@ -295,10 +313,7 @@ export class CoachService {
         cancelledAt: new Date(),
         cancelledById: coachId
       },
-      include: {
-        batch: { include: { students: { where: { isDeleted: false } } } },
-        liveSession: true
-      }
+      include: COACH_CLASS_INCLUDE
     });
 
     this.messaging.dispatchInBackground({
@@ -357,6 +372,22 @@ export class CoachService {
   }
 
   private toCoachClass(c: CoachClassWithRelations): CoachClass {
+    const students: CoachClassStudent[] = (c.batch?.students ?? [])
+      .filter((bs) => bs.student && !bs.student.isDeleted)
+      .map(({ student }) => ({
+        avatarUrl: student.avatarUrl,
+        chessRating: student.studentProfile?.chessRating ?? null,
+        experienceLevel: student.studentProfile?.experienceLevel ?? null,
+        firstName: student.firstName,
+        id: student.id,
+        lastName: student.lastName
+      }));
+    const inherited = resolveBatchType({
+      batchDefault: c.batch?.batchType,
+      studentCount: students.length
+    });
+    const batchType = c.batchType ? { source: "CLASS" as const, type: c.batchType } : inherited;
+
     return {
       id: c.id,
       batchId: c.batchId || "",
@@ -373,9 +404,22 @@ export class CoachService {
       endsAt: c.endsAt.toISOString(),
       meetingRoomId: c.meetingRoomId,
       createdAt: c.createdAt.toISOString(),
-      studentCount: c.batch?.students?.length || 0,
+      studentCount: students.length,
       hasRecording: !!c.liveSession?.recordingUrl,
+      batchType: batchType.type,
+      batchTypeSource: batchType.source,
+      batchTypeInherited: inherited.type,
+      batchTypeOverride: c.batchType,
+      level: this.rosterLevel(students),
+      students
     };
+  }
+
+  /** The roster's shared experience level, "MIXED" when it differs, null when empty. */
+  private rosterLevel(students: CoachClassStudent[]): CoachClass["level"] {
+    const levels = new Set(students.map((s) => s.experienceLevel).filter((l) => l !== null));
+    if (levels.size === 0) return null;
+    return levels.size === 1 ? [...levels][0] : "MIXED";
   }
 
   private toNullableString(value: string | undefined) {

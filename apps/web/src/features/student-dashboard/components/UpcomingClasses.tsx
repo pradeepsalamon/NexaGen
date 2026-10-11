@@ -1,8 +1,12 @@
 "use client";
 
+import { ArrowRight, Play } from "lucide-react";
 import Link from "next/link";
+import type { StudentDashboardUpcomingClass } from "@nexa-chess/types";
+import { Button } from "@/components/ui/Button";
+import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { SectionCard } from "@/components/ui/SectionCard";
-import { ClassStatus } from "@/features/live-class/types/live-class";
+import { BatchTypeBadge } from "@/features/batches/components/BatchTypeBadge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
   formatDayOfMonth,
@@ -11,54 +15,98 @@ import {
   formatTime
 } from "@/lib/datetime";
 
-interface ScheduledClass {
-  id: string;
-  startsAt: string;
-  coach: string;
-  topic: string;
-  status: ClassStatus;
-}
-
 interface UpcomingClassesProps {
-  classes?: ScheduledClass[];
+  classes?: StudentDashboardUpcomingClass[];
 }
 
-export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
+// Same rule as the schedule and class pages: a student can join once the coach
+// has started the class; before that the room is not open.
+function isJoinable(cls: StudentDashboardUpcomingClass) {
+  return cls.status === "LIVE" || cls.status === "IN_PROGRESS";
+}
+
+function UpcomingClassRow({ cls }: { cls: StudentDashboardUpcomingClass }) {
   const timeZone = useUserTimeZone();
+  const joinable = isJoinable(cls);
+  const hintId = `upcoming-${cls.id}-hint`;
 
   return (
-    <SectionCard className="h-full" title="Upcoming classes">
+    <li className="flex flex-wrap items-start gap-3.5 py-3.5">
+      <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-control bg-app-soft text-center">
+        <span className="text-[0.65rem] font-bold uppercase leading-none text-app-muted">
+          {formatMonthShort(cls.startsAt, timeZone)}
+        </span>
+        <span className="mt-0.5 text-base font-extrabold leading-none text-app-text">
+          {formatDayOfMonth(cls.startsAt, timeZone)}
+        </span>
+      </span>
+
+      <div className="min-w-0 flex-1 basis-40">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="truncate text-sm font-bold text-app-text">{cls.title}</span>
+          <ClassStatusBadge status={cls.status} />
+        </div>
+        {cls.topic ? (
+          <p className="truncate text-sm text-app-text">Topic: {cls.topic}</p>
+        ) : null}
+        <p className="truncate text-xs text-app-muted">
+          {formatRelativeDay(cls.startsAt, timeZone)} · {formatTime(cls.startsAt, timeZone)} –{" "}
+          {formatTime(cls.endsAt, timeZone)} · Coach {cls.coachName}
+        </p>
+        <div className="mt-1.5">
+          <BatchTypeBadge type={cls.batchType} />
+        </div>
+      </div>
+
+      <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:items-end">
+        {joinable ? (
+          <Button asChild size="sm" variant="destructive">
+            <Link href={`/live-class/${cls.id}`}>
+              <Play aria-hidden="true" className="size-3.5 fill-current" strokeWidth={2.5} />
+              Join Class
+            </Link>
+          </Button>
+        ) : (
+          <>
+            <Button aria-describedby={hintId} disabled size="sm" variant="outline">
+              <Play aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+              Join Class
+            </Button>
+            <span className="text-center text-xs text-app-muted sm:text-right" id={hintId}>
+              Opens when your coach starts
+            </span>
+          </>
+        )}
+        <Link
+          className="inline-flex items-center justify-center gap-1 rounded-control text-xs font-semibold text-primary-ink hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:justify-end"
+          href={`/live-class/${cls.id}`}
+        >
+          View class
+          <ArrowRight aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+        </Link>
+      </div>
+    </li>
+  );
+}
+
+/** Student dashboard: the next three classes, soonest first. */
+export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
+  return (
+    <SectionCard
+      actions={
+        <Button asChild size="sm" variant="ghost">
+          <Link href="/student/schedule">View all</Link>
+        </Button>
+      }
+      className="h-full"
+      title="Upcoming classes"
+    >
       {classes.length === 0 ? (
-        <p className="py-6 text-center text-sm text-app-muted">Nothing else scheduled yet.</p>
+        <p className="py-6 text-center text-sm text-app-muted">Nothing scheduled yet.</p>
       ) : (
-        <ul className="-my-2 divide-y divide-app-border">
+        <ul className="-my-3.5 divide-y divide-app-border">
           {classes.map((cls) => (
-            <li key={cls.id}>
-              <Link
-                className="-mx-2 flex items-center gap-3.5 rounded-control px-2 py-3 transition-colors hover:bg-app-soft"
-                href={`/live-class/${cls.id}`}
-              >
-                <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-control bg-app-soft text-center">
-                  <span className="text-[0.65rem] font-bold uppercase leading-none text-app-muted">
-                    {formatMonthShort(cls.startsAt, timeZone)}
-                  </span>
-                  <span className="mt-0.5 text-base font-extrabold leading-none text-app-text">
-                    {formatDayOfMonth(cls.startsAt, timeZone)}
-                  </span>
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold text-app-text">
-                    {cls.topic}
-                  </span>
-                  <span className="block truncate text-xs text-app-muted">
-                    {cls.coach} · {formatTime(cls.startsAt, timeZone)}
-                  </span>
-                </span>
-                <span className="shrink-0 text-xs font-semibold text-app-muted">
-                  {formatRelativeDay(cls.startsAt, timeZone)}
-                </span>
-              </Link>
-            </li>
+            <UpcomingClassRow cls={cls} key={cls.id} />
           ))}
         </ul>
       )}

@@ -9,9 +9,13 @@ import {
   MinLength
 } from "class-validator";
 import type { CreateBatchRequest, UpdateBatchRequest } from "@nexa-chess/types";
-import { BatchStatus } from "@prisma/client";
+import { BatchStatus, BatchType } from "@prisma/client";
 
 export class CreateBatchDto implements CreateBatchRequest {
+  @IsEnum(BatchType)
+  @IsOptional()
+  batchType?: BatchType | null;
+
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })
@@ -53,6 +57,10 @@ export class CreateBatchDto implements CreateBatchRequest {
 }
 
 export class UpdateBatchDto implements UpdateBatchRequest {
+  @IsEnum(BatchType)
+  @IsOptional()
+  batchType?: BatchType | null;
+
   @IsArray()
   @ArrayUnique()
   @IsString({ each: true })

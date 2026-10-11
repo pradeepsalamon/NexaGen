@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
 
 import {
   liveClassSettingsOverrideSchema,
@@ -23,6 +24,7 @@ export * from "./live-class-board-state";
 export * from "./health";
 export * from "./chess-appearance";
 export * from "./typography";
+export * from "./batch-type";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)
@@ -250,6 +252,8 @@ const batchDateRefinement = (value: { startsAt?: string; endsAt?: string }) => {
 const batchDateRefinementOptions = { message: "End date must be after start date.", path: ["endsAt"] };
 
 const createBatchRequestBaseSchema = z.object({
+  /** Default Group / Individual / Buddy for the batch's classes; null = from roster size. */
+  batchType: batchTypeSchema.nullable().optional(),
   coachIds: batchUserIdsSchema,
   description: z.string().max(2000).optional(),
   endsAt: z.string().optional(),
@@ -355,6 +359,7 @@ export type BatchUserSummary = {
 };
 
 export type Batch = {
+  batchType: BatchType | null;
   coachCount: number;
   coaches: BatchUserSummary[];
   createdAt: string;
@@ -640,6 +645,25 @@ export type CoachClass = {
   createdAt: string;
   studentCount: number;
   hasRecording?: boolean;
+  /** Effective Group / Individual / Buddy (see `resolveBatchType`). */
+  batchType: BatchType;
+  batchTypeSource: BatchTypeSource;
+  /** This class's own override, or null when it inherits. */
+  batchTypeOverride: BatchType | null;
+  /** What the class would be without its override (batch default, else roster). */
+  batchTypeInherited: BatchType;
+  /** The shared experience level of the roster, "MIXED", or null when empty. */
+  level: PrismaExperienceLevel | "MIXED" | null;
+  students: CoachClassStudent[];
+};
+
+export type CoachClassStudent = {
+  avatarUrl: string | null;
+  chessRating: number | null;
+  experienceLevel: PrismaExperienceLevel | null;
+  firstName: string;
+  id: string;
+  lastName: string | null;
 };
 
 export type CoachDashboardResponse = {
@@ -862,11 +886,15 @@ export type CoachStudentsResponse = {
  */
 export const updateClassRequestSchema = z.object({
   title: z.string().max(120).optional(),
-  topic: z.string().min(1, "Topic is required.").max(120).optional(),
+  // "" clears the topic (stored as null), so an inline edit — or its undo — can
+  // return a class to "no topic".
+  topic: z.string().max(120).optional(),
   description: z.string().max(2000).optional(),
   objectives: z.string().max(2000).optional(),
   homework: z.string().max(2000).optional(),
-  notes: z.string().max(2000).optional()
+  notes: z.string().max(2000).optional(),
+  /** Per-class Group / Individual / Buddy override; null clears it (inherit). */
+  batchType: batchTypeSchema.nullable().optional()
 });
 
 export type UpdateClassRequest = z.infer<typeof updateClassRequestSchema>;
@@ -1649,7 +1677,12 @@ export interface DemoScheduleResponse {
   schedule: DemoScheduleDto;
 }
 
-export type AdminBatchClass = CoachClass & {
+// The admin list does not load rosters, so it carries none of the coach view's
+// roster-derived fields.
+export type AdminBatchClass = Omit<
+  CoachClass,
+  "batchType" | "batchTypeInherited" | "batchTypeOverride" | "batchTypeSource" | "level" | "students"
+> & {
   coachName: string;
   hasRecording?: boolean;
 };
@@ -2497,6 +2530,21 @@ export type StudentDashboardFeaturedClass = {
   endsAt: string;
   durationMinutes: number;
   status: string;
+};
+
+/** One of the student's next classes (the dashboard shows three). */
+export type StudentDashboardUpcomingClass = {
+  id: string;
+  /** Class title, else the batch name — never empty. */
+  title: string;
+  topic: string | null;
+  batchName: string | null;
+  batchType: BatchType;
+  coachName: string;
+  coachAvatarUrl: string | null;
+  startsAt: string;
+  endsAt: string;
+  status: ClassStatus;
 };
 
 // ──────────────────────────────────────────────

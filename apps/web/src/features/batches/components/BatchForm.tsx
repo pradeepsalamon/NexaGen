@@ -2,7 +2,12 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Save, UserMinus } from "lucide-react";
-import type { Batch, CreateBatchRequest, UpdateBatchRequest } from "@nexa-chess/types";
+import {
+  BATCH_TYPE_OPTIONS,
+  type Batch,
+  type CreateBatchRequest,
+  type UpdateBatchRequest
+} from "@nexa-chess/types";
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -30,6 +35,8 @@ const batchFormSchema = z.object({
   endsAt: z.string().optional(),
   scheduleNotes: z.string().optional(),
   status: z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARCHIVED"]),
+  // "" = no default: each class's type comes from the roster size.
+  batchType: z.enum(["", "GROUP", "INDIVIDUAL", "BUDDY"]),
   coachIds: z.array(z.string()).optional(),
   studentIds: z.array(z.string()).optional(),
 });
@@ -41,6 +48,11 @@ const statusOptions = [
   { label: "Active", value: "ACTIVE" },
   { label: "Completed", value: "COMPLETED" },
   { label: "Archived", value: "ARCHIVED" }
+];
+
+const batchTypeOptions = [
+  { label: "Automatic (from number of students)", value: "" },
+  ...BATCH_TYPE_OPTIONS
 ];
 
 type BatchFormProps = {
@@ -56,6 +68,7 @@ function toUpdatePayload(batch: Batch): UpdateBatchRequest {
     endsAt: batch.endsAt || undefined,
     scheduleNotes: batch.scheduleNotes || undefined,
     status: batch.status,
+    batchType: batch.batchType,
     coachIds: batch.coaches.map(c => c.id),
     studentIds: batch.students.map(s => s.id),
   };
@@ -102,6 +115,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
       endsAt: selectedBatch?.endsAt || "",
       scheduleNotes: selectedBatch?.scheduleNotes || "",
       status: selectedBatch?.status || "ACTIVE",
+      batchType: selectedBatch?.batchType ?? "",
       coachIds: selectedBatch?.coaches.map(c => c.id) || [],
       studentIds: selectedBatch?.students.map(s => s.id) || [],
     },
@@ -117,6 +131,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
       endsAt: values.endsAt || undefined,
       scheduleNotes: values.scheduleNotes || undefined,
       status: values.status,
+      batchType: values.batchType || null,
       coachIds: values.coachIds,
       studentIds: values.studentIds,
     };
@@ -160,6 +175,12 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
           <TabsContent value="details" className="grid gap-4 lg:grid-cols-2">
           <FormInput name="name" label="Batch Name" required />
           <FormSelect name="status" label="Status" options={statusOptions} />
+          <FormSelect
+            hint="Default for every class in this batch. A coach can still change one class on their dashboard."
+            label="Batch Type"
+            name="batchType"
+            options={batchTypeOptions}
+          />
 
           <BaseFormField id="startsAt" label="Start Date" error={form.formState.errors.startsAt?.message}>
             <Controller

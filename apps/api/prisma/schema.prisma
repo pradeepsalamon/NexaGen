@@ -64,6 +64,14 @@ enum CoachTitle {
   GM
 }
 
+/// Group / one-on-one / pair. Nullable everywhere: null inherits (class →
+/// batch → derived from roster size, see `resolveBatchType` in @nexa-chess/types).
+enum BatchType {
+  GROUP
+  INDIVIDUAL
+  BUDDY
+}
+
 enum BatchStatus {
   UPCOMING
   ACTIVE
@@ -595,6 +603,9 @@ model Batch {
 
   status BatchStatus @default(ACTIVE)
 
+  /// Admin default for every class of the batch; null = derive from roster size.
+  batchType BatchType?
+
   startsAt DateTime? @db.Date
   endsAt   DateTime? @db.Date
 
@@ -735,6 +746,9 @@ model CoachClass {
   notes       String?
 
   status ClassStatus @default(SCHEDULED)
+
+  /// This class only (coach-editable); null inherits the batch's default.
+  batchType BatchType?
 
   startsAt DateTime
   endsAt   DateTime

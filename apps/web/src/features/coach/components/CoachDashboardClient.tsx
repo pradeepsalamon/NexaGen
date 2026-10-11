@@ -10,6 +10,7 @@ import { useCoachDashboard, useTodayClasses } from "../hooks/useCoachApi";
 import { cancelClass } from "../api/coachApi";
 import { CoachEarningsSummaryCard } from "@/features/payroll/components/CoachEarningsSummaryCard";
 import { ClassCard } from "./ClassCard";
+import { LatestUpcomingClasses } from "./upcoming/LatestUpcomingClasses";
 import type { CoachClass } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
@@ -133,6 +134,8 @@ export function CoachDashboardClient() {
             );
           })}
       </div>
+
+      <LatestUpcomingClasses />
 
       <CoachEarningsSummaryCard />
 

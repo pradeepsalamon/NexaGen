@@ -650,6 +650,26 @@ N days per coach / `ONE_TIME`) and **where** (`placements`: `CLASS_END` on
   `app/layout.tsx` reads so there is no font flash on reload.
 - Neither model is soft-deletable or Trash-registered (cosmetic).
 
+### 3.6j2 Batch type & dashboard upcoming classes
+
+`BatchType` (`GROUP` / `INDIVIDUAL` / `BUDDY`, `@nexa-chess/types`
+`batch-type.ts`) resolves in three layers via `resolveBatchType`: roster size
+(1 → Individual, 2 → Buddy, else Group) → `Batch.batchType` (admin, BatchForm
+"Batch Type") → `CoachClass.batchType` (one class only, coach). Both columns are
+nullable; null inherits. The coach sets/clears a class's override through the
+existing `PATCH coach.updateClass` (`batchType: null` clears) — it never writes
+the batch or sibling classes.
+
+- **Coach `/coach`**: "Latest Upcoming Classes" (`features/coach/components/upcoming/`)
+  = `GET coach.upcomingClasses?limit=3` (same not-over/`SCHEDULED|LIVE` rule as the
+  schedule page; `CoachClass` now carries `students`, `level`, `batchType*`). Inline
+  topic + class-type edits go through `useUpdateUpcomingClass` (immediate + Undo).
+  `StartClassButton` reuses `useStartLiveClass` + redirect, with a confirm when
+  starting more than 15 min early.
+- **Student `/student`**: `nextClasses` on the dashboard payload (next three not
+  over, a live one included). `upcomingClasses` is unchanged — `/student/live-classes`
+  still reads it. Join is enabled only while the class is `LIVE`/`IN_PROGRESS`.
+
 ### 3.6k Demo classes (guest access, invites, static schedules)
 
 `apps/api/src/demo-class/` (`DemoInviteService`, `DemoScheduleService`) +

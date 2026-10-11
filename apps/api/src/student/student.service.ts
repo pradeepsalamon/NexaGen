@@ -5,15 +5,27 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import type {
   StudentDashboardFeaturedClass,
-  StudentDashboardLiveClass
+  StudentDashboardLiveClass,
+  StudentDashboardUpcomingClass
 } from "@nexa-chess/types";
+import { resolveBatchType } from "@nexa-chess/types";
 import { AttendanceReportService } from "../attendance/attendance-report.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
-import { UserRole } from "@prisma/client";
+import { Prisma, UserRole } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 
+
+// Just enough of the batch to label a class and resolve its Group / Individual
+// / Buddy type (the roster size is the last fallback).
+const NEXT_CLASS_BATCH_SELECT = {
+  select: {
+    batchType: true,
+    name: true,
+    _count: { select: { students: { where: { isDeleted: false } } } }
+  }
+} satisfies Prisma.CoachClass$batchArgs;
 
 @Injectable()
 export class StudentService {
@@ -37,8 +49,8 @@ export class StudentService {
         startsAt: { gte: todayStart },
         status: { not: "CANCELLED" }
       },
-      orderBy: { startsAt: "asc" },
-      include: { coach: true, liveSession: true }
+      orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+      include: { batch: NEXT_CLASS_BATCH_SELECT, coach: true, liveSession: true }
     });
 
     // 1b. Profile + batch identity for the dashboard/sidebar chrome. The
@@ -131,7 +143,7 @@ export class StudentService {
         NOT: { status: { in: ["CANCELLED", "COMPLETED"] } }
       },
       orderBy: { startsAt: "desc" },
-      include: { coach: true, liveSession: true }
+      include: { batch: NEXT_CLASS_BATCH_SELECT, coach: true, liveSession: true }
     });
     const liveClass = liveCandidate ? await this.toLiveClass(liveCandidate) : null;
 
@@ -151,6 +163,21 @@ export class StudentService {
     const finalUpcoming = scheduledClasses
       .filter(c => c.status === "SCHEDULED" && c.id !== featured?.id && c.endsAt > now)
       .slice(0, 5);
+
+    // The dashboard's "Upcoming classes": the next three that are not over,
+    // soonest first — a live class (even one that overran) included, so the
+    // student can join it from the list.
+    const nextClasses = [
+      ...(liveCandidate ? [liveCandidate] : []),
+      ...scheduledClasses.filter(
+        c => c.id !== liveCandidate?.id &&
+          (c.status === "SCHEDULED" || c.status === "LIVE" || c.status === "IN_PROGRESS") &&
+          c.endsAt > now
+      )
+    ]
+      .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+      .slice(0, 3)
+      .map(c => this.toNextClass(c));
 
     // Fetch past classes for the dashboard
     const pastClasses = await this.prisma.coachClass.findMany({
@@ -185,6 +212,7 @@ export class StudentService {
       // the user's `timezone` (AUDIT H11).
       liveClass,
       todaysClass: featured ? this.toFeaturedClass(featured) : null,
+      nextClasses,
       upcomingClasses: finalUpcoming.map(c => ({
         id: c.id,
         startsAt: c.startsAt.toISOString(),
@@ -244,6 +272,27 @@ export class StudentService {
         hasRecording: !!c.liveSession?.recordingUrl,
       })),
       progressMetrics
+    };
+  }
+
+  private toNextClass(c: Prisma.CoachClassGetPayload<{
+    include: { batch: typeof NEXT_CLASS_BATCH_SELECT; coach: true };
+  }>): StudentDashboardUpcomingClass {
+    return {
+      id: c.id,
+      title: c.title || c.batch?.name || "Class",
+      topic: c.topic,
+      batchName: c.batch?.name ?? null,
+      batchType: resolveBatchType({
+        batchDefault: c.batch?.batchType,
+        classOverride: c.batchType,
+        studentCount: c.batch?._count.students ?? 0
+      }).type,
+      coachName: [c.coach.firstName, c.coach.lastName].filter(Boolean).join(" "),
+      coachAvatarUrl: c.coach.avatarUrl,
+      startsAt: c.startsAt.toISOString(),
+      endsAt: c.endsAt.toISOString(),
+      status: c.status
     };
   }
 

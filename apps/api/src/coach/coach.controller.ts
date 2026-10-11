@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Query,
   Req
 } from "@nestjs/common";
 import type { Request } from "express";
@@ -33,8 +34,12 @@ export class CoachController {
   }
 
   @Get(API_ROUTES.coach.upcomingClasses)
-  getUpcomingClasses(@Req() request: Request) {
-    return this.coachService.getUpcomingClasses(this.getAccessToken(request));
+  getUpcomingClasses(@Req() request: Request, @Query("limit") limit?: string) {
+    const parsed = limit === undefined ? undefined : Number.parseInt(limit, 10);
+    return this.coachService.getUpcomingClasses(
+      this.getAccessToken(request),
+      parsed !== undefined && Number.isNaN(parsed) ? undefined : parsed
+    );
   }
 
   @Get(API_ROUTES.coach.classHistory)

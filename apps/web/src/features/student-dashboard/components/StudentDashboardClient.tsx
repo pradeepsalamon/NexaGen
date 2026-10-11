@@ -84,7 +84,7 @@ export function StudentDashboardClient() {
         <ProgressOverview metrics={data?.progressMetrics} />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <UpcomingClasses classes={data?.upcomingClasses ?? []} />
+          <UpcomingClasses classes={data?.nextClasses ?? []} />
           <PracticeSection practices={data?.practices ?? []} />
           {courses.length > 0 ? <ContinueLearning courses={courses} /> : null}
           {announcements.length > 0 ? <Announcements announcements={announcements} /> : null}

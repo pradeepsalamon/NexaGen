@@ -27,6 +27,8 @@ export const queryKeys = {
     batches: ["coach", "batches"] as const,
     classes: ["coach", "classes"] as const,
     upcomingClasses: ["coach", "classes", "upcoming"] as const,
+    // Nested under upcomingClasses, so invalidating that key refreshes these too.
+    upcomingClassesLimited: (limit: number) => ["coach", "classes", "upcoming", { limit }] as const,
     classHistory: ["coach", "classes", "history"] as const,
     classDetail: (id: string) => ["coach", "classes", "detail", id] as const,
     students: ["coach", "students"] as const,

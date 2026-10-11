@@ -170,6 +170,7 @@ export class BatchService {
 
     const batch = await this.prisma.batch.create({
       data: {
+        batchType: payload.batchType ?? null,
         createdById: user.id,
         description: this.toNullableString(payload.description),
         endsAt: this.toNullableDate(payload.endsAt),
@@ -212,6 +213,8 @@ export class BatchService {
     const batch = await this.prisma.$transaction(async (transaction) => {
       await transaction.batch.update({
         data: {
+          // null clears the default (derive from roster size); undefined leaves it.
+          batchType: payload.batchType,
           description:
             payload.description === undefined
               ? undefined
@@ -407,6 +410,7 @@ export class BatchService {
 
   private toBatch(batch: BatchWithAssignments): Batch {
     return {
+      batchType: batch.batchType,
       coachCount: batch.coaches.length,
       coaches: batch.coaches.map((assignment) =>
         this.toBatchUser(assignment.coach)

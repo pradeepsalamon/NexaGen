@@ -21,8 +21,9 @@ export async function getCoachClasses(): Promise<CoachClassListResponse> {
   return apiFetch(API_ROUTES.coach.classes);
 }
 
-export async function getUpcomingClasses(): Promise<CoachClassListResponse> {
-  return apiFetch(API_ROUTES.coach.upcomingClasses);
+/** Soonest first; `limit` caps the list (the dashboard asks for 3). */
+export async function getUpcomingClasses(limit?: number): Promise<CoachClassListResponse> {
+  return apiFetch(API_ROUTES.coach.upcomingClasses, limit ? { params: { limit } } : {});
 }
 
 export async function getClassHistory(): Promise<CoachClassListResponse> {
