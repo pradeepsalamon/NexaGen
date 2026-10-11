@@ -635,6 +635,7 @@ model Batch {
   plans               Plan[]               @relation("PlanBatch")
   entitlements        Entitlement[]        @relation("EntitlementBatch")
   classChangeRequests ClassChangeRequest[]
+  classroomToolStates LiveClassToolState[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -793,6 +794,7 @@ model CoachClass {
   simuls                   LiveClassSimul[]
   matchRounds              LiveClassMatchRound[]
   movePolls                LiveClassMovePoll[]
+  classroomToolStates      LiveClassToolState[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]               @relation("FeedbackResponseClass")
@@ -2563,6 +2565,44 @@ model LiveClassMovePollAnswer {
   @@unique([pollId, studentId])
   @@index([studentId])
   @@map("live_class_move_poll_answers")
+}
+
+enum LiveClassToolKind {
+  PICK_STUDENT
+  MYSTERY_BOX
+  WALL_OF_MOMENTS
+  TEAMS
+  GM_MAPPER
+  SIDES
+  LEGENDS
+  TIMER
+}
+
+/// One live-class "Interactives" tool's saved state. Keyed by `scopeKey`
+/// (`batch:<id>` or `class:<id>`, see LIVE_CLASS_TOOL_SCOPE) so a batch's goal
+/// carries over between classes. Operational, not soft-deletable.
+model LiveClassToolState {
+  id String @id @default(cuid())
+
+  scopeKey String
+  tool     LiveClassToolKind
+
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  liveClassId String?
+  liveClass   CoachClass? @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  state       Json
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scopeKey, tool])
+  @@index([batchId])
+  @@index([liveClassId])
+  @@map("live_class_tool_states")
 }
 
 // Platform default points + leaderboard rules for live-class puzzles

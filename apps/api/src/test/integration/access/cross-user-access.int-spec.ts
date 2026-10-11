@@ -8,7 +8,7 @@ type World = Awaited<ReturnType<typeof createWorld>>;
 type Case = {
   name: string;
   as: (w: World) => User;
-  method?: "GET" | "PATCH" | "POST" | "DELETE";
+  method?: "GET" | "PATCH" | "POST" | "PUT" | "DELETE";
   path: (w: World) => string;
   body?: unknown | ((w: World) => unknown);
 };
@@ -62,7 +62,10 @@ const CROSS_USER: Case[] = [
   { name: "coach reads another class's simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.b.liveClass.id) },
   { name: "coach ends another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.end(w.b.liveClass.id) },
   { name: "coach kicks a student from another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.kick(w.b.liveClass.id), body: (w: World) => ({ identity: w.b.student.id }) },
-  { name: "coach force-mutes in another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.moderate(w.b.liveClass.id), body: { identity: "x", source: "microphone" } }
+  { name: "coach force-mutes in another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.moderate(w.b.liveClass.id), body: { identity: "x", source: "microphone" } },
+  { name: "student reads another class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
+  { name: "coach reads another class's classroom tools", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
+  { name: "coach writes another class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.b.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } }
 ];
 
 const OWN_CASES: Case[] = [
@@ -88,7 +91,9 @@ const OWN_CASES: Case[] = [
   { name: "coach reads own puzzle-set results", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.deployment(w.a.setDeployment.id) },
   { name: "coach lists own batch's students for a manual payment", as: (w) => w.a.coach, path: (w) => API_ROUTES.payments.manual.batchStudents(w.a.batch.id) },
   { name: "coach reads own class pull roster", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.pullRoster(w.a.liveClass.id) },
-  { name: "coach reads own class simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.a.liveClass.id) }
+  { name: "coach reads own class simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.a.liveClass.id) },
+  { name: "student reads own class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.a.liveClass.id) },
+  { name: "coach writes own class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } }
 ];
 
 // Lists must not mention the other side's rows at all.
@@ -116,6 +121,7 @@ const WRONG_ROLE: Case[] = [
   { name: "coach reads payroll periods", as: (w) => w.a.coach, path: () => API_ROUTES.adminPayroll.periods },
   { name: "student reads a class through the coach route", as: (w) => w.a.student, path: (w) => API_ROUTES.coach.getClass(w.a.class.id) },
   { name: "student creates a batch", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.batches.create, body: { name: "x" } },
+  { name: "student writes their own class's classroom tool", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
   { name: "ADMIN opens the trash (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.trash.list },
   { name: "ADMIN lists demo classes (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.admin.demoClasses }
 ];

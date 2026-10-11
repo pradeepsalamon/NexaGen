@@ -164,6 +164,20 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   Optional clock (increment, server-validated flags). `LiveClassMatchRound` /
   `LiveClassMatchGame` / `LiveClassMatchChallenge` are per-class operational
   rows — not soft-deletable, not trash-registered.
+- Live-class Interactives: the toolbar's "Interactives" button (left of Leave)
+  opens twelve classroom tools in a floating, non-modal panel — Pick a Student,
+  Mystery Box, Wall of Moments, Team Generator, Grandmaster Mapper, Chess
+  Balance, White or Black, Chess Legends, Opening of the Day, Chess Video
+  Generator, Rating Calculator, Classroom Timer
+  (`features/live-class/components/meeting/interactives/`). Eight keep shared
+  state in `LiveClassToolState` (`apps/api/src/classroom-tools/`,
+  `API_ROUTES.liveClass.tools` / `.tool`): the coach/admin writes, every
+  participant reads, and a `classroom_tools` packet nudges a refetch. Mystery
+  Box, Wall of Moments and Grandmaster Mapper are batch-scoped (they carry over
+  to the next class); the rest are per class. Balance, Opening, Rating and Video
+  keep nothing on the server. The video is recorded in the browser
+  (canvas + MediaRecorder) and only ever exists on the coach's device until
+  downloaded. Not soft-deletable, not trash-registered.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student

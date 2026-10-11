@@ -31,6 +31,7 @@ import { PuzzleModule } from "./puzzle/puzzle.module";
 import { SimulModule } from "./simul/simul.module";
 import { StudentMatchModule } from "./student-match/student-match.module";
 import { MovePollModule } from "./move-poll/move-poll.module";
+import { ClassroomToolsModule } from "./classroom-tools/classroom-tools.module";
 import { CourseModule } from "./course/course.module";
 import { QueueModule } from "./queue/queue.module";
 import { MessagingModule } from "./messaging/messaging.module";
@@ -84,6 +85,7 @@ import { RetentionModule } from "./retention/retention.module";
     SimulModule,
     StudentMatchModule,
     MovePollModule,
+    ClassroomToolsModule,
     CourseModule,
     MessagingModule,
     AnnouncementModule,

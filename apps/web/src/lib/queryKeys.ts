@@ -205,6 +205,9 @@ export const queryKeys = {
   liveMovePoll: {
     state: (classId: string) => ["live-move-poll", "state", classId] as const,
   },
+  liveClassTools: {
+    state: (classId: string) => ["live-class-tools", "state", classId] as const,
+  },
   payroll: {
     all: ["payroll"] as const,
     mine: ["payroll", "mine"] as const,

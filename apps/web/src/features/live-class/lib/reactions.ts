@@ -165,3 +165,13 @@ export function playReactionSound(kind: ReactionEmoji | "celebrate") {
   popper(ctx, now + 0.05);
   [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => tone(ctx, f, now + 0.15 + i * 0.09, 0.28, 0.08));
 }
+
+/** Two-note chime for a classroom-timer phase change (no audio assets). */
+export function playPhaseChime(final = false) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const t = ctx.currentTime + 0.01;
+  tone(ctx, 784, t, 0.35, 0.18, { type: "sine" });
+  tone(ctx, final ? 1047 : 988, t + 0.18, 0.5, 0.18, { type: "sine" });
+  if (final) tone(ctx, 1319, t + 0.36, 0.7, 0.16, { type: "sine" });
+}

@@ -35,6 +35,7 @@ import { SetupPositionControl } from "./SetupPositionControl";
 import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
+import { InteractivesLauncher } from "./interactives/InteractivesLauncher";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useOptionalMatch } from "../../providers/MatchProvider";
 import { useOptionalSimul } from "../../providers/SimulProvider";
@@ -428,6 +429,8 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
         <MoreControlsMenu items={moreItems} />
 
         <span className="mx-0.5 hidden h-7 w-px bg-app-border sm:block" aria-hidden="true" />
+
+        <InteractivesLauncher />
 
         <LeaveClassControl>
           {(open) => (

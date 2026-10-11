@@ -118,6 +118,10 @@ export const API_ROUTES = {
     movePoll: (id: string = ":id") => `/live-class/${id}/move-poll`,
     // Student submits (or changes) their move while the poll is open.
     movePollAnswer: (id: string = ":id") => `/live-class/${id}/move-poll/answer`,
+    // Interactives (classroom tools): GET every tool's state (any participant).
+    tools: (id: string = ":id") => `/live-class/${id}/tools`,
+    // PUT one tool's state (coach-owner+admin).
+    tool: (id: string = ":id", tool: string = ":tool") => `/live-class/${id}/tools/${tool}`,
     // Simul: POST start / DELETE end (coach-owner+admin), GET current (any participant).
     simul: (id: string = ":id") => `/live-class/${id}/simul`,
     // Coach-owner+admin: add one more student to the running simul.
