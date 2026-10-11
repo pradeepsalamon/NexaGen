@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit, InternalServerErrorException } from "@nestjs/common";
 import { RoomServiceClient, AccessToken, Room, EgressClient, EncodedFileOutput, EncodedFileType, EncodingOptionsPreset, S3Upload, TrackSource, DataPacket_Kind } from "livekit-server-sdk";
-import type { DerivedLiveKitGrants, LiveKitTrackSource } from "@nexa-chess/types";
+import { LIVE_CLASS_SPECTATOR_ROLE, type DerivedLiveKitGrants, type LiveKitTrackSource } from "@nexa-chess/types";
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
 
@@ -154,6 +154,40 @@ export class LiveKitService implements OnModuleInit {
       return await at.toJwt();
     } catch (error) {
       this.logger.error("Failed to generate LiveKit token", error);
+      throw new InternalServerErrorException("Failed to generate LiveKit access token");
+    }
+  }
+
+  /**
+   * A hidden, receive-only seat for an admin watching a class. `hidden` keeps
+   * the seat out of every client's participant list (nobody's grid or People
+   * panel shows it), and with no publish and no data grant it cannot put a
+   * track or a packet on the wire — so it can never drive the board or chat.
+   */
+  async generateSpectatorToken(options: {
+    roomName: string;
+    participantIdentity: string;
+    participantName: string;
+  }): Promise<string> {
+    try {
+      const at = new AccessToken(this.apiKey, this.apiSecret, {
+        identity: options.participantIdentity,
+        name: options.participantName,
+        metadata: JSON.stringify({ role: LIVE_CLASS_SPECTATOR_ROLE }),
+      });
+      at.addGrant({
+        roomJoin: true,
+        room: options.roomName,
+        hidden: true,
+        canSubscribe: true,
+        canPublish: false,
+        canPublishData: false,
+        canUpdateOwnMetadata: false,
+        roomAdmin: false,
+      });
+      return await at.toJwt();
+    } catch (error) {
+      this.logger.error("Failed to generate LiveKit spectator token", error);
       throw new InternalServerErrorException("Failed to generate LiveKit access token");
     }
   }

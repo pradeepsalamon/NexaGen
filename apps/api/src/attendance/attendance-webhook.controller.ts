@@ -21,7 +21,7 @@ import { resolveJoinAction } from "./attendance-session.util";
 import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
-import { API_ROUTES } from "@nexa-chess/types";
+import { API_ROUTES, isSpectatorIdentity } from "@nexa-chess/types";
 
 /**
  * How long after a session is opened a `participant_joined` webhook is treated
@@ -240,6 +240,11 @@ export class AttendanceWebhookController {
 
     // Skip guest participants (those with identity starting with "guest_")
     if (participantIdentity?.startsWith("guest_")) return;
+
+    // Skip an admin's hidden spectator seat (`spectator_<userId>_<tab>`): the
+    // split above would read "spectator" as the user id, and a watching admin is
+    // not an attendee anyway.
+    if (isSpectatorIdentity(participantIdentity)) return;
 
     // Skip the recording bot. Egress' headless Chrome joins the room to compose
     // the recording (see LiveKitService.startRecording) with identity

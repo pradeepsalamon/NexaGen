@@ -5,12 +5,30 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerAccordion, NavDrawerLink } from "@/components/layout/Sidebar";
 import { getAdminNavGroups } from "@/components/layout/navItems";
+import { useLiveClassesMonitor } from "@/features/live-monitor/hooks/useLiveMonitor";
 import { useAuthStore } from "@/stores/authStore";
 
 export function AdminSidebar() {
   const pathname = usePathname();
   const role = useAuthStore((state) => state.user?.role);
-  const groups = useMemo(() => getAdminNavGroups(role), [role]);
+  // Slow poll for the "Live Now" chip; the page itself shares this query and polls faster.
+  const { data: live } = useLiveClassesMonitor({
+    enabled: role === "ADMIN" || role === "SUPER_ADMIN",
+    refetchIntervalMs: 60_000
+  });
+  const liveCount = live?.classes.length ?? 0;
+  const groups = useMemo(
+    () =>
+      getAdminNavGroups(role).map((group) => ({
+        ...group,
+        items: group.items.map((item) =>
+          item.href === "/admin/live-classes" && liveCount > 0
+            ? { ...item, badge: { label: String(liveCount), pulse: true, tone: "danger" as const } }
+            : item
+        )
+      })),
+    [role, liveCount]
+  );
 
   const isItemActive = (href: string) =>
     pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));

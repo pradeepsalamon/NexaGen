@@ -6,6 +6,7 @@ import { LiveClassModerationService } from "./live-class-moderation.service";
 import { LiveClassPullService } from "./live-class-pull.service";
 import { LiveClassRecordingService } from "./live-class-recording.service";
 import { LiveClassScreenShareService } from "./live-class-screen-share.service";
+import { LiveClassSpectateService } from "./live-class-spectate.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { LiveClassService } from "./live-class.service";
 
@@ -20,5 +21,6 @@ export const LIVE_CLASS_SERVICES = [
   LiveClassPullService,
   LiveClassRecordingService,
   LiveClassScreenShareService,
+  LiveClassSpectateService,
   LiveClassWaitingRoomService,
 ];

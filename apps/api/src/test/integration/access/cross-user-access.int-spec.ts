@@ -93,7 +93,8 @@ const OWN_CASES: Case[] = [
   { name: "coach reads own class pull roster", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.pullRoster(w.a.liveClass.id) },
   { name: "coach reads own class simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.a.liveClass.id) },
   { name: "student reads own class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.a.liveClass.id) },
-  { name: "coach writes own class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } }
+  { name: "coach writes own class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
+  { name: "ADMIN lists every live class (Live Now)", as: (w) => w.admin, path: () => API_ROUTES.adminLiveClasses.list }
 ];
 
 // Lists must not mention the other side's rows at all.
@@ -122,6 +123,10 @@ const WRONG_ROLE: Case[] = [
   { name: "student reads a class through the coach route", as: (w) => w.a.student, path: (w) => API_ROUTES.coach.getClass(w.a.class.id) },
   { name: "student creates a batch", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.batches.create, body: { name: "x" } },
   { name: "student writes their own class's classroom tool", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
+  { name: "coach lists every live class (admin only)", as: (w) => w.a.coach, path: () => API_ROUTES.adminLiveClasses.list },
+  { name: "student lists every live class (admin only)", as: (w) => w.a.student, path: () => API_ROUTES.adminLiveClasses.list },
+  { name: "coach takes a spectator seat in their own class (admin only)", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.adminLiveClasses.spectate(w.a.liveClass.id) },
+  { name: "student takes a spectator seat in their own class (admin only)", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.adminLiveClasses.spectate(w.a.liveClass.id) },
   { name: "ADMIN opens the trash (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.trash.list },
   { name: "ADMIN lists demo classes (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.admin.demoClasses }
 ];

@@ -9,6 +9,8 @@ import { LiveClassModerationService } from "./live-class-moderation.service";
 import { LiveClassPullService } from "./live-class-pull.service";
 import { LiveClassRecordingService } from "./live-class-recording.service";
 import { LiveClassScreenShareService } from "./live-class-screen-share.service";
+import { LiveClassSpectateController } from "./live-class-spectate.controller";
+import { LiveClassSpectateService } from "./live-class-spectate.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { LiveClassSettingsController } from "./live-class-settings.controller";
 import { LiveClassSettingsService } from "./live-class-settings.service";
@@ -34,7 +36,12 @@ import { MailModule } from "../mail/mail.module";
     WhatsAppModule,
     MailModule
   ],
-  controllers: [LiveClassController, LiveClassSettingsController, LiveClassPresetController],
+  controllers: [
+    LiveClassController,
+    LiveClassSettingsController,
+    LiveClassPresetController,
+    LiveClassSpectateController
+  ],
   providers: [
     LiveClassService,
     LiveClassAccessService,
@@ -45,6 +52,7 @@ import { MailModule } from "../mail/mail.module";
     LiveClassPullService,
     LiveClassRecordingService,
     LiveClassScreenShareService,
+    LiveClassSpectateService,
     LiveClassWaitingRoomService,
     LiveClassSettingsService,
     LiveClassPresetService,

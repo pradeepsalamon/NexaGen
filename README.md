@@ -176,6 +176,16 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   Optional clock (increment, server-validated flags). `LiveClassMatchRound` /
   `LiveClassMatchGame` / `LiveClassMatchChallenge` are per-class operational
   rows — not soft-deletable, not trash-registered.
+- Admin "Live Now" (`/admin/live-classes`, sidebar entry with a live-count
+  chip, `API_ROUTES.adminLiveClasses.*`, `LiveClassSpectateService`): every LIVE
+  class with coach, batch, students in the room and running time, and a
+  **Watch class** button for any of them. ADMIN / SUPER_ADMIN only — no invite,
+  enrolment, waiting room or coach approval. The seat is a hidden,
+  subscribe-only LiveKit token (no publish, no data) with identity
+  `spectator_<userId>_<tab>`, so nobody in the room sees it and it can't speak,
+  share, chat or touch the board; attendance and room counts skip it. The page
+  shows the synced board, every camera/screen share with the room's audio, and
+  the room chat (read only).
 - Live-class Interactives: the toolbar's "Interactives" button (left of Leave)
   opens twelve classroom tools in a floating, non-modal panel — Pick a Student,
   Mystery Box, Wall of Moments, Team Generator, Grandmaster Mapper, Chess

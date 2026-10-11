@@ -10,7 +10,7 @@ import type {
   StudentDashboardLiveClass,
   StudentDashboardUpcomingClass
 } from "@nexa-chess/types";
-import { resolveBatchType } from "@nexa-chess/types";
+import { isSpectatorIdentity, resolveBatchType } from "@nexa-chess/types";
 import { AttendanceReportService } from "../attendance/attendance-report.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { zonedDayBounds } from "../common/time";
@@ -413,12 +413,12 @@ export class StudentService {
     if (c.liveSession) {
       try {
         const participants = await this.livekit.listParticipants(c.liveSession.roomName);
-        // Count people, not connections: drop the recorder, the coach's board
+        // Count people, not connections: drop the recorder, admin spectators, the coach's board
         // tab and extra tabs of the same user.
         const people = new Set(
           participants
             .map(p => p.identity)
-            .filter(identity => !identity.startsWith("EG_") && !identity.endsWith("_board"))
+            .filter(identity => !identity.startsWith("EG_") && !identity.endsWith("_board") && !isSpectatorIdentity(identity))
             .map(identity => identity.split("_")[0])
         );
         participantCount = people.size;

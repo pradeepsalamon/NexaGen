@@ -1,7 +1,5 @@
 "use client";
 
-import { Chessground } from "chessground";
-import type { Api } from "chessground/api";
 import {
   ConnectionState,
   RemoteTrack,
@@ -13,8 +11,13 @@ import {
   type RemoteTrackPublication,
 } from "livekit-client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { BoardSyncMessage, BoardColor } from "@/features/chessboard/types/sync";
-import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
+import { ReadOnlySyncedBoard } from "@/features/chessboard/components/board/ReadOnlySyncedBoard";
+import {
+  INITIAL_READ_ONLY_BOARD,
+  decodeBoardSyncPacket,
+  reduceReadOnlyBoard,
+  type ReadOnlyBoardState,
+} from "@/features/chessboard/lib/readOnlyBoard";
 import { HAND_RAISE_TOPIC, decodeHandRaise } from "@/features/live-class/lib/handRaise";
 import {
   RECENT_SPEAKER_MS,
@@ -26,7 +29,6 @@ import {
 
 /** The data-channel topic the live class broadcasts board state on. */
 const BOARD_SYNC_TOPIC = "board_sync";
-const START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 /**
  * Egress watches the headless Chrome console for these exact strings — see the
@@ -49,69 +51,6 @@ function isCoach(p: Participant | undefined) {
   } catch {
     return false;
   }
-}
-
-type BoardState = {
-  fen: string;
-  orientation: BoardColor;
-  arrows: string[][];
-  squares: Record<string, string>;
-};
-
-/** Read-only chessground, driven purely by the synced FEN and annotations. */
-function RecorderBoard({ state }: { state: BoardState }) {
-  const hostRef = useRef<HTMLDivElement>(null);
-  const apiRef = useRef<Api | null>(null);
-  // No LiveKit-authenticated user exists in this headless egress context, so
-  // this always resolves to the system default (Nexa Classic) — recordings
-  // show a consistent board regardless of the coach's own preference.
-  const { currentBoardTheme, currentPieceSet, showCoordinates, animationEnabled, hasCustomPieceColors } =
-    useChessAppearance();
-
-  useEffect(() => {
-    if (!hostRef.current || apiRef.current) return;
-    apiRef.current = Chessground(hostRef.current, {
-      fen: state.fen,
-      orientation: state.orientation,
-      viewOnly: true,
-      coordinates: showCoordinates,
-      animation: { enabled: animationEnabled, duration: 200 },
-      drawable: { enabled: false, visible: true },
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    const cg = apiRef.current;
-    if (!cg) return;
-    cg.set({
-      fen: state.fen,
-      orientation: state.orientation,
-      drawable: {
-        autoShapes: [
-          ...state.arrows.map(([orig, dest, brush]) => ({
-            orig,
-            dest,
-            brush: brush || "green",
-          })),
-          ...Object.entries(state.squares).map(([orig, brush]) => ({
-            orig,
-            brush: brush || "green",
-          })),
-        ],
-      },
-    } as Parameters<Api["set"]>[0]);
-  }, [state]);
-
-  return (
-    <div
-      className="recorder-board"
-      ref={hostRef}
-      data-nexa-board-theme={currentBoardTheme}
-      data-nexa-piece-set={currentPieceSet}
-      data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
-    />
-  );
 }
 
 /** One participant's camera tile; falls back to initials when video is off. */
@@ -156,12 +95,7 @@ function VideoTile({
 }
 
 export function RecorderClient({ classId }: { classId: string }) {
-  const [board, setBoard] = useState<BoardState>({
-    fen: START_FEN,
-    orientation: "white",
-    arrows: [],
-    squares: {},
-  });
+  const [board, setBoard] = useState<ReadOnlyBoardState>(INITIAL_READ_ONLY_BOARD);
   const [tiles, setTiles] = useState<
     { participant: Participant; track?: RemoteTrack }[]
   >([]);
@@ -199,40 +133,6 @@ export function RecorderClient({ classId }: { classId: string }) {
     if (track.kind !== Track.Kind.Audio || !sid) return;
     for (const el of track.detach()) el.remove();
     audioElsRef.current.delete(sid);
-  }, []);
-
-  /** Board state only ever comes from the coach or a student holding control. */
-  const applyMessage = useCallback((msg: BoardSyncMessage) => {
-    switch (msg.type) {
-      case "MOVE":
-      case "UNDO":
-      case "REDO":
-      case "RESET":
-      case "FORCE_SYNC": {
-        const p = msg.payload;
-        if (!p?.fen) return;
-        setBoard((prev) => ({
-          fen: p.fen,
-          orientation: p.orientation ?? prev.orientation,
-          arrows: Array.isArray(p.arrows) ? p.arrows : prev.arrows,
-          squares: p.squares ?? prev.squares,
-        }));
-        return;
-      }
-      case "UPDATE_ANNOTATIONS": {
-        const p = msg.payload;
-        if (!p) return;
-        setBoard((prev) => ({
-          ...prev,
-          arrows: p.arrows ?? [],
-          squares: p.squares ?? {},
-        }));
-        return;
-      }
-      default:
-        // Permissions, clock and UI-state messages don't affect what is filmed.
-        return;
-    }
   }, []);
 
   const refreshTiles = useCallback((room: Room) => {
@@ -326,11 +226,9 @@ export function RecorderClient({ classId }: { classId: string }) {
             return;
           }
           if (topic !== BOARD_SYNC_TOPIC) return;
-          try {
-            applyMessage(JSON.parse(new TextDecoder().decode(payload)) as BoardSyncMessage);
-          } catch {
-            // A malformed packet must never take the recording down.
-          }
+          // A malformed packet decodes to null and must never take the recording down.
+          const msg = decodeBoardSyncPacket(payload);
+          if (msg) setBoard((prev) => reduceReadOnlyBoard(prev, msg));
         },
       );
 
@@ -370,7 +268,7 @@ export function RecorderClient({ classId }: { classId: string }) {
       audioEls.clear();
       void room.disconnect();
     };
-  }, [applyMessage, refreshTiles, attachAudio, detachAudio]);
+  }, [refreshTiles, attachAudio, detachAudio]);
 
   const connectionLost = useMemo(
     () => roomRef.current?.state === ConnectionState.Disconnected,
@@ -387,7 +285,9 @@ export function RecorderClient({ classId }: { classId: string }) {
   return (
     <div className="recorder-stage" data-class-id={classId} data-lost={connectionLost}>
       <div className="recorder-board-wrap">
-        <RecorderBoard state={board} />
+        {/* No LiveKit-authenticated user exists in egress, so the appearance always
+            resolves to the system default — recordings look the same whoever coaches. */}
+        <ReadOnlySyncedBoard className="recorder-board" state={board} />
       </div>
       <div className="recorder-rail">
         {tiles.map((t) => (

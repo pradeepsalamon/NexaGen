@@ -43,6 +43,11 @@ export const API_ROUTES = {
     restoreItem: (entity: string = ":entity", id: string = ":id") => `/admin/trash/${entity}/${id}/restore`,
     deleteItem: (entity: string = ":entity", id: string = ":id") => `/admin/trash/${entity}/${id}`
   },
+  // Admin "Live now" monitor: every LIVE class + a hidden spectator seat (ADMIN/SUPER_ADMIN).
+  adminLiveClasses: {
+    list: "/admin/live-classes",
+    spectate: (id: string = ":id") => `/admin/live-classes/${id}/spectate`
+  },
   admin: {
     pendingCoaches: "/admin/coaches/pending",
     updateCoachStatus: (id: string = ":id") => `/admin/coaches/${id}/status`,

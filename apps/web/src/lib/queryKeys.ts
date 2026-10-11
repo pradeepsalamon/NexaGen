@@ -41,6 +41,11 @@ export const queryKeys = {
     pendingCoaches: ["admin", "pending-coaches"] as const,
     pendingStudents: ["admin", "pending-students"] as const,
   },
+  liveMonitor: {
+    list: ["live-monitor", "list"] as const,
+    spectate: (classId: string) => ["live-monitor", "spectate", classId] as const,
+    chat: (classId: string) => ["live-monitor", "chat", classId] as const,
+  },
   feedback: {
     all: ["feedback"] as const,
     pending: (params?: Record<string, any>) => ["feedback", "pending", params ?? null] as const,

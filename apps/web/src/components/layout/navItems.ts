@@ -16,6 +16,7 @@ import {
   MessageSquareHeart,
   Palette,
   Puzzle,
+  Radio,
   ReceiptText,
   Settings,
   ShieldCheck,
@@ -91,6 +92,8 @@ export const coachNavItems: NavItem[] = [
 
 export const adminNavItems: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  // Every class running right now, each one open to watch silently.
+  { href: "/admin/live-classes", label: "Live Now", icon: Radio },
   // Analytics
   { href: "/admin/analytics/users", label: "Users", icon: Users, group: "Analytics" },
   { href: "/admin/analytics/acquisition", label: "Acquisition", icon: TrendingUp, group: "Analytics" },
