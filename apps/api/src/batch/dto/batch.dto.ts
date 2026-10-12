@@ -1,6 +1,7 @@
 import {
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -35,6 +36,10 @@ export class CreateBatchDto implements CreateBatchRequest {
   @MinLength(1)
   @MaxLength(120)
   name!: string;
+
+  @IsBoolean()
+  @IsOptional()
+  puzzleTrainingEnabled?: boolean;
 
   @IsString()
   @MaxLength(1000)
@@ -81,6 +86,10 @@ export class UpdateBatchDto implements UpdateBatchRequest {
   @MaxLength(120)
   @IsOptional()
   name?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  puzzleTrainingEnabled?: boolean;
 
   @IsString()
   @MaxLength(1000)

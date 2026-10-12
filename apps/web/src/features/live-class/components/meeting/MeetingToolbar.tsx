@@ -36,6 +36,7 @@ import { ignoreDeviceError } from "../../lib/mediaDevices";
 import { useOptionalPip } from "../../providers/PipProvider";
 import { LeaveClassControl } from "./LeaveClassControl";
 import { InteractivesLauncher } from "./interactives/InteractivesLauncher";
+import { StudentInteractivesControl } from "./interactives/PresentedInteractive";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { useOptionalMatch } from "../../providers/MatchProvider";
 import { useOptionalSimul } from "../../providers/SimulProvider";
@@ -430,7 +431,8 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
 
         <span className="mx-0.5 hidden h-7 w-px bg-app-border sm:block" aria-hidden="true" />
 
-        <InteractivesLauncher />
+        {/* Students never open Interactives — they see what the coach presents. */}
+        {isCoach ? <InteractivesLauncher /> : <StudentInteractivesControl />}
 
         <LeaveClassControl>
           {(open) => (

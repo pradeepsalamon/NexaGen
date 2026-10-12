@@ -14,6 +14,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from "lucide-react";
+import type { LiveClassInteractiveId } from "@nexa-chess/types";
 import type { ToolContext } from "./shared";
 import { ChessBalanceTool } from "./tools/ChessBalanceTool";
 import { ChessLegendsTool } from "./tools/ChessLegendsTool";
@@ -28,19 +29,8 @@ import { VideoGeneratorTool } from "./tools/VideoGeneratorTool";
 import { WallOfMomentsTool } from "./tools/WallOfMomentsTool";
 import { WhiteOrBlackTool } from "./tools/WhiteOrBlackTool";
 
-export type InteractiveToolId =
-  | "pick-student"
-  | "mystery-box"
-  | "wall-of-moments"
-  | "team-generator"
-  | "grandmaster-mapper"
-  | "chess-balance"
-  | "white-or-black"
-  | "chess-legends"
-  | "opening-of-the-day"
-  | "video-generator"
-  | "rating-calculator"
-  | "classroom-timer";
+/** Persisted in the PRESENTING tool state — the id list lives in @nexa-chess/types. */
+export type InteractiveToolId = LiveClassInteractiveId;
 
 export type InteractiveTool = {
   id: InteractiveToolId;
@@ -152,3 +142,7 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     tone: "bg-warm/15 text-warm-ink",
   },
 ];
+
+export function findInteractiveTool(id: string | null | undefined): InteractiveTool | null {
+  return INTERACTIVE_TOOLS.find((t) => t.id === id) ?? null;
+}

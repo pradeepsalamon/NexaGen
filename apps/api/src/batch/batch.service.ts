@@ -179,6 +179,7 @@ export class BatchService {
         description: this.toNullableString(payload.description),
         endsAt: this.toNullableDate(payload.endsAt),
         name: payload.name.trim(),
+        puzzleTrainingEnabled: payload.puzzleTrainingEnabled ?? true,
         scheduleNotes: this.toNullableString(payload.scheduleNotes),
         startsAt: this.toNullableDate(payload.startsAt),
         status: payload.status ?? BatchStatus.ACTIVE,
@@ -233,6 +234,7 @@ export class BatchService {
               ? undefined
               : this.toNullableDate(payload.endsAt),
           name: payload.name?.trim(),
+          puzzleTrainingEnabled: payload.puzzleTrainingEnabled,
           scheduleNotes:
             payload.scheduleNotes === undefined
               ? undefined
@@ -470,6 +472,7 @@ export class BatchService {
       endsAt: batch.endsAt?.toISOString() ?? null,
       id: batch.id,
       name: batch.name,
+      puzzleTrainingEnabled: batch.puzzleTrainingEnabled,
       scheduleNotes: batch.scheduleNotes,
       startsAt: batch.startsAt?.toISOString() ?? null,
       status: batch.status,

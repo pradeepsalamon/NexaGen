@@ -17,6 +17,8 @@ import { VideoPipSurface } from "./VideoPipSurface";
 import { PipProvider } from "../../providers/PipProvider";
 import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
 import { ClassroomLayout, CLASSROOM_PANEL_OFFSET } from "./classroom/ClassroomLayout";
+import { InteractivesProvider } from "./interactives/InteractivesProvider";
+import { PresentedInteractiveOverlay } from "./interactives/PresentedInteractive";
 
 /** Room-wide hooks, rendered as a leaf so their LiveKit / store updates don't re-render the layout. */
 function MeetingLayoutEffects({ autoShare }: { autoShare: boolean }) {
@@ -40,35 +42,45 @@ export function MeetingLayout() {
 
   return (
     <PipProvider>
-      <MeetingLayoutEffects autoShare={wide} />
-      <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-16 text-app-text">
-        <MeetingTopBar />
-        <ConnectionBanner />
+      <InteractivesProvider>
+        <MeetingLayoutEffects autoShare={wide} />
+        <div className="flex h-[100dvh] flex-col overflow-hidden bg-app-background pt-16 text-app-text">
+          <MeetingTopBar />
+          <ConnectionBanner />
 
-        <main className="relative flex flex-1 overflow-hidden">
-          <BoardProvider>
-            <LiveBoardSyncBridge>
-              <BoardControlToasts />
-              {classroom ? (
-                <ClassroomLayout isCoach={isCoach} />
-              ) : (
-                <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
-                  <div className="custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto">
-                    <MeetingVideoGrid />
+          <main className="relative flex flex-1 overflow-hidden">
+            <BoardProvider>
+              <LiveBoardSyncBridge>
+                <BoardControlToasts />
+                {classroom ? (
+                  <ClassroomLayout isCoach={isCoach} />
+                ) : (
+                  <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
+                    <div className="custom-scrollbar relative flex min-h-0 flex-1 flex-col overflow-y-auto">
+                      <MeetingVideoGrid />
+                    </div>
                   </div>
-                </div>
-              )}
-            </LiveBoardSyncBridge>
-          </BoardProvider>
+                )}
+              </LiveBoardSyncBridge>
+            </BoardProvider>
 
-          <MeetingSidebar inlinePanels={classroom} />
-        </main>
+            <MeetingSidebar inlinePanels={classroom} />
+          </main>
 
-        {/* In the classroom layout the toolbar centres on the board, clear of the side panel. */}
-        <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 top-0", classroom && CLASSROOM_PANEL_OFFSET)}>
-          <MeetingToolbar />
+          {/* In the classroom layout the toolbar centres on the board, clear of the side panel. */}
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-x-0 bottom-0 top-0",
+              classroom && CLASSROOM_PANEL_OFFSET,
+            )}
+          >
+            <MeetingToolbar />
+          </div>
         </div>
-      </div>
+
+        {/* Phones: what the coach presents opens centred over the class (md+ shows it as a stage tab). */}
+        {!classroom && !isCoach ? <PresentedInteractiveOverlay /> : null}
+      </InteractivesProvider>
 
       {/* Whichever mini player this browser supports; each no-ops otherwise. */}
       <MiniPlayer />

@@ -21,7 +21,7 @@ import {
   supportedVideoMime,
   type VideoGame,
 } from "../../../../lib/interactives/gameVideo";
-import { CoachRunsThis, type ToolContext } from "../shared";
+import { CoachRunsThis, useIsWatching, type ToolContext } from "../shared";
 
 type Source = { id: string; label: string; game: VideoGame };
 
@@ -48,7 +48,20 @@ function parsePgn(pgn: string): VideoGame | string {
   }
 }
 
-export function VideoGeneratorTool({ isManager }: ToolContext) {
+/** A watching student can't see the coach's recording canvas — they're told what's happening instead. */
+export function VideoGeneratorTool(props: ToolContext) {
+  const watching = useIsWatching();
+  if (watching) {
+    return (
+      <CoachRunsThis>
+        Your coach is turning a class game into a highlight video.
+      </CoachRunsThis>
+    );
+  }
+  return <VideoGeneratorWorkspace {...props} />;
+}
+
+function VideoGeneratorWorkspace({ isManager }: ToolContext) {
   const board = useContext(BoardContext);
   const match = useOptionalMatch();
   const simul = useOptionalSimul();

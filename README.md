@@ -186,8 +186,8 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   share, chat or touch the board; attendance and room counts skip it. The page
   shows the synced board, every camera/screen share with the room's audio, and
   the room chat (read only).
-- Live-class Interactives: the toolbar's "Interactives" button (left of Leave)
-  opens twelve classroom tools in a floating, non-modal panel — Pick a Student,
+- Live-class Interactives: the coach's toolbar "Interactives" button (left of
+  Leave) opens twelve classroom tools in a floating, non-modal panel — Pick a Student,
   Mystery Box, Wall of Moments, Team Generator, Grandmaster Mapper, Chess
   Balance, White or Black, Chess Legends, Opening of the Day, Chess Video
   Generator, Rating Calculator, Classroom Timer
@@ -199,7 +199,26 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   to the next class); the rest are per class. Balance, Opening, Rating and Video
   keep nothing on the server. The video is recorded in the browser
   (canvas + MediaRecorder) and only ever exists on the coach's device until
-  downloaded. Not soft-deletable, not trash-registered.
+  downloaded. Not soft-deletable, not trash-registered. **Students have no
+  launcher**: while the coach's "Show to class" switch is on (the default), the
+  open tool is *presented* (tool state `PRESENTING`, class-scoped) and opens on
+  every student's main stage — a stage tab in the board's place on md+, a
+  centred panel on phones — read-only. The four personal tools send a small
+  snapshot of the coach's view with it (the scale's pieces, the opening and
+  move, the calculator's figures); the video generator only says what the
+  coach is doing. Closing the panel stops showing it.
+- Rated puzzle training (`/student/training`, `PuzzleTrainingService`,
+  `API_ROUTES.puzzles.training` / `.trainingNext`): Lichess-style practice, one
+  puzzle at a time near the student's own puzzle rating. The pick is a healthy
+  mix chosen by the pure policy in `@nexa-chess/types` (`puzzle-training.ts`):
+  a ten-step slot cycle of weak themes (slightly easier), themes the student
+  rarely meets, mixed picks (slightly harder) and a second chance at a puzzle
+  they failed 3+ days ago, with the target nudged ±75 by their last ten
+  results. Puzzles come from the Lichess catalogue walk (unseen by content,
+  materialised into the hidden Lichess folder), falling back to the academy's
+  own published puzzles. Skipping or viewing the solution is a rated miss. Gated
+  per batch by `Batch.puzzleTrainingEnabled` (on by default; BatchForm →
+  "Puzzle Training"). Spec: `docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md` §12.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student

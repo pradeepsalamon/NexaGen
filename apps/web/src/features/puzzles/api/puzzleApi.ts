@@ -1,5 +1,8 @@
 import { API_ROUTES } from "@nexa-chess/types";
 import type {
+  PuzzleTrainingNextRequest,
+  PuzzleTrainingNextResponse,
+  PuzzleTrainingStatusResponse,
   BulkPuzzleActionRequest,
   BulkPuzzleActionResponse,
   CatalogAdoptRequest,
@@ -204,6 +207,17 @@ export function getMyPuzzles(
 
 export function getMyPuzzle(id: string): Promise<StudentPuzzleDetailResponse> {
   return apiFetch(API_ROUTES.puzzles.mineGet(id));
+}
+
+export function getPuzzleTrainingStatus(): Promise<PuzzleTrainingStatusResponse> {
+  return apiFetch(API_ROUTES.puzzles.training);
+}
+
+/** Skips (and counts as a miss) any unfinished training puzzle, then serves the next. */
+export function nextTrainingPuzzle(
+  body: PuzzleTrainingNextRequest = {}
+): Promise<PuzzleTrainingNextResponse> {
+  return apiFetch(API_ROUTES.puzzles.trainingNext, { method: "POST", body });
 }
 
 export function startPuzzleAttempt(

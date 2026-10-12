@@ -11,7 +11,7 @@ Owner decisions. Each carries the recommendation this spec is built on:
 
 | # | Decision | Recommendation (assumed below) |
 |---|---|---|
-| D0 | Can students self-train, given today's "puzzles are classroom material" stance? | **Yes, per-batch opt-in** (`Batch.puzzleTrainingEnabled`, off by default). §0.4 explains why it lives on `Batch`, not `Entitlement`. |
+| D0 | Can students self-train, given today's "puzzles are classroom material" stance? | **Yes, per batch** (`Batch.puzzleTrainingEnabled`). §0.4 explains why it lives on `Batch`, not `Entitlement`. **2026-10-12: built, and on by default** (owner request: practice for every student) — an admin turns it off per batch in the BatchForm. |
 | D1 | Rated score of a solve that needed a wrong move | **½ for exactly one wrong move, 0 for two or more** (softened 2026-10-04 from a flat 0). One slip costs the same as using hints; a slip *and* hints, or repeated guessing, scores like a miss, so brute-forcing still can't raise a rating. Measured on the 62 rated production attempts, a flat 0 would have hit 48% of them, most after a single slip. Behaviour change; see §9 for the safeguards. |
 | D2 | Rated score of a clean solve that used hints | **½** (unchanged) |
 | D3 | Are live-class attempts rated? | **Unchanged** (yes). Out of scope, flagged only. |
@@ -752,6 +752,17 @@ COACH homework
 ---
 
 ## 12. Student training architecture (built only after D0)
+
+**Built 2026-10-12** (`apps/api/src/puzzle/puzzle-training.service.ts`, policy
+in `packages/types/src/puzzle-training.ts`, page `/student/training`). Changes
+from the design below: `GET /puzzles/training` (status: rating, streak, the
+open puzzle to resume, last ten results) was added so a reload resumes rather
+than skips; "View solution" is the only way out of a puzzle besides solving
+(it submits as a miss, so `next` rarely has to close one); each slot carries a
+rating offset (WEAK −50, MIXED +50) so difficulty varies as well as theme;
+and when the catalogue walk finds nothing the pick falls back to the
+academy's own published puzzles the student may open, closest rating first,
+so a box without the catalogue loaded still trains.
 
 ```
 /student/training  (app/student/training/page.tsx — server component, cookie check)

@@ -297,6 +297,9 @@ export const API_ROUTES = {
     publish: (id: string = ":id") => `/puzzles/${id}/publish`,
     archive: (id: string = ":id") => `/puzzles/${id}/archive`,
     duplicate: (id: string = ":id") => `/puzzles/${id}/duplicate`,
+    // ── Student rated training (Lichess-style; gated per batch) ──
+    training: "/puzzles/training",
+    trainingNext: "/puzzles/training/next",
     // ── Student practice ──
     mine: "/puzzles/mine",
     mineGet: (id: string = ":id") => `/puzzles/mine/${id}`,

@@ -13,6 +13,7 @@ import { PuzzleAttemptService } from "./puzzle-attempt.service";
 import { PuzzleCatalogService } from "./puzzle-catalog.service";
 import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 import { PuzzleTopicService } from "./puzzle-topic.service";
+import { PuzzleTrainingService } from "./puzzle-training.service";
 import { PuzzleController } from "./puzzle.controller";
 import { PuzzleService } from "./puzzle.service";
 
@@ -33,6 +34,7 @@ import { PuzzleService } from "./puzzle.service";
     PuzzleAttemptService,
     PuzzleCatalogService,
     PuzzleScoringSettingsService,
+    PuzzleTrainingService,
     LiveClassPuzzleService
   ]
 })

@@ -273,6 +273,8 @@ const createBatchRequestBaseSchema = z.object({
   description: z.string().max(2000).optional(),
   endsAt: z.string().optional(),
   name: z.string().min(1, "Batch name is required.").max(120),
+  /** Students of this batch may use rated puzzle training. Omitted on create = on. */
+  puzzleTrainingEnabled: z.boolean().optional(),
   scheduleNotes: z.string().max(1000).optional(),
   startsAt: z.string().optional(),
   status: batchStatusSchema.optional().default("ACTIVE"),
@@ -382,6 +384,7 @@ export type Batch = {
   endsAt?: string | null;
   id: string;
   name: string;
+  puzzleTrainingEnabled: boolean;
   scheduleNotes?: string | null;
   startsAt?: string | null;
   status: BatchStatus;
@@ -2529,6 +2532,7 @@ export * from "./puzzle";
 export * from "./solve-line-fixtures";
 export * from "./puzzle-catalog";
 export * from "./lichess-themes";
+export * from "./puzzle-training";
 
 // ──────────────────────────────────────────────
 // Live-class puzzle assignment (depends on ./puzzle)

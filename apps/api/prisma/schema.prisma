@@ -619,9 +619,10 @@ model Batch {
   // `@nexa-chess/types`, never queried by key.
   liveClassSettings Json?
 
-  /// Students of this batch may self-train on the puzzle catalogue (decision D0
-  /// in docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md). Off by default.
-  puzzleTrainingEnabled Boolean @default(false)
+  /// Students of this batch may self-train on rated puzzles (decision D0 in
+  /// docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md). On by default since
+  /// 2026-10-12; an admin turns it off per batch in the BatchForm.
+  puzzleTrainingEnabled Boolean @default(true)
 
   createdById String?
   createdBy   User?   @relation("BatchCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2591,6 +2592,8 @@ enum LiveClassToolKind {
   SIDES
   LEGENDS
   TIMER
+  /// Which tool the coach is showing the class right now (students see it on the main stage).
+  PRESENTING
 }
 
 /// One live-class "Interactives" tool's saved state. Keyed by `scopeKey`

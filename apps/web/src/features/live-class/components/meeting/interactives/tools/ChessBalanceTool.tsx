@@ -11,7 +11,12 @@ import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { BoardContext } from "@/features/chessboard/context/BoardProvider";
 import { cn } from "@/lib/utils";
-import { readLocal, SectionTitle, writeLocal } from "../shared";
+import {
+  readLocal,
+  SectionTitle,
+  useSharedToolView,
+  writeLocal,
+} from "../shared";
 
 type Side = "white" | "black";
 type Counts = Record<ValuedPiece, number>;
@@ -45,6 +50,23 @@ function countsFromFen(fen: string): Pans {
   return scale;
 }
 
+/** The coach's presented scale, or null when it isn't a well-formed one. */
+function parsePans(raw: unknown): Pans | null {
+  if (!raw || typeof raw !== "object") return null;
+  const out: Pans = { black: { ...EMPTY }, white: { ...EMPTY } };
+  for (const side of ["white", "black"] as Side[]) {
+    const counts = (raw as Record<string, unknown>)[side];
+    if (!counts || typeof counts !== "object") return null;
+    for (const p of PIECES) {
+      const n = (counts as Record<string, unknown>)[p];
+      if (typeof n !== "number" || !Number.isInteger(n) || n < 0 || n > MAX[p])
+        return null;
+      out[side][p] = n;
+    }
+  }
+  return out;
+}
+
 function describeEdge(diff: number): string {
   const n = Math.abs(diff);
   if (n === 0) return "Material is level.";
@@ -70,9 +92,11 @@ export function ChessBalanceTool() {
     readLocal<Pans>(STORAGE_KEY, { black: { ...START }, white: { ...START } }),
   );
   useEffect(() => writeLocal(STORAGE_KEY, scale), [scale]);
+  // A watching student sees the coach's scale, without the controls.
+  const { shown, watching } = useSharedToolView(scale, parsePans);
 
-  const white = materialValue(scale.white);
-  const black = materialValue(scale.black);
+  const white = materialValue(shown.white);
+  const black = materialValue(shown.black);
   const diff = white - black;
   // Heavier side sinks; capped so a huge edge still reads as a scale.
   const tilt = Math.max(-14, Math.min(14, diff * 1.5));
@@ -89,7 +113,7 @@ export function ChessBalanceTool() {
   const pan = (side: Side) => (
     <div className="flex min-h-[3.5rem] w-full flex-wrap content-end justify-center gap-0.5 rounded-b-app border-x-2 border-b-2 border-app-border bg-app-soft px-1 pb-1 text-2xl leading-none">
       {PIECES.flatMap((p) =>
-        Array.from({ length: scale[side][p] }, (_, i) => (
+        Array.from({ length: shown[side][p] }, (_, i) => (
           <span key={`${p}${i}`}>{GLYPHS[side][p]}</span>
         )),
       )}
@@ -163,91 +187,110 @@ export function ChessBalanceTool() {
         </p>
       </div>
 
-      {/* Piece controls */}
-      <div className="grid grid-cols-2 gap-3">
-        {(["white", "black"] as Side[]).map((side) => (
-          <div className="space-y-1.5" key={side}>
-            <SectionTitle>{side === "white" ? "White" : "Black"}</SectionTitle>
-            {PIECES.map((p) => (
-              <div className="flex items-center justify-between gap-1" key={p}>
-                <span className="flex items-center gap-1 text-sm">
-                  <span aria-hidden="true" className="text-xl leading-none">
-                    {GLYPHS[side][p]}
-                  </span>
-                  <span className="hidden text-app-muted sm:inline">
-                    {PIECE_VALUES[p]}
-                  </span>
-                </span>
-                <span className="flex items-center gap-1">
-                  <SimpleTooltip
-                    label={`Remove a ${side} ${NAMES[p].toLowerCase()}`}
+      {watching ? null : (
+        <>
+          {/* Piece controls */}
+          <div className="grid grid-cols-2 gap-3">
+            {(["white", "black"] as Side[]).map((side) => (
+              <div className="space-y-1.5" key={side}>
+                <SectionTitle>
+                  {side === "white" ? "White" : "Black"}
+                </SectionTitle>
+                {PIECES.map((p) => (
+                  <div
+                    className="flex items-center justify-between gap-1"
+                    key={p}
                   >
-                    <button
-                      aria-label={`Remove a ${side} ${NAMES[p].toLowerCase()}`}
-                      className="flex size-8 items-center justify-center rounded-full border border-app-border text-app-muted transition-colors hover:bg-app-soft disabled:opacity-40"
-                      disabled={scale[side][p] === 0}
-                      onClick={() => change(side, p, -1)}
-                      type="button"
-                    >
-                      <Minus
-                        aria-hidden="true"
-                        className="size-3.5"
-                        strokeWidth={2.5}
-                      />
-                    </button>
-                  </SimpleTooltip>
-                  <span className="w-5 text-center text-sm font-bold tabular-nums">
-                    {scale[side][p]}
-                  </span>
-                  <SimpleTooltip
-                    label={`Add a ${side} ${NAMES[p].toLowerCase()}`}
-                  >
-                    <button
-                      aria-label={`Add a ${side} ${NAMES[p].toLowerCase()}`}
-                      className="flex size-8 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary/85 disabled:opacity-40"
-                      disabled={scale[side][p] >= MAX[p]}
-                      onClick={() => change(side, p, 1)}
-                      type="button"
-                    >
-                      <Plus
-                        aria-hidden="true"
-                        className="size-3.5"
-                        strokeWidth={2.5}
-                      />
-                    </button>
-                  </SimpleTooltip>
-                </span>
+                    <span className="flex items-center gap-1 text-sm">
+                      <span aria-hidden="true" className="text-xl leading-none">
+                        {GLYPHS[side][p]}
+                      </span>
+                      <span className="hidden text-app-muted sm:inline">
+                        {PIECE_VALUES[p]}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <SimpleTooltip
+                        label={`Remove a ${side} ${NAMES[p].toLowerCase()}`}
+                      >
+                        <button
+                          aria-label={`Remove a ${side} ${NAMES[p].toLowerCase()}`}
+                          className="flex size-8 items-center justify-center rounded-full border border-app-border text-app-muted transition-colors hover:bg-app-soft disabled:opacity-40"
+                          disabled={scale[side][p] === 0}
+                          onClick={() => change(side, p, -1)}
+                          type="button"
+                        >
+                          <Minus
+                            aria-hidden="true"
+                            className="size-3.5"
+                            strokeWidth={2.5}
+                          />
+                        </button>
+                      </SimpleTooltip>
+                      <span className="w-5 text-center text-sm font-bold tabular-nums">
+                        {scale[side][p]}
+                      </span>
+                      <SimpleTooltip
+                        label={`Add a ${side} ${NAMES[p].toLowerCase()}`}
+                      >
+                        <button
+                          aria-label={`Add a ${side} ${NAMES[p].toLowerCase()}`}
+                          className="flex size-8 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary/85 disabled:opacity-40"
+                          disabled={scale[side][p] >= MAX[p]}
+                          onClick={() => change(side, p, 1)}
+                          type="button"
+                        >
+                          <Plus
+                            aria-hidden="true"
+                            className="size-3.5"
+                            strokeWidth={2.5}
+                          />
+                        </button>
+                      </SimpleTooltip>
+                    </span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
-        ))}
-      </div>
 
-      <p className="text-xs text-app-muted">
-        Standard values: pawn 1, knight 3, bishop 3, rook 5, queen 9. Kings are
-        priceless, so they aren&apos;t weighed.
-      </p>
+          <p className="text-xs text-app-muted">
+            Standard values: pawn 1, knight 3, bishop 3, rook 5, queen 9. Kings
+            are priceless, so they aren&apos;t weighed.
+          </p>
 
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          onClick={() => setScale({ black: { ...EMPTY }, white: { ...EMPTY } })}
-          variant="outline"
-        >
-          <RotateCcw aria-hidden="true" className="size-4" strokeWidth={2.5} />
-          Empty
-        </Button>
-        <Button
-          onClick={() => setScale({ black: { ...START }, white: { ...START } })}
-          variant="outline"
-        >
-          Starting set
-        </Button>
-        {board ? (
-          <Button onClick={() => setScale(countsFromFen(board.getState().fen))}>
-            Weigh the class board
-          </Button>
-        ) : null}
-      </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              onClick={() =>
+                setScale({ black: { ...EMPTY }, white: { ...EMPTY } })
+              }
+              variant="outline"
+            >
+              <RotateCcw
+                aria-hidden="true"
+                className="size-4"
+                strokeWidth={2.5}
+              />
+              Empty
+            </Button>
+            <Button
+              onClick={() =>
+                setScale({ black: { ...START }, white: { ...START } })
+              }
+              variant="outline"
+            >
+              Starting set
+            </Button>
+            {board ? (
+              <Button
+                onClick={() => setScale(countsFromFen(board.getState().fen))}
+              >
+                Weigh the class board
+              </Button>
+            ) : null}
+          </div>
+        </>
+      )}
     </div>
   );
 }

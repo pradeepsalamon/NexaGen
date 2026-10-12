@@ -1,57 +1,79 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
-import { useParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Pause, Shapes, Timer } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/Popover";
+import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/utils";
-import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import {
-  formatClock,
-  useClassroomTimer,
-} from "../../../hooks/useClassroomTimer";
-import { useClassroomToolsSync } from "../../../hooks/useClassroomTools";
+import { formatClock } from "../../../hooks/useClassroomTimer";
 import { MeetingControlButton } from "../MeetingControlButton";
 import { InteractivePanel } from "./InteractivePanel";
-import { INTERACTIVE_TOOLS, type InteractiveToolId } from "./registry";
+import { useInteractives, useInteractivesTimer } from "./InteractivesProvider";
+import { INTERACTIVE_TOOLS, findInteractiveTool, type InteractiveToolId } from "./registry";
+import { PresentedViewProvider } from "./shared";
 
 const COLUMNS = 4;
 
 /**
- * Toolbar button → popover of the twelve classroom Interactives → the chosen
- * tool in a floating panel. Owns the room's single classroom-timer driver and
- * the `classroom_tools` packet listener, so both run whether a panel is open
- * or not.
+ * The coach's toolbar button → popover of the twelve classroom Interactives →
+ * the chosen tool in a floating panel. While "Show to class" is on (the
+ * default) the open tool is presented: every student sees it live on their
+ * main stage. Closing the panel stops showing it. Students have no launcher.
  */
 export function InteractivesLauncher() {
-  const params = useParams();
-  const classId = (params?.roomId as string) ?? "";
-  const user = useAuthStore((s) => s.user);
-  // Same rule as the rest of the toolbar; the API re-checks class ownership.
-  const isManager = user?.role === "COACH" || isStaffRole(user?.role);
+  const { classId, isManager, present, presenting, publishView } = useInteractives();
+  const timer = useInteractivesTimer();
 
   const [open, setOpen] = useState(false);
   const [toolId, setToolId] = useState<InteractiveToolId | null>(null);
+  const [sharing, setSharing] = useState(true);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  useClassroomToolsSync(classId);
-  const timer = useClassroomTimer(classId, isManager);
-  const tool = INTERACTIVE_TOOLS.find((t) => t.id === toolId) ?? null;
+  const tool = findInteractiveTool(toolId);
+
+  // After a refresh, reopen whatever the class is still being shown.
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !presenting) return;
+    restored.current = true;
+    if (presenting.toolId) setToolId((current) => current ?? presenting.toolId);
+  }, [presenting]);
 
   const choose = (id: InteractiveToolId) => {
     setToolId(id);
     setOpen(false);
+    if (sharing) present(id);
   };
 
   const close = () => {
     setToolId(null);
+    present(null);
     triggerRef.current?.focus();
   };
+
+  const toggleSharing = (next: boolean) => {
+    setSharing(next);
+    present(next ? toolId : null);
+  };
+
+  const publish = useCallback(
+    (view: unknown) => {
+      if (toolId) publishView(toolId, view);
+    },
+    [publishView, toolId],
+  );
+  const presentedView = useMemo(
+    () =>
+      toolId && sharing
+        ? { mode: "present" as const, publish, toolId, view: null }
+        : null,
+    [publish, sharing, toolId],
+  );
 
   // Arrow keys move through the 4×3 grid.
   const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -92,7 +114,7 @@ export function InteractivesLauncher() {
             "absolute -top-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 whitespace-nowrap rounded-full border border-app-border bg-app-surface px-1.5 text-[0.6875rem] font-bold leading-5 tabular-nums shadow-card transition-colors hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
             timer.state?.status === "RUNNING" && timer.remainingMs <= 60_000 ? "text-app-danger-ink" : "text-app-text"
           )}
-          onClick={() => setToolId("classroom-timer")}
+          onClick={() => choose("classroom-timer")}
           type="button"
         >
           <Timer aria-hidden="true" className="size-3" strokeWidth={2.5} />
@@ -172,12 +194,26 @@ export function InteractivesLauncher() {
       </Popover>
 
       {tool ? (
-        <InteractivePanel onClose={close} tool={tool}>
-          <tool.Component
-            classId={classId}
-            isManager={isManager}
-            timer={timer}
-          />
+        <InteractivePanel
+          headerAction={
+            <Switch
+              checked={sharing}
+              className="shrink-0"
+              label="Show to class"
+              onCheckedChange={toggleSharing}
+            />
+          }
+          onClose={close}
+          subtitle={sharing ? "Your class sees this live" : tool.blurb}
+          tool={tool}
+        >
+          <PresentedViewProvider value={presentedView}>
+            <tool.Component
+              classId={classId}
+              isManager={isManager}
+              timer={timer}
+            />
+          </PresentedViewProvider>
         </InteractivePanel>
       ) : null}
     </div>

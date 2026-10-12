@@ -1,9 +1,16 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Lock } from "lucide-react";
-import type { ToolStudentRef } from "@nexa-chess/types";
+import type { LiveClassInteractiveId, ToolStudentRef } from "@nexa-chess/types";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
@@ -20,9 +27,65 @@ export type ToolContext = {
   classId: string;
   /** Coach-owner or staff: may change shared tool state. */
   isManager: boolean;
-  /** The room's one timer driver (owned by the launcher, so it runs once). */
+  /** The room's one timer driver (owned by InteractivesProvider, so it runs once). */
   timer: ClassroomTimer;
 };
+
+/**
+ * How a personal tool (no server state of its own) is open: `present` on the
+ * coach's screen while the class sees it — its view is sent to the class —
+ * or `watch` on a student's stage, showing the coach's view read-only.
+ */
+type PresentedView = {
+  toolId: LiveClassInteractiveId;
+  mode: "present" | "watch";
+  /** watch: the coach's latest view (unvalidated). */
+  view: unknown;
+  /** present: send the current view to the class. */
+  publish: (view: unknown) => void;
+};
+
+const PresentedViewContext = createContext<PresentedView | null>(null);
+
+export function PresentedViewProvider({
+  children,
+  value,
+}: {
+  children: ReactNode;
+  value: PresentedView | null;
+}) {
+  return (
+    <PresentedViewContext.Provider value={value}>
+      {children}
+    </PresentedViewContext.Provider>
+  );
+}
+
+/**
+ * A personal tool's view, shared with the class: while the coach presents the
+ * tool its `local` view is sent on every change; a watching student gets the
+ * coach's view (`parse` rejects a malformed one, falling back to `local`) and
+ * `watching: true`, so the tool hides its controls.
+ */
+export function useSharedToolView<T>(
+  local: T,
+  parse: (raw: unknown) => T | null,
+): { shown: T; watching: boolean } {
+  const ctx = useContext(PresentedViewContext);
+  const presenting = ctx?.mode === "present";
+  const publish = ctx?.publish;
+  useEffect(() => {
+    if (presenting && publish) publish(local);
+  }, [presenting, publish, local]);
+
+  if (ctx?.mode !== "watch") return { shown: local, watching: false };
+  return { shown: parse(ctx.view) ?? local, watching: true };
+}
+
+/** True while a student watches the coach's presentation of this tool. */
+export function useIsWatching(): boolean {
+  return useContext(PresentedViewContext)?.mode === "watch";
+}
 
 function isStudentMetadata(metadata: string | undefined): boolean {
   if (!metadata) return false;

@@ -10,6 +10,11 @@ import { z } from "zod";
 // the source of truth; the `classroom_tools` topic is a server-injected nudge to
 // refetch. The other four (Chess Balance, Opening of the Day, Video Generator,
 // Rating Calculator) are personal and keep nothing on the server.
+//
+// Students never open tools themselves. The coach *presents* one: PRESENTING
+// names the tool open on the coach's screen (plus, for the personal tools, a
+// small snapshot of what the coach is looking at), and every student's main
+// stage shows that tool live, read-only.
 
 export const LIVE_CLASS_TOOLS_TOPIC = "classroom_tools";
 
@@ -21,7 +26,8 @@ export const liveClassToolKindSchema = z.enum([
   "GM_MAPPER",
   "SIDES",
   "LEGENDS",
-  "TIMER"
+  "TIMER",
+  "PRESENTING"
 ]);
 export type LiveClassToolKind = z.infer<typeof liveClassToolKindSchema>;
 
@@ -37,9 +43,31 @@ export const LIVE_CLASS_TOOL_SCOPE: Record<LiveClassToolKind, "BATCH" | "CLASS">
   PICK_STUDENT: "CLASS",
   SIDES: "CLASS",
   TEAMS: "CLASS",
+  PRESENTING: "CLASS",
   TIMER: "CLASS",
   WALL_OF_MOMENTS: "BATCH"
 };
+
+/** The twelve Interactives, by the id the web registry uses. Persisted in PRESENTING — never rename one. */
+export const LIVE_CLASS_INTERACTIVE_IDS = [
+  "pick-student",
+  "mystery-box",
+  "wall-of-moments",
+  "team-generator",
+  "grandmaster-mapper",
+  "chess-balance",
+  "white-or-black",
+  "chess-legends",
+  "opening-of-the-day",
+  "video-generator",
+  "rating-calculator",
+  "classroom-timer"
+] as const;
+export const liveClassInteractiveIdSchema = z.enum(LIVE_CLASS_INTERACTIVE_IDS);
+export type LiveClassInteractiveId = z.infer<typeof liveClassInteractiveIdSchema>;
+
+/** Upper bound on a presented tool's view snapshot (serialized JSON characters). */
+export const PRESENTED_VIEW_MAX_CHARS = 4000;
 
 const id = z.string().trim().min(1).max(64);
 const name = z.string().trim().min(1).max(120);
@@ -139,11 +167,31 @@ export const timerStateSchema = z.object({
 });
 export type TimerState = z.infer<typeof timerStateSchema>;
 
+export const presentingStateSchema = z.object({
+  /** The tool on the coach's screen that students see; null = nothing shown. */
+  toolId: liveClassInteractiveIdSchema.nullable(),
+  /** When this tool started being shown — a new value re-opens it for students who closed it. */
+  startedAt: isoDate.nullable(),
+  /**
+   * What the coach is looking at in a personal tool (the scale's pieces, the
+   * opening and move). Each tool validates its own shape on read; shared-state
+   * tools leave it null.
+   */
+  view: z
+    .unknown()
+    .nullable()
+    .refine((v) => v === null || v === undefined || JSON.stringify(v).length <= PRESENTED_VIEW_MAX_CHARS, {
+      message: "The presented view is too large."
+    })
+});
+export type PresentingState = z.infer<typeof presentingStateSchema>;
+
 export const LIVE_CLASS_TOOL_STATE_SCHEMAS = {
   GM_MAPPER: gmMapperStateSchema,
   LEGENDS: legendsStateSchema,
   MYSTERY_BOX: mysteryBoxStateSchema,
   PICK_STUDENT: pickStudentStateSchema,
+  PRESENTING: presentingStateSchema,
   SIDES: sidesStateSchema,
   TEAMS: teamsStateSchema,
   TIMER: timerStateSchema,

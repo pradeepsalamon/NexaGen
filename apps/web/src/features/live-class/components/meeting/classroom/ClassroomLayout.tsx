@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Crown, LayoutGrid, Puzzle, Swords, Users, Video } from "lucide-react";
+import { Crown, LayoutGrid, Puzzle, Shapes, Swords, Users, Video } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
@@ -16,13 +16,15 @@ import { SimulCoachView } from "../simul/SimulCoachView";
 import { SimulStudentBoard } from "../simul/SimulStudentBoard";
 import { ClassroomBoard } from "./ClassroomBoard";
 import { ClassroomPanel } from "./ClassroomPanel";
+import { useInteractives } from "../interactives/InteractivesProvider";
+import { PresentedInteractiveStage, usePresentedTool } from "../interactives/PresentedInteractive";
 import { InlineStage } from "./InlineStage";
 
 /** Activity stages exist only while their activity does; board and video always. */
-type ActivityStage = "puzzle" | "boards" | "simul" | "match";
+type ActivityStage = "puzzle" | "boards" | "simul" | "match" | "interactive";
 export type ClassroomStage = "board" | "video" | ActivityStage;
 
-const ACTIVITY_STAGES: ActivityStage[] = ["puzzle", "boards", "simul", "match"];
+const ACTIVITY_STAGES: ActivityStage[] = ["puzzle", "boards", "simul", "match", "interactive"];
 
 type StageOption = { id: ClassroomStage; label: string; icon: ReactNode; badge?: number };
 
@@ -87,8 +89,9 @@ export function StageSwitch({
  *
  * Each activity tab mirrors the open flag its phone dialog uses
  * (`puzzleSolverOpen`, `puzzleBoardsOpen`, simul / match `coachOpen` or
- * `studentOpen`), so whatever "opens" an activity — a new assignment, a
- * toast's action, a panel button — switches to its tab instead of a pop-up.
+ * `studentOpen`, the Interactives' `studentOpen`), so whatever "opens" an
+ * activity — a new assignment, a toast's action, a panel button, the coach
+ * presenting a tool — switches to its tab instead of a pop-up.
  *
  * Must render inside `<BoardProvider>` + `<LiveBoardSyncBridge>`, `<ChatProvider>`,
  * `<SimulProvider>` and `<MatchProvider>`.
@@ -106,28 +109,40 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     );
   const simul = useSimul();
   const match = useMatch();
+  const interactives = useInteractives();
+  const presentedTool = usePresentedTool();
 
   const available: Record<ActivityStage, boolean> = {
     // The coach's "Activity" is a practice copy of the class puzzle.
     puzzle: !!activePuzzle,
     boards: isCoach && !!activePuzzle,
     simul: simul.isManager ? !!simul.simul : !!simul.myGame,
-    match: !!match.round
+    match: !!match.round,
+    // Students only: the tool the coach is presenting, in the board's place.
+    interactive: !!presentedTool
   };
   const flags: Record<ActivityStage, boolean> = {
     puzzle: puzzleSolverOpen,
     boards: puzzleBoardsOpen,
     simul: simul.isManager ? simul.coachOpen : simul.studentOpen,
-    match: match.isManager ? match.coachOpen : match.studentOpen
+    match: match.isManager ? match.coachOpen : match.studentOpen,
+    interactive: interactives.studentOpen
   };
   const setters: Record<ActivityStage, (open: boolean) => void> = {
     puzzle: setPuzzleSolverOpen,
     boards: setPuzzleBoardsOpen,
     simul: simul.isManager ? simul.setCoachOpen : simul.setStudentOpen,
-    match: match.isManager ? match.setCoachOpen : match.setStudentOpen
+    match: match.isManager ? match.setCoachOpen : match.setStudentOpen,
+    interactive: interactives.setStudentOpen
   };
   // Starts closed, so a flag already open at mount (a resize from the phone layout) counts as opening.
-  const flagsRef = useRef<Record<ActivityStage, boolean>>({ boards: false, match: false, puzzle: false, simul: false });
+  const flagsRef = useRef<Record<ActivityStage, boolean>>({
+    boards: false,
+    interactive: false,
+    match: false,
+    puzzle: false,
+    simul: false
+  });
   const settersRef = useRef(setters);
   settersRef.current = setters;
 
@@ -145,6 +160,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     // A flag raised before its activity's data arrived stays "unseen" until it does.
     flagsRef.current = {
       boards: flags.boards && available.boards,
+      interactive: flags.interactive && available.interactive,
       match: flags.match && available.match,
       puzzle: flags.puzzle && available.puzzle,
       simul: flags.simul && available.simul
@@ -165,10 +181,12 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     flags.boards,
     flags.simul,
     flags.match,
+    flags.interactive,
     available.puzzle,
     available.boards,
     available.simul,
     available.match,
+    available.interactive,
     stage,
     changeStage
   ]);
@@ -192,10 +210,26 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
       },
       { id: "boards", label: "Live boards", icon: <LayoutGrid className="size-3.5" strokeWidth={2.5} />, show: available.boards },
       { id: "simul", label: "Simul", icon: <Users className="size-3.5" strokeWidth={2.5} />, show: available.simul, badge: simulBadge },
-      { id: "match", label: "Matches", icon: <Swords className="size-3.5" strokeWidth={2.5} />, show: available.match, badge: matchBadge }
+      { id: "match", label: "Matches", icon: <Swords className="size-3.5" strokeWidth={2.5} />, show: available.match, badge: matchBadge },
+      {
+        id: "interactive",
+        label: presentedTool?.label ?? "Interactive",
+        icon: <Shapes className="size-3.5" strokeWidth={2.5} />,
+        show: available.interactive
+      }
     ];
     return all.filter((o) => o.show);
-  }, [isCoach, available.puzzle, available.boards, available.simul, available.match, simulBadge, matchBadge]);
+  }, [
+    isCoach,
+    available.puzzle,
+    available.boards,
+    available.simul,
+    available.match,
+    available.interactive,
+    presentedTool?.label,
+    simulBadge,
+    matchBadge
+  ]);
 
   const stageSwitch = <StageSwitch stage={stage} options={options} onChange={changeStage} />;
   const solving = stage === "puzzle";
@@ -224,6 +258,8 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
         ) : (
           <MatchStudentView stageSwitch={stageSwitch} />
         )
+      ) : stage === "interactive" ? (
+        <PresentedInteractiveStage stageSwitch={stageSwitch} />
       ) : stage === "video" ? (
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="flex shrink-0 justify-end px-3 pt-3 lg:px-6">{stageSwitch}</div>

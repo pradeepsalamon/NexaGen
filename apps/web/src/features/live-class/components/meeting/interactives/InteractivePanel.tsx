@@ -12,14 +12,30 @@ import type { InteractiveTool } from "./registry";
  * and clickable around it. Escape (from inside the panel) or the close button
  * dismisses it. `role="dialog"` also keeps the coach's board shortcuts quiet
  * while focus is in a tool (see matchCoachBoardShortcut).
+ *
+ * `side` is the coach's working panel; `center` is a student's phone view of
+ * what the coach is presenting, centred over the class.
  */
 export function InteractivePanel({
+  autoFocus = true,
   children,
+  closeLabel,
+  headerAction,
   onClose,
+  placement = "side",
+  subtitle,
   tool,
 }: {
+  /** Move focus to the title on open. Off when the panel opens on its own (a coach's presentation). */
+  autoFocus?: boolean;
   children: ReactNode;
+  closeLabel?: string;
+  /** Rendered between the title and the close button. */
+  headerAction?: ReactNode;
   onClose: () => void;
+  placement?: "side" | "center";
+  /** Replaces the tool's blurb under the title. */
+  subtitle?: ReactNode;
   tool: InteractiveTool;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -27,19 +43,21 @@ export function InteractivePanel({
   const Icon = tool.icon;
 
   useEffect(() => {
-    titleRef.current?.focus();
-  }, [tool.id]);
+    if (autoFocus) titleRef.current?.focus();
+  }, [autoFocus, tool.id]);
 
   if (typeof document === "undefined") return null;
 
-  return createPortal(
+  const panel = (
     <div
       aria-labelledby="interactive-panel-title"
       aria-modal="false"
       className={cn(
-        "fixed inset-x-2 bottom-2 top-14 z-40 flex flex-col overflow-hidden rounded-app border border-app-border bg-app-surface text-app-text shadow-soft",
+        "flex flex-col overflow-hidden rounded-app border border-app-border bg-app-surface text-app-text shadow-soft",
         "animate-in fade-in slide-in-from-bottom-4 duration-200",
-        "sm:inset-x-auto sm:bottom-24 sm:right-4 sm:top-16 sm:w-[26rem]",
+        placement === "side"
+          ? "fixed inset-x-2 bottom-2 top-14 z-40 sm:inset-x-auto sm:bottom-24 sm:right-4 sm:top-16 sm:w-[26rem]"
+          : "pointer-events-auto max-h-[calc(100dvh-6rem)] w-full max-w-lg",
       )}
       onKeyDown={(e) => {
         // Only keys pressed in the panel itself — Escape in a modal opened from a
@@ -73,11 +91,14 @@ export function InteractivePanel({
           >
             {tool.label}
           </h2>
-          <p className="truncate text-xs text-app-muted">{tool.blurb}</p>
+          <p className="truncate text-xs text-app-muted">
+            {subtitle ?? tool.blurb}
+          </p>
         </div>
-        <SimpleTooltip label="Close">
+        {headerAction}
+        <SimpleTooltip label={closeLabel ?? "Close"}>
           <button
-            aria-label={`Close ${tool.label}`}
+            aria-label={closeLabel ?? `Close ${tool.label}`}
             className="flex size-9 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
             onClick={onClose}
             type="button"
@@ -89,7 +110,18 @@ export function InteractivePanel({
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         {children}
       </div>
-    </div>,
+    </div>
+  );
+
+  return createPortal(
+    placement === "side" ? (
+      panel
+    ) : (
+      // Centred over the class; the backdrop lets taps through to nothing but stays light.
+      <div className="pointer-events-none fixed inset-x-0 bottom-20 top-14 z-40 flex items-center justify-center px-3">
+        {panel}
+      </div>
+    ),
     document.body,
   );
 }

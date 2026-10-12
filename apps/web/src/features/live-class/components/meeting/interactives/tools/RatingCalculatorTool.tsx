@@ -9,7 +9,13 @@ import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
-import { newId, readLocal, SectionTitle, writeLocal } from "../shared";
+import {
+  newId,
+  readLocal,
+  SectionTitle,
+  useSharedToolView,
+  writeLocal,
+} from "../shared";
 
 type Game = { id: string; opponent: string; score: "1" | "0.5" | "0" };
 type Saved = { rating: string; k: string; games: Game[] };
@@ -29,13 +35,33 @@ const DEFAULT: Saved = {
   rating: "1400",
 };
 
+/** The coach's presented calculator, or null when it isn't a well-formed one. */
+function parseSaved(raw: unknown): Saved | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { games, k, rating } = raw as Record<string, unknown>;
+  if (typeof rating !== "string" || typeof k !== "string") return null;
+  if (!Array.isArray(games) || games.length === 0 || games.length > 20)
+    return null;
+  const ok = games.every(
+    (g) =>
+      g &&
+      typeof g === "object" &&
+      typeof (g as Game).id === "string" &&
+      typeof (g as Game).opponent === "string" &&
+      ["1", "0.5", "0"].includes((g as Game).score),
+  );
+  return ok ? { games: games as Game[], k, rating } : null;
+}
+
 const fmt = (n: number) => (n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1));
 
 export function RatingCalculatorTool() {
-  const [saved, setSaved] = useState<Saved>(() =>
+  const [mine, setSaved] = useState<Saved>(() =>
     readLocal(STORAGE_KEY, DEFAULT),
   );
-  useEffect(() => writeLocal(STORAGE_KEY, saved), [saved]);
+  useEffect(() => writeLocal(STORAGE_KEY, mine), [mine]);
+  // A watching student sees the coach's figures, read-only.
+  const { shown: saved, watching } = useSharedToolView(mine, parseSaved);
 
   const rating = Number.parseInt(saved.rating, 10);
   const k = Number(saved.k);
@@ -71,6 +97,7 @@ export function RatingCalculatorTool() {
           <Label htmlFor="rc-rating">Your rating</Label>
           <Input
             hasError={!ratingValid}
+            disabled={watching}
             id="rc-rating"
             inputMode="numeric"
             onChange={(e) => update({ rating: e.target.value })}
@@ -81,6 +108,7 @@ export function RatingCalculatorTool() {
         <div className="space-y-1.5">
           <Label htmlFor="rc-k">K-factor</Label>
           <Select
+            disabled={watching}
             id="rc-k"
             onChange={(e) => update({ k: e.target.value })}
             options={K_OPTIONS}
@@ -98,6 +126,7 @@ export function RatingCalculatorTool() {
           >
             <Input
               aria-label={`Game ${i + 1} opponent rating`}
+              disabled={watching}
               hasError={g.change === null && ratingValid}
               inputMode="numeric"
               onChange={(e) => updateGame(g.id, { opponent: e.target.value })}
@@ -108,6 +137,7 @@ export function RatingCalculatorTool() {
             <Select
               aria-label={`Game ${i + 1} result`}
               className="w-28"
+              disabled={watching}
               onChange={(e) =>
                 updateGame(g.id, { score: e.target.value as Game["score"] })
               }
@@ -131,44 +161,50 @@ export function RatingCalculatorTool() {
               >
                 {g.change === null ? "—" : fmt(g.change)}
               </span>
-              <SimpleTooltip label="Remove game">
-                <button
-                  aria-label={`Remove game ${i + 1}`}
-                  className="flex size-8 items-center justify-center rounded-full bg-app-danger text-white transition-colors hover:bg-app-danger/85 disabled:opacity-40"
-                  disabled={saved.games.length === 1}
-                  onClick={() =>
-                    update({ games: saved.games.filter((x) => x.id !== g.id) })
-                  }
-                  type="button"
-                >
-                  <Trash2
-                    aria-hidden="true"
-                    className="size-3.5"
-                    strokeWidth={2.5}
-                  />
-                </button>
-              </SimpleTooltip>
+              {watching ? null : (
+                <SimpleTooltip label="Remove game">
+                  <button
+                    aria-label={`Remove game ${i + 1}`}
+                    className="flex size-8 items-center justify-center rounded-full bg-app-danger text-white transition-colors hover:bg-app-danger/85 disabled:opacity-40"
+                    disabled={saved.games.length === 1}
+                    onClick={() =>
+                      update({
+                        games: saved.games.filter((x) => x.id !== g.id),
+                      })
+                    }
+                    type="button"
+                  >
+                    <Trash2
+                      aria-hidden="true"
+                      className="size-3.5"
+                      strokeWidth={2.5}
+                    />
+                  </button>
+                </SimpleTooltip>
+              )}
             </div>
           </div>
         ))}
-        <div className="flex justify-end">
-          <Button
-            disabled={saved.games.length >= 20}
-            onClick={() =>
-              update({
-                games: [
-                  ...saved.games,
-                  { id: newId(), opponent: "", score: "1" },
-                ],
-              })
-            }
-            size="sm"
-            variant="outline"
-          >
-            <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
-            Add game
-          </Button>
-        </div>
+        {watching ? null : (
+          <div className="flex justify-end">
+            <Button
+              disabled={saved.games.length >= 20}
+              onClick={() =>
+                update({
+                  games: [
+                    ...saved.games,
+                    { id: newId(), opponent: "", score: "1" },
+                  ],
+                })
+              }
+              size="sm"
+              variant="outline"
+            >
+              <Plus aria-hidden="true" className="size-4" strokeWidth={2.5} />
+              Add game
+            </Button>
+          </div>
+        )}
       </div>
 
       <div

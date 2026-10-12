@@ -21,6 +21,7 @@ import {
   createPuzzleRequestSchema,
   createPuzzleTopicRequestSchema,
   puzzleHintRequestSchema,
+  puzzleTrainingNextRequestSchema,
   reassignPuzzleTopicRequestSchema,
   copyPuzzleTopicRequestSchema,
   savePuzzleAttemptRequestSchema,
@@ -40,6 +41,7 @@ import {
   type CreatePuzzleTopicRequest,
   type PuzzleHintRequest,
   type PuzzleListQuery,
+  type PuzzleTrainingNextRequest,
   type ReassignPuzzleTopicRequest,
   type CopyPuzzleTopicRequest,
   type SavePuzzleAttemptRequest,
@@ -58,6 +60,7 @@ import { PuzzleAttemptService } from "./puzzle-attempt.service";
 import { PuzzleCatalogService } from "./puzzle-catalog.service";
 import { PuzzleScoringSettingsService } from "./puzzle-scoring-settings.service";
 import { PuzzleTopicService } from "./puzzle-topic.service";
+import { PuzzleTrainingService } from "./puzzle-training.service";
 import { PuzzleService } from "./puzzle.service";
 
 @Controller()
@@ -67,7 +70,8 @@ export class PuzzleController {
     private readonly topicService: PuzzleTopicService,
     private readonly attemptService: PuzzleAttemptService,
     private readonly catalogService: PuzzleCatalogService,
-    private readonly scoringSettings: PuzzleScoringSettingsService
+    private readonly scoringSettings: PuzzleScoringSettingsService,
+    private readonly trainingService: PuzzleTrainingService
   ) {}
 
   // ── Topics ──
@@ -153,6 +157,22 @@ export class PuzzleController {
     @Req() request: Request
   ) {
     return this.scoringSettings.update(this.token(request), body);
+  }
+
+  // ── Student rated training ──
+  // Before `/puzzles/:id`, so "training" is never captured as a puzzle id.
+
+  @Get(API_ROUTES.puzzles.training)
+  trainingStatus(@Req() request: Request) {
+    return this.trainingService.status(this.token(request));
+  }
+
+  @Post(API_ROUTES.puzzles.trainingNext)
+  trainingNext(
+    @Body(new ZodBodyPipe(puzzleTrainingNextRequestSchema)) body: PuzzleTrainingNextRequest,
+    @Req() request: Request
+  ) {
+    return this.trainingService.next(this.token(request), body);
   }
 
   // ── Lichess catalogue ──

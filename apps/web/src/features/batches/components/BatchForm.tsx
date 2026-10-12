@@ -11,6 +11,7 @@ import {
 
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Switch } from "@/components/ui/Switch";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { FormField as BaseFormField } from "@/components/ui/FormField";
 import { Textarea } from "@/components/ui/Textarea";
@@ -37,6 +38,7 @@ const batchFormSchema = z.object({
   status: z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "ARCHIVED"]),
   // "" = no default: each class's type comes from the roster size.
   batchType: z.enum(["", "GROUP", "INDIVIDUAL", "BUDDY"]),
+  puzzleTrainingEnabled: z.boolean(),
   coachIds: z.array(z.string()).optional(),
   studentIds: z.array(z.string()).optional(),
 });
@@ -69,6 +71,7 @@ function toUpdatePayload(batch: Batch): UpdateBatchRequest {
     scheduleNotes: batch.scheduleNotes || undefined,
     status: batch.status,
     batchType: batch.batchType,
+    puzzleTrainingEnabled: batch.puzzleTrainingEnabled,
     coachIds: batch.coaches.map(c => c.id),
     studentIds: batch.students.map(s => s.id),
   };
@@ -116,6 +119,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
       scheduleNotes: selectedBatch?.scheduleNotes || "",
       status: selectedBatch?.status || "ACTIVE",
       batchType: selectedBatch?.batchType ?? "",
+      puzzleTrainingEnabled: selectedBatch?.puzzleTrainingEnabled ?? true,
       coachIds: selectedBatch?.coaches.map(c => c.id) || [],
       studentIds: selectedBatch?.students.map(s => s.id) || [],
     },
@@ -132,6 +136,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
       scheduleNotes: values.scheduleNotes || undefined,
       status: values.status,
       batchType: values.batchType || null,
+      puzzleTrainingEnabled: values.puzzleTrainingEnabled,
       coachIds: values.coachIds,
       studentIds: values.studentIds,
     };
@@ -181,6 +186,25 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
             name="batchType"
             options={batchTypeOptions}
           />
+
+          <BaseFormField
+            id="puzzleTrainingEnabled"
+            label="Puzzle Training"
+            hint="Students practise rated puzzles matched to their own rating."
+          >
+            <Controller
+              control={form.control}
+              name="puzzleTrainingEnabled"
+              render={({ field }) => (
+                <Switch
+                  checked={field.value}
+                  id="puzzleTrainingEnabled"
+                  label={field.value ? "On for this batch" : "Off for this batch"}
+                  onCheckedChange={field.onChange}
+                />
+              )}
+            />
+          </BaseFormField>
 
           <BaseFormField id="startsAt" label="Start Date" error={form.formState.errors.startsAt?.message}>
             <Controller

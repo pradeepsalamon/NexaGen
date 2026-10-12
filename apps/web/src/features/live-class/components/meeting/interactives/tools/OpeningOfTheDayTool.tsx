@@ -20,9 +20,23 @@ import { Chess } from "@/lib/chess";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/providers/ToastProvider";
 import { OPENINGS, openingForDay } from "../../../../lib/interactives/openings";
-import { SectionTitle, type ToolContext } from "../shared";
+import { SectionTitle, useSharedToolView, type ToolContext } from "../shared";
 
 type Step = { fen: string; san: string; from: string; to: string };
+type View = { openingId: string; ply: number };
+
+/** The coach's presented opening + move, or null when it isn't a known one. */
+function parseView(raw: unknown): View | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { openingId, ply } = raw as Record<string, unknown>;
+  if (
+    typeof openingId !== "string" ||
+    !OPENINGS.some((o) => o.id === openingId)
+  )
+    return null;
+  if (typeof ply !== "number" || !Number.isInteger(ply) || ply < 0) return null;
+  return { openingId, ply };
+}
 
 export function OpeningOfTheDayTool({ isManager }: ToolContext) {
   const timeZone = useUserTimeZone();
@@ -40,7 +54,10 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
   const daily = useMemo(() => openingForDay(today), [today]);
   const [openingId, setOpeningId] = useState(daily.id);
   const [ply, setPly] = useState(0);
-  const opening = OPENINGS.find((o) => o.id === openingId) ?? daily;
+  const local = useMemo(() => ({ openingId, ply }), [openingId, ply]);
+  // A watching student follows the coach's opening and move, without the controls.
+  const { shown, watching } = useSharedToolView<View>(local, parseView);
+  const opening = OPENINGS.find((o) => o.id === shown.openingId) ?? daily;
 
   const line = useMemo(() => {
     const chess = new Chess();
@@ -56,7 +73,7 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
     }
   }, [opening]);
 
-  const at = Math.min(ply, line.steps.length);
+  const at = Math.min(shown.ply, line.steps.length);
   const current = at === 0 ? null : line.steps[at - 1];
   const fen = current?.fen ?? line.start;
 
@@ -102,19 +119,21 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
           </h3>
           <p className="text-xs text-app-muted">ECO {opening.eco}</p>
         </div>
-        <Select
-          aria-label="Choose another opening"
-          className="w-auto max-w-[12rem]"
-          onChange={(e) => {
-            setOpeningId(e.target.value);
-            setPly(0);
-          }}
-          options={OPENINGS.map((o) => ({
-            label: o.id === daily.id ? `${o.name} (today)` : o.name,
-            value: o.id,
-          }))}
-          value={opening.id}
-        />
+        {watching ? null : (
+          <Select
+            aria-label="Choose another opening"
+            className="w-auto max-w-[12rem]"
+            onChange={(e) => {
+              setOpeningId(e.target.value);
+              setPly(0);
+            }}
+            options={OPENINGS.map((o) => ({
+              label: o.id === daily.id ? `${o.name} (today)` : o.name,
+              value: o.id,
+            }))}
+            value={opening.id}
+          />
+        )}
       </div>
 
       {line.error ? (
@@ -131,32 +150,34 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
         />
       </div>
 
-      <div className="flex items-center justify-center gap-2">
-        {nav(
-          "Reset to start",
-          <ChevronsLeft className="size-5" strokeWidth={2.5} />,
-          () => setPly(0),
-          at === 0,
-        )}
-        {nav(
-          "Back one move",
-          <ChevronLeft className="size-5" strokeWidth={2.5} />,
-          () => setPly(at - 1),
-          at === 0,
-        )}
-        {nav(
-          "Next move",
-          <ChevronRight className="size-5" strokeWidth={2.5} />,
-          () => setPly(at + 1),
-          at >= line.steps.length,
-        )}
-        {nav(
-          "Go to the end",
-          <ChevronsRight className="size-5" strokeWidth={2.5} />,
-          () => setPly(line.steps.length),
-          at >= line.steps.length,
-        )}
-      </div>
+      {watching ? null : (
+        <div className="flex items-center justify-center gap-2">
+          {nav(
+            "Reset to start",
+            <ChevronsLeft className="size-5" strokeWidth={2.5} />,
+            () => setPly(0),
+            at === 0,
+          )}
+          {nav(
+            "Back one move",
+            <ChevronLeft className="size-5" strokeWidth={2.5} />,
+            () => setPly(at - 1),
+            at === 0,
+          )}
+          {nav(
+            "Next move",
+            <ChevronRight className="size-5" strokeWidth={2.5} />,
+            () => setPly(at + 1),
+            at >= line.steps.length,
+          )}
+          {nav(
+            "Go to the end",
+            <ChevronsRight className="size-5" strokeWidth={2.5} />,
+            () => setPly(line.steps.length),
+            at >= line.steps.length,
+          )}
+        </div>
+      )}
 
       <ol aria-label="Moves" className="flex flex-wrap gap-1 text-sm">
         {line.steps.map((s, i) => (
@@ -164,11 +185,12 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
             <button
               aria-current={i === at - 1 ? "step" : undefined}
               className={cn(
-                "rounded-control px-1.5 py-0.5 transition-colors hover:bg-app-soft",
+                "rounded-control px-1.5 py-0.5 transition-colors enabled:hover:bg-app-soft",
                 i === at - 1
                   ? "bg-primary font-bold text-white hover:bg-primary"
                   : "text-app-text",
               )}
+              disabled={watching}
               onClick={() => setPly(i + 1)}
               type="button"
             >
