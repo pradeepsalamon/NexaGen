@@ -1,4 +1,10 @@
 import { z } from "zod";
+import {
+  attemptMoveSchema,
+  chessColorSchema,
+  paginationMetaSchema,
+  solutionMoveSchema
+} from "./core-schemas";
 import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
 import {
   MAX_ASSIGNMENT_PUZZLES,
@@ -28,6 +34,7 @@ import {
   type SoundThemeMeta
 } from "./chess-appearance";
 
+export { attemptMoveSchema, chessColorSchema, paginationMetaSchema, solutionMoveSchema } from "./core-schemas";
 export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
@@ -61,12 +68,6 @@ export interface PaginationMeta {
   totalPages: number;
 }
 
-export const paginationMetaSchema = z.object({
-  total: z.number(),
-  page: z.number(),
-  pageSize: z.number(),
-  totalPages: z.number()
-});
 
 export type UserRole = "SUPER_ADMIN" | "ADMIN" | "COACH" | "STUDENT";
 
@@ -1768,16 +1769,8 @@ export const assignmentAttemptStatusSchema = z.enum([
 ]);
 export type AssignmentAttemptStatus = z.infer<typeof assignmentAttemptStatusSchema>;
 
-export const chessColorSchema = z.enum(["white", "black"]);
 export type ChessColor = z.infer<typeof chessColorSchema>;
 
-const UCI_RE = /^[a-h][1-8][a-h][1-8][qrbnQRBN]?$/;
-
-/** One move of a stored solution line. `uci` is the source of truth for scoring. */
-export const solutionMoveSchema = z.object({
-  uci: z.string().regex(UCI_RE, "Invalid UCI move."),
-  san: z.string().min(1).max(12)
-});
 export type SolutionMove = z.infer<typeof solutionMoveSchema>;
 
 export const attemptMoveClassificationSchema = z.enum([
@@ -1791,14 +1784,6 @@ export const attemptMoveClassificationSchema = z.enum([
   "BLUNDER"
 ]);
 
-/** One move a student played during an attempt. Sent by the client on save. */
-export const attemptMoveSchema = z.object({
-  ply: z.number().int().min(1).max(400),
-  uci: z.string().regex(UCI_RE, "Invalid UCI move."),
-  san: z.string().min(1).max(12),
-  fenAfter: z.string().min(1).max(120),
-  elapsedMs: z.number().int().min(0).max(86_400_000).optional()
-});
 export type AttemptMove = z.infer<typeof attemptMoveSchema> & {
   correct?: boolean;
   classification?: z.infer<typeof attemptMoveClassificationSchema>;

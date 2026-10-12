@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { solutionMoveSchema } from "./index";
+import { solutionMoveSchema } from "./core-schemas";
 import {
   MAX_PUZZLE_FEN_LENGTH,
   MAX_PUZZLE_SOLUTION_MOVES,

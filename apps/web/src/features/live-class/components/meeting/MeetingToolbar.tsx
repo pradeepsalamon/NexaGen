@@ -23,6 +23,7 @@ import {
   SmilePlus,
   Swords,
   Trophy,
+  Sparkles,
 } from "lucide-react";
 import {
   useTrackToggle,
@@ -231,6 +232,13 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
       label: "Settings",
       onClick: () => toggleSidebar("settings"),
       active: activeSidebar === "settings",
+    },
+    {
+      icon: <Sparkles className="size-5" />,
+      label: "Background & framing",
+      onClick: () => {
+        if (activeSidebar !== "settings") toggleSidebar("settings");
+      },
     },
     {
       icon: isFullscreen ? <Minimize className="size-5" /> : <Maximize className="size-5" />,

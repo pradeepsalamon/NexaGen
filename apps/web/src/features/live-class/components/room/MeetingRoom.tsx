@@ -29,6 +29,7 @@ import { ScreenShareRequestBridge } from "../meeting/ScreenShareRequestBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
 import { MediaDeviceProvider } from "../../providers/MediaDeviceProvider";
+import { VideoEffectsProvider } from "../../providers/VideoEffectsProvider";
 import { loadMediaPrefs } from "../../lib/mediaDevices";
 import { useClassroomSession } from "../../providers/ClassroomSessionManager";
 import { ConnectionLost } from "../states/ErrorStates";
@@ -201,28 +202,30 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       <ReconnectToaster />
       <AudioSessionBridge />
       <MediaDeviceProvider>
-        <ReactionProvider>
-          <PipMicCaptureBridge />
-          <LiveClassSettingsBridge />
-          <WaitingRoomBridge classId={classId} />
-          <ScreenShareRequestBridge classId={classId} />
-          <HandRaiseBridge />
-          <PuzzleBridge classId={classId} />
-          <MovePollStudentHost classId={classId} />
-          <SimulProvider classId={classId}>
-            <MatchProvider classId={classId}>
-              <SimulHost />
-              <MatchHost />
-              <ConnectionStateManager classId={classId}>
-                <ChatProvider classId={classId}>
-                  {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
-                  <MeetingEventToasts />
-                  <MeetingLayout />
-                </ChatProvider>
-              </ConnectionStateManager>
-            </MatchProvider>
-          </SimulProvider>
-        </ReactionProvider>
+        <VideoEffectsProvider>
+          <ReactionProvider>
+            <PipMicCaptureBridge />
+            <LiveClassSettingsBridge />
+            <WaitingRoomBridge classId={classId} />
+            <ScreenShareRequestBridge classId={classId} />
+            <HandRaiseBridge />
+            <PuzzleBridge classId={classId} />
+            <MovePollStudentHost classId={classId} />
+            <SimulProvider classId={classId}>
+              <MatchProvider classId={classId}>
+                <SimulHost />
+                <MatchHost />
+                <ConnectionStateManager classId={classId}>
+                  <ChatProvider classId={classId}>
+                    {/* Inside ChatProvider: it also announces chat arriving with the panel closed. */}
+                    <MeetingEventToasts />
+                    <MeetingLayout />
+                  </ChatProvider>
+                </ConnectionStateManager>
+              </MatchProvider>
+            </SimulProvider>
+          </ReactionProvider>
+        </VideoEffectsProvider>
       </MediaDeviceProvider>
       <RoomAudioRenderer />
       <StartAudio label="Click to allow audio playback" />

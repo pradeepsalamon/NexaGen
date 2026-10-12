@@ -26,7 +26,10 @@ export class LiveClassPullService {
   /**
    * Coach-owner/admin: every student in the class's batch with whether they
    * have the app open (presence heartbeat), are already in the room, and any
-   * pull already sent.
+   * pull already sent. A student from outside the batch is listed only while
+   * their pull is pending (so it can be cancelled) — anyone else in the
+   * academy is reached through `search` (name, username or email), never
+   * listed up front.
    */
   async getPullRoster(
     accessToken: string | undefined,
@@ -39,7 +42,14 @@ export class LiveClassPullService {
       where: { id: classId },
       select: { batchId: true },
     });
-    const studentSelect = { id: true, firstName: true, lastName: true, avatarUrl: true, lastSeenAt: true } as const;
+    const studentSelect = {
+      id: true,
+      firstName: true,
+      lastName: true,
+      username: true,
+      avatarUrl: true,
+      lastSeenAt: true,
+    } as const;
     const q = search?.trim() ?? "";
 
     const [enrolments, pulls, inRoom] = await Promise.all([
@@ -58,29 +68,47 @@ export class LiveClassPullService {
 
     const batchIds = new Set(enrolments.map((e) => e.student.id));
     const people = new Map(enrolments.map((e) => [e.student.id, e.student]));
-    // Students pulled in from other batches stay listed so the coach sees their status.
-    for (const p of pulls) if (!people.has(p.student.id)) people.set(p.student.id, p.student);
+    // A pending pull from another batch stays listed so the coach can cancel it.
+    for (const p of pulls) {
+      if (p.status === "PENDING" && !people.has(p.student.id)) people.set(p.student.id, p.student);
+    }
 
-    if (q.length >= 2) {
-      const words = q.split(/\s+/).slice(0, 3);
-      const matches = await this.prisma.user.findMany({
-        where: {
-          role: UserRole.STUDENT,
-          status: UserStatus.ACTIVE,
-          id: { notIn: [...people.keys()] },
-          AND: words.map((w) => ({
-            OR: [
-              { firstName: { contains: w, mode: "insensitive" as const } },
-              { lastName: { contains: w, mode: "insensitive" as const } },
-              { email: { contains: w, mode: "insensitive" as const } },
-              { username: { contains: w, mode: "insensitive" as const } },
-            ],
-          })),
-        },
-        select: studentSelect,
-        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-        take: 20,
-      });
+    const term = q.replace(/^@/, "");
+    if (term.length >= 2) {
+      // Searches every active student — batch included, so a batch student
+      // can be found by username too. A leading "@" is ignored, so "@ravi_k" works.
+      const words = term.split(/\s+/).filter(Boolean).slice(0, 3);
+      const [exactMatch, matches] = await Promise.all([
+        // The exact username, even when 20+ others contain it.
+        this.prisma.user.findFirst({
+          where: {
+            role: UserRole.STUDENT,
+            status: UserStatus.ACTIVE,
+            username: { equals: term, mode: "insensitive" },
+          },
+          select: studentSelect,
+        }),
+        this.prisma.user.findMany({
+          where: {
+            role: UserRole.STUDENT,
+            status: UserStatus.ACTIVE,
+            AND: words.map((w) => ({
+              OR: [
+                { firstName: { contains: w, mode: "insensitive" as const } },
+                { lastName: { contains: w, mode: "insensitive" as const } },
+                { email: { contains: w, mode: "insensitive" as const } },
+                { username: { contains: w, mode: "insensitive" as const } },
+              ],
+            })),
+          },
+          select: studentSelect,
+          orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+          take: 20,
+        }),
+      ]);
+      // A search answers with its matches only — the roster query already has the batch.
+      people.clear();
+      if (exactMatch) people.set(exactMatch.id, exactMatch);
       for (const m of matches) people.set(m.id, m);
     }
 
@@ -92,6 +120,7 @@ export class LiveClassPullService {
       return {
         studentId: student.id,
         name: `${student.firstName} ${student.lastName ?? ""}`.trim(),
+        username: student.username,
         avatarUrl: student.avatarUrl,
         online: !!student.lastSeenAt && student.lastSeenAt.getTime() >= onlineSince,
         lastSeenAt: student.lastSeenAt?.toISOString() ?? null,
@@ -101,9 +130,13 @@ export class LiveClassPullService {
       };
     });
 
-    // Who the coach is most likely to act on first: absent + online.
+    // An exact username first (that is who the coach typed), then who the
+    // coach is most likely to act on: absent + online.
+    const exact = term.toLowerCase();
+    const isExact = (s: PullRosterStudent) => !!exact && s.username?.toLowerCase() === exact;
     students.sort(
       (a, b) =>
+        Number(isExact(b)) - Number(isExact(a)) ||
         Number(a.inClass) - Number(b.inClass) ||
         Number(b.online) - Number(a.online) ||
         a.name.localeCompare(b.name),

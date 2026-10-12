@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { ChevronDown, Keyboard, Mic, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, Keyboard, Mic, SlidersHorizontal, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { InRoomClassControls } from "../../settings/InRoomClassControls";
 import { MeetingDeviceSettings } from "./MeetingDeviceSettings";
+import { MeetingVideoEffects } from "./MeetingVideoEffects";
 import { PanelHeader } from "./PanelHeader";
 
 /** One card in the settings panel. Optionally a collapsed disclosure. */
@@ -89,6 +90,14 @@ export function MeetingSettings() {
           description="Only affects you — nobody else in the class sees this change."
         >
           <MeetingDeviceSettings />
+        </PanelSection>
+
+        <PanelSection
+          icon={<Sparkles className="size-3.5" />}
+          title="Video effects"
+          description="Virtual background and auto-framing for your camera."
+        >
+          <MeetingVideoEffects />
         </PanelSection>
 
         {isCoach && (

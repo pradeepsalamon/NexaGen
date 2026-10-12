@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { paginationMetaSchema } from "./index";
+import { paginationMetaSchema } from "./core-schemas";
 
 // ──────────────────────────────────────────────────────────────
 // Admin Analytics — shared contract

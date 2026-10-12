@@ -16,7 +16,7 @@ const nextConfig = (phase) => ({
   },
   // public/ files are not content-hashed, so a day's cache, then revalidate.
   async headers() {
-    return ["/academy/:path*", "/chess/:path*", "/sounds/:path*"].map((source) => ({
+    return ["/academy/:path*", "/chess/:path*", "/sounds/:path*", "/video-backgrounds/:path*"].map((source) => ({
       headers: [
         {
           key: "Cache-Control",

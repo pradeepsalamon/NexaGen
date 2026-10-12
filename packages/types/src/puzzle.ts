@@ -7,14 +7,16 @@ import {
 import {
   attemptMoveSchema,
   chessColorSchema,
-  solutionMoveSchema,
-  type AttemptMove,
-  type AttemptReviewMove,
-  type PaginationMeta,
-  type SolutionMove,
-  type SolveLineHint,
-  type SolveLineMoveFeedback,
-  type UserRole
+  solutionMoveSchema
+} from "./core-schemas";
+import type {
+  AttemptMove,
+  AttemptReviewMove,
+  PaginationMeta,
+  SolutionMove,
+  SolveLineHint,
+  SolveLineMoveFeedback,
+  UserRole
 } from "./index";
 
 // ──────────────────────────────────────────────────────────────

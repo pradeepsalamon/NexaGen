@@ -1,5 +1,8 @@
 "use client";
 
+// The recharts implementations. Import from "./Charts", which loads this
+// module (and recharts, ~400 kB) only when a chart actually renders.
+
 import { useId, useMemo } from "react";
 import {
   Area,

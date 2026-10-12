@@ -1,7 +1,6 @@
 "use client";
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
-import { useReducedMotion } from "framer-motion";
 import {
   DEFAULT_CHESS_APPEARANCE,
   type BoardOrientation,
@@ -10,6 +9,7 @@ import {
   type PieceSetId,
   type SoundThemeId,
 } from "@nexa-chess/types";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import {
   useResetChessAppearanceMutation,
   useResolvedChessAppearanceQuery,
@@ -65,7 +65,7 @@ export function ChessAppearanceProvider({ children }: { children: ReactNode }) {
   const { data, isLoading } = useResolvedChessAppearanceQuery();
   const updateMutation = useUpdateChessAppearanceMutation();
   const resetMutation = useResetChessAppearanceMutation();
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   const config = data?.config ?? DEFAULT_CHESS_APPEARANCE;
   // §26: an OS-level reduced-motion preference turns animation off — unless

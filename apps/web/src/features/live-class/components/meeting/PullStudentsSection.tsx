@@ -53,6 +53,9 @@ const PullRow = memo(function PullRow({
         <div className="min-w-0">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className="truncate text-sm font-medium text-app-text">{student.name}</span>
+            {student.username ? (
+              <span className="min-w-0 shrink truncate text-[11px] text-app-muted">@{student.username}</span>
+            ) : null}
             {!student.inBatch ? (
               <span className="shrink-0 rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] font-semibold text-app-muted">
                 Other batch
@@ -108,8 +111,9 @@ const PullRow = memo(function PullRow({
 /**
  * Coach-only: the batch's students who are not in the room, with whether they
  * have the app open. "Pull" sends them straight in — immediately if they are
- * online, or the moment they next open the app. Searching also finds students
- * from any other batch.
+ * online, or the moment they next open the app. Students from other batches
+ * are never listed up front (only while a pull to them is pending); searching
+ * by name or username finds any active student in the academy.
  */
 export function PullStudentsSection({ classId }: { classId: string }) {
   const qc = useQueryClient();
@@ -143,7 +147,7 @@ export function PullStudentsSection({ classId }: { classId: string }) {
   });
 
   const debounced = useDebouncedValue(query.trim(), 300);
-  const searching = debounced.length >= 2;
+  const searching = debounced.replace(/^@/, "").length >= 2;
   const search = useQuery({
     queryKey: queryKeys.livePull.search(classId, debounced),
     queryFn: () => getPullRoster(classId, debounced),
@@ -159,15 +163,15 @@ export function PullStudentsSection({ classId }: { classId: string }) {
     [roster.data]
   );
   const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim().replace(/^@/, "").toLowerCase();
     if (!q) return absent;
-    const local = absent.filter((s) => s.name.toLowerCase().includes(q));
+    const matchesLocally = (s: PullRosterStudent) =>
+      s.name.toLowerCase().includes(q) || !!s.username?.toLowerCase().includes(q);
+    const local = absent.filter(matchesLocally);
     if (!searching || !search.data) return local;
-    const seen = new Set(local.map((s) => s.studentId));
-    const others = search.data.students
-      .filter((s) => !s.inClass && !seen.has(s.studentId))
-      .sort((a, b) => Number(b.inBatch) - Number(a.inBatch) || compareNatural(a.name, b.name));
-    return [...local, ...others];
+    // The server's answer is authoritative (it searches usernames and every
+    // batch); the local filter only fills the gap while it loads.
+    return search.data.students.filter((s) => !s.inClass);
   }, [absent, query, searching, search.data]);
   const onlineIdle = absent.filter((s) => s.online && s.pull?.status !== "PENDING");
 
@@ -205,10 +209,10 @@ export function PullStudentsSection({ classId }: { classId: string }) {
             <div className="flex items-center gap-2 rounded-full bg-app-soft px-3 py-1.5 ring-1 ring-app-border/50 focus-within:ring-primary/40">
               <Search className="size-3.5 shrink-0 text-app-muted" />
               <input
-                aria-label="Search all students"
+                aria-label="Search any student by name or username"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search any student…"
+                placeholder="Search name or username…"
                 className="w-full bg-transparent text-[13px] font-medium text-app-text outline-none placeholder:text-app-muted"
               />
             </div>
@@ -228,10 +232,10 @@ export function PullStudentsSection({ classId }: { classId: string }) {
                 {query.trim()
                   ? searching && search.isFetching
                     ? "Searching…"
-                    : query.trim().length < 2
+                    : query.trim().replace(/^@/, "").length < 2
                       ? "Type at least 2 letters to search every batch."
                       : "No students match."
-                  : "Everyone in the batch is here. Search to pull in someone else."}
+                  : "Everyone in the batch is here. Search a name or username to pull in any student."}
               </p>
             ) : null}
           </div>

@@ -37,6 +37,7 @@ export type LiveClassPullStatus = "PENDING" | "JOINED" | "CANCELLED";
 export interface PullRosterStudent {
   studentId: string;
   name: string;
+  username: string | null;
   avatarUrl: string | null;
   /** Has the app open right now (any page). */
   online: boolean;
