@@ -133,10 +133,59 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     data: { assignmentBatchId: setDeployment.id, studentId: student.id }
   });
 
+  // Game Library: a simul game the student played, and a class-board game of
+  // the class they attended.
+  const game = await prisma.chessGame.create({
+    data: {
+      batchId: batch.id,
+      blackName: `Student ${label}`,
+      blackPlayerId: student.id,
+      classId: liveClass.id,
+      pgn: '[Result "*"]\n\n1. e4 *\n',
+      result: "*",
+      source: "SIMUL",
+      sourceKey: `simul:int-${label}`,
+      startFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      status: "COMPLETED",
+      title: `Simul ${label}`,
+      whiteName: `Coach ${label}`,
+      whitePlayerId: coach.id
+    }
+  });
+  const boardGame = await prisma.chessGame.create({
+    data: {
+      batchId: batch.id,
+      blackName: "Black",
+      classId: klass.id,
+      pgn: '[Result "*"]\n\n1. d4 *\n',
+      source: "LIVE_BOARD",
+      sourceKey: `board:int-${label}:g`,
+      startFen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      status: "COMPLETED",
+      title: `Board ${label}`,
+      whiteName: "White"
+    }
+  });
+
+  // Chat: the batch thread and a coach <-> student direct thread.
+  const batchChat = await prisma.conversation.create({ data: { batchId: batch.id, type: "BATCH" } });
+  await prisma.chatMessage.create({ data: { body: `hello ${label}`, conversationId: batchChat.id, senderId: coach.id } });
+  const directChat = await prisma.conversation.create({
+    data: {
+      directKey: coach.id < student.id ? `${coach.id}:${student.id}` : `${student.id}:${coach.id}`,
+      members: { create: [{ userId: coach.id }, { userId: student.id }] },
+      type: "DIRECT"
+    }
+  });
+
   return {
     assignment,
     attempt,
     batch,
+    batchChat,
+    boardGame,
+    directChat,
+    game,
     class: klass,
     coach,
     deployment,

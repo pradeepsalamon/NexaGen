@@ -5,6 +5,7 @@ import {
   type LiveBoardStateResponse,
 } from "@nexa-chess/types";
 import { PrismaService } from "../prisma/prisma.service";
+import { GameRecorderService } from "../game-library/game-recorder.service";
 import { LiveClassAccessService } from "./live-class-access.service";
 
 /** A long annotated game is well under this; anything bigger is not a board. */
@@ -15,7 +16,8 @@ const MAX_BOARD_STATE_BYTES = 128 * 1024;
 export class LiveClassBoardStateService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly access: LiveClassAccessService
+    private readonly access: LiveClassAccessService,
+    private readonly gameRecorder: GameRecorderService
   ) {}
 
   async getBoardState(accessToken: string | undefined, classId: string): Promise<LiveBoardStateResponse> {
@@ -43,6 +45,8 @@ export class LiveClassBoardStateService {
       where: { id: liveSession.id },
       data: { boardState: state, boardStateUpdatedAt: updatedAt },
     });
+    // Every game played on the shared board lands in the Game Library.
+    this.gameRecorder.recordBoardStateInBackground(liveSession.id, classId, state);
     return { state, updatedAt: updatedAt.toISOString() };
   }
 }

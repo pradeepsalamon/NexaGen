@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { GameRecorderService } from "../game-library/game-recorder.service";
 import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { UserRole, UserStatus } from "@prisma/client";
@@ -119,7 +120,8 @@ describe("LiveClassMatchService", () => {
         LiveClassMatchService,
         { provide: PrismaService, useValue: prisma },
         { provide: LiveClassService, useValue: liveClass },
-        { provide: LiveKitService, useValue: livekit }
+        { provide: LiveKitService, useValue: livekit },
+        { provide: GameRecorderService, useValue: { recordMatchGameInBackground: jest.fn(), recordMatchRoundInBackground: jest.fn(), recordSimulGameInBackground: jest.fn(), recordSimulInBackground: jest.fn() } }
       ]
     }).compile();
     service = moduleRef.get(LiveClassMatchService);

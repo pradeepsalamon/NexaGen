@@ -9,6 +9,7 @@ import { LiveClassScreenShareService } from "./live-class-screen-share.service";
 import { LiveClassSpectateService } from "./live-class-spectate.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { LiveClassService } from "./live-class.service";
+import { GameRecorderService } from "../game-library/game-recorder.service";
 
 /** Every live-class service, real, for specs that stub only the external dependencies. */
 export const LIVE_CLASS_SERVICES = [
@@ -23,4 +24,5 @@ export const LIVE_CLASS_SERVICES = [
   LiveClassScreenShareService,
   LiveClassSpectateService,
   LiveClassWaitingRoomService,
+  GameRecorderService,
 ];

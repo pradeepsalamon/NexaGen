@@ -66,6 +66,8 @@ export type DispatchRequest =
       scorePercent: number;
       outcome: string;
     }
+  /** One coach notice per deployment whose due date passed with unfinished students. */
+  | { event: "ASSIGNMENT_OVERDUE_COACH"; assignmentBatchId: string }
   | { event: "ANNOUNCEMENT"; announcementId: string }
   | { event: "ACCOUNT_WELCOME" | "ACCOUNT_APPROVED"; userId: string }
   /**
@@ -307,6 +309,8 @@ export class MessagingDispatchService {
         return this.dueSoonRecipients(request.studentAssignmentIds);
       case "ASSIGNMENT_GRADED":
         return this.gradedRecipients(request);
+      case "ASSIGNMENT_OVERDUE_COACH":
+        return this.overdueCoachRecipients(request.assignmentBatchId);
       case "ANNOUNCEMENT":
         return this.announcementRecipients(request.announcementId);
       case "ACCOUNT_WELCOME":
@@ -495,6 +499,60 @@ export class MessagingDispatchService {
         dedupeKey: `ASSIGNMENT_GRADED:${request.studentAssignmentId}`
       })
     ];
+  }
+
+  /**
+   * The coach who deployed the assignment — or, when that account is gone or no
+   * longer coaches the batch, the batch's current coaches. Nothing is sent once
+   * every student has finished. The due date is in the key, so moving the
+   * deadline later and missing it again notifies again; a re-run never does.
+   */
+  private async overdueCoachRecipients(assignmentBatchId: string): Promise<Recipient[]> {
+    const deployment = await this.prisma.assignmentBatch.findUnique({
+      where: { id: assignmentBatchId },
+      include: {
+        assignment: { select: { title: true } },
+        assignedBy: true,
+        batch: {
+          select: {
+            coaches: { include: { coach: true }, where: { isDeleted: false } },
+            name: true
+          }
+        },
+        students: { select: { status: true } }
+      }
+    });
+    if (!deployment) return [];
+
+    const outstanding = deployment.students.filter((s) => s.status !== "COMPLETED").length;
+    if (outstanding === 0) return [];
+
+    const active = (u: { status: UserStatus; isDeleted: boolean }) =>
+      u.status === UserStatus.ACTIVE && !u.isDeleted;
+    const batchCoaches = deployment.batch.coaches.map((c) => c.coach).filter(active);
+    const deployer = deployment.assignedBy;
+    const coaches =
+      deployer && active(deployer) && batchCoaches.some((c) => c.id === deployer.id)
+        ? [deployer]
+        : batchCoaches;
+
+    return coaches.map((coach) =>
+      this.toRecipient(coach, {
+        variables: {
+          ...this.assignmentVariables(
+            deployment.assignment.title,
+            deployment.batch.name,
+            deployment.dueDate,
+            coach.timezone
+          ),
+          "assignment.overdueCount": String(outstanding),
+          "assignment.studentCount": String(deployment.students.length)
+        },
+        linkPath: "/coach/assignments",
+        linkVariable: "links.assignment",
+        dedupeKey: `ASSIGNMENT_OVERDUE_COACH:${assignmentBatchId}:${deployment.dueDate.toISOString()}:${coach.id}`
+      })
+    );
   }
 
   /**

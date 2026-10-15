@@ -20,6 +20,7 @@ import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { AssignmentSubmissionsDialog } from "./AssignmentSubmissionsDialog";
 import { DeployAssignmentDialog } from "./DeployAssignmentDialog";
 import { ActivityBadge, DifficultyBadge, DueBadge } from "./assignmentBadges";
+import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
 import { Badge } from "@/components/ui/Badge";
 
 const iconBtn =
@@ -92,7 +93,12 @@ export function CoachAssignmentsClient() {
         <TabsList className="justify-self-end">
           <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
           <TabsTrigger value="assigned">Assigned ({deployments.length})</TabsTrigger>
+          <TabsTrigger value="due">Due dates</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="due">
+          <AssignmentOverviewPanel />
+        </TabsContent>
 
         <TabsContent value="library">
           {libraryLoading ? (
@@ -210,7 +216,12 @@ export function CoachAssignmentsClient() {
                       {d.puzzleCount !== null && (
                         <span className="text-app-muted">{d.puzzleCount} puzzles</span>
                       )}
-                      <DueBadge dueDate={d.dueDate} formatted={formatFullDate(d.dueDate, timeZone)} />
+                      <DueBadge
+                        completed={d.stats.total > 0 && d.stats.completed === d.stats.total}
+                        dueDate={d.dueDate}
+                        formatted={formatFullDate(d.dueDate, timeZone)}
+                        timeZone={timeZone}
+                      />
                       <span className="text-app-muted">
                         {d.stats.completed}/{d.stats.total} completed
                       </span>

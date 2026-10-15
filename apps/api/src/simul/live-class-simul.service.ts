@@ -29,6 +29,7 @@ import {
   UserRole
 } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
+import { GameRecorderService } from "../game-library/game-recorder.service";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -63,7 +64,8 @@ export class LiveClassSimulService {
     private readonly prisma: PrismaService,
     private readonly livekit: LiveKitService,
     private readonly liveClass: LiveClassService,
-    private readonly stockfish: StockfishService
+    private readonly stockfish: StockfishService,
+    private readonly gameRecorder: GameRecorderService
   ) {}
 
   /** Coach-owner / admin starts a simul against the chosen students (ends any running one). */
@@ -86,9 +88,10 @@ export class LiveClassSimulService {
 
     const colorMode = dto.colorMode ?? "WHITE";
     let created: SimulRow;
+    let replacedSimulId: string | null = null;
     try {
       created = await this.prisma.$transaction(async (tx) => {
-        await this.closeActive(tx, classId);
+        replacedSimulId = await this.closeActive(tx, classId);
         return tx.liveClassSimul.create({
           data: {
             colorMode,
@@ -113,6 +116,7 @@ export class LiveClassSimulService {
       throw error;
     }
 
+    if (replacedSimulId) this.gameRecorder.recordSimulInBackground(replacedSimulId);
     await this.broadcast(liveSession.roomName, { type: "SIMUL_CHANGED", simulId: created.id });
     return { simul: this.toSimul(created) };
   }
@@ -122,6 +126,7 @@ export class LiveClassSimulService {
     const { liveSession } = await this.liveClass.resolveClassManager(accessToken, classId);
     const simulId = await this.prisma.$transaction((tx) => this.closeActive(tx, classId));
     if (!simulId) return { simul: null };
+    this.gameRecorder.recordSimulInBackground(simulId);
 
     await this.broadcast(liveSession.roomName, { type: "SIMUL_ENDED", simulId });
     const row = await this.prisma.liveClassSimul.findUnique({
@@ -362,6 +367,7 @@ export class LiveClassSimulService {
       status: outcome ? SimulGameStatus.FINISHED : game.status
     });
     void this.broadcast(roomName, { type: "SIMUL_GAME", game: after });
+    this.gameRecorder.recordSimulGameInBackground(game.id);
     return { game: after };
   }
 
@@ -371,6 +377,7 @@ export class LiveClassSimulService {
       include: gameInclude
     });
     const game = this.toGame(row);
+    this.gameRecorder.recordSimulGameInBackground(gameId);
     await this.broadcast(roomName, { type: "SIMUL_GAME", game });
     return { game };
   }

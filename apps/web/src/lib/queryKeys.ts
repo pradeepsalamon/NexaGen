@@ -244,4 +244,22 @@ export const queryKeys = {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,
   },
+  games: {
+    all: ["games"] as const,
+    list: (filters: Record<string, unknown>) => ["games", "list", filters] as const,
+    detail: (id: string) => ["games", "detail", id] as const,
+    filterOptions: ["games", "filter-options"] as const,
+  },
+  chat: {
+    all: ["chat"] as const,
+    conversations: ["chat", "conversations"] as const,
+    unread: ["chat", "unread"] as const,
+    contacts: ["chat", "contacts"] as const,
+    conversation: (id: string) => ["chat", "conversation", id] as const,
+    messages: (id: string) => ["chat", "messages", id] as const,
+  },
+  assignmentReminders: {
+    mine: ["assignments", "reminders", "mine"] as const,
+    overview: (filters: Record<string, unknown>) => ["assignments", "overview", filters] as const,
+  },
 } as const;

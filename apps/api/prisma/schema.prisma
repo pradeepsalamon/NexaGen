@@ -397,6 +397,16 @@ model User {
   leadActivities LeadActivity[] @relation("LeadActivityCreatedBy")
   leadNotes      LeadNote[]     @relation("LeadNoteCreatedBy")
 
+  // ── Game Library ──
+  chessGamesAsWhite ChessGame[] @relation("ChessGameWhite")
+  chessGamesAsBlack ChessGame[] @relation("ChessGameBlack")
+  chessGamesCreated ChessGame[] @relation("ChessGameCreatedBy")
+
+  // ── Chat (persistent messaging) ──
+  conversationMemberships ConversationMember[]
+  conversationsCreated    Conversation[]       @relation("ConversationCreatedBy")
+  chatMessagesSent        ChatMessage[]        @relation("ChatMessageSender")
+
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
   isDeleted                Boolean                  @default(false)
@@ -638,6 +648,8 @@ model Batch {
   entitlements        Entitlement[]        @relation("EntitlementBatch")
   classChangeRequests ClassChangeRequest[]
   classroomToolStates LiveClassToolState[]
+  chessGames          ChessGame[]
+  conversation        Conversation?
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -801,6 +813,7 @@ model CoachClass {
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]               @relation("FeedbackResponseClass")
   changeRequests           ClassChangeRequest[]
+  chessGames               ChessGame[]
 
   @@unique([scheduleId, occurrenceDate, scheduleRuleId], map: "classes_schedule_occurrence_unique")
   @@unique([demoScheduleId, startsAt])
@@ -1928,6 +1941,7 @@ enum NotificationType {
   INVOICE_ISSUED
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
+  ASSIGNMENT_OVERDUE_COACH
   CLASS_SCHEDULED
   CLASS_REMINDER
   CLASS_REMINDER_COACH
@@ -2656,6 +2670,7 @@ enum MessagingEvent {
   ASSIGNMENT_ASSIGNED
   ASSIGNMENT_DUE_SOON
   ASSIGNMENT_GRADED
+  ASSIGNMENT_OVERDUE_COACH
   ANNOUNCEMENT
   ACCOUNT_WELCOME
   ACCOUNT_APPROVED
@@ -4512,4 +4527,181 @@ model LichessCatalogueRelease {
   loadCompletedAt DateTime? // null = load in progress or interrupted
 
   @@map("lichess_catalogue_releases")
+}
+
+//
+// GAME LIBRARY
+//
+
+enum ChessGameSource {
+  /// The coach's shared board in a live class (one row per game played on it).
+  LIVE_BOARD
+  /// Coach vs one student in a live-class simul.
+  SIMUL
+  /// Student vs student in a live-class match round.
+  MATCH
+  /// A PGN a coach or admin imported into the library.
+  IMPORT
+}
+
+enum ChessGameStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+/// The Game Library: one row per game, whichever way it was played. Live-class
+/// games are copied in by `GameRecorderService`, keyed by `sourceKey`, so an
+/// autosave or a reconnect updates the same row; `sourceRevision` only ever
+/// grows, so an older save can never overwrite a newer one. `pgn` is the whole
+/// move tree (variations and comments included). `version` guards a coach's
+/// analysis edits (optimistic concurrency). Not soft-deletable, not
+/// Trash-registered — only an imported game can be removed, by its importer or
+/// an admin. Class/batch/player links are SetNull so a game outlives them;
+/// the player names are snapshotted for that reason.
+model ChessGame {
+  id String @id @default(cuid())
+
+  source         ChessGameSource
+  /// "match:<id>", "simul:<id>", "board:<liveSessionId>:<boardGameId>"; null for IMPORT.
+  sourceKey      String?         @unique
+  sourceRevision BigInt          @default(0)
+
+  title String
+
+  classId String?
+  class   CoachClass? @relation(fields: [classId], references: [id], onDelete: SetNull)
+  batchId String?
+  batch   Batch?      @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  whitePlayerId String?
+  whitePlayer   User?   @relation("ChessGameWhite", fields: [whitePlayerId], references: [id], onDelete: SetNull)
+  blackPlayerId String?
+  blackPlayer   User?   @relation("ChessGameBlack", fields: [blackPlayerId], references: [id], onDelete: SetNull)
+  whiteName     String
+  blackName     String
+
+  createdById String?
+  createdBy   User?   @relation("ChessGameCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  status        ChessGameStatus @default(IN_PROGRESS)
+  /// "1-0" | "0-1" | "1/2-1/2" | "*"
+  result        String          @default("*")
+  termination   String?
+  startFen      String
+  pgn           String
+  moveCount     Int             @default(0)
+  hasVariations Boolean         @default(false)
+  version       Int             @default(1)
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([classId])
+  @@index([batchId])
+  @@index([whitePlayerId])
+  @@index([blackPlayerId])
+  @@index([createdById])
+  @@index([startedAt])
+  @@index([source, status])
+  @@map("chess_games")
+}
+
+//
+// CHAT (persistent messaging outside live classes)
+//
+
+enum ConversationType {
+  /// Two people (coach <-> student, or staff <-> anyone). Never two students.
+  DIRECT
+  /// One per batch; who may read it is the batch roster, live.
+  BATCH
+  /// A coach-made group of students from their own batches.
+  GROUP
+}
+
+enum ConversationMemberRole {
+  MEMBER
+  /// Manages the membership of a GROUP (its creator).
+  OWNER
+}
+
+/// A chat thread. BATCH threads are created lazily (unique `batchId`) and get
+/// their audience from BatchStudent / BatchCoach, so there is no second copy of
+/// class membership to drift; DIRECT threads are unique per pair (`directKey`
+/// = the two user ids, sorted). Not soft-deletable, not Trash-registered — a
+/// business record like LiveChatMessage (excluded from the retention sweep).
+model Conversation {
+  id String @id @default(cuid())
+
+  type      ConversationType
+  /// BATCH only.
+  batchId   String?          @unique
+  batch     Batch?           @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  /// DIRECT only: "<smallerUserId>:<largerUserId>".
+  directKey String?          @unique
+  /// GROUP only.
+  name      String?
+
+  createdById String?
+  createdBy   User?   @relation("ConversationCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  lastMessageAt DateTime?
+
+  members  ConversationMember[]
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+/// Read state for everyone in a thread, and the membership itself for DIRECT
+/// and GROUP threads (`leftAt` set = removed; a removed member loses access).
+/// For a BATCH thread the row only tracks reading — the roster decides access.
+/// `joinedAt` is where a GROUP member's history starts: someone added later
+/// does not see what was said before they joined.
+model ConversationMember {
+  id String @id @default(cuid())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  role       ConversationMemberRole @default(MEMBER)
+  joinedAt   DateTime               @default(now())
+  leftAt     DateTime?
+  lastReadAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_members")
+}
+
+model ChatMessage {
+  id String @id @default(cuid())
+
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String?
+  sender         User?        @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  body     String
+  /// Client-generated id; a retried send with the same one returns the first message.
+  clientId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([senderId, clientId])
+  @@index([conversationId, createdAt])
+  @@map("chat_messages")
 }

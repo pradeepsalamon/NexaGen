@@ -5,6 +5,9 @@ import type {
   AssignmentDeploymentListResponse,
   AssignmentEvaluationResult,
   AssignmentLibraryResponse,
+  AssignmentOverviewQuery,
+  AssignmentOverviewResponse,
+  AssignmentRemindersResponse,
   AssignmentResponse,
   AttemptProgressResponse,
   CreateAssignmentRequest,
@@ -157,4 +160,15 @@ export function startAssignmentPuzzleAttempt(
 
 export function getAssignmentLeaderboard(assignmentId: string): Promise<PuzzleSetLeaderboardResponse> {
   return apiFetch(API_ROUTES.assignments.leaderboard(assignmentId));
+}
+
+// ── Due-date reminders ──
+
+export function getMyAssignmentReminders(): Promise<AssignmentRemindersResponse> {
+  return apiFetch(API_ROUTES.assignments.reminders, { silent: true });
+}
+
+export function getAssignmentOverview(query: AssignmentOverviewQuery): Promise<AssignmentOverviewResponse> {
+  const params = Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined && v !== ""));
+  return apiFetch(API_ROUTES.assignments.overview, { params });
 }

@@ -36,6 +36,21 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   recurring weekly slots behind one permanent `/demo/<slug>` link, sessions
   generated two weeks ahead. See CLAUDE.md §3.6k.
 - Trash restore, permanent delete, empty-trash, retention cleanup, and audit logging
+- Analysis boards keep **variations**: a different move adds a branch instead of
+  truncating, coaches promote/delete branches and comment on moves, and PGN
+  export/import keeps every line (`packages/types/src/move-tree.ts`).
+- **Game Library** (`/games`, every role): every class game — shared board,
+  simul, student match — is saved automatically, plus PGN imports; filter by
+  student / batch / source / result / date, open the replay with variations,
+  coaches save analysis, download PGN. See CLAUDE.md §3.6k1.
+- **Messages** (`/messages`, every role): batch group chats, coach ↔ student
+  direct messages, coach-made groups; never student ↔ student. Polled (no
+  websocket); unread count on the sidebar link. See CLAUDE.md §3.6k2.
+- **Assignment reminders**: overdue / due-today / due-soon banner and a
+  once-per-session popup on the student dashboard, a count on the sidebar link,
+  a "Due dates" overview tab for coaches and admins, and an in-app
+  "assignment overdue" notice to the coach (messaging rule
+  `ASSIGNMENT_OVERDUE_COACH`, on by default). See CLAUDE.md §3.6k3.
 - Assignments: admin-authored shared library + coach-authored items, deployed
   to batches with a due date (`assignment` API module, `features/assignments` on
   web, `/coach/assignments`, `/admin/assignments`, `/student/practice`). Each

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerLink } from "@/components/layout/Sidebar";
 import { RatingCard } from "@/components/layout/RatingCard";
 import { studentNavItems, type NavBadge, type NavItem } from "@/components/layout/navItems";
+import { useMyAssignmentReminders } from "@/features/assignments/hooks/useAssignmentsApi";
+import { useChatNavBadge } from "@/features/chat/hooks/useChat";
 import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatRelativeDay } from "@/lib/datetime";
@@ -18,6 +20,7 @@ import { useAuthStore } from "@/stores/authStore";
  */
 function useStudentNavBadges(): Record<string, NavBadge | undefined> {
   const { data } = useStudentDashboard();
+  const { data: reminders } = useMyAssignmentReminders();
   const timeZone = useUserTimeZone();
 
   if (!data) {
@@ -36,6 +39,8 @@ function useStudentNavBadges(): Record<string, NavBadge | undefined> {
 
   const courseCount: number = data.courses?.length ?? 0;
   const pendingWork: number = data.practices?.length ?? 0;
+  const dueCounts = reminders?.counts;
+  const dueCount = dueCounts ? dueCounts.overdue + dueCounts.dueToday + dueCounts.dueSoon : 0;
   const attendance = data.progressMetrics?.find(
     (metric: { label: string }) => metric.label === "Attendance"
   )?.value;
@@ -56,9 +61,13 @@ function useStudentNavBadges(): Record<string, NavBadge | undefined> {
     "/student/schedule": todayCount
       ? { label: `${todayCount} Today`, tone: "secondary" }
       : undefined,
-    "/student/practice": pendingWork
-      ? { tone: "secondary", variant: "dot" }
-      : undefined,
+    // A count once something is overdue / due today / due soon (red while any
+    // is overdue); otherwise the quiet "work waiting" dot.
+    "/student/practice": dueCount
+      ? { label: String(dueCount), tone: dueCounts?.overdue ? "danger" : "secondary" }
+      : pendingWork
+        ? { tone: "secondary", variant: "dot" }
+        : undefined,
     "/student/attendance": attendance
       ? { label: attendance, tone: "accent" }
       : undefined
@@ -102,10 +111,11 @@ export function StudentSidebar() {
   const pathname = usePathname();
   const badges = useStudentNavBadges();
   const { data } = useStudentDashboard();
+  const chatBadge = useChatNavBadge();
 
   const items: NavItem[] = studentNavItems.map((item) => ({
     ...item,
-    badge: badges[item.href]
+    badge: item.href === "/messages" ? chatBadge : badges[item.href]
   }));
 
   return (

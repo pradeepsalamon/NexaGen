@@ -1,3 +1,4 @@
+import { GameLibraryModule } from "../game-library/game-library.module";
 import { Module } from "@nestjs/common";
 import { LiveClassModule } from "../live-class/live-class.module";
 import { PrismaModule } from "../prisma/prisma.module";
@@ -7,7 +8,7 @@ import { LiveClassSimulService } from "./live-class-simul.service";
 
 @Module({
   controllers: [LiveClassSimulController],
-  imports: [LiveClassModule, PrismaModule, StockfishModule],
+  imports: [GameLibraryModule, LiveClassModule, PrismaModule, StockfishModule],
   providers: [LiveClassSimulService]
 })
 export class SimulModule {}

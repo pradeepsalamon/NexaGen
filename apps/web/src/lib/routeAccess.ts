@@ -27,6 +27,9 @@ const ROUTE_RULES: readonly RouteRule[] = [
   // One class page for every role; it renders the view the role may use.
   { prefix: "/classes", roles: null },
   { prefix: "/chess-board", roles: null },
+  // Game Library and chat: every role; the API scopes what each one sees.
+  { prefix: "/games", roles: null },
+  { prefix: "/messages", roles: null },
   { prefix: "/plans", roles: null },
   { prefix: "/profile", roles: null }
 ];

@@ -47,6 +47,10 @@ export * from "./typography";
 export * from "./batch-type";
 export * from "./chess-fen";
 export * from "./class-availability";
+export * from "./move-tree";
+export * from "./game-library";
+export * from "./chat";
+export * from "./assignment-reminders";
 
 // ──────────────────────────────────────────────
 // Pagination (AUDIT H26)

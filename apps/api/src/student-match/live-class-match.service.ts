@@ -44,6 +44,7 @@ import {
   UserStatus
 } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
+import { GameRecorderService } from "../game-library/game-recorder.service";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -87,7 +88,8 @@ export class LiveClassMatchService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly livekit: LiveKitService,
-    private readonly liveClass: LiveClassService
+    private readonly liveClass: LiveClassService,
+    private readonly gameRecorder: GameRecorderService
   ) {}
 
   // ── round lifecycle (coach-owner / admin) ──
@@ -120,9 +122,10 @@ export class LiveClassMatchService {
     const clockIncrementMs = dto.timeControl ? dto.timeControl.incrementSeconds * 1000 : 0;
 
     let created: RoundRow;
+    let replacedRoundId: string | null = null;
     try {
       created = await this.prisma.$transaction(async (tx) => {
-        await this.closeActive(tx, classId);
+        replacedRoundId = await this.closeActive(tx, classId);
         return tx.liveClassMatchRound.create({
           data: {
             clockIncrementMs,
@@ -143,6 +146,7 @@ export class LiveClassMatchService {
       throw error;
     }
 
+    if (replacedRoundId) this.gameRecorder.recordMatchRoundInBackground(replacedRoundId);
     await this.broadcast(liveSession.roomName, { type: "ROUND_CHANGED", roundId: created.id });
     return { round: this.toRound(created, eligible, user) };
   }
@@ -171,6 +175,7 @@ export class LiveClassMatchService {
   async end(accessToken: string | undefined, classId: string): Promise<LiveMatchStateResponse> {
     const { user, liveSession } = await this.liveClass.resolveClassManager(accessToken, classId);
     const roundId = await this.prisma.$transaction((tx) => this.closeActive(tx, classId));
+    if (roundId) this.gameRecorder.recordMatchRoundInBackground(roundId);
     if (roundId) await this.broadcast(liveSession.roomName, { type: "ROUND_ENDED", roundId });
     return this.stateFor(user, classId, liveSession.roomName);
   }
@@ -599,6 +604,7 @@ export class LiveClassMatchService {
   private async publishGame(roomName: string, gameId: string): Promise<LiveMatchGameResponse> {
     const row = await this.prisma.liveClassMatchGame.findUniqueOrThrow({ include: gameInclude, where: { id: gameId } });
     const game = this.toGame(row, row.round);
+    this.gameRecorder.recordMatchGameInBackground(gameId);
     await this.broadcast(roomName, { game, type: "MATCH_GAME" });
     return { game };
   }

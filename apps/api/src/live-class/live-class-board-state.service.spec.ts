@@ -3,6 +3,7 @@ import type { LiveBoardState } from "@nexa-chess/types";
 import { LiveClassBoardStateService } from "./live-class-board-state.service";
 import type { LiveClassAccessService } from "./live-class-access.service";
 import type { PrismaService } from "../prisma/prisma.service";
+import type { GameRecorderService } from "../game-library/game-recorder.service";
 
 const STATE: LiveBoardState = {
   fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1",
@@ -17,15 +18,18 @@ describe("LiveClassBoardStateService", () => {
   let update: jest.Mock;
   let resolveParticipant: jest.Mock;
   let resolveClassManager: jest.Mock;
+  let recordBoardStateInBackground: jest.Mock;
   let service: LiveClassBoardStateService;
 
   beforeEach(() => {
     update = jest.fn().mockResolvedValue({});
     resolveParticipant = jest.fn();
     resolveClassManager = jest.fn().mockResolvedValue({ liveSession: { id: "session-1" } });
+    recordBoardStateInBackground = jest.fn();
     service = new LiveClassBoardStateService(
       { liveSession: { update } } as unknown as PrismaService,
-      { resolveParticipant, resolveClassManager } as unknown as LiveClassAccessService
+      { resolveParticipant, resolveClassManager } as unknown as LiveClassAccessService,
+      { recordBoardStateInBackground } as unknown as GameRecorderService
     );
   });
 
@@ -55,6 +59,8 @@ describe("LiveClassBoardStateService", () => {
       where: { id: "session-1" },
       data: { boardState: STATE, boardStateUpdatedAt: expect.any(Date) },
     });
+    // ...and hands the board to the Game Library recorder.
+    expect(recordBoardStateInBackground).toHaveBeenCalledWith("session-1", "class-1", STATE);
   });
 
   it("does not write when the caller may not manage the class", async () => {

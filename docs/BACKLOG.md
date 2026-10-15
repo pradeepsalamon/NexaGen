@@ -61,6 +61,24 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 None currently tracked here.
 
+## Resolved (2026-10-15) — variations, Game Library, chat, assignment reminders
+
+- **Moves overwrote the rest of the line.** Playing a different move on any
+  analysis/class board truncated the game. The board store now holds a move
+  tree (`move-tree.ts`): new moves branch, coaches promote/delete/comment, and
+  PGN round-trips variations. Live sync carries the tree; old clients still get
+  the current line.
+- **Class games were lost after the class.** New Game Library (`ChessGame`,
+  `/games`) records shared-board, simul and match games automatically and takes
+  PGN imports.
+- **No messaging outside a live class.** New persistent chat (`/messages`):
+  batch threads, coach ↔ student DMs, coach groups — polled, no websocket.
+  A websocket push is the natural next step if the 4s thread poll proves too
+  slow or too costly.
+- **Students had no due-date nudges beyond one in-app reminder; coaches never
+  heard about overdue work.** Added the reminders banner/popup/count, the
+  coach/admin "Due dates" overview and the `ASSIGNMENT_OVERDUE_COACH` rule.
+
 ## Resolved (2026-10-11) — class scheduling & attendance consistency
 
 - **Future classes marked COMPLETED.** `startClass` had no time gate, so a

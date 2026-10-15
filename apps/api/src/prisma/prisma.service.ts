@@ -232,6 +232,22 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.lichessCatalogueRelease;
   }
 
+  get chessGame() {
+    return this.client.chessGame;
+  }
+
+  get conversation() {
+    return this.client.conversation;
+  }
+
+  get conversationMember() {
+    return this.client.conversationMember;
+  }
+
+  get chatMessage() {
+    return this.client.chatMessage;
+  }
+
   get liveClassPuzzleAssignment() {
     return this.client.liveClassPuzzleAssignment;
   }

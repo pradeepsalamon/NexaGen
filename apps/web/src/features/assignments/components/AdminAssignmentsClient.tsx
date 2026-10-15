@@ -5,6 +5,7 @@ import type { AssignmentLibraryItem } from "@nexa-chess/types";
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { queryKeys } from "@/lib/queryKeys";
@@ -14,6 +15,7 @@ import { deleteAssignment } from "../api/assignmentApi";
 import { AssignmentFormDialog } from "./AssignmentFormDialog";
 import { AssignmentPreviewDialog } from "./AssignmentPreviewDialog";
 import { ActivityBadge, DifficultyBadge } from "./assignmentBadges";
+import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
 
 const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
@@ -61,81 +63,94 @@ export function AdminAssignmentsClient() {
           </Button>
         </div>
 
-        {isLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Card key={i} className="h-40 p-4">
-                <Skeleton className="h-full w-full" />
+        <Tabs defaultValue="library">
+          <TabsList>
+            <TabsTrigger value="library">Library ({library.length})</TabsTrigger>
+            <TabsTrigger value="due">Due dates</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="library">
+            {isLoading ? (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i} className="h-40 p-4">
+                    <Skeleton className="h-full w-full" />
+                  </Card>
+                ))}
+              </div>
+            ) : library.length === 0 ? (
+              <Card className="p-6 sm:p-12">
+                <EmptyState
+                  icon={Plus}
+                  title="No shared assignments yet"
+                  description="Create a PGN assignment for coaches to hand out."
+                  action={{ label: "New assignment", onClick: openCreate }}
+                />
               </Card>
-            ))}
-          </div>
-        ) : library.length === 0 ? (
-          <Card className="p-6 sm:p-12">
-            <EmptyState
-              icon={Plus}
-              title="No shared assignments yet"
-              description="Create a PGN assignment for coaches to hand out."
-              action={{ label: "New assignment", onClick: openCreate }}
-            />
-          </Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {library.map((item) => (
-              <Card key={item.id} className="flex flex-col gap-3 p-4">
-                <button
-                  type="button"
-                  onClick={() => setPreviewing(item)}
-                  className="text-left font-semibold text-app-text hover:text-primary-ink"
-                >
-                  {item.title}
-                </button>
-                <div className="flex flex-wrap items-center gap-2">
-                  <ActivityBadge activityType={item.activityType} />
-                  <DifficultyBadge difficulty={item.difficulty} />
-                  <span className="text-xs text-app-muted">
-                    {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <div className="mt-auto flex items-center gap-2 pt-1">
-                  <Button
-                    aria-label="Preview"
-                    variant="outline"
-                    size="icon"
-                    className={iconBtn}
-                    onClick={() => setPreviewing(item)}
-                  >
-                    <Eye className="size-4" strokeWidth={2.5} />
-                  </Button>
-                  {item.canManage && (
-                    <>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {library.map((item) => (
+                  <Card key={item.id} className="flex flex-col gap-3 p-4">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewing(item)}
+                      className="text-left font-semibold text-app-text hover:text-primary-ink"
+                    >
+                      {item.title}
+                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <ActivityBadge activityType={item.activityType} />
+                      <DifficultyBadge difficulty={item.difficulty} />
+                      <span className="text-xs text-app-muted">
+                        {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
+                      </span>
+                    </div>
+                    <div className="mt-auto flex items-center gap-2 pt-1">
                       <Button
-                        aria-label="Edit assignment"
+                        aria-label="Preview"
                         variant="outline"
                         size="icon"
                         className={iconBtn}
-                        onClick={() => {
-                          setEditing(item);
-                          setFormOpen(true);
-                        }}
+                        onClick={() => setPreviewing(item)}
                       >
-                        <Pencil className="size-4" strokeWidth={2.5} />
+                        <Eye className="size-4" strokeWidth={2.5} />
                       </Button>
-                      <Button
-                        aria-label="Delete assignment"
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
-                        onClick={() => runDelete(item)}
-                      >
-                        <Trash2 className="size-4" strokeWidth={2.5} />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
+                      {item.canManage && (
+                        <>
+                          <Button
+                            aria-label="Edit assignment"
+                            variant="outline"
+                            size="icon"
+                            className={iconBtn}
+                            onClick={() => {
+                              setEditing(item);
+                              setFormOpen(true);
+                            }}
+                          >
+                            <Pencil className="size-4" strokeWidth={2.5} />
+                          </Button>
+                          <Button
+                            aria-label="Delete assignment"
+                            variant="ghost"
+                            size="icon"
+                            className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
+                            onClick={() => runDelete(item)}
+                          >
+                            <Trash2 className="size-4" strokeWidth={2.5} />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="due">
+            <AssignmentOverviewPanel />
+          </TabsContent>
+        </Tabs>
 
         <AssignmentFormDialog
           open={formOpen}

@@ -267,7 +267,31 @@ export const API_ROUTES = {
     // submit then go through the ordinary `puzzles.attempt*` routes.
     puzzleAttempts: (id: string = ":id", puzzleId: string = ":puzzleId") =>
       `/assignments/mine/${id}/puzzles/${puzzleId}/attempts`,
-    leaderboard: (id: string = ":id") => `/assignments/mine/${id}/leaderboard`
+    leaderboard: (id: string = ":id") => `/assignments/mine/${id}/leaderboard`,
+    // Due-date reminders (student: own outstanding work; coach/admin: overview)
+    reminders: "/assignments/mine-reminders",
+    overview: "/assignments/overview"
+  },
+  // Game Library: every live-class game (shared board, simul, match) + imports.
+  games: {
+    list: "/games",
+    filterOptions: "/games/filter-options",
+    import: "/games/import",
+    get: (id: string = ":id") => `/games/${id}`,
+    saveAnalysis: (id: string = ":id") => `/games/${id}/analysis`,
+    delete: (id: string = ":id") => `/games/${id}`
+  },
+  // Persistent chat outside live classes (batch groups, coach <-> student DMs).
+  chat: {
+    conversations: "/chat/conversations",
+    unread: "/chat/unread",
+    contacts: "/chat/contacts",
+    startDirect: "/chat/conversations/direct",
+    createGroup: "/chat/conversations/groups",
+    conversation: (id: string = ":id") => `/chat/conversations/${id}`,
+    messages: (id: string = ":id") => `/chat/conversations/${id}/messages`,
+    markRead: (id: string = ":id") => `/chat/conversations/${id}/read`,
+    members: (id: string = ":id") => `/chat/conversations/${id}/members`
   },
   puzzles: {
     // ── Topics (admin authors; staff + coach read) ──

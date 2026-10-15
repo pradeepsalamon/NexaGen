@@ -46,6 +46,14 @@ export interface MovePayload {
    * stepping through move history stays in sync (AUDIT H21).
    */
   historyIndex?: number;
+  /**
+   * The whole move tree (PGN with variations/comments) when it holds more than
+   * `pgn` does. Clients predating variations ignore it and follow `pgn`, which
+   * is always the line being viewed.
+   */
+  treePgn?: string;
+  /** Child index per depth of the line `historyIndex` refers to (with `treePgn`). */
+  treeLinePath?: number[];
   orientation?: BoardColor;
   moveType?: MoveSoundType;
   /** Present only on FORCE_SYNC (full board snapshot). */

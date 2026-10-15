@@ -16,6 +16,7 @@ function rule(event: MessagingEvent, overrides: Record<string, unknown> = {}) {
 describe("MessagingScheduler", () => {
   let scheduler: MessagingScheduler;
   let prisma: {
+    assignmentBatch: { findMany: jest.Mock };
     coachClass: { findMany: jest.Mock };
     studentAssignment: { findMany: jest.Mock };
   };
@@ -25,6 +26,7 @@ describe("MessagingScheduler", () => {
 
   const setup = async (byEvent: Record<string, ReturnType<typeof rule>>) => {
     prisma = {
+      assignmentBatch: { findMany: jest.fn().mockResolvedValue([]) },
       coachClass: { findMany: jest.fn().mockResolvedValue([{ id: "class_1" }]) },
       studentAssignment: { findMany: jest.fn().mockResolvedValue([]) }
     };
@@ -123,6 +125,34 @@ describe("MessagingScheduler", () => {
 
     await scheduler.assignmentDueReminders();
 
+    expect(dispatch.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("tells the coach once per deployment that went overdue with work outstanding", async () => {
+    await setup({ ASSIGNMENT_DUE_SOON: rule("ASSIGNMENT_DUE_SOON", { enabled: false }) });
+    prisma.assignmentBatch.findMany.mockResolvedValue([{ id: "dep_1" }, { id: "dep_2" }]);
+    const before = Date.now();
+
+    await scheduler.assignmentDueReminders();
+
+    expect(dispatch.dispatch.mock.calls.map(([arg]) => arg)).toEqual([
+      { assignmentBatchId: "dep_1", event: "ASSIGNMENT_OVERDUE_COACH" },
+      { assignmentBatchId: "dep_2", event: "ASSIGNMENT_OVERDUE_COACH" }
+    ]);
+    // Only due dates that already passed, within the bounded lookback.
+    const [{ where }] = prisma.assignmentBatch.findMany.mock.calls[0];
+    expect(where.dueDate.lte.getTime()).toBeGreaterThanOrEqual(before);
+    expect(before - where.dueDate.gt.getTime()).toBeGreaterThanOrEqual(48 * 60 * MINUTE - 50);
+    expect(where.students).toEqual({ some: { status: { in: ["PENDING", "IN_PROGRESS"] } } });
+  });
+
+  it("skips the overdue sweep when its rule is off", async () => {
+    await setup({ ASSIGNMENT_OVERDUE_COACH: rule("ASSIGNMENT_OVERDUE_COACH", { enabled: false }) });
+    prisma.assignmentBatch.findMany.mockResolvedValue([{ id: "dep_1" }]);
+
+    await scheduler.assignmentDueReminders();
+
+    expect(prisma.assignmentBatch.findMany).not.toHaveBeenCalled();
     expect(dispatch.dispatch).not.toHaveBeenCalled();
   });
 });

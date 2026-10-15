@@ -35,6 +35,7 @@ import { AttendanceService } from "../attendance/attendance.service";
 import { LiveClassSettingsService } from "./live-class-settings.service";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { LiveClassAccessService } from "./live-class-access.service";
+import { GameRecorderService } from "../game-library/game-recorder.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { isCoachParticipant, withScreenShareSources } from "./live-class.util";
 
@@ -53,7 +54,8 @@ export class LiveClassService {
     private readonly settingsService: LiveClassSettingsService,
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly access: LiveClassAccessService,
-    private readonly waitingRoom: LiveClassWaitingRoomService
+    private readonly waitingRoom: LiveClassWaitingRoomService,
+    private readonly gameRecorder: GameRecorderService
   ) {}
 
   /** Sibling modules (puzzle, simul, match, move poll) reach the access checks through here. */
@@ -517,6 +519,13 @@ export class LiveClassService {
       where: { id: classId },
       data: { status: ClassStatus.COMPLETED }
     });
+
+    // The class board's games are over with the class (Game Library).
+    try {
+      await this.gameRecorder.completeClassBoardGames(classId, endedAt);
+    } catch (error) {
+      this.logger.warn(`Failed to close Game Library board games for class ${classId}`, error);
+    }
 
     // Finalize attendance calculations for all students
     try {

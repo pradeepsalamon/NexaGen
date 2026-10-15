@@ -85,7 +85,12 @@ function Section({
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     {a.activityType === "PUZZLE_SET" && <ActivityBadge activityType={a.activityType} />}
                     <DifficultyBadge difficulty={a.difficulty} />
-                    <DueBadge dueDate={a.dueDate} formatted={formatFullDate(a.dueDate, timeZone)} />
+                    <DueBadge
+                      completed={a.status === "COMPLETED"}
+                      dueDate={a.dueDate}
+                      formatted={formatFullDate(a.dueDate, timeZone)}
+                      timeZone={timeZone}
+                    />
                     <StatusBadge status={a.status} />
                     {a.coachName && <span className="text-app-muted">by {a.coachName}</span>}
                   </div>

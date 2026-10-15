@@ -13,6 +13,7 @@ export const messagingEventSchema = z.enum([
   "ASSIGNMENT_ASSIGNED",
   "ASSIGNMENT_DUE_SOON",
   "ASSIGNMENT_GRADED",
+  "ASSIGNMENT_OVERDUE_COACH",
   "ANNOUNCEMENT",
   "ACCOUNT_WELCOME",
   "ACCOUNT_APPROVED",
@@ -230,6 +231,15 @@ export const MESSAGING_EVENT_DEFINITIONS: Record<
     audiences: ["COACHES"],
     supportsLeadTime: false
   },
+  ASSIGNMENT_OVERDUE_COACH: {
+    event: "ASSIGNMENT_OVERDUE_COACH",
+    label: "Assignment overdue (coach)",
+    description:
+      "Sent once to the coach who deployed an assignment when its due date passes with students still unfinished.",
+    variables: [...ASSIGNMENT_VARIABLES, "assignment.overdueCount", "assignment.studentCount"],
+    audiences: ["COACHES"],
+    supportsLeadTime: false
+  },
   ANNOUNCEMENT: {
     event: "ANNOUNCEMENT",
     label: "Announcement",
@@ -387,6 +397,8 @@ export function sampleVariablesFor(event: MessagingEvent): MessageVariables {
     "student.fullName": "Asha Menon",
     "result.score": "82%",
     "result.outcome": "Passed",
+    "assignment.overdueCount": "3",
+    "assignment.studentCount": "12",
     "announcement.title": "Holiday break",
     "announcement.body": "No classes from 20-24 September.",
     "links.login": "https://nexa.test/login",
@@ -547,6 +559,17 @@ export const DEFAULT_MESSAGING_RULES: Record<
     leadTimeMinutes: null,
     title: "Assignment submitted",
     body: "{{student.fullName}} finished \"{{assignment.title}}\" — {{result.outcome}}, {{result.score}}."
+  },
+  // Coach-facing, in-app only like ASSIGNMENT_GRADED: the coach should hear
+  // about unfinished homework without an admin having to opt in first.
+  ASSIGNMENT_OVERDUE_COACH: {
+    enabled: true,
+    whatsappEnabled: false,
+    inAppEnabled: true,
+    audience: "COACHES",
+    leadTimeMinutes: null,
+    title: "Assignment overdue",
+    body: "\"{{assignment.title}}\" for {{batch.name}} was due {{assignment.dueDateTime}}. {{assignment.overdueCount}} of {{assignment.studentCount}} students haven't finished it."
   },
   ANNOUNCEMENT: {
     enabled: false,

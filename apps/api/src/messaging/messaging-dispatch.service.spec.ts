@@ -265,6 +265,82 @@ describe("MessagingDispatchService", () => {
     });
   });
 
+  describe("ASSIGNMENT_OVERDUE_COACH", () => {
+    const coach = (id: string, overrides: Record<string, unknown> = {}) => ({
+      id,
+      firstName: id,
+      lastName: null,
+      phoneNumber: null,
+      role: "COACH",
+      status: "ACTIVE",
+      isDeleted: false,
+      timezone: "Asia/Kolkata",
+      ...overrides
+    });
+    const deployment = (overrides: Record<string, unknown> = {}) => ({
+      id: "dep_1",
+      dueDate: new Date("2026-10-14T18:29:00.000Z"),
+      assignment: { title: "Knight forks" },
+      assignedBy: coach("coach_a"),
+      batch: {
+        name: "Intermediate B",
+        coaches: [{ coach: coach("coach_a") }, { coach: coach("coach_b") }]
+      },
+      students: [{ status: "COMPLETED" }, { status: "PENDING" }, { status: "IN_PROGRESS" }],
+      ...overrides
+    });
+    const overdueRule = makeRule({
+      audience: "COACHES",
+      body: "{{assignment.overdueCount}} of {{assignment.studentCount}} unfinished",
+      event: "ASSIGNMENT_OVERDUE_COACH",
+      inAppEnabled: true,
+      whatsappEnabled: false
+    });
+    const withDeployment = async (row: ReturnType<typeof deployment> | null) => {
+      await setup(overdueRule);
+      (prisma as unknown as { assignmentBatch: { findUnique: jest.Mock } }).assignmentBatch = {
+        findUnique: jest.fn().mockResolvedValue(row)
+      };
+    };
+
+    it("tells only the coach who deployed it, with the unfinished count", async () => {
+      await withDeployment(deployment());
+
+      await service.dispatch({ event: "ASSIGNMENT_OVERDUE_COACH", assignmentBatchId: "dep_1" });
+
+      const rows = queuedRows(prisma.messageDelivery.create);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({
+        body: "2 of 3 unfinished",
+        dedupeKey: "ASSIGNMENT_OVERDUE_COACH:dep_1:2026-10-14T18:29:00.000Z:coach_a",
+        recipientId: "coach_a"
+      });
+    });
+
+    it("falls back to the batch's coaches when the deployer no longer coaches it", async () => {
+      await withDeployment(deployment({ assignedBy: coach("coach_gone") }));
+
+      await service.dispatch({ event: "ASSIGNMENT_OVERDUE_COACH", assignmentBatchId: "dep_1" });
+
+      expect(queuedRows(prisma.messageDelivery.create).map((r) => r.recipientId)).toEqual([
+        "coach_a",
+        "coach_b"
+      ]);
+    });
+
+    it("sends nothing once every student has finished", async () => {
+      await withDeployment(deployment({ students: [{ status: "COMPLETED" }] }));
+
+      const summary = await service.dispatch({
+        event: "ASSIGNMENT_OVERDUE_COACH",
+        assignmentBatchId: "dep_1"
+      });
+
+      expect(summary.recipients).toBe(0);
+      expect(prisma.messageDelivery.create).not.toHaveBeenCalled();
+    });
+  });
+
   it("never lets a dispatch failure reach the calling feature", async () => {
     await setup();
     getRule.mockRejectedValue(new Error("database is down"));
@@ -300,6 +376,11 @@ describe("messaging templates", () => {
       whatsappEnabled: false
     });
     expect(DEFAULT_MESSAGING_RULES.ASSIGNMENT_GRADED.enabled).toBe(true);
+    expect(DEFAULT_MESSAGING_RULES.ASSIGNMENT_OVERDUE_COACH).toMatchObject({
+      enabled: true,
+      inAppEnabled: true,
+      whatsappEnabled: false
+    });
     expect(DEFAULT_MESSAGING_RULES.CLASS_SCHEDULED.enabled).toBe(false);
     expect(DEFAULT_MESSAGING_RULES.ANNOUNCEMENT.enabled).toBe(false);
   });

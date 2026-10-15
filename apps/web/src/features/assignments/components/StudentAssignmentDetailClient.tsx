@@ -67,7 +67,12 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <ActivityBadge activityType={assignment.activityType} />
           <DifficultyBadge difficulty={assignment.difficulty} />
-          <DueBadge dueDate={assignment.dueDate} formatted={formatFullDate(assignment.dueDate, timeZone)} />
+          <DueBadge
+            completed={assignment.status === "COMPLETED"}
+            dueDate={assignment.dueDate}
+            formatted={formatFullDate(assignment.dueDate, timeZone)}
+            timeZone={timeZone}
+          />
           <StatusBadge status={assignment.status} />
           {assignment.coachName && <span className="text-app-muted">by {assignment.coachName}</span>}
         </div>

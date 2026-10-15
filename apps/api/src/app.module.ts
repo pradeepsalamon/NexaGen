@@ -47,6 +47,8 @@ import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
 import { HealthModule } from "./health/health.module";
 import { RetentionModule } from "./retention/retention.module";
+import { GameLibraryModule } from "./game-library/game-library.module";
+import { ChatModule } from "./chat/chat.module";
 
 @Module({
   imports: [
@@ -84,6 +86,8 @@ import { RetentionModule } from "./retention/retention.module";
     PuzzleModule,
     SimulModule,
     StudentMatchModule,
+    GameLibraryModule,
+    ChatModule,
     MovePollModule,
     ClassroomToolsModule,
     CourseModule,

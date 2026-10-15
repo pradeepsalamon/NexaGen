@@ -28,6 +28,17 @@ export const liveBoardStateSchema = z.object({
   squares: z.record(z.string().max(8), z.string().max(200)),
   activeTab: z.string().max(32).optional(),
   clock: liveBoardClockSchema.optional(),
+  /**
+   * The whole move tree as PGN with variations and comments. Absent when the
+   * board has a single line — `pgn` already says everything then.
+   */
+  treePgn: z.string().max(100_000).optional(),
+  /** Child index per depth of the line being viewed; `historyIndex` is the cursor on it. */
+  treeLinePath: z.array(z.number().int().min(0).max(255)).max(2000).optional(),
+  /** Changes whenever the board starts a new game (reset / load / set-up). */
+  gameId: z.string().max(64).optional(),
+  /** Client clock (epoch ms) when this snapshot was taken; newer always wins. */
+  savedAt: z.number().int().min(0).optional(),
 });
 
 export type LiveBoardState = z.infer<typeof liveBoardStateSchema>;

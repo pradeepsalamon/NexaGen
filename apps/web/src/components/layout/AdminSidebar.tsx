@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerAccordion, NavDrawerLink } from "@/components/layout/Sidebar";
 import { getAdminNavGroups } from "@/components/layout/navItems";
+import { useChatNavBadge } from "@/features/chat/hooks/useChat";
 import { useLiveClassesMonitor } from "@/features/live-monitor/hooks/useLiveMonitor";
 import { useAuthStore } from "@/stores/authStore";
 
@@ -17,6 +18,7 @@ export function AdminSidebar() {
     refetchIntervalMs: 60_000
   });
   const liveCount = live?.classes.length ?? 0;
+  const chatBadge = useChatNavBadge(role === "ADMIN" || role === "SUPER_ADMIN");
   const groups = useMemo(
     () =>
       getAdminNavGroups(role).map((group) => ({
@@ -24,10 +26,12 @@ export function AdminSidebar() {
         items: group.items.map((item) =>
           item.href === "/admin/live-classes" && liveCount > 0
             ? { ...item, badge: { label: String(liveCount), pulse: true, tone: "danger" as const } }
-            : item
+            : item.href === "/messages" && chatBadge
+              ? { ...item, badge: chatBadge }
+              : item
         )
       })),
-    [role, liveCount]
+    [role, liveCount, chatBadge]
   );
 
   const isItemActive = (href: string) =>

@@ -9,6 +9,7 @@ import { UploadModule } from "../upload/upload.module";
 import { AssignmentAttemptService } from "./assignment-attempt.service";
 import { AssignmentEvaluationService } from "./assignment-evaluation.service";
 import { AssignmentPuzzleSetService } from "./assignment-puzzle-set.service";
+import { AssignmentReminderService } from "./assignment-reminder.service";
 import { AssignmentController } from "./assignment.controller";
 import { AssignmentService } from "./assignment.service";
 import { MessagingModule } from "../messaging/messaging.module";
@@ -29,7 +30,8 @@ import { MessagingModule } from "../messaging/messaging.module";
     AssignmentService,
     AssignmentAttemptService,
     AssignmentEvaluationService,
-    AssignmentPuzzleSetService
+    AssignmentPuzzleSetService,
+    AssignmentReminderService
   ],
   exports: [AssignmentEvaluationService, AssignmentPuzzleSetService]
 })

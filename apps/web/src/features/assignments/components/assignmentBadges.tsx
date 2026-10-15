@@ -1,7 +1,9 @@
-import type {
-  AssignmentActivityType,
-  AssignmentDifficulty,
-  AssignmentStatus
+import {
+  resolveAssignmentDueStatus,
+  type AssignmentActivityType,
+  type AssignmentDifficulty,
+  type AssignmentDueStatus,
+  type AssignmentStatus
 } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
@@ -70,18 +72,38 @@ export function StatusBadge({ status }: { status: AssignmentStatus }) {
   );
 }
 
-export function DueBadge({ dueDate, formatted }: { dueDate: string; formatted: string }) {
-  const overdue = new Date(dueDate).getTime() < Date.now();
+const DUE_STYLE: Record<AssignmentDueStatus, string> = {
+  COMPLETED: "border-app-border bg-app-background text-app-muted",
+  DUE_SOON: "border-secondary/40 bg-secondary/10 text-secondary-ink",
+  DUE_TODAY: "border-warning/40 bg-warning/10 text-warning-ink",
+  OVERDUE: "border-app-danger/30 bg-app-danger/10 text-app-danger-ink",
+  UPCOMING: "border-app-border bg-app-background text-app-muted"
+};
+
+const DUE_PREFIX: Record<AssignmentDueStatus, string> = {
+  COMPLETED: "Due ",
+  DUE_SOON: "Due soon · ",
+  DUE_TODAY: "Due today · ",
+  OVERDUE: "Overdue · ",
+  UPCOMING: "Due "
+};
+
+/** Due date coloured by `resolveAssignmentDueStatus` — finished work is never "overdue". */
+export function DueBadge({
+  completed = false,
+  dueDate,
+  formatted,
+  timeZone
+}: {
+  completed?: boolean;
+  dueDate: string;
+  formatted: string;
+  timeZone: string;
+}) {
+  const status = resolveAssignmentDueStatus({ completed, dueDate }, new Date(), timeZone);
   return (
-    <span
-      className={cn(
-        "rounded border px-2 py-0.5 text-xs font-medium",
-        overdue
-          ? "border-app-danger/30 bg-app-danger/10 text-app-danger-ink"
-          : "border-app-border bg-app-background text-app-muted"
-      )}
-    >
-      {overdue ? "Overdue · " : "Due "}
+    <span className={cn("rounded border px-2 py-0.5 text-xs font-medium", DUE_STYLE[status])}>
+      {DUE_PREFIX[status]}
       {formatted}
     </span>
   );

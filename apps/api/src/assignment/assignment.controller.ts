@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req } from "@nestjs/common";
 import type { Request } from "express";
 import {
   API_ROUTES,
+  assignmentOverviewQuerySchema,
   createAssignmentRequestSchema,
   deployAssignmentRequestSchema,
   requestEngineMoveRequestSchema,
@@ -10,6 +11,7 @@ import {
   submitAttemptRequestSchema,
   updateAssignmentRequestSchema,
   updateAssignmentStatusRequestSchema,
+  type AssignmentOverviewQuery,
   type CreateAssignmentRequest,
   type DeployAssignmentRequest,
   type RequestEngineMoveRequest,
@@ -22,13 +24,15 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { AssignmentAttemptService } from "./assignment-attempt.service";
+import { AssignmentReminderService } from "./assignment-reminder.service";
 import { AssignmentService } from "./assignment.service";
 
 @Controller()
 export class AssignmentController {
   constructor(
     private readonly assignmentService: AssignmentService,
-    private readonly attemptService: AssignmentAttemptService
+    private readonly attemptService: AssignmentAttemptService,
+    private readonly reminderService: AssignmentReminderService
   ) {}
 
   // ── Library (admin: shared items; coach: shared + own) ──
@@ -59,6 +63,21 @@ export class AssignmentController {
     @Req() request: Request
   ) {
     return this.assignmentService.deploy(this.getAccessToken(request), body);
+  }
+
+  // ── Due-date reminders (declared before the `:id` routes so "overview" is not an id) ──
+
+  @Get(API_ROUTES.assignments.reminders)
+  reminders(@Req() request: Request) {
+    return this.reminderService.reminders(this.getAccessToken(request));
+  }
+
+  @Get(API_ROUTES.assignments.overview)
+  overview(
+    @Req() request: Request,
+    @Query(new ZodBodyPipe(assignmentOverviewQuerySchema)) query: AssignmentOverviewQuery
+  ) {
+    return this.reminderService.overview(this.getAccessToken(request), query);
   }
 
   // ── Student's own assignments ──

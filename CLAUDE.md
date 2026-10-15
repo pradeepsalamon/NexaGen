@@ -177,7 +177,7 @@ Per feature under `apps/web/src/features/<feature>/`:
 - `hooks/use<X>Api.ts` — `useQuery` / `useMutation` wrappers. Query keys come from the central `src/lib/queryKeys.ts` factory. Mutations `invalidateQueries` on success.
 - `components/` — feature components. Page files under `src/app/**` stay thin: a server component that renders a `"use client"` `<XClient />`. **Pages do not check the auth cookie** — `middleware.ts` is the single gate.
 
-**Route RBAC lives in one table, `src/lib/routeAccess.ts`** (`ROUTE_RULES`: `/admin` staff, `/admin/{backups,classes,demo-classes,trash}` SUPER_ADMIN, `/coach` COACH, `/student` STUDENT, `/checkout` `/classes` `/plans` `/profile` `/chess-board` any signed-in user). `middleware.ts` redirects a visitor with no session cookie to `/login?reason=unauthorized`, and a wrong role to their own dashboard — reading the role from the access-token payload *without verifying it* (an expired token still names the role). A refresh-only session has no role cookie, so `SessionBootstrap` applies the same `canAccessPath` once `/auth/me` resolves. It is a routing affordance only; the API enforces every role. **A new protected route = a `ROUTE_RULES` entry + a `matcher` entry in `middleware.ts`**, never a per-page cookie check.
+**Route RBAC lives in one table, `src/lib/routeAccess.ts`** (`ROUTE_RULES`: `/admin` staff, `/admin/{backups,classes,demo-classes,trash}` SUPER_ADMIN, `/coach` COACH, `/student` STUDENT, `/checkout` `/classes` `/plans` `/profile` `/chess-board` `/games` `/messages` any signed-in user). `middleware.ts` redirects a visitor with no session cookie to `/login?reason=unauthorized`, and a wrong role to their own dashboard — reading the role from the access-token payload *without verifying it* (an expired token still names the role). A refresh-only session has no role cookie, so `SessionBootstrap` applies the same `canAccessPath` once `/auth/me` resolves. It is a routing affordance only; the API enforces every role. **A new protected route = a `ROUTE_RULES` entry + a `matcher` entry in `middleware.ts`**, never a per-page cookie check.
 
 Client session state: `useAuthStore` (Zustand, persisted to `localStorage` key `nexa-auth`, only `user` persisted). `SessionBootstrap` calls `/auth/me` on load.
 
@@ -331,6 +331,11 @@ use them, don't reimplement, or the admin preview stops matching the send.
   carry an attachment: `DispatchRequest` takes an optional `document`
   (`mediaId`/`link`/`filename`) which the CALLER resolves — dispatch persists it
   onto `message_deliveries` and the worker sends it as a WhatsApp document.
+- `ASSIGNMENT_OVERDUE_COACH` ships **enabled, in-app only**: the hourly
+  `assignmentDueReminders` cron (same job lock as due-soon) finds deployments
+  whose `dueDate` passed in the last 48h with someone unfinished and dispatches
+  one notice per deployment to the coach who deployed it (falling back to the
+  batch's current coaches). Dedupe key = deployment + due date + coach.
 - `ASSIGNMENT_DUE_SOON` + `ASSIGNMENT_GRADED` ship **enabled, in-app only** —
   they absorbed the old unconditional notifications (`NotificationScheduler` is
   deleted; `assignment-attempt.service` now dispatches instead of notifying).
@@ -741,6 +746,81 @@ the batch or sibling classes.
   over, a live one included). `upcomingClasses` is unchanged — `/student/live-classes`
   still reads it. Join is enabled only while the class is `LIVE`/`IN_PROGRESS`.
 
+### 3.6k1 Move tree, variations & Game Library
+
+`packages/types/src/move-tree.ts` (pure, chess-library-free; callers pass a
+`MoveTreeChessFactory` — `apps/web/src/lib/moveTreeChess.ts` /
+`apps/api/src/common/chess/move-tree-chess.ts`, both the castling-sanitised
+wrapper) is the one branching tree: `children[0]` is the main line, a move that
+differs from the existing continuation **adds a variation, never truncates**;
+only `promoteToMainline` reorders, and it keeps every line. PGN with
+variations/comments/NAGs round-trips via `moveTreeToPgn` /
+`parsePgnToMoveTree` (`MAX_MOVE_TREE_NODES`).
+
+- **Board store** (`createBoardStore.ts`) holds the tree + `treeLinePath` /
+  `historyIndex` cursor + `gameId`. Live sync / board snapshot carry optional
+  `treePgn` / `treeLinePath` / `gameId` / `savedAt`; old clients still read the
+  current line from `pgn`. `MoveTreeView` + `MoveHistory` render it; promote /
+  delete / comment are coach/staff only (AlertDialog confirm).
+- **Game Library** (`apps/api/src/game-library/`, `features/game-library/`,
+  pages `/games` + `/games/[id]`, routes `API_ROUTES.games.*`): `ChessGame`
+  rows (`source` LIVE_BOARD / SIMUL / MATCH / IMPORT). `GameRecorderService`
+  copies class games in fire-and-forget (match/simul moves, the board-state
+  save, class end → `completeClassBoardGames`) — a library failure never fails
+  a move. Idempotent on unique `sourceKey` (`match:<id>`, `simul:<id>`,
+  `board:<session>:<gameId>`), ordered by `sourceRevision` so an older write
+  can't overwrite newer moves. Visibility (`visibilityWhere`): admin all; coach
+  own / their class / their batch / played; student own games + LIVE_BOARD games
+  of classes they attended (not ABSENT). Saving analysis is coach/admin, only
+  once COMPLETED, same start FEN, optimistic `version` (409 on a stale one).
+  Only IMPORT games are deletable (importer or admin). Not soft-deletable.
+
+### 3.6k2 Persistent chat (outside live classes)
+
+`apps/api/src/chat/`, `features/chat/`, page `/messages` (all roles), routes
+`API_ROUTES.chat.*`, contract `packages/types/src/chat.ts`. Separate from the
+in-class LiveKit chat (§3.7). `Conversation` (`BATCH` one per batch, created
+lazily on first list / `DIRECT` keyed by sorted `directKey` / `GROUP`
+coach-made) + `ConversationMember` (read state; `leftAt`) + `ChatMessage`.
+
+- **`directChatAllowed` is the single rule**: never student ↔ student; coach ↔
+  student only while they share a batch; staff ↔ anyone; no coach ↔ coach. The
+  API, the contact picker and the tests share it.
+- BATCH threads follow the live roster — a student sees history from their
+  `enrolledAt`, a removed one loses access; a GROUP member sees from `joinedAt`.
+  A DIRECT thread stays readable but `canSend: false` once the shared batch is
+  gone. Groups are coach-created (students in the coach's batches only);
+  owner or admin edits members, the owner can't be removed.
+- **Sends are idempotent** on unique `(senderId, clientId)` — the web client
+  generates the id once and reuses it on Retry.
+- **No websocket**: the web polls (open thread 4s, list 15s, sidebar unread 30s;
+  paused while the tab is hidden). The unread badge on the Messages nav link
+  is `useChatNavBadge()` in all three sidebars.
+- Not soft-deletable, not Trash-registered, not in `RETENTION_RULES` (chat is a
+  business record — retention is a policy decision).
+
+### 3.6k3 Assignment due-date reminders
+
+`packages/types/src/assignment-reminders.ts` —
+`resolveAssignmentDueStatus({ dueDate, completed }, now, timeZone)` is the one
+rule (COMPLETED / OVERDUE / DUE_TODAY in the viewer's own calendar day /
+DUE_SOON within `ASSIGNMENT_DUE_SOON_HOURS` / UPCOMING). `DueBadge` uses it too,
+so finished work is never shown as overdue.
+
+- `AssignmentReminderService` (read-only, nothing stored):
+  `GET assignments.reminders` (student: own unfinished work, overdue up to
+  `ASSIGNMENT_OVERVIEW_PAST_DAYS` back → due soon) and `GET
+  assignments.overview` (coach: own batches; admin: all; due dates from
+  30 days back to `ASSIGNMENT_OVERVIEW_AHEAD_DAYS` ahead; `batchId` /
+  `dueStatus` filters; outstanding students per deployment). Both routes are
+  declared before the `:id` routes in the controller.
+- Web: `AssignmentReminderBanner` + `AssignmentReminderPopup` (once per tab
+  session, `sessionStorage` `nexa-assignment-reminder-shown`, only for overdue
+  / due today) on the student dashboard; the sidebar Assignments link shows the
+  count (red while anything is overdue). Coach `/coach/assignments` and admin
+  `/admin/assignments` have a "Due dates" tab (`AssignmentOverviewPanel`). The
+  coach also gets the `ASSIGNMENT_OVERDUE_COACH` notification (§3.6e).
+
 ### 3.6k Demo classes (guest access, invites, static schedules)
 
 `apps/api/src/demo-class/` (`DemoInviteService`, `DemoScheduleService`) +
@@ -990,4 +1070,8 @@ preserved at [`.agents/SAFETY.md`](.agents/SAFETY.md).
 | Feedback shows up again after the student answered | it's a different `contextKey` — the next class, or the next `RECURRING` period — by design. Same key twice would be a 409 |
 | A demo guest is told to wait for the coach / can't get in | The class is `INVITE_ONLY` and their phone/email doesn't match an invite — normalization is `normalizeRecipient` (`WHATSAPP_DEFAULT_COUNTRY_CODE`). The coach admits them from the People panel's waiting list; an admin can also add them in Demo Classes → details, which approves the pending row |
 | `/demo/<slug>` says "no upcoming session" | The schedule is paused, or every generated slot clashed with the coach's other classes (logged as "coach busy … slot skipped"), or the hourly top-up cron isn't running |
+| Chat messages arrive late / unread badge lags | Expected up to the poll interval (`CHAT_*_POLL_MS` in `features/chat/hooks/useChat.ts`) — there is no websocket outside a live class. A 403 on send means `canSend` is false (the shared batch is gone) |
+| A student can't message a coach / a student messaged a student | `directChatAllowed` in `packages/types/src/chat.ts` — student ↔ coach needs a shared live batch, student ↔ student is never allowed |
+| A class game is missing from the Game Library | `GameRecorderService` writes fire-and-forget — look for its warning in the API logs. Board games are recorded from the coach's board-state save, so a class whose coach never moved a piece has none |
+| "Assignment overdue" never reaches the coach | `ASSIGNMENT_OVERDUE_COACH` rule off in `/admin/messaging`, everyone already finished, or the due date is more than 48h old (the sweep's lookback). The Delivery log shows the dedupe key per coach |
 | Analytics timezone off by a day | all bucketing goes through `zonedDayBounds`/`zonedMonthBounds` + `date_trunc(... AT TIME ZONE tz)` using the requesting admin's `User.timezone`; check that column |

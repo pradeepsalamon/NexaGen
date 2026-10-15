@@ -46,6 +46,8 @@ export const config = {
     "/checkout/:path*",
     "/classes/:path*",
     "/chess-board",
+    "/games/:path*",
+    "/messages/:path*",
     "/plans",
     "/profile",
     "/login",

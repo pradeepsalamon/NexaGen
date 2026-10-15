@@ -67,7 +67,25 @@ const CROSS_USER: Case[] = [
   { name: "student asks another student to unmute", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.requestTrackOn(w.a.liveClass.id), body: { identity: "x", source: "camera" } },
   { name: "student reads another class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
   { name: "coach reads another class's classroom tools", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
-  { name: "coach writes another class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.b.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } }
+  { name: "coach writes another class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.b.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
+  // Game Library
+  { name: "student opens another student's game", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.b.game.id) },
+  { name: "student opens the board game of a class they didn't attend", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.b.boardGame.id) },
+  { name: "coach opens another coach's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.games.get(w.b.game.id) },
+  { name: "coach saves analysis on another coach's game", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.games.saveAnalysis(w.b.game.id), body: { pgn: "1. e4 e5 *", version: 1 } },
+  { name: "coach deletes another coach's game", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.games.delete(w.b.game.id) },
+  // Chat
+  { name: "student reads another batch's group chat", as: (w) => w.a.student, path: (w) => API_ROUTES.chat.messages(w.b.batchChat.id) },
+  { name: "student posts into another batch's group chat", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.chat.messages(w.b.batchChat.id), body: { body: "intruder", clientId: "intruder-0001" } },
+  { name: "student opens another batch's group chat", as: (w) => w.a.student, path: (w) => API_ROUTES.chat.conversation(w.b.batchChat.id) },
+  { name: "student reads another student's DM with their coach", as: (w) => w.a.student, path: (w) => API_ROUTES.chat.messages(w.b.directChat.id) },
+  { name: "coach reads another coach's DM", as: (w) => w.a.coach, path: (w) => API_ROUTES.chat.messages(w.b.directChat.id) },
+  { name: "coach reads another batch's group chat", as: (w) => w.a.coach, path: (w) => API_ROUTES.chat.messages(w.b.batchChat.id) },
+  { name: "coach marks another coach's DM read", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.chat.markRead(w.b.directChat.id) },
+  { name: "student starts a DM with another student", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.startDirect, body: (w: World) => ({ userId: w.b.student.id }) },
+  { name: "student starts a DM with a coach who doesn't teach them", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.startDirect, body: (w: World) => ({ userId: w.b.coach.id }) },
+  { name: "coach starts a DM with another coach's student", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.chat.startDirect, body: (w: World) => ({ userId: w.b.student.id }) },
+  { name: "coach puts another coach's student in a group", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.b.student.id], name: "poach" }) }
 ];
 
 const OWN_CASES: Case[] = [
@@ -96,7 +114,18 @@ const OWN_CASES: Case[] = [
   { name: "coach reads own class simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.a.liveClass.id) },
   { name: "student reads own class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.a.liveClass.id) },
   { name: "coach writes own class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
-  { name: "ADMIN lists every live class (Live Now)", as: (w) => w.admin, path: () => API_ROUTES.adminLiveClasses.list }
+  { name: "ADMIN lists every live class (Live Now)", as: (w) => w.admin, path: () => API_ROUTES.adminLiveClasses.list },
+  { name: "student opens own game", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.a.game.id) },
+  { name: "student opens the board game of a class they attended", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.a.boardGame.id) },
+  { name: "coach opens own class's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.games.get(w.a.game.id) },
+  { name: "coach saves analysis on own class's game", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.games.saveAnalysis(w.a.game.id), body: { pgn: "1. e4 (1. d4) *", version: 1 } },
+  { name: "ADMIN opens any game", as: (w) => w.admin, path: (w) => API_ROUTES.games.get(w.b.game.id) },
+  { name: "student reads own batch's group chat", as: (w) => w.a.student, path: (w) => API_ROUTES.chat.messages(w.a.batchChat.id) },
+  { name: "student reads own DM with their coach", as: (w) => w.a.student, path: (w) => API_ROUTES.chat.messages(w.a.directChat.id) },
+  { name: "coach reads own DM", as: (w) => w.a.coach, path: (w) => API_ROUTES.chat.messages(w.a.directChat.id) },
+  { name: "coach reads own batch's group chat", as: (w) => w.a.coach, path: (w) => API_ROUTES.chat.conversation(w.a.batchChat.id) },
+  { name: "student's chat unread count", as: (w) => w.a.student, path: () => API_ROUTES.chat.unread },
+  { name: "student's own assignment reminders", as: (w) => w.a.student, path: () => API_ROUTES.assignments.reminders }
 ];
 
 // Lists must not mention the other side's rows at all.
@@ -113,7 +142,17 @@ const LIST_CASES: Case[] = [
   { name: "coach's payroll", as: (w) => w.a.coach, path: () => API_ROUTES.payroll.mine },
   { name: "coach's assignment library", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.library },
   { name: "coach's deployments", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.deployments },
-  { name: "coach's manual payments", as: (w) => w.a.coach, path: () => API_ROUTES.payments.manual.mine }
+  { name: "coach's manual payments", as: (w) => w.a.coach, path: () => API_ROUTES.payments.manual.mine },
+  { name: "student's Game Library", as: (w) => w.a.student, path: () => API_ROUTES.games.list },
+  { name: "coach's Game Library", as: (w) => w.a.coach, path: () => API_ROUTES.games.list },
+  { name: "coach's Game Library filters", as: (w) => w.a.coach, path: () => API_ROUTES.games.filterOptions },
+  { name: "student's conversations", as: (w) => w.a.student, path: () => API_ROUTES.chat.conversations },
+  { name: "coach's conversations", as: (w) => w.a.coach, path: () => API_ROUTES.chat.conversations },
+  { name: "student's chat contacts", as: (w) => w.a.student, path: () => API_ROUTES.chat.contacts },
+  { name: "coach's chat contacts", as: (w) => w.a.coach, path: () => API_ROUTES.chat.contacts },
+  { name: "student's assignment reminders", as: (w) => w.a.student, path: () => API_ROUTES.assignments.reminders },
+  { name: "coach's assignment overview", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.overview },
+  { name: "coach's assignment overview filtered to another coach's batch", as: (w) => w.a.coach, path: (w) => `${API_ROUTES.assignments.overview}?batchId=${w.b.batch.id}` }
 ];
 
 const WRONG_ROLE: Case[] = [
@@ -130,7 +169,12 @@ const WRONG_ROLE: Case[] = [
   { name: "coach takes a spectator seat in their own class (admin only)", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.adminLiveClasses.spectate(w.a.liveClass.id) },
   { name: "student takes a spectator seat in their own class (admin only)", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.adminLiveClasses.spectate(w.a.liveClass.id) },
   { name: "ADMIN opens the trash (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.trash.list },
-  { name: "ADMIN lists demo classes (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.admin.demoClasses }
+  { name: "ADMIN lists demo classes (super-admin only)", as: (w) => w.admin, path: () => API_ROUTES.admin.demoClasses },
+  { name: "student imports a game", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.games.import, body: { pgn: "1. e4 *" } },
+  { name: "student saves analysis on their own game", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.games.saveAnalysis(w.a.game.id), body: { pgn: "1. e4 e5 *", version: 1 } },
+  { name: "student reads the coach assignment overview", as: (w) => w.a.student, path: () => API_ROUTES.assignments.overview },
+  { name: "coach reads student assignment reminders", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.reminders },
+  { name: "student creates a chat group", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.a.student.id], name: "us" }) }
 ];
 
 describe("cross-user access (real app, real Postgres)", () => {
@@ -164,7 +208,7 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(res.status).toBe(200);
     const text = JSON.stringify(res.body);
     const b = w.b;
-    const ids = [b.student, b.class, b.liveClass, b.batch, b.invoice, b.privatePuzzle, b.payrollRecord, b.assignment, b.deployment, b.studentAssignment].map((row) => row.id);
+    const ids = [b.student, b.class, b.liveClass, b.batch, b.invoice, b.privatePuzzle, b.payrollRecord, b.assignment, b.deployment, b.studentAssignment, b.game, b.boardGame, b.batchChat, b.directChat].map((row) => row.id);
     for (const id of ids) {
       expect(text).not.toContain(id);
     }
@@ -186,5 +230,8 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(await t.prisma.puzzleAttempt.count({ where: { studentAssignmentId: { not: null } } })).toBe(0);
     expect(await t.prisma.liveSession.findUnique({ where: { classId: b.liveClass.id } })).toMatchObject({ status: "LIVE" });
     expect(await t.prisma.liveChatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
+    expect(await t.prisma.chatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
+    expect(await t.prisma.chessGame.findUnique({ where: { id: b.game.id } })).toMatchObject({ version: 1 });
+    expect(await t.prisma.conversation.count({ where: { type: { in: ["DIRECT", "GROUP"] } } })).toBe(2);
   });
 });

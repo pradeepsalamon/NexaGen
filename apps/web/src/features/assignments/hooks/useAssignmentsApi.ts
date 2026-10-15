@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
+  AssignmentOverviewQuery,
   CreateAssignmentRequest,
   DeployAssignmentRequest,
   SaveAttemptProgressRequest,
@@ -17,8 +18,10 @@ import {
   getAssignmentLibrary,
   getAssignmentLibraryItem,
   getAssignmentLeaderboard,
+  getAssignmentOverview,
   getAttemptHistory,
   getMyAssignment,
+  getMyAssignmentReminders,
   getMyAssignments,
   saveAttemptProgress,
   startAttempt,
@@ -172,5 +175,32 @@ export function useSubmitAttempt(id: string) {
     },
     onError: (error: Error) =>
       toast.error({ title: "Could not submit your attempt", message: error.message })
+  });
+}
+
+// ── Due-date reminders ──
+
+/**
+ * The student's overdue / due-today / due-soon work. Shared by the dashboard
+ * banner, the once-per-session popup and the sidebar count, so they cost one
+ * request between them. Re-polled slowly so "Due today" turns into "Overdue"
+ * without a reload.
+ */
+export function useMyAssignmentReminders(enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: getMyAssignmentReminders,
+    queryKey: queryKeys.assignmentReminders.mine,
+    refetchInterval: 5 * 60_000,
+    staleTime: 60_000
+  });
+}
+
+export function useAssignmentOverview(query: AssignmentOverviewQuery, enabled = true) {
+  return useQuery({
+    enabled,
+    queryFn: () => getAssignmentOverview(query),
+    queryKey: queryKeys.assignmentReminders.overview(query),
+    staleTime: 60_000
   });
 }

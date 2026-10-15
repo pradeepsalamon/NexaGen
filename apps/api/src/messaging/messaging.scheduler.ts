@@ -11,6 +11,8 @@ const MINUTE_MS = 60_000;
 const CLASS_REMINDER_EVENTS = ["CLASS_REMINDER", "CLASS_REMINDER_COACH"] as const;
 /** Matches the cron interval below; overlap is harmless (deliveries dedupe). */
 const CLASS_SWEEP_WINDOW_MINUTES = 5;
+/** How far back the hourly sweep looks for a newly-passed due date. */
+const OVERDUE_LOOKBACK_HOURS = 48;
 
 /**
  * The two rules that fire ahead of a moment rather than from an action.
@@ -81,32 +83,69 @@ export class MessagingScheduler {
   @Cron(CronExpression.EVERY_HOUR)
   async assignmentDueReminders(): Promise<void> {
     await this.withLock(JOB_LOCKS.messagingDueSoonReminders, async () => {
-      const rule = await this.rules.getRule("ASSIGNMENT_DUE_SOON");
-      if (!rule.enabled) return;
-
-      const now = new Date();
-      const until = new Date(
-        now.getTime() + (rule.leadTimeMinutes ?? 24 * 60) * MINUTE_MS
-      );
-
-      const rows = await this.prisma.studentAssignment.findMany({
-        where: {
-          status: { in: ["PENDING", "IN_PROGRESS"] },
-          assignmentBatch: { dueDate: { gt: now, lte: until } }
-        },
-        select: { id: true }
-      });
-      if (rows.length === 0) return;
-
-      const summary = await this.dispatch.dispatch({
-        event: "ASSIGNMENT_DUE_SOON",
-        studentAssignmentIds: rows.map((row) => row.id)
-      });
-
-      this.logger.log(
-        `Assignment due reminders queued: ${summary.queuedInApp} in-app, ${summary.queuedWhatsApp} WhatsApp.`
-      );
+      await this.sweepDueSoon();
+      await this.sweepOverdueForCoaches();
     });
+  }
+
+  private async sweepDueSoon(): Promise<void> {
+    const rule = await this.rules.getRule("ASSIGNMENT_DUE_SOON");
+    if (!rule.enabled) return;
+
+    const now = new Date();
+    const until = new Date(
+      now.getTime() + (rule.leadTimeMinutes ?? 24 * 60) * MINUTE_MS
+    );
+
+    const rows = await this.prisma.studentAssignment.findMany({
+      where: {
+        status: { in: ["PENDING", "IN_PROGRESS"] },
+        assignmentBatch: { dueDate: { gt: now, lte: until } }
+      },
+      select: { id: true }
+    });
+    if (rows.length === 0) return;
+
+    const summary = await this.dispatch.dispatch({
+      event: "ASSIGNMENT_DUE_SOON",
+      studentAssignmentIds: rows.map((row) => row.id)
+    });
+
+    this.logger.log(
+      `Assignment due reminders queued: ${summary.queuedInApp} in-app, ${summary.queuedWhatsApp} WhatsApp.`
+    );
+  }
+
+  /**
+   * Deployments whose due date passed in the last OVERDUE_LOOKBACK_HOURS with
+   * someone still unfinished → one notice to the coach. The lookback only
+   * bridges a missed tick or a restart; the dedupe key (deployment + due date +
+   * coach) is what stops a repeat, so turning the rule on never floods a coach
+   * with every assignment that ever went overdue.
+   */
+  private async sweepOverdueForCoaches(): Promise<void> {
+    const rule = await this.rules.getRule("ASSIGNMENT_OVERDUE_COACH");
+    if (!rule.enabled) return;
+
+    const now = new Date();
+    const since = new Date(now.getTime() - OVERDUE_LOOKBACK_HOURS * 60 * MINUTE_MS);
+    const deployments = await this.prisma.assignmentBatch.findMany({
+      where: {
+        dueDate: { gt: since, lte: now },
+        students: { some: { status: { in: ["PENDING", "IN_PROGRESS"] } } }
+      },
+      select: { id: true }
+    });
+
+    for (const deployment of deployments) {
+      await this.dispatch.dispatch({
+        assignmentBatchId: deployment.id,
+        event: "ASSIGNMENT_OVERDUE_COACH"
+      });
+    }
+    if (deployments.length > 0) {
+      this.logger.log(`Queued ASSIGNMENT_OVERDUE_COACH for ${deployments.length} deployment(s).`);
+    }
   }
 
   private async withLock(name: JobLockName, run: () => Promise<void>): Promise<void> {

@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { AssignmentReminderBanner } from "@/features/assignments/components/reminders/AssignmentReminderBanner";
+import { AssignmentReminderPopup } from "@/features/assignments/components/reminders/AssignmentReminderPopup";
 import { DashboardFeedback } from "@/features/feedback/components/DashboardFeedback";
 import { useAuthStore } from "@/stores/authStore";
 import { useStudentDashboard } from "../hooks/useStudentApi";
@@ -77,6 +79,9 @@ export function StudentDashboardClient() {
       {header}
 
       <div className="space-y-6">
+        <AssignmentReminderPopup />
+        <AssignmentReminderBanner />
+
         <DashboardFeedback />
 
         <NextClassCard liveClass={data?.liveClass} nextClass={data?.todaysClass} />

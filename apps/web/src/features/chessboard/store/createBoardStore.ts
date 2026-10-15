@@ -1,6 +1,22 @@
 import { createStore } from "zustand";
 import { Move } from "chess.js";
+import {
+  addMoveToTree,
+  createMoveTree,
+  deleteFromPath,
+  findMoveTreePath,
+  getMoveTreeNode,
+  lineThroughPath,
+  moveTreeFromMoves,
+  moveTreeHasVariations,
+  parsePgnToMoveTree,
+  promoteToMainline,
+  setMoveComment,
+  type MoveTree,
+  type MoveTreePath,
+} from "@nexa-chess/types";
 import { Chess } from "@/lib/chess";
+import { createMoveTreeChess } from "@/lib/moveTreeChess";
 import { BoardControlSide, BoardPermissionMode, ClockState } from "../types/sync";
 import { playSound, SoundType } from "../audio/sounds";
 import {
@@ -33,9 +49,19 @@ export interface BoardState {
   isGameOver: boolean;
   turn: "white" | "black";
   
-  // History & Variations (Future)
+  // Move tree. `tree` holds every line (mainline = children[0] at each
+  // depth). `treeLinePath` is the full line currently selected (a variation or
+  // the mainline); `historyIndex` is the cursor on it, so the position shown is
+  // `treeLinePath.slice(0, historyIndex + 1)`. `moveHistory` is that line as
+  // chess.js moves, and `fullPgn` its PGN — what a client predating variations
+  // understands. Playing a move off the cursor adds a variation; it never
+  // truncates or rewrites an existing line.
+  tree: MoveTree;
+  treeLinePath: MoveTreePath;
   moveHistory: Move[];
   historyIndex: number;
+  /** New on every reset / load / set-up — the Game Library's game boundary. */
+  gameId: string;
   
   // Board Presentation
   // Theme/piece-set/coordinates/animation/highlight visuals now live in the
@@ -102,6 +128,17 @@ export interface BoardActions {
   setFen: (fen: string) => void;
   setPgn: (pgn: string) => void;
   pushHistory: (fen: string, pgn: string) => void;
+
+  // Move tree (variations)
+  /** Shows the position at `path` and selects the line through it. */
+  goToPath: (path: MoveTreePath) => void;
+  /** Coach only (callers enforce it): make the line through `path` the mainline. */
+  promoteVariation: (path: MoveTreePath) => void;
+  /** Removes the move at `path` and everything after it. */
+  deleteVariation: (path: MoveTreePath) => void;
+  setMoveComment: (path: MoveTreePath, comment: string) => void;
+  /** Replaces the whole tree (Game Library open, import). */
+  loadTree: (tree: MoveTree, linePath?: MoveTreePath, historyIndex?: number) => void;
   
   // UI Actions
   setOrientation: (orientation: "white" | "black") => void;
@@ -134,7 +171,9 @@ export interface BoardActions {
   // `moveType` isn't board state to store — it's a one-shot cue for which sound
   // to play on this incoming remote move — so it rides alongside the payload
   // rather than living in `BoardState` (AUDIT H6).
-  syncFromRemote: (payload: Partial<BoardState> & { moveType?: SoundType }) => void;
+  syncFromRemote: (
+    payload: Partial<BoardState> & { moveType?: SoundType; treePgn?: string },
+  ) => void;
   
   // Workspace interactions
   setActiveBrush: (brush: string) => void;
@@ -151,6 +190,82 @@ export type BoardStore = BoardState & BoardActions;
 
 const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
+export function newBoardGameId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function uciParts(uci: string) {
+  return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci.slice(4) : undefined };
+}
+
+/**
+ * Everything the store derives from (tree, line, cursor): `chess` is replayed
+ * to the cursor (so its own history/pgn are the moves to it), and a scratch
+ * instance replays the whole line for `moveHistory` / `fullPgn`.
+ */
+function deriveFromTree(
+  chess: Chess,
+  tree: MoveTree,
+  requestedLine: MoveTreePath,
+  requestedIndex: number,
+): Partial<BoardState> {
+  // Extend the selected line to its end so "forward" always has somewhere to go.
+  const line = lineThroughPath(tree, requestedLine);
+  const historyIndex = Math.max(-1, Math.min(requestedIndex, line.nodes.length - 1));
+
+  const full = new Chess(tree.rootFen);
+  for (const node of line.nodes) {
+    try {
+      full.move(uciParts(node.uci));
+    } catch {
+      break;
+    }
+  }
+
+  chess.load(tree.rootFen);
+  for (let i = 0; i <= historyIndex; i += 1) {
+    try {
+      chess.move(uciParts(line.nodes[i].uci));
+    } catch {
+      break;
+    }
+  }
+
+  return {
+    tree,
+    treeLinePath: line.path,
+    historyIndex,
+    moveHistory: full.history({ verbose: true }),
+    fullPgn: full.pgn(),
+    fen: chess.fen(),
+    pgn: chess.pgn(),
+    isGameOver: chess.isGameOver(),
+    turn: chess.turn() === "w" ? "white" : "black",
+  };
+}
+
+/** Tree for a PGN, variations included; falls back to chess.js for oddities it accepts. */
+export function moveTreeFromPgn(pgn: string, fallbackFen?: string): MoveTree | null {
+  if (!pgn.trim()) return fallbackFen ? createMoveTree(new Chess(fallbackFen).fen()) : null;
+  try {
+    return parsePgnToMoveTree(pgn, createMoveTreeChess).tree;
+  } catch {
+    try {
+      const chess = new Chess();
+      chess.loadPgn(pgn);
+      const moves = chess.history({ verbose: true });
+      const rootFen = moves.length ? moves[0].before : chess.fen();
+      return moveTreeFromMoves(
+        rootFen,
+        moves.map((m) => ({ san: m.san, uci: `${m.from}${m.to}${m.promotion ?? ""}`, fen: m.after })),
+      );
+    } catch {
+      return null;
+    }
+  }
+}
+
 export const createBoardStore = () => {
   const chess = new Chess();
 
@@ -162,8 +277,11 @@ export const createBoardStore = () => {
     isGameOver: false,
     turn: "white",
 
+    tree: createMoveTree(INITIAL_FEN),
+    treeLinePath: [],
     moveHistory: [],
     historyIndex: -1,
+    gameId: newBoardGameId(),
 
     orientation: "white",
     localFlip: false,
@@ -193,31 +311,30 @@ export const createBoardStore = () => {
       try {
         const move = state.chess.move({ from, to, promotion });
         if (move) {
-          // Truncate history if we are in the past
-          const newHistory = state.moveHistory.slice(0, state.historyIndex + 1);
-          newHistory.push(move);
-          
+          // Branch, never truncate: a different move from a past position
+          // becomes a variation and the existing line stays as it was.
+          const cursor = state.treeLinePath.slice(0, state.historyIndex + 1);
+          const added = addMoveToTree(state.tree, cursor, {
+            san: move.san,
+            uci: `${move.from}${move.to}${move.promotion ?? ""}`,
+            fen: state.chess.fen(),
+          });
+
           const isGameOver = state.chess.isGameOver();
           const isCheck = state.chess.inCheck();
-          
+
           let moveType: SoundType = "move";
           if (isGameOver) moveType = "gameEnd";
           else if (isCheck) moveType = "check";
           else if (move.captured) moveType = "capture";
-          
+
           playSound(moveType);
-          
+
           // Save lastMoveType to the persisted store so broadcastState can read it
           usePersistedStore.getState().setLastMoveType(moveType);
-          
+
           set({
-            fen: state.chess.fen(),
-            pgn: state.chess.pgn(),
-            fullPgn: state.chess.pgn(),
-            isGameOver,
-            turn: state.chess.turn() === 'w' ? 'white' : 'black',
-            moveHistory: newHistory,
-            historyIndex: newHistory.length - 1,
+            ...deriveFromTree(state.chess, added.tree, added.path, added.path.length - 1),
             clock: applyMoveToClock(
               state.clock,
               move.color === 'w' ? 'white' : 'black',
@@ -236,61 +353,28 @@ export const createBoardStore = () => {
     undo: () => {
       const state = get();
       if (state.historyIndex >= 0) {
-        state.chess.undo();
-        set({
-          fen: state.chess.fen(),
-          pgn: state.chess.pgn(),
-          isGameOver: state.chess.isGameOver(),
-          turn: state.chess.turn() === 'w' ? 'white' : 'black',
-          historyIndex: state.historyIndex - 1
-        });
+        set(deriveFromTree(state.chess, state.tree, state.treeLinePath, state.historyIndex - 1));
       }
     },
     
     redo: () => {
       const state = get();
       if (state.historyIndex < state.moveHistory.length - 1) {
-        const nextMove = state.moveHistory[state.historyIndex + 1];
-        state.chess.move(nextMove);
-        set({
-          fen: state.chess.fen(),
-          pgn: state.chess.pgn(),
-          isGameOver: state.chess.isGameOver(),
-          turn: state.chess.turn() === 'w' ? 'white' : 'black',
-          historyIndex: state.historyIndex + 1
-        });
+        set(deriveFromTree(state.chess, state.tree, state.treeLinePath, state.historyIndex + 1));
       }
     },
     
     jumpToStart: () => {
       const state = get();
       if (state.historyIndex >= 0) {
-        while (state.chess.undo()) {
-          // undo all
-        }
-        set({
-          fen: state.chess.fen(),
-          pgn: state.chess.pgn(),
-          isGameOver: state.chess.isGameOver(),
-          turn: state.chess.turn() === 'w' ? 'white' : 'black',
-          historyIndex: -1
-        });
+        set(deriveFromTree(state.chess, state.tree, state.treeLinePath, -1));
       }
     },
     
     jumpToEnd: () => {
       const state = get();
       if (state.historyIndex < state.moveHistory.length - 1) {
-        for (let i = state.historyIndex + 1; i < state.moveHistory.length; i++) {
-          state.chess.move(state.moveHistory[i]);
-        }
-        set({
-          fen: state.chess.fen(),
-          pgn: state.chess.pgn(),
-          isGameOver: state.chess.isGameOver(),
-          turn: state.chess.turn() === 'w' ? 'white' : 'black',
-          historyIndex: state.moveHistory.length - 1
-        });
+        set(deriveFromTree(state.chess, state.tree, state.treeLinePath, state.moveHistory.length - 1));
       }
     },
 
@@ -298,43 +382,68 @@ export const createBoardStore = () => {
       const state = get();
       const target = Math.max(-1, Math.min(index, state.moveHistory.length - 1));
       if (target === state.historyIndex) return;
+      set(deriveFromTree(state.chess, state.tree, state.treeLinePath, target));
+    },
 
-      if (target > state.historyIndex) {
-        // Replay moves forward from the current position
-        for (let i = state.historyIndex + 1; i <= target; i++) {
-          try {
-            state.chess.move(state.moveHistory[i]);
-          } catch (e) {
-            break;
-          }
-        }
-      } else {
-        // Undo back to the target ply
-        while (state.chess.history().length - 1 > target) {
-          if (!state.chess.undo()) break;
-        }
+    goToPath: (path) => {
+      const state = get();
+      if (path.length > 0 && !getMoveTreeNode(state.tree, path)) return;
+      set(deriveFromTree(state.chess, state.tree, path, path.length - 1));
+    },
+
+    promoteVariation: (path) => {
+      const state = get();
+      const cursor = state.treeLinePath.slice(0, state.historyIndex + 1);
+      const promoted = promoteToMainline(state.tree, path);
+      if (promoted.tree === state.tree) return;
+      // Keep showing the same position: the cursor's node moved with the line
+      // when it was on it, otherwise re-find it by id.
+      const cursorNode = cursor.length ? getMoveTreeNode(state.tree, cursor) : null;
+      let nextCursor: MoveTreePath = [];
+      if (cursorNode) {
+        const onPromoted = cursor.length <= path.length && cursor.every((v, i) => v === path[i]);
+        nextCursor = onPromoted ? promoted.path.slice(0, cursor.length) : findMoveTreePath(promoted.tree, cursorNode.id) ?? [];
       }
+      set(deriveFromTree(state.chess, promoted.tree, nextCursor, nextCursor.length - 1));
+    },
 
+    deleteVariation: (path) => {
+      const state = get();
+      if (path.length === 0) return;
+      const removed = deleteFromPath(state.tree, path);
+      if (removed.tree === state.tree) return;
+      const cursor = state.treeLinePath.slice(0, state.historyIndex + 1);
+      const cursorInside = cursor.length >= path.length && path.every((v, i) => v === cursor[i]);
+      if (cursorInside) {
+        set(deriveFromTree(state.chess, removed.tree, removed.path, removed.path.length - 1));
+        return;
+      }
+      const cursorNode = cursor.length ? getMoveTreeNode(state.tree, cursor) : null;
+      const nextCursor = cursorNode ? findMoveTreePath(removed.tree, cursorNode.id) ?? [] : [];
+      set(deriveFromTree(state.chess, removed.tree, nextCursor, nextCursor.length - 1));
+    },
+
+    setMoveComment: (path, comment) => {
+      const state = get();
+      const tree = setMoveComment(state.tree, path, comment);
+      if (tree === state.tree) return;
+      set({ tree });
+    },
+
+    loadTree: (tree, linePath, historyIndex) => {
+      const state = get();
+      const line = linePath ?? lineThroughPath(tree, []).path;
       set({
-        fen: state.chess.fen(),
-        pgn: state.chess.pgn(),
-        isGameOver: state.chess.isGameOver(),
-        turn: state.chess.turn() === 'w' ? 'white' : 'black',
-        historyIndex: target
+        ...deriveFromTree(state.chess, tree, line, historyIndex ?? line.length - 1),
+        gameId: newBoardGameId(),
       });
     },
     
     reset: () => {
       const state = get();
-      state.chess.reset();
       set({
-        fen: state.chess.fen(),
-        pgn: "",
-        fullPgn: "",
-        isGameOver: false,
-        turn: "white",
-        moveHistory: [],
-        historyIndex: -1,
+        ...deriveFromTree(state.chess, createMoveTree(INITIAL_FEN), [], -1),
+        gameId: newBoardGameId(),
         arrows: [],
         squareStyles: {},
         clock: {
@@ -350,16 +459,8 @@ export const createBoardStore = () => {
     setFen: (fen) => {
       const state = get();
       try {
-        state.chess.load(fen);
-        set({
-          fen: state.chess.fen(),
-          pgn: state.chess.pgn(),
-          fullPgn: state.chess.pgn(),
-          isGameOver: state.chess.isGameOver(),
-          turn: state.chess.turn() === 'w' ? 'white' : 'black',
-          moveHistory: [], // reset history for new puzzle FEN
-          historyIndex: -1
-        });
+        const root = new Chess(fen).fen();
+        set({ ...deriveFromTree(state.chess, createMoveTree(root), [], -1), gameId: newBoardGameId() });
       } catch (e) {
         console.warn("Invalid FEN", fen);
       }
@@ -367,40 +468,22 @@ export const createBoardStore = () => {
     
     setPgn: (pgn) => {
       const state = get();
-      try {
-        state.chess.loadPgn(pgn);
-        set({
-          fen: state.chess.fen(),
-          pgn: state.chess.pgn(),
-          fullPgn: state.chess.pgn(),
-          isGameOver: state.chess.isGameOver(),
-          turn: state.chess.turn() === 'w' ? 'white' : 'black',
-          moveHistory: state.chess.history({ verbose: true }),
-          historyIndex: state.chess.history().length - 1
-        });
-      } catch (e) {
+      const tree = moveTreeFromPgn(pgn);
+      if (!tree) {
         console.warn("Invalid PGN", pgn);
+        return;
       }
+      const line = lineThroughPath(tree, []).path;
+      set({ ...deriveFromTree(state.chess, tree, line, line.length - 1), gameId: newBoardGameId() });
     },
 
     pushHistory: (fen, pgn) => {
       const state = get();
       try {
-        if (pgn) {
-          state.chess.loadPgn(pgn);
-        } else {
-          state.chess.load(fen);
-        }
-        const moveHistory = state.chess.history({ verbose: true });
-        set({
-          fen: state.chess.fen(),
-          pgn: state.chess.pgn(),
-          fullPgn: state.chess.pgn(),
-          isGameOver: state.chess.isGameOver(),
-          turn: state.chess.turn() === 'w' ? 'white' : 'black',
-          moveHistory,
-          historyIndex: moveHistory.length - 1
-        });
+        const tree = moveTreeFromPgn(pgn, fen);
+        if (!tree) throw new Error("invalid");
+        const line = lineThroughPath(tree, []).path;
+        set({ ...deriveFromTree(state.chess, tree, line, line.length - 1), gameId: newBoardGameId() });
       } catch (e) {
         console.warn("Failed to load position", fen);
       }
@@ -479,42 +562,45 @@ export const createBoardStore = () => {
         return;
       }
 
-      // The ply the sender is viewing within their mainline (AUDIT H21).
+      // The ply the sender is viewing within their line (AUDIT H21).
       const remotePly = payload.historyIndex;
-      // If FEN is updated remotely, update local chess.js instance
-      if (payload.fen && payload.fen !== state.fen) {
-        try {
-          if (payload.pgn) {
-            // Load the sender's *full* mainline so our move list keeps every
-            // ply, then step back to the ply they are actually viewing rather
-            // than snapping to the end (AUDIT H21).
-            state.chess.loadPgn(payload.pgn);
-            const fullHistory = state.chess.history({ verbose: true });
-            const remoteFullPgn = state.chess.pgn();
-            const targetPly =
-              typeof remotePly === "number"
-                ? Math.max(-1, Math.min(remotePly, fullHistory.length - 1))
-                : fullHistory.length - 1;
-            while (state.chess.history().length - 1 > targetPly) {
-              if (!state.chess.undo()) break;
-            }
-            payload.moveHistory = fullHistory;
-            payload.historyIndex = targetPly;
-            payload.fullPgn = remoteFullPgn;
-            payload.pgn = state.chess.pgn();
-          } else {
-            state.chess.load(payload.fen);
-            payload.moveHistory = state.chess.history({ verbose: true });
-            payload.historyIndex = payload.moveHistory.length - 1;
-            payload.pgn = state.chess.pgn();
-            payload.fullPgn = state.chess.pgn();
-          }
-          payload.fen = state.chess.fen();
-          payload.turn = state.chess.turn() === 'w' ? 'white' : 'black';
-          payload.isGameOver = state.chess.isGameOver();
-        } catch (e) {
-          console.warn("Failed to load synced FEN", payload.fen);
+      const { treePgn, treeLinePath: remoteLine, ...rest } = payload;
+      let next: Partial<BoardState> & { moveType?: SoundType } = rest;
+
+      if (treePgn !== undefined && treePgn !== "") {
+        // A sender with variations: rebuild the whole tree (cheap next to a
+        // network round trip) and put the cursor where they are.
+        const tree = moveTreeFromPgn(treePgn);
+        if (tree) {
+          const line = Array.isArray(remoteLine) ? remoteLine : lineThroughPath(tree, []).path;
+          const ply = typeof remotePly === "number" ? remotePly : line.length - 1;
+          next = { ...rest, ...deriveFromTree(state.chess, tree, line, ply) };
         }
+      } else if (
+        payload.fen &&
+        (payload.fen !== state.fen ||
+          (payload.pgn ?? "") !== state.fullPgn ||
+          moveTreeHasVariations(state.tree))
+      ) {
+        // A single-line sender (or one predating variations): its `pgn` is the
+        // whole line, `historyIndex` the ply being viewed.
+        const tree = moveTreeFromPgn(payload.pgn ?? "", payload.fen);
+        if (tree) {
+          const line = lineThroughPath(tree, []).path;
+          const ply = typeof remotePly === "number" ? remotePly : line.length - 1;
+          next = { ...rest, ...deriveFromTree(state.chess, tree, line, ply) };
+        } else {
+          console.warn("Failed to load synced FEN", payload.fen);
+          next = rest;
+          delete next.fen;
+          delete next.pgn;
+        }
+      } else if (payload.fen) {
+        // Same position and line: nothing to rebuild.
+        next = { ...rest };
+        delete next.fen;
+        delete next.pgn;
+        delete next.historyIndex;
       }
 
       // Play sound for incoming remote move (AUDIT H6: this branch was
@@ -526,7 +612,8 @@ export const createBoardStore = () => {
       // Bumping `remoteSyncId` inside this same `set()` call is what lets the
       // subscriber in `useBoardSync` recognise this transition as remote,
       // atomically — no separate ref/timer to race against (AUDIT H20).
-      set({ ...payload, remoteSyncId: state.remoteSyncId + 1 });
+      const { moveType: _ignored, ...apply } = next;
+      set({ ...apply, remoteSyncId: state.remoteSyncId + 1 });
     },
 
     

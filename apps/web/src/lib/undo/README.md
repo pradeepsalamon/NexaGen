@@ -30,6 +30,7 @@ Do NOT wrap the following operations in an undo, even though they are mutations.
 - **Batch schedule regenerate** (`useRegenerateScheduleMutation`) — complex bulk/recurring operation affecting every future class in the schedule. (Deactivate and per-occurrence cancel/restore/reschedule *are* migrated — see `ScheduleDetailClient.tsx`.)
 - Coaches no longer create classes (the academy schedules them). Coach class **notes update** and **cancel** *are* migrated — see `ClassNotesDialog.tsx` / `CoachScheduleClient.tsx` / `CoachDashboardClient.tsx`.
 - **Preset set-default** (`useSetDefaultLiveClassPreset`) — no single reverse target: an unknown other preset (or none) held the default before.
+- **Persistent chat** (`features/chat`) — a sent message cannot be unsent (no delete endpoint), mark-read carries no risk, opening a direct thread is an idempotent lookup, and a new group has no delete endpoint; group membership is a Save in a dialog whose correction is reopening it.
 - **Student Assignments** — `updateMyAssignmentStatus`, `startAttempt`, `submitAttempt` are complex/irreversible workflows.
 
 Everything else that looked deferrable has been migrated: preset create/update/delete/duplicate, batch/user/assignment create/update/delete/archive, demo class cancel/restore, coach class update/cancel, batch schedule pause/resume and per-occurrence cancel/restore/reschedule, and assignment delete/withdraw.

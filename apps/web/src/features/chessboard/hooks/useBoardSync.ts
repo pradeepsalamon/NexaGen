@@ -18,7 +18,7 @@ import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardControlSide, BoardSyncMessage } from "../types/sync";
 import { moverColorFromFen, senderMayMutateBoard } from "../lib/boardSyncRules";
 import { applyMoveToClock } from "../lib/clock";
-import { toLiveBoardState } from "../lib/boardSnapshot";
+import { toLiveBoardState, treePgnForSync } from "../lib/boardSnapshot";
 import { useBoardPersistence, type RestoreGate } from "./useBoardPersistence";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useOptionalLiveClassStore } from "@/features/live-class/providers/LiveClassProvider";
@@ -146,6 +146,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
           fen: snap.fen,
           pgn: snap.pgn,
           historyIndex: snap.historyIndex,
+          ...(snap.treePgn ? { treePgn: snap.treePgn, treeLinePath: snap.treeLinePath } : {}),
           orientation: snap.orientation,
           ...(type === "FORCE_SYNC"
             ? {
@@ -238,6 +239,14 @@ export function useBoardSyncEngine(): BoardSyncActions {
               ...(typeof msg.payload.historyIndex === "number"
                 ? { historyIndex: msg.payload.historyIndex }
                 : {}),
+              ...(typeof msg.payload.treePgn === "string"
+                ? {
+                    treePgn: msg.payload.treePgn,
+                    ...(Array.isArray(msg.payload.treeLinePath)
+                      ? { treeLinePath: msg.payload.treeLinePath }
+                      : {}),
+                  }
+                : {}),
               ...(msg.payload.orientation
                 ? { orientation: msg.payload.orientation }
                 : {}),
@@ -320,6 +329,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
                 fen: snap.fen,
                 pgn: snap.pgn,
                 historyIndex: snap.historyIndex,
+                ...(snap.treePgn ? { treePgn: snap.treePgn, treeLinePath: snap.treeLinePath } : {}),
                 orientation: snap.orientation,
                 arrows: snap.arrows,
                 squares: snap.squares,
@@ -372,6 +382,8 @@ export function useBoardSyncEngine(): BoardSyncActions {
       const boardChanged =
         state.fen !== prevState.fen ||
         state.pgn !== prevState.pgn ||
+        state.tree !== prevState.tree ||
+        state.treeLinePath !== prevState.treeLinePath ||
         state.orientation !== prevState.orientation;
       const annotationsChanged =
         state.arrows !== prevState.arrows ||
@@ -386,14 +398,20 @@ export function useBoardSyncEngine(): BoardSyncActions {
       if (state.remoteSyncId !== prevState.remoteSyncId) return;
 
       if (boardChanged) {
+        const treePgn = treePgnForSync(state.tree);
+        // Only a move that actually advanced the position plays a sound; a
+        // comment, promotion or step back does not.
+        const advanced =
+          state.fen !== prevState.fen && state.historyIndex > prevState.historyIndex;
         broadcastMsg({
           type: "MOVE",
           payload: {
             fen: state.fen,
             pgn: state.fullPgn || state.pgn,
             historyIndex: state.historyIndex,
+            ...(treePgn ? { treePgn, treeLinePath: state.treeLinePath } : {}),
             orientation: state.orientation,
-            moveType: usePersistedStore.getState().lastMoveType,
+            ...(advanced ? { moveType: usePersistedStore.getState().lastMoveType } : {}),
           },
         });
       }
