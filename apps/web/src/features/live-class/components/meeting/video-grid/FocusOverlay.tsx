@@ -9,6 +9,7 @@ import { Track } from "livekit-client";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { Z } from "../../../lib/meetingUi";
+import { TileModerationControls } from "./TileModerationControls";
 
 export function FocusOverlay({
   trackRef,
@@ -37,6 +38,7 @@ export function FocusOverlay({
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <TileModerationControls participant={trackRef.participant} name={name} screenShare={isScreenShare} />
             <button
               type="button"
               className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface/50 px-3 py-2 text-sm font-medium text-app-text transition-colors hover:bg-app-surface sm:px-4"

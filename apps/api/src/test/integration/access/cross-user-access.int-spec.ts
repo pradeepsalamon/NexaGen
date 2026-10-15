@@ -63,6 +63,8 @@ const CROSS_USER: Case[] = [
   { name: "coach ends another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.end(w.b.liveClass.id) },
   { name: "coach kicks a student from another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.kick(w.b.liveClass.id), body: (w: World) => ({ identity: w.b.student.id }) },
   { name: "coach force-mutes in another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.moderate(w.b.liveClass.id), body: { identity: "x", source: "microphone" } },
+  { name: "coach asks a student in another coach's class to unmute", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.requestTrackOn(w.b.liveClass.id), body: { identity: "x", source: "microphone" } },
+  { name: "student asks another student to unmute", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.requestTrackOn(w.a.liveClass.id), body: { identity: "x", source: "camera" } },
   { name: "student reads another class's classroom tools", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
   { name: "coach reads another class's classroom tools", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.tools(w.b.liveClass.id) },
   { name: "coach writes another class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.b.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } }

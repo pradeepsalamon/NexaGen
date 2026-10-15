@@ -32,6 +32,28 @@ export interface ModerateParticipantResponse {
   source: ModeratableSource;
 }
 
+/**
+ * Coach asks one participant to turn their microphone or camera back ON.
+ *
+ * This is a request, never a remote switch: re-opening someone's microphone
+ * for them is a privacy hole (and a browser only starts capture from its own
+ * page's user gesture), so the participant gets a prompt and decides. Refused
+ * while the class settings lock that source off for students.
+ */
+export const requestTrackOnRequestSchema = z.object({
+  identity: z.string().min(1).max(200),
+  source: z.enum(["microphone", "camera"]),
+});
+
+export type RequestTrackOnRequest = z.infer<typeof requestTrackOnRequestSchema>;
+
+export interface RequestTrackOnResponse {
+  /** False when that source was already on, so nobody was asked. */
+  sent: boolean;
+  identity: string;
+  source: RequestTrackOnRequest["source"];
+}
+
 /** Coach turns one or both sources off for every student at once. Off only — never on. */
 export const moderateAllRequestSchema = z.object({
   sources: z.array(z.enum(["microphone", "camera"])).min(1).max(2),
@@ -63,14 +85,22 @@ export interface KickParticipantResponse {
  */
 export const LIVE_CLASS_MODERATION_TOPIC = "moderation";
 
-export interface ModerationNotice {
-  type: "FORCE_MUTE";
-  /** Identity whose track was switched off. */
-  identity: string;
-  source: ModeratableSource;
-  /** Display name of the coach who did it. */
-  byName: string;
-}
+export type ModerationNotice =
+  | {
+      type: "FORCE_MUTE";
+      /** Identity whose track was switched off. */
+      identity: string;
+      source: ModeratableSource;
+      /** Display name of the coach who did it. */
+      byName: string;
+    }
+  | {
+      /** The coach asks this participant to turn a source back on (sent to them alone). */
+      type: "REQUEST_ON";
+      identity: string;
+      source: RequestTrackOnRequest["source"];
+      byName: string;
+    };
 
 /**
  * Topic the API injects recording start/stop on. LiveKit's own `isRecording`

@@ -18,11 +18,13 @@ import {
   Crown,
   Lock,
   MessageSquareText,
+  Mic,
   MicOff,
   MonitorOff,
   MonitorUp,
   UserMinus,
   UserPlus,
+  Video,
   VideoOff,
 } from "lucide-react";
 import {
@@ -179,13 +181,42 @@ export function MeetingEventToasts() {
 
   // ── the coach switched someone's track off ────────────────────────
   const onModerationNotice = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: Participant }) => {
+      // Moderation notices only ever come from the API (no `from`). Students
+      // hold canPublishData, so a peer packet on this topic is a forgery.
+      if (msg.from) return;
       let notice: ModerationNotice;
       try {
         notice = JSON.parse(new TextDecoder().decode(msg.payload)) as ModerationNotice;
       } catch {
         return;
       }
+
+      // The coach asks you to turn a source back on. Accepting is the student's own click — the browser only
+      // starts capture from a user gesture, and nothing is switched on remotely.
+      if (notice?.type === "REQUEST_ON") {
+        if (notice.identity !== localParticipant?.identity || !localParticipant) return;
+        const isMic = notice.source === "microphone";
+        const lp = localParticipant;
+        meetingToast({
+          tone: "info",
+          id: `request-on-${notice.source}`,
+          title: `${notice.byName} asks you to turn on your ${isMic ? "microphone" : "camera"}`,
+          durationMs: 15000,
+          icon: isMic ? <Mic className="size-4" /> : <Video className="size-4" />,
+          action: {
+            label: isMic ? "Unmute" : "Start video",
+            onClick: () => {
+              // A capture failure is reported by MediaDeviceProvider
+              // (RoomEvent.MediaDevicesError), so it needs no toast here.
+              const turnOn = isMic ? lp.setMicrophoneEnabled(true) : lp.setCameraEnabled(true);
+              void turnOn.catch(() => undefined);
+            },
+          },
+        });
+        return;
+      }
+
       if (notice?.type !== "FORCE_MUTE") return;
 
       const label = MODERATED_SOURCE_LABEL[notice.source];
@@ -208,7 +239,7 @@ export function MeetingEventToasts() {
           ),
       });
     },
-    [localParticipant?.identity],
+    [localParticipant],
   );
 
   useDataChannel(LIVE_CLASS_MODERATION_TOPIC, onModerationNotice);

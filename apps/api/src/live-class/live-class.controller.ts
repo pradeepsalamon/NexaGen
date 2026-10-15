@@ -28,6 +28,7 @@ import {
   moderateAllRequestSchema,
   kickParticipantRequestSchema,
   moderateParticipantRequestSchema,
+  requestTrackOnRequestSchema,
   resolveScreenShareRequestSchema,
   pullStudentRequestSchema,
   resolveWaitingRoomRequestSchema,
@@ -38,6 +39,7 @@ import {
   type ModerateAllRequest,
   type KickParticipantRequest,
   type ModerateParticipantRequest,
+  type RequestTrackOnRequest,
   type ResolveScreenShareRequest,
   type PullStudentRequest,
   type ResolveWaitingRoomRequest,
@@ -209,6 +211,15 @@ export class LiveClassController {
     @Body(new ZodBodyPipe(moderateParticipantRequestSchema)) body: ModerateParticipantRequest
   ) {
     return this.moderation.moderateParticipant(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.requestTrackOn())
+  requestTrackOn(
+    @Param("id") id: string,
+    @Req() request: Request,
+    @Body(new ZodBodyPipe(requestTrackOnRequestSchema)) body: RequestTrackOnRequest
+  ) {
+    return this.moderation.requestTrackOn(this.getAccessToken(request), id, body);
   }
 
   @Post(API_ROUTES.liveClass.moderateAll())

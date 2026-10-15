@@ -12,6 +12,8 @@ import {
   type ModerateParticipantRequest,
   type ModerateParticipantResponse,
   type PullRosterResponse,
+  type RequestTrackOnRequest,
+  type RequestTrackOnResponse,
   type ResolveScreenShareRequest,
   type ResolveWaitingRoomRequest,
   type ScreenShareRequestEntry,
@@ -104,6 +106,20 @@ export const moderateParticipant = (
   body: ModerateParticipantRequest
 ): Promise<ModerateParticipantResponse> => {
   return apiFetch<ModerateParticipantResponse>(API_ROUTES.liveClass.moderate(roomId), {
+    method: "POST",
+    body,
+  });
+};
+
+/**
+ * Coach-only: ask one participant to turn their mic / camera back on. They get
+ * a prompt and decide — nothing is switched on remotely.
+ */
+export const requestTrackOn = (
+  roomId: string,
+  body: RequestTrackOnRequest
+): Promise<RequestTrackOnResponse> => {
+  return apiFetch<RequestTrackOnResponse>(API_ROUTES.liveClass.requestTrackOn(roomId), {
     method: "POST",
     body,
   });

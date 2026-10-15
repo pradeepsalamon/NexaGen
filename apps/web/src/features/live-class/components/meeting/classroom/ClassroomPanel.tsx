@@ -87,9 +87,12 @@ export function ClassroomPanel({
   isCoach,
   showVideo,
   sideColumn = false,
+  onOpenGallery,
 }: {
   isCoach: boolean;
   showVideo: boolean;
+  /** Switch the stage to the gallery (every participant's video in a grid). */
+  onOpenGallery?: () => void;
   /** Puzzles and chat are already shown in the coach's column left of the board. */
   sideColumn?: boolean;
 }) {
@@ -144,6 +147,7 @@ export function ClassroomPanel({
               collapsed={videoCollapsed}
               onCollapsedChange={setVideoCollapsed}
               fill={video.height !== null}
+              onOpenGallery={onOpenGallery}
             />
           </div>
           {!videoCollapsed ? <VideoResizer video={video} /> : null}

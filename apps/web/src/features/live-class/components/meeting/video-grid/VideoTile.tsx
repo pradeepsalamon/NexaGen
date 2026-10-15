@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   isTrackReference,
   ParticipantTile,
+  useIsMuted,
   useIsSpeaking,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
@@ -16,6 +17,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "../../../lib/meetingUi";
 import { getRole, getTrackKey } from "./videoGrid.utils";
+import { TileModerationControls } from "./TileModerationControls";
 import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 
 interface VideoTileProps {
@@ -29,7 +31,8 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
   const user = useAuthStore((state) => state.user);
   const participant = trackRef.participant;
   const isSpeaking = useIsSpeaking(participant);
-  const isMuted = !participant.isMicrophoneEnabled;
+  // Subscribed directly: a memoised tile isn't re-rendered for a mic change.
+  const isMuted = useIsMuted({ participant, source: Track.Source.Microphone });
   const localName = user ? `${user.firstName} ${user.lastName || ""}`.trim() : "You";
   const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
@@ -137,10 +140,16 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
         </div>
         <div className="flex-1" />
 
+        {/* Coach quick actions: revealed on hover / keyboard focus where a
+            pointer can hover, always shown on touch screens (no hover). */}
+        <div className="flex items-center gap-1.5 transition-opacity duration-150 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within:opacity-100 [@media(hover:hover)]:group-hover:opacity-100">
+          <TileModerationControls participant={participant} name={name} screenShare={isScreenShare} />
+        </div>
+
         {onPin && (
           <button
             type="button"
-            className="pointer-events-auto flex size-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/60 opacity-0 backdrop-blur-sm transition duration-150 hover:bg-black/70 hover:text-white group-hover:opacity-100"
+            className="pointer-events-auto ml-1.5 flex size-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/60 opacity-0 backdrop-blur-sm transition duration-150 hover:bg-black/70 hover:text-white focus-visible:opacity-100 group-hover:opacity-100"
             onClick={() => onPin(trackKey)}
             aria-label={
               isScreenShare

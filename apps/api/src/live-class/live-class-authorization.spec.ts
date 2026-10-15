@@ -1,5 +1,10 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  ServiceUnavailableException
+} from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { UserRole, UserStatus } from "@prisma/client";
 import { liveClassSettingsSchema } from "@nexa-chess/types";
@@ -495,6 +500,107 @@ describe("LiveClassModerationService.moderateParticipant (coach force-mute)", ()
         source: "microphone"
       })
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe("requestTrackOn (ask to unmute / start video)", () => {
+    const mutedStudent = {
+      identity: "student-1_tab-a",
+      metadata: JSON.stringify({ role: "STUDENT" }),
+      tracks: [{ sid: "TR_mic", source: 2, muted: true }]
+    };
+
+    it("asks only that participant, and never unmutes anything itself", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      listParticipants.mockResolvedValue([mutedStudent]);
+
+      const result = await service.requestTrackOn(ACCESS_TOKEN, "class-1", {
+        identity: "student-1_tab-a",
+        source: "microphone"
+      });
+
+      expect(result).toEqual({ sent: true, identity: "student-1_tab-a", source: "microphone" });
+      expect(muteParticipantTrack).not.toHaveBeenCalled();
+      expect(broadcastData).toHaveBeenCalledWith("room-1", expect.any(Uint8Array), "moderation", [
+        "student-1_tab-a"
+      ]);
+      const notice = JSON.parse(new TextDecoder().decode(broadcastData.mock.calls[0][1]));
+      expect(notice).toEqual({
+        type: "REQUEST_ON",
+        identity: "student-1_tab-a",
+        source: "microphone",
+        byName: "Ada Coach"
+      });
+    });
+
+    it("asks a participant with no camera published at all", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      listParticipants.mockResolvedValue([mutedStudent]);
+
+      const result = await service.requestTrackOn(ACCESS_TOKEN, "class-1", {
+        identity: "student-1_tab-a",
+        source: "camera"
+      });
+      expect(result.sent).toBe(true);
+    });
+
+    it("sends nothing when that source is already on", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+
+      const result = await service.requestTrackOn(ACCESS_TOKEN, "class-1", {
+        identity: "student-1_tab-a",
+        source: "camera"
+      });
+      expect(result.sent).toBe(false);
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+
+    it("refuses while the class settings lock student microphones off", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      listParticipants.mockResolvedValue([mutedStudent]);
+      const locked = liveClassSettingsSchema.parse({ student: { mic: "FORCED_OFF" } });
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        roomName: "room-1",
+        status: "LIVE",
+        effectiveSettings: locked
+      });
+
+      await expect(
+        service.requestTrackOn(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a", source: "microphone" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(broadcastData).not.toHaveBeenCalled();
+    });
+
+    it("is coach-owner only", async () => {
+      authenticateAs("student-2", UserRole.STUDENT);
+      await expect(
+        service.requestTrackOn(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a", source: "microphone" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+
+      authenticateAs("coach-2", UserRole.COACH);
+      await expect(
+        service.requestTrackOn(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a", source: "microphone" })
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("surfaces a failed delivery instead of claiming it was sent", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      listParticipants.mockResolvedValue([mutedStudent]);
+      broadcastData.mockRejectedValue(new Error("livekit down"));
+
+      await expect(
+        service.requestTrackOn(ACCESS_TOKEN, "class-1", { identity: "student-1_tab-a", source: "microphone" })
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+    });
+
+    it("404s for a participant who has already left", async () => {
+      authenticateAs("coach-1", UserRole.COACH);
+      await expect(
+        service.requestTrackOn(ACCESS_TOKEN, "class-1", { identity: "student-9_tab-z", source: "camera" })
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 });
 

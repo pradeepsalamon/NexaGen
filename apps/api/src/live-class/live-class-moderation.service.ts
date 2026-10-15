@@ -4,12 +4,16 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { LiveSessionStatus } from "./types/live-class.types";
 import {
   LIVE_CLASS_MODERATION_TOPIC,
+  liveClassSettingsSchema,
+  type RequestTrackOnRequest,
+  type RequestTrackOnResponse,
   type ModeratableSource,
   type ModerateAllRequest,
   type ModerateAllResponse,
@@ -74,6 +78,63 @@ export class LiveClassModerationService {
     }
 
     return { muted, identity: participant.identity, source: body.source };
+  }
+
+  /**
+   * Ask one participant to turn their microphone or camera back on. A prompt
+   * delivered to them alone, never a remote unmute (see `moderateParticipant`):
+   * they accept or ignore it on their own device. Refused while the class
+   * settings lock that source off for students, since they couldn't comply.
+   */
+  async requestTrackOn(
+    accessToken: string | undefined,
+    classId: string,
+    body: RequestTrackOnRequest
+  ): Promise<RequestTrackOnResponse> {
+    const { user, liveSession } = await this.resolveModerator(accessToken, classId);
+    if (isCoachParticipant(body.identity, liveSession.coachId)) {
+      throw new BadRequestException("Use your own controls to turn yours on.");
+    }
+
+    const policy = liveClassSettingsSchema.safeParse(liveSession.effectiveSettings);
+    const lock = body.source === "microphone" ? policy.data?.student.mic : policy.data?.student.camera;
+    if (policy.success && lock === "FORCED_OFF") {
+      throw new BadRequestException(
+        `Student ${body.source === "microphone" ? "microphones" : "cameras"} are locked off in this class's settings. Unlock them first.`
+      );
+    }
+
+    const participants = await this.livekit.listParticipants(liveSession.roomName);
+    const participant = participants.find((p) => p.identity === body.identity);
+    if (!participant) {
+      throw new NotFoundException("That participant is no longer in the class.");
+    }
+
+    const alreadyOn = (participant.tracks ?? []).some(
+      (track) => !track.muted && LiveKitService.trackSourceLabel(track.source) === body.source
+    );
+    if (alreadyOn) return { sent: false, identity: participant.identity, source: body.source };
+
+    // The request IS the whole effect here, so unlike the force-mute notice a
+    // failed delivery is an error the coach needs to see.
+    const notice: ModerationNotice = {
+      type: "REQUEST_ON",
+      identity: participant.identity,
+      source: body.source,
+      byName: [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || "The coach",
+    };
+    try {
+      await this.livekit.broadcastData(
+        liveSession.roomName,
+        new TextEncoder().encode(JSON.stringify(notice)),
+        LIVE_CLASS_MODERATION_TOPIC,
+        [participant.identity]
+      );
+    } catch (error) {
+      this.logger.warn(`Failed to send a turn-on request in ${liveSession.roomName}`, error as Error);
+      throw new ServiceUnavailableException("Couldn't reach the class right now. Try again.");
+    }
+    return { sent: true, identity: participant.identity, source: body.source };
   }
 
   /**

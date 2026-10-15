@@ -103,6 +103,8 @@ export const API_ROUTES = {
     moderate: (id: string = ":id") => `/live-class/${id}/moderate`,
     // Coach-owner+admin: switch mic and/or camera off for every student (off only).
     moderateAll: (id: string = ":id") => `/live-class/${id}/moderate-all`,
+    // Ask one participant to turn their mic / camera back on (a prompt, never a remote unmute).
+    requestTrackOn: (id: string = ":id") => `/live-class/${id}/moderate/request-on`,
     kick: (id: string = ":id") => `/live-class/${id}/kick`,
     // In-class puzzle: POST assign / DELETE end / GET current (coach-owner+admin
     // for write, any participant for read).

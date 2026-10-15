@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   isTrackReference,
   ParticipantTile,
+  useIsMuted,
   useIsSpeaking,
   type TrackReferenceOrPlaceholder,
 } from "@livekit/components-react";
@@ -14,6 +15,7 @@ import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider"
 import { ParticipantAvatar } from "../ParticipantAvatar";
 import { useAuthStore } from "@/stores/authStore";
 import { cn } from "@/lib/utils";
+import { TileModerationControls } from "./TileModerationControls";
 
 export const CompactVideoTile = memo(function CompactVideoTile({
   trackRef,
@@ -27,7 +29,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
   const name = participant.name || (participant.isLocal ? localName : participant.identity) || "Unknown";
   const isScreenShare = trackRef.source === Track.Source.ScreenShare;
   const hasVideo = isTrackReference(trackRef) && !trackRef.publication.isMuted;
-  const isMuted = !participant.isMicrophoneEnabled;
+  const isMuted = useIsMuted({ participant, source: Track.Source.Microphone });
   const handRaised = !!useOptionalLiveClassState((s) => !!s.raisedHands[participant.identity]);
 
   return (
@@ -38,7 +40,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
       exit={{ opacity: 0, scale: 0.9 }}
       transition={{ duration: 0.15 }}
       className={cn(
-        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-control border bg-app-surface transition-shadow duration-150",
+        "group relative flex shrink-0 items-center justify-center overflow-hidden rounded-control border bg-app-surface transition-shadow duration-150",
         "w-28 h-20 sm:w-36 sm:h-24",
         handRaised && !isScreenShare ? "border-amber-500" : isSpeaking ? "border-success" : "border-app-border/60",
       )}
@@ -74,6 +76,13 @@ export const CompactVideoTile = memo(function CompactVideoTile({
           <Hand className="size-3" strokeWidth={2.5} />
         </span>
       ) : null}
+
+      {/* Coach quick actions. Hover-revealed; a filmstrip tile is too small to
+          carry them permanently on a phone, where the gallery and People
+          panel have them. */}
+      <div className="absolute right-1 top-1 z-10 opacity-0 transition-opacity duration-150 group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:hidden">
+        <TileModerationControls participant={participant} name={name} screenShare={isScreenShare} size="sm" />
+      </div>
 
       {/* Name pill */}
       <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1 rounded-control bg-black/60 px-1.5 py-0.5 backdrop-blur-sm">

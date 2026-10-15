@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Crown, LayoutGrid, Puzzle, Shapes, Swords, Users, Video } from "lucide-react";
+import { Crown, Grid2x2, LayoutGrid, Puzzle, Shapes, SquareUser, Swords, Users } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
@@ -9,6 +9,7 @@ import { useMatch } from "../../../providers/MatchProvider";
 import { useSimul } from "../../../providers/SimulProvider";
 import { MatchCoachView } from "../match/MatchCoachView";
 import { MatchStudentView } from "../match/MatchStudentView";
+import { Button } from "@/components/ui/Button";
 import { MeetingVideoGrid } from "../MeetingVideoGrid";
 import { PuzzleLiveBoardsGrid } from "../PuzzleLiveBoardsPanel";
 import { PuzzleStage } from "../PuzzleStage";
@@ -201,7 +202,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const options = useMemo(() => {
     const all: (StageOption & { show: boolean })[] = [
       { id: "board", label: "Board", icon: <Crown className="size-3.5" strokeWidth={2.5} />, show: true },
-      { id: "video", label: "Video", icon: <Video className="size-3.5" strokeWidth={2.5} />, show: true },
+      { id: "video", label: "Gallery", icon: <Grid2x2 className="size-3.5" strokeWidth={2.5} />, show: true },
       {
         id: "puzzle",
         label: isCoach ? "Activity" : "Puzzle",
@@ -262,7 +263,15 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
         <PresentedInteractiveStage stageSwitch={stageSwitch} />
       ) : stage === "video" ? (
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex shrink-0 justify-end px-3 pt-3 lg:px-6">{stageSwitch}</div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-3 pt-3 lg:px-6">
+            {/* Gallery ⇄ speaker: the speaker view is the panel's spotlight
+                beside the board, so "back" is the board stage. */}
+            <Button size="sm" variant="ghost" onClick={() => changeStage("board")}>
+              <SquareUser className="mr-1.5 size-4" strokeWidth={2.5} />
+              Speaker view
+            </Button>
+            {stageSwitch}
+          </div>
           <MeetingVideoGrid hideBoard />
         </section>
       ) : (
@@ -279,6 +288,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
         <ClassroomPanel
           isCoach={isCoach}
           showVideo={stage !== "video"}
+          onOpenGallery={() => changeStage("video")}
           sideColumn={isCoach && stage === "board" && sideColumnFits}
         />
       </div>
