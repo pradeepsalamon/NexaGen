@@ -35,6 +35,12 @@ export interface PracticeBoardProps {
   onMove?: (move: PracticeBoardMove) => void;
   /** Change it to snap the board back to `fen` (e.g. after a rejected move) without remounting. */
   resetKey?: number | string;
+  /**
+   * Let `playerColor` queue a move while the other side is to move (lichess
+   * premove). It is played the moment `fen` turns back to them, if legal.
+   * Needs `playerColor` and `interactive`.
+   */
+  premove?: boolean;
   className?: string;
 }
 
@@ -63,6 +69,7 @@ export function PracticeBoard({
   hintSquares,
   onMove,
   resetKey,
+  premove = false,
   className
 }: PracticeBoardProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,6 +97,7 @@ export function PracticeBoard({
   const turnColor: Color = game?.turn() === "b" ? "black" : "white";
   const movableColor = interactive ? playerColor ?? turnColor : undefined;
   const canMove = interactive && (!playerColor || playerColor === turnColor);
+  const premoveEnabled = premove && interactive && !!playerColor;
 
   const dests = useMemo(() => {
     const map = new Map<Key, Key[]>();
@@ -142,6 +150,9 @@ export function PracticeBoard({
         lastMove: highlightSettings.highlightEnabled,
         check: highlightSettings.checkIndicatorEnabled,
       },
+      // chessground premoves by default; a queued move nobody plays just
+      // leaves a stuck highlight, so only boards that play them enable it.
+      premovable: { enabled: premoveEnabled },
       movable: {
         free: false,
         color: movableColor,
@@ -166,15 +177,46 @@ export function PracticeBoard({
       }
     });
     const el = containerRef.current;
-    // Colour a drawing gesture by its modifier (Ctrl red, Alt blue, Shift
-    // yellow), exactly like the live-class board.
-    const onDown = (e: MouseEvent) => {
-      if (!isDrawGesture(e)) return;
-      stampGestureBrush(() => apiRef.current?.state, brushForGesture(e));
+    // chessground measures the board once and caches it. A board that mounts
+    // inside an opening dialog is measured mid zoom-in (95% scale), so taps
+    // near the right and bottom edges hit the wrong square until something
+    // re-measures. Re-measure before every touch / click, and once the open
+    // animation is over.
+    const refreshBounds = () => {
+      const state = apiRef.current?.state;
+      if (!state) return;
+      const before = state.dom.bounds();
+      state.dom.bounds.clear();
+      const after = state.dom.bounds();
+      const moved =
+        Math.abs(before.width - after.width) > 0.5 ||
+        Math.abs(before.left - after.left) > 0.5 ||
+        Math.abs(before.top - after.top) > 0.5;
+      if (moved) state.dom.redraw();
     };
-    el.addEventListener("mousedown", onDown, { capture: true });
+    const onPointerStart = (e: MouseEvent | TouchEvent) => {
+      refreshBounds();
+      // Colour a drawing gesture by its modifier (Ctrl red, Alt blue, Shift
+      // yellow), exactly like the live-class board.
+      if (e instanceof MouseEvent && isDrawGesture(e)) {
+        stampGestureBrush(() => apiRef.current?.state, brushForGesture(e));
+      }
+    };
+    // Android Chrome can cancel a touch (system gesture, notification shade)
+    // without a touchend. chessground never hears about it, keeps the drag
+    // open, and spends the next tap cancelling it instead of selecting.
+    const onTouchCancel = () => {
+      if (apiRef.current?.state.draggable.current) apiRef.current.cancelMove();
+    };
+    const settle = window.setTimeout(refreshBounds, 350);
+    el.addEventListener("mousedown", onPointerStart, { capture: true });
+    el.addEventListener("touchstart", onPointerStart, { capture: true, passive: true });
+    el.addEventListener("touchcancel", onTouchCancel);
     return () => {
-      el.removeEventListener("mousedown", onDown, { capture: true });
+      window.clearTimeout(settle);
+      el.removeEventListener("mousedown", onPointerStart, { capture: true });
+      el.removeEventListener("touchstart", onPointerStart, { capture: true });
+      el.removeEventListener("touchcancel", onTouchCancel);
       apiRef.current?.destroy();
       apiRef.current = null;
     };
@@ -182,31 +224,40 @@ export function PracticeBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // `set({ fen })` wipes the user's drawn arrows. Keep them across re-renders
-  // (a ticking timer re-renders the parent) and drop them only once the
-  // position actually changes, like lichess.
-  const drawnFenRef = useRef(fen);
+  // Re-sending an unchanged `fen` replaces every piece, animates, and wipes
+  // drawn arrows — and a parent re-renders often (a ticking clock, a poll), so
+  // doing it every time cancels a piece the user just tapped or is dragging.
+  // Only send the position when the board shows something else, or when the
+  // parent asks for a snap-back with `resetKey`.
+  const lastMoveKey = lastMove ? `${lastMove[0]}${lastMove[1]}` : "";
+  const appliedResetKey = useRef(resetKey);
   useEffect(() => {
     const api = apiRef.current;
-    const keptShapes = drawnFenRef.current === fen ? api?.state.drawable.shapes : undefined;
-    drawnFenRef.current = fen;
-    api?.set({
-      fen,
-      drawable: { shapes: keptShapes ?? [] },
+    if (!api) return;
+    const resetRequested = appliedResetKey.current !== resetKey;
+    appliedResetKey.current = resetKey;
+    const positionChanged = api.getFen() !== fen.split(" ")[0];
+    api.set({
+      ...(positionChanged || resetRequested ? { fen, drawable: { shapes: [] } } : {}),
       orientation,
       turnColor,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled, duration: 150 },
-      lastMove: lastMove ? (lastMove as Key[]) : undefined,
+      lastMove: lastMoveKey ? ([lastMoveKey.slice(0, 2), lastMoveKey.slice(2, 4)] as Key[]) : undefined,
       check: game?.inCheck() ?? false,
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
         check: highlightSettings.checkIndicatorEnabled,
       },
+      premovable: { enabled: premoveEnabled },
       movable: { free: false, color: movableColor, dests, showDests: highlightSettings.legalMovesEnabled }
     });
+    // Our turn again: play the queued premove at once (it goes through the
+    // same `after` handler as a normal move). Off the board: drop it.
+    if (!premoveEnabled) api.cancelPremove();
+    else if (canMove) api.playPremove();
   }, [
-    fen, orientation, turnColor, lastMove, movableColor, dests, game,
+    fen, orientation, turnColor, lastMoveKey, movableColor, dests, game, canMove, premoveEnabled,
     showCoordinates, animationEnabled, highlightSettings, resetKey
   ]);
 

@@ -142,6 +142,24 @@ describe("LiveClassSimulService", () => {
       expect(decodeLiveSimul(livekit.broadcastData.mock.calls[0][1])?.type).toBe("SIMUL_GAME");
     });
 
+    it("returns and broadcasts the moved game without re-reading it", async () => {
+      asCoach();
+      const { game } = await service.move(TOKEN, CLASS_ID, "g-1", { uci: "e2e4", ply: 0 });
+      expect(prisma.liveClassSimulGame.findUniqueOrThrow).not.toHaveBeenCalled();
+      expect(game).toMatchObject({ ply: 1, turn: "STUDENT", status: "ONGOING", drawOfferedBy: null });
+      expect(game.moves).toEqual([{ by: "COACH", san: "e4", uci: "e2e4" }]);
+      const packet = decodeLiveSimul(livekit.broadcastData.mock.calls[0][1]);
+      expect(packet).toEqual({ type: "SIMUL_GAME", game });
+    });
+
+    it("a reply still succeeds when the LiveKit broadcast fails", async () => {
+      asCoach();
+      livekit.broadcastData.mockRejectedValue(new Error("livekit down"));
+      await expect(service.move(TOKEN, CLASS_ID, "g-1", { uci: "e2e4", ply: 0 })).resolves.toMatchObject({
+        game: { ply: 1 }
+      });
+    });
+
     it("refuses a student moving on the coach's turn", async () => {
       await expect(
         service.move(TOKEN, CLASS_ID, "g-1", { uci: "e7e5", ply: 0 })
@@ -186,9 +204,10 @@ describe("LiveClassSimulService", () => {
           ]
         })
       );
-      await service.move(TOKEN, CLASS_ID, "g-1", { uci: "d8h4", ply: 3 });
+      const { game } = await service.move(TOKEN, CLASS_ID, "g-1", { uci: "d8h4", ply: 3 });
       const { data } = prisma.liveClassSimulGame.updateMany.mock.calls[0][0];
       expect(data).toMatchObject({ status: "FINISHED", result: "STUDENT_WON", endReason: "CHECKMATE" });
+      expect(game).toMatchObject({ status: "FINISHED", result: "STUDENT_WON", endReason: "CHECKMATE", turn: null });
     });
 
     it("reports a lost race as a conflict", async () => {

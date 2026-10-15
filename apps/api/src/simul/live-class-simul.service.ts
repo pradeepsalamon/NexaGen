@@ -328,20 +328,41 @@ export class LiveClassSimulService {
     const outcome = this.outcomeAfter(chess, side);
     const now = new Date();
 
+    const moves = [...this.movesOf(game.movesJson), move];
+    const finished = outcome ? this.finish(outcome, now) : null;
     const updated = await this.prisma.liveClassSimulGame.updateMany({
       where: { id: game.id, ply, status: SimulGameStatus.ONGOING },
       data: {
         drawOfferedBy: null,
         fen: chess.fen(),
         lastMoveAt: now,
-        movesJson: [...this.movesOf(game.movesJson), move] as unknown as Prisma.InputJsonValue,
+        movesJson: moves as unknown as Prisma.InputJsonValue,
         ply: ply + 1,
         ...(engine ? { engineMoves: { increment: 1 } } : {}),
-        ...(outcome ? this.finish(outcome, now) : {})
+        ...(finished ?? {})
       }
     });
     if (updated.count === 0) throw new ConflictException("The board changed — refresh and try again.");
-    return this.publishGame(roomName, game.id);
+
+    // The `ply` + status guard means the row now holds exactly this, so build
+    // the game here instead of reading it back: the opponent's board gets the
+    // move one round trip sooner, and the mover's reply doesn't wait on
+    // LiveKit (clients merge packets by ply, so order can't rewind a board).
+    const after = this.toGame({
+      ...game,
+      drawOfferedBy: null,
+      endReason: outcome?.endReason ?? game.endReason,
+      engineMoves: game.engineMoves + (engine ? 1 : 0),
+      fen: chess.fen(),
+      finishedAt: outcome ? now : game.finishedAt,
+      lastMoveAt: now,
+      movesJson: moves as unknown as Prisma.JsonValue,
+      ply: ply + 1,
+      result: outcome?.result ?? game.result,
+      status: outcome ? SimulGameStatus.FINISHED : game.status
+    });
+    void this.broadcast(roomName, { type: "SIMUL_GAME", game: after });
+    return { game: after };
   }
 
   private async publishGame(roomName: string, gameId: string): Promise<LiveSimulGameResponse> {

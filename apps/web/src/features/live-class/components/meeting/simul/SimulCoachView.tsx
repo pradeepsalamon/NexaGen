@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bot,
@@ -87,6 +87,69 @@ function waitLabel(since: string, now: number): string {
   return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
 }
 
+/**
+ * The ticking "waiting 12s". Its own component so the once-a-second clock
+ * re-renders this text only — not the coach's board and every thumbnail,
+ * which on a phone made the board stutter and drop a tap mid-move.
+ */
+function WaitTime({ since }: { since: string }) {
+  const now = useNow(1000);
+  return <>{waitLabel(since, now)}</>;
+}
+
+/** A thumbnail in the boards rail. Memoised: one board's move re-renders only that tile. */
+const BoardTile = memo(function BoardTile({
+  game,
+  focused,
+  engineThinking,
+  onSelect
+}: {
+  game: LiveSimulGame;
+  focused: boolean;
+  engineThinking: boolean;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(game.id)}
+      aria-label={`Open ${game.studentName}'s board`}
+      aria-current={focused}
+      className={cn(
+        "flex w-28 shrink-0 touch-manipulation flex-col gap-1 rounded-app border p-1.5 text-left transition-colors lg:w-auto",
+        focused
+          ? "border-primary bg-primary/5"
+          : game.turn === "COACH"
+            ? "border-warning/60 hover:bg-app-soft"
+            : "border-app-border hover:bg-app-soft"
+      )}
+    >
+      <PuzzleBoardTile fen={game.fen} orientation={game.coachColor} lastMove={game.moves[game.moves.length - 1]?.uci} />
+      <span className="truncate text-xs font-semibold text-app-text">{game.studentName}</span>
+      <span
+        className={cn(
+          "truncate text-xs",
+          game.turn === "COACH" ? "font-semibold text-warning-ink" : "text-app-muted"
+        )}
+      >
+        {game.status === "FINISHED" ? (
+          `${simulScoreLabel(game)} · ${game.result ? "done" : "unfinished"}`
+        ) : engineThinking ? (
+          "Engine thinking…"
+        ) : game.turn === "COACH" ? (
+          <>
+            Your move · <WaitTime since={game.turnSince} />
+          </>
+        ) : game.drawOfferedBy === "STUDENT" ? (
+          "Offers a draw"
+        ) : (
+          "Their move"
+        )}
+      </span>
+    </button>
+  );
+});
+
 function resultText(game: LiveSimulGame): string {
   if (!game.result) return "Unfinished";
   const reason = game.endReason ? SIMUL_END_REASON_LABELS[game.endReason] : "";
@@ -110,7 +173,6 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
     setFocusedGameId
   } = useSimul();
   const toast = useToast();
-  const now = useNow(1000);
 
   const move = useLiveSimulMove(classId, "COACH");
   const engineMove = useLiveSimulEngineMove(classId);
@@ -151,13 +213,40 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
     [sorted, enginePending]
   );
 
+  // Set when auto-advance found no board waiting: the next board that turns
+  // to the coach is opened the moment its move lands (lichess simul flow).
+  const awaitingNext = useRef(false);
+
   const advanceFrom = useCallback(
     (gameId: string) => {
       const next = nextCoachBoard(gameId);
+      awaitingNext.current = !next;
       if (next) setFocusedGameId(next.id);
     },
     [nextCoachBoard, setFocusedGameId]
   );
+
+  // Choosing a board by hand cancels the pending jump.
+  const selectBoard = useCallback(
+    (id: string) => {
+      awaitingNext.current = false;
+      setFocusedGameId(id);
+    },
+    [setFocusedGameId]
+  );
+
+  useEffect(() => {
+    if (!awaitingNext.current || !autoAdvance || !active) return;
+    if (focused && focused.turn === "COACH" && focused.status === "ONGOING" && !enginePending.has(focused.id)) {
+      awaitingNext.current = false;
+      return;
+    }
+    const next = nextCoachBoard();
+    if (next) {
+      awaitingNext.current = false;
+      setFocusedGameId(next.id);
+    }
+  }, [sorted, focused, autoAdvance, active, enginePending, nextCoachBoard, setFocusedGameId]);
 
   const onBoardMove = (game: LiveSimulGame, m: PracticeBoardMove) => {
     move.mutate({ game, uci: m.uci, san: m.san, fen: m.fen });
@@ -204,12 +293,12 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
       if (e.key === "Escape" && !confirmEnd) setCoachOpen(false);
       if (e.key.toLowerCase() === "n") {
         const next = nextCoachBoard(focusedGameId ?? undefined);
-        if (next) setFocusedGameId(next.id);
+        if (next) selectBoard(next.id);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [coachOpen, confirmEnd, focusedGameId, nextCoachBoard, setCoachOpen, setFocusedGameId]);
+  }, [coachOpen, confirmEnd, focusedGameId, nextCoachBoard, setCoachOpen, selectBoard]);
 
   if (!coachOpen || !simul) return null;
 
@@ -324,7 +413,10 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
                     <Badge variant="outline">Their move</Badge>
                   )}
                 </div>
+                {/* Keyed per board: switching mounts the next position at once
+                    instead of animating pieces from one game into another. */}
                 <PracticeBoard
+                  key={focused.id}
                   fen={focused.fen}
                   orientation={focused.coachColor}
                   playerColor={focused.coachColor}
@@ -442,7 +534,7 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
                 ) : null}
 
                 {active && nextBoard ? (
-                  <Button variant="outline" onClick={() => setFocusedGameId(nextBoard.id)}>
+                  <Button variant="outline" onClick={() => selectBoard(nextBoard.id)}>
                     Next board: {nextBoard.studentName}
                     <ChevronRight className="ml-1 size-4" />
                   </Button>
@@ -472,40 +564,13 @@ export function SimulCoachView({ stageSwitch }: { stageSwitch?: ReactNode } = {}
           </p>
           <div className="flex gap-2 lg:grid lg:grid-cols-2">
             {sorted.map((game) => (
-              <button
+              <BoardTile
                 key={game.id}
-                type="button"
-                onClick={() => setFocusedGameId(game.id)}
-                aria-label={`Open ${game.studentName}'s board`}
-                aria-current={game.id === focused?.id}
-                className={cn(
-                  "flex w-28 shrink-0 flex-col gap-1 rounded-app border p-1.5 text-left transition-colors lg:w-auto",
-                  game.id === focused?.id
-                    ? "border-primary bg-primary/5"
-                    : game.turn === "COACH"
-                      ? "border-warning/60 hover:bg-app-soft"
-                      : "border-app-border hover:bg-app-soft"
-                )}
-              >
-                <PuzzleBoardTile fen={game.fen} orientation={game.coachColor} />
-                <span className="truncate text-xs font-semibold text-app-text">{game.studentName}</span>
-                <span
-                  className={cn(
-                    "truncate text-[0.7rem]",
-                    game.turn === "COACH" ? "font-semibold text-warning-ink" : "text-app-muted"
-                  )}
-                >
-                  {game.status === "FINISHED"
-                    ? `${simulScoreLabel(game)} · ${game.result ? "done" : "unfinished"}`
-                    : enginePending.has(game.id)
-                      ? "Engine thinking…"
-                      : game.turn === "COACH"
-                        ? `Your move · ${waitLabel(game.turnSince, now)}`
-                        : game.drawOfferedBy === "STUDENT"
-                          ? "Offers a draw"
-                          : "Their move"}
-                </span>
-              </button>
+                game={game}
+                focused={game.id === focused?.id}
+                engineThinking={enginePending.has(game.id)}
+                onSelect={selectBoard}
+              />
             ))}
           </div>
         </aside>

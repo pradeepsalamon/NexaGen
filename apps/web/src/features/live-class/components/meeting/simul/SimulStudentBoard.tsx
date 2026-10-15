@@ -25,7 +25,7 @@ function statusLine(game: LiveSimulGame, simulActive: boolean): { text: string; 
   if (!simulActive) return { text: "The simul has ended.", tone: "done" };
   return game.turn === "STUDENT"
     ? { text: "Your move", tone: "turn" }
-    : { text: "Your coach is playing the other boards…", tone: "wait" };
+    : { text: "Your coach is playing the other boards… (you can premove)", tone: "wait" };
 }
 
 /** The student's one simul game: a dialog on phones; with `stageSwitch` a classroom stage tab. */
@@ -72,7 +72,10 @@ export function SimulStudentBoard({ stageSwitch }: { stageSwitch?: ReactNode } =
           fen={game.fen}
           orientation={myColor}
           playerColor={myColor}
-          interactive={ongoing && game.turn === "STUDENT" && !move.isPending}
+          // Stays live on the coach's turn so a move can be queued (premove);
+          // it plays the instant the coach's reply lands, as on lichess.
+          interactive={ongoing}
+          premove
           lastMove={last ? [last.uci.slice(0, 2), last.uci.slice(2, 4)] : null}
           onMove={onMove}
           resetKey={game.ply}
