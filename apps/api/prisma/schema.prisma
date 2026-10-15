@@ -650,6 +650,7 @@ model Batch {
   entitlements        Entitlement[]        @relation("EntitlementBatch")
   classChangeRequests ClassChangeRequest[]
   classroomToolStates LiveClassToolState[]
+  liveClassChapters   LiveClassChapter[]
   chessGames          ChessGame[]
   conversation        Conversation?
 
@@ -812,6 +813,7 @@ model CoachClass {
   movePolls                LiveClassMovePoll[]
   puzzleRushes             LiveClassPuzzleRush[]
   classroomToolStates      LiveClassToolState[]
+  liveClassChapters        LiveClassChapter[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]               @relation("FeedbackResponseClass")
@@ -2704,6 +2706,43 @@ model LiveClassToolState {
   @@index([batchId])
   @@index([liveClassId])
   @@map("live_class_tool_states")
+}
+
+/// The coach's study list for a live class (Lichess Study-style chapters): one
+/// saved board each. Scoped like the batch Interactives — `batch:<id>` carries
+/// over between a batch's classes, `class:<id>` for a class with no batch.
+/// Coach-owner/admin only. Not soft-deletable, not Trash-registered.
+model LiveClassChapter {
+  id String @id @default(cuid())
+
+  scopeKey String
+
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  liveClassId String?
+  liveClass   CoachClass? @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  title    String
+  position Int
+  /// `LiveClassChapterState` (@nexa-chess/types): fen, pgn/treePgn, cursor, annotations, orientation.
+  state    Json
+  /// The library puzzle the position came from — a hint for "Ask", deliberately no FK.
+  puzzleId String?
+  /// Client-generated per create, so a retried request returns the same chapter.
+  clientId String?
+
+  createdById String?
+  updatedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scopeKey, clientId])
+  @@index([scopeKey, position])
+  @@index([batchId])
+  @@index([liveClassId])
+  @@map("live_class_chapters")
 }
 
 // Platform default points + leaderboard rules for live-class puzzles

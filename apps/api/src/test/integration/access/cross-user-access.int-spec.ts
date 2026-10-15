@@ -73,6 +73,11 @@ const CROSS_USER: Case[] = [
   { name: "coach starts a Puzzle Racer in another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.puzzleRush(w.b.liveClass.id), body: { mode: "RACER" } },
   { name: "coach ends another coach's Puzzle Storm", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.liveClass.puzzleRush(w.b.liveClass.id) },
   { name: "coach writes another class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.b.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
+  // Chapters (coach-owner/admin only; a chapter id from another batch is a 404)
+  { name: "coach reads another class's chapters", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.chapters(w.b.liveClass.id) },
+  { name: "coach adds a chapter to another class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.chapters(w.b.liveClass.id), body: { clientId: "intruder-0001", state: { arrows: [], fen: "8/8/8/8/8/8/8/K6k w - - 0 1", historyIndex: -1, orientation: "white", pgn: "", squares: {} }, title: "intruder" } },
+  { name: "coach renames another batch's chapter through their own class", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.b.chapter.id), body: { title: "hijacked" } },
+  { name: "coach deletes another batch's chapter through their own class", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.b.chapter.id) },
   // Game Library
   { name: "student opens another student's game", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.b.game.id) },
   { name: "student opens the board game of a class they didn't attend", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.b.boardGame.id) },
@@ -121,6 +126,8 @@ const OWN_CASES: Case[] = [
   { name: "student reads own class's Puzzle Storm", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
   { name: "student reports into own class's Puzzle Storm", as: (w) => w.a.student, method: "PUT", path: (w) => API_ROUTES.liveClass.puzzleRushProgress(w.a.liveClass.id), body: (w: World) => rushReport(w.a.rush.id) },
   { name: "coach reads own class's Puzzle Storm", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
+  { name: "coach reads own class's chapters", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
+  { name: "coach renames own chapter", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.a.chapter.id), body: { title: "Renamed" } },
   { name: "coach writes own class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
   { name: "ADMIN lists every live class (Live Now)", as: (w) => w.admin, path: () => API_ROUTES.adminLiveClasses.list },
   { name: "student opens own game", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.a.game.id) },
@@ -180,6 +187,7 @@ function rushReport(rushId: string) {
 }
 
 const WRONG_ROLE: Case[] = [
+  { name: "student reads own class's chapters", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
   { name: "student lists users", as: (w) => w.a.student, path: () => API_ROUTES.users.list },
   { name: "coach lists users", as: (w) => w.a.coach, path: () => API_ROUTES.users.list },
   { name: "student reads admin invoices", as: (w) => w.a.student, path: () => API_ROUTES.adminInvoices.list },
@@ -261,5 +269,8 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(await t.prisma.conversation.count({ where: { type: { in: ["DIRECT", "GROUP"] } } })).toBe(2);
     expect(await t.prisma.liveClassPuzzleRushEntry.count({ where: { rushId: b.rush.id } })).toBe(0);
     expect(await t.prisma.liveClassPuzzleRush.findUnique({ where: { id: b.rush.id } })).toMatchObject({ endedAt: null });
+    expect(await t.prisma.liveClassChapter.findMany({ where: { scopeKey: `batch:${b.batch.id}` } })).toEqual([
+      expect.objectContaining({ id: b.chapter.id, title: "Chapter B" })
+    ]);
   });
 });

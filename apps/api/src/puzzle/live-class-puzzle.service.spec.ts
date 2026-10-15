@@ -683,6 +683,27 @@ describe("LiveClassPuzzleService", () => {
       expect(res.entries.find((e) => e.isSelf)?.solvedCount).toBe(1);
     });
 
+    it("gives tied students the same rank and skips the next one", async () => {
+      prisma.puzzleAttempt.findMany.mockResolvedValue([]);
+      prisma.liveSession.findUnique.mockResolvedValue({
+        batch: {
+          students: [
+            { student: { id: STUDENT_ID, firstName: "Sam", lastName: "Student" } },
+            { student: { id: OTHER_ID, firstName: "Olive", lastName: "Other" } },
+            { student: { id: "student-3", firstName: "Zed", lastName: "Third" } }
+          ]
+        }
+      });
+      prisma.liveClassLeaderboardAdjustment.findMany.mockResolvedValue([{ studentId: "student-3", points: 10 }]);
+      liveClass.resolveParticipant.mockResolvedValue({ user: asUser(COACH_ID, UserRole.COACH), liveSession });
+      const res = await service.classLeaderboard(TOKEN, CLASS_ID);
+      expect(res.entries.map((e) => [e.studentName, e.rank])).toEqual([
+        ["Zed Third", 1],
+        ["Olive Other", 2],
+        ["Sam Student", 2]
+      ]);
+    });
+
     it("increments the adjustment atomically, or replaces it", async () => {
       await service.adjustClassLeaderboard(TOKEN, CLASS_ID, { studentId: OTHER_ID, delta: 5 });
       expect(prisma.liveClassLeaderboardAdjustment.upsert).toHaveBeenLastCalledWith(

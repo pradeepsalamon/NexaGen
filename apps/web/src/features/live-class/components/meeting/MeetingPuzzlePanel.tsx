@@ -41,6 +41,7 @@ import {
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { PuzzleAssignModal } from "./PuzzleAssignModal";
 import { PuzzleLiveBoardsPanel } from "./PuzzleLiveBoardsPanel";
+import { ParticipantAvatar } from "./ParticipantAvatar";
 import { Switch } from "@/components/ui/Switch";
 
 /** Coach-only: manual +/- points for one student on the puzzle board. */
@@ -447,6 +448,114 @@ function ClassLeaderboardSection({ classId, isCoach }: { classId: string; isCoac
                 </TableCell>
               </TableRow>
             ))}
+          </TableBody>
+        </Table>
+        {data.entries.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-1.5 py-8 text-app-muted">
+            <Inbox aria-hidden="true" className="size-8 opacity-50" strokeWidth={1.75} />
+            <span className="text-xs">No students yet</span>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The sidebar's Leaderboard tab: the same whole-class standings, compact —
+ * Rank · Participant · Score · Progress. Score is the class total (every
+ * shared puzzle scored by its own frozen rules, plus the coach's +/-);
+ * progress is puzzles solved out of the puzzles shared this class. Equal
+ * score and solved count share a rank.
+ */
+export function SidebarClassLeaderboard({ classId, isCoach }: { classId: string; isCoach: boolean }) {
+  const board = useClassLeaderboard(classId, true);
+  const adjust = useAdjustClassLeaderboard(classId);
+  const data = board.data;
+
+  if (board.isError && !data) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-6 text-center text-xs text-app-muted">
+        Couldn&apos;t load the leaderboard.
+        <Button size="sm" variant="outline" onClick={() => void board.refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+  if (!data) {
+    return <p className="py-6 text-center text-xs text-app-muted">Loading standings…</p>;
+  }
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <p className="shrink-0 px-3 py-1.5 text-[11px] text-app-muted">
+        {data.puzzleCount === 0
+          ? "No puzzles shared yet — points appear as students solve."
+          : `${data.puzzleCount} ${data.puzzleCount === 1 ? "puzzle" : "puzzles"} this class`}
+      </p>
+      <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <Table>
+          <TableHeader className="sticky top-0 z-[1] bg-app-soft">
+            <TableRow>
+              <TableHead className="h-8 w-10 px-2 text-[11px]">Rank</TableHead>
+              <TableHead className="h-8 px-1 text-[11px]">Participant</TableHead>
+              <TableHead className="h-8 px-1 text-right text-[11px]">Score</TableHead>
+              <TableHead className="h-8 w-20 px-2 text-right text-[11px]">Progress</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.entries.map((entry) => {
+              const percent = data.puzzleCount > 0 ? Math.round((entry.solvedCount / data.puzzleCount) * 100) : 0;
+              return (
+                <TableRow key={entry.studentId} className={rowClass(entry.rank, entry.isSelf)}>
+                  <TableCell className="px-2 py-1.5">
+                    <RankMark rank={entry.rank} />
+                  </TableCell>
+                  <TableCell className="max-w-0 px-1 py-1.5">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <ParticipantAvatar name={entry.studentName} size="xs" className="shrink-0" />
+                      <span className="truncate text-[13px] font-medium text-app-text">{entry.studentName}</span>
+                      {entry.isSelf ? <YouTag /> : null}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-1 py-1.5 text-right">
+                    <span className="inline-flex items-center gap-1">
+                      <SimpleTooltip
+                        label={
+                          entry.adjustment !== 0
+                            ? `${entry.puzzlePoints} from puzzles, ${entry.adjustment > 0 ? "+" : ""}${entry.adjustment} from the coach`
+                            : `${entry.puzzlePoints} from puzzles`
+                        }
+                      >
+                        <span className="text-[13px] font-semibold tabular-nums text-app-text">{entry.points}</span>
+                      </SimpleTooltip>
+                      {isCoach ? (
+                        <AdjustPopover
+                          name={entry.studentName}
+                          current={entry.adjustment}
+                          pending={adjust.isPending}
+                          onApply={(delta, replace) => adjust.mutate({ delta, replace, studentId: entry.studentId })}
+                        />
+                      ) : null}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-2 py-1.5">
+                    <span
+                      className="flex flex-col items-end gap-0.5"
+                      aria-label={`${entry.solvedCount} of ${data.puzzleCount} puzzles solved`}
+                    >
+                      <span className="text-[11px] tabular-nums text-app-muted">
+                        {entry.solvedCount}/{data.puzzleCount}
+                      </span>
+                      <span className="h-1 w-full overflow-hidden rounded-full bg-app-border/60" aria-hidden="true">
+                        <span className="block h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+                      </span>
+                    </span>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
         {data.entries.length === 0 ? (

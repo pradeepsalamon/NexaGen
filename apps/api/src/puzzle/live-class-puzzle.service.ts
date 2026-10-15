@@ -401,13 +401,20 @@ export class LiveClassPuzzleService {
           b.points - a.points ||
           b.solvedCount - a.solvedCount ||
           a.studentName.localeCompare(b.studentName)
-      )
-      .map((entry, index) => ({ ...entry, rank: index + 1 }));
+      );
+    // Standard competition ranking: equal points and puzzles solved share a
+    // rank (1, 1, 3); the name only fixes the order within a tie.
+    entries.forEach((entry, index) => {
+      const prev = entries[index - 1];
+      entry.rank =
+        prev && prev.points === entry.points && prev.solvedCount === entry.solvedCount ? prev.rank : index + 1;
+    });
 
     return {
       entries: anonymize
-        ? entries.map((e) =>
-            e.isSelf ? e : { ...e, studentId: `anon-${e.rank}`, studentName: `Student ${e.rank}` }
+        ? entries.map((e, index) =>
+            // By position, not rank: tied students must still get distinct ids.
+            e.isSelf ? e : { ...e, studentId: `anon-${index + 1}`, studentName: `Student ${index + 1}` }
           )
         : entries,
       puzzleCount: counted.length,

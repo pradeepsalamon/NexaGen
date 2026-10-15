@@ -127,6 +127,13 @@ export const API_ROUTES = {
     movePoll: (id: string = ":id") => `/live-class/${id}/move-poll`,
     // Student submits (or changes) their move while the poll is open.
     movePollAnswer: (id: string = ":id") => `/live-class/${id}/move-poll/answer`,
+    // Chapters (coach-owner+admin): GET list / POST create, POST import puzzles,
+    // PUT the order, PATCH rename-or-save / DELETE one.
+    chapters: (id: string = ":id") => `/live-class/${id}/chapters`,
+    chapterImport: (id: string = ":id") => `/live-class/${id}/chapters/import`,
+    chapterOrder: (id: string = ":id") => `/live-class/${id}/chapters/order`,
+    chapter: (id: string = ":id", chapterId: string = ":chapterId") =>
+      `/live-class/${id}/chapters/${chapterId}`,
     // Interactives (classroom tools): GET every tool's state (any participant).
     tools: (id: string = ":id") => `/live-class/${id}/tools`,
     // Puzzle Storm / Racer: GET the current round (any participant), POST start

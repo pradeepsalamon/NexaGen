@@ -16,7 +16,7 @@ import { useParams } from "next/navigation";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardControlSide, BoardSyncMessage } from "../types/sync";
-import { moverColorFromFen, senderMayMutateBoard } from "../lib/boardSyncRules";
+import { isOneLegalMoveAway, moverColorFromFen, senderMayMutateBoard } from "../lib/boardSyncRules";
 import { applyMoveToClock } from "../lib/clock";
 import { toLiveBoardState, treePgnForSync } from "../lib/boardSnapshot";
 import { useBoardPersistence, type RestoreGate } from "./useBoardPersistence";
@@ -218,6 +218,12 @@ export function useBoardSyncEngine(): BoardSyncActions {
           // Per-side grants are enforced on the colour that actually played:
           // a white-only student's packet moving a black piece is dropped.
           moverColor: msg.type === "MOVE" ? moverColorFromFen(msg.payload?.fen) : undefined,
+          // A student's move must be one legal move from the board we show:
+          // turn order and chess rules, not just the colour, are enforced here.
+          isLegalMove:
+            msg.type === "MOVE" && !isFromCoach
+              ? isOneLegalMoveAway(current.fen, msg.payload?.fen)
+              : undefined,
         })
       ) {
         console.warn(

@@ -1,3 +1,5 @@
+import { sanitizeCastlingRights } from "@nexa-chess/types";
+import { Chess } from "@/lib/chess";
 import type {
   BoardColor,
   BoardControlSide,
@@ -67,6 +69,32 @@ export function moverColorFromFen(fen: string | undefined): BoardColor | undefin
 }
 
 /**
+ * Placement, side to move and castling. The move counters don't make a
+ * different position, and the en-passant field is left out because chess
+ * libraries disagree on writing it when no capture is possible.
+ */
+function positionKey(fen: string) {
+  return sanitizeCastlingRights(fen.trim()).split(/\s+/).slice(0, 3).join(" ");
+}
+
+/**
+ * True when `toFen` is exactly one legal move away from `fromFen` — chess
+ * rules, whose turn it is and all. A student's MOVE packet is checked with this
+ * against the receiver's own board, so a control holder can play a move but
+ * cannot teleport pieces or skip the other side's turn by hand-crafting a FEN.
+ */
+export function isOneLegalMoveAway(fromFen: string | undefined, toFen: string | undefined): boolean {
+  if (!fromFen || !toFen) return false;
+  try {
+    const chess = new Chess(fromFen);
+    const target = positionKey(toFen);
+    return chess.moves({ verbose: true }).some((move) => positionKey(move.after) === target);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Authoritative check, run on every received board-sync message: may the
  * participant it came from apply this change to our board?
  *
@@ -77,7 +105,9 @@ export function moverColorFromFen(fen: string | undefined): BoardColor | undefin
  * - A student granted a single colour may only push moves *made by that
  *   colour*. `moverColor` is derived from the post-move FEN by the caller, so a
  *   white-only student cannot drive black's pieces even by hand-crafting a
- *   packet. `UNDO`/`REDO` reposition the shared line rather than play a colour,
+ *   packet. A student's MOVE must also be one legal move from the position
+ *   the receiver is showing (`isLegalMove`), so "both" means "either colour,
+ *   on its turn" rather than "anything". `UNDO`/`REDO` reposition the shared line rather than play a colour,
  *   so they stay open to any control holder.
  *
  * `fromIdentity` and every entry in `selectedStudentIds` are **full LiveKit
@@ -92,6 +122,11 @@ export function senderMayMutateBoard(params: {
   selectedStudentSides?: Record<string, BoardControlSide>;
   /** Colour that played the incoming move (MOVE only). */
   moverColor?: BoardColor;
+  /**
+   * MOVE only: whether the packet's position is one legal move from the
+   * receiver's current board (`isOneLegalMoveAway`). Omitted = not checked.
+   */
+  isLegalMove?: boolean;
 }): boolean {
   const {
     type,
@@ -101,6 +136,7 @@ export function senderMayMutateBoard(params: {
     selectedStudentIds,
     selectedStudentSides,
     moverColor,
+    isLegalMove,
   } = params;
 
   if (!MUTATING_MESSAGE_TYPES.has(type)) return true;
@@ -115,6 +151,7 @@ export function senderMayMutateBoard(params: {
     selectedStudentSides,
   });
   if (!side) return false;
-  if (side === "both" || type !== "MOVE") return true;
-  return moverColor === side;
+  if (type !== "MOVE") return true;
+  if (isLegalMove === false) return false;
+  return side === "both" || moverColor === side;
 }

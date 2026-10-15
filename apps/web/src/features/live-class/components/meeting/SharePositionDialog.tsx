@@ -40,22 +40,34 @@ function toInt(value: string): number | null {
   return Number.isInteger(n) ? n : NaN;
 }
 
+/** A position to ask about other than the main board's — a chapter's "Ask". */
+export type SharePositionPreset = {
+  fen: string;
+  orientation: "white" | "black";
+  title?: string;
+  /** The library puzzle it came from: its line prefills, and an unchanged share reuses it. */
+  puzzleId?: string | null;
+};
+
 /**
- * "Share current": the main board's position as a puzzle, editable before it
- * goes out. When the position is the puzzle last shared/loaded (or the one the
- * class is solving), its title and line are prefilled and an unchanged share
- * reuses it; anything edited is saved as a new private puzzle.
+ * "Share current": the main board's position (or `preset`'s) as a puzzle,
+ * editable before it goes out. When the position is the puzzle last
+ * shared/loaded (or the one the class is solving, or the preset's), its title
+ * and line are prefilled and an unchanged share reuses it; anything edited is
+ * saved as a new private puzzle.
  */
 export function SharePositionDialog({
   classId,
   activePuzzleId,
   open,
-  onOpenChange
+  onOpenChange,
+  preset = null
 }: {
   classId: string;
   activePuzzleId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preset?: SharePositionPreset | null;
 }) {
   const boardFen = useBoardStore((s) => s.fen);
   const boardOrientation = useBoardStore((s) => s.orientation);
@@ -78,9 +90,9 @@ export function SharePositionDialog({
   useEffect(() => {
     if (!open) return;
     const last = loadLastShareOptions();
-    setFen(boardFen);
-    setOrientation(boardOrientation);
-    setTitle(DEFAULT_TITLE);
+    setFen(preset?.fen ?? boardFen);
+    setOrientation(preset?.orientation ?? boardOrientation);
+    setTitle(preset?.title?.trim() || DEFAULT_TITLE);
     setSeconds(last.durationSeconds || "60");
     setPoints(String(last.scoring.basePoints ?? 10));
     setPenalty(String(last.scoring.wrongMovePenalty ?? 1));
@@ -88,7 +100,9 @@ export function SharePositionDialog({
     setSourceId(null);
     setEditing(false);
     setShowSolution(false);
-    const ids = [activePuzzleId, loadPuzzleCursor().puzzleId].filter((id): id is string => !!id);
+    const ids = [preset?.puzzleId, activePuzzleId, loadPuzzleCursor().puzzleId].filter(
+      (id): id is string => !!id
+    );
     setCandidateIds([...new Set(ids)]);
     // Only on open: the board moving afterwards must not reset the form.
     // eslint-disable-next-line react-hooks/exhaustive-deps

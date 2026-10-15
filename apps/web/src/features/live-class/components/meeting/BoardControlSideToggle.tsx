@@ -26,17 +26,26 @@ export function boardControlSideLabel(side: BoardControlSide | null | undefined)
  */
 export function BoardControlSideToggle({
   className,
+  disabled = false,
+  hideOff = false,
   onChange,
   studentName,
   value,
 }: {
   className?: string;
+  disabled?: boolean;
+  /**
+   * Show only White / Black / Both; clicking the selected one takes control
+   * back (the sidebar's compact member rows).
+   */
+  hideOff?: boolean;
   onChange: (next: BoardControlSide | null) => void;
   /** Used for the accessible label so a list of these stays distinguishable. */
   studentName?: string;
   value: BoardControlSide | null;
 }) {
   const current = value ?? "none";
+  const options = hideOff ? OPTIONS.filter((o) => o.value !== "none") : OPTIONS;
 
   return (
     <div
@@ -47,19 +56,22 @@ export function BoardControlSideToggle({
         className,
       )}
     >
-      {OPTIONS.map((option) => {
+      {options.map((option) => {
         const isActive = current === option.value;
+        // In the compact form the selected side is also the "off" switch.
+        const next = option.value === "none" || (hideOff && isActive) ? null : option.value;
         return (
-          <SimpleTooltip key={option.value} label={option.hint}>
+          <SimpleTooltip key={option.value} label={hideOff && isActive ? "Click again to take control back" : option.hint}>
             <button
               type="button"
+              disabled={disabled}
               aria-pressed={isActive}
               aria-label={
                 studentName ? `${option.label} — ${option.hint} (${studentName})` : option.label
               }
-              onClick={() => onChange(option.value === "none" ? null : option.value)}
+              onClick={() => onChange(next)}
               className={cn(
-                "rounded-full px-2 py-1 text-[11px] font-semibold leading-none transition-colors",
+                "rounded-full px-2 py-1 text-[11px] font-semibold leading-none transition-colors disabled:pointer-events-none disabled:opacity-50",
                 isActive
                   ? "bg-primary text-white shadow-soft"
                   : "text-app-muted hover:bg-app-surface hover:text-app-text",

@@ -95,7 +95,7 @@ export function ClassroomPanel({
   showVideo: boolean;
   /** Switch the stage to the gallery (every participant's video in a grid). */
   onOpenGallery?: () => void;
-  /** Puzzles and chat are already shown in the coach's column left of the board. */
+  /** Leaderboard and chat are already shown in the coach's sidebar left of the board. */
   sideColumn?: boolean;
 }) {
   // A student opens on the leaderboard.
@@ -115,14 +115,17 @@ export function ClassroomPanel({
   useEffect(() => {
     if (activeSidebar && activeSidebar in SIDEBAR_TO_TAB) {
       const next: TabId = SIDEBAR_TO_TAB[activeSidebar as keyof typeof SIDEBAR_TO_TAB];
-      // Already on screen in the side column; only switch tabs for the rest.
-      if (!(sideColumn && SIDE_COLUMN_TABS.has(next))) setTab(next);
+      // The side column's own tabs answer chat / puzzle requests while it shows.
+      if (sideColumn && SIDE_COLUMN_TABS.has(next)) return;
+      setTab(next);
       setActiveSidebar(null);
     }
   }, [activeSidebar, setActiveSidebar, sideColumn]);
 
   useEffect(() => {
-    setClassroomChatOpen(sideColumn || activeTab === "chat");
+    // While the side column shows, its Chat tab owns the read state.
+    if (sideColumn) return;
+    setClassroomChatOpen(activeTab === "chat");
     return () => setClassroomChatOpen(false);
   }, [activeTab, sideColumn, setClassroomChatOpen]);
 

@@ -120,6 +120,17 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  // A chapter in the batch's study list (coach-only).
+  const chapter = await prisma.liveClassChapter.create({
+    data: {
+      batchId: batch.id,
+      position: 0,
+      scopeKey: `batch:${batch.id}`,
+      state: { arrows: [], fen: FEN, historyIndex: -1, orientation: "white", pgn: "", squares: {} },
+      title: `Chapter ${label}`
+    }
+  });
+
   const assignment = await prisma.assignment.create({
     data: { createdById: coach.id, pgn: "1. e4 e5 *", title: `Homework ${label}` }
   });
@@ -195,6 +206,7 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     batch,
     batchChat,
     boardGame,
+    chapter,
     directChat,
     game,
     class: klass,

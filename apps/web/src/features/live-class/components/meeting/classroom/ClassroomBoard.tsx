@@ -34,10 +34,9 @@ import {
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { PuzzleAssignModal } from "../PuzzleAssignModal";
 import { SharePositionDialog } from "../SharePositionDialog";
-import { MeetingChat } from "../MeetingChat";
-import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
+import { ClassroomSidebar } from "./sidebar/ClassroomSidebar";
 
 /** Board shortcuts plus Space = engine move and S = setup position (also offered to the toolbar). */
 function CoachBoardShortcuts() {
@@ -93,7 +92,7 @@ function CoachBoardShortcuts() {
   return null;
 }
 
-export const SIDE_COLUMN_W = 300;
+export const SIDE_COLUMN_W = 320;
 const SIDE_COLUMN_GAP = 12;
 // Keeps the column from flickering when the spare width sits right at the threshold.
 const SIDE_COLUMN_HYSTERESIS = 16;
@@ -136,20 +135,6 @@ function useSideColumnFit(enabled: boolean, onChange?: (fits: boolean) => void) 
   return ref;
 }
 
-/** The coach's left column: puzzles / leaderboard on top, chat below. */
-function CoachSideColumn() {
-  return (
-    <aside className="flex min-h-0 shrink-0 flex-col gap-3" style={{ width: SIDE_COLUMN_W }} aria-label="Puzzles and chat">
-      <div className="min-h-0 flex-1 overflow-hidden rounded-panel border border-app-border bg-app-surface/60 shadow-card">
-        <MeetingPuzzlePanel />
-      </div>
-      <div className="min-h-0 flex-1 overflow-hidden rounded-panel border border-app-border bg-app-surface/60 shadow-card">
-        <MeetingChat />
-      </div>
-    </aside>
-  );
-}
-
 /** The board half of the classroom layout. Coaches author; students watch (or play with granted control). */
 export function ClassroomBoard({
   isCoach,
@@ -159,11 +144,12 @@ export function ClassroomBoard({
 }: {
   isCoach: boolean;
   stageSwitch: ReactNode;
-  /** Coach only: puzzles + chat fill the empty space left of the board. */
+  /** Coach only: the chapters / members / leaderboard / chat sidebar fills the empty space left of the board. */
   sideColumn?: boolean;
   onSideColumnChange?: (fits: boolean) => void;
 }) {
   const fen = useBoardStore((s) => s.fen);
+  const classId = (useParams()?.roomId as string) ?? "";
   const { activePuzzle, setPuzzleSolverOpen, isChessboardOpen } = useLiveClassState(
     "activePuzzle",
     "setPuzzleSolverOpen",
@@ -209,7 +195,7 @@ export function ClassroomBoard({
       </div>
 
       <div className="flex min-h-0 flex-1" style={{ gap: SIDE_COLUMN_GAP }}>
-        {sideColumn ? <CoachSideColumn /> : null}
+        {sideColumn ? <ClassroomSidebar classId={classId} width={SIDE_COLUMN_W} /> : null}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
           <div ref={boardBoxRef} className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
             <div className="relative shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>

@@ -233,6 +233,28 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   snapshot of the coach's view with it (the scale's pieces, the opening and
   move, the calculator's figures); the video generator only says what the
   coach is doing. Closing the panel stops showing it.
+- Live-class coach sidebar (`components/meeting/classroom/sidebar/*`): on the
+  single page, when the board leaves room beside it (lg+, Board stage), the
+  coach gets a Lichess Study-style column left of the board — two stacked
+  panels with independent tabs, remembered per browser (`localStorage`
+  `nexa-live-class-sidebar-tabs`). **Top: Chapters / Members.** Chapters are
+  saved boards (position, moves with variations and comments, arrows,
+  orientation) in `live_class_chapters` (`apps/api/src/live-class-chapter/`,
+  `API_ROUTES.liveClass.chapters` / `.chapterImport` / `.chapterOrder` /
+  `.chapter`), batch-scoped like the batch Interactives (a class without a
+  batch keeps its own), coach-owner/admin only, at most 64. **Load** puts one on
+  the shared board through the ordinary board sync (it asks first when the
+  board holds unsaved moves); **Ask** opens "Share current" on the chapter's
+  position; the menus add the current board or every published puzzle in the
+  coach's puzzle folder, save the board into the selected chapter, rename,
+  move and delete (deferred, with Undo). Members lists everyone in the room
+  once per person (all their tabs) with White / Black / Both board control per
+  student — click the selected side again to take control back — plus batch
+  students who aren't connected (away in the app / offline). **Bottom:
+  Leaderboard / Chat** — the whole-class puzzle standings (rank, score,
+  puzzles solved out of shared; equal score and solved count share a rank) and
+  the room chat. Below that width the same leaderboard and chat stay in the
+  right-hand panel's tabs. Chapters are not soft-deletable or Trash-registered.
 - Rated puzzle training (`/student/training`, `PuzzleTrainingService`,
   `API_ROUTES.puzzles.training` / `.trainingNext`): Lichess-style practice, one
   puzzle at a time near the student's own puzzle rating. The pick is a healthy
