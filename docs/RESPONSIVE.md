@@ -251,9 +251,15 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   grid or any running activity (student: Puzzle, their Simul game, Matches;
   coach: the students' Live boards, Simul, Matches) — those are pop-ups only
   below 768 px. A right column (`380 / 420px` at `lg / xl`, drag-resizable)
-  holds the spotlight video + filmstrip, a drag handle (lg+) that sets the
-  video's height, and one scrollable tab bar (Moves, Chat, People, Puzzles, and
-  for the coach Response, Engine, PGN, Games). The floating toolbar
+  holds the panel video — **Gallery** (default: every participant in an
+  equal 16:9 tile, `classroom/ClassroomGallery.tsx`, sized from the measured
+  box; the speaker only gets a green ring) or **Speaker** (spotlight +
+  filmstrip), remembered in `localStorage` `nexa-live-class-panel-video-layout`
+  — a drag handle (lg+) that sets the video's height, the coach's compact
+  room-control strip, and one scrollable tab bar (Moves, Chat, People, Puzzles,
+  and for the coach Response, Engine, PGN, Games). The People list scrolls on
+  its own, with a back-to-top rail (`ScrollToTopRail`) that is hidden at the
+  top, small mid-list and a tall blue pill at the bottom. The floating toolbar
   is offset by `CLASSROOM_PANEL_OFFSET` so it centres on the board. `< 768 px`
   keeps the video grid below, with the student's full-stage `BoardStage`.
 - Video grid: column math in

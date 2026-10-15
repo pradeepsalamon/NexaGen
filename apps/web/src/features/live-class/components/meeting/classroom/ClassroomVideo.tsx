@@ -1,23 +1,54 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isTrackReference, ParticipantTile } from "@livekit/components-react";
 import { Track } from "livekit-client";
-import { ChevronDown, ChevronUp, Grid2x2, Hand } from "lucide-react";
+import { ChevronDown, ChevronUp, Hand, LayoutGrid, Maximize2, UserSquare2 } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useSpotlightTrack } from "../../../hooks/useSpotlightTrack";
 import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 import { ParticipantAvatar } from "../ParticipantAvatar";
 import { CompactVideoTile } from "../video-grid/CompactVideoTile";
+import { ClassroomGallery } from "./ClassroomGallery";
 import { TileModerationControls } from "../video-grid/TileModerationControls";
 import { getRole, getTrackKey, useGridTracks, useSortedTracks } from "../video-grid/videoGrid.utils";
 
+type PanelVideoLayout = "gallery" | "speaker";
+const LAYOUT_KEY = "nexa-live-class-panel-video-layout";
+const LAYOUTS: { value: PanelVideoLayout; label: string; hint: string; Icon: typeof LayoutGrid }[] = [
+  { value: "gallery", label: "Gallery", hint: "Gallery — everyone the same size", Icon: LayoutGrid },
+  { value: "speaker", label: "Speaker", hint: "Speaker — one large video plus a strip", Icon: UserSquare2 }
+];
+
+/** Gallery or speaker layout for the panel video, remembered per browser. */
+function usePanelVideoLayout() {
+  const [layout, setLayout] = useState<PanelVideoLayout>("gallery");
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(LAYOUT_KEY) === "speaker") setLayout("speaker");
+    } catch {
+      // per-browser convenience only
+    }
+  }, []);
+  const choose = (next: PanelVideoLayout) => {
+    setLayout(next);
+    try {
+      window.localStorage.setItem(LAYOUT_KEY, next);
+    } catch {
+      // per-browser convenience only
+    }
+  };
+  return [layout, choose] as const;
+}
+
 /**
- * Video above the classroom tabs: one large spotlight (a student sees the
- * coach unless someone shares a screen; the coach sees the class) plus a
- * filmstrip of everyone else. `fill` (lg+) stretches the spotlight to a
- * height the panel's resizer set, instead of 16:9.
+ * Video above the classroom tabs, in one of two layouts:
+ * - **Gallery** (default): every participant in an equal tile
+ *   (`ClassroomGallery`); the speaker only gets a green ring.
+ * - **Speaker**: one large spotlight (a student sees the coach unless someone
+ *   shares a screen; the coach sees the class) plus a filmstrip of the rest.
+ * `fill` (lg+) fits either to the height the panel's resizer set.
  */
 export function ClassroomVideo({
   isCoach,
@@ -33,6 +64,7 @@ export function ClassroomVideo({
   /** Show every participant in a grid on the main stage (Gallery view). */
   onOpenGallery?: () => void;
 }) {
+  const [layout, setLayout] = usePanelVideoLayout();
   const tracks = useGridTracks();
   const sorted = useSortedTracks(tracks);
   const speakerSpotlight = useSpotlightTrack(null);
@@ -69,16 +101,39 @@ export function ClassroomVideo({
           <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] tabular-nums">{tracks.length}</span>
         </span>
         <div className="flex items-center gap-1">
+          <div role="group" aria-label="Video layout" className="flex items-center rounded-full bg-app-soft p-0.5">
+            {LAYOUTS.map(({ value, label, hint, Icon }) => (
+              <SimpleTooltip key={value} label={hint}>
+                <button
+                  type="button"
+                  aria-label={`${label} layout`}
+                  aria-pressed={layout === value}
+                  onClick={() => {
+                    setLayout(value);
+                    if (collapsed) onCollapsedChange(false);
+                  }}
+                  className={cn(
+                    "flex h-6 items-center gap-1 rounded-full px-2 text-xs font-semibold transition-colors",
+                    layout === value
+                      ? "bg-app-surface text-primary-ink shadow-soft"
+                      : "text-app-muted hover:text-app-text"
+                  )}
+                >
+                  <Icon className="size-3.5" strokeWidth={2.5} />
+                  <span className="hidden lg:inline">{label}</span>
+                </button>
+              </SimpleTooltip>
+            ))}
+          </div>
           {onOpenGallery ? (
-            <SimpleTooltip label="Gallery view — everyone in a grid">
+            <SimpleTooltip label="Show everyone on the main stage">
               <button
                 type="button"
-                aria-label="Gallery view"
+                aria-label="Show everyone on the main stage"
                 onClick={onOpenGallery}
-                className="flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-app-muted transition hover:bg-app-soft hover:text-app-text"
+                className="flex size-7 items-center justify-center rounded-full text-app-muted transition hover:bg-app-soft hover:text-app-text"
               >
-                <Grid2x2 className="size-3.5" strokeWidth={2.5} />
-                Gallery
+                <Maximize2 className="size-3.5" strokeWidth={2.5} />
               </button>
             </SimpleTooltip>
           ) : null}
@@ -96,7 +151,13 @@ export function ClassroomVideo({
         </div>
       </div>
 
-      {!collapsed && spotlight ? (
+      {!collapsed && layout === "gallery" && tracks.length > 0 ? (
+        <div className={cn("px-3 pb-3", fill && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col")}>
+          <ClassroomGallery tracks={tracks} fill={fill} />
+        </div>
+      ) : null}
+
+      {!collapsed && layout === "speaker" && spotlight ? (
         <div className={cn("space-y-2 px-3 pb-3", fill && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-2 lg:space-y-0")}>
           <div
             className={cn(

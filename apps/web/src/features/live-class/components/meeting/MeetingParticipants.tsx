@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useMemo, memo } from "react";
+import { useCallback, useState, useMemo, memo, useRef } from "react";
 import { useParams } from "next/navigation";
 import {
   Lock,
@@ -25,6 +25,7 @@ import { MODERATED_SOURCE_LABEL, compareNatural } from "@nexa-chess/types";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 import { PullStudentsSection } from "./PullStudentsSection";
 import { CoachRoomControls } from "./CoachRoomControls";
+import { SCROLL_RAIL_GUTTER, ScrollToTopRail, useScrollPosition } from "./ScrollToTopRail";
 import { PanelHeader } from "./PanelHeader";
 import { BoardControlSideToggle, boardControlSideLabel } from "./BoardControlSideToggle";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
@@ -417,10 +418,17 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
   );
 });
 
-export function MeetingParticipants() {
+export function MeetingParticipants({
+  showRoomControls = true,
+}: {
+  /** The single page shows the coach's room controls under the panel video instead. */
+  showRoomControls?: boolean;
+} = {}) {
   const participants = useParticipants().filter(isHumanParticipant);
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearch, setShowSearch] = useState(false);
+  const listRef = useRef<HTMLDivElement>(null);
+  const listPosition = useScrollPosition(listRef);
   const {
     boardControlStudents,
     isChessboardOpen,
@@ -634,7 +642,7 @@ export function MeetingParticipants() {
         }
       />
 
-      {isCoach && roomId ? <CoachRoomControls classId={roomId} /> : null}
+      {isCoach && roomId && showRoomControls ? <CoachRoomControls classId={roomId} /> : null}
 
       {showSearch && (
         <div className="shrink-0 border-b border-app-border/40 px-3 py-2">
@@ -651,73 +659,83 @@ export function MeetingParticipants() {
         </div>
       )}
 
-      <div className="custom-scrollbar flex-1 overflow-y-auto overscroll-contain px-2 py-3" role="list">
-        {grouped.sharing.length > 0 && (
-          <div className="mb-2">
-            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
-              Sharing screen ({grouped.sharing.length})
-            </h3>
-            <div className="flex flex-col gap-0.5">
-              {grouped.sharing.map((p) => (isCoachParticipant(p) ? renderCoachRow(p) : renderStudentRow(p)))}
-            </div>
-          </div>
-        )}
-
-        {isCoach && waitingList.length > 0 && (
-          <div className="mb-2">
-            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
-              Waiting to join ({waitingList.length})
-            </h3>
-            <div className="flex flex-col gap-0.5">
-              {waitingList.map((entry) => (
-                <WaitingRoomListItem key={entry.studentId} entry={entry} onResolve={handleResolveWaiting} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {isCoach && screenShareList.length > 0 && (
-          <div className="mb-2">
-            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
-              Screen-share requests ({screenShareList.length})
-            </h3>
-            <div className="flex flex-col gap-0.5">
-              {screenShareList.map((entry) => (
-                <ScreenShareRequestListItem key={entry.studentId} entry={entry} onResolve={handleResolveScreenShare} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {grouped.coaches.length > 0 && (
-          <div className="mb-2">
-            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
-              Coaches ({grouped.coaches.length})
-            </h3>
-            <div className="flex flex-col gap-0.5">
-              {grouped.coaches.map(renderCoachRow)}
-            </div>
-          </div>
-        )}
-
-        <div>
-          {(grouped.coaches.length > 0 || grouped.sharing.length > 0) && (
-            <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-app-muted">
-              Students ({grouped.students.length})
-            </h3>
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={listRef}
+          className={cn(
+            "custom-scrollbar h-full overflow-y-auto overscroll-contain px-2 py-3",
+            listPosition !== "none" && SCROLL_RAIL_GUTTER,
           )}
-          <div className="flex flex-col gap-0.5">
-            {grouped.students.map(renderStudentRow)}
+          role="list"
+        >
+          {grouped.sharing.length > 0 && (
+            <div className="mb-2">
+              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
+                Sharing screen ({grouped.sharing.length})
+              </h3>
+              <div className="flex flex-col gap-0.5">
+                {grouped.sharing.map((p) => (isCoachParticipant(p) ? renderCoachRow(p) : renderStudentRow(p)))}
+              </div>
+            </div>
+          )}
+
+          {isCoach && waitingList.length > 0 && (
+            <div className="mb-2">
+              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                Waiting to join ({waitingList.length})
+              </h3>
+              <div className="flex flex-col gap-0.5">
+                {waitingList.map((entry) => (
+                  <WaitingRoomListItem key={entry.studentId} entry={entry} onResolve={handleResolveWaiting} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {isCoach && screenShareList.length > 0 && (
+            <div className="mb-2">
+              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+                Screen-share requests ({screenShareList.length})
+              </h3>
+              <div className="flex flex-col gap-0.5">
+                {screenShareList.map((entry) => (
+                  <ScreenShareRequestListItem key={entry.studentId} entry={entry} onResolve={handleResolveScreenShare} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {grouped.coaches.length > 0 && (
+            <div className="mb-2">
+              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
+                Coaches ({grouped.coaches.length})
+              </h3>
+              <div className="flex flex-col gap-0.5">
+                {grouped.coaches.map(renderCoachRow)}
+              </div>
+            </div>
+          )}
+
+          <div>
+            {(grouped.coaches.length > 0 || grouped.sharing.length > 0) && (
+              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-app-muted">
+                Students ({grouped.students.length})
+              </h3>
+            )}
+            <div className="flex flex-col gap-0.5">
+              {grouped.students.map(renderStudentRow)}
+            </div>
           </div>
+
+          {isCoach && roomId ? <PullStudentsSection classId={roomId} /> : null}
+
+          {filteredParticipants.length === 0 && searchQuery && (
+            <div className="flex h-32 items-center justify-center text-sm text-app-muted">
+              No participants found.
+            </div>
+          )}
         </div>
-
-        {isCoach && roomId ? <PullStudentsSection classId={roomId} /> : null}
-
-        {filteredParticipants.length === 0 && searchQuery && (
-          <div className="flex h-32 items-center justify-center text-sm text-app-muted">
-            No participants found.
-          </div>
-        )}
+        <ScrollToTopRail targetRef={listRef} position={listPosition} label="Back to the top of the people list" />
       </div>
     </div>
   );

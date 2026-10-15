@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useParams } from "next/navigation";
 import {
   BookOpen,
   Cpu,
@@ -20,6 +21,7 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import { useLiveClassChat } from "../../../providers/ChatProvider";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
+import { CoachRoomControls } from "../CoachRoomControls";
 import { MeetingChat } from "../MeetingChat";
 import { MeetingParticipants } from "../MeetingParticipants";
 import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
@@ -106,6 +108,7 @@ export function ClassroomPanel({
     "setClassroomChatOpen",
   );
   const { unreadCount } = useLiveClassChat();
+  const roomId = useParams()?.roomId as string | undefined;
   const inSideColumn = (id: TabId) => sideColumn && SIDE_COLUMN_TABS.has(id);
   const activeTab: TabId = inSideColumn(tab) ? "moves" : tab;
 
@@ -155,6 +158,8 @@ export function ClassroomPanel({
       ) : null}
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {/* Gallery → class-wide controls → tabs (People and the rest). */}
+        {isCoach && roomId ? <CoachRoomControls classId={roomId} /> : null}
         <div className="custom-scrollbar-hide shrink-0 overflow-x-auto border-b border-app-border/60 px-1.5">
           <div className="flex items-center gap-0.5 py-1.5" role="tablist">
             {/* Only the active tab carries its label, so every tab fits without scrolling. */}
@@ -200,7 +205,7 @@ export function ClassroomPanel({
             </div>
           ) : null}
           {activeTab === "chat" ? <MeetingChat /> : null}
-          {activeTab === "people" ? <MeetingParticipants /> : null}
+          {activeTab === "people" ? <MeetingParticipants showRoomControls={!(isCoach && roomId)} /> : null}
           {activeTab === "puzzles" ? <MeetingPuzzlePanel /> : null}
           {activeTab === "response" ? (
             <div className="h-full overflow-y-auto">
@@ -226,7 +231,8 @@ export function ClassroomPanel({
 
 const VIDEO_HEIGHT_KEY = "nexa-live-class-video-height";
 const VIDEO_MIN = 140;
-const TOOLS_MIN = 200;
+// Room-control strip + tab bar + a usable slice of the active tab.
+const TOOLS_MIN = 240;
 
 /** Height of the panel's video section (lg+), null = natural 16:9. Remembered per browser. */
 function useVideoHeight() {

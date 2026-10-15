@@ -8,6 +8,7 @@ import { RoomEvent, Track } from "livekit-client";
 import { useParticipantActivity } from "../../../hooks/useParticipantActivity";
 import { compareByActivity } from "../../../lib/participantActivity";
 import { isHumanParticipant } from "../../../lib/participants";
+import { compareNatural } from "@nexa-chess/types";
 
 const GRID_SOURCES = [
   { source: Track.Source.Camera, withPlaceholder: true },
@@ -195,4 +196,40 @@ export function useSortedTracks(tracks: TrackReferenceOrPlaceholder[]) {
       return a.source.localeCompare(b.source);
     });
   }, [activity, tracks]);
+}
+
+/**
+ * Column count for a gallery whose height grows with its rows (the class
+ * panel's natural-height video): as square as the participant count allows,
+ * capped by how many `minTileWidth` tiles fit across.
+ */
+export function balancedGridColumns(
+  count: number,
+  width: number,
+  gap: number,
+  minTileWidth = MIN_TILE_WIDTH
+): number {
+  if (count <= 1 || width <= 0) return 1;
+  const fit = Math.max(1, Math.floor((width + gap) / (minTileWidth + gap)));
+  return Math.min(count, fit, Math.ceil(Math.sqrt(count)));
+}
+
+/**
+ * Gallery order that ignores who is talking: screen shares, then the coach,
+ * then everyone A–Z. A gallery is equal tiles in fixed places — the speaker
+ * is shown by their tile's ring, never by moving it.
+ */
+export function useStableTracks(tracks: TrackReferenceOrPlaceholder[]) {
+  return useMemo(() => {
+    const isScreen = (t: TrackReferenceOrPlaceholder) => t.source === Track.Source.ScreenShare;
+    const isCoach = (t: TrackReferenceOrPlaceholder) =>
+      getRole(t.participant)?.toUpperCase() === "COACH";
+    const name = (t: TrackReferenceOrPlaceholder) => t.participant.name || t.participant.identity;
+
+    return [...tracks].sort((a, b) => {
+      if (isScreen(a) !== isScreen(b)) return isScreen(a) ? -1 : 1;
+      if (isCoach(a) !== isCoach(b)) return isCoach(a) ? -1 : 1;
+      return compareNatural(name(a), name(b)) || a.participant.identity.localeCompare(b.participant.identity);
+    });
+  }, [tracks]);
 }
