@@ -5,7 +5,9 @@ import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { useLivePuzzleBoards } from "../../hooks/useLivePuzzle";
+import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { PuzzleBoardTile } from "./PuzzleBoardTile";
+import { EndPuzzleButton, PuzzleTimerBadge } from "./PuzzleSessionControls";
 
 const STATUS_LABEL: Record<LivePuzzleBoardStatus, string> = {
   NOT_STARTED: "Not started",
@@ -109,11 +111,18 @@ export function PuzzleLiveBoardsPanel({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { activePuzzle } = useLiveClassState("activePuzzle");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[85dvh] max-w-5xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Live boards</DialogTitle>
+          {activePuzzle ? (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <PuzzleTimerBadge endsAt={activePuzzle.endsAt} />
+              <EndPuzzleButton classId={classId} />
+            </div>
+          ) : null}
         </DialogHeader>
         <PuzzleLiveBoardsGrid classId={classId} enabled={open} />
       </DialogContent>

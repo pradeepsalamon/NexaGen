@@ -146,6 +146,8 @@ export type AdjustClassLeaderboardRequest = AdjustLivePuzzlePointsRequest;
 
 export type LivePuzzleStateResponse = {
   assignment: LivePuzzleAssignment | null;
+  /** The API's clock when it answered — clients correct their countdown by the skew. */
+  serverTime?: string;
 };
 
 export type LivePuzzleLeaderboardEntry = {

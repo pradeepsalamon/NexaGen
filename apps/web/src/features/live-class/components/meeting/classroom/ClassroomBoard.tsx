@@ -367,7 +367,7 @@ function CoachPuzzleButtons() {
     next: <StepForward className="size-4" strokeWidth={2.5} />
   };
 
-  // > / < share, ] / [ load, / asks about the current position — same actions as the menus.
+  // . / , share, ] / [ load, / asks about the current position — same actions as the menus.
   const loadingRef = useRef(loading);
   loadingRef.current = loading;
   useEffect(() => {

@@ -19,7 +19,7 @@ import { hintSquaresFor } from "@/features/assignments/lib/solveLineHint";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { startLivePuzzleAttempt } from "../../api/liveClassPuzzle";
-import { formatClock, useCountdown } from "../../hooks/useCountdown";
+import { useCountdown } from "../../hooks/useCountdown";
 import { useLivePuzzleLeaderboard } from "../../hooks/useLivePuzzle";
 import { useReactions } from "../../providers/ReactionProvider";
 import { useAuthStore } from "@/stores/authStore";
@@ -100,7 +100,8 @@ export function InRoomPuzzleSolver({
   } = usePuzzleAttempt({ start });
   // In class a hint only ever lights up the piece to move, never the move itself.
   const hintSquares = phase === "solving" ? hintSquaresFor(serverHint ? { ...serverHint, toSquare: null } : null) : null;
-  const { secondsLeft, expired } = useCountdown(puzzle.endsAt);
+  // The clock itself is in the PuzzleStage header; this only drives the auto-submit.
+  const { expired } = useCountdown(puzzle.endsAt);
   const leaderboard = useLivePuzzleLeaderboard(classId, true);
   const self = leaderboard.data?.self ?? null;
   const { scoring } = puzzle;
@@ -153,11 +154,6 @@ export function InRoomPuzzleSolver({
         <Badge variant={difficultyBadgeVariant(puzzle.difficulty)}>
           {PUZZLE_DIFFICULTY_LABELS[puzzle.difficulty]}
         </Badge>
-        {secondsLeft !== null ? (
-          <Badge variant={expired || secondsLeft <= 30 ? "destructive" : "outline"}>
-            {expired ? "Time's up" : formatClock(secondsLeft)}
-          </Badge>
-        ) : null}
         <span className="text-xs text-app-muted">
           {scoring.basePoints} pts to solve
           {scoring.wrongMovePenalty > 0 ? ` · −${scoring.wrongMovePenalty} per wrong move` : ""}

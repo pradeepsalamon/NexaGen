@@ -28,13 +28,13 @@ import {
 } from "@/features/puzzles/lib/puzzleMeta";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import { formatClock, useCountdown } from "../../hooks/useCountdown";
+import { useCountdown } from "../../hooks/useCountdown";
+import { EndPuzzleButton, PuzzleTimerBadge } from "./PuzzleSessionControls";
 import { useIsBoardViewport } from "../../hooks/useIsBoardViewport";
 import {
   useAdjustClassLeaderboard,
   useAdjustLivePuzzlePoints,
   useClassLeaderboard,
-  useEndLivePuzzle,
   useLivePuzzleLeaderboard,
   useUpdateLivePuzzle
 } from "../../hooks/useLivePuzzle";
@@ -554,11 +554,10 @@ export function MeetingPuzzlePanel() {
   const [boardsOpen, setBoardsOpen] = useState(false);
   const [rulesOpen, setRulesOpen] = useState(false);
   const [boardView, setBoardView] = useState<"puzzle" | "class">("class");
-  const endPuzzle = useEndLivePuzzle(classId);
   // Always on while the panel is open: after a puzzle ends it still shows the
   // last results (that's when an AFTER_END board is revealed).
   const leaderboard = useLivePuzzleLeaderboard(classId, true);
-  const { secondsLeft, expired } = useCountdown(activePuzzle?.endsAt);
+  const { expired } = useCountdown(activePuzzle?.endsAt);
   // The timer running out ends the puzzle from `PuzzleBridge` (always mounted).
 
   const data = leaderboard.data;
@@ -655,11 +654,7 @@ export function MeetingPuzzlePanel() {
         <Card className="space-y-2 p-3">
           <div className="flex items-start justify-between gap-2">
             <p className="text-sm font-semibold text-app-text">{activePuzzle.title}</p>
-            {secondsLeft !== null ? (
-              <Badge variant={expired || secondsLeft <= 30 ? "destructive" : "outline"}>
-                {expired ? "Time's up" : formatClock(secondsLeft)}
-              </Badge>
-            ) : null}
+            <PuzzleTimerBadge endsAt={activePuzzle.endsAt} compact />
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="secondary">{activePuzzle.topicName}</Badge>
@@ -689,15 +684,7 @@ export function MeetingPuzzlePanel() {
                 <Button type="button" variant="outline" size="sm" onClick={() => setAssignOpen(true)}>
                   Swap puzzle
                 </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => endPuzzle.mutate()}
-                  disabled={endPuzzle.isPending}
-                >
-                  End puzzle
-                </Button>
+                <EndPuzzleButton classId={classId} />
               </>
             ) : (
               <>

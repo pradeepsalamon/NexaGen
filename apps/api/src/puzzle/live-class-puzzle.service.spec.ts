@@ -206,6 +206,40 @@ describe("LiveClassPuzzleService", () => {
     });
   });
 
+  describe("end", () => {
+    it("only lets a class manager end the puzzle", async () => {
+      liveClass.resolveClassManager.mockRejectedValue(new ForbiddenException());
+      await expect(service.end(TOKEN, CLASS_ID)).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.liveClassPuzzleAssignment.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("claims the active row and broadcasts PUZZLE_ENDED once", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(assignmentRow());
+      prisma.liveClassPuzzleAssignment.updateMany.mockResolvedValue({ count: 1 });
+      const res = await service.end(TOKEN, CLASS_ID);
+      expect(prisma.liveClassPuzzleAssignment.updateMany).toHaveBeenCalledWith({
+        where: { id: assignmentRow().id, status: "ACTIVE" },
+        data: expect.objectContaining({ status: "ENDED" })
+      });
+      expect((service as any).livekit.broadcastData).toHaveBeenCalledTimes(1);
+      expect(res.assignment).toBeNull();
+      expect(typeof res.serverTime).toBe("string");
+    });
+
+    it("does not broadcast again when a concurrent request already ended it", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(assignmentRow());
+      prisma.liveClassPuzzleAssignment.updateMany.mockResolvedValue({ count: 0 });
+      await service.end(TOKEN, CLASS_ID);
+      expect((service as any).livekit.broadcastData).not.toHaveBeenCalled();
+    });
+
+    it("is a no-op with nothing active", async () => {
+      await service.end(TOKEN, CLASS_ID);
+      expect(prisma.liveClassPuzzleAssignment.updateMany).not.toHaveBeenCalled();
+      expect((service as any).livekit.broadcastData).not.toHaveBeenCalled();
+    });
+  });
+
   describe("leaderboard", () => {
     beforeEach(() => {
       prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(assignmentRow());

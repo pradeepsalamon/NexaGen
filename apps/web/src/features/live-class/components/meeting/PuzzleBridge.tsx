@@ -34,6 +34,8 @@ export function PuzzleBridge({
       "setPuzzleBoardsOpen",
       "setPuzzleSolverOpen",
     );
+  const activePuzzleRef = useRef(activePuzzle);
+  activePuzzleRef.current = activePuzzle;
   const qc = useQueryClient();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
@@ -73,6 +75,13 @@ export function PuzzleBridge({
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });
         if (!isCoach) toast.info("Your coach changed the puzzle's scoring.", { duration: 3000 });
       } else if (decoded.type === "PUZZLE_ENDED") {
+        if (!isCoach && activePuzzleRef.current?.id === decoded.assignmentId) {
+          const endsAt = activePuzzleRef.current.endsAt;
+          const timedOut = !!endsAt && Date.parse(endsAt) <= Date.now() + 2000;
+          toast.info(timedOut ? "Time's up — the puzzle has ended." : "Your coach ended the puzzle.", {
+            duration: 3000
+          });
+        }
         clearActivePuzzle(decoded.assignmentId);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.leaderboard(classId) });

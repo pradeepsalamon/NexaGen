@@ -195,14 +195,19 @@ export class LiveClassPuzzleService {
     const active = await this.prisma.liveClassPuzzleAssignment.findFirst({
       where: { liveClassId: classId, status: "ACTIVE" }
     });
-    if (!active) return { assignment: null };
+    if (!active) return { assignment: null, serverTime: new Date().toISOString() };
 
-    await this.prisma.liveClassPuzzleAssignment.update({
-      where: { id: active.id },
+    // Status-filtered claim: the coach's End button and the timer running out
+    // (or two coach tabs) can race — only the request that flips the row
+    // broadcasts, so PUZZLE_ENDED goes out exactly once.
+    const claimed = await this.prisma.liveClassPuzzleAssignment.updateMany({
+      where: { id: active.id, status: "ACTIVE" },
       data: { status: "ENDED", endedAt: new Date() }
     });
-    await this.broadcast(liveSession.roomName, { type: "PUZZLE_ENDED", assignmentId: active.id });
-    return { assignment: null };
+    if (claimed.count === 1) {
+      await this.broadcast(liveSession.roomName, { type: "PUZZLE_ENDED", assignmentId: active.id });
+    }
+    return { assignment: null, serverTime: new Date().toISOString() };
   }
 
   /**
@@ -417,7 +422,10 @@ export class LiveClassPuzzleService {
   ): Promise<LivePuzzleStateResponse> {
     await this.liveClass.resolveParticipant(accessToken, classId);
     const active = await this.loadActive(classId);
-    return { assignment: active ? this.toAssignment(active) : null };
+    return {
+      assignment: active ? this.toAssignment(active) : null,
+      serverTime: new Date().toISOString()
+    };
   }
 
   /** Student starts (or resumes) an in-room attempt — stamps `liveClassId`. */

@@ -6,8 +6,8 @@ import { create } from "zustand";
  */
 export const COACH_BOARD_SHORTCUTS = [
   { id: "setup", key: "S", label: "Setup position" },
-  { id: "shareNext", key: ">", label: "Share next puzzle" },
-  { id: "sharePrevious", key: "<", label: "Share previous puzzle" },
+  { id: "shareNext", key: ".", label: "Share next puzzle" },
+  { id: "sharePrevious", key: ",", label: "Share previous puzzle" },
   { id: "loadNext", key: "]", label: "Load next puzzle" },
   { id: "loadPrevious", key: "[", label: "Load previous puzzle" },
   { id: "askCurrent", key: "/", label: "Ask current position" }
@@ -23,8 +23,9 @@ export const COACH_BOARD_SHORTCUT_KEY = Object.fromEntries(
  * Which coach board shortcut a keydown is, or null. Ignores typing (inputs,
  * textareas, selects, contenteditable), anything inside an open dialog or menu,
  * auto-repeat, and Ctrl / Cmd / Alt chords so browser shortcuts stay untouched.
- * `<` / `>` also match Shift+Comma / Shift+Period by physical key, for layouts
- * whose `key` for that chord isn't reported as `<` / `>`.
+ * `.` / `,` also match the unshifted Period / Comma physical keys, for layouts
+ * (Cyrillic, Greek, …) whose `key` there isn't reported as `.` / `,`. Shift+Period
+ * (`>`) and Shift+Comma (`<`) deliberately match nothing.
  */
 export function matchCoachBoardShortcut(e: KeyboardEvent): CoachBoardShortcutId | null {
   if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return null;
@@ -32,8 +33,8 @@ export function matchCoachBoardShortcut(e: KeyboardEvent): CoachBoardShortcutId 
   if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return null;
   if (target?.closest('[role="dialog"],[role="menu"],[role="listbox"],[contenteditable="true"]')) return null;
 
-  if (e.key === ">" || (e.shiftKey && e.code === "Period")) return "shareNext";
-  if (e.key === "<" || (e.shiftKey && e.code === "Comma")) return "sharePrevious";
+  if (e.key === "." || (!e.shiftKey && e.code === "Period")) return "shareNext";
+  if (e.key === "," || (!e.shiftKey && e.code === "Comma")) return "sharePrevious";
   // `[`, `]` and `/` match the produced character, so layouts that need Shift for them still work.
   switch (e.key) {
     case "s":

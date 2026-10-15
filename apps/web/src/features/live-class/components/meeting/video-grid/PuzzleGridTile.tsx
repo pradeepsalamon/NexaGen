@@ -2,12 +2,13 @@
 
 import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Clock, Puzzle as PuzzleIcon, Trophy } from "lucide-react";
+import { CheckCircle2, Puzzle as PuzzleIcon, Trophy } from "lucide-react";
 import { useParams } from "next/navigation";
 import type { LivePuzzleAssignment } from "@nexa-chess/types";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import { formatClock, useCountdown } from "../../../hooks/useCountdown";
+import { useCountdown } from "../../../hooks/useCountdown";
+import { PuzzleTimerBadge } from "../PuzzleSessionControls";
 import { useLivePuzzleLeaderboard } from "../../../hooks/useLivePuzzle";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { PuzzleBoardTile } from "../PuzzleBoardTile";
@@ -35,7 +36,7 @@ export function PuzzleGridTile({
   );
   // Same query key as the Puzzle panel, so the two share one poll.
   const leaderboard = useLivePuzzleLeaderboard(classId, true);
-  const { secondsLeft, expired } = useCountdown(puzzle.endsAt);
+  const { expired } = useCountdown(puzzle.endsAt);
 
   const data = leaderboard.data;
   const self = data?.self ?? null;
@@ -108,17 +109,7 @@ export function PuzzleGridTile({
             <p className="text-xs text-app-muted">
               {puzzle.sideToMove === "white" ? "White" : "Black"} to move · {puzzle.scoring.basePoints} pts
             </p>
-            {secondsLeft !== null ? (
-              <p
-                className={cn(
-                  "inline-flex items-center gap-1 text-xs font-semibold tabular-nums",
-                  expired || secondsLeft <= 30 ? "text-app-danger" : "text-app-muted",
-                )}
-              >
-                <Clock className="size-3" strokeWidth={2.5} />
-                {expired ? "Time's up" : formatClock(secondsLeft)}
-              </p>
-            ) : null}
+            <PuzzleTimerBadge endsAt={puzzle.endsAt} compact />
           </div>
 
           <div className="min-w-0 space-y-1">

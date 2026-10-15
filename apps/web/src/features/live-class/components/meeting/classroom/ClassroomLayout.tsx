@@ -12,6 +12,7 @@ import { MatchStudentView } from "../match/MatchStudentView";
 import { Button } from "@/components/ui/Button";
 import { MeetingVideoGrid } from "../MeetingVideoGrid";
 import { PuzzleLiveBoardsGrid } from "../PuzzleLiveBoardsPanel";
+import { EndPuzzleButton, PuzzleTimerBadge } from "../PuzzleSessionControls";
 import { PuzzleStage } from "../PuzzleStage";
 import { SimulCoachView } from "../simul/SimulCoachView";
 import { SimulStudentBoard } from "../simul/SimulStudentBoard";
@@ -244,6 +245,14 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
           title={activePuzzle ? `Live boards · ${activePuzzle.title}` : "Live boards"}
           stageSwitch={stageSwitch}
           fullWidth
+          actions={
+            activePuzzle ? (
+              <>
+                <PuzzleTimerBadge endsAt={activePuzzle.endsAt} />
+                <EndPuzzleButton classId={match.classId} />
+              </>
+            ) : null
+          }
         >
           <PuzzleLiveBoardsGrid classId={match.classId} />
         </InlineStage>

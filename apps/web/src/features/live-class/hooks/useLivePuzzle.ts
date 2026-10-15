@@ -20,11 +20,16 @@ import {
   shareLivePuzzleFromBoard,
   updateLivePuzzle
 } from "../api/liveClassPuzzle";
+import { noteServerTime } from "./useCountdown";
 
 export function useLivePuzzleState(classId: string, enabled = true) {
   return useQuery({
     queryKey: queryKeys.livePuzzle.state(classId),
-    queryFn: () => getLivePuzzleState(classId),
+    queryFn: async () => {
+      const res = await getLivePuzzleState(classId);
+      noteServerTime(res.serverTime);
+      return res;
+    },
     enabled: enabled && !!classId
   });
 }

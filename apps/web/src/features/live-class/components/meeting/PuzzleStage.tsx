@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
 import { InRoomPuzzleSolver } from "./InRoomPuzzleSolver";
+import { EndPuzzleButton, PuzzleTimerBadge } from "./PuzzleSessionControls";
 
 /**
  * The coach's own copy of the class puzzle, to check it plays as intended.
@@ -62,11 +63,13 @@ export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNod
 
   return (
     <section className={cn("relative flex min-h-0 min-w-0 flex-1 flex-col gap-2", className)}>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-semibold text-app-text">
           <PuzzleIcon className="size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
           <span className="truncate">{activePuzzle.title}</span>
         </div>
+        <PuzzleTimerBadge endsAt={activePuzzle.endsAt} />
+        {isCoach ? <EndPuzzleButton classId={classId} /> : null}
         <button
           type="button"
           onClick={() => setPuzzleSolverOpen(false)}
