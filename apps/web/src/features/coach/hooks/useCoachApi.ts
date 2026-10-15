@@ -1,7 +1,8 @@
-import { useQuery, type UseQueryOptions } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, type UseQueryOptions } from "@tanstack/react-query";
 import { queryKeys } from "../../../lib/queryKeys";
 import type { CoachClassResponse } from "@nexa-chess/types";
 import {
+  getCalendarClasses,
   getClassById,
   getClassHistory,
   getCoachBatches,
@@ -23,6 +24,17 @@ export function useCoachBatches(options?: { enabled?: boolean }) {
     queryKey: queryKeys.coach.batches,
     queryFn: getCoachBatches,
     enabled: options?.enabled ?? true
+  });
+}
+
+/** The schedule calendar's visible range. Keeps the old range on screen while the next one loads. */
+export function useCalendarClasses(from: string, to: string) {
+  return useQuery({
+    queryKey: queryKeys.coach.calendarClasses(from, to),
+    queryFn: () => getCalendarClasses(from, to),
+    placeholderData: keepPreviousData,
+    // A class going live (or ending) changes how it is drawn.
+    refetchInterval: 60_000
   });
 }
 

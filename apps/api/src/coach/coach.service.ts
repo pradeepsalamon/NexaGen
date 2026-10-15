@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -53,6 +54,11 @@ type CoachClassWithRelations = Prisma.CoachClassGetPayload<{ include: typeof COA
 
 /** Upper bound for `?limit=` on the upcoming list (the dashboard asks for 3). */
 const MAX_UPCOMING_LIMIT = 50;
+
+/** Widest `from`–`to` the schedule calendar may ask for: a month grid plus padding weeks. */
+const MAX_CALENDAR_RANGE_MS = 93 * 24 * 60 * 60 * 1000;
+/** Row cap for one calendar range — far above any real coach's month. */
+const MAX_CALENDAR_CLASSES = 1000;
 
 @Injectable()
 export class CoachService {
@@ -177,6 +183,39 @@ export class CoachService {
       // id breaks ties so two classes at the same minute keep a stable order.
       orderBy: [{ startsAt: "asc" }, { id: "asc" }],
       take
+    });
+
+    return { classes: classes.map(c => this.toCoachClass(c)) };
+  }
+
+  /**
+   * Every class of the caller that overlaps `[from, to)` — any status, so the
+   * week / month calendar can show cancelled and "Not held" sessions too. The
+   * client picks the range in the coach's own timezone and sends UTC instants.
+   */
+  async getCalendarClasses(
+    accessToken: string | undefined,
+    query: { from?: string; to?: string }
+  ): Promise<CoachClassListResponse> {
+    const coachId = await this.getAuthenticatedCoachId(accessToken);
+
+    const from = query.from ? new Date(query.from) : null;
+    const to = query.to ? new Date(query.to) : null;
+    if (!from || !to || Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      throw new BadRequestException("`from` and `to` must be ISO-8601 dates.");
+    }
+    if (to.getTime() <= from.getTime()) {
+      throw new BadRequestException("`to` must be after `from`.");
+    }
+    if (to.getTime() - from.getTime() > MAX_CALENDAR_RANGE_MS) {
+      throw new BadRequestException("Calendar range cannot exceed 93 days.");
+    }
+
+    const classes = await this.prisma.coachClass.findMany({
+      where: { coachId, startsAt: { lt: to }, endsAt: { gt: from } },
+      include: COACH_CLASS_INCLUDE,
+      orderBy: [{ startsAt: "asc" }, { id: "asc" }],
+      take: MAX_CALENDAR_CLASSES
     });
 
     return { classes: classes.map(c => this.toCoachClass(c)) };

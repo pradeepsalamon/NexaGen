@@ -397,7 +397,9 @@ export function useBoardSyncEngine(): BoardSyncActions {
           },
         });
       }
-      if (annotationsChanged) {
+      // Only the coach's arrows are shared. A student may draw on their own
+      // board, but those marks stay local (receivers would reject them).
+      if (annotationsChanged && isCoach) {
         broadcastMsg({
           type: "UPDATE_ANNOTATIONS",
           payload: { arrows: state.arrows, squares: state.squareStyles },
@@ -415,7 +417,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
     });
 
     return unsubscribe;
-  }, [store, broadcastMsg, suppressBroadcast]);
+  }, [store, broadcastMsg, suppressBroadcast, isCoach]);
 
   const onMessageReceived = useCallback(
     (msg: { payload: Uint8Array; from?: { identity?: string; metadata?: string } }) => {

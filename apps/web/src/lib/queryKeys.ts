@@ -30,6 +30,8 @@ export const queryKeys = {
     // Nested under upcomingClasses, so invalidating that key refreshes these too.
     upcomingClassesLimited: (limit: number) => ["coach", "classes", "upcoming", { limit }] as const,
     classHistory: ["coach", "classes", "history"] as const,
+    // Under ["coach", "classes"], so every class mutation's invalidation refreshes it.
+    calendarClasses: (from: string, to: string) => ["coach", "classes", "calendar", { from, to }] as const,
     classDetail: (id: string) => ["coach", "classes", "detail", id] as const,
     students: ["coach", "students"] as const,
   },

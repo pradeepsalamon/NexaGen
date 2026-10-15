@@ -243,6 +243,12 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   admin month calendar; generated classes flow through the existing live-class,
   attendance and assignment systems unchanged. Idempotency key:
   unique `(scheduleId, occurrenceDate, scheduleRuleId)` on `classes`.
+- Coach schedule calendar: `/coach/schedule` has Week / Month / Upcoming views.
+  Week and Month read `GET /coach/classes/calendar?from=&to=` (the caller's own
+  classes overlapping the range, any status, ≤ 93 days, same `CoachClass` shape
+  with the roster). Days are keyed in the coach's `User.timezone`
+  (`features/coach/lib/scheduleCalendar.ts`); clicking a class opens its
+  `ClassCard`, so start / notes / reschedule / cancel are unchanged.
 - Live class monitoring: coach/admin see a live roster (who's connected, join
   time, last seen, reconnect count) on `/classes/[id]` while a class is running,
   and via a "Monitor Live" action on the admin Batch Classes table

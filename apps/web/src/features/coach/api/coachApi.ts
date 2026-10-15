@@ -26,6 +26,11 @@ export async function getUpcomingClasses(limit?: number): Promise<CoachClassList
   return apiFetch(API_ROUTES.coach.upcomingClasses, limit ? { params: { limit } } : {});
 }
 
+/** Every class overlapping `[from, to)` (ISO instants), any status — the schedule calendar. */
+export async function getCalendarClasses(from: string, to: string): Promise<CoachClassListResponse> {
+  return apiFetch(API_ROUTES.coach.calendarClasses, { params: { from, to } });
+}
+
 export async function getClassHistory(): Promise<CoachClassListResponse> {
   return apiFetch(API_ROUTES.coach.classHistory);
 }

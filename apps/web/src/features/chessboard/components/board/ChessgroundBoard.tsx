@@ -10,9 +10,13 @@ import type { BoardControlSide } from "../../types/sync";
 import { preloadSounds } from "../../audio/sounds";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
-
-/** Stored brush name for a palette colour ("green" is aliased to the palette brush in chessground). */
-const paletteBrush = (colorId: string) => (colorId === "green" ? "primaryGreen" : colorId);
+import {
+  arrowBrushes,
+  brushForGesture,
+  isDrawGesture,
+  paletteBrush,
+  stampGestureBrush
+} from "../../lib/drawBrushes";
 
 export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -66,6 +70,10 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       overlayArrows: s.overlayArrows,
     })),
   );
+  // Everyone may draw arrows on an interactive board. A student's marks stay on
+  // their own screen: `useBoardSync` only broadcasts the coach's annotations,
+  // and receivers reject a non-coach UPDATE_ANNOTATIONS anyway.
+  const canDraw = !readOnly;
   const viewOrientation = localFlip ? (orientation === "white" ? "black" : "white") : orientation;
 
   // Squares of the last played move, for the last-move highlight — derived
@@ -135,28 +143,14 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
 
     const handleDown = (e: MouseEvent | TouchEvent) => {
       const isMouse = "button" in e;
-      const isRight = isMouse && (e as MouseEvent).button === 2;
-      const isShiftLeft = isMouse && (e as MouseEvent).button === 0 && e.shiftKey;
 
       // A drawing gesture: pick the colour from the held modifier (Ctrl red,
-      // Alt blue, Shift yellow, else the palette colour) and stamp it onto the
-      // shape chessground just started — its own mapping differs, and an
-      // exact brush match is what lets a repeat right-click remove the mark.
-      if (isRight || isShiftLeft) {
-        const brush = e.ctrlKey
-          ? "red"
-          : e.altKey
-            ? "blue"
-            : e.shiftKey
-              ? "yellow"
-              : paletteBrush(stateRef.current.activeBrush);
-        window.setTimeout(() => {
-          const state = cgRef.current?.state;
-          if (state?.drawable?.current) {
-            state.drawable.current.brush = brush;
-            state.dom.redraw();
-          }
-        }, 0);
+      // Alt blue, Shift yellow, else the palette colour).
+      if (isDrawGesture(e)) {
+        stampGestureBrush(
+          () => cgRef.current?.state,
+          brushForGesture(e, stateRef.current.activeBrush)
+        );
         return;
       }
 
@@ -208,17 +202,6 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     };
   }, []);
 
-  const brushColors: Record<string, string> = {
-    green: '#15781B',
-    red: '#882020',
-    blue: '#003088',
-    yellow: '#e68f00'
-  };
-
-  const getBrushConfig = (colorId: string) => {
-    return { key: colorId.charAt(0), color: brushColors[colorId] || brushColors.green, opacity: 1, lineWidth: 10 };
-  };
-
   // Initialize Chessground
   useEffect(() => {
     if (!containerRef.current) return;
@@ -258,17 +241,11 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
         }
       },
       drawable: {
-        enabled: isCoach && !readOnly,
+        enabled: canDraw,
         visible: true,
         // Lichess style: a left click anywhere on the board clears every mark.
         eraseOnClick: true,
-        brushes: {
-          green: getBrushConfig(activeBrush),
-          primaryGreen: getBrushConfig('green'),
-          red: getBrushConfig('red'),
-          blue: getBrushConfig('blue'),
-          yellow: getBrushConfig('yellow'),
-        },
+        brushes: arrowBrushes(activeBrush),
         onChange: (shapes) => {
           const { activeBrush: currentActiveBrush } = stateRef.current;
           const newArrows = shapes.map(s => [
@@ -301,15 +278,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   useEffect(() => {
     if (!cg) return;
     cg.set({
-      drawable: {
-        brushes: {
-          green: getBrushConfig(activeBrush),
-          primaryGreen: getBrushConfig('green'),
-          red: getBrushConfig('red'),
-          blue: getBrushConfig('blue'),
-          yellow: getBrushConfig('yellow'),
-        }
-      }
+      drawable: { brushes: arrowBrushes(activeBrush) }
     });
   }, [cg, activeBrush]);
 
@@ -329,7 +298,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
         check: highlightSettings.checkIndicatorEnabled,
       },
       viewOnly: !canMove,
-      drawable: { enabled: isCoach && !readOnly },
+      drawable: { enabled: canDraw },
       movable: {
         color: movableColor,
         free: isEditingPosition,
@@ -339,7 +308,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     });
   }, [
     cg, fen, turn, viewOrientation, showCoordinates, animationEnabled, highlightSettings, chess,
-    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, isCoach, readOnly
+    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw
   ]);
   
   // Sync annotations (arrows)

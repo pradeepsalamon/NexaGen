@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarClock, CalendarPlus } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarPlus, CalendarRange, List } from "lucide-react";
 import type { CoachClass } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -15,8 +15,18 @@ import { useCoachBatches, useUpcomingClasses } from "../hooks/useCoachApi";
 import { cancelClass } from "../api/coachApi";
 import { ClassCard } from "./ClassCard";
 import { ClassNotesDialog } from "./ClassNotesDialog";
+import { CoachScheduleCalendar } from "./CoachScheduleCalendar";
+
+type ScheduleView = "week" | "month" | "list";
+
+const VIEW_OPTIONS: { icon: typeof List; label: string; value: ScheduleView }[] = [
+  { icon: CalendarRange, label: "Week", value: "week" },
+  { icon: CalendarDays, label: "Month", value: "month" },
+  { icon: List, label: "Upcoming", value: "list" }
+];
 
 export function CoachScheduleClient() {
+  const [view, setView] = useState<ScheduleView>("week");
   const { data: upcomingData, isLoading: upcomingLoading } = useUpcomingClasses();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -68,9 +78,35 @@ export function CoachScheduleClient() {
       <CoachClassRequestsSection />
 
       <div className="space-y-4">
-        <h2 className="text-xl font-bold text-app-text">Upcoming Classes</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-bold text-app-text">
+            {view === "list" ? "Upcoming Classes" : "Calendar"}
+          </h2>
+          <div role="group" aria-label="Schedule view" className="flex items-center gap-1 rounded-control bg-app-soft p-1">
+            {VIEW_OPTIONS.map(({ icon: Icon, label, value }) => (
+              <Button
+                key={value}
+                size="sm"
+                variant={view === value ? "primary" : "ghost"}
+                aria-pressed={view === value}
+                className="h-8 px-3 text-xs"
+                onClick={() => setView(value)}
+              >
+                <Icon className="mr-1.5 size-3.5" strokeWidth={2.25} />
+                {label}
+              </Button>
+            ))}
+          </div>
+        </div>
 
-        {upcomingLoading ? (
+        {view !== "list" ? (
+          <CoachScheduleCalendar
+            view={view}
+            onEdit={handleEdit}
+            onCancel={handleCancel}
+            onRequestReschedule={openRequest}
+          />
+        ) : upcomingLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} className="p-4 h-48">

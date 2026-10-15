@@ -227,6 +227,13 @@ interface Props {
    * and refuses it if the Super Admin's approval has been revoked.
    */
   sourceFolder?: { id: string; name: string };
+  /**
+   * Offer "Academy Library puzzles" as a source for a new assignment. Off on
+   * the coach Assignments page, where a new assignment is always built by hand
+   * (coaches still assign library puzzles from the Puzzle Library itself).
+   * Editing an existing puzzle set is unaffected.
+   */
+  allowLibrarySource?: boolean;
   /** Called once a new assignment is saved (not on cancel). */
   onCreated?: () => void;
 }
@@ -243,6 +250,7 @@ export function AssignmentFormDialog({
   initialTitle,
   initialPuzzles,
   sourceFolder,
+  allowLibrarySource = true,
   onCreated
 }: Props) {
   const { run: runCreate, isPending: isCreating } = useUndoableMutation({
@@ -462,12 +470,14 @@ export function AssignmentFormDialog({
           <DialogDescription>
             {mode === "edit"
               ? "Update this assignment. Changes apply everywhere it is used."
-              : "Assign puzzles from the library, or build an activity yourself."}
+              : allowLibrarySource
+                ? "Assign puzzles from the library, or build an activity yourself."
+                : "Build an activity: paste a PGN, set up a position or record a line."}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={onSubmit} className="grid gap-4 py-2">
-          {mode === "create" && !fromFolder ? (
+          {mode === "create" && !fromFolder && allowLibrarySource ? (
             <div className="grid gap-1.5">
               <p className="text-sm font-semibold text-app-text">What are you assigning?</p>
               <Tabs

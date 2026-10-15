@@ -1,5 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { CoachService } from "./coach.service";
@@ -183,6 +183,39 @@ describe("CoachService class scheduling", () => {
 
       await expect(service.cancelClass(ACCESS_TOKEN, "class-1")).resolves.toBeDefined();
       expect(coachClassUpdate).toHaveBeenCalled();
+    });
+  });
+
+  describe("getCalendarClasses", () => {
+    const from = "2026-09-28T00:00:00.000Z";
+    const to = "2026-11-09T00:00:00.000Z";
+
+    it("returns the coach's classes overlapping the range, any status", async () => {
+      await service.getCalendarClasses(ACCESS_TOKEN, { from, to });
+      const args = coachClassFindMany.mock.calls[0][0];
+      expect(args.where).toEqual({
+        coachId: COACH_ID,
+        endsAt: { gt: new Date(from) },
+        startsAt: { lt: new Date(to) }
+      });
+      expect(args.where.status).toBeUndefined();
+    });
+
+    it("rejects a missing or malformed range", async () => {
+      await expect(service.getCalendarClasses(ACCESS_TOKEN, { from })).rejects.toBeInstanceOf(BadRequestException);
+      await expect(
+        service.getCalendarClasses(ACCESS_TOKEN, { from: "nope", to })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(coachClassFindMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects an inverted or oversized range", async () => {
+      await expect(service.getCalendarClasses(ACCESS_TOKEN, { from: to, to: from })).rejects.toBeInstanceOf(
+        BadRequestException
+      );
+      await expect(
+        service.getCalendarClasses(ACCESS_TOKEN, { from, to: "2027-06-01T00:00:00.000Z" })
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 

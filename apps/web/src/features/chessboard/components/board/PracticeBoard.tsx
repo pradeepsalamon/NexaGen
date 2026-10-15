@@ -9,6 +9,7 @@ import { type Square } from "chess.js";
 import { Chess } from "@/lib/chess";
 import { cn } from "@/lib/utils";
 import { useChessAppearance } from "@/features/chess-appearance/context/ChessAppearanceProvider";
+import { arrowBrushes, brushForGesture, isDrawGesture, stampGestureBrush } from "../../lib/drawBrushes";
 
 export interface PracticeBoardMove {
   from: string;
@@ -133,7 +134,9 @@ export function PracticeBoard({
       orientation,
       turnColor,
       coordinates: showCoordinates,
-      drawable: { enabled: false },
+      // Right-click (or Shift + click) arrows and circles, the same gesture and
+      // colours as the live-class board. Local only; a move clears them.
+      drawable: { enabled: true, eraseOnClick: true, brushes: arrowBrushes() },
       animation: { enabled: animationEnabled, duration: 150 },
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
@@ -162,7 +165,16 @@ export function PracticeBoard({
         }
       }
     });
+    const el = containerRef.current;
+    // Colour a drawing gesture by its modifier (Ctrl red, Alt blue, Shift
+    // yellow), exactly like the live-class board.
+    const onDown = (e: MouseEvent) => {
+      if (!isDrawGesture(e)) return;
+      stampGestureBrush(() => apiRef.current?.state, brushForGesture(e));
+    };
+    el.addEventListener("mousedown", onDown, { capture: true });
     return () => {
+      el.removeEventListener("mousedown", onDown, { capture: true });
       apiRef.current?.destroy();
       apiRef.current = null;
     };
@@ -170,9 +182,17 @@ export function PracticeBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // `set({ fen })` wipes the user's drawn arrows. Keep them across re-renders
+  // (a ticking timer re-renders the parent) and drop them only once the
+  // position actually changes, like lichess.
+  const drawnFenRef = useRef(fen);
   useEffect(() => {
-    apiRef.current?.set({
+    const api = apiRef.current;
+    const keptShapes = drawnFenRef.current === fen ? api?.state.drawable.shapes : undefined;
+    drawnFenRef.current = fen;
+    api?.set({
       fen,
+      drawable: { shapes: keptShapes ?? [] },
       orientation,
       turnColor,
       coordinates: showCoordinates,

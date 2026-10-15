@@ -71,6 +71,8 @@ export const API_ROUTES = {
     batches: "/coach/batches",
     classes: "/coach/classes",
     upcomingClasses: "/coach/classes/upcoming",
+    // Every class of the caller's overlapping [from, to) — the schedule's week / month calendar.
+    calendarClasses: "/coach/classes/calendar",
     classHistory: "/coach/classes/history",
     getClass: (id: string = ":id") => `/coach/classes/${id}`,
     updateClass: (id: string = ":id") => `/coach/classes/${id}`,

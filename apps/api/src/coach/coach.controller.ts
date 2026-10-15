@@ -42,6 +42,16 @@ export class CoachController {
     );
   }
 
+  // Declared before `getClass` so "calendar" is never read as a class id.
+  @Get(API_ROUTES.coach.calendarClasses)
+  getCalendarClasses(
+    @Req() request: Request,
+    @Query("from") from?: string,
+    @Query("to") to?: string
+  ) {
+    return this.coachService.getCalendarClasses(this.getAccessToken(request), { from, to });
+  }
+
   @Get(API_ROUTES.coach.classHistory)
   getClassHistory(@Req() request: Request) {
     return this.coachService.getClassHistory(this.getAccessToken(request));

@@ -249,6 +249,7 @@ export function CoachAssignmentsClient() {
         mode={editing ? "edit" : "create"}
         assignment={editing}
         coachBatches={batches}
+        allowLibrarySource={false}
       />
       <DeployAssignmentDialog
         open={!!deploying}
