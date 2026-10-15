@@ -2532,6 +2532,7 @@ export * from "./live-class-simul";
 export * from "./live-class-match";
 export * from "./live-class-move-poll";
 export * from "./live-class-tools";
+export * from "./puzzle-rush";
 
 // ──────────────────────────────────────────────
 // Course library (depends on ./puzzle + Assignment types above)

@@ -129,6 +129,10 @@ export const API_ROUTES = {
     movePollAnswer: (id: string = ":id") => `/live-class/${id}/move-poll/answer`,
     // Interactives (classroom tools): GET every tool's state (any participant).
     tools: (id: string = ":id") => `/live-class/${id}/tools`,
+    // Puzzle Storm / Racer: GET the current round (any participant), POST start
+    // and DELETE end (coach-owner/admin), PUT a student's running totals.
+    puzzleRush: (id: string = ":id") => `/live-class/${id}/puzzle-rush`,
+    puzzleRushProgress: (id: string = ":id") => `/live-class/${id}/puzzle-rush/progress`,
     // PUT one tool's state (coach-owner+admin).
     tool: (id: string = ":id", tool: string = ":tool") => `/live-class/${id}/tools/${tool}`,
     // Simul: POST start / DELETE end (coach-owner+admin), GET current (any participant).

@@ -19,7 +19,7 @@ import { PresentedViewProvider } from "./shared";
 const COLUMNS = 4;
 
 /**
- * The coach's toolbar button → popover of the twelve classroom Interactives →
+ * The coach's toolbar button → popover of the fourteen classroom Interactives →
  * the chosen tool in a floating panel. While "Show to class" is on (the
  * default) the open tool is presented: every student sees it live on their
  * main stage. Closing the panel stops showing it. Students have no launcher.
@@ -75,7 +75,7 @@ export function InteractivesLauncher() {
     [publish, sharing, toolId],
   );
 
-  // Arrow keys move through the 4×3 grid.
+  // Arrow keys move through the four-column grid.
   const onGridKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const index = itemRefs.current.findIndex(
       (el) => el === document.activeElement,

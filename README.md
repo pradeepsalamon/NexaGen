@@ -202,11 +202,22 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   shows the synced board, every camera/screen share with the room's audio, and
   the room chat (read only).
 - Live-class Interactives: the coach's toolbar "Interactives" button (left of
-  Leave) opens twelve classroom tools in a floating, non-modal panel — Pick a Student,
+  Leave) opens fourteen classroom tools in a floating, non-modal panel — Pick a Student,
   Mystery Box, Wall of Moments, Team Generator, Grandmaster Mapper, Chess
   Balance, White or Black, Chess Legends, Opening of the Day, Chess Video
-  Generator, Rating Calculator, Classroom Timer
-  (`features/live-class/components/meeting/interactives/`). Eight keep shared
+  Generator, Rating Calculator, Classroom Timer, Puzzle Storm, Puzzle Racer
+  (`features/live-class/components/meeting/interactives/`). Puzzle Storm and
+  Puzzle Racer are the Lichess timed modes, played by every student on their
+  own stage: Storm is a 3:00 clock that starts on the first move (−10s per
+  mistake, +3/5/7/10s at combos of 5/12/20/30, score = puzzles solved), Racer a
+  90-second race after a 10-second countdown (a point per correct move, +1/2/3/4
+  combo points, one skip per race, a live race track). Both draw the same run of
+  Lichess catalogue puzzles for the whole class from Lichess' Storm rating ladder
+  (137 puzzles, ~1000 → ~2500, rating deviation ≤ 85), so they need the Lichess
+  catalogue loaded (§ "Lichess Puzzle Catalogue"); without it Start answers 503.
+  Rounds live in `live_class_puzzle_rushes` / `_entries`
+  (`apps/api/src/puzzle-rush/`, `API_ROUTES.liveClass.puzzleRush` /
+  `.puzzleRushProgress`). Eight keep shared
   state in `LiveClassToolState` (`apps/api/src/classroom-tools/`,
   `API_ROUTES.liveClass.tools` / `.tool`): the coach/admin writes, every
   participant reads, and a `classroom_tools` packet nudges a refetch. Mystery

@@ -58,8 +58,13 @@ export function PresentedInteractiveStage({ stageSwitch }: { stageSwitch: ReactN
   const tool = usePresentedTool();
   if (!tool) return null;
   return (
-    <InlineStage title={<PresentedTitle tool={tool} />} stageSwitch={stageSwitch}>
-      <div className="rounded-app border border-app-border bg-app-surface p-4 shadow-card sm:p-6">
+    <InlineStage fullWidth={tool.wide} title={<PresentedTitle tool={tool} />} stageSwitch={stageSwitch}>
+      <div
+        className={cn(
+          "rounded-app border border-app-border bg-app-surface p-4 shadow-card sm:p-6",
+          tool.wide && "mx-auto max-w-4xl",
+        )}
+      >
         <PresentedToolBody tool={tool} />
       </div>
     </InlineStage>

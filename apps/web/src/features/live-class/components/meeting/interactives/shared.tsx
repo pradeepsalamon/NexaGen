@@ -82,6 +82,11 @@ export function useSharedToolView<T>(
   return { shown: parse(ctx.view) ?? local, watching: true };
 }
 
+/** True while the coach's open tool is being shown to the class. */
+export function useIsPresenting(): boolean {
+  return useContext(PresentedViewContext)?.mode === "present";
+}
+
 /** True while a student watches the coach's presentation of this tool. */
 export function useIsWatching(): boolean {
   return useContext(PresentedViewContext)?.mode === "watch";

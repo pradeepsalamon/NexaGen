@@ -31,6 +31,7 @@ import { PuzzleModule } from "./puzzle/puzzle.module";
 import { SimulModule } from "./simul/simul.module";
 import { StudentMatchModule } from "./student-match/student-match.module";
 import { MovePollModule } from "./move-poll/move-poll.module";
+import { PuzzleRushModule } from "./puzzle-rush/puzzle-rush.module";
 import { ClassroomToolsModule } from "./classroom-tools/classroom-tools.module";
 import { CourseModule } from "./course/course.module";
 import { QueueModule } from "./queue/queue.module";
@@ -89,6 +90,7 @@ import { ChatModule } from "./chat/chat.module";
     GameLibraryModule,
     ChatModule,
     MovePollModule,
+    PuzzleRushModule,
     ClassroomToolsModule,
     CourseModule,
     MessagingModule,

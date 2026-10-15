@@ -336,6 +336,8 @@ model User {
   matchChallengesReceived         LiveClassMatchChallenge[]        @relation("LiveClassMatchChallengeTo")
   startedMovePolls                LiveClassMovePoll[]              @relation("LiveClassMovePollStartedBy")
   movePollAnswers                 LiveClassMovePollAnswer[]        @relation("LiveClassMovePollAnswerStudent")
+  startedPuzzleRushes             LiveClassPuzzleRush[]            @relation("LiveClassPuzzleRushStartedBy")
+  puzzleRushEntries               LiveClassPuzzleRushEntry[]       @relation("LiveClassPuzzleRushEntryStudent")
   activities                      StudentActivity[]                @relation("StudentActivity")
   classAttendances                ClassAttendance[]
   attendanceLogs                  AttendanceLog[]                  @relation("UserAttendanceLogs")
@@ -808,6 +810,7 @@ model CoachClass {
   simuls                   LiveClassSimul[]
   matchRounds              LiveClassMatchRound[]
   movePolls                LiveClassMovePoll[]
+  puzzleRushes             LiveClassPuzzleRush[]
   classroomToolStates      LiveClassToolState[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
@@ -2595,6 +2598,72 @@ model LiveClassMovePollAnswer {
   @@unique([pollId, studentId])
   @@index([studentId])
   @@map("live_class_move_poll_answers")
+}
+
+enum PuzzleRushMode {
+  STORM
+  RACER
+}
+
+/// A Puzzle Storm / Puzzle Racer round in a live class: one run of Lichess
+/// catalogue puzzles (copied in, by the Storm rating ladder) that every
+/// student plays. One active round per class (hand-written partial unique
+/// index on liveClassId WHERE "endedAt" IS NULL). Operational, not soft-deletable.
+model LiveClassPuzzleRush {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  startedById String?
+  startedBy   User?   @relation("LiveClassPuzzleRushStartedBy", fields: [startedById], references: [id], onDelete: SetNull)
+
+  mode     PuzzleRushMode
+  /// PuzzleRushPuzzle[] — frozen at start, so every player gets the same run.
+  puzzles  Json
+  /// Racer: race start after the countdown. Storm: when the round opened.
+  startsAt DateTime
+  /// Racer: race end. Storm: null (each player's own clock).
+  endsAt   DateTime?
+  endedAt  DateTime?
+
+  entries LiveClassPuzzleRushEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([liveClassId, createdAt])
+  @@map("live_class_puzzle_rushes")
+}
+
+/// One student's running totals in a round (client-checked moves, server-clamped totals).
+model LiveClassPuzzleRushEntry {
+  id String @id @default(cuid())
+
+  rushId String
+  rush   LiveClassPuzzleRush @relation(fields: [rushId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("LiveClassPuzzleRushEntryStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  score         Int       @default(0)
+  moves         Int       @default(0)
+  errors        Int       @default(0)
+  solved        Int       @default(0)
+  bestCombo     Int       @default(0)
+  highestRating Int?
+  puzzleIndex   Int       @default(0)
+  skipsUsed     Int       @default(0)
+  startedAt     DateTime?
+  clockEndsAt   DateTime?
+  finishedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([rushId, studentId])
+  @@index([studentId])
+  @@map("live_class_puzzle_rush_entries")
 }
 
 enum LiveClassToolKind {

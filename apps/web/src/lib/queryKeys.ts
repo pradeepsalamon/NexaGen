@@ -217,6 +217,9 @@ export const queryKeys = {
   liveClassTools: {
     state: (classId: string) => ["live-class-tools", "state", classId] as const,
   },
+  puzzleRush: {
+    state: (classId: string) => ["puzzle-rush", "state", classId] as const,
+  },
   payroll: {
     all: ["payroll"] as const,
     mine: ["payroll", "mine"] as const,

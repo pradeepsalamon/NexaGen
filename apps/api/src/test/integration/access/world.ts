@@ -109,6 +109,17 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  // A Puzzle Storm round open in that live class.
+  const rush = await prisma.liveClassPuzzleRush.create({
+    data: {
+      liveClassId: liveClass.id,
+      mode: "STORM",
+      puzzles: [{ fen: FEN, id: `lp-${label}`, moves: ["g1f1", "g8f8"], rating: 1000 }],
+      startedById: coach.id,
+      startsAt: new Date()
+    }
+  });
+
   const assignment = await prisma.assignment.create({
     data: { createdById: coach.id, pgn: "1. e4 e5 *", title: `Homework ${label}` }
   });
@@ -194,6 +205,7 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     order,
     payrollRecord,
     privatePuzzle,
+    rush,
     setDeployment,
     setStudentAssignment,
     student,

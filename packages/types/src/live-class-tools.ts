@@ -3,13 +3,15 @@ import { z } from "zod";
 // ──────────────────────────────────────────────────────────────
 // Live-class "Interactives" — classroom tools shared contract
 // ──────────────────────────────────────────────────────────────
-// Twelve coach tools open from the toolbar's Interactives launcher. Eight of
+// Fourteen coach tools open from the toolbar's Interactives launcher. Eight of
 // them hold state worth keeping (a goal in progress, the teams, the running
 // timer…): that state is one `LiveClassToolState` row per (scope, tool),
 // written by the class's coach/admin and readable by every participant. REST is
 // the source of truth; the `classroom_tools` topic is a server-injected nudge to
 // refetch. The other four (Chess Balance, Opening of the Day, Video Generator,
-// Rating Calculator) are personal and keep nothing on the server.
+// Rating Calculator) are personal and keep nothing on the server. Puzzle
+// Storm and Puzzle Racer are rounds every student plays; their state is its own
+// model (`puzzle-rush.ts`), not a tool-state row.
 //
 // Students never open tools themselves. The coach *presents* one: PRESENTING
 // names the tool open on the coach's screen (plus, for the personal tools, a
@@ -48,7 +50,7 @@ export const LIVE_CLASS_TOOL_SCOPE: Record<LiveClassToolKind, "BATCH" | "CLASS">
   WALL_OF_MOMENTS: "BATCH"
 };
 
-/** The twelve Interactives, by the id the web registry uses. Persisted in PRESENTING — never rename one. */
+/** The fourteen Interactives, by the id the web registry uses. Persisted in PRESENTING — never rename one. */
 export const LIVE_CLASS_INTERACTIVE_IDS = [
   "pick-student",
   "mystery-box",
@@ -61,7 +63,9 @@ export const LIVE_CLASS_INTERACTIVE_IDS = [
   "opening-of-the-day",
   "video-generator",
   "rating-calculator",
-  "classroom-timer"
+  "classroom-timer",
+  "puzzle-storm",
+  "puzzle-racer"
 ] as const;
 export const liveClassInteractiveIdSchema = z.enum(LIVE_CLASS_INTERACTIVE_IDS);
 export type LiveClassInteractiveId = z.infer<typeof liveClassInteractiveIdSchema>;

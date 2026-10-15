@@ -7,11 +7,13 @@ import {
   Contrast,
   Crown,
   Dices,
+  Flag,
   Gift,
   Scale,
   Sunrise,
   Timer,
   UsersRound,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import type { LiveClassInteractiveId } from "@nexa-chess/types";
@@ -23,6 +25,8 @@ import { GrandmasterMapperTool } from "./tools/GrandmasterMapperTool";
 import { MysteryBoxTool } from "./tools/MysteryBoxTool";
 import { OpeningOfTheDayTool } from "./tools/OpeningOfTheDayTool";
 import { PickStudentTool } from "./tools/PickStudentTool";
+import { PuzzleRacerTool } from "./tools/PuzzleRacerTool";
+import { PuzzleStormTool } from "./tools/PuzzleStormTool";
 import { RatingCalculatorTool } from "./tools/RatingCalculatorTool";
 import { TeamGeneratorTool } from "./tools/TeamGeneratorTool";
 import { VideoGeneratorTool } from "./tools/VideoGeneratorTool";
@@ -41,9 +45,11 @@ export type InteractiveTool = {
   /** Tailwind classes for the round icon chip (token tints only). */
   tone: string;
   Component: ComponentType<ToolContext>;
+  /** Students play it on a board: their stage uses the full width, not a reading column. */
+  wide?: boolean;
 };
 
-/** The launcher shows exactly these twelve, in this order. */
+/** The launcher shows exactly these fourteen, in this order. */
 export const INTERACTIVE_TOOLS: InteractiveTool[] = [
   {
     Component: PickStudentTool,
@@ -140,6 +146,24 @@ export const INTERACTIVE_TOOLS: InteractiveTool[] = [
     id: "classroom-timer",
     label: "Classroom Timer",
     tone: "bg-warm/15 text-warm-ink",
+  },
+  {
+    Component: PuzzleStormTool,
+    blurb: "Lichess Puzzle Storm: solve all you can in 3 minutes.",
+    icon: Zap,
+    id: "puzzle-storm",
+    label: "Puzzle Storm",
+    tone: "bg-primary/10 text-primary-ink",
+    wide: true,
+  },
+  {
+    Component: PuzzleRacerTool,
+    blurb: "Lichess Puzzle Racer: the class races for 90 seconds.",
+    icon: Flag,
+    id: "puzzle-racer",
+    label: "Puzzle Racer",
+    tone: "bg-accent/15 text-accent-ink",
+    wide: true,
   },
 ];
 

@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { useParams } from "next/navigation";
-import type { LiveClassInteractiveId, PresentingState } from "@nexa-chess/types";
+import type { LiveClassInteractiveId, PresentingState, PuzzleRushMode } from "@nexa-chess/types";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useClassroomTimer } from "../../../hooks/useClassroomTimer";
 import {
@@ -19,6 +19,13 @@ import {
   useClassroomToolsSync,
   useSaveClassroomTool,
 } from "../../../hooks/useClassroomTools";
+import { usePuzzleRush, usePuzzleRushSync } from "../../../hooks/usePuzzleRush";
+
+/** The Interactive that plays each Storm / Racer round. */
+const PUZZLE_RUSH_TOOL: Record<PuzzleRushMode, LiveClassInteractiveId> = {
+  RACER: "puzzle-racer",
+  STORM: "puzzle-storm",
+};
 
 /** How long a personal tool's view settles before it is sent to the class. */
 const VIEW_DEBOUNCE_MS = 400;
@@ -48,8 +55,10 @@ const TimerContext = createContext<ClassroomTimer | null>(null);
 /**
  * Room-wide Interactives state, mounted once per room (inside `<LiveKitRoom>`):
  * the `classroom_tools` packet listener, the single classroom-timer driver,
- * and what the coach is presenting. Students never open a tool themselves —
- * when the coach presents one it opens on their main stage, read-only.
+ * the `puzzle_rush` listener, and what the coach is presenting. Students never
+ * open a tool themselves — when the coach presents one it opens on their main
+ * stage, read-only (Storm / Racer are the exception: students play those, and a
+ * running round stays on their stage until it ends).
  */
 export function InteractivesProvider({ children }: { children: ReactNode }) {
   const params = useParams();
@@ -60,7 +69,20 @@ export function InteractivesProvider({ children }: { children: ReactNode }) {
 
   useClassroomToolsSync(classId);
   const timer = useClassroomTimer(classId, isManager);
-  const { state: presenting } = useClassroomTool(classId, "PRESENTING");
+  const { state: presented } = useClassroomTool(classId, "PRESENTING");
+  usePuzzleRushSync(classId);
+  const { rush } = usePuzzleRush(classId);
+
+  // A student in a running Storm / Racer round keeps that board on their stage
+  // whatever else the coach opens or closes — closing the coach's panel must
+  // not pull the game out from under them.
+  const rushTool = rush && rush.status !== "ENDED" ? PUZZLE_RUSH_TOOL[rush.mode] : null;
+  const rushStartedAt = rush?.createdAt ?? null;
+  const presenting = useMemo<PresentingState | null>(() => {
+    if (isManager || !rushTool) return presented;
+    if (presented?.toolId === rushTool) return presented;
+    return { startedAt: rushStartedAt, toolId: rushTool, view: null };
+  }, [isManager, presented, rushStartedAt, rushTool]);
   const save = useSaveClassroomTool(classId, "PRESENTING");
   const saveRef = useRef(save.mutate);
   saveRef.current = save.mutate;
@@ -114,7 +136,10 @@ export function InteractivesProvider({ children }: { children: ReactNode }) {
 
   // A new presentation opens on every student's stage; ending it closes it.
   const [studentOpen, setStudentOpen] = useState(false);
-  const presentedKey = presenting?.toolId ? `${presenting.toolId}@${presenting.startedAt ?? ""}` : null;
+  // A new Storm / Racer round re-opens it too, even for a student who hid the tool.
+  const presentedKey = presenting?.toolId
+    ? `${presenting.toolId}@${presenting.startedAt ?? ""}@${rushTool ? rushStartedAt : ""}`
+    : null;
   useEffect(() => {
     if (isManager) return;
     setStudentOpen(!!presentedKey);
