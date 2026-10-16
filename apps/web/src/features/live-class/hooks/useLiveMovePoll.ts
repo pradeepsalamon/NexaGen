@@ -35,7 +35,9 @@ export function useLiveMovePollState(classId: string) {
 export function useLiveMovePollSync(classId: string, { isManager }: { isManager: boolean }) {
   const qc = useQueryClient();
   const onMessage = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: unknown }) => {
+      // Only the API sends these; a participant-sent packet is ignored.
+      if (msg.from) return;
       const decoded = decodeLiveMovePoll(msg.payload);
       if (!decoded) return;
       if (decoded.type === "POLL_ANSWERED" && !isManager) return;

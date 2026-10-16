@@ -145,11 +145,45 @@ describe("LiveClassRecordingService recording feature", () => {
       ).rejects.toBeInstanceOf(NotFoundException);
     });
 
+    // A role check alone let any coach start (and stop) a recording in
+    // someone else's class.
+    it("refuses a coach who does not own the class", async () => {
+      authenticateAs("coach-2", UserRole.COACH);
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        status: LiveSessionStatus.LIVE,
+        roomName: "class_class-1",
+        metadata: { egressId: "egress-active-999" },
+      });
+
+      await expect(service.startRecording(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.stopRecording(ACCESS_TOKEN, "class-1")).rejects.toBeInstanceOf(ForbiddenException);
+      expect(livekitService.startRecording).not.toHaveBeenCalled();
+      expect(livekitService.stopRecording).not.toHaveBeenCalled();
+    });
+
+    it("lets an admin record a class they do not teach", async () => {
+      authenticateAs("admin-1", UserRole.ADMIN);
+      liveSessionFindUnique.mockResolvedValue({
+        id: "session-1",
+        classId: "class-1",
+        coachId: "coach-1",
+        status: LiveSessionStatus.LIVE,
+        roomName: "class_class-1",
+        metadata: {},
+      });
+
+      await expect(service.startRecording(ACCESS_TOKEN, "class-1")).resolves.toMatchObject({ success: true });
+    });
+
     it("throws BadRequestException when class is not LIVE", async () => {
       authenticateAs("coach-1", UserRole.COACH);
       liveSessionFindUnique.mockResolvedValue({
         id: "session-1",
         classId: "class-1",
+        coachId: "coach-1",
         status: LiveSessionStatus.SCHEDULED,
         roomName: "class_class-1",
         metadata: {},
@@ -165,6 +199,7 @@ describe("LiveClassRecordingService recording feature", () => {
       liveSessionFindUnique.mockResolvedValue({
         id: "session-1",
         classId: "class-1",
+        coachId: "coach-1",
         status: LiveSessionStatus.LIVE,
         roomName: "class_class-1",
         metadata: { egressId: "egress-active-999" },
@@ -180,6 +215,7 @@ describe("LiveClassRecordingService recording feature", () => {
       liveSessionFindUnique.mockResolvedValue({
         id: "session-1",
         classId: "class-1",
+        coachId: "coach-1",
         status: LiveSessionStatus.LIVE,
         roomName: "class_class-1",
         metadata: {},
@@ -249,6 +285,7 @@ describe("LiveClassRecordingService recording feature", () => {
       liveSessionFindUnique.mockResolvedValue({
         id: "session-1",
         classId: "class-1",
+        coachId: "coach-1",
         status: LiveSessionStatus.LIVE,
         roomName: "class_class-1",
         metadata: {},
@@ -279,6 +316,7 @@ describe("LiveClassRecordingService recording feature", () => {
       liveSessionFindUnique.mockResolvedValue({
         id: "session-1",
         classId: "class-1",
+        coachId: "coach-1",
         status: LiveSessionStatus.LIVE,
         roomName: "class_class-1",
         metadata: {},
@@ -294,6 +332,7 @@ describe("LiveClassRecordingService recording feature", () => {
       liveSessionFindUnique.mockResolvedValue({
         id: "session-1",
         classId: "class-1",
+        coachId: "coach-1",
         status: LiveSessionStatus.LIVE,
         roomName: "class_class-1",
         metadata: {

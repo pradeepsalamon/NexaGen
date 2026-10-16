@@ -1,9 +1,9 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { getCurrentUser } from "../features/auth/api/authApi";
 import { queryKeys } from "../lib/queryKeys";
 import { canAccessPath, getRoleDashboardHref } from "../lib/routeAccess";
@@ -65,6 +65,19 @@ export function SessionBootstrap() {
   useEffect(() => {
     Sentry.setUser(userId ? { id: userId } : null);
   }, [userId]);
+
+  // Query keys aren't scoped by user, and staleTime is a minute: after a
+  // logout, or another account signing in on the same tab, the previous
+  // user's dashboard, messages or progress would render from cache. Drop
+  // everything the moment the signed-in user changes away from someone.
+  const queryClient = useQueryClient();
+  const previousUserId = useRef(userId);
+  useEffect(() => {
+    if (previousUserId.current && previousUserId.current !== userId) {
+      queryClient.removeQueries();
+    }
+    previousUserId.current = userId;
+  }, [queryClient, userId]);
 
   useEffect(() => {
     if (sessionQuery.data) {

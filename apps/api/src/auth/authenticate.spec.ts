@@ -55,6 +55,44 @@ describe("authenticateUser", () => {
     });
   });
 
+  describe("session binding", () => {
+    let authSession: { findUnique: jest.Mock };
+    const withSession = () => {
+      authSession = { findUnique: jest.fn().mockResolvedValue({ revokedAt: null, userId: "user_1" }) };
+      (prisma as unknown as { authSession: typeof authSession }).authSession = authSession;
+      jwt.verifyAsync.mockResolvedValue({ type: "access", sub: "user_1", sessionId: "s1" });
+    };
+
+    it("accepts a token whose session is live", async () => {
+      withSession();
+      await expect(run("token")).resolves.toMatchObject({ id: "user_1" });
+      expect(authSession.findUnique).toHaveBeenCalledWith({
+        where: { id: "s1" },
+        select: { revokedAt: true, userId: true }
+      });
+    });
+
+    // Logout, password reset and refresh-token reuse revoke the family; the
+    // access token must stop working then, not 15 minutes later.
+    it("rejects a token whose session was revoked", async () => {
+      withSession();
+      authSession.findUnique.mockResolvedValue({ revokedAt: new Date(), userId: "user_1" });
+      await expect(run("token")).rejects.toThrow("Invalid session.");
+    });
+
+    it("rejects a token whose session no longer exists", async () => {
+      withSession();
+      authSession.findUnique.mockResolvedValue(null);
+      await expect(run("token")).rejects.toThrow("Invalid session.");
+    });
+
+    it("rejects a token naming another user's session", async () => {
+      withSession();
+      authSession.findUnique.mockResolvedValue({ revokedAt: null, userId: "user_2" });
+      await expect(run("token")).rejects.toThrow("Invalid session.");
+    });
+  });
+
   it("verifyAccessToken never touches the database", async () => {
     await expect(verifyAccessToken(jwt as unknown as JwtService, "token")).resolves.toMatchObject({
       sub: "user_1"

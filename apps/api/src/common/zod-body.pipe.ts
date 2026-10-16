@@ -10,16 +10,25 @@ export class ZodBodyPipe<T> implements PipeTransform {
   constructor(private readonly schema: ZodType<T>) {}
 
   transform(value: unknown): T {
-    const result = this.schema.safeParse(value);
-
-    if (!result.success) {
-      throw new BadRequestException(
-        result.error.issues.map(
-          (issue) => `${issue.path.join(".") || "body"}: ${issue.message}`
-        )
-      );
-    }
-
-    return result.data;
+    return parseOrBadRequest(this.schema, value);
   }
+}
+
+/**
+ * The same check for a param or query parsed inside a handler. A bare
+ * `schema.parse` throws a ZodError, which Nest turns into a 500 — before the
+ * handler has even authenticated the caller.
+ */
+export function parseOrBadRequest<T>(schema: ZodType<T>, value: unknown, label = "body"): T {
+  const result = schema.safeParse(value);
+
+  if (!result.success) {
+    throw new BadRequestException(
+      result.error.issues.map(
+        (issue) => `${issue.path.join(".") || label}: ${issue.message}`
+      )
+    );
+  }
+
+  return result.data;
 }

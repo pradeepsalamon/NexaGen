@@ -27,7 +27,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreditNoteService } from "./credit-note.service";
 import { InvoiceAuditService } from "./invoice-audit.service";
@@ -63,7 +63,7 @@ export class InvoicesAdminController {
   @Get(API_ROUTES.adminInvoices.list)
   async list(@Query() query: Record<string, string>, @Req() request: Request) {
     const admin = await this.admin(request);
-    return this.invoices.listAdmin(admin, adminInvoiceQuerySchema.parse(query));
+    return this.invoices.listAdmin(admin, parseOrBadRequest(adminInvoiceQuerySchema, query));
   }
 
   @Get(API_ROUTES.adminInvoices.export)
@@ -75,7 +75,7 @@ export class InvoicesAdminController {
     const admin = await this.admin(request);
     const invoices = await this.invoices.listAdminAll(
       admin,
-      adminInvoiceQuerySchema.parse(query)
+      parseOrBadRequest(adminInvoiceQuerySchema, query)
     );
 
     response.setHeader("Content-Type", "text/csv; charset=utf-8");

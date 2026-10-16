@@ -23,7 +23,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { PrismaService } from "../prisma/prisma.service";
 import { InvoiceService } from "./invoice.service";
 import { PaymentService } from "./payment.service";
@@ -104,7 +104,7 @@ export class PaymentsController {
     @Req() request: Request
   ) {
     const method = body?.method
-      ? paymentMethodKindSchema.parse(body.method)
+      ? parseOrBadRequest(paymentMethodKindSchema, body.method)
       : undefined;
     return this.payments.retry(await this.user(request), id, method);
   }

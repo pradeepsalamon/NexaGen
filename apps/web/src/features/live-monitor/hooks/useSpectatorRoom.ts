@@ -206,7 +206,7 @@ export function useSpectatorRoom(options: {
           const msg = decodeBoardSyncPacket(payload);
           if (!msg) return;
           liveBoardSeenRef.current = true;
-          setBoard((prev) => reduceReadOnlyBoard(prev, msg));
+          setBoard((prev) => reduceReadOnlyBoard(prev, msg, from));
         },
       );
 

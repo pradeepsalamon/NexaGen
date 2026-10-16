@@ -1,4 +1,5 @@
-import type { BoardColor, BoardSyncMessage } from "../types/sync";
+import type { BoardColor, BoardControlSide, BoardPermissionMode, BoardSyncMessage } from "../types/sync";
+import { isCoachParticipant, isOneLegalMoveAway, moverColorFromFen, senderMayMutateBoard } from "./boardSyncRules";
 
 /**
  * What a passive viewer of the live board needs: the egress recorder and an
@@ -10,7 +11,17 @@ export type ReadOnlyBoardState = {
   orientation: BoardColor;
   arrows: string[][];
   squares: Record<string, string>;
+  /**
+   * Who may move, from the coach's `UPDATE_PERMISSIONS`. Not shown — kept so a
+   * student's packet is held to the same rule a classmate's board applies.
+   */
+  permissionMode?: BoardPermissionMode;
+  selectedStudentIds?: string[];
+  selectedStudentSides?: Record<string, BoardControlSide>;
 };
+
+/** The LiveKit envelope's sender, never the payload. */
+export type ReadOnlyBoardSender = { identity?: string; metadata?: string } | undefined;
 
 export const READ_ONLY_START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -23,9 +34,31 @@ export const INITIAL_READ_ONLY_BOARD: ReadOnlyBoardState = {
 
 /**
  * Applies one `board_sync` packet. Returns `prev` unchanged for messages that
- * don't affect what is shown (permissions, clock, UI state).
+ * don't affect what is shown (clock, UI state) and for any packet its sender
+ * may not send: students hold `canPublishData`, so without this check anyone in
+ * the room could rewrite the board the recording and an admin's seat show.
  */
-export function reduceReadOnlyBoard(prev: ReadOnlyBoardState, msg: BoardSyncMessage): ReadOnlyBoardState {
+export function reduceReadOnlyBoard(
+  prev: ReadOnlyBoardState,
+  msg: BoardSyncMessage,
+  from: ReadOnlyBoardSender,
+): ReadOnlyBoardState {
+  const isFromCoach = isCoachParticipant(from);
+  if (
+    !senderMayMutateBoard({
+      type: msg.type,
+      fromIdentity: from?.identity,
+      isFromCoach,
+      permissionMode: prev.permissionMode ?? "COACH_ONLY",
+      selectedStudentIds: prev.selectedStudentIds ?? [],
+      selectedStudentSides: prev.selectedStudentSides,
+      moverColor: msg.type === "MOVE" ? moverColorFromFen(msg.payload?.fen) : undefined,
+      isLegalMove:
+        msg.type === "MOVE" && !isFromCoach ? isOneLegalMoveAway(prev.fen, msg.payload?.fen) : undefined,
+    })
+  ) {
+    return prev;
+  }
   switch (msg.type) {
     case "MOVE":
     case "UNDO":
@@ -35,6 +68,7 @@ export function reduceReadOnlyBoard(prev: ReadOnlyBoardState, msg: BoardSyncMess
       const p = msg.payload;
       if (!p?.fen) return prev;
       return {
+        ...prev,
         fen: p.fen,
         orientation: p.orientation ?? prev.orientation,
         arrows: Array.isArray(p.arrows) ? p.arrows : prev.arrows,
@@ -45,6 +79,16 @@ export function reduceReadOnlyBoard(prev: ReadOnlyBoardState, msg: BoardSyncMess
       const p = msg.payload;
       if (!p) return prev;
       return { ...prev, arrows: p.arrows ?? [], squares: p.squares ?? {} };
+    }
+    case "UPDATE_PERMISSIONS": {
+      const p = msg.payload;
+      if (!p?.mode) return prev;
+      return {
+        ...prev,
+        permissionMode: p.mode,
+        selectedStudentIds: p.selectedStudentIds ?? [],
+        selectedStudentSides: p.selectedStudentSides ?? {},
+      };
     }
     default:
       return prev;

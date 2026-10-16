@@ -36,7 +36,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { PrismaService } from "../prisma/prisma.service";
 import { BatchPricingService } from "./batch-pricing.service";
 import { DiscountService } from "./discount.service";
@@ -76,7 +76,7 @@ export class PaymentsAdminController {
   @Get(API_ROUTES.adminPayments.list)
   async list(@Query() query: unknown, @Req() request: Request) {
     const admin = await this.adminUser(request);
-    return this.admin.list(admin, paymentListQuerySchema.parse(query));
+    return this.admin.list(admin, parseOrBadRequest(paymentListQuerySchema, query));
   }
 
   @Get(API_ROUTES.adminPayments.export)
@@ -84,7 +84,7 @@ export class PaymentsAdminController {
   @Header("Content-Disposition", 'attachment; filename="payments.csv"')
   async exportCsv(@Query() query: unknown, @Req() request: Request) {
     const admin = await this.adminUser(request);
-    return this.admin.exportCsv(admin, paymentListQuerySchema.parse(query));
+    return this.admin.exportCsv(admin, parseOrBadRequest(paymentListQuerySchema, query));
   }
 
   @Get(API_ROUTES.adminPayments.refunds)

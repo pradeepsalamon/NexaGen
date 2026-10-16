@@ -46,7 +46,9 @@ export function WaitingRoomBridge({ classId }: { classId: string }) {
   }, [classId, isCoach, setWaitingRoomEntries]);
 
   const onMessage = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: unknown }) => {
+      // Only the API sends these; a participant-sent packet is ignored.
+      if (msg.from) return;
       if (!isCoach) return;
       try {
         const decoded = JSON.parse(new TextDecoder().decode(msg.payload));

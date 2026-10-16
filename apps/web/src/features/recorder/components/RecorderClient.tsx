@@ -228,7 +228,7 @@ export function RecorderClient({ classId }: { classId: string }) {
           if (topic !== BOARD_SYNC_TOPIC) return;
           // A malformed packet decodes to null and must never take the recording down.
           const msg = decodeBoardSyncPacket(payload);
-          if (msg) setBoard((prev) => reduceReadOnlyBoard(prev, msg));
+          if (msg) setBoard((prev) => reduceReadOnlyBoard(prev, msg, from));
         },
       );
 

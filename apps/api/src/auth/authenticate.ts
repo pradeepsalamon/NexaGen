@@ -51,11 +51,25 @@ export async function authenticateUser(
   args?: { include: Prisma.UserInclude }
 ) {
   const payload = await verifyAccessToken(jwtService, accessToken);
-  const user = await prisma.user.findUnique({
-    where: { id: payload.sub },
-    ...(args ? { include: args.include } : {})
-  });
+  const [user, session] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: payload.sub },
+      ...(args ? { include: args.include } : {})
+    }),
+    // An access token outlives nothing it was minted from: logout, a password
+    // reset or refresh-token reuse revokes the session family, and that must
+    // end this token now rather than when its 15 minutes run out.
+    payload.sessionId
+      ? prisma.authSession.findUnique({
+          where: { id: payload.sessionId },
+          select: { revokedAt: true, userId: true }
+        })
+      : null
+  ]);
   if (!user || user.status !== UserStatus.ACTIVE) {
+    throw new UnauthorizedException("Invalid session.");
+  }
+  if (payload.sessionId && (!session || session.revokedAt || session.userId !== user.id)) {
     throw new UnauthorizedException("Invalid session.");
   }
   // Request-scoped; id and role only, never contact details.

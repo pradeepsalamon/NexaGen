@@ -63,6 +63,7 @@ import { GameLibraryModule } from "../game-library/game-library.module";
   ],
   exports: [
     LiveClassService,
+    LiveClassModerationService,
     LiveClassRecordingService,
     LiveClassScreenShareService,
     LiveClassSettingsService,

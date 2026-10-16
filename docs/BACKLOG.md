@@ -61,6 +61,16 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 None currently tracked here.
 
+## Resolved (2026-10-16) — role & permission enforcement audit
+
+Full report, permission matrix and open items: [AUTHORIZATION.md](AUTHORIZATION.md).
+Fixed: any coach could start/stop recording another coach's live class; access
+tokens survived logout / password reset; admin password reset left sessions
+alive; avatar delete by a copied URL; forged API-only data packets and recorder /
+spectator board packets accepted from any participant; kicked students could
+reconnect with an old LiveKit token; the query cache survived an account switch;
+several 500s before auth. Still open there: the 6h LiveKit token TTL.
+
 ## Resolved (2026-10-15) — variations, Game Library, chat, assignment reminders
 
 - **Moves overwrote the rest of the line.** Playing a different move on any

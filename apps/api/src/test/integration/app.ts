@@ -33,11 +33,25 @@ export async function createTestApp() {
   const prisma = app.get(PrismaService);
   const jwt = new JwtService();
 
-  const tokenFor = (user: Pick<User, "email" | "id" | "role">) =>
-    jwt.signAsync(
-      { email: user.email, role: user.role, sessionId: `int-${user.id}`, sub: user.id, type: "access" },
+  // authenticateUser rejects a token whose session is missing or revoked, so
+  // each signed-in user gets a live session row like a real login leaves.
+  const tokenFor = async (user: Pick<User, "email" | "id" | "role">) => {
+    const sessionId = `int-${user.id}`;
+    await prisma.authSession.upsert({
+      create: {
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        id: sessionId,
+        refreshTokenHash: "integration",
+        userId: user.id
+      },
+      update: {},
+      where: { id: sessionId }
+    });
+    return jwt.signAsync(
+      { email: user.email, role: user.role, sessionId, sub: user.id, type: "access" },
       { expiresIn: "15m", secret: ACCESS_SECRET }
     );
+  };
 
   /** Calls the API as `user` (or anonymously) with a real signed access cookie. */
   const call = async (

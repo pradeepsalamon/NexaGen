@@ -1493,8 +1493,10 @@ describe("LiveClassModerationService.kickParticipant", () => {
   let waitingUpsert: jest.Mock;
   let pullUpdateMany: jest.Mock;
   let removeParticipant: jest.Mock;
+  let waitingFindUnique: jest.Mock;
 
   beforeEach(async () => {
+    waitingFindUnique = jest.fn().mockResolvedValue(null);
     jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) };
     userFindUnique = jest.fn().mockResolvedValue({
       id: "coach-1",
@@ -1519,7 +1521,7 @@ describe("LiveClassModerationService.kickParticipant", () => {
         })
       },
       user: { findUnique: userFindUnique, findFirst: userFindFirst },
-      liveClassWaitingParticipant: { upsert: waitingUpsert },
+      liveClassWaitingParticipant: { upsert: waitingUpsert, findUnique: waitingFindUnique },
       liveClassPull: { updateMany: pullUpdateMany },
       $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops))
     };
@@ -1583,5 +1585,26 @@ describe("LiveClassModerationService.kickParticipant", () => {
     await expect(
       service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "admin-1_tab-x" })
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  describe("enforceRemovalOnJoin (participant_joined webhook)", () => {
+    const session = { id: "session-1", roomName: "room-1" };
+
+    it("puts a removed student back out when they reconnect with an old token", async () => {
+      waitingFindUnique.mockResolvedValue({ status: "DENIED" });
+      await expect(service.enforceRemovalOnJoin(session, "student-1", "student-1_tab-a")).resolves.toBe(true);
+      expect(removeParticipant).toHaveBeenCalledWith("room-1", "student-1_tab-a");
+    });
+
+    it("leaves an admitted student alone", async () => {
+      waitingFindUnique.mockResolvedValue({ status: "ADMITTED" });
+      await expect(service.enforceRemovalOnJoin(session, "student-1", "student-1_tab-a")).resolves.toBe(false);
+      expect(removeParticipant).not.toHaveBeenCalled();
+    });
+
+    it("leaves a student with no waiting-room row alone", async () => {
+      await expect(service.enforceRemovalOnJoin(session, "student-1", "student-1_tab-a")).resolves.toBe(false);
+      expect(removeParticipant).not.toHaveBeenCalled();
+    });
   });
 });

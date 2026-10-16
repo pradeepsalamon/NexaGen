@@ -68,6 +68,19 @@ export class UploadController {
       throw new ForbiddenException('You can only delete your own image.');
     }
 
+    // `avatarUrl` is a free-form profile field, so "it is my avatar" proves
+    // nothing on its own: anyone could copy a coach's avatar URL into their own
+    // profile and then delete the coach's image. A non-admin may only delete a
+    // profile upload that no other account is using.
+    if (!isAdmin) {
+      const sharedWith = await this.prisma.withDeleted.user.count({
+        where: { avatarUrl: url, id: { not: user.id } },
+      });
+      if (!this.uploadService.isProfileImageUrl(url) || sharedWith > 0) {
+        throw new ForbiddenException('You can only delete your own image.');
+      }
+    }
+
     await this.uploadService.deleteImage(url);
     return { success: true };
   }

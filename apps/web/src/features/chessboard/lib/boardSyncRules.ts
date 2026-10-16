@@ -39,6 +39,20 @@ const CONTROL_MESSAGE_TYPES = new Set<BoardSyncMessage["type"]>([
 ]);
 
 /**
+ * Role comes from LiveKit participant metadata, which the server signs into the
+ * access token. Students are issued `canUpdateOwnMetadata: false`, so this
+ * cannot be forged client-side.
+ */
+export function isCoachParticipant(from?: { metadata?: string }) {
+  if (!from?.metadata) return false;
+  try {
+    return JSON.parse(from.metadata).role === "COACH";
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Which side(s) a participant may currently move, or `null` for "none".
  *
  * `EVERYONE` hands both colours to the room. Under `SELECTED_STUDENT` the

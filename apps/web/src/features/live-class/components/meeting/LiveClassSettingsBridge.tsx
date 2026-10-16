@@ -20,7 +20,9 @@ export function LiveClassSettingsBridge() {
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
 
   const onMessage = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: unknown }) => {
+      // Only the API sends these; a participant-sent packet is ignored.
+      if (msg.from) return;
       try {
         const decoded = JSON.parse(new TextDecoder().decode(msg.payload));
         const parsed = liveClassSettingsMessageSchema.safeParse(decoded);

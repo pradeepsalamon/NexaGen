@@ -7,13 +7,15 @@ export function safePgnBaseName(filename: string): string {
   return base || 'game';
 }
 
+const PROFILE_IMAGE_FOLDER = 'nexa_chess/profiles';
+
 @Injectable()
 export class UploadService {
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
-          folder: 'nexa_chess/profiles',
+          folder: PROFILE_IMAGE_FOLDER,
           allowed_formats: ['jpg', 'png', 'jpeg', 'webp'],
         },
         (error, result) => {
@@ -26,16 +28,24 @@ export class UploadService {
     });
   }
 
+  /** Whether `url` names an image `uploadImage` stored (the profiles folder). */
+  isProfileImageUrl(url: string): boolean {
+    return this.publicIdOf(url)?.startsWith(`${PROFILE_IMAGE_FOLDER}/`) ?? false;
+  }
+
   async deleteImage(url: string): Promise<void> {
     try {
-      const match = url.match(/\/v\d+\/(.+)\.\w+$/);
-      if (match && match[1]) {
-        const publicId = match[1];
+      const publicId = this.publicIdOf(url);
+      if (publicId) {
         await cloudinary.uploader.destroy(publicId);
       }
     } catch (error) {
       console.error('Failed to delete image from Cloudinary', error);
     }
+  }
+
+  private publicIdOf(url: string): string | null {
+    return url.match(/\/v\d+\/(.+)\.\w+$/)?.[1] ?? null;
   }
 
   uploadPgn(content: string, filename: string = 'game.pgn'): Promise<UploadApiResponse> {

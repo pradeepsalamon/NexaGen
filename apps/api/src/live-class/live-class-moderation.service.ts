@@ -236,6 +236,32 @@ export class LiveClassModerationService {
     return { removed };
   }
 
+  /**
+   * Called from the `participant_joined` webhook. A kick (or a denied waiting-
+   * room request) only stops `getToken` minting a new LiveKit token — a client
+   * still holding one from before (LiveKit tokens outlive the class) could
+   * connect straight to the SFU. So a student whose row is DENIED is put back
+   * out the moment LiveKit reports them in. Returns true when it removed them.
+   */
+  async enforceRemovalOnJoin(
+    liveSession: { id: string; roomName: string },
+    studentId: string,
+    identity: string,
+  ): Promise<boolean> {
+    const row = await this.prisma.liveClassWaitingParticipant.findUnique({
+      where: { liveSessionId_studentId: { liveSessionId: liveSession.id, studentId } },
+      select: { status: true },
+    });
+    if (row?.status !== WaitingRoomStatus.DENIED) return false;
+    try {
+      await this.livekit.removeParticipant(liveSession.roomName, identity);
+      this.logger.warn(`Removed ${identity} from ${liveSession.roomName}: rejoined after being removed`);
+    } catch (error) {
+      this.logger.warn(`Could not remove ${identity} from ${liveSession.roomName}`, error as Error);
+    }
+    return true;
+  }
+
   private async resolveModerator(accessToken: string | undefined, classId: string) {
     const user = await this.access.authenticate(accessToken);
 

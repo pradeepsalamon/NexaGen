@@ -87,18 +87,9 @@ export class LiveClassRecordingService {
   }
 
   async startRecording(accessToken: string | undefined, classId: string) {
-    const user = await this.access.authenticate(accessToken);
-    if (user.role !== UserRole.COACH && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException("Only coaches or admins can start recording.");
-    }
-
-    const liveSession = await this.prisma.liveSession.findUnique({
-      where: { classId },
-    });
-
-    if (!liveSession) {
-      throw new NotFoundException("Live session not found.");
-    }
+    // The owning coach or an admin — any other coach is refused, not just
+    // students (a role check alone let one coach record another's class).
+    const { liveSession } = await this.access.resolveClassManager(accessToken, classId);
 
     if (liveSession.status !== LiveSessionStatus.LIVE) {
       throw new BadRequestException("Class is not live.");
@@ -162,18 +153,7 @@ export class LiveClassRecordingService {
   }
 
   async stopRecording(accessToken: string | undefined, classId: string) {
-    const user = await this.access.authenticate(accessToken);
-    if (user.role !== UserRole.COACH && user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException("Only coaches or admins can stop recording.");
-    }
-
-    const liveSession = await this.prisma.liveSession.findUnique({
-      where: { classId },
-    });
-
-    if (!liveSession) {
-      throw new NotFoundException("Live session not found.");
-    }
+    const { liveSession } = await this.access.resolveClassManager(accessToken, classId);
 
     const metadata = (liveSession.metadata as Record<string, any>) || {};
     if (!metadata.egressId) {

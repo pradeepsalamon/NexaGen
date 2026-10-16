@@ -49,7 +49,7 @@ import {
   splitStudentName,
   verifySecret
 } from "./auth.utils";
-import { verifyAccessToken as verifySharedAccessToken } from "./authenticate";
+import { authenticateUser, verifyAccessToken as verifySharedAccessToken } from "./authenticate";
 import { MfaService } from "./mfa/mfa.service";
 
 type SessionContext = {
@@ -485,15 +485,10 @@ export class AuthService {
       throw new UnauthorizedException("Access token is missing.");
     }
 
-    const payload = await this.verifyAccessToken(accessToken);
-    const user = await this.prisma.user.findUnique({
-      include: { coachProfile: true, studentProfile: true },
-      where: { id: payload.sub }
+    // The shared check, so a revoked session's token is refused here too.
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      include: { coachProfile: true, studentProfile: true }
     });
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session.");
-    }
 
     return { user: this.toAuthUser(user) };
   }
@@ -506,15 +501,9 @@ export class AuthService {
       throw new UnauthorizedException("Access token is missing.");
     }
 
-    const tokenPayload = await this.verifyAccessToken(accessToken);
-    const user = await this.prisma.user.findUnique({
-      include: { coachProfile: true, studentProfile: true },
-      where: { id: tokenPayload.sub }
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
+      include: { coachProfile: true, studentProfile: true }
     });
-
-    if (!user || user.status !== UserStatus.ACTIVE) {
-      throw new UnauthorizedException("Invalid session.");
-    }
 
     const email = payload.email.toLowerCase().trim();
     const username = this.toNullableString(payload.username);

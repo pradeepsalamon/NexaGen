@@ -168,7 +168,9 @@ export function MatchProvider({ classId, children }: { classId: string; children
   );
 
   const onMessage = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: unknown }) => {
+      // Only the API sends these; a participant-sent packet is ignored.
+      if (msg.from) return;
       const decoded = decodeLiveMatch(msg.payload);
       if (!decoded) return;
       if (decoded.type !== "MATCH_GAME") {

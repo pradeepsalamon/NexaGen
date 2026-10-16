@@ -42,7 +42,9 @@ export function useClassroomTool<K extends LiveClassToolKind>(
 export function useClassroomToolsSync(classId: string) {
   const qc = useQueryClient();
   const onMessage = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: unknown }) => {
+      // Only the API sends these; a participant-sent packet is ignored.
+      if (msg.from) return;
       if (!decodeLiveClassToolsMessage(msg.payload)) return;
       void qc.invalidateQueries({
         queryKey: queryKeys.liveClassTools.state(classId),

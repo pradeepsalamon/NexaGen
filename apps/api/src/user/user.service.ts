@@ -211,6 +211,16 @@ export class UserService {
         where: { id }
       });
 
+      // A new password must lock out whoever held the old one, as the user's
+      // own reset does (auth.service resetPassword): revoke every session, so
+      // a stolen refresh token stops minting access tokens now.
+      if (passwordHash || (data.status && data.status !== UserStatus.ACTIVE)) {
+        await tx.authSession.updateMany({
+          data: { revokedAt: new Date() },
+          where: { revokedAt: null, userId: id }
+        });
+      }
+
       if (data.role && data.role !== userToUpdate.role) {
         // On a STUDENT<->COACH switch, retire the profile for the old role so
         // the user isn't left holding both, and (re)activate the profile for

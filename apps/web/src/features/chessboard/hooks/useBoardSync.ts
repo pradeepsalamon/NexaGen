@@ -16,7 +16,12 @@ import { useParams } from "next/navigation";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardControlSide, BoardSyncMessage } from "../types/sync";
-import { isOneLegalMoveAway, moverColorFromFen, senderMayMutateBoard } from "../lib/boardSyncRules";
+import {
+  isCoachParticipant,
+  isOneLegalMoveAway,
+  moverColorFromFen,
+  senderMayMutateBoard,
+} from "../lib/boardSyncRules";
 import { applyMoveToClock } from "../lib/clock";
 import { toLiveBoardState, treePgnForSync } from "../lib/boardSnapshot";
 import { useBoardPersistence, type RestoreGate } from "./useBoardPersistence";
@@ -26,20 +31,6 @@ import { toast } from "sonner";
 import { useRoster } from "@/features/live-class/hooks/useRoster";
 
 const BOARD_SYNC_TOPIC = "board_sync";
-
-/**
- * Role comes from LiveKit participant metadata, which the server signs into the
- * access token. Students are issued `canUpdateOwnMetadata: false`, so this
- * cannot be forged client-side.
- */
-function isCoachParticipant(from?: { metadata?: string }) {
-  if (!from?.metadata) return false;
-  try {
-    return JSON.parse(from.metadata).role === "COACH";
-  } catch {
-    return false;
-  }
-}
 
 export interface BoardSyncActions {
   broadcastState: (type?: BoardSyncMessage["type"]) => void;
@@ -343,6 +334,10 @@ export function useBoardSyncEngine(): BoardSyncActions {
                 clock: snap.clock,
               },
             });
+            // FORCE_SYNC carries no grants. A read-only viewer (the recorder,
+            // an admin spectator) only accepts a student's move while it knows
+            // that student holds control, so restate who does.
+            broadcastPermissions();
           }
           break;
         }
@@ -372,7 +367,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
           break;
       }
     },
-    [isCoach, store, syncFromRemote, broadcastMsg, liveClassStore, snapshot, suppressBroadcast],
+    [isCoach, store, syncFromRemote, broadcastMsg, broadcastPermissions, liveClassStore, snapshot, suppressBroadcast],
   );
 
   // Zustand store subscription for immediate syncing. Bypasses React batching

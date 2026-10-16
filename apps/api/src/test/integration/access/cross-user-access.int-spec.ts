@@ -65,6 +65,9 @@ const CROSS_USER: Case[] = [
   { name: "coach reads another class's pull roster", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.pullRoster(w.b.liveClass.id) },
   { name: "coach reads another class's simul", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.simul(w.b.liveClass.id) },
   { name: "coach ends another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.end(w.b.liveClass.id) },
+  { name: "coach starts a recording in another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.startRecording(w.b.liveClass.id) },
+  { name: "coach stops a recording in another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.stopRecording(w.b.liveClass.id) },
+  { name: "student starts a recording in their own class", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.startRecording(w.a.liveClass.id) },
   { name: "coach kicks a student from another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.kick(w.b.liveClass.id), body: (w: World) => ({ identity: w.b.student.id }) },
   { name: "coach force-mutes in another coach's class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.moderate(w.b.liveClass.id), body: { identity: "x", source: "microphone" } },
   { name: "coach asks a student in another coach's class to unmute", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.requestTrackOn(w.b.liveClass.id), body: { identity: "x", source: "microphone" } },
@@ -286,7 +289,10 @@ describe("cross-user access (real app, real Postgres)", () => {
     // The homework + the puzzle set; no third deployment reached B's batch.
     expect(await t.prisma.assignmentBatch.count({ where: { batchId: b.batch.id } })).toBe(2);
     expect(await t.prisma.puzzleAttempt.count({ where: { studentAssignmentId: { not: null } } })).toBe(0);
-    expect(await t.prisma.liveSession.findUnique({ where: { classId: b.liveClass.id } })).toMatchObject({ status: "LIVE" });
+    expect(await t.prisma.liveSession.findUnique({ where: { classId: b.liveClass.id } })).toMatchObject({
+      recordingStatus: null,
+      status: "LIVE"
+    });
     expect(await t.prisma.liveChatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
     expect(await t.prisma.chatMessage.count({ where: { senderId: a.student.id } })).toBe(0);
     expect(await t.prisma.chessGame.findUnique({ where: { id: b.game.id } })).toMatchObject({ version: 1 });

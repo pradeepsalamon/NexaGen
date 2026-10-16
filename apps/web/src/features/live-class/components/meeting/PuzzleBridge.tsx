@@ -59,9 +59,12 @@ export function PuzzleBridge({
   }, [autoEnd, isCoach, activePuzzle, expired, endPuzzle]);
 
   const onMessage = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: unknown }) => {
       const decoded = decodeLivePuzzle(msg.payload);
       if (!decoded) return;
+      // Only LEADERBOARD_DIRTY may come from a participant (a student who just
+      // submitted); assignment changes are API-injected, so a forged one is ignored.
+      if (msg.from && decoded.type !== "LEADERBOARD_DIRTY") return;
       if (decoded.type === "PUZZLE_ASSIGNED") {
         applyPuzzleAssignment(decoded.assignment);
         qc.invalidateQueries({ queryKey: queryKeys.livePuzzle.state(classId) });

@@ -11,7 +11,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { MessagingRuleService } from "./messaging-rule.service";
 
 @Controller()
@@ -32,7 +32,7 @@ export class MessagingController {
   ) {
     return this.messagingRuleService.update(
       this.getAccessToken(request),
-      messagingEventSchema.parse(event),
+      parseOrBadRequest(messagingEventSchema, event),
       body
     );
   }
@@ -46,14 +46,14 @@ export class MessagingController {
   ) {
     return this.messagingRuleService.testRule(
       this.getAccessToken(request),
-      messagingEventSchema.parse(event),
+      parseOrBadRequest(messagingEventSchema, event),
       body
     );
   }
 
   @Get(API_ROUTES.messaging.deliveries)
   deliveries(@Query() query: unknown, @Req() request: Request) {
-    const parsed: MessageDeliveryQuery = messageDeliveryQuerySchema.parse(query);
+    const parsed: MessageDeliveryQuery = parseOrBadRequest(messageDeliveryQuerySchema, query);
     return this.messagingRuleService.listDeliveries(
       this.getAccessToken(request),
       parsed

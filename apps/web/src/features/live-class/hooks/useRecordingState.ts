@@ -20,7 +20,9 @@ export function useRecordingState() {
   const setOverride = useOptionalLiveClassState((s) => s.setRecordingOverride);
 
   const onNotice = useCallback(
-    (msg: { payload: Uint8Array }) => {
+    (msg: { payload: Uint8Array; from?: unknown }) => {
+      // Only the API sends these; a participant-sent packet is ignored.
+      if (msg.from) return;
       try {
         const notice = JSON.parse(new TextDecoder().decode(msg.payload)) as RecordingStateNotice;
         if (notice?.type === "RECORDING_STATE" && typeof notice.recording === "boolean") {

@@ -18,6 +18,7 @@ import { DisconnectReason } from "@livekit/protocol";
 import { getApiEnv } from "@nexa-chess/config/api";
 import { AttendanceService } from "./attendance.service";
 import { resolveJoinAction } from "./attendance-session.util";
+import { LiveClassModerationService } from "../live-class/live-class-moderation.service";
 import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -73,6 +74,8 @@ export class AttendanceWebhookController {
     private readonly screenShare: LiveClassScreenShareService,
     @Inject(forwardRef(() => LiveClassRecordingService))
     private readonly recording: LiveClassRecordingService,
+    @Inject(forwardRef(() => LiveClassModerationService))
+    private readonly moderation: LiveClassModerationService,
     private readonly prisma: PrismaService
   ) {
     try {
@@ -222,7 +225,7 @@ export class AttendanceWebhookController {
     // Resolve classId from roomName (format: class_{classId})
     const liveSession = await this.prisma.liveSession.findUnique({
       where: { roomName },
-      select: { classId: true, coachId: true },
+      select: { classId: true, coachId: true, id: true, roomName: true },
     });
 
     if (!liveSession) {
@@ -270,6 +273,18 @@ export class AttendanceWebhookController {
       !isBoard && participantIdentity?.includes("_")
         ? participantIdentity.split("_").slice(1).join("_")
         : undefined;
+
+    // A removed student reconnecting with a token minted before the kick: put
+    // them back out, and don't count the attempt as attendance.
+    if (
+      event.event === "participant_joined" &&
+      !isCoach &&
+      !isBoard &&
+      participantIdentity &&
+      (await this.moderation.enforceRemovalOnJoin(liveSession, userId, participantIdentity))
+    ) {
+      return;
+    }
 
     switch (event.event) {
       case "participant_joined": {

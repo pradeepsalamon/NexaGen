@@ -27,6 +27,7 @@ import { ManualPaymentService } from "./manual-payment.service";
 import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { assertAdminOrCoach, authenticateUser } from "./payments-auth.helper";
 import { safeFilename } from "./invoices.controller";
+import { parseOrBadRequest } from "../common/zod-body.pipe";
 
 const MANUAL_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
 const MANUAL_ATTACHMENT_MIME_PATTERN =
@@ -88,7 +89,7 @@ export class ManualPaymentController {
     } catch {
       throw new BadRequestException("Invalid payload.");
     }
-    const dto = recordManualPaymentRequestSchema.parse(parsed);
+    const dto = parseOrBadRequest(recordManualPaymentRequestSchema, parsed);
 
     return this.manualPayments.record(
       actor,

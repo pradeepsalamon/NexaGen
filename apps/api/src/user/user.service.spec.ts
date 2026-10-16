@@ -24,6 +24,9 @@ type MockPrismaService = {
   studentProfile: {
     create: jest.Mock;
   };
+  authSession: {
+    updateMany: jest.Mock;
+  };
   coachProfile: {
     create: jest.Mock;
   };
@@ -59,6 +62,9 @@ describe("UserService", () => {
       withDeleted: { user: userMock },
       studentProfile: {
         create: jest.fn()
+      },
+      authSession: {
+        updateMany: jest.fn()
       },
       coachProfile: {
         create: jest.fn()
@@ -274,6 +280,36 @@ describe("UserService", () => {
       await expect(
         service.update("token", "super-1", { role: "ADMIN" } as UpdateUserRequest)
       ).rejects.toThrow(BadRequestException);
+    });
+
+    // An admin resetting a compromised account's password must end the
+    // sessions the old password opened, as the user's own reset does.
+    it("revokes the user's sessions when an admin sets a new password", async () => {
+      mockAuthContext();
+      prismaService.user.findUnique.mockResolvedValueOnce({ id: "student-1", role: UserRole.STUDENT });
+      prismaService.user.update.mockResolvedValueOnce({ id: "student-1" });
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(null);
+
+      await service
+        .update("token", "student-1", { password: "New@Password1" } as UpdateUserRequest)
+        .catch(() => undefined);
+
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: { revokedAt: null, userId: "student-1" }
+      });
+    });
+
+    it("leaves sessions alone for a plain profile edit", async () => {
+      mockAuthContext();
+      prismaService.user.findUnique.mockResolvedValueOnce({ id: "student-1", role: UserRole.STUDENT });
+      prismaService.user.update.mockResolvedValueOnce({ id: "student-1" });
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(null);
+
+      await service.update("token", "student-1", { firstName: "Renamed" }).catch(() => undefined);
+
+      expect(prismaService.user.update).toHaveBeenCalled();
+      expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
     });
   });
 
