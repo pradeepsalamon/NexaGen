@@ -28,6 +28,7 @@ import {
   type CreateOfflinePaymentMethodRequest,
   type CreatePlanRequest,
   type CreateRefundRequest,
+  manualPaymentReviewStatusSchema,
   type ManualPaymentReviewStatus,
   type RejectManualPaymentRequest,
   type UpdateDiscountRequest,
@@ -36,6 +37,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { queryEnum } from "../common/query-params";
 import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
 import { PrismaService } from "../prisma/prisma.service";
 import { BatchPricingService } from "./batch-pricing.service";
@@ -241,7 +243,7 @@ export class PaymentsAdminController {
   async listManualPayments(@Query("status") status: string | undefined, @Req() request: Request) {
     await this.adminUser(request);
     return this.manualPayments.listAll(
-      (status as ManualPaymentReviewStatus | undefined) ?? undefined
+      queryEnum<ManualPaymentReviewStatus>(status, manualPaymentReviewStatusSchema.options, "status")
     );
   }
 

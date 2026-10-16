@@ -149,7 +149,10 @@ Policy (who may do what, per resource) and the 2026-10-16 audit live in
 [docs/AUTHORIZATION.md](docs/AUTHORIZATION.md). Parse a param/query inside a
 handler with `parseOrBadRequest` (`common/zod-body.pipe.ts`), never a bare
 `schema.parse` — a ZodError is a 500, thrown before the handler has even
-authenticated anyone.
+authenticated anyone. A single query value headed for a Prisma `where` goes
+through `queryEnum` / `queryString` (`common/query-params.ts`): a repeated key
+arrives as an array and an unknown enum value only fails inside Prisma, both
+500s until checked (`test/integration/access/query-validation.int-spec.ts`).
 
 When adding a new module, **follow this pattern** — do not introduce a guard-based approach unless you are deliberately refactoring all modules and the maintainer agreed. `common/security/route-auth.spec.ts` fails any route handler that never passes its `request` to something (i.e. can't be reading the cookie); a deliberately public route goes on its `PUBLIC_ROUTES` list.
 

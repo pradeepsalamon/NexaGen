@@ -21,12 +21,14 @@ import {
   createPuzzleRequestSchema,
   createPuzzleTopicRequestSchema,
   puzzleHintRequestSchema,
+  puzzleListQuerySchema,
   puzzleTrainingNextRequestSchema,
   reassignPuzzleTopicRequestSchema,
   copyPuzzleTopicRequestSchema,
   savePuzzleAttemptRequestSchema,
   setPuzzleArchivedRequestSchema,
   setPuzzlePublishedRequestSchema,
+  studentPuzzleListQuerySchema,
   submitPuzzleAttemptRequestSchema,
   updatePuzzleRequestSchema,
   updatePuzzleScoringSettingsRequestSchema,
@@ -239,7 +241,7 @@ export class PuzzleController {
   }
 
   @Get(API_ROUTES.puzzles.list)
-  list(@Query() query: PuzzleListQuery, @Req() request: Request) {
+  list(@Query(new ZodBodyPipe(puzzleListQuerySchema)) query: PuzzleListQuery, @Req() request: Request) {
     return this.puzzleService.list(this.token(request), query);
   }
 
@@ -254,7 +256,7 @@ export class PuzzleController {
   // ── Student practice ──
 
   @Get(API_ROUTES.puzzles.mine)
-  listMine(@Query() query: StudentPuzzleListQuery, @Req() request: Request) {
+  listMine(@Query(new ZodBodyPipe(studentPuzzleListQuerySchema)) query: StudentPuzzleListQuery, @Req() request: Request) {
     return this.attemptService.listForStudent(this.token(request), query);
   }
 

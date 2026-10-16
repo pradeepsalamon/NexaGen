@@ -22,6 +22,7 @@ import type {
   TodayResponse,
   UserAnalyticsResponse
 } from "@nexa-chess/types";
+import { analyticsRangeQuerySchema } from "@nexa-chess/types";
 import { Prisma, UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { zonedMonthBounds } from "../common/time";
@@ -42,6 +43,7 @@ import { OperationsAnalyticsSection } from "./sections/operations.section";
 import { RecordingsAnalyticsSection } from "./sections/recordings.section";
 import { UsersAnalyticsSection } from "./sections/users.section";
 import { authenticateUser } from "../auth/authenticate";
+import { parseOrBadRequest } from "../common/zod-body.pipe";
 
 @Injectable()
 export class AnalyticsService {
@@ -76,6 +78,9 @@ export class AnalyticsService {
   ): Promise<{ ctx: AnalyticsContext; fresh: boolean; cacheKey: string }> {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanViewAnalytics(user);
+    // Validated after auth, so an anonymous caller still gets 401. A repeated
+    // key (an array) or a bad enum used to reach Prisma / raw SQL as a 500.
+    query = parseOrBadRequest(analyticsRangeQuerySchema, query ?? {}, "query");
 
     const range = resolveAnalyticsRange(query, user.timezone);
     const filters: AnalyticsFilters = {

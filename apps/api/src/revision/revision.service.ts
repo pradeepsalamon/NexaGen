@@ -164,16 +164,19 @@ export class RevisionService {
    */
   async review(accessToken: string | undefined, dto: RevisionReviewRequest): Promise<RevisionReviewResponse> {
     const student = await this.authStudent(accessToken);
-    const recorded = await this.prisma.revisionReview.findUnique({ where: { attemptId: dto.attemptId } });
-    if (recorded) {
-      if (recorded.studentId !== student.id) throw new NotFoundException("Review not found.");
-      return this.reviewResponse(student, recorded.itemId, recorded.grade, recorded.outcome, recorded.puzzleId);
-    }
+    const replay = await this.recordedReview(student, dto.attemptId);
+    if (replay) return replay;
 
     const item = await this.prisma.revisionItem.findFirst({
       where: { currentAttemptId: dto.attemptId, studentId: student.id }
     });
-    if (!item) throw new NotFoundException("This revision item isn't open any more.");
+    if (!item) {
+      // A racing request (a double click) may have recorded this very review
+      // between the check above and this lookup — answer with that one.
+      const raced = await this.recordedReview(student, dto.attemptId);
+      if (raced) return raced;
+      throw new NotFoundException("This revision item isn't open any more.");
+    }
     const attempt = await this.prisma.puzzleAttempt.findUnique({ where: { id: dto.attemptId } });
     if (!attempt || attempt.studentId !== student.id || attempt.context !== PuzzleAttemptContext.REVISION) {
       throw new NotFoundException("Attempt not found.");
@@ -199,12 +202,20 @@ export class RevisionService {
     } catch (error) {
       if (error instanceof ConflictException) {
         // A racing request recorded it a moment ago: answer with that one.
-        const winner = await this.prisma.revisionReview.findUnique({ where: { attemptId: dto.attemptId } });
-        if (winner) return this.reviewResponse(student, winner.itemId, winner.grade, winner.outcome, winner.puzzleId);
+        const winner = await this.recordedReview(student, dto.attemptId);
+        if (winner) return winner;
       }
       throw error;
     }
     return this.reviewResponse(student, item.id, dto.grade, outcome, attempt.puzzleId);
+  }
+
+  /** The review already recorded for this attempt, if it is the caller's (anyone else's is a 404). */
+  private async recordedReview(student: User, attemptId: string): Promise<RevisionReviewResponse | null> {
+    const recorded = await this.prisma.revisionReview.findUnique({ where: { attemptId } });
+    if (!recorded) return null;
+    if (recorded.studentId !== student.id) throw new NotFoundException("Review not found.");
+    return this.reviewResponse(student, recorded.itemId, recorded.grade, recorded.outcome, recorded.puzzleId);
   }
 
   /**

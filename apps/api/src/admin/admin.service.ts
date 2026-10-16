@@ -5,8 +5,9 @@ import { paginationMeta, resolveOrderBy, resolvePagination } from '../common/pag
 import { PrismaService } from '../prisma/prisma.service';
 import { TrashRepository } from '../trash/trash.repository';
 import type { AddDemoInviteesRequest, DemoClass, DemoClassDetailsResponse, PaginatedQuery, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
-import { Prisma, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
+import { ClassStatus, Prisma, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
 import { DemoInviteService, demoInvitePath } from '../demo-class/demo-invite.service';
+import { queryEnum } from '../common/query-params';
 
 type DemoClassRow = CoachClass & {
   coach: Pick<User, 'firstName' | 'lastName'>;
@@ -380,8 +381,9 @@ export class AdminService {
     search: string
   ): Prisma.CoachClassWhereInput {
     const where: Prisma.CoachClassWhereInput = { isDemo };
-    if (status && status !== 'ALL') {
-      where.status = status as Prisma.CoachClassWhereInput['status'];
+    const classStatus = queryEnum(status, ClassStatus, 'status');
+    if (classStatus) {
+      where.status = classStatus;
     }
     if (search) {
       where.OR = [

@@ -26,6 +26,7 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { assertAdmin, authenticateUser, fullName } from "./course-auth.helper";
+import { queryEnum, queryString } from "../common/query-params";
 
 const courseModuleInclude = {
   assignment: { select: { id: true, title: true, activityType: true, pgn: true } },
@@ -65,11 +66,12 @@ export class CourseService {
       MAX_PAGE_SIZE,
       Math.max(1, Math.floor(Number(query.pageSize) || DEFAULT_PAGE_SIZE))
     );
-    const search = (query.search ?? "").trim();
+    const search = queryString(query.search, "search") ?? "";
+    const status = queryEnum(query.status, CourseStatus, "status");
 
     const where: Prisma.CourseWhereInput = {};
     const and: Prisma.CourseWhereInput[] = [];
-    if (query.status) and.push({ status: query.status });
+    if (status) and.push({ status });
     if (search) {
       and.push({
         OR: [

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req, Res } from "@nestjs/common";
+import { Body, Controller, Get, NotFoundException, Param, Post, Put, Query, Req, Res } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
   API_ROUTES,
@@ -276,7 +276,8 @@ export class PayrollAdminController {
   @Get(API_ROUTES.adminPayroll.payslipPdf())
   async payslipPdf(@Param("id") id: string, @Req() request: Request, @Res() response: Response) {
     await this.admin(request);
-    const payslip = await this.prisma.payslip.findUniqueOrThrow({ where: { id } });
+    const payslip = await this.prisma.payslip.findUnique({ where: { id } });
+    if (!payslip) throw new NotFoundException("Payslip not found.");
     const pdf = await this.payslips.getPayslipPdf(id);
     sendPdf(response, `${safeFilename(payslip.documentNumber)}.pdf`, pdf);
   }

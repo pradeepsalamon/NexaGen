@@ -32,6 +32,7 @@ import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
 import { batchClassWindow } from "../common/batch-dates";
+import { queryEnum } from "../common/query-params";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 /** The client handed to a `prisma.$transaction(async (tx) => …)` callback. */
@@ -82,8 +83,9 @@ export class BatchService {
     const { page, pageSize, skip, take, search } = resolvePagination(query);
 
     const where: Prisma.BatchWhereInput = { ...this.getBatchVisibilityWhere(user) };
-    if (query?.status && query.status !== "ALL") {
-      where.status = query.status as BatchStatus;
+    const status = queryEnum(query?.status, BatchStatus, "status");
+    if (status) {
+      where.status = status;
     }
     if (search) {
       // `AND` so this can't clobber an `OR` the visibility filter might add.

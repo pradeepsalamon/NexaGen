@@ -10,7 +10,8 @@ import type {
   PaginatedQuery
 } from "@nexa-chess/types";
 import { analyticsExportReportSchema } from "@nexa-chess/types";
-import { Prisma } from "@prisma/client";
+import { AcquisitionSource, ClassStatus, Prisma, UserRole, UserStatus } from "@prisma/client";
+import { queryEnum } from "../common/query-params";
 import {
   paginationMeta,
   resolveOrderBy,
@@ -44,10 +45,12 @@ export class AnalyticsTablesService {
     const { page, pageSize, skip, take, search } = resolvePagination(query);
 
     const where: Prisma.UserWhereInput = { isDeleted: false };
-    if (query.role) where.role = query.role as Prisma.UserWhereInput["role"];
-    if (query.status) where.status = query.status as Prisma.UserWhereInput["status"];
-    if (query.acquisitionSource)
-      where.acquisitionSource = query.acquisitionSource as never;
+    const role = queryEnum(query.role, UserRole, "role");
+    const status = queryEnum(query.status, UserStatus, "status");
+    const acquisitionSource = queryEnum(query.acquisitionSource, AcquisitionSource, "acquisitionSource");
+    if (role) where.role = role;
+    if (status) where.status = status;
+    if (acquisitionSource) where.acquisitionSource = acquisitionSource;
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: "insensitive" } },
@@ -131,7 +134,8 @@ export class AnalyticsTablesService {
     if (query.batchId) where.batchId = query.batchId;
     if (query.classType === "demo") where.isDemo = true;
     if (query.classType === "batch") where.isDemo = false;
-    if (query.status) where.status = query.status as Prisma.CoachClassWhereInput["status"];
+    const classStatus = queryEnum(query.status, ClassStatus, "status");
+    if (classStatus) where.status = classStatus;
     if (search) {
       where.OR = [
         { topic: { contains: search, mode: "insensitive" } },

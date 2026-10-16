@@ -32,6 +32,7 @@ import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { parseUserAgent, parseVisitAttribution } from "./lead-tracking.util";
 import { authenticateUser } from "../auth/authenticate";
+import { queryEnum } from "../common/query-params";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 
@@ -183,8 +184,9 @@ export class LeadService {
 
     const { page, pageSize, skip, take, search } = resolvePagination(query);
     const where: Prisma.LeadWhereInput = {};
-    if (query?.status && query.status !== "ALL") {
-      where.status = query.status as LeadStatus;
+    const status = queryEnum(query?.status, LeadStatus, "status");
+    if (status) {
+      where.status = status;
     }
     if (search) {
       where.OR = [

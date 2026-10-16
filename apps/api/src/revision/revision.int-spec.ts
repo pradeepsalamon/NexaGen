@@ -402,22 +402,28 @@ describe("Smart Revision (real app, real Postgres)", () => {
       expect((await t.call(s, "POST", API_ROUTES.revision.review, { attemptId: cur.attemptId, grade: "HARD" })).status).toBe(201);
     });
 
-    it("concurrent ratings of one attempt record exactly one review", async () => {
-      const s = await freshStudent();
-      const p = await puzzle(w.a.coach, "Raced");
-      await t.call(w.a.coach, "POST", API_ROUTES.revision.recommend(s.id), { puzzleIds: [p.id] });
-      const cur = ((await t.call(s, "POST", API_ROUTES.revision.next)).body as RevisionNextResponse).current!;
-      await solve(s, cur.puzzleId, cur.attemptId, [MATE]);
-      const results = await Promise.all(
-        (["GOOD", "EASY", "HARD", "GOOD", "EASY"] as const).map((grade) =>
-          t.call(s, "POST", API_ROUTES.revision.review, { attemptId: cur.attemptId, grade })
-        )
-      );
-      expect(results.every((r) => r.status === 201)).toBe(true);
-      const grades = new Set(results.map((r) => (r.body as RevisionReviewResponse).grade));
-      expect(grades.size).toBe(1);
-      expect(await t.prisma.revisionReview.count({ where: { attemptId: cur.attemptId } })).toBe(1);
-      expect((await t.prisma.revisionItem.findUniqueOrThrow({ where: { id: cur.itemId } })).reviewCount).toBe(1);
+    it("concurrent ratings of one attempt record exactly one review — every request answered with it", async () => {
+      // Repeated so the narrow window (another request commits between this one's
+      // "already recorded?" check and its item lookup) is actually hit.
+      for (let round = 0; round < 12; round += 1) {
+        // A fresh student per round: one student meets at most newPerDay new items a day.
+        const s = await freshStudent();
+        const p = await puzzle(w.a.coach, `Raced ${round}`);
+        await t.call(w.a.coach, "POST", API_ROUTES.revision.recommend(s.id), { puzzleIds: [p.id] });
+        const cur = ((await t.call(s, "POST", API_ROUTES.revision.next)).body as RevisionNextResponse).current!;
+        expect(cur.puzzleId).toBe(p.id);
+        await solve(s, cur.puzzleId, cur.attemptId, [MATE]);
+        const results = await Promise.all(
+          (["GOOD", "EASY", "HARD", "GOOD", "EASY", "AGAIN"] as const).map((grade) =>
+            t.call(s, "POST", API_ROUTES.revision.review, { attemptId: cur.attemptId, grade })
+          )
+        );
+        expect({ round, statuses: results.map((r) => r.status) }).toEqual({ round, statuses: [201, 201, 201, 201, 201, 201] });
+        const grades = new Set(results.map((r) => (r.body as RevisionReviewResponse).grade));
+        expect(grades.size).toBe(1);
+        expect(await t.prisma.revisionReview.count({ where: { attemptId: cur.attemptId } })).toBe(1);
+        expect((await t.prisma.revisionItem.findUniqueOrThrow({ where: { id: cur.itemId } })).reviewCount).toBe(1);
+      }
     });
 
     it("concurrent next calls open one attempt", async () => {

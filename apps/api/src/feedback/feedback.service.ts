@@ -48,6 +48,7 @@ import {
   type PendingFormInput
 } from "./feedback-pending.util";
 import { authenticateUser } from "../auth/authenticate";
+import { queryString } from "../common/query-params";
 
 type AuthenticatedUser = Pick<User, "id" | "role" | "status">;
 
@@ -143,10 +144,12 @@ export class FeedbackService {
       page: query.page as number | undefined,
       pageSize: query.pageSize as number | undefined
     });
+    const formId = queryString(query.formId, "formId");
+    const coachId = queryString(query.coachId, "coachId");
     const where: Prisma.FeedbackResponseWhereInput = {
       status: FeedbackResponseStatus.SUBMITTED,
-      ...(query.formId ? { formId: query.formId } : {}),
-      ...(query.coachId ? { coachId: query.coachId } : {})
+      ...(formId ? { formId } : {}),
+      ...(coachId ? { coachId } : {})
     };
 
     const [total, rows] = await Promise.all([

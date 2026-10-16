@@ -15,6 +15,7 @@ import {
   ClassStatus,
 } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
+import { queryEnum, queryString } from "../common/query-params";
 import { classRunSeconds, parseDateFilter, tallyAttendance, toCsvCell } from "./attendance-calc.util";
 import { zonedDateToUtc, zonedMonthBounds, zonedYmd } from "../common/time";
 import { AttendanceService } from "./attendance.service";
@@ -1083,6 +1084,13 @@ export class AttendanceReportService {
     ) {
       throw new ForbiddenException("Admin access required.");
     }
+    filters = {
+      batchId: queryString(filters.batchId, "batchId"),
+      coachId: queryString(filters.coachId, "coachId"),
+      dateFrom: queryString(filters.dateFrom, "dateFrom"),
+      dateTo: queryString(filters.dateTo, "dateTo"),
+      status: queryEnum(filters.status, AttendanceStatus, "status")
+    };
 
     const where: any = {};
 
