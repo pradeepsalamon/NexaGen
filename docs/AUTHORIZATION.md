@@ -63,6 +63,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Assignment deployments | R own `StudentAssignment`; attempt own | P to own batches; R results of own deployments | all | |
 | Puzzle attempts | own only | of students in own batches (via results/history) | all | Server-scored. |
 | Progress, activity history, attendance | own | students of own batches | all | Lists/filters apply the same scope. |
+| Smart Revision | own queue, session, ratings and report | read + recommend for students of own batches; remove only their own recommendations | all students; remove any recommendation | Grades capped by the server-graded attempt; a recommended puzzle must be openable by the student and visible to the coach. |
 | Feedback | submit/skip own pending only | R responses of `showToCoach` forms, student stripped | all forms + responses | |
 | Game Library | own games + LIVE_BOARD games of attended classes | own / own class / own batch / played | all | Only IMPORT games deletable (importer or admin). |
 | Persistent chat | own threads; DM staff or a coach sharing a batch | own threads; groups of own students | all | `directChatAllowed`. |

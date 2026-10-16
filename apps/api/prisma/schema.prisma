@@ -205,6 +205,7 @@ enum PuzzleAttemptContext {
   LIVE_CLASS // started from a live-class assignment (liveClassId set)
   TRAINING // served by student training
   ASSIGNMENT // one puzzle of a PUZZLE_SET assignment (studentAssignmentId set)
+  REVISION // a Smart Revision review (RevisionItem.currentAttemptId / RevisionReview.attemptId)
 }
 
 // Lifecycle of one PuzzleAttempt by a student.
@@ -325,6 +326,9 @@ model User {
   reviewedClassChangeRequests     ClassChangeRequest[]             @relation("ClassChangeRequestReviewer")
   studentProgress                 StudentProgress?                 @relation("StudentProgress")
   puzzleRatingChanges             PuzzleRatingChange[]             @relation("StudentPuzzleRatingChanges")
+  revisionItems                   RevisionItem[]                   @relation("StudentRevisionItems")
+  revisionRecommendations         RevisionItem[]                   @relation("RevisionRecommendedBy")
+  revisionReviews                 RevisionReview[]                 @relation("StudentRevisionReviews")
   assignedLivePuzzles             LiveClassPuzzleAssignment[]      @relation("LiveClassPuzzleAssignedBy")
   classLeaderboardAdjustments     LiveClassLeaderboardAdjustment[] @relation("LiveClassLeaderboardAdjustmentStudent")
   startedSimuls                   LiveClassSimul[]                 @relation("LiveClassSimulStartedBy")
@@ -2106,7 +2110,8 @@ model PuzzleTopic {
   homeworkApprovedBy   User?     @relation("PuzzleTopicHomeworkApprovedBy", fields: [homeworkApprovedById], references: [id], onDelete: SetNull)
 
   puzzles             Puzzle[]
-  homeworkAssignments Assignment[] @relation("AssignmentSourceTopic")
+  homeworkAssignments Assignment[]   @relation("AssignmentSourceTopic")
+  revisionItems       RevisionItem[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -2183,6 +2188,7 @@ model Puzzle {
   activityQueueItems LiveClassActivityQueueItem[]
   courseModules      CourseModule[]
   assignmentItems    AssignmentPuzzle[]
+  revisionItems      RevisionItem[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -2248,6 +2254,8 @@ model PuzzleAttempt {
   completedAt     DateTime?
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+
+  revisionReview RevisionReview?
 
   @@unique([puzzleId, studentId, attemptNumber])
   @@index([puzzleId])
@@ -4900,4 +4908,118 @@ model LiveClassActivityQueueItem {
   @@index([puzzleId])
   @@index([chapterId])
   @@map("live_class_activity_queue_items")
+}
+
+// ──────────────────────────────────────────────
+// SMART REVISION (spaced repetition — docs/SMART_REVISION.md)
+// ──────────────────────────────────────────────
+
+enum RevisionItemKind {
+  PUZZLE // one library puzzle
+  TOPIC // a puzzle folder (a concept): each review solves one of its puzzles
+}
+
+enum RevisionItemSource {
+  MISTAKE // seeded from the student's own graded attempt (failed, a wrong move, or a hint)
+  COACH // recommended by a coach or admin
+}
+
+enum RevisionItemStatus {
+  ACTIVE
+  REMOVED // a coach withdrew the recommendation; kept so a mistake is not re-seeded
+}
+
+enum RevisionGrade {
+  AGAIN
+  HARD
+  GOOD
+  EASY
+}
+
+enum RevisionOutcome {
+  CLEAN
+  ASSISTED
+  FAILED
+}
+
+/// One thing one student should keep remembering, with its scheduling state.
+/// References library content (never copies it — no FEN or answer here).
+/// Unique per (student, contentKey) — `puzzle:<id>` / `topic:<id>` — so a
+/// re-seed or a second recommendation updates the row instead of duplicating
+/// it. Not soft-deletable, not Trash-registered: a purged puzzle/folder takes
+/// its items with it (Cascade), like its attempts.
+model RevisionItem {
+  id        String @id @default(cuid())
+  studentId String
+  student   User   @relation("StudentRevisionItems", fields: [studentId], references: [id], onDelete: Cascade)
+
+  kind            RevisionItemKind
+  contentKey      String
+  puzzleId        String?
+  puzzle          Puzzle?            @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+  topicId         String?
+  topic           PuzzleTopic?       @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  source          RevisionItemSource
+  status          RevisionItemStatus @default(ACTIVE)
+  /// The graded attempt a MISTAKE item was seeded from (evidence). No FK.
+  sourceAttemptId String?
+
+  recommendedById String?
+  recommendedBy   User?     @relation("RevisionRecommendedBy", fields: [recommendedById], references: [id], onDelete: SetNull)
+  recommendedAt   DateTime?
+  note            String?
+  removedAt       DateTime?
+  removedById     String?
+
+  // Scheduling state (scheduleRevision in @nexa-chess/types).
+  dueAt          DateTime
+  intervalDays   Int            @default(0)
+  easeFactor     Int            @default(250)
+  repetitions    Int            @default(0)
+  lapses         Int            @default(0)
+  reviewCount    Int            @default(0)
+  lastGrade      RevisionGrade?
+  lastReviewedAt DateTime?
+  /// Skipped in a session: served after everything else that local day.
+  skippedAt      DateTime?
+
+  /// The open REVISION attempt. A review claims the item by clearing it
+  /// (updateMany where currentAttemptId = the attempt), so one attempt is graded once.
+  currentAttemptId String? @unique
+
+  reviews RevisionReview[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([studentId, contentKey])
+  @@index([studentId, status, dueAt])
+  @@index([puzzleId])
+  @@index([topicId])
+  @@index([recommendedById])
+  @@map("revision_items")
+}
+
+/// One graded review. Unique on attemptId: a replayed request can't record twice.
+model RevisionReview {
+  id        String         @id @default(cuid())
+  itemId    String
+  item      RevisionItem   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User           @relation("StudentRevisionReviews", fields: [studentId], references: [id], onDelete: Cascade)
+  attemptId String?        @unique
+  attempt   PuzzleAttempt? @relation(fields: [attemptId], references: [id], onDelete: SetNull)
+  /// The puzzle actually solved (a TOPIC item rotates through its folder). No FK.
+  puzzleId  String?
+
+  grade          RevisionGrade
+  outcome        RevisionOutcome
+  intervalBefore Int
+  intervalAfter  Int
+  dueAtAfter     DateTime
+  reviewedAt     DateTime        @default(now())
+
+  @@index([studentId, reviewedAt])
+  @@index([itemId, reviewedAt])
+  @@map("revision_reviews")
 }

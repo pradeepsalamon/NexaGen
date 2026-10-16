@@ -251,6 +251,13 @@ export const queryKeys = {
     all: ["class-requests"] as const,
     list: (status?: string) => ["class-requests", "list", status ?? "all"] as const,
   },
+  revision: {
+    all: ["revision"] as const,
+    summary: ["revision", "summary"] as const,
+    session: ["revision", "session"] as const,
+    /** `"me"` for the signed-in student's own report. */
+    report: (studentId: string) => ["revision", "report", studentId] as const,
+  },
   progress: {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,

@@ -2587,6 +2587,7 @@ export * from "./class-requests";
 // ──────────────────────────────────────────────
 export * from "./progress";
 export * from "./student-activity";
+export * from "./revision";
 
 // ──────────────────────────────────────────────
 // Student dashboard hero: the class live right now, and the featured class

@@ -61,6 +61,17 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 None currently tracked here.
 
+## Resolved (2026-10-16) — Smart Revision (spaced repetition)
+
+Students had no way to come back to puzzles they missed at the right time.
+Added Smart Revision ([SMART_REVISION.md](SMART_REVISION.md)): mistakes seeded
+from graded attempts, coach-recommended puzzles and folders, a deterministic
+spaced-repetition schedule, grades capped by the server-graded attempt, a
+student session page + dashboard card, and a Revision tab on the progress
+pages. Still open: lessons / REPLAY assignments / chapters as revision items
+(no objective grading to cap a self-rating), and revision reminders through
+the messaging rules.
+
 ## Resolved (2026-10-16) — role & permission enforcement audit
 
 Full report, permission matrix and open items: [AUTHORIZATION.md](AUTHORIZATION.md).

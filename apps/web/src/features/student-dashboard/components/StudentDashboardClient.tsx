@@ -9,6 +9,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { AssignmentReminderBanner } from "@/features/assignments/components/reminders/AssignmentReminderBanner";
 import { AssignmentReminderPopup } from "@/features/assignments/components/reminders/AssignmentReminderPopup";
 import { DashboardFeedback } from "@/features/feedback/components/DashboardFeedback";
+import { RevisionDashboardCard } from "@/features/revision/components/RevisionDashboardCard";
 import { useAuthStore } from "@/stores/authStore";
 import { useStudentDashboard } from "../hooks/useStudentApi";
 import { Announcements } from "./Announcements";
@@ -87,6 +88,8 @@ export function StudentDashboardClient() {
         <NextClassCard liveClass={data?.liveClass} nextClass={data?.todaysClass} />
 
         <ProgressOverview metrics={data?.progressMetrics} />
+
+        <RevisionDashboardCard />
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <UpcomingClasses classes={data?.nextClasses ?? []} />

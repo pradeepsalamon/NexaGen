@@ -837,6 +837,37 @@ so finished work is never shown as overdue.
   `/admin/assignments` have a "Due dates" tab (`AssignmentOverviewPanel`). The
   coach also gets the `ASSIGNMENT_OVERDUE_COACH` notification (§3.6e).
 
+### 3.6k3b Smart Revision (spaced repetition)
+
+`packages/types/src/revision.ts` (pure scheduler + contract), `apps/api/src/revision/`,
+`features/revision/`, page `/student/revision`, dashboard card, and the **Revision**
+tab of `StudentProgressWorkspace` (student / coach / admin), routes
+`API_ROUTES.revision.*`. Full rules: [docs/SMART_REVISION.md](docs/SMART_REVISION.md).
+
+- A `RevisionItem` (unique `(studentId, contentKey)`, `puzzle:<id>` / `topic:<id>`)
+  **references** a puzzle or a folder, never copies one. A review is an ordinary
+  `PuzzleAttempt` with `context: REVISION`, graded on the normal attempt routes —
+  `RevisionService` only picks, opens (`next`) and schedules (`review`).
+- `scheduleRevision` is the one schedule (Again 10 min, 2nd Again in a local day →
+  tomorrow; Hard/Good/Easy 1/3/7 days, then ×1.2 / ×ease / ×ease×1.3; due dates
+  snap to local midnight in `User.timezone`). **The grade is capped by the graded
+  attempt** (`allowedRevisionGrades`: a miss is Again, a hint or wrong move caps at
+  Hard) — the API refuses anything higher.
+- MISTAKE items are seeded on read (`syncMistakes`) from attempts that show one
+  (failed after trying, or solved with a wrong move — a hint alone is not), never
+  from a homework set still open. Coach recommendations: `assertCanViewStudent`
+  scope, the student must be able to open the puzzle and the coach to see it;
+  only the recommending coach or an admin removes one.
+- `next` opens under the item's row lock (`FOR UPDATE`), `review` claims with
+  `updateMany where currentAttemptId = attemptId`, and `revision_reviews.attemptId`
+  is unique — a double click or replay never opens or schedules twice. **A rating
+  is never inferred**: a finished, unrated review stays open with
+  `pendingRating` (server-computed allowed grades) until the student rates it.
+- MISTAKE seeding is batched (`MISTAKE_BATCH` per call, all filters in SQL incl.
+  "no item yet"), so a long history is covered across loads — never a full scan
+  that drops older misses.
+- Not soft-deletable, not Trash-registered (Cascade with the puzzle/folder/student).
+
 ### 3.6k4 PDF chess-diagram import
 
 `@nexa-chess/types` `diagram-recognition.ts` (pure image processing on a

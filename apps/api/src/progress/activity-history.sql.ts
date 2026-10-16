@@ -99,6 +99,7 @@ pa AS (
            WHEN 'LIVE_CLASS' THEN 'CLASS_PUZZLE'
            WHEN 'ASSIGNMENT' THEN 'HOMEWORK_PUZZLE'
            WHEN 'TRAINING' THEN 'TRAINING_PUZZLE'
+           WHEN 'REVISION' THEN 'REVISION_PUZZLE'
            ELSE 'PRACTICE_PUZZLE'
          END AS type,
          COALESCE(c."batchId", ab."batchId") AS batch_id,
@@ -130,7 +131,7 @@ hw_att AS (
   GROUP BY att."studentAssignmentId"
 ),
 activity AS (
-  -- Puzzles (practice, training, class, homework puzzle sets)
+  -- Puzzles (practice, training, revision, class, homework puzzle sets)
   SELECT 'puzzle:' || setting || ':' || puzzle_id AS key,
          min(type) AS type,
          CASE

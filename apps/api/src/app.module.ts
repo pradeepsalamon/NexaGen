@@ -46,6 +46,7 @@ import { TypographyModule } from "./typography/typography.module";
 import { ClassRequestModule } from "./class-request/class-request.module";
 import { FeedbackModule } from "./feedback/feedback.module";
 import { ProgressModule } from "./progress/progress.module";
+import { RevisionModule } from "./revision/revision.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
 import { HealthModule } from "./health/health.module";
@@ -108,6 +109,7 @@ import { ChatModule } from "./chat/chat.module";
     FeedbackModule,
     ClassRequestModule,
     ProgressModule,
+    RevisionModule,
     HealthModule,
     RetentionModule
   ],

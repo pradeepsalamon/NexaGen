@@ -672,6 +672,20 @@ export const API_ROUTES = {
     history: (id: string = ":id") => `/progress/students/${id}/history`,
     summary: (id: string = ":id") => `/progress/students/${id}/summary`
   },
+  // Smart Revision (spaced repetition, docs/SMART_REVISION.md). `mine*` are the
+  // student's own; `student*` are coach (batch scope) / admin views + recommendations.
+  revision: {
+    summaryMine: "/revision/me/summary",
+    sessionMine: "/revision/me/session",
+    next: "/revision/me/next",
+    review: "/revision/me/review",
+    skip: "/revision/me/skip",
+    reportMine: "/revision/me/report",
+    student: (id: string = ":id") => `/revision/students/${id}`,
+    recommend: (id: string = ":id") => `/revision/students/${id}/recommendations`,
+    recommendation: (id: string = ":id", itemId: string = ":itemId") =>
+      `/revision/students/${id}/recommendations/${itemId}`
+  },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a
     // dependency; `ready` checks Postgres (required) and Redis (optional).

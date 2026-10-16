@@ -14,6 +14,7 @@ import type { PuzzleDifficulty, PuzzleType } from "./puzzle";
 /**
  * PRACTICE_PUZZLE  a library / course puzzle (PuzzleAttempt context DIRECT)
  * TRAINING_PUZZLE  rated training (context TRAINING)
+ * REVISION_PUZZLE  a Smart Revision review (context REVISION) — one entry per puzzle, reviews grouped
  * CLASS_PUZZLE     a puzzle shared in a live class — by hand or by the activity queue
  * HOMEWORK_PUZZLE  one puzzle of a PUZZLE_SET assignment
  * CLASS_QUESTION   a live-class "what would you play?" move poll
@@ -23,6 +24,7 @@ import type { PuzzleDifficulty, PuzzleType } from "./puzzle";
 export const STUDENT_ACTIVITY_TYPES = [
   "PRACTICE_PUZZLE",
   "TRAINING_PUZZLE",
+  "REVISION_PUZZLE",
   "CLASS_PUZZLE",
   "HOMEWORK_PUZZLE",
   "CLASS_QUESTION",
@@ -39,6 +41,7 @@ export const STUDENT_ACTIVITY_TYPE_LABELS: Record<StudentActivityType, string> =
   HOMEWORK_PUZZLE: "Homework puzzle",
   PRACTICE_PUZZLE: "Practice puzzle",
   PUZZLE_RUSH: "Puzzle Storm / Racer",
+  REVISION_PUZZLE: "Revision puzzle",
   TRAINING_PUZZLE: "Training puzzle"
 };
 

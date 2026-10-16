@@ -54,7 +54,10 @@ export async function authenticateUser(
   const [user, session] = await Promise.all([
     prisma.user.findUnique({
       where: { id: payload.sub },
-      ...(args ? { include: args.include } : {})
+      // The overloads above type the result; comparing the default-args include
+      // with the soft-delete client's own include type exceeds tsc's depth limit
+      // once User has enough relations (TS2321), so it is not compared here.
+      ...(args ? { include: args.include as never } : {})
     }),
     // An access token outlives nothing it was minted from: logout, a password
     // reset or refresh-token reuse revokes the session family, and that must

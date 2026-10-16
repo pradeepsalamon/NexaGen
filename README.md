@@ -308,6 +308,13 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   own published puzzles. Skipping or viewing the solution is a rated miss. Gated
   per batch by `Batch.puzzleTrainingEnabled` (on by default; BatchForm →
   "Puzzle Training"). Spec: `docs/PUZZLE_CATALOGUE_IMPLEMENTATION_SPEC.md` §12.
+- Smart Revision (`/student/revision`, `RevisionService`, `API_ROUTES.revision.*`):
+  spaced repetition over library puzzles and folders. Puzzles a student missed
+  are seeded automatically; coaches/admins recommend puzzles or a folder from
+  the student's progress page (Revision tab). Each review is an ordinary graded
+  puzzle attempt (context `REVISION`); the student rates recall Again / Hard /
+  Good / Easy, capped by what the attempt shows, and the pure `scheduleRevision`
+  in `@nexa-chess/types` sets the next due date. Docs: `docs/SMART_REVISION.md`.
 - In-app notifications: `Notification` model + `GET /notifications` /
   `POST /notifications/read`. Students are reminded (daily 8am scheduler) of
   assignments due within 24h; the deploying coach is notified when a student

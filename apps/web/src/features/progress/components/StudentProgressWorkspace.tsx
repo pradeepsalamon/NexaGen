@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { RevisionReportPanel } from "@/features/revision/components/RevisionReportPanel";
 import { useActivitySummary, useProgressFor } from "../hooks/useProgress";
 import {
   DEFAULT_ACTIVITY_FILTERS,
@@ -17,7 +18,7 @@ import { ActivityHistoryList } from "./ActivityHistoryList";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { ProgressView } from "./ProgressView";
 
-type Tab = "overview" | "performance" | "history";
+type Tab = "overview" | "performance" | "history" | "revision";
 
 function LoadingTiles() {
   return (
@@ -31,7 +32,8 @@ function LoadingTiles() {
 
 /**
  * One student's progress: rating + streak (Overview), period summary and
- * insights (Performance), and the filterable activity history (History).
+ * insights (Performance), the filterable activity history (History), and
+ * Smart Revision (scheduled items + recall; staff also recommend from here).
  * `studentId` null = the signed-in student. The period and filters are shared
  * by Performance and History, so switching tabs keeps the same slice.
  */
@@ -51,6 +53,7 @@ export function StudentProgressWorkspace({ studentId }: { studentId: string | nu
         <TabsTrigger value="overview">Overview</TabsTrigger>
         <TabsTrigger value="performance">Performance</TabsTrigger>
         <TabsTrigger value="history">Activity history</TabsTrigger>
+        <TabsTrigger value="revision">Revision</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">
@@ -89,6 +92,10 @@ export function StudentProgressWorkspace({ studentId }: { studentId: string | nu
           status={filters.status}
           studentId={studentId}
         />
+      </TabsContent>
+
+      <TabsContent value="revision">
+        {tab === "revision" ? <RevisionReportPanel studentId={studentId} /> : null}
       </TabsContent>
     </Tabs>
   );
