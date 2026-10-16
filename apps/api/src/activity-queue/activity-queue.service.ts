@@ -492,7 +492,11 @@ export class ActivityQueueService {
 
     const index = queue.items.findIndex((i) => i.id === queue.currentItemId);
     const current = index >= 0 ? queue.items[index] : null;
-    const reached = queue.items.filter((i) => i.activatedAt && i.kind !== LiveClassActivityKind.CHAPTER);
+    // An activity that couldn't start was never put to the class, so there is
+    // nothing to answer (the coach's grid has no column for it either).
+    const reached = queue.items.filter(
+      (i) => i.activatedAt && !i.activationError && i.kind !== LiveClassActivityKind.CHAPTER
+    );
 
     const assignmentIds = reached.flatMap((i) => (i.puzzleAssignmentId ? [i.puzzleAssignmentId] : []));
     const pollIds = reached.flatMap((i) => (i.movePollId ? [i.movePollId] : []));
@@ -699,9 +703,13 @@ export class ActivityQueueService {
           data.movePollId = poll.id;
           if (item.correctUci) await this.polls.update(accessToken, classId, { correctUci: item.correctUci });
         }
-      } else if (!item.chapterId) {
-        // CHAPTER: the coach's client loads it onto the shared board.
-        throw new BadRequestException("This chapter was deleted.");
+      } else {
+        // CHAPTER: the coach's client loads it onto the shared board. `chapterId`
+        // has no FK, so a chapter deleted after it was queued still has an id here.
+        const chapter = item.chapterId
+          ? await this.prisma.liveClassChapter.findUnique({ select: { id: true }, where: { id: item.chapterId } })
+          : null;
+        if (!chapter) throw new BadRequestException("This chapter was deleted.");
       }
     } catch (error) {
       data.activationError = this.messageOf(error);

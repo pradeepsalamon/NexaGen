@@ -170,7 +170,8 @@ function createFakePrisma() {
       })
     },
     liveClassChapter: {
-      findMany: jest.fn(async ({ where }: any) => chapters.filter((c) => matches(c, where)))
+      findMany: jest.fn(async ({ where }: any) => chapters.filter((c) => matches(c, where))),
+      findUnique: jest.fn(async ({ where }: any) => chapters.find((c) => c.id === where.id) ?? null)
     },
     liveClassMovePoll: {
       findFirst: jest.fn(async ({ where }: any) => state.polls.find((p) => matches(p, where)) ?? null),
@@ -507,9 +508,30 @@ describe("ActivityQueueService", () => {
       const { queue } = await service.launch(TOKEN, CLASS_ID, queueId);
       expect(queue.status).toBe("LIVE");
       expect(queue.items[0].activationError).toBe("Puzzle not found or not published.");
+      // Students aren't asked to answer something that never reached them.
+      as("student-1");
+      const seen = await service.current(TOKEN, CLASS_ID);
+      expect(seen.queue).toMatchObject({ currentNumber: 1, mine: [] });
+      as(COACH_ID);
       // The coach can still move on.
       const next = await service.advance(TOKEN, CLASS_ID, queueId, { fromItemId: queue.items[0].id });
       expect(next.queue.currentItemId).toBe(queue.items[1].id);
+    });
+
+    it("records a chapter deleted after it was queued as unable to start", async () => {
+      const queueId = await draftQueue();
+      const { queue } = await service.launch(TOKEN, CLASS_ID, queueId);
+      const [p1, q1, c1] = queue.items;
+      await service.advance(TOKEN, CLASS_ID, queueId, { fromItemId: p1.id });
+      const removed = chapters.splice(0, 1); // ch-1 is deleted mid-class
+      try {
+        const { queue: moved } = await service.advance(TOKEN, CLASS_ID, queueId, { fromItemId: q1.id });
+        expect(moved.currentItemId).toBe(c1.id);
+        expect(moved.items[2].activationError).toBe("This chapter was deleted.");
+        expect(moved.items[2].available).toBe(false);
+      } finally {
+        chapters.unshift(...removed);
+      }
     });
 
     it("finishing early closes the current activity once", async () => {

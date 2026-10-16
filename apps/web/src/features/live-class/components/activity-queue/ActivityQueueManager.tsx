@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
   ArrowDown,
@@ -633,11 +633,19 @@ function Runner({
   const done = queue.items.filter((i) => i.completedAt).length;
   const busy = advance.isPending || finish.isPending;
 
+  // `disabled={busy}` only lands after a re-render, so a double click sends the
+  // second request from the same item: the server rightly 409s it, and the coach
+  // would see "Couldn't move on" after a move that succeeded.
+  const advancingFrom = useRef<string | null>(null);
   const goNext = () => {
-    if (!current) return;
+    if (!current || advancingFrom.current === current.id) return;
+    advancingFrom.current = current.id;
     advance.mutate(
       { fromItemId: current.id, queueId: queue.id },
       {
+        onSettled: () => {
+          advancingFrom.current = null;
+        },
         onSuccess: ({ queue: moved }) => {
           const now = moved.items.find((i) => i.id === moved.currentItemId);
           if (now) onActivityStarted?.(now);
