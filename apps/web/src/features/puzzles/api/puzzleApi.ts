@@ -123,7 +123,8 @@ export function getPuzzles(query: PuzzleListQuery): Promise<PuzzleListResponse> 
         status: query.status,
         visibility: query.visibility,
         creatorId: query.creatorId,
-        scope: query.scope
+        scope: query.scope,
+        placement: query.placement
       })
   );
 }

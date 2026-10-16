@@ -174,6 +174,8 @@ const LIST_CASES: Case[] = [
   { name: "coach's batch list", as: (w) => w.a.coach, path: () => API_ROUTES.coach.batches },
   { name: "coach's class list", as: (w) => w.a.coach, path: () => API_ROUTES.coach.classes },
   { name: "coach's puzzle library", as: (w) => w.a.coach, path: () => API_ROUTES.puzzles.list },
+  // Both sides' private puzzles share one position: the PDF import's duplicate check must still only see A's.
+  { name: "coach's puzzle library filtered by a position both coaches hold", as: (w) => w.a.coach, path: () => `${API_ROUTES.puzzles.list}?placement=${encodeURIComponent("6k1/5ppp/8/8/8/8/5PPP/R5K1")}` },
   { name: "coach's payroll", as: (w) => w.a.coach, path: () => API_ROUTES.payroll.mine },
   { name: "coach's assignment library", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.library },
   { name: "coach's deployments", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.deployments },

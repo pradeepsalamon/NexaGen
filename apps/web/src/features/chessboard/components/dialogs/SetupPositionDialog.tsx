@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/Dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { Button } from "@/components/ui/Button";
@@ -10,8 +11,28 @@ import { PositionEditor } from "../board/PositionEditor";
 import { toast } from "sonner";
 import { Upload } from "lucide-react";
 import { Textarea } from "@/components/ui/Textarea";
+import { cn } from "@/lib/utils";
 
-export function SetupPositionDialog() {
+// The PDF import (recognizer, piece templates, pdf.js) loads only when the tab is opened.
+const ClassBoardDiagramImport = dynamic(
+  () => import("@/features/diagram-import/components/ClassBoardDiagramImport").then((m) => m.ClassBoardDiagramImport),
+  { ssr: false, loading: () => <p className="py-8 text-center text-sm text-app-muted">Loading the PDF importer…</p> },
+);
+
+type Tab = "setup" | "game" | "pdf";
+
+export type SetupPositionPdfImport = {
+  /** Where the coach's "New puzzle" form lives (/coach/puzzles or /admin/puzzles). */
+  libraryBasePath: string;
+  /** Shown in the replace-the-board confirmation (e.g. a puzzle is running). */
+  activityNote?: string;
+};
+
+/**
+ * Load a position or game onto the board. `pdfImport` adds the "From PDF"
+ * tab (PDF chess-diagram import) — the live classroom passes it for the coach.
+ */
+export function SetupPositionDialog({ pdfImport }: { pdfImport?: SetupPositionPdfImport } = {}) {
   const { isSetupPositionOpen, setIsSetupPositionOpen, pushHistory } = useBoardStore(
     useShallow((s) => ({
       isSetupPositionOpen: s.isSetupPositionOpen,
@@ -19,7 +40,7 @@ export function SetupPositionDialog() {
       pushHistory: s.pushHistory,
     })),
   );
-  const [tab, setTab] = useState<"setup" | "game">("setup");
+  const [tab, setTab] = useState<Tab>("setup");
 
   const [fen, setFen] = useState(START_FEN);
 
@@ -44,6 +65,17 @@ export function SetupPositionDialog() {
     }
     pushHistory(fen, "");
     toast.success("Position loaded");
+    setIsSetupPositionOpen(false);
+  };
+
+  const applyDiagram = (diagramFen: string) => {
+    const result = validateFen(diagramFen);
+    if (!result.ok) {
+      toast.error(`Invalid position: ${result.error}`);
+      return;
+    }
+    pushHistory(diagramFen, "");
+    toast.success("Position loaded on the class board");
     setIsSetupPositionOpen(false);
   };
 
@@ -73,20 +105,26 @@ export function SetupPositionDialog() {
     <Dialog open={isSetupPositionOpen} onOpenChange={setIsSetupPositionOpen}>
       {/* Fixed height + pinned footer: switching tabs or editing never
           re-centres the dialog, and the actions stay on screen on a tablet. */}
-      <DialogContent className="flex h-[min(calc(100dvh-2rem),780px)] w-[95vw] max-w-[820px] flex-col gap-0 overflow-hidden p-0 bg-app-surface border-app-border">
+      <DialogContent
+        className={cn(
+          "flex h-[min(calc(100dvh-2rem),780px)] w-[95vw] flex-col gap-0 overflow-hidden p-0 bg-app-surface border-app-border",
+          tab === "pdf" ? "max-w-[1100px]" : "max-w-[820px]",
+        )}
+      >
         <DialogHeader className="shrink-0 px-4 py-3 sm:px-6 sm:py-4 border-b border-app-border">
           <DialogTitle>Load Games / Positions</DialogTitle>
         </DialogHeader>
 
         <Tabs
           value={tab}
-          onValueChange={(v) => setTab(v as "setup" | "game")}
+          onValueChange={(v) => setTab(v as Tab)}
           className="flex min-h-0 flex-1 flex-col"
         >
           <div className="shrink-0 px-4 pt-3 sm:px-6">
             <TabsList>
               <TabsTrigger value="setup">Setup Position</TabsTrigger>
               <TabsTrigger value="game">Load Game (PGN)</TabsTrigger>
+              {pdfImport ? <TabsTrigger value="pdf">From PDF</TabsTrigger> : null}
             </TabsList>
           </div>
 
@@ -123,6 +161,16 @@ export function SetupPositionDialog() {
                 </div>
               </div>
             </TabsContent>
+
+            {pdfImport ? (
+              <TabsContent value="pdf">
+                <ClassBoardDiagramImport
+                  activityNote={pdfImport.activityNote}
+                  libraryBasePath={pdfImport.libraryBasePath}
+                  onLoad={applyDiagram}
+                />
+              </TabsContent>
+            ) : null}
           </div>
         </Tabs>
 
@@ -134,11 +182,11 @@ export function SetupPositionDialog() {
             <Button variant="primary" onClick={applyPosition}>
               Load Position
             </Button>
-          ) : (
+          ) : tab === "game" ? (
             <Button variant="primary" onClick={applyGame} disabled={!pgnText.trim()}>
               Load Game
             </Button>
-          )}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

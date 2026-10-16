@@ -62,6 +62,9 @@ const puzzleInclude = {
 
 type PuzzleRow = Prisma.PuzzleGetPayload<{ include: typeof puzzleInclude }>;
 
+/** A FEN piece-placement field: 8 ranks of pieces / empty-square counts. */
+const FEN_PLACEMENT_RE = /^([pnbrqkPNBRQK1-8]{1,8}\/){7}[pnbrqkPNBRQK1-8]{1,8}$/;
+
 const ORDERABLE = ["title", "difficulty", "puzzleType", "status", "createdAt", "updatedAt"] as const;
 
 @Injectable()
@@ -106,6 +109,12 @@ export class PuzzleService {
     if (query.creatorId) and.push({ createdById: query.creatorId });
     if (query.scope === "mine") and.push({ createdById: user.id });
     if (query.scope === "admin") and.push({ visibility: PuzzleVisibility.GLOBAL });
+    if (query.placement !== undefined) {
+      if (!FEN_PLACEMENT_RE.test(query.placement)) {
+        throw new BadRequestException("placement must be a FEN piece-placement field.");
+      }
+      and.push({ fen: { startsWith: `${query.placement} ` } });
+    }
     if (search) {
       and.push({
         OR: [

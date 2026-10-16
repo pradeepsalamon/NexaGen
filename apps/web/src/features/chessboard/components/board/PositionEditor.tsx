@@ -26,6 +26,12 @@ export interface PositionEditorProps {
   onChange: (fen: string) => void;
   orientation?: Color;
   className?: string;
+  /**
+   * false = the board and spare pieces only. For callers that own the other
+   * FEN fields themselves — the PDF diagram import, where "not known yet" must
+   * not be shown as a ticked default.
+   */
+  showDetails?: boolean;
 }
 
 const ROLES: { role: Role; label: string }[] = [
@@ -39,7 +45,13 @@ const ROLES: { role: Role; label: string }[] = [
 
 // Reusable controlled position editor. Single source of truth: the `value` FEN
 // string. No dependency on LiveKit, the board store, or any consumer.
-export function PositionEditor({ value, onChange, orientation = "white", className }: PositionEditorProps) {
+export function PositionEditor({
+  value,
+  onChange,
+  orientation = "white",
+  className,
+  showDetails = true,
+}: PositionEditorProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<Api | null>(null);
   const { currentBoardTheme, currentPieceSet, showCoordinates, hasCustomPieceColors } = useChessAppearance();
@@ -106,10 +118,17 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
     apiRef.current?.set({ orientation });
   }, [orientation]);
 
+  // chessground caches the board's screen position and only re-reads it on
+  // scroll/resize. Content above the board that changes height after mount (a
+  // dialog's tabs, an alert, an image loading) would make every drag land on
+  // the wrong square — so re-read it as each drag starts.
+  const refreshBounds = () => apiRef.current?.state.dom.bounds.clear();
+
   const spawnPiece = (e: React.MouseEvent | React.TouchEvent, role: Role, color: Color) => {
     e.preventDefault();
     const cg = apiRef.current;
     if (!cg) return;
+    refreshBounds();
     cg.dragNewPiece({ role, color }, e.nativeEvent as MouchEvent, true);
   };
 
@@ -132,6 +151,8 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
         <div
           ref={boardRef}
           data-testid="position-editor-board"
+          onMouseDownCapture={refreshBounds}
+          onTouchStartCapture={refreshBounds}
           data-nexa-board-theme={currentBoardTheme}
           data-nexa-piece-set={currentPieceSet}
           data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
@@ -150,6 +171,7 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
       </div>
 
       {/* Metadata controls */}
+      {showDetails ? (
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold text-app-text">Side to move</legend>
@@ -231,6 +253,7 @@ export function PositionEditor({ value, onChange, orientation = "white", classNa
           />
         </label>
       </div>
+      ) : null}
     </div>
   );
 }

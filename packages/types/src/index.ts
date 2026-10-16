@@ -48,6 +48,9 @@ export * from "./batch-type";
 export * from "./chess-fen";
 export * from "./class-availability";
 export * from "./move-tree";
+// PDF chess-diagram import: recognition core (pure image processing) + position checks.
+export * from "./diagram-recognition";
+export * from "./diagram-position";
 export * from "./game-library";
 export * from "./chat";
 export * from "./assignment-reminders";

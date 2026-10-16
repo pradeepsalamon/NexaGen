@@ -821,6 +821,42 @@ so finished work is never shown as overdue.
   `/admin/assignments` have a "Due dates" tab (`AssignmentOverviewPanel`). The
   coach also gets the `ASSIGNMENT_OVERDUE_COACH` notification (§3.6e).
 
+### 3.6k4 PDF chess-diagram import
+
+`@nexa-chess/types` `diagram-recognition.ts` (pure image processing on a
+grayscale page: `detectDiagramBoards` → `recognizeDiagramBoard`, orientation /
+side-to-move helpers) + `diagram-position.ts` (`validateDiagramPosition`:
+errors block, warnings need the coach; takes a chess.js probe) +
+`diagram-piece-templates.ts` (**generated** — `scripts/diagram-import/`); web
+`features/diagram-import/`, pages `/coach|admin/puzzles/import-pdf`, and the
+"From PDF" tab of `SetupPositionDialog` (only when `pdfImport` is passed —
+`ClassroomBoard` does, for the coach; lazy-loaded).
+
+- **The PDF never leaves the browser.** No upload route, no storage, nothing to
+  clean up server-side. pdf.js loads from `public/vendor/pdfjs/` via a
+  `webpackIgnore`'d `import()` (`apps/web/scripts/copy-pdfjs.mjs`, run on
+  `predev`/`prebuild`) — **don't bundle it**: Next's webpack rewrites the
+  `__webpack_require__` inside pdf.js's own build ("Object.defineProperty called
+  on non-object"). Limits live in `PDF_IMPORT_LIMITS` (`lib/pdf.ts`).
+- **A diagram is pieces only.** Side to move, castling, en passant and the move
+  counters are never assumed: `CandidateReview` holds null/unaccepted until the
+  coach answers (a caption like "White to move" or printed coordinates may
+  pre-answer, and the UI says where it came from). Status is
+  `DiagramCandidateStatus`; only `confirmed` positions reach any action, and any
+  edit withdraws the confirmation.
+- **Uses existing paths only**: analysis board = a private Game Library import
+  (`games.import` accepts a set-up FEN with no moves); class board =
+  `pushHistory` behind a replace confirmation; library = the New-puzzle form
+  prefilled through a 10-minute `localStorage` handoff (`lib/handoff.ts`) — the
+  coach adds solution/topic/difficulty and saves; duplicates are warned via the
+  puzzle list's `placement` filter (inside the caller's visibility).
+- Recognition is measured, not promised: see the spec header in
+  `apps/api/src/common/chess/diagram-recognition.spec.ts`. Every misread on the
+  fixtures is flagged for review; an unseen book font is less reliable.
+  `PositionEditor` re-reads chessground's cached bounds on every drag start —
+  content shifting above a mounted board otherwise drops pieces on the wrong
+  square.
+
 ### 3.6k Demo classes (guest access, invites, static schedules)
 
 `apps/api/src/demo-class/` (`DemoInviteService`, `DemoScheduleService`) +

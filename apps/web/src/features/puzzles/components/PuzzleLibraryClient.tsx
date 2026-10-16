@@ -21,6 +21,7 @@ import {
   FileUp,
   Pencil,
   Plus,
+  ScanSearch,
   Send,
   Trash2,
   Trophy,
@@ -189,6 +190,12 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
           <Button variant="outline" onClick={() => setImportOpen(true)}>
             <FileUp className="mr-2 size-4" strokeWidth={2.5} />
             Import PGN
+          </Button>
+          <Button asChild variant="outline">
+            <Link href={`${basePath}/import-pdf`}>
+              <ScanSearch className="mr-2 size-4" strokeWidth={2.5} />
+              Import from PDF
+            </Link>
           </Button>
           <Button asChild>
             <Link href={`${basePath}/new`}>

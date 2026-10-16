@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "clean": "node -e \"const fs=require('fs'); for (const dir of ['.next','.next-build']) fs.rmSync(dir,{recursive:true,force:true})\"",
+    "predev": "node scripts/copy-pdfjs.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-pdfjs.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint src --ext .js,.jsx,.ts,.tsx",
@@ -43,6 +45,7 @@
     "livekit-client": "^2.20.0",
     "lucide-react": "^1.21.0",
     "next": "^15.5.27",
+    "pdfjs-dist": "5.4.624",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.0",
     "react-day-picker": "^10.0.1",

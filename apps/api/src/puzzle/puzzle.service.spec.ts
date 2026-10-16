@@ -238,6 +238,18 @@ describe("PuzzleService", () => {
     );
   });
 
+  it("filters by exact piece placement inside the caller's visibility (PDF import duplicate check)", async () => {
+    prisma.puzzle.findMany.mockResolvedValue([]);
+    await service.list(TOKEN, { placement: "4k3/8/8/8/8/8/8/4K3" } as any);
+    const where = prisma.puzzle.findMany.mock.calls.at(-1)[0].where;
+    expect(where.AND).toContainEqual({ fen: { startsWith: "4k3/8/8/8/8/8/8/4K3 " } });
+    // The coach's visibility scope is still the outer filter.
+    expect(where.OR).toEqual([{ visibility: PuzzleVisibility.GLOBAL }, { createdById: COACH_A }]);
+
+    await expect(service.list(TOKEN, { placement: "x' OR 1=1" } as any)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.list(TOKEN, { placement: "8/8/8" } as any)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   describe("system folders (Lichess, asked in class)", () => {
     beforeEach(() => {
       prisma.puzzleTopic.findFirst.mockResolvedValue({ id: "folder-lichess" });

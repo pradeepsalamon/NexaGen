@@ -13,6 +13,7 @@ import {
   moveTreeToPgn,
   parsePgnToMoveTree,
   PgnParseError,
+  STANDARD_START_FEN,
   type ChessGameResult,
   type GameLibraryDetail,
   type GameLibraryFilterOptions,
@@ -138,7 +139,11 @@ export class GameLibraryService {
     }
     const parsed = this.parse(dto.pgn);
     const mainline = lineThroughPath(parsed.tree, []).nodes;
-    if (mainline.length === 0) throw new BadRequestException("That PGN has no moves.");
+    // A set-up position with no moves yet (the PDF diagram import's "open on the
+    // analysis board") is a valid start; an empty game from the opening is not.
+    if (mainline.length === 0 && parsed.tree.rootFen === STANDARD_START_FEN) {
+      throw new BadRequestException("That PGN has no moves.");
+    }
 
     const white = parsed.headers.White?.trim() || "White";
     const black = parsed.headers.Black?.trim() || "Black";

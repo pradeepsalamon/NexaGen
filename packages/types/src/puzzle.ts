@@ -349,7 +349,13 @@ export const puzzleListQuerySchema = z.object({
   status: puzzleStatusSchema.optional(),
   visibility: puzzleVisibilitySchema.optional(),
   creatorId: z.string().optional(),
-  scope: puzzleScopeSchema.optional()
+  scope: puzzleScopeSchema.optional(),
+  /**
+   * A FEN piece-placement field: only puzzles whose position has exactly this
+   * placement (side to move and the rest ignored). The PDF diagram import uses
+   * it to warn before saving a position the library already holds.
+   */
+  placement: z.string().optional()
 });
 export type PuzzleListQuery = z.infer<typeof puzzleListQuerySchema>;
 

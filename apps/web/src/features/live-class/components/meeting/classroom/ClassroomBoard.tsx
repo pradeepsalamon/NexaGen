@@ -24,7 +24,9 @@ import { DrawingToolbar } from "@/features/chessboard/components/toolbars/Drawin
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useBoardShortcuts } from "@/features/chessboard/hooks/useBoardShortcuts";
 import { useEngineMove } from "@/features/chessboard/hooks/useEngineMove";
+import { isStaffRole } from "@/lib/routeAccess";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/stores/authStore";
 import { useLoadNextPuzzle } from "../../../hooks/useLoadNextPuzzle";
 import {
   COACH_BOARD_SHORTCUT_KEY,
@@ -155,6 +157,7 @@ export function ClassroomBoard({
     "setPuzzleSolverOpen",
     "isChessboardOpen",
   );
+  const userRole = useAuthStore((s) => s.user?.role);
   const waiting = !isCoach && !isChessboardOpen;
   const boardBoxRef = useSideColumnFit(isCoach, onSideColumnChange);
 
@@ -165,7 +168,14 @@ export function ClassroomBoard({
       {isCoach ? (
         <>
           <CoachBoardShortcuts />
-          <SetupPositionDialog />
+          <SetupPositionDialog
+            pdfImport={{
+              activityNote: activePuzzle
+                ? "The puzzle the class is solving keeps running — students' puzzle boards are not affected."
+                : undefined,
+              libraryBasePath: isStaffRole(userRole) ? "/admin/puzzles" : "/coach/puzzles",
+            }}
+          />
         </>
       ) : null}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type {
   CreatePuzzleRequest,
@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { PositionEditor } from "@/features/chessboard/components/board/PositionEditor";
 import { START_FEN } from "@/features/chessboard/lib/fen";
 import { SolutionEditor } from "@/features/assignments/components/SolutionEditor";
+import { takePuzzlePrefill } from "@/features/diagram-import/lib/handoff";
 import { useToast } from "@/providers/ToastProvider";
 import { setPuzzlePublished, validatePuzzle } from "../api/puzzleApi";
 import {
@@ -98,6 +99,21 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
   );
   const onScoringChange = (next: PuzzleScoring, key: keyof PuzzleScoring) =>
     setScoringOverride((prev) => ({ ...prev, [key]: next[key] }));
+
+  // A position confirmed in the PDF diagram import arrives prefilled. Nothing is
+  // saved for the coach: the solution, topic and difficulty are still theirs to
+  // add, and it publishes only through the checks below.
+  const [importedFromPdf, setImportedFromPdf] = useState(false);
+  useEffect(() => {
+    if (mode !== "create" || new URLSearchParams(window.location.search).get("from") !== "pdf") return;
+    const prefill = takePuzzlePrefill();
+    if (!prefill) return;
+    setFen(prefill.fen);
+    setTitle(prefill.title);
+    setDescription(prefill.description);
+    setTagsText(prefill.tags.join(", "));
+    setImportedFromPdf(true);
+  }, [mode]);
 
   const [validation, setValidation] = useState<
     { valid: boolean; error?: string } | null
@@ -222,6 +238,12 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
       eyebrow="Puzzle library"
       title={mode === "create" ? "New puzzle" : "Edit puzzle"}
     >
+      {importedFromPdf ? (
+        <Alert title="Position imported from a PDF diagram" variant="info">
+          Add the solution line, topic and difficulty. Save it as a draft until it is ready — students only see published
+          puzzles.
+        </Alert>
+      ) : null}
 
       {showPreview && solutionMoves.length > 0 && (
         <Card className="p-4">

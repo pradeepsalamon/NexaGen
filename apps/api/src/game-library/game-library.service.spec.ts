@@ -184,6 +184,16 @@ describe("GameLibraryService", () => {
     await expect(service.importGame("t", { pgn: "1. e4 e5 2. Ke3 *" })).rejects.toThrow(/Illegal move "Ke3"/);
   });
 
+  it("imports a set-up position with no moves yet, but not an empty game from the start", async () => {
+    as("coach-1", "COACH");
+    prisma.chessGame.create.mockImplementation(({ data }) => Promise.resolve(row({ ...data, id: "new" })));
+    const fen = "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1";
+    await service.importGame("t", { pgn: `[SetUp "1"]\n[FEN "${fen}"]\n\n*`, title: "From PDF" });
+    expect(prisma.chessGame.create.mock.calls[0][0].data).toMatchObject({ moveCount: 0, startFen: fen, title: "From PDF" });
+
+    await expect(service.importGame("t", { pgn: "*" })).rejects.toThrow("That PGN has no moves.");
+  });
+
   it("only deletes imports, by their importer or an admin", async () => {
     as("coach-1", "COACH");
     await expect(service.remove("t", "game-1")).rejects.toBeInstanceOf(ForbiddenException);

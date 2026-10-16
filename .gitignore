@@ -46,3 +46,6 @@ scripts/perf/out/
 
 # deploy-production.sh state on the VPS (rollback generations, lock, history)
 .deploy/
+
+# pdf.js browser build, copied from node_modules by apps/web/scripts/copy-pdfjs.mjs
+apps/web/public/vendor/pdfjs/
