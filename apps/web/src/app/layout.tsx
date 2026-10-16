@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { GOOGLE_SITE_VERIFICATION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { AppProviders } from "../providers/AppProviders";
-import { fontVariables } from "./fonts";
+import { fontVariablesCss } from "./fonts";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
@@ -56,8 +56,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html className={fontVariables} lang="en" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <style dangerouslySetInnerHTML={{ __html: fontVariablesCss }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>

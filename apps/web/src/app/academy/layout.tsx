@@ -1,24 +1,14 @@
 import type { Metadata } from "next";
-import { Inter, Playfair_Display } from "next/font/google";
 import "@/features/academy/styles/academy.css";
 import { ScrollObserver } from "@/features/academy/components/ScrollObserver";
 import { TrackingProvider } from "@/features/academy/components/TrackingProvider";
 import { SITE_URL } from "@/lib/site";
+import { declareFontVariables } from "../fonts";
+import { ACADEMY_FONT_FACES } from "./fonts.generated";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-  preload: true
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["600", "700"],
-  variable: "--font-playfair",
-  display: "swap",
-  preload: false
-});
+// The marketing site's own Inter (preloaded here only) + Playfair. A separate
+// module, so the app's routes neither load nor preload them.
+const academyFontVariablesCss = declareFontVariables(".academy-page", ACADEMY_FONT_FACES);
 
 const SITE_NAME = "Nexa Chess Academy";
 const SITE_DESCRIPTION =
@@ -73,7 +63,8 @@ const jsonLd = {
 
 export default function AcademyLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={`academy-page relative ${inter.variable} ${playfair.variable} font-[family-name:var(--font-inter)]`}>
+    <div className="academy-page relative font-[family-name:var(--font-inter)]">
+      <style dangerouslySetInnerHTML={{ __html: academyFontVariablesCss }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <TrackingProvider />
       <ScrollObserver />
