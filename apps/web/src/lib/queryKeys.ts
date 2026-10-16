@@ -220,6 +220,11 @@ export const queryKeys = {
   liveClassChapters: {
     list: (classId: string) => ["live-class-chapters", classId] as const,
   },
+  activityQueues: {
+    list: (classId: string) => ["activity-queues", classId, "list"] as const,
+    progress: (classId: string, queueId: string) => ["activity-queues", classId, "progress", queueId] as const,
+    current: (classId: string) => ["activity-queues", classId, "current"] as const,
+  },
   puzzleRush: {
     state: (classId: string) => ["puzzle-rush", "state", classId] as const,
   },

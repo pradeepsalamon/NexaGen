@@ -255,6 +255,28 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   puzzles solved out of shared; equal score and solved count share a rank) and
   the room chat. Below that width the same leaderboard and chat stay in the
   right-hand panel's tabs. Chapters are not soft-deletable or Trash-registered.
+- Activity queue (`apps/api/src/activity-queue/`,
+  `components/activity-queue/*`, `API_ROUTES.liveClass.activityQueue*`): a
+  coach drafts a named, ordered queue of activities for one class — library
+  **puzzles** (optionally timed), **questions** ("what would you play?" on a
+  board position) and saved **chapters** — then launches it once and moves the
+  whole class through it together (shared progression: one current activity,
+  only the coach advances). Drafting works before class on the class page
+  (`/classes/:id` → "Activity queue", puzzles only) and in the room's coach
+  **Queue** tab (all three kinds); launching needs the class LIVE. Each item
+  references what it uses and runs through the feature that already owns it
+  — a puzzle is shared as the ordinary live puzzle, a question is an ordinary
+  move poll, a chapter is loaded onto the coach's shared board — so students
+  answer with the existing solver and question dialog, and the queue stores
+  which share / poll each item produced. The coach's tab shows every
+  student × activity (correct / incorrect / answered / working / waiting /
+  missed, read from the puzzle attempts and poll answers); students get a
+  top-bar pill with the class's position and which activities *they*
+  answered — never upcoming items or anyone else's answers. Advancing names
+  the item being left, so a double click or second tab is a 409, and the
+  ended puzzle / poll refuses a late submission. One LIVE queue per class
+  (partial unique index); ending the class finishes it. Not soft-deletable,
+  not Trash-registered.
 - Rated puzzle training (`/student/training`, `PuzzleTrainingService`,
   `API_ROUTES.puzzles.training` / `.trainingNext`): Lichess-style practice, one
   puzzle at a time near the student's own puzzle rating. The pick is a healthy

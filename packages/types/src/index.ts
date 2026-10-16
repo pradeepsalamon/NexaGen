@@ -2533,6 +2533,7 @@ export * from "./live-class-match";
 export * from "./live-class-move-poll";
 export * from "./live-class-tools";
 export * from "./live-class-chapter";
+export * from "./live-class-activity-queue";
 export * from "./puzzle-rush";
 
 // ──────────────────────────────────────────────

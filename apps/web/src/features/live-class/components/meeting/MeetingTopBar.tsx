@@ -2,6 +2,7 @@
 
 import { memo } from "react";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { ActivityQueueStatusPill } from "../activity-queue/ActivityQueueStatusPill";
 import { ClassroomTopBar } from "./ClassroomTopBar";
 import { ConnectionPill, RecordingBadge, TimerBadge } from "./MeetingStatus";
 
@@ -15,6 +16,7 @@ export const MeetingTopBar = memo(function MeetingTopBar() {
       status={
         <span className="flex shrink-0 items-center gap-1.5">
           <RecordingBadge />
+          <ActivityQueueStatusPill />
         </span>
       }
       // Leaving is deliberately only in the bottom toolbar: one unmistakable

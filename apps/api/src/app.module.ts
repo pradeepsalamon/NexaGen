@@ -34,6 +34,7 @@ import { MovePollModule } from "./move-poll/move-poll.module";
 import { PuzzleRushModule } from "./puzzle-rush/puzzle-rush.module";
 import { ClassroomToolsModule } from "./classroom-tools/classroom-tools.module";
 import { LiveClassChapterModule } from "./live-class-chapter/live-class-chapter.module";
+import { ActivityQueueModule } from "./activity-queue/activity-queue.module";
 import { CourseModule } from "./course/course.module";
 import { QueueModule } from "./queue/queue.module";
 import { MessagingModule } from "./messaging/messaging.module";
@@ -94,6 +95,7 @@ import { ChatModule } from "./chat/chat.module";
     PuzzleRushModule,
     ClassroomToolsModule,
     LiveClassChapterModule,
+    ActivityQueueModule,
     CourseModule,
     MessagingModule,
     AnnouncementModule,

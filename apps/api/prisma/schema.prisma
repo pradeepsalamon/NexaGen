@@ -814,6 +814,7 @@ model CoachClass {
   puzzleRushes             LiveClassPuzzleRush[]
   classroomToolStates      LiveClassToolState[]
   liveClassChapters        LiveClassChapter[]
+  activityQueues           LiveClassActivityQueue[]
   demoRegistrations        DemoClassRegistration[]
   assignedLeads            Lead[]                           @relation("LeadAssignedClass")
   feedbackResponses        FeedbackResponse[]               @relation("FeedbackResponseClass")
@@ -2177,10 +2178,11 @@ model Puzzle {
   archivedById  String?
   archivedAt    DateTime?
 
-  attempts        PuzzleAttempt[]
-  liveAssignments LiveClassPuzzleAssignment[]
-  courseModules   CourseModule[]
-  assignmentItems AssignmentPuzzle[]
+  attempts           PuzzleAttempt[]
+  liveAssignments    LiveClassPuzzleAssignment[]
+  activityQueueItems LiveClassActivityQueueItem[]
+  courseModules      CourseModule[]
+  assignmentItems    AssignmentPuzzle[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -4812,4 +4814,90 @@ model ChatMessage {
   @@unique([senderId, clientId])
   @@index([conversationId, createdAt])
   @@map("chat_messages")
+}
+
+enum LiveClassActivityQueueStatus {
+  DRAFT
+  LIVE
+  FINISHED
+}
+
+enum LiveClassActivityKind {
+  PUZZLE
+  QUESTION
+  CHAPTER
+}
+
+/// A coach's prepared lesson sequence for one class: drafted (before or during
+/// the class), launched once, and stepped through by the whole class together.
+/// One LIVE queue per class — hand-written partial unique index. Operational
+/// state: not soft-deletable, not Trash-registered.
+model LiveClassActivityQueue {
+  id String @id @default(cuid())
+
+  liveClassId String
+  liveClass   CoachClass @relation(fields: [liveClassId], references: [id], onDelete: Cascade)
+
+  title         String
+  status        LiveClassActivityQueueStatus @default(DRAFT)
+  /// The item the class is on while LIVE. No FK: validated in the service.
+  currentItemId String?
+  /// Client-generated per create, so a retried request returns the same queue.
+  clientId      String?
+  createdById   String?
+  launchedAt    DateTime?
+  finishedAt    DateTime?
+
+  items LiveClassActivityQueueItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([liveClassId, clientId])
+  @@index([liveClassId])
+  @@map("live_class_activity_queues")
+}
+
+/// One step of a queue. It REFERENCES the puzzle / chapter it uses (never a
+/// copy); a QUESTION keeps its own position. When the class reaches it, the
+/// live puzzle share or move poll it produced is linked here, which is what
+/// ties each student's response to this item.
+model LiveClassActivityQueueItem {
+  id String @id @default(cuid())
+
+  queueId String
+  queue   LiveClassActivityQueue @relation(fields: [queueId], references: [id], onDelete: Cascade)
+
+  position Int
+  kind     LiveClassActivityKind
+  title    String
+
+  puzzleId String?
+  puzzle   Puzzle? @relation(fields: [puzzleId], references: [id], onDelete: Cascade)
+
+  /// A chapter of this class's scope. No FK, like the chapter's own puzzleId:
+  /// a deleted chapter just makes the item unavailable.
+  chapterId String?
+
+  fen             String?
+  prompt          String?
+  correctUci      String?
+  durationSeconds Int?
+
+  /// The live puzzle share / move poll this item produced when the class reached
+  /// it. No FK: both belong to the same class, so they go away with the queue.
+  puzzleAssignmentId String? @unique
+  movePollId         String? @unique
+
+  activatedAt     DateTime?
+  completedAt     DateTime?
+  activationError String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([queueId, position])
+  @@index([puzzleId])
+  @@index([chapterId])
+  @@map("live_class_activity_queue_items")
 }

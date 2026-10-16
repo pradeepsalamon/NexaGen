@@ -507,6 +507,29 @@ export class LiveClassService {
       data: { status: ScreenShareRequestStatus.REVOKED, resolvedAt: new Date() },
     });
 
+    // A running activity queue ends with the class: the item the class was on
+    // counts as done, and nothing can advance it any more.
+    try {
+      const running = await this.prisma.liveClassActivityQueue.findFirst({
+        where: { liveClassId: classId, status: "LIVE" },
+        select: { id: true, currentItemId: true },
+      });
+      if (running) {
+        await this.prisma.liveClassActivityQueue.updateMany({
+          where: { id: running.id, status: "LIVE" },
+          data: { currentItemId: null, finishedAt: endedAt, status: "FINISHED" },
+        });
+        if (running.currentItemId) {
+          await this.prisma.liveClassActivityQueueItem.updateMany({
+            where: { id: running.currentItemId, completedAt: null },
+            data: { completedAt: endedAt },
+          });
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to finish the activity queue for class ${classId}`, error);
+    }
+
     try {
       await this.livekit.deleteRoom(roomName);
     } catch (error) {

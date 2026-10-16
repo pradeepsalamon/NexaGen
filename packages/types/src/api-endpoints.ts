@@ -134,6 +134,29 @@ export const API_ROUTES = {
     chapterOrder: (id: string = ":id") => `/live-class/${id}/chapters/order`,
     chapter: (id: string = ":id", chapterId: string = ":chapterId") =>
       `/live-class/${id}/chapters/${chapterId}`,
+    // Activity queue (coach-owner+admin, works before the class starts): GET the
+    // class's queues / POST create; PATCH rename / DELETE a draft or finished one;
+    // POST items (append), PUT the item order, DELETE one item — drafts only;
+    // POST launch / advance / finish (class must be LIVE for launch); GET progress.
+    activityQueues: (id: string = ":id") => `/live-class/${id}/activity-queues`,
+    activityQueue: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}`,
+    activityQueueItems: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}/items`,
+    activityQueueItemOrder: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}/items/order`,
+    activityQueueItem: (id: string = ":id", queueId: string = ":queueId", itemId: string = ":itemId") =>
+      `/live-class/${id}/activity-queues/${queueId}/items/${itemId}`,
+    activityQueueLaunch: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}/launch`,
+    activityQueueAdvance: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}/advance`,
+    activityQueueFinish: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}/finish`,
+    activityQueueProgress: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}/progress`,
+    // Any participant: the running queue as a student may see it (progress only).
+    activityQueueCurrent: (id: string = ":id") => `/live-class/${id}/activity-queue/current`,
     // Interactives (classroom tools): GET every tool's state (any participant).
     tools: (id: string = ":id") => `/live-class/${id}/tools`,
     // Puzzle Storm / Racer: GET the current round (any participant), POST start

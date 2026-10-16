@@ -192,6 +192,16 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
   // Chat: the batch thread and a coach <-> student direct thread.
   const batchChat = await prisma.conversation.create({ data: { batchId: batch.id, type: "BATCH" } });
   await prisma.chatMessage.create({ data: { body: `hello ${label}`, conversationId: batchChat.id, senderId: coach.id } });
+  // A draft activity queue for the live class, holding the coach's private puzzle (coach-only).
+  const activityQueue = await prisma.liveClassActivityQueue.create({
+    data: {
+      createdById: coach.id,
+      items: { create: [{ kind: "PUZZLE", position: 0, puzzleId: privatePuzzle.id, title: privatePuzzle.title }] },
+      liveClassId: liveClass.id,
+      title: `Queue ${label}`
+    }
+  });
+
   const directChat = await prisma.conversation.create({
     data: {
       directKey: coach.id < student.id ? `${coach.id}:${student.id}` : `${student.id}:${coach.id}`,
@@ -201,6 +211,7 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
   });
 
   return {
+    activityQueue,
     assignment,
     attempt,
     batch,

@@ -78,6 +78,14 @@ const CROSS_USER: Case[] = [
   { name: "coach adds a chapter to another class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.chapters(w.b.liveClass.id), body: { clientId: "intruder-0001", state: { arrows: [], fen: "8/8/8/8/8/8/8/K6k w - - 0 1", historyIndex: -1, orientation: "white", pgn: "", squares: {} }, title: "intruder" } },
   { name: "coach renames another batch's chapter through their own class", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.b.chapter.id), body: { title: "hijacked" } },
   { name: "coach deletes another batch's chapter through their own class", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.b.chapter.id) },
+  // Activity queues (coach-owner/admin; a queue id from another class is a 404; students see only their own class's running queue)
+  { name: "coach reads another class's activity queues", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityQueues(w.b.liveClass.id) },
+  { name: "coach reads another class's queue progress through their own class", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityQueueProgress(w.a.liveClass.id, w.b.activityQueue.id) },
+  { name: "coach adds to another class's queue through their own class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.activityQueueItems(w.a.liveClass.id, w.b.activityQueue.id), body: (w: World) => ({ items: [{ kind: "PUZZLE", puzzleId: w.a.privatePuzzle.id }] }) },
+  { name: "coach launches another class's queue through their own class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.activityQueueLaunch(w.a.liveClass.id, w.b.activityQueue.id) },
+  { name: "coach deletes another class's queue", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.liveClass.activityQueue(w.b.liveClass.id, w.b.activityQueue.id) },
+  { name: "coach queues another coach's private puzzle in their own class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.activityQueueItems(w.a.liveClass.id, w.a.activityQueue.id), body: (w: World) => ({ items: [{ kind: "PUZZLE", puzzleId: w.b.privatePuzzle.id }] }) },
+  { name: "student reads another class's running queue", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityQueueCurrent(w.b.liveClass.id) },
   // Game Library
   { name: "student opens another student's game", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.b.game.id) },
   { name: "student opens the board game of a class they didn't attend", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.b.boardGame.id) },
@@ -128,6 +136,9 @@ const OWN_CASES: Case[] = [
   { name: "coach reads own class's Puzzle Storm", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.puzzleRush(w.a.liveClass.id) },
   { name: "coach reads own class's chapters", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
   { name: "coach renames own chapter", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.a.chapter.id), body: { title: "Renamed" } },
+  { name: "coach reads own class's activity queues", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityQueues(w.a.liveClass.id) },
+  { name: "coach reads own queue's progress", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityQueueProgress(w.a.liveClass.id, w.a.activityQueue.id) },
+  { name: "student reads own class's running activity queue", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityQueueCurrent(w.a.liveClass.id) },
   { name: "coach writes own class's classroom tool", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.liveClass.tool(w.a.liveClass.id, "LEGENDS"), body: { state: { storyId: null } } },
   { name: "ADMIN lists every live class (Live Now)", as: (w) => w.admin, path: () => API_ROUTES.adminLiveClasses.list },
   { name: "student opens own game", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.a.game.id) },
@@ -188,6 +199,8 @@ function rushReport(rushId: string) {
 
 const WRONG_ROLE: Case[] = [
   { name: "student reads own class's chapters", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
+  { name: "student lists own class's activity queues", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityQueues(w.a.liveClass.id) },
+  { name: "student launches own class's activity queue", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.activityQueueLaunch(w.a.liveClass.id, w.a.activityQueue.id) },
   { name: "student lists users", as: (w) => w.a.student, path: () => API_ROUTES.users.list },
   { name: "coach lists users", as: (w) => w.a.coach, path: () => API_ROUTES.users.list },
   { name: "student reads admin invoices", as: (w) => w.a.student, path: () => API_ROUTES.adminInvoices.list },
@@ -272,5 +285,8 @@ describe("cross-user access (real app, real Postgres)", () => {
     expect(await t.prisma.liveClassChapter.findMany({ where: { scopeKey: `batch:${b.batch.id}` } })).toEqual([
       expect.objectContaining({ id: b.chapter.id, title: "Chapter B" })
     ]);
+    expect(await t.prisma.liveClassActivityQueue.findUnique({ where: { id: b.activityQueue.id } })).toMatchObject({ status: "DRAFT" });
+    expect(await t.prisma.liveClassActivityQueueItem.count({ where: { queueId: b.activityQueue.id } })).toBe(1);
+    expect(await t.prisma.liveClassActivityQueueItem.count({ where: { puzzleId: b.privatePuzzle.id } })).toBe(1);
   });
 });

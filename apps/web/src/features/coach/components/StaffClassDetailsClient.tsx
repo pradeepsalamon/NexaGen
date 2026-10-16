@@ -18,6 +18,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { LiveClassMonitor } from "@/features/attendance/components/LiveClassMonitor";
 import { EndClassButton } from "@/features/live-class/components/EndClassButton";
 import { useStartLiveClass } from "@/features/live-class/hooks/useLiveClassApi";
+import { ActivityQueueSection } from "@/features/live-class/components/activity-queue/ActivityQueueSection";
 import { LiveClassSettingsSection } from "@/features/live-class/settings/LiveClassSettingsSection";
 import { useNow } from "@/hooks/useNow";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -206,6 +207,8 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
       {isLive && <LiveClassMonitor classId={classId} />}
 
       {(shown === "SCHEDULED" || isLive) && <LiveClassSettingsSection classId={classId} />}
+
+      {(shown === "SCHEDULED" || isLive) && <ActivityQueueSection classId={classId} />}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="p-6">

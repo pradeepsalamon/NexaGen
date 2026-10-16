@@ -6,6 +6,7 @@ import {
   BookOpen,
   Cpu,
   FileText,
+  ListChecks,
   ListOrdered,
   MessageCircleQuestion,
   MessageSquareText,
@@ -26,6 +27,7 @@ import { MeetingChat } from "../MeetingChat";
 import { MeetingParticipants } from "../MeetingParticipants";
 import { MeetingPuzzlePanel } from "../MeetingPuzzlePanel";
 import { MovePollCoachPanel } from "../move-poll/MovePollCoachPanel";
+import { ActivityQueueRoomPanel } from "../../activity-queue/ActivityQueueRoomPanel";
 import { ClassroomVideo } from "./ClassroomVideo";
 
 type TabId =
@@ -34,6 +36,7 @@ type TabId =
   | "people"
   | "puzzles"
   | "response"
+  | "queue"
   | "engine"
   | "pgn"
   | "games";
@@ -52,6 +55,12 @@ const TABS: {
     id: "response",
     label: "Response",
     icon: <MessageCircleQuestion className="size-4" />,
+    coachOnly: true,
+  },
+  {
+    id: "queue",
+    label: "Queue",
+    icon: <ListChecks className="size-4" />,
     coachOnly: true,
   },
   {
@@ -214,6 +223,9 @@ export function ClassroomPanel({
             <div className="h-full overflow-y-auto">
               <MovePollCoachPanel />
             </div>
+          ) : null}
+          {activeTab === "queue" && roomId ? (
+            <ActivityQueueRoomPanel classId={roomId} onOpenResponses={() => setTab("response")} />
           ) : null}
           {activeTab === "engine" ? <StockfishPanel /> : null}
           {activeTab === "pgn" ? (
