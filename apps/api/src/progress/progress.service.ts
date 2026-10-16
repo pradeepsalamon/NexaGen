@@ -13,6 +13,7 @@ import { UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { dateToDay, localDay } from "./progress-recorder.service";
 import { authenticateUser } from "../auth/authenticate";
+import { assertCanViewStudent } from "./student-access";
 
 type AuthenticatedUser = { id: string; role: UserRole };
 
@@ -36,19 +37,7 @@ export class ProgressService {
   /** Admins see any student; a coach only students in a batch they coach. */
   async getForStudent(accessToken: string | undefined, studentId: string): Promise<StudentProgressResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
-    if (user.role === UserRole.STUDENT) {
-      if (user.id !== studentId) throw new ForbiddenException("You can only view your own progress.");
-    } else if (user.role === UserRole.COACH) {
-      const shared = await this.prisma.batchStudent.findFirst({
-        where: {
-          isDeleted: false,
-          studentId,
-          batch: { isDeleted: false, coaches: { some: { coachId: user.id, isDeleted: false } } }
-        },
-        select: { id: true }
-      });
-      if (!shared) throw new ForbiddenException("This student isn't in any of your batches.");
-    }
+    await assertCanViewStudent(this.prisma, user, studentId);
     return this.build(studentId);
   }
 

@@ -2583,6 +2583,7 @@ export * from "./class-requests";
 // Student progress: puzzle rating + practice streak.
 // ──────────────────────────────────────────────
 export * from "./progress";
+export * from "./student-activity";
 
 // ──────────────────────────────────────────────
 // Student dashboard hero: the class live right now, and the featured class

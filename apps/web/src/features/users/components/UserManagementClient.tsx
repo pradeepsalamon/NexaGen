@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { RowSelectionState } from "@tanstack/react-table";
 import {
@@ -10,6 +11,7 @@ import {
   Settings2,
   SlidersHorizontal,
   Trash2,
+  TrendingUp,
   UsersRound
 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -61,6 +63,7 @@ const statusOptions = [
 ];
 
 export function UserManagementClient() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<UserManagementTab>("all");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
@@ -219,6 +222,16 @@ export function UserManagementClient() {
           return (
             <RowActions
               actions={[
+                ...(row.original.role === "STUDENT"
+                  ? [
+                      {
+                        ariaLabel: `View ${name}'s progress and activity history`,
+                        icon: TrendingUp,
+                        label: "Progress & activity",
+                        onSelect: () => router.push(`/admin/students/${row.original.id}`)
+                      }
+                    ]
+                  : []),
                 {
                   ariaLabel: `Edit ${name}`,
                   icon: Pencil,
@@ -255,7 +268,8 @@ export function UserManagementClient() {
       handleArchive,
       handleDelete,
       handleRestore,
-      isRestoring
+      isRestoring,
+      router
     ]
   );
 

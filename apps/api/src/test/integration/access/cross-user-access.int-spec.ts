@@ -21,6 +21,8 @@ const CROSS_USER: Case[] = [
   // Student A reaching student B
   { name: "student opens a class of another batch", as: (w) => w.a.student, path: (w) => API_ROUTES.student.classDetail(w.b.class.id) },
   { name: "student reads another student's progress", as: (w) => w.a.student, path: (w) => API_ROUTES.progress.student(w.b.student.id) },
+  { name: "student reads another student's activity history", as: (w) => w.a.student, path: (w) => API_ROUTES.progress.history(w.b.student.id) },
+  { name: "student reads another student's activity summary", as: (w) => w.a.student, path: (w) => API_ROUTES.progress.summary(w.b.student.id) },
   { name: "student reads another student's attendance", as: (w) => w.a.student, path: (w) => API_ROUTES.attendance.studentById(w.b.student.id) },
   { name: "student reads another student's invoice", as: (w) => w.a.student, path: (w) => API_ROUTES.invoices.get(w.b.invoice.id) },
   { name: "student reads another student's invoice HTML", as: (w) => w.a.student, path: (w) => API_ROUTES.invoices.html(w.b.invoice.id) },
@@ -34,6 +36,8 @@ const CROSS_USER: Case[] = [
   { name: "coach reads another coach's puzzle-set results", as: (w) => w.a.coach, path: (w) => API_ROUTES.assignments.deployment(w.b.setDeployment.id) },
   // Coach A reaching coach B
   { name: "coach reads a student outside their batches (progress)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.student(w.b.student.id) },
+  { name: "coach reads a student outside their batches (activity history)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.history(w.b.student.id) },
+  { name: "coach reads a student outside their batches (activity summary)", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.summary(w.b.student.id) },
   { name: "coach reads another coach's class", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.getClass(w.b.class.id) },
   { name: "coach reads another coach's class details", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.classDetails(w.b.class.id) },
   { name: "coach edits another coach's class notes", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.coach.updateClass(w.b.class.id), body: { notes: "hijacked" } },
@@ -108,6 +112,9 @@ const CROSS_USER: Case[] = [
 
 const OWN_CASES: Case[] = [
   { name: "student reads own progress", as: (w) => w.a.student, path: () => API_ROUTES.progress.mine },
+  { name: "student reads own activity history", as: (w) => w.a.student, path: () => API_ROUTES.progress.historyMine },
+  { name: "student reads own activity history by id", as: (w) => w.a.student, path: (w) => API_ROUTES.progress.history(w.a.student.id) },
+  { name: "student reads own activity summary", as: (w) => w.a.student, path: () => API_ROUTES.progress.summaryMine },
   { name: "student reads own invoice", as: (w) => w.a.student, path: (w) => API_ROUTES.invoices.get(w.a.invoice.id) },
   { name: "student opens own coach's private puzzle", as: (w) => w.a.student, path: (w) => API_ROUTES.puzzles.mineGet(w.a.privatePuzzle.id) },
   { name: "student reads own puzzle attempt", as: (w) => w.a.student, path: (w) => API_ROUTES.puzzles.attempt(w.a.privatePuzzle.id, w.a.attempt.id) },
@@ -120,6 +127,8 @@ const OWN_CASES: Case[] = [
   { name: "coach reads own batch", as: (w) => w.a.coach, path: (w) => API_ROUTES.batches.get(w.a.batch.id) },
   { name: "coach reads own class details", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.classDetails(w.a.class.id) },
   { name: "coach reads own student's progress", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.student(w.a.student.id) },
+  { name: "coach reads own student's activity history", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.history(w.a.student.id) },
+  { name: "coach reads own student's activity summary", as: (w) => w.a.coach, path: (w) => API_ROUTES.progress.summary(w.a.student.id) },
   { name: "coach reads own class", as: (w) => w.a.coach, path: (w) => API_ROUTES.coach.getClass(w.a.class.id) },
   { name: "coach reads own class attendance", as: (w) => w.a.coach, path: (w) => API_ROUTES.attendance.class(w.a.class.id) },
   { name: "coach opens own private puzzle", as: (w) => w.a.coach, path: (w) => API_ROUTES.puzzles.get(w.a.privatePuzzle.id) },

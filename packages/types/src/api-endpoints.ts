@@ -664,7 +664,13 @@ export const API_ROUTES = {
   },
   progress: {
     mine: "/progress/me",
-    student: (id: string = ":id") => `/progress/students/${id}`
+    student: (id: string = ":id") => `/progress/students/${id}`,
+    // Activity history (paged, filtered) + summary/insights. Student: own only;
+    // coach: students in a batch they coach; admin: any student.
+    historyMine: "/progress/me/history",
+    summaryMine: "/progress/me/summary",
+    history: (id: string = ":id") => `/progress/students/${id}/history`,
+    summary: (id: string = ":id") => `/progress/students/${id}/summary`
   },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a

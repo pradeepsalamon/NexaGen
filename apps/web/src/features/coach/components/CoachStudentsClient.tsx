@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState, useEffect } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { TrendingUp, Users } from "lucide-react";
@@ -7,7 +8,6 @@ import type { CoachStudent } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
-import { StudentProgressDialog } from "@/features/progress/components/StudentProgressDialog";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
@@ -22,7 +22,6 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
   const { data: batchesData } = useCoachBatches();
 
   const [search, setSearch] = useState("");
-  const [progressFor, setProgressFor] = useState<{ id: string; name: string } | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<string>(initialBatchId || "ALL");
 
   // Sync state if navigating via Link with different search params
@@ -100,16 +99,16 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
         cell: ({ row }) => {
           const name = `${row.original.firstName} ${row.original.lastName || ""}`.trim();
           return (
-            <SimpleTooltip label="View progress">
+            <SimpleTooltip label="Progress & activity history">
               <Button
-                aria-label={`View ${name}'s progress`}
+                asChild
                 className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
-                onClick={() => setProgressFor({ id: row.original.id, name })}
                 size="icon"
-                type="button"
                 variant="ghost"
               >
-                <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                <Link aria-label={`View ${name}'s progress and activity history`} href={`/coach/students/${row.original.id}`}>
+                  <TrendingUp aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                </Link>
               </Button>
             </SimpleTooltip>
           );
@@ -188,13 +187,6 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
           </>
         )}
       </div>
-      <StudentProgressDialog
-        studentId={progressFor?.id ?? null}
-        studentName={progressFor?.name}
-        onOpenChange={(open) => {
-          if (!open) setProgressFor(null);
-        }}
-      />
     </div>
   );
 }
