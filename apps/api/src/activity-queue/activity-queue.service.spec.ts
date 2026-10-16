@@ -558,6 +558,20 @@ describe("ActivityQueueService", () => {
       expect(Object.keys(progress.cells)).toHaveLength(2);
     });
 
+    it("counts an unfinished attempt with a wrong move as incorrect, and one without as missed", async () => {
+      const { puzzle, queueId } = await runThroughQuestion();
+      // Raj opened puzzle 1 inside its window, played one wrong move and never finished.
+      const assignment = state.assignments.find((a) => a.id === state.items[0].puzzleAssignmentId);
+      state.attempts.push({ hintsUsed: 0, liveClassId: CLASS_ID, puzzleId: "pz-own", startedAt: assignment.startedAt, status: "IN_PROGRESS", student: { firstName: "Raj", id: "student-2", lastName: null }, studentId: "student-2", wrongMoves: 1 });
+      let progress = await service.progress(TOKEN, CLASS_ID, queueId);
+      expect(progress.cells[puzzle.id]["student-2"]).toEqual({ detail: "Unfinished · 1 wrong move", state: "INCORRECT" });
+      expect(progress.respondedCounts[puzzle.id]).toBe(2);
+
+      state.attempts[state.attempts.length - 1].wrongMoves = 0;
+      progress = await service.progress(TOKEN, CLASS_ID, queueId);
+      expect(progress.cells[puzzle.id]["student-2"]).toEqual({ detail: "Unfinished", state: "MISSED" });
+    });
+
     it("is coach-only", async () => {
       const { queueId } = await runThroughQuestion();
       as("student-1");

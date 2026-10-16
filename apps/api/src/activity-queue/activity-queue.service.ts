@@ -749,7 +749,12 @@ export class ActivityQueueService {
     if (rows.some((r) => r.status === "SOLVED")) return { detail, state: "CORRECT" };
     if (open && rows.some((r) => r.status === "IN_PROGRESS")) return { detail, state: "IN_PROGRESS" };
     if (rows.some((r) => r.status === "FAILED" || r.status === "ABANDONED")) return { detail, state: "INCORRECT" };
-    // Only an attempt left open when the puzzle closed.
+    // Only an attempt left open when the puzzle closed: a wrong move is still a
+    // (wrong) answer; an attempt with no wrong move never answered anything.
+    const wrong = rows.reduce((sum, r) => sum + r.wrongMoves, 0);
+    if (wrong > 0) {
+      return { detail: `Unfinished · ${wrong} wrong ${wrong === 1 ? "move" : "moves"}`, state: "INCORRECT" };
+    }
     return { detail: "Unfinished", state: "MISSED" };
   }
 
