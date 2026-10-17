@@ -12,6 +12,9 @@ const optionalUrlSchema = z
 
 const MIN_JWT_SECRET_LENGTH = 32;
 
+// Mirrors the Prisma UserRole enum (this package has no Prisma dependency).
+const MFA_ROLE_NAMES = ["ADMIN", "COACH", "STUDENT", "SUPER_ADMIN"];
+
 const apiEnvSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   FRONTEND_URL: optionalUrlSchema,
@@ -187,13 +190,16 @@ const apiEnvSchema = z.object({
       path: ["JWT_REFRESH_SECRET"]
     });
   }
-  // Without the key, required two-factor would silently switch off.
-  const mfaRequired = env.MFA_REQUIRED_ROLES.split(",").some((role) => role.trim());
+  // Without the key, required two-factor would silently switch off. Same rule as
+  // MfaService's parseRequiredRoles: only real role names count, so NONE opts out.
+  const mfaRequired = env.MFA_REQUIRED_ROLES.split(",").some((role) =>
+    MFA_ROLE_NAMES.includes(role.trim().toUpperCase())
+  );
   if (mfaRequired && !env.MFA_ENCRYPTION_KEY) {
     ctx.addIssue({
       code: "custom",
       message:
-        "MFA_ENCRYPTION_KEY is required in production while MFA_REQUIRED_ROLES is set (set MFA_REQUIRED_ROLES= to opt out).",
+        "MFA_ENCRYPTION_KEY is required in production while MFA_REQUIRED_ROLES names a role (set MFA_REQUIRED_ROLES=NONE to opt out).",
       path: ["MFA_ENCRYPTION_KEY"]
     });
   }
