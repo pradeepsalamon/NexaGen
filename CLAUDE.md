@@ -711,8 +711,29 @@ MFA secret, session/reset token hashes, order idempotency keys and invoice
 storage internals are omitted, and staff actions on other people's records are
 out of scope. **A new model that stores personal data about a user gets a
 section here.** The cross-user suite asserts an export names none of side B's
-ids and no secret field. Account deletion requests and the Privacy/Terms pages
-are planned (audit COMP-001).
+ids and no secret field.
+
+**Account deletion requests** (`account-deletion.service.ts`, Profile → "Delete
+account", admin page `/admin/privacy`, routes `API_ROUTES.privacy.deletionRequest`
+/ `.withdrawDeletionRequest` / `API_ROUTES.adminPrivacy.*`): the user asks with
+their password (400 if wrong, throttled 5/min); a hand-written partial unique
+index allows one `PENDING` `AccountDeletionRequest` per user (P2002 → 409).
+Admins (`ADMIN`/`SUPER_ADMIN`) complete or decline (a decline needs a note); both
+are status-filtered `updateMany` claims, so a double click is a 409.
+**Completing goes through `UserService.deleteAs`** — the same soft delete,
+rank rules and no-self-delete check as Admin → Users — so the account is
+restorable from Trash for 30 days and financial history is kept by the purge.
+The row snapshots email/name/role and its `userId` is `SetNull`, so the record
+that a deletion was honoured outlives the purged account. Admins are emailed
+(`ADMIN_EMAILS`) on a new request and the user on the outcome, best-effort.
+Not soft-deletable, not Trash-registered.
+
+**`/privacy` and `/terms`** are public server pages built from one file,
+`features/legal/content.ts`. Its factual sections (what is collected, who it
+is shared with, retention) must stay true to the code — **a feature that
+stores new personal data or adds a processor updates it**. Sections with
+`pending` are placeholders for reviewed legal wording; while `LEGAL_DRAFT` is
+true the pages show a draft banner and are `noindex`.
 
 ### 3.7 Live class / LiveKit
 
