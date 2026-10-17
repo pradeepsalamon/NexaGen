@@ -107,6 +107,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "People" },
   { href: "/admin/messaging", label: "Messages", icon: MessageSquare, group: "People" },
   { href: "/admin/feedback", label: "Coach Feedback", icon: MessageSquareHeart, group: "People" },
+  { href: "/admin/privacy", label: "Privacy", icon: ShieldCheck, group: "People" },
   // Classes & scheduling
   { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Classes" },
   { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Classes" },

@@ -322,6 +322,54 @@ export class MailService {
     });
   }
 
+  async sendAccountDeletionRequested(input: { email: string; name: string; reason: string | null; role: string }) {
+    const recipients = getAdminNotificationEmails(this.env);
+    if (recipients.length === 0) {
+      this.logger.warn("Skipped account-deletion notification: ADMIN_EMAILS is unset.");
+      return;
+    }
+
+    await this.createTransporter().sendMail({
+      from: this.from,
+      to: recipients.join(","),
+      subject: `Account deletion requested: ${input.name}`,
+      text: [
+        `${input.name} (${input.email}, ${input.role}) asked for their account to be deleted.`,
+        `Reason: ${input.reason || "-"}`,
+        "",
+        "Review it in Admin → Privacy."
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>Account deletion requested</h2>
+          <p>${escapeHtml(input.name)} (${escapeHtml(input.email)}, ${escapeHtml(input.role)}) asked for their account to be deleted.</p>
+          <p><strong>Reason:</strong> ${escapeHtml(input.reason || "-")}</p>
+          <p>Review it in Admin → Privacy.</p>
+        </div>
+      `
+    });
+  }
+
+  async sendAccountDeletionResolved(input: { completed: boolean; email: string; note: string | null }) {
+    const subject = input.completed ? "Your account has been deleted" : "About your account deletion request";
+    const body = input.completed
+      ? "As you asked, your Nexa Chess account has been deleted. Invoices and payment records are kept as the law requires."
+      : "Your request to delete your Nexa Chess account was not completed.";
+
+    await this.createTransporter().sendMail({
+      from: this.from,
+      to: input.email,
+      subject,
+      text: input.note ? `${body}\n\nNote from the academy: ${input.note}` : body,
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <p>${escapeHtml(body)}</p>
+          ${input.note ? `<p><strong>Note from the academy:</strong> ${escapeHtml(input.note)}</p>` : ""}
+        </div>
+      `
+    });
+  }
+
   private createTransporter() {
     if (!this.host || !this.user || !this.pass || !this.from) {
       throw new ServiceUnavailableException("SMTP is not configured.");

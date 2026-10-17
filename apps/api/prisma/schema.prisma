@@ -250,17 +250,17 @@ model User {
 
   isEmailVerified Boolean @default(false)
 
-  emailVerifiedAt DateTime?
-  lastLoginAt     DateTime?
+  emailVerifiedAt     DateTime?
+  lastLoginAt         DateTime?
   // Wrong passwords since the last sign-in; the Nth sets loginLockedUntil.
   failedLoginAttempts Int       @default(0)
   loginLockedUntil    DateTime?
   // Throttled recency signal (updated at most once / 10 min by ActivityTrackingInterceptor).
   // Null = never seen since the feature shipped; analytics treats it as "unknown", not inactive.
-  lastActiveAt    DateTime?
+  lastActiveAt        DateTime?
   // In-app presence: bumped by the web app's /presence/heartbeat (~15s) while
   // any tab is open. "Online" = seen within the last minute.
-  lastSeenAt      DateTime?
+  lastSeenAt          DateTime?
 
   // ── Acquisition attribution (captured at registration; see analytics module) ──
   acquisitionSource AcquisitionSource @default(UNKNOWN)
@@ -368,6 +368,8 @@ model User {
   // ── Coach payroll ──
   cancelledClasses                 CoachClass[]               @relation("ClassCancelledBy")
   invitedDemoRegistrations         DemoClassRegistration[]    @relation("DemoRegistrationInvitedBy")
+  accountDeletionRequests          AccountDeletionRequest[]   @relation("AccountDeletionRequester")
+  reviewedAccountDeletionRequests  AccountDeletionRequest[]   @relation("AccountDeletionReviewer")
   coachedDemoSchedules             DemoSchedule[]             @relation("DemoScheduleCoach")
   createdDemoSchedules             DemoSchedule[]             @relation("DemoScheduleCreatedBy")
   coachCompensationProfile         CoachCompensationProfile?  @relation("CoachCompensationProfile")
@@ -4401,4 +4403,39 @@ model LichessCatalogueRelease {
   loadCompletedAt DateTime? // null = load in progress or interrupted
 
   @@map("lichess_catalogue_releases")
+}
+
+enum AccountDeletionStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+  WITHDRAWN
+}
+
+/// A user asking for their account to be deleted. An admin completes it through
+/// the ordinary user soft-delete (financial history is kept). userId is nulled,
+/// not cascaded, when the purge removes the user, so the record that the
+/// request was honoured outlives the account; the snapshot says whose it was.
+model AccountDeletionRequest {
+  id     String                @id @default(cuid())
+  status AccountDeletionStatus @default(PENDING)
+
+  userId    String?
+  user      User?    @relation("AccountDeletionRequester", fields: [userId], references: [id], onDelete: SetNull)
+  userEmail String
+  userName  String
+  userRole  UserRole
+  reason    String?
+
+  reviewedById String?
+  reviewedBy   User?     @relation("AccountDeletionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([userId])
+  @@map("account_deletion_requests")
 }

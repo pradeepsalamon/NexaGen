@@ -140,6 +140,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.studentActivity;
   }
 
+  get accountDeletionRequest() {
+    return this.client.accountDeletionRequest;
+  }
+
   get announcement() {
     return this.client.announcement;
   }

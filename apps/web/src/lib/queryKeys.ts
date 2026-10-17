@@ -218,6 +218,11 @@ export const queryKeys = {
     all: ["class-requests"] as const,
     list: (status?: string) => ["class-requests", "list", status ?? "all"] as const,
   },
+  privacy: {
+    all: ["privacy"] as const,
+    myDeletionRequest: ["privacy", "deletion-request", "me"] as const,
+    deletionRequests: ["privacy", "deletion-requests"] as const,
+  },
   progress: {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,

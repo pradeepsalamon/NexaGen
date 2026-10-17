@@ -344,7 +344,11 @@ export class UserService {
   }
 
   async delete(accessToken: string | undefined, id: string): Promise<{ ok: true }> {
-    const authUser = await this.getAuthenticatedUser(accessToken);
+    return this.deleteAs(await this.getAuthenticatedUser(accessToken), id);
+  }
+
+  /** The one way a user is soft-deleted, also used to complete a deletion request. */
+  async deleteAs(authUser: AuthenticatedUser, id: string): Promise<{ ok: true }> {
     this.assertCanManageUsers(authUser);
 
     const userToDelete = await this.prisma.user.findUnique({
