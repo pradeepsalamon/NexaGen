@@ -121,6 +121,8 @@ jobs:
       (needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true') &&
       needs.pr-ci.outputs.passed != 'true'
     uses: ./.github/workflows/ci.yml
+    with:
+      skip_migrations: ${{ needs.detect-changes.outputs.api != 'true' }}
 
   deploy:
     needs: [detect-changes, pr-ci, verify]
