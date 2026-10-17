@@ -355,6 +355,8 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    await this.assertBatchExists(batchId);
+
     const batch = await this.prisma.batch.update({
       data: { status: BatchStatus.ARCHIVED },
       include: batchInclude,
@@ -371,6 +373,8 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    await this.assertBatchExists(batchId);
+
     const batch = await this.prisma.batch.update({
       data: { status: BatchStatus.ACTIVE },
       include: batchInclude,
@@ -384,6 +388,8 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    await this.assertBatchExists(batchId);
+
     // Retire the batch together with its coach/student assignments in one group
     // so a later restore brings the roster back too (AUDIT M13).
     await this.prisma.$transaction((transaction) =>
@@ -391,6 +397,11 @@ export class BatchService {
     );
 
     return { ok: true };
+  }
+
+  private async assertBatchExists(batchId: string) {
+    const batch = await this.prisma.batch.findUnique({ select: { id: true }, where: { id: batchId } });
+    if (!batch) throw new NotFoundException("Batch not found.");
   }
 
   private getAuthenticatedUser(accessToken: string | undefined) {

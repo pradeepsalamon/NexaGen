@@ -171,12 +171,16 @@ export class BackupService {
       
       // pg_dump (libpq) rejects Prisma-specific query params like ?schema=public
       // So we strip all query parameters before passing it to pg_dump
-      const cleanDbUrl = dbUrl.split('?')[0];
-      
+      const cleanDbUrl = new URL(dbUrl.split('?')[0]);
+      // The password goes in PGPASSWORD, not the command line: a failed exec's
+      // error message echoes the command into the logs, and `ps` shows it too.
+      const password = decodeURIComponent(cleanDbUrl.password);
+      cleanDbUrl.password = '';
+
       // Use bash with pipefail so if pg_dump fails, the entire command fails
-      const pgDumpCommand = `/bin/bash -c "set -o pipefail; pg_dump ${PG_DUMP_EXCLUDE_ARGS} \\"${cleanDbUrl}\\" | gzip > ${backupFilePath}"`;
-      
-      await execAsync(pgDumpCommand);
+      const pgDumpCommand = `/bin/bash -c "set -o pipefail; pg_dump ${PG_DUMP_EXCLUDE_ARGS} \\"${cleanDbUrl.toString()}\\" | gzip > ${backupFilePath}"`;
+
+      await execAsync(pgDumpCommand, { env: { ...process.env, PGPASSWORD: password } });
       this.logger.log('Database dump completed. Uploading to OCI Object Storage...');
 
       // Use readFileSync (Buffer) instead of createReadStream.

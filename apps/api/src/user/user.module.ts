@@ -9,6 +9,7 @@ import { MessagingModule } from "../messaging/messaging.module";
 @Module({
   controllers: [UserController],
   imports: [JwtModule.register({}), MessagingModule, PrismaModule, TrashModule],
-  providers: [UserService]
+  providers: [UserService],
+  exports: [UserService]
 })
 export class UserModule { }

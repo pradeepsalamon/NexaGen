@@ -49,3 +49,5 @@ scripts/perf/out/
 
 # pdf.js browser build, copied from node_modules by apps/web/scripts/copy-pdfjs.mjs
 apps/web/public/vendor/pdfjs/
+# Local E2E secrets (template: .env.e2e.example)
+.env.e2e

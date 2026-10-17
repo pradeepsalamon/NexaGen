@@ -377,7 +377,7 @@ export class AdminService {
    */
   private buildClassListWhere(
     isDemo: boolean,
-    status: string | undefined,
+    status: unknown,
     search: string
   ): Prisma.CoachClassWhereInput {
     const where: Prisma.CoachClassWhereInput = { isDemo };

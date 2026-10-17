@@ -22,6 +22,7 @@ import {
   type UpdateBatchScheduleRequest
 } from "@nexa-chess/types";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { optionalQueryString } from "../common/query-params";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { BatchScheduleService } from "./batch-schedule.service";
 
@@ -34,18 +35,22 @@ export class BatchScheduleController {
   }
 
   @Get(API_ROUTES.batchSchedules.list)
-  list(@Req() request: Request, @Query("batchId") batchId?: string) {
-    return this.service.list(this.token(request), batchId);
+  list(@Req() request: Request, @Query("batchId") batchId?: unknown) {
+    return this.service.list(this.token(request), optionalQueryString(batchId, "batchId"));
   }
 
   @Get(API_ROUTES.batchSchedules.calendar)
   calendar(
     @Req() request: Request,
-    @Query("from") from?: string,
-    @Query("to") to?: string,
-    @Query("batchId") batchId?: string
+    @Query("from") from?: unknown,
+    @Query("to") to?: unknown,
+    @Query("batchId") batchId?: unknown
   ) {
-    return this.service.calendar(this.token(request), { from, to, batchId });
+    return this.service.calendar(this.token(request), {
+      batchId: optionalQueryString(batchId, "batchId"),
+      from: optionalQueryString(from, "from"),
+      to: optionalQueryString(to, "to")
+    });
   }
 
   @Post(API_ROUTES.batchSchedules.preview)

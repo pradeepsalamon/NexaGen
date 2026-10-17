@@ -1,4 +1,11 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+
+// Local-only secrets for the specs (never committed; see .env.e2e.example).
+// Variables already set in the shell win.
+const e2eEnvFile = join(process.cwd(), ".env.e2e");
+if (existsSync(e2eEnvFile)) process.loadEnvFile(e2eEnvFile);
 
 export default defineConfig({
   testDir: "./e2e",

@@ -242,6 +242,8 @@ export const updateProfileRequestSchema = z.object({
       yearsOfExperience: z.number().int().min(0).max(80).optional()
     })
     .optional(),
+  /** Required only when `email` changes. */
+  currentPassword: z.string().max(200).optional(),
   email: z.string().email("Enter a valid email address.").max(255),
   firstName: z.string().min(1, "First name is required.").max(120),
   lastName: z.string().max(120).optional(),
@@ -2675,3 +2677,8 @@ export type StudentClassDetailResponse = { class: StudentClassDetail };
 // In-app presence + coach "pull a student into class".
 // ──────────────────────────────────────────────
 export * from "./presence";
+
+// ──────────────────────────────────────────────
+// Privacy: personal data export (and, later, account deletion requests).
+// ──────────────────────────────────────────────
+export * from "./privacy";

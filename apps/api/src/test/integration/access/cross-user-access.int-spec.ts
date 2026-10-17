@@ -215,7 +215,9 @@ const LIST_CASES: Case[] = [
   { name: "coach's assignment overview", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.overview },
   { name: "student's revision report", as: (w) => w.a.student, path: () => API_ROUTES.revision.reportMine },
   { name: "coach's view of own student's revision", as: (w) => w.a.coach, path: (w) => API_ROUTES.revision.student(w.a.student.id) },
-  { name: "coach's assignment overview filtered to another coach's batch", as: (w) => w.a.coach, path: (w) => `${API_ROUTES.assignments.overview}?batchId=${w.b.batch.id}` }
+  { name: "coach's assignment overview filtered to another coach's batch", as: (w) => w.a.coach, path: (w) => `${API_ROUTES.assignments.overview}?batchId=${w.b.batch.id}` },
+  { name: "student's personal data export", as: (w) => w.a.student, path: () => API_ROUTES.privacy.dataExport },
+  { name: "coach's personal data export", as: (w) => w.a.coach, path: () => API_ROUTES.privacy.dataExport }
 ];
 
 function rushReport(rushId: string) {
@@ -305,6 +307,17 @@ describe("cross-user access (real app, real Postgres)", () => {
   it.each(WRONG_ROLE.map((c) => [c.name, c] as const))("forbids: %s", async (_name, c) => {
     const res = await run(c);
     expect({ path: c.path(w), status: res.status }).toEqual({ path: c.path(w), status: 403 });
+  });
+
+  it.each([["student"], ["coach"]] as const)("a %s's data export carries their own rows and no secrets", async (role) => {
+    const res = await t.call(w.a[role], "GET", API_ROUTES.privacy.dataExport);
+    expect(res.status).toBe(200);
+    const text = JSON.stringify(res.body);
+    const own = role === "student" ? [w.a.student.id, w.a.invoice.id, w.a.attempt.id] : [w.a.coach.id, w.a.class.id];
+    for (const id of own) expect(text).toContain(id);
+    for (const secret of ["password", "refreshTokenHash", "tokenHash", "secret", "idempotencyKey"]) {
+      expect(text).not.toContain(`"${secret}"`);
+    }
   });
 
   it("the cross-user writes above changed nothing", async () => {

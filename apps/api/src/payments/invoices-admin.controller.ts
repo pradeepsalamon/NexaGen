@@ -20,6 +20,7 @@ import {
   PAYMENT_SOURCE_LABELS,
   retryInvoicePdfRequestSchema,
   updateInvoiceSettingsRequestSchema,
+  type AdminInvoiceQuery,
   type CreateCreditNoteRequest,
   type InvoiceItem,
   type RetryInvoicePdfRequest,
@@ -27,7 +28,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreditNoteService } from "./credit-note.service";
 import { InvoiceAuditService } from "./invoice-audit.service";
@@ -61,21 +62,24 @@ export class InvoicesAdminController {
   // ── Listing ──
 
   @Get(API_ROUTES.adminInvoices.list)
-  async list(@Query() query: Record<string, string>, @Req() request: Request) {
+  async list(
+    @Query(new ZodBodyPipe(adminInvoiceQuerySchema)) query: AdminInvoiceQuery,
+    @Req() request: Request
+  ) {
     const admin = await this.admin(request);
-    return this.invoices.listAdmin(admin, parseOrBadRequest(adminInvoiceQuerySchema, query));
+    return this.invoices.listAdmin(admin, query);
   }
 
   @Get(API_ROUTES.adminInvoices.export)
   async export(
-    @Query() query: Record<string, string>,
+    @Query(new ZodBodyPipe(adminInvoiceQuerySchema)) query: AdminInvoiceQuery,
     @Req() request: Request,
     @Res() response: Response
   ) {
     const admin = await this.admin(request);
     const invoices = await this.invoices.listAdminAll(
       admin,
-      parseOrBadRequest(adminInvoiceQuerySchema, query)
+      query
     );
 
     response.setHeader("Content-Type", "text/csv; charset=utf-8");

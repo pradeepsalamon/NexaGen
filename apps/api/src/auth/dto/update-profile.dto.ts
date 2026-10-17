@@ -120,6 +120,11 @@ export class UpdateProfileDto implements UpdateProfileRequest {
   @Type(() => UpdateCoachProfileDto)
   coachProfile?: UpdateCoachProfileDto;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  currentPassword?: string;
+
   @IsEmail()
   @MaxLength(255)
   email!: string;

@@ -82,6 +82,10 @@ export class CompensationProfileService {
     dto: UpdateCompensationProfileRequest
   ): Promise<CompensationProfileItem> {
     const existing = await this.prisma.coachCompensationProfile.findUnique({ where: { coachId } });
+    if (!existing) {
+      const coach = await this.prisma.user.findFirst({ select: { id: true }, where: { id: coachId, role: "COACH" } });
+      if (!coach) throw new NotFoundException("Coach not found.");
+    }
 
     const profile = existing
       ? await this.prisma.coachCompensationProfile.update({

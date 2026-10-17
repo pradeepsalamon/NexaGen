@@ -485,8 +485,8 @@ export class AttendanceReportService {
       throw new ForbiddenException("Admin access required.");
     }
 
-    const page = filters.page || 1;
-    const limit = Math.min(filters.limit || 20, 100);
+    const page = Math.max(filters.page || 1, 1);
+    const limit = Math.min(Math.max(filters.limit || 20, 1), 100);
     const skip = (page - 1) * limit;
 
     const where: any = {

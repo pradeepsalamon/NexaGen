@@ -1,7 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
+  Logger,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -34,6 +37,7 @@ import type {
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
+import { isProfileImageUrl } from "../upload/upload.service";
 import type {
   AccessTokenPayload,
   RefreshTokenPayload,
@@ -71,11 +75,16 @@ type UserWithProfiles = User & {
   studentProfile?: StudentProfile | null;
 };
 
+/** Wrong passwords per account before sign-in locks; per IP limits miss spread-out guessing. */
+export const LOGIN_MAX_FAILED_ATTEMPTS = 10;
+export const LOGIN_LOCKOUT_MS = 15 * 60_000;
+
 const dummyPasswordHash =
   "$2b$12$7Hb149Y.levymTZlxpT3M.52k1w61HGHtm49NErn1svp4nVrPi9nO";
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly env = getApiEnv();
   private readonly accessSecret = this.env.JWT_ACCESS_SECRET;
   private readonly refreshSecret = this.env.JWT_REFRESH_SECRET;
@@ -277,14 +286,32 @@ export class AuthService {
       include: { coachProfile: true, studentProfile: true },
       where: { email: payload.email.toLowerCase() }
     });
+    // Locked even for the right password, or the guessing would simply go on.
+    if (user?.loginLockedUntil && user.loginLockedUntil.getTime() > Date.now()) {
+      await this.waitForLoginResponseDelay(startedAt);
+      const minutes = Math.ceil((user.loginLockedUntil.getTime() - Date.now()) / 60_000);
+      throw new HttpException(
+        `Too many failed sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}, or reset your password.`,
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+
     const passwordMatches = await verifySecret(
       payload.password,
       user?.password ?? dummyPasswordHash
     );
 
     if (!user || !passwordMatches) {
+      if (user) await this.recordLoginFailure(user.id);
       await this.waitForLoginResponseDelay(startedAt);
       throw new UnauthorizedException("Invalid email or password.");
+    }
+
+    if (user.failedLoginAttempts > 0) {
+      await this.prisma.user.update({
+        data: { failedLoginAttempts: 0, loginLockedUntil: null },
+        where: { id: user.id }
+      });
     }
 
     // A coach is only usable once an admin has approved the application; check
@@ -392,11 +419,20 @@ export class AuthService {
         expiresAt: { gt: new Date() },
         id: payload.sessionId,
         userId: payload.sub,
-        user: { isDeleted: false }
+        // A suspended or deactivated account must not keep minting sessions.
+        user: { isDeleted: false, status: UserStatus.ACTIVE }
       }
     });
 
     if (!session || !(await refreshTokenMatches(refreshToken, session.refreshTokenHash))) {
+      throw new UnauthorizedException("Session expired.");
+    }
+
+    // Same gate as login: a coach whose approval was withdrawn is signed out.
+    if (
+      session.user.role === UserRole.COACH &&
+      session.user.coachProfile?.approvalStatus !== UserStatus.ACTIVE
+    ) {
       throw new UnauthorizedException("Session expired.");
     }
 
@@ -501,19 +537,42 @@ export class AuthService {
       throw new UnauthorizedException("Access token is missing.");
     }
 
+    const tokenPayload = await this.verifyAccessToken(accessToken);
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken, {
       include: { coachProfile: true, studentProfile: true }
     });
 
+    if (!user || user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException("Invalid session.");
+    }
+
+    const avatarUrl = this.toNullableString(payload.avatarUrl);
+    // An unchanged legacy URL still saves, so old profiles aren't stuck.
+    if (avatarUrl && avatarUrl !== user.avatarUrl && !isProfileImageUrl(avatarUrl)) {
+      throw new BadRequestException("Profile picture must be uploaded through the app.");
+    }
+
     const email = payload.email.toLowerCase().trim();
     const username = this.toNullableString(payload.username);
+    const emailChanged = email !== user.email.toLowerCase();
+
+    // The email is what password reset trusts, so a stolen session alone must
+    // not be enough to move it. 400, not 401, so the client doesn't refresh-retry.
+    if (emailChanged) {
+      if (!payload.currentPassword) {
+        throw new BadRequestException("Enter your current password to change your email.");
+      }
+      if (!(await verifySecret(payload.currentPassword, user.password))) {
+        throw new BadRequestException("Current password is incorrect.");
+      }
+    }
 
     await this.assertUniqueProfileIdentity(user.id, email, username);
 
     const updatedUser = await this.prisma.$transaction(async (transaction) => {
       await transaction.user.update({
         data: {
-          avatarUrl: this.toNullableString(payload.avatarUrl),
+          avatarUrl,
           email,
           firstName: payload.firstName.trim(),
           lastName: this.toNullableString(payload.lastName),
@@ -577,7 +636,51 @@ export class AuthService {
       });
     });
 
+    if (emailChanged) {
+      await this.revokeOtherSessions(user.id, tokenPayload.sessionId);
+      // Best effort: a missing SMTP config must not undo a saved change.
+      this.mailService.sendEmailChangedNotice(user.email, email).catch((error: unknown) => {
+        this.logger.warn(`Could not send email-change notice to user ${user.id}: ${String(error)}`);
+      });
+    }
+
     return { user: this.toAuthUser(updatedUser) };
+  }
+
+  /** Counts a wrong password against the account; the Nth one locks sign-in. */
+  private async recordLoginFailure(userId: string) {
+    const { failedLoginAttempts } = await this.prisma.user.update({
+      data: { failedLoginAttempts: { increment: 1 } },
+      select: { failedLoginAttempts: true },
+      where: { id: userId }
+    });
+    if (failedLoginAttempts < LOGIN_MAX_FAILED_ATTEMPTS) return;
+
+    await this.prisma.user.update({
+      data: { failedLoginAttempts: 0, loginLockedUntil: new Date(Date.now() + LOGIN_LOCKOUT_MS) },
+      where: { id: userId }
+    });
+    this.logger.warn(`Sign-in locked for user ${userId} after ${failedLoginAttempts} failed attempts.`);
+  }
+
+  /** Signs every other device out, keeping the session the request came from. */
+  private async revokeOtherSessions(userId: string, currentSessionId: string) {
+    const current = await this.prisma.authSession.findFirst({
+      select: { familyId: true, id: true },
+      where: { id: currentSessionId, userId }
+    });
+    const familyId = current ? (current.familyId ?? current.id) : null;
+
+    await this.prisma.authSession.updateMany({
+      data: { revokedAt: new Date() },
+      where: {
+        userId,
+        revokedAt: null,
+        ...(familyId
+          ? { NOT: { OR: [{ id: familyId }, { familyId }] } }
+          : {})
+      }
+    });
   }
 
   async forgotPassword(email: string): Promise<ForgotPasswordResponse> {
@@ -695,20 +798,29 @@ export class AuthService {
       throw new BadRequestException("Reset token is invalid or expired.");
     }
 
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        data: { password: await hashSecret(payload.password) },
-        where: { id: token.userId }
-      }),
-      this.prisma.passwordResetToken.update({
+    const password = await hashSecret(payload.password);
+
+    await this.prisma.$transaction(async (tx) => {
+      // Claim the token conditionally so two concurrent resets can't both use it.
+      const claimed = await tx.passwordResetToken.updateMany({
         data: { usedAt: new Date() },
-        where: { id: token.id }
-      }),
-      this.prisma.authSession.updateMany({
+        where: { id: token.id, usedAt: null }
+      });
+
+      if (claimed.count === 0) {
+        throw new BadRequestException("Reset token is invalid or expired.");
+      }
+
+      await tx.user.update({
+        // Proving control of the email is the way out of a login lock.
+        data: { failedLoginAttempts: 0, loginLockedUntil: null, password },
+        where: { id: token.userId }
+      });
+      await tx.authSession.updateMany({
         data: { revokedAt: new Date() },
         where: { userId: token.userId, revokedAt: null }
-      })
-    ]);
+      });
+    });
 
     return { message: "Password reset successfully." };
   }

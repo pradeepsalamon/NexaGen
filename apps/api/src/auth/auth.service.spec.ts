@@ -1,6 +1,9 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import {
+  BadRequestException,
   ConflictException,
+  HttpStatus,
+  type HttpException,
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
@@ -10,7 +13,7 @@ import {
   UserRole,
   UserStatus
 } from "@prisma/client";
-import { AuthService } from "./auth.service";
+import { AuthService, LOGIN_MAX_FAILED_ATTEMPTS } from "./auth.service";
 import { hashRefreshToken, hashSecret } from "./auth.utils";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import type { LoginOutcome } from "./auth.service";
@@ -23,6 +26,7 @@ type MockPrismaService = {
     create: jest.Mock;
     deleteMany: jest.Mock;
     findFirst: jest.Mock;
+    findUnique: jest.Mock;
     update: jest.Mock;
     updateMany: jest.Mock;
   };
@@ -34,6 +38,7 @@ type MockPrismaService = {
     create: jest.Mock;
     findFirst: jest.Mock;
     update: jest.Mock;
+    updateMany: jest.Mock;
   };
   studentProfile: {
     create: jest.Mock;
@@ -56,7 +61,7 @@ type MockPrismaService = {
 describe("AuthService", () => {
   let service: AuthService;
   let jwtService: { signAsync: jest.Mock; verifyAsync: jest.Mock };
-  let mailService: { sendPasswordResetLink: jest.Mock };
+  let mailService: { sendPasswordResetLink: jest.Mock; sendEmailChangedNotice: jest.Mock };
   let prismaService: MockPrismaService;
   let analyticsEvents: { record: jest.Mock };
   let mfaService: { loginChallenge: jest.Mock };
@@ -76,7 +81,8 @@ describe("AuthService", () => {
     mfaService = { loginChallenge: jest.fn().mockResolvedValue(null) };
 
     mailService = {
-      sendPasswordResetLink: jest.fn()
+      sendPasswordResetLink: jest.fn(),
+      sendEmailChangedNotice: jest.fn().mockResolvedValue(undefined)
     };
 
     // `withDeleted` is the same Prisma client with the soft-delete filter
@@ -94,6 +100,7 @@ describe("AuthService", () => {
         create: jest.fn(),
         deleteMany: jest.fn(),
         findFirst: jest.fn(),
+        findUnique: jest.fn(),
         update: jest.fn(),
         updateMany: jest.fn()
       },
@@ -104,7 +111,8 @@ describe("AuthService", () => {
       passwordResetToken: {
         create: jest.fn(),
         findFirst: jest.fn(),
-        update: jest.fn()
+        update: jest.fn(),
+        updateMany: jest.fn()
       },
       studentProfile: {
         create: jest.fn(),
@@ -273,6 +281,74 @@ describe("AuthService", () => {
       expect(analyticsEvents.record).toHaveBeenCalledWith("usr-123", "LOGIN");
     });
 
+    describe("per-account lockout", () => {
+      const password = "password123";
+
+      it("counts a wrong password against the account", async () => {
+        prismaService.user.findUnique.mockResolvedValueOnce({
+          ...activeUser,
+          password: await hashSecret(password)
+        });
+        prismaService.user.update.mockResolvedValueOnce({ failedLoginAttempts: 1 });
+
+        await expect(
+          service.login({ email: activeUser.email, password: "wrong" }, {})
+        ).rejects.toThrow(UnauthorizedException);
+        expect(prismaService.user.update).toHaveBeenCalledWith(
+          expect.objectContaining({ data: { failedLoginAttempts: { increment: 1 } } })
+        );
+      });
+
+      it("locks sign-in on the Nth wrong password", async () => {
+        prismaService.user.findUnique.mockResolvedValueOnce({
+          ...activeUser,
+          password: await hashSecret(password)
+        });
+        prismaService.user.update.mockResolvedValueOnce({
+          failedLoginAttempts: LOGIN_MAX_FAILED_ATTEMPTS
+        });
+
+        await expect(
+          service.login({ email: activeUser.email, password: "wrong" }, {})
+        ).rejects.toThrow(UnauthorizedException);
+        expect(prismaService.user.update).toHaveBeenLastCalledWith({
+          data: { failedLoginAttempts: 0, loginLockedUntil: expect.any(Date) },
+          where: { id: "usr-123" }
+        });
+      });
+
+      it("refuses even the right password while locked, without creating a session", async () => {
+        prismaService.user.findUnique.mockResolvedValueOnce({
+          ...activeUser,
+          loginLockedUntil: new Date(Date.now() + 10 * 60_000),
+          password: await hashSecret(password)
+        });
+
+        const error = (await service
+          .login({ email: activeUser.email, password }, {})
+          .catch((caught: unknown) => caught)) as HttpException;
+
+        expect(error.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+        expect(prismaService.authSession.create).not.toHaveBeenCalled();
+      });
+
+      it("clears the count once the right password is given", async () => {
+        prismaService.user.findUnique.mockResolvedValueOnce({
+          ...activeUser,
+          failedLoginAttempts: 3,
+          password: await hashSecret(password)
+        });
+        mfaService.loginChallenge.mockResolvedValueOnce({ challengeToken: "c", mfaRequired: "VERIFY" });
+
+        await service.login({ email: activeUser.email, password }, {});
+
+        expect(prismaService.user.update).toHaveBeenCalledWith({
+          data: { failedLoginAttempts: 0, loginLockedUntil: null },
+          where: { id: "usr-123" }
+        });
+      });
+    });
+
     it("stops at the second factor without creating a session", async () => {
       const password = "password123";
       prismaService.user.findUnique.mockResolvedValueOnce({
@@ -331,6 +407,35 @@ describe("AuthService", () => {
       expect(prismaService.authSession.update.mock.calls[0][0].data.refreshTokenHash).toBe(
         hashRefreshToken("mocked-token")
       );
+    });
+
+    it("only looks up sessions of active, undeleted accounts", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(null);
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
+      expect(prismaService.authSession.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            user: { isDeleted: false, status: UserStatus.ACTIVE }
+          })
+        })
+      );
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
+    });
+
+    it("signs out a coach whose approval was withdrawn", async () => {
+      prismaService.authSession.findFirst.mockResolvedValueOnce(
+        liveSession({
+          user: {
+            ...activeUser,
+            coachProfile: { approvalStatus: UserStatus.PENDING },
+            role: UserRole.COACH
+          }
+        })
+      );
+
+      await expect(service.refresh(REFRESH_TOKEN, {})).rejects.toThrow(UnauthorizedException);
+      expect(prismaService.authSession.create).not.toHaveBeenCalled();
     });
 
     it("re-issues within the grace window when the token was just rotated", async () => {
@@ -519,6 +624,108 @@ describe("AuthService", () => {
     });
   });
 
+  describe("updateProfile", () => {
+    const profile = { email: "test@example.com", firstName: "John" };
+
+    beforeEach(async () => {
+      jwtService.verifyAsync.mockResolvedValue({ sessionId: "sess-1", sub: "usr-123", type: "access" });
+      prismaService.user.findUnique
+        .mockResolvedValueOnce({ ...activeUser, password: await hashSecret("password123") })
+        .mockResolvedValue(null);
+      prismaService.user.findUniqueOrThrow.mockImplementation(() =>
+        Promise.resolve({ ...activeUser, email: "new@example.com" })
+      );
+      prismaService.$transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
+        callback(prismaService)
+      );
+      prismaService.authSession.findFirst.mockResolvedValue({ familyId: "fam-1", id: "sess-1" });
+      prismaService.authSession.findUnique.mockResolvedValue({ revokedAt: null, userId: "usr-123" });
+      prismaService.authSession.updateMany.mockResolvedValue({ count: 2 });
+    });
+
+    it("saves other fields without asking for the password when the email is unchanged", async () => {
+      await service.updateProfile("access-token", { ...profile, email: "TEST@example.com" });
+
+      expect(prismaService.user.update).toHaveBeenCalled();
+      expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
+      expect(mailService.sendEmailChangedNotice).not.toHaveBeenCalled();
+    });
+
+    it("refuses an email change without the current password", async () => {
+      await expect(
+        service.updateProfile("access-token", { ...profile, email: "new@example.com" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses an email change with the wrong password", async () => {
+      await expect(
+        service.updateProfile("access-token", {
+          ...profile,
+          currentPassword: "wrong-password",
+          email: "new@example.com"
+        })
+      ).rejects.toThrow("Current password is incorrect.");
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+    });
+
+    it("changes the email, signs other devices out and tells the old address", async () => {
+      await service.updateProfile("access-token", {
+        ...profile,
+        currentPassword: "password123",
+        email: "new@example.com"
+      });
+
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ email: "new@example.com" }) })
+      );
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
+        data: { revokedAt: expect.any(Date) },
+        where: {
+          userId: "usr-123",
+          revokedAt: null,
+          NOT: { OR: [{ id: "fam-1" }, { familyId: "fam-1" }] }
+        }
+      });
+      expect(mailService.sendEmailChangedNotice).toHaveBeenCalledWith(
+        "test@example.com",
+        "new@example.com"
+      );
+    });
+
+    describe("avatarUrl", () => {
+      const original = process.env.CLOUDINARY_CLOUD_NAME;
+      beforeEach(() => {
+        process.env.CLOUDINARY_CLOUD_NAME = "nexa";
+      });
+      afterEach(() => {
+        process.env.CLOUDINARY_CLOUD_NAME = original;
+      });
+
+      it("accepts an image uploaded to the profile folder", async () => {
+        const avatarUrl = "https://res.cloudinary.com/nexa/image/upload/v1700000000/nexa_chess/profiles/abc.png";
+
+        await service.updateProfile("access-token", { ...profile, avatarUrl });
+
+        expect(prismaService.user.update).toHaveBeenCalledWith(
+          expect.objectContaining({ data: expect.objectContaining({ avatarUrl }) })
+        );
+      });
+
+      it.each([
+        "https://tracker.example.com/pixel.png",
+        "https://res.cloudinary.com/other-cloud/image/upload/v1/nexa_chess/profiles/abc.png",
+        "https://res.cloudinary.com/nexa/image/upload/v1/nexa_chess/pgns/abc.png",
+        "http://res.cloudinary.com/nexa/image/upload/v1/nexa_chess/profiles/abc.png"
+      ])("refuses %s", async (avatarUrl) => {
+        await expect(
+          service.updateProfile("access-token", { ...profile, avatarUrl })
+        ).rejects.toBeInstanceOf(BadRequestException);
+        expect(prismaService.user.update).not.toHaveBeenCalled();
+      });
+    });
+  });
+
   describe("me", () => {
     it("returns the authenticated user", async () => {
       jwtService.verifyAsync.mockResolvedValueOnce({
@@ -542,6 +749,41 @@ describe("AuthService", () => {
       await expect(service.me("access-token")).rejects.toThrow(
         UnauthorizedException
       );
+    });
+  });
+
+  describe("resetPassword", () => {
+    const payload = { confirmPassword: "New@12345", password: "New@12345", token: "reset-token" };
+
+    beforeEach(() => {
+      prismaService.passwordResetToken.findFirst.mockResolvedValue({ id: "prt-1", userId: "usr-123" });
+      prismaService.$transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
+        callback(prismaService)
+      );
+    });
+
+    it("claims the token, sets the password and revokes every session", async () => {
+      prismaService.passwordResetToken.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.resetPassword(payload);
+
+      expect(prismaService.passwordResetToken.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "prt-1", usedAt: null } })
+      );
+      expect(prismaService.user.update).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: "usr-123" } })
+      );
+      expect(prismaService.authSession.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { revokedAt: null, userId: "usr-123" } })
+      );
+    });
+
+    it("rejects a token another request already claimed", async () => {
+      prismaService.passwordResetToken.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.resetPassword(payload)).rejects.toThrow(BadRequestException);
+      expect(prismaService.user.update).not.toHaveBeenCalled();
+      expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();
     });
   });
 });

@@ -7,9 +7,17 @@ import {
 import crypto from "crypto";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY || "APIWLsbggsQnKdN";
-const LIVEKIT_API_SECRET =
-  process.env.LIVEKIT_API_SECRET || "juXmqj30DR0SRmcF3xfeLp6EilDxrUdtesUgWaNebZJB";
+/**
+ * No fallback: these must match the API's LiveKit key, and a committed default
+ * is a committed secret. Set them in `.env.e2e` (see `.env.e2e.example`).
+ */
+function requireEnv(name: "LIVEKIT_API_KEY" | "LIVEKIT_API_SECRET"): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`${name} is not set. Copy .env.e2e.example to .env.e2e and fill it in.`);
+  }
+  return value;
+}
 
 export const TEST_USERS = {
   coach: { email: "coach@nexa.test", password: "Test@12345" },
@@ -31,14 +39,14 @@ export function createWebhookSignature(body: string | Record<string, unknown>): 
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const payload = Buffer.from(
     JSON.stringify({
-      iss: LIVEKIT_API_KEY,
-      sub: LIVEKIT_API_KEY,
+      iss: requireEnv("LIVEKIT_API_KEY"),
+      sub: requireEnv("LIVEKIT_API_KEY"),
       sha256,
       exp: Math.floor(Date.now() / 1000) + 300,
     })
   ).toString("base64url");
   const signature = crypto
-    .createHmac("sha256", LIVEKIT_API_SECRET)
+    .createHmac("sha256", requireEnv("LIVEKIT_API_SECRET"))
     .update(`${header}.${payload}`)
     .digest("base64url");
   return `${header}.${payload}.${signature}`;

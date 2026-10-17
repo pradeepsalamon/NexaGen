@@ -1,3 +1,4 @@
+import Link from "next/link";
 import Image from "next/image";
 import { ChevronRight, Phone, Mail, Globe } from "lucide-react";
 
@@ -111,12 +112,12 @@ export function AcademyFooter() {
             © {new Date().getFullYear()} Nexa Chess Academy. All Rights Reserved.
           </p>
           <div className="flex items-center gap-6">
-            <a href="#" className="text-xs text-slate-400 hover:text-amber-400 transition-colors">
+            <Link href="/privacy" className="text-xs text-slate-400 hover:text-amber-400 transition-colors">
               Privacy Policy
-            </a>
-            <a href="#" className="text-xs text-slate-400 hover:text-amber-400 transition-colors">
+            </Link>
+            <Link href="/terms" className="text-xs text-slate-400 hover:text-amber-400 transition-colors">
               Terms of Service
-            </a>
+            </Link>
           </div>
         </div>
       </div>

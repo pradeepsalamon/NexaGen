@@ -6,12 +6,13 @@ import {
   testMessagingRuleRequestSchema,
   updateMessagingRuleRequestSchema,
   type MessageDeliveryQuery,
+  type MessagingEvent,
   type TestMessagingRuleRequest,
   type UpdateMessagingRuleRequest
 } from "@nexa-chess/types";
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
-import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { MessagingRuleService } from "./messaging-rule.service";
 
 @Controller()
@@ -25,39 +26,38 @@ export class MessagingController {
 
   @Put(API_ROUTES.messaging.rule())
   update(
-    @Param("event") event: string,
+    @Param("event", new ZodBodyPipe(messagingEventSchema)) event: MessagingEvent,
     @Body(new ZodBodyPipe(updateMessagingRuleRequestSchema))
     body: UpdateMessagingRuleRequest,
     @Req() request: Request
   ) {
     return this.messagingRuleService.update(
       this.getAccessToken(request),
-      parseOrBadRequest(messagingEventSchema, event),
+      event,
       body
     );
   }
 
   @Post(API_ROUTES.messaging.testRule())
   test(
-    @Param("event") event: string,
+    @Param("event", new ZodBodyPipe(messagingEventSchema)) event: MessagingEvent,
     @Body(new ZodBodyPipe(testMessagingRuleRequestSchema))
     body: TestMessagingRuleRequest,
     @Req() request: Request
   ) {
     return this.messagingRuleService.testRule(
       this.getAccessToken(request),
-      parseOrBadRequest(messagingEventSchema, event),
+      event,
       body
     );
   }
 
   @Get(API_ROUTES.messaging.deliveries)
-  deliveries(@Query() query: unknown, @Req() request: Request) {
-    const parsed: MessageDeliveryQuery = parseOrBadRequest(messageDeliveryQuerySchema, query);
-    return this.messagingRuleService.listDeliveries(
-      this.getAccessToken(request),
-      parsed
-    );
+  deliveries(
+    @Query(new ZodBodyPipe(messageDeliveryQuerySchema)) query: MessageDeliveryQuery,
+    @Req() request: Request
+  ) {
+    return this.messagingRuleService.listDeliveries(this.getAccessToken(request), query);
   }
 
   @Post(API_ROUTES.messaging.retryDelivery())

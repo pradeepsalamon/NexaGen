@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from "@nestjs/common";
+import { ConflictException, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { calculatePayroll } from "./payroll-calculation.engine";
 import { PayrollPeriodStatus, type Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
@@ -41,7 +41,8 @@ export class PayrollCalculationService {
     requiredStatus: PayrollPeriodStatus,
     statusOnFailure: PayrollPeriodStatus
   ): Promise<void> {
-    const period = await this.prisma.payrollPeriod.findUniqueOrThrow({ where: { id: periodId } });
+    const period = await this.prisma.payrollPeriod.findUnique({ where: { id: periodId } });
+    if (!period) throw new NotFoundException("Payroll period not found.");
     if (period.status !== requiredStatus) {
       throw new ConflictException(
         `Cannot calculate a period that is ${period.status.toLowerCase()}; only a ${requiredStatus.toLowerCase()} period can be calculated.`

@@ -28,6 +28,7 @@ const pageTitles: Record<string, string> = {
   "/admin/feedback": "Coach Feedback",
   "/admin/typography": "Fonts & Text",
   "/admin/class-requests": "Class Requests",
+  "/admin/privacy": "Privacy",
   "/admin/finance/invoices": "Invoices",
   "/admin/finance/coach-payroll": "Coach Payroll",
   "/admin/puzzles": "Puzzle Library",

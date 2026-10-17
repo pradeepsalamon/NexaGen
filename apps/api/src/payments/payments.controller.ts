@@ -8,6 +8,7 @@ import {
   Req,
   Res
 } from "@nestjs/common";
+import { INVOICE_HTML_CSP } from "../common/security/security-headers";
 import { JwtService } from "@nestjs/jwt";
 import {
   API_ROUTES,
@@ -135,6 +136,7 @@ export class PaymentsController {
       "Content-Disposition",
       `inline; filename="${invoice.number.replace(/[^\w.-]/g, "_")}.html"`
     );
+    response.setHeader("Content-Security-Policy", INVOICE_HTML_CSP);
     response.send(this.invoices.renderHtml(invoice));
   }
 

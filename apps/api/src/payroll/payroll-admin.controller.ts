@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Put, Query, Req, Res } from "@nestjs/common";
+import { BadRequestException, Body, NotFoundException, Controller, Get, Param, Post, Put, Query, Req, Res } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
   API_ROUTES,
@@ -27,6 +27,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { optionalQueryString } from "../common/query-params";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { safeFilename, sendPdf } from "../payments/invoices.controller";
 import { PrismaService } from "../prisma/prisma.service";
@@ -132,9 +133,9 @@ export class PayrollAdminController {
   // ── Records ──
 
   @Get(API_ROUTES.adminPayroll.records)
-  async listRecords(@Query("periodId") periodId: string, @Req() request: Request) {
+  async listRecords(@Query("periodId") periodId: unknown, @Req() request: Request) {
     await this.admin(request);
-    return this.records.listForPeriod(periodId);
+    return this.records.listForPeriod(this.requirePeriodId(periodId));
   }
 
   @Get(API_ROUTES.adminPayroll.record())
@@ -292,9 +293,9 @@ export class PayrollAdminController {
   // ── Payouts ──
 
   @Get(API_ROUTES.adminPayroll.payouts)
-  async listPayouts(@Query("periodId") periodId: string, @Req() request: Request) {
+  async listPayouts(@Query("periodId") periodId: unknown, @Req() request: Request) {
     await this.admin(request);
-    return this.payouts.listForPeriod(periodId);
+    return this.payouts.listForPeriod(this.requirePeriodId(periodId));
   }
 
   @Post(API_ROUTES.adminPayroll.payouts)
@@ -320,6 +321,12 @@ export class PayrollAdminController {
   ) {
     const admin = await this.admin(request);
     return { payout: await this.payouts.markPaid(id, admin.id, dto) };
+  }
+
+  private requirePeriodId(value: unknown): string {
+    const periodId = optionalQueryString(value, "periodId");
+    if (!periodId) throw new BadRequestException("periodId is required.");
+    return periodId;
   }
 
   private async admin(request: Request) {

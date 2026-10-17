@@ -122,6 +122,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/messaging", label: "Messaging Rules", icon: MessageSquare, group: "People" },
   { href: "/messages", label: "Chats", icon: MessagesSquare, group: "People" },
   { href: "/admin/feedback", label: "Coach Feedback", icon: MessageSquareHeart, group: "People" },
+  { href: "/admin/privacy", label: "Privacy", icon: ShieldCheck, group: "People" },
   // Classes & scheduling
   { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Classes" },
   { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Classes" },

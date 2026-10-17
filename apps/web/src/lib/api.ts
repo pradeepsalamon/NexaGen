@@ -185,6 +185,17 @@ export async function apiFetch<TResponse>(
 }
 
 function getApiErrorMessage(error: AxiosError<{ message?: string | string[] }>) {
+  const serverMessage = error.response?.data?.message;
+  // A 429 the API wrote itself (e.g. the MFA lockout) already says what to do;
+  // only the rate limiter's own "ThrottlerException" needs rewording.
+  if (
+    error.response?.status === 429 &&
+    typeof serverMessage === "string" &&
+    !serverMessage.startsWith("ThrottlerException")
+  ) {
+    return serverMessage;
+  }
+
   if (error.response?.status === 429) {
     const retryAfter = error.response.headers["retry-after"];
     if (retryAfter) {

@@ -5,6 +5,7 @@ import { type ApiEnv, getCorsOrigins } from "@nexa-chess/config/api";
 import { API_ROUTES } from "@nexa-chess/types";
 import * as express from "express";
 import { createOriginCheckMiddleware } from "./common/security/origin-check";
+import { securityHeaders } from "./common/security/security-headers";
 
 /**
  * The HTTP pipeline shared by main.ts and the integration test app. The app
@@ -14,6 +15,7 @@ export function configureApp(app: NestExpressApplication, env: ApiEnv) {
   // Trust exactly the number of proxy hops in front of us (nginx = 1). Trusting
   // every hop lets a client spoof X-Forwarded-For and bypass IP rate limiting.
   app.set("trust proxy", env.TRUST_PROXY_HOPS);
+  app.use(securityHeaders);
   const corsOrigins = getCorsOrigins(env);
 
   const webhookPaths = [

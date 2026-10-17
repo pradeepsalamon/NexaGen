@@ -482,6 +482,15 @@ export class PaymentService {
     assertOwnerOrAdmin(user, payment.userId);
     this.assertHasGateway(payment.provider);
 
+    // Only this payment's own gateway order may be queried — a client-supplied
+    // handle for another order would apply someone else's capture here.
+    if (!payment.providerOrderId) {
+      return this.buildStatus(payment);
+    }
+    if (dto.providerOrderId && dto.providerOrderId !== payment.providerOrderId) {
+      throw new BadRequestException("This payment handle belongs to a different order.");
+    }
+
     const adapter = this.registry.get(payment.provider);
 
     try {
@@ -489,8 +498,7 @@ export class PaymentService {
         paymentId: payment.id,
         providerPaymentId:
           dto.providerPaymentId ?? payment.providerPaymentId ?? undefined,
-        providerOrderId:
-          dto.providerOrderId ?? payment.providerOrderId ?? undefined,
+        providerOrderId: payment.providerOrderId,
         signature: dto.signature
       });
 
@@ -588,6 +596,24 @@ export class PaymentService {
       });
       if (!payment) {
         throw new NotFoundException("Payment not found.");
+      }
+
+      // State from a different gateway order never applies here, whichever
+      // door it came through.
+      if (
+        details.providerOrderId &&
+        payment.providerOrderId &&
+        details.providerOrderId !== payment.providerOrderId
+      ) {
+        this.logger.error(
+          `Payment ${payment.id} (${source}) received state for gateway order ${details.providerOrderId}, expected ${payment.providerOrderId}. Ignored.`
+        );
+        return {
+          changed: false,
+          status: payment.status,
+          captured: false,
+          invoiceId: null
+        };
       }
 
       // Provider handles and method detail are always worth recording, even

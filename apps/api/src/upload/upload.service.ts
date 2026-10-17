@@ -9,6 +9,22 @@ export function safePgnBaseName(filename: string): string {
 
 const PROFILE_IMAGE_FOLDER = 'nexa_chess/profiles';
 
+// Only images uploaded through /upload/image, so an avatar can't be an external tracking pixel.
+export function isProfileImageUrl(url: string, cloudName = process.env.CLOUDINARY_CLOUD_NAME): boolean {
+  if (!cloudName) return false;
+  try {
+    const { hostname, pathname, protocol } = new URL(url);
+    const prefix = `/${cloudName}/image/upload/`;
+    if (protocol !== 'https:' || hostname !== 'res.cloudinary.com' || !pathname.startsWith(prefix)) {
+      return false;
+    }
+    const rest = pathname.slice(prefix.length).replace(/^v\d+\//, '');
+    return rest.startsWith(`${PROFILE_IMAGE_FOLDER}/`) && !rest.includes('..');
+  } catch {
+    return false;
+  }
+}
+
 @Injectable()
 export class UploadService {
   uploadImage(file: Express.Multer.File): Promise<UploadApiResponse> {

@@ -5,6 +5,63 @@ import {
   PHASE_PRODUCTION_SERVER
 } from "next/constants.js";
 
+/** `https://host` and its `wss://` twin, from a build-time URL; [] when unset. */
+function originsOf(url) {
+  if (!url) return [];
+  try {
+    const { host, protocol } = new URL(url);
+    const secure = protocol === "https:" || protocol === "wss:";
+    return [`${secure ? "https" : "http"}://${host}`, `${secure ? "wss" : "ws"}://${host}`];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Report-only for now: Next's inline bootstrap needs 'unsafe-inline' until
+ * nonces are wired through middleware, so this policy's job is to surface
+ * every origin the app really uses (browser console) before it is enforced.
+ */
+function reportOnlyCsp(isDev) {
+  const live = [
+    ...originsOf(process.env.NEXT_PUBLIC_API_URL),
+    ...originsOf(process.env.NEXT_PUBLIC_LIVEKIT_URL)
+  ];
+  const gateways = ["https://*.razorpay.com", "https://*.cashfree.com"];
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com https://sdk.cashfree.com`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    `connect-src 'self' ${[...live, ...gateways, "https://explorer.lichess.ovh", "https://*.sentry.io"].join(" ")}${isDev ? " ws: http://localhost:*" : ""}`,
+    `media-src 'self' blob: ${live.join(" ")}`,
+    `frame-src ${gateways.join(" ")}`,
+    "worker-src 'self' blob:",
+    `form-action 'self' ${gateways.join(" ")}`,
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'"
+  ].join("; ");
+}
+
+/** Headers safe to enforce today; nothing in the app embeds it or uses plugins. */
+function securityHeaders(isDev) {
+  return [
+    { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
+    { key: "Content-Security-Policy-Report-Only", value: reportOnlyCsp(isDev) },
+    { key: "X-Frame-Options", value: "DENY" },
+    { key: "X-Content-Type-Options", value: "nosniff" },
+    { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+    {
+      key: "Permissions-Policy",
+      value: "camera=(self), microphone=(self), display-capture=(self), geolocation=()"
+    },
+    // Ignored over plain http, so harmless in dev.
+    { key: "Strict-Transport-Security", value: "max-age=31536000" }
+  ];
+}
+
 /** @type {(phase: string) => import('next').NextConfig} */
 const nextConfig = (phase) => ({
   distDir:
@@ -16,7 +73,7 @@ const nextConfig = (phase) => ({
   },
   // public/ files are not content-hashed, so a day's cache, then revalidate.
   async headers() {
-    return ["/academy/:path*", "/chess/:path*", "/sounds/:path*", "/video-backgrounds/:path*"].map((source) => ({
+    const cacheRules = ["/academy/:path*", "/chess/:path*", "/sounds/:path*", "/video-backgrounds/:path*"].map((source) => ({
       headers: [
         {
           key: "Cache-Control",
@@ -25,6 +82,15 @@ const nextConfig = (phase) => ({
       ],
       source
     }));
+    return [
+      { headers: securityHeaders(phase === PHASE_DEVELOPMENT_SERVER), source: "/:path*" },
+      // These pages carry a one-time token in the query string.
+      {
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+        source: "/(reset-password|verify-email)"
+      },
+      ...cacheRules
+    ];
   },
   images: {
     formats: ["image/avif", "image/webp"]

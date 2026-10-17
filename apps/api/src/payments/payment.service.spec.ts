@@ -1,4 +1,4 @@
-import { ConflictException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { Test, type TestingModule } from "@nestjs/testing";
 import { OrderStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -84,6 +84,7 @@ describe("PaymentService.applyProviderState", () => {
   let redeem: jest.Mock;
   let paymentUpdate: jest.Mock;
   let orderUpdate: jest.Mock;
+  let verifyPayment: jest.Mock;
 
   beforeEach(async () => {
     payment = {
@@ -131,6 +132,7 @@ describe("PaymentService.applyProviderState", () => {
       return Promise.resolve(payment);
     });
     orderUpdate = jest.fn().mockResolvedValue(payment.order);
+    verifyPayment = jest.fn();
 
     const tx = {
       payment: { findUnique: () => Promise.resolve(payment), update: paymentUpdate },
@@ -164,13 +166,73 @@ describe("PaymentService.applyProviderState", () => {
           provide: MessagingDispatchService,
           useValue: { dispatchInBackground: dispatch }
         },
-        { provide: ProviderRegistry, useValue: {} },
+        { provide: ProviderRegistry, useValue: { get: () => ({ verifyPayment }) } },
         { provide: PaymentRouterService, useValue: {} },
         { provide: SubscriptionService, useValue: {} }
       ]
     }).compile();
 
     service = module.get(PaymentService);
+  });
+
+  it("ignores a capture that belongs to a different gateway order", async () => {
+    const result = await service.applyProviderState(
+      "pmt_1",
+      details({ providerOrderId: "order_other", providerPaymentId: "pay_other" }),
+      "verify"
+    );
+
+    expect(result).toEqual({ changed: false, status: PaymentStatus.PENDING });
+    expect(paymentUpdate).not.toHaveBeenCalled();
+    expect(grant).not.toHaveBeenCalled();
+  });
+
+  describe("verify", () => {
+    const student = { id: "usr_1", role: "STUDENT" } as never;
+
+    it("only queries the payment's own gateway order", async () => {
+      verifyPayment.mockResolvedValue({
+        verified: false,
+        reason: "bad signature",
+        details: details({ providerOrderId: "order_other", providerPaymentId: "pay_other" })
+      });
+
+      await service.verify(student, "pmt_1", { providerPaymentId: "pay_other", signature: "x" });
+
+      expect(verifyPayment).toHaveBeenCalledWith(
+        expect.objectContaining({ providerOrderId: "order_1" })
+      );
+      expect(grant).not.toHaveBeenCalled();
+      expect(payment.status).toBe(PaymentStatus.PENDING);
+    });
+
+    it("rejects an order handle that is not this payment's", async () => {
+      await expect(
+        service.verify(student, "pmt_1", { providerOrderId: "order_other" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(verifyPayment).not.toHaveBeenCalled();
+    });
+
+    it("does not ask a gateway about a payment that never reached one", async () => {
+      payment.providerOrderId = null;
+
+      await service.verify(student, "pmt_1", { providerOrderId: "order_other" });
+
+      expect(verifyPayment).not.toHaveBeenCalled();
+      expect(grant).not.toHaveBeenCalled();
+    });
+
+    it("still captures a genuine handshake for its own order", async () => {
+      verifyPayment.mockResolvedValue({ verified: true, reason: null, details: details() });
+
+      await service.verify(student, "pmt_1", {
+        providerOrderId: "order_1",
+        providerPaymentId: "pay_1",
+        signature: "sig"
+      });
+
+      expect(grant).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("captures a payment and grants access exactly once", async () => {

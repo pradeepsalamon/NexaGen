@@ -1498,6 +1498,7 @@ describe("LiveClassModerationService.kickParticipant", () => {
   beforeEach(async () => {
     waitingFindUnique = jest.fn().mockResolvedValue(null);
     jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) };
+    waitingFindUnique = jest.fn().mockResolvedValue(null);
     userFindUnique = jest.fn().mockResolvedValue({
       id: "coach-1",
       role: UserRole.COACH,

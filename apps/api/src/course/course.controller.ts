@@ -3,6 +3,7 @@ import type { Request } from "express";
 import {
   API_ROUTES,
   attachCourseModuleRequestSchema,
+  courseListQuerySchema,
   createCourseRequestSchema,
   reorderCourseModulesRequestSchema,
   setCourseArchivedRequestSchema,
@@ -54,7 +55,10 @@ export class CourseController {
   // ── Admin ──
 
   @Get(API_ROUTES.courses.list)
-  list(@Query() query: CourseListQuery, @Req() request: Request) {
+  list(
+    @Query(new ZodBodyPipe(courseListQuerySchema)) query: CourseListQuery,
+    @Req() request: Request
+  ) {
     return this.courseService.list(this.token(request), query);
   }
 

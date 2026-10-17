@@ -686,6 +686,18 @@ export const API_ROUTES = {
     approve: (id: string = ":id") => `/class-requests/${id}/approve`,
     reject: (id: string = ":id") => `/class-requests/${id}/reject`
   },
+  privacy: {
+    // The caller's own data as a JSON download.
+    dataExport: "/privacy/export",
+    // GET the caller's latest request, POST a new one.
+    deletionRequest: "/privacy/deletion-request",
+    withdrawDeletionRequest: "/privacy/deletion-request/withdraw"
+  },
+  adminPrivacy: {
+    deletionRequests: "/admin/privacy/deletion-requests",
+    completeDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/complete`,
+    rejectDeletionRequest: (id: string = ":id") => `/admin/privacy/deletion-requests/${id}/reject`
+  },
   progress: {
     mine: "/progress/me",
     student: (id: string = ":id") => `/progress/students/${id}`,

@@ -20,8 +20,10 @@ import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
 import { UploadService } from './upload.service';
 import { authenticateUser } from '../auth/authenticate';
+import { RequireAccessTokenInterceptor } from '../common/security/require-access-token.interceptor';
 
 const MAX_PGN_LENGTH = 512 * 1024; // 512KB of PGN text
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 @Controller('upload')
 export class UploadController {
@@ -33,12 +35,17 @@ export class UploadController {
   ) {}
 
   @Post('image')
-  @UseInterceptors(FileInterceptor('file'))
+  // Auth before multer, and multer capped, so the body never sits in memory
+  // unbounded or for an anonymous caller.
+  @UseInterceptors(
+    RequireAccessTokenInterceptor,
+    FileInterceptor('file', { limits: { fields: 5, fileSize: MAX_IMAGE_BYTES, files: 1 } }),
+  )
   async uploadImage(
     @UploadedFile(
       new ParseFilePipe({
         validators: [
-          new MaxFileSizeValidator({ maxSize: 1024 * 1024 * 5 }), // 5MB
+          new MaxFileSizeValidator({ maxSize: MAX_IMAGE_BYTES }),
           new FileTypeValidator({ fileType: '.(png|jpeg|jpg|webp)' }),
         ],
       }),

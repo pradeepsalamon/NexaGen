@@ -29,7 +29,9 @@ for India.
   a stale `PENDING` redelivered after a capture — or a `FAILED` for a sibling
   attempt — cannot un-pay anything. A captured amount that differs from the
   order parks the payment at `PROCESSING` with `failureCode: amount_mismatch`
-  rather than granting.
+  rather than granting. State whose `providerOrderId` is not the payment's own
+  is ignored, and `verify` only ever queries the stored gateway order — a
+  client-supplied handle for another order can never apply that order's capture.
 - **Access is an `Entitlement` row, never a gateway status (§21).** Provider →
   verification → payment → order → entitlement → access.
   `EntitlementService.grant` runs inside the capture transaction and is

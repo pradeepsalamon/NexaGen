@@ -18,6 +18,7 @@ import {
   createOfflinePaymentMethodRequestSchema,
   createPlanRequestSchema,
   createRefundRequestSchema,
+  manualPaymentReviewStatusSchema,
   paymentListQuerySchema,
   rejectManualPaymentRequestSchema,
   updateDiscountRequestSchema,
@@ -28,8 +29,8 @@ import {
   type CreateOfflinePaymentMethodRequest,
   type CreatePlanRequest,
   type CreateRefundRequest,
-  manualPaymentReviewStatusSchema,
   type ManualPaymentReviewStatus,
+  type PaymentListQuery,
   type RejectManualPaymentRequest,
   type UpdateDiscountRequest,
   type UpdateOfflinePaymentMethodRequest,
@@ -38,7 +39,7 @@ import {
 import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { queryEnum } from "../common/query-params";
-import { parseOrBadRequest, ZodBodyPipe } from "../common/zod-body.pipe";
+import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { PrismaService } from "../prisma/prisma.service";
 import { BatchPricingService } from "./batch-pricing.service";
 import { DiscountService } from "./discount.service";
@@ -76,17 +77,23 @@ export class PaymentsAdminController {
   }
 
   @Get(API_ROUTES.adminPayments.list)
-  async list(@Query() query: unknown, @Req() request: Request) {
+  async list(
+    @Query(new ZodBodyPipe(paymentListQuerySchema)) query: PaymentListQuery,
+    @Req() request: Request
+  ) {
     const admin = await this.adminUser(request);
-    return this.admin.list(admin, parseOrBadRequest(paymentListQuerySchema, query));
+    return this.admin.list(admin, query);
   }
 
   @Get(API_ROUTES.adminPayments.export)
   @Header("Content-Type", "text/csv; charset=utf-8")
   @Header("Content-Disposition", 'attachment; filename="payments.csv"')
-  async exportCsv(@Query() query: unknown, @Req() request: Request) {
+  async exportCsv(
+    @Query(new ZodBodyPipe(paymentListQuerySchema)) query: PaymentListQuery,
+    @Req() request: Request
+  ) {
     const admin = await this.adminUser(request);
-    return this.admin.exportCsv(admin, parseOrBadRequest(paymentListQuerySchema, query));
+    return this.admin.exportCsv(admin, query);
   }
 
   @Get(API_ROUTES.adminPayments.refunds)
@@ -240,7 +247,7 @@ export class PaymentsAdminController {
   // in registration order, and a dynamic segment matches "manual" as an id).
 
   @Get(API_ROUTES.adminPayments.manual.list)
-  async listManualPayments(@Query("status") status: string | undefined, @Req() request: Request) {
+  async listManualPayments(@Query("status") status: unknown, @Req() request: Request) {
     await this.adminUser(request);
     return this.manualPayments.listAll(
       queryEnum<ManualPaymentReviewStatus>(status, manualPaymentReviewStatusSchema.options, "status")

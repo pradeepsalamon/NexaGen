@@ -73,6 +73,31 @@ export class MailService {
     });
   }
 
+  /** Sent to the OLD address, so a hijacked account's real owner finds out. */
+  async sendEmailChangedNotice(to: string, newEmail: string) {
+    const transporter = this.createTransporter();
+
+    await transporter.sendMail({
+      from: this.from,
+      to,
+      subject: "Your Nexa Chess email address was changed",
+      text: [
+        `The email address on your Nexa Chess account was changed to ${newEmail}.`,
+        "",
+        "If you made this change, no action is needed.",
+        "If you did not, contact the academy immediately: someone else may have access to your account."
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>Your email address was changed</h2>
+          <p>The email address on your Nexa Chess account was changed to <strong>${escapeHtml(newEmail)}</strong>.</p>
+          <p>If you made this change, no action is needed.</p>
+          <p>If you did not, contact the academy immediately: someone else may have access to your account.</p>
+        </div>
+      `
+    });
+  }
+
   /**
    * The receipt email. Only ever reached after a payment is verified, and the
    * caller claims a one-shot flag before calling, so a redelivered webhook
@@ -292,6 +317,54 @@ export class MailService {
             <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Source</td><td>${escapeHtml(input.source ?? "Unknown")}</td></tr>
             <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Campaign</td><td>${escapeHtml(input.campaign ?? "-")}</td></tr>
           </table>
+        </div>
+      `
+    });
+  }
+
+  async sendAccountDeletionRequested(input: { email: string; name: string; reason: string | null; role: string }) {
+    const recipients = getAdminNotificationEmails(this.env);
+    if (recipients.length === 0) {
+      this.logger.warn("Skipped account-deletion notification: ADMIN_EMAILS is unset.");
+      return;
+    }
+
+    await this.createTransporter().sendMail({
+      from: this.from,
+      to: recipients.join(","),
+      subject: `Account deletion requested: ${input.name}`,
+      text: [
+        `${input.name} (${input.email}, ${input.role}) asked for their account to be deleted.`,
+        `Reason: ${input.reason || "-"}`,
+        "",
+        "Review it in Admin → Privacy."
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>Account deletion requested</h2>
+          <p>${escapeHtml(input.name)} (${escapeHtml(input.email)}, ${escapeHtml(input.role)}) asked for their account to be deleted.</p>
+          <p><strong>Reason:</strong> ${escapeHtml(input.reason || "-")}</p>
+          <p>Review it in Admin → Privacy.</p>
+        </div>
+      `
+    });
+  }
+
+  async sendAccountDeletionResolved(input: { completed: boolean; email: string; note: string | null }) {
+    const subject = input.completed ? "Your account has been deleted" : "About your account deletion request";
+    const body = input.completed
+      ? "As you asked, your Nexa Chess account has been deleted. Invoices and payment records are kept as the law requires."
+      : "Your request to delete your Nexa Chess account was not completed.";
+
+    await this.createTransporter().sendMail({
+      from: this.from,
+      to: input.email,
+      subject,
+      text: input.note ? `${body}\n\nNote from the academy: ${input.note}` : body,
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <p>${escapeHtml(body)}</p>
+          ${input.note ? `<p><strong>Note from the academy:</strong> ${escapeHtml(input.note)}</p>` : ""}
         </div>
       `
     });

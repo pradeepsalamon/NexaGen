@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   ServiceUnavailableException,
   UnauthorizedException
@@ -26,6 +28,9 @@ import {
 import { buildOtpauthUrl, generateTotpSecret, verifyTotp } from "./totp";
 
 const CHALLENGE_TTL = "10m";
+/** Wrong codes per account before the second factor locks. */
+export const MFA_MAX_FAILED_ATTEMPTS = 5;
+export const MFA_LOCKOUT_MS = 15 * 60_000;
 const ISSUER = "Nexa Chess";
 
 export type MfaChallengePurpose = MfaChallengeResponse["mfaRequired"];
@@ -161,6 +166,7 @@ export class MfaService {
     const key = this.requireKey();
     const row = await this.prisma.userMfa.findUnique({ where: { userId } });
     if (!row?.enabledAt) throw new BadRequestException("Two-factor sign-in is not set up.");
+    this.assertNotLocked(row.lockedUntil);
 
     const trimmed = code.trim();
     if (/^\d{6}$/.test(trimmed)) {
@@ -168,7 +174,7 @@ export class MfaService {
       if (step !== null) {
         // Conditional write: a replayed (or concurrently reused) code loses.
         const { count } = await this.prisma.userMfa.updateMany({
-          data: { lastUsedStep: step },
+          data: { failedAttempts: 0, lastUsedStep: step },
           where: {
             OR: [{ lastUsedStep: null }, { lastUsedStep: { lt: step } }],
             userId
@@ -176,18 +182,47 @@ export class MfaService {
         });
         if (count === 1) return;
       }
+      await this.recordFailure(userId);
       throw new BadRequestException("That code didn't match or was already used.");
     }
 
     const hash = hashRecoveryCode(trimmed);
     if (row.recoveryCodeHashes.includes(hash)) {
       const { count } = await this.prisma.userMfa.updateMany({
-        data: { recoveryCodeHashes: row.recoveryCodeHashes.filter((value) => value !== hash) },
+        data: {
+          failedAttempts: 0,
+          recoveryCodeHashes: row.recoveryCodeHashes.filter((value) => value !== hash)
+        },
         where: { recoveryCodeHashes: { has: hash }, userId }
       });
       if (count === 1) return;
     }
+    await this.recordFailure(userId);
     throw new BadRequestException("That recovery code is invalid or already used.");
+  }
+
+  private assertNotLocked(lockedUntil: Date | null) {
+    if (!lockedUntil || lockedUntil.getTime() <= Date.now()) return;
+    const minutes = Math.ceil((lockedUntil.getTime() - Date.now()) / 60_000);
+    throw new HttpException(
+      `Too many wrong codes. Try again in ${minutes} minute${minutes === 1 ? "" : "s"}.`,
+      HttpStatus.TOO_MANY_REQUESTS
+    );
+  }
+
+  /** Counts a wrong code against the account; the Nth one locks it. */
+  private async recordFailure(userId: string) {
+    const { failedAttempts } = await this.prisma.userMfa.update({
+      data: { failedAttempts: { increment: 1 } },
+      select: { failedAttempts: true },
+      where: { userId }
+    });
+    if (failedAttempts < MFA_MAX_FAILED_ATTEMPTS) return;
+
+    await this.prisma.userMfa.update({
+      data: { failedAttempts: 0, lockedUntil: new Date(Date.now() + MFA_LOCKOUT_MS) },
+      where: { userId }
+    });
   }
 
   /**

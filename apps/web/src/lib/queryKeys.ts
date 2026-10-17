@@ -258,6 +258,11 @@ export const queryKeys = {
     /** `"me"` for the signed-in student's own report. */
     report: (studentId: string) => ["revision", "report", studentId] as const,
   },
+  privacy: {
+    all: ["privacy"] as const,
+    myDeletionRequest: ["privacy", "deletion-request", "me"] as const,
+    deletionRequests: ["privacy", "deletion-requests"] as const,
+  },
   progress: {
     mine: ["progress", "me"] as const,
     student: (id: string) => ["progress", "student", id] as const,

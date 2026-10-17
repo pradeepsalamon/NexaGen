@@ -5,7 +5,8 @@ import * as path from "path";
  * There are no auth guards (CLAUDE.md §3.2): each handler must hand its request
  * to an auth helper. This catches a new route that forgets to. A handler that
  * never touches `request`/`req` can't be reading the access cookie, so it must
- * be listed here as deliberately public.
+ * be listed here as deliberately public. That a route refuses the wrong role is
+ * proven against the real app in test/integration/access/admin-routes.int-spec.ts.
  */
 const PUBLIC_ROUTES = new Set([
   "auth/auth.controller.ts#forgotPassword",

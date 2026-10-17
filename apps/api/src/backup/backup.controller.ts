@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import type { Request } from 'express';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
+import { optionalQueryString } from '../common/query-params';
 import { authenticateUser } from '../auth/authenticate';
 
 @Controller('admin/backups')
@@ -40,10 +41,11 @@ export class BackupController {
 
   @Get('download')
   async getDownloadUrl(
-    @Query('key') key: string,
+    @Query('key') rawKey: unknown,
     @Req() request: Request
   ) {
     await this.getAdminId(request);
+    const key = optionalQueryString(rawKey, 'key');
     if (!key) {
       throw new BadRequestException('Backup key is required');
     }
@@ -52,10 +54,11 @@ export class BackupController {
 
   @Delete()
   async deleteBackup(
-    @Query('key') key: string,
+    @Query('key') rawKey: unknown,
     @Req() request: Request
   ) {
     await this.getAdminId(request);
+    const key = optionalQueryString(rawKey, 'key');
     if (!key) {
       throw new BadRequestException('Backup key is required');
     }
