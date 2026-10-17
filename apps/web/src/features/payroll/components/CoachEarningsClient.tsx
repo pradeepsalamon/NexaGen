@@ -54,14 +54,14 @@ export function CoachEarningsClient() {
 
       {records.length > 0 ? (
         <Card className="p-0">
-          <div className="overflow-x-auto">
             <Table className="w-full min-w-[720px] border-collapse">
               <TableHeader>
                 <TableRow className="border-b border-app-border">
                   {([["Period", "period"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["Net", "net"], ["Status", "status"], ["Payslip", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                      className="px-4 py-3 text-left"
                       key={heading}
+                      pin={sortKey ? undefined : "end"}
                     >
                       {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}
                     </TableHead>
@@ -92,7 +92,7 @@ export function CoachEarningsClient() {
                       <TableCell className="text-left px-4 py-3">
                         <PayrollRecordStatusBadge status={record.status} />
                       </TableCell>
-                      <TableCell className="text-left px-4 py-3">
+                      <TableCell className="text-left px-4 py-3" pin="end">
                         {payslip && payslip.pdfStatus === "READY" ? (
                           <SimpleTooltip label="Download your payslip">
                             <Button
@@ -122,7 +122,6 @@ export function CoachEarningsClient() {
                 })}
               </TableBody>
             </Table>
-          </div>
         </Card>
       ) : null}
     </div>

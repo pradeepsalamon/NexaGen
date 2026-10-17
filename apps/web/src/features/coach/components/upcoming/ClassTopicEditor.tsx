@@ -46,7 +46,7 @@ export function ClassTopicEditor({ classItem }: { classItem: CoachClass }) {
     return (
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-app-muted" id={labelId}>
+          <p className="text-xs font-bold text-app-muted" id={labelId}>
             Topic
           </p>
           <p
@@ -73,7 +73,7 @@ export function ClassTopicEditor({ classItem }: { classItem: CoachClass }) {
 
   return (
     <form className="space-y-2" onSubmit={onSubmit}>
-      <label className="text-xs font-bold uppercase tracking-wide text-app-muted" htmlFor={`${labelId}-input`}>
+      <label className="text-xs font-bold text-app-muted" htmlFor={`${labelId}-input`}>
         Topic
       </label>
       <Input

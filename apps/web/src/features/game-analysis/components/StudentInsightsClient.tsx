@@ -10,7 +10,7 @@ export function StudentInsightsClient() {
     <div className="space-y-6">
       <PageHeader
         description="Patterns across your analysed games: accuracy, mistakes, and the tactics you find and miss."
-        title="Game Insights"
+        title="Game insights"
       />
       <GameSourcesCard />
       <GameInsightsPanel studentId={null} />

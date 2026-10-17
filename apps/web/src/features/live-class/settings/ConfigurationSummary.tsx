@@ -14,7 +14,7 @@ export function ConfigurationSummary({
 }) {
   return (
     <div className="rounded-app border border-app-border bg-app-soft/40 p-4">
-      <p className="text-xs font-bold uppercase tracking-wider text-app-muted">{title}</p>
+      <p className="text-xs font-bold text-app-muted">{title}</p>
       <dl className="mt-2 grid gap-x-6 gap-y-1.5 sm:grid-cols-2">
         {summaryRows(resolved).map((row) => (
           <div key={row.label} className="flex items-start justify-between gap-3 text-sm">

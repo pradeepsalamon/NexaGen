@@ -1,8 +1,9 @@
 import { Metadata } from "next";
 import { BatchClassesClient } from "@/features/admin/components/BatchClassesClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
-  title: "Batch Classes | Admin | Nexa Chess",
+  title: pageTitle("/admin/classes"),
   description: "Manage and track all batch classes."
 };
 

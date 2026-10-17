@@ -141,7 +141,7 @@ export function StudentRevisionClient() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Smart Revision</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Smart revision</h1>
           <p className="mt-1 max-w-2xl text-sm text-app-muted">
             Puzzles you missed and topics your coach picked come back just before you&apos;d forget them. Solve
             each one, then say how well you remembered it — the better you know it, the longer until it returns.
@@ -208,7 +208,7 @@ export function StudentRevisionClient() {
 
       <section aria-label="Your revision" className="space-y-3">
         <h2 className="text-lg font-extrabold text-app-text">Your revision</h2>
-        <RevisionReportPanel studentId={null} />
+        <RevisionReportPanel hideDue studentId={null} />
       </section>
     </div>
   );

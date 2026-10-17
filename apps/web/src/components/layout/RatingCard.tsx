@@ -15,7 +15,7 @@ export function RatingCard({ rating }: { rating?: number | null }) {
   return (
     <div className="rounded-app border border-app-border bg-app-soft p-3.5">
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="text-xs font-bold uppercase tracking-wider text-app-muted">
+        <span className="text-xs font-bold text-app-muted">
           Chess Rating
         </span>
       </div>

@@ -153,6 +153,7 @@ export function BatchManagementClient() {
       {
         accessorKey: "name",
         enableColumnFilter: true,
+        meta: { label: "Name" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Name"
@@ -160,7 +161,7 @@ export function BatchManagementClient() {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-52">
+          <div className="min-w-44">
             <p className="font-extrabold text-app-text">{row.original.name}</p>
             {row.original.description && (
               <p className="mt-1 line-clamp-2 text-xs text-app-muted">
@@ -173,6 +174,7 @@ export function BatchManagementClient() {
       {
         accessorKey: "startsAt",
         enableColumnFilter: true,
+        meta: { label: "Date range" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Date range"
@@ -180,7 +182,7 @@ export function BatchManagementClient() {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-48 text-sm text-app-text">
+          <div className="min-w-36 text-sm text-app-text">
             <div>
               <span className="font-semibold">From: </span>
               {formatDate(row.original.startsAt)}
@@ -197,6 +199,7 @@ export function BatchManagementClient() {
       {
         accessorKey: "scheduleNotes",
         enableColumnFilter: true,
+        meta: { label: "Schedule" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Schedule"
@@ -204,7 +207,7 @@ export function BatchManagementClient() {
           />
         ),
         cell: ({ row }) => (
-          <div className="min-w-40 text-sm text-app-text">
+          <div className="min-w-32 text-sm text-app-text">
             {row.original.scheduleNotes || (
               <span className="italic text-app-muted">Not specified</span>
             )}
@@ -234,6 +237,7 @@ export function BatchManagementClient() {
       {
         accessorKey: "status",
         enableColumnFilter: true,
+        meta: { label: "Status" },
         header: ({ column }) => (
           <DataTableSortButton
             label="Status"
@@ -325,8 +329,8 @@ export function BatchManagementClient() {
   };
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-5">
+    <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
         <Tabs
           onValueChange={(value) => {
             if (value === "create") {
@@ -340,7 +344,7 @@ export function BatchManagementClient() {
         >
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-extrabold uppercase text-primary-ink">
+              <p className="text-xs font-extrabold text-primary-ink">
                 Batch management
               </p>
               <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
@@ -385,6 +389,7 @@ export function BatchManagementClient() {
               />
 
               <DataTable
+                stackOnMobile
                 columnsLength={columns.length}
                 isLoading={batchesQuery.isLoading}
                 noDataText={
@@ -458,7 +463,7 @@ export function BatchManagementClient() {
           </TabsContent>
         </Tabs>
       </div>
-    </main>
+    </div>
   );
 }
 

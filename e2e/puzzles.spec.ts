@@ -149,7 +149,7 @@ test.describe("Puzzle Library", () => {
     await ctx.addCookies(admin);
     const page = await ctx.newPage();
     await page.goto("/admin/puzzles");
-    // The topbar and the page body both render an <h1>"Puzzle Library"; scope to the page body.
+    // The header shows the same name as a plain label; the page body owns the <h1>.
     await expect(
       page.getByRole("main").getByRole("heading", { name: "Puzzle Library" })
     ).toBeVisible();

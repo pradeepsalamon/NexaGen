@@ -75,12 +75,10 @@ export function CoachScheduleClient() {
         </Button>
       </div>
 
-      <CoachClassRequestsSection />
-
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-app-text">
-            {view === "list" ? "Upcoming Classes" : "Calendar"}
+            {view === "list" ? "Upcoming classes" : "Calendar"}
           </h2>
           <div role="group" aria-label="Schedule view" className="flex items-center gap-1 rounded-control bg-app-soft p-1">
             {VIEW_OPTIONS.map(({ icon: Icon, label, value }) => (
@@ -127,15 +125,15 @@ export function CoachScheduleClient() {
             ))}
           </div>
         ) : (
-          <Card className="p-6 sm:p-12">
-            <EmptyState
-              icon={CalendarClock}
-              title="No upcoming classes"
-              description="Classes appear here once the academy schedules them for your batches."
-            />
-          </Card>
+          <EmptyState
+            icon={CalendarClock}
+            title="No upcoming classes"
+            description="Classes appear here once the academy schedules them for your batches."
+          />
         )}
       </div>
+
+      <CoachClassRequestsSection />
 
       <ClassNotesDialog open={dialogOpen} onOpenChange={setDialogOpen} classItem={classToEdit} />
       <ClassRequestDialog

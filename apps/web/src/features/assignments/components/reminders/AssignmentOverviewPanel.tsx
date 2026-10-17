@@ -164,7 +164,7 @@ function OverviewRow({ row, timeZone }: { row: AssignmentOverviewRow; timeZone: 
         </button>
         {expandable && open && (
           <div className="border-t border-app-border px-4 py-3">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-app-muted">Not finished yet</p>
+            <p className="mb-2 text-xs font-semibold text-app-muted">Not finished yet</p>
             <ul className="flex flex-wrap gap-2">
               {row.outstanding.map((s) => (
                 <li key={s.id}>

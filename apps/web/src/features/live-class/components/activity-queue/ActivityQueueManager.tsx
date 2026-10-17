@@ -680,7 +680,7 @@ function Runner({
           <div className="space-y-2 rounded-app border border-primary/40 bg-primary/5 p-3" aria-live="polite">
             <div className="flex items-center gap-2">
               <ActivityKindIcon kind={current.kind} className="text-primary-ink" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-primary-ink">
+              <span className="text-xs font-semibold text-primary-ink">
                 Now · {activityKindLabel(current.kind)}
               </span>
             </div>

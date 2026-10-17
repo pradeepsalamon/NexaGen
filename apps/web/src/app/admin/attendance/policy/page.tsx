@@ -90,7 +90,7 @@ export default function AttendancePolicyPage() {
           <Settings className="w-6 h-6 text-primary-ink" />
         </div>
         <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Attendance Policy</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Attendance policy</h1>
           <p className="text-app-muted text-sm mt-1">Configure global attendance thresholds and calculation rules</p>
         </div>
       </div>

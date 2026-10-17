@@ -178,7 +178,7 @@ export function AdminChessAppearanceClient() {
               </div>
               <div className="grid gap-5 sm:grid-cols-3">
                 <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Board themes</p>
+                  <p className="text-xs font-bold text-app-muted">Board themes</p>
                   {BOARD_THEME_CATALOG.map((theme) => (
                     <Switch
                       key={theme.id}
@@ -192,7 +192,7 @@ export function AdminChessAppearanceClient() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Piece sets</p>
+                  <p className="text-xs font-bold text-app-muted">Piece sets</p>
                   {PIECE_SET_CATALOG.map((set) => (
                     <Switch
                       key={set.id}
@@ -206,7 +206,7 @@ export function AdminChessAppearanceClient() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-app-muted">Sound themes</p>
+                  <p className="text-xs font-bold text-app-muted">Sound themes</p>
                   {SOUND_THEME_CATALOG.map((theme) => (
                     <Switch
                       key={theme.id}
@@ -239,7 +239,7 @@ export function AdminChessAppearanceClient() {
 
           <div className="lg:sticky lg:top-20 lg:self-start">
             <Card className="space-y-3 p-5">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-app-muted">Live preview</h2>
+              <h2 className="text-sm font-bold text-app-muted">Live preview</h2>
               <ChessAppearancePreviewScope config={draft}>
                 <PracticeBoard fen={previewFen} onMove={(m) => setPreviewFen(m.fen)} className="mx-auto max-w-none" />
               </ChessAppearancePreviewScope>

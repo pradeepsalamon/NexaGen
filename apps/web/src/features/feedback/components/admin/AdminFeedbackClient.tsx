@@ -18,7 +18,7 @@ export function AdminFeedbackClient() {
     <div className="grid gap-6 pb-10">
       <PageHeader
         description="Design the feedback students give about their coaches, and decide when and where they're asked."
-        title="Coach Feedback"
+        title="Coach feedback"
       />
 
       <Tabs onValueChange={(value) => setTab(value as Tab)} value={tab}>

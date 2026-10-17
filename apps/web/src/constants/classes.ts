@@ -1,6 +1,7 @@
 import type { VariantProps } from "class-variance-authority";
 import type { ClassDisplayStatus } from "@nexa-chess/types";
 import type { badgeVariants } from "@/components/ui/Badge";
+import { enumLabel } from "@/lib/utils";
 
 type BadgeVariant = VariantProps<typeof badgeVariants>["variant"];
 
@@ -17,8 +18,7 @@ export const getClassStatusBadgeVariant = (status: string): BadgeVariant => {
 };
 
 export const getStatusLabel = (status: string) => {
-  if (status === "NOT_HELD") return "Not held";
-  return status.replace("_", " ").toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+  return enumLabel(status);
 };
 
 /**

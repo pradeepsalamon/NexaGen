@@ -20,7 +20,7 @@ export function CoachFeedbackClient() {
     <div className="grid gap-6 pb-10">
       <PageHeader
         description="What your students say about your classes. Responses are anonymous."
-        title="My Feedback"
+        title="My feedback"
       />
 
       {isLoading ? (
@@ -32,7 +32,7 @@ export function CoachFeedbackClient() {
         <WidgetError onRetry={() => refetch()} />
       ) : data.summary.responseCount === 0 ? (
         <Card className="p-6">
-          <EmptyState
+          <EmptyState variant="inline"
             description="Once students rate your classes, your average and their comments will appear here."
             icon={MessageSquareHeart}
             title="No feedback yet"
@@ -42,7 +42,7 @@ export function CoachFeedbackClient() {
         <>
           <div className="grid gap-4 md:grid-cols-[320px_1fr]">
             <Card className="grid content-start gap-4 p-5">
-              <p className="text-xs font-bold uppercase tracking-wider text-app-muted">Your rating</p>
+              <p className="text-xs font-bold text-app-muted">Your rating</p>
               <div className="flex items-end gap-3">
                 <span className="text-5xl font-black tabular-nums text-app-text">
                   {data.summary.averageRating?.toFixed(1) ?? "—"}

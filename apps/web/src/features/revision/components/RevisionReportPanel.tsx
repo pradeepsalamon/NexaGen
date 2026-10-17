@@ -45,7 +45,14 @@ const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 100)}%` :
  * being missed. `studentId` null = the signed-in student (read-only); a coach
  * or admin also recommends items and removes their own recommendations.
  */
-export function RevisionReportPanel({ studentId }: { studentId: string | null }) {
+export function RevisionReportPanel({
+  hideDue = false,
+  studentId
+}: {
+  /** The student's own revision page already shows due/overdue above this panel. */
+  hideDue?: boolean;
+  studentId: string | null;
+}) {
   const report = useRevisionReport(studentId);
   const [recommendOpen, setRecommendOpen] = useState(false);
 
@@ -56,7 +63,7 @@ export function RevisionReportPanel({ studentId }: { studentId: string | null })
   const staff = studentId !== null;
   return (
     <div className="space-y-5">
-      <RevisionInsights report={report.data} />
+      <RevisionInsights hideDue={hideDue} report={report.data} />
       <RevisionItemsTable
         items={report.data.items}
         onRecommend={staff ? () => setRecommendOpen(true) : undefined}
@@ -69,7 +76,7 @@ export function RevisionReportPanel({ studentId }: { studentId: string | null })
   );
 }
 
-function RevisionInsights({ report }: { report: RevisionReportResponse }) {
+function RevisionInsights({ hideDue, report }: { hideDue: boolean; report: RevisionReportResponse }) {
   const s = report.summary;
   const graded30 = REVISION_GRADES.reduce((n, g) => n + report.gradeCounts[g], 0);
   const recalled30 = graded30 - report.gradeCounts.AGAIN;
@@ -77,7 +84,7 @@ function RevisionInsights({ report }: { report: RevisionReportResponse }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={hideDue ? "grid grid-cols-2 gap-3 lg:grid-cols-3" : "grid grid-cols-2 gap-3 lg:grid-cols-4"}>
         <StatTile
           context={s.unavailableItems > 0 ? `${s.unavailableItems} unavailable` : undefined}
           icon={Brain}
@@ -85,13 +92,15 @@ function RevisionInsights({ report }: { report: RevisionReportResponse }) {
           tone="primary"
           value={String(s.activeItems)}
         />
-        <StatTile
-          context={`${s.overdue} overdue`}
-          icon={CalendarClock}
-          label="Due today"
-          tone="warm"
-          value={String(s.dueToday)}
-        />
+        {hideDue ? null : (
+          <StatTile
+            context={`${s.overdue} overdue`}
+            icon={CalendarClock}
+            label="Due today"
+            tone="warm"
+            value={String(s.dueToday)}
+          />
+        )}
         <StatTile
           context="last 30 days"
           icon={Target}
@@ -146,7 +155,7 @@ function RevisionInsights({ report }: { report: RevisionReportResponse }) {
         <SectionCard description="From reviews rated Again in the last 90 days." title="Needs attention">
           <div className="space-y-4">
             <div>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted">Most missed themes</h3>
+              <h3 className="mb-2 text-xs font-bold text-app-muted">Most missed themes</h3>
               {report.missedThemes.length ? (
                 <ul className="flex flex-wrap gap-2">
                   {report.missedThemes.map((t) => (
@@ -162,7 +171,7 @@ function RevisionInsights({ report }: { report: RevisionReportResponse }) {
               )}
             </div>
             <div>
-              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted">Concepts that keep coming back</h3>
+              <h3 className="mb-2 text-xs font-bold text-app-muted">Concepts that keep coming back</h3>
               {report.strugglingConcepts.length ? (
                 <ul className="space-y-1 text-sm text-app-text">
                   {report.strugglingConcepts.map((c) => (

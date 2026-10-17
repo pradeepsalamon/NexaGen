@@ -111,7 +111,7 @@ export default function LiveClassBoardPage() {
         <span className="flex size-16 items-center justify-center rounded-app bg-amber-500/10">
           <Crown className="size-8 text-amber-500" strokeWidth={2} />
         </span>
-        <h1 className="text-lg font-bold">Shared Board</h1>
+        <h1 className="text-lg font-bold">Shared board</h1>
         <p className="max-w-xs text-sm text-app-muted">
           Please open the shared board on a laptop or desktop for the full teaching
           experience. You can keep running the class from your phone in the meeting

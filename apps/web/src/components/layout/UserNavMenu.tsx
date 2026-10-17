@@ -165,7 +165,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
                 {...newTabProps}
               >
                 <UserIcon className="size-4 text-app-muted" />
-                <span>My Profile & Settings</span>
+                <span>Profile & settings</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
@@ -175,7 +175,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
                 {...newTabProps}
               >
                 <Palette className="size-4 text-app-muted" />
-                <span>Chess Board</span>
+                <span>Chess board</span>
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>

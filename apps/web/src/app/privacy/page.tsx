@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/features/legal/components/LegalPage";
 import { LEGAL_DRAFT, PRIVACY_SECTIONS } from "@/features/legal/content";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/privacy" },
   description: "What Nexa Chess Academy collects about students, parents and coaches, and how it is used and protected.",
   robots: LEGAL_DRAFT ? { follow: true, index: false } : undefined,
-  title: "Privacy Policy"
+  title: pageTitle("/privacy")
 };
 
 export default function PrivacyPage() {

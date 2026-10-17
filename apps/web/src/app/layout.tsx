@@ -6,7 +6,8 @@ import "../styles/globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: SITE_NAME,
+  // Pages set only their short name (lib/pageTitles.ts); this adds the brand.
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
   description: "Online Chess Learning Management System",
   applicationName: SITE_NAME,
   openGraph: {

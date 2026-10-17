@@ -68,7 +68,7 @@ export function ForgotPasswordForm() {
             isLoading={forgotPasswordMutation.isPending}
             type="submit"
           >
-            {forgotPasswordMutation.isPending ? "Sending..." : "Send Reset Link"}
+            {forgotPasswordMutation.isPending ? "Sending..." : "Send reset link"}
           </Button>
         </form>
       </Card>

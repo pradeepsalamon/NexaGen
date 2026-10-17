@@ -60,7 +60,7 @@ export function AdminPrivacyClient() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Privacy</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Privacy requests</h1>
         <p className="mt-1 text-app-muted">
           Account deletion requests. Completing one soft-deletes the account (restorable from Trash for
           30 days); invoices and payroll are always kept.
@@ -73,8 +73,8 @@ export function AdminPrivacyClient() {
           <Skeleton className="h-24 w-full rounded-app" />
         </div>
       ) : requests.length === 0 ? (
-        <Card className="p-6 sm:p-12">
-          <EmptyState
+        <Card>
+          <EmptyState variant="inline"
             description="When someone asks for their account to be deleted, it appears here."
             icon={Inbox}
             title="No deletion requests"

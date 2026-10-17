@@ -50,7 +50,13 @@ export function AuthLayout({ children }: AuthLayoutProps) {
     <PageContainer>
       <div className="mx-auto grid min-h-[calc(100dvh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100dvh-6.5rem)] lg:grid-cols-[minmax(0,5fr)_minmax(420px,7fr)] lg:items-stretch lg:gap-6">
         <section
-          className="relative hidden min-h-0 flex-col justify-between gap-8 overflow-hidden rounded-panel bg-[linear-gradient(150deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_55%,black))] p-8 text-white shadow-soft lg:flex lg:max-h-[calc(100dvh-6.5rem)]"
+          className="flex min-h-[calc(100dvh-5.5rem)] items-center justify-center lg:max-h-[calc(100dvh-6.5rem)] lg:min-h-0 lg:overflow-y-auto lg:p-2"
+          aria-label="Authentication form"
+        >
+          {children}
+        </section>
+        <section
+          className="relative hidden min-h-0 lg:order-first flex-col justify-between gap-8 overflow-hidden rounded-panel bg-[linear-gradient(150deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_55%,black))] p-8 text-white shadow-soft lg:flex lg:max-h-[calc(100dvh-6.5rem)]"
           aria-labelledby="auth-hero-title"
         >
           <div aria-hidden="true" className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full bg-white/10 blur-3xl" />
@@ -73,9 +79,9 @@ export function AuthLayout({ children }: AuthLayoutProps) {
               Live chess coaching academy
             </span>
             <div className="grid gap-3">
-              <h1 className="text-4xl font-extrabold leading-tight tracking-tight" id="auth-hero-title">
+              <p className="font-display text-4xl font-extrabold leading-tight tracking-tight" id="auth-hero-title">
                 Master the board with expert coaches.
-              </h1>
+              </p>
               <p className="mx-auto max-w-md text-base leading-relaxed text-white/80">
                 Premium chess learning for focused students, ambitious juniors and supportive families.
               </p>
@@ -85,12 +91,6 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           <div className="relative z-10 border-t border-white/20 pt-6 [@media(max-height:700px)]:pt-4">
             <HeroFeatureCarousel />
           </div>
-        </section>
-        <section
-          className="flex min-h-[calc(100dvh-5.5rem)] items-center justify-center rounded-panel border border-app-border bg-app-surface/90 p-3 lg:max-h-[calc(100dvh-6.5rem)] lg:min-h-0 lg:overflow-y-auto lg:p-2"
-          aria-label="Authentication form"
-        >
-          {children}
         </section>
       </div>
     </PageContainer>

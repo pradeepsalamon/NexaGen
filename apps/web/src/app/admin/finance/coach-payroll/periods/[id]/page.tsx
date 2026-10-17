@@ -1,7 +1,8 @@
 import { AdminPayrollPeriodDetailClient } from "@/features/payroll/components/AdminPayrollPeriodDetailClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Payroll Period - Admin",
+  title: pageTitle("/admin/finance/coach-payroll/periods/[id]"),
 };
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {

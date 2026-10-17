@@ -42,7 +42,7 @@ export function ActivityQueueStatusPill() {
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 space-y-3 p-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">Class activities</p>
+          <p className="text-xs font-semibold text-app-muted">Class activities</p>
           <p className="truncate font-semibold text-app-text">{queue.title}</p>
         </div>
         <div className="flex items-center gap-2 rounded-app bg-primary/10 px-2.5 py-2 text-sm text-primary-ink">

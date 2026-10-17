@@ -1,7 +1,8 @@
 import { StaffStudentProgressClient } from "@/features/progress/components/StaffStudentProgressClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Student progress - Admin | Nexa Chess"
+  title: pageTitle("/admin/students/[studentId]")
 };
 
 export default async function AdminStudentProgressPage(props: { params: Promise<{ studentId: string }> }) {

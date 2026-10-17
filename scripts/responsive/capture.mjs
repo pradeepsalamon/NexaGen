@@ -112,7 +112,7 @@ async function login(browser, base, role) {
   await page.locator("#password").fill(u.password);
   await Promise.all([
     page.waitForResponse((r) => r.url().includes("/auth/login") && r.request().method() === "POST").catch(() => null),
-    page.getByRole("button", { name: /login|sign in/i }).click(),
+    page.getByRole("button", { name: /sign in|log in|login/i }).click(),
   ]);
   await page.waitForTimeout(3000);
   const state = await ctx.storageState();

@@ -5,6 +5,7 @@ import {
   type TdHTMLAttributes,
   type ThHTMLAttributes
 } from "react";
+import { ScrollShadow } from "@/components/ui/ScrollShadow";
 import { cn } from "@/lib/utils";
 
 const Table = forwardRef<
@@ -12,13 +13,13 @@ const Table = forwardRef<
   TableHTMLAttributes<HTMLTableElement>
 >(function Table({ className, ...props }, ref) {
   return (
-    <div className="w-full overflow-auto rounded-[16px]">
+    <ScrollShadow className="rounded-[16px]">
       <table
         className={cn("w-full caption-bottom text-sm", className)}
         ref={ref}
         {...props}
       />
-    </div>
+    </ScrollShadow>
   );
 });
 Table.displayName = "Table";
@@ -85,14 +86,23 @@ const TableRow = forwardRef<
 });
 TableRow.displayName = "TableRow";
 
+// Below `lg`, `pin="end"` keeps a row's actions column on screen while the
+// rest of a wide table scrolls under it.
+const PIN_END = "max-lg:sticky max-lg:right-0 max-lg:z-[1] max-lg:shadow-[-12px_0_12px_-12px_var(--color-scroll-shade)]";
+const PIN_END_CELL =
+  "max-lg:bg-app-surface max-lg:[tr:nth-child(even)>&]:bg-[color-mix(in_srgb,var(--color-surface-soft)_50%,var(--color-surface))]";
+
+type PinProps = { pin?: "end" };
+
 const TableHead = forwardRef<
   HTMLTableCellElement,
-  ThHTMLAttributes<HTMLTableCellElement>
->(function TableHead({ className, ...props }, ref) {
+  ThHTMLAttributes<HTMLTableCellElement> & PinProps
+>(function TableHead({ className, pin, ...props }, ref) {
   return (
     <th
       className={cn(
-        "h-12 bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-3 text-center align-middle text-xs font-bold uppercase tracking-wide text-white [&:has([role=checkbox])]:pr-0",
+        pin === "end" && PIN_END,
+        "h-12 bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-3 text-center align-middle text-sm font-bold normal-case tracking-normal text-white [&:has([role=checkbox])]:pr-0",
         className
       )}
       ref={ref}
@@ -104,11 +114,15 @@ TableHead.displayName = "TableHead";
 
 const TableCell = forwardRef<
   HTMLTableCellElement,
-  TdHTMLAttributes<HTMLTableCellElement>
->(function TableCell({ className, ...props }, ref) {
+  TdHTMLAttributes<HTMLTableCellElement> & PinProps
+>(function TableCell({ className, pin, ...props }, ref) {
   return (
     <td
-      className={cn("p-3 text-center align-middle [&:has([role=checkbox])]:pr-0", className)}
+      className={cn(
+        "p-3 text-center align-middle [&:has([role=checkbox])]:pr-0",
+        pin === "end" && cn(PIN_END, PIN_END_CELL),
+        className
+      )}
       ref={ref}
       {...props}
     />

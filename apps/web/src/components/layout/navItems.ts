@@ -5,6 +5,7 @@ import {
   Brain,
   CalendarClock,
   CalendarDays,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   CreditCard,
@@ -28,6 +29,7 @@ import {
   Target,
   Trash2,
   TrendingUp,
+  Trophy,
   Type,
   UserCheck,
   UserPlus,
@@ -65,46 +67,46 @@ export type NavItem = {
 
 export const studentNavItems: NavItem[] = [
   { href: "/student", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/student/courses", label: "My Courses", icon: BookOpen },
-  { href: "/student/batches", label: "My Batches", icon: Layers3 },
-  { href: "/student/live-classes", label: "Live Classes", icon: Video },
+  { href: "/student/courses", label: "My courses", icon: BookOpen },
+  { href: "/student/batches", label: "My batches", icon: Layers3 },
+  { href: "/student/live-classes", label: "Live classes", icon: Video },
   { href: "/student/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/student/practice", label: "Assignments", icon: Target },
-  { href: "/student/training", label: "Puzzle Training", icon: Puzzle },
-  { href: "/student/revision", label: "Smart Revision", icon: Brain },
+  { href: "/student/training", label: "Puzzle training", icon: Puzzle },
+  { href: "/student/revision", label: "Smart revision", icon: Brain },
   { href: "/student/progress", label: "Progress", icon: TrendingUp },
-  { href: "/student/insights", label: "Game Insights", icon: ScanSearch },
-  { href: "/games", label: "Game Library", icon: Library },
+  { href: "/student/insights", label: "Game insights", icon: ScanSearch },
+  { href: "/games", label: "Game library", icon: Library },
   { href: "/messages", label: "Messages", icon: MessagesSquare },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard },
-  { href: "/chess-board", label: "Chess Board", icon: Palette },
-  { href: "/profile", label: "Profile & Settings", icon: Settings }
+  { href: "/chess-board", label: "Chess board", icon: Palette },
+  { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
 
 export const coachNavItems: NavItem[] = [
   { href: "/coach", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/coach/batches", label: "My Batches", icon: Layers3 },
+  { href: "/coach/batches", label: "My batches", icon: Layers3 },
   { href: "/coach/schedule", label: "Schedule", icon: CalendarDays },
   { href: "/coach/assignments", label: "Assignments", icon: ClipboardList },
-  { href: "/coach/puzzles", label: "Puzzles", icon: Puzzle },
+  { href: "/coach/puzzles", label: "Puzzle library", icon: Puzzle },
   { href: "/coach/students", label: "Students", icon: Users },
   { href: "/messages", label: "Messages", icon: MessagesSquare },
-  { href: "/games", label: "Game Library", icon: Library },
-  { href: "/coach/feedback", label: "My Feedback", icon: MessageSquareHeart },
-  { href: "/coach/history", label: "Class History", icon: History },
+  { href: "/games", label: "Game library", icon: Library },
+  { href: "/coach/feedback", label: "My feedback", icon: MessageSquareHeart },
+  { href: "/coach/history", label: "Class history", icon: History },
   { href: "/coach/attendance", label: "Attendance", icon: UserCheck },
-  { href: "/coach/presets", label: "Class Presets", icon: SlidersHorizontal },
+  { href: "/coach/presets", label: "Class presets", icon: SlidersHorizontal },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet },
   { href: "/coach/payments", label: "Payments", icon: CreditCard },
-  { href: "/chess-board", label: "Chess Board", icon: Palette },
-  { href: "/profile", label: "Settings", icon: Settings }
+  { href: "/chess-board", label: "Chess board", icon: Palette },
+  { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
 
 export const adminNavItems: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   // Every class running right now, each one open to watch silently.
-  { href: "/admin/live-classes", label: "Live Now", icon: Radio },
+  { href: "/admin/live-classes", label: "Live now", icon: Radio },
   // Analytics
   { href: "/admin/analytics/users", label: "Users", icon: Users, group: "Analytics" },
   { href: "/admin/analytics/acquisition", label: "Acquisition", icon: TrendingUp, group: "Analytics" },
@@ -112,41 +114,43 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/analytics/classes", label: "Classes", icon: Video, group: "Analytics" },
   { href: "/admin/analytics/attendance", label: "Attendance", icon: UserCheck, group: "Analytics" },
   { href: "/admin/analytics/batches", label: "Batches", icon: Layers3, group: "Analytics" },
-  { href: "/admin/analytics/recordings", label: "Recordings & Storage", icon: Database, group: "Analytics" },
+  { href: "/admin/analytics/recordings", label: "Recordings & storage", icon: Database, group: "Analytics" },
   { href: "/admin/analytics/engagement", label: "Engagement", icon: Activity, group: "Analytics" },
   { href: "/admin/analytics/operations", label: "Operations", icon: Clock, group: "Analytics" },
   // People & communication
   { href: "/admin/users", label: "Users", icon: Users, group: "People" },
   { href: "/admin/approvals", label: "Approvals", icon: UserRoundCheck, group: "People" },
   { href: "/admin/leads", label: "Leads", icon: UserPlus, group: "People" },
-  { href: "/admin/messaging", label: "Messaging Rules", icon: MessageSquare, group: "People" },
+  { href: "/admin/messaging", label: "Messaging rules", icon: MessageSquare, group: "People" },
   { href: "/messages", label: "Chats", icon: MessagesSquare, group: "People" },
-  { href: "/admin/feedback", label: "Coach Feedback", icon: MessageSquareHeart, group: "People" },
-  { href: "/admin/privacy", label: "Privacy", icon: ShieldCheck, group: "People" },
+  { href: "/admin/feedback", label: "Coach feedback", icon: MessageSquareHeart, group: "People" },
+  { href: "/admin/privacy", label: "Privacy requests", icon: ShieldCheck, group: "People" },
   // Classes & scheduling
   { href: "/admin/batches", label: "Batches", icon: Layers3, group: "Classes" },
-  { href: "/admin/schedule", label: "Class Scheduler", icon: CalendarDays, group: "Classes" },
-  { href: "/admin/class-requests", label: "Class Requests", icon: CalendarClock, group: "Classes" },
-  { href: "/admin/attendance", label: "Attendance Reports", icon: BarChart3, group: "Classes" },
-  { href: "/admin/reliability", label: "Live Reliability", icon: Wifi, group: "Classes" },
+  { href: "/admin/schedule", label: "Class scheduler", icon: CalendarDays, group: "Classes" },
+  { href: "/admin/class-requests", label: "Class requests", icon: CalendarClock, group: "Classes" },
+  { href: "/admin/attendance", label: "Attendance reports", icon: BarChart3, group: "Classes" },
+  { href: "/admin/attendance/policy", label: "Attendance policy", icon: ClipboardCheck, group: "Classes" },
+  { href: "/admin/reliability", label: "Live reliability", icon: Wifi, group: "Classes" },
   // Learning content
   { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Learning" },
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Learning" },
-  { href: "/admin/puzzles", label: "Puzzle Library", icon: Puzzle, group: "Learning" },
-  { href: "/games", label: "Game Library", icon: Library, group: "Learning" },
+  { href: "/admin/puzzles", label: "Puzzle library", icon: Puzzle, group: "Learning" },
+  { href: "/admin/puzzles/scoring", label: "Puzzle points", icon: Trophy, group: "Learning" },
+  { href: "/games", label: "Game library", icon: Library, group: "Learning" },
   // Finance
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance" },
   { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Finance" },
-  { href: "/admin/finance/coach-payroll", label: "Coach Payroll", icon: Wallet, group: "Finance" },
+  { href: "/admin/finance/coach-payroll", label: "Coach payroll", icon: Wallet, group: "Finance" },
   // Platform settings
-  { href: "/admin/live-class", label: "Live Class Settings", icon: SlidersHorizontal, group: "Settings" },
-  { href: "/admin/chess-appearance", label: "Chess Appearance", icon: Palette, group: "Settings" },
-  { href: "/admin/typography", label: "Fonts & Text", icon: Type, group: "Settings" },
+  { href: "/admin/live-class", label: "Live class settings", icon: SlidersHorizontal, group: "Settings" },
+  { href: "/admin/chess-appearance", label: "Chess appearance", icon: Palette, group: "Settings" },
+  { href: "/admin/typography", label: "Fonts & text", icon: Type, group: "Settings" },
   // Super Admin
-  { href: "/admin/backups", label: "DB Backups", icon: Database, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/backups", label: "Database backups", icon: Database, group: "Super Admin", superAdminOnly: true },
   { href: "/admin/trash", label: "Trash", icon: Trash2, group: "Super Admin", superAdminOnly: true },
-  { href: "/admin/demo-classes", label: "Demo Classes", icon: Video, group: "Super Admin", superAdminOnly: true },
-  { href: "/admin/classes", label: "Batch Classes", icon: LineChart, group: "Super Admin", superAdminOnly: true }
+  { href: "/admin/demo-classes", label: "Demo classes", icon: Video, group: "Super Admin", superAdminOnly: true },
+  { href: "/admin/classes", label: "Batch classes", icon: LineChart, group: "Super Admin", superAdminOnly: true }
 ];
 
 /** Admin nav filtered to what the given role's API access actually permits. */

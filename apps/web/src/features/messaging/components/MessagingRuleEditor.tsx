@@ -327,7 +327,7 @@ export function MessagingRuleEditor({
           </FormField>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+            <p className="text-xs font-semibold text-app-muted">
               Insert a value
             </p>
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -352,7 +352,7 @@ export function MessagingRuleEditor({
           ) : null}
 
           <div className="rounded-app border border-app-border bg-app-background p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+            <p className="text-xs font-semibold text-app-muted">
               Preview (sample values)
             </p>
             <p className="mt-2 whitespace-pre-wrap text-sm text-app-text">{preview}</p>

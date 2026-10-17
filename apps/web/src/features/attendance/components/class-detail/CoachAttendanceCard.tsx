@@ -21,19 +21,19 @@ export const CoachAttendanceCard = memo(function CoachAttendanceCard({
       <CardContent className="p-4 sm:p-6 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <p className="text-xs font-medium text-app-muted uppercase">Joined</p>
+            <p className="text-xs font-medium text-app-muted">Joined</p>
             <p className="text-sm font-medium text-app-text">
               {formatTime(coach.joinedAt, tz) || "—"}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-app-muted uppercase">Left</p>
+            <p className="text-xs font-medium text-app-muted">Left</p>
             <p className="text-sm font-medium text-app-text">
               {formatTime(coach.leftAt, tz) || "—"}
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-app-muted uppercase">
+            <p className="text-xs font-medium text-app-muted">
               Total Duration
             </p>
             <p className="text-sm font-medium text-app-text">
@@ -41,7 +41,7 @@ export const CoachAttendanceCard = memo(function CoachAttendanceCard({
             </p>
           </div>
           <div>
-            <p className="text-xs font-medium text-app-muted uppercase">
+            <p className="text-xs font-medium text-app-muted">
               Reconnects
             </p>
             <p className="text-sm font-medium text-app-text">

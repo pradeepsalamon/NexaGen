@@ -255,7 +255,7 @@ export function CoachRegisterForm() {
         </FormField>
       </div>
       <Button className="mt-1 [@media(max-height:700px)]:mt-0" fullWidth isLoading={registerMutation.isPending} type="submit">
-        {registerMutation.isPending ? "Submitting..." : "Submit Application"}
+        {registerMutation.isPending ? "Submitting..." : "Submit application"}
       </Button>
     </form>
   );

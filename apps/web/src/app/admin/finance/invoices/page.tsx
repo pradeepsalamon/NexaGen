@@ -1,7 +1,8 @@
 import { AdminFinanceClient } from "@/features/invoices/components/AdminFinanceClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Invoices - Admin",
+  title: pageTitle("/admin/finance/invoices"),
 };
 
 export default function Page() {

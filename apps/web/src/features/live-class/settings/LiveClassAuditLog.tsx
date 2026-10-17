@@ -98,7 +98,7 @@ export function LiveClassAuditLog() {
       ) : isError ? (
         <WidgetError message="Couldn't load the change history." onRetry={() => refetch()} />
       ) : !data || data.entries.length === 0 ? (
-        <EmptyState
+        <EmptyState variant="inline"
           title="No changes yet"
           description="Edits to platform defaults, batch defaults and class settings show up here."
         />

@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { MessagesClient } from "@/features/chat/components/MessagesClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Messages - Nexa Chess",
+  title: pageTitle("/messages"),
 };
 
 export default function MessagesPage() {

@@ -16,7 +16,7 @@ export function ClassesAnalyticsPageClient() {
     <AnalyticsPageShell
       description="Demo vs batch, lifecycle status, and the full class log."
       exports={[{ report: "classes", label: "Classes" }]}
-      title="Class Analytics"
+      title="Class analytics"
     >
       {(query, update) => (
         <div className="space-y-5">

@@ -59,10 +59,10 @@ export function LeadsManagementClient() {
   });
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-5">
+    <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
         <header>
-          <p className="text-xs font-extrabold uppercase text-primary-ink">Academy leads</p>
+          <p className="text-xs font-extrabold text-primary-ink">Academy leads</p>
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Leads</h1>
           <p className="mt-1 text-sm text-app-muted">
             Demo booking inquiries from the academy marketing site.
@@ -152,6 +152,6 @@ export function LeadsManagementClient() {
       >
         This permanently removes the lead and its activity/notes. This action cannot be undone.
       </ConfirmationModal>
-    </main>
+    </div>
   );
 }

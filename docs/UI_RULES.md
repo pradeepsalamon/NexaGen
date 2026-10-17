@@ -66,9 +66,9 @@ disagree.
 | Any clickable action | `Button` | Variants: `primary` (main CTA), `outline` (secondary), `ghost` (quiet), `secondary` (saffron), `destructive`. Never a hand-styled `<button>` for a normal action. Keep one `primary` per area. |
 | Confirm / dismiss pairs | `Button` | The positive action (Apply, Save, Confirm, Done) is **filled** — `primary`, or `destructive` when it deletes. The negative one (Cancel, Clear, Reset, Close, Skip, Decline) is **`outline`**, never `ghost` — a borderless dismiss reads as plain text. |
 | Table row actions | `RowActions` | Filled round icon buttons by `tone` (`default` blue, `warning` saffron, `danger` red). Everything inline by default; `inline={n}` groups the rest behind "⋮" only when asked. A hand-written action button must use the same filled classes **and `variant="ghost"`** — never `outline`, whose dark styling repaints it. |
-| Data lists | `DataTable` (TanStack) or `Table` + `TableHeader/Body/Row/Head/Cell` | Never a raw `<table>`. The header is the blue brand row; don't colour `TableHead` yourself. Body cells that need left/right alignment say so (`text-left`/`text-right`). |
+| Data lists | `DataTable` (TanStack) or `Table` + `TableHeader/Body/Row/Head/Cell` | Never a raw `<table>`. The header is the blue brand row in sentence case; don't colour or uppercase `TableHead` yourself. Body cells that need left/right alignment say so (`text-left`/`text-right`). A table wider than its card scrolls inside it, and `Table` shades the edge that hides columns. When a row has actions or more than ~4 columns, pass `stackOnMobile` to `DataTable` and give every function-header column a `meta: { label }`: below `sm` each row becomes a card, so no action sits off-screen. Columns with ids `select` and `actions` go in the card's header and footer. A plain `Table` whose last column holds row actions passes `pin="end"` to that `TableHead`/`TableCell` so it stays on screen below `lg` (`DataTable` does this for an `actions` column automatically). |
 | Sortable column header | `DataTableSortButton` (TanStack `column`) / `SortButton` + `useTableSort` (plain `Table`) | Sorting is **opt-in**: lists load in the API's own order and nothing is sorted (no `initialKey` / `initialSorting`) until the user clicks a header. Each sortable header shows ↑ asc / ↓ desc / faint ↕ unsorted; a click cycles asc → desc → unsorted. Server-paginated lists sort on the server (`sort`/`order`; with none sent, `resolveOrderBy` uses the endpoint's fallback order) — client-sorting one page would misorder the rest. Document-order tables (invoice lines, move lists, ranked leaderboards, the topic folder tree) keep their natural order and have no sort arrows. |
-| Status labels | `Badge` (`default`, `secondary`, `success`, `warning`, `info`, `destructive`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. |
+| Status labels | `Badge` (`default`, `secondary`, `success`, `warning`, `info`, `destructive`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. Text is sentence case: show an API enum through `enumLabel()` (`lib/utils.ts`), never raw `ACTIVE`, and never `uppercase`. |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
 | Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". |
 | Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). |
@@ -78,7 +78,8 @@ disagree.
 | Confirm before acting | `ConfirmationModal` (+ optional `icon`) | Never `window.confirm`. Undo policy: `lib/undo/README.md`. |
 | Forms in a popup | `Dialog` | Confirmations use `ConfirmationModal`/`AlertDialog`. |
 | Bulk actions on selected rows | `BulkActionsBar` + `useBulkAction` + `BulkResultDialog` | |
-| KPIs / stat tiles | `KpiCard`, `StatTile` | Icon inside the gradient ring. |
+| KPIs / stat tiles | `KpiCard`, `StatTile` | Icon inside the gradient ring. Numbers use the display font with `tabular-nums`, never `font-mono`. Labels are sentence case. Don't hand-roll a KPI tile. |
+| Nothing to show | `EmptyState` | Default (`page`) is a dashed framed block for a page or tab with nothing else. Inside a card or `SectionCard` use `variant="inline"` so it isn't framed twice. |
 | Full-page create/edit | `FormPageShell` | Sticky back + title + actions header. |
 | Page title + actions | `PageHeader` | |
 | Tooltips | `SimpleTooltip` | Never `title=` on an interactive element. |
@@ -91,9 +92,18 @@ disagree.
   `TabsList`, `justify-end` on filter/search rows, `DataTableToolbar`.
   Content (titles, descriptions, tables) reads from the left.
 - **Page titles** are `<h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">`
-  (`PageHeader` / `FormPageShell` render this for you). One `h1` per page.
+  (`PageHeader` / `FormPageShell` render this for you). One `h1` per page — the
+  app header's location label is a `<p>`, not a heading.
+- **Page names** live in `lib/pageTitles.ts` (`PAGE_TITLES`, sentence case).
+  A page exports `metadata = { title: pageTitle("/route") }`; the root layout's
+  template adds "| Nexa Chess". A `"use client"` page gets a three-line
+  `layout.tsx` using `layoutTitle()` instead (a plain string title in a layout
+  would cut the template off its child routes). The header reads the same map,
+  and the nav label uses the same wording. A new page = a `PAGE_TITLES` entry.
 - **Role layouts** (`app/admin|coach|student/layout.tsx`) give the page its
-  padding and max width; pages don't add their own outer padding.
+  padding, background and `<main>`; pages don't add their own outer padding
+  or a second `<main>`. A page-level `grid` needs `grid-cols-[minmax(0,1fr)]`,
+  or its widest child (a tab row, a toolbar) stretches it past a phone screen.
 - `<main>` uses `overflow-x-clip`, never `overflow-x-hidden` — the latter makes
   `main` a scroll container and breaks every `sticky` element inside it.
 - Every screen must work at **320px** with no horizontal page scroll; wide

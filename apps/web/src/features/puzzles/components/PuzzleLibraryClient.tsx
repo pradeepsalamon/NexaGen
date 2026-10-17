@@ -80,6 +80,7 @@ import {
 import { CatalogBrowser } from "./catalog/CatalogBrowser";
 import { PuzzleImportDialog } from "./PuzzleImportDialog";
 import { TopicManager } from "./TopicManager";
+import { enumLabel } from "@/lib/utils";
 
 const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
@@ -171,7 +172,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle Library</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle library</h1>
           <p className="mt-1 text-sm text-app-muted">
             {role === "admin"
               ? "Manage the shared puzzle library and every coach's puzzles."
@@ -219,7 +220,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
             ["Lichess copies", stats.data.trainingCache]
           ].map(([label, value]) => (
             <Card key={label as string} className="p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+              <p className="text-xs font-semibold text-app-muted">
                 {label}
               </p>
               <p className="mt-1 text-xl font-extrabold text-app-text">{value}</p>
@@ -569,7 +570,7 @@ function PuzzleTable({
                 <TableHead><SortButton label="Difficulty" {...sortProps("difficulty")} /></TableHead>
                 <TableHead>Creator</TableHead>
                 <TableHead><SortButton label="Status" {...sortProps("status")} /></TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="text-right" pin="end">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -619,9 +620,9 @@ function PuzzleTable({
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusBadgeVariant(p.status)}>{p.status}</Badge>
+                    <Badge variant={statusBadgeVariant(p.status)}>{enumLabel(p.status)}</Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell pin="end">
                     <div className="flex items-center justify-end gap-1.5">
                       {assignBlocker(p, role) ? null : (
                         <SimpleTooltip label={role === "coach" ? "Assign" : "Create assignment"}>

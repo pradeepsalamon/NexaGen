@@ -54,7 +54,7 @@ export function PuzzleScoringDefaultsClient() {
           <ArrowLeft className="size-4" strokeWidth={2.5} /> Puzzle Library
         </Link>
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
-          Puzzle points &amp; leaderboard
+          Puzzle points
         </h1>
         <p className="mt-1 text-sm text-app-muted">
           Defaults for every puzzle shared in a live class. A puzzle can set its own points in the
@@ -76,13 +76,13 @@ export function PuzzleScoringDefaultsClient() {
       ) : (
         <>
           <Card className="space-y-4 p-4 sm:p-6">
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-app-muted">Points</h2>
+            <h2 className="text-sm font-extrabold text-app-muted">Points</h2>
             <PuzzleScoringFields idPrefix="defaults" value={scoring} onChange={setScoring} />
             <PuzzleScoringPreview scoring={scoring} />
           </Card>
 
           <Card className="space-y-4 p-4 sm:p-6">
-            <h2 className="text-sm font-extrabold uppercase tracking-wide text-app-muted">
+            <h2 className="text-sm font-extrabold text-app-muted">
               Leaderboard
             </h2>
             <PuzzleLeaderboardFields idPrefix="defaults-lb" value={leaderboard} onChange={setLeaderboard} />

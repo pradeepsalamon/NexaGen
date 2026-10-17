@@ -29,7 +29,7 @@ export function StudentBatchesClient() {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <PageHeader
-        title="My Batches"
+        title="My batches"
         description="Batches and coaching groups you are currently enrolled in at Nexa Chess Academy."
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -128,7 +128,7 @@ export function StudentBatchesClient() {
 
                   {batch.coaches && batch.coaches.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-wider text-app-muted">
+                      <div className="flex items-center gap-2 mb-2 text-xs font-bold text-app-muted">
                         <GraduationCap aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
                         Coaches ({batch.coaches.length})
                       </div>
@@ -152,7 +152,7 @@ export function StudentBatchesClient() {
 
                   {batch.students && batch.students.length > 0 && (
                     <div>
-                      <div className="flex items-center gap-2 mb-2 text-xs font-bold uppercase tracking-wider text-app-muted">
+                      <div className="flex items-center gap-2 mb-2 text-xs font-bold text-app-muted">
                         <Users aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
                         Classmates ({batch.studentCount})
                       </div>

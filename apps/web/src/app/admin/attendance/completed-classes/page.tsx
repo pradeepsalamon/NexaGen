@@ -82,7 +82,7 @@ export default function AdminCompletedClassesPage() {
     <div className="space-y-6 max-w-7xl p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-          Completed Classes
+          Completed classes
         </h1>
         <p className="text-app-muted mt-1">
           View all completed and cancelled live classes
@@ -94,7 +94,7 @@ export default function AdminCompletedClassesPage() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end justify-end gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted uppercase">
+              <label className="text-xs font-medium text-app-muted">
                 From
               </label>
               <DateStringPicker
@@ -108,7 +108,7 @@ export default function AdminCompletedClassesPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted uppercase">
+              <label className="text-xs font-medium text-app-muted">
                 To
               </label>
               <DateStringPicker
@@ -122,7 +122,7 @@ export default function AdminCompletedClassesPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted uppercase">
+              <label className="text-xs font-medium text-app-muted">
                 Status
               </label>
               <Select
@@ -175,7 +175,7 @@ export default function AdminCompletedClassesPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table className="w-full text-sm text-left">
-                  <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+                  <TableHeader className="text-xs bg-app-background border-b border-app-border text-app-muted">
                     <TableRow>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         <SortButton label="Date" {...sortProps("date")} />

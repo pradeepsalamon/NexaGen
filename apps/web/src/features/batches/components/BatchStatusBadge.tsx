@@ -1,10 +1,11 @@
 import { Badge } from "@/components/ui/Badge";
 import type { BatchStatus } from "@nexa-chess/types";
+import { enumLabel } from "@/lib/utils";
 
 export function BatchStatusBadge({ status }: { status: BatchStatus }) {
   return (
-    <Badge variant={getStatusBadgeVariant(status)} className="text-[10px] uppercase tracking-wider">
-      {status}
+    <Badge variant={getStatusBadgeVariant(status)}>
+      {enumLabel(status)}
     </Badge>
   );
 }

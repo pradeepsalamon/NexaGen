@@ -33,7 +33,7 @@ export function RecordingsAnalyticsPageClient() {
         { report: "recordings", label: "Recordings" },
         { report: "storage", label: "Storage" }
       ]}
-      title="Recordings & Storage"
+      title="Recordings & storage"
     >
       {(query, update) => (
         <div className="space-y-5">

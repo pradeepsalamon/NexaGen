@@ -8,7 +8,7 @@ export function StudentAnalyticsPageClient() {
     <AnalyticsPageShell
       description="Student roster, engagement, and who needs a nudge."
       exports={[{ report: "users", label: "Users" }]}
-      title="Student Analytics"
+      title="Student analytics"
     >
       {(query) => <StudentAnalyticsSection query={query} />}
     </AnalyticsPageShell>

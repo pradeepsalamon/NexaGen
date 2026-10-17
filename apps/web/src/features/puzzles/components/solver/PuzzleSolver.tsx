@@ -177,7 +177,7 @@ export function PuzzleSolver({
         )}
 
         <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-muted">
+          <p className="mb-1 text-xs font-semibold text-app-muted">
             Moves played
           </p>
           {moves.length === 0 ? (

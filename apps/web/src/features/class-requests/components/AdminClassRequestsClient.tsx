@@ -67,7 +67,7 @@ export function AdminClassRequestsClient() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class Requests</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class requests</h1>
           <p className="mt-1 text-app-muted">
             Coaches ask here for extra classes and new times. Approving creates or moves the class.
           </p>
@@ -90,8 +90,8 @@ export function AdminClassRequestsClient() {
           <Skeleton className="h-24 w-full rounded-app" />
         </div>
       ) : requests.length === 0 ? (
-        <Card className="p-6 sm:p-12">
-          <EmptyState
+        <Card>
+          <EmptyState variant="inline"
             icon={Inbox}
             title={status === "PENDING" ? "Nothing waiting" : "No requests"}
             description="Requests from coaches appear here."

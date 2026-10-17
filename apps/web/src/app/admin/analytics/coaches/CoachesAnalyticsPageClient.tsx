@@ -13,7 +13,7 @@ export function CoachesAnalyticsPageClient() {
     <AnalyticsPageShell
       description="Teaching hours, class completion and a full performance leaderboard."
       exports={[{ report: "coaches", label: "Coach performance" }]}
-      title="Coach Analytics"
+      title="Coach analytics"
     >
       {(query) => (
         <div className="space-y-5">

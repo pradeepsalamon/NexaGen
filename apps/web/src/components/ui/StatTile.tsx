@@ -65,7 +65,7 @@ export function StatTile({
           <span
             aria-hidden="true"
             className={cn(
-              "flex size-10 items-center justify-center rounded-xl border shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]",
+              "flex size-10 items-center justify-center rounded-control border shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]",
               style.chip,
               style.border
             )}
@@ -77,7 +77,7 @@ export function StatTile({
         {trend ? (
           <span
             className={cn(
-              "shrink-0 rounded px-1.5 py-0.5 text-xs font-bold",
+              "shrink-0 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums",
               style.chip
             )}
           >
@@ -88,8 +88,10 @@ export function StatTile({
         ) : null}
       </div>
 
-      <p className="font-mono text-2xl font-bold text-app-text sm:text-3xl">{value}</p>
-      <p className="mt-1 text-xs text-app-muted">{label}</p>
+      <p className="font-display text-2xl font-extrabold leading-none tracking-tight tabular-nums text-app-text sm:text-3xl">
+        {value}
+      </p>
+      <p className="mt-2 text-sm text-app-muted">{label}</p>
     </article>
   );
 }

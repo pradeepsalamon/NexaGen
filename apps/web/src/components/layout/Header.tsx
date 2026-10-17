@@ -7,118 +7,10 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
+import { resolvePageTitle } from "@/lib/pageTitles";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
 import { cn } from "@/lib/utils";
-
-const pageTitles: Record<string, string> = {
-  "/": "Nexa Chess",
-  "/admin": "Admin Analytics",
-  "/admin/analytics/users": "User Analytics",
-  "/admin/analytics/acquisition": "Acquisition Analytics",
-  "/admin/analytics/coaches": "Coach Analytics",
-  "/admin/analytics/classes": "Class Analytics",
-  "/admin/analytics/attendance": "Attendance Analytics",
-  "/admin/analytics/batches": "Batch Analytics",
-  "/admin/analytics/recordings": "Recordings & Storage",
-  "/admin/analytics/engagement": "Engagement Analytics",
-  "/admin/analytics/operations": "Operations",
-  "/admin/backups": "Database Backups",
-  "/admin/batches": "Batch management",
-  "/admin/feedback": "Coach Feedback",
-  "/admin/typography": "Fonts & Text",
-  "/admin/class-requests": "Class Requests",
-  "/admin/privacy": "Privacy",
-  "/admin/finance/invoices": "Invoices",
-  "/admin/finance/coach-payroll": "Coach Payroll",
-  "/admin/puzzles": "Puzzle Library",
-  "/admin/courses": "Courses",
-  "/admin/approvals": "Approvals",
-  "/admin/trash": "Trash",
-  "/admin/users": "User management",
-  "/coach": "Coach Dashboard",
-  "/coach/batches": "My Batches",
-  "/coach/schedule": "Schedule",
-  "/coach/students": "Students",
-  "/coach/feedback": "My Feedback",
-  "/coach/history": "Class History",
-  "/coach/puzzles": "Puzzles",
-  "/coach/earnings": "Earnings",
-  "/student": "Student Dashboard",
-  "/student/courses": "My Courses",
-  "/student/batches": "My Batches",
-  "/student/live-classes": "Live Classes",
-  "/student/schedule": "Schedule",
-  "/student/practice": "Practice",
-  "/student/training": "Puzzle Training",
-  "/student/revision": "Smart Revision",
-  "/student/progress": "Progress",
-  "/student/insights": "Game Insights",
-  "/student/attendance": "Attendance",
-  "/student/billing": "Billing",
-  "/forgot-password": "Account Help",
-  "/login": "Login",
-  "/profile": "My Profile",
-  "/register": "Register",
-  "/reset-password": "Reset Password"
-};
-
-function formatPageTitle(pathname: string) {
-  if (pageTitles[pathname]) {
-    return pageTitles[pathname];
-  }
-
-  if (pathname.startsWith("/classes/")) {
-    return "Class Details";
-  }
-
-  if (pathname.startsWith("/live-class/")) {
-    return "Live Class";
-  }
-
-  if (/^\/(admin|coach)\/puzzles\//.test(pathname)) {
-    if (pathname.endsWith("/new")) return "New puzzle";
-    if (pathname.endsWith("/edit")) return "Edit puzzle";
-    return "Puzzle";
-  }
-
-  if (pathname.startsWith("/student/puzzles/")) {
-    return "Solve puzzle";
-  }
-
-  // A course id is a cuid; showing it raw as the page title reads as noise.
-  if (pathname.startsWith("/admin/courses/")) {
-    return pathname.endsWith("/new") ? "New course" : "Course";
-  }
-  if (pathname.startsWith("/student/courses/")) {
-    return "Course";
-  }
-
-  // An invoice id is a cuid; showing it raw as the page title reads as noise.
-  if (
-    pathname.startsWith("/admin/finance/invoices/") ||
-    pathname.startsWith("/student/billing/invoices/")
-  ) {
-    return "Invoice";
-  }
-
-  // A payroll period id is a cuid; showing it raw as the page title reads as noise.
-  if (pathname.startsWith("/admin/finance/coach-payroll/periods/")) {
-    return "Payroll Period";
-  }
-
-  const currentSegment = pathname.split("/").filter(Boolean).at(-1);
-
-  if (!currentSegment) {
-    return "Dashboard";
-  }
-
-  return currentSegment
-    .split("-")
-    .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
-}
 
 export function Header({
   centerSlot,
@@ -149,7 +41,7 @@ export function Header({
   const isSessionChecked = useAuthStore((state) => state.isSessionChecked);
   const isSessionLoading = useAuthStore((state) => state.isSessionLoading);
   const user = useAuthStore((state) => state.user);
-  const pageTitle = formatPageTitle(pathname);
+  const pageTitle = resolvePageTitle(pathname);
   const hasSidebar = useSidebarStore((state) => state.available);
   const sidebarOpen = useSidebarStore((state) => state.open);
   const toggleSidebar = useSidebarStore((state) => state.toggle);
@@ -163,7 +55,7 @@ export function Header({
     <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-app-border bg-app-surface/95 shadow-[0_1px_0_rgba(16,24,40,0.02)] backdrop-blur supports-[backdrop-filter]:bg-app-surface/[0.88]">
       <div
         className={cn(
-          "mx-auto grid h-full w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:gap-3 sm:px-6 lg:px-8",
+          "mx-auto grid h-full w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:grid-cols-[minmax(max-content,1fr)_minmax(0,auto)_minmax(max-content,1fr)] lg:px-8",
           // The classroom's right cluster (connection, timer, account…) is too
           // wide for a 7xl column and would spill into the centred title.
           compact ? "max-w-none" : "max-w-7xl"
@@ -194,9 +86,11 @@ export function Header({
         {centerSlot ? (
           centerSlot
         ) : (
-          <h1 className="hidden max-w-[42vw] truncate text-center text-sm font-extrabold text-app-text sm:block sm:max-w-none sm:text-base">
-            {pageTitle}
-          </h1>
+          // Not a heading: each page's PageHeader owns the one <h1>. Signed-out
+          // pages show their own title in the form, so only the slot is kept.
+          <p className="hidden min-w-0 truncate text-center font-display text-base font-extrabold text-app-text lg:block">
+            {activeUser ? pageTitle : null}
+          </p>
         )}
         <div className="flex items-center gap-2 justify-self-end">
           {rightSlot}
@@ -209,6 +103,7 @@ export function Header({
                   ? "border-primary bg-primary text-white"
                   : "border-app-border bg-app-soft text-app-text hover:border-primary/50 hover:bg-app-soft/80"
               )}
+              aria-label="Dashboard"
               href={dashboardHref}
               {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
             >
@@ -238,13 +133,14 @@ export function Header({
             </div>
           ) : activeUser ? (
             <UserNavMenu user={activeUser} openLinksInNewTab={openLinksInNewTab} />
-          ) : (
+          ) : pathname === "/login" ? null : (
             <Link
-              className="inline-flex min-h-10 items-center gap-2 rounded-control border border-app-border bg-primary px-3 text-sm font-extrabold text-white shadow-card transition hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:px-4"
+              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-app-border bg-primary px-3 text-sm font-extrabold text-white shadow-card transition hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus sm:px-4"
+              aria-label="Log in"
               href="/login"
             >
               <LogIn aria-hidden="true" className="size-4" strokeWidth={2.5} />
-              <span className="hidden sm:inline">Login</span>
+              <span className="hidden sm:inline">Log in</span>
             </Link>
           )}
         </div>

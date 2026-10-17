@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Badge } from "@/components/ui/Badge";
+import { enumLabel } from "@/lib/utils";
 
 export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery }) {
   const { data, isLoading, isError, refetch } = useBatchAnalyticsQuery(query);
@@ -54,7 +55,7 @@ export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
 
           <div className="mt-6 overflow-x-auto">
             <Table className="w-full min-w-[720px] text-left text-sm">
-              <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+              <TableHeader className="text-xs text-app-muted">
                 <TableRow>
                   <TableHead className="pb-2"><SortButton label="Batch" {...sortProps("name")} /></TableHead>
                   <TableHead className="pb-2"><SortButton label="Coach" {...sortProps("coach")} /></TableHead>
@@ -86,7 +87,7 @@ export function BatchAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
                     <TableCell className="py-2 text-right">{formatPercent(b.attendancePercent)}</TableCell>
                     <TableCell className="py-2 text-right">{formatHours(b.teachingHours)}</TableCell>
                     <TableCell className="text-left py-2">
-                      <Badge variant="secondary">{b.status}</Badge>
+                      <Badge variant="secondary">{enumLabel(b.status)}</Badge>
                     </TableCell>
                   </TableRow>
                 ))}

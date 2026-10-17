@@ -105,7 +105,7 @@ export function CoachAnalyticsSection({
                 </Link>
               </div>
               <Table className="w-full min-w-[640px] text-left text-sm">
-                <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+                <TableHeader className="text-xs text-app-muted">
                   <TableRow>
                     <TableHead className="pb-2"><SortButton label="Coach" {...sortProps("name")} /></TableHead>
                     <TableHead className="pb-2 text-right"><SortButton label="Classes" {...sortProps("classes")} /></TableHead>

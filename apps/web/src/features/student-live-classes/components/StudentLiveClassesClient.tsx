@@ -100,7 +100,7 @@ export function StudentLiveClassesClient() {
   return (
     <div className="space-y-8 animate-fade-in pb-10">
       <PageHeader
-        title="Live Classes"
+        title="Live classes"
         description="Join ongoing batch sessions with your coach and peers, and review past class recordings."
         actions={
           <Button asChild variant="outline">
@@ -131,7 +131,7 @@ export function StudentLiveClassesClient() {
           {liveClass ? (
             <Card className="flex flex-col gap-6 border-app-danger/40 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-danger)_10%,var(--color-surface)),var(--color-surface))] p-6 shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
               <div className="min-w-0 space-y-2">
-                <div className="inline-flex items-center gap-2 rounded-full bg-app-danger/15 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-app-danger-ink">
+                <div className="inline-flex items-center gap-2 rounded-full bg-app-danger/15 px-3 py-1 text-xs font-extrabold text-app-danger-ink">
                   <span className="relative flex size-2.5">
                     <span className="absolute inline-flex size-full rounded-full bg-app-danger opacity-75 motion-safe:animate-ping" />
                     <span className="relative inline-flex size-2.5 rounded-full bg-app-danger" />
@@ -168,7 +168,7 @@ export function StudentLiveClassesClient() {
             <Card className="flex flex-col gap-5 border-primary/20 bg-app-surface p-6 shadow-card sm:flex-row sm:items-center sm:justify-between sm:p-8">
               <div className="min-w-0 space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-primary-ink">
+                  <span className="text-xs font-extrabold text-primary-ink">
                     {formatRelativeDay(todaysClass.startsAt, timeZone) === "Today"
                       ? "Today's Class"
                       : "Next Class"}
@@ -233,7 +233,7 @@ export function StudentLiveClassesClient() {
                       >
                         <div className="flex items-center gap-3.5 min-w-0">
                           <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-control bg-app-soft text-center">
-                            <span className="text-[0.65rem] font-bold uppercase leading-none text-app-muted">
+                            <span className="text-[0.65rem] font-bold leading-none text-app-muted">
                               {formatMonthShort(cls.startsAt, timeZone)}
                             </span>
                             <span className="mt-0.5 text-base font-extrabold leading-none text-app-text">

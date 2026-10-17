@@ -22,7 +22,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 export function BatchDetailPageClient({ batchId }: { batchId: string }) {
   return (
-    <AnalyticsPageShell title="Batch Analytics">
+    <AnalyticsPageShell title="Batch analytics">
       {(query) => <Body batchId={batchId} query={query} />}
     </AnalyticsPageShell>
   );
@@ -99,7 +99,7 @@ function Body({
         <p className="mb-2 text-sm font-bold text-app-text">Students</p>
         <div className="overflow-x-auto">
           <Table className="w-full min-w-[480px] text-left text-sm">
-            <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+            <TableHeader className="text-xs text-app-muted">
               <TableRow>
                 <TableHead className="pb-2"><SortButton label="Student" {...sortProps("name")} /></TableHead>
                 <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>

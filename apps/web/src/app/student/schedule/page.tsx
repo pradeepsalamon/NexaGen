@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { StudentScheduleClient } from "@/features/student-schedule/components/StudentScheduleClient";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Class Schedule - Nexa Chess"
+  title: pageTitle("/student/schedule")
 };
 
 export default function StudentSchedulePage() {

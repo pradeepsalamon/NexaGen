@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useBatchSchedulesQuery } from "../hooks/useBatchScheduleApi";
+import { enumLabel } from "@/lib/utils";
 
 const STATUS_VARIANT: Record<BatchScheduleStatus, "success" | "warning" | "secondary"> = {
   ACTIVE: "success",
@@ -21,12 +22,12 @@ export function ScheduleListClient() {
   const schedules = data?.schedules ?? [];
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-6xl gap-5">
+    <div>
+      <div className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] gap-5">
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-extrabold uppercase text-primary-ink">Class Scheduler</p>
-            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Batch class plans</h1>
+            <p className="text-xs font-extrabold text-primary-ink">Class Scheduler</p>
+            <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Class scheduler</h1>
           </div>
           <Button asChild>
             <Link href="/admin/schedule/new">
@@ -44,7 +45,7 @@ export function ScheduleListClient() {
           </div>
         ) : schedules.length === 0 ? (
           <Card className="p-10">
-            <EmptyState
+            <EmptyState variant="inline"
               icon={CalendarRange}
               title="No schedules yet"
               description="Create a recurring weekly schedule to auto-generate a batch's classes."
@@ -64,7 +65,7 @@ export function ScheduleListClient() {
                         {s.startDate} → {s.endDate} · {s.timezone}
                       </p>
                     </div>
-                    <Badge variant={STATUS_VARIANT[s.status]}>{s.status}</Badge>
+                    <Badge variant={STATUS_VARIANT[s.status]}>{enumLabel(s.status)}</Badge>
                   </div>
                   <div className="flex flex-wrap gap-4 text-xs text-app-muted">
                     <span>
@@ -89,6 +90,6 @@ export function ScheduleListClient() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

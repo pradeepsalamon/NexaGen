@@ -1,0 +1,173 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - button "Open menu" [ref=e37] [cursor=pointer]
+        - link "Go to Dashboard" [ref=e39] [cursor=pointer]:
+          - /url: /student
+          - img "Nexa Chess" [ref=e8]
+      - heading "Student Dashboard" [level=1] [ref=e40]
+      - generic [ref=e10]:
+        - link "Dashboard" [ref=e41] [cursor=pointer]:
+          - /url: /student
+        - button "Notifications" [ref=e49] [cursor=pointer]
+        - button "Change to dark theme" [ref=e12] [cursor=pointer]
+        - button "User navigation menu" [ref=e53] [cursor=pointer]:
+          - generic [ref=e54]: TS
+          - generic [ref=e56]: Test
+  - generic [ref=e33]:
+    - generic [ref=e60]:
+      - complementary "Nexa Chess navigation" [ref=e61]:
+        - generic [ref=e62]:
+          - img "Nexa Chess" [ref=e65]
+          - generic [ref=e66]: Student
+        - navigation [ref=e67]:
+          - link "Dashboard" [ref=e68] [cursor=pointer]:
+            - /url: /student
+          - link "My Courses" [ref=e76] [cursor=pointer]:
+            - /url: /student/courses
+          - link "My Batches" [ref=e81] [cursor=pointer]:
+            - /url: /student/batches
+          - link "Live Classes" [ref=e89] [cursor=pointer]:
+            - /url: /student/live-classes
+          - link "Schedule" [ref=e95] [cursor=pointer]:
+            - /url: /student/schedule
+          - link "Assignments" [ref=e100] [cursor=pointer]:
+            - /url: /student/practice
+          - link "Progress" [ref=e107] [cursor=pointer]:
+            - /url: /student/progress
+          - link "Attendance 53%" [ref=e113] [cursor=pointer]:
+            - /url: /student/attendance
+            - generic [ref=e119]: Attendance
+            - generic [ref=e120]: 53%
+          - link "Billing" [ref=e122] [cursor=pointer]:
+            - /url: /student/billing
+          - link "Chess Board" [ref=e127] [cursor=pointer]:
+            - /url: /chess-board
+          - link "Profile & Settings" [ref=e136] [cursor=pointer]:
+            - /url: /profile
+        - generic [ref=e142]:
+          - generic [ref=e143]:
+            - generic [ref=e144]: Chess Rating
+            - generic [ref=e146]:
+              - generic [ref=e147]: "950"
+              - generic [ref=e148]: Beginner
+            - generic [ref=e150]:
+              - generic [ref=e151]: Progress to 1000
+              - generic [ref=e152]: 95%
+          - link "TS Test Student student@nexa.test" [ref=e155] [cursor=pointer]:
+            - /url: /profile
+            - generic [ref=e156]: TS
+            - generic [ref=e159]:
+              - generic [ref=e160]: Test Student
+              - generic [ref=e161]: student@nexa.test
+      - button [aria-hidden] [ref=e162]
+      - button "Open sidebar" [ref=e164] [cursor=pointer]
+    - main [ref=e168]:
+      - generic [ref=e170]:
+        - generic [ref=e172]:
+          - generic [ref=e173]:
+            - heading "Welcome back, Test" [level=1] [ref=e174]
+            - paragraph [ref=e175]: Seeded Beginner Batch
+          - link "My progress" [ref=e177] [cursor=pointer]:
+            - /url: /student/progress
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - generic [ref=e189]:
+              - heading "No classes scheduled" [level=2] [ref=e190]
+              - paragraph [ref=e191]: Your next class will show up here. Meanwhile, catch up on your assignments.
+            - link "View assignments" [ref=e192] [cursor=pointer]:
+              - /url: /student/practice
+          - generic [ref=e193]:
+            - article [ref=e194]:
+              - paragraph [ref=e202]: "10"
+              - paragraph [ref=e203]: Classes Attended
+            - article [ref=e204]:
+              - paragraph [ref=e209]: "0"
+              - paragraph [ref=e210]: Lessons Completed
+            - article [ref=e211]:
+              - paragraph [ref=e220]: 53%
+              - paragraph [ref=e221]: Attendance
+          - generic [ref=e222]:
+            - generic [ref=e223]:
+              - heading "Upcoming classes" [level=2] [ref=e227]
+              - paragraph [ref=e229]: Nothing else scheduled yet.
+            - generic [ref=e230]:
+              - generic [ref=e231]:
+                - heading "Assignments" [level=2] [ref=e234]
+                - link "View all" [ref=e236] [cursor=pointer]:
+                  - /url: /student/practice
+              - paragraph [ref=e238]: You're all caught up. New work from your coach lands here.
+          - generic [ref=e240]:
+            - generic [ref=e242]:
+              - heading "Past classes" [level=2] [ref=e244]
+              - paragraph [ref=e245]: Rewatch a session any time.
+            - list [ref=e247]:
+              - listitem [ref=e248]:
+                - generic [ref=e249]:
+                  - paragraph [ref=e250]: E2E Board Recovery
+                  - paragraph [ref=e251]:
+                    - generic [ref=e252]: Test · Oct 3, 2026
+                - generic [ref=e253]: No recording
+              - listitem [ref=e255]:
+                - generic [ref=e256]:
+                  - paragraph [ref=e257]: E2E Board Recovery
+                  - paragraph [ref=e258]:
+                    - generic [ref=e259]: Test · Oct 3, 2026
+                - generic [ref=e260]: No recording
+              - listitem [ref=e262]:
+                - generic [ref=e263]:
+                  - paragraph [ref=e264]: E2E Board Recovery
+                  - paragraph [ref=e265]:
+                    - generic [ref=e266]: Test · Oct 3, 2026
+                - generic [ref=e267]: No recording
+              - listitem [ref=e269]:
+                - generic [ref=e270]:
+                  - paragraph [ref=e271]: E2E Board Recovery
+                  - paragraph [ref=e272]:
+                    - generic [ref=e273]: Test · Oct 3, 2026
+                - generic [ref=e274]: No recording
+              - listitem [ref=e276]:
+                - generic [ref=e277]:
+                  - paragraph [ref=e278]: E2E Board Recovery
+                  - paragraph [ref=e279]:
+                    - generic [ref=e280]: Test · Oct 3, 2026
+                - generic [ref=e281]: No recording
+              - listitem [ref=e283]:
+                - generic [ref=e284]:
+                  - paragraph [ref=e285]: Single page UI check
+                  - paragraph [ref=e286]:
+                    - generic [ref=e287]: Test · Sep 28, 2026
+                - generic [ref=e288]: No recording
+              - listitem [ref=e290]:
+                - generic [ref=e291]:
+                  - paragraph [ref=e292]: E2E live puzzle
+                  - paragraph [ref=e293]:
+                    - generic [ref=e294]: Test · Sep 8, 2026
+                - generic [ref=e295]: No recording
+              - listitem [ref=e297]:
+                - generic [ref=e298]:
+                  - paragraph [ref=e299]: E2E live puzzle
+                  - paragraph [ref=e300]:
+                    - generic [ref=e301]: Test · Sep 8, 2026
+                - generic [ref=e302]: No recording
+              - listitem [ref=e304]:
+                - generic [ref=e305]:
+                  - paragraph [ref=e306]: E2E live puzzle
+                  - paragraph [ref=e307]:
+                    - generic [ref=e308]: Test · Sep 8, 2026
+                - generic [ref=e309]: No recording
+              - listitem [ref=e311]:
+                - generic [ref=e312]:
+                  - paragraph [ref=e313]: board
+                  - paragraph [ref=e314]:
+                    - generic [ref=e315]: Test · Sep 6, 2026
+                - generic [ref=e316]: No recording
+  - region "Notifications alt+T":
+    - list:
+      - listitem [ref=e318]:
+        - button "Close toast" [ref=e319] [cursor=pointer]
+        - generic [ref=e326]:
+          - generic [ref=e327]: Login successful
+          - generic [ref=e328]: Welcome back to Nexa Chess.
+  - alert [ref=e329]: Nexa Chess

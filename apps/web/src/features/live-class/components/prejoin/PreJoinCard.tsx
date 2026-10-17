@@ -147,7 +147,7 @@ export function PreJoinCard({ status, topic, startedAt, endsAt, settings, onJoin
         <CardContent className="grid gap-6 p-5 sm:p-8 md:grid-cols-[1fr_1.1fr] md:gap-8">
           {/* Class info */}
           <div className="flex flex-col justify-center">
-            <p className="text-xs font-bold uppercase tracking-wider text-primary-ink">
+            <p className="text-xs font-bold text-primary-ink">
               You&apos;re about to join
             </p>
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-1 text-app-text">

@@ -328,8 +328,8 @@ export function TrashManagementClient() {
   };
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-5">
+    <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
         <PageHeader 
           title="Trash" 
           description="Manage deleted entities." 
@@ -463,7 +463,7 @@ export function TrashManagementClient() {
           />
         </Card>
       </div>
-    </main>
+    </div>
   );
 }
 

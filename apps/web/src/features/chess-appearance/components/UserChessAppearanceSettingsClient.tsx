@@ -149,7 +149,7 @@ export function UserChessAppearanceSettingsClient() {
 
           <div className="lg:sticky lg:top-20 lg:self-start">
             <Card className="space-y-3 p-5">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-app-muted">Live preview</h2>
+              <h2 className="text-sm font-bold text-app-muted">Live preview</h2>
               <ChessAppearancePreviewScope config={draft}>
                 <PracticeBoard fen={previewFen} onMove={(m) => setPreviewFen(m.fen)} className="mx-auto max-w-none" />
               </ChessAppearancePreviewScope>

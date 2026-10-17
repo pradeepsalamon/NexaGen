@@ -53,7 +53,7 @@ interface Props {
 
 const SectionHeading = ({ index, title, hint }: { index: number; title: string; hint?: string }) => (
   <div className="mb-3">
-    <h2 className="text-sm font-extrabold uppercase tracking-wide text-app-muted">
+    <h2 className="text-sm font-extrabold text-app-muted">
       {index}. {title}
     </h2>
     {hint ? <p className="mt-0.5 text-sm text-app-muted">{hint}</p> : null}

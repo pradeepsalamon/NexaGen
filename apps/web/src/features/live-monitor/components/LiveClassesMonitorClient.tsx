@@ -110,7 +110,7 @@ export function LiveClassesMonitorClient() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Live Now</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Live now</h1>
           <p className="mt-1 text-app-muted">
             Every class running right now. Watch any of them silently — the coach and students won&apos;t see
             you, and you can&apos;t be heard or change anything in the room.

@@ -9,7 +9,7 @@ export function StudentProgressClient() {
       <div>
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight flex items-center gap-2 text-app-text">
           <TrendingUp className="size-6 text-primary-ink" strokeWidth={2.5} />
-          My Progress
+          Progress
         </h1>
         <p className="mt-1 text-app-muted">
           Solve puzzles and finish assignments every day to grow your rating and your streak.

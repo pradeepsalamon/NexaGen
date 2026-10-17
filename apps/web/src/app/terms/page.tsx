@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/features/legal/components/LegalPage";
 import { LEGAL_DRAFT, TERMS_SECTIONS } from "@/features/legal/content";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/terms" },
   description: "The terms for using Nexa Chess Academy's classes and platform.",
   robots: LEGAL_DRAFT ? { follow: true, index: false } : undefined,
-  title: "Terms of Service"
+  title: pageTitle("/terms")
 };
 
 export default function TermsPage() {

@@ -23,10 +23,10 @@ export function LatestUpcomingClasses() {
     <section aria-labelledby="latest-upcoming-heading" className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-bold text-app-text" id="latest-upcoming-heading">
-          Latest Upcoming Classes
+          Upcoming classes
         </h2>
         <Button asChild variant="ghost">
-          <Link href="/coach/schedule">View All</Link>
+          <Link href="/coach/schedule">View all</Link>
         </Button>
       </div>
 
@@ -44,9 +44,9 @@ export function LatestUpcomingClasses() {
           onRetry={() => refetch()}
         />
       ) : classes.length === 0 ? (
-        <Card className="p-6 sm:p-12">
-          <EmptyState
-            action={{ label: "View Schedule", onClick: () => router.push("/coach/schedule") }}
+        <Card>
+          <EmptyState variant="inline"
+            action={{ label: "View schedule", onClick: () => router.push("/coach/schedule") }}
             description="Classes the academy schedules for you will show up here."
             icon={CalendarClock}
             title="No upcoming classes"

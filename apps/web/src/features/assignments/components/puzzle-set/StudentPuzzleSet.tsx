@@ -390,7 +390,7 @@ function MyResults({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-control border border-app-border bg-app-background/50 p-2 text-center">
-      <dt className="text-xs uppercase tracking-wide text-app-muted">{label}</dt>
+      <dt className="text-xs text-app-muted">{label}</dt>
       <dd className="text-sm font-bold text-app-text">{value}</dd>
     </div>
   );

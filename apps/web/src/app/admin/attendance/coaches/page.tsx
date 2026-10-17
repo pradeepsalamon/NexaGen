@@ -86,7 +86,7 @@ export default function AdminCoachTeachingPage() {
 
       <div>
         <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-          Coach Teaching Report
+          Coach teaching report
         </h1>
         <p className="text-app-muted mt-1">
           Teaching statistics and completion rates for all coaches
@@ -98,7 +98,7 @@ export default function AdminCoachTeachingPage() {
         <CardContent className="p-4">
           <div className="flex flex-wrap items-end justify-end gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted uppercase">
+              <label className="text-xs font-medium text-app-muted">
                 From
               </label>
               <DateStringPicker
@@ -109,7 +109,7 @@ export default function AdminCoachTeachingPage() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-app-muted uppercase">
+              <label className="text-xs font-medium text-app-muted">
                 To
               </label>
               <DateStringPicker
@@ -204,7 +204,7 @@ export default function AdminCoachTeachingPage() {
               </p>
               <div className="overflow-x-auto">
                 <Table className="w-full text-sm text-left">
-                  <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+                  <TableHeader className="text-xs bg-app-background border-b border-app-border text-app-muted">
                     <TableRow>
                       <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold">
                         <SortButton label="Coach Name" {...sortProps("name")} />

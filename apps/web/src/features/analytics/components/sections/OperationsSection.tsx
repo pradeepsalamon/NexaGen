@@ -114,7 +114,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
             {t && t.schedule.length > 0 ? (
               <div className="mt-5 overflow-x-auto">
                 <Table className="w-full min-w-[560px] text-left text-sm">
-                  <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+                  <TableHeader className="text-xs text-app-muted">
                     <TableRow>
                       <TableHead className="pb-2"><SortButton label="Time" {...sortProps("time")} /></TableHead>
                       <TableHead className="pb-2"><SortButton label="Class" {...sortProps("topic")} /></TableHead>

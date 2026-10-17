@@ -36,7 +36,7 @@ export default function RegisterPage() {
             actionHref="/login"
             actionLabel="Log in"
             helperText="Already learning with us?"
-            title="Create Account"
+            title="Create account"
             rightContent={
               <TabsList aria-label="Register as" className="relative grid grid-cols-2">
                 <span

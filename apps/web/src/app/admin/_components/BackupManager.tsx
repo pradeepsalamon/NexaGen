@@ -121,7 +121,7 @@ export function BackupManager() {
 
       <div className="bg-app-soft/50 p-4 border-b border-app-border flex items-center gap-4">
         <div className="flex-1">
-          <p className="text-xs font-bold uppercase text-app-muted mb-1">Latest Backup Health</p>
+          <p className="text-xs font-bold text-app-muted mb-1">Latest Backup Health</p>
           {isLoading ? (
             <Skeleton className="h-6 w-48" />
           ) : latestBackup ? (

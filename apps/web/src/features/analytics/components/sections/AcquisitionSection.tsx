@@ -68,7 +68,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
           <div className="overflow-x-auto">
             <Table className="w-full text-left text-sm">
               <TableHeader>
-                <TableRow className="text-xs uppercase tracking-wide text-app-muted">
+                <TableRow className="text-xs text-app-muted">
                   <TableHead className="pb-2"><SortButton label="Source" {...sortProps("source")} /></TableHead>
                   <TableHead className="pb-2 text-right"><SortButton label="Users" {...sortProps("users")} /></TableHead>
                   <TableHead className="pb-2 text-right"><SortButton label="%" {...sortProps("percent")} /></TableHead>

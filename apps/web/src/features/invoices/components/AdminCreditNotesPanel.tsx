@@ -62,7 +62,7 @@ export function AdminCreditNotesPanel() {
                 ] as const
               ).map(([heading, key]) => (
                 <TableHead
-                  className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                  className="px-4 py-3 text-left text-xs font-semibold"
                   key={heading}
                 >
                   {key ? <SortButton label={heading} {...sortProps(key)} /> : heading}

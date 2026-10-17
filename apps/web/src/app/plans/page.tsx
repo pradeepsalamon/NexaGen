@@ -1,7 +1,8 @@
 import { PlansClient } from "@/features/payments/components/PlansClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Plans - NexaChess",
+  title: pageTitle("/plans"),
 };
 
 export default function Page() {

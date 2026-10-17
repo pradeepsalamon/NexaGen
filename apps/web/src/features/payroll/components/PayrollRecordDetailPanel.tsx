@@ -44,7 +44,7 @@ export function PayrollRecordDetailPanel({
       <div className="grid gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
           <div className="mb-2 flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-wide text-app-muted">
+            <h4 className="text-xs font-bold text-app-muted">
               Calculation breakdown
             </h4>
             {record.status === "CALCULATED" ? (
@@ -118,7 +118,7 @@ export function PayrollRecordDetailPanel({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <h4 className="text-xs font-bold uppercase tracking-wide text-app-muted">
+          <h4 className="text-xs font-bold text-app-muted">
             Manual adjustments
           </h4>
           {canAdjust ? (

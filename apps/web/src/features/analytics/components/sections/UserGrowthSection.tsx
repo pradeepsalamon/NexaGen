@@ -91,7 +91,7 @@ export function UserGrowthSection({
                 ]
               ].map(([label, value]) => (
                 <div className="rounded-control bg-app-soft p-3" key={label}>
-                  <dt className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+                  <dt className="text-xs font-semibold text-app-muted">
                     {label}
                   </dt>
                   <dd className="mt-0.5 text-lg font-extrabold text-app-text">

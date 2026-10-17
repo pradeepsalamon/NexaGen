@@ -25,6 +25,7 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { useCourses, useDeleteCourse, useSetCourseArchived, useSetCoursePublished } from "../hooks/useCoursesApi";
 import { COURSE_STATUS_OPTIONS, courseStatusBadgeVariant } from "../lib/courseMeta";
+import { enumLabel } from "@/lib/utils";
 
 const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
@@ -121,7 +122,7 @@ export function AdminCoursesClient() {
             ))}
           </div>
         ) : courses.length === 0 ? (
-          <EmptyState
+          <EmptyState variant="inline"
             icon={Plus}
             title={hasFilters ? "No courses match your filters" : "No courses yet"}
             description={
@@ -154,7 +155,7 @@ export function AdminCoursesClient() {
                     <TableCell>{c.moduleCount}</TableCell>
                     <TableCell>{c.createdByName ?? "—"}</TableCell>
                     <TableCell>
-                      <Badge variant={courseStatusBadgeVariant(c.status)}>{c.status}</Badge>
+                      <Badge variant={courseStatusBadgeVariant(c.status)}>{enumLabel(c.status)}</Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1.5">

@@ -82,7 +82,7 @@ export function StudentTrainingClient() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle Training</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Puzzle training</h1>
         <p className="mt-1 max-w-2xl text-sm text-app-muted">
           Puzzles picked for your rating: your weak spots, new ideas and a second look at ones you missed. Each
           first try changes your puzzle rating.
@@ -280,7 +280,7 @@ function TrainingBoard({
 
           {moves.length > 0 || (result && !result.solved) ? (
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-muted">
+              <p className="mb-1 text-xs font-semibold text-app-muted">
                 {result && !result.solved ? "Solution" : "Moves played"}
               </p>
               <ol className="flex flex-wrap gap-x-2 gap-y-1 text-sm">
@@ -339,7 +339,7 @@ function TrainingBoard({
 function RecentResults({ recent }: { recent: PuzzleTrainingRecentResult[] }) {
   return (
     <section aria-label="Recent puzzles" className="space-y-2">
-      <h2 className="text-xs font-bold uppercase tracking-wide text-app-muted">Recent puzzles</h2>
+      <h2 className="text-xs font-bold text-app-muted">Recent puzzles</h2>
       <ol className="flex flex-wrap gap-2">
         {recent.map((r) => (
           <li

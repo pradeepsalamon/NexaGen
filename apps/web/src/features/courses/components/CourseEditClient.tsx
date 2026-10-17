@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { useCourse, useCreateCourse, useUpdateCourse } from "../hooks/useCoursesApi";
 import { courseStatusBadgeVariant } from "../lib/courseMeta";
 import { ModuleList } from "./ModuleList";
+import { enumLabel } from "@/lib/utils";
 
 export function CourseCreateClient() {
   const router = useRouter();
@@ -98,7 +99,7 @@ export function CourseEditClient({ id }: { id: string }) {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">{course.title}</h1>
-            <Badge variant={courseStatusBadgeVariant(course.status)}>{course.status}</Badge>
+            <Badge variant={courseStatusBadgeVariant(course.status)}>{enumLabel(course.status)}</Badge>
           </div>
           <p className="mt-1 text-sm text-app-muted">{course.moduleCount} module(s)</p>
         </div>

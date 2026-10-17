@@ -110,8 +110,8 @@ export function CoachAssignmentsClient() {
               ))}
             </div>
           ) : library.length === 0 ? (
-            <Card className="p-6 sm:p-12">
-              <EmptyState
+            <Card>
+              <EmptyState variant="inline"
                 icon={Plus}
                 title="No assignments yet"
                 description="Create your first PGN assignment, or wait for an admin to add shared ones."
@@ -198,8 +198,8 @@ export function CoachAssignmentsClient() {
               ))}
             </div>
           ) : deployments.length === 0 ? (
-            <Card className="p-6 sm:p-12">
-              <EmptyState
+            <Card>
+              <EmptyState variant="inline"
                 icon={Send}
                 title="Nothing assigned yet"
                 description="Pick an assignment from the Library tab and send it to a batch."

@@ -196,7 +196,7 @@ function ReportBody({
           const blunders = s.counts.BLUNDER + s.counts.MISSED_MATE + s.counts.MATE_ALLOWED;
           return (
             <div className="rounded-control border border-app-border bg-app-soft p-3" key={side}>
-              <p className="truncate text-xs font-semibold uppercase tracking-wide text-app-muted">
+              <p className="truncate text-xs font-semibold text-app-muted">
                 {side === "white" ? "White" : "Black"} · {s.name}
               </p>
               <p className="mt-1 text-2xl font-extrabold">

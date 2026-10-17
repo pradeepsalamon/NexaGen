@@ -6,6 +6,9 @@ import { TwoFactorSettings } from "../../features/auth/components/mfa/TwoFactorS
 import { AccountDeletionSection } from "@/features/privacy/components/AccountDeletionSection";
 import { PersonalDataSection } from "@/features/privacy/components/PersonalDataSection";
 import { UserTypographySettings } from "@/features/typography/components/UserTypographySettings";
+import { pageTitle } from "@/lib/pageTitles";
+
+export const metadata = { title: pageTitle("/profile") };
 
 export default function ProfilePage() {
   return (
@@ -15,9 +18,8 @@ export default function ProfilePage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <ProfileRoleHeading />
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-app-muted">
-                Your profile workspace is ready for account details as the admin
-                experience grows.
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-app-muted">
+                Your account details, sign-in security, text size and data.
               </p>
             </div>
             <LogoutButton />

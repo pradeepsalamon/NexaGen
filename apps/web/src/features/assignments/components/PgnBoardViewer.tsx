@@ -160,7 +160,7 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted">Moves</p>
+        <p className="mb-2 text-xs font-bold text-app-muted">Moves</p>
         {plies.length === 0 ? (
           <p className="text-sm text-app-muted">Starting position only — no moves in this PGN.</p>
         ) : (

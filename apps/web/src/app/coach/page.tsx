@@ -1,7 +1,8 @@
 import { CoachDashboardClient } from "../../features/coach/components/CoachDashboardClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Dashboard - Coach Workspace"
+  title: pageTitle("/coach")
 };
 
 export default function CoachDashboardPage() {

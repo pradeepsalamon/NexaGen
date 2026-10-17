@@ -27,7 +27,7 @@ export function ClassBatchTypeSelect({ classItem }: { classItem: CoachClass }) {
 
   return (
     <div className="space-y-1.5">
-      <label className="text-xs font-bold uppercase tracking-wide text-app-muted" htmlFor={id}>
+      <label className="text-xs font-bold text-app-muted" htmlFor={id}>
         Class type
       </label>
       <Select

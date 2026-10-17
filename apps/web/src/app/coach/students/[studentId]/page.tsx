@@ -1,7 +1,8 @@
 import { StaffStudentProgressClient } from "@/features/progress/components/StaffStudentProgressClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Student progress - Coach Workspace"
+  title: pageTitle("/coach/students/[studentId]")
 };
 
 export default async function CoachStudentProgressPage(props: { params: Promise<{ studentId: string }> }) {

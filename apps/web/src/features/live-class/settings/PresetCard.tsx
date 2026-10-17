@@ -74,7 +74,7 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
                 className={cn(
                   "size-8 rounded-full p-0 text-app-text transition-colors",
                   preset.isDefault
-                    ? "border-emerald-400 text-emerald-500"
+                    ? "border-success text-success-ink"
                     : "border-secondary hover:border-secondary hover:bg-secondary hover:text-black"
                 )}
                 disabled={setDefault.isPending || preset.isDefault}

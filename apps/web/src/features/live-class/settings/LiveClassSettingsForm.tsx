@@ -95,7 +95,7 @@ export function LiveClassSettingsForm({
               stacked ? "p-3" : "p-4",
             )}
           >
-            <legend className="px-1 text-xs font-bold uppercase tracking-wider text-app-muted">
+            <legend className="px-1 text-xs font-bold text-app-muted">
               {GROUP_LABELS[group]}
             </legend>
             <div className="mt-2 divide-y divide-app-border">

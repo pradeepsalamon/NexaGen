@@ -11,7 +11,7 @@ export function MessagingClient() {
     <div className="space-y-6">
       <PageHeader
         description="Choose which moments send a message, what each one says, and who receives it."
-        title="Messages"
+        title="Messaging rules"
       />
 
       <Tabs defaultValue="rules">

@@ -69,7 +69,7 @@ export function FeedbackFormsPanel() {
         <WidgetError onRetry={() => refetch()} />
       ) : forms.length === 0 ? (
         <Card className="p-6">
-          <EmptyState
+          <EmptyState variant="inline"
             action={{ label: "Create a feedback form", onClick: () => openEditor(null) }}
             description="Students won't be asked for feedback until you create and activate a form."
             icon={ClipboardList}

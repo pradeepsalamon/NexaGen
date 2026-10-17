@@ -124,7 +124,7 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
 
           {ruleType === "CANCELLATION" ? (
             <div className="space-y-3 rounded-control border border-app-border p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+              <p className="text-xs font-semibold text-app-muted">
                 Condition
               </p>
               <div>
@@ -163,7 +163,7 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
 
           {ruleType === "BONUS" || ruleType === "ATTENDANCE" ? (
             <div className="space-y-3 rounded-control border border-app-border p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+              <p className="text-xs font-semibold text-app-muted">
                 Condition
               </p>
               <div>
@@ -180,7 +180,7 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
           ) : null}
 
           <div className="space-y-3 rounded-control border border-app-border p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">Effect</p>
+            <p className="text-xs font-semibold text-app-muted">Effect</p>
             <Select
               id="rule-effect-kind"
               onChange={(event) => setEffectKind(event.target.value as PayrollRuleEffect["kind"])}

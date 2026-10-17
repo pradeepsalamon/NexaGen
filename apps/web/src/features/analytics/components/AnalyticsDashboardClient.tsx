@@ -1,6 +1,5 @@
 "use client";
 
-import type { AnalyticsGranularity } from "@nexa-chess/types";
 import { Download, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -14,17 +13,9 @@ import { analyticsExportUrl } from "../api/analyticsApi";
 import { useAnalyticsRange } from "../hooks/useAnalyticsRange";
 import { useRefreshAnalytics } from "../hooks/useAnalyticsApi";
 import { AnalyticsFilters } from "./AnalyticsFilters";
-import { AcquisitionSection } from "./sections/AcquisitionSection";
-import { AttendanceAnalyticsSection } from "./sections/AttendanceAnalyticsSection";
-import { BatchAnalyticsSection } from "./sections/BatchAnalyticsSection";
-import { ClassAnalyticsSection } from "./sections/ClassAnalyticsSection";
-import { CoachAnalyticsSection } from "./sections/CoachAnalyticsSection";
-import { EngagementSection } from "./sections/EngagementSection";
+import { AnalyticsReportLinks } from "./AnalyticsReportLinks";
 import { ExecutiveOverviewSection } from "./sections/ExecutiveOverviewSection";
 import { OperationsSection } from "./sections/OperationsSection";
-import { RecordingStorageSection } from "./sections/RecordingStorageSection";
-import { StudentAnalyticsSection } from "./sections/StudentAnalyticsSection";
-import { UserGrowthSection } from "./sections/UserGrowthSection";
 
 const EXPORTS = [
   ["users", "Users"],
@@ -45,12 +36,11 @@ export function AnalyticsDashboardClient() {
     <div className="space-y-5">
       <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-app-text sm:text-2xl">
-            NexaChess Admin Analytics
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
+            Dashboard
           </h1>
           <p className="text-sm text-app-muted">
-            Users, acquisition, classes, attendance, recordings, storage and daily
-            operations.
+            Headline numbers for the selected period, today&apos;s operations, and the full reports.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -106,20 +96,7 @@ export function AnalyticsDashboardClient() {
       <AnalyticsFilters onChange={update} query={query} />
 
       <ExecutiveOverviewSection query={query} />
-      <UserGrowthSection
-        onGranularityChange={(g: AnalyticsGranularity) =>
-          update({ granularity: g })
-        }
-        query={query}
-      />
-      <AcquisitionSection query={query} />
-      <StudentAnalyticsSection query={query} />
-      <CoachAnalyticsSection query={query} />
-      <ClassAnalyticsSection query={query} />
-      <AttendanceAnalyticsSection query={query} />
-      <BatchAnalyticsSection query={query} />
-      <RecordingStorageSection query={query} />
-      <EngagementSection query={query} />
+      <AnalyticsReportLinks />
       <OperationsSection query={query} />
     </div>
   );

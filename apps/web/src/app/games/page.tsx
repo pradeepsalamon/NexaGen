@@ -1,8 +1,9 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { GameLibraryClient } from "@/features/game-library/components/GameLibraryClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Game Library - Nexa Chess",
+  title: pageTitle("/games"),
 };
 
 export default function GameLibraryPage() {

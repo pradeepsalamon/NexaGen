@@ -110,7 +110,7 @@ export function AttendanceAnalyticsSection({
             </p>
             <div className="overflow-x-auto">
               <Table className="w-full min-w-[520px] text-left text-sm">
-                <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+                <TableHeader className="text-xs text-app-muted">
                   <TableRow>
                     <TableHead className="pb-2"><SortButton label="Student" {...sortProps("name")} /></TableHead>
                     <TableHead className="pb-2"><SortButton label="Batch" {...sortProps("batch")} /></TableHead>

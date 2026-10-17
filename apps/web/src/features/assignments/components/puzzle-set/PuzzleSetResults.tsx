@@ -290,7 +290,7 @@ export function RankChip({ rank, small = false }: { rank: number; small?: boolea
 function Summary({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-control border border-app-border bg-app-background/50 p-2 text-center">
-      <p className="text-xs uppercase tracking-wide text-app-muted">{label}</p>
+      <p className="text-xs text-app-muted">{label}</p>
       <p className="text-base font-bold text-app-text">{value}</p>
     </div>
   );

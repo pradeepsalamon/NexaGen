@@ -98,7 +98,7 @@ export function AnalyticsDrillTable<Row>({
 
       <div className="overflow-x-auto">
         <Table className="w-full min-w-[640px] text-left text-sm">
-          <TableHeader className="bg-app-soft text-xs uppercase tracking-wide text-app-muted">
+          <TableHeader className="bg-app-soft text-xs text-app-muted">
             <TableRow>
               {columns.map((col) => (
                 <TableHead

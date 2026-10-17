@@ -229,7 +229,7 @@ export function RegisterForm() {
         </FormField>
       </div>
       <Button className="mt-1 [@media(max-height:700px)]:mt-0" fullWidth isLoading={registerMutation.isPending} type="submit">
-        {registerMutation.isPending ? "Submitting..." : "Complete Registration"}
+        {registerMutation.isPending ? "Submitting..." : "Complete registration"}
         {!registerMutation.isPending && <ChessKnight aria-hidden="true" className="size-4" strokeWidth={2.5} />}
       </Button>
       <p className="flex items-start justify-center gap-2 text-center text-xs leading-5 text-app-muted">

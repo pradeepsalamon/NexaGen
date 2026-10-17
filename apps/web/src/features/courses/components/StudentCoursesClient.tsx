@@ -15,7 +15,7 @@ export function StudentCoursesClient() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Courses</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">My courses</h1>
         <p className="mt-1 text-sm text-app-muted">
           Curated playlists of assignments and puzzles picked by your coaches.
         </p>

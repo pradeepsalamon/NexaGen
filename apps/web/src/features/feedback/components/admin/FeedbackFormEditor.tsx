@@ -46,7 +46,7 @@ function Section({ children, description, title }: { title: string; description?
   return (
     <section className="grid gap-3 border-t border-app-border pt-5 first:border-t-0 first:pt-0">
       <div>
-        <h3 className="text-sm font-extrabold uppercase tracking-wide text-app-text">{title}</h3>
+        <h3 className="text-sm font-extrabold text-app-text">{title}</h3>
         {description ? <p className="text-sm text-app-muted">{description}</p> : null}
       </div>
       {children}

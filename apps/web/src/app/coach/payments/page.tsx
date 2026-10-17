@@ -1,7 +1,8 @@
 import { CoachManualPaymentsClient } from "@/features/payments/components/CoachManualPaymentsClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Payments - Coach Workspace",
+  title: pageTitle("/coach/payments"),
 };
 
 export default function CoachPaymentsPage() {

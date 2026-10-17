@@ -103,7 +103,7 @@ function ReliabilityMetricsPanel() {
     <Card className="p-5">
       <div className="mb-3 flex items-center gap-2">
         <TrendingUp className="size-4 text-app-muted" />
-        <h2 className="text-sm font-bold uppercase tracking-wide text-app-text">
+        <h2 className="text-sm font-bold text-app-text">
           Last {data?.windowDays ?? 30} days
         </h2>
       </div>
@@ -153,7 +153,7 @@ function MetricRow({
 }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-app-muted">{label}</p>
+      <p className="text-xs text-app-muted">{label}</p>
       <p className="text-lg font-bold text-app-text">
         {(rate * 100).toFixed(1)}%
         <span className="ml-1.5 text-xs font-normal text-app-muted">
@@ -185,7 +185,7 @@ function StatCard({
     >
       {icon}
       <div>
-        <p className="text-xs uppercase tracking-wide text-app-muted">{label}</p>
+        <p className="text-xs text-app-muted">{label}</p>
         <p className="text-lg font-bold text-app-text">{value}</p>
       </div>
     </Card>

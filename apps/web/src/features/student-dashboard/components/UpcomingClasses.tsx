@@ -29,7 +29,7 @@ function UpcomingClassRow({ cls }: { cls: StudentDashboardUpcomingClass }) {
   return (
     <li className="flex flex-wrap items-start gap-3.5 py-3.5">
       <span className="flex size-11 shrink-0 flex-col items-center justify-center rounded-control bg-app-soft text-center">
-        <span className="text-[0.65rem] font-bold uppercase leading-none text-app-muted">
+        <span className="text-[0.65rem] font-bold leading-none text-app-muted">
           {formatMonthShort(cls.startsAt, timeZone)}
         </span>
         <span className="mt-0.5 text-base font-extrabold leading-none text-app-text">

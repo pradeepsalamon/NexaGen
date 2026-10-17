@@ -1,6 +1,7 @@
 import { CourseCreateClient } from "@/features/courses/components/CourseEditClient";
+import { pageTitle } from "@/lib/pageTitles";
 
-export const metadata = { title: "New course - Admin" };
+export const metadata = { title: pageTitle("/admin/courses/new") };
 
 export default function AdminNewCoursePage() {
   return <CourseCreateClient />;

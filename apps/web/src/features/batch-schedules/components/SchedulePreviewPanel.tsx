@@ -115,7 +115,7 @@ export function SchedulePreviewPanel({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Card className="grid gap-1 p-3">
-      <p className="text-xs font-bold uppercase tracking-wide text-app-muted">{label}</p>
+      <p className="text-xs font-bold text-app-muted">{label}</p>
       <p className="text-lg font-extrabold text-app-text">{value}</p>
     </Card>
   );

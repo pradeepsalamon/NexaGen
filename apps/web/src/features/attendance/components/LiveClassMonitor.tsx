@@ -129,7 +129,7 @@ function MonitorBody({
           >
             {data.isLive && <span className="size-2.5 animate-ping rounded-full bg-green-500" />}
           </span>
-          <h3 className="text-sm font-bold uppercase tracking-wide text-app-text">
+          <h3 className="text-sm font-bold text-app-text">
             {data.isLive ? "Live class monitor" : "Class not live"}
           </h3>
           {isFetching && <RefreshCw className="size-3.5 animate-spin text-app-muted" />}
@@ -165,7 +165,7 @@ function MonitorBody({
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: number }) {
   return (
     <div className="flex flex-col items-center gap-0.5 p-3">
-      <div className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-app-muted">
+      <div className="flex items-center gap-1.5 text-xs text-app-muted">
         {icon}
         {label}
       </div>

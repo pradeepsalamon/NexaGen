@@ -144,7 +144,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
             )}
 
             <div>
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-app-muted">
+              <p className="mb-1 text-xs font-semibold text-app-muted">
                 {result && !result.solved ? "Full solution" : "Moves played"}
               </p>
               <ol className="flex flex-wrap gap-x-2 gap-y-1 text-sm">

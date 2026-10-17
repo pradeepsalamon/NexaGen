@@ -93,7 +93,7 @@ export function InvoiceDetail({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+          <p className="text-xs font-semibold text-app-muted">
             Bill to
           </p>
           <p className="font-semibold text-app-text">{invoice.billing.name}</p>
@@ -138,7 +138,7 @@ export function InvoiceDetail({
         </Card>
 
         <Card className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+          <p className="text-xs font-semibold text-app-muted">
             Payment
           </p>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
@@ -182,16 +182,16 @@ export function InvoiceDetail({
           <Table className="w-full min-w-[520px] border-collapse">
             <TableHeader>
               <TableRow className="border-b border-app-border">
-                <TableHead className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide">
+                <TableHead className="px-4 py-3 text-left text-xs font-semibold">
                   Description
                 </TableHead>
-                <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">
+                <TableHead className="px-4 py-3 text-right text-xs font-semibold">
                   Qty
                 </TableHead>
-                <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">
+                <TableHead className="px-4 py-3 text-right text-xs font-semibold">
                   Rate
                 </TableHead>
-                <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide">
+                <TableHead className="px-4 py-3 text-right text-xs font-semibold">
                   Amount
                 </TableHead>
               </TableRow>
@@ -291,7 +291,7 @@ export function InvoiceDetail({
         <Card className="space-y-2">
           {invoice.terms ? (
             <>
-              <p className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+              <p className="text-xs font-semibold text-app-muted">
                 Terms &amp; conditions
               </p>
               <p className="whitespace-pre-wrap text-sm text-app-muted">

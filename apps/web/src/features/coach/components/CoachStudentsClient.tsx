@@ -16,6 +16,7 @@ import { Select } from "@/components/ui/Select";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useDataTable } from "../../../hooks/useDataTable";
 import { useCoachStudents, useCoachBatches } from "../hooks/useCoachApi";
+import { enumLabel } from "@/lib/utils";
 
 export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: string }) {
   const { data: studentsData, isLoading: studentsLoading } = useCoachStudents();
@@ -34,10 +35,10 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
   const columns = useMemo<ColumnDef<CoachStudent>[]>(
     () => [
       {
-        accessorKey: "name",
+        accessorKey: "name", meta: { label: "Name" },
         header: ({ column }) => (
           <DataTableSortButton 
-            label="First Name" 
+            label="Name" 
             column={column}
           />
         ),
@@ -69,7 +70,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
         }
       },
       {
-        accessorKey: "chessRating",
+        accessorKey: "chessRating", meta: { label: "Rating" },
         header: ({ column }) => (
           <DataTableSortButton 
             label="Rating" 
@@ -89,7 +90,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
           <Badge
             variant={row.original.status === "ACTIVE" ? "success" : "secondary"}
           >
-            {row.original.status}
+            {enumLabel(row.original.status)}
           </Badge>
         )
       },
@@ -180,7 +181,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
           </div>
         ) : (
           <>
-            <DataTable columnsLength={columns.length} table={table as any} />
+            <DataTable columnsLength={columns.length} stackOnMobile table={table as any} />
             <div className="border-t border-app-border p-4 bg-app-soft">
               <DataTablePagination table={table as any} totalRows={filteredStudents.length} />
             </div>

@@ -165,7 +165,7 @@ export function StudentScheduleClient() {
   return (
     <div className="space-y-6 animate-fade-in pb-10">
       <PageHeader
-        title="Class Schedule"
+        title="Schedule"
         description="View your upcoming batch sessions, coaching timetables, and calendar occurrences."
         actions={
           <div className="flex flex-wrap items-center gap-2">
@@ -344,7 +344,7 @@ export function StudentScheduleClient() {
           <div className="lg:col-span-5 space-y-4">
             <Card className="p-5 shadow-card space-y-4">
               <div className="border-b border-app-border pb-3">
-                <span className="text-xs font-bold uppercase tracking-wider text-app-muted">
+                <span className="text-xs font-bold text-app-muted">
                   Schedule Details
                 </span>
                 <h3 className="text-lg font-bold text-app-text mt-0.5">

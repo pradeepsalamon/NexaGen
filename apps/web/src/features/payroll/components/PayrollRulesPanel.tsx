@@ -64,7 +64,7 @@ export function PayrollRulesPanel() {
                 <TableRow className="border-b border-app-border">
                   {([["Name", "name"], ["Type", "type"], ["Priority", "priority"], ["Effective from", "effectiveFrom"], ["Enabled", "enabled"], ["", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                      className="px-4 py-3 text-left text-xs font-semibold"
                       key={heading}
                     >
                       {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}

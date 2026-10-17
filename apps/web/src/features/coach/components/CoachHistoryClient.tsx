@@ -43,10 +43,10 @@ export function CoachHistoryClient() {
   const columns = useMemo<ColumnDef<CoachClass>[]>(
     () => [
       {
-        accessorKey: "date",
+        accessorKey: "date", meta: { label: "Date & time" },
         header: ({ column }) => (
           <DataTableSortButton 
-            label="Date & Time" 
+            label="Date & time" 
             column={column}
           />
         ),
@@ -65,7 +65,7 @@ export function CoachHistoryClient() {
         }
       },
       {
-        accessorKey: "batchName",
+        accessorKey: "batchName", meta: { label: "Batch" },
         header: ({ column }) => (
           <DataTableSortButton 
             label="Batch" 
@@ -181,7 +181,7 @@ export function CoachHistoryClient() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
-        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class History</h1>
+        <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Class history</h1>
         <p className="text-app-muted mt-1">Review your past and cancelled classes.</p>
       </div>
 
@@ -198,7 +198,7 @@ export function CoachHistoryClient() {
           </div>
         ) : (
           <>
-            <DataTable columnsLength={columns.length} table={table as any} />
+            <DataTable columnsLength={columns.length} stackOnMobile table={table as any} />
             <div className="border-t border-app-border p-4 bg-app-soft">
               <DataTablePagination table={table as any} totalRows={data?.classes.length || 0} />
             </div>

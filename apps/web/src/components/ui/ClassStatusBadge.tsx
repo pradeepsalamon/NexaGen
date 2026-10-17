@@ -25,7 +25,7 @@ export function ClassStatusBadge({ status, endsAt, className }: ClassStatusBadge
     <Badge
       variant={getClassStatusBadgeVariant(shown)}
       className={cn(
-        "uppercase text-[10px] tracking-wider",
+        "text-xs",
         isLive && "bg-app-danger text-white",
         className
       )}
@@ -33,7 +33,7 @@ export function ClassStatusBadge({ status, endsAt, className }: ClassStatusBadge
       {isLive ? (
         <span
           aria-hidden="true"
-          className="size-1.5 animate-pulse rounded-full bg-white"
+          className="size-1.5 rounded-full bg-white motion-safe:animate-pulse"
         />
       ) : null}
       {isLive ? "Live now" : getStatusLabel(shown)}

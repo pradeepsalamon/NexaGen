@@ -55,7 +55,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
       {!hideHeading && (
         <div>
           <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-            Teaching Attendance
+            Attendance
           </h1>
         </div>
       )}
@@ -132,7 +132,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
           ) : (
             <div className="overflow-x-auto">
               <Table className="w-full text-sm">
-                <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+                <TableHeader className="text-xs bg-app-background border-b border-app-border text-app-muted">
                   <TableRow className="text-center">
                     <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
                     <TableHead scope="col" className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Date & Time" {...sortProps("date")} /></TableHead>
@@ -201,7 +201,7 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                           <TableRow>
                             <TableCell colSpan={7} className="px-3 py-3 md:px-6 md:py-4 bg-app-soft/30 text-left">
                               <div className="pl-4">
-                                <p className="text-xs font-semibold text-app-muted uppercase mb-2">
+                                <p className="text-xs font-semibold text-app-muted mb-2">
                                   Event Timeline
                                 </p>
                                 <EventTimeline

@@ -1,10 +1,11 @@
 "use client";
 
-import { Calendar, CheckCircle2, Clock, Users, BookOpen, Layers } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, Layers, Users, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { StatTile } from "@/components/ui/StatTile";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useCoachDashboard, useTodayClasses } from "../hooks/useCoachApi";
 import { cancelClass } from "../api/coachApi";
@@ -13,6 +14,7 @@ import { ClassCard } from "./ClassCard";
 import { LatestUpcomingClasses } from "./upcoming/LatestUpcomingClasses";
 import type { CoachClass } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
+import type { Tone } from "@/lib/tone";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { useRouter } from "next/navigation";
 
@@ -34,116 +36,46 @@ export function CoachDashboardClient() {
     ]
   });
 
-  const summaryCards = [
-    {
-      label: "Assigned Batches",
-      value: dashboardData?.batchCount || 0,
-      icon: Layers,
-      color: "text-primary-ink",
-      bg: "bg-primary/10",
-      href: "/coach/batches"
-    },
-    {
-      label: "Active Students",
-      value: dashboardData?.studentCount || 0,
-      icon: Users,
-      color: "text-green-500",
-      bg: "bg-green-500/10",
-      href: "/coach/students"
-    },
-    {
-      label: "Today's Classes",
-      value: dashboardData?.todayClasses || 0,
-      icon: Calendar,
-      color: "text-purple-500",
-      bg: "bg-purple-500/10",
-      href: "/coach/schedule"
-    },
-    {
-      label: "Upcoming Classes",
-      value: dashboardData?.upcomingClasses || 0,
-      icon: Clock,
-      color: "text-orange-500",
-      bg: "bg-orange-500/10",
-      href: "/coach/schedule"
-    },
-    {
-      label: "Completed Classes",
-      value: dashboardData?.completedClasses || 0,
-      icon: CheckCircle2,
-      color: "text-teal-500",
-      bg: "bg-teal-500/10",
-      href: "/coach/history"
-    },
-    {
-      label: "Pending Reviews",
-      value: "0", // Placeholder for future feature
-      icon: BookOpen,
-      color: "text-pink-500",
-      bg: "bg-pink-500/10",
-      href: "#"
-    }
+  const summaryCards: { href: string; icon: LucideIcon; label: string; tone: Tone; value: number }[] = [
+    { href: "/coach/batches", icon: Layers, label: "Assigned batches", tone: "primary", value: dashboardData?.batchCount || 0 },
+    { href: "/coach/students", icon: Users, label: "Active students", tone: "accent", value: dashboardData?.studentCount || 0 },
+    { href: "/coach/schedule", icon: Calendar, label: "Today's classes", tone: "secondary", value: dashboardData?.todayClasses || 0 },
+    { href: "/coach/schedule", icon: Clock, label: "Upcoming classes", tone: "primary", value: dashboardData?.upcomingClasses || 0 },
+    { href: "/coach/history", icon: CheckCircle2, label: "Completed classes", tone: "warm", value: dashboardData?.completedClasses || 0 }
   ];
 
   return (
     <div className="space-y-8 animate-fade-in">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Coach Dashboard</h1>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">Dashboard</h1>
           <p className="text-app-muted mt-1">Overview of your classes, batches, and students.</p>
         </div>
         <Button asChild>
-          <Link href="/coach/schedule">View Schedule</Link>
+          <Link href="/coach/schedule">View schedule</Link>
         </Button>
       </div>
 
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {dashboardLoading
-          ? Array.from({ length: 6 }).map((_, i) => (
-            <Card key={i} className="p-6">
-              <div className="flex items-center gap-4">
-                <Skeleton className="h-12 w-12 rounded-full" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-6 w-12" />
-                </div>
-              </div>
-            </Card>
-          ))
-          : summaryCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <Link key={card.label} href={card.href} className="block group">
-                <Card className="p-6 transition hover:border-primary/50 hover:shadow-md">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-control ${card.bg}`}>
-                      <Icon className={`h-6 w-6 ${card.color}`} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-app-muted group-hover:text-app-text transition-colors">
-                        {card.label}
-                      </p>
-                      <h3 className="text-2xl font-extrabold text-app-text mt-1">
-                        {card.value}
-                      </h3>
-                    </div>
-                  </div>
-                </Card>
-              </Link>
-            );
-          })}
+          ? Array.from({ length: 5 }).map((_, i) => <Skeleton className="h-36 rounded-[20px]" key={i} />)
+          : summaryCards.map((card) => (
+            <Link
+              className="block rounded-[20px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+              href={card.href}
+              key={card.label}
+            >
+              <StatTile icon={card.icon} label={card.label} tone={card.tone} value={String(card.value)} />
+            </Link>
+          ))}
       </div>
-
-      <LatestUpcomingClasses />
-
-      <CoachEarningsSummaryCard />
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-app-text">Today&apos;s Schedule</h2>
+          <h2 className="text-xl font-bold text-app-text">Today&apos;s schedule</h2>
           <Button variant="ghost" asChild>
-            <Link href="/coach/schedule">View All</Link>
+            <Link href="/coach/schedule">View all</Link>
           </Button>
         </div>
 
@@ -166,20 +98,23 @@ export function CoachDashboardClient() {
             ))}
           </div>
         ) : (
-          <Card className="p-6 sm:p-12">
-            <EmptyState
+          <Card>
+            <EmptyState variant="inline"
               icon={Calendar}
               title="No classes today"
               description="You have no classes scheduled for today."
               action={{
-                label: "View Schedule",
+                label: "View schedule",
                 onClick: () => router.push("/coach/schedule")
               }}
-
             />
           </Card>
         )}
       </div>
+
+      <LatestUpcomingClasses />
+
+      <CoachEarningsSummaryCard />
     </div>
   );
 }

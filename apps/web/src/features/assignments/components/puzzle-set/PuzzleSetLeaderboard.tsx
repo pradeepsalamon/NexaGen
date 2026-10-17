@@ -25,7 +25,7 @@ export function PuzzleSetLeaderboard({ assignmentId }: { assignmentId: string })
 
   return (
     <Card className="p-4 sm:p-5">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-app-muted">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-bold text-app-muted">
         <Trophy className="size-4 text-secondary-ink" strokeWidth={2.5} />
         Leaderboard
       </h2>

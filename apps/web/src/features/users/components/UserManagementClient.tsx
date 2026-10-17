@@ -303,8 +303,8 @@ export function UserManagementClient() {
   };
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-5">
+    <div>
+      <div className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-5">
         <Tabs
           onValueChange={(value) => {
             if (value === "create") {
@@ -318,7 +318,7 @@ export function UserManagementClient() {
         >
           <header className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-extrabold uppercase text-primary-ink">
+              <p className="text-xs font-extrabold text-primary-ink">
                 User management
               </p>
               <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">
@@ -438,7 +438,7 @@ export function UserManagementClient() {
           </TabsContent>
         </Tabs>
       </div>
-    </main>
+    </div>
   );
 }
 

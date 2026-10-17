@@ -59,7 +59,7 @@ export function ClassSettingsPanel({
     <div className="space-y-4">
       {presets.length > 0 && (
         <div className="space-y-1.5">
-          <label className="text-xs font-bold uppercase tracking-wider text-app-muted">
+          <label className="text-xs font-bold text-app-muted">
             Start from a preset
           </label>
           <Select

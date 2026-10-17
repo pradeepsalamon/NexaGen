@@ -17,6 +17,7 @@ import { formatDuration, formatLongDate, formatTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { ClassEndFeedback } from "@/features/feedback/components/ClassEndFeedback";
 import { Badge } from "@/components/ui/Badge";
+import { enumLabel } from "@/lib/utils";
 
 function Shell({
   topic,
@@ -90,7 +91,7 @@ export function ClassSummary({ classId }: { classId: string }) {
           <h2 className="text-2xl font-bold tracking-tight text-app-text">
             {data.topic}
           </h2>
-          <Badge variant="secondary">{data.status}</Badge>
+          <Badge variant="secondary">{enumLabel(data.status)}</Badge>
         </div>
         <p className="text-sm text-app-muted">
           {data.batchName} &middot; {data.coachName} &middot;{" "}
@@ -159,7 +160,7 @@ export function ClassSummary({ classId }: { classId: string }) {
 
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <p className="text-xs font-medium uppercase text-app-muted">
+                <p className="text-xs font-medium text-app-muted">
                   Joined
                 </p>
                 <p className="text-sm font-medium text-app-text">
@@ -167,7 +168,7 @@ export function ClassSummary({ classId }: { classId: string }) {
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase text-app-muted">
+                <p className="text-xs font-medium text-app-muted">
                   Left
                 </p>
                 <p className="text-sm font-medium text-app-text">
@@ -175,7 +176,7 @@ export function ClassSummary({ classId }: { classId: string }) {
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase text-app-muted">
+                <p className="text-xs font-medium text-app-muted">
                   Time in class
                 </p>
                 <p className="text-sm font-medium text-app-text">
@@ -183,7 +184,7 @@ export function ClassSummary({ classId }: { classId: string }) {
                 </p>
               </div>
               <div>
-                <p className="text-xs font-medium uppercase text-app-muted">
+                <p className="text-xs font-medium text-app-muted">
                   Reconnects
                 </p>
                 <p className="text-sm font-medium text-app-text">

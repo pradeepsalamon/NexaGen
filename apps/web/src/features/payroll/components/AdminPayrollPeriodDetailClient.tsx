@@ -188,7 +188,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                     <TableRow className="border-b border-app-border">
                       {([["Coach", "coach"], ["Classes", "classes"], ["Hours", "hours"], ["Gross", "gross"], ["Net", "net"], ["Status", "status"], ["", null]] as const).map(([heading, sortKey]) => (
                         <TableHead
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                          className="px-4 py-3 text-left text-xs font-semibold"
                           key={heading}
                         >
                           {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}

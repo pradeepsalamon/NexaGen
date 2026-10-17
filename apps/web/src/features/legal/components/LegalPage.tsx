@@ -23,7 +23,7 @@ export function LegalPage({ intro, other, sections, title }: LegalPageProps) {
       <p className="mt-3 text-base leading-7 text-app-muted">{intro}</p>
 
       <nav aria-label="On this page" className="mt-8 rounded-panel border border-app-border bg-app-surface p-4">
-        <p className="text-xs font-bold uppercase tracking-wide text-app-muted">On this page</p>
+        <p className="text-xs font-bold text-app-muted">On this page</p>
         <ol className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
           {sections.map((section) => (
             <li key={section.id}>

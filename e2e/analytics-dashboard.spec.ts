@@ -128,15 +128,15 @@ test.describe("Admin analytics dashboard UI", () => {
 
     await page.goto("/admin");
     await expect(
-      page.getByRole("heading", { name: /NexaChess Admin Analytics/i })
+      page.getByRole("heading", { level: 1, name: "Dashboard", exact: true })
     ).toBeVisible();
     await expect(page.getByText("Executive overview")).toBeVisible();
     await expect(page.getByText("Total users").first()).toBeVisible();
 
-    // drill down from the sidebar into the coach analytics sub-page
-    await page.getByRole("link", { name: "Coaches" }).first().click();
+    // drill down from the dashboard's report links into the coach analytics page
+    await page.getByRole("main").getByRole("link", { name: /coach analytics/i }).click();
     await page.waitForURL(/\/admin\/analytics\/coaches/);
-    // "Coach Analytics" appears both in the mobile header bar and the page body.
+    // The header repeats the name as a plain label; the page body owns the heading.
     await expect(
       page.getByRole("main").getByRole("heading", { name: /Coach Analytics/i })
     ).toBeVisible();
@@ -153,13 +153,9 @@ test.describe("Admin analytics dashboard UI", () => {
     });
 
     await page.goto("/admin");
-    // The API is admin-only, so the dashboard sections all render their error
-    // state; the student never sees real numbers.
-    await expect(page.getByText("Total users").first()).toBeVisible({
-      timeout: 15_000
-    });
-    await expect(page.getByText(/couldn't load/i).first()).toBeVisible({
-      timeout: 15_000
-    });
+    // middleware.ts sends a wrong role to its own dashboard (lib/routeAccess.ts);
+    // the API would refuse the analytics calls anyway.
+    await page.waitForURL(/\/student(\/|$)/, { timeout: 15_000 });
+    await expect(page.getByText("Executive overview")).toHaveCount(0);
   });
 });

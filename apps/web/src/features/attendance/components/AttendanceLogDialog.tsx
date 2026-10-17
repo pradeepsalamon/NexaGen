@@ -181,7 +181,7 @@ export function AttendanceLogDialog({
 
               {/* Connection Timeline */}
               <div>
-                <h4 className="text-sm font-bold uppercase tracking-wider text-app-muted mb-4">
+                <h4 className="text-sm font-bold text-app-muted mb-4">
                   Connection Timeline
                 </h4>
                 {data.logs.length === 0 ? (

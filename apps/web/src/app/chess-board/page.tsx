@@ -1,8 +1,9 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { UserChessAppearanceSettingsClient } from "@/features/chess-appearance/components/UserChessAppearanceSettingsClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Chess Board - Nexa Chess",
+  title: pageTitle("/chess-board"),
 };
 
 export default function ChessBoardSettingsPage() {

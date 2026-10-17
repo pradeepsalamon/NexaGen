@@ -7,7 +7,7 @@ export function EngagementAnalyticsPageClient() {
   return (
     <AnalyticsPageShell
       description="DAU / WAU / MAU, new vs returning, and recently active users."
-      title="Engagement Analytics"
+      title="Engagement analytics"
     >
       {(query) => <EngagementSection query={query} />}
     </AnalyticsPageShell>

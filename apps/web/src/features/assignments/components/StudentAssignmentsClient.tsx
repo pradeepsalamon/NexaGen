@@ -24,7 +24,7 @@ export function StudentAssignmentsClient() {
   return (
     <div className="space-y-6 pb-10 animate-fade-in">
       <PageHeader
-        title="Assignments & Practice"
+        title="Assignments"
         description="Work assigned by your coach. Replay each line, then mark it complete."
       />
 
@@ -35,8 +35,8 @@ export function StudentAssignmentsClient() {
           ))}
         </div>
       ) : assignments.length === 0 ? (
-        <Card className="p-6 sm:p-12">
-          <EmptyState
+        <Card>
+          <EmptyState variant="inline"
             icon={Target}
             title="No assignments yet"
             description="When your coach assigns practice, it will show up here."

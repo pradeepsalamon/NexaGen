@@ -7,11 +7,8 @@ interface AttendancePercentBarProps {
 }
 
 export function AttendancePercentBar({ percent, className, showText = true }: AttendancePercentBarProps) {
-  // Determine color based on threshold
-  let colorClass = "bg-red-500";
-  if (percent >= 90) colorClass = "bg-green-500";
-  else if (percent >= 70) colorClass = "bg-secondary";
-  else if (percent >= 30) colorClass = "bg-orange-500";
+  // Status hues, not danger: red stays reserved for destructive actions and LIVE.
+  const colorClass = percent >= 90 ? "bg-success" : percent >= 70 ? "bg-secondary" : "bg-warning";
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
@@ -22,7 +19,7 @@ export function AttendancePercentBar({ percent, className, showText = true }: At
         />
       </div>
       {showText && (
-        <span className="text-xs font-medium text-app-muted min-w-[32px] text-right">
+        <span className="min-w-8 text-right text-xs font-medium tabular-nums text-app-muted">
           {Math.round(percent)}%
         </span>
       )}

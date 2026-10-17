@@ -44,7 +44,7 @@ export function FormPageShell({
           </SimpleTooltip>
           <div className="min-w-0">
             {eyebrow ? (
-              <p className="text-xs font-bold uppercase tracking-wider text-primary-ink">{eyebrow}</p>
+              <p className="text-xs font-bold text-primary-ink">{eyebrow}</p>
             ) : null}
             <h1 className="truncate text-xl font-extrabold leading-tight tracking-tight text-app-text sm:text-2xl">
               {title}

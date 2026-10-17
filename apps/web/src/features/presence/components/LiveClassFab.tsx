@@ -39,7 +39,7 @@ export function LiveClassFab({
         <Video aria-hidden="true" className="relative size-5" strokeWidth={2.5} />
       </span>
       <span className="min-w-0">
-        <span className="block text-[0.7rem] font-extrabold uppercase tracking-wide opacity-90">
+        <span className="block text-[0.7rem] font-extrabold opacity-90">
           {variant === "coach" ? "Your class is live · Return" : "Live now · Join"}
         </span>
         <span className="block truncate text-sm font-bold">{liveClass.topic}</span>

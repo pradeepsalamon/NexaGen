@@ -64,19 +64,24 @@ export function HeroFeatureCarousel() {
           <p className="text-sm text-white/75">{text}</p>
         </div>
       </div>
-      <div className="flex items-center justify-center gap-1.5">
+      <div className="flex items-center justify-center">
         {FEATURES.map((feature, index) => (
           <button
             aria-current={index === active ? "true" : undefined}
             aria-label={`Show feature ${index + 1}: ${feature.title}`}
-            className={cn(
-              "h-2 rounded-full transition-[width,background-color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
-              index === active ? "w-6 bg-white" : "w-2 bg-white/35 hover:bg-white/60"
-            )}
+            className="group flex h-6 min-w-6 items-center justify-center rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-white"
             key={feature.title}
             onClick={() => setActive(index)}
             type="button"
-          />
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "h-2 rounded-full transition-[width,background-color]",
+                index === active ? "w-6 bg-white" : "w-2 bg-white/35 group-hover:bg-white/60"
+              )}
+            />
+          </button>
         ))}
       </div>
     </div>

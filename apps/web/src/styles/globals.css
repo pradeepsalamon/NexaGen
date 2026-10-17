@@ -58,6 +58,8 @@
   --shadow-soft: 0 24px 64px -16px rgb(var(--rgb-primary) / 0.22);
   --shadow-card: 0 1px 2px rgb(var(--rgb-text) / 0.06), 0 10px 28px -12px rgb(var(--rgb-primary) / 0.18);
   --shadow-lift: 0 2px 4px rgb(var(--rgb-text) / 0.06), 0 18px 40px -14px rgb(var(--rgb-primary) / 0.28);
+  /* Edge shade on a horizontal scroller with hidden content (ScrollShadow). */
+  --color-scroll-shade: rgb(var(--rgb-text) / 0.16);
   --radius-control: 12px;
   --radius-app: 20px;
   --radius-panel: 24px;
@@ -99,6 +101,7 @@
   --shadow-soft: 0 24px 90px rgb(0 0 0 / 0.45);
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.55);
   --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 20px 44px -14px rgb(0 0 0 / 0.65);
+  --color-scroll-shade: rgb(0 0 0 / 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {

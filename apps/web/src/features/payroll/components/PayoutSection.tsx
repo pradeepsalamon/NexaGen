@@ -26,7 +26,7 @@ export function PayoutSection({ record, payout, currency }: Props) {
   if (!PAYABLE_STATUSES.has(record.status)) {
     return (
       <div>
-        <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted">Payout</h4>
+        <h4 className="mb-2 text-xs font-bold text-app-muted">Payout</h4>
         <p className="text-sm text-app-muted">Available once this record is finalized.</p>
       </div>
     );
@@ -34,7 +34,7 @@ export function PayoutSection({ record, payout, currency }: Props) {
 
   return (
     <div>
-      <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted">Payout</h4>
+      <h4 className="mb-2 text-xs font-bold text-app-muted">Payout</h4>
 
       {!payout ? (
         <Button

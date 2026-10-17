@@ -1,8 +1,9 @@
 import { AppShell } from "@/components/layout/AppShell";
 import { GameViewerClient } from "@/features/game-library/components/GameViewerClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Game - Nexa Chess",
+  title: pageTitle("/games/[id]"),
 };
 
 export default async function GamePage(props: { params: Promise<{ id: string }> }) {

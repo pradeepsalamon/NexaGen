@@ -397,7 +397,7 @@ test.describe("Full Attendance Flow", () => {
     await studentPage.waitForLoadState("networkidle");
 
     await expect(
-      studentPage.getByRole("heading", { name: /attendance & participation/i })
+      studentPage.getByRole("heading", { level: 1, name: "Attendance", exact: true })
     ).toBeVisible();
 
     // Check stat cards
@@ -557,7 +557,7 @@ test.describe("Student Attendance Page", () => {
 
     // Title
     await expect(
-      page.getByRole("heading", { name: /attendance & participation/i })
+      page.getByRole("heading", { level: 1, name: "Attendance", exact: true })
     ).toBeVisible();
 
     // KPI cards (labels were shortened from the original "Overall Attendance" /

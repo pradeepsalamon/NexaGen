@@ -125,7 +125,7 @@ export function ManualPaymentsPanel() {
           <div className="overflow-x-auto">
             <Table className="w-full min-w-[900px] text-sm">
               <TableHeader className="border-b border-app-border bg-app-soft text-left">
-                <TableRow className="text-xs uppercase tracking-wide text-app-muted">
+                <TableRow className="text-xs text-app-muted">
                   <TableHead className="px-4 py-3"><SortButton label="Date" {...sortProps("date")} /></TableHead>
                   <TableHead className="px-4 py-3"><SortButton label="Student" {...sortProps("student")} /></TableHead>
                   <TableHead className="px-4 py-3"><SortButton label="Plan" {...sortProps("plan")} /></TableHead>

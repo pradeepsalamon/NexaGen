@@ -46,12 +46,12 @@ export function AdminAssignmentsClient() {
   };
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
+    <div>
       <div className="mx-auto max-w-6xl space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-              Assignment library
+              Assignments
             </h1>
             <p className="mt-1 text-app-muted">
               Shared PGN assignments. Coaches assign these to their own batches.
@@ -79,8 +79,8 @@ export function AdminAssignmentsClient() {
                 ))}
               </div>
             ) : library.length === 0 ? (
-              <Card className="p-6 sm:p-12">
-                <EmptyState
+              <Card>
+                <EmptyState variant="inline"
                   icon={Plus}
                   title="No shared assignments yet"
                   description="Create a PGN assignment for coaches to hand out."
@@ -164,6 +164,6 @@ export function AdminAssignmentsClient() {
           assignment={previewing}
         />
       </div>
-    </main>
+    </div>
   );
 }

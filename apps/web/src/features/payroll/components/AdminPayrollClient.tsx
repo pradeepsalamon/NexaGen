@@ -10,7 +10,7 @@ export function AdminPayrollClient() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-app-text">Coach Payroll</h1>
+        <h1 className="text-xl font-bold text-app-text">Coach payroll</h1>
         <p className="text-sm text-app-muted">
           What the academy owes each coach, computed from actual teaching activity —
           separate from student billing.

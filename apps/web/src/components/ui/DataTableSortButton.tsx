@@ -23,7 +23,7 @@ export function SortButton({ label, direction, onClick, className }: SortButtonP
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "-mx-2 h-8 min-h-8 gap-1 px-2 uppercase tracking-wide text-current hover:bg-white/15 hover:text-current",
+        "-mx-2 h-8 min-h-8 gap-1 px-2 text-current hover:bg-white/15 hover:text-current",
         className
       )}
     >

@@ -170,11 +170,11 @@ export function ScheduleBuilderClient() {
   const hasBlockingConflicts = Boolean(preview && preview.conflicts.length > 0);
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-5xl gap-5">
+    <div>
+      <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5">
         <header>
-          <p className="text-xs font-extrabold uppercase text-primary-ink">Class Scheduler</p>
-          <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">Create batch class plan</h1>
+          <p className="text-xs font-extrabold text-primary-ink">Class Scheduler</p>
+          <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-2 text-app-text">New schedule</h1>
           <p className="mt-1 text-sm text-app-muted">
             Define a recurring weekly schedule and NexaGen generates every class for the period.
           </p>
@@ -379,6 +379,6 @@ export function ScheduleBuilderClient() {
           <SchedulePreviewPanel preview={preview} timezone={timezone} />
         )}
       </div>
-    </main>
+    </div>
   );
 }

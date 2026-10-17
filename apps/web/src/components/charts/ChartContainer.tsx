@@ -41,12 +41,12 @@ export function ChartContainer({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center gap-3 rounded-app border border-dashed border-app-border p-6 text-center",
+          "flex flex-col items-center justify-center gap-3 rounded-control bg-app-soft/50 p-6 text-center",
           className
         )}
         style={{ minHeight: height }}
       >
-        <AlertTriangle className="size-6 text-app-danger" strokeWidth={2} />
+        <AlertTriangle aria-hidden="true" className="size-6 text-app-danger-ink" strokeWidth={2} />
         <p className="text-sm text-app-muted">{errorMessage}</p>
         {onRetry ? (
           <Button onClick={onRetry} size="sm" variant="outline">
@@ -61,12 +61,12 @@ export function ChartContainer({
     return (
       <div
         className={cn(
-          "flex flex-col items-center justify-center gap-3 rounded-app border border-dashed border-app-border p-6 text-center",
+          "flex flex-col items-center justify-center gap-3 rounded-control bg-app-soft/50 p-6 text-center",
           className
         )}
         style={{ minHeight: height }}
       >
-        <BarChart3 className="size-6 text-app-muted" strokeWidth={2} />
+        <BarChart3 aria-hidden="true" className="size-6 text-app-muted" strokeWidth={2} />
         <p className="text-sm text-app-muted">{emptyMessage}</p>
       </div>
     );

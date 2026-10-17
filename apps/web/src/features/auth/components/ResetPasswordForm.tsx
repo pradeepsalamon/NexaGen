@@ -62,7 +62,7 @@ export function ResetPasswordForm() {
           actionHref="/login"
           actionLabel="Back to login"
           helperText="Password already updated?"
-          title="Reset Password"
+          title="Reset password"
         />
         <form className="grid gap-4" onSubmit={handleSubmit}>
 
@@ -103,7 +103,7 @@ export function ResetPasswordForm() {
             isLoading={resetPasswordMutation.isPending}
             type="submit"
           >
-            {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+            {resetPasswordMutation.isPending ? "Resetting..." : "Reset password"}
           </Button>
         </form>
       </Card>

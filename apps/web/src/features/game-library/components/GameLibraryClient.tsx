@@ -96,7 +96,7 @@ export function GameLibraryClient() {
   return (
     <div className="space-y-6 pb-10">
       <PageHeader
-        title="Game Library"
+        title="Game library"
         description={
           isStudent
             ? "Games you played in class, the class-board games of classes you attended, and games you uploaded."
@@ -212,7 +212,7 @@ export function GameLibraryClient() {
         </div>
       ) : !data || data.items.length === 0 ? (
         <Card className="p-6 sm:p-10">
-          <EmptyState
+          <EmptyState variant="inline"
             icon={Library}
             title={active ? "No games match these filters" : "No games yet"}
             description={

@@ -1,7 +1,8 @@
 import { AdminInvoiceDetailClient } from "@/features/invoices/components/AdminInvoiceDetailClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Invoice - Admin",
+  title: pageTitle("/admin/finance/invoices/[id]"),
 };
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {

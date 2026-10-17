@@ -1,9 +1,10 @@
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StudentRevisionClient } from "@/features/revision/components/StudentRevisionClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Smart Revision"
+  title: pageTitle("/student/revision")
 };
 
 export default function StudentRevisionPage() {

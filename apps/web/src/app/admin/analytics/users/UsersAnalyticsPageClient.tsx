@@ -16,7 +16,7 @@ export function UsersAnalyticsPageClient() {
     <AnalyticsPageShell
       description="Registrations, role and status mix, and the full user directory."
       exports={[{ report: "users", label: "Users" }]}
-      title="User Analytics"
+      title="User analytics"
     >
       {(query, update) => (
         <div className="space-y-5">

@@ -1,7 +1,8 @@
 import { CoachStudentsClient } from "../../../features/coach/components/CoachStudentsClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Students - Coach Workspace"
+  title: pageTitle("/coach/students")
 };
 
 export default async function CoachStudentsPage(

@@ -83,7 +83,7 @@ export function AssignmentPreviewDialog({ open, onOpenChange, assignment }: Prop
 function PerfStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-app border border-app-border bg-app-background/50 p-2 text-center">
-      <p className="text-[10px] uppercase tracking-wide text-app-muted">{label}</p>
+      <p className="text-[10px] text-app-muted">{label}</p>
       <p className="text-base font-bold text-app-text">{value}</p>
     </div>
   );

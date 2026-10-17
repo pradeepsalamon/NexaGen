@@ -9,7 +9,7 @@ const Tabs = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Root
-    className={cn("grid gap-4", className)}
+    className={cn("grid grid-cols-[minmax(0,1fr)] gap-4", className)}
     ref={ref}
     {...props}
   />
@@ -22,7 +22,7 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     className={cn(
-      "inline-flex min-h-10 w-fit items-center gap-1 rounded-xl border border-primary/15 bg-primary/[0.07] p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+      "inline-flex min-h-10 w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-primary/15 bg-primary/[0.07] p-1 text-app-muted [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
       className
     )}
     ref={ref}

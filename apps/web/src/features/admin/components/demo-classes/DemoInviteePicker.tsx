@@ -74,7 +74,7 @@ export function DemoInviteePicker({ value, onChange, classId, disabled }: DemoIn
 
       {pendingInviteeCount(value) > 0 && (
         <div className="grid gap-2">
-          <p className="text-xs font-bold uppercase text-app-muted">
+          <p className="text-xs font-bold text-app-muted">
             To invite ({pendingInviteeCount(value)})
           </p>
           <ul className="flex flex-wrap gap-2">

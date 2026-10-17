@@ -129,7 +129,7 @@ function ClassDetails({ cls }: { cls: StudentClassDetail }) {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="space-y-3 p-5">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-app-muted">Schedule</h2>
+          <h2 className="text-sm font-bold text-app-muted">Schedule</h2>
           <p className="flex items-center gap-2 font-semibold text-app-text">
             <CalendarDays aria-hidden="true" className="size-4 text-primary-ink" strokeWidth={2.25} />
             {formatFullDate(cls.startsAt, timeZone)}
@@ -156,7 +156,7 @@ function ClassDetails({ cls }: { cls: StudentClassDetail }) {
         </Card>
 
         <Card className="space-y-3 p-5">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-app-muted">Coach</h2>
+          <h2 className="text-sm font-bold text-app-muted">Coach</h2>
           <div className="flex items-center gap-3">
             {cls.coach.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

@@ -245,7 +245,7 @@ export function CoachScheduleCalendar({ view, onEdit, onCancel, onRequestResched
                     )}
                   >
                     <header className="mb-2 flex items-center gap-2 lg:flex-col lg:items-start lg:gap-0.5">
-                      <span className="text-xs font-bold uppercase tracking-wide text-app-muted">
+                      <span className="text-xs font-bold text-app-muted">
                         {WEEKDAYS[days.indexOf(day)]}
                       </span>
                       <span

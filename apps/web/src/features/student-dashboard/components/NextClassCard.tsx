@@ -45,7 +45,7 @@ function useElapsed(since: string | null | undefined) {
 
 function Eyebrow({ children }: { children: ReactNode }) {
   return (
-    <p className="text-xs font-bold uppercase tracking-wide text-app-muted">{children}</p>
+    <p className="text-xs font-bold text-app-muted">{children}</p>
   );
 }
 
@@ -56,7 +56,7 @@ function LiveClass({ liveClass }: { liveClass: StudentDashboardLiveClass }) {
   return (
     <Card className="flex flex-col gap-5 border-app-danger/30 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
       <div className="min-w-0">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-app-danger-ink">
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold text-app-danger-ink">
           <span className="relative flex size-2">
             <span className="absolute inline-flex size-full rounded-full bg-app-danger opacity-75 motion-safe:animate-ping" />
             <span className="relative inline-flex size-2 rounded-full bg-app-danger" />

@@ -1,5 +1,8 @@
 import { BackupManager } from "../_components/BackupManager";
 import { SuperAdminOnly } from "@/components/layout/SuperAdminOnly";
+import { pageTitle } from "@/lib/pageTitles";
+
+export const metadata = { title: pageTitle("/admin/backups") };
 
 export default function AdminBackupsPage() {
   return (

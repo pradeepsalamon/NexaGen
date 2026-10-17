@@ -170,7 +170,7 @@ export function CompensationProfileDialog({
             </Button>
 
             <div className="border-t border-app-border pt-4">
-              <h4 className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted">
+              <h4 className="mb-2 text-xs font-bold text-app-muted">
                 Effective-dated rates
               </h4>
 

@@ -1,5 +1,8 @@
 import { assertAnalyticsCookie } from "@/features/analytics/components/AnalyticsGate";
 import { CoachDetailPageClient } from "./CoachDetailPageClient";
+import { pageTitle } from "@/lib/pageTitles";
+
+export const metadata = { title: pageTitle("/admin/analytics/coaches/[id]") };
 
 export default async function CoachDetailAnalyticsPage(
   props: {

@@ -78,7 +78,7 @@ export function UpcomingClassCard({ classItem }: { classItem: CoachClass }) {
     <Card className="flex flex-col gap-4 p-4 shadow-card sm:p-5">
       <div className="flex items-start gap-3">
         <span className="flex size-12 shrink-0 flex-col items-center justify-center rounded-control bg-primary/10 text-center">
-          <span className="text-[0.65rem] font-bold uppercase leading-none text-primary-ink">
+          <span className="text-[0.65rem] font-bold leading-none text-primary-ink">
             {formatMonthShort(classItem.startsAt, timeZone)}
           </span>
           <span className="mt-0.5 text-lg font-extrabold leading-none text-app-text">
@@ -86,7 +86,7 @@ export function UpcomingClassCard({ classItem }: { classItem: CoachClass }) {
           </span>
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-bold uppercase tracking-wide text-app-muted">
+          <p className="text-xs font-bold text-app-muted">
             {formatRelativeDay(classItem.startsAt, timeZone)}
           </p>
           <p className="mt-0.5 flex items-center gap-1.5 text-sm font-semibold text-app-text">
@@ -120,7 +120,7 @@ export function UpcomingClassCard({ classItem }: { classItem: CoachClass }) {
       <ClassBatchTypeSelect classItem={classItem} />
 
       <div>
-        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-app-muted">
+        <p className="mb-2 text-xs font-bold text-app-muted">
           {classItem.students.length === 1 ? "Student" : `Students (${classItem.students.length})`}
         </p>
         {classItem.students.length === 0 ? (

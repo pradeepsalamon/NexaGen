@@ -1,7 +1,8 @@
 import { StudentAssignmentsClient } from "@/features/assignments/components/StudentAssignmentsClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Assignments & Practice"
+  title: pageTitle("/student/practice")
 };
 
 export default function StudentPracticePage() {

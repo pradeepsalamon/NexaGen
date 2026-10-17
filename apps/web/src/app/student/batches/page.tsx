@@ -1,7 +1,8 @@
 import { StudentBatchesClient } from "@/features/student-batches/components/StudentBatchesClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "My Batches - Nexa Chess"
+  title: pageTitle("/student/batches")
 };
 
 export default function StudentBatchesPage() {

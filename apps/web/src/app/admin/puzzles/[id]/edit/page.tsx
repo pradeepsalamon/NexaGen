@@ -1,6 +1,7 @@
 import { PuzzleEditClient } from "@/features/puzzles/components/PuzzleEditClient";
+import { pageTitle } from "@/lib/pageTitles";
 
-export const metadata = { title: "Edit puzzle - Admin" };
+export const metadata = { title: pageTitle("/admin/puzzles/[id]/edit") };
 
 export default async function AdminEditPuzzlePage(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;

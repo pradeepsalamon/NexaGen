@@ -51,12 +51,12 @@ export function KpiCard({
           {Icon ? (
             <span
               aria-hidden="true"
-              className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 text-primary-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] transition-colors group-hover:bg-primary/15"
+              className="flex size-9 shrink-0 items-center justify-center rounded-control border border-primary/25 bg-primary/10 text-primary-ink shadow-[inset_0_1px_0_rgb(255_255_255/0.08)] transition-colors group-hover:bg-primary/15"
             >
               <Icon className="size-4" strokeWidth={2.25} />
             </span>
           ) : null}
-          <span className="text-xs font-semibold uppercase tracking-wide text-app-muted">
+          <span className="text-sm font-semibold text-app-muted">
             {label}
           </span>
         </div>
@@ -79,7 +79,7 @@ export function KpiCard({
         <Skeleton className="h-8 w-20" />
       ) : (
         <div className="flex items-end justify-between gap-2">
-          <span className="text-2xl font-extrabold text-app-text">
+          <span className="font-display text-2xl font-extrabold tabular-nums text-app-text">
             {formatValue(kpi?.value ?? null, unit)}
           </span>
           <DeltaChip kpi={kpi} invert={invertDelta} />
@@ -118,7 +118,7 @@ function DeltaChip({
     <span
       className={cn(
         "flex items-center gap-0.5 text-xs font-semibold",
-        good ? "text-accent" : "text-app-danger"
+        good ? "text-accent-ink" : "text-app-danger-ink"
       )}
     >
       {up ? (

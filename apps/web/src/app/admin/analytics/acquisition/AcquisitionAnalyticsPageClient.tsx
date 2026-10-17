@@ -8,7 +8,7 @@ export function AcquisitionAnalyticsPageClient() {
     <AnalyticsPageShell
       description="How people discover NexaChess, and how each channel is trending."
       exports={[{ report: "acquisition", label: "Acquisition" }]}
-      title="Acquisition Analytics"
+      title="Acquisition analytics"
     >
       {(query) => <AcquisitionSection query={query} />}
     </AnalyticsPageShell>

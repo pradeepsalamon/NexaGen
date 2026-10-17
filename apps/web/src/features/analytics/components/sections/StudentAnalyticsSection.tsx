@@ -92,7 +92,7 @@ function StudentTable({
   return (
     <div className="overflow-x-auto">
       <Table className="w-full min-w-[420px] text-left text-sm">
-        <TableHeader className="text-xs uppercase tracking-wide text-app-muted">
+        <TableHeader className="text-xs text-app-muted">
           <TableRow>
             <TableHead className="pb-2"><SortButton label="Student" {...sortProps("name")} /></TableHead>
             <TableHead className="pb-2 text-right"><SortButton label="Attendance" {...sortProps("attendance")} /></TableHead>

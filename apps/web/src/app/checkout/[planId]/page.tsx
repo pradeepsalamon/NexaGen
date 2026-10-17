@@ -1,7 +1,8 @@
 import { CheckoutClient } from "@/features/payments/components/CheckoutClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Checkout - NexaChess",
+  title: pageTitle("/checkout/[planId]"),
 };
 
 export default async function Page(props: { params: Promise<{ planId: string }> }) {

@@ -63,7 +63,7 @@ export function AdminPayrollPeriodsPanel() {
                 <TableRow className="border-b border-app-border">
                   {([["Period", "period"], ["Range", "range"], ["Status", "status"], ["Calculated", "calculated"], ["Finalized", "finalized"], ["", null]] as const).map(([heading, sortKey]) => (
                     <TableHead
-                      className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide"
+                      className="px-4 py-3 text-left text-xs font-semibold"
                       key={heading}
                     >
                       {sortKey ? <SortButton label={heading} {...sortProps(sortKey)} /> : heading}

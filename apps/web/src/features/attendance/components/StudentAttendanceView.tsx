@@ -131,7 +131,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight text-app-text">
-              Attendance &amp; Participation
+              Attendance
             </h1>
             <p className="text-app-muted mt-1 text-sm md:text-base">
               Track your session history, engagement metrics, and class streaks.
@@ -171,7 +171,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
             </svg>
             <span className="absolute text-lg font-bold text-app-text">{stats.percentage}%</span>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted">Overall</span>
+          <span className="text-xs font-semibold text-app-muted">Overall</span>
         </div>
 
         {/* KPI 2: Classes Attended */}
@@ -180,7 +180,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
             <CheckCircle2 className="size-6" strokeWidth={2.5} />
           </div>
           <span className="text-2xl font-bold text-app-text">{stats.attended}/{stats.total}</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">Attended</span>
+          <span className="text-xs font-semibold text-app-muted mt-1">Attended</span>
         </div>
 
         {/* KPI 3: Total Learning Time */}
@@ -189,7 +189,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
             <Clock className="size-6" strokeWidth={2.5} />
           </div>
           <span className="text-2xl font-bold text-app-text">{stats.totalLearningHours} hrs</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">Total Time</span>
+          <span className="text-xs font-semibold text-app-muted mt-1">Total Time</span>
         </div>
 
         {/* KPI 4: Current Streak */}
@@ -198,7 +198,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
             <Flame className="size-6" strokeWidth={2.5} />
           </div>
           <span className="text-2xl font-bold text-app-text">{stats.currentStreak} Classes</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">Current Streak</span>
+          <span className="text-xs font-semibold text-app-muted mt-1">Current Streak</span>
         </div>
 
         {/* KPI 5: This Month */}
@@ -207,7 +207,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
             <Calendar className="size-6" strokeWidth={2.5} />
           </div>
           <span className="text-2xl font-bold text-app-text">{stats.monthlyPercent}%</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-app-muted mt-1">This Month</span>
+          <span className="text-xs font-semibold text-app-muted mt-1">This Month</span>
         </div>
       </div>
 
@@ -292,7 +292,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
           <div className="overflow-x-auto">
             <Table className="w-full text-left border-collapse">
               <TableHeader>
-                <TableRow className="border-b border-app-border bg-app-soft/50 text-xs font-semibold uppercase tracking-wider text-app-muted">
+                <TableRow className="border-b border-app-border bg-app-soft/50 text-xs font-semibold text-app-muted">
                   <TableHead scope="col" className="px-5 py-3.5"><SortButton label="Class / Topic" {...sortProps("class")} /></TableHead>
                   <TableHead scope="col" className="px-5 py-3.5"><SortButton label="Instructor" {...sortProps("instructor")} /></TableHead>
                   <TableHead scope="col" className="px-5 py-3.5"><SortButton label="Status" {...sortProps("status")} /></TableHead>

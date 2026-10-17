@@ -154,7 +154,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
         <Tabs defaultValue="details" className="w-full">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-app-border pb-4 mb-4">
             <div>
-              <p className="text-xs font-extrabold uppercase text-primary-ink">
+              <p className="text-xs font-extrabold text-primary-ink">
                 {selectedBatch ? "Edit batch" : "Create batch"}
               </p>
               <h2 className="mt-2 text-xl font-extrabold text-app-text">

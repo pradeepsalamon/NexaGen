@@ -54,7 +54,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <Table className="w-full text-sm text-left">
-            <TableHeader className="text-xs uppercase bg-app-background border-b border-app-border text-app-muted">
+            <TableHeader className="text-xs bg-app-background border-b border-app-border text-app-muted">
               <TableRow>
                 <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold" />
                 <TableHead className="px-3 py-3 md:px-6 md:py-4 font-semibold"><SortButton label="Name" {...sortProps("name")} /></TableHead>
@@ -135,7 +135,7 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                         className="text-left px-3 py-3 md:px-6 md:py-4 bg-app-soft/30"
                       >
                         <div className="pl-4">
-                          <p className="text-xs font-semibold text-app-muted uppercase mb-2">
+                          <p className="text-xs font-semibold text-app-muted mb-2">
                             Event Timeline
                           </p>
                           <EventTimeline

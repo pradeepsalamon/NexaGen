@@ -15,6 +15,7 @@ import {
   statusBadgeVariant
 } from "../lib/puzzleMeta";
 import { PuzzleSolver } from "./solver/PuzzleSolver";
+import { enumLabel } from "@/lib/utils";
 
 export function PuzzlePreviewClient({ id, basePath }: { id: string; basePath: string }) {
   const { data, isLoading, isError, refetch } = usePuzzle(id);
@@ -46,7 +47,7 @@ export function PuzzlePreviewClient({ id, basePath }: { id: string; basePath: st
             <Badge variant={difficultyBadgeVariant(p.difficulty)}>
               {PUZZLE_DIFFICULTY_LABELS[p.difficulty]}
             </Badge>
-            <Badge variant={statusBadgeVariant(p.status)}>{p.status}</Badge>
+            <Badge variant={statusBadgeVariant(p.status)}>{enumLabel(p.status)}</Badge>
             {p.visibility === "GLOBAL" && <Badge variant="default">Admin Library</Badge>}
           </div>
           {p.description ? (

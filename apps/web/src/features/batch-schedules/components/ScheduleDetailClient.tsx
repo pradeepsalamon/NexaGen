@@ -44,6 +44,7 @@ import { queryKeys } from "@/lib/queryKeys";
 import { BatchScheduleCalendar } from "./BatchScheduleCalendar";
 import { DAY_LABELS, formatInZone, formatWallTime } from "../lib/scheduleFormat";
 import { DateStringPicker } from "@/components/ui/DatePicker";
+import { enumLabel } from "@/lib/utils";
 
 function getErrorMessage(error: unknown): string {
   if (error && typeof error === "object" && "message" in error) {
@@ -167,15 +168,15 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
 
   if (isLoading || !schedule) {
     return (
-      <main className="min-h-[calc(100dvh-64px)] bg-app-background p-6">
+      <div>
         <Skeleton className="mx-auto h-64 max-w-5xl w-full" />
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-[calc(100dvh-64px)] bg-app-background px-4 py-5 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-5xl gap-5">
+    <div>
+      <div className="mx-auto grid max-w-5xl grid-cols-[minmax(0,1fr)] gap-5">
         <div>
           <Link
             href="/admin/schedule"
@@ -188,7 +189,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
 
         <header className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-xs font-extrabold uppercase text-primary-ink">{schedule.batchName}</p>
+            <p className="text-xs font-extrabold text-primary-ink">{schedule.batchName}</p>
             <h1 className="text-2xl font-extrabold leading-tight tracking-tight mt-1 text-app-text">{schedule.title}</h1>
             <p className="mt-1 text-sm text-app-muted">
               {schedule.startDate} → {schedule.endDate} · {schedule.timezone}
@@ -215,7 +216,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
             ["Cancelled", schedule.cancelledClasses]
           ].map(([label, value]) => (
             <Card key={label} className="grid gap-1 p-3">
-              <p className="text-xs font-bold uppercase text-app-muted">{label}</p>
+              <p className="text-xs font-bold text-app-muted">{label}</p>
               <p className="text-lg font-extrabold text-app-text">{value}</p>
             </Card>
           ))}
@@ -320,7 +321,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
                     {formatInZone(cls.startsAt, schedule.timezone, { weekday: "short" })}
                   </span>
                   <span className="text-app-muted">{cls.coachName}</span>
-                  <Badge variant={STATUS_BADGE[cls.status] ?? "secondary"}>{cls.status}</Badge>
+                  <Badge variant={STATUS_BADGE[cls.status] ?? "secondary"}>{enumLabel(cls.status)}</Badge>
                   <div className="flex gap-1">
                     {cls.status === "SCHEDULED" && (
                       <>
@@ -380,7 +381,7 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
           })
         }
       />
-    </main>
+    </div>
   );
 }
 

@@ -1,7 +1,8 @@
 import { MessagingClient } from "@/features/messaging/components/MessagingClient";
+import { pageTitle } from "@/lib/pageTitles";
 
 export const metadata = {
-  title: "Messages - Admin",
+  title: pageTitle("/admin/messaging"),
 };
 
 export default function AdminMessagingPage() {

@@ -132,7 +132,7 @@ export function TypographyFields({
       </div>
 
       <div className="lg:sticky lg:top-24 lg:self-start">
-        <p className="mb-2 text-xs font-bold uppercase tracking-wider text-app-muted">Preview</p>
+        <p className="mb-2 text-xs font-bold text-app-muted">Preview</p>
         {/* Sized relative to the live root scale so the preview shows the chosen size, not the current one. */}
         <div
           className="space-y-3 rounded-app border border-app-border bg-app-surface p-5 shadow-card"

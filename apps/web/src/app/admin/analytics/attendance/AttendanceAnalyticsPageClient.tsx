@@ -8,7 +8,7 @@ export function AttendanceAnalyticsPageClient() {
     <AnalyticsPageShell
       description="Attendance rate, trend, and which batches / coaches / students need attention."
       exports={[{ report: "attendance", label: "Attendance" }]}
-      title="Attendance Analytics"
+      title="Attendance analytics"
     >
       {(query) => <AttendanceAnalyticsSection query={query} />}
     </AnalyticsPageShell>

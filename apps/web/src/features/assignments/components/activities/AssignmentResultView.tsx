@@ -92,7 +92,7 @@ export function AssignmentResultView({
 
       {activityType === "SOLVE_LINE" && result.review.length > 0 && (
         <Card className="p-5">
-          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-app-muted">
+          <h3 className="mb-3 text-sm font-bold text-app-muted">
             Move-by-move review
           </h3>
           <div className="flex flex-col gap-4 md:flex-row md:items-start">
@@ -100,7 +100,7 @@ export function AssignmentResultView({
             <div className="min-w-0 flex-1 overflow-x-auto">
               <Table className="w-full text-sm">
                 <TableHeader>
-                  <TableRow className="text-left text-xs uppercase tracking-wide text-app-muted">
+                  <TableRow className="text-left text-xs text-app-muted">
                     <TableHead className="py-1 pr-3">#</TableHead>
                     <TableHead className="py-1 pr-3">Your move</TableHead>
                     <TableHead className="py-1 pr-3">Expected</TableHead>
@@ -152,7 +152,7 @@ export function AssignmentResultView({
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-app border border-app-border bg-app-background/50 p-3 text-center">
-      <p className="text-xs uppercase tracking-wide text-app-muted">{label}</p>
+      <p className="text-xs text-app-muted">{label}</p>
       <p className="text-lg font-bold text-app-text">{value}</p>
     </div>
   );
