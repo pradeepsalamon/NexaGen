@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Req, Res } from "@nestjs/common";
+import { Controller, Get, NotFoundException, Param, Req, Res } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { API_ROUTES } from "@nexa-chess/types";
 import type { Request, Response } from "express";
@@ -62,10 +62,11 @@ export class PayrollController {
   @Get(API_ROUTES.payroll.payslipPdf())
   async payslipPdf(@Param("id") id: string, @Req() request: Request, @Res() response: Response) {
     const user = await this.user(request);
-    const payslip = await this.prisma.payslip.findUniqueOrThrow({
+    const payslip = await this.prisma.payslip.findUnique({
       where: { id },
       include: { payrollRecord: { select: { coachId: true } } }
     });
+    if (!payslip) throw new NotFoundException("Payslip not found.");
     assertOwnerOrAdmin(user, payslip.payrollRecord.coachId);
 
     const pdf = await this.payslips.getPayslipPdf(id);

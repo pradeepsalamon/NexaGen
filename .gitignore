@@ -43,3 +43,6 @@ test-results/
 
 # Performance outputs
 scripts/perf/out/
+
+# Local E2E secrets (template: .env.e2e.example)
+.env.e2e

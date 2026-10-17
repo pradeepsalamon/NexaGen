@@ -27,6 +27,7 @@ import {
   resolveOrderBy,
   resolvePagination
 } from "../common/pagination";
+import { optionalQueryEnum } from "../common/query-params";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
@@ -78,9 +79,9 @@ export class BatchService {
     const { page, pageSize, skip, take, search } = resolvePagination(query);
 
     const where: Prisma.BatchWhereInput = { ...this.getBatchVisibilityWhere(user) };
-    if (query?.status && query.status !== "ALL") {
-      where.status = query.status as BatchStatus;
-    }
+    const status =
+      query?.status === "ALL" ? undefined : optionalQueryEnum(query?.status, BatchStatus, "status");
+    if (status) where.status = status;
     if (search) {
       // `AND` so this can't clobber an `OR` the visibility filter might add.
       where.AND = [
@@ -298,6 +299,8 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    await this.assertBatchExists(batchId);
+
     const batch = await this.prisma.batch.update({
       data: { status: BatchStatus.ARCHIVED },
       include: batchInclude,
@@ -314,6 +317,8 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    await this.assertBatchExists(batchId);
+
     const batch = await this.prisma.batch.update({
       data: { status: BatchStatus.ACTIVE },
       include: batchInclude,
@@ -327,6 +332,8 @@ export class BatchService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCanManageBatches(user);
 
+    await this.assertBatchExists(batchId);
+
     // Retire the batch together with its coach/student assignments in one group
     // so a later restore brings the roster back too (AUDIT M13).
     await this.prisma.$transaction((transaction) =>
@@ -334,6 +341,11 @@ export class BatchService {
     );
 
     return { ok: true };
+  }
+
+  private async assertBatchExists(batchId: string) {
+    const batch = await this.prisma.batch.findUnique({ select: { id: true }, where: { id: batchId } });
+    if (!batch) throw new NotFoundException("Batch not found.");
   }
 
   private getAuthenticatedUser(accessToken: string | undefined) {

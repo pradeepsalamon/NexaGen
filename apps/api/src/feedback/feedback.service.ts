@@ -38,6 +38,7 @@ import {
   type User
 } from "@prisma/client";
 import { paginationMeta, resolvePagination } from "../common/pagination";
+import { optionalQueryString } from "../common/query-params";
 import { PrismaService } from "../prisma/prisma.service";
 import {
   computePendingFeedback,
@@ -143,10 +144,12 @@ export class FeedbackService {
       page: query.page as number | undefined,
       pageSize: query.pageSize as number | undefined
     });
+    const formId = optionalQueryString(query.formId, "formId");
+    const coachId = optionalQueryString(query.coachId, "coachId");
     const where: Prisma.FeedbackResponseWhereInput = {
       status: FeedbackResponseStatus.SUBMITTED,
-      ...(query.formId ? { formId: query.formId } : {}),
-      ...(query.coachId ? { coachId: query.coachId } : {})
+      ...(formId ? { formId } : {}),
+      ...(coachId ? { coachId } : {})
     };
 
     const [total, rows] = await Promise.all([

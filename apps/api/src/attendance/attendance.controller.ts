@@ -9,7 +9,9 @@ import {
   Res,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
+import { AttendanceStatus } from "@prisma/client";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { optionalQueryEnum, optionalQueryString } from "../common/query-params";
 import { AttendanceMonitoringService } from "./attendance-monitoring.service";
 import { AttendanceReportService } from "./attendance-report.service";
 import { AttendanceService } from "./attendance.service";
@@ -157,8 +159,8 @@ export class AttendanceController {
       {
         dateFrom,
         dateTo,
-        coachId,
-        batchId,
+        coachId: optionalQueryString(coachId, "coachId"),
+        batchId: optionalQueryString(batchId, "batchId"),
         page: page ? parseInt(page, 10) : undefined,
         limit: limit ? parseInt(limit, 10) : undefined,
       }
@@ -176,7 +178,7 @@ export class AttendanceController {
   ) {
     return this.reports.getAdminCoachTeachingReport(
       this.getAccessToken(request),
-      { dateFrom, dateTo, coachId }
+      { dateFrom, dateTo, coachId: optionalQueryString(coachId, "coachId") }
     );
   }
 
@@ -220,7 +222,13 @@ export class AttendanceController {
   ) {
     const result = await this.reports.exportAttendanceReport(
       this.getAccessToken(request),
-      { dateFrom, dateTo, batchId, coachId, status }
+      {
+        dateFrom,
+        dateTo,
+        batchId: optionalQueryString(batchId, "batchId"),
+        coachId: optionalQueryString(coachId, "coachId"),
+        status: optionalQueryEnum(status, AttendanceStatus, "status")
+      }
     );
 
     res.setHeader("Content-Type", "text/csv");

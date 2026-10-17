@@ -14,6 +14,7 @@ import { CoachProfileFields } from "./profile-form/CoachProfileFields";
 import {
   type ProfileFormValues,
   emptyValues,
+  isEmailChanged,
   toProfilePayload,
   valuesFromUser
 } from "./profile-form/profileForm.utils";
@@ -54,6 +55,8 @@ export function ProfileForm() {
     () => values.firstName.trim().length > 0,
     [values.firstName]
   );
+  const emailChanged = isEmailChanged(values, user);
+  const canSubmit = hasRequiredName && (!emailChanged || values.currentPassword.length > 0);
 
   const handleAvatarUpload = useCallback(
     (file: File) => {
@@ -65,7 +68,7 @@ export function ProfileForm() {
         const { url } = await uploadImage(file);
         updateField("avatarUrl", url);
         await profileMutation.mutateAsync(
-          toProfilePayload({ ...values, avatarUrl: url }, user)
+          toProfilePayload({ ...values, avatarUrl: url, email: user?.email ?? values.email }, user)
         );
       })();
 
@@ -88,7 +91,7 @@ export function ProfileForm() {
       await deleteImage(oldUrl);
       updateField("avatarUrl", "");
       await profileMutation.mutateAsync(
-        toProfilePayload({ ...values, avatarUrl: "" }, user)
+        toProfilePayload({ ...values, avatarUrl: "", email: user?.email ?? values.email }, user)
       );
     })();
 
@@ -101,15 +104,20 @@ export function ProfileForm() {
     removePromise.finally(() => setIsUploading(false));
   }, [values, user, updateField, profileMutation, toast]);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!hasRequiredName) return;
+    if (!canSubmit) return;
 
-    toast.promise(profileMutation.mutateAsync(toProfilePayload(values, user)), {
-      loading: "Saving profile...",
-      success: "Profile updated.",
-      error: "Failed to update profile."
-    });
+    try {
+      await profileMutation.mutateAsync(toProfilePayload(values, user));
+      toast.success({ title: "Profile updated." });
+    } catch (error) {
+      // The server's reason matters here ("Current password is incorrect.").
+      toast.error({
+        title: "Failed to update profile.",
+        message: error instanceof Error ? error.message : undefined
+      });
+    }
   }
 
   const initials =
@@ -126,7 +134,7 @@ export function ProfileForm() {
         onRemove={handleAvatarRemove}
       />
 
-      <AccountFields values={values} onFieldChange={updateField} />
+      <AccountFields emailChanged={emailChanged} values={values} onFieldChange={updateField} />
 
       {user?.studentProfile ? (
         <StudentProfileFields values={values} onFieldChange={updateField} />
@@ -138,7 +146,7 @@ export function ProfileForm() {
 
       <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
-          disabled={!hasRequiredName}
+          disabled={!canSubmit}
           isLoading={profileMutation.isPending}
           type="submit"
         >

@@ -15,6 +15,7 @@ import type { ProfileFormValues } from "./profileForm.utils";
 import { getTimezoneOptions } from "./profileForm.utils";
 
 interface AccountFieldsProps {
+  emailChanged: boolean;
   values: ProfileFormValues;
   onFieldChange: <TField extends keyof ProfileFormValues>(
     field: TField,
@@ -23,6 +24,7 @@ interface AccountFieldsProps {
 }
 
 export const AccountFields = memo(function AccountFields({
+  emailChanged,
   values,
   onFieldChange
 }: AccountFieldsProps) {
@@ -56,6 +58,26 @@ export const AccountFields = memo(function AccountFields({
           />
         </FormField>
       </div>
+
+      {emailChanged ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <FormField
+            hint="Required to change your email address."
+            id="profile-current-password"
+            label="Current Password"
+          >
+            <Input
+              autoComplete="current-password"
+              id="profile-current-password"
+              maxLength={200}
+              onChange={(event) => onFieldChange("currentPassword", event.target.value)}
+              required
+              type="password"
+              value={values.currentPassword}
+            />
+          </FormField>
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2">
         <FormField id="profile-first-name" label="First Name">

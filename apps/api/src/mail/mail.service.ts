@@ -73,6 +73,31 @@ export class MailService {
     });
   }
 
+  /** Sent to the OLD address, so a hijacked account's real owner finds out. */
+  async sendEmailChangedNotice(to: string, newEmail: string) {
+    const transporter = this.createTransporter();
+
+    await transporter.sendMail({
+      from: this.from,
+      to,
+      subject: "Your Nexa Chess email address was changed",
+      text: [
+        `The email address on your Nexa Chess account was changed to ${newEmail}.`,
+        "",
+        "If you made this change, no action is needed.",
+        "If you did not, contact the academy immediately: someone else may have access to your account."
+      ].join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.6;color:#101828">
+          <h2>Your email address was changed</h2>
+          <p>The email address on your Nexa Chess account was changed to <strong>${escapeHtml(newEmail)}</strong>.</p>
+          <p>If you made this change, no action is needed.</p>
+          <p>If you did not, contact the academy immediately: someone else may have access to your account.</p>
+        </div>
+      `
+    });
+  }
+
   /**
    * The receipt email. Only ever reached after a payment is verified, and the
    * caller claims a one-shot flag before calling, so a redelivered webhook

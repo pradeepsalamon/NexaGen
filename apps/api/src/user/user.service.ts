@@ -20,6 +20,7 @@ import {
   resolveOrderBy,
   resolvePagination
 } from "../common/pagination";
+import { optionalQueryEnum } from "../common/query-params";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
@@ -53,9 +54,9 @@ export class UserService {
     const { page, pageSize, skip, take, search } = resolvePagination(query);
 
     const where: Prisma.UserWhereInput = { isDeleted: false };
-    if (query?.status && query.status !== "ALL") {
-      where.status = query.status as UserStatus;
-    }
+    const status =
+      query?.status === "ALL" ? undefined : optionalQueryEnum(query?.status, UserStatus, "status");
+    if (status) where.status = status;
     if (search) {
       where.OR = [
         { firstName: { contains: search, mode: "insensitive" } },

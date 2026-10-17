@@ -20,6 +20,7 @@ import {
   PAYMENT_SOURCE_LABELS,
   retryInvoicePdfRequestSchema,
   updateInvoiceSettingsRequestSchema,
+  type AdminInvoiceQuery,
   type CreateCreditNoteRequest,
   type InvoiceItem,
   type RetryInvoicePdfRequest,
@@ -61,22 +62,22 @@ export class InvoicesAdminController {
   // ── Listing ──
 
   @Get(API_ROUTES.adminInvoices.list)
-  async list(@Query() query: Record<string, string>, @Req() request: Request) {
+  async list(
+    @Query(new ZodBodyPipe(adminInvoiceQuerySchema)) query: AdminInvoiceQuery,
+    @Req() request: Request
+  ) {
     const admin = await this.admin(request);
-    return this.invoices.listAdmin(admin, adminInvoiceQuerySchema.parse(query));
+    return this.invoices.listAdmin(admin, query);
   }
 
   @Get(API_ROUTES.adminInvoices.export)
   async export(
-    @Query() query: Record<string, string>,
+    @Query(new ZodBodyPipe(adminInvoiceQuerySchema)) query: AdminInvoiceQuery,
     @Req() request: Request,
     @Res() response: Response
   ) {
     const admin = await this.admin(request);
-    const invoices = await this.invoices.listAdminAll(
-      admin,
-      adminInvoiceQuerySchema.parse(query)
-    );
+    const invoices = await this.invoices.listAdminAll(admin, query);
 
     response.setHeader("Content-Type", "text/csv; charset=utf-8");
     response.setHeader(

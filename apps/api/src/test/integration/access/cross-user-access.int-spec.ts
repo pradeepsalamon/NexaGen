@@ -96,7 +96,9 @@ const LIST_CASES: Case[] = [
   { name: "coach's payroll", as: (w) => w.a.coach, path: () => API_ROUTES.payroll.mine },
   { name: "coach's assignment library", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.library },
   { name: "coach's deployments", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.deployments },
-  { name: "coach's manual payments", as: (w) => w.a.coach, path: () => API_ROUTES.payments.manual.mine }
+  { name: "coach's manual payments", as: (w) => w.a.coach, path: () => API_ROUTES.payments.manual.mine },
+  { name: "student's personal data export", as: (w) => w.a.student, path: () => API_ROUTES.privacy.dataExport },
+  { name: "coach's personal data export", as: (w) => w.a.coach, path: () => API_ROUTES.privacy.dataExport }
 ];
 
 const WRONG_ROLE: Case[] = [
@@ -150,6 +152,17 @@ describe("cross-user access (real app, real Postgres)", () => {
   it.each(WRONG_ROLE.map((c) => [c.name, c] as const))("forbids: %s", async (_name, c) => {
     const res = await run(c);
     expect({ path: c.path(w), status: res.status }).toEqual({ path: c.path(w), status: 403 });
+  });
+
+  it.each([["student"], ["coach"]] as const)("a %s's data export carries their own rows and no secrets", async (role) => {
+    const res = await t.call(w.a[role], "GET", API_ROUTES.privacy.dataExport);
+    expect(res.status).toBe(200);
+    const text = JSON.stringify(res.body);
+    const own = role === "student" ? [w.a.student.id, w.a.invoice.id, w.a.attempt.id] : [w.a.coach.id, w.a.class.id];
+    for (const id of own) expect(text).toContain(id);
+    for (const secret of ["password", "refreshTokenHash", "tokenHash", "secret", "idempotencyKey"]) {
+      expect(text).not.toContain(`"${secret}"`);
+    }
   });
 
   it("the cross-user writes above changed nothing", async () => {

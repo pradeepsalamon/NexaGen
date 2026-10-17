@@ -187,6 +187,16 @@ const apiEnvSchema = z.object({
       path: ["JWT_REFRESH_SECRET"]
     });
   }
+  // Without the key, required two-factor would silently switch off.
+  const mfaRequired = env.MFA_REQUIRED_ROLES.split(",").some((role) => role.trim());
+  if (mfaRequired && !env.MFA_ENCRYPTION_KEY) {
+    ctx.addIssue({
+      code: "custom",
+      message:
+        "MFA_ENCRYPTION_KEY is required in production while MFA_REQUIRED_ROLES is set (set MFA_REQUIRED_ROLES= to opt out).",
+      path: ["MFA_ENCRYPTION_KEY"]
+    });
+  }
 });
 
 export type ApiEnv = z.infer<typeof apiEnvSchema>;

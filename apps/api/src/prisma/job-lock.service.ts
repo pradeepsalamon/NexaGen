@@ -6,6 +6,7 @@ import { PrismaService } from "./prisma.service";
 export const JOB_LOCKS = {
   analyticsStorageSnapshot: "analytics.storage-snapshot",
   attendanceHeartbeatSweep: "attendance.heartbeat-sweep",
+  attendanceRoomPresenceSweep: "attendance.room-presence-sweep",
   demoScheduleTopUp: "demo-schedule.top-up",
   invoiceEmailSweep: "invoice.email-sweep",
   invoicePdfSweep: "invoice.pdf-sweep",

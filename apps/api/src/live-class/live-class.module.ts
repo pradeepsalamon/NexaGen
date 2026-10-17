@@ -53,6 +53,7 @@ import { MailModule } from "../mail/mail.module";
   ],
   exports: [
     LiveClassService,
+    LiveClassModerationService,
     LiveClassRecordingService,
     LiveClassScreenShareService,
     LiveClassSettingsService,

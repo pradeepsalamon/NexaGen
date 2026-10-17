@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import type { Request } from "express";
 import { AttendanceWebhookController } from "./attendance-webhook.controller";
 import { AttendanceService } from "./attendance.service";
+import { LiveClassModerationService } from "../live-class/live-class-moderation.service";
 import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -38,6 +39,7 @@ describe("AttendanceWebhookController signature handling", () => {
       {} as unknown as AttendanceService,
       {} as unknown as LiveClassScreenShareService,
       recording as unknown as LiveClassRecordingService,
+      {} as unknown as LiveClassModerationService,
       prisma as unknown as PrismaService
     );
     // The constructor builds its own receiver from env; swap in a stub.

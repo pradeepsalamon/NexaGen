@@ -387,7 +387,7 @@ helper for dirty-state UX.
   `jest.config.ts`: `rootDir: src`, alias `@/ → src/`, coverage excludes `main.ts`,
   `*.module.ts`, `*.dto.ts`.
 - Follow `UNIT_TEST_PLAN.md` for scope and priorities.
-- E2E: Playwright in `e2e/` using `.env.e2e`. `npx playwright test`. Not in `npm test`.
+- E2E: Playwright in `e2e/` using `.env.e2e` (gitignored; copy `.env.e2e.example`). `npx playwright test`. Not in `npm test`.
   `live-board-sync.spec.ts` is opt-in (`RUN_LIVE_BOARD_E2E=1`): it needs a real
   LiveKit (`docker compose up -d livekit postgres redis`) and the web server run
   with `NEXT_PUBLIC_E2E=1` (mounts the `window.__nexaBoard` test harness).

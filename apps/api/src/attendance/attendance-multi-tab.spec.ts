@@ -4,6 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { AttendanceEventType } from "@prisma/client";
 import { AttendanceWebhookController } from "./attendance-webhook.controller";
 import { AttendanceService } from "./attendance.service";
+import { LiveClassModerationService } from "../live-class/live-class-moderation.service";
 import { LiveClassRecordingService } from "../live-class/live-class-recording.service";
 import { LiveClassScreenShareService } from "../live-class/live-class-screen-share.service";
 import { JobLockService } from "../prisma/job-lock.service";
@@ -41,6 +42,7 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
     attendanceLog: { findMany: jest.Mock };
   };
   let screenShare: { endScreenShareOnDisconnect: jest.Mock };
+  let moderation: { enforceRemoval: jest.Mock };
   let receiver: { receive: jest.Mock };
 
   const CLASS_ID = "class-1";
@@ -59,10 +61,11 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
     screenShare = {
       endScreenShareOnDisconnect: jest.fn().mockResolvedValue(undefined),
     };
+    moderation = { enforceRemoval: jest.fn().mockResolvedValue(false) };
     prisma = {
       processedWebhookEvent: { create: jest.fn().mockResolvedValue({}) },
       liveSession: {
-        findUnique: jest.fn().mockResolvedValue({ classId: CLASS_ID, coachId: COACH_ID }),
+        findUnique: jest.fn().mockResolvedValue({ classId: CLASS_ID, coachId: COACH_ID, id: "session-1" }),
       },
       classAttendance: { findUnique: jest.fn() },
       attendanceLog: { findMany: jest.fn() },
@@ -72,6 +75,7 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
       attendanceService as unknown as AttendanceService,
       screenShare as unknown as LiveClassScreenShareService,
       {} as unknown as LiveClassRecordingService,
+      moderation as unknown as LiveClassModerationService,
       prisma as unknown as PrismaService
     );
     receiver = { receive: jest.fn() };
@@ -128,6 +132,22 @@ describe("Multi-tab attendance — webhook controller join decision", () => {
       STUDENT_ID,
       "tab-b"
     );
+  });
+
+  it("removes a kicked student who rejoins with an old token, recording no attendance", async () => {
+    moderation.enforceRemoval.mockResolvedValueOnce(true);
+    const rejoin = joined("tab-a", "evt-9");
+    receiver.receive.mockResolvedValueOnce(rejoin);
+    await controller.handleWebhook(requestWith(JSON.stringify(rejoin)));
+
+    expect(moderation.enforceRemoval).toHaveBeenCalledWith(
+      "class_class-1",
+      "session-1",
+      STUDENT_ID,
+      `${STUDENT_ID}_tab-a`
+    );
+    expect(attendanceService.recordJoinEvent).not.toHaveBeenCalled();
+    expect(attendanceService.recordReconnectEvent).not.toHaveBeenCalled();
   });
 
   it("closes only the leaving tab's own session, tagging it with its clientId", async () => {

@@ -61,6 +61,31 @@ coach/board durations were always 0, `room_finished` never fired, and the
 
 None currently tracked here.
 
+## Resolved (2026-10-17)
+
+- **Unvalidated list query params reached Prisma** (found 2026-10-08 by the
+  cross-user access suite). A repeated key (`?status=A&status=B`) or an
+  unknown enum value answered 500 instead of 400. Fixed per endpoint: the
+  shared Zod query schemas are now applied with `@Query(new ZodBodyPipe(…))`
+  (puzzles, courses, analytics, admin payments/invoices, message deliveries;
+  the last three used to call `.parse()`, whose `ZodError` was itself a 500),
+  and single params go through `common/query-params.ts`
+  (`optionalQueryString` / `optionalQueryEnum`). Payroll record/payout lists
+  now require `periodId` instead of listing every period when it is missing.
+- **Role checks are now proven, not just "reads the cookie"** (audit #12).
+  `test/integration/access/admin-routes.int-spec.ts` calls every admin route
+  as a student and a coach (and every SUPER_ADMIN route as an admin) and
+  expects 403. Found on the way: `PUT /messaging/rules/:event` answered 500 for
+  an unknown event (now 400), and a failed backup logged the database password
+  (`pg_dump` now gets it through `PGPASSWORD`, not the command line).
+- **Unknown ids no longer 500.** A probe of all 415 routes with a made-up id,
+  as super admin, coach and student, now finds no 500 (batch
+  archive/restore/delete, payslip PDFs, payroll period calculation and
+  compensation profiles were the cases). Same run: `/coach/*` and
+  `/student/dashboard` answered a wrong role with 401, which the web client
+  treats as an expired session (one wasted refresh rotation per call); they
+  are 403 now and `admin-routes.int-spec.ts` asserts it.
+
 ## Resolved (2026-10-03)
 
 - **Session and log tables grew forever.** Every refresh-token rotation (every
@@ -127,7 +152,8 @@ None currently tracked here.
   reschedule) with approval that creates or moves the class.
 - **`/student/progress` was a dead nav link.** It now shows a puzzle rating and a
   daily practice streak, also visible to a student's coaches. (`/student/batches`,
-  `/student/live-classes` and `/student/schedule` are still dead nav links.)
+  `/student/live-classes` and `/student/schedule` have since shipped; a
+  2026-10-17 sweep found no nav or hardcoded link to a missing route.)
 
 ## Resolved (2026-09-19)
 
@@ -583,13 +609,6 @@ None currently tracked here.
   `assignment` service's server-side call to `UploadService.uploadPgn`. Size
   is capped at 512KB in the controller and the shared
   `createAssignmentRequestSchema`.
-- **Unvalidated list query params reach Prisma** (found 2026-10-08 by the
-  cross-user access suite). Several list endpoints pass raw `@Query()` values
-  (`status`, `difficulty`, `visibility`, …) straight into a `where`, e.g.
-  `PuzzleService.list`. A repeated key (`?status=A&status=B`, an array) or an
-  unknown enum value fails Prisma validation and answers **500** instead of
-  400. Fix per endpoint with a Zod/DTO query schema, not a global
-  Prisma-error → 400 mapping (that would also hide real programming errors).
 - `GET /live-class/:id/participants` answers **500** when LiveKit is
   unconfigured (`LIVEKIT_*` unset) — the room-service call throws. Should be a
   503 like the other optional integrations.

@@ -6,6 +6,7 @@ import {
   testMessagingRuleRequestSchema,
   updateMessagingRuleRequestSchema,
   type MessageDeliveryQuery,
+  type MessagingEvent,
   type TestMessagingRuleRequest,
   type UpdateMessagingRuleRequest
 } from "@nexa-chess/types";
@@ -25,39 +26,38 @@ export class MessagingController {
 
   @Put(API_ROUTES.messaging.rule())
   update(
-    @Param("event") event: string,
+    @Param("event", new ZodBodyPipe(messagingEventSchema)) event: MessagingEvent,
     @Body(new ZodBodyPipe(updateMessagingRuleRequestSchema))
     body: UpdateMessagingRuleRequest,
     @Req() request: Request
   ) {
     return this.messagingRuleService.update(
       this.getAccessToken(request),
-      messagingEventSchema.parse(event),
+      event,
       body
     );
   }
 
   @Post(API_ROUTES.messaging.testRule())
   test(
-    @Param("event") event: string,
+    @Param("event", new ZodBodyPipe(messagingEventSchema)) event: MessagingEvent,
     @Body(new ZodBodyPipe(testMessagingRuleRequestSchema))
     body: TestMessagingRuleRequest,
     @Req() request: Request
   ) {
     return this.messagingRuleService.testRule(
       this.getAccessToken(request),
-      messagingEventSchema.parse(event),
+      event,
       body
     );
   }
 
   @Get(API_ROUTES.messaging.deliveries)
-  deliveries(@Query() query: unknown, @Req() request: Request) {
-    const parsed: MessageDeliveryQuery = messageDeliveryQuerySchema.parse(query);
-    return this.messagingRuleService.listDeliveries(
-      this.getAccessToken(request),
-      parsed
-    );
+  deliveries(
+    @Query(new ZodBodyPipe(messageDeliveryQuerySchema)) query: MessageDeliveryQuery,
+    @Req() request: Request
+  ) {
+    return this.messagingRuleService.listDeliveries(this.getAccessToken(request), query);
   }
 
   @Post(API_ROUTES.messaging.retryDelivery())

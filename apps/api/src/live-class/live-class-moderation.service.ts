@@ -175,6 +175,31 @@ export class LiveClassModerationService {
     return { removed };
   }
 
+  /**
+   * A removed student can still hold a LiveKit token minted before the kick,
+   * which connects straight to the SFU. Called on participant_joined: removes
+   * the participant again and returns true when the student is DENIED.
+   */
+  async enforceRemoval(
+    roomName: string,
+    liveSessionId: string,
+    studentId: string,
+    identity: string
+  ): Promise<boolean> {
+    const row = await this.prisma.liveClassWaitingParticipant.findUnique({
+      where: { liveSessionId_studentId: { liveSessionId, studentId } },
+      select: { status: true },
+    });
+    if (row?.status !== WaitingRoomStatus.DENIED) return false;
+
+    try {
+      await this.livekit.removeParticipant(roomName, identity);
+    } catch (error) {
+      this.logger.warn(`Could not remove rejoined ${identity} from ${roomName}`, error as Error);
+    }
+    return true;
+  }
+
   private async resolveModerator(accessToken: string | undefined, classId: string) {
     const user = await this.access.authenticate(accessToken);
 

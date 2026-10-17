@@ -4,6 +4,8 @@ import type { DerivedLiveKitGrants, LiveKitTrackSource } from "@nexa-chess/types
 import { LiveKitTokenOptions } from "./types/live-class.types";
 import { getApiEnv } from "@nexa-chess/config/api";
 
+const LIVEKIT_TOKEN_TTL = "10m";
+
 const TRACK_SOURCE_MAP: Record<LiveKitTrackSource, TrackSource> = {
   camera: TrackSource.CAMERA,
   microphone: TrackSource.MICROPHONE,
@@ -108,6 +110,9 @@ export class LiveKitService implements OnModuleInit {
         identity: options.participantIdentity,
         name: options.participantName,
         metadata: JSON.stringify({ role: options.isCoach ? 'COACH' : 'STUDENT' }),
+        // Short-lived: the server refreshes tokens for connected participants,
+        // so this only bounds how long a removed student's old token works.
+        ttl: LIVEKIT_TOKEN_TTL,
       });
 
       if (options.grants) {

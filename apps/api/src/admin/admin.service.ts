@@ -2,10 +2,11 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { MessagingDispatchService } from '../messaging/messaging-dispatch.service';
 import { assertNoSchedulingConflict, assertNotInPast } from '../coach/class-scheduling.util';
 import { paginationMeta, resolveOrderBy, resolvePagination } from '../common/pagination';
+import { optionalQueryEnum } from '../common/query-params';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrashRepository } from '../trash/trash.repository';
 import type { AddDemoInviteesRequest, DemoClass, DemoClassDetailsResponse, PaginatedQuery, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
-import { Prisma, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
+import { ClassStatus, Prisma, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
 import { DemoInviteService, demoInvitePath } from '../demo-class/demo-invite.service';
 
 type DemoClassRow = CoachClass & {
@@ -376,13 +377,12 @@ export class AdminService {
    */
   private buildClassListWhere(
     isDemo: boolean,
-    status: string | undefined,
+    status: unknown,
     search: string
   ): Prisma.CoachClassWhereInput {
     const where: Prisma.CoachClassWhereInput = { isDemo };
-    if (status && status !== 'ALL') {
-      where.status = status as Prisma.CoachClassWhereInput['status'];
-    }
+    const classStatus = status === 'ALL' ? undefined : optionalQueryEnum(status, ClassStatus, 'status');
+    if (classStatus) where.status = classStatus;
     if (search) {
       where.OR = [
         { topic: { contains: search, mode: 'insensitive' } },

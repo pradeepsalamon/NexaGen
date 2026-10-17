@@ -1,6 +1,6 @@
 import {
   Injectable,
-  UnauthorizedException
+  ForbiddenException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
@@ -310,7 +310,7 @@ export class StudentService {
   private async getAuthenticatedUser(accessToken: string | undefined) {
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
     if (user.role !== UserRole.STUDENT) {
-      throw new UnauthorizedException("Invalid session or unauthorized.");
+      throw new ForbiddenException("Student access required.");
     }
     return user;
   }

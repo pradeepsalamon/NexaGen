@@ -1,13 +1,15 @@
 import { JwtService } from "@nestjs/jwt";
 import {
   BadRequestException,
+  HttpStatus,
+  type HttpException,
   ServiceUnavailableException,
   UnauthorizedException
 } from "@nestjs/common";
 import { UserRole, type User } from "@prisma/client";
 import type { PrismaService } from "../../prisma/prisma.service";
 import { deriveMfaKey, encryptSecret, hashRecoveryCode } from "./mfa-crypto";
-import { MfaService, parseRequiredRoles } from "./mfa.service";
+import { MFA_MAX_FAILED_ATTEMPTS, MfaService, parseRequiredRoles } from "./mfa.service";
 import { generateTotp, generateTotpSecret, totpStep } from "./totp";
 
 const env = {
@@ -27,6 +29,7 @@ describe("MfaService", () => {
     userMfa: {
       delete: jest.Mock;
       findUnique: jest.Mock;
+      update: jest.Mock;
       updateMany: jest.Mock;
       upsert: jest.Mock;
     };
@@ -44,6 +47,7 @@ describe("MfaService", () => {
       userMfa: {
         delete: jest.fn(),
         findUnique: jest.fn().mockResolvedValue(null),
+        update: jest.fn().mockResolvedValue({ failedAttempts: 1 }),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         upsert: jest.fn()
       }
@@ -142,7 +146,7 @@ describe("MfaService", () => {
       await service.verifyCode("u1", "ABCD 1234");
 
       expect(prisma.userMfa.updateMany).toHaveBeenCalledWith({
-        data: { recoveryCodeHashes: [] },
+        data: { failedAttempts: 0, recoveryCodeHashes: [] },
         where: { recoveryCodeHashes: { has: hashRecoveryCode("abcd-1234") }, userId: "u1" }
       });
     });
@@ -151,6 +155,64 @@ describe("MfaService", () => {
       prisma.userMfa.findUnique.mockResolvedValue(enabledRow());
       await expect(service.verifyCode("u1", "ffff-ffff")).rejects.toBeInstanceOf(
         BadRequestException
+      );
+    });
+  });
+
+  describe("lockout", () => {
+    const secret = generateTotpSecret();
+    const row = (overrides = {}) => ({
+      enabledAt: new Date(),
+      lastUsedStep: null,
+      lockedUntil: null,
+      recoveryCodeHashes: [],
+      secretEncrypted: encryptSecret(secret, KEY),
+      ...overrides
+    });
+
+    it("counts a wrong code against the account", async () => {
+      prisma.userMfa.findUnique.mockResolvedValue(row());
+
+      await expect(service.verifyCode("u1", "000000")).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prisma.userMfa.update).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { failedAttempts: { increment: 1 } } })
+      );
+    });
+
+    it("locks the second factor on the Nth wrong code", async () => {
+      prisma.userMfa.findUnique.mockResolvedValue(row());
+      prisma.userMfa.update.mockResolvedValueOnce({ failedAttempts: MFA_MAX_FAILED_ATTEMPTS });
+
+      await expect(service.verifyCode("u1", "000000")).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(prisma.userMfa.update).toHaveBeenLastCalledWith({
+        data: { failedAttempts: 0, lockedUntil: expect.any(Date) },
+        where: { userId: "u1" }
+      });
+    });
+
+    it("refuses even a correct code while locked", async () => {
+      prisma.userMfa.findUnique.mockResolvedValue(
+        row({ lockedUntil: new Date(Date.now() + 10 * 60_000) })
+      );
+
+      const error = (await service
+        .verifyCode("u1", generateTotp(secret, totpStep()))
+        .catch((caught: unknown) => caught)) as HttpException;
+
+      expect(error.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+      expect(prisma.userMfa.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("accepts a code again once the lock has expired, resetting the count", async () => {
+      prisma.userMfa.findUnique.mockResolvedValue(row({ lockedUntil: new Date(Date.now() - 1000) }));
+
+      await expect(
+        service.verifyCode("u1", generateTotp(secret, totpStep()))
+      ).resolves.toBeUndefined();
+      expect(prisma.userMfa.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ failedAttempts: 0 }) })
       );
     });
   });

@@ -22,6 +22,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { RequireAccessTokenInterceptor } from "../common/security/require-access-token.interceptor";
 import { PrismaService } from "../prisma/prisma.service";
 import { ManualPaymentService } from "./manual-payment.service";
 import { OfflinePaymentMethodService } from "./offline-payment-method.service";
@@ -65,7 +66,13 @@ export class ManualPaymentController {
   }
 
   @Post(API_ROUTES.payments.manual.record)
-  @UseInterceptors(FileInterceptor("file"))
+  // Auth before multer, and multer capped (see RequireAccessTokenInterceptor).
+  @UseInterceptors(
+    RequireAccessTokenInterceptor,
+    FileInterceptor("file", {
+      limits: { fields: 5, fileSize: MANUAL_ATTACHMENT_MAX_BYTES, files: 1 }
+    })
+  )
   async record(
     @UploadedFile(
       new ParseFilePipe({

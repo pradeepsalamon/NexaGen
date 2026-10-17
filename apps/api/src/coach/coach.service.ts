@@ -1,8 +1,8 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
-  NotFoundException,
-  UnauthorizedException
+  NotFoundException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import type {
@@ -348,7 +348,7 @@ export class CoachService {
 
   private async getAuthenticatedCoach(accessToken: string | undefined) {
     const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
-    if (user.role !== UserRole.COACH) throw new UnauthorizedException("Unauthorized.");
+    if (user.role !== UserRole.COACH) throw new ForbiddenException("Coach access required.");
     return user;
   }
 

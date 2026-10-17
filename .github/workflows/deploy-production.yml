@@ -27,11 +27,11 @@ jobs:
     steps:
       - name: Checkout code
         if: github.event_name == 'push'
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Detect affected services
         if: github.event_name == 'push'
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
         id: filter
         with:
           filters: |
@@ -120,7 +120,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to VPS
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         env:
           WEB_CHANGED: ${{ needs.detect-changes.outputs.web }}
           API_CHANGED: ${{ needs.detect-changes.outputs.api }}

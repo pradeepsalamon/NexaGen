@@ -41,6 +41,7 @@ import { ChessAppearanceModule } from "./chess-appearance/chess-appearance.modul
 import { TypographyModule } from "./typography/typography.module";
 import { ClassRequestModule } from "./class-request/class-request.module";
 import { FeedbackModule } from "./feedback/feedback.module";
+import { PrivacyModule } from "./privacy/privacy.module";
 import { ProgressModule } from "./progress/progress.module";
 import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
@@ -95,6 +96,7 @@ import { RetentionModule } from "./retention/retention.module";
     LeadModule,
     FeedbackModule,
     ClassRequestModule,
+    PrivacyModule,
     ProgressModule,
     HealthModule,
     RetentionModule

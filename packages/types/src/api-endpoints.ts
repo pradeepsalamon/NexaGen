@@ -579,6 +579,10 @@ export const API_ROUTES = {
     approve: (id: string = ":id") => `/class-requests/${id}/approve`,
     reject: (id: string = ":id") => `/class-requests/${id}/reject`
   },
+  privacy: {
+    // The caller's own data as a JSON download.
+    dataExport: "/privacy/export"
+  },
   progress: {
     mine: "/progress/me",
     student: (id: string = ":id") => `/progress/students/${id}`

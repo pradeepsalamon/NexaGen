@@ -27,6 +27,7 @@ import {
   resolveOrderBy,
   resolvePagination
 } from "../common/pagination";
+import { optionalQueryEnum } from "../common/query-params";
 import { DemoInviteService } from "../demo-class/demo-invite.service";
 import { MailService } from "../mail/mail.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -183,9 +184,9 @@ export class LeadService {
 
     const { page, pageSize, skip, take, search } = resolvePagination(query);
     const where: Prisma.LeadWhereInput = {};
-    if (query?.status && query.status !== "ALL") {
-      where.status = query.status as LeadStatus;
-    }
+    const status =
+      query?.status === "ALL" ? undefined : optionalQueryEnum(query?.status, LeadStatus, "status");
+    if (status) where.status = status;
     if (search) {
       where.OR = [
         { studentName: { contains: search, mode: "insensitive" } },

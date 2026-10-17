@@ -1387,9 +1387,11 @@ describe("LiveClassModerationService.kickParticipant", () => {
   let waitingUpsert: jest.Mock;
   let pullUpdateMany: jest.Mock;
   let removeParticipant: jest.Mock;
+  let waitingFindUnique: jest.Mock;
 
   beforeEach(async () => {
     jwtService = { verifyAsync: jest.fn().mockResolvedValue({ sub: "coach-1", type: "access" }) };
+    waitingFindUnique = jest.fn().mockResolvedValue(null);
     userFindUnique = jest.fn().mockResolvedValue({
       id: "coach-1",
       role: UserRole.COACH,
@@ -1413,7 +1415,7 @@ describe("LiveClassModerationService.kickParticipant", () => {
         })
       },
       user: { findUnique: userFindUnique, findFirst: userFindFirst },
-      liveClassWaitingParticipant: { upsert: waitingUpsert },
+      liveClassWaitingParticipant: { upsert: waitingUpsert, findUnique: waitingFindUnique },
       liveClassPull: { updateMany: pullUpdateMany },
       $transaction: jest.fn((ops: Promise<unknown>[]) => Promise.all(ops))
     };
@@ -1469,6 +1471,24 @@ describe("LiveClassModerationService.kickParticipant", () => {
     await expect(
       service.kickParticipant(ACCESS_TOKEN, "class-1", { identity: "coach-1_tab-x" })
     ).rejects.toBeInstanceOf(BadRequestException);
+    expect(removeParticipant).not.toHaveBeenCalled();
+  });
+
+  it("removes a kicked student who rejoins with a token minted before the kick", async () => {
+    waitingFindUnique.mockResolvedValue({ status: "DENIED" });
+
+    await expect(
+      service.enforceRemoval("room-1", "session-1", "student-1", "student-1_tab-a")
+    ).resolves.toBe(true);
+    expect(removeParticipant).toHaveBeenCalledWith("room-1", "student-1_tab-a");
+  });
+
+  it("leaves an admitted or pulled-back student in the room", async () => {
+    waitingFindUnique.mockResolvedValue({ status: "ADMITTED" });
+
+    await expect(
+      service.enforceRemoval("room-1", "session-1", "student-1", "student-1_tab-a")
+    ).resolves.toBe(false);
     expect(removeParticipant).not.toHaveBeenCalled();
   });
 

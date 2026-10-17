@@ -4,6 +4,7 @@ export type ProfileFormValues = {
   avatarUrl: string;
   bio: string;
   chessRating: string;
+  currentPassword: string;
   dateOfBirth: string;
   email: string;
   experienceLevel: string;
@@ -30,6 +31,7 @@ export const emptyValues: ProfileFormValues = {
   avatarUrl: "",
   bio: "",
   chessRating: "",
+  currentPassword: "",
   dateOfBirth: "",
   email: "",
   experienceLevel: "BEGINNER",
@@ -59,6 +61,7 @@ export function valuesFromUser(user: AuthUser): ProfileFormValues {
     avatarUrl: user.avatarUrl ?? "",
     bio: user.coachProfile?.bio ?? "",
     chessRating: formatNumber(user.studentProfile?.chessRating),
+    currentPassword: "",
     dateOfBirth: formatDate(user.studentProfile?.dateOfBirth),
     email: user.email,
     experienceLevel: user.studentProfile?.experienceLevel ?? "BEGINNER",
@@ -88,6 +91,7 @@ export function toProfilePayload(
 ): UpdateProfileRequest {
   const payload: UpdateProfileRequest = {
     avatarUrl: optionalString(values.avatarUrl),
+    currentPassword: isEmailChanged(values, user) ? values.currentPassword : undefined,
     email: values.email.trim(),
     firstName: values.firstName.trim(),
     lastName: optionalString(values.lastName),
@@ -130,6 +134,11 @@ export function toProfilePayload(
   }
 
   return payload;
+}
+
+/** The API asks for the current password only when the email changes. */
+export function isEmailChanged(values: ProfileFormValues, user: AuthUser | undefined) {
+  return Boolean(user) && values.email.trim().toLowerCase() !== user?.email.toLowerCase();
 }
 
 export function optionalString(value: string) {

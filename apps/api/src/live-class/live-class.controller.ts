@@ -21,6 +21,7 @@ import { LiveClassScreenShareService } from "./live-class-screen-share.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { LiveClassService } from "./live-class.service";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { optionalQueryString } from "../common/query-params";
 import {
   API_ROUTES,
   guestJoinDemoRequestSchema,
@@ -70,8 +71,12 @@ export class LiveClassController {
   }
 
   @Post(API_ROUTES.liveClass.token())
-  getToken(@Param("id") id: string, @Req() request: Request, @Query("clientId") clientId?: string) {
-    return this.liveClassService.getToken(this.getAccessToken(request), id, clientId);
+  getToken(@Param("id") id: string, @Req() request: Request, @Query("clientId") clientId?: unknown) {
+    return this.liveClassService.getToken(
+      this.getAccessToken(request),
+      id,
+      optionalQueryString(clientId, "clientId")
+    );
   }
 
   @Post(API_ROUTES.liveClass.end())
@@ -123,8 +128,8 @@ export class LiveClassController {
   }
 
   @Get(API_ROUTES.liveClass.pullRoster())
-  getPullRoster(@Param("id") id: string, @Query("q") q: string | undefined, @Req() request: Request) {
-    return this.pulls.getPullRoster(this.getAccessToken(request), id, q);
+  getPullRoster(@Param("id") id: string, @Query("q") q: unknown, @Req() request: Request) {
+    return this.pulls.getPullRoster(this.getAccessToken(request), id, optionalQueryString(q, "q"));
   }
 
   @Post(API_ROUTES.liveClass.pullStudent())
@@ -236,8 +241,8 @@ export class LiveClassController {
 
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Get(API_ROUTES.liveClass.demoInfo())
-  getDemoInfo(@Param("id") id: string, @Query("invite") invite?: string) {
-    return this.demo.getDemoInfo(id, invite || undefined);
+  getDemoInfo(@Param("id") id: string, @Query("invite") invite?: unknown) {
+    return this.demo.getDemoInfo(id, optionalQueryString(invite, "invite"));
   }
 
   // Throttled harder than the global limit so a passcode can't be brute-forced.
@@ -279,12 +284,12 @@ export class LiveClassController {
     @Param("id") id: string,
     @Req() request: Request,
     @Res() response: Response,
-    @Query("st") streamToken?: string,
+    @Query("st") rawStreamToken?: unknown,
     @Query("dl") download?: string
   ) {
     return this.recording.streamRecording(
       this.getAccessToken(request),
-      streamToken,
+      optionalQueryString(rawStreamToken, "st"),
       id,
       request,
       response,

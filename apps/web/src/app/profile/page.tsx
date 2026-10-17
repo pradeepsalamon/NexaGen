@@ -3,6 +3,7 @@ import { LogoutButton } from "../../features/auth/components/LogoutButton";
 import { ProfileForm } from "../../features/auth/components/ProfileForm";
 import { ProfileRoleHeading } from "../../features/auth/components/ProfileRoleHeading";
 import { TwoFactorSettings } from "../../features/auth/components/mfa/TwoFactorSettings";
+import { PersonalDataSection } from "@/features/privacy/components/PersonalDataSection";
 import { UserTypographySettings } from "@/features/typography/components/UserTypographySettings";
 
 export default function ProfilePage() {
@@ -36,6 +37,7 @@ export default function ProfilePage() {
           </p>
           <UserTypographySettings />
         </section>
+        <PersonalDataSection />
       </main>
     </AppShell>
   );

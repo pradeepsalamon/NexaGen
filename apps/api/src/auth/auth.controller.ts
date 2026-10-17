@@ -108,6 +108,8 @@ export class AuthController {
   }
 
   @Patch(API_ROUTES.auth.profile)
+  // Changing the email checks the current password, so it is a guessing surface.
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   async updateProfile(
     @Body() body: UpdateProfileDto,
     @Req() request: Request

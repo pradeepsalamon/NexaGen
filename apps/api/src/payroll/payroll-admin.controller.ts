@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Req, Res } from "@nestjs/common";
+import { BadRequestException, Body, NotFoundException, Controller, Get, Param, Post, Put, Query, Req, Res } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import {
   API_ROUTES,
@@ -27,6 +27,7 @@ import {
 } from "@nexa-chess/types";
 import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
+import { optionalQueryString } from "../common/query-params";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { safeFilename, sendPdf } from "../payments/invoices.controller";
 import { PrismaService } from "../prisma/prisma.service";
@@ -132,9 +133,9 @@ export class PayrollAdminController {
   // ── Records ──
 
   @Get(API_ROUTES.adminPayroll.records)
-  async listRecords(@Query("periodId") periodId: string, @Req() request: Request) {
+  async listRecords(@Query("periodId") periodId: unknown, @Req() request: Request) {
     await this.admin(request);
-    return this.records.listForPeriod(periodId);
+    return this.records.listForPeriod(this.requirePeriodId(periodId));
   }
 
   @Get(API_ROUTES.adminPayroll.record())
@@ -276,7 +277,8 @@ export class PayrollAdminController {
   @Get(API_ROUTES.adminPayroll.payslipPdf())
   async payslipPdf(@Param("id") id: string, @Req() request: Request, @Res() response: Response) {
     await this.admin(request);
-    const payslip = await this.prisma.payslip.findUniqueOrThrow({ where: { id } });
+    const payslip = await this.prisma.payslip.findUnique({ where: { id } });
+    if (!payslip) throw new NotFoundException("Payslip not found.");
     const pdf = await this.payslips.getPayslipPdf(id);
     sendPdf(response, `${safeFilename(payslip.documentNumber)}.pdf`, pdf);
   }
@@ -291,9 +293,9 @@ export class PayrollAdminController {
   // ── Payouts ──
 
   @Get(API_ROUTES.adminPayroll.payouts)
-  async listPayouts(@Query("periodId") periodId: string, @Req() request: Request) {
+  async listPayouts(@Query("periodId") periodId: unknown, @Req() request: Request) {
     await this.admin(request);
-    return this.payouts.listForPeriod(periodId);
+    return this.payouts.listForPeriod(this.requirePeriodId(periodId));
   }
 
   @Post(API_ROUTES.adminPayroll.payouts)
@@ -319,6 +321,12 @@ export class PayrollAdminController {
   ) {
     const admin = await this.admin(request);
     return { payout: await this.payouts.markPaid(id, admin.id, dto) };
+  }
+
+  private requirePeriodId(value: unknown): string {
+    const periodId = optionalQueryString(value, "periodId");
+    if (!periodId) throw new BadRequestException("periodId is required.");
+    return periodId;
   }
 
   private async admin(request: Request) {
