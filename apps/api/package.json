@@ -78,7 +78,7 @@
     "@types/express": "^5.0.6",
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.2.0",
-    "@types/node": "^20.14.10",
+    "@types/node": "^26.6.5",
     "@types/nodemailer": "^8.0.1",
     "@types/pdfmake": "^0.3.3",
     "@types/streamifier": "^0.1.2",
