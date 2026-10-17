@@ -33,7 +33,10 @@ const OUTSIDE_EFFECTS = new Set([
   "POST /admin/backups/trigger"
 ]);
 
-const DUMMY_ID = "00000000-0000-0000-0000-000000000000";
+// Coach routes admins may also read (the analytics pages link to a class).
+const STAFF_READABLE_COACH_ROUTES = new Set(["GET /coach/classes/:id"]);
+
+const DUMMY_ID ="00000000-0000-0000-0000-000000000000";
 
 type Route = { method: string; path: string };
 
@@ -134,8 +137,10 @@ describe("admin-only routes refuse other roles (real app, real Postgres)", () =>
     expect(routes.length).toBeGreaterThan(0);
     for (const route of routes) {
       for (const role of roles) {
+        const key = `${route.method} ${route.path}`;
+        if (role !== "student" && STAFF_READABLE_COACH_ROUTES.has(key)) continue;
         const res = await call(users[role], route);
-        expect({ role, route: `${route.method} ${route.path}`, status: res.status }).toMatchObject({ status: 403 });
+        expect({ role, route: key, status: res.status }).toEqual({ role, route: key, status: 403 });
       }
     }
   }, 120_000);
