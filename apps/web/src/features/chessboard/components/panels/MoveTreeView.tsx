@@ -93,7 +93,7 @@ export function MoveTreeView({
             </span>
           ))}
         </button>
-        {node.comment && <MoveComment text={node.comment} />}
+        {visibleComment(node.comment) && <MoveComment text={visibleComment(node.comment)} />}
       </Fragment>
     );
   };
@@ -357,4 +357,12 @@ function CommentEditor({ comment, onSave }: { comment: string; onSave: (text: st
       </PopoverContent>
     </Popover>
   );
+}
+
+/**
+ * A comment as a reader sees it: PGN command annotations ([%clk 0:03:00],
+ * [%eval 0.3], [%csl …]) are data for tools, kept in the PGN but not shown.
+ */
+function visibleComment(comment: string | undefined): string {
+  return (comment ?? "").replace(/\[%[a-z]+[^\]]*\]/gi, "").replace(/\s+/g, " ").trim();
 }

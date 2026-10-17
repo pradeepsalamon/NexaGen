@@ -1,0 +1,421 @@
+{
+  "date": "2026-10-17",
+  "note": "Summaries only; per-puzzle rows are reproducible with scripts/game-analysis-benchmark.cjs.",
+  "development_first_rules": {
+    "bestMoveAgreement": 100,
+    "config": {
+      "budgetMs": 180000,
+      "concurrency": 1,
+      "depth": "STANDARD",
+      "maxDepth": 18,
+      "movetimeMs": 800,
+      "multiPv": 2,
+      "rootMoveSearch": false
+    },
+    "deflectionPuzzles": {
+      "asMaterialGainOnly": 10,
+      "total": 23,
+      "withAnyTactic": 21
+    },
+    "engine": "Stockfish 17.1",
+    "errors": 0,
+    "falseTacticForBlunderingSide": {
+      "count": 24,
+      "rate": 8.8
+    },
+    "foundWhenSolutionPlayed": 100,
+    "missedAlternative": {
+      "classifiedSevere": 100,
+      "outcomeMissed": 100,
+      "revisionEligible": 99.5
+    },
+    "motifs": {
+      "BACK_RANK_MATE": {
+        "falsePositives": 13,
+        "labelled": 20,
+        "precision": 53.6,
+        "predicted": 28,
+        "recall": 75,
+        "truePositives": 15
+      },
+      "DISCOVERED_ATTACK": {
+        "falsePositives": 0,
+        "labelled": 21,
+        "precision": 100,
+        "predicted": 7,
+        "recall": 33.3,
+        "truePositives": 7
+      },
+      "DISCOVERED_CHECK": {
+        "falsePositives": 2,
+        "labelled": 39,
+        "precision": 84.6,
+        "predicted": 13,
+        "recall": 28.2,
+        "truePositives": 11
+      },
+      "DOUBLE_CHECK": {
+        "falsePositives": 0,
+        "labelled": 20,
+        "precision": 100,
+        "predicted": 8,
+        "recall": 40,
+        "truePositives": 8
+      },
+      "FORK": {
+        "falsePositives": 19,
+        "labelled": 36,
+        "precision": 60.4,
+        "predicted": 48,
+        "recall": 80.6,
+        "truePositives": 29
+      },
+      "HANGING_PIECE": {
+        "falsePositives": 8,
+        "labelled": 21,
+        "precision": 70.4,
+        "predicted": 27,
+        "recall": 90.5,
+        "truePositives": 19
+      },
+      "INTERMEDIATE_MOVE": {
+        "falsePositives": 1,
+        "labelled": 20,
+        "precision": 90,
+        "predicted": 10,
+        "recall": 45,
+        "truePositives": 9
+      },
+      "MATE": {
+        "falsePositives": 0,
+        "labelled": 85,
+        "precision": 100,
+        "predicted": 63,
+        "recall": 74.1,
+        "truePositives": 63
+      },
+      "PIN": {
+        "falsePositives": 12,
+        "labelled": 24,
+        "precision": 47.8,
+        "predicted": 23,
+        "recall": 45.8,
+        "truePositives": 11
+      },
+      "PROMOTION": {
+        "falsePositives": 1,
+        "labelled": 20,
+        "precision": 80,
+        "predicted": 5,
+        "recall": 20,
+        "truePositives": 4
+      },
+      "REMOVAL_OF_DEFENDER": {
+        "falsePositives": 1,
+        "labelled": 20,
+        "precision": 88.9,
+        "predicted": 9,
+        "recall": 40,
+        "truePositives": 8
+      },
+      "SKEWER": {
+        "falsePositives": 5,
+        "labelled": 21,
+        "precision": 72.2,
+        "predicted": 18,
+        "recall": 61.9,
+        "truePositives": 13
+      }
+    },
+    "msPerSearch": 531,
+    "puzzles": 272,
+    "searches": 1061,
+    "setupMoveSevere": 93.8,
+    "setupMoveUnclassified": 0.4,
+    "tacticDetectedAfterSetup": 77.2,
+    "totalSeconds": 564,
+    "versions": {
+      "accuracy": "nexa-accuracy-v1",
+      "classification": "nexa-classify-v1",
+      "tactics": "nexa-tactics-v1"
+    }
+  },
+  "development_final": {
+    "bestMoveAgreement": 100,
+    "config": {
+      "budgetMs": 180000,
+      "concurrency": 1,
+      "depth": "STANDARD",
+      "maxDepth": 18,
+      "movetimeMs": 800,
+      "multiPv": 2,
+      "rootMoveSearch": false
+    },
+    "deflectionPuzzles": {
+      "asMaterialGainOnly": 11,
+      "total": 23,
+      "withAnyTactic": 21
+    },
+    "engine": "Stockfish 17.1",
+    "errors": 0,
+    "falseTacticForBlunderingSide": {
+      "count": 25,
+      "rate": 9.2
+    },
+    "foundWhenSolutionPlayed": 100,
+    "missedAlternative": {
+      "classifiedSevere": 100,
+      "outcomeMissed": 100,
+      "revisionEligible": 100
+    },
+    "motifs": {
+      "BACK_RANK_MATE": {
+        "falsePositives": 0,
+        "labelled": 20,
+        "precision": 100,
+        "predicted": 17,
+        "recall": 85,
+        "truePositives": 17
+      },
+      "DISCOVERED_ATTACK": {
+        "falsePositives": 0,
+        "labelled": 21,
+        "precision": 100,
+        "predicted": 6,
+        "recall": 28.6,
+        "truePositives": 6
+      },
+      "DISCOVERED_CHECK": {
+        "falsePositives": 2,
+        "labelled": 39,
+        "precision": 88.2,
+        "predicted": 17,
+        "recall": 38.5,
+        "truePositives": 15
+      },
+      "DOUBLE_CHECK": {
+        "falsePositives": 0,
+        "labelled": 20,
+        "precision": 100,
+        "predicted": 12,
+        "recall": 60,
+        "truePositives": 12
+      },
+      "FORK": {
+        "falsePositives": 13,
+        "labelled": 36,
+        "precision": 69,
+        "predicted": 42,
+        "recall": 80.6,
+        "truePositives": 29
+      },
+      "HANGING_PIECE": {
+        "falsePositives": 9,
+        "labelled": 21,
+        "precision": 66.7,
+        "predicted": 27,
+        "recall": 85.7,
+        "truePositives": 18
+      },
+      "INTERMEDIATE_MOVE": {
+        "falsePositives": 5,
+        "labelled": 20,
+        "precision": 58.3,
+        "predicted": 12,
+        "recall": 35,
+        "truePositives": 7
+      },
+      "MATE": {
+        "falsePositives": 0,
+        "labelled": 85,
+        "precision": 100,
+        "predicted": 70,
+        "recall": 82.4,
+        "truePositives": 70
+      },
+      "PIN": {
+        "falsePositives": 4,
+        "labelled": 24,
+        "precision": 33.3,
+        "predicted": 6,
+        "recall": 8.3,
+        "truePositives": 2
+      },
+      "PROMOTION": {
+        "falsePositives": 1,
+        "labelled": 20,
+        "precision": 83.3,
+        "predicted": 6,
+        "recall": 25,
+        "truePositives": 5
+      },
+      "REMOVAL_OF_DEFENDER": {
+        "falsePositives": 1,
+        "labelled": 20,
+        "precision": 80,
+        "predicted": 5,
+        "recall": 20,
+        "truePositives": 4
+      },
+      "SKEWER": {
+        "falsePositives": 5,
+        "labelled": 21,
+        "precision": 73.7,
+        "predicted": 19,
+        "recall": 66.7,
+        "truePositives": 14
+      }
+    },
+    "msPerSearch": 509,
+    "puzzles": 272,
+    "searches": 1061,
+    "setupMoveSevere": 94.1,
+    "setupMoveUnclassified": 0,
+    "tacticDetectedAfterSetup": 78.7,
+    "totalSeconds": 540,
+    "versions": {
+      "accuracy": "nexa-accuracy-v1",
+      "classification": "nexa-classify-v1",
+      "tactics": "nexa-tactics-v1"
+    }
+  },
+  "heldout_final": {
+    "bestMoveAgreement": 99.6,
+    "config": {
+      "budgetMs": 180000,
+      "concurrency": 1,
+      "depth": "STANDARD",
+      "maxDepth": 18,
+      "movetimeMs": 800,
+      "multiPv": 2,
+      "rootMoveSearch": false
+    },
+    "deflectionPuzzles": {
+      "asMaterialGainOnly": 8,
+      "total": 22,
+      "withAnyTactic": 18
+    },
+    "engine": "Stockfish 17.1",
+    "errors": 0,
+    "falseTacticForBlunderingSide": {
+      "count": 38,
+      "rate": 13.7
+    },
+    "foundWhenSolutionPlayed": 99.5,
+    "missedAlternative": {
+      "classifiedSevere": 100,
+      "outcomeMissed": 100,
+      "revisionEligible": 99.1
+    },
+    "motifs": {
+      "BACK_RANK_MATE": {
+        "falsePositives": 0,
+        "labelled": 20,
+        "precision": 100,
+        "predicted": 16,
+        "recall": 80,
+        "truePositives": 16
+      },
+      "DISCOVERED_ATTACK": {
+        "falsePositives": 0,
+        "labelled": 21,
+        "precision": 100,
+        "predicted": 9,
+        "recall": 42.9,
+        "truePositives": 9
+      },
+      "DISCOVERED_CHECK": {
+        "falsePositives": 1,
+        "labelled": 39,
+        "precision": 94.7,
+        "predicted": 19,
+        "recall": 46.2,
+        "truePositives": 18
+      },
+      "DOUBLE_CHECK": {
+        "falsePositives": 0,
+        "labelled": 20,
+        "precision": 100,
+        "predicted": 13,
+        "recall": 65,
+        "truePositives": 13
+      },
+      "FORK": {
+        "falsePositives": 16,
+        "labelled": 32,
+        "precision": 55.6,
+        "predicted": 36,
+        "recall": 62.5,
+        "truePositives": 20
+      },
+      "HANGING_PIECE": {
+        "falsePositives": 12,
+        "labelled": 23,
+        "precision": 61.3,
+        "predicted": 31,
+        "recall": 82.6,
+        "truePositives": 19
+      },
+      "INTERMEDIATE_MOVE": {
+        "falsePositives": 1,
+        "labelled": 21,
+        "precision": 91.7,
+        "predicted": 12,
+        "recall": 52.4,
+        "truePositives": 11
+      },
+      "MATE": {
+        "falsePositives": 0,
+        "labelled": 82,
+        "precision": 100,
+        "predicted": 62,
+        "recall": 75.6,
+        "truePositives": 62
+      },
+      "PIN": {
+        "falsePositives": 3,
+        "labelled": 24,
+        "precision": 57.1,
+        "predicted": 7,
+        "recall": 16.7,
+        "truePositives": 4
+      },
+      "PROMOTION": {
+        "falsePositives": 0,
+        "labelled": 21,
+        "precision": 100,
+        "predicted": 15,
+        "recall": 71.4,
+        "truePositives": 15
+      },
+      "REMOVAL_OF_DEFENDER": {
+        "falsePositives": 5,
+        "labelled": 20,
+        "precision": 54.5,
+        "predicted": 11,
+        "recall": 30,
+        "truePositives": 6
+      },
+      "SKEWER": {
+        "falsePositives": 3,
+        "labelled": 20,
+        "precision": 78.6,
+        "predicted": 14,
+        "recall": 55,
+        "truePositives": 11
+      }
+    },
+    "msPerSearch": 521,
+    "puzzles": 277,
+    "searches": 1079,
+    "setupMoveSevere": 92.4,
+    "setupMoveUnclassified": 0,
+    "tacticDetectedAfterSetup": 76.9,
+    "totalSeconds": 562,
+    "versions": {
+      "accuracy": "nexa-accuracy-v1",
+      "classification": "nexa-classify-v1",
+      "tactics": "nexa-tactics-v1"
+    }
+  }
+}

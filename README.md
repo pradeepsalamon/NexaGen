@@ -43,6 +43,15 @@ Nexa Chess is an npm workspaces monorepo with a Next.js frontend, a NestJS API, 
   simul, student match — is saved automatically, plus PGN imports; filter by
   student / batch / source / result / date, open the replay with variations,
   coaches save analysis, download PGN. See CLAUDE.md §3.6k1.
+- **Game analysis & insights**: Stockfish post-game analysis of any finished
+  game (`/games/:id` → Engine analysis): accuracy, move-by-move labels and
+  explanations, engine lines, tactics found / missed, a missed tactic → Smart
+  Revision. Students upload their own PGNs (and, when
+  `EXTERNAL_GAME_IMPORT_ENABLED`, import from a verified Lichess / Chess.com
+  account); `/student/insights` and the progress workspace's "Games" tab show
+  evidence-backed patterns. Runs on the engine pool's background lane as
+  `game_analyses` jobs (`GAME_ANALYSIS_*` env). See docs/GAME_ANALYSIS.md and
+  docs/GAME_SOURCES.md.
 - **Messages** (`/messages`, every role): batch group chats, coach ↔ student
   direct messages, coach-made groups; never student ↔ student. Polled (no
   websocket); unread count on the sidebar link. See CLAUDE.md §3.6k2.

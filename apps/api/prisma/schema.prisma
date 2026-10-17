@@ -198,6 +198,7 @@ enum PuzzleVisibility {
 enum PuzzleSource {
   NEXA // authored in NexaChess (every row before the Lichess catalogue)
   LICHESS
+  GAME // built from a verified tactic in a student's own analysed game (sourceId = "game-analysis:<analysisId>:<ply>")
 }
 
 enum PuzzleAttemptContext {
@@ -407,6 +408,13 @@ model User {
   chessGamesAsWhite ChessGame[] @relation("ChessGameWhite")
   chessGamesAsBlack ChessGame[] @relation("ChessGameBlack")
   chessGamesCreated ChessGame[] @relation("ChessGameCreatedBy")
+  chessGamesOwned   ChessGame[] @relation("ChessGameOwner")
+
+  // ── Game analysis ──
+  gameAnalysesRequested GameAnalysis[]         @relation("GameAnalysisRequestedBy")
+  gameAnalysisSides     GameAnalysisSide[]     @relation("GameAnalysisSidePlayer")
+  externalChessAccounts ExternalChessAccount[]
+  gamePuzzlesOwned      Puzzle[]               @relation("PuzzleOwner")
 
   // ── Chat (persistent messaging) ──
   conversationMemberships ConversationMember[]
@@ -2177,6 +2185,9 @@ model Puzzle {
   createdById   String?
   createdBy     User?     @relation("AuthoredPuzzles", fields: [createdById], references: [id], onDelete: SetNull)
   createdByRole UserRole // snapshot so the "Admin" vs coach label survives author deletion
+  /// source = GAME: the student whose game it came from — the only student who may open it.
+  ownerId       String?
+  owner         User?     @relation("PuzzleOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   updatedById   String?
   publishedById String?
   publishedAt   DateTime?
@@ -2199,6 +2210,7 @@ model Puzzle {
   deleteGroupId String?
 
   @@unique([source, sourceId], map: "puzzles_source_sourceId_key")
+  @@index([ownerId])
   @@index([topicId])
   @@index([createdById])
   @@index([puzzleType])
@@ -4714,9 +4726,37 @@ model ChessGame {
   startedAt DateTime  @default(now())
   endedAt   DateTime?
 
+  /// A student's own game (their PGN upload or a linked-account import); the
+  /// student also stands on the side they played (whitePlayerId / blackPlayerId).
+  ownerId     String?
+  owner       User?   @relation("ChessGameOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  /// sha256 of start position + mainline moves — one copy per owner.
+  contentHash String?
+
+  externalProvider  ExternalChessProvider?
+  /// The provider's own game id (Lichess game id, Chess.com game URL id).
+  externalId        String?
+  externalUrl       String?
+  externalAccountId String?
+  externalAccount   ExternalChessAccount?  @relation(fields: [externalAccountId], references: [id], onDelete: SetNull)
+
+  // PGN headers worth querying (null when absent — never guessed).
+  timeControl String?
+  eco         String?
+  openingName String?
+  /// Ratings as the source reported them; never merged across providers.
+  whiteRating Int?
+  blackRating Int?
+
+  analyses GameAnalysis[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([ownerId, contentHash])
+  @@unique([ownerId, externalProvider, externalId])
+  @@index([ownerId, startedAt])
+  @@index([externalAccountId])
   @@index([classId])
   @@index([batchId])
   @@index([whitePlayerId])
@@ -4725,6 +4765,176 @@ model ChessGame {
   @@index([startedAt])
   @@index([source, status])
   @@map("chess_games")
+}
+
+/// Online chess account a student linked to import their own games.
+enum ExternalChessProvider {
+  LICHESS
+  CHESS_COM
+}
+
+enum ExternalSyncStatus {
+  IDLE
+  QUEUED
+  SYNCING
+  FAILED
+  RATE_LIMITED
+}
+
+/// One linked account per (student, provider). Username only — never a
+/// password or token. `verifiedAt` is set once the student proved ownership
+/// (the code in their public profile); a username can be verified by one
+/// student at a time (partial unique index, migration only).
+model ExternalChessAccount {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider         ExternalChessProvider
+  /// As the provider spells it.
+  username         String
+  /// Lowercased, for lookups and the uniqueness rule.
+  usernameKey      String
+  verificationCode String?
+  verifiedAt       DateTime?
+
+  syncStatus        ExternalSyncStatus @default(IDLE)
+  /// Provider-specific resume point (Lichess: last game's createdAt ms; Chess.com: "YYYY/MM").
+  syncCursor        String?
+  lastSyncedAt      DateTime?
+  nextSyncAllowedAt DateTime?
+  syncError         String?
+  gamesImported     Int                @default(0)
+
+  games ChessGame[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([provider, usernameKey])
+  @@index([syncStatus])
+  @@map("external_chess_accounts")
+}
+
+enum GameAnalysisStatus {
+  QUEUED
+  RUNNING
+  /// Every position analysed.
+  COMPLETED
+  /// Finished, but some positions failed / ran out of budget — shown as incomplete.
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum GameAnalysisDepth {
+  QUICK
+  STANDARD
+  DEEP
+}
+
+/// One engine analysis of one game, at one depth, for one version of its
+/// moves. The row IS the job: workers claim QUEUED rows with
+/// FOR UPDATE SKIP LOCKED and keep `heartbeatAt` fresh; a stale RUNNING row is
+/// re-queued. `engineJson` (the expensive search output, GameEngineAnalysis)
+/// is kept so classification can be recomputed without Stockfish;
+/// `reportJson` caches the derived classification + tactics for reads.
+model GameAnalysis {
+  id     String    @id @default(cuid())
+  gameId String
+  game   ChessGame @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  /// sha256 of the start position + mainline at request time.
+  gameFingerprint String
+  depth           GameAnalysisDepth
+  status          GameAnalysisStatus @default(QUEUED)
+  /// Higher first. A person waiting beats a bulk import.
+  priority        Int                @default(0)
+  attempts        Int                @default(0)
+
+  requestedById String?
+  requestedBy   User?   @relation("GameAnalysisRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  engine                String?
+  conventionVersion     String
+  classificationVersion String?
+  accuracyVersion       String?
+  tacticsVersion        String?
+  configJson            Json
+  engineJson            Json?
+  reportJson            Json?
+
+  progressDone  Int     @default(0)
+  progressTotal Int     @default(0)
+  error         String?
+
+  claimedAt         DateTime?
+  heartbeatAt       DateTime?
+  cancelRequestedAt DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  sides GameAnalysisSide[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gameId, gameFingerprint, depth])
+  @@index([status, priority, createdAt])
+  @@index([requestedById, createdAt])
+  @@map("game_analyses")
+}
+
+enum GameAnalysisSideColor {
+  WHITE
+  BLACK
+}
+
+/// Per-side summary of a finished analysis — what the insights read, so a
+/// student's trend never re-parses every game. `playerId` is the NexaGen user
+/// who played this side, or null (an opponent who isn't on NexaGen).
+model GameAnalysisSide {
+  id         String       @id @default(cuid())
+  analysisId String
+  analysis   GameAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  side     GameAnalysisSideColor
+  playerId String?
+  player   User?                 @relation("GameAnalysisSidePlayer", fields: [playerId], references: [id], onDelete: SetNull)
+
+  /// When the game was played (the game's startedAt), for trends.
+  playedAt         DateTime
+  /// From this side's view: WIN / LOSS / DRAW / UNKNOWN.
+  result           String
+  source           ChessGameSource
+  externalProvider ExternalChessProvider?
+  /// Rating this side had in that source (never merged across sources).
+  rating           Int?
+  timeControl      String?
+  eco              String?
+  openingName      String?
+
+  accuracy              Float?
+  accuracyVersion       String
+  classificationVersion String
+  tacticsVersion        String
+  movesTotal            Int
+  movesEligible         Int
+  /// Record<MoveClassification, number>
+  countsJson            Json
+  /// Per motif: { found, missed, alternative, unknown, allowed }
+  tacticsJson           Json
+  /// Per phase (OPENING / MIDDLEGAME / ENDGAME): { moves, mistakes, blunders, lossSum }
+  phasesJson            Json
+  /// Only when trustworthy per-move clocks existed; else null.
+  clockJson             Json?
+
+  createdAt DateTime @default(now())
+
+  @@unique([analysisId, side])
+  @@index([playerId, playedAt])
+  @@map("game_analysis_sides")
 }
 
 //
@@ -4922,6 +5132,7 @@ enum RevisionItemKind {
 enum RevisionItemSource {
   MISTAKE // seeded from the student's own graded attempt (failed, a wrong move, or a hint)
   COACH // recommended by a coach or admin
+  GAME // a tactic the student missed in their own analysed game (added by the student or their coach)
 }
 
 enum RevisionItemStatus {

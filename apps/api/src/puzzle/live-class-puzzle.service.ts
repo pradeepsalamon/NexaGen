@@ -38,7 +38,7 @@ import {
   resolvePuzzleLeaderboard,
   resolvePuzzleScoring
 } from "@nexa-chess/types";
-import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole } from "@prisma/client";
+import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
 import { LiveClassService } from "../live-class/live-class.service";
 import { LiveKitService } from "../live-class/livekit.service";
@@ -137,7 +137,8 @@ export class LiveClassPuzzleService {
       where: { id: dto.puzzleId },
       include: { topic: { select: { name: true } } }
     });
-    if (!puzzle || puzzle.status !== PuzzleStatus.PUBLISHED) {
+    // A student's own game puzzle is never shared with a class.
+    if (!puzzle || puzzle.status !== PuzzleStatus.PUBLISHED || puzzle.source === PuzzleSource.GAME) {
       throw new NotFoundException("Puzzle not found or not published.");
     }
     const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;

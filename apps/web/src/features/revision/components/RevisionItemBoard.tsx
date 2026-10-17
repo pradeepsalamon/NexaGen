@@ -53,6 +53,7 @@ type BoardProps = {
 function reasonLabel(current: RevisionCurrent): string {
   if (current.kind === "TOPIC") return `Concept: ${current.topicName ?? "folder"}`;
   if (current.source === "COACH") return current.recommendedByName ? `Recommended by ${current.recommendedByName}` : "Recommended";
+  if (current.source === "GAME") return "A tactic from one of your games";
   return "One you missed before";
 }
 

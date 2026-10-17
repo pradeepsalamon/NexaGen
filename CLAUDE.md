@@ -871,6 +871,51 @@ tab of `StudentProgressWorkspace` (student / coach / admin), routes
   that drops older misses.
 - Not soft-deletable, not Trash-registered (Cascade with the puzzle/folder/student).
 
+### 3.6k3c Game analysis, tactics, game sources, game insights
+
+Method: [docs/GAME_ANALYSIS.md](docs/GAME_ANALYSIS.md) (incl. the benchmark);
+imports: [docs/GAME_SOURCES.md](docs/GAME_SOURCES.md); parents: deliberately
+deferred — [docs/PARENT_REPORTS.md](docs/PARENT_REPORTS.md). Shared rules in
+`packages/types/src/game-analysis*.ts`, `game-tactics.ts`, `game-sources.ts`;
+API `apps/api/src/game-analysis/`, `game-sources/`, `stockfish/`; web
+`features/game-analysis/`, page `/student/insights`, the Engine analysis panel on
+`/games/:id`, the "Games" tab of the progress workspace. Routes
+`API_ROUTES.gameAnalysis.*`, `.gameInsights.*`, `.gameSources.*`, `.games.importPgn`.
+
+- **Evaluations are White-relative** (`Evaluation`: cp, or mate with a `winner`).
+  UCI scores are side-to-move; convert only with `normalizeUciScore`, view a
+  player's side only through `winPercent` / `evaluationForSide`. Mate is never a
+  big cp number. `classifyMove` / `classifyGame` / `sideAccuracy` /
+  `detectGameTactics` are the one implementation; their versions
+  (`nexa-classify-v1`, `nexa-accuracy-v1`, `nexa-tactics-v1`) are stored with
+  every result and insights never combine different versions. A provisional or
+  shallow score is UNCLASSIFIED, never guessed. Never present these as
+  Lichess / Chess.com figures.
+- **Engine pool lanes**: every existing caller is `interactive`; per-game
+  analysis is `background` (taken last, at most `poolSize − 1` engines, one
+  thread). `searchLines` adds MultiPV and `searchmoves` (written last on the
+  `go` line) and resets MultiPV to 1 afterwards.
+- **The `game_analyses` row is the job** (no Redis): `GameAnalysisWorker` claims
+  with `FOR UPDATE SKIP LOCKED`, heartbeats, checkpoints `engineJson` (a retry
+  resumes), finishes only while `claimedAt` (ms precision) is still its own;
+  stale runs are re-queued (job lock `game-analysis.stale-sweep`).
+  `GAME_ANALYSIS_WORKER=false` only queues (the integration env sets it).
+- **Only a finished game is analysed** — never assistance mid-game. A student
+  may request analysis only of games they played or own; 20/day.
+- **A tactic needs a concrete gain in the engine line** (mate ≤ 5 or ≥ 2 pawns
+  over the pre-blunder baseline) and a jump in expected score, and a board
+  pattern is only credited when the line cashes it in.
+- **A student's game puzzle (`PuzzleSource.GAME`) opens for its `ownerId`
+  only**: hidden system folder `__game_analysis`, excluded from every coach
+  library / share / queue / chapter / homework path and from training. Created
+  only on request, only from a MISSED tactic with a verifiable answer
+  (`revisionEligibility`).
+- Student uploads and linked-account imports set `ChessGame.ownerId`; a coach
+  of the owner's batch sees them (Game Library visibility). Online import
+  (`EXTERNAL_GAME_IMPORT_ENABLED`, off by default) stores a username only, needs
+  a verified link (code in the public profile), and reads only the providers'
+  public APIs.
+
 ### 3.6k4 PDF chess-diagram import
 
 `@nexa-chess/types` `diagram-recognition.ts` (pure image processing on a

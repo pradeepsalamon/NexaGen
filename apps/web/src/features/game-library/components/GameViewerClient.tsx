@@ -56,6 +56,9 @@ import { MoveTreeView } from "@/features/chessboard/components/panels/MoveTreeVi
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import { createMoveTreeChess } from "@/lib/moveTreeChess";
+import { GameAnalysisPanel } from "@/features/game-analysis/components/GameAnalysisPanel";
+import { useGameAnalysisState } from "@/features/game-analysis/hooks/useGameAnalysis";
+import { useAuthStore } from "@/stores/authStore";
 import { useDeleteGame, useGame, useSaveGameAnalysis } from "../hooks/useGameLibrary";
 import { downloadPgn } from "../lib/downloadPgn";
 
@@ -129,6 +132,9 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
   const save = useSaveGameAnalysis(game.id);
   const remove = useDeleteGame();
   const editable = game.canEdit && game.status === "COMPLETED";
+  const authUser = useAuthStore((s) => s.user);
+  const viewer = authUser ? { id: authUser.id, role: authUser.role } : null;
+  const analysisState = useGameAnalysisState(game.id);
 
   const saved = useMemo(() => parseGame(game.pgn), [game.pgn]);
   const [tree, setTree] = useState<MoveTree | null>(() => {
@@ -158,6 +164,23 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
   const line = useMemo(() => (tree ? lineThroughPath(tree, cursor) : { nodes: [], path: [] as number[] }), [tree, cursor]);
   const node = tree && cursor.length ? getMoveTreeNode(tree, cursor) : null;
   const lastMove: [string, string] | null = node ? [node.uci.slice(0, 2), node.uci.slice(2, 4)] : null;
+
+  // The engine report is about the saved mainline: map the board's cursor onto it.
+  const mainPath = useMemo(() => (saved ? lineThroughPath(saved.tree, []).path : []), [saved]);
+  const onMainline = cursor.every((step, i) => mainPath[i] === step);
+  const currentPly = onMainline && cursor.length > 0 ? cursor.length - 1 : null;
+  const jumpToPly = useCallback((plies: number) => setCursor(mainPath.slice(0, Math.max(0, Math.min(plies, mainPath.length)))), [mainPath]);
+  // The engine's move for the position on the board (the move about to be played there).
+  const report = analysisState.data?.report ?? null;
+  const nextMove = report && onMainline && !dirty ? report.moves[cursor.length] : undefined;
+  const hintSquares = nextMove?.bestMoveUci ? { from: nextMove.bestMoveUci.slice(0, 2), to: nextMove.bestMoveUci.slice(2, 4) } : null;
+
+  // `?ply=N` (from an insight's example) opens the game at that position once.
+  useEffect(() => {
+    const ply = Number(new URLSearchParams(window.location.search).get("ply"));
+    if (Number.isInteger(ply) && ply > 0) jumpToPly(ply);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on open
+  }, []);
 
   const go = useCallback((path: MoveTreePath) => setCursor(path), []);
   const step = useCallback(
@@ -293,7 +316,8 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
 
       <div className={PRACTICE_BOARD_GRID}>
         <div className="space-y-3">
-          <PracticeBoard fen={fen} orientation={orientation} lastMove={lastMove} onMove={onMove} />
+          <PracticeBoard fen={fen} orientation={orientation} lastMove={lastMove} onMove={onMove} hintSquares={hintSquares} />
+          {hintSquares && <p className="text-center text-xs text-app-muted">Green arrow: the engine&apos;s move in this position.</p>}
           <div className="flex items-center justify-center gap-1.5" role="toolbar" aria-label="Move navigation">
             <NavButton label="First move (↑)" onClick={() => step("start")} disabled={cursor.length === 0}>
               <ChevronsLeft className="size-4" />
@@ -351,6 +375,9 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
                 )}
               </div>
             </Card>
+          )}
+          {game.status === "COMPLETED" && (
+            <GameAnalysisPanel currentPly={currentPly} gameId={game.id} onJump={jumpToPly} viewer={viewer} />
           )}
           {game.canEdit && game.status !== "COMPLETED" && (
             <p className="text-xs text-app-muted">This game is still being played. Analysis can be saved once it has finished.</p>

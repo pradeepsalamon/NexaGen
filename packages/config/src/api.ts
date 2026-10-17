@@ -62,6 +62,32 @@ const apiEnvSchema = z.object({
   STOCKFISH_HASH_MB: z.coerce.number().int().positive().default(64),
   STOCKFISH_MAX_DEPTH: z.coerce.number().int().nonnegative().default(20),
   STOCKFISH_IDLE_TIMEOUT_S: z.coerce.number().int().nonnegative().default(60),
+  // Stockfish game analysis (docs/GAME_ANALYSIS.md). Jobs are game_analyses
+  // rows run on the engine pool's background lane, inside the API process.
+  GAME_ANALYSIS_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  /** Run queued analyses in THIS process. Off = only queue them (another instance, or tests). */
+  GAME_ANALYSIS_WORKER: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+  /** Games analysed at once by this process (each one engine on one thread). */
+  GAME_ANALYSIS_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(1),
+  /** Analyses one user may request per day (UTC). */
+  GAME_ANALYSIS_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(20),
+  /** Queue every finished live-class game for analysis automatically. Off by default (CPU). */
+  GAME_ANALYSIS_AUTO_LIVE_GAMES: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  // Import a student's own games from linked Lichess / Chess.com accounts
+  // (public APIs, username only). Off until an operator enables it.
+  EXTERNAL_GAME_IMPORT_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   COOKIE_DOMAIN: z.string().optional(),
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.

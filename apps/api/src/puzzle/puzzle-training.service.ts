@@ -17,13 +17,7 @@ import {
   type TrainingPlan,
   type TrainingResult
 } from "@nexa-chess/types";
-import {
-  Prisma,
-  PuzzleAttemptContext,
-  PuzzleStatus,
-  PuzzleVisibility,
-  type User
-} from "@prisma/client";
+import { Prisma, PuzzleAttemptContext, PuzzleSource, PuzzleStatus, PuzzleVisibility, type User } from "@prisma/client";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProgressRecorderService, dateToDay, localDay } from "../progress/progress-recorder.service";
@@ -357,6 +351,8 @@ export class PuzzleTrainingService {
     const coachIds = [...new Set(rows.flatMap((r) => r.batch.coaches.map((c) => c.coachId)))];
     return {
       status: PuzzleStatus.PUBLISHED,
+      // Another student's game puzzle must never be served as training.
+      source: { not: PuzzleSource.GAME },
       OR: [
         { visibility: PuzzleVisibility.GLOBAL },
         ...(coachIds.length ? [{ createdById: { in: coachIds }, visibility: PuzzleVisibility.PRIVATE }] : [])

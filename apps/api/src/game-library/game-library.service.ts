@@ -30,7 +30,8 @@ import { createMoveTreeChess } from "../common/chess/move-tree-chess";
 import { zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 
-type Actor = { id: string; role: UserRole; timezone: string | null };
+export type GameActor = { id: string; role: UserRole; timezone: string | null };
+type Actor = GameActor;
 
 const itemInclude = {
   batch: { select: { name: true } },
@@ -236,6 +237,17 @@ export class GameLibraryService {
           { blackPlayerId: user.id },
           { class: { coachId: user.id } },
           { batch: { coaches: { some: { coachId: user.id, isDeleted: false } } } },
+          // A student's own uploads / imports, while they are in a batch this coach coaches.
+          {
+            owner: {
+              studentBatches: {
+                some: {
+                  batch: { coaches: { some: { coachId: user.id, isDeleted: false } }, isDeleted: false },
+                  isDeleted: false,
+                },
+              },
+            },
+          },
         ],
       };
     }
@@ -243,6 +255,7 @@ export class GameLibraryService {
       OR: [
         { whitePlayerId: user.id },
         { blackPlayerId: user.id },
+        { ownerId: user.id },
         this.attendedBoardGames(user.id),
       ],
     };
@@ -266,6 +279,7 @@ export class GameLibraryService {
         OR: [
           { whitePlayerId: query.studentId },
           { blackPlayerId: query.studentId },
+          { ownerId: query.studentId },
           this.attendedBoardGames(query.studentId),
         ],
       });
@@ -283,6 +297,25 @@ export class GameLibraryService {
       and.push({ startedAt });
     }
     return { AND: and };
+  }
+
+  /**
+   * The game, if `accessToken`'s user may see it (404 otherwise) — the one
+   * visibility rule other modules (engine analysis) reuse.
+   */
+  async findVisibleForToken(accessToken: string | undefined, id: string) {
+    const user = await this.getAuthenticatedUser(accessToken);
+    return { game: await this.findVisible(user, id), user };
+  }
+
+  /** Same rule for an already-authenticated user. */
+  async findVisibleFor(user: Actor, id: string): Promise<GameRow> {
+    return this.findVisible(user, id);
+  }
+
+  /** Visibility as a `where`, for list queries in other modules. */
+  visibleWhere(user: Actor): Prisma.ChessGameWhereInput {
+    return this.visibilityWhere(user);
   }
 
   private async findVisible(user: Actor, id: string): Promise<GameRow> {

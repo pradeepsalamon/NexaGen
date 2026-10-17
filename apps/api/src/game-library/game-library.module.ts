@@ -7,7 +7,7 @@ import { GameRecorderService } from "./game-recorder.service";
 
 @Module({
   controllers: [GameLibraryController],
-  exports: [GameRecorderService],
+  exports: [GameLibraryService, GameRecorderService],
   imports: [JwtModule.register({}), PrismaModule],
   providers: [GameLibraryService, GameRecorderService],
 })

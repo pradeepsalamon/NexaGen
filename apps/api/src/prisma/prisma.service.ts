@@ -236,6 +236,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.chessGame;
   }
 
+  get externalChessAccount() {
+    return this.client.externalChessAccount;
+  }
+
+  get gameAnalysis() {
+    return this.client.gameAnalysis;
+  }
+
+  get gameAnalysisSide() {
+    return this.client.gameAnalysisSide;
+  }
+
   get conversation() {
     return this.client.conversation;
   }

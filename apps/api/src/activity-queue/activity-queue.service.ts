@@ -28,16 +28,7 @@ import {
   type ReorderActivityQueueRequest,
   type StudentActivityQueueResponse
 } from "@nexa-chess/types";
-import {
-  LiveClassActivityKind,
-  LiveClassActivityQueueStatus,
-  LiveClassMovePollStatus,
-  Prisma,
-  PuzzleStatus,
-  PuzzleVisibility,
-  UserRole,
-  type LiveClassActivityQueueItem as ItemRow
-} from "@prisma/client";
+import { LiveClassActivityKind, LiveClassActivityQueueStatus, LiveClassMovePollStatus, Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type LiveClassActivityQueueItem as ItemRow } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
 import { Chess } from "../common/chess/chess";
 import { LiveClassService } from "../live-class/live-class.service";
@@ -617,6 +608,7 @@ export class ActivityQueueService {
             where: {
               id: { in: puzzleIds },
               status: PuzzleStatus.PUBLISHED,
+              source: { not: PuzzleSource.GAME },
               // Same rule as sharing one live: global, or the coach's own.
               ...(isAdmin ? {} : { OR: [{ visibility: PuzzleVisibility.GLOBAL }, { createdById: manager.user.id }] })
             },

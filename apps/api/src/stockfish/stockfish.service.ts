@@ -11,58 +11,116 @@ import { cpus } from 'os';
 import { validateFen } from 'chess.js';
 import { Chess } from '../common/chess/chess';
 import { getApiEnv } from '@nexa-chess/config/api';
-import { sanitizeCastlingRights, type StockfishAnalysisResult } from '@nexa-chess/types';
+import {
+  normalizeUciScore,
+  sanitizeCastlingRights,
+  sideToMoveFromFen,
+  MAX_GAME_ANALYSIS_MULTIPV,
+  type EngineLine,
+  type ScoreBound,
+  type StockfishAnalysisResult,
+} from '@nexa-chess/types';
 
 export type { StockfishAnalysisResult };
 
+/** One MultiPV line as the engine last reported it (side-to-move scores). */
+export type RawLine = {
+  /** 1-based MultiPV rank. */
+  rank: number;
+  evaluation: number | null;
+  mate: number | null;
+  bound: ScoreBound;
+  /** Depth the score was reported at. */
+  depth: number;
+  pv: string[];
+};
+
 /** The subset the engine parser fills in; SAN fields are added afterwards. */
-type RawAnalysis = Pick<
+export type RawAnalysis = Pick<
   StockfishAnalysisResult,
   'evaluation' | 'mate' | 'depth'
-> & { bestMove: string; pv: string[] };
+> & {
+  bestMove: string;
+  pv: string[];
+  /** Bound of the top line's score; absent means exact (older accumulators). */
+  bound?: ScoreBound;
+  /** Depth the top line's score was reported at. */
+  scoreDepth?: number;
+  /** Every MultiPV line, by rank — only collected when MultiPV > 1 was asked for. */
+  lines?: RawLine[];
+};
 
-const emptyRaw = (): RawAnalysis => ({
+const emptyRaw = (multiPv = 1): RawAnalysis => ({
   evaluation: null,
   mate: null,
   bestMove: '',
   depth: 0,
   pv: [],
+  ...(multiPv > 1 ? { lines: [] } : {}),
 });
 
 /**
  * Fold one UCI `info` line into the running analysis accumulator. Pure and
  * exported so it can be unit-tested without spawning an engine.
+ *
+ * A `lowerbound` / `upperbound` score is an aspiration-window fail — the true
+ * score is only known to be at least / at most that. It never replaces an
+ * exact score already held (nor its PV); it is kept, flagged, only while the
+ * line has nothing better.
  */
 export function parseUciInfoLine(line: string, acc: RawAnalysis): RawAnalysis {
-  if (!line.startsWith('info ')) return acc;
+  if (!line.startsWith('info ') || line.startsWith('info string')) return acc;
   const parts = line.trim().split(/\s+/);
 
+  let depth: number | null = null;
   const depthIdx = parts.indexOf('depth');
   if (depthIdx !== -1) {
-    const depth = parseInt(parts[depthIdx + 1], 10);
-    if (!Number.isNaN(depth)) acc.depth = depth;
-  }
-
-  const scoreIdx = parts.indexOf('score');
-  if (scoreIdx !== -1) {
-    const type = parts[scoreIdx + 1];
-    const val = parseInt(parts[scoreIdx + 2], 10);
-    if (!Number.isNaN(val)) {
-      if (type === 'cp') {
-        acc.evaluation = val / 100;
-        acc.mate = null;
-      } else if (type === 'mate') {
-        acc.mate = val;
-        acc.evaluation = null;
-      }
+    const parsed = parseInt(parts[depthIdx + 1], 10);
+    if (!Number.isNaN(parsed)) {
+      depth = parsed;
+      acc.depth = parsed;
     }
   }
 
+  const multiPvIdx = parts.indexOf('multipv');
+  const rank = multiPvIdx === -1 ? 1 : parseInt(parts[multiPvIdx + 1], 10) || 1;
+
+  const scoreIdx = parts.indexOf('score');
+  if (scoreIdx === -1) return acc;
+  const type = parts[scoreIdx + 1];
+  const val = parseInt(parts[scoreIdx + 2], 10);
+  if (Number.isNaN(val) || (type !== 'cp' && type !== 'mate')) return acc;
+  const boundToken = parts[scoreIdx + 3];
+  const bound: ScoreBound =
+    boundToken === 'lowerbound' ? 'lower' : boundToken === 'upperbound' ? 'upper' : 'exact';
   const pvIdx = parts.indexOf('pv');
-  if (pvIdx !== -1) {
-    acc.pv = parts.slice(pvIdx + 1);
+  const pv = pvIdx === -1 ? null : parts.slice(pvIdx + 1);
+
+  const score = {
+    evaluation: type === 'cp' ? val / 100 : null,
+    mate: type === 'mate' ? val : null,
+  };
+
+  if (acc.lines) {
+    const existing = acc.lines.find((l) => l.rank === rank);
+    if (!existing) {
+      acc.lines.push({ rank, ...score, bound, depth: depth ?? 0, pv: pv ?? [] });
+      acc.lines.sort((a, b) => a.rank - b.rank);
+    } else if (bound === 'exact' || existing.bound !== 'exact') {
+      Object.assign(existing, score, { bound, depth: depth ?? existing.depth });
+      if (pv) existing.pv = pv;
+    }
   }
 
+  if (rank !== 1) return acc;
+  const holdsExact = (acc.evaluation !== null || acc.mate !== null) && (acc.bound ?? 'exact') === 'exact';
+  if (bound !== 'exact' && holdsExact) return acc;
+
+  acc.evaluation = score.evaluation;
+  acc.mate = score.mate;
+  acc.bound = bound;
+  if (depth !== null) acc.scoreDepth = depth;
+  if (pv) acc.pv = pv;
   return acc;
 }
 
@@ -174,8 +232,21 @@ export function normalizeEngineFen(input: string): EngineFenCheck {
   return { ok: true, fen: normalized };
 }
 
+/**
+ * `interactive` = a person is waiting (analysis panel, engine move, simul,
+ * assignment grading). `background` = batch work (per-game analysis): it only
+ * runs on engines interactive work isn't waiting for, never takes the last
+ * free pool slot, and searches on one thread.
+ */
+export type EnginePriority = 'interactive' | 'background';
+
 interface AnalysisTask {
   fen: string;
+  priority: EnginePriority;
+  /** Lines to report (UCI MultiPV). Undefined = 1. */
+  multiPv?: number;
+  /** Restrict the root search to these UCI moves (`go … searchmoves`). */
+  searchMoves?: string[];
   resolve: (result: RawAnalysis) => void;
   reject: (error: Error) => void;
   /** Stockfish `Skill Level` (0-20). Undefined = full strength. */
@@ -223,7 +294,43 @@ function toAnalysisResult(fen: string, raw: RawAnalysis): StockfishAnalysisResul
     depth: raw.depth,
     pv: uciLineToSan(fen, pvUci),
     pvUci,
+    ...(raw.bound && raw.bound !== 'exact' ? { scoreBound: raw.bound } : {}),
   };
+}
+
+/** One raw MultiPV line → a White-relative `EngineLine` for `fen`. */
+export function toEngineLine(fen: string, line: RawLine): EngineLine {
+  const sideToMove = sideToMoveFromFen(fen) ?? 'white';
+  const score =
+    line.mate !== null
+      ? ({ kind: 'mate', value: line.mate } as const)
+      : line.evaluation !== null
+        ? ({ kind: 'cp', value: Math.round(line.evaluation * 100) } as const)
+        : null;
+  return {
+    bound: line.bound,
+    depth: line.depth,
+    evaluation: score ? normalizeUciScore(score, sideToMove) : null,
+    pvSan: uciLineToSan(fen, line.pv),
+    pvUci: line.pv,
+    rank: line.rank,
+  };
+}
+
+/** The lines of a finished search, whether or not MultiPV was on. */
+export function rawLines(raw: RawAnalysis): RawLine[] {
+  if (raw.lines && raw.lines.length > 0) return raw.lines;
+  if (raw.evaluation === null && raw.mate === null) return [];
+  return [
+    {
+      bound: raw.bound ?? 'exact',
+      depth: raw.scoreDepth ?? raw.depth,
+      evaluation: raw.evaluation,
+      mate: raw.mate,
+      pv: raw.pv.length > 0 ? raw.pv : raw.bestMove && raw.bestMove !== '(none)' ? [raw.bestMove] : [],
+      rank: 1,
+    },
+  ];
 }
 
 /**
@@ -251,6 +358,9 @@ class EngineInstance {
   /** A `stop` was sent; the engine is still busy until its `bestmove` arrives. */
   private stopping = false;
   private appliedThreads: number;
+  private appliedMultiPv = 1;
+  /** What the engine called itself in its `id name` line ("Stockfish 17.1"). */
+  name: string | null = null;
   /** Epoch ms when this engine last finished a task (or was spawned). */
   lastUsedAt = Date.now();
   private buffer = '';
@@ -314,7 +424,9 @@ class EngineInstance {
     this.buffer = lines.pop() || '';
 
     for (const line of lines) {
-      if (line.trim() === 'uciok') {
+      if (line.startsWith('id name ')) {
+        this.name = line.slice('id name '.length).trim() || null;
+      } else if (line.trim() === 'uciok') {
         this.process.stdin?.write(`setoption name Hash value ${this.tuning.hashMb}\n`);
         this.process.stdin?.write(`setoption name Threads value ${this.tuning.threads}\n`);
         this.process.stdin?.write('isready\n');
@@ -366,7 +478,8 @@ class EngineInstance {
   analyze(task: AnalysisTask) {
     this.isBusy = true;
     this.currentTask = task;
-    this.result = emptyRaw();
+    const multiPv = Math.max(1, Math.floor(task.multiPv ?? 1));
+    this.result = emptyRaw(multiPv);
 
     const skill =
       task.skillLevel === undefined
@@ -378,11 +491,18 @@ class EngineInstance {
       this.process.stdin?.write(`setoption name Threads value ${threads}\n`);
       this.appliedThreads = threads;
     }
+    // Reset back to 1 after a MultiPV task, so the next caller pays nothing.
+    if (multiPv !== this.appliedMultiPv) {
+      this.process.stdin?.write(`setoption name MultiPV value ${multiPv}\n`);
+      this.appliedMultiPv = multiPv;
+    }
     const movetime = task.movetimeMs ?? this.movetimeMs;
     this.process.stdin?.write(`position fen ${task.fen}\n`);
     // With both limits Stockfish stops at whichever comes first.
     const depth = task.depth ? `depth ${task.depth} ` : '';
-    this.process.stdin?.write(`go ${depth}movetime ${movetime}\n`);
+    // `searchmoves` must come last: Stockfish reads every token after it as a move.
+    const searchMoves = task.searchMoves?.length ? ` searchmoves ${task.searchMoves.join(' ')}` : '';
+    this.process.stdin?.write(`go ${depth}movetime ${movetime}${searchMoves}\n`);
 
     // A hung engine would otherwise hold the request (and its pool slot)
     // forever. Killing it fires 'close', which rejects the task and respawns.
@@ -450,6 +570,8 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
   /** Most threads a lone request may use; busy pools drop back to `tuning.threads` each. */
   private readonly maxThreads: number;
   private static readonly CACHE_LIMIT = 500;
+  /** Last engine id seen, kept after the engine that reported it is reaped. */
+  private knownEngineName: string | null = null;
 
   constructor() {
     const env = getApiEnv();
@@ -611,7 +733,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     const onUpdate = opts.onUpdate;
     const raw = await this.search(
       cacheKey,
-      { fen, movetimeMs, depth },
+      { fen, movetimeMs, depth, priority: 'interactive' },
       opts.signal,
       onUpdate && ((partial) => onUpdate(toAnalysisResult(fen, partial))),
     );
@@ -631,7 +753,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
    */
   private search(
     key: string,
-    spec: Pick<AnalysisTask, 'fen' | 'movetimeMs' | 'depth'>,
+    spec: Pick<AnalysisTask, 'fen' | 'movetimeMs' | 'depth' | 'priority' | 'multiPv' | 'searchMoves'>,
     signal?: AbortSignal,
     onProgress?: (partial: RawAnalysis) => void,
   ): Promise<RawAnalysis> {
@@ -660,6 +782,8 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     }
 
     const joined = entry;
+    // Someone is now waiting on this search: a queued background task moves up.
+    if (spec.priority === 'interactive') joined.task.priority = 'interactive';
     joined.refs++;
     const listener = onProgress && throttleProgress(onProgress, StockfishService.PROGRESS_INTERVAL_MS);
     if (listener) joined.listeners.add(listener);
@@ -692,6 +816,66 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     this.engines.find((e) => e.currentTask === task)?.cancel(task, reason);
   }
 
+  /** The engine's own id ("Stockfish 17.1"), once any engine has introduced itself. */
+  engineName(): string | null {
+    const live = this.engines.find((e) => e.name)?.name ?? null;
+    if (live) this.knownEngineName = live;
+    return this.knownEngineName;
+  }
+
+  /**
+   * One search returning every line, White-relative, with each score's bound
+   * and depth — the per-game analysis primitive. Unlike `analyzePosition` it
+   * is not cached (a game's positions would flush the panel's cache) but it
+   * does share an identical in-flight search.
+   *
+   * `searchMoves` restricts the root to those moves, which is how a played
+   * move gets its own score from the same position.
+   */
+  async searchLines(
+    inputFen: string,
+    opts: {
+      movetimeMs: number;
+      depth?: number;
+      multiPv?: number;
+      searchMoves?: string[];
+      priority?: EnginePriority;
+      signal?: AbortSignal;
+    },
+  ): Promise<{ lines: EngineLine[]; engine: string | null }> {
+    if (!this.path) {
+      throw new ServiceUnavailableException('Engine analysis is not available on this server.');
+    }
+    const fen = this.normalizeFen(inputFen);
+    const multiPv = Math.max(1, Math.min(MAX_GAME_ANALYSIS_MULTIPV, Math.floor(opts.multiPv ?? 1)));
+    const searchMoves = (opts.searchMoves ?? []).map((m) => m.toLowerCase());
+    if (searchMoves.some((m) => !/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(m))) {
+      throw new BadRequestException('searchMoves must be UCI moves.');
+    }
+    const depth = opts.depth && opts.depth > 0 ? opts.depth : undefined;
+    const priority = opts.priority ?? 'interactive';
+    const key = `lines:${opts.movetimeMs}:${depth ?? ''}:${multiPv}:${searchMoves.join(',')}:${fen}`;
+
+    const raw = await this.search(
+      key,
+      {
+        depth,
+        fen,
+        movetimeMs: opts.movetimeMs,
+        multiPv,
+        priority,
+        searchMoves: searchMoves.length ? searchMoves : undefined,
+      },
+      opts.signal,
+    );
+    return {
+      engine: this.engineName(),
+      lines: rawLines(raw)
+        .slice(0, multiPv)
+        .map((line) => toEngineLine(fen, line)),
+    };
+  }
+
   /** True when the engine path is configured (engines will spawn on demand). */
   isAvailable(): boolean {
     return !!this.path;
@@ -716,6 +900,7 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     const raw = await new Promise<RawAnalysis>((resolve, reject) => {
       this.taskQueue.push({
         fen,
+        priority: 'interactive',
         resolve,
         reject,
         skillLevel: opts.skillLevel,
@@ -730,6 +915,23 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     return { uci, san: uciLineToSan(fen, [uci])[0] ?? null };
   }
 
+  /** Background searches may hold at most this many engines; the rest stay free for people. */
+  private backgroundLimit(): number {
+    return Math.max(1, this.poolSize - 1);
+  }
+
+  private runningBackground(): number {
+    return this.engines.filter((e) => e.currentTask?.priority === 'background').length;
+  }
+
+  /** Index of the next task an engine should take: interactive first, FIFO within a lane. */
+  private nextTaskIndex(): number {
+    const interactive = this.taskQueue.findIndex((t) => t.priority === 'interactive');
+    if (interactive !== -1) return interactive;
+    if (this.runningBackground() >= this.backgroundLimit()) return -1;
+    return this.taskQueue.findIndex((t) => t.priority === 'background');
+  }
+
   private processQueue() {
     if (this.taskQueue.length === 0) {
       // No pending work — but ensure we still have a warm standby.
@@ -737,23 +939,36 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    // Only a handshaken engine takes work; a starting one picks it up via onReady.
-    const availableEngine = this.engines.find((e) => e.ready && !e.isBusy && !e.dead);
-    if (availableEngine) {
-      const task = this.taskQueue.shift();
-      if (task) {
-        // Alone on the box, use the spare cores; any contention means 1 each.
-        const contended = this.taskQueue.length > 0 || this.engines.some((e) => e.isBusy);
-        task.threads ??= contended ? this.tuning.threads : this.maxThreads;
-        availableEngine.analyze(task);
-      }
+    let assigned = false;
+    for (;;) {
+      const next = this.nextTaskIndex();
+      if (next === -1) break;
+      // Only a handshaken engine takes work; a starting one picks it up via onReady.
+      const availableEngine = this.engines.find((e) => e.ready && !e.isBusy && !e.dead);
+      if (!availableEngine) break;
+      const [task] = this.taskQueue.splice(next, 1);
+      // Alone on the box, use the spare cores; any contention means 1 each.
+      // Background work never takes more than one core.
+      const contended = this.taskQueue.length > 0 || this.engines.some((e) => e.isBusy);
+      task.threads ??=
+        task.priority === 'background' ? 1 : contended ? this.tuning.threads : this.maxThreads;
+      availableEngine.analyze(task);
+      assigned = true;
+    }
+    if (assigned) {
       this.ensureWarmStandby();
       return;
     }
 
-    // One cold start per queued task, up to the cap.
+    // One cold start per runnable task, up to the cap. Background tasks over
+    // their lane's limit are not runnable and never start an engine.
+    const queuedInteractive = this.taskQueue.filter((t) => t.priority === 'interactive').length;
+    const queuedBackground = this.taskQueue.length - queuedInteractive;
+    const runnable =
+      queuedInteractive +
+      Math.min(queuedBackground, Math.max(0, this.backgroundLimit() - this.runningBackground()));
     const starting = this.engines.filter((e) => !e.ready && !e.dead).length;
-    if (starting < this.taskQueue.length) {
+    if (starting < runnable) {
       this.spawnEngine();
     }
   }

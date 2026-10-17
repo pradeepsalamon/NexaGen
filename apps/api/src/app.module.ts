@@ -51,7 +51,9 @@ import { DemoClassModule } from "./demo-class/demo-class.module";
 import { LeadModule } from "./lead/lead.module";
 import { HealthModule } from "./health/health.module";
 import { RetentionModule } from "./retention/retention.module";
+import { GameAnalysisModule } from "./game-analysis/game-analysis.module";
 import { GameLibraryModule } from "./game-library/game-library.module";
+import { GameSourcesModule } from "./game-sources/game-sources.module";
 import { ChatModule } from "./chat/chat.module";
 
 @Module({
@@ -90,7 +92,9 @@ import { ChatModule } from "./chat/chat.module";
     PuzzleModule,
     SimulModule,
     StudentMatchModule,
+    GameAnalysisModule,
     GameLibraryModule,
+    GameSourcesModule,
     ChatModule,
     MovePollModule,
     PuzzleRushModule,

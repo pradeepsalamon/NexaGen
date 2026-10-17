@@ -55,8 +55,12 @@ export type PuzzleStatus = z.infer<typeof puzzleStatusSchema>;
 export const puzzleVisibilitySchema = z.enum(["GLOBAL", "PRIVATE"]);
 export type PuzzleVisibility = z.infer<typeof puzzleVisibilitySchema>;
 
-/** Where a puzzle came from; LICHESS rows are copies of a catalogue puzzle. */
-export const puzzleSourceSchema = z.enum(["NEXA", "LICHESS"]);
+/**
+ * Where a puzzle came from; LICHESS rows are copies of a catalogue puzzle;
+ * GAME rows were built from a verified tactic in one student's own analysed
+ * game and only that student (its `ownerId`) can open them.
+ */
+export const puzzleSourceSchema = z.enum(["NEXA", "LICHESS", "GAME"]);
 export type PuzzleSource = z.infer<typeof puzzleSourceSchema>;
 
 /** How an attempt was started — set by the server, never by the client. */

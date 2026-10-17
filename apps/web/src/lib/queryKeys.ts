@@ -264,6 +264,16 @@ export const queryKeys = {
     summary: (id: string, scope: Record<string, unknown>) => ["progress", "summary", id, scope] as const,
     history: (id: string, query: Record<string, unknown>) => ["progress", "history", id, query] as const,
   },
+  gameAnalysis: {
+    all: ["game-analysis"] as const,
+    forGame: (gameId: string) => ["game-analysis", "game", gameId] as const,
+    insights: (studentId: string | null) => ["game-analysis", "insights", studentId ?? "me"] as const,
+    games: (studentId: string | null, filters: Record<string, unknown>) =>
+      ["game-analysis", "games", studentId ?? "me", filters] as const
+  },
+  gameSources: {
+    overview: ["game-sources"] as const
+  },
   games: {
     all: ["games"] as const,
     list: (filters: Record<string, unknown>) => ["games", "list", filters] as const,

@@ -4,6 +4,8 @@ export const TEST_ACCESS_SECRET = "integration-access-secret-0123456789abcdef";
 
 Object.assign(process.env, {
   CORS_ORIGIN: TEST_ORIGIN,
+  // Analyses are only queued; specs drive GameAnalysisWorker.claim/run themselves.
+  GAME_ANALYSIS_WORKER: "false",
   JWT_ACCESS_SECRET: TEST_ACCESS_SECRET,
   JWT_REFRESH_SECRET: "integration-refresh-secret-0123456789abcdef",
   // LiveKitService refuses to boot without these; the clients never connect in tests

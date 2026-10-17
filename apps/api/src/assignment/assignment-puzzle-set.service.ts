@@ -23,7 +23,7 @@ import {
   type PuzzleSetStudentResult,
   type StudentPuzzleSetProgress
 } from "@nexa-chess/types";
-import { Prisma, PuzzleStatus, PuzzleVisibility, UserRole } from "@prisma/client";
+import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -119,6 +119,7 @@ export class AssignmentPuzzleSetService {
         id: true,
         scoringJson: true,
         solutionMovesJson: true,
+        source: true,
         status: true,
         title: true,
         visibility: true
@@ -132,6 +133,9 @@ export class AssignmentPuzzleSetService {
       if (!puzzle) throw new NotFoundException("One of the selected puzzles was not found.");
       if (puzzle.status !== PuzzleStatus.PUBLISHED) {
         throw new BadRequestException(`"${puzzle.title}" is not published.`);
+      }
+      if (puzzle.source === PuzzleSource.GAME) {
+        throw new NotFoundException("One of the selected puzzles was not found.");
       }
       const allowed = isAdmin(user.role)
         ? puzzle.visibility === PuzzleVisibility.GLOBAL

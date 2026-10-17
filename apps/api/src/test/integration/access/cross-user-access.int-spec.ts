@@ -102,6 +102,15 @@ const CROSS_USER: Case[] = [
   { name: "coach opens another coach's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.games.get(w.b.game.id) },
   { name: "coach saves analysis on another coach's game", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.games.saveAnalysis(w.b.game.id), body: { pgn: "1. e4 e5 *", version: 1 } },
   { name: "coach deletes another coach's game", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.games.delete(w.b.game.id) },
+  // Engine analysis + insights (docs/GAME_ANALYSIS.md)
+  { name: "student reads the engine analysis of another student's game", as: (w) => w.a.student, path: (w) => API_ROUTES.gameAnalysis.forGame(w.b.game.id) },
+  { name: "student requests analysis of another student's game", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.gameAnalysis.forGame(w.b.game.id), body: {} },
+  { name: "student cancels analysis of another student's game", as: (w) => w.a.student, method: "DELETE", path: (w) => API_ROUTES.gameAnalysis.forGame(w.b.game.id) },
+  { name: "coach reads the engine analysis of another coach's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameAnalysis.forGame(w.b.game.id) },
+  { name: "student reads another student's game insights", as: (w) => w.a.student, path: (w) => API_ROUTES.gameInsights.student(w.b.student.id) },
+  { name: "student lists another student's analysed games", as: (w) => w.a.student, path: (w) => API_ROUTES.gameInsights.games(w.b.student.id) },
+  { name: "coach reads game insights of a student outside their batches", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameInsights.student(w.b.student.id) },
+  { name: "coach lists analysed games of a student outside their batches", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameInsights.games(w.b.student.id) },
   // Chat
   { name: "student reads another batch's group chat", as: (w) => w.a.student, path: (w) => API_ROUTES.chat.messages(w.b.batchChat.id) },
   { name: "student posts into another batch's group chat", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.chat.messages(w.b.batchChat.id), body: { body: "intruder", clientId: "intruder-0001" } },
@@ -162,6 +171,12 @@ const OWN_CASES: Case[] = [
   { name: "student opens own game", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.a.game.id) },
   { name: "student opens the board game of a class they attended", as: (w) => w.a.student, path: (w) => API_ROUTES.games.get(w.a.boardGame.id) },
   { name: "coach opens own class's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.games.get(w.a.game.id) },
+  { name: "student reads the engine analysis state of own game", as: (w) => w.a.student, path: (w) => API_ROUTES.gameAnalysis.forGame(w.a.game.id) },
+  { name: "coach reads the engine analysis state of own class's game", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameAnalysis.forGame(w.a.game.id) },
+  { name: "student reads own game insights", as: (w) => w.a.student, path: () => API_ROUTES.gameInsights.mine },
+  { name: "student lists own analysed games", as: (w) => w.a.student, path: () => API_ROUTES.gameInsights.gamesMine },
+  { name: "coach reads own student's game insights", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameInsights.student(w.a.student.id) },
+  { name: "coach lists own student's analysed games", as: (w) => w.a.coach, path: (w) => API_ROUTES.gameInsights.games(w.a.student.id) },
   { name: "coach saves analysis on own class's game", as: (w) => w.a.coach, method: "PUT", path: (w) => API_ROUTES.games.saveAnalysis(w.a.game.id), body: { pgn: "1. e4 (1. d4) *", version: 1 } },
   { name: "ADMIN opens any game", as: (w) => w.admin, path: (w) => API_ROUTES.games.get(w.b.game.id) },
   { name: "student reads own batch's group chat", as: (w) => w.a.student, path: (w) => API_ROUTES.chat.messages(w.a.batchChat.id) },
@@ -245,7 +260,9 @@ const WRONG_ROLE: Case[] = [
   { name: "coach reads student assignment reminders", as: (w) => w.a.coach, path: () => API_ROUTES.assignments.reminders },
   { name: "coach opens a student's revision queue", as: (w) => w.a.coach, path: () => API_ROUTES.revision.sessionMine },
   { name: "student recommends revision to themselves", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.revision.recommend(w.a.student.id), body: (w: World) => ({ puzzleIds: [w.a.privatePuzzle.id] }) },
-  { name: "student creates a chat group", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.a.student.id], name: "us" }) }
+  { name: "student creates a chat group", as: (w) => w.a.student, method: "POST", path: () => API_ROUTES.chat.createGroup, body: (w: World) => ({ memberIds: [w.a.student.id], name: "us" }) },
+  { name: "coach reads 'my game insights' (students only)", as: (w) => w.a.coach, path: () => API_ROUTES.gameInsights.mine },
+  { name: "coach links an online chess account (students only)", as: (w) => w.a.coach, method: "POST", path: () => API_ROUTES.gameSources.accounts, body: { provider: "LICHESS", username: "coachname" } }
 ];
 
 describe("cross-user access (real app, real Postgres)", () => {

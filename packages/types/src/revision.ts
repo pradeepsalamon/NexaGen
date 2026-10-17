@@ -44,8 +44,11 @@ export const REVISION_OUTCOME_LABELS: Record<RevisionOutcome, string> = {
 export const REVISION_ITEM_KINDS = ["PUZZLE", "TOPIC"] as const;
 export type RevisionItemKind = (typeof REVISION_ITEM_KINDS)[number];
 
-/** MISTAKE = seeded from the student's own graded attempt; COACH = recommended. */
-export const REVISION_ITEM_SOURCES = ["MISTAKE", "COACH"] as const;
+/**
+ * MISTAKE = seeded from the student's own graded attempt; COACH = recommended;
+ * GAME = a tactic the student missed in their own analysed game.
+ */
+export const REVISION_ITEM_SOURCES = ["MISTAKE", "COACH", "GAME"] as const;
 export type RevisionItemSource = (typeof REVISION_ITEM_SOURCES)[number];
 
 export const REVISION_POLICY = {

@@ -99,11 +99,18 @@ export function GameLibraryClient() {
         title="Game Library"
         description={
           isStudent
-            ? "Games you played in class, and the class-board games of classes you attended."
-            : "Every game played in your classes — class board, simuls and student matches — plus games you imported."
+            ? "Games you played in class, the class-board games of classes you attended, and games you uploaded."
+            : "Every game played in your classes — class board, simuls and student matches — plus games you imported and your students uploaded."
         }
         actions={
-          !isStudent && (
+          isStudent ? (
+            <Button asChild variant="outline">
+              <Link href="/student/insights">
+                <Upload className="mr-2 size-4" aria-hidden />
+                Upload games
+              </Link>
+            </Button>
+          ) : (
             <Button onClick={() => setImportOpen(true)}>
               <Upload className="mr-2 size-4" aria-hidden />
               Import PGN

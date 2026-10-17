@@ -74,13 +74,14 @@ describe("GameLibraryService", () => {
   const query = (extra: Record<string, unknown> = {}) => gameLibraryQuerySchema.parse(extra);
   const visibility = () => prisma.chessGame.findMany.mock.calls[0][0].where.AND[0];
 
-  it("scopes a student to games they played and class boards they attended", async () => {
+  it("scopes a student to games they played, games they uploaded / imported, and class boards they attended", async () => {
     as("student-1", "STUDENT");
     await service.list("t", query());
     expect(visibility()).toEqual({
       OR: [
         { whitePlayerId: "student-1" },
         { blackPlayerId: "student-1" },
+        { ownerId: "student-1" },
         {
           class: { attendances: { some: { status: { not: "ABSENT" }, studentId: "student-1" } } },
           source: "LIVE_BOARD",
@@ -97,6 +98,14 @@ describe("GameLibraryService", () => {
         { createdById: "coach-1" },
         { class: { coachId: "coach-1" } },
         { batch: { coaches: { some: { coachId: "coach-1", isDeleted: false } } } },
+        // A student's own uploads, while they're in one of this coach's live batches.
+        {
+          owner: {
+            studentBatches: {
+              some: { batch: { coaches: { some: { coachId: "coach-1", isDeleted: false } }, isDeleted: false }, isDeleted: false },
+            },
+          },
+        },
       ]),
     );
   });

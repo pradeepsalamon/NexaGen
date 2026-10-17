@@ -52,6 +52,7 @@ const pageTitles: Record<string, string> = {
   "/student/training": "Puzzle Training",
   "/student/revision": "Smart Revision",
   "/student/progress": "Progress",
+  "/student/insights": "Game Insights",
   "/student/attendance": "Attendance",
   "/student/billing": "Billing",
   "/forgot-password": "Account Help",

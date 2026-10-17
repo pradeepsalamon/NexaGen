@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { GameInsightsPanel } from "@/features/game-analysis/components/GameInsightsPanel";
 import { RevisionReportPanel } from "@/features/revision/components/RevisionReportPanel";
 import { useActivitySummary, useProgressFor } from "../hooks/useProgress";
 import {
@@ -18,7 +19,7 @@ import { ActivityHistoryList } from "./ActivityHistoryList";
 import { ActivitySummaryPanel } from "./ActivitySummaryPanel";
 import { ProgressView } from "./ProgressView";
 
-type Tab = "overview" | "performance" | "history" | "revision";
+type Tab = "overview" | "performance" | "history" | "revision" | "games";
 
 function LoadingTiles() {
   return (
@@ -33,7 +34,8 @@ function LoadingTiles() {
 /**
  * One student's progress: rating + streak (Overview), period summary and
  * insights (Performance), the filterable activity history (History), and
- * Smart Revision (scheduled items + recall; staff also recommend from here).
+ * Smart Revision (scheduled items + recall; staff also recommend from here),
+ * and Games (evidence across their engine-analysed games).
  * `studentId` null = the signed-in student. The period and filters are shared
  * by Performance and History, so switching tabs keeps the same slice.
  */
@@ -54,6 +56,7 @@ export function StudentProgressWorkspace({ studentId }: { studentId: string | nu
         <TabsTrigger value="performance">Performance</TabsTrigger>
         <TabsTrigger value="history">Activity history</TabsTrigger>
         <TabsTrigger value="revision">Revision</TabsTrigger>
+        <TabsTrigger value="games">Games</TabsTrigger>
       </TabsList>
 
       <TabsContent value="overview">
@@ -96,6 +99,10 @@ export function StudentProgressWorkspace({ studentId }: { studentId: string | nu
 
       <TabsContent value="revision">
         {tab === "revision" ? <RevisionReportPanel studentId={studentId} /> : null}
+      </TabsContent>
+
+      <TabsContent value="games">
+        {tab === "games" ? <GameInsightsPanel studentId={studentId} /> : null}
       </TabsContent>
     </Tabs>
   );

@@ -7,6 +7,7 @@ import {
 import { JwtService } from "@nestjs/jwt";
 import {
   CATALOG_MAX_PAGE_SIZE,
+  GAME_ANALYSIS_FOLDER_SLUG,
   LICHESS_FOLDER_SLUG,
   LICHESS_THEMES,
   LIVE_CLASS_FOLDER_SLUG,
@@ -446,6 +447,15 @@ export class PuzzleCatalogService {
       slug: LIVE_CLASS_FOLDER_SLUG,
       names: LIVE_CLASS_FOLDER_NAMES,
       description: "Positions coaches shared from the board during class. Hidden from the library until opened."
+    });
+  }
+
+  /** Where puzzles built from students' own analysed games live. Same lifecycle as the others. */
+  async ensureGameAnalysisFolder(actorId: string): Promise<string> {
+    return this.ensureSystemFolder(actorId, {
+      slug: GAME_ANALYSIS_FOLDER_SLUG,
+      names: ["From students' games", "From students' games (system)"],
+      description: "Tactics from students' own analysed games, each visible only to its student. Hidden from the library."
     });
   }
 

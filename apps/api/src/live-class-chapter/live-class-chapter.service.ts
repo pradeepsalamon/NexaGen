@@ -10,13 +10,7 @@ import {
   type ReorderLiveClassChaptersRequest,
   type UpdateLiveClassChapterRequest
 } from "@nexa-chess/types";
-import {
-  Prisma,
-  PuzzleStatus,
-  PuzzleVisibility,
-  UserRole,
-  type LiveClassChapter as ChapterRow
-} from "@prisma/client";
+import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type LiveClassChapter as ChapterRow } from "@prisma/client";
 import { LiveClassService } from "../live-class/live-class.service";
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -92,6 +86,7 @@ export class LiveClassChapterService {
       where: {
         id: { in: ids },
         status: PuzzleStatus.PUBLISHED,
+        source: { not: PuzzleSource.GAME },
         ...(isAdmin ? {} : { OR: [{ visibility: PuzzleVisibility.GLOBAL }, { createdById: user.id }] })
       },
       select: { fen: true, id: true, title: true }

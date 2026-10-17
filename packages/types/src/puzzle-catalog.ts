@@ -35,7 +35,14 @@ export function isLichessFolder(topic: { slug: string }): boolean {
 /** Slug of the system folder a coach's "share from board" puzzles land in. Hidden like the Lichess one. */
 export const LIVE_CLASS_FOLDER_SLUG = "__live_class";
 
-export const SYSTEM_PUZZLE_FOLDER_SLUGS: readonly string[] = [LICHESS_FOLDER_SLUG, LIVE_CLASS_FOLDER_SLUG];
+/** Slug of the system folder holding puzzles built from students' own analysed games. Hidden like the others. */
+export const GAME_ANALYSIS_FOLDER_SLUG = "__game_analysis";
+
+export const SYSTEM_PUZZLE_FOLDER_SLUGS: readonly string[] = [
+  LICHESS_FOLDER_SLUG,
+  LIVE_CLASS_FOLDER_SLUG,
+  GAME_ANALYSIS_FOLDER_SLUG
+];
 
 /** A folder the app manages itself — hidden from pickers and the library unless opened directly. */
 export function isSystemPuzzleFolder(topic: { slug: string }): boolean {

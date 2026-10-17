@@ -41,6 +41,7 @@ import {
 import {
   Prisma,
   PuzzleAttemptContext,
+  PuzzleSource,
   PuzzleStatus,
   PuzzleVisibility,
   RevisionItemKind,
@@ -299,12 +300,12 @@ export class RevisionService {
     if (puzzleIds.length > 0) {
       const rows = await this.prisma.puzzle.findMany({
         where: { id: { in: puzzleIds }, status: PuzzleStatus.PUBLISHED },
-        select: { createdById: true, id: true, solutionMovesJson: true, visibility: true }
+        select: { createdById: true, id: true, ownerId: true, solutionMovesJson: true, source: true, visibility: true }
       });
       const ok = rows.filter(
         (p) =>
           hasSolution(p.solutionMovesJson) &&
-          studentCanOpen(p, coachIds) &&
+          studentCanOpen(p, coachIds, student.id) &&
           (isAdminRole(viewer.role) || p.visibility === PuzzleVisibility.GLOBAL || p.createdById === viewer.id)
       );
       if (ok.length !== puzzleIds.length) {
@@ -526,7 +527,9 @@ export class RevisionService {
               createdById: true,
               estimatedSeconds: true,
               id: true,
+              ownerId: true,
               solutionMovesJson: true,
+              source: true,
               status: true,
               tags: true,
               title: true,
@@ -544,7 +547,8 @@ export class RevisionService {
       puzzleRows.map((p) => [
         p.id,
         {
-          available: p.status === PuzzleStatus.PUBLISHED && hasSolution(p.solutionMovesJson) && studentCanOpen(p, coachIds),
+          available:
+            p.status === PuzzleStatus.PUBLISHED && hasSolution(p.solutionMovesJson) && studentCanOpen(p, coachIds, student.id),
           estimatedSeconds: p.estimatedSeconds,
           id: p.id,
           tags: p.tags,
@@ -984,7 +988,13 @@ function hasSolution(raw: Prisma.JsonValue): boolean {
 }
 
 /** The student library rule (PuzzleAttemptService): GLOBAL, or PRIVATE by one of the student's coaches. */
-function studentCanOpen(p: { visibility: PuzzleVisibility; createdById: string | null }, coachIds: string[]): boolean {
+function studentCanOpen(
+  p: { visibility: PuzzleVisibility; createdById: string | null; source?: PuzzleSource; ownerId?: string | null },
+  coachIds: string[],
+  studentId: string
+): boolean {
+  // A puzzle built from a student's own game opens for that student only.
+  if (p.source === PuzzleSource.GAME) return !!p.ownerId && p.ownerId === studentId;
   return p.visibility === PuzzleVisibility.GLOBAL || (!!p.createdById && coachIds.includes(p.createdById));
 }
 

@@ -25,7 +25,7 @@ import type {
   SubmitPuzzleAttemptRequest
 } from "@nexa-chess/types";
 import { parseScoringOverride } from "@nexa-chess/types";
-import { Prisma, PuzzleAttemptContext, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
+import { Prisma, PuzzleAttemptContext, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type User } from "@prisma/client";
 import { Chess } from "../common/chess/chess";
 import { AnalyticsEventService } from "../analytics/analytics-event.service";
 import { ANALYTICS_EVENT_TYPES } from "../analytics/analytics-events.constants";
@@ -514,6 +514,7 @@ export class PuzzleAttemptService {
     );
     return {
       status: PuzzleStatus.PUBLISHED,
+      source: { not: PuzzleSource.GAME },
       OR: [
         { visibility: PuzzleVisibility.GLOBAL },
         ...(coachIds.length
@@ -530,6 +531,11 @@ export class PuzzleAttemptService {
     });
     if (!row || row.status !== PuzzleStatus.PUBLISHED) {
       throw new NotFoundException("Puzzle not found.");
+    }
+    // Built from one student's own game: theirs alone (never in anyone's library).
+    if (row.source === PuzzleSource.GAME) {
+      if (row.ownerId !== student.id) throw new NotFoundException("Puzzle not found.");
+      return row;
     }
     if (row.visibility === PuzzleVisibility.PRIVATE) {
       const where = await this.studentVisibilityWhere(student);

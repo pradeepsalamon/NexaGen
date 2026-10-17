@@ -52,6 +52,10 @@ export * from "./move-tree";
 export * from "./diagram-recognition";
 export * from "./diagram-position";
 export * from "./game-library";
+export * from "./game-analysis";
+export * from "./game-tactics";
+export * from "./game-analysis-report";
+export * from "./game-sources";
 export * from "./chat";
 export * from "./assignment-reminders";
 
@@ -2267,6 +2271,11 @@ export interface StockfishAnalysisResult {
   pv: string[];
   /** Principal variation in raw UCI. */
   pvUci: string[];
+  /**
+   * Present only when the reported score is provisional (an aspiration-window
+   * fail: the true score is at least / at most it). Absent = exact.
+   */
+  scoreBound?: "lower" | "upper";
 }
 
 /**

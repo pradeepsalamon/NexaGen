@@ -574,7 +574,12 @@ export class PuzzleService {
 
   private visibilityWhere(user: User): Prisma.PuzzleWhereInput {
     if (isAdminRole(user.role)) return {};
-    return { OR: [{ visibility: PuzzleVisibility.GLOBAL }, { createdById: user.id }] };
+    // A puzzle built from a student's own game is that student's revision
+    // material, not library content — a coach never lists, edits or shares it.
+    return {
+      OR: [{ visibility: PuzzleVisibility.GLOBAL }, { createdById: user.id }],
+      source: { not: PuzzleSource.GAME },
+    };
   }
 
   private canManage(
@@ -589,7 +594,8 @@ export class PuzzleService {
     const row = await this.prisma.puzzle.findUnique({ where: { id }, include: puzzleInclude });
     if (!row) throw new NotFoundException("Puzzle not found.");
     if (!isAdminRole(user.role)) {
-      const visible = row.visibility === PuzzleVisibility.GLOBAL || row.createdById === user.id;
+      const visible =
+        row.source !== PuzzleSource.GAME && (row.visibility === PuzzleVisibility.GLOBAL || row.createdById === user.id);
       if (!visible) throw new NotFoundException("Puzzle not found.");
     }
     return row;

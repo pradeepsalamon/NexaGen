@@ -10,6 +10,7 @@ jest.mock('@nexa-chess/config/api', () => ({ getApiEnv: jest.fn() }));
 jest.mock('os', () => ({ ...jest.requireActual('os'), cpus: () => new Array(4).fill({}) }));
 
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+const BLACK_TO_MOVE_FEN = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
 
 class FakeEngine extends EventEmitter {
   stdin = { on: jest.fn(), write: jest.fn() };
@@ -378,6 +379,165 @@ describe('StockfishService dynamic pool', () => {
       service.analyzePosition(START_FEN, { onUpdate }).catch(() => undefined);
       procs[0].stdout.emit('data', 'info depth 4 currmove e2e4 currmovenumber 1\n');
       expect(onUpdate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('MultiPV, searchmoves and provisional scores', () => {
+    const goLines = (proc: FakeEngine) => proc.writes().filter((l) => l.startsWith('go '));
+
+    it('leaves existing callers on MultiPV 1 with no searchmoves', async () => {
+      service = makeService({ min: 1, pool: 1 });
+      procs[0].handshake();
+      const analysis = service.analyzePosition(START_FEN, { movetimeMs: 101 });
+      procs[0].answer();
+      await analysis;
+      const move = service.getBestMove(START_FEN);
+      procs[0].answer();
+      await move;
+      expect(procs[0].writes().some((l) => l.includes('MultiPV'))).toBe(false);
+      expect(goLines(procs[0]).some((l) => l.includes('searchmoves'))).toBe(false);
+    });
+
+    it('returns ranked White-relative lines and resets MultiPV for the next task', async () => {
+      service = makeService({ min: 1, pool: 1 });
+      procs[0].handshake();
+      const lines = service.searchLines(BLACK_TO_MOVE_FEN, { depth: 18, movetimeMs: 800, multiPv: 2 });
+      expect(procs[0].writes()).toContain('setoption name MultiPV value 2\n');
+      expect(procs[0].lastGo()).toBe('go depth 18 movetime 800');
+      procs[0].stdout.emit(
+        'data',
+        'info depth 18 multipv 1 score cp 35 pv e7e5\n' +
+          'info depth 18 multipv 2 score cp -20 upperbound pv c7c5\n' +
+          'info depth 18 multipv 2 score cp 10 pv c7c5\n' +
+          'bestmove e7e5\n',
+      );
+      await expect(lines).resolves.toMatchObject({
+        lines: [
+          { bound: 'exact', depth: 18, evaluation: { cp: -35, kind: 'cp' }, pvSan: ['e5'], rank: 1 },
+          { bound: 'exact', depth: 18, evaluation: { cp: -10, kind: 'cp' }, pvSan: ['c5'], rank: 2 },
+        ],
+      });
+
+      const next = service.analyzePosition(START_FEN, { movetimeMs: 101 });
+      const writes = procs[0].writes();
+      expect(writes.lastIndexOf('setoption name MultiPV value 1\n')).toBeLessThan(
+        writes.lastIndexOf('go depth 20 movetime 101\n'),
+      );
+      expect(writes).toContain('setoption name MultiPV value 1\n');
+      procs[0].answer();
+      await next;
+    });
+
+    it('puts searchmoves last on the go line (Stockfish reads every later token as a move)', async () => {
+      service = makeService({ min: 1, pool: 1 });
+      procs[0].handshake();
+      const played = service.searchLines(START_FEN, { depth: 18, movetimeMs: 800, searchMoves: ['A2A3'] });
+      expect(procs[0].lastGo()).toBe('go depth 18 movetime 800 searchmoves a2a3');
+      procs[0].stdout.emit('data', 'info depth 18 score cp -12 pv a2a3 e7e5\nbestmove a2a3\n');
+      await expect(played).resolves.toMatchObject({ lines: [{ evaluation: { cp: -12, kind: 'cp' }, pvUci: ['a2a3', 'e7e5'] }] });
+    });
+
+    it('rejects searchmoves that are not UCI moves', async () => {
+      service = makeService({ min: 1, pool: 1 });
+      await expect(service.searchLines(START_FEN, { movetimeMs: 100, searchMoves: ['e4'] })).rejects.toThrow(
+        /UCI moves/,
+      );
+    });
+
+    it('flags a provisional final score on the existing result shape', async () => {
+      service = makeService({ min: 1, pool: 1 });
+      procs[0].handshake();
+      const provisional = service.analyzePosition(START_FEN, { movetimeMs: 101 });
+      procs[0].stdout.emit('data', 'info depth 9 score cp 80 lowerbound pv e2e4\nbestmove e2e4\n');
+      await expect(provisional).resolves.toMatchObject({ evaluation: 0.8, scoreBound: 'lower' });
+
+      const exact = service.analyzePosition(START_FEN, { movetimeMs: 102 });
+      procs[0].answer();
+      expect(await exact).not.toHaveProperty('scoreBound');
+    });
+
+    it('records the engine id from its handshake', () => {
+      service = makeService({ min: 1, pool: 1 });
+      expect(service.engineName()).toBeNull();
+      procs[0].stdout.emit('data', 'id name Stockfish 17.1\nid author the Stockfish developers\n');
+      procs[0].handshake();
+      expect(service.engineName()).toBe('Stockfish 17.1');
+    });
+  });
+
+  describe('interactive vs background priority', () => {
+    const bg = (s: StockfishService, movetimeMs: number) =>
+      s.searchLines(START_FEN, { movetimeMs, priority: 'background' });
+
+    it('serves a waiting interactive request before queued background work', async () => {
+      service = makeService({ min: 1, pool: 1 });
+      procs[0].handshake();
+      const first = bg(service, 101);
+      const second = bg(service, 102);
+      const person = service.analyzePosition(START_FEN, { movetimeMs: 103 });
+      expect(procs[0].lastGo()).toBe('go movetime 101');
+
+      procs[0].answer();
+      await first;
+      expect(procs[0].lastGo()).toBe('go depth 20 movetime 103');
+
+      procs[0].answer();
+      await person;
+      expect(procs[0].lastGo()).toBe('go movetime 102');
+      procs[0].answer();
+      await second;
+    });
+
+    it('keeps one engine free of background work for people', async () => {
+      service = makeService({ min: 1, pool: 2 });
+      procs[0].handshake();
+      const first = bg(service, 101);
+      const second = bg(service, 102);
+      // The warm standby started for the busy pool…
+      expect(spawn).toHaveBeenCalledTimes(2);
+      procs[1].handshake();
+      // …but background work may not take it.
+      expect(procs[1].gotTask()).toBe(false);
+
+      const person = service.analyzePosition(START_FEN, { movetimeMs: 103 });
+      expect(procs[1].lastGo()).toBe('go depth 20 movetime 103');
+      procs[1].answer();
+      await person;
+
+      procs[0].answer();
+      await first;
+      expect(procs[0].lastGo()).toBe('go movetime 102');
+      procs[0].answer();
+      await second;
+      // Blocked background work never started extra engines.
+      expect(spawn).toHaveBeenCalledTimes(2);
+    });
+
+    it('runs background searches on a single thread', async () => {
+      service = makeService({ min: 1, pool: 2 });
+      procs[0].handshake();
+      const search = bg(service, 101);
+      expect(procs[0].writes().filter((l) => l.startsWith('setoption name Threads')).pop()).toMatch(/value 1\b/);
+      procs[0].answer();
+      await search;
+    });
+
+    it('promotes a queued background search once a person waits on it too', async () => {
+      service = makeService({ min: 1, pool: 1 });
+      procs[0].handshake();
+      const running = service.analyzePosition(START_FEN, { movetimeMs: 100 });
+      const older = bg(service, 201);
+      const shared = bg(service, 202);
+      const person = service.searchLines(START_FEN, { movetimeMs: 202, priority: 'interactive' });
+
+      procs[0].answer();
+      await running;
+      expect(procs[0].lastGo()).toBe('go movetime 202');
+      procs[0].answer();
+      await Promise.all([shared, person]);
+      expect(procs[0].lastGo()).toBe('go movetime 201');
+      procs[0].answer();
+      await older;
     });
   });
 });

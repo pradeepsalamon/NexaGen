@@ -313,7 +313,31 @@ export const API_ROUTES = {
     import: "/games/import",
     get: (id: string = ":id") => `/games/${id}`,
     saveAnalysis: (id: string = ":id") => `/games/${id}/analysis`,
-    delete: (id: string = ":id") => `/games/${id}`
+    delete: (id: string = ":id") => `/games/${id}`,
+    // A student's (or coach's) multi-game PGN upload — the student's own games.
+    importPgn: "/games/import-pgn"
+  },
+  // Stockfish game analysis: GET state + report / POST request / DELETE cancel (anyone who can see the game).
+  gameAnalysis: {
+    forGame: (id: string = ":id") => `/games/${id}/engine-analysis`,
+    // Student or their coach: turn a verified missed tactic into a Smart Revision puzzle.
+    tacticToRevision: (analysisId: string = ":analysisId", ply: string = ":ply") =>
+      `/game-analyses/${analysisId}/tactics/${ply}/revision`
+  },
+  // Aggregated evidence across analysed games (student: own; coach: own batches' students; admin).
+  gameInsights: {
+    mine: "/game-insights/me",
+    student: (studentId: string = ":studentId") => `/game-insights/students/${studentId}`,
+    gamesMine: "/game-insights/me/games",
+    games: (studentId: string = ":studentId") => `/game-insights/students/${studentId}/games`
+  },
+  // A student's linked Lichess / Chess.com accounts (username only; no passwords or tokens).
+  gameSources: {
+    overview: "/game-sources",
+    accounts: "/game-sources/accounts",
+    account: (id: string = ":id") => `/game-sources/accounts/${id}`,
+    verify: (id: string = ":id") => `/game-sources/accounts/${id}/verify`,
+    sync: (id: string = ":id") => `/game-sources/accounts/${id}/sync`
   },
   // Persistent chat outside live classes (batch groups, coach <-> student DMs).
   chat: {
