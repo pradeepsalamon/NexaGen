@@ -17,7 +17,11 @@ const KEYS = [
   "tags", "rating", "ratingMin", "ratingMax", "interval", "includeArchived", "archived", "formId", "trigger"
 ];
 
-describe("query probe", () => {
+// Diagnostic sweep (~100k requests, logs 500s, asserts nothing). Opt-in:
+// RUN_QUERY_PROBE=1 npm run test:integration -- zz-query-probe
+const describeProbe = process.env.RUN_QUERY_PROBE === "1" ? describe : describe.skip;
+
+describeProbe("query probe", () => {
   let t: TestApp;
   beforeAll(async () => {
     t = await createTestApp();
