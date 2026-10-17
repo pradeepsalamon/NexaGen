@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+reviews:
+  profile: assertive
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - dev
+  path_filters:
+    - "!**/package-lock.json"
+    - "!**/dist/**"
+    - "!**/.next/**"
+    - "!out/**"
+    - "!scripts/responsive/shots/**"
+    - "!apps/web/public/chess/pieces/**"
+  path_instructions:
+    - path: "apps/api/src/**/*.ts"
+      instructions: |
+        - Auth uses the token-string pattern, no NestJS guards: controller reads the cookie via getAccessToken, service calls authenticateUser from auth/authenticate.ts. Flag hand-rolled jwtService.verifyAsync for access tokens.
+        - Role checks and row-level visibility (getXVisibilityWhere) must happen in the service; flag queries that skip them.
+        - Uniqueness pre-checks must use prisma.withDeleted.
+        - Raw SQL must never bind a JS Date or use ::timestamptz next to a timestamp column; bind `${d.toISOString()}::timestamp`.
+        - Dates serialize with .toISOString(); never pre-format on the server.
+        - Soft-deletable deletes go through TrashRepository.softDelete inside a $transaction.
+        - New cron jobs use JobLockService.runExclusive with a unique JOB_LOCKS name; never pg_advisory_lock.
+        - BullMQ jobId must not contain a colon.
+    - path: "apps/api/src/payments/**"
+      instructions: |
+        - Money is integer minor units only; flag floats/Decimal.
+        - Every payment state change goes through PaymentService.applyProviderState.
+        - Access is granted only via an Entitlement row.
+        - No provider adapter is imported outside payments/providers/.
+        - Webhooks must verify signatures on raw bytes; never skip verification.
+        - Tax uses the shared engine in @nexa-chess/types; issued invoices are never edited (refunds get a credit note).
+    - path: "apps/api/prisma/schema.prisma"
+      instructions: |
+        - A new model needs a getter in prisma.service.ts and a committed migration.
+        - Financial relations to User must be onDelete: Restrict, never Cascade.
+    - path: "apps/web/src/**/*.{ts,tsx}"
+      instructions: |
+        - Never hardcode API paths; use API_ROUTES from @nexa-chess/types.
+        - No toLocale*() on dates in components; use lib/datetime.ts with useUserTimeZone().
+        - No window.confirm; use useUndoableMutation.
+        - Use SimpleTooltip, not title=, on interactive elements; icon-only buttons need aria-label.
+        - Use theme tokens (bg-app-surface, text-app-text, ...); no dark: colour overrides. Reuse components/ui primitives.
+        - "use client" only where needed; app/**/page.tsx stays a server component where possible.
+        - Live class: read stores with selectors, never bare useBoardStore() / no-arg useLiveClassState().
+    - path: "packages/types/src/**"
+      instructions: |
+        - This is the shared contract; changes must be reflected on both api and web.
+  tools:
+    eslint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    actionlint:
+      enabled: true
+chat:
+  auto_reply: true
