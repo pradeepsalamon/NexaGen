@@ -1,0 +1,532 @@
+/*
+ * Ported from the standalone GrandMaster Chess Academy landing site
+ * (F:\Chess_Landing_Page), verbatim in look and feel. Every selector below is
+ * scoped under `.academy-page` (applied to the root of `app/academy/layout.tsx`)
+ * so none of it bleeds into the rest of the app, and nothing outside this file
+ * can bleed into it either — the palette and custom classes here are dead
+ * weight anywhere else in the app.
+ *
+ * Not ported (decorative-only, and touching them would mean unscoping to the
+ * real <html>/<body>, which this file deliberately avoids): the page-level
+ * custom scrollbar theme, `html { scroll-behavior: smooth }`.
+ */
+
+.academy-page {
+  /* Design tokens — same palette as the source project's :root block */
+  --ink: #1a3a52;
+  --ink-mid: #2a5a8a;
+  --ink-soft: #3a7aaa;
+  --ink-deep: #0f1f2f;
+  --accent: #d4a843;
+  --accent-dark: #b8912e;
+
+  --surface: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #f1f5f9;
+  --line: #e2e8f0;
+  --line-strong: #cbd8e4;
+
+  --shadow-xs: 0 1px 2px rgba(15, 31, 47, 0.05);
+  --shadow-sm: 0 2px 8px -2px rgba(15, 31, 47, 0.08), 0 1px 2px rgba(15, 31, 47, 0.04);
+  --shadow-md: 0 8px 24px -8px rgba(15, 31, 47, 0.14), 0 2px 8px -4px rgba(15, 31, 47, 0.08);
+  --shadow-lg: 0 24px 48px -20px rgba(15, 31, 47, 0.22), 0 8px 20px -12px rgba(15, 31, 47, 0.12);
+
+  --radius-sm: 0.625rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+
+  --color-gold: #1a3a52;
+  --color-gold-dark: #0f1f2f;
+  --color-text-primary: #1a3a52;
+  --color-text-secondary: #4a5f7f;
+  --color-text-muted: #7a8fa5;
+
+  color: var(--color-text-primary);
+  overflow-x: hidden;
+}
+
+.academy-page ::selection {
+  background: rgba(26, 58, 82, 0.14);
+  color: #0f1f2f;
+}
+
+.academy-page :focus-visible {
+  outline: 2px solid rgba(42, 90, 138, 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Glassmorphism utility - tuned for the light surface.
+   backdrop-filter is one of the most expensive things to paint on mobile,
+   so it is only enabled from tablet width up; phones get a near-opaque fill. */
+.academy-page .glass {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(26, 58, 82, 0.08);
+}
+
+.academy-page .glass-strong {
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(26, 58, 82, 0.1);
+}
+
+@media (min-width: 768px) {
+  .academy-page .glass {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+  .academy-page .glass-strong {
+    background: rgba(255, 255, 255, 0.86);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+/* Blue gradient text */
+.academy-page .gold-text {
+  background: linear-gradient(135deg, #1a3a52, #2a5a8a, #3a7aaa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.academy-page .gold-text-bright {
+  background: linear-gradient(135deg, #0f1f2f, #1a3a52, #2a5a8a);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Blue glow text effect */
+.academy-page .blue-glow {
+  text-shadow: 0 0 10px rgba(26, 58, 82, 0.3), 0 0 20px rgba(42, 90, 138, 0.2);
+}
+
+/* Animated chess board pattern */
+.academy-page .chess-pattern {
+  background-image: linear-gradient(45deg, rgba(26, 58, 82, 0.035) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(26, 58, 82, 0.035) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(26, 58, 82, 0.035) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(26, 58, 82, 0.035) 75%);
+  background-size: 40px 40px;
+  background-position: 0 0, 0 20px, 20px -20px, -20px 0px;
+}
+
+/* Floating animations */
+@keyframes academy-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-15px) rotate(2deg); }
+  75% { transform: translateY(10px) rotate(-2deg); }
+}
+
+@keyframes academy-float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes academy-rotate-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes academy-scroll-indicator {
+  0% { opacity: 1; transform: translateY(0); }
+  50% { opacity: 0.3; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+.academy-page .animate-float { animation: academy-float 6s ease-in-out infinite; }
+.academy-page .animate-float-slow { animation: academy-float-slow 8s ease-in-out infinite; }
+.academy-page .animate-rotate-slow { animation: academy-rotate-slow 20s linear infinite; }
+.academy-page .animate-scroll-indicator { animation: academy-scroll-indicator 2s ease-in-out infinite; }
+
+/* Card hover lift */
+.academy-page .card-lift {
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    box-shadow 0.4s ease,
+    border-color 0.4s ease;
+}
+.academy-page .card-lift:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 24px 48px -20px rgba(15, 31, 47, 0.25), 0 8px 20px -12px rgba(26, 58, 82, 0.18);
+}
+
+/* Button styles */
+.academy-page .btn-gold {
+  background: linear-gradient(135deg, #d4a843, #b8912e);
+  color: #0a0a0f;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 24px -14px rgba(184, 145, 46, 0.9);
+}
+
+.academy-page .btn-gold::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: translateX(-100%);
+  transition: transform 0.5s ease;
+}
+
+.academy-page .btn-gold:hover::before {
+  transform: translateX(100%);
+}
+
+.academy-page .btn-gold:hover {
+  box-shadow: 0 0 20px rgba(212, 168, 67, 0.4), 0 0 40px rgba(212, 168, 67, 0.2);
+  transform: translateY(-2px);
+}
+
+/* 3D Animated Book Now Button */
+.academy-page .btn-3d-book {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #1a3a52 0%, #2a5a8a 50%, #1a3a52 100%);
+  background-size: 200% 200%;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  text-decoration: none;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  transform: perspective(500px) translateZ(0) rotateX(0deg);
+  box-shadow:
+    0 4px 0 #0f1f2f,
+    0 6px 12px rgba(15, 31, 47, 0.35),
+    0 8px 24px rgba(26, 58, 82, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  transition: box-shadow 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.academy-page .btn-3d-book::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0) 20%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0) 80%,
+    transparent 100%
+  );
+  transform: translateX(-200%) skewX(-20deg);
+  will-change: transform;
+  animation: academy-btn3d-shine 3.5s ease-in-out infinite;
+}
+
+.academy-page .btn-3d-book::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 52px;
+  background: linear-gradient(135deg, rgba(42, 90, 138, 0.6), rgba(26, 58, 82, 0.1), rgba(42, 90, 138, 0.6));
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.academy-page .btn-3d-book:hover {
+  transform: perspective(500px) translateZ(8px) rotateX(-3deg) translateY(-3px);
+  box-shadow:
+    0 7px 0 #0f1f2f,
+    0 10px 20px rgba(15, 31, 47, 0.4),
+    0 14px 40px rgba(26, 58, 82, 0.3),
+    0 0 20px rgba(42, 90, 138, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background-size: 100% 100%;
+}
+
+.academy-page .btn-3d-book:hover::after {
+  opacity: 1;
+}
+
+.academy-page .btn-3d-book:active {
+  transform: perspective(500px) translateZ(0) rotateX(2deg) translateY(2px);
+  box-shadow:
+    0 1px 0 #0f1f2f,
+    0 2px 4px rgba(15, 31, 47, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition-duration: 0.08s;
+}
+
+@keyframes academy-btn3d-shine {
+  0%, 100% { transform: translateX(-200%) skewX(-20deg); }
+  50% { transform: translateX(320%) skewX(-20deg); }
+}
+
+.academy-page .btn-3d-book .btn-3d-icon {
+  display: inline-flex;
+  transition: transform 0.3s ease;
+}
+
+.academy-page .btn-3d-book:hover .btn-3d-icon {
+  transform: translateX(3px) scale(1.15);
+}
+
+.academy-page .btn-outline-gold {
+  border: 1px solid rgba(26, 58, 82, 0.25);
+  color: var(--color-gold);
+  font-weight: 600;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, transform 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.academy-page .btn-outline-gold:hover {
+  background: rgba(26, 58, 82, 0.06);
+  border-color: rgba(26, 58, 82, 0.4);
+  box-shadow: 0 12px 26px -16px rgba(15, 31, 47, 0.7);
+  transform: translateY(-2px);
+}
+
+/* Scroll Reveal Animations */
+.academy-page .reveal {
+  opacity: 1;
+}
+
+.academy-page .reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Hairline rule used at the top of every section */
+.academy-page .hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(26, 58, 82, 0.16), transparent);
+}
+
+/* Section eyebrow pill */
+.academy-page .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem 0.4rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+  background: linear-gradient(135deg, rgba(26, 58, 82, 0.07), rgba(42, 90, 138, 0.03));
+  border: 1px solid rgba(26, 58, 82, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.academy-page .eyebrow-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(212, 168, 67, 0.18);
+}
+
+/* Section heading rhythm */
+.academy-page .section-head {
+  max-width: 44rem;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.academy-page .section-title {
+  font-size: clamp(1.875rem, 1.2rem + 2.6vw, 3rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.academy-page .section-sub {
+  color: var(--color-text-secondary);
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+
+/* Elevated white surface card */
+.academy-page .u-card {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdfe 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: border-color 0.4s ease;
+}
+
+.academy-page .u-card:hover {
+  border-color: rgba(26, 58, 82, 0.22);
+}
+
+/* Rounded icon tile that replaces the old emoji glyphs */
+.academy-page .icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  color: var(--ink);
+  background: linear-gradient(135deg, rgba(26, 58, 82, 0.09), rgba(42, 90, 138, 0.04));
+  border: 1px solid rgba(26, 58, 82, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.academy-page .icon-tile-lg {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-lg);
+}
+
+.academy-page .group:hover .icon-tile {
+  transform: translateY(-2px) scale(1.06);
+  background: linear-gradient(135deg, rgba(26, 58, 82, 0.16), rgba(42, 90, 138, 0.07));
+  border-color: rgba(26, 58, 82, 0.24);
+  box-shadow: 0 10px 22px -14px rgba(15, 31, 47, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.academy-page .icon-tile-accent {
+  color: var(--accent-dark);
+  background: linear-gradient(135deg, rgba(212, 168, 67, 0.18), rgba(212, 168, 67, 0.06));
+  border-color: rgba(212, 168, 67, 0.32);
+}
+
+.academy-page .group:hover .icon-tile-accent {
+  background: linear-gradient(135deg, rgba(212, 168, 67, 0.28), rgba(212, 168, 67, 0.1));
+  border-color: rgba(212, 168, 67, 0.5);
+}
+
+/* Small check bullet */
+.academy-page .check-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(26, 58, 82, 0.09);
+  border: 1px solid rgba(26, 58, 82, 0.14);
+}
+
+/* Ambient background wash used behind sections */
+.academy-page .mesh-soft {
+  background:
+    radial-gradient(60% 55% at 12% 0%, rgba(26, 58, 82, 0.05), transparent 70%),
+    radial-gradient(50% 50% at 92% 20%, rgba(42, 90, 138, 0.05), transparent 70%);
+}
+
+/* Form field */
+.academy-page .field {
+  width: 100%;
+  padding: 0.8125rem 1rem;
+  border-radius: var(--radius-md);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.academy-page .field::placeholder {
+  color: rgba(122, 143, 165, 0.75);
+}
+
+.academy-page .field:hover {
+  border-color: var(--line-strong);
+}
+
+.academy-page .field:focus {
+  border-color: rgba(42, 90, 138, 0.55);
+  box-shadow: 0 0 0 4px rgba(42, 90, 138, 0.12);
+}
+
+.academy-page .field-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+  margin-bottom: 0.4rem;
+}
+
+/* Nav link */
+.academy-page .nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  color: var(--color-text-secondary);
+  transition: color 0.3s ease, background 0.3s ease, transform 0.3s ease;
+}
+
+@media (min-width: 1536px) {
+  .academy-page .nav-link {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.875rem;
+  }
+}
+
+.academy-page .nav-link:hover {
+  color: var(--ink);
+  background: rgba(26, 58, 82, 0.05);
+  transform: translateY(-1px);
+}
+
+/* Divider between hero stats */
+.academy-page .stat-rule {
+  width: 1px;
+  align-self: stretch;
+  background: linear-gradient(180deg, transparent, rgba(26, 58, 82, 0.18), transparent);
+}
+
+/* Defer painting/layout of offscreen sections until they are scrolled near.
+   contain-intrinsic-size keeps the scrollbar stable before first render. */
+.academy-page .cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 700px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .academy-page *,
+  .academy-page *::before,
+  .academy-page *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
