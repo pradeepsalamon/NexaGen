@@ -31,7 +31,7 @@ export function CoachClassRequestsSection() {
       {isLoading ? (
         <Skeleton className="h-20 w-full rounded-app" />
       ) : (
-        <div className="grid gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {requests.slice(0, 20).map((r) => (
             <Card key={r.id} className="flex flex-col gap-2 p-4">
               <div className="flex items-start justify-between gap-2">

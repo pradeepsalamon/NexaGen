@@ -199,7 +199,7 @@ export function FeedbackFormEditor({
             description="Decide what makes a student get asked. Only classes that end after the start date (or after the form is created) count."
             title="When to ask"
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label htmlFor="feedback-trigger">Ask</Label>
                 <Select id="feedback-trigger" options={TRIGGER_OPTIONS} {...register("trigger")} />
@@ -248,7 +248,7 @@ export function FeedbackFormEditor({
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="grid gap-1.5">
                 <Label>Start (optional)</Label>
                 <Controller
@@ -334,7 +334,7 @@ export function FeedbackFormEditor({
               }}
             />
             {batches.length > 0 ? (
-              <div className="grid max-h-48 gap-1 overflow-y-auto rounded-app border border-app-border p-2 sm:grid-cols-2">
+              <div className="grid grid-cols-1 max-h-48 gap-1 overflow-y-auto rounded-app border border-app-border p-2 sm:grid-cols-2">
                 {batches.map((batch) => (
                   <Checkbox
                     checked={batchIds.includes(batch.id)}

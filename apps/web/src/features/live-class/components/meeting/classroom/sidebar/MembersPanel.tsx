@@ -137,7 +137,7 @@ export function MembersPanel({ classId, members }: { classId: string; members: R
 
         {away.length > 0 ? (
           <>
-            <h3 className="px-2 pb-1 pt-3 text-[10px] font-bold uppercase tracking-widest text-app-muted">
+            <h3 className="px-2 pb-1 pt-3 text-xs font-semibold text-app-muted">
               Not in class ({away.length})
             </h3>
             {away.map((student) => (
@@ -170,7 +170,7 @@ const MemberRow = memo(function MemberRow({
       <span className="min-w-0 flex-1">
         <span className="block truncate text-[13px] font-medium text-app-text">{member.name}</span>
         {member.isCoach ? (
-          <span className="block text-[10px] font-semibold uppercase tracking-wide text-primary-ink">Coach</span>
+          <span className="block text-[10px] font-semibold text-primary-ink">Coach</span>
         ) : member.identities.length > 1 ? (
           <span className="block text-[10px] text-app-muted">{member.identities.length} tabs open</span>
         ) : null}
@@ -188,7 +188,7 @@ const MemberRow = memo(function MemberRow({
   );
 });
 
-/** In class: green, amber on a poor connection. */
+/** In class: success, warning on a poor connection. */
 function StatusDot({ participant }: { participant: Participant }) {
   const { quality } = useConnectionQualityIndicator({ participant });
   const poor = quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost;
@@ -198,7 +198,7 @@ function StatusDot({ participant }: { participant: Participant }) {
         aria-label={poor ? "In class, poor connection" : "In class"}
         className={cn(
           "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-app-surface",
-          poor ? "bg-amber-500" : "bg-emerald-500"
+          poor ? "bg-warning" : "bg-success"
         )}
       />
     </SimpleTooltip>
@@ -222,7 +222,7 @@ function AwayRow({ student }: { student: PullRosterStudent }) {
         <span
           className={cn(
             "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-app-surface",
-            student.online ? "bg-amber-400" : "bg-app-border"
+            student.online ? "bg-warning" : "bg-app-border"
           )}
           aria-hidden="true"
         />

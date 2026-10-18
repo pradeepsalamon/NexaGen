@@ -18,7 +18,7 @@ export function CoachRatingsPanel({ onViewResponses }: { onViewResponses: (coach
 
   if (isLoading) {
     return (
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         {[0, 1, 2, 3].map((i) => (
           <Skeleton className="h-40 rounded-app" key={i} />
         ))}
@@ -37,7 +37,7 @@ export function CoachRatingsPanel({ onViewResponses }: { onViewResponses: (coach
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
       {coaches.map((coach) => (
         <Card className="grid gap-4 p-4 sm:p-5" key={coach.coachId}>
           <div className="flex items-start justify-between gap-3">

@@ -29,7 +29,7 @@ export function PieceColorPicker({ draft, onChange }: PieceColorPickerProps) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <ColorField
         id="piece-color-white"
         label="White pieces"

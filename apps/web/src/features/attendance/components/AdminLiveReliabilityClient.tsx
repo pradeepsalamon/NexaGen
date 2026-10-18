@@ -18,8 +18,8 @@ import { Badge } from "@/components/ui/Badge";
 // LiveClassMonitor, per class).
 
 const PRESENCE_DOT: Record<"RECONNECTING" | "OFFLINE", string> = {
-  RECONNECTING: "bg-amber-500 animate-pulse",
-  OFFLINE: "bg-orange-500",
+  RECONNECTING: "bg-warning animate-pulse",
+  OFFLINE: "bg-app-muted",
 };
 
 const PRESENCE_LABEL: Record<"RECONNECTING" | "OFFLINE", string> = {
@@ -63,18 +63,18 @@ export function AdminLiveReliabilityClient() {
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatCard icon={<Video className="size-4 text-app-muted" />} label="Live classes" value={data.liveClassCount} />
             <StatCard
-              icon={<AlertTriangle className="size-4 text-amber-500" />}
+              icon={<AlertTriangle className="size-4 text-warning-ink" />}
               label="Affected classes"
               value={data.affectedClassCount}
               tone={data.affectedClassCount > 0 ? "warn" : undefined}
             />
-            <StatCard icon={<Wifi className="size-4 text-amber-500" />} label="Reconnecting" value={data.totalReconnecting} />
-            <StatCard icon={<WifiOff className="size-4 text-orange-500" />} label="Offline" value={data.totalOffline} />
+            <StatCard icon={<Wifi className="size-4 text-warning-ink" />} label="Reconnecting" value={data.totalReconnecting} />
+            <StatCard icon={<WifiOff className="size-4 text-app-muted" />} label="Offline" value={data.totalOffline} />
           </div>
 
           {data.classes.length === 0 ? (
             <Card className="flex items-center gap-3 p-6">
-              <ShieldCheck className="size-5 shrink-0 text-green-600" />
+              <ShieldCheck className="size-5 shrink-0 text-success-ink" />
               <p className="text-sm text-app-muted">
                 {data.liveClassCount === 0
                   ? "No classes are currently live."
@@ -180,7 +180,7 @@ function StatCard({
     <Card
       className={cn(
         "flex items-center gap-3 p-4",
-        tone === "warn" && value > 0 && "border-amber-300 bg-amber-50"
+        tone === "warn" && value > 0 && "border-warning/40 bg-warning/10"
       )}
     >
       {icon}
@@ -195,7 +195,7 @@ function StatCard({
 function ClassCard({ liveClass, timeZone }: { liveClass: LiveReliabilityClass; timeZone: string }) {
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-app-border/60 bg-amber-50/60 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-app-border/60 bg-warning/[0.06] p-4">
         <div>
           <p className="text-sm font-bold text-app-text">{liveClass.title}</p>
           <p className="text-xs text-app-muted">

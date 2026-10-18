@@ -220,7 +220,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
             No moments yet — great play earns a spot here.
           </p>
         ) : (
-          <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+          <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             {state.moments.map((m) => (
               <li
                 className="relative rounded-control bg-app-surface p-3 text-app-text"

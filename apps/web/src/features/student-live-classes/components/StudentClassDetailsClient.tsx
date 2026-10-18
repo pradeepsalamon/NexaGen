@@ -87,7 +87,7 @@ function DetailsSkeleton() {
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-5 w-40" />
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Skeleton className="h-28 rounded-app" />
         <Skeleton className="h-28 rounded-app" />
       </div>
@@ -127,7 +127,7 @@ function ClassDetails({ cls }: { cls: StudentClassDetail }) {
         </div>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <Card className="space-y-3 p-5">
           <h2 className="text-sm font-bold text-app-muted">Schedule</h2>
           <p className="flex items-center gap-2 font-semibold text-app-text">

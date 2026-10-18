@@ -42,7 +42,7 @@ export function QuestionEditor({
     <div className="grid gap-3 rounded-app border border-app-border bg-app-soft/40 p-3 sm:p-4">
       <div className="flex items-start gap-2">
         <span className="mt-2.5 w-6 shrink-0 text-sm font-bold text-app-muted">{index + 1}.</span>
-        <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_180px]">
+        <div className="grid grid-cols-1 min-w-0 flex-1 gap-2 sm:grid-cols-[1fr_180px]">
           <Input
             aria-label={`Question ${index + 1} text`}
             hasError={Boolean(error)}

@@ -189,7 +189,7 @@ function ReportBody({
       )}
       {!report.limited && notes.length > 0 && <p className="text-xs text-app-muted">{notes.join(" ")}</p>}
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {(["white", "black"] as const).map((side) => {
           const s = report.sides[side];
           const errors = s.counts.MISTAKE + s.counts.MISSED_WIN + s.counts.MISSED_DRAW;

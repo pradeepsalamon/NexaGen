@@ -48,7 +48,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
   return (
     <PageContainer>
-      <div className="mx-auto grid min-h-[calc(100dvh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100dvh-6.5rem)] lg:grid-cols-[minmax(0,5fr)_minmax(420px,7fr)] lg:items-stretch lg:gap-6">
+      <div className="mx-auto grid grid-cols-1 min-h-[calc(100dvh-5.5rem)] max-w-6xl animate-fade-in lg:min-h-[calc(100dvh-6.5rem)] lg:grid-cols-[minmax(0,5fr)_minmax(420px,7fr)] lg:items-stretch lg:gap-6">
         <section
           className="flex min-h-[calc(100dvh-5.5rem)] items-center justify-center lg:max-h-[calc(100dvh-6.5rem)] lg:min-h-0 lg:overflow-y-auto lg:p-2"
           aria-label="Authentication form"

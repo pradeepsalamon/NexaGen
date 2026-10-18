@@ -46,9 +46,9 @@ export function AssignmentResultView({
       <Card className="p-5">
         <div className="flex items-center gap-3">
           {result.passed ? (
-            <CheckCircle2 className="size-8 text-green-600" strokeWidth={2.5} />
+            <CheckCircle2 className="size-8 text-success-ink" strokeWidth={2.5} />
           ) : (
-            <XCircle className="size-8 text-red-500" strokeWidth={2.5} />
+            <XCircle className="size-8 text-warning-ink" strokeWidth={2.5} />
           )}
           <div>
             <h2 className="text-xl font-extrabold text-app-text">
@@ -70,7 +70,7 @@ export function AssignmentResultView({
         </div>
 
         {result.engineUnavailable && (
-          <p className="mt-3 rounded-app border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700">
+          <p className="mt-3 rounded-app border border-warning/40 bg-warning/10 p-2 text-xs text-warning-ink">
             The engine was offline, so this game was scored from the final position only.
           </p>
         )}
@@ -122,9 +122,9 @@ export function AssignmentResultView({
                       <TableCell className="text-left py-1.5 pr-3 text-app-text">{r.expectedMove ?? "—"}</TableCell>
                       <TableCell className="text-left py-1.5">
                         {r.correct === true ? (
-                          <span className="text-green-600">✓ Correct</span>
+                          <span className="text-success-ink">✓ Correct</span>
                         ) : r.correct === false ? (
-                          <span className="text-red-500">✗ Incorrect</span>
+                          <span className="text-warning-ink">✗ Incorrect</span>
                         ) : (
                           <span className="text-app-muted">— Not reached</span>
                         )}

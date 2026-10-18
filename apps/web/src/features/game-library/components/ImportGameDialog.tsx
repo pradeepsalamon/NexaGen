@@ -93,7 +93,7 @@ export function ImportGameDialog({
               />
             </label>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="import-title">Title (optional)</Label>
               <Input id="import-title" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} placeholder="From the PGN if empty" />

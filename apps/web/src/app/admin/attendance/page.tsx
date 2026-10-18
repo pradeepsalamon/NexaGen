@@ -155,7 +155,7 @@ export default function AdminAttendanceDashboardPage() {
 
       <section aria-labelledby="attendance-more" className="space-y-4">
         <h2 className="text-lg font-extrabold text-app-text" id="attendance-more">More reports</h2>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {MORE_REPORTS.map(({ description, href, icon: Icon, title }) => (
             <Link
               className="group flex items-start gap-3 rounded-control border border-app-border bg-app-surface p-4 font-normal text-app-text transition-colors hover:border-primary/50 hover:bg-primary/[0.04] hover:opacity-100"

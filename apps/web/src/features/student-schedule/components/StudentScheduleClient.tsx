@@ -222,7 +222,7 @@ export function StudentScheduleClient() {
           onRetry={() => refetchCalendar()}
         />
       ) : activeTab === "calendar" ? (
-        <div className="grid gap-6 lg:grid-cols-12 items-start">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12 items-start">
           {/* Calendar Widget (7 cols on large screens) */}
           <Card className="lg:col-span-7 p-4 sm:p-6 shadow-card space-y-4">
             <div className="flex items-center justify-between">
@@ -282,7 +282,7 @@ export function StudentScheduleClient() {
                     onClick={() => setSelectedDayKey(dayKey)}
                     className={`min-h-14 p-1.5 flex flex-col justify-between items-center rounded-control border text-xs transition ${
                       isSelected
-                        ? "border-primary bg-primary/10 shadow-sm"
+                        ? "border-primary bg-primary/10 shadow-card"
                         : isToday
                         ? "border-accent bg-accent/10"
                         : "border-transparent bg-app-soft/40 hover:bg-app-soft hover:border-app-border"
@@ -368,7 +368,7 @@ export function StudentScheduleClient() {
                     return (
                       <div
                         key={cls.id}
-                        className="rounded-app border border-app-border bg-app-surface p-4 space-y-3 hover:border-primary/40 transition-colors shadow-sm"
+                        className="rounded-app border border-app-border bg-app-surface p-4 space-y-3 hover:border-primary/40 transition-colors shadow-card"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">

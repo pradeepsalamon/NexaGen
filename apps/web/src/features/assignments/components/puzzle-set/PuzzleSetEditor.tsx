@@ -128,7 +128,7 @@ export function PuzzleSetEditor({
   const remove = (index: number) => onChange(value.filter((_, i) => i !== index));
 
   return (
-    <div className="grid gap-4 lg:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       {/* Chosen puzzles, in the order students solve them */}
       <section aria-labelledby="puzzle-set-order" className="min-w-0 space-y-2">
         <div className="flex items-center justify-between gap-2">
@@ -221,7 +221,7 @@ export function PuzzleSetEditor({
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Select
             aria-label="Folder"
             placeholder="All folders"

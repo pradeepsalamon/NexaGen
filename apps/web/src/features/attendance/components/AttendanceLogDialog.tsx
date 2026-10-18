@@ -64,11 +64,11 @@ export function AttendanceLogDialog({
   const getEventIcon = (type: string) => {
     switch (type) {
       case "JOIN":
-        return <LogIn className="h-3.5 w-3.5 text-emerald-600" />;
+        return <LogIn className="h-3.5 w-3.5 text-success-ink" />;
       case "LEAVE":
         return <LogOut className="h-3.5 w-3.5 text-app-muted" />;
       case "DISCONNECT":
-        return <WifiOff className="h-3.5 w-3.5 text-rose-500" />;
+        return <WifiOff className="h-3.5 w-3.5 text-warning-ink" />;
       case "RECONNECT":
         return <RefreshCcw className="h-3.5 w-3.5 text-primary-ink" />;
       default:
@@ -79,15 +79,15 @@ export function AttendanceLogDialog({
   const getEventDotClass = (type: string) => {
     switch (type) {
       case "JOIN":
-        return "bg-emerald-500 ring-2 ring-emerald-100";
+        return "bg-success ring-2 ring-success/20";
       case "LEAVE":
-        return "bg-gray-400 ring-2 ring-app-border";
+        return "bg-app-muted ring-2 ring-app-border";
       case "DISCONNECT":
-        return "bg-rose-500 ring-2 ring-rose-100";
+        return "bg-warning ring-2 ring-warning/20";
       case "RECONNECT":
         return "bg-primary ring-2 ring-primary/40";
       default:
-        return "bg-gray-400 ring-2 ring-app-border";
+        return "bg-app-muted ring-2 ring-app-border";
     }
   };
 
@@ -137,8 +137,8 @@ export function AttendanceLogDialog({
               <Skeleton className="h-36 w-full rounded-control" />
             </div>
           ) : error ? (
-            <div className="p-4 rounded-control bg-red-50 text-red-700 border border-red-200 flex items-center gap-3">
-              <AlertCircle className="size-5 shrink-0 text-red-600" />
+            <div className="p-4 rounded-control border border-app-danger/30 bg-app-danger/[0.06] text-app-danger-ink flex items-center gap-3">
+              <AlertCircle className="size-5 shrink-0" />
               <p className="text-sm">{error}</p>
             </div>
           ) : data ? (

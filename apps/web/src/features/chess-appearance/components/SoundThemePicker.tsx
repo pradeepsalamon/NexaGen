@@ -32,7 +32,7 @@ export function SoundThemePicker({ soundThemes, selectedId, onSelect }: SoundThe
   };
 
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       {soundThemes.map((theme) => {
         const isSelected = theme.id === selectedId;
         const isPlaying = playingId === theme.id;

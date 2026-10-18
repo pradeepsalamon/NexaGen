@@ -44,7 +44,7 @@ export function StudentAnalyticsSection({
             <KpiCard invertDelta isLoading={isLoading} kpi={asKpi(k?.inactiveForThreshold)} label={`Inactive ${data?.inactivityThresholdDays ?? 30}d+`} />
           </KpiCardRow>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <div>
               <p className="mb-2 text-sm font-bold text-app-text">
                 Below {data?.lowAttendanceThreshold ?? 75}% attendance

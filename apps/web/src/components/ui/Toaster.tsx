@@ -39,7 +39,7 @@ export function Toaster({ ...props }: ToasterProps) {
         classNames: {
           closeButton:
             "!bg-app-surface !border-app-border !text-app-text hover:!bg-app-soft",
-          actionButton: "!bg-white !text-black hover:!bg-gray-100 border-none font-bold",
+          actionButton: "!bg-white !text-black hover:!bg-white/90 border-none font-bold",
           description: "text-current/90",
           toast:
             "top-16 rounded-app border p-4 text-white shadow-[0_24px_70px_rgba(16,24,40,0.22)]",

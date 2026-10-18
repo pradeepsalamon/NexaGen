@@ -253,8 +253,8 @@ export default function AdminCompletedClassesPage() {
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                               cls.status === "COMPLETED"
-                                ? "bg-green-50 text-green-700 border border-green-200"
-                                : "bg-red-50 text-red-700 border border-red-200"
+                                ? "border border-success/40 bg-success/10 text-success-ink"
+                                : "border border-warning/40 bg-warning/10 text-warning-ink"
                             }`}
                           >
                             {cls.status}

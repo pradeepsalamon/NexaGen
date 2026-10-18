@@ -49,11 +49,11 @@ export const ClassSummaryCards = memo(function ClassSummaryCards({
       <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="p-2 rounded-control bg-purple-500/10 border border-purple-500/20">
-              <Users className="h-5 w-5 text-purple-500" />
+            <span className="p-2 rounded-control bg-primary/10 border border-primary/20">
+              <Users className="h-5 w-5 text-primary-ink" />
             </span>
           </div>
-          <p className="text-2xl font-bold tracking-tight text-purple-600">
+          <p className="text-2xl font-bold tracking-tight text-primary-ink">
             {attended}{" "}
             <span className="text-lg text-app-muted font-medium">
               / {data.totalStudents}
@@ -68,8 +68,8 @@ export const ClassSummaryCards = memo(function ClassSummaryCards({
       <Card className="border-app-border bg-app-surface shadow-card">
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-3">
-            <span className="p-2 rounded-control bg-green-500/10 border border-green-500/20">
-              <Users className="h-5 w-5 text-green-500" />
+            <span className="p-2 rounded-control bg-success/10 border border-success/20">
+              <Users className="h-5 w-5 text-success-ink" />
             </span>
           </div>
           <div className="flex flex-col gap-1">

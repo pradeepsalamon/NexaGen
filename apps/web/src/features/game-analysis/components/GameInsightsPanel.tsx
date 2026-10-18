@@ -52,7 +52,7 @@ export function GameInsightsPanel({ studentId }: { studentId: string | null }) {
 
   if (insights.isLoading) {
     return (
-      <div aria-busy="true" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div aria-busy="true" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton className="h-32 w-full rounded-app" key={i} />
         ))}
@@ -96,7 +96,7 @@ function InsightsBody({ data, studentId }: { data: StudentGameInsights; studentI
         </p>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={Activity} label="Games analysed" tone="primary" value={String(data.gamesAnalysed)} />
         <StatTile
           context={plural(data.byColor.white.games, "game")}
@@ -121,7 +121,7 @@ function InsightsBody({ data, studentId }: { data: StudentGameInsights; studentI
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="space-y-2 p-4">
           <h3 className="text-sm font-semibold">Accuracy trend</h3>
           {trend.verdict === "NOT_ENOUGH_DATA" ? (
@@ -212,7 +212,7 @@ function InsightsBody({ data, studentId }: { data: StudentGameInsights; studentI
         </p>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="space-y-2 p-4">
           <h3 className="text-sm font-semibold">Time pressure</h3>
           {data.time ? (

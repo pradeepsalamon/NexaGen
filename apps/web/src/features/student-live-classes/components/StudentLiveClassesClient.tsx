@@ -115,7 +115,7 @@ export function StudentLiveClassesClient() {
       {isLoading ? (
         <div className="space-y-6">
           <Skeleton className="h-44 rounded-app" />
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Skeleton className="h-64 rounded-app" />
             <Skeleton className="h-64 rounded-app" />
           </div>
@@ -129,7 +129,7 @@ export function StudentLiveClassesClient() {
         <div className="space-y-8">
           {/* Active Live Session or Next Up Card */}
           {liveClass ? (
-            <Card className="flex flex-col gap-6 border-app-danger/40 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-danger)_10%,var(--color-surface)),var(--color-surface))] p-6 shadow-md sm:flex-row sm:items-center sm:justify-between sm:p-8">
+            <Card className="flex flex-col gap-6 border-app-danger/40 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-danger)_10%,var(--color-surface)),var(--color-surface))] p-6 shadow-lift sm:flex-row sm:items-center sm:justify-between sm:p-8">
               <div className="min-w-0 space-y-2">
                 <div className="inline-flex items-center gap-2 rounded-full bg-app-danger/15 px-3 py-1 text-xs font-extrabold text-app-danger-ink">
                   <span className="relative flex size-2.5">
@@ -157,7 +157,7 @@ export function StudentLiveClassesClient() {
                   </p>
                 )}
               </div>
-              <Button asChild className="shrink-0 text-base font-bold shadow-lg" size="lg" variant="destructive">
+              <Button asChild className="shrink-0 text-base font-bold shadow-lift" size="lg" variant="destructive">
                 <Link href={`/live-class/${liveClass.id}`}>
                   <Play aria-hidden="true" className="size-5 fill-current" strokeWidth={2.5} />
                   Join Class Now
@@ -213,7 +213,7 @@ export function StudentLiveClassesClient() {
           )}
 
           {/* 2-Column Split: Upcoming Classes + Past Recordings */}
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Upcoming Classes */}
             <SectionCard
               title="Upcoming classes"

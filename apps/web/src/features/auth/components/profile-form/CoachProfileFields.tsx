@@ -27,7 +27,7 @@ export const CoachProfileFields = memo(function CoachProfileFields({
           Update the coach details linked to your account.
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <FormField id="profile-coach-title" label="Title">
           <Select
             id="profile-coach-title"
@@ -67,7 +67,7 @@ export const CoachProfileFields = memo(function CoachProfileFields({
           />
         </FormField>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-coach-fide-id" label="FIDE ID">
           <Input
             id="profile-coach-fide-id"
@@ -86,7 +86,7 @@ export const CoachProfileFields = memo(function CoachProfileFields({
           />
         </FormField>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-qualification" label="Qualification">
           <Input
             id="profile-qualification"

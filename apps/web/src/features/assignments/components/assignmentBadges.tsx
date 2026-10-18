@@ -18,8 +18,8 @@ export const ACTIVITY_LABEL: Record<AssignmentActivityType, string> = {
 
 const ACTIVITY_STYLE: Record<AssignmentActivityType, string> = {
   REPLAY: "border-primary/40 bg-primary/10 text-primary-ink",
-  SOLVE_LINE: "border-violet-200 bg-violet-50 text-violet-700",
-  PLAY_VS_ENGINE: "border-amber-200 bg-amber-50 text-amber-700",
+  SOLVE_LINE: "border-warm/40 bg-warm/10 text-warm-ink",
+  PLAY_VS_ENGINE: "border-accent/40 bg-accent/10 text-accent-ink",
   FREE_ANALYSIS: "border-app-border bg-app-soft text-app-text",
   PUZZLE_SET: "border-secondary/40 bg-secondary/10 text-secondary-ink"
 };
@@ -102,7 +102,7 @@ export function DueBadge({
 }) {
   const status = resolveAssignmentDueStatus({ completed, dueDate }, new Date(), timeZone);
   return (
-    <span className={cn("rounded border px-2 py-0.5 text-xs font-medium", DUE_STYLE[status])}>
+    <span className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", DUE_STYLE[status])}>
       {DUE_PREFIX[status]}
       {formatted}
     </span>

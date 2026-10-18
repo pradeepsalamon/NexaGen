@@ -23,7 +23,7 @@ export function RatingCard({ rating }: { rating?: number | null }) {
         <span className="font-mono text-2xl font-black tracking-tight text-app-text">
           {rating.toLocaleString()}
         </span>
-        <span className="rounded border border-secondary/40 bg-secondary/25 px-2 py-0.5 text-[11px] font-bold text-secondary-ink">
+        <span className="rounded-full border border-secondary/40 bg-secondary/25 px-2 py-0.5 text-[11px] font-bold text-secondary-ink">
           {title}
         </span>
       </div>

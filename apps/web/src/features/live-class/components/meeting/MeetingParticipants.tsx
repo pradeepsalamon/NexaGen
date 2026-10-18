@@ -73,10 +73,10 @@ function ConnectionDot({ participant }: { participant: LkParticipant }) {
   const { quality } = useConnectionQualityIndicator({ participant });
   const color =
     quality === ConnectionQuality.Poor
-      ? "bg-amber-500"
+      ? "bg-warning"
       : quality === ConnectionQuality.Unknown
         ? "bg-app-border"
-        : "bg-emerald-500";
+        : "bg-success";
   return (
     <SimpleTooltip label={`Connection: ${quality === ConnectionQuality.Unknown ? "calculating…" : quality}`}>
       <span className={cn("size-2 shrink-0 rounded-full", color)} aria-hidden="true" />
@@ -185,7 +185,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
           )}
           {speaking && <span className="sr-only">(speaking)</span>}
           {isCoachRow && (
-            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-ink">
+            <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary-ink">
               Coach
             </span>
           )}
@@ -193,7 +193,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 text-app-muted">
-        {handRaised && <Hand className="size-4 text-amber-500" aria-label="Hand raised" />}
+        {handRaised && <Hand className="size-4 text-warning-ink" aria-label="Hand raised" />}
 
         {canAct && onMessagePrivately && (
           <SimpleTooltip label={`Message ${name} privately`}>
@@ -254,7 +254,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
                 className={cn(
                   "flex h-6 items-center gap-0.5 rounded-control px-1 transition-colors",
                   boardControlSide
-                    ? "bg-emerald-500/15 text-emerald-500 ring-1 ring-emerald-500/30 hover:bg-emerald-500/25"
+                    ? "bg-success/15 text-success-ink ring-1 ring-success/30 hover:bg-success/25"
                     : "text-app-muted/50 hover:bg-app-soft hover:text-app-muted",
                 )}
                 aria-label={`Board control for ${name}: ${boardControlSideLabel(boardControlSide)}`}
@@ -337,7 +337,7 @@ const WaitingRoomListItem = memo(function WaitingRoomListItem({
           <button
             type="button"
             aria-label={`Admit ${entry.studentName}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-emerald-600 transition-colors hover:bg-emerald-600 hover:text-white"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-white"
             onClick={() => onResolve(entry.studentId, "ADMIT", entry.studentName)}
           >
             <UserCheck className="size-4" strokeWidth={2.5} />
@@ -347,7 +347,7 @@ const WaitingRoomListItem = memo(function WaitingRoomListItem({
           <button
             type="button"
             aria-label={`Deny ${entry.studentName}`}
-            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white"
+            className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-white"
             onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
           >
             <UserX className="size-4" strokeWidth={2.5} />
@@ -374,7 +374,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
       <div className="flex min-w-0 items-center gap-2.5">
         <ParticipantAvatar name={entry.studentName} size="sm" className="size-8 shrink-0 text-[10px]" />
         <span className="truncate text-sm font-medium text-app-text">{entry.studentName}</span>
-        {isApproved && <span className="shrink-0 text-[10px] font-semibold text-emerald-600">Sharing allowed</span>}
+        {isApproved && <span className="shrink-0 text-[10px] font-semibold text-success-ink">Sharing allowed</span>}
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">
@@ -383,7 +383,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
             <button
               type="button"
               aria-label={`Revoke ${entry.studentName}'s screen-share access`}
-              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white"
+              className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-white"
               onClick={() => onResolve(entry.studentId, "REVOKE", entry.studentName)}
             >
               <MonitorX className="size-4" strokeWidth={2.5} />
@@ -395,7 +395,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
               <button
                 type="button"
                 aria-label={`Approve ${entry.studentName}'s screen-share request`}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-emerald-600 transition-colors hover:bg-emerald-600 hover:text-white"
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-success-ink transition-colors hover:bg-success hover:text-white"
                 onClick={() => onResolve(entry.studentId, "APPROVE", entry.studentName)}
               >
                 <UserCheck className="size-4" strokeWidth={2.5} />
@@ -405,7 +405,7 @@ const ScreenShareRequestListItem = memo(function ScreenShareRequestListItem({
               <button
                 type="button"
                 aria-label={`Deny ${entry.studentName}'s screen-share request`}
-                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger transition-colors hover:bg-app-danger hover:text-white"
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-danger-ink transition-colors hover:bg-app-danger hover:text-white"
                 onClick={() => onResolve(entry.studentId, "DENY", entry.studentName)}
               >
                 <UserX className="size-4" strokeWidth={2.5} />
@@ -670,7 +670,7 @@ export function MeetingParticipants({
         >
           {grouped.sharing.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
+              <h3 className="px-3 pb-1 text-xs font-semibold text-primary-ink">
                 Sharing screen ({grouped.sharing.length})
               </h3>
               <div className="flex flex-col gap-0.5">
@@ -681,7 +681,7 @@ export function MeetingParticipants({
 
           {isCoach && waitingList.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              <h3 className="px-3 pb-1 text-xs font-semibold text-warning-ink">
                 Waiting to join ({waitingList.length})
               </h3>
               <div className="flex flex-col gap-0.5">
@@ -694,7 +694,7 @@ export function MeetingParticipants({
 
           {isCoach && screenShareList.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-amber-600">
+              <h3 className="px-3 pb-1 text-xs font-semibold text-warning-ink">
                 Screen-share requests ({screenShareList.length})
               </h3>
               <div className="flex flex-col gap-0.5">
@@ -707,7 +707,7 @@ export function MeetingParticipants({
 
           {grouped.coaches.length > 0 && (
             <div className="mb-2">
-              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-primary-ink">
+              <h3 className="px-3 pb-1 text-xs font-semibold text-primary-ink">
                 Coaches ({grouped.coaches.length})
               </h3>
               <div className="flex flex-col gap-0.5">
@@ -718,7 +718,7 @@ export function MeetingParticipants({
 
           <div>
             {(grouped.coaches.length > 0 || grouped.sharing.length > 0) && (
-              <h3 className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-app-muted">
+              <h3 className="px-3 pb-1 text-xs font-semibold text-app-muted">
                 Students ({grouped.students.length})
               </h3>
             )}

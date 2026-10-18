@@ -20,12 +20,12 @@ function Calendar({
   return (
     <DayPicker
       className={cn(
-        "w-fit bg-white p-4 text-zinc-950 [--cell-size:2.25rem] dark:bg-zinc-950 dark:text-zinc-100",
+        "w-fit bg-app-surface p-4 text-app-text [--cell-size:2.25rem]",
         className
       )}
       classNames={{
         root: cn(
-          "w-fit bg-white text-zinc-950 dark:bg-zinc-950 dark:text-zinc-100",
+          "w-fit bg-app-surface text-app-text",
           defaultClassNames.root
         ),
         months: cn("relative flex flex-col", defaultClassNames.months),
@@ -35,11 +35,11 @@ function Calendar({
           defaultClassNames.nav
         ),
         button_previous: cn(
-          "inline-flex size-[--cell-size] items-center justify-center rounded-md border border-transparent bg-transparent p-0 text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-40 aria-disabled:opacity-40 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+          "inline-flex size-[--cell-size] items-center justify-center rounded-control border border-transparent bg-transparent p-0 text-app-muted transition hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-40 aria-disabled:opacity-40",
           defaultClassNames.button_previous
         ),
         button_next: cn(
-          "inline-flex size-[--cell-size] items-center justify-center rounded-md border border-transparent bg-transparent p-0 text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 disabled:pointer-events-none disabled:opacity-40 aria-disabled:opacity-40 dark:text-zinc-100 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
+          "inline-flex size-[--cell-size] items-center justify-center rounded-control border border-transparent bg-transparent p-0 text-app-muted transition hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus disabled:pointer-events-none disabled:opacity-40 aria-disabled:opacity-40",
           defaultClassNames.button_next
         ),
         month_caption: cn(
@@ -48,20 +48,20 @@ function Calendar({
         ),
         caption_label: cn(
           captionLayout === "label"
-            ? "select-none text-base font-bold text-zinc-950 dark:text-zinc-100"
-            : "flex h-8 select-none items-center gap-1 rounded-md pl-2.5 pr-1.5 text-sm font-bold text-zinc-950 dark:text-zinc-100 [&>svg]:size-3.5 [&>svg]:text-zinc-500",
+            ? "select-none text-base font-bold text-app-text"
+            : "flex h-8 select-none items-center gap-1 rounded-control pl-2.5 pr-1.5 text-sm font-bold text-app-text [&>svg]:size-3.5 [&>svg]:text-app-muted",
           defaultClassNames.caption_label
         ),
         dropdowns: cn(
-          "flex h-[--cell-size] items-center justify-center gap-2 text-sm font-medium text-zinc-950 dark:text-zinc-100",
+          "flex h-[--cell-size] items-center justify-center gap-2 text-sm font-medium text-app-text",
           defaultClassNames.dropdowns
         ),
         dropdown_root: cn(
-          "relative rounded-md border border-zinc-300 bg-white text-zinc-950 transition-colors hover:bg-zinc-100 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-blue-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-800",
+          "relative rounded-control border border-app-border bg-app-surface text-app-text transition-colors hover:bg-app-soft has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-app-focus",
           defaultClassNames.dropdown_root
         ),
         dropdown: cn(
-          "absolute inset-0 cursor-pointer bg-white text-zinc-950 opacity-0 dark:bg-zinc-950 dark:text-zinc-100",
+          "absolute inset-0 cursor-pointer bg-app-surface text-app-text opacity-0",
           defaultClassNames.dropdown
         ),
         month_grid: cn(
@@ -70,35 +70,35 @@ function Calendar({
         ),
         weekdays: cn("flex gap-1", defaultClassNames.weekdays),
         weekday: cn(
-          "flex size-[--cell-size] select-none items-center justify-center rounded-md text-[0.82rem] font-normal text-zinc-500 dark:text-zinc-500",
+          "flex size-[--cell-size] select-none items-center justify-center rounded-control text-[0.82rem] font-normal text-app-muted",
           defaultClassNames.weekday
         ),
         week: cn("mt-1.5 flex gap-1", defaultClassNames.week),
         week_number_header: cn(
-          "size-[--cell-size] select-none text-zinc-500 dark:text-zinc-500",
+          "size-[--cell-size] select-none text-app-muted",
           defaultClassNames.week_number_header
         ),
         week_number: cn(
-          "flex size-[--cell-size] items-center justify-center text-[0.82rem] font-normal text-zinc-500 dark:text-zinc-500",
+          "flex size-[--cell-size] items-center justify-center text-[0.82rem] font-normal text-app-muted",
           defaultClassNames.week_number
         ),
         day: cn(
-          "relative size-[--cell-size] select-none p-0 text-center text-zinc-950 dark:text-zinc-100",
+          "relative size-[--cell-size] select-none p-0 text-center text-app-text",
           defaultClassNames.day
         ),
-        today: cn("text-zinc-950 dark:text-zinc-100", defaultClassNames.today),
+        today: cn("text-app-text", defaultClassNames.today),
         selected: cn("text-white", defaultClassNames.selected),
         outside: cn(
-          "text-zinc-300 opacity-80 aria-selected:text-zinc-300 dark:text-zinc-700 dark:aria-selected:text-zinc-700",
+          "text-app-muted/50 opacity-80 aria-selected:text-app-muted/50",
           defaultClassNames.outside
         ),
         disabled: cn(
-          "text-zinc-300 opacity-50 dark:text-zinc-700",
+          "text-app-muted/50 opacity-50",
           defaultClassNames.disabled
         ),
         hidden: cn("invisible", defaultClassNames.hidden),
         range_start: cn("text-white", defaultClassNames.range_start),
-        range_middle: cn("text-zinc-100", defaultClassNames.range_middle),
+        range_middle: cn("text-app-text", defaultClassNames.range_middle),
         range_end: cn("text-white", defaultClassNames.range_end),
         ...classNames
       }}
@@ -157,17 +157,17 @@ function CalendarDayButton({
     <button
       ref={ref}
       className={cn(
-        "inline-flex size-[--cell-size] items-center justify-center rounded-md border border-transparent bg-transparent p-0 text-sm font-semibold leading-none text-zinc-950 transition-colors dark:text-zinc-100",
-        "hover:bg-zinc-100 hover:text-zinc-950 dark:hover:bg-zinc-800 dark:hover:text-zinc-50",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500",
+        "inline-flex size-[--cell-size] items-center justify-center rounded-control border border-transparent bg-transparent p-0 text-sm font-semibold leading-none text-app-text transition-colors",
+        "hover:bg-app-soft hover:text-app-text",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
         "disabled:pointer-events-none disabled:opacity-50",
         modifiers.outside &&
-          "text-zinc-300 opacity-80 hover:bg-transparent hover:text-zinc-400 dark:text-zinc-700 dark:hover:text-zinc-600",
+          "text-app-muted/50 opacity-80 hover:bg-transparent hover:text-app-muted",
         modifiers.today &&
           !modifiers.selected &&
-          "border-blue-500 text-zinc-950 ring-1 ring-blue-500 ring-offset-0 dark:text-zinc-100",
+          "border-primary text-app-text ring-1 ring-primary ring-offset-0",
         modifiers.selected &&
-          "border-blue-600 bg-blue-600 text-white hover:bg-blue-600 hover:text-white",
+          "border-primary bg-primary text-white hover:bg-primary hover:text-white",
         className
       )}
       data-day={`${day.date.getFullYear()}-${day.date.getMonth() + 1}-${day.date.getDate()}`}

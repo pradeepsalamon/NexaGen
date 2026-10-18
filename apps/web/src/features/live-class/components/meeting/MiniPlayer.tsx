@@ -15,6 +15,7 @@ import { usePip } from "../../providers/PipProvider";
 import { useSpotlightTrack } from "../../hooks/useSpotlightTrack";
 import { ParticipantAvatar } from "./ParticipantAvatar";
 
+// Native `title` throughout: Radix tooltips portal into the main document, not this PiP window.
 function MiniPlayerContent() {
   const { close, cycleSize, pinned, togglePinned } = usePip();
   const { pinnedParticipantSid, raisedHands, settings } = useLiveClassState(
@@ -79,7 +80,7 @@ function MiniPlayerContent() {
 
         {handCount > 0 && (
           <div
-            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-amber-500 px-1.5 py-1 text-[11px] font-bold text-white shadow-card"
+            className="absolute right-1.5 top-1.5 flex items-center gap-1 rounded-full bg-warning px-1.5 py-1 text-[11px] font-bold text-white shadow-card"
             title={`${handCount} hand${handCount > 1 ? "s" : ""} raised`}
           >
             <Hand className="size-3" />

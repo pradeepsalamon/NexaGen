@@ -49,9 +49,9 @@ function useConnectionSummary(): ConnectionSummary {
       state: "reconnecting",
       label: "Reconnecting",
       quality: "Reconnecting",
-      dot: "bg-amber-500",
-      text: "text-amber-600 dark:text-amber-400",
-      ring: "border-amber-500/40 bg-amber-500/10",
+      dot: "bg-warning",
+      text: "text-warning-ink",
+      ring: "border-warning/40 bg-warning/10",
       pulse: true,
     };
   }
@@ -61,7 +61,7 @@ function useConnectionSummary(): ConnectionSummary {
       label: "Offline",
       quality: "Offline",
       dot: "bg-app-danger",
-      text: "text-app-danger",
+      text: "text-app-danger-ink",
       ring: "border-app-danger/40 bg-app-danger/10",
       pulse: false,
     };
@@ -72,7 +72,7 @@ function useConnectionSummary(): ConnectionSummary {
       label: "Live",
       quality: "Weak network",
       dot: "bg-app-danger",
-      text: "text-app-danger",
+      text: "text-app-danger-ink",
       ring: "border-app-danger/40 bg-app-danger/10",
       pulse: false,
     };
@@ -82,9 +82,9 @@ function useConnectionSummary(): ConnectionSummary {
       state: "good",
       label: "Live",
       quality: "Good network",
-      dot: "bg-amber-500",
-      text: "text-amber-600 dark:text-amber-400",
-      ring: "border-amber-500/40 bg-amber-500/10",
+      dot: "bg-warning",
+      text: "text-warning-ink",
+      ring: "border-warning/40 bg-warning/10",
       pulse: false,
     };
   }
@@ -103,9 +103,9 @@ function useConnectionSummary(): ConnectionSummary {
     state: "excellent",
     label: "Live",
     quality: "Excellent network",
-    dot: "bg-emerald-500",
-    text: "text-emerald-600 dark:text-emerald-400",
-    ring: "border-emerald-500/40 bg-emerald-500/10",
+    dot: "bg-success",
+    text: "text-success-ink",
+    ring: "border-success/40 bg-success/10",
     pulse: false,
   };
 }
@@ -167,8 +167,8 @@ export function ConnectionBanner() {
           )}
           role="status"
         >
-          <div className="flex items-center gap-2 rounded-b-app border border-t-0 border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-xs font-semibold text-amber-600 backdrop-blur dark:text-amber-400">
-            <span className="size-2 animate-pulse rounded-full bg-amber-500 motion-reduce:animate-none" />
+          <div className="flex items-center gap-2 rounded-b-app border border-t-0 border-warning/40 bg-warning/15 px-3 py-1.5 text-xs font-semibold text-warning-ink backdrop-blur">
+            <span className="size-2 animate-pulse rounded-full bg-warning motion-reduce:animate-none" />
             Connection interrupted — reconnecting…
           </div>
         </motion.div>
@@ -198,7 +198,7 @@ export function NetworkQualityIndicator({ participant, className }: NetworkQuali
 
   const color =
     quality === ConnectionQuality.Poor
-      ? "bg-amber-400"
+      ? "bg-warning"
       : quality === ConnectionQuality.Good
         ? "bg-white/70"
         : "bg-white";
@@ -268,10 +268,10 @@ export function TimerBadge({
 
   if (mode === "down") {
     if (isOvertime || remainingSeconds <= 60) {
-      colorClass = "text-app-danger border-app-danger bg-app-danger/10 hover:bg-app-danger/20";
+      colorClass = "text-app-danger-ink border-app-danger bg-app-danger/10 hover:bg-app-danger/20";
       isWarning = true;
     } else if (remainingSeconds <= 300) {
-      colorClass = "text-amber-500 border-amber-500 bg-amber-500/10 hover:bg-amber-500/20";
+      colorClass = "text-warning-ink border-warning bg-warning/10 hover:bg-warning/20";
       isWarning = true;
     } else {
       colorClass = "text-primary-ink border-primary bg-primary/10 hover:bg-primary/20";
@@ -320,7 +320,7 @@ export function RecordingBadge({
   return (
     <span
       className={cn(
-        "flex items-center gap-1.5 rounded-full bg-app-danger/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-app-danger",
+        "flex items-center gap-1.5 rounded-full bg-app-danger/15 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-app-danger-ink",
         className,
       )}
       role="status"

@@ -85,7 +85,7 @@ export function OperationsSection({ query }: { query: AnalyticsRangeQuery }) {
             </div>
 
             {t ? (
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="rounded-control bg-app-soft p-3 text-sm">
                   <p className="mb-1 font-bold text-app-text">Today&apos;s classes</p>
                   <p className="text-app-muted">

@@ -184,7 +184,7 @@ export function SpectatorRoomClient({ classId }: { classId: string }) {
     return (
       <div className="space-y-4">
         <Skeleton className="h-16 rounded-app" />
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <Skeleton className="aspect-square w-full max-w-[calc(100dvh-12rem)] rounded-app" />
           <Skeleton className="h-64 rounded-app" />
         </div>
@@ -303,7 +303,7 @@ export function SpectatorRoomClient({ classId }: { classId: string }) {
           </div>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="flex min-w-0 justify-center">
             <div className="relative aspect-square w-full max-w-[calc(100dvh-12rem)]">
               <ReadOnlySyncedBoard className="size-full [&_.cg-wrap]:size-full" state={room.board} />

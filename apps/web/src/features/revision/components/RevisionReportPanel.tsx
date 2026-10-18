@@ -117,7 +117,7 @@ function RevisionInsights({ hideDue, report }: { hideDue: boolean; report: Revis
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <SectionCard
           description="The last 8 weeks. Recall = reviews rated Hard, Good or Easy. Accuracy = revision puzzles solved, whatever the rating."
           title="Reviews by week"

@@ -58,7 +58,7 @@ export function UserGrowthSection({
         </div>
       }
     >
-      <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[2fr_1fr]">
         <div>
           <ChartContainer
             isEmpty={!isLoading && points.every((p) => p["New registrations"] === 0)}

@@ -91,7 +91,10 @@ export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
     <SectionCard
       actions={
         <Button asChild size="sm" variant="ghost">
-          <Link href="/student/schedule">View all</Link>
+          <Link className="text-primary-ink" href="/student/schedule">
+            View all
+            <ArrowRight className="ml-1 size-4" strokeWidth={2.5} aria-hidden="true" />
+          </Link>
         </Button>
       }
       className="h-full"

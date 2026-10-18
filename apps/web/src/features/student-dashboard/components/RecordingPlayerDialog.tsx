@@ -82,8 +82,8 @@ export function RecordingPlayerDialog({ classId, isOpen, onClose, topic }: Recor
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl w-[95vw] h-[85dvh] flex flex-col p-0 overflow-hidden bg-black border-border/40">
-        <DialogHeader className="p-4 bg-app-background/95 backdrop-blur z-10 border-b border-border/40 absolute top-0 w-full">
+      <DialogContent className="max-w-4xl w-[95vw] h-[85dvh] flex flex-col p-0 overflow-hidden bg-black border-app-border/40">
+        <DialogHeader className="p-4 bg-app-background/95 backdrop-blur z-10 border-b border-app-border/40 absolute top-0 w-full">
           <DialogTitle className="text-app-text">{topic} Recording</DialogTitle>
         </DialogHeader>
         

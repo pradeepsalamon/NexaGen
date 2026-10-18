@@ -23,7 +23,7 @@ export function PanelHeader({
         className,
       )}
     >
-      <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-app-muted">
+      <span className="flex items-center gap-1.5 text-xs font-bold text-app-muted">
         {title}
         {count !== undefined && (
           <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] tabular-nums text-app-muted">

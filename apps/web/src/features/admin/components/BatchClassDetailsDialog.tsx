@@ -67,7 +67,7 @@ export function BatchClassDetailsDialog({
           )}
 
           {isError && (
-            <div className="text-sm text-destructive">
+            <div className="text-sm text-app-danger-ink">
               Failed to load class details.
             </div>
           )}
@@ -110,7 +110,7 @@ export function BatchClassDetailsDialog({
               </div>
 
               {batchClass.hasRecording && (
-                <div className="flex items-center justify-between p-3 rounded-control border border-border/60 bg-app-soft/10">
+                <div className="flex items-center justify-between p-3 rounded-control border border-app-border/60 bg-app-soft/10">
                   <div className="flex items-center gap-2 text-sm">
                     <Video className="size-4 text-primary-ink" />
                     <span className="font-medium">Class Recording</span>
@@ -138,7 +138,7 @@ export function BatchClassDetailsDialog({
                 </div>
 
                 {batchClass.participants.length > 0 ? (
-                  <ul className="space-y-2 border rounded-control p-3 bg-card max-h-[150px] overflow-y-auto">
+                  <ul className="space-y-2 rounded-control border border-app-border bg-app-surface p-3 max-h-[150px] overflow-y-auto">
                     {batchClass.participants.map((p, i) => (
                       <li key={i} className="flex justify-between items-center text-sm">
                         <span className="flex items-center gap-2">

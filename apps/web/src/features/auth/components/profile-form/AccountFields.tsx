@@ -35,7 +35,7 @@ export const AccountFields = memo(function AccountFields({
 
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-email" label="Email">
           <Input
             autoComplete="email"
@@ -60,7 +60,7 @@ export const AccountFields = memo(function AccountFields({
       </div>
 
       {emailChanged ? (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <FormField
             hint="Required to change your email address."
             id="profile-current-password"
@@ -79,7 +79,7 @@ export const AccountFields = memo(function AccountFields({
         </div>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-first-name" label="First Name">
           <Input
             autoComplete="given-name"
@@ -101,7 +101,7 @@ export const AccountFields = memo(function AccountFields({
         </FormField>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-phone-number" label="Phone Number">
           <Input
             autoComplete="tel"

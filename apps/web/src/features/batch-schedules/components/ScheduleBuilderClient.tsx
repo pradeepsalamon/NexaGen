@@ -181,7 +181,7 @@ export function ScheduleBuilderClient() {
         </header>
 
         <Card className="grid gap-4 p-5">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-bold text-app-muted">
               Batch
               <Select

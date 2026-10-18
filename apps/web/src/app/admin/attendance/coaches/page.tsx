@@ -166,8 +166,8 @@ export default function AdminCoachTeachingPage() {
             <Card className="border-app-border bg-app-surface shadow-card">
               <CardContent className="p-5 flex flex-col justify-center h-full">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-control bg-green-500/10 border border-green-500/20">
-                    <CalendarX className="h-5 w-5 text-green-500" />
+                  <span className="p-2 rounded-control bg-success/10 border border-success/20">
+                    <CalendarX className="h-5 w-5 text-success-ink" />
                   </span>
                 </div>
                 <p className="text-3xl font-bold tracking-tight">
@@ -182,8 +182,8 @@ export default function AdminCoachTeachingPage() {
             <Card className="border-app-border bg-app-surface shadow-card">
               <CardContent className="p-5 flex flex-col justify-center h-full">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="p-2 rounded-control bg-orange-500/10 border border-orange-500/20">
-                    <Clock className="h-5 w-5 text-orange-500" />
+                  <span className="p-2 rounded-control bg-secondary/10 border border-secondary/20">
+                    <Clock className="h-5 w-5 text-secondary-ink" />
                   </span>
                 </div>
                 <p className="text-3xl font-bold tracking-tight">
@@ -259,10 +259,10 @@ export default function AdminCoachTeachingPage() {
                         <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-text">
                           {coach.totalClasses}
                         </TableCell>
-                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-green-600 font-medium">
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-success-ink font-medium">
                           {coach.completedClasses}
                         </TableCell>
-                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-red-600 font-medium">
+                        <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-warning-ink font-medium">
                           {coach.cancelledClasses}
                         </TableCell>
                         <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 text-app-muted">

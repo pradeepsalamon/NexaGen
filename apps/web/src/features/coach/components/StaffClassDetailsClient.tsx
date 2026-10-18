@@ -210,7 +210,7 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
 
       {(shown === "SCHEDULED" || isLive) && <ActivityQueueSection classId={classId} />}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <Card className="p-6">
           <h3 className="text-lg font-bold text-app-text mb-4">Class Details</h3>
           <div className="space-y-4">

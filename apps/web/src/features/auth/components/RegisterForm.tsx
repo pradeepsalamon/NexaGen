@@ -126,7 +126,7 @@ export function RegisterForm() {
 
   return (
     <form className="grid gap-3 [@media(max-height:700px)]:gap-2" onSubmit={handleSubmit}>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="student-name" label="Student Full Name" required>
           <Input
             autoComplete="name"
@@ -150,7 +150,7 @@ export function RegisterForm() {
           />
         </FormField>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="student-age" label="Student Age" required>
           <Input
             id="student-age"
@@ -178,7 +178,7 @@ export function RegisterForm() {
           />
         </FormField>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <AcquisitionSourceSelect
           detail={values.acquisitionDetail}
           onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
@@ -200,7 +200,7 @@ export function RegisterForm() {
           />
         </FormField>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="password" label="Password" required>
           <PasswordInput
             autoComplete="new-password"

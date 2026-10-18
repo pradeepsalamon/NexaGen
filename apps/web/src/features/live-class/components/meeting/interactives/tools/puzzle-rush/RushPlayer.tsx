@@ -297,7 +297,7 @@ function ActiveRun({
   const toMove = run.color === "white" ? "White" : "Black";
 
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_15rem] md:items-start">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_15rem] md:items-start">
       <div className="space-y-2">
         <p className="text-center text-sm font-semibold text-app-text">
           {startedAt === null && storm ? "Your move — the clock starts when you play." : `Find the best move for ${toMove}.`}

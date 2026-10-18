@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/Table";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 export interface BackupItem {
   key: string;
@@ -126,7 +127,7 @@ export function BackupManager() {
             <Skeleton className="h-6 w-48" />
           ) : latestBackup ? (
             <div className="flex items-center gap-3">
-              <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-white border-transparent">
+              <Badge variant="success">
                 ✓ Verified
               </Badge>
               <span className="text-sm font-medium text-app-text">
@@ -137,7 +138,7 @@ export function BackupManager() {
               </span>
             </div>
           ) : (
-            <p className="text-sm text-destructive font-medium">⚠️ No database backups found in OCI Object Storage.</p>
+            <p className="text-sm text-app-danger-ink font-medium">⚠️ No database backups found in OCI Object Storage.</p>
           )}
         </div>
       </div>
@@ -186,15 +187,17 @@ export function BackupManager() {
                   </TableCell>
                   <TableCell className="text-right pr-5">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
-                        onClick={() => handleDownload(backup.key)}
-                        title="Download"
-                      >
-                        <Download className="size-4" strokeWidth={2.5} />
-                      </Button>
+                      <SimpleTooltip label="Download">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label="Download backup"
+                          className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                          onClick={() => handleDownload(backup.key)}
+                        >
+                          <Download className="size-4" strokeWidth={2.5} />
+                        </Button>
+                      </SimpleTooltip>
                     </div>
                   </TableCell>
                 </TableRow>

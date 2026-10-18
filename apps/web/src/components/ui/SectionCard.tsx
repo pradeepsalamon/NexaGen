@@ -62,18 +62,20 @@ export function SectionCard({
               {title}
             </h2>
             {collapsible ? (
-              <button
-                aria-expanded={!collapsed}
-                aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
-                className="rounded-full p-1 text-app-muted hover:bg-app-soft md:hidden"
-                onClick={() => setCollapsed((c) => !c)}
-                type="button"
-              >
-                <ChevronDown
-                  className={cn("size-4 transition-transform", !collapsed && "rotate-180")}
-                  strokeWidth={2.5}
-                />
-              </button>
+              <SimpleTooltip label={collapsed ? "Expand" : "Collapse"}>
+                <button
+                  aria-expanded={!collapsed}
+                  aria-label={collapsed ? `Expand ${title}` : `Collapse ${title}`}
+                  className="rounded-full p-1 text-app-muted hover:bg-app-soft md:hidden"
+                  onClick={() => setCollapsed((c) => !c)}
+                  type="button"
+                >
+                  <ChevronDown
+                    className={cn("size-4 transition-transform", !collapsed && "rotate-180")}
+                    strokeWidth={2.5}
+                  />
+                </button>
+              </SimpleTooltip>
             ) : null}
           </div>
           {description ? (

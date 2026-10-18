@@ -102,7 +102,7 @@ export function CoachAssignmentsClient() {
 
         <TabsContent value="library">
           {libraryLoading ? (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
                 <Card key={i} className="h-40 p-4">
                   <Skeleton className="h-full w-full" />
@@ -119,7 +119,7 @@ export function CoachAssignmentsClient() {
               />
             </Card>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {library.map((item) => (
                 <Card key={item.id} className="flex flex-col gap-3 p-4">
                   <div className="flex items-start justify-between gap-2">

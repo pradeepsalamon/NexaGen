@@ -80,7 +80,7 @@ export function StockfishPanel() {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-sm text-red-500 p-4 text-center">
+      <div className="flex flex-col items-center justify-center h-full text-sm text-app-danger-ink p-4 text-center">
         <span className="font-semibold mb-2">Analysis Error</span>
         <p>{error}</p>
       </div>
@@ -90,7 +90,7 @@ export function StockfishPanel() {
   if (!isEnabled) {
     return (
       <div className="flex flex-col h-full text-sm p-4 text-app-text">
-        <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-app-border">
           <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Engine Analysis</span>
           <SimpleTooltip label="Resume analysis">
             <button
@@ -126,7 +126,7 @@ export function StockfishPanel() {
 
   return (
     <div className="flex flex-col h-full text-sm p-4 text-app-text">
-      <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
+      <div className="flex items-center justify-between mb-4 pb-2 border-b border-app-border">
         <div className="flex flex-col">
           <span className="text-xs text-app-muted font-semibold uppercase tracking-wider">Evaluation</span>
           <span className={`text-2xl font-bold ${analysis.mate !== null ? 'text-primary-ink' : 'text-app-text'}`}>

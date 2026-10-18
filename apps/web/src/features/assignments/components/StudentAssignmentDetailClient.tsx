@@ -51,7 +51,7 @@ export function StudentAssignmentDetailClient({ id }: { id: string }) {
           <ArrowLeft className="mr-1.5 size-4" />
           Back to assignments
         </Button>
-        <p className="text-sm text-red-600">This assignment could not be found.</p>
+        <p className="text-sm text-app-danger-ink">This assignment could not be found.</p>
       </div>
     );
   }
@@ -164,7 +164,7 @@ function ReplayActivity({
       <div className="flex justify-end">
         <div className="flex items-center gap-2 rounded-control border border-app-border bg-app-background/50 px-4 py-2 font-mono text-xl font-bold tracking-tight text-app-text">
           <Timer className="size-5" />
-          <span className={timeLimit && displayTime <= 60 && !isDone ? "text-red-500 animate-pulse" : ""}>
+          <span className={timeLimit && displayTime <= 60 && !isDone ? "text-warning-ink motion-safe:animate-pulse" : ""}>
             {formatTime(displayTime)}
           </span>
         </div>
@@ -315,9 +315,9 @@ function EvaluatedShell({
                       <span
                         className={
                           a.status === "COMPLETED"
-                            ? "text-green-600"
+                            ? "text-success-ink"
                             : a.status === "FAILED"
-                              ? "text-red-500"
+                              ? "text-warning-ink"
                               : "text-app-muted"
                         }
                       >

@@ -6,6 +6,7 @@ import { resolveClassDisplayStatus, type ScheduleCalendarClass } from "@nexa-che
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ClassStatusLegend } from "@/components/ui/ClassStatusLegend";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { CLASS_STATUS_DOT, getStatusLabel } from "@/constants/classes";
 import { DAY_SHORT, formatInZone } from "../lib/scheduleFormat";
 
@@ -107,27 +108,28 @@ export function BatchScheduleCalendar({
                     {items.slice(0, 3).map((cls) => {
                       const shown = resolveClassDisplayStatus(cls);
                       return (
-                      <button
-                        key={cls.id}
-                        onClick={() => onSelectClass?.(cls)}
-                        className={`flex items-center gap-1 truncate rounded bg-app-surface px-1 py-0.5 text-left text-[10px] text-app-text hover:bg-app-soft ${
-                          shown === "CANCELLED" ? "line-through decoration-app-danger/60" : ""
-                        }`}
-                        title={`${cls.title} · ${cls.coachName} · ${getStatusLabel(shown)}`}
-                      >
-                        <span
-                          className={`size-1.5 shrink-0 rounded-full ${CLASS_STATUS_DOT[shown]}`}
-                        />
-                        <span className="truncate">
-                          {formatInZone(cls.startsAt, timezone, {
-                            month: undefined,
-                            day: undefined,
-                            hour: "numeric",
-                            minute: "2-digit"
-                          })}{" "}
-                          {cls.title}
-                        </span>
-                      </button>
+                      <SimpleTooltip key={cls.id} label={`${cls.title} · ${cls.coachName} · ${getStatusLabel(shown)}`}>
+                        <button
+                          type="button"
+                          onClick={() => onSelectClass?.(cls)}
+                          className={`flex items-center gap-1 truncate rounded bg-app-surface px-1 py-0.5 text-left text-[10px] text-app-text hover:bg-app-soft ${
+                            shown === "CANCELLED" ? "line-through decoration-app-danger/60" : ""
+                          }`}
+                        >
+                          <span
+                            className={`size-1.5 shrink-0 rounded-full ${CLASS_STATUS_DOT[shown]}`}
+                          />
+                          <span className="truncate">
+                            {formatInZone(cls.startsAt, timezone, {
+                              month: undefined,
+                              day: undefined,
+                              hour: "numeric",
+                              minute: "2-digit"
+                            })}{" "}
+                            {cls.title}
+                          </span>
+                        </button>
+                      </SimpleTooltip>
                       );
                     })}
                     {items.length > 3 && (

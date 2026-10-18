@@ -136,7 +136,7 @@ export function MasterbasePanel() {
                 href={`https://lichess.org/masters/search?tags=${g.year}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex justify-between gap-2 py-1 px-1 rounded hover:bg-black/5 dark:hover:bg-white/5"
+                className="flex justify-between gap-2 rounded-control px-1 py-1 hover:bg-app-soft"
               >
                 <span className="truncate">
                   <span className="font-medium">{g.white.name}</span>

@@ -69,7 +69,7 @@ export function InvoiceSettingsPanel() {
           title="Business identity"
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
             label="Legal business name"
             onChange={(value) => set("legalName", value)}
@@ -84,7 +84,7 @@ export function InvoiceSettingsPanel() {
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
             label="Address line 1"
             onChange={(value) => set("addressLine1", value || null)}
@@ -119,7 +119,7 @@ export function InvoiceSettingsPanel() {
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field
             label="Billing email"
             onChange={(value) => set("email", value || null)}
@@ -145,7 +145,7 @@ export function InvoiceSettingsPanel() {
           title="Tax registration"
         />
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="space-y-1.5">
             <Label htmlFor="settings-gstin">GSTIN</Label>
             <Input
@@ -189,7 +189,7 @@ export function InvoiceSettingsPanel() {
           />
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="settings-default-tax">Default tax percent</Label>
             <Input
@@ -216,7 +216,7 @@ export function InvoiceSettingsPanel() {
           title="Numbering"
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field
             hint={`Produces ${form.invoicePrefix}-${new Date().getUTCFullYear()}-000001`}
             label="Invoice prefix"

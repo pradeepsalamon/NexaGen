@@ -51,3 +51,6 @@ scripts/perf/out/
 apps/web/public/vendor/pdfjs/
 # Local E2E secrets (template: .env.e2e.example)
 .env.e2e
+
+# Playwright MCP browser-tool logs
+.playwright-mcp/

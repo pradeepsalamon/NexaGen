@@ -510,7 +510,7 @@ export function AssignmentFormDialog({
             <Input id="title" hasError={!!errors.title} {...form.register("title")} placeholder="e.g. Back-rank mate" />
           </FormField>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {mode === "create" && isSet ? null : (
               <FormField id="activityType" label="Activity type">
                 <Controller
@@ -636,7 +636,7 @@ export function AssignmentFormDialog({
                 />
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField id="setMaxAttempts" label="Tries per puzzle (blank = unlimited)">
                   <Input id="setMaxAttempts" type="number" min="1" max="50" {...form.register("maxAttempts")} />
                 </FormField>
@@ -751,7 +751,7 @@ export function AssignmentFormDialog({
               <div className="space-y-2">
                 <p className="text-sm font-semibold text-app-text">Correct solution</p>
                 {errors.solutionMoves && (
-                  <p className="text-xs text-red-600">{errors.solutionMoves.message as string}</p>
+                  <p className="text-xs text-app-danger-ink">{errors.solutionMoves.message as string}</p>
                 )}
                 <Controller
                   control={form.control}
@@ -772,7 +772,7 @@ export function AssignmentFormDialog({
                 />
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField id="maxAttempts" label="Maximum attempts (blank = unlimited)">
                   <Input id="maxAttempts" type="number" min="1" max="50" {...form.register("maxAttempts")} />
                 </FormField>

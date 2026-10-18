@@ -126,7 +126,7 @@ export function CoachRegisterForm() {
 
   return (
     <form className="grid gap-3 [@media(max-height:700px)]:gap-2" onSubmit={handleSubmit}>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="coach-name" label="Full Name" required>
           <Input
             autoComplete="name"
@@ -152,7 +152,7 @@ export function CoachRegisterForm() {
           />
         </FormField>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="contact-number" label="WhatsApp / Phone Number" required>
           <Input
             autoComplete="tel"
@@ -183,7 +183,7 @@ export function CoachRegisterForm() {
           />
         </FormField>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="fide-id" label="FIDE ID (Optional)">
           <Input
             id="fide-id"
@@ -205,7 +205,7 @@ export function CoachRegisterForm() {
           />
         </FormField>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="years-of-experience" label="Years of Experience">
           <Input
             id="years-of-experience"
@@ -226,7 +226,7 @@ export function CoachRegisterForm() {
           value={acquisitionSource}
         />
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 [@media(max-height:700px)]:gap-2">
         <FormField id="password" label="Password" required>
           <PasswordInput
             autoComplete="new-password"

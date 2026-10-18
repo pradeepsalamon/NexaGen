@@ -60,12 +60,12 @@ export function ClassAnalyticsSection({ query }: { query: AnalyticsRangeQuery })
             <KpiCard isLoading={isLoading} kpi={asKpi(data?.demoConversionPercent)} label="Demo → batch (approx)" unit="percent" tooltip="Of students who completed a demo in the period, the share now enrolled in a batch. Heuristic — labelled approximate." />
           </KpiCardRow>
 
-          <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
             <SegmentCard stats={data?.demo} title="Demo classes" />
             <SegmentCard stats={data?.batch} title="Batch classes" />
           </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
             <div>
               <p className="mb-2 text-sm font-bold text-app-text">Completed classes over time</p>
               <ChartContainer

@@ -41,7 +41,7 @@ export function PayrollRecordDetailPanel({
 
   return (
     <div className="space-y-4 border-t border-app-border bg-app-soft/40 p-4">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="md:col-span-2">
           <div className="mb-2 flex items-center justify-between">
             <h4 className="text-xs font-bold text-app-muted">

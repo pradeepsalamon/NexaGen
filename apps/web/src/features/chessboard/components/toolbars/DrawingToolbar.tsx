@@ -65,7 +65,7 @@ export function DrawingToolbar() {
         
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full text-app-muted hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30" onClick={handleClear}>
+            <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full text-app-muted hover:bg-app-danger/10 hover:text-app-danger-ink" onClick={handleClear}>
               <Trash2 className="size-4" />
             </Button>
           </TooltipTrigger>

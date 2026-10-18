@@ -72,7 +72,7 @@ export function ClassCard({ classItem, onEdit, onCancel, onRequestReschedule }: 
               </DropdownMenuItem>
             )}
             {classItem.status === "SCHEDULED" && onCancel && (
-              <DropdownMenuItem onClick={() => onCancel(classItem)} className="text-destructive">
+              <DropdownMenuItem onClick={() => onCancel(classItem)} className="text-app-danger-ink">
                 Cancel Class
               </DropdownMenuItem>
             )}

@@ -91,7 +91,7 @@ export function InvoiceDetail({
         ) : null}
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="space-y-2">
           <p className="text-xs font-semibold text-app-muted">
             Bill to

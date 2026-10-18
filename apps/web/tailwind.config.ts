@@ -15,6 +15,10 @@ const config: Config = {
         "drawer-in": "slideInRight 300ms cubic-bezier(0.32, 0.72, 0, 1) both",
         "drawer-out": "slideOutRight 240ms ease-in both"
       },
+      // A bare `border` follows the theme instead of Tailwind's fixed gray-200.
+      borderColor: {
+        DEFAULT: "rgb(var(--rgb-border) / <alpha-value>)"
+      },
       borderRadius: {
         app: "var(--radius-app)",
         control: "var(--radius-control)",

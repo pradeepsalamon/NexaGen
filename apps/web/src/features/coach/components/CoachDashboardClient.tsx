@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, CheckCircle2, Clock, Layers, Users, type LucideIcon } from "lucide-react";
+import { ArrowRight, Calendar, CheckCircle2, Clock, Layers, type LucideIcon, Users } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -75,12 +75,15 @@ export function CoachDashboardClient() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-app-text">Today&apos;s schedule</h2>
           <Button variant="ghost" asChild>
-            <Link href="/coach/schedule">View all</Link>
+            <Link className="text-primary-ink" href="/coach/schedule">
+            View all
+            <ArrowRight className="ml-1 size-4" strokeWidth={2.5} aria-hidden="true" />
+          </Link>
           </Button>
         </div>
 
         {todayLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <Card key={i} className="p-4 h-48">
                 <Skeleton className="h-full w-full" />
@@ -88,7 +91,7 @@ export function CoachDashboardClient() {
             ))}
           </div>
         ) : todayData?.classes && todayData.classes.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {todayData.classes.map((cls) => (
               <ClassCard
                 key={cls.id}

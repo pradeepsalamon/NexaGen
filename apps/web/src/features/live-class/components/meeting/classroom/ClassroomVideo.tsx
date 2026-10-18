@@ -96,7 +96,7 @@ export function ClassroomVideo({
   return (
     <div className={cn("shrink-0 border-b border-app-border/60", fill && "lg:flex lg:h-full lg:flex-col")}>
       <div className="flex h-10 shrink-0 items-center justify-between px-3">
-        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-app-muted">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-app-muted">
           Video
           <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] tabular-nums">{tracks.length}</span>
         </span>
@@ -181,7 +181,7 @@ export function ClassroomVideo({
             )}
             {spotlightHand && !isScreen ? (
               <span
-                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-amber-500 text-white shadow-card"
+                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-warning text-white shadow-card"
                 aria-label="Hand raised"
               >
                 <Hand className="size-3.5" strokeWidth={2.5} />

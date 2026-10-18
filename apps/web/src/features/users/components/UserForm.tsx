@@ -146,7 +146,7 @@ export function UserForm({ selectedUser, onSuccess }: UserFormProps) {
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <FormInput name="firstName" label="First Name" required />
           <FormInput name="lastName" label="Last Name" />
           <FormInput name="email" label="Email" type="email" required />

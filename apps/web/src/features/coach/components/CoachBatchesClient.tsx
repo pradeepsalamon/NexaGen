@@ -28,7 +28,7 @@ export function CoachBatchesClient() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="p-5 h-48">
               <Skeleton className="h-full w-full" />
@@ -36,7 +36,7 @@ export function CoachBatchesClient() {
           ))}
         </div>
       ) : data?.batches && data.batches.length > 0 ? (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {[...data.batches].sort((a, b) => Number(isClosed(a.status)) - Number(isClosed(b.status))).map((batch) => {
             const closed = isClosed(batch.status);
             const nextClassStr = batch.nextClass

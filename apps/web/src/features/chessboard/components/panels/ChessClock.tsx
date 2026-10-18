@@ -41,7 +41,7 @@ const TimeChip = memo(function TimeChip({
         active
           ? "border-primary bg-primary/10 text-app-text"
           : "border-app-border bg-app-surface/70 text-app-muted",
-        low && active && "border-red-500 bg-red-500/10 text-red-500",
+        low && active && "border-warning bg-warning/10 text-warning-ink",
       )}
     >
       <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide">
@@ -53,7 +53,7 @@ const TimeChip = memo(function TimeChip({
         />
         {color}
       </span>
-      <span className={cn("font-mono text-sm font-semibold", low && "text-red-500")}>
+      <span className={cn("font-mono text-sm font-semibold", low && "text-warning-ink")}>
         {text}
       </span>
     </div>

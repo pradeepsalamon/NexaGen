@@ -73,7 +73,7 @@ export function UserChessAppearanceSettingsClient() {
           <WidgetError message="Couldn't load your board appearance." onRetry={() => refetch()} />
         </Card>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
             {resolved.locked && (
               <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-surface))] p-3.5 text-sm text-app-text">

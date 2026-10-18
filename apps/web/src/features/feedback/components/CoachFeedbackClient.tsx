@@ -24,7 +24,7 @@ export function CoachFeedbackClient() {
       />
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-[320px_1fr]">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
           <Skeleton className="h-56 rounded-panel" />
           <Skeleton className="h-56 rounded-panel" />
         </div>
@@ -40,7 +40,7 @@ export function CoachFeedbackClient() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 md:grid-cols-[320px_1fr]">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-[320px_1fr]">
             <Card className="grid content-start gap-4 p-5">
               <p className="text-xs font-bold text-app-muted">Your rating</p>
               <div className="flex items-end gap-3">

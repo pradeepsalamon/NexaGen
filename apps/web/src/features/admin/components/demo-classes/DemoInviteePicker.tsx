@@ -205,7 +205,7 @@ function NewInviteeForm({ onAdd, disabled }: { onAdd: (invitee: DemoInviteeInput
 
   return (
     <div className="grid gap-2">
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_auto]">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_auto_1fr_auto]">
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}

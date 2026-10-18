@@ -131,7 +131,7 @@ export function PresetCard({ preset }: { preset: LiveClassPreset }) {
         </div>
       </div>
 
-      <dl className="grid gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+      <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
         {rows.map((r) => (
           <div key={r.label} className="flex justify-between gap-2">
             <dt className="text-app-muted">{r.label}</dt>

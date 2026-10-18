@@ -181,13 +181,13 @@ export function ClassroomBoard({
 
       <div className="flex shrink-0 items-center gap-2">
         <div className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-app-text">
-          <Crown className="size-4 text-amber-500" />
+          <Crown className="size-4 text-secondary-ink" />
           Shared Board
           {isCoach ? <SendPositionButton fen={fen} className="ml-1" /> : null}
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 overflow-x-auto">
           <ChessClock layout="horizontal" />
-          {!isCoach ? <RequestControlButton /> : null}
+          {!isCoach ? <RequestControlButton surface /> : null}
           {!isCoach && activePuzzle ? (
             <button
               type="button"
@@ -311,7 +311,7 @@ function HoverMenuButton({
         onPointerLeave={onLeave}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <p className="px-2 pb-1 pt-0.5 text-xs font-semibold uppercase tracking-wide text-app-muted">{label}</p>
+        <p className="px-2 pb-1 pt-0.5 text-xs font-semibold text-app-muted">{label}</p>
         {items.map((item) => (
           <button
             key={item.label}

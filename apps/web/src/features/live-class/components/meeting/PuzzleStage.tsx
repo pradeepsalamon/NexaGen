@@ -75,7 +75,7 @@ export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNod
           onClick={() => setPuzzleSolverOpen(false)}
           className="flex shrink-0 items-center gap-1 rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-[11px] font-semibold text-app-text shadow-card transition hover:bg-app-soft active:scale-95"
         >
-          <Crown className="size-3 text-amber-500" strokeWidth={2.5} />
+          <Crown className="size-3 text-secondary-ink" strokeWidth={2.5} />
           Back to board
         </button>
         {stageSwitch}

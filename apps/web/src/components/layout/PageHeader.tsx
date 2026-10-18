@@ -20,7 +20,7 @@ export function PageHeader({ title, description, actions, children }: PageHeader
           )}
         </div>
         {actions && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             {actions}
           </div>
         )}

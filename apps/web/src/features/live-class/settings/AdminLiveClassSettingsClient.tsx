@@ -97,7 +97,7 @@ function OrgPresetsSection() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Skeleton className="h-40 w-full" />
           <Skeleton className="h-40 w-full" />
         </div>
@@ -109,7 +109,7 @@ function OrgPresetsSection() {
           description="Create one to give every coach a ready-made class configuration."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {orgPresets.map((p) => (
             <PresetCard key={p.id} preset={p} />
           ))}

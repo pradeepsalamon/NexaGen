@@ -65,7 +65,7 @@ export const AvatarUploader = memo(function AvatarUploader({
             type="button"
             variant="outline"
             size="sm"
-            className="text-red-500 hover:text-red-600 hover:bg-red-50 hover:border-red-200 dark:hover:bg-red-950/20"
+            className="text-app-danger-ink hover:border-app-danger/30 hover:bg-app-danger/10 hover:text-app-danger-ink"
             onClick={onRemove}
             disabled={isUploading}
           >

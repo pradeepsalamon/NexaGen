@@ -33,36 +33,36 @@ export function SidebarTabs() {
         <TabsList className="w-full justify-start bg-transparent border-b border-app-border rounded-none h-auto p-0 space-x-4 mb-4 overflow-x-auto">
           <TabsTrigger 
             value="moves" 
-            className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap"
           >
             Moves
           </TabsTrigger>
           {isCoach && (
-            <TabsTrigger value="engine" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
+            <TabsTrigger value="engine" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Engine
             </TabsTrigger>
           )}
           {isCoach && (
-            <TabsTrigger value="pgn" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
+            <TabsTrigger value="pgn" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               PGN
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-             <TabsTrigger value="class" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
+             <TabsTrigger value="class" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Live Class
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-            <TabsTrigger value="puzzles" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
+            <TabsTrigger value="puzzles" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Puzzles
             </TabsTrigger>
           )}
           {isCoach && liveClassState && (
-            <TabsTrigger value="response" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
+            <TabsTrigger value="response" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
               Response
             </TabsTrigger>
           )}
-          <TabsTrigger value="masterbase" className="rounded-none border-b-2 border-transparent data-[state=active]:border-blue-500 data-[state=active]:text-blue-500 data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
+          <TabsTrigger value="masterbase" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary-ink data-[state=active]:bg-transparent px-2 py-2 text-sm font-medium text-app-muted hover:text-app-text data-[state=active]:shadow-none whitespace-nowrap">
             Masterbase
           </TabsTrigger>
         </TabsList>

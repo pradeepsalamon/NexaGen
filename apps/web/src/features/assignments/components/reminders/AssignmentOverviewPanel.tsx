@@ -132,7 +132,7 @@ function OverviewRow({ row, timeZone }: { row: AssignmentOverviewRow; timeZone: 
             <span className="block truncate font-semibold text-app-text">{row.title}</span>
             <span className="flex flex-wrap items-center gap-2 text-xs">
               <span className="font-medium text-app-muted">{row.batchName}</span>
-              <span className={cn("rounded border px-2 py-0.5 font-semibold", STATUS_TONE[row.dueStatus])}>
+              <span className={cn("rounded-full border px-2 py-0.5 font-semibold", STATUS_TONE[row.dueStatus])}>
                 {ASSIGNMENT_DUE_STATUS_LABELS[row.dueStatus]}
               </span>
               <span className="text-app-muted">due {formatDateTime(row.dueDate, timeZone)}</span>

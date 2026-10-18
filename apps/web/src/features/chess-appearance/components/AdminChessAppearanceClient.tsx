@@ -100,7 +100,7 @@ export function AdminChessAppearanceClient() {
           <WidgetError message="Couldn't load the global board appearance." onRetry={() => refetch()} />
         </Card>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
             <div className="flex items-start gap-2.5 rounded-app border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_6%,var(--color-surface))] p-3.5 text-sm text-app-text">
               <Info className="mt-0.5 size-4 shrink-0 text-primary-ink" strokeWidth={2.5} />
@@ -176,7 +176,7 @@ export function AdminChessAppearanceClient() {
                   only turned off.
                 </p>
               </div>
-              <div className="grid gap-5 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                 <div className="space-y-2">
                   <p className="text-xs font-bold text-app-muted">Board themes</p>
                   {BOARD_THEME_CATALOG.map((theme) => (

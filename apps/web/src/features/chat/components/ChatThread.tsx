@@ -302,7 +302,7 @@ function Bubble({
       {name && <span className="mb-0.5 px-1 text-[11px] font-semibold text-app-muted">{name}</span>}
       <div
         className={cn(
-          "max-w-[85%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm sm:max-w-[70%]",
+          "max-w-[85%] whitespace-pre-wrap break-words rounded-app px-3 py-2 text-sm sm:max-w-[70%]",
           mine ? "rounded-br-md bg-primary text-white" : "rounded-bl-md border border-app-border bg-app-surface text-app-text",
         )}
       >

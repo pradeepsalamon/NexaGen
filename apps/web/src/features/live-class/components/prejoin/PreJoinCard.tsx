@@ -144,7 +144,7 @@ export function PreJoinCard({ status, topic, startedAt, endsAt, settings, onJoin
   return (
     <div className="flex w-full items-center justify-center py-6">
       <Card className="w-full max-w-3xl border-app-border bg-app-surface shadow-soft">
-        <CardContent className="grid gap-6 p-5 sm:p-8 md:grid-cols-[1fr_1.1fr] md:gap-8">
+        <CardContent className="grid grid-cols-1 gap-6 p-5 sm:p-8 md:grid-cols-[1fr_1.1fr] md:gap-8">
           {/* Class info */}
           <div className="flex flex-col justify-center">
             <p className="text-xs font-bold text-primary-ink">
