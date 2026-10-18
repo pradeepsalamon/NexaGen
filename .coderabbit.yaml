@@ -11,6 +11,7 @@ reviews:
     base_branches:
       - main
       - dev
+      - review/base
   path_filters:
     - "!**/package-lock.json"
     - "!**/dist/**"
