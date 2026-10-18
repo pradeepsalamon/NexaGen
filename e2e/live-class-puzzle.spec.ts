@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { scheduleClass } from "./fixtures";
 
 /**
  * Live-class puzzle assignment + leaderboard — API-level flow.
@@ -7,11 +8,11 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
  * assign → in-room attempt → submit → leaderboard chain, the hidden-leaderboard
  * toggle, and `assertLiveAssignmentOpen` (a coach ending the puzzle blocks an
  * in-flight submit). The data-channel bridge / sidebar panel are covered by unit
- * specs + the board-sync browser spec; this stays request-only so it is fast and
- * doesn't need LiveKit.
+ * specs + the board-sync browser spec; this stays request-only so it is fast. It
+ * still needs LiveKit: starting the class creates the room.
  *
  * Opt-in (mutates the shared dev DB, needs the puzzle seed for `coach2@nexa.test`):
- *   1. api running:      npm run dev:api
+ *   1. api running:      npm run dev:api (LiveKit reachable: docker compose up -d livekit)
  *   2. seed applied:     npm run db:seed
  *   3. enable this spec:  RUN_LIVE_PUZZLE_E2E=1 npx playwright test live-class-puzzle
  */
@@ -78,7 +79,7 @@ async function json<T = Record<string, unknown>>(
   return res.json() as Promise<T>;
 }
 
-/** Clear the coach's leftover E2E classes so `POST /coach/classes` doesn't 409. */
+/** Clear the coach's leftover E2E classes so approving a new one doesn't 409. */
 async function clearCoachSchedule(request: APIRequestContext, cookies: string) {
   for (const path of ["/coach/classes/upcoming", "/coach/classes"]) {
     const res = await api(request, "GET", path, cookies);
@@ -97,7 +98,11 @@ async function clearCoachSchedule(request: APIRequestContext, cookies: string) {
   }
 }
 
-async function makeLiveClass(request: APIRequestContext, coach: string): Promise<string> {
+async function makeLiveClass(
+  request: APIRequestContext,
+  coach: string,
+  admin: string
+): Promise<string> {
   const batches = await json<{ batches?: Array<{ id: string }> } & Array<{ id: string }>>(
     request,
     "GET",
@@ -108,21 +113,16 @@ async function makeLiveClass(request: APIRequestContext, coach: string): Promise
   await clearCoachSchedule(request, coach);
 
   const now = Date.now();
-  const created = await json<{ class?: { id: string }; id?: string }>(
-    request,
-    "POST",
-    "/coach/classes",
-    coach,
+  const classId = await scheduleClass(
+    (method, path, body) => api(request, method, path, coach, body),
+    (method, path, body) => api(request, method, path, admin, body),
     {
       batchId,
       topic: "E2E live puzzle",
-      title: "E2E live puzzle",
       startsAt: new Date(now + 60_000).toISOString(),
       endsAt: new Date(now + 3_660_000).toISOString()
     }
   );
-  const classId = created.class ? created.class.id : (created.id as string);
-  expect(classId).toBeTruthy();
 
   const start = await api(request, "POST", `/live-class/${classId}/start`, coach);
   expect(start.ok(), `start: ${await start.text()}`).toBeTruthy();
@@ -159,8 +159,8 @@ test.describe("Live-class puzzle assignment", () => {
     const coach = await loginAs(request, COACH.email, COACH.password);
     const student = await loginAs(request, STUDENT.email, STUDENT.password);
 
+    const classId = await makeLiveClass(request, coach, admin);
     const puzzleId = await makePublishedPuzzle(request, admin);
-    const classId = await makeLiveClass(request, coach);
 
     try {
       // Coach shares the puzzle.
@@ -255,8 +255,8 @@ test.describe("Live-class puzzle assignment", () => {
     const coachB = await loginAs(request, COACH_B.email, COACH_B.password);
     const student = await loginAs(request, STUDENT.email, STUDENT.password);
 
+    const classId = await makeLiveClass(request, coach, admin);
     const puzzleId = await makePublishedPuzzle(request, admin);
-    const classId = await makeLiveClass(request, coach);
 
     try {
       // A different coach cannot assign into, or even read, someone else's class.
@@ -292,8 +292,8 @@ test.describe("Live-class puzzle assignment", () => {
     const coach = await loginAs(request, COACH.email, COACH.password);
     const student = await loginAs(request, STUDENT.email, STUDENT.password);
 
+    const classId = await makeLiveClass(request, coach, admin);
     const puzzleId = await makePublishedPuzzle(request, admin);
-    const classId = await makeLiveClass(request, coach);
 
     try {
       const assigned = await json<{ assignment: { endsAt: string | null; revealLeaderboard: boolean } }>(

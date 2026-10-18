@@ -5,7 +5,7 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
-import { sendLiveKitWebhook } from "./fixtures";
+import { scheduleClass, sendLiveKitWebhook } from "./fixtures";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
@@ -61,7 +61,7 @@ const E2E_CLASS_TOPIC = "E2E Test Class - Pawn Structures";
 // ─── Helper: end/cancel any leftover E2E classes for the coach ───────────────
 // A prior run that failed between "start" and "end" leaves a class stuck LIVE.
 // Those rows keep matching the coach's time-overlap conflict check, so a later
-// run's create-class call 409s. Sweep them before/after every full-flow run.
+// run's class approval 409s. Sweep them before/after every full-flow run.
 async function cleanupLeftoverE2EClasses(
   request: APIRequestContext,
   coachCookies: string
@@ -191,26 +191,22 @@ test.describe("Full Attendance Flow", () => {
     const batchId = batches[0].id;
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Step 3: Create a class via Coach API
+    // Step 3: Schedule a class (coach requests, admin approves). It must start
+    // within the early-start window so Step 4 can start it.
     // ─────────────────────────────────────────────────────────────────────────
-    const now = new Date();
-    const offsetHours = 48 + Math.floor(Math.random() * 48);
-    const startsAt = new Date(now.getTime() + offsetHours * 60 * 60 * 1000).toISOString();
-    const endsAt = new Date(now.getTime() + (offsetHours + 1) * 60 * 60 * 1000).toISOString();
-
-    const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
-      batchId,
-      topic: "E2E Test Class - Pawn Structures",
-      title: "E2E Attendance Test",
-      description: "Automated test class for attendance flow verification",
-      startsAt,
-      endsAt,
-    });
-    expect(createRes.ok(), `Create class failed: ${await createRes.text()}`).toBeTruthy();
-    const createdClass = await createRes.json();
-    classId = createdClass.class ? createdClass.class.id : createdClass.id;
+    const adminCookies = await loginAs(request, ADMIN.email, ADMIN.password);
+    const now = Date.now();
+    classId = await scheduleClass(
+      (method, path, body) => api(request, method, path, coachCookies, body),
+      (method, path, body) => api(request, method, path, adminCookies, body),
+      {
+        batchId,
+        topic: E2E_CLASS_TOPIC,
+        startsAt: new Date(now + 60_000).toISOString(),
+        endsAt: new Date(now + 3_660_000).toISOString(),
+      }
+    );
     roomName = `class_${classId}`;
-    expect(classId).toBeTruthy();
 
     // ─────────────────────────────────────────────────────────────────────────
     // Step 4: Start the live class

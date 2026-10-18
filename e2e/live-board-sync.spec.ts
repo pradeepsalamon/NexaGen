@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
+import { scheduleClass } from "./fixtures";
 
 /**
  * Shared live-class chessboard sync — two real participants over LiveKit.
@@ -17,6 +18,7 @@ import { test, expect, type APIRequestContext, type BrowserContext, type Page } 
 const RUN = process.env.RUN_LIVE_BOARD_E2E === "1";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
+const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
 const COACH = { email: "coach@nexa.test", password: "Test@12345" };
 const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
 
@@ -80,7 +82,7 @@ async function api(
 
 /**
  * The shared dev DB carries leftover E2E classes stuck SCHEDULED/LIVE from
- * earlier runs; they overlap "now" and make `POST /coach/classes` 409 on the
+ * earlier runs; they overlap "now" and make the class approval 409 on the
  * coach's scheduling-conflict check. Sweep the coach's own upcoming/live ones.
  */
 async function clearCoachSchedule(request: APIRequestContext, cookies: Cookie[]) {
@@ -155,18 +157,18 @@ test.describe("Live board sync", () => {
 
     await clearCoachSchedule(request, coachCookies);
 
+    const adminCookies = await login(request, ADMIN.email, ADMIN.password);
     const now = Date.now();
-    const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
-      batchId,
-      topic: "E2E Board Sync",
-      title: "E2E Board Sync",
-      description: "board sync spec",
-      startsAt: new Date(now + 60_000).toISOString(),
-      endsAt: new Date(now + 3_660_000).toISOString(),
-    });
-    const createdClass = await createRes.json();
-    classId = createdClass.class ? createdClass.class.id : createdClass.id;
-    expect(classId).toBeTruthy();
+    classId = await scheduleClass(
+      (method, path, body) => api(request, method, path, coachCookies, body),
+      (method, path, body) => api(request, method, path, adminCookies, body),
+      {
+        batchId,
+        topic: "E2E Board Sync",
+        startsAt: new Date(now + 60_000).toISOString(),
+        endsAt: new Date(now + 3_660_000).toISOString(),
+      },
+    );
 
     const startRes = await api(request, "POST", `/live-class/${classId}/start`, coachCookies);
     expect(startRes.ok(), `start: ${await startRes.text()}`).toBeTruthy();

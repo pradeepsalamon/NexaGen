@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { loginContext, scheduleClass } from "./fixtures";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -42,7 +43,7 @@ function api(
 
 /**
  * Cancel/end the coach's leftover E2E classes (stuck SCHEDULED/LIVE from earlier
- * runs on the shared dev DB) so `POST /coach/classes` doesn't 409 on the
+ * runs on the shared dev DB) so approving a new class doesn't 409 on the
  * scheduling-conflict check.
  */
 async function clearCoachSchedule(request: APIRequestContext, cookies: string) {
@@ -151,18 +152,20 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
     // New class in that batch inherits the batch default until overridden.
     await clearCoachSchedule(request, coach);
     const now = Date.now();
-    const created = await api(request, "POST", "/coach/classes", coach, {
-      batchId,
-      topic: "E2E pre-class settings",
-      title: "E2E pre-class settings",
-      startsAt: new Date(now + 5 * 60_000).toISOString(),
-      endsAt: new Date(now + 65 * 60_000).toISOString(),
+    const classId = await scheduleClass(
+      (method, path, body) => api(request, method, path, coach, body),
+      (method, path, body) => api(request, method, path, admin, body),
+      {
+        batchId,
+        topic: "E2E pre-class settings",
+        startsAt: new Date(now + 5 * 60_000).toISOString(),
+        endsAt: new Date(now + 65 * 60_000).toISOString(),
+      },
+    );
+    const classWrite = await api(request, "PUT", `/live-class-settings/class/${classId}`, coach, {
       liveClassSettings: { student: { mic: "FORCED_OFF" } },
     });
-    expect(created.status()).toBe(201);
-    const createdBody = await created.json();
-    const classId = createdBody.class ? createdBody.class.id : createdBody.id;
-    expect(classId, `create class: ${JSON.stringify(createdBody)}`).toBeTruthy();
+    expect(classWrite.status(), `class settings: ${await classWrite.text()}`).toBe(200);
 
     const forClass = await (
       await api(request, "GET", `/live-class-settings/class/${classId}`, coach)
@@ -201,13 +204,8 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
 
 test.describe("Pre-class settings — admin UI", () => {
   test("the admin live-class settings page renders its sections", async ({ page }) => {
-    await page.goto("/login");
-    await page.waitForLoadState("networkidle");
-    await page.getByLabel(/email/i).fill(ADMIN.email);
-    await page.locator('input[type="password"]').fill(ADMIN.password);
-    await page.getByRole("button", { name: /sign in|log in|login/i }).click();
-    await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 30_000 });
-
+    // API login backs off on the 5/min throttle the earlier tests use up.
+    await loginContext(page.context(), "admin");
     await page.goto("/admin/live-class");
     await expect(page.getByRole("heading", { name: /Live class settings/i })).toBeVisible();
     await expect(
