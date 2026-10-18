@@ -384,6 +384,7 @@ export function useUpdateDiscount() {
 export function useDeleteDiscount(options: {
   onSchedule?: (id: string) => void;
   onCancel?: (id: string) => void;
+  onCommitSuccess?: (id: string, result: { deleted: boolean }) => void;
 } = {}) {
   const toast = useToast();
   return useUndoableMutation({
@@ -394,13 +395,14 @@ export function useDeleteDiscount(options: {
     invalidates: [queryKeys.payments.discounts],
     onSchedule: options.onSchedule,
     onCancel: options.onCancel,
-    onCommitSuccess: (_id, result) => {
+    onCommitSuccess: (id, result) => {
       if (!result.deleted) {
         toast.info({
           title: "Discount deactivated",
           message: "It has already been used, so it is kept for the record."
         });
       }
+      options.onCommitSuccess?.(id, result);
     }
   });
 }

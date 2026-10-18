@@ -273,7 +273,10 @@ function wouldBeEarningsForClass(
   if (model === "TIERED" && rates.tier) {
     // The class's own hours priced from the first tier: which tier a single
     // class falls in depends on the period's other hours, so the base rate is used.
-    amount += tieredLines(rates.tier, hours)[0]?.amountMinor ?? 0;
+    const base = [...(rates.tier.tierConfig ?? [])].sort(
+      (a, b) => (a.uptoHours ?? Number.POSITIVE_INFINITY) - (b.uptoHours ?? Number.POSITIVE_INFINITY)
+    )[0];
+    if (base && hours > 0) amount += Math.round(hours * base.rateMinor);
   }
   return amount;
 }

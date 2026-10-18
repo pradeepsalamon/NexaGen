@@ -122,7 +122,7 @@ export class PaymentsAdminService {
     const pendingPayments = countOf(IN_FLIGHT);
 
     const refundAggregate = await this.prisma.refund.aggregate({
-      where: { status: "SUCCEEDED" },
+      where: { status: "SUCCEEDED", currency },
       _sum: { amount: true },
       _count: { _all: true }
     });

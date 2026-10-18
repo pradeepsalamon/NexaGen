@@ -64,3 +64,11 @@
 ## PR #66
 - None skipped. All findings (#103 to #114) addressed.
 
+## PR #70
+- Finding #4: payment.service.ts — persist handoff on in-flight replay requires DB schema migration; replay sends the exact same createPayment input as openAttempt so gateway idempotency key replays cleanly.
+- Finding #11: job-lock.service.ts — write fencing tokens across all writes requires architectural redesign; lost-lease AbortSignal is in place.
+- Finding #12: account-deletion.service.ts — making completion atomic or adding an IN_PROGRESS state requires schema migration to AccountDeletionStatus enum and refactoring cascadeSoftDelete to accept external transaction contexts; the existing try/catch already reverts status to PENDING if deleteAs throws.
+- Finding #13: whatsapp.service.ts — media upload timeout retryability kept retryable: duplicate media upload is invisible, unlike duplicate message.
+- Finding #16: TestimonialsSection.tsx — academy hardcoded colors: docs/UI_RULES.md exempts the academy marketing site ("has its own brand"); a11y improvements applied.
+- Finding #18: MasterbasePanel.tsx — backend proxy requires Lichess API token the academy must create; graceful 401 fallback is in place.
+

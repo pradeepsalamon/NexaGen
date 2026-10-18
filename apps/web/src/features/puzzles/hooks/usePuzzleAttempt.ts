@@ -47,8 +47,11 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
   // Moves of a finished line whose submit never reached the server; kept so the
   // student can send it again instead of the attempt staying open forever.
   const [pendingSubmit, setPendingSubmit] = useState<AttemptMove[] | null>(null);
+  const movesRef = useRef(moves);
+  movesRef.current = moves;
   const startedAt = useRef(Date.now());
   const busy = useRef(false);
+  const queuedGiveUp = useRef(false);
   // A submit (with its retries) runs at most once at a time.
   const submittingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
@@ -66,6 +69,7 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       setServerHint(null);
       setResult(null);
       setPendingSubmit(null);
+      queuedGiveUp.current = false;
       startedAt.current = Date.now();
     } catch (error) {
       setStartError((error as Error).message);
@@ -176,16 +180,23 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
         setResetNonce((n) => n + 1);
       } finally {
         busy.current = false;
+        if (queuedGiveUp.current) {
+          queuedGiveUp.current = false;
+          void submit(movesRef.current);
+        }
       }
     },
     [puzzleId, attemptId, phase, moves, startFen, submit, toast]
   );
 
-  // Not while a move is still being saved: `moves` would miss it.
-  const giveUp = useCallback(
-    () => (busy.current ? undefined : submit(moves)),
-    [submit, moves]
-  );
+  // Not while a move is still being saved: queue the give-up request until the save finishes.
+  const giveUp = useCallback(() => {
+    if (busy.current) {
+      queuedGiveUp.current = true;
+      return;
+    }
+    return submit(movesRef.current);
+  }, [submit]);
   const retrySubmit = useCallback(
     () => (pendingSubmit ? submit(pendingSubmit) : undefined),
     [submit, pendingSubmit]
@@ -202,8 +213,12 @@ export function usePuzzleAttempt({ start }: { start: StartFn }) {
       toast.error({ title: "Hint unavailable", message: (error as Error).message });
     } finally {
       busy.current = false;
+      if (queuedGiveUp.current) {
+        queuedGiveUp.current = false;
+        void submit(movesRef.current);
+      }
     }
-  }, [puzzleId, attemptId, phase, serverHint, moves, toast]);
+  }, [puzzleId, attemptId, phase, serverHint, moves, submit, toast]);
 
   return {
     session,

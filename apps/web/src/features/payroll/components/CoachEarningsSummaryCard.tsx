@@ -18,7 +18,9 @@ export function CoachEarningsSummaryCard() {
 
   // Newest period first, whatever order the API used.
   const newestFirst = [...records].sort((a, b) => b.period.startDate.localeCompare(a.period.startDate));
-  const current = newestFirst.find((r) => !FINAL_STATUSES.has(r.status));
+  const current = newestFirst.find(
+    (r) => r.period.status !== "CANCELLED" && !FINAL_STATUSES.has(r.status)
+  );
   // A FINALIZED record is not yet paid, so only PAID counts as a payment.
   const lastFinal = newestFirst.find((r) => r.status === "PAID");
 

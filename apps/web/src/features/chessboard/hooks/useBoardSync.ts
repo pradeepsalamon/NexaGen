@@ -420,9 +420,13 @@ export function useBoardSyncEngine(): BoardSyncActions {
           state.fen !== prevState.fen && state.historyIndex > prevState.historyIndex;
         // Stepping along the same line is UNDO/REDO, not a MOVE: receivers let a
         // controlling student move only the cursor on their own copy of the line.
+        const samePath =
+          state.treeLinePath === prevState.treeLinePath ||
+          (state.treeLinePath.length === prevState.treeLinePath.length &&
+            state.treeLinePath.every((v, i) => v === prevState.treeLinePath[i]));
         const cursorOnly =
           state.tree === prevState.tree &&
-          state.treeLinePath === prevState.treeLinePath &&
+          samePath &&
           state.historyIndex !== prevState.historyIndex;
         broadcastMsg({
           type: cursorOnly ? (state.historyIndex < prevState.historyIndex ? "UNDO" : "REDO") : "MOVE",

@@ -63,11 +63,26 @@ export function wrapText(
   maxLines: number,
 ): string[] {
   // A word wider than the whole line is cut to fit rather than overflowing.
+  const fitWithEllipsis = (str: string): string => {
+    let low = 1;
+    let high = str.length;
+    let best = str.slice(0, 1);
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const candidate = `${str.slice(0, mid)}…`;
+      if (ctx.measureText(candidate).width <= maxWidth) {
+        best = str.slice(0, mid);
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return `${best}…`;
+  };
+
   const fit = (word: string) => {
     if (ctx.measureText(word).width <= maxWidth) return word;
-    let cut = word;
-    while (cut.length > 1 && ctx.measureText(`${cut}…`).width > maxWidth) cut = cut.slice(0, -1);
-    return `${cut}…`;
+    return fitWithEllipsis(word);
   };
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
@@ -84,10 +99,7 @@ export function wrapText(
   if (line) lines.push(line);
   if (lines.length > maxLines) {
     const kept = lines.slice(0, maxLines);
-    let last = kept[maxLines - 1];
-    while (last.length > 1 && ctx.measureText(`${last}…`).width > maxWidth)
-      last = last.slice(0, -1);
-    kept[maxLines - 1] = `${last}…`;
+    kept[maxLines - 1] = fitWithEllipsis(kept[maxLines - 1]);
     return kept;
   }
   return lines;

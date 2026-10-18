@@ -59,6 +59,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
+import { cn } from "@/lib/utils";
 
 const INVOICE_STATUSES = Object.keys(
   INVOICE_STATUS_LABELS
@@ -102,7 +103,7 @@ export function AdminInvoicesPanel() {
     currency: string;
   } | null>(null);
 
-  const { data, isLoading } = useAdminInvoices(filters);
+  const { data, isLoading, isPlaceholderData } = useAdminInvoices(filters);
   const invoices = data?.invoices ?? [];
 
   // Typed into here; sent once the admin pauses, not on every keystroke.
@@ -171,7 +172,11 @@ export function AdminInvoicesPanel() {
 
   return (
     <div className="space-y-4">
-      {data ? <InvoiceStatsRow stats={data.stats} /> : null}
+      {data ? (
+        <div className={cn(isPlaceholderData && "opacity-60 pointer-events-none transition-opacity")}>
+          <InvoiceStatsRow stats={data.stats} />
+        </div>
+      ) : null}
 
       <Card className="space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-3">
@@ -312,7 +317,7 @@ export function AdminInvoicesPanel() {
       ) : null}
 
       {data && data.invoices.length > 0 ? (
-        <Card className="p-0">
+        <Card className={cn("p-0 transition-opacity", isPlaceholderData && "opacity-60 pointer-events-none")}>
           <div className="overflow-x-auto">
             <Table className="w-full min-w-[880px] border-collapse">
               <TableHeader>

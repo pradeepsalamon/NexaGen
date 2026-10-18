@@ -96,14 +96,18 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
     setPasscodeError(undefined);
 
     const minutes = Number(duration);
-    if (!Number.isInteger(minutes) || minutes <= 0) {
-      setDurationError("Enter the duration as a whole number of minutes.");
+    if (!Number.isInteger(minutes) || minutes <= 0 || minutes > 1440) {
+      setDurationError("Enter the duration as a whole number of minutes (1 to 1440).");
       return;
     }
-    setDurationError(undefined);
 
     const startObj = new Date(values.startsAt);
     const endsAtObj = new Date(startObj.getTime() + minutes * 60000);
+    if (Number.isNaN(endsAtObj.getTime())) {
+      setDurationError("Please enter a valid start time and duration.");
+      return;
+    }
+    setDurationError(undefined);
 
     const submitData = {
       ...values,

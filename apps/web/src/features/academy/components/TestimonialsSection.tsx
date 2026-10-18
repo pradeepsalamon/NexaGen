@@ -52,15 +52,16 @@ export function TestimonialsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
   // Paused by the button or by picking a slide; hovering/focusing holds it too.
   const [paused, setPaused] = useState(false);
-  const [interacting, setInteracting] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   useEffect(() => {
-    if (paused || interacting) return;
+    if (paused || hovered || focused) return;
     const timer = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, [paused, interacting]);
+  }, [paused, hovered, focused]);
 
   return (
     <section className="relative py-24 sm:py-32 overflow-hidden">
@@ -82,10 +83,14 @@ export function TestimonialsSection() {
 
         <div
           className="max-w-4xl mx-auto reveal reveal-up"
-          onBlur={() => setInteracting(false)}
-          onFocus={() => setInteracting(true)}
-          onMouseEnter={() => setInteracting(true)}
-          onMouseLeave={() => setInteracting(false)}
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+              setFocused(false);
+            }
+          }}
+          onFocus={() => setFocused(true)}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           style={{ transitionDelay: "0.2s" }}
         >
           <div className="relative overflow-hidden">

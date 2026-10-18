@@ -107,7 +107,12 @@ export function StudentScheduleClient() {
       to: new Date(now + 90 * 24 * 60 * 60 * 1000).toISOString()
     };
   });
-  const { data: upcomingData } = useScheduleCalendarQuery({
+  const {
+    data: upcomingData,
+    isLoading: upcomingLoading,
+    isError: upcomingError,
+    refetch: refetchUpcoming
+  } = useScheduleCalendarQuery({
     from: upcomingRange.from,
     to: upcomingRange.to,
     batchId: selectedBatchId || undefined
@@ -443,7 +448,18 @@ export function StudentScheduleClient() {
       ) : (
         /* List View */
         <Card className="p-6 shadow-card">
-          {upcomingClassesList.length === 0 ? (
+          {upcomingLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-16 rounded-app" />
+              <Skeleton className="h-16 rounded-app" />
+              <Skeleton className="h-16 rounded-app" />
+            </div>
+          ) : upcomingError ? (
+            <WidgetError
+              message="Could not load your upcoming classes. Please check your connection."
+              onRetry={() => refetchUpcoming()}
+            />
+          ) : upcomingClassesList.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
               title="No upcoming classes found"

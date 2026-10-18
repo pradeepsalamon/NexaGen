@@ -152,21 +152,26 @@ export class CompensationProfileService {
 
     let toClose: { id: string }[] = [];
     const rate = await this.prisma.$transaction(async (tx) => {
-      const openEnded = (
+      const sameScope = (
         await tx.coachCompensationRate.findMany({
-          where: { coachId, calculationType: dto.calculationType, effectiveTo: null }
+          where: { coachId, calculationType: dto.calculationType }
         })
       ).filter((r) => JSON.stringify(r.scopeConfig ?? null) === scopeKey);
-      // A later open-ended rate this one would overlap makes the resolver's pick arbitrary.
-      const overlapsLater = openEnded.some(
-        (r) => r.effectiveFrom >= effectiveFrom && (!effectiveTo || effectiveTo > r.effectiveFrom)
+      const openEnded = sameScope.filter((r) => r.effectiveTo === null);
+      toClose = openEnded.filter((r) => r.effectiveFrom < effectiveFrom);
+      const closing = new Set(toClose.map((r) => r.id));
+      // Any remaining rate that intersects [effectiveFrom, effectiveTo) makes the resolver's pick arbitrary.
+      const overlaps = sameScope.some(
+        (r) =>
+          !closing.has(r.id) &&
+          (!effectiveTo || r.effectiveFrom < effectiveTo) &&
+          (!r.effectiveTo || r.effectiveTo > effectiveFrom)
       );
-      if (overlapsLater) {
+      if (overlaps) {
         throw new ConflictException(
-          "An open-ended rate for this scope already starts on or after that date. End it first."
+          "Another rate for this scope already covers part of that period. End it first."
         );
       }
-      toClose = openEnded.filter((r) => r.effectiveFrom < effectiveFrom);
       for (const previous of toClose) {
         await tx.coachCompensationRate.update({
           where: { id: previous.id },

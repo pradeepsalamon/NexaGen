@@ -16,10 +16,9 @@ export async function apiLogin(user: { email: string; password: string }): Promi
   return res.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
 }
 
-/** Clicks a square on a chessground board, white at the bottom. */
 export async function clickBoardSquare(page: Page, board: ReturnType<Page["locator"]>, square: string) {
   await board.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
+  await board.waitFor({ state: "visible" });
   const file = square.charCodeAt(0) - 97; // 0-7
   const rank = parseInt(square[1], 10); // 1-8
   const box = await board.boundingBox();
@@ -27,5 +26,4 @@ export async function clickBoardSquare(page: Page, board: ReturnType<Page["locat
   const x = box.x + box.width * ((file + 0.5) / 8);
   const y = box.y + box.height * ((8 - rank + 0.5) / 8);
   await page.mouse.click(x, y);
-  await page.waitForTimeout(250);
 }

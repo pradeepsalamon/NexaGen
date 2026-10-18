@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -84,6 +84,15 @@ export function useDataTable<TData, TValue>({
     useState<RowSelectionState>({});
   const rowSelection = controlledRowSelection ?? internalRowSelection;
   const setRowSelection = setControlledRowSelection ?? setInternalRowSelection;
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    onRowSelectionChange?.(rowSelection);
+  }, [rowSelection, onRowSelectionChange]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     initialColumnVisibility
   );
@@ -115,12 +124,8 @@ export function useDataTable<TData, TValue>({
       pagination
     },
     enableRowSelection: true,
-    // Resolved against the current value, with the callback outside the
-    // state updater (React may call an updater twice).
     onRowSelectionChange: (updater) => {
-      const newSelection = typeof updater === "function" ? updater(rowSelection) : updater;
-      setRowSelection(newSelection);
-      onRowSelectionChange?.(newSelection);
+      setRowSelection((prev) => (typeof updater === "function" ? updater(prev) : updater));
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,

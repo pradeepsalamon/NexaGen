@@ -260,21 +260,26 @@ export class StripeProvider implements PaymentProviderAdapter {
         pickString(object, "client_reference_id"),
       paymentStatus:
         subject === "PAYMENT"
-          ? isSession
-            ? mapSessionStatus(
-                pickString(object, "status"),
-                pickString(object, "payment_status")
-              )
-            : mapPaymentStatus(pickString(object, "status"))
+          ? eventType === "checkout.session.async_payment_failed"
+            ? "FAILED"
+            : isSession
+              ? mapSessionStatus(
+                  pickString(object, "status"),
+                  pickString(object, "payment_status")
+                )
+              : mapPaymentStatus(pickString(object, "status"))
           : null,
       refundStatus:
         subject === "REFUND" ? mapRefundStatus(pickString(object, "status")) : null,
       subscriptionStatus:
         subject === "SUBSCRIPTION"
           ? isSubscriptionSession
-            ? pickString(object, "payment_status") === "paid"
-              ? "ACTIVE"
-              : "PENDING_ACTIVATION"
+            ? pickString(object, "status") === "expired"
+              ? "EXPIRED"
+              : pickString(object, "payment_status") === "paid" ||
+                pickString(object, "payment_status") === "no_payment_required"
+                ? "ACTIVE"
+                : "PENDING_ACTIVATION"
             : mapSubscriptionStatus(pickString(object, "status"))
           : null,
       method: methodFromObject(object),

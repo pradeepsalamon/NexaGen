@@ -52,7 +52,12 @@ export function DiscountsPanel() {
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
   const remove = useDeleteDiscount({
     onSchedule: (id) => setHiddenIds((ids) => [...ids, id]),
-    onCancel: (id) => setHiddenIds((ids) => ids.filter((hidden) => hidden !== id))
+    onCancel: (id) => setHiddenIds((ids) => ids.filter((hidden) => hidden !== id)),
+    onCommitSuccess: (id, result) => {
+      if (!result.deleted) {
+        setHiddenIds((ids) => ids.filter((hidden) => hidden !== id));
+      }
+    }
   });
 
   const [editing, setEditing] = useState<DiscountItem | null>(null);

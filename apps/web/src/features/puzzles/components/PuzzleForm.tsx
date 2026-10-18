@@ -203,11 +203,17 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         if (publish && puzzle.status !== "PUBLISHED") {
           await setPuzzlePublished(puzzle.id, { published: true });
         }
-        toast.success({ title: "Puzzle saved" });
+        toast.success({ title: publish ? "Puzzle published" : "Puzzle saved" });
         router.push(`${basePath}/${puzzle.id}`);
       }
     } catch (error) {
-      if (!inMutation) toast.error({ title: "Could not save puzzle", message: (error as Error).message });
+      if (!inMutation) {
+        toast.error({
+          title: "Puzzle saved, but publishing failed",
+          message: (error as Error).message
+        });
+        if (puzzle) router.push(`${basePath}/${puzzle.id}`);
+      }
     } finally {
       setSaving(false);
     }

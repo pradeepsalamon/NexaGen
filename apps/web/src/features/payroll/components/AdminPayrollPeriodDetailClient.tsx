@@ -54,6 +54,7 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
   const cancel = useCancelPayrollPeriod();
   const [cancelling, setCancelling] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
+  const [periodActionPending, setPeriodActionPending] = useState(false);
 
   // One-way transitions with no reverse endpoint: held for the undo window
   // before they are sent, so a misclick can still be taken back.
@@ -67,6 +68,9 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
           ? finalize.mutateAsync(periodId)
           : markPaid.mutateAsync(periodId),
     undo: async () => {},
+    onSchedule: () => setPeriodActionPending(true),
+    onCancel: () => setPeriodActionPending(false),
+    onCommitSuccess: () => setPeriodActionPending(false),
     toast: (action) => ({
       title:
         action.kind === "cancel"
@@ -165,13 +169,21 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                 ) : null}
 
                 {period.status === "APPROVED" ? (
-                  <Button isLoading={finalize.isPending} onClick={() => void runPeriodAction({ kind: "finalize" })}>
+                  <Button
+                    disabled={periodActionPending}
+                    isLoading={finalize.isPending}
+                    onClick={() => void runPeriodAction({ kind: "finalize" })}
+                  >
                     Finalize
                   </Button>
                 ) : null}
 
                 {period.status === "FINALIZED" ? (
-                  <Button isLoading={markPaid.isPending} onClick={() => void runPeriodAction({ kind: "markPaid" })}>
+                  <Button
+                    disabled={periodActionPending}
+                    isLoading={markPaid.isPending}
+                    onClick={() => void runPeriodAction({ kind: "markPaid" })}
+                  >
                     Mark period paid
                   </Button>
                 ) : null}

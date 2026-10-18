@@ -28,7 +28,7 @@ import { ManualPaymentAttachmentStorage } from "./manual-payment-attachment.stor
 import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { PaymentService } from "./payment.service";
 import { assertAdmin, fullName, isAdminRole } from "./payments-auth.helper";
-import { generateOrderNumber, isUniqueViolation, priceOrder, toPlanItem } from "./payments.util";
+import { generateOrderNumber, isUniqueViolationOn, priceOrder, toPlanItem } from "./payments.util";
 
 export type ManualAttachmentInput = {
   buffer: Buffer;
@@ -164,7 +164,7 @@ export class ManualPaymentService {
         return { payment, record };
       });
     } catch (error) {
-      if (dto.idempotencyKey && isUniqueViolation(error)) {
+      if (dto.idempotencyKey && isUniqueViolationOn(error, "idempotencyKey")) {
         return this.replayRecord(idempotencyKey, dto);
       }
       throw error;
@@ -209,6 +209,13 @@ export class ManualPaymentService {
     const order = existing?.payment.order;
     if (!existing || order?.userId !== dto.studentUserId || order.planId !== dto.planId) {
       throw new ConflictException("This request was already used for a different payment.");
+    }
+    if (existing.status === "APPROVED" && existing.payment.status !== PaymentStatus.PAID) {
+      await this.settle(existing.paymentId, existing.method.label, {
+        methodId: existing.methodId,
+        reference: existing.reference ?? undefined,
+        actorId: existing.recordedByUserId
+      }, "manual:record");
     }
     return toItem(existing);
   }

@@ -63,10 +63,18 @@ export class JobLockService {
     }
 
     const lease = new AbortController();
+    let inFlightRenewal: Promise<void> | null = null;
     const renewal = setInterval(() => {
-      void this.renew(name, owner, ttlMs).then((held) => {
-        if (!held) lease.abort();
-      });
+      inFlightRenewal = this.renew(name, owner, ttlMs)
+        .then((held) => {
+          if (!held) lease.abort();
+        })
+        .catch(() => {
+          // safeguard against unhandled rejection
+        })
+        .finally(() => {
+          inFlightRenewal = null;
+        });
     }, Math.max(1_000, Math.floor(ttlMs / 3)));
     renewal.unref?.();
 
@@ -74,6 +82,9 @@ export class JobLockService {
       return { acquired: true, result: await run(lease.signal) };
     } finally {
       clearInterval(renewal);
+      if (inFlightRenewal) {
+        await inFlightRenewal;
+      }
       await this.release(name, owner).catch((error: unknown) =>
         this.logger.warn(`Could not release job lock ${name}: ${(error as Error).message}`)
       );

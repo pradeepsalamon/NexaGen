@@ -17,24 +17,24 @@ test.beforeAll(async () => {
   // Reset the E2E Student Fixture to a fresh PENDING state (undeploy + redeploy)
   // so the browser flow below is repeatable across runs.
   const cookie = await apiLogin(USERS.coach);
-  const deps = await getJson<{ deployments: Array<{ id: string; title: string; assignmentId: string }> }>(
-    "/assignments/deployments",
-    cookie
-  );
-  const dep = deps.deployments.find((d) => d.title === FIXTURE_TITLE);
-  let assignmentId = dep?.assignmentId;
-  if (!assignmentId) {
-    const lib = await getJson<{ assignments: Array<{ id: string; title: string }> }>("/assignments/library", cookie);
-    assignmentId = lib.assignments.find((a) => a.title === FIXTURE_TITLE)?.id;
-  }
-  if (!assignmentId) throw new Error(`No "${FIXTURE_TITLE}" assignment in the library.`);
-
   const batches = await getJson<{ batches?: Array<{ id: string; name: string }> } | Array<{ id: string; name: string }>>(
     "/coach/batches",
     cookie
   );
   const batch = (Array.isArray(batches) ? batches : batches.batches ?? []).find((b) => b.name === BATCH_NAME);
   if (!batch) throw new Error(`coach@nexa.test has no "${BATCH_NAME}" batch.`);
+
+  const deps = await getJson<{ deployments: Array<{ id: string; title: string; assignmentId: string; batchId: string }> }>(
+    "/assignments/deployments",
+    cookie
+  );
+  const dep = deps.deployments.find((d) => d.title === FIXTURE_TITLE && d.batchId === batch.id);
+  let assignmentId = dep?.assignmentId;
+  if (!assignmentId) {
+    const lib = await getJson<{ assignments: Array<{ id: string; title: string }> }>("/assignments/library", cookie);
+    assignmentId = lib.assignments.find((a) => a.title === FIXTURE_TITLE)?.id;
+  }
+  if (!assignmentId) throw new Error(`No "${FIXTURE_TITLE}" assignment in the library.`);
 
   if (dep?.id) {
     const undeploy = await fetch(`${API_BASE}/assignments/deployments/${dep.id}`, {

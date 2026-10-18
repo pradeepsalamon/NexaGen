@@ -466,7 +466,12 @@ export type TeachingSummary = {
 export type CoachPayrollRecordItem = TeachingSummary & {
   id: string;
   periodId: string;
-  period: { periodType: PayrollPeriodType; startDate: string; endDate: string };
+  period: {
+    periodType: PayrollPeriodType;
+    startDate: string;
+    endDate: string;
+    status: PayrollPeriodStatus;
+  };
   coachId: string;
   coachName: string;
   coachEmail: string;

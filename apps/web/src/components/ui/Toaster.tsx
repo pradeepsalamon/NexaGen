@@ -45,7 +45,7 @@ export function Toaster({ ...props }: ToasterProps) {
           description: "text-current/90",
           toast:
             "top-16 rounded-app border p-4 text-white shadow-[0_24px_70px_rgba(16,24,40,0.22)]",
-          title: "font-extrabold text-white"
+          title: "font-extrabold"
         }
       }}
       {...props}
