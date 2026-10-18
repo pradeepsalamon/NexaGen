@@ -66,7 +66,7 @@ export function CoachAnalyticsSection({
             <KpiCard invertDelta isLoading={isLoading} kpi={num(k?.cancelledClasses)} label="Cancelled classes" />
           </KpiCardRow>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
             <div>
               <p className="mb-2 text-sm font-bold text-app-text">Teaching hours over time</p>
               <ChartContainer

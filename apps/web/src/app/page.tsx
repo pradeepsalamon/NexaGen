@@ -49,7 +49,7 @@ export default function Home() {
   return (
     <main className="min-h-[calc(100dvh-4rem)] overflow-hidden">
       <script dangerouslySetInnerHTML={{ __html: jsonLdScript(homeJsonLd()) }} type="application/ld+json" />
-      <section className="mx-auto grid min-h-[calc(100dvh-4rem)] w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
+      <section className="mx-auto grid grid-cols-1 min-h-[calc(100dvh-4rem)] w-full max-w-6xl animate-fade-in content-center gap-10 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(360px,0.7fr)] lg:items-center lg:px-8">
         <div className="grid gap-8">
           <div className="max-w-3xl">
             <p className="mb-3 text-xs font-extrabold text-primary-ink">
@@ -73,7 +73,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {highlights.map((item) => {
               const Icon = item.icon;
 

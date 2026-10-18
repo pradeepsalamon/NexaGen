@@ -38,7 +38,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
       updatedAt={data?.meta.generatedAt}
       onRefresh={() => refetch()}
     >
-      <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.4fr_1fr]">
         <ChartContainer
           isEmpty={!isLoading && chartData.length === 0}
           isError={isError}

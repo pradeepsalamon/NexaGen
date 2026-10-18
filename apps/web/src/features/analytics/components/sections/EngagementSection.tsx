@@ -44,7 +44,7 @@ export function EngagementSection({ query }: { query: AnalyticsRangeQuery }) {
             <KpiCard isLoading={isLoading} kpi={asKpi(data?.newVsReturning.returning)} label="Returning (active)" />
           </KpiCardRow>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
             <div>
               <p className="mb-2 text-sm font-bold text-app-text">Daily active users</p>
               <ChartContainer
@@ -77,7 +77,7 @@ export function EngagementSection({ query }: { query: AnalyticsRangeQuery }) {
 
           <div className="mt-6">
             <p className="mb-2 text-sm font-bold text-app-text">Recently active</p>
-            <ul className="grid gap-1.5 text-sm sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-1.5 text-sm sm:grid-cols-2">
               {(data?.recentlyActive ?? []).map((u) => (
                 <li className="flex items-center justify-between gap-2" key={u.userId}>
                   <span className="truncate text-app-text">

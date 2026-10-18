@@ -44,11 +44,11 @@ export function ClassroomTopBar({
       }
       centerSlot={
         <div className="flex min-w-0 flex-col items-center">
-          <h1 className="min-w-0 max-w-[40vw] truncate text-sm font-extrabold text-app-text sm:max-w-none sm:text-[15px]">
+          <h1 className="min-w-0 max-w-full truncate text-sm font-extrabold text-app-text sm:text-[15px]">
             {title}
           </h1>
           {subtitle && (
-            <p className="hidden max-w-[40vw] truncate text-xs text-app-muted sm:block">
+            <p className="hidden max-w-full truncate text-xs text-app-muted sm:block">
               {subtitle}
             </p>
           )}

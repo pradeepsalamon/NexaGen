@@ -177,7 +177,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
             </div>
           </div>
 
-          <TabsContent value="details" className="grid gap-4 lg:grid-cols-2">
+          <TabsContent value="details" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <FormInput name="name" label="Batch Name" required />
           <FormSelect name="status" label="Status" options={statusOptions} />
           <FormSelect
@@ -267,7 +267,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
 
           {selectedBatch && (
             <TabsContent value="members">
-              <div className="grid gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <Controller
                 control={form.control}
                 name="coachIds"

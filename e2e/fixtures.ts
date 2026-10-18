@@ -1,6 +1,7 @@
 import {
   expect,
   type APIRequestContext,
+  type APIResponse,
   type BrowserContext,
   type Page,
 } from "@playwright/test";
@@ -150,6 +151,37 @@ export async function apiCallOk(
   const res = await apiCall(request, method, path, body);
   expect(res.ok(), `${method} ${path} → ${res.status()}: ${await res.text()}`).toBeTruthy();
   return res;
+}
+
+type CallAs = (
+  method: "GET" | "POST" | "PATCH",
+  path: string,
+  body?: Record<string, unknown>
+) => Promise<APIResponse>;
+
+/**
+ * Coaches can't create classes (they're academy-scheduled), so a spec's class
+ * comes from an EXTRA_CLASS request the coach files and an admin approves.
+ * `startsAt` must still be in the future when the approval runs.
+ */
+export async function scheduleClass(
+  asCoach: CallAs,
+  asAdmin: CallAs,
+  body: { batchId: string; topic: string; startsAt: string; endsAt: string }
+): Promise<string> {
+  const created = await asCoach("POST", "/class-requests", {
+    ...body,
+    reason: "E2E test class",
+    type: "EXTRA_CLASS",
+  });
+  expect(created.ok(), `class request: ${await created.text()}`).toBeTruthy();
+  const requestId: string = (await created.json()).request.id;
+
+  const approved = await asAdmin("POST", `/class-requests/${requestId}/approve`, {});
+  expect(approved.ok(), `approve class request: ${await approved.text()}`).toBeTruthy();
+  const classId: string | null = (await approved.json()).request.classId;
+  expect(classId, "approved request has no class").toBeTruthy();
+  return classId as string;
 }
 
 /**

@@ -260,7 +260,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
 
       <Card className="p-4 sm:p-6">
         <SectionHeading index={1} title="Basic information" />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FormField id="pz-title" label="Puzzle title">
             <Input
               id="pz-title"
@@ -487,7 +487,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
 
       <Card className="p-4 sm:p-6">
         <SectionHeading index={5} title="Publishing" />
-        <dl className="grid gap-3 text-sm sm:grid-cols-3">
+        <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-app-muted">Creator</dt>
             <dd className="font-medium text-app-text">

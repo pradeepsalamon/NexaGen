@@ -10,11 +10,11 @@ import {
 export function getEventIcon(eventType: string) {
   switch (eventType) {
     case "JOIN":
-      return <LogIn className="h-4 w-4 text-green-500" />;
+      return <LogIn className="h-4 w-4 text-success-ink" />;
     case "LEAVE":
-      return <LogOut className="h-4 w-4 text-red-500" />;
+      return <LogOut className="h-4 w-4 text-app-muted" />;
     case "DISCONNECT":
-      return <WifiOff className="h-4 w-4 text-orange-500" />;
+      return <WifiOff className="h-4 w-4 text-warning-ink" />;
     case "RECONNECT":
       return <RefreshCcw className="h-4 w-4 text-primary-ink" />;
     case "BOARD_JOIN":

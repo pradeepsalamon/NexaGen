@@ -80,7 +80,7 @@ export function ActivitySummaryPanel({ summary }: { summary: StudentActivitySumm
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           context={`${totals.completed} completed`}
           icon={ListChecks}
@@ -156,7 +156,7 @@ export function ActivitySummaryPanel({ summary }: { summary: StudentActivitySumm
       </SectionCard>
 
       <SectionCard description="Evidence from this period's records only." title="Areas to work on">
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <InsightBlock title="Trend">
             <div className="flex flex-wrap items-start gap-2">
               <Badge variant={trend.variant}>

@@ -26,7 +26,7 @@ function FontPicker({
   return (
     <fieldset className="space-y-2.5" disabled={disabled}>
       <legend className="text-sm font-bold text-app-text">{label}</legend>
-      <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={label}>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2" role="radiogroup" aria-label={label}>
         {FONT_CATALOG.map((font) => {
           const active = font.id === selected;
           return (
@@ -86,7 +86,7 @@ export function TypographyFields({
   const scale = TEXT_SCALE_FACTORS[value.textScale];
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="space-y-6">
         <FontPicker
           disabled={disabled}

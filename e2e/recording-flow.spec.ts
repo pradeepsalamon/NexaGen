@@ -1,7 +1,14 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
 import fs from "fs";
 import path from "path";
-import { API_URL, apiCallOk, loginContext, sendLiveKitWebhook } from "./fixtures";
+import {
+  API_URL,
+  apiCall,
+  apiCallOk,
+  loginContext,
+  scheduleClass,
+  sendLiveKitWebhook,
+} from "./fixtures";
 
 /**
  * Locate a row by text in a client-paginated DataTable, walking pages with the
@@ -104,19 +111,18 @@ test.describe("Full Recording Lifecycle & Video Player Flow", () => {
     expect(batchList.length, "coach has at least one batch").toBeGreaterThan(0);
     const batchId = batchList[0].id;
 
+    // Starts inside the early-start window so it can be started right away.
     const now = Date.now();
-    const created = await jsonOf<{ class?: { id: string }; id?: string }>(
-      await apiCallOk(coach, "POST", "/coach/classes", {
+    classId = await scheduleClass(
+      (method, path, body) => apiCall(coach, method, path, body),
+      (method, path, body) => apiCall(admin, method, path, body),
+      {
         batchId,
         topic: uniqueTopic,
-        title: uniqueTopic,
-        description: "Class to test recording start, stop, webhook, stream and download",
-        startsAt: new Date(now + 120 * 60_000).toISOString(),
-        endsAt: new Date(now + 180 * 60_000).toISOString(),
-      })
+        startsAt: new Date(now + 60_000).toISOString(),
+        endsAt: new Date(now + 61 * 60_000).toISOString(),
+      }
     );
-    classId = (created.class?.id ?? created.id) as string;
-    expect(classId).toBeTruthy();
 
     const roomName = `class_${classId}`;
     await apiCallOk(coach, "POST", `/live-class/${classId}/start`);

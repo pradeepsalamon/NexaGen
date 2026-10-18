@@ -187,53 +187,50 @@ export function MeetingVideoGrid({
                   <PuzzleGridTile key="puzzle-tile" puzzle={activePuzzle} style={tileStyle(0)} />
                 )}
                 {boardTileShown && (
-                  <>
-                    <motion.div
-                      key="inline-chessboard"
-                      layout
-                      initial={{ opacity: 0, scale: 0.94 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      exit={{ opacity: 0, scale: 0.94 }}
-                      transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-                      className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border border-app-border bg-app-surface transition-shadow duration-200"
-                      style={{ containerType: "size", ...tileStyle(puzzleTileShown ? 1 : 0) }}
+                  <motion.div
+                    key="inline-chessboard"
+                    layout
+                    initial={{ opacity: 0, scale: 0.94 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.94 }}
+                    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+                    className="group relative flex aspect-video items-center justify-center overflow-hidden rounded-app border border-app-border bg-app-surface transition-shadow duration-200"
+                    style={{ containerType: "size", ...tileStyle(puzzleTileShown ? 1 : 0) }}
+                  >
+                    <div
+                      className="relative"
+                      style={{
+                        width: "min(100cqw, 100cqh)",
+                        height: "min(100cqw, 100cqh)",
+                      }}
                     >
-                      <div
-                        className="relative"
-                        style={{
-                          width: "min(100cqw, 100cqh)",
-                          height: "min(100cqw, 100cqh)",
-                        }}
+                      <ChessgroundBoard />
+                    </div>
+
+                    {/* Bottom-left name pill & request control button. The clock
+                        is intentionally not shown on this small tile — it lives
+                        in the full-screen board view. */}
+                    <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
+                      <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 shadow-card backdrop-blur-md">
+                        <Crown className="size-3 text-secondary" />
+                        <span className="text-[11px] font-semibold text-white/90">Shared Board</span>
+                      </div>
+                      <RequestControlButton />
+                    </div>
+
+                    {/* Top-right flip + full-screen buttons (hover-revealed only where hover exists) */}
+                    <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end gap-1.5 p-2">
+                      <FlipBoardButton className="pointer-events-auto" />
+                      <button
+                        type="button"
+                        className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
+                        onClick={() => setBoardStage(true)}
+                        aria-label="View board full screen"
                       >
-                        <ChessgroundBoard />
-                      </div>
-
-                      {/* Bottom-left name pill & request control button. The clock
-                          is intentionally not shown on this small tile — it lives
-                          in the full-screen board view. */}
-                      <div className="absolute bottom-2 left-2 right-2 z-10 flex items-center gap-1.5">
-                        <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-white/10 bg-black/60 px-2 py-1 shadow-card backdrop-blur-md">
-                          <Crown className="size-3 text-amber-400" />
-                          <span className="text-[11px] font-semibold text-white/90">Shared Board</span>
-                        </div>
-                        <RequestControlButton />
-                      </div>
-
-                      {/* Top-right flip + full-screen buttons (hover-revealed only where hover exists) */}
-                      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-end gap-1.5 p-2">
-                        <FlipBoardButton className="pointer-events-auto" />
-                        <button
-                          type="button"
-                          className="pointer-events-auto flex size-7 items-center justify-center rounded-full border border-app-border bg-app-surface/80 text-app-text backdrop-blur-sm transition duration-150 hover:bg-app-surface hover:scale-105 shadow-card [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
-                          onClick={() => setBoardStage(true)}
-                          aria-label="View board full screen"
-                        >
-                          <Maximize2 className="size-3.5" />
-                        </button>
-                      </div>
-                    </motion.div>
-
-                  </>
+                        <Maximize2 className="size-3.5" />
+                      </button>
+                    </div>
+                  </motion.div>
                 )}
                 {sortedTracks.map((trackRef, trackIndex) => (
                   <VideoTile

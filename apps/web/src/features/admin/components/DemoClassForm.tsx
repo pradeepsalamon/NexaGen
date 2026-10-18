@@ -143,7 +143,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
         <h2 className="text-xl font-bold text-app-text">
           {selectedClass ? "Edit Demo Class" : "Create Demo Class"}
         </h2>
-        <p className="mt-1 text-sm text-app-text-muted">
+        <p className="mt-1 text-sm text-app-muted">
           {selectedClass
             ? "Update details for this demo class. Manage its guests from the class details."
             : "Schedule a one-off demo class. For a recurring slot with a permanent link, use Schedules."}

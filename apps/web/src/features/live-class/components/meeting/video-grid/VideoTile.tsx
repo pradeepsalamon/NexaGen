@@ -79,7 +79,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
           )}
         />
       ) : (
-        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-app-soft p-2 sm:gap-3">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-app-soft p-2 sm:gap-3 [@container(max-height:14rem)]:pb-11">
           {/* Tiles are sized in px by the grid, so the placeholder scales off
               the tile itself (cqmin — the smaller of its width/height) rather
               than off viewport breakpoints, and keeps growing on a large,
@@ -87,9 +87,10 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
           <ParticipantAvatar
             name={name}
             size="lg"
-            className="size-[clamp(2.5rem,26cqmin,11rem)] text-[clamp(0.75rem,9cqmin,2.5rem)]"
+            className="size-[clamp(2.5rem,26cqmin,11rem)] text-[clamp(0.75rem,9cqmin,2.5rem)] [@container(max-height:8rem)]:hidden"
           />
-          <div className="flex max-w-full items-center justify-center gap-1.5 text-center">
+          {/* Short tiles: the name pill already shows the name, and this would collide with it. */}
+          <div className="flex max-w-full items-center justify-center gap-1.5 text-center [@container(max-height:14rem)]:hidden">
             <p className="truncate text-[clamp(0.75rem,3cqmin,1.125rem)] font-medium text-app-text/80">{name}</p>
             {role && role.toUpperCase() === "COACH" && (
               <span className="shrink-0 text-app-muted text-[clamp(0.7rem,2.6cqmin,1rem)] font-normal">(Coach)</span>
@@ -133,7 +134,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between p-2.5">
         <div className="flex gap-2 items-center">
           {handRaised && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-white shadow-card">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-warning text-white shadow-card">
               <Hand className="h-3 w-3" />
             </span>
           )}

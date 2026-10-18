@@ -51,7 +51,7 @@ export function BatchSettings({
         </h2>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="settings-page-size" label="Default rows">
           <Select
             id="settings-page-size"

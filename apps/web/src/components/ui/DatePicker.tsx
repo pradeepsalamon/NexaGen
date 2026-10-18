@@ -117,9 +117,9 @@ export function DatePicker({
           id={id}
           variant="outline"
           className={cn(
-            "min-h-11 justify-start rounded-full px-4 py-2 text-left text-sm font-medium border border-app-border bg-app-surface text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] hover:bg-app-surface hover:text-app-text dark:border-app-border dark:text-app-text dark:hover:bg-app-surface",
-            withTime ? "w-full" : "w-[266px]",
-            !value && "text-app-muted dark:text-app-muted",
+            "min-h-11 justify-start rounded-full px-4 py-2 text-left text-sm font-medium border border-app-border bg-app-surface text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] hover:bg-app-surface hover:text-app-text",
+            withTime ? "w-full" : "w-full min-w-0 max-w-[266px]",
+            !value && "text-app-muted",
             className
           )}
         >
@@ -134,15 +134,15 @@ export function DatePicker({
           </span>
           <ChevronDown
             aria-hidden="true"
-            className="ml-3 size-4 shrink-0 text-zinc-500 dark:text-zinc-300"
+            className="ml-3 size-4 shrink-0 text-app-muted"
           />
         </Button>
       </DialogTrigger>
 
       <DialogContent
-        className="w-auto p-0 border-0 bg-transparent shadow-none sm:rounded-lg overflow-hidden flex flex-col items-center justify-center [&>button]:hidden"
+        className="w-auto p-0 border-0 bg-transparent shadow-none sm:rounded-panel overflow-hidden flex flex-col items-center justify-center [&>button]:hidden"
       >
-        <div className="bg-white dark:bg-zinc-950 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+        <div className="overflow-hidden rounded-panel border border-app-border bg-app-surface shadow-soft">
 
         <Calendar
           autoFocus
@@ -151,14 +151,14 @@ export function DatePicker({
           selected={selectedDate}
         />
         {withTime ? (
-          <div className="flex items-center justify-between gap-3 border-t border-zinc-200 bg-zinc-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/80">
-            <div className="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-              <Clock className="size-4.5 text-zinc-500 dark:text-zinc-400" />
+          <div className="flex items-center justify-between gap-3 border-t border-app-border bg-app-soft px-4 py-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-app-text">
+              <Clock className="size-4.5 text-app-muted" />
               <span>Time:</span>
             </div>
             <div className="flex items-center gap-2">
               <select
-                className="h-9.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 cursor-pointer"
+                className="h-9.5 cursor-pointer rounded-control border border-app-border bg-app-surface px-2.5 py-1 text-sm font-semibold text-app-text transition hover:border-primary/50 focus:border-primary focus:outline-none"
                 onChange={(event) => handleTimeChange("hour", event.target.value)}
                 value={
                   selectedDate ? (selectedDate.getHours() % 12 || 12).toString() : "12"
@@ -173,9 +173,9 @@ export function DatePicker({
                   );
                 })}
               </select>
-              <span className="font-bold text-zinc-400 text-sm">:</span>
+              <span className="text-sm font-bold text-app-muted">:</span>
               <select
-                className="h-9.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 cursor-pointer"
+                className="h-9.5 cursor-pointer rounded-control border border-app-border bg-app-surface px-2.5 py-1 text-sm font-semibold text-app-text transition hover:border-primary/50 focus:border-primary focus:outline-none"
                 onChange={(event) =>
                   handleTimeChange("minute", event.target.value)
                 }
@@ -192,7 +192,7 @@ export function DatePicker({
                 ))}
               </select>
               <select
-                className="h-9.5 rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-sm font-semibold text-zinc-900 shadow-sm transition hover:border-zinc-400 focus:border-blue-500 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 cursor-pointer"
+                className="h-9.5 cursor-pointer rounded-control border border-app-border bg-app-surface px-2.5 py-1 text-sm font-semibold text-app-text transition hover:border-primary/50 focus:border-primary focus:outline-none"
                 onChange={(event) => handleTimeChange("ampm", event.target.value)}
                 value={selectedDate && selectedDate.getHours() >= 12 ? "PM" : "AM"}
               >
@@ -203,7 +203,7 @@ export function DatePicker({
           </div>
         ) : null}
         
-        <div className="p-3 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950">
+        <div className="border-t border-app-border bg-app-surface p-3">
           <DialogClose asChild>
             <Button variant="primary" size="sm" className="w-full">
               Done

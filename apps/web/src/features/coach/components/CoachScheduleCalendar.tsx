@@ -112,7 +112,7 @@ function ClassChip({
       type="button"
       aria-label={label}
       onClick={() => onOpen(cls)}
-      className="grid w-full min-w-0 gap-0.5 rounded-control border border-app-border bg-app-surface p-2 text-left text-xs shadow-sm transition-colors hover:border-primary/50"
+      className="grid w-full min-w-0 gap-0.5 rounded-control border border-app-border bg-app-surface p-2 text-left text-xs shadow-card transition-colors hover:border-primary/50"
     >
       <span className="flex items-center gap-1.5 font-semibold tabular-nums text-app-text">
         <StatusDot cls={cls} />
@@ -231,7 +231,7 @@ export function CoachScheduleCalendar({ view, onEdit, onCancel, onRequestResched
       ) : (
         <div className={cn("space-y-4 transition-opacity", isPlaceholderData && "opacity-60")}>
           {view === "week" ? (
-            <div className="grid gap-2 lg:grid-cols-7">
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-7">
               {days.map((day) => {
                 const dayClasses = classesByDay.get(day) ?? [];
                 const isToday = day === todayKey;
@@ -261,7 +261,7 @@ export function CoachScheduleCalendar({ view, onEdit, onCancel, onRequestResched
                     {dayClasses.length === 0 ? (
                       <p className="py-1 text-xs text-app-muted lg:py-4 lg:text-center">No classes</p>
                     ) : (
-                      <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-1">
+                      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-1">
                         {dayClasses.map((cls) => (
                           <ClassChip key={cls.id} cls={cls} onOpen={setOpenClass} timeZone={timeZone} />
                         ))}
@@ -358,7 +358,7 @@ export function CoachScheduleCalendar({ view, onEdit, onCancel, onRequestResched
               {selectedClasses.length === 0 ? (
                 <Card className="p-6 text-center text-sm text-app-muted">No classes scheduled on this day.</Card>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {selectedClasses.map((cls) => (
                     <ClassCard
                       key={cls.id}

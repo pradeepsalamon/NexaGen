@@ -71,7 +71,7 @@ export function AdminAssignmentsClient() {
 
           <TabsContent value="library">
             {isLoading ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Card key={i} className="h-40 p-4">
                     <Skeleton className="h-full w-full" />
@@ -88,7 +88,7 @@ export function AdminAssignmentsClient() {
                 />
               </Card>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {library.map((item) => (
                   <Card key={item.id} className="flex flex-col gap-3 p-4">
                     <button

@@ -131,7 +131,7 @@ export function TeamGeneratorTool({ classId, isManager }: ToolContext) {
             {state.teams.length} team{state.teams.length === 1 ? "" : "s"} ·
             made at {formatTime(state.generatedAt, timeZone)}
           </p>
-          <ul className="grid gap-2 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {state.teams.map((team, i) => (
               <li
                 className="rounded-control border border-app-border bg-app-soft p-3"

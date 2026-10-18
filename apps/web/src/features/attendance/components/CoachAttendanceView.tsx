@@ -77,12 +77,12 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
         <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-control bg-green-500/10 border border-green-500/20">
-                <History className="h-5 w-5 text-green-500" />
+              <span className="p-2 rounded-control bg-success/10 border border-success/20">
+                <History className="h-5 w-5 text-success-ink" />
               </span>
             </div>
             <div className="flex items-end gap-2">
-              <p className="text-3xl font-bold tracking-tight text-green-600">{stats.completedClasses}</p>
+              <p className="text-3xl font-bold tracking-tight text-success-ink">{stats.completedClasses}</p>
               <p className="text-sm text-app-muted font-medium mb-1">/ {stats.totalClasses}</p>
             </div>
             <p className="text-sm font-medium text-app-muted mt-1">Classes Completed</p>
@@ -92,11 +92,11 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
         <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-control bg-orange-500/10 border border-orange-500/20">
-                <Users className="h-5 w-5 text-orange-500" />
+              <span className="p-2 rounded-control bg-secondary/10 border border-secondary/20">
+                <Users className="h-5 w-5 text-secondary-ink" />
               </span>
             </div>
-            <p className="text-3xl font-bold tracking-tight text-orange-500">{stats.avgSessionMinutes}m</p>
+            <p className="text-3xl font-bold tracking-tight text-secondary-ink">{stats.avgSessionMinutes}m</p>
             <p className="text-sm font-medium text-app-muted mt-1">Avg Session Length</p>
           </CardContent>
         </Card>
@@ -104,11 +104,11 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
         <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5 flex flex-col justify-center h-full">
             <div className="flex items-center justify-between mb-3">
-              <span className="p-2 rounded-control bg-red-500/10 border border-red-500/20">
-                <AlertTriangle className="h-5 w-5 text-red-500" />
+              <span className="p-2 rounded-control bg-warning/10 border border-warning/20">
+                <AlertTriangle className="h-5 w-5 text-warning-ink" />
               </span>
             </div>
-            <p className="text-3xl font-bold tracking-tight text-red-500">{stats.lateStarts}</p>
+            <p className="text-3xl font-bold tracking-tight text-warning-ink">{stats.lateStarts}</p>
             <p className="text-sm font-medium text-app-muted mt-1">Late Starts</p>
           </CardContent>
         </Card>

@@ -77,7 +77,7 @@ export function CoachAttendanceDialog({
               <Skeleton className="h-64 w-full rounded-control" />
             </div>
           ) : error ? (
-            <div className="p-4 rounded-control bg-red-50 text-red-600 border border-red-200">
+            <div className="p-4 rounded-control border border-app-danger/30 bg-app-danger/[0.06] text-app-danger-ink">
               {error}
             </div>
           ) : data ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock } from "lucide-react";
+import { ArrowRight, CalendarClock } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -26,12 +26,15 @@ export function LatestUpcomingClasses() {
           Upcoming classes
         </h2>
         <Button asChild variant="ghost">
-          <Link href="/coach/schedule">View all</Link>
+          <Link className="text-primary-ink" href="/coach/schedule">
+            View all
+            <ArrowRight className="ml-1 size-4" strokeWidth={2.5} aria-hidden="true" />
+          </Link>
         </Button>
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: SHOWN }).map((_, i) => (
             <Card className="h-[26rem] p-4" key={i}>
               <Skeleton className="h-full w-full" />
@@ -53,7 +56,7 @@ export function LatestUpcomingClasses() {
           />
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {classes.map((cls) => (
             <UpcomingClassCard classItem={cls} key={cls.id} />
           ))}

@@ -34,6 +34,7 @@ export function Logo({ compact = false, stacked = false, size, iconOnlyOnMobile 
     className: "h-full w-auto max-w-none object-contain object-left",
     height,
     priority: true,
+    style: { width: "auto" },
     width: fullWidth,
   };
 

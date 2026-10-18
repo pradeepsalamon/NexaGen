@@ -46,7 +46,7 @@ const PullRow = memo(function PullRow({
             aria-hidden="true"
             className={cn(
               "absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-app-surface",
-              student.online ? "bg-emerald-500" : "bg-app-muted/50"
+              student.online ? "bg-success" : "bg-app-muted/50"
             )}
           />
         </span>
@@ -65,7 +65,7 @@ const PullRow = memo(function PullRow({
           <div
             className={cn(
               "truncate text-[11px] font-semibold",
-              pending ? "text-amber-600" : student.online ? "text-emerald-600" : "text-app-muted"
+              pending ? "text-warning-ink" : student.online ? "text-success-ink" : "text-app-muted"
             )}
           >
             {pending
@@ -186,7 +186,7 @@ export function PullStudentsSection({ classId }: { classId: string }) {
           type="button"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-app-muted hover:text-app-text"
+          className="flex items-center gap-1 text-xs font-semibold text-app-muted hover:text-app-text"
         >
           Not in class ({absent.length})
           <ChevronDown className={cn("size-3.5 transition-transform", !open && "-rotate-90")} strokeWidth={2.5} />

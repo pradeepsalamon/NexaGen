@@ -141,9 +141,9 @@ export function ClassroomPanel({
   const tabs = TABS.filter((t) => (isCoach || !t.coachOnly) && !inSideColumn(t.id));
 
   return (
-    // Below lg the panel sits under the stage (video beside the tabs); the floating toolbar overlays its bottom.
+    // Stacked (tall tablet) the panel sits under the stage, video beside the tabs. Below xl the floating toolbar overlays its bottom.
     <aside
-      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border/70 bg-app-surface/40 pb-24 lg:h-auto lg:w-[var(--classroom-panel-w,380px)] lg:flex-col lg:border-l lg:border-t-0 lg:pb-0 xl:w-[var(--classroom-panel-w,420px)] lg:max-w-[calc(100vw-420px)]"
+      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border/70 bg-app-surface/40 pb-24 room:h-auto room:w-[var(--classroom-panel-w,380px)] room:flex-col room:border-l room:border-t-0 xl:pb-0 xl:w-[var(--classroom-panel-w,420px)] room:max-w-[calc(100vw-420px)]"
       aria-label="Class panel"
       data-classroom-panel
     >
@@ -152,8 +152,8 @@ export function ClassroomPanel({
           <div
             ref={video.ref}
             className={cn(
-              "custom-scrollbar w-[260px] shrink-0 overflow-y-auto border-r border-app-border/60 lg:w-auto lg:overflow-visible lg:border-r-0",
-              video.height !== null && !videoCollapsed && "lg:h-[var(--classroom-video-h)] lg:overflow-hidden"
+              "custom-scrollbar w-[260px] shrink-0 overflow-y-auto border-r border-app-border/60 room:w-auto room:overflow-visible room:border-r-0",
+              video.height !== null && !videoCollapsed && "room:h-[var(--classroom-video-h)] room:overflow-hidden"
             )}
             style={video.height !== null ? ({ "--classroom-video-h": `${video.height}px` } as React.CSSProperties) : undefined}
           >
@@ -249,7 +249,7 @@ const VIDEO_MIN = 140;
 // Room-control strip + tab bar + a usable slice of the active tab.
 const TOOLS_MIN = 240;
 
-/** Height of the panel's video section (lg+), null = natural 16:9. Remembered per browser. */
+/** Height of the panel's video section (side by side), null = natural 16:9. Remembered per browser. */
 function useVideoHeight() {
   const ref = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState<number | null>(null);
@@ -283,7 +283,7 @@ function useVideoHeight() {
   return { clamp, commit, height, ref, setHeight };
 }
 
-/** Drag handle between the video and the tools under it (lg+). Double-click resets to 16:9. */
+/** Drag handle between the video and the tools under it (side by side). Double-click resets to 16:9. */
 function VideoResizer({ video }: { video: ReturnType<typeof useVideoHeight> }) {
   const current = () => video.height ?? video.ref.current?.offsetHeight ?? 280;
 
@@ -330,7 +330,7 @@ function VideoResizer({ video }: { video: ReturnType<typeof useVideoHeight> }) {
         else return;
         e.preventDefault();
       }}
-      className="group relative z-10 -my-1.5 hidden h-3 shrink-0 cursor-row-resize touch-none items-center justify-center outline-none lg:flex"
+      className="group relative z-10 -my-1.5 hidden h-3 shrink-0 cursor-row-resize touch-none items-center justify-center outline-none room:flex"
     >
       <span className="h-1 w-12 rounded-full bg-app-border transition-colors group-hover:bg-primary group-focus-visible:bg-primary group-active:bg-primary" />
     </div>

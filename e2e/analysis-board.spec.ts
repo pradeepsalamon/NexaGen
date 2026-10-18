@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { scheduleClass } from "./fixtures";
 
 /**
  * Board workspace — Engine analysis, Load Game, Setup Position, Save.
@@ -13,6 +14,7 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 
 const RUN = process.env.RUN_ANALYSIS_E2E === "1";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
 const COACH = { email: "coach@nexa.test", password: "Test@12345" };
 
 type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
@@ -55,7 +57,7 @@ async function api(
 /**
  * Sweep the coach's leftover E2E classes (stuck SCHEDULED/LIVE from earlier
  * runs on the shared dev DB) so the scheduling-conflict check doesn't 409 the
- * `POST /coach/classes` below.
+ * class approval below.
  */
 async function clearCoachSchedule(request: APIRequestContext, cookies: Cookie[]) {
   for (const path of ["/coach/classes/upcoming", "/coach/classes"]) {
@@ -98,18 +100,18 @@ test.describe("Analysis board", () => {
 
     await clearCoachSchedule(request, coachCookies);
 
+    const adminCookies = await login(request, ADMIN.email, ADMIN.password);
     const now = Date.now();
-    const createRes = await api(request, "POST", "/coach/classes", coachCookies, {
-      batchId,
-      topic: "E2E Analysis Board",
-      title: "E2E Analysis Board",
-      description: "analysis board spec",
-      startsAt: new Date(now + 60_000).toISOString(),
-      endsAt: new Date(now + 3_660_000).toISOString(),
-    });
-    const createdClass = await createRes.json();
-    classId = createdClass.class ? createdClass.class.id : createdClass.id;
-    expect(classId, `create class: ${JSON.stringify(createdClass)}`).toBeTruthy();
+    classId = await scheduleClass(
+      (method, path, body) => api(request, method, path, coachCookies, body),
+      (method, path, body) => api(request, method, path, adminCookies, body),
+      {
+        batchId,
+        topic: "E2E Analysis Board",
+        startsAt: new Date(now + 60_000).toISOString(),
+        endsAt: new Date(now + 3_660_000).toISOString(),
+      },
+    );
 
     const startRes = await api(request, "POST", `/live-class/${classId}/start`, coachCookies);
     expect(startRes.ok(), `start: ${await startRes.text()}`).toBeTruthy();

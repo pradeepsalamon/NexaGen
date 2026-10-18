@@ -48,7 +48,7 @@ function usePanelVideoLayout() {
  *   (`ClassroomGallery`); the speaker only gets a green ring.
  * - **Speaker**: one large spotlight (a student sees the coach unless someone
  *   shares a screen; the coach sees the class) plus a filmstrip of the rest.
- * `fill` (lg+) fits either to the height the panel's resizer set.
+ * `fill` (side by side) fits either to the height the panel's resizer set.
  */
 export function ClassroomVideo({
   isCoach,
@@ -94,9 +94,9 @@ export function ClassroomVideo({
   const spotlightHand = !!useOptionalLiveClassState((s) => !!spotlightIdentity && !!s.raisedHands[spotlightIdentity]);
 
   return (
-    <div className={cn("shrink-0 border-b border-app-border/60", fill && "lg:flex lg:h-full lg:flex-col")}>
+    <div className={cn("shrink-0 border-b border-app-border/60", fill && "room:flex room:h-full room:flex-col")}>
       <div className="flex h-10 shrink-0 items-center justify-between px-3">
-        <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-app-muted">
+        <span className="flex items-center gap-1.5 text-xs font-bold text-app-muted">
           Video
           <span className="rounded-full bg-app-soft px-1.5 py-0.5 text-[10px] tabular-nums">{tracks.length}</span>
         </span>
@@ -152,17 +152,17 @@ export function ClassroomVideo({
       </div>
 
       {!collapsed && layout === "gallery" && tracks.length > 0 ? (
-        <div className={cn("px-3 pb-3", fill && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col")}>
+        <div className={cn("px-3 pb-3", fill && "room:flex room:min-h-0 room:flex-1 room:flex-col")}>
           <ClassroomGallery tracks={tracks} fill={fill} />
         </div>
       ) : null}
 
       {!collapsed && layout === "speaker" && spotlight ? (
-        <div className={cn("space-y-2 px-3 pb-3", fill && "lg:flex lg:min-h-0 lg:flex-1 lg:flex-col lg:gap-2 lg:space-y-0")}>
+        <div className={cn("space-y-2 px-3 pb-3", fill && "room:flex room:min-h-0 room:flex-1 room:flex-col room:gap-2 room:space-y-0")}>
           <div
             className={cn(
               "group relative aspect-video w-full overflow-hidden rounded-control border border-app-border bg-app-soft",
-              fill && "lg:aspect-auto lg:min-h-0 lg:flex-1"
+              fill && "room:aspect-auto room:min-h-0 room:flex-1"
             )}
           >
             {hasVideo ? (
@@ -181,7 +181,7 @@ export function ClassroomVideo({
             )}
             {spotlightHand && !isScreen ? (
               <span
-                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-amber-500 text-white shadow-card"
+                className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center rounded-full bg-warning text-white shadow-card"
                 aria-label="Hand raised"
               >
                 <Hand className="size-3.5" strokeWidth={2.5} />

@@ -22,7 +22,7 @@ export function StudentCoursesClient() {
       </div>
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-40 w-full" />
           ))}
@@ -34,7 +34,7 @@ export function StudentCoursesClient() {
           description="Your coaches haven't published any courses yet — check back soon."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {courses.map((course) => (
             <Card key={course.id} className="flex flex-col gap-3 p-4">
               <div>

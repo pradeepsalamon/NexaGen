@@ -118,7 +118,7 @@ export function DiagramReviewPanel({ candidate, review, onChange, onDiscard, act
         </div>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <figure className="flex flex-col gap-2">
           <figcaption className="text-sm font-semibold text-app-text">Source diagram</figcaption>
           {/* eslint-disable-next-line @next/next/no-img-element -- an in-memory data URL, never a network image */}

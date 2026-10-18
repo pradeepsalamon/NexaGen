@@ -28,7 +28,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
           Update the student details linked to your account.
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-parent-name" label="Parent Name">
           <Input
             id="profile-parent-name"
@@ -48,7 +48,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
           />
         </FormField>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-parent-phone" label="Parent Phone">
           <Input
             id="profile-parent-phone"
@@ -69,7 +69,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
           />
         </FormField>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <FormField id="profile-date-of-birth" label="Date of Birth">
           <DatePicker
             onChange={(date) => {
@@ -98,7 +98,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
           />
         </FormField>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <FormField id="profile-referral-source" label="How you known nexachess?">
           <Select
             id="profile-referral-source"

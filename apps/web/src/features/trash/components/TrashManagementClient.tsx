@@ -398,7 +398,7 @@ export function TrashManagementClient() {
                 options={entityOptions}
                 value={entity}
               />
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="text-sm font-semibold text-app-muted">From</span>
                 <DatePicker
                   onChange={(date) => setDeletedFrom(date ? date.toISOString() : "")}
@@ -406,7 +406,7 @@ export function TrashManagementClient() {
                   placeholder="Deleted from"
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 <span className="text-sm font-semibold text-app-muted">To</span>
                 <DatePicker
                   onChange={(date) => setDeletedTo(date ? date.toISOString() : "")}

@@ -50,7 +50,7 @@ export function StudentBatchesClient() {
       />
 
       {isLoading ? (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i} className="p-6">
               <div className="space-y-4">
@@ -85,7 +85,7 @@ export function StudentBatchesClient() {
           />
         </Card>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {batches.map((batch) => {
             const startDateStr = batch.startsAt ? formatFullDate(batch.startsAt, timeZone) : null;
             const endDateStr = batch.endsAt ? formatFullDate(batch.endsAt, timeZone) : null;
@@ -136,7 +136,7 @@ export function StudentBatchesClient() {
                         {batch.coaches.map((c) => (
                           <div
                             key={c.id}
-                            className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-xs font-semibold text-app-text shadow-sm"
+                            className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-2.5 py-1 text-xs font-semibold text-app-text shadow-card"
                           >
                             <span className="flex size-5 items-center justify-center rounded-full bg-primary/20 text-[10px] font-bold text-primary-ink">
                               {c.firstName?.[0] ?? "C"}
@@ -160,13 +160,13 @@ export function StudentBatchesClient() {
                         {batch.students.slice(0, 8).map((s) => (
                           <span
                             key={s.id}
-                            className="inline-flex items-center rounded-md bg-app-soft px-2 py-0.5 text-xs text-app-text font-medium"
+                            className="inline-flex items-center rounded-full bg-app-soft px-2 py-0.5 text-xs text-app-text font-medium"
                           >
                             {s.firstName} {s.lastName ? `${s.lastName[0]}.` : ""}
                           </span>
                         ))}
                         {batch.students.length > 8 && (
-                          <span className="inline-flex items-center rounded-md bg-app-soft px-2 py-0.5 text-xs text-app-muted font-medium">
+                          <span className="inline-flex items-center rounded-full bg-app-soft px-2 py-0.5 text-xs text-app-muted font-medium">
                             +{batch.students.length - 8} more
                           </span>
                         )}

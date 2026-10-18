@@ -105,7 +105,7 @@ export function CoachScheduleClient() {
             onRequestReschedule={openRequest}
           />
         ) : upcomingLoading ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i} className="p-4 h-48">
                 <Skeleton className="h-full w-full" />
@@ -113,7 +113,7 @@ export function CoachScheduleClient() {
             ))}
           </div>
         ) : upcomingData?.classes && upcomingData.classes.length > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {upcomingData.classes.map((cls) => (
               <ClassCard
                 key={cls.id}

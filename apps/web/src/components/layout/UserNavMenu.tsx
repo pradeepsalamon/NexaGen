@@ -182,7 +182,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
           <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={() => setIsConfirmOpen(true)}
-            className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold text-red-600 dark:text-red-400 focus:bg-red-50 dark:focus:bg-red-950/40"
+            className="flex cursor-pointer items-center gap-2.5 py-2 font-semibold text-app-danger-ink focus:bg-app-danger/10"
           >
             <LogOut className="size-4" />
             <span>Log out</span>

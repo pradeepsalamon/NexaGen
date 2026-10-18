@@ -115,7 +115,7 @@ export function ChessLegendsTool({ classId, isManager }: ToolContext) {
           ? "Pick a story for a class break. 'Show to class' opens it on every student's screen."
           : "Stories from chess history. Tap one to read it."}
       </p>
-      <ul className="grid gap-2 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {LEGEND_STORIES.map((s) => (
           <li key={s.id}>
             <button

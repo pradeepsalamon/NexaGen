@@ -23,7 +23,7 @@ type Tab = "overview" | "performance" | "history" | "revision" | "games";
 
 function LoadingTiles() {
   return (
-    <div aria-busy="true" aria-label="Loading" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div aria-busy="true" aria-label="Loading" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: 4 }).map((_, i) => (
         <Skeleton key={i} className="h-32 w-full rounded-app" />
       ))}

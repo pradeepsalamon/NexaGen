@@ -358,7 +358,7 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
   if (phase === "error" || !start || !config) {
     return (
       <Card className="p-5">
-        <p className="text-sm text-red-600">This assignment could not be started.</p>
+        <p className="text-sm text-app-danger-ink">This assignment could not be started.</p>
         <Button className="mt-3" variant="outline" onClick={onBack}>
           Back to assignments
         </Button>
@@ -429,8 +429,8 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
               <p
                 className={
                   feedback === "Correct!"
-                    ? "rounded-app border border-green-200 bg-green-50 p-2 text-sm text-green-700"
-                    : "rounded-app border border-amber-200 bg-amber-50 p-2 text-sm text-amber-700"
+                    ? "rounded-app border border-success/40 bg-success/10 p-2 text-sm text-success-ink"
+                    : "rounded-app border border-warning/40 bg-warning/10 p-2 text-sm text-warning-ink"
                 }
               >
                 {feedback}

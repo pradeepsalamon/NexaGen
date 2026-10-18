@@ -84,7 +84,7 @@ export function SchedulePreviewPanel({
             {preview.occurrences.map((o, i) => (
               <li
                 key={`${o.date}-${o.ruleId}`}
-                className={`flex items-center justify-between rounded px-2 py-1.5 ${
+                className={`flex items-center justify-between rounded-control px-2 py-1.5 ${
                   o.isPast ? "opacity-40" : ""
                 } ${o.hasConflict ? "bg-app-danger/10" : "odd:bg-app-background"}`}
               >

@@ -198,7 +198,7 @@ export function SharePositionDialog({
         ) : (
           <form
             id="share-position-form"
-            className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+            className="grid grid-cols-1 gap-5 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
             onSubmit={(e) => {
               e.preventDefault();
               submit();

@@ -74,7 +74,7 @@ function Body({ coachId, query }: { coachId: string; query: Parameters<typeof us
         <KpiCard invertDelta isLoading={isLoading} kpi={asKpi(c?.cancelledClasses)} label="Cancelled" />
       </KpiCardRow>
 
-      <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.6fr_1fr]">
         <div className="rounded-app border border-app-border bg-app-surface p-4 shadow-card">
           <p className="mb-2 text-sm font-bold text-app-text">Teaching hours over time</p>
           <ChartContainer

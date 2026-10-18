@@ -445,7 +445,7 @@ export function PuzzleAssignModal({
                     onClick={() => setFolderId(node.topic.id)}
                     className="flex w-full items-center gap-3 rounded-app border border-app-border bg-app-surface p-3 text-left transition-colors hover:border-primary/50 hover:bg-app-soft"
                   >
-                    <Folder className="size-5 shrink-0 fill-amber-400/30 text-amber-500" strokeWidth={2} />
+                    <Folder className="size-5 shrink-0 fill-secondary/30 text-secondary-ink" strokeWidth={2} />
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-app-text">
                       {node.topic.name}
                     </span>

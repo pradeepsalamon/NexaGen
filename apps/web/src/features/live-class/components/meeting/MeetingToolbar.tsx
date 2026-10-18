@@ -267,7 +267,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
   // Students get a one-tap toolbar button instead.
   if (isCoach) {
     moreItems.splice(1, 0, {
-      icon: <Hand className={cn("size-5", handRaised && "text-amber-500")} />,
+      icon: <Hand className={cn("size-5", handRaised && "text-warning-ink")} />,
       label: handRaised ? "Lower hand" : "Raise hand",
       onClick: toggleHandRaised,
       active: handRaised,
@@ -423,7 +423,7 @@ export const MeetingToolbar = memo(function MeetingToolbar() {
 
         {!isCoach ? (
           <MeetingControlButton
-            icon={<Hand className={cn("size-5", handRaised && "text-amber-500")} />}
+            icon={<Hand className={cn("size-5", handRaised && "text-warning-ink")} />}
             label={handRaised ? "Lower hand" : "Raise hand"}
             variant={handRaised ? "active" : "default"}
             aria-pressed={handRaised}

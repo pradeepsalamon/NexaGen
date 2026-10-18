@@ -35,7 +35,7 @@ export function ReminderItemRow({
             {item.status === "IN_PROGRESS" ? " · started" : ""}
           </span>
         </span>
-        <span className={cn("shrink-0 rounded border px-2 py-0.5 text-[11px] font-semibold", TONE[item.dueStatus])}>
+        <span className={cn("shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold", TONE[item.dueStatus])}>
           {ASSIGNMENT_DUE_STATUS_LABELS[item.dueStatus]}
         </span>
         <ArrowRight aria-hidden className="size-4 shrink-0 text-app-muted" />

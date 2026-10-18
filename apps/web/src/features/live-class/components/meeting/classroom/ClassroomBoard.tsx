@@ -38,6 +38,7 @@ import { PuzzleAssignModal } from "../PuzzleAssignModal";
 import { SharePositionDialog } from "../SharePositionDialog";
 import { FlipBoardButton } from "../video-grid/FlipBoardButton";
 import { RequestControlButton } from "../video-grid/RequestControlButton";
+import { ROOM_ROW_QUERY } from "./roomLayout";
 import { ClassroomSidebar } from "./sidebar/ClassroomSidebar";
 
 /** Board shortcuts plus Space = engine move and S = setup position (also offered to the toolbar). */
@@ -111,7 +112,7 @@ function useSideColumnFit(enabled: boolean, onChange?: (fits: boolean) => void) 
   useEffect(() => {
     const el = ref.current;
     if (!enabled || !onChange || !el) return;
-    const wide = window.matchMedia("(min-width: 1024px)");
+    const wide = window.matchMedia(ROOM_ROW_QUERY);
     const measure = () => {
       const shown = shownRef.current;
       const spare = el.clientWidth - el.clientHeight + (shown ? SIDE_COLUMN_W + SIDE_COLUMN_GAP : 0);
@@ -162,8 +163,8 @@ export function ClassroomBoard({
   const boardBoxRef = useSideColumnFit(isCoach, onSideColumnChange);
 
   return (
-    // lg+: bottom padding clears the floating toolbar (below lg it floats over the panel).
-    <section className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 px-3 pb-3 pt-3 lg:px-6 lg:pb-24">
+    // Side by side: bottom padding clears the floating toolbar (stacked, it floats over the panel).
+    <section className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 px-3 pb-3 pt-3 room:px-6 room:pb-24">
       <PromotionDialog />
       {isCoach ? (
         <>
@@ -179,15 +180,16 @@ export function ClassroomBoard({
         </>
       ) : null}
 
-      <div className="flex shrink-0 items-center gap-2">
+      {/* Wraps on a narrow stage instead of running under the side panel. */}
+      <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
         <div className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-app-text">
-          <Crown className="size-4 text-amber-500" />
+          <Crown className="size-4 text-secondary-ink" />
           Shared Board
           {isCoach ? <SendPositionButton fen={fen} className="ml-1" /> : null}
         </div>
         <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 overflow-x-auto">
           <ChessClock layout="horizontal" />
-          {!isCoach ? <RequestControlButton /> : null}
+          {!isCoach ? <RequestControlButton surface /> : null}
           {!isCoach && activePuzzle ? (
             <button
               type="button"
@@ -311,7 +313,7 @@ function HoverMenuButton({
         onPointerLeave={onLeave}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <p className="px-2 pb-1 pt-0.5 text-xs font-semibold uppercase tracking-wide text-app-muted">{label}</p>
+        <p className="px-2 pb-1 pt-0.5 text-xs font-semibold text-app-muted">{label}</p>
         {items.map((item) => (
           <button
             key={item.label}

@@ -125,7 +125,7 @@ export function LiveClassesMonitorClient() {
       {error ? (
         <WidgetError message="Couldn't load the live classes." onRetry={() => void refetch()} />
       ) : isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {[0, 1, 2].map((i) => (
             <Skeleton className="h-64 rounded-app" key={i} />
           ))}
@@ -141,7 +141,7 @@ export function LiveClassesMonitorClient() {
           <p className="text-sm text-app-muted">
             {classes.length} {classes.length === 1 ? "class" : "classes"} live
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {classes.map((item) => (
               <LiveClassCard item={item} key={item.classId} now={now} tz={tz} />
             ))}

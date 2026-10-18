@@ -140,7 +140,7 @@ export function ClassRequestDialog({
             </FormField>
           ) : null}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField id="request-start" label={isReschedule ? "New start time" : "Start time"}>
               <DatePicker withTime value={startsAt} onChange={(d) => setStartsAt(d ?? undefined)} />
             </FormField>

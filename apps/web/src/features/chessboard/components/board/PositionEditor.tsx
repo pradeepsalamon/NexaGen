@@ -19,6 +19,7 @@ import { useChessAppearance } from "@/features/chess-appearance/context/ChessApp
 import { Input } from "@/components/ui/Input";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { Button } from "@/components/ui/Button";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 export interface PositionEditorProps {
   /** Full FEN string. Controlled — the editor never holds its own copy. */
@@ -272,40 +273,40 @@ function SpareRow({
   return (
     <div className="flex justify-center gap-1">
       {ROLES.map(({ role, label }) => (
-        <div
-          key={role}
-          data-spare-piece={`${color}-${role}`}
-          role="button"
-          tabIndex={0}
-          aria-label={`Add ${color} ${label}`}
-          title={`${color === "white" ? "White" : "Black"} ${label}`}
-          className="size-11 cursor-grab rounded-control border border-transparent bg-app-soft p-1 transition-colors hover:border-app-border"
-          onMouseDown={(e) => onSpawn(e, role, color)}
-          onTouchStart={(e) => onSpawn(e, role, color)}
-        >
-          {/* `.cg-wrap` ancestor + real <piece> element so the pieces.css
-              `[data-nexa-piece-set] piece.<role>.<color>` rules apply; inline
-              styles undo chessground's absolute 12.5% board sizing. */}
-          <span
-            className="cg-wrap block size-full"
-            data-nexa-piece-set={pieceSetId}
-            data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
+        <SimpleTooltip key={role} label={`${color === "white" ? "White" : "Black"} ${label}`}>
+          <div
+            data-spare-piece={`${color}-${role}`}
+            role="button"
+            tabIndex={0}
+            aria-label={`Add ${color} ${label}`}
+            className="size-11 cursor-grab rounded-control border border-transparent bg-app-soft p-1 transition-colors hover:border-app-border"
+            onMouseDown={(e) => onSpawn(e, role, color)}
+            onTouchStart={(e) => onSpawn(e, role, color)}
           >
-            {React.createElement("piece", {
-              className: `${role} ${color}`,
-              style: {
-                position: "static",
-                display: "block",
-                width: "100%",
-                height: "100%",
-                backgroundSize: "contain",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "center",
-                pointerEvents: "none",
-              },
-            })}
-          </span>
-        </div>
+            {/* `.cg-wrap` ancestor + real <piece> element so the pieces.css
+                `[data-nexa-piece-set] piece.<role>.<color>` rules apply; inline
+                styles undo chessground's absolute 12.5% board sizing. */}
+            <span
+              className="cg-wrap block size-full"
+              data-nexa-piece-set={pieceSetId}
+              data-nexa-piece-recolor={hasCustomPieceColors ? "on" : undefined}
+            >
+              {React.createElement("piece", {
+                className: `${role} ${color}`,
+                style: {
+                  position: "static",
+                  display: "block",
+                  width: "100%",
+                  height: "100%",
+                  backgroundSize: "contain",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                  pointerEvents: "none",
+                },
+              })}
+            </span>
+          </div>
+        </SimpleTooltip>
       ))}
     </div>
   );

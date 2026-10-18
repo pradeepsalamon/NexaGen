@@ -95,7 +95,7 @@ export function DeployAssignmentDialog({ open, onOpenChange, assignment, coachBa
             />
           </FormField>
 
-          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+          {error && <p className="text-sm font-medium text-app-danger-ink">{error}</p>}
         </div>
 
         <DialogFooter>

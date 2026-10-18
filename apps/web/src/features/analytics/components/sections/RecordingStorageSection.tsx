@@ -60,7 +60,7 @@ export function RecordingStorageSection({
       )}
 
       {/* Storage */}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.4fr]">
         <div className="rounded-app border border-app-border bg-app-soft p-4">
           <p className="text-sm font-bold text-app-text">Disk usage</p>
           {storage.isLoading ? (
@@ -135,7 +135,7 @@ export function RecordingStorageSection({
       </div>
 
       {/* composition + by-type */}
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
         <div>
           <p className="mb-2 text-sm font-bold text-app-text">Recordings by type</p>
           <ChartContainer

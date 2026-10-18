@@ -218,7 +218,9 @@ async function main() {
           }
           const { metrics, buf } = await capturePage(page, { fullPage: args.fullPage });
           writeFileSync(join(outDir, name), buf);
-          const overflow = metrics.docW > metrics.winW + 1;
+          // On a mobile context, too-wide content widens the layout viewport
+          // itself, so docW === winW and only winW > device width gives it away.
+          const overflow = metrics.docW > metrics.winW + 1 || metrics.winW > d.w + 1;
           rows.push({ name, device: key, theme, route: t.label, ...metrics, overflow });
           console.log(`  ${overflow ? "⚠ " : "  "}${name.padEnd(52)} ${metrics.docW}/${metrics.winW}${overflow ? "  H-OVERFLOW" : ""}`);
         } catch (err) {
@@ -226,6 +228,9 @@ async function main() {
           console.log(`  ✗ ${name.padEnd(52)} ${err.message || err}`);
         }
       }
+      // Carry the rotated refresh cookie forward: reusing the original one after
+      // a rotation is treated as token replay and revokes the whole session.
+      if (storageState) storageState = await ctx.storageState();
       await ctx.close();
     }
   }

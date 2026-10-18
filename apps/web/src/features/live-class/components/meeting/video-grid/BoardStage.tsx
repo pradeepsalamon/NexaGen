@@ -38,12 +38,12 @@ export function BoardStage({ onShowGrid }: { onShowGrid: () => void }) {
     >
       <div className="flex shrink-0 items-center gap-1.5">
         <div className="hidden shrink-0 items-center gap-1.5 text-sm font-semibold text-app-text sm:flex">
-          <Crown className="size-4 text-amber-500" />
+          <Crown className="size-4 text-secondary-ink" />
           Shared Board
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto sm:justify-center">
           <ChessClock layout="horizontal" />
-          <RequestControlButton />
+          <RequestControlButton surface />
           {activePuzzle ? (
             <button
               type="button"

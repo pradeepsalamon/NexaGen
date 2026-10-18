@@ -24,7 +24,7 @@ export function LegalPage({ intro, other, sections, title }: LegalPageProps) {
 
       <nav aria-label="On this page" className="mt-8 rounded-panel border border-app-border bg-app-surface p-4">
         <p className="text-xs font-bold text-app-muted">On this page</p>
-        <ol className="mt-2 grid gap-1 text-sm sm:grid-cols-2">
+        <ol className="mt-2 grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
           {sections.map((section) => (
             <li key={section.id}>
               <a className="text-primary-ink hover:underline" href={`#${section.id}`}>

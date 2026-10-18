@@ -108,8 +108,8 @@ export default function LiveClassBoardPage() {
   if (!isDesktop) {
     return (
       <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 bg-app-background px-6 text-center text-app-text">
-        <span className="flex size-16 items-center justify-center rounded-app bg-amber-500/10">
-          <Crown className="size-8 text-amber-500" strokeWidth={2} />
+        <span className="flex size-16 items-center justify-center rounded-app bg-secondary/10">
+          <Crown className="size-8 text-secondary-ink" strokeWidth={2} />
         </span>
         <h1 className="text-lg font-bold">Shared board</h1>
         <p className="max-w-xs text-sm text-app-muted">

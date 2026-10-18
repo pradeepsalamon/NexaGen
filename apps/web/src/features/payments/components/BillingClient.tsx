@@ -281,7 +281,7 @@ export function BillingClient() {
               title="No active access"
             />
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {data.entitlements.map((entitlement) => (
                 <SectionCard key={entitlement.id} title={entitlement.planName}>
                   <div className="flex flex-wrap items-center gap-2">

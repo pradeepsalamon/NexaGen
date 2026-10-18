@@ -140,7 +140,7 @@ function UploadDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (op
             <Textarea className="min-h-40 font-mono text-xs" id="pgn-text" onChange={(e) => setPgn(e.target.value)} value={pgn} />
             {tooBig && <p className="text-xs text-app-danger-ink">Too long — at most {PGN_IMPORT_LIMITS.maxChars.toLocaleString("en-US")} characters.</p>}
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="pgn-side">Your colour</Label>
               <Select id="pgn-side" onChange={(e) => setSide(e.target.value as ImportPgnSide)} options={SIDE_OPTIONS} value={side} />

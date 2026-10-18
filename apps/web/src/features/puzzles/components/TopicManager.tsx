@@ -289,7 +289,7 @@ export function TopicManager({
                           <span className="shrink-0">{topic.icon}</span>
                         ) : (
                           <Folder
-                            className="size-4 shrink-0 fill-amber-400/30 text-amber-500"
+                            className="size-4 shrink-0 fill-secondary/30 text-secondary-ink"
                             strokeWidth={2}
                           />
                         )}

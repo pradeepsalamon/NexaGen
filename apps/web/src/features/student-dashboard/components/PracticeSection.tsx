@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import type { VariantProps } from "class-variance-authority";
 import { Badge, type badgeVariants } from "@/components/ui/Badge";
@@ -44,7 +45,10 @@ export function PracticeSection({ practices = [] }: PracticeSectionProps) {
     <SectionCard
       actions={
         <Button asChild size="sm" variant="ghost">
-          <Link href="/student/practice">View all</Link>
+          <Link className="text-primary-ink" href="/student/practice">
+            View all
+            <ArrowRight className="ml-1 size-4" strokeWidth={2.5} aria-hidden="true" />
+          </Link>
         </Button>
       }
       className="h-full"

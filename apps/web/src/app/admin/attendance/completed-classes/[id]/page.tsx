@@ -79,8 +79,8 @@ export default function ClassDetailPage() {
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               data.status === "COMPLETED"
-                ? "bg-green-50 text-green-700 border border-green-200"
-                : "bg-red-50 text-red-700 border border-red-200"
+                ? "border border-success/40 bg-success/10 text-success-ink"
+                : "border border-warning/40 bg-warning/10 text-warning-ink"
             }`}
           >
             {data.status}
@@ -123,7 +123,7 @@ export default function ClassDetailPage() {
 
         <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5">
-            <p className="text-2xl font-bold tracking-tight text-green-600">
+            <p className="text-2xl font-bold tracking-tight text-success-ink">
               {attended}
             </p>
             <p className="text-sm font-medium text-app-muted mt-1">Attended</p>
@@ -132,7 +132,7 @@ export default function ClassDetailPage() {
 
         <Card className="border-app-border bg-app-surface shadow-card">
           <CardContent className="p-5">
-            <p className="text-2xl font-bold tracking-tight text-red-600">
+            <p className="text-2xl font-bold tracking-tight text-warning-ink">
               {data.absentCount}
             </p>
             <p className="text-sm font-medium text-app-muted mt-1">Absent</p>

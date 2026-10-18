@@ -124,10 +124,10 @@ function MonitorBody({
           <span
             className={cn(
               "flex size-2.5 items-center justify-center rounded-full",
-              data.isLive ? "bg-green-500" : "bg-app-muted"
+              data.isLive ? "bg-app-danger" : "bg-app-muted"
             )}
           >
-            {data.isLive && <span className="size-2.5 animate-ping rounded-full bg-green-500" />}
+            {data.isLive && <span className="size-2.5 animate-ping rounded-full bg-app-danger" />}
           </span>
           <h3 className="text-sm font-bold text-app-text">
             {data.isLive ? "Live class monitor" : "Class not live"}
@@ -136,15 +136,15 @@ function MonitorBody({
         </div>
         {elapsed && data.isLive && (
           <span className="flex items-center gap-1.5 font-mono text-sm font-semibold text-app-text">
-            <Radio className="size-4 text-green-500" />
+            <Radio className="size-4 text-app-danger-ink" />
             {elapsed}
           </span>
         )}
       </div>
 
       <div className="grid grid-cols-4 divide-x divide-app-border/60 border-b border-app-border/60">
-        <Stat icon={<Wifi className="size-4 text-green-600" />} label="Online" value={online} />
-        <Stat icon={<AlertTriangle className="size-4 text-amber-500" />} label="Reconnecting" value={atRisk} />
+        <Stat icon={<Wifi className="size-4 text-success-ink" />} label="Online" value={online} />
+        <Stat icon={<AlertTriangle className="size-4 text-warning-ink" />} label="Reconnecting" value={atRisk} />
         <Stat icon={<WifiOff className="size-4 text-app-muted" />} label="Left" value={left} />
         <Stat icon={<Users className="size-4 text-app-muted" />} label="Not joined" value={absent} />
       </div>
@@ -175,10 +175,10 @@ function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; va
 }
 
 const DOT_CLASS: Record<Connection, string> = {
-  online: "bg-green-500",
-  reconnecting: "bg-amber-500 animate-pulse",
-  offline: "bg-orange-500",
-  left: "bg-slate-400",
+  online: "bg-success",
+  reconnecting: "bg-warning animate-pulse",
+  offline: "bg-app-muted",
+  left: "bg-app-border",
   absent: "bg-app-border",
 };
 

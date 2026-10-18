@@ -4,6 +4,16 @@ const config: Config = {
   content: ["./src/**/*.{ts,tsx}"],
   darkMode: ["selector", '[data-theme="dark"]'],
   theme: {
+    // Tailwind's defaults plus `room`, listed before lg so lg/xl rules still win where both match.
+    screens: {
+      sm: "640px",
+      md: "768px",
+      // Live-class side-by-side layout: lg, or a short tablet. Keep in sync with ROOM_ROW_QUERY.
+      room: { raw: "(min-width: 1024px), (min-width: 768px) and (max-height: 820px)" },
+      lg: "1024px",
+      xl: "1280px",
+      "2xl": "1536px"
+    },
     extend: {
       animation: {
         "fade-in": "fadeIn 480ms ease both",
@@ -14,6 +24,10 @@ const config: Config = {
         "overlay-out": "fadeOut 180ms ease both",
         "drawer-in": "slideInRight 300ms cubic-bezier(0.32, 0.72, 0, 1) both",
         "drawer-out": "slideOutRight 240ms ease-in both"
+      },
+      // A bare `border` follows the theme instead of Tailwind's fixed gray-200.
+      borderColor: {
+        DEFAULT: "rgb(var(--rgb-border) / <alpha-value>)"
       },
       borderRadius: {
         app: "var(--radius-app)",

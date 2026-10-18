@@ -107,7 +107,7 @@ export default function AttendancePolicyPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span className="w-2 h-2 rounded-full bg-success"></span>
                 Present Threshold (%)
               </Label>
               <div className="relative">
@@ -143,7 +143,7 @@ export default function AttendancePolicyPage() {
 
             <div className="space-y-2">
               <Label className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                <span className="w-2 h-2 rounded-full bg-warning"></span>
                 Partial Threshold (%)
               </Label>
               <div className="relative">
@@ -160,9 +160,9 @@ export default function AttendancePolicyPage() {
             </div>
           </div>
           
-          <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-control mt-4">
-            <p className="text-sm font-medium text-red-600">
-              Absent Rule: <span className="font-normal text-red-500">Students with attendance less than {partialThreshold}% will be marked as Absent.</span>
+          <div className="p-4 border border-warning/30 bg-warning/10 rounded-control mt-4">
+            <p className="text-sm font-medium text-warning-ink">
+              Absent Rule: <span className="font-normal text-app-text">Students with attendance less than {partialThreshold}% will be marked as Absent.</span>
             </p>
           </div>
         </CardContent>

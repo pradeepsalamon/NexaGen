@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CalendarCheck, CheckCircle2, Crown, Eye, Flame, Lightbulb, Puzzle, XCircle } from "lucide-react";
 import {
@@ -89,7 +89,10 @@ export function StudentTrainingClient() {
         </p>
       </div>
 
-      <TrainingStats status={data} />
+      {/* lg+: the stats move into the board card's side column (see TrainingBoard). */}
+      <div className={data.enabled && pick ? "lg:hidden" : undefined}>
+        <TrainingStats status={data} />
+      </div>
 
       {!data.enabled ? (
         <EmptyState
@@ -113,6 +116,7 @@ export function StudentTrainingClient() {
           loadingNext={next.isPending}
           onFinished={onFinished}
           onNext={() => requestNext()}
+          stats={<TrainingStats status={data} columns={2} />}
         />
       ) : (
         <Skeleton className="h-96 w-full" />
@@ -123,9 +127,9 @@ export function StudentTrainingClient() {
   );
 }
 
-function TrainingStats({ status }: { status: PuzzleTrainingStatusResponse }) {
+function TrainingStats({ status, columns = 4 }: { status: PuzzleTrainingStatusResponse; columns?: 2 | 4 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className={cn("grid grid-cols-2 gap-3", columns === 4 && "lg:grid-cols-4")}>
       <StatTile icon={Crown} label="Puzzle rating" tone="primary" value={String(status.rating)} />
       <StatTile icon={Puzzle} label="Peak rating" tone="secondary" value={String(status.peakRating)} />
       <StatTile icon={CalendarCheck} label="Puzzles today" tone="accent" value={String(status.trainedToday)} />
@@ -149,7 +153,8 @@ function TrainingBoard({
   ratingPending,
   loadingNext,
   onFinished,
-  onNext
+  onNext,
+  stats
 }: {
   pick: PuzzleTrainingPick;
   ratingChange: number | null;
@@ -157,6 +162,7 @@ function TrainingBoard({
   loadingNext: boolean;
   onFinished: () => void;
   onNext: () => void;
+  stats?: ReactNode;
 }) {
   const start = useCallback(() => startPuzzleAttempt(pick.puzzleId), [pick.puzzleId]);
   const {
@@ -206,130 +212,133 @@ function TrainingBoard({
           />
         </div>
 
-        <div className="space-y-4" aria-live="polite">
-          {phase === "solving" ? (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <span aria-hidden="true" className="text-4xl leading-none text-app-text">
-                  {session.studentColor === "white" ? "♔" : "♚"}
-                </span>
-                <div>
-                  <p className="text-lg font-extrabold leading-tight text-app-text">Your turn</p>
-                  <p className="text-sm text-app-muted">Find the best move for {side}.</p>
+        <div className="space-y-5">
+          <div className="space-y-4" aria-live="polite">
+            {phase === "solving" ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <span aria-hidden="true" className="text-4xl leading-none text-app-text">
+                    {session.studentColor === "white" ? "♔" : "♚"}
+                  </span>
+                  <div>
+                    <p className="text-lg font-extrabold leading-tight text-app-text">Your turn</p>
+                    <p className="text-sm text-app-muted">Find the best move for {side}.</p>
+                  </div>
                 </div>
+                {pick.slot ? <Badge variant="secondary">{TRAINING_SLOT_LABELS[pick.slot]}</Badge> : null}
               </div>
-              {pick.slot ? <Badge variant="secondary">{TRAINING_SLOT_LABELS[pick.slot]}</Badge> : null}
-            </div>
-          ) : null}
-
-          {wrong ? (
-            <Card className="flex items-center gap-2 border-app-danger/40 p-3 text-sm text-app-danger-ink">
-              <XCircle className="size-4 shrink-0" strokeWidth={2.5} />
-              Not the move — try again.
-            </Card>
-          ) : null}
-
-          {result ? (
-            <Card
-              className={cn(
-                "space-y-2 p-4",
-                result.solved ? "border-accent/40 bg-accent/10" : "border-app-danger/30 bg-app-danger/5"
-              )}
-            >
-              <p
+            ) : null}
+  
+            {wrong ? (
+              <Card className="flex items-center gap-2 border-warning/40 bg-warning/10 p-3 text-sm text-warning-ink">
+                <XCircle className="size-4 shrink-0" strokeWidth={2.5} />
+                Not the move — try again.
+              </Card>
+            ) : null}
+  
+            {result ? (
+              <Card
                 className={cn(
-                  "flex items-center gap-2 text-lg font-extrabold",
-                  result.solved ? "text-accent-ink" : "text-app-danger-ink"
+                  "space-y-2 p-4",
+                  result.solved ? "border-accent/40 bg-accent/10" : "border-warning/40 bg-warning/10"
                 )}
               >
-                {result.solved ? (
-                  <CheckCircle2 className="size-5" strokeWidth={2.5} />
-                ) : (
-                  <XCircle className="size-5" strokeWidth={2.5} />
-                )}
-                {result.solved ? "Solved!" : "Puzzle missed"}
-              </p>
-              <p className="text-sm text-app-text">
-                Puzzle rated <span className="font-bold">{pick.puzzleRating}</span>
-                {ratingChange !== null ? (
-                  <>
-                    {" · "}your rating{" "}
-                    <span
-                      className={cn("font-bold", ratingChange >= 0 ? "text-accent-ink" : "text-app-danger-ink")}
-                    >
-                      {formatChange(ratingChange)}
-                    </span>
-                  </>
-                ) : ratingPending ? (
-                  <span className="text-app-muted"> · updating your rating…</span>
-                ) : (
-                  <span className="text-app-muted"> · not rated (you&apos;ve tried this one before)</span>
-                )}
-              </p>
-              {themes.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {themes.map((label) => (
-                    <Badge key={label} variant="outline">
-                      {label}
-                    </Badge>
+                <p
+                  className={cn(
+                    "flex items-center gap-2 text-lg font-extrabold",
+                    result.solved ? "text-accent-ink" : "text-warning-ink"
+                  )}
+                >
+                  {result.solved ? (
+                    <CheckCircle2 className="size-5" strokeWidth={2.5} />
+                  ) : (
+                    <XCircle className="size-5" strokeWidth={2.5} />
+                  )}
+                  {result.solved ? "Solved!" : "Puzzle missed"}
+                </p>
+                <p className="text-sm text-app-text">
+                  Puzzle rated <span className="font-bold">{pick.puzzleRating}</span>
+                  {ratingChange !== null ? (
+                    <>
+                      {" · "}your rating{" "}
+                      <span
+                        className={cn("font-bold", ratingChange >= 0 ? "text-accent-ink" : "text-warning-ink")}
+                      >
+                        {formatChange(ratingChange)}
+                      </span>
+                    </>
+                  ) : ratingPending ? (
+                    <span className="text-app-muted"> · updating your rating…</span>
+                  ) : (
+                    <span className="text-app-muted"> · not rated (you&apos;ve tried this one before)</span>
+                  )}
+                </p>
+                {themes.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {themes.map((label) => (
+                      <Badge key={label} variant="outline">
+                        {label}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : null}
+              </Card>
+            ) : null}
+  
+            {moves.length > 0 || (result && !result.solved) ? (
+              <div>
+                <p className="mb-1 text-xs font-semibold text-app-muted">
+                  {result && !result.solved ? "Solution" : "Moves played"}
+                </p>
+                <ol className="flex flex-wrap gap-x-2 gap-y-1 text-sm">
+                  {(result && !result.solved ? result.solutionMoves : moves).map((m, i) => (
+                    <li key={i} className="font-medium text-app-text">
+                      {m.san}
+                    </li>
                   ))}
-                </div>
-              ) : null}
-            </Card>
-          ) : null}
-
-          {moves.length > 0 || (result && !result.solved) ? (
-            <div>
-              <p className="mb-1 text-xs font-semibold text-app-muted">
-                {result && !result.solved ? "Solution" : "Moves played"}
-              </p>
-              <ol className="flex flex-wrap gap-x-2 gap-y-1 text-sm">
-                {(result && !result.solved ? result.solutionMoves : moves).map((m, i) => (
-                  <li key={i} className="font-medium text-app-text">
-                    {m.san}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-
-          {phase === "solving" && serverHint ? (
-            <Card className="p-3 text-sm text-app-text">
-              <Lightbulb className="mr-1 inline size-4 align-text-bottom text-primary" strokeWidth={2.5} />
-              {hintText(serverHint)}
-            </Card>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2">
-            {phase === "solving" ? (
-              <>
-                {serverHint?.level !== 3 ? (
-                  <SimpleTooltip label="A hint halves what this puzzle can win you">
-                    <Button type="button" variant="outline" size="sm" onClick={() => void requestHint()}>
-                      <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
-                      {serverHint ? "More hint" : "Hint"}
+                </ol>
+              </div>
+            ) : null}
+  
+            {phase === "solving" && serverHint ? (
+              <Card className="p-3 text-sm text-app-text">
+                <Lightbulb className="mr-1 inline size-4 align-text-bottom text-primary" strokeWidth={2.5} />
+                {hintText(serverHint)}
+              </Card>
+            ) : null}
+  
+            <div className="flex flex-wrap gap-2">
+              {phase === "solving" ? (
+                <>
+                  {serverHint?.level !== 3 ? (
+                    <SimpleTooltip label="A hint halves what this puzzle can win you">
+                      <Button type="button" variant="outline" size="sm" onClick={() => void requestHint()}>
+                        <Lightbulb className="mr-1.5 size-4" strokeWidth={2.5} />
+                        {serverHint ? "More hint" : "Hint"}
+                      </Button>
+                    </SimpleTooltip>
+                  ) : null}
+                  <SimpleTooltip label="Shows the answer — counts as a miss">
+                    <Button type="button" variant="outline" size="sm" onClick={() => void giveUp()}>
+                      <Eye className="mr-1.5 size-4" strokeWidth={2.5} />
+                      View solution
                     </Button>
                   </SimpleTooltip>
-                ) : null}
-                <SimpleTooltip label="Shows the answer — counts as a miss">
-                  <Button type="button" variant="outline" size="sm" onClick={() => void giveUp()}>
-                    <Eye className="mr-1.5 size-4" strokeWidth={2.5} />
-                    View solution
-                  </Button>
-                </SimpleTooltip>
-                {pendingSubmit ? (
-                  <Button type="button" size="sm" onClick={() => void retrySubmit()}>
-                    Send result again
-                  </Button>
-                ) : null}
-              </>
-            ) : (
-              <Button type="button" onClick={onNext} disabled={loadingNext} autoFocus>
-                Next puzzle
-                <ArrowRight className="ml-1.5 size-4" strokeWidth={2.5} />
-              </Button>
-            )}
+                  {pendingSubmit ? (
+                    <Button type="button" size="sm" onClick={() => void retrySubmit()}>
+                      Send result again
+                    </Button>
+                  ) : null}
+                </>
+              ) : (
+                <Button type="button" onClick={onNext} disabled={loadingNext} autoFocus>
+                  Next puzzle
+                  <ArrowRight className="ml-1.5 size-4" strokeWidth={2.5} />
+                </Button>
+              )}
+            </div>
           </div>
+          {stats ? <div className="hidden lg:block">{stats}</div> : null}
         </div>
       </div>
     </Card>

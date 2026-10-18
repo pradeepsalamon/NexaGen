@@ -99,7 +99,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
           return (
             <div className="text-sm">
               <div>{format(date, "MMM d, yyyy")}</div>
-              <div className="text-app-text-muted">{format(date, "h:mm a")}</div>
+              <div className="text-app-muted">{format(date, "h:mm a")}</div>
             </div>
           );
         },

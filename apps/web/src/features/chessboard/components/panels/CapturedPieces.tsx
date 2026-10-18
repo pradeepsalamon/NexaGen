@@ -103,7 +103,7 @@ export function CapturedPieces({ color }: CapturedPiecesProps) {
         ))}
       </div>
       {scoreDifference > 0 && (
-        <span className="text-sm text-green-500 ml-2">+{scoreDifference}</span>
+        <span className="ml-2 text-sm text-success-ink">+{scoreDifference}</span>
       )}
     </div>
   );

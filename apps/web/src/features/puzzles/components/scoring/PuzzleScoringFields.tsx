@@ -97,7 +97,7 @@ export function PuzzleScoringFields({
   }, [value.firstSolveBonuses]);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <NumberField
         id={`${idPrefix}-base`}
         label="Points for solving"
@@ -240,7 +240,7 @@ export function PuzzleLeaderboardFields({
     onChange({ ...value, [key]: next }, key);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <FormField id={`${idPrefix}-visibility`} label="Students see the leaderboard">
         <Select
           id={`${idPrefix}-visibility`}

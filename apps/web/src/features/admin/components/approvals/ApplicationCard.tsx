@@ -29,7 +29,7 @@ export function ApplicationCard({ details, footnote, name, onApprove, onDecline 
 
       <div className="flex items-center justify-end gap-2">
         <Button
-          className="border-red-500/30 text-red-500 hover:bg-red-500/10 hover:text-red-600"
+          className="border-app-danger/30 text-app-danger-ink hover:bg-app-danger/10 hover:text-app-danger-ink"
           onClick={onDecline}
           variant="outline"
         >

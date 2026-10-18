@@ -48,7 +48,7 @@ export function DemoAccessFields({
   return (
     <fieldset className="grid gap-3" disabled={disabled}>
       <legend className="mb-2 text-sm font-medium text-app-text">Who can join</legend>
-      <div role="radiogroup" aria-label="Who can join" className="grid gap-2 sm:grid-cols-3">
+      <div role="radiogroup" aria-label="Who can join" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
         {MODES.map((mode) => {
           const Icon = MODE_ICONS[mode];
           const selected = accessMode === mode;

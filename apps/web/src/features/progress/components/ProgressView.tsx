@@ -22,7 +22,7 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile
           context={`Peak ${progress.peakRating}`}
           icon={TrendingUp}
@@ -94,13 +94,15 @@ export function ProgressView({ progress }: { progress: StudentProgressDto }) {
                   {p.ratingChange !== null ? (
                     <span
                       className={`w-12 text-right text-sm font-bold ${
-                        p.ratingChange >= 0 ? "text-accent-ink" : "text-app-danger-ink"
+                        p.ratingChange >= 0 ? "text-accent-ink" : "text-warning-ink"
                       }`}
                     >
                       {p.ratingChange >= 0 ? `+${p.ratingChange}` : p.ratingChange}
                     </span>
                   ) : (
-                    <span className="w-12 text-right text-xs text-app-muted">repeat</span>
+                    <span className="rounded-full bg-app-soft px-2 py-0.5 text-[11px] font-semibold text-app-muted" title="Repeat attempt — rating unchanged">
+                      Repeat
+                    </span>
                   )}
                 </div>
               </li>

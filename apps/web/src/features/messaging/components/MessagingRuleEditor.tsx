@@ -175,7 +175,7 @@ export function MessagingRuleEditor({
             ) : null}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FormField
               id={`${rule.event}-audience`}
               label="Send to"
@@ -244,7 +244,7 @@ export function MessagingRuleEditor({
               </FormField>
 
               {draft.scheduleMode !== "IMMEDIATE" ? (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <FormField
                     id={`${rule.event}-time`}
                     label="Time"
@@ -368,7 +368,7 @@ export function MessagingRuleEditor({
               approved in WhatsApp Manager — its {"{{1}}, {{2}}"} slots are filled from the
               list below, in order.
             </p>
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField id={`${rule.event}-tpl`} label="Template name">
                 <Input
                   id={`${rule.event}-tpl`}

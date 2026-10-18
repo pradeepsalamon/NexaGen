@@ -57,7 +57,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
         // The speaking ring is an inset overlay and the border never changes
         // width, so highlighting someone can't resize their tile.
         isGrid ? "aspect-video w-full min-w-0" : "w-28 h-20 sm:w-36 sm:h-24",
-        handRaised && !isScreenShare ? "border-amber-500" : isSpeaking ? "border-success" : "border-app-border/60",
+        handRaised && !isScreenShare ? "border-warning" : isSpeaking ? "border-success" : "border-app-border/60",
       )}
     >
       <div
@@ -93,7 +93,7 @@ export const CompactVideoTile = memo(function CompactVideoTile({
 
       {handRaised && !isScreenShare ? (
         <span
-          className="absolute left-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-amber-500 text-white shadow-card"
+          className="absolute left-1 top-1 z-10 flex size-5 items-center justify-center rounded-full bg-warning text-white shadow-card"
           aria-label="Hand raised"
         >
           <Hand className="size-3" strokeWidth={2.5} />
