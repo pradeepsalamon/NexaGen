@@ -1,4 +1,5 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
+import { seededBatchId } from "./fixtures";
 
 /**
  * Durable board recovery (`LiveSession.boardState`, `useBoardPersistence`).
@@ -59,7 +60,7 @@ function api(request: APIRequestContext, method: string, path: string, cookies: 
 /** Coaches can't create classes: request an extra class and have the admin approve it. */
 async function makeLiveClass(request: APIRequestContext, coach: Cookie[], admin: Cookie[]) {
   const batches = await (await api(request, "GET", "/coach/batches", coach)).json();
-  const batchId = (batches.batches || batches)[0].id;
+  const batchId = seededBatchId(batches);
 
   // Walk forward from now until approval stops reporting a scheduling conflict.
   // Only inside the start window (CLASS_EARLY_START_MINUTES = 30): a class any

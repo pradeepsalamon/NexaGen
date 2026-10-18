@@ -153,6 +153,23 @@ export async function apiCallOk(
   return res;
 }
 
+/** The seed's batch holding both coach@ and student@nexa.test (`apps/api/prisma/seed.ts`). */
+export const E2E_BATCH_NAME = "Seeded Beginner Batch";
+
+/**
+ * The seeded batch's id from a `/coach/batches` body. That list is newest
+ * first, so `[0]` is whatever batch the coach was added to last — often one
+ * without the seeded student.
+ */
+export function seededBatchId(body: unknown): string {
+  const list = (Array.isArray(body) ? body : (body as { batches?: unknown[] })?.batches) ?? [];
+  const batch = (list as Array<{ id: string; name: string }>).find((b) => b.name === E2E_BATCH_NAME);
+  if (!batch) {
+    throw new Error(`coach@nexa.test has no "${E2E_BATCH_NAME}" batch; run npm run db:seed.`);
+  }
+  return batch.id;
+}
+
 type CallAs = (
   method: "GET" | "POST" | "PATCH",
   path: string,

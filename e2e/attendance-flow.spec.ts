@@ -5,7 +5,7 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
-import { scheduleClass, sendLiveKitWebhook } from "./fixtures";
+import { scheduleClass, seededBatchId, sendLiveKitWebhook } from "./fixtures";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
@@ -185,10 +185,7 @@ test.describe("Full Attendance Flow", () => {
     // ─────────────────────────────────────────────────────────────────────────
     const batchesRes = await api(request, "GET", "/coach/batches", coachCookies);
     expect(batchesRes.ok()).toBeTruthy();
-    const batchesData = await batchesRes.json();
-    const batches = batchesData.batches || batchesData;
-    expect(batches.length).toBeGreaterThan(0);
-    const batchId = batches[0].id;
+    const batchId = seededBatchId(await batchesRes.json());
 
     // ─────────────────────────────────────────────────────────────────────────
     // Step 3: Schedule a class (coach requests, admin approves). It must start
