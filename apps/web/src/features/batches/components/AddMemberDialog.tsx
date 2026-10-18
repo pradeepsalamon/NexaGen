@@ -3,7 +3,7 @@ import { UserPlus } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import type { BatchUserSummary } from "@nexa-chess/types";
 
 type AddMemberDialogProps = {
@@ -42,20 +42,16 @@ export function AddMemberDialog({ members, onAdd, type }: AddMemberDialogProps) 
                      <p className="text-xs text-app-muted">{m.email}</p>
                    </div>
                  </div>
-                 <TooltipProvider>
-                   <Tooltip>
-                     <TooltipTrigger asChild>
-                       <button 
-                         type="button"
-                         className="flex size-8 items-center justify-center rounded-full border border-primary text-primary-ink transition-colors hover:bg-primary hover:text-white"
-                         onClick={() => { onAdd(m.id); setOpen(false); setSearch(""); }}
-                       >
-                         <UserPlus className="size-4" />
-                       </button>
-                     </TooltipTrigger>
-                     <TooltipContent>Add {type.toLowerCase()}</TooltipContent>
-                   </Tooltip>
-                 </TooltipProvider>
+                  <SimpleTooltip label={`Add ${type.toLowerCase()}`}>
+                    <button
+                      type="button"
+                      aria-label={`Add ${m.firstName} ${m.lastName || ""}`.trim()}
+                      className="flex size-8 items-center justify-center rounded-full border border-primary text-primary-ink transition-colors hover:bg-primary hover:text-white"
+                      onClick={() => { onAdd(m.id); setOpen(false); setSearch(""); }}
+                    >
+                      <UserPlus className="size-4" strokeWidth={2.5} />
+                    </button>
+                  </SimpleTooltip>
                </div>
              ))}
              {filtered.length === 0 && <p className="text-sm text-center text-app-muted py-4">No {type.toLowerCase()}s found.</p>}

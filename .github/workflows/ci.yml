@@ -106,10 +106,12 @@ jobs:
       - if: github.event_name == 'pull_request'
         run: npm run lint
 
+      # PRs only: a push (the deploy gate) runs the full suite, since the previous
+      # push may not have passed and its changes would otherwise go untested.
       - name: Pick the specs to run
-        if: needs.changes.outputs.api == 'true'
+        if: needs.changes.outputs.api == 'true' && github.event.pull_request.base.sha != ''
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: echo "JEST_SCOPE=$(bash scripts/ci/jest-scope.sh "$BASE")" >> "$GITHUB_ENV"
 
       - name: API unit tests

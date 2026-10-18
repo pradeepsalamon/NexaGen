@@ -27,6 +27,7 @@ rl.on('line', (line) => {
   if (!timestamp || !type || !name || !valueStr) return;
   
   const value = parseFloat(valueStr);
+  if (!Number.isFinite(value)) return;
   
   if (!data[type]) data[type] = {};
   if (!data[type][name]) data[type][name] = [];

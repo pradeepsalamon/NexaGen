@@ -286,10 +286,21 @@ export function newId(): string {
 }
 
 /** Per-browser convenience storage (never shared state). Swallows blocked storage. */
-export function readLocal<T>(key: string, fallback: T): T {
+export function readLocal<T>(
+  key: string,
+  fallback: T,
+  validator?: (raw: unknown) => T | null | boolean
+): T {
   try {
     const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    if (!validator) return parsed as T;
+    const validated = validator(parsed);
+    if (typeof validated === "boolean") {
+      return validated ? (parsed as T) : fallback;
+    }
+    return validated ?? fallback;
   } catch {
     return fallback;
   }

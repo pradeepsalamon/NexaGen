@@ -142,7 +142,9 @@ export function CoachAssignmentsClient() {
                       </Badge>
                     )}
                     <span className="text-xs text-app-muted">
-                      {item.puzzles ? `${item.puzzles.length} puzzles · ` : ""}
+                      {item.puzzles
+                        ? `${item.puzzles.length} ${item.puzzles.length === 1 ? "puzzle" : "puzzles"} · `
+                        : ""}
                       {item.deploymentCount} deployment{item.deploymentCount === 1 ? "" : "s"}
                     </span>
                   </div>
@@ -214,7 +216,9 @@ export function CoachAssignmentsClient() {
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="font-medium text-app-muted">{d.batchName}</span>
                       {d.puzzleCount !== null && (
-                        <span className="text-app-muted">{d.puzzleCount} puzzles</span>
+                        <span className="text-app-muted">
+                          {d.puzzleCount} {d.puzzleCount === 1 ? "puzzle" : "puzzles"}
+                        </span>
                       )}
                       <DueBadge
                         completed={d.stats.total > 0 && d.stats.completed === d.stats.total}

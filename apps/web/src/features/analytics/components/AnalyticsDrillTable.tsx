@@ -2,7 +2,7 @@
 
 import type { PaginatedQuery, PaginationMeta } from "@nexa-chess/types";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { SortButton } from "@/components/ui/DataTableSortButton";
@@ -49,6 +49,15 @@ export function AnalyticsDrillTable<Row>({
   const debouncedSearch = useDebouncedValue(search, 350);
   const [sort, setSort] = useState(defaultSort ?? null);
 
+  const serializedExtra = JSON.stringify(extraParams);
+  const prevExtraRef = useRef(serializedExtra);
+  useEffect(() => {
+    if (prevExtraRef.current !== serializedExtra) {
+      prevExtraRef.current = serializedExtra;
+      setPage(1);
+    }
+  }, [serializedExtra]);
+
   const params = useMemo<PaginatedQuery & Record<string, unknown>>(
     () => ({
       page,
@@ -58,7 +67,7 @@ export function AnalyticsDrillTable<Row>({
       ...extraParams
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [page, debouncedSearch, sort, JSON.stringify(extraParams)]
+    [page, debouncedSearch, sort, serializedExtra]
   );
 
   const { data, isLoading, isError, refetch } = useQuery({

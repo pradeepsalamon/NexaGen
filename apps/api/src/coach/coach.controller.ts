@@ -62,7 +62,7 @@ export class CoachController {
     @Req() request: Request,
     @Param("id") classId: string
   ) {
-    const accessToken = request.cookies.nexa_access_token;
+    const accessToken = this.getAccessToken(request);
     return this.coachService.getClassById(accessToken, classId);
   }
 
@@ -71,7 +71,7 @@ export class CoachController {
     @Req() request: Request,
     @Param("id") classId: string
   ) {
-    const accessToken = request.cookies.nexa_access_token;
+    const accessToken = this.getAccessToken(request);
     return this.coachService.getClassDetails(accessToken, classId);
   }
 

@@ -15,9 +15,18 @@ import {
 import { Type } from "class-transformer";
 
 const referralSources = ["ADS", "FRIEND", "SCHOOL", "OTHER"] as const;
+const experienceLevels = ["BEGINNER", "INTERMEDIATE", "ADVANCED"] as const;
 const coachTitles = ["NONE", "CM", "FM", "IM", "GM"] as const;
 
 export class UpdateStudentProfileDto {
+  @IsOptional()
+  @IsIn(experienceLevels)
+  experienceLevel?: UpdateProfileRequest["studentProfile"] extends infer T
+    ? T extends { experienceLevel?: infer U }
+      ? U
+      : never
+    : never;
+
   @IsOptional()
   @IsInt()
   @Min(0)

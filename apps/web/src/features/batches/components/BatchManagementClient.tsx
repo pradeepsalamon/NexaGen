@@ -40,6 +40,8 @@ import { useBulkAction } from "@/hooks/useBulkAction";
 import { useDataTable } from "@/hooks/useDataTable";
 import { useServerTable } from "@/hooks/useServerTable";
 import { queryKeys } from "@/lib/queryKeys";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate } from "@/lib/datetime";
 
 import { BatchForm } from "./BatchForm";
 import { BatchStatusBadge } from "./BatchStatusBadge";
@@ -61,6 +63,7 @@ const statusOptions = [
 ];
 
 export function BatchManagementClient() {
+  const timeZone = useUserTimeZone();
   const [activeTab, setActiveTab] = useState<BatchManagementTab>("all");
   const [editingBatchId, setEditingBatchId] = useState<string | null>(null);
 
@@ -185,12 +188,12 @@ export function BatchManagementClient() {
           <div className="min-w-36 text-sm text-app-text">
             <div>
               <span className="font-semibold">From: </span>
-              {formatDate(row.original.startsAt)}
+              {formatDate(row.original.startsAt, timeZone)}
             </div>
             {row.original.endsAt && (
               <div className="mt-1">
                 <span className="font-semibold">To: </span>
-                {formatDate(row.original.endsAt)}
+                {formatDate(row.original.endsAt, timeZone)}
               </div>
             )}
           </div>
@@ -295,7 +298,8 @@ export function BatchManagementClient() {
       handleArchive,
       handleDelete,
       handleRestore,
-      isRestoring
+      isRestoring,
+      timeZone
     ]
   );
 
@@ -510,15 +514,9 @@ function formatUserName(user: BatchUserSummary) {
   return [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email;
 }
 
-function formatDate(value?: string | null) {
+function formatDate(value?: string | null, timeZone = "UTC") {
   if (!value) return "Not set";
-  
-  // Create a UTC date from the ISO date string to avoid timezone shifts
-  const date = new Date(value);
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeZone: "UTC"
-  }).format(date);
+  return formatFullDate(value, timeZone) || "Not set";
 }
 
 function formatColumnLabel(columnId: string) {

@@ -107,9 +107,21 @@ export async function loginContext(
 /** A session cookie as `context.addCookies` takes it. */
 export type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
 
+export function resolveWebUrl(): string {
+  const url =
+    process.env.E2E_BASE_URL ||
+    process.env.E2E_WEB_URL ||
+    process.env.FRONTEND_URL;
+  if (!url) {
+    throw new Error(
+      "E2E target URL is required. Set E2E_BASE_URL, E2E_WEB_URL, or FRONTEND_URL (e.g. in .env.e2e)."
+    );
+  }
+  return url;
+}
+
 /** Origin the API's CSRF check expects on writes (same resolution as playwright.config.ts). */
-export const WEB_URL =
-  process.env.E2E_BASE_URL || process.env.E2E_WEB_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+export const WEB_URL = resolveWebUrl();
 
 /**
  * Logs in through the API and returns the `nexa_*` session cookies, for specs

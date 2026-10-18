@@ -7,6 +7,7 @@ import {
 } from "@playwright/test";
 import {
   TEST_USERS,
+  WEB_URL,
   api,
   cookieHeader,
   login,
@@ -14,8 +15,6 @@ import {
   seededBatchId,
   sendLiveKitWebhook,
 } from "./fixtures";
-
-const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
 
 const { admin: ADMIN, coach: COACH, student: STUDENT } = TEST_USERS;
 

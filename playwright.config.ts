@@ -7,6 +7,19 @@ import { defineConfig, devices } from "@playwright/test";
 const e2eEnvFile = join(process.cwd(), ".env.e2e");
 if (existsSync(e2eEnvFile)) process.loadEnvFile(e2eEnvFile);
 
+function resolveBaseUrl(): string {
+  const url =
+    process.env.E2E_BASE_URL ||
+    process.env.E2E_WEB_URL ||
+    process.env.FRONTEND_URL;
+  if (!url) {
+    throw new Error(
+      "E2E target URL is required. Set E2E_BASE_URL, E2E_WEB_URL, or FRONTEND_URL (e.g. in .env.e2e)."
+    );
+  }
+  return url;
+}
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 120_000,
@@ -17,21 +30,7 @@ export default defineConfig({
   reporter: [["list"]],
 
   use: {
-    /**
-     * Overridable, and that is not a convenience.
-     *
-     * Production nexa_web listens on :3000 and nexa_api on :3001 on this host.
-     * A hard-coded localhost:3000 means an automated run drives the PRODUCTION
-     * app and signs in against the production database with the seeded
-     * accounts. Point a throwaway dev stack's URL in via E2E_BASE_URL, which
-     * takes priority here. E2E_WEB_URL/FRONTEND_URL (sourced from the deployment
-     * `.env`) let you deliberately point the same specs at a real environment.
-     */
-    baseURL:
-      process.env.E2E_BASE_URL ||
-      process.env.E2E_WEB_URL ||
-      process.env.FRONTEND_URL ||
-      "http://localhost:3000",
+    baseURL: resolveBaseUrl(),
     headless: true,
     screenshot: "only-on-failure",
     trace: "on-first-retry",

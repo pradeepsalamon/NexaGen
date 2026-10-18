@@ -56,6 +56,7 @@ export function PipMicCaptureBridge() {
 
     doneRef.current = true;
     let cancelled = false;
+    let completed = false;
 
     void (async () => {
       try {
@@ -73,11 +74,16 @@ export function PipMicCaptureBridge() {
       } catch {
         // No device, or the student declined — automatic PiP just won't apply
         // for them; the manual mini player still works.
+      } finally {
+        completed = true;
       }
     })();
 
     return () => {
       cancelled = true;
+      if (!completed) {
+        doneRef.current = false;
+      }
     };
   }, [state, localParticipant, room, micForcedOff, initialApplied]);
 

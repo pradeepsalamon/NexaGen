@@ -248,6 +248,10 @@ export function TimerBadge({
   });
 
   useEffect(() => {
+    toastShownRef.current = { fiveMin: false, oneMin: false };
+  }, [endsAt]);
+
+  useEffect(() => {
     if (!isCoach || !endsAt) return;
 
     if (remainingSeconds > 0) {

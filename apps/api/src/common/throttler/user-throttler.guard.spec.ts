@@ -14,25 +14,25 @@ describe("resolveThrottleTracker", () => {
     cookies: token ? { nexa_access_token: token } : {}
   });
 
-  it("keys a signed-in request by user id", () => {
+  it("keys a signed-in request by user id", async () => {
     const token = sign({ sub: "u1", type: "access" });
-    expect(resolveThrottleTracker(req("/presence/heartbeat", token))).toBe("user:u1");
+    expect(await resolveThrottleTracker(req("/presence/heartbeat", token))).toBe("user:u1");
   });
 
-  it("falls back to IP for anonymous requests", () => {
-    expect(resolveThrottleTracker(req("/presence/heartbeat"))).toBe("203.0.113.7");
+  it("falls back to IP for anonymous requests", async () => {
+    expect(await resolveThrottleTracker(req("/presence/heartbeat"))).toBe("203.0.113.7");
   });
 
-  it("keeps auth routes on IP even with a valid token", () => {
+  it("keeps auth routes on IP even with a valid token", async () => {
     const token = sign({ sub: "u1", type: "access" });
-    expect(resolveThrottleTracker(req("/auth/login", token))).toBe("203.0.113.7");
+    expect(await resolveThrottleTracker(req("/auth/login", token))).toBe("203.0.113.7");
   });
 
-  it("ignores a forged or non-access token", () => {
-    expect(resolveThrottleTracker(req("/x", sign({ sub: "u1", type: "access" }, "wrong")))).toBe(
+  it("ignores a forged or non-access token", async () => {
+    expect(await resolveThrottleTracker(req("/x", sign({ sub: "u1", type: "access" }, "wrong")))).toBe(
       "203.0.113.7"
     );
-    expect(resolveThrottleTracker(req("/x", sign({ sub: "u1", type: "refresh" })))).toBe(
+    expect(await resolveThrottleTracker(req("/x", sign({ sub: "u1", type: "refresh" })))).toBe(
       "203.0.113.7"
     );
   });

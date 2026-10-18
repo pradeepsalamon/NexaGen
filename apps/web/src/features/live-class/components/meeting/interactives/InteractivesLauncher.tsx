@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/Popover";
 import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/utils";
-import { formatClock } from "../../../hooks/useClassroomTimer";
+import { formatClockMs } from "../../../hooks/useClassroomTimer";
 import { MeetingControlButton } from "../MeetingControlButton";
 import { InteractivePanel } from "./InteractivePanel";
 import { useInteractives, useInteractivesTimer } from "./InteractivesProvider";
@@ -109,7 +109,7 @@ export function InteractivesLauncher() {
       {/* The running classroom timer rides on the launcher's top edge, for everyone, while its panel is closed. */}
       {timerVisible && toolId !== "classroom-timer" && timer.phase ? (
         <button
-          aria-label={`Classroom timer: ${timer.phase.label}, ${formatClock(timer.remainingMs)} left. Open the timer`}
+          aria-label={`Classroom timer: ${timer.phase.label}, ${formatClockMs(timer.remainingMs)} left. Open the timer`}
           className={cn(
             "absolute -top-2.5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 whitespace-nowrap rounded-full border border-app-border bg-app-surface px-1.5 text-[0.6875rem] font-bold leading-5 tabular-nums shadow-card transition-colors hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
             timer.state?.status === "RUNNING" && timer.remainingMs <= 60_000 ? "text-app-danger-ink" : "text-app-text"
@@ -118,7 +118,7 @@ export function InteractivesLauncher() {
           type="button"
         >
           <Timer aria-hidden="true" className="size-3" strokeWidth={2.5} />
-          {formatClock(timer.remainingMs)}
+          {formatClockMs(timer.remainingMs)}
           {timer.state?.status === "PAUSED" ? <Pause aria-hidden="true" className="size-3" strokeWidth={2.5} /> : null}
         </button>
       ) : null}

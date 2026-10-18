@@ -4,6 +4,12 @@ import type { PrismaService } from "../prisma/prisma.service";
 import type { AnalyticsGranularity } from "@nexa-chess/types";
 import type { ResolvedRange } from "./analytics-range.util";
 
+/**
+ * A bound for a `timestamp` (naive UTC) column. A bare JS Date goes out as
+ * timestamptz and shifts by the session zone (CLAUDE.md §3.4).
+ */
+export const sqlTimestamp = (d: Date) => Prisma.sql`${d.toISOString()}::timestamp`;
+
 export interface AnalyticsUser {
   id: string;
   role: UserRole;
@@ -77,11 +83,11 @@ export async function bucketedCounts(
   const trunc = PG_TRUNC[range.granularity];
   const col = Prisma.raw(`"${table}"."${dateColumn}"`);
   const rows = await prisma.$queryRaw<{ bucket: string; count: bigint }[]>(Prisma.sql`
-    SELECT to_char(date_trunc(${trunc}, (${col} AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
+    SELECT to_char(date_trunc(${trunc}, ((${col} AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
            count(*)::bigint AS count
     FROM ${Prisma.raw(`"${table}"`)}
-    WHERE ${col} >= ${range.start}
-      AND ${col} < ${range.end}
+    WHERE ${col} >= ${sqlTimestamp(range.start)}
+      AND ${col} < ${sqlTimestamp(range.end)}
       ${where === Prisma.empty ? Prisma.empty : Prisma.sql`AND ${where}`}
     GROUP BY 1
     ORDER BY 1

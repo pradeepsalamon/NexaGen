@@ -160,15 +160,20 @@ export const timerPhaseSchema = z.object({
 });
 export type TimerPhase = z.infer<typeof timerPhaseSchema>;
 
-export const timerStateSchema = z.object({
-  phases: z.array(timerPhaseSchema).min(1).max(12),
-  index: z.number().int().min(0),
-  status: z.enum(["IDLE", "RUNNING", "PAUSED", "DONE"]),
-  /** Remaining ms in the current phase at `since` (or now, when not running). */
-  remainingMs: z.number().int().min(0),
-  /** RUNNING: ISO time `remainingMs` was taken. Otherwise null. */
-  since: isoDate.nullable()
-});
+export const timerStateSchema = z
+  .object({
+    phases: z.array(timerPhaseSchema).min(1).max(12),
+    index: z.number().int().min(0),
+    status: z.enum(["IDLE", "RUNNING", "PAUSED", "DONE"]),
+    /** Remaining ms in the current phase at `since` (or now, when not running). */
+    remainingMs: z.number().int().min(0),
+    /** RUNNING: ISO time `remainingMs` was taken. Otherwise null. */
+    since: isoDate.nullable()
+  })
+  .refine((state) => state.index < state.phases.length, {
+    message: "The current phase must be one of the phases.",
+    path: ["index"]
+  });
 export type TimerState = z.infer<typeof timerStateSchema>;
 
 export const presentingStateSchema = z.object({
@@ -271,7 +276,7 @@ export function splitIntoTeams<T>(members: readonly T[], mode: "COUNT" | "SIZE",
   const count =
     mode === "COUNT"
       ? Math.min(value, members.length)
-      : Math.max(1, Math.floor(members.length / Math.min(value, members.length)));
+      : Math.max(1, Math.round(members.length / Math.min(value, members.length)));
   const teams: T[][] = Array.from({ length: count }, () => []);
   members.forEach((m, i) => teams[i % count].push(m));
   return teams;

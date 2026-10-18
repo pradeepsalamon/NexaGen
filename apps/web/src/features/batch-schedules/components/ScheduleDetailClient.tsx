@@ -131,9 +131,11 @@ export function ScheduleDetailClient({ scheduleId }: { scheduleId: string }) {
 
   const calRange = useMemo(() => {
     if (!schedule) return null;
+    const startMs = Date.parse(`${schedule.startDate}T00:00:00.000Z`);
+    const endMs = Date.parse(`${schedule.endDate}T23:59:59.999Z`);
     return {
-      from: `${schedule.startDate}T00:00:00.000Z`,
-      to: `${schedule.endDate}T23:59:59.999Z`,
+      from: new Date(startMs - 86_400_000).toISOString(),
+      to: new Date(endMs + 86_400_000).toISOString(),
       batchId: schedule.batchId
     };
   }, [schedule]);

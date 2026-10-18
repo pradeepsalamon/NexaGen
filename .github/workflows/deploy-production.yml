@@ -28,10 +28,17 @@ concurrency:
   group: production
   cancel-in-progress: false
 
+# Least privilege by default; jobs that need more ask for it.
+permissions:
+  contents: read
+
 jobs:
   detect-changes:
     if: github.event_name == 'push' || inputs.action != 'rollback'
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     outputs:
       web: ${{ github.event_name == 'workflow_dispatch' && (inputs.services == 'both' || inputs.services == 'web') || steps.filter.outputs.web }}
       api: ${{ github.event_name == 'workflow_dispatch' && (inputs.services == 'both' || inputs.services == 'api') || steps.filter.outputs.api }}
@@ -39,12 +46,35 @@ jobs:
       - name: Checkout code
         if: github.event_name == 'push'
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # Diff against the last push whose deploy run succeeded, not just the
+      # previous push: a push whose deploy failed would otherwise never be
+      # redeployed by a later push that touches other files.
+      - name: Find the last successful deploy
+        if: github.event_name == 'push'
+        id: last-deploy
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          sha=$(gh api "repos/$REPO/actions/workflows/deploy-production.yml/runs?branch=main&event=push&status=success&per_page=1" \
+            --jq '.workflow_runs[0].head_sha // empty' 2>/dev/null) || sha=""
+          if [ -n "$sha" ] && git cat-file -e "$sha^{commit}" 2>/dev/null; then
+            echo "Comparing against the last successful deploy: $sha"
+          else
+            sha="${{ github.event.before }}"
+            echo "No usable successful deploy found; comparing against the previous push: $sha"
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
       - name: Detect affected services
         if: github.event_name == 'push'
         uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
         id: filter
         with:
+          base: ${{ steps.last-deploy.outputs.sha }}
           filters: |
             web:
               - 'apps/web/**'
@@ -177,13 +207,17 @@ jobs:
             cd /opt/nexa-chess/NexaGen || { echo "Failed to find project directory"; exit 1; }
 
             # Fetch the latest commit objects so we can extract the deployment script
-            git fetch origin main
+            git fetch origin main || { echo "git fetch failed"; exit 1; }
 
             # Run the target commit's script from a temp file, never by
             # overwriting scripts/deploy-production.sh in the checkout: a deploy
             # already running would be reading that file.
             DEPLOY_SCRIPT=$(mktemp /tmp/nexa-deploy-production.XXXXXX.sh)
-            git show "$COMMIT_SHA:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT"
+            if ! git show "$COMMIT_SHA:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT" || [ ! -s "$DEPLOY_SCRIPT" ]; then
+              echo "Could not extract scripts/deploy-production.sh at $COMMIT_SHA"
+              rm -f "$DEPLOY_SCRIPT"
+              exit 1
+            fi
             bash "$DEPLOY_SCRIPT" "$COMMIT_SHA" $SERVICES
             STATUS=$?
             rm -f "$DEPLOY_SCRIPT"
@@ -199,7 +233,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Roll back on VPS
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
         env:
           ROLLBACK_SERVICES: ${{ inputs.services }}
         with:
@@ -213,11 +247,15 @@ jobs:
             echo "NEXA PRODUCTION ROLLBACK"
             echo "========================================"
             cd /opt/nexa-chess/NexaGen || { echo "Failed to find project directory"; exit 1; }
-            git fetch origin main
+            git fetch origin main || { echo "git fetch failed"; exit 1; }
             # The rollback logic of main's newest script, not of whatever is
             # checked out (that may be the very commit being rolled back).
             DEPLOY_SCRIPT=$(mktemp /tmp/nexa-deploy-production.XXXXXX.sh)
-            git show "origin/main:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT"
+            if ! git show "origin/main:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT" || [ ! -s "$DEPLOY_SCRIPT" ]; then
+              echo "Could not extract scripts/deploy-production.sh from origin/main"
+              rm -f "$DEPLOY_SCRIPT"
+              exit 1
+            fi
             # "both" = whatever the last successful deploy changed.
             [ "$ROLLBACK_SERVICES" = "both" ] && ROLLBACK_SERVICES=""
             bash "$DEPLOY_SCRIPT" --rollback $ROLLBACK_SERVICES

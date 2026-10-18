@@ -461,6 +461,13 @@ describe('classifyMove', () => {
       expect(result).toMatchObject({ classification: 'GOOD', reasons: ['KEPT_FORCED_MATE'], winPercentLoss: 0 });
     });
 
+    it('is BEST when the move keeps the fastest mate', () => {
+      const result = classifyMove(
+        evidence({ linesBefore: [line(1, mate('white', 2), 'd1h5')], nextPositionLine: line(1, mate('white', 1), 'e7e5') }),
+      );
+      expect(result).toMatchObject({ classification: 'BEST', reasons: ['WITHIN_BEST_MARGIN'] });
+    });
+
     it('is MATE_ALLOWED when a playable position walks into a short mate', () => {
       const result = classifyMove(evidence({ nextPositionLine: line(1, mate('black', 2), 'd8h4') }));
       expect(result.classification).toBe('MATE_ALLOWED');

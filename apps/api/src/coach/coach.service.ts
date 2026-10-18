@@ -355,7 +355,11 @@ export class CoachService {
     // AUDIT H18: a class that already ran (or is running) cannot be cancelled
     // after the fact; an already-cancelled class is a no-op, not an error worth
     // re-triggering `cancelledAt`.
-    if (existing.status === ClassStatus.COMPLETED || existing.status === ClassStatus.LIVE) {
+    if (
+      existing.status === ClassStatus.COMPLETED ||
+      existing.status === ClassStatus.LIVE ||
+      existing.status === ClassStatus.IN_PROGRESS
+    ) {
       throw new ConflictException(
         `Cannot cancel a class that is ${existing.status.toLowerCase()}.`
       );

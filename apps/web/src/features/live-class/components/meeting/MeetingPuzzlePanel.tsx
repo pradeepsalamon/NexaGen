@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { CheckCircle2, Inbox, LayoutGrid, Medal, Pencil, PlusCircle, Puzzle as PuzzleIcon } from "lucide-react";
 import type {
@@ -156,9 +156,9 @@ function pointsValue(entry: LivePuzzleLeaderboardEntry, rankByPoints: boolean) {
 }
 
 const MEDAL_TONE: Record<number, string> = {
-  1: "text-amber-500",
-  2: "text-slate-400",
-  3: "text-orange-500"
+  1: "text-secondary-ink",
+  2: "text-app-muted",
+  3: "text-warm-ink"
 };
 
 /** Medal for the podium, plain number below it. */
@@ -176,9 +176,9 @@ function RankMark({ rank }: { rank: number }) {
 }
 
 const PODIUM_ROW: Record<number, string> = {
-  1: "bg-amber-500/[0.10]",
-  2: "bg-slate-400/[0.10]",
-  3: "bg-orange-500/[0.08]"
+  1: "bg-secondary/[0.10]",
+  2: "bg-app-muted/[0.10]",
+  3: "bg-warm/[0.08]"
 };
 
 /** Podium rows tinted gold/silver/bronze; the viewer's own row gets a primary bar on the left. */
@@ -586,11 +586,14 @@ function EditRulesDialog({
   const update = useUpdateLivePuzzle(classId);
   const [draftScoring, setDraftScoring] = useState(scoring);
   const [draftLeaderboard, setDraftLeaderboard] = useState(leaderboard);
+  const wasOpenRef = useRef(open);
 
   useEffect(() => {
-    if (!open) return;
-    setDraftScoring(scoring);
-    setDraftLeaderboard(leaderboard);
+    if (open && !wasOpenRef.current) {
+      setDraftScoring(scoring);
+      setDraftLeaderboard(leaderboard);
+    }
+    wasOpenRef.current = open;
   }, [open, scoring, leaderboard]);
 
   return (

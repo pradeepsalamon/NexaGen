@@ -81,12 +81,18 @@ async function main() {
   for (const [i, p] of puzzles.entries()) {
     const moves = p.moves.split(' ');
     const [setup, solution] = moves;
-    const afterSetup = new Chess(p.fen);
-    afterSetup.move({ from: setup.slice(0, 2), to: setup.slice(2, 4), promotion: setup.slice(4) || undefined });
-    const alternatives = afterSetup
-      .moves({ verbose: true })
-      .map((m) => m.from + m.to + (m.promotion || ''))
-      .filter((u) => u !== solution);
+    let alternatives;
+    try {
+      const afterSetup = new Chess(p.fen);
+      afterSetup.move({ from: setup.slice(0, 2), to: setup.slice(2, 4), promotion: setup.slice(4) || undefined });
+      alternatives = afterSetup
+        .moves({ verbose: true })
+        .map((m) => m.from + m.to + (m.promotion || ''))
+        .filter((u) => u !== solution);
+    } catch (e) {
+      rows.push({ error: `setup move: ${e.message}`, id: p.id });
+      continue;
+    }
 
     let a;
     try {
@@ -104,7 +110,13 @@ async function main() {
     let tacticB = null;
     if (alternatives.length) {
       const alt = alternatives[seededIndex(p.id, alternatives.length)];
-      const b = await engine.analyzeGame({ movesUci: [setup, alt], startFen: p.fen }, { config, resume: a });
+      let b;
+      try {
+        b = await engine.analyzeGame({ movesUci: [setup, alt], startFen: p.fen }, { config, resume: a });
+      } catch (e) {
+        rows.push({ error: `alternative: ${e.message}`, id: p.id });
+        continue;
+      }
       searches += b.positions.filter((x, idx) => idx === 2 && x.status === 'ANALYSED').length;
       builtB = buildAnalysis(b, [], null);
       tacticB = builtB.tactics.opportunities.find((o) => o.ply === 1) || null;
@@ -164,7 +176,10 @@ async function main() {
     missedAlternative: {
       classifiedSevere: pct(ok.filter((r) => SEVERE.has(r.missedClassification)).length, ok.filter((r) => r.missedClassification).length),
       outcomeMissed: pct(ok.filter((r) => r.missedOutcome === 'MISSED').length, ok.filter((r) => r.missedOutcome).length),
-      revisionEligible: pct(ok.filter((r) => r.missedRevisionEligible).length, ok.filter((r) => r.missedOutcome === 'MISSED').length),
+      revisionEligible: pct(
+        ok.filter((r) => r.missedOutcome === 'MISSED' && r.missedRevisionEligible).length,
+        ok.filter((r) => r.missedOutcome === 'MISSED').length,
+      ),
     },
     motifs: motifStats,
     msPerSearch: Math.round(elapsed / Math.max(1, searches)),

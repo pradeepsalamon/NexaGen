@@ -1,8 +1,9 @@
 import { Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { ThrottlerGuard } from "@nestjs/throttler";
-import { getApiEnv } from "@nexa-chess/config/api";
-import { AUTH_COOKIE_NAMES, type AccessTokenPayload } from "../../auth/types";
+import { AUTH_COOKIE_NAMES } from "../../auth/types";
+
+import { verifyAccessToken } from "../../auth/authenticate";
 
 const jwt = new JwtService({});
 
@@ -19,7 +20,7 @@ type ThrottledRequest = {
  * doesn't share a single 100/min budget. Anonymous requests and /auth routes
  * stay per IP, so login/reset brute-force limits can't be multiplied with accounts.
  */
-export function resolveThrottleTracker(req: ThrottledRequest): string {
+export async function resolveThrottleTracker(req: ThrottledRequest): Promise<string> {
   const ip = req.ip ?? req.socket?.remoteAddress ?? "unknown";
   const path = req.originalUrl ?? req.url ?? "";
   if (path.startsWith("/auth/")) return ip;
@@ -28,10 +29,8 @@ export function resolveThrottleTracker(req: ThrottledRequest): string {
   if (typeof token !== "string" || !token) return ip;
 
   try {
-    const payload = jwt.verify<AccessTokenPayload>(token, {
-      secret: getApiEnv().JWT_ACCESS_SECRET
-    });
-    return payload.type === "access" && payload.sub ? `user:${payload.sub}` : ip;
+    const payload = await verifyAccessToken(jwt, token);
+    return `user:${payload.sub}`;
   } catch {
     return ip;
   }

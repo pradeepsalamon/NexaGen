@@ -265,7 +265,12 @@ export class AdminService {
       throw new NotFoundException("Demo class not found");
     }
 
-    const cancelledClass = await this.prisma.coachClass.update({
+    // A live or finished class has already happened; cancelling it rewrites history.
+    if (existingClass.status !== 'SCHEDULED') {
+      throw new ConflictException("Only scheduled demo classes can be cancelled");
+    }
+
+    await this.prisma.coachClass.update({
       where: { id: classId },
       data: {
         status: 'CANCELLED',
@@ -274,7 +279,7 @@ export class AdminService {
       }
     });
 
-    return { class: cancelledClass };
+    return { class: await this.getDemoClassDto(classId) };
   }
 
   async restoreDemoClass(_adminId: string, classId: string) {
@@ -289,6 +294,8 @@ export class AdminService {
     if (existingClass.status !== 'CANCELLED') {
       throw new ConflictException("Only cancelled demo classes can be restored");
     }
+    // A restored class must still be ahead of us, like a newly scheduled one.
+    assertNotInPast(existingClass.startsAt);
 
     // Check if restoring would cause a schedule conflict for the coach
     await assertNoSchedulingConflict(this.prisma, {
@@ -298,7 +305,7 @@ export class AdminService {
       excludeClassId: classId
     });
 
-    const restoredClass = await this.prisma.coachClass.update({
+    await this.prisma.coachClass.update({
       where: { id: classId },
       data: {
         status: 'SCHEDULED',
@@ -308,7 +315,7 @@ export class AdminService {
       }
     });
 
-    return { class: restoredClass };
+    return { class: await this.getDemoClassDto(classId) };
   }
 
   async listDemoClasses(query?: PaginatedQuery & { status?: string }) {
@@ -445,9 +452,9 @@ export class AdminService {
       this.prisma.coachClass.findMany({
         where,
         include: {
-          coach: true,
+          coach: { select: { firstName: true, lastName: true } },
           batch: {
-            include: { students: true }
+            select: { name: true, _count: { select: { students: { where: { isDeleted: false } } } } }
           },
           liveSession: true
         },
@@ -476,7 +483,7 @@ export class AdminService {
         endsAt: c.endsAt.toISOString(),
         meetingRoomId: c.meetingRoomId,
         createdAt: c.createdAt.toISOString(),
-        studentCount: c.batch?.students?.length || 0,
+        studentCount: c.batch?._count.students ?? 0,
         coachName: `${c.coach.firstName} ${c.coach.lastName || ''}`.trim(),
         hasRecording: !!c.liveSession?.recordingUrl,
       }))
@@ -487,9 +494,9 @@ export class AdminService {
     const existingClass = await this.prisma.coachClass.findUnique({
       where: { id: classId, isDemo: false },
       include: {
-        coach: true,
+        coach: { select: { firstName: true, lastName: true } },
         batch: {
-          include: { students: true }
+          select: { name: true, _count: { select: { students: { where: { isDeleted: false } } } } }
         },
         liveSession: true,
         attendances: {
@@ -526,7 +533,7 @@ export class AdminService {
       endsAt: existingClass.endsAt.toISOString(),
       meetingRoomId: existingClass.meetingRoomId,
       createdAt: existingClass.createdAt.toISOString(),
-      studentCount: existingClass.batch?.students?.length || 0,
+      studentCount: existingClass.batch?._count.students ?? 0,
       coachName: `${existingClass.coach.firstName} ${existingClass.coach.lastName || ''}`.trim(),
       actualStartsAt: existingClass.liveSession?.startedAt ? existingClass.liveSession.startedAt.toISOString() : null,
       actualEndsAt: existingClass.liveSession?.endedAt ? existingClass.liveSession.endedAt.toISOString() : null,

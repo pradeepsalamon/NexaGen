@@ -11,7 +11,8 @@ RUN apt-get update && \
 
 WORKDIR /app
 
-RUN npm install -g turbo
+# Keep in step with the root package.json devDependency.
+RUN npm install -g turbo@2.10.12
 
 COPY . .
 

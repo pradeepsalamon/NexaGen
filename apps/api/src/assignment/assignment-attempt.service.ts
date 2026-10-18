@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException
@@ -257,8 +258,8 @@ export class AssignmentAttemptService {
         : Math.max(sa.bestAccuracyPercent ?? 0, accuracyPercent);
 
     const persisted = await this.prisma.$transaction(async (tx) => {
-      const savedAttempt = await tx.studentAssignmentAttempt.update({
-        where: { id: attempt.id },
+      const updateResult = await tx.studentAssignmentAttempt.updateMany({
+        where: { id: attempt.id, status: "IN_PROGRESS" },
         data: {
           movesJson: moves as unknown as Prisma.InputJsonValue,
           status: attemptStatus,
@@ -269,6 +270,12 @@ export class AssignmentAttemptService {
           hintsUsed: Math.max(attempt.hintsUsed, dto.hintsUsed ?? 0),
           completedAt: new Date()
         }
+      });
+      if (updateResult.count === 0) {
+        throw new ConflictException("Attempt is no longer in progress.");
+      }
+      const savedAttempt = await tx.studentAssignmentAttempt.findUniqueOrThrow({
+        where: { id: attempt.id }
       });
 
       const markComplete = passed || activityType === "FREE_ANALYSIS";

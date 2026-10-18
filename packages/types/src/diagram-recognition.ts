@@ -832,6 +832,9 @@ function applyMaterialPrior(
         .sort((a, b) => a.cost - b.cost)
         .slice(0, extra);
       for (const m of moves) {
+        // An earlier switch in this batch may have filled the target type up.
+        const target = readings[m.i].ranking[m.next].type;
+        if (own.filter((j) => typeAt(j) === target).length >= MATERIAL_LIMITS[target]) continue;
         choice[m.i] = m.next;
         nudged.add(m.i);
       }

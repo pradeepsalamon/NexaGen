@@ -148,7 +148,7 @@ export class RecordingsAnalyticsSection {
     const byMonthRows = await this.prisma.$queryRaw<
       { bucket: string; count: bigint }[]
     >(Prisma.sql`
-      SELECT to_char(date_trunc('month', ("recordingCompletedAt" AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
+      SELECT to_char(date_trunc('month', (("recordingCompletedAt" AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
              count(*)::bigint AS count
       FROM "live_sessions"
       WHERE "recordingUrl" IS NOT NULL AND "recordingCompletedAt" IS NOT NULL

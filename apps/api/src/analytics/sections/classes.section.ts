@@ -13,6 +13,7 @@ import {
   buildMeta,
   classDurationSeconds,
   pct,
+  sqlTimestamp,
   type AnalyticsContext
 } from "../analytics-support";
 
@@ -43,14 +44,15 @@ export class ClassesAnalyticsSection {
     return f;
   }
 
-  /** Same filters as `appliedFilters`, as a SQL fragment against a `classes c` alias. */
-  private classSqlFilter(ctx: AnalyticsContext): Prisma.Sql {
+  /** Same filters as `appliedFilters`, as a SQL fragment against a `classes` alias (default `c`). */
+  private classSqlFilter(ctx: AnalyticsContext, alias = "c"): Prisma.Sql {
     const { coachId, batchId, classType } = ctx.filters;
+    const t = Prisma.raw(alias);
     const parts: Prisma.Sql[] = [];
-    if (coachId) parts.push(Prisma.sql`AND c."coachId" = ${coachId}`);
-    if (batchId) parts.push(Prisma.sql`AND c."batchId" = ${batchId}`);
-    if (classType === "demo") parts.push(Prisma.sql`AND c."isDemo" = true`);
-    if (classType === "batch") parts.push(Prisma.sql`AND c."isDemo" = false`);
+    if (coachId) parts.push(Prisma.sql`AND ${t}."coachId" = ${coachId}`);
+    if (batchId) parts.push(Prisma.sql`AND ${t}."batchId" = ${batchId}`);
+    if (classType === "demo") parts.push(Prisma.sql`AND ${t}."isDemo" = true`);
+    if (classType === "batch") parts.push(Prisma.sql`AND ${t}."isDemo" = false`);
     return parts.length ? Prisma.join(parts, " ") : Prisma.empty;
   }
 
@@ -85,7 +87,8 @@ export class ClassesAnalyticsSection {
           "classes",
           "startsAt",
           range,
-          Prisma.sql`"classes"."status" = 'COMPLETED'`
+          // Same coach / batch / type filters as the other figures on this page.
+          Prisma.sql`"classes"."status" = 'COMPLETED' ${this.classSqlFilter(ctx, '"classes"')}`
         ),
         this.attendanceTallyForClasses(ctx),
         this.demoConversionPercent(ctx)
@@ -210,7 +213,7 @@ export class ClassesAnalyticsSection {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         ${filter}
     `);
     return {
@@ -235,7 +238,7 @@ export class ClassesAnalyticsSection {
         JOIN "classes" c ON c.id = ca."classId"
         WHERE c."isDemo" = true AND c.status = 'COMPLETED'
           AND ca.status IN ('PRESENT','LATE')
-          AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+          AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       )
       SELECT
         (SELECT count(*)::bigint FROM demo_students) AS demo_students,
@@ -323,13 +326,13 @@ export class ClassesAnalyticsSection {
     const rows = await this.prisma.$queryRaw<
       { bucket: string; attended: bigint; total: bigint }[]
     >(Prisma.sql`
-      SELECT to_char(date_trunc(${range.granularity}, (c."startsAt" AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
+      SELECT to_char(date_trunc(${range.granularity}, ((c."startsAt" AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
              count(*) FILTER (WHERE ca.status IN ('PRESENT','LATE'))::bigint AS attended,
              count(*)::bigint AS total
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1 ORDER BY 1
     `);
     const map = new Map<string, number>();
@@ -355,7 +358,7 @@ export class ClassesAnalyticsSection {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         AND ${Prisma.raw(idCol)} IS NOT NULL
       GROUP BY 1
       ORDER BY 2 DESC
@@ -415,7 +418,7 @@ export class ClassesAnalyticsSection {
       JOIN "classes" c ON c.id = ca."classId"
       JOIN "users" u ON u.id = ca."studentId"
       WHERE c.status = 'COMPLETED' AND u."isDeleted" = false
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2, 3
       HAVING count(*) >= 3
          AND (count(*) FILTER (WHERE ca.status IN ('PRESENT','LATE'))::float / count(*)) * 100 < ${threshold}

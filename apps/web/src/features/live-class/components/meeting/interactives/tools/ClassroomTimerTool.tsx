@@ -17,7 +17,7 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_TIMER_PHASES,
-  formatClock,
+  formatClockMs,
   newTimerState,
   timerTransitions,
 } from "../../../../hooks/useClassroomTimer";
@@ -200,7 +200,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
           )}
           role="timer"
         >
-          {formatClock(remainingMs)}
+          {formatClockMs(remainingMs)}
         </p>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-app-surface">
           <div
@@ -292,7 +292,7 @@ export function ClassroomTimerTool({ isManager, timer }: ToolContext) {
             >
               <span>{p.label}</span>
               <span className="tabular-nums">
-                {formatClock(p.seconds * 1000)}
+                {formatClockMs(p.seconds * 1000)}
               </span>
             </li>
           ))}

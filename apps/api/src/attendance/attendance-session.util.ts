@@ -47,7 +47,7 @@ export function resolveJoinAction(
 
   const reference = clientId
     ? openLogs.find((log) => log.clientId === clientId)
-    : openLogs[0];
+    : [...openLogs].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
 
   if (!reference) {
     // The token request's JOIN carries no clientId on older clients — the

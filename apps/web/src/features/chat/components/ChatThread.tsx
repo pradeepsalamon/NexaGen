@@ -13,6 +13,7 @@ import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatTime } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
+import { useToast } from "@/providers/ToastProvider";
 import { listMessages } from "../api/chatApi";
 import { useConversation, useLatestMessages, useMarkConversationRead, useSendMessage } from "../hooks/useChat";
 import { CHAT_TYPE_LABELS, chatDayLabel, newChatClientId } from "../lib/chatFormat";
@@ -24,6 +25,7 @@ type Pending = { body: string; clientId: string; failed: boolean };
 type Props = { conversationId: string; onBack: () => void };
 
 export function ChatThread({ conversationId, onBack }: Props) {
+  const toast = useToast();
   const timeZone = useUserTimeZone();
   const meId = useAuthStore((s) => s.user?.id);
   const conversation = useConversation(conversationId);
@@ -31,7 +33,7 @@ export function ChatThread({ conversationId, onBack }: Props) {
   const send = useSendMessage(conversationId);
   const markRead = useMarkConversationRead();
 
-  const [older, setOlder] = useState<ChatMessageDto[]>([]);
+  const [knownMessages, setKnownMessages] = useState<Map<string, ChatMessageDto>>(new Map());
   const [olderCursor, setOlderCursor] = useState<string | null | undefined>(undefined);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
@@ -42,18 +44,34 @@ export function ChatThread({ conversationId, onBack }: Props) {
 
   // A different thread starts clean.
   useEffect(() => {
-    setOlder([]);
+    setKnownMessages(new Map());
     setOlderCursor(undefined);
     setPending([]);
     setDraft("");
     stickToBottom.current = true;
   }, [conversationId]);
 
+  // Retain messages across polling updates so older messages are not discarded.
+  useEffect(() => {
+    if (!latest.data?.messages?.length) return;
+    setKnownMessages((prev) => {
+      let changed = false;
+      const next = new Map(prev);
+      for (const m of latest.data.messages) {
+        if (!next.has(m.id)) {
+          next.set(m.id, m);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [latest.data?.messages]);
+
   const messages = useMemo(() => {
-    const byId = new Map<string, ChatMessageDto>();
-    for (const m of [...older, ...(latest.data?.messages ?? [])]) byId.set(m.id, m);
-    return [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
-  }, [older, latest.data]);
+    return [...knownMessages.values()].sort(
+      (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)
+    );
+  }, [knownMessages]);
 
   // An optimistic bubble disappears once the stored copy (same clientId) shows up.
   const deliveredClientIds = useMemo(
@@ -72,16 +90,22 @@ export function ChatThread({ conversationId, onBack }: Props) {
     stickToBottom.current = false;
     try {
       const page = await listMessages(conversationId, cursor);
-      setOlder((prev) => [...page.messages, ...prev]);
       setOlderCursor(page.nextBefore);
+      setKnownMessages((prev) => {
+        const next = new Map(prev);
+        for (const m of page.messages) next.set(m.id, m);
+        return next;
+      });
       // Keep the reader's place instead of jumping to the new top.
       requestAnimationFrame(() => {
         if (el) el.scrollTop = el.scrollHeight - fromBottom;
       });
+    } catch {
+      toast.error({ title: "Could not load older messages" });
     } finally {
       setLoadingOlder(false);
     }
-  }, [conversationId, cursor]);
+  }, [conversationId, cursor, toast]);
 
   // Follow new messages only while the reader is already at the bottom.
   const newestId = messages[messages.length - 1]?.id;
@@ -109,7 +133,13 @@ export function ChatThread({ conversationId, onBack }: Props) {
     send.mutate(
       { body: text, clientId },
       {
-        onError: () => setPending((prev) => prev.map((p) => (p.clientId === clientId ? { ...p, failed: true } : p))),
+        onError: () => {
+          setPending((prev) => prev.map((p) => (p.clientId === clientId ? { ...p, failed: true } : p)));
+          toast.error({
+            title: "Failed to send message",
+            message: "Check your connection and tap retry."
+          });
+        },
         onSuccess: () => setPending((prev) => prev.filter((p) => p.clientId !== clientId)),
       },
     );

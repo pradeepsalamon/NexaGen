@@ -26,13 +26,21 @@ export interface ResolvedRange {
   granularity: AnalyticsGranularity;
 }
 
-function parseDateInput(value: string | undefined): Date | null {
+type Ymd = { year: number; month: number; day: number };
+
+/**
+ * A date-only bound ("2026-03-05") is that calendar day in the business zone;
+ * reading it as UTC midnight would land on the previous day west of UTC. A
+ * timestamp is placed on the day it falls on in the zone.
+ */
+function parseDateInput(tz: string, value: string | undefined): Ymd | null {
   if (!value) return null;
-  const isoDate = /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? `${value}T00:00:00.000Z`
-    : value;
-  const d = new Date(isoDate);
-  return Number.isNaN(d.getTime()) ? null : d;
+  const dateOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (dateOnly) {
+    return { year: Number(dateOnly[1]), month: Number(dateOnly[2]), day: Number(dateOnly[3]) };
+  }
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : zonedYmd(tz, d);
 }
 
 function nDayWindow(tz: string, now: Date, days: number) {
@@ -54,7 +62,9 @@ function shiftMonths(tz: string, date: Date, delta: number): Date {
   const total = (year * 12 + (month - 1)) + delta;
   const y = Math.floor(total / 12);
   const m = (total % 12) + 1;
-  return zonedDateToUtc(tz, y, m, day);
+  // 31 Mar minus a month is 28/29 Feb, not 2/3 Mar.
+  const lastDay = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return zonedDateToUtc(tz, y, m, Math.min(day, lastDay));
 }
 
 /**
@@ -118,10 +128,8 @@ export function resolveAnalyticsRange(
     case "custom":
     default: {
       preset = "custom";
-      const fromDate = parseDateInput(query?.from) ?? new Date(now.getTime() - 29 * DAY_MS);
-      const toDate = parseDateInput(query?.to) ?? now;
-      const fromYmd = zonedYmd(tz, fromDate);
-      const toYmd = zonedYmd(tz, toDate);
+      const fromYmd = parseDateInput(tz, query?.from) ?? zonedYmd(tz, new Date(now.getTime() - 29 * DAY_MS));
+      const toYmd = parseDateInput(tz, query?.to) ?? zonedYmd(tz, now);
       start = zonedDateToUtc(tz, fromYmd.year, fromYmd.month, fromYmd.day);
       end = zonedDateToUtc(tz, toYmd.year, toYmd.month, toYmd.day + 1);
       if (end <= start) end = new Date(start.getTime() + DAY_MS);

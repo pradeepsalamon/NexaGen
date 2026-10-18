@@ -177,8 +177,9 @@ export class ActivityQueueService {
 
     const resolved = await this.resolveInputs(manager, body.items);
     await this.prisma.$transaction(async (tx) => {
-      // Re-check inside the transaction: positions must stay contiguous even if
-      // two adds race (the second one appends after the first).
+      // Lock the queue row, then re-check: positions must stay contiguous when
+      // adds, catalogue adds and a launch race (same lock as addCatalogPuzzles).
+      await tx.$queryRaw`SELECT id FROM live_class_activity_queues WHERE id = ${queueId} FOR UPDATE`;
       const current = await tx.liveClassActivityQueue.findUnique({
         where: { id: queueId },
         select: { status: true, _count: { select: { items: true } } }
@@ -775,7 +776,14 @@ export class ActivityQueueService {
         });
         if (poll) {
           data.movePollId = poll.id;
-          if (item.correctUci) await this.polls.update(accessToken, classId, { correctUci: item.correctUci });
+          // The poll is live either way; a failed answer key is not an activation error.
+          if (item.correctUci) {
+            await this.polls
+              .update(accessToken, classId, { correctUci: item.correctUci })
+              .catch((error: unknown) =>
+                this.logger.warn(`Poll ${poll.id} in class ${classId} started without its answer: ${this.messageOf(error)}`)
+              );
+          }
         }
       } else {
         // CHAPTER: the coach's client loads it onto the shared board. `chapterId`

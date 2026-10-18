@@ -151,7 +151,9 @@ describe("classroom tool helpers", () => {
   it("splits into balanced teams by count or by size", () => {
     const ten = Array.from({ length: 10 }, (_, i) => i);
     expect(splitIntoTeams(ten, "COUNT", 3).map((t) => t.length)).toEqual([4, 3, 3]);
-    expect(splitIntoTeams(ten, "SIZE", 4).map((t) => t.length)).toEqual([5, 5]);
+    // SIZE rounds the team count, so teams stay near the size asked for.
+    expect(splitIntoTeams(ten, "SIZE", 4).map((t) => t.length)).toEqual([4, 3, 3]);
+    expect(splitIntoTeams(ten.slice(0, 7), "SIZE", 4).map((t) => t.length)).toEqual([4, 3]);
     expect(splitIntoTeams(ten, "SIZE", 2)).toHaveLength(5);
     expect(splitIntoTeams([1, 2], "COUNT", 5)).toHaveLength(2);
     expect(splitIntoTeams([], "COUNT", 2)).toEqual([]);

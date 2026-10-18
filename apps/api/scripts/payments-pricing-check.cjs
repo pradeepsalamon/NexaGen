@@ -19,6 +19,7 @@ const {
   BatchPricingService
 } = require("../dist/src/payments/batch-pricing.service");
 const { DiscountService } = require("../dist/src/payments/discount.service");
+const { createDiscountRequestSchema } = require("@nexa-chess/types");
 
 let failures = 0;
 
@@ -305,26 +306,63 @@ function check(label, condition, detail) {
     // maxPerUser is 5 and this code has never been redeemed, so it still applies.
     check("a code under its per-user limit still applies", secondUse.valid);
 
-    const exhausted = await discounts.create(student, {
+    // A once-per-user code, redeemed once, must stop applying for that user.
+    const once = await discounts.create(student, {
       code: `ONCE${stamp}`,
       name: "Single use",
       type: "FIXED",
       value: 5000,
       currency: "INR",
-      maxRedemptions: 0,
+      maxRedemptions: null,
       maxPerUser: 1,
       planIds: [],
       batchIds: [],
       methods: [],
       isActive: true
-    }).catch(() => null);
+    });
+    created.discountIds.push(once.id);
+    const onceOrder = await prisma.order.create({
+      data: {
+        orderNumber: `PRICE-ONCE-${stamp}`,
+        userId: student.id,
+        planId: oneTime.id,
+        status: "PAID",
+        subtotalAmount: 499900,
+        discountAmount: 5000,
+        taxAmount: 0,
+        amount: 494900,
+        currency: "INR",
+        idempotencyKey: `price-once-${stamp}`,
+        discountId: once.id,
+        discountCode: once.code
+      }
+    });
+    created.orderIds.push(onceOrder.id);
+    await prisma.discountRedemption.create({
+      data: { discountId: once.id, userId: student.id, orderId: onceOrder.id, amount: 5000 }
+    });
+    const afterOnce = await discounts.resolve({
+      code: once.code,
+      userId: student.id,
+      plan: planForDiscount,
+      method: "UPI"
+    });
+    check("a code at its per-user limit no longer applies", !afterOnce.valid);
 
-    if (exhausted) {
-      created.discountIds.push(exhausted.id);
-    } else {
-      // maxRedemptions must be positive; that the schema refuses 0 is correct.
-      check("a zero total-use limit is rejected by validation", true);
-    }
+    // The API validates bodies with the shared schema before the service runs.
+    const zeroLimit = createDiscountRequestSchema.safeParse({
+      code: `ZERO${stamp}`,
+      name: "Zero uses",
+      type: "FIXED",
+      value: 5000,
+      currency: "INR",
+      maxRedemptions: 0,
+      maxPerUser: 1
+    });
+    check(
+      "a zero total-use limit is rejected by validation",
+      !zeroLimit.success && zeroLimit.error.issues.some((issue) => issue.path[0] === "maxRedemptions")
+    );
   } finally {
     if (created.orderIds.length > 0) {
       await prisma.discountRedemption.deleteMany({

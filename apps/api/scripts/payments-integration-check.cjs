@@ -35,6 +35,8 @@ function check(label, condition, detail) {
 
   const stamp = Date.now();
   let created = {};
+  // Seeded state this check changes, put back in `finally`.
+  const restore = {};
 
   try {
     const plan = await prisma.plan.findUnique({
@@ -43,6 +45,8 @@ function check(label, condition, detail) {
     if (!plan) throw new Error("Seed the database first (npm run db:seed).");
 
     const batch = await prisma.batch.findFirst({ where: { isDeleted: false } });
+    if (!batch) throw new Error("No batch to enrol into; seed the database first (npm run db:seed).");
+    restore.plan = { id: plan.id, batchId: plan.batchId };
     await prisma.plan.update({
       where: { id: plan.id },
       data: { batchId: batch.id }
@@ -54,6 +58,13 @@ function check(label, condition, detail) {
     if (!student) throw new Error("Seed the database first (npm run db:seed).");
 
     // Start from a clean enrolment so the restore path is genuinely exercised.
+    restore.enrolment = {
+      batchId: batch.id,
+      row: await prisma.withDeleted.batchStudent.findFirst({
+        where: { batchId: batch.id, studentId: student.id }
+      }),
+      studentId: student.id
+    };
     await prisma.batchStudent.deleteMany({
       where: { batchId: batch.id, studentId: student.id }
     });
@@ -286,6 +297,14 @@ function check(label, condition, detail) {
       });
       await prisma.payment.deleteMany({ where: { orderId: { in: orderIds } } });
       await prisma.order.deleteMany({ where: { id: { in: orderIds } } });
+    }
+    if (restore.enrolment) {
+      const { batchId, row, studentId } = restore.enrolment;
+      await prisma.withDeleted.batchStudent.deleteMany({ where: { batchId, studentId } });
+      if (row) await prisma.withDeleted.batchStudent.create({ data: row });
+    }
+    if (restore.plan) {
+      await prisma.plan.update({ where: { id: restore.plan.id }, data: { batchId: restore.plan.batchId } });
     }
     await app.close();
   }

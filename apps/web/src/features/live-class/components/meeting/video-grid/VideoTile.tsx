@@ -104,7 +104,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
         <span
           className={cn(
             "flex size-5 shrink-0 items-center justify-center rounded-full",
-            isMuted ? "bg-red-500/20 text-red-500" : "bg-white/10 text-white/70",
+            isMuted ? "bg-app-danger/20 text-app-danger" : "bg-white/10 text-white/70",
           )}
           aria-label={isMuted ? "Microphone muted" : "Microphone on"}
         >
@@ -150,7 +150,7 @@ export const VideoTile = memo(function VideoTile({ trackRef, onPin, style }: Vid
         {onPin && (
           <button
             type="button"
-            className="pointer-events-auto ml-1.5 flex size-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/60 opacity-0 backdrop-blur-sm transition duration-150 hover:bg-black/70 hover:text-white focus-visible:opacity-100 group-hover:opacity-100"
+            className="pointer-events-auto ml-1.5 flex size-8 items-center justify-center rounded-full border border-white/10 bg-black/50 text-white/60 backdrop-blur-sm transition duration-150 hover:bg-black/70 hover:text-white [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:focus-visible:opacity-100 [@media(hover:hover)]:group-hover:opacity-100"
             onClick={() => onPin(trackKey)}
             aria-label={
               isScreenShare

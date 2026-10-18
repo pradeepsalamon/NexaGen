@@ -335,6 +335,25 @@ describe("AttendanceMonitoringService.getReliabilityMetrics", () => {
     expect(result.heartbeatFallbackRate).toBe(1);
   });
 
+  it("counts a DISCONNECT log with reason not_in_room as a heartbeat fallback", async () => {
+    authenticateAs("admin-1", UserRole.ADMIN);
+    prismaService.liveSession.findMany.mockResolvedValue([{ classId: "class-1" }]);
+    prismaService.classAttendance.findMany.mockResolvedValue([
+      {
+        logs: [
+          { eventType: AttendanceEventType.JOIN, reason: null },
+          { eventType: AttendanceEventType.DISCONNECT, reason: "not_in_room" },
+        ],
+      },
+    ]);
+
+    const result = await service.getReliabilityMetrics(ACCESS_TOKEN);
+
+    expect(result.totalParticipantSessions).toBe(1);
+    expect(result.heartbeatFallbackCount).toBe(1);
+    expect(result.heartbeatFallbackRate).toBe(1);
+  });
+
   it("counts a silently force-closed session (no LEAVE, no DISCONNECT) as a loss but not a fallback", async () => {
     authenticateAs("admin-1", UserRole.ADMIN);
     prismaService.liveSession.findMany.mockResolvedValue([{ classId: "class-1" }]);

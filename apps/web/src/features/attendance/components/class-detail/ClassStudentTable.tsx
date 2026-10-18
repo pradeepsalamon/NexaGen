@@ -2,12 +2,7 @@ import { Fragment, memo, useState } from "react";
 import { ChevronDown, ChevronRight, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/Tooltip";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import type { ClassDetailStudentLog } from "@nexa-chess/types";
 import { AttendanceStatusBadge } from "../AttendanceStatusBadge";
 import { AttendancePercentBar } from "../AttendancePercentBar";
@@ -79,12 +74,28 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                     className="hover:bg-app-soft/50 transition-colors cursor-pointer"
                   >
                     <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 w-10">
-                      {student.logs.length > 0 &&
-                        (expandedStudent === student.id ? (
-                          <ChevronDown className="h-4 w-4 text-app-muted" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-app-muted" />
-                        ))}
+                      {student.logs.length > 0 && (
+                        <button
+                          type="button"
+                          aria-label={
+                            expandedStudent === student.id
+                              ? `Collapse event timeline for ${student.name}`
+                              : `Expand event timeline for ${student.name}`
+                          }
+                          aria-expanded={expandedStudent === student.id}
+                          className="flex items-center justify-center rounded p-1 text-app-muted hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStudent(student.id);
+                          }}
+                        >
+                          {expandedStudent === student.id ? (
+                            <ChevronDown className="h-4 w-4 text-app-muted" aria-hidden="true" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-app-muted" aria-hidden="true" />
+                          )}
+                        </button>
+                      )}
                     </TableCell>
                     <TableCell className="text-left px-3 py-3 md:px-6 md:py-4">
                       <div className="font-medium text-app-text">
@@ -107,25 +118,20 @@ export const ClassStudentTable = memo(function ClassStudentTable({
                       {student.reconnectCount}
                     </TableCell>
                     <TableCell className="px-3 py-3 md:px-6 md:py-4 text-right">
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              aria-label={`View attendance history for ${student.name}`}
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                onViewHistory({ id: student.id, name: student.name });
-                              }}
-                            >
-                              <History className="size-4" strokeWidth={2.5} />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Full attendance history</TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      <SimpleTooltip label="Full attendance history">
+                        <Button
+                          aria-label={`View attendance history for ${student.name}`}
+                          variant="outline"
+                          size="icon"
+                          className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onViewHistory({ id: student.id, name: student.name });
+                          }}
+                        >
+                          <History className="size-4" strokeWidth={2.5} aria-hidden="true" />
+                        </Button>
+                      </SimpleTooltip>
                     </TableCell>
                   </TableRow>
                   {expandedStudent === student.id && student.logs.length > 0 && (

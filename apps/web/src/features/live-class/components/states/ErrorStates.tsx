@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CircleAlert, DoorClosed, Loader2, LockKeyhole, PlugZap, Rocket, WifiOff } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { getRoleDashboardHref, isStaffRole, useAuthStore } from "@/stores/authStore";
 import { getLiveClass, requestWaitingRoomAdmission, startLiveClass } from "../../api/live-class";
@@ -135,7 +136,7 @@ export function RoomEnded() {
 
 export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?: () => void }) {
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH";
+  const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const [isStarting, setIsStarting] = useState(false);
   const dashboardUrl = getRoleDashboardHref(user?.role);
 
@@ -169,6 +170,7 @@ export function ClassNotStarted({ roomId, onRetry }: { roomId?: string; onRetry?
       onRetry();
     } catch (err) {
       console.error("Failed to start class", err);
+      toast.error(err instanceof Error ? err.message : "Failed to start class");
       setIsStarting(false);
     }
   };
@@ -282,6 +284,7 @@ export function JoinDenied({ roomId, onRequested }: { roomId: string; onRequeste
       onRequested();
     } catch (err) {
       console.error("Failed to request admission again", err);
+      toast.error(err instanceof Error ? err.message : "Failed to request admission");
       setIsRequesting(false);
     }
   };

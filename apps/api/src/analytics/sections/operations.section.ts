@@ -11,7 +11,7 @@ import { RecordingStorageService } from "../../live-class/recording-storage.serv
 import { PrismaService } from "../../prisma/prisma.service";
 import { zonedDayBounds } from "../../common/time";
 import { roundTo } from "../analytics-math";
-import { buildMeta, type AnalyticsContext } from "../analytics-support";
+import { buildMeta, sqlTimestamp, type AnalyticsContext } from "../analytics-support";
 
 @Injectable()
 export class OperationsAnalyticsSection {
@@ -333,7 +333,7 @@ export class OperationsAnalyticsSection {
         FROM "class_attendance" ca
         JOIN "classes" c ON c.id = ca."classId"
         WHERE c.status = 'COMPLETED'
-          AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+          AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         GROUP BY ca."studentId"
         HAVING count(*) >= 3
           AND (count(*) FILTER (WHERE ca.status IN ('PRESENT','LATE'))::float / count(*)) * 100

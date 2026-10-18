@@ -63,10 +63,15 @@ function fetchSvgText(pieceSetId: string, fileName: string): Promise<string> {
   const key = `${pieceSetId}/${fileName}`;
   let pending = svgTextCache.get(key);
   if (!pending) {
-    pending = fetch(`/chess/pieces/${pieceSetId}/${fileName}.svg`).then((res) => {
-      if (!res.ok) throw new Error(`Failed to load ${key}.svg`);
-      return res.text();
-    });
+    pending = fetch(`/chess/pieces/${pieceSetId}/${fileName}.svg`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load ${key}.svg`);
+        return res.text();
+      })
+      .catch((err) => {
+        svgTextCache.delete(key);
+        throw err;
+      });
     svgTextCache.set(key, pending);
   }
   return pending;
@@ -132,7 +137,10 @@ export function buildRecoloredPieceCss(
       }),
     );
     return rules.join("\n");
-  })();
+  })().catch((err) => {
+    cssCache.delete(cacheKey);
+    throw err;
+  });
 
   cssCache.set(cacheKey, pending);
   return pending;

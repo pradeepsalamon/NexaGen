@@ -418,8 +418,11 @@ async function main() {
   const isProduction = process.env.NODE_ENV === "production";
   const forceSeed = process.env.FORCE_SEED === "true";
 
+  // The accounts below share a public password: never on production unless forced.
   if (isProduction && !forceSeed) {
-    console.warn("⚠️ Production environment detected. Only the Super Admin account will be seeded.");
+    console.warn("⚠️ Production environment detected: seeding system presets only (FORCE_SEED=true seeds the accounts).");
+    await seedSystemPresets();
+    return;
   }
 
   const password = await hashSecret(seedPassword);

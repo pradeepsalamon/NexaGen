@@ -16,6 +16,7 @@ import {
   bucketedCounts,
   buildMeta,
   pct,
+  sqlTimestamp,
   type AnalyticsContext
 } from "../analytics-support";
 
@@ -61,11 +62,11 @@ export class UsersAnalyticsSection {
       FROM "users" u
       WHERE u."isDeleted" = false
         AND (
-          (u."lastActiveAt" >= ${start} AND u."lastActiveAt" < ${end})
+          (u."lastActiveAt" >= ${sqlTimestamp(start)} AND u."lastActiveAt" < ${sqlTimestamp(end)})
           OR EXISTS (
             SELECT 1 FROM "analytics_events" e
             WHERE e."userId" = u.id
-              AND e."occurredAt" >= ${start} AND e."occurredAt" < ${end}
+              AND e."occurredAt" >= ${sqlTimestamp(start)} AND e."occurredAt" < ${sqlTimestamp(end)}
           )
         )
     `);
@@ -219,7 +220,7 @@ export class UsersAnalyticsSection {
         _count: { _all: true }
       }),
       this.prisma.$queryRaw<{ month: string; source: string; count: bigint }[]>(Prisma.sql`
-        SELECT to_char(date_trunc('month', ("createdAt" AT TIME ZONE ${range.timezone})), 'YYYY-MM') AS month,
+        SELECT to_char(date_trunc('month', (("createdAt" AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM') AS month,
                "acquisitionSource"::text AS source,
                count(*)::bigint AS count
         FROM "users"
@@ -319,8 +320,8 @@ export class UsersAnalyticsSection {
       SELECT count(DISTINCT e."userId")::bigint AS count
       FROM "analytics_events" e
       JOIN "users" u ON u.id = e."userId"
-      WHERE e."occurredAt" >= ${range.start} AND e."occurredAt" < ${range.end}
-        AND u."createdAt" >= ${range.start} AND u."createdAt" < ${range.end}
+      WHERE e."occurredAt" >= ${sqlTimestamp(range.start)} AND e."occurredAt" < ${sqlTimestamp(range.end)}
+        AND u."createdAt" >= ${sqlTimestamp(range.start)} AND u."createdAt" < ${sqlTimestamp(range.end)}
     `);
     const newActiveCount = Math.min(Number(newActive[0]?.count ?? 0), activeInRange);
 
@@ -363,7 +364,7 @@ export class UsersAnalyticsSection {
     const rows = await this.prisma.$queryRaw<{ count: bigint }[]>(Prisma.sql`
       SELECT count(DISTINCT "userId")::bigint AS count
       FROM "analytics_events"
-      WHERE "occurredAt" >= ${start} AND "occurredAt" < ${end}
+      WHERE "occurredAt" >= ${sqlTimestamp(start)} AND "occurredAt" < ${sqlTimestamp(end)}
     `);
     return Number(rows[0]?.count ?? 0);
   }

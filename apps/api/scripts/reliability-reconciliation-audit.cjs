@@ -16,16 +16,15 @@
  * the fallback path is effectively unexercised there — see CLAUDE.md's
  * debugging table).
  *
- * Needs a built dist:
- *   npm run build -w apps/api
+ * Needs a generated Prisma client (npm run db:generate):
  *   npm run audit:reliability -w apps/api -- --days 90 --limit 50
  *
  * Flags: --days <n> (default 90, window by class startsAt)
  *        --limit <n> (default 50, max per-class rows printed)
  */
-const { NestFactory } = require("@nestjs/core");
-const { AppModule } = require("../dist/src/app.module");
-const { PrismaService } = require("../dist/src/prisma/prisma.service");
+// A bare client, not the Nest app: booting AppModule would also start its cron
+// jobs, which write. Attendance rows are not soft-deletable, so no filter is lost.
+const { PrismaClient } = require("@prisma/client");
 
 const HEARTBEAT_ROLLOUT_DATE = new Date("2026-09-05T00:00:00.000Z");
 
@@ -50,8 +49,7 @@ function hasHeartbeatFallback(logs) {
   const limit = argValue("limit", 50);
   const since = new Date(Date.now() - days * 24 * 60 * 60_000);
 
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: ["error"] });
-  const prisma = app.get(PrismaService);
+  const prisma = new PrismaClient();
 
   try {
     const sessions = await prisma.liveSession.findMany({
@@ -73,7 +71,6 @@ function hasHeartbeatFallback(logs) {
 
     if (sessions.length === 0) {
       console.log(`No ENDED sessions with startedAt in the last ${days} days.`);
-      await app.close();
       return;
     }
 
@@ -157,7 +154,7 @@ function hasHeartbeatFallback(logs) {
         "duration, never introduce one)."
     );
   } finally {
-    await app.close();
+    await prisma.$disconnect();
   }
 })().catch((error) => {
   console.error(error);

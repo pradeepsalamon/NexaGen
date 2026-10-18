@@ -48,7 +48,11 @@ export function useAnalyticsRange(
         q[key] = key === "threshold" ? Number(value) : value;
       }
     }
-    return { ...defaults, ...q } as AnalyticsRangeQuery;
+    const hasCustomDates = Boolean(q.from || q.to);
+    const effectiveDefaults = hasCustomDates
+      ? { ...defaults, preset: undefined }
+      : defaults;
+    return { ...effectiveDefaults, ...q } as AnalyticsRangeQuery;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 

@@ -64,7 +64,9 @@ specs mirror every scenario). Rules in order:
      wasn't already being mated → **MATE_ALLOWED** (also tagged
      `HAD_FORCED_MATE` if the mover had one);
    - a mate in ≤ `missedMateMaxMoves` existed and is gone → **MISSED_MATE**;
-   - still mating, just slower → GOOD (`KEPT_FORCED_MATE`);
+   - still mating as fast as the best line → **BEST** (`WITHIN_BEST_MARGIN`;
+     a next-position search counts one move fewer); just slower → GOOD
+     (`KEPT_FORCED_MATE`);
    - already being mated, still mated → GOOD (`ALREADY_BEING_MATED`) — not a
      lesson worth flagging.
    Longer mates fall through to the win% rules.

@@ -11,7 +11,7 @@ import {
   zonedMonthBounds
 } from "../../common/time";
 import { densifySeries, roundTo, toCategoryCounts } from "../analytics-math";
-import { buildMeta, pct, type AnalyticsContext } from "../analytics-support";
+import { buildMeta, pct, sqlTimestamp, type AnalyticsContext } from "../analytics-support";
 
 type CoachAggRow = {
   coach_id: string;
@@ -52,7 +52,7 @@ export class CoachesAnalyticsSection {
       FROM "users" u
       LEFT JOIN "classes" c
         ON c."coachId" = u.id
-       AND c."startsAt" >= ${start} AND c."startsAt" < ${end}
+       AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
       WHERE u.role = 'COACH' AND u."isDeleted" = false
@@ -82,7 +82,7 @@ export class CoachesAnalyticsSection {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${start} AND c."startsAt" < ${end}
+        AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
       GROUP BY 1
     `);
     return new Map(
@@ -217,7 +217,7 @@ export class CoachesAnalyticsSection {
     timezone: string;
   }): Promise<Map<string, number>> {
     const rows = await this.prisma.$queryRaw<{ bucket: string; hours: number }[]>(Prisma.sql`
-      SELECT to_char(date_trunc(${range.granularity}, (c."startsAt" AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
+      SELECT to_char(date_trunc(${range.granularity}, ((c."startsAt" AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
              coalesce(sum(
                coalesce(cca."totalDuration",
                  EXTRACT(EPOCH FROM (coalesce(ls."endedAt", c."endsAt") - coalesce(ls."startedAt", c."startsAt")))
@@ -227,7 +227,7 @@ export class CoachesAnalyticsSection {
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1 ORDER BY 1
     `);
     const map = new Map<string, number>();
@@ -249,7 +249,7 @@ export class CoachesAnalyticsSection {
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1
     `);
     return toCategoryCounts(
@@ -325,7 +325,7 @@ export class CoachesAnalyticsSection {
       LEFT JOIN "coach_attendance" cca ON cca."classId" = c.id
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
       WHERE c.status = 'COMPLETED' AND c."coachId" = ${coachId}
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2
     `);
     return toCategoryCounts(

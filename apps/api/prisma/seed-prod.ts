@@ -6,7 +6,17 @@ import {
 import { hashSecret } from "../src/auth/auth.utils";
 
 const prisma = new PrismaClient();
-const seedPassword = "Test@12345";
+/**
+ * Operator-supplied, never committed: this seeds a SUPER_ADMIN on production.
+ * Used only for accounts created by this run; existing passwords are kept.
+ */
+function seedPassword(): string {
+  const value = process.env.SEED_PROD_PASSWORD;
+  if (!value || value.length < 12) {
+    throw new Error("Set SEED_PROD_PASSWORD (12+ characters) to seed production accounts.");
+  }
+  return value;
+}
 
 async function upsertUser(email: string, createData: any, updateData: any) {
   const existing = await prisma.user.findFirst({ where: { email, isDeleted: false } });
@@ -36,7 +46,7 @@ async function upsertApprovedCoachProfile(userId: string) {
 
 async function main() {
   console.log("Seeding base production users...");
-  const password = await hashSecret(seedPassword);
+  const password = await hashSecret(seedPassword());
   const verifiedAt = new Date();
 
   // 1. Super Admin
@@ -56,7 +66,6 @@ async function main() {
     {
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
-      password,
       status: UserStatus.ACTIVE
     }
   );
@@ -80,7 +89,6 @@ async function main() {
     {
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
-      password,
       status: UserStatus.ACTIVE
     }
   );
@@ -104,7 +112,6 @@ async function main() {
     {
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
-      password,
       status: UserStatus.ACTIVE
     }
   );
@@ -130,14 +137,13 @@ async function main() {
     {
       emailVerifiedAt: verifiedAt,
       isEmailVerified: true,
-      password,
       status: UserStatus.ACTIVE
     }
   );
 
   console.log("✅ Seeded student@nexa.test");
   
-  console.log("\nAll users use the password: " + seedPassword);
+  console.log("\nNew accounts use SEED_PROD_PASSWORD; existing accounts kept their password.");
 }
 
 main()

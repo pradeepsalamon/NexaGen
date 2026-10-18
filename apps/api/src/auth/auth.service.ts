@@ -707,10 +707,11 @@ export class AuthService {
     const resetLink = new URL("/reset-password", this.frontendUrl);
     resetLink.searchParams.set("token", resetToken);
 
-    await this.mailService.sendPasswordResetLink(
-      user.email,
-      resetLink.toString()
-    );
+    void this.mailService
+      .sendPasswordResetLink(user.email, resetLink.toString())
+      .catch((error) => {
+        this.logger.error("Failed to send password reset link", error);
+      });
 
     await this.waitForPasswordResetResponseDelay(startedAt);
 
@@ -752,12 +753,7 @@ export class AuthService {
       throw new UnauthorizedException("Access token is missing.");
     }
 
-    const payload = await this.verifyAccessToken(accessToken);
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub }
-    });
-
-    // We allow resending even if status is PENDING
+    const user = await authenticateUser(this.jwtService, this.prisma, accessToken);
     if (!user || user.isEmailVerified) {
       throw new BadRequestException("Invalid request or email is already verified.");
     }
@@ -881,10 +877,15 @@ export class AuthService {
   }
 
   private async verifyRefreshToken(token: string) {
-    const payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
-      token,
-      { secret: this.refreshSecret }
-    );
+    let payload: RefreshTokenPayload;
+    try {
+      payload = await this.jwtService.verifyAsync<RefreshTokenPayload>(
+        token,
+        { secret: this.refreshSecret }
+      );
+    } catch {
+      throw new UnauthorizedException("Invalid or expired refresh token.");
+    }
 
     if (payload.type !== "refresh") {
       throw new UnauthorizedException("Invalid token type.");

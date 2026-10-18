@@ -1,11 +1,13 @@
 /**
- * One-off: populate `LiveSession.recordingBytes` / `recordingDurationSeconds`
+ * One-off: populate `LiveSession.recordingBytes`
  * for recordings that predate migration `20260831050015_analytics_foundations`.
  *
  * Only touches rows with `recordingUrl` set and `recordingBytes` null. Reads the
  * file size from local disk (`RECORDING_STORAGE_DIR`); rows whose file is gone
  * (pruned, or only in object storage) are left null → shown as "unknown" in the
- * analytics UI. Safe to re-run.
+ * analytics UI. Safe to re-run. Status and duration are left alone: a file on
+ * disk does not prove the egress finished, and session/class times are not the
+ * recording's length.
  *
  *   docker compose exec api node dist/prisma/scripts/backfill-recording-sizes.js
  */
@@ -29,11 +31,7 @@ async function main() {
     where: { recordingUrl: { not: null }, recordingBytes: null },
     select: {
       id: true,
-      classId: true,
-      recordingUrl: true,
-      startedAt: true,
-      endedAt: true,
-      class: { select: { startsAt: true, endsAt: true } }
+      recordingUrl: true
     }
   });
 
@@ -54,22 +52,9 @@ async function main() {
       continue;
     }
 
-    const actualMs =
-      row.startedAt && row.endedAt
-        ? row.endedAt.getTime() - row.startedAt.getTime()
-        : row.class
-          ? row.class.endsAt.getTime() - row.class.startsAt.getTime()
-          : 0;
-
     await prisma.liveSession.update({
       where: { id: row.id },
-      data: {
-        recordingBytes: BigInt(bytes),
-        recordingStatus: "COMPLETED",
-        ...(actualMs > 0
-          ? { recordingDurationSeconds: Math.round(actualMs / 1000) }
-          : {})
-      }
+      data: { recordingBytes: BigInt(bytes) }
     });
     updated += 1;
   }

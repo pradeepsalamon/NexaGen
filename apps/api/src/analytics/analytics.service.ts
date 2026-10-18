@@ -34,6 +34,7 @@ import {
   buildMeta,
   pct,
   type AnalyticsContext,
+  sqlTimestamp,
   type AnalyticsFilters
 } from "./analytics-support";
 import { BatchesAnalyticsSection } from "./sections/batches.section";
@@ -261,7 +262,7 @@ export class AnalyticsService {
       FROM "classes" c
       LEFT JOIN "live_sessions" ls ON ls."classId" = c.id
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${start} AND c."startsAt" < ${end}
+        AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
     `;
     return roundTo(rows[0]?.hours ?? 0, 1);
   }
@@ -275,7 +276,7 @@ export class AnalyticsService {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       WHERE c.status = 'COMPLETED'
-        AND c."startsAt" >= ${start} AND c."startsAt" < ${end}
+        AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
     `;
     return pct(Number(rows[0]?.attended ?? 0), Number(rows[0]?.total ?? 0));
   }

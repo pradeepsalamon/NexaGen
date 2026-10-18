@@ -600,6 +600,13 @@ export function classifyMove(
     }
   }
   if (mateFor(evaluationBefore, side) && mateFor(after, side)) {
+    // As fast as the best line is the best move. A fresh search of the next
+    // position counts from one move later; a line of the same search does not.
+    if (evaluationBefore.kind === "mate" && after.kind === "mate") {
+      const bestDistance =
+        afterSource === "NEXT_POSITION" ? evaluationBefore.moves - 1 : evaluationBefore.moves;
+      if (after.moves <= bestDistance) return result("BEST", ["WITHIN_BEST_MARGIN"]);
+    }
     // Still mating, just not the fastest way: the result is unchanged.
     return result("GOOD", ["KEPT_FORCED_MATE"]);
   }

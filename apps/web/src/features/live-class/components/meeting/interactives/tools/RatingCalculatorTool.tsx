@@ -57,7 +57,7 @@ const fmt = (n: number) => (n > 0 ? `+${n.toFixed(1)}` : n.toFixed(1));
 
 export function RatingCalculatorTool() {
   const [mine, setSaved] = useState<Saved>(() =>
-    readLocal(STORAGE_KEY, DEFAULT),
+    readLocal(STORAGE_KEY, DEFAULT, parseSaved),
   );
   useEffect(() => writeLocal(STORAGE_KEY, mine), [mine]);
   // A watching student sees the coach's figures, read-only.

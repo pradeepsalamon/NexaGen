@@ -17,11 +17,16 @@ import {
 } from "@nexa-chess/types";
 import { AttendanceStatusBadge } from "./AttendanceStatusBadge";
 import { AttendancePercentBar } from "./AttendancePercentBar";
-import { LogIn, LogOut, WifiOff, RefreshCcw, Clock, AlertCircle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { formatFullDate, formatTime } from "@/lib/datetime";
+import { formatDuration, formatFullDate, formatTime } from "@/lib/datetime";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
+import {
+  formatEventLabel,
+  getEventDotClass,
+  getEventIcon
+} from "./class-detail/classDetail.utils";
 
 interface AttendanceLogDialogProps {
   open: boolean;
@@ -61,56 +66,6 @@ export function AttendanceLogDialog({
   const headerTitle = data?.topic ?? title;
   const headerDate = data ? (data.actualStart ?? data.classStartsAt) : date;
 
-  const getEventIcon = (type: string) => {
-    switch (type) {
-      case "JOIN":
-        return <LogIn className="h-3.5 w-3.5 text-success-ink" />;
-      case "LEAVE":
-        return <LogOut className="h-3.5 w-3.5 text-app-muted" />;
-      case "DISCONNECT":
-        return <WifiOff className="h-3.5 w-3.5 text-warning-ink" />;
-      case "RECONNECT":
-        return <RefreshCcw className="h-3.5 w-3.5 text-primary-ink" />;
-      default:
-        return <Clock className="h-3.5 w-3.5 text-app-muted" />;
-    }
-  };
-
-  const getEventDotClass = (type: string) => {
-    switch (type) {
-      case "JOIN":
-        return "bg-success ring-2 ring-success/20";
-      case "LEAVE":
-        return "bg-app-muted ring-2 ring-app-border";
-      case "DISCONNECT":
-        return "bg-warning ring-2 ring-warning/20";
-      case "RECONNECT":
-        return "bg-primary ring-2 ring-primary/40";
-      default:
-        return "bg-app-muted ring-2 ring-app-border";
-    }
-  };
-
-  const getEventLabel = (type: string) => {
-    switch (type) {
-      case "JOIN":
-        return "Joined Class";
-      case "LEAVE":
-        return "Left Class";
-      case "DISCONNECT":
-        return "Connection Dropped";
-      case "RECONNECT":
-        return "Reconnected";
-      default:
-        return type;
-    }
-  };
-
-  const formatDuration = (seconds: number | null | undefined) => {
-    if (!seconds && seconds !== 0) return "0 min";
-    const minutes = Math.floor(seconds / 60);
-    return `${minutes} min`;
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -202,7 +157,7 @@ export function AttendanceLogDialog({
                           <div>
                             <div className="flex items-center gap-1.5">
                               <span className="font-semibold text-sm text-app-text">
-                                {getEventLabel(log.eventType)}
+                                {formatEventLabel(log.eventType)}
                               </span>
                               {getEventIcon(log.eventType)}
                             </div>

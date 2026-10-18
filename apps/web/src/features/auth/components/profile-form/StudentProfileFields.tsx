@@ -1,7 +1,7 @@
 "use client";
 
 import { memo } from "react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { FormField } from "@/components/ui/FormField";
 import { DatePicker } from "@/components/ui/DatePicker";
 import { Input } from "@/components/ui/Input";
@@ -49,7 +49,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
         </FormField>
       </div>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <FormField id="profile-parent-phone" label="Parent Phone">
+        <FormField id="profile-parent-phone" label="Parent/Guardian Phone Number">
           <Input
             id="profile-parent-phone"
             inputMode="tel"
@@ -75,7 +75,7 @@ export const StudentProfileFields = memo(function StudentProfileFields({
             onChange={(date) => {
               onFieldChange("dateOfBirth", date ? format(date, "yyyy-MM-dd") : "");
             }}
-            value={values.dateOfBirth ? new Date(values.dateOfBirth) : undefined}
+            value={values.dateOfBirth ? parseISO(values.dateOfBirth) : undefined}
           />
         </FormField>
         <FormField id="profile-chess-rating" label="Chess Rating">

@@ -3,6 +3,13 @@
 # Usage: ./sample-cpu.sh [INTERVAL_SEC] [DURATION_MIN]
 INTERVAL=${1:-5}
 DURATION_MINUTES=${2:-30}
+case "$INTERVAL" in
+  ''|*[!0-9]*) INTERVAL=0 ;;
+esac
+if [ "$INTERVAL" -le 0 ]; then
+  echo "INTERVAL_SEC must be a positive integer (got '${1}')." >&2
+  exit 1
+fi
 SAMPLES=$((DURATION_MINUTES * 60 / INTERVAL))
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
