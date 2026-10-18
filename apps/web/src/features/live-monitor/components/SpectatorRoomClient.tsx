@@ -168,10 +168,12 @@ export function SpectatorRoomClient({ classId }: { classId: string }) {
   );
   const [main, ...rest] = room.tiles;
 
+  // A new seat token reconnects by itself; only an unchanged one needs a nudge
+  // (bumping both would connect twice).
   const rejoin = async () => {
-    setLeft(false);
-    await seat.refetch();
-    setConnectKey((k) => k + 1);
+    const previous = seat.data?.token;
+    const refreshed = await seat.refetch();
+    if (refreshed.data?.token === previous) setConnectKey((k) => k + 1);
   };
 
   const leave = () => {

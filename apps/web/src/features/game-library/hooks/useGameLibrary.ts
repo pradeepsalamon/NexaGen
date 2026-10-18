@@ -41,7 +41,7 @@ export function useSaveGameAnalysis(id: string) {
     mutationFn: (body: SaveGameAnalysisRequest) => saveGameAnalysis(id, body),
     onSuccess: (detail) => {
       qc.setQueryData(queryKeys.games.detail(id), detail);
-      void qc.invalidateQueries({ queryKey: ["games", "list"] });
+      void qc.invalidateQueries({ queryKey: queryKeys.games.lists });
     },
   });
 }

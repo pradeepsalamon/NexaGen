@@ -15,6 +15,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '@prisma/client';
+import { API_ROUTES } from '@nexa-chess/types';
 import type { Request } from 'express';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { PrismaService } from '../prisma/prisma.service';
@@ -25,7 +26,7 @@ import { RequireAccessTokenInterceptor } from '../common/security/require-access
 const MAX_PGN_LENGTH = 512 * 1024; // 512KB of PGN text
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
-@Controller('upload')
+@Controller()
 export class UploadController {
 
   constructor(
@@ -34,7 +35,7 @@ export class UploadController {
     private readonly prisma: PrismaService,
   ) {}
 
-  @Post('image')
+  @Post(API_ROUTES.upload.image)
   // Auth before multer, and multer capped, so the body never sits in memory
   // unbounded or for an anonymous caller.
   @UseInterceptors(
@@ -58,7 +59,7 @@ export class UploadController {
     return { url: result.secure_url };
   }
 
-  @Delete('image')
+  @Delete(API_ROUTES.upload.image)
   async deleteImage(@Body('url') url: string, @Req() request: Request) {
     const user = await this.getAuthenticatedUser(request);
 
@@ -92,19 +93,22 @@ export class UploadController {
     return { success: true };
   }
 
-  @Post('pgn')
+  @Post(API_ROUTES.upload.pgn)
   async uploadPgn(
-    @Body('pgn') pgnContent: string,
+    @Body('pgn') pgnContent: unknown,
     @Req() request: Request,
-    @Body('filename') filename?: string,
+    @Body('filename') filename?: unknown,
   ) {
     const user = await this.getAuthenticatedUser(request);
     if (user.role === UserRole.STUDENT) {
       throw new ForbiddenException('Only coaches and admins can save PGNs.');
     }
 
-    if (!pgnContent) {
+    if (typeof pgnContent !== 'string' || !pgnContent) {
       throw new BadRequestException('PGN content is required');
+    }
+    if (filename !== undefined && typeof filename !== 'string') {
+      throw new BadRequestException('filename must be a string');
     }
 
     if (pgnContent.length > MAX_PGN_LENGTH) {

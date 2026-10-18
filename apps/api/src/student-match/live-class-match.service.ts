@@ -311,6 +311,15 @@ export class LiveClassMatchService {
     if (dto.action === "ACCEPT") {
       await this.prisma.$transaction(async (tx) => {
         await this.lockRound(tx, challenge.roundId);
+        // Re-read under the lock: the coach may have ended the round or taken over pairing.
+        const round = await tx.liveClassMatchRound.findUniqueOrThrow({
+          where: { id: challenge.roundId },
+          select: { pairingMode: true, status: true }
+        });
+        if (round.status !== "ACTIVE") throw new BadRequestException("This round has ended.");
+        if (round.pairingMode !== MatchPairingMode.STUDENT_CHOICE) {
+          throw new BadRequestException("Your coach is doing the pairing in this round.");
+        }
         await this.assertFree(tx, challenge.roundId, [challenge.fromId, challenge.toId]);
         await this.acceptInTx(tx, challenge.round, challenge.id, challenge.fromId, challenge.toId);
       });
@@ -504,10 +513,12 @@ export class LiveClassMatchService {
     toId: string
   ) {
     const pair = Math.random() < 0.5 ? { blackId: toId, whiteId: fromId } : { blackId: fromId, whiteId: toId };
-    await tx.liveClassMatchChallenge.update({
+    // Claimed only while still PENDING: a cancel or a pairing-mode switch may have resolved it.
+    const { count } = await tx.liveClassMatchChallenge.updateMany({
       data: { resolvedAt: new Date(), status: MatchChallengeStatus.ACCEPTED },
-      where: { id: challengeId }
+      where: { id: challengeId, status: MatchChallengeStatus.PENDING }
     });
+    if (count === 0) throw new ConflictException("That challenge is no longer open.");
     await tx.liveClassMatchGame.create({
       data: { ...this.newGameData(pair, round.startFen, round.clockInitialMs), roundId: round.id }
     });

@@ -61,6 +61,10 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState<"diagrams" | "pages">("diagrams");
   const cancelRef = useRef(false);
+  // Bumped by reset and unmount: async work from an older session must not
+  // write into a newer one (or keep a document nobody can close).
+  const sessionRef = useRef(0);
+  const openingRef = useRef(false);
   const pdfRef = useRef<OpenedPdf | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   // The last full-resolution page, kept for a manual selection on it.
@@ -70,6 +74,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   useEffect(
     () => () => {
       cancelRef.current = true;
+      sessionRef.current += 1;
       void pdfRef.current?.destroy();
     },
     [],
@@ -77,6 +82,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
 
   const reset = useCallback(async () => {
     cancelRef.current = true;
+    sessionRef.current += 1;
     await pdfRef.current?.destroy().catch(() => undefined);
     pdfRef.current = null;
     lastPageRef.current = null;
@@ -92,12 +98,18 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   }, []);
 
   const onFile = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || openingRef.current) return;
+    openingRef.current = true;
     await reset();
+    const session = sessionRef.current;
     setOpening(true);
     try {
       const bytes = await readPdfFile(file);
       const opened = await openPdf(bytes);
+      if (session !== sessionRef.current) {
+        void opened.destroy();
+        return;
+      }
       pdfRef.current = opened;
       setPdf(opened);
       setFileName(sanitizeDiagramFileName(file.name));
@@ -105,9 +117,12 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
       setTo(String(Math.min(opened.pageCount, PDF_IMPORT_LIMITS.maxPagesPerScan)));
     } catch (err) {
       if (!(err instanceof PdfImportError)) console.warn("PDF import: unexpected failure", err);
-      setFileError(err instanceof PdfImportError ? err.message : "That file could not be opened.");
+      if (session === sessionRef.current) {
+        setFileError(err instanceof PdfImportError ? err.message : "That file could not be opened.");
+      }
     } finally {
-      setOpening(false);
+      openingRef.current = false;
+      if (session === sessionRef.current) setOpening(false);
     }
   };
 
@@ -139,15 +154,20 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
   const scanPages = async (pageNumbers: number[]) => {
     if (!pdf) return;
     cancelRef.current = false;
+    const session = sessionRef.current;
+    const stale = () => session !== sessionRef.current;
     let firstFound: string | null = null;
     for (let i = 0; i < pageNumbers.length; i += 1) {
-      if (cancelRef.current) break;
+      if (cancelRef.current || stale()) break;
       const n = pageNumbers[i];
       setScan({ current: i + 1, total: pageNumbers.length });
       try {
-        const found = addFromPage(await pdf.renderPage(n));
+        const rendered = await pdf.renderPage(n);
+        if (stale()) return;
+        const found = addFromPage(rendered);
         firstFound ??= found[0]?.id ?? null;
       } catch (err) {
+        if (stale()) return;
         setPages((p) => ({
           ...p,
           [n]: { status: "failed", error: err instanceof PdfImportError ? err.message : `Page ${n} could not be read.` },
@@ -156,6 +176,7 @@ export function DiagramImportWorkbench({ actions, compact = false }: Props) {
       // Let the browser paint between pages.
       await new Promise((r) => setTimeout(r, 0));
     }
+    if (stale()) return;
     setScan(null);
     if (firstFound) setSelectedId((cur) => cur ?? firstFound);
   };

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { scheduleClass, seededBatchId } from "./fixtures";
+import { api, cookieHeader, login, scheduleClass, seededBatchId } from "./fixtures";
 
 /**
  * Live-class puzzle assignment + leaderboard — API-level flow.
@@ -18,12 +18,9 @@ import { scheduleClass, seededBatchId } from "./fixtures";
  */
 
 const RUN = process.env.RUN_LIVE_PUZZLE_E2E === "1";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const CLASS_TOPIC = "E2E live puzzle";
 
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
 const COACH_B = { email: "coach2@nexa.test", password: "Test@12345" };
-const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
 
 // White to move, mate in one: Ra8#.
 const MATE_FEN = "6k1/5ppp/8/8/8/8/5PPP/R5K1 w - - 0 1";
@@ -33,39 +30,6 @@ const MATE_MOVE = {
   san: "Ra8#",
   fenAfter: "R5k1/5ppp/8/8/8/8/5PPP/6K1 b - - 1 1"
 };
-
-async function loginAs(
-  request: APIRequestContext,
-  email: string,
-  password: string
-): Promise<string> {
-  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  }
-  expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
-  return (res.headers()["set-cookie"] || "")
-    .split("\n")
-    .flatMap((line) => line.split(/,(?=\s*nexa_)/))
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.startsWith("nexa_"))
-    .join("; ");
-}
-
-function api(
-  request: APIRequestContext,
-  method: string,
-  path: string,
-  cookies: string,
-  body?: Record<string, unknown>
-) {
-  return request.fetch(`${API_URL}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Cookie: cookies },
-    data: body
-  });
-}
 
 async function json<T = Record<string, unknown>>(
   request: APIRequestContext,
@@ -79,7 +43,7 @@ async function json<T = Record<string, unknown>>(
   return res.json() as Promise<T>;
 }
 
-/** Clear the coach's leftover E2E classes so approving a new one doesn't 409. */
+/** Clear this spec's leftover classes so approving a new one doesn't 409 (other specs' classes are theirs). */
 async function clearCoachSchedule(request: APIRequestContext, cookies: string) {
   for (const path of ["/coach/classes/upcoming", "/coach/classes"]) {
     const res = await api(request, "GET", path, cookies);
@@ -91,7 +55,7 @@ async function clearCoachSchedule(request: APIRequestContext, cookies: string) {
         ? data
         : [];
     for (const c of list) {
-      if (!/E2E/i.test(c.topic || "")) continue;
+      if (c.topic !== CLASS_TOPIC) continue;
       if (c.status === "LIVE") await api(request, "POST", `/live-class/${c.id}/end`, cookies).catch(() => {});
       else await api(request, "PATCH", `/coach/classes/${c.id}/cancel`, cookies).catch(() => {});
     }
@@ -112,7 +76,7 @@ async function makeLiveClass(
     (method, path, body) => api(request, method, path, admin, body),
     {
       batchId,
-      topic: "E2E live puzzle",
+      topic: CLASS_TOPIC,
       startsAt: new Date(now + 60_000).toISOString(),
       endsAt: new Date(now + 3_660_000).toISOString()
     }
@@ -149,9 +113,9 @@ test.describe("Live-class puzzle assignment", () => {
 
   test("assign → in-room attempt → leaderboard → end", async ({ playwright }) => {
     const request = await playwright.request.newContext();
-    const admin = await loginAs(request, ADMIN.email, ADMIN.password);
-    const coach = await loginAs(request, COACH.email, COACH.password);
-    const student = await loginAs(request, STUDENT.email, STUDENT.password);
+    const admin = cookieHeader(await login(request, "admin"));
+    const coach = cookieHeader(await login(request, "coach"));
+    const student = cookieHeader(await login(request, "student"));
 
     const classId = await makeLiveClass(request, coach, admin);
     const puzzleId = await makePublishedPuzzle(request, admin);
@@ -244,10 +208,10 @@ test.describe("Live-class puzzle assignment", () => {
 
   test("authz: coach-owner + participant only, LIVE-gated", async ({ playwright }) => {
     const request = await playwright.request.newContext();
-    const admin = await loginAs(request, ADMIN.email, ADMIN.password);
-    const coach = await loginAs(request, COACH.email, COACH.password);
-    const coachB = await loginAs(request, COACH_B.email, COACH_B.password);
-    const student = await loginAs(request, STUDENT.email, STUDENT.password);
+    const admin = cookieHeader(await login(request, "admin"));
+    const coach = cookieHeader(await login(request, "coach"));
+    const coachB = cookieHeader(await login(request, COACH_B));
+    const student = cookieHeader(await login(request, "student"));
 
     const classId = await makeLiveClass(request, coach, admin);
     const puzzleId = await makePublishedPuzzle(request, admin);
@@ -282,9 +246,9 @@ test.describe("Live-class puzzle assignment", () => {
 
   test("hidden leaderboard + a coach-ended puzzle blocks an in-flight submit", async ({ playwright }) => {
     const request = await playwright.request.newContext();
-    const admin = await loginAs(request, ADMIN.email, ADMIN.password);
-    const coach = await loginAs(request, COACH.email, COACH.password);
-    const student = await loginAs(request, STUDENT.email, STUDENT.password);
+    const admin = cookieHeader(await login(request, "admin"));
+    const coach = cookieHeader(await login(request, "coach"));
+    const student = cookieHeader(await login(request, "student"));
 
     const classId = await makeLiveClass(request, coach, admin);
     const puzzleId = await makePublishedPuzzle(request, admin);
@@ -310,20 +274,24 @@ test.describe("Live-class puzzle assignment", () => {
       const attemptId = started.attempt.attempt.id;
 
       // A student still sees the hidden flag; the coach always sees the board.
-      const studentBoard = await json<{ revealLeaderboard: boolean }>(
+      type Board = { revealLeaderboard: boolean; entries?: Array<{ isSelf?: boolean }> };
+      const studentBoard = await json<Board>(
         request,
         "GET",
         `/live-class/${classId}/puzzle/leaderboard`,
         student
       );
       expect(studentBoard.revealLeaderboard).toBe(false);
-      const coachBoard = await json<{ revealLeaderboard: boolean }>(
+      // Hidden: a student sees at most their own row.
+      expect((studentBoard.entries ?? []).every((entry) => entry.isSelf)).toBe(true);
+      const coachBoard = await json<Board>(
         request,
         "GET",
         `/live-class/${classId}/puzzle/leaderboard`,
         coach
       );
       expect(coachBoard.revealLeaderboard).toBe(false);
+      expect(Array.isArray(coachBoard.entries), "coach always gets the entries").toBe(true);
 
       // Coach ends the puzzle; the student's in-flight submit is now rejected.
       await json(request, "DELETE", `/live-class/${classId}/puzzle`, coach);

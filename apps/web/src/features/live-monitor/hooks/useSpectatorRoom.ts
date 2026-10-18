@@ -89,6 +89,9 @@ export function useSpectatorRoom(options: {
   /** Once a live packet arrives the saved snapshot is stale — never re-apply it. */
   const liveBoardSeenRef = useRef(false);
 
+  const snapshotRef = useRef(boardSnapshot);
+  snapshotRef.current = boardSnapshot;
+
   useEffect(() => {
     if (!liveBoardSeenRef.current) setBoard(fromSnapshot(boardSnapshot));
   }, [boardSnapshot]);
@@ -145,6 +148,9 @@ export function useSpectatorRoom(options: {
 
   useEffect(() => {
     if (!serverUrl || !token) return;
+    // A (re)connection starts from the latest saved snapshot until a live packet lands.
+    liveBoardSeenRef.current = false;
+    setBoard(fromSnapshot(snapshotRef.current));
     const audioEls = audioElsRef.current;
     const hands = handsRef.current;
     const room = new Room({ adaptiveStream: true, dynacast: false });
@@ -238,6 +244,8 @@ export function useSpectatorRoom(options: {
       audioEls.clear();
       hands.clear();
       roomRef.current = null;
+      // Detach first: the old room's disconnect events must not update the next connection's state.
+      room.removeAllListeners();
       void room.disconnect();
     };
   }, [serverUrl, token, connectKey, refreshTiles, attachAudio, detachAudio]);

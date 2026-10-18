@@ -2,31 +2,42 @@
 
 import { ChevronLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import type { ButtonHTMLAttributes } from "react";
 import { cn } from "../../lib/utils";
+import { Button } from "./Button";
 
-interface BackButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface BackButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   label?: string;
+  /** Where to go when there is no history to return to (a link opened in a new tab). */
+  fallbackHref?: string;
 }
 
-export function BackButton({ 
-  label = "Back", 
+export function BackButton({
+  label = "Back",
+  fallbackHref,
   className,
-  ...props 
+  ...props
 }: BackButtonProps) {
   const router = useRouter();
 
+  const goBack = () => {
+    if (fallbackHref && window.history.length <= 1) {
+      router.push(fallbackHref);
+      return;
+    }
+    router.back();
+  };
+
   return (
-    <button
-      type="button"
-      onClick={() => router.back()}
-      className={cn(
-        "inline-flex w-fit items-center rounded-full bg-secondary px-4 py-2 text-sm font-bold text-black shadow-card transition hover:bg-[color-mix(in_srgb,var(--color-secondary)_84%,white)] hover:shadow-lift focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus",
-        className
-      )}
+    <Button
+      className={cn("w-fit gap-1.5 px-4", className)}
+      onClick={goBack}
+      size="sm"
+      variant="secondary"
       {...props}
     >
-      <ChevronLeft className="mr-1.5 h-4 w-4" />
+      <ChevronLeft aria-hidden="true" className="size-4" />
       {label}
-    </button>
+    </Button>
   );
 }

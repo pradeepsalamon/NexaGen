@@ -27,8 +27,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import { ManualPaymentAttachmentStorage } from "./manual-payment-attachment.storage";
 import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { PaymentService } from "./payment.service";
-import { fullName, isAdminRole } from "./payments-auth.helper";
-import { generateOrderNumber, priceOrder, toPlanItem } from "./payments.util";
+import { assertAdmin, fullName, isAdminRole } from "./payments-auth.helper";
+import { generateOrderNumber, isUniqueViolation, priceOrder, toPlanItem } from "./payments.util";
 
 export type ManualAttachmentInput = {
   buffer: Buffer;
@@ -102,57 +102,74 @@ export class ManualPaymentService {
     const method = await this.methods.requireActive(dto.methodId);
     const pricing = priceOrder(plan.amount, plan.taxPercent);
 
-    const order = await this.prisma.order.create({
-      data: {
-        orderNumber: generateOrderNumber(this.env.PAYMENTS_INVOICE_PREFIX),
-        userId: student.id,
-        planId: plan.id,
-        status: OrderStatus.CREATED,
-        subtotalAmount: plan.amount,
-        discountAmount: 0,
-        taxAmount: pricing.taxAmount,
-        amount: pricing.total,
-        currency: plan.currency,
-        idempotencyKey: `manual:${randomUUID()}`,
-        notes: { planCode: plan.code, manual: true }
-      }
-    });
+    const idempotencyKey = dto.idempotencyKey
+      ? `manual:${actor.id}:${dto.idempotencyKey}`
+      : `manual:${randomUUID()}`;
 
-    const payment = await this.prisma.payment.create({
-      data: {
-        orderId: order.id,
-        userId: student.id,
-        provider: PaymentProvider.MANUAL,
-        amount: order.amount,
-        currency: order.currency,
-        paymentMethod: PaymentMethodKind.OTHER,
-        methodDetail: method.label,
-        status: PaymentStatus.CREATED
-      }
-    });
+    let created: { payment: { id: string }; record: { id: string } };
+    try {
+      created = await this.prisma.$transaction(async (tx) => {
+        const order = await tx.order.create({
+          data: {
+            orderNumber: generateOrderNumber(this.env.PAYMENTS_INVOICE_PREFIX),
+            userId: student.id,
+            planId: plan.id,
+            status: OrderStatus.CREATED,
+            subtotalAmount: plan.amount,
+            discountAmount: 0,
+            taxAmount: pricing.taxAmount,
+            amount: pricing.total,
+            currency: plan.currency,
+            idempotencyKey,
+            notes: { planCode: plan.code, manual: true, taxPercent: plan.taxPercent }
+          }
+        });
 
-    await this.prisma.paymentAttempt.create({
-      data: {
-        orderId: order.id,
-        paymentId: payment.id,
-        attemptNumber: 1,
-        provider: PaymentProvider.MANUAL,
-        status: PaymentStatus.CREATED
-      }
-    });
+        const payment = await tx.payment.create({
+          data: {
+            orderId: order.id,
+            userId: student.id,
+            provider: PaymentProvider.MANUAL,
+            amount: order.amount,
+            currency: order.currency,
+            paymentMethod: PaymentMethodKind.OTHER,
+            methodDetail: method.label,
+            status: PaymentStatus.CREATED
+          }
+        });
 
-    const record = await this.prisma.manualPaymentRecord.create({
-      data: {
-        paymentId: payment.id,
-        methodId: method.id,
-        reference: dto.reference ?? null,
-        recordedByUserId: actor.id,
-        recordedByRole: actor.role,
-        status: admin ? "APPROVED" : "PENDING",
-        reviewedByUserId: admin ? actor.id : null,
-        reviewedAt: admin ? new Date() : null
+        await tx.paymentAttempt.create({
+          data: {
+            orderId: order.id,
+            paymentId: payment.id,
+            attemptNumber: 1,
+            provider: PaymentProvider.MANUAL,
+            status: PaymentStatus.CREATED
+          }
+        });
+
+        const record = await tx.manualPaymentRecord.create({
+          data: {
+            paymentId: payment.id,
+            methodId: method.id,
+            reference: dto.reference ?? null,
+            recordedByUserId: actor.id,
+            recordedByRole: actor.role,
+            status: admin ? "APPROVED" : "PENDING",
+            reviewedByUserId: admin ? actor.id : null,
+            reviewedAt: admin ? new Date() : null
+          }
+        });
+
+        return { payment, record };
+      });
+    } catch (error) {
+      if (dto.idempotencyKey && isUniqueViolation(error)) {
+        return this.replayRecord(idempotencyKey, dto);
       }
-    });
+      throw error;
+    }
+    const { payment, record } = created;
 
     if (file) {
       const uploaded = await this.attachments.upload(record.id, file);
@@ -180,7 +197,24 @@ export class ManualPaymentService {
     return this.requireItem(record.id);
   }
 
+  /** The record a repeated submit already created; a key reused for a different payment is a conflict. */
+  private async replayRecord(
+    idempotencyKey: string,
+    dto: RecordManualPaymentRequest
+  ): Promise<ManualPaymentRecordItem> {
+    const existing = await this.prisma.manualPaymentRecord.findFirst({
+      where: { payment: { order: { idempotencyKey } } },
+      include: MANUAL_PAYMENT_INCLUDE
+    });
+    const order = existing?.payment.order;
+    if (!existing || order?.userId !== dto.studentUserId || order.planId !== dto.planId) {
+      throw new ConflictException("This request was already used for a different payment.");
+    }
+    return toItem(existing);
+  }
+
   async approve(admin: User, recordId: string): Promise<ManualPaymentRecordItem> {
+    assertAdmin(admin);
     const record = await this.requireRow(recordId);
     if (record.status !== "PENDING") {
       throw new ConflictException("This request has already been reviewed.");
@@ -211,6 +245,7 @@ export class ManualPaymentService {
     recordId: string,
     reason: string
   ): Promise<ManualPaymentRecordItem> {
+    assertAdmin(admin);
     const record = await this.requireRow(recordId);
     if (record.status !== "PENDING") {
       throw new ConflictException("This request has already been reviewed.");

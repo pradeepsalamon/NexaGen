@@ -12,6 +12,9 @@ export function useEngineMove() {
   const makeMove = useBoardStore((s) => s.makeMove);
   const [isEngineMoving, setIsEngineMoving] = useState(false);
   const busy = useRef(false);
+  // The latest position, so a reply computed for an old one is never played.
+  const latestFen = useRef(fen);
+  latestFen.current = fen;
 
   const playEngineMove = useCallback(async () => {
     if (busy.current) return;
@@ -23,7 +26,9 @@ export function useEngineMove() {
     setIsEngineMoving(true);
     try {
       // Full strength, longer think — the engine is playing, not just advising.
-      const analysis = await analyzePosition(fen, undefined, "move");
+      const requestedFen = fen;
+      const analysis = await analyzePosition(requestedFen, undefined, "move");
+      if (latestFen.current !== requestedFen) return;
       const uci = analysis.bestMoveUci;
       if (!uci || uci.length < 4) {
         toast.error("Engine could not find a move for this position.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CalendarX } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 import { API_ROUTES, type StudentAttendanceResponse, type StudentAttendanceHistory } from "@nexa-chess/types";
@@ -19,22 +19,31 @@ export default function StudentAttendancePage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<StudentAttendanceHistory | null>(null);
 
+  // Only the latest request may update state: a retry supersedes an earlier
+  // one, and nothing lands after unmount.
+  const latestRequest = useRef(0);
+
   const loadAttendance = useCallback(async () => {
+    const requestId = ++latestRequest.current;
     setIsLoading(true);
     setFailed(false);
     try {
       const result = await apiFetch<StudentAttendanceResponse>(API_ROUTES.attendance.student);
-      setData(result);
+      if (requestId === latestRequest.current) setData(result);
     } catch (error) {
+      if (requestId !== latestRequest.current) return;
       console.error("Failed to load attendance", error);
       setFailed(true);
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequest.current) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    loadAttendance();
+    void loadAttendance();
+    return () => {
+      latestRequest.current += 1;
+    };
   }, [loadAttendance]);
 
   if (isLoading) {

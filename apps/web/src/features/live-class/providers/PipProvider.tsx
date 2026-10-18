@@ -99,6 +99,8 @@ export function PipProvider({
   const [pipWindow, setPipWindow] = useState<Window | null>(null);
   const [videoActive, setVideoActive] = useState(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Mirrors videoRef as state so the listener effect re-runs for a new element.
+  const [pipVideo, setPipVideo] = useState<HTMLVideoElement | null>(null);
   const openingRef = useRef(false);
   // A window the user closed by hand should not be reopened by the very next
   // tab switch, or the feature turns into a popup they cannot get rid of.
@@ -130,6 +132,7 @@ export function PipProvider({
 
   const registerPipVideo = useCallback((el: HTMLVideoElement | null) => {
     videoRef.current = el;
+    setPipVideo(el);
   }, []);
 
   const close = useCallback(() => {
@@ -240,22 +243,22 @@ export function PipProvider({
   // Track PiP exits the browser drives itself (the window's own close button).
   useEffect(() => {
     if (mode !== "video") return;
-    const video = videoRef.current;
+    const video = pipVideo;
     const onLeave = () => setVideoActive(false);
     const onEnter = () => setVideoActive(true);
+    // Safari reports presentation-mode changes only through this event.
+    const onPresentationMode = () => setVideoActive(isVideoPipActive(video));
     document.addEventListener("leavepictureinpicture", onLeave);
     video?.addEventListener("leavepictureinpicture", onLeave);
     video?.addEventListener("enterpictureinpicture", onEnter);
-    // Safari reports presentation-mode changes only through this event.
-    video?.addEventListener("webkitpresentationmodechanged", () =>
-      setVideoActive(isVideoPipActive(videoRef.current)),
-    );
+    video?.addEventListener("webkitpresentationmodechanged", onPresentationMode);
     return () => {
       document.removeEventListener("leavepictureinpicture", onLeave);
       video?.removeEventListener("leavepictureinpicture", onLeave);
       video?.removeEventListener("enterpictureinpicture", onEnter);
+      video?.removeEventListener("webkitpresentationmodechanged", onPresentationMode);
     };
-  }, [mode]);
+  }, [mode, pipVideo]);
 
   // Chrome's automatic PiP for video calls: register this Media Session action
   // and the browser fires it itself when the user switches away from the tab.

@@ -25,7 +25,7 @@ const contactMethods: {
     Icon: Phone,
     label: "Phone",
     value: "+91 70108 54643",
-    href: "tel:+9170108 54643",
+    href: "tel:+917010854643",
     color: "from-blue-500/20 to-blue-600/5",
     borderHover: "hover:border-blue-500/30",
     iconClass: "!text-blue-600 !bg-blue-500/[0.1] !border-blue-500/25"

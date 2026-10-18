@@ -3,6 +3,7 @@
 import { UserRoundCheck } from "lucide-react";
 import type { PendingStudent, PendingStudentsResponse, UpdateStudentStatusRequest } from "@nexa-chess/types";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { updateStudentStatus } from "@/features/admin/api/adminApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
@@ -13,7 +14,17 @@ import { useHiddenIds } from "./useHiddenIds";
 
 type ReviewVars = { student: PendingStudent; status: UpdateStudentStatusRequest["status"] };
 
-export function PendingStudentsPanel({ data, isLoading }: { data?: PendingStudentsResponse; isLoading: boolean }) {
+export function PendingStudentsPanel({
+  data,
+  isError = false,
+  isLoading,
+  onRetry
+}: {
+  data?: PendingStudentsResponse;
+  isError?: boolean;
+  isLoading: boolean;
+  onRetry?: () => void;
+}) {
   const tz = useUserTimeZone();
   const { hiddenIds, toggle } = useHiddenIds();
 
@@ -32,6 +43,9 @@ export function PendingStudentsPanel({ data, isLoading }: { data?: PendingStuden
   });
 
   if (isLoading) return <ApplicationListSkeleton />;
+  if (isError && !data) {
+    return <WidgetError message="Couldn't load pending students." onRetry={onRetry} />;
+  }
 
   const students = data?.students.filter((student) => !hiddenIds.has(student.id)) ?? [];
   if (!students.length) {

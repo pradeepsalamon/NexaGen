@@ -4,6 +4,7 @@ import type { CoachClassResponse } from "@nexa-chess/types";
 import {
   getCalendarClasses,
   getClassById,
+  getCoachClassDetails,
   getClassHistory,
   getCoachBatches,
   getCoachClasses,
@@ -71,12 +72,6 @@ export function useClassDetail(
     enabled: !!id,
     ...options
   });
-}
-
-async function getCoachClassDetails(id: string): Promise<import("@nexa-chess/types").CoachClassDetailsResponse> {
-  const { API_ROUTES } = await import("@nexa-chess/types");
-  const { apiFetch } = await import("@/lib/api");
-  return await apiFetch(API_ROUTES.coach.classDetails(id));
 }
 
 export function useCoachClassDetailsQuery(id: string, enabled: boolean = true) {

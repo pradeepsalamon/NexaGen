@@ -14,12 +14,15 @@ import { PayrollAuditService } from "./payroll-audit.service";
 describe("PayoutService", () => {
   const build = async (record: Record<string, unknown> | null, existingPayout: Record<string, unknown> | null = null) => {
     const auditLog = jest.fn().mockResolvedValue(undefined);
+    let payoutState = existingPayout ? { ...existingPayout } : null;
+    const prisma: Record<string, unknown> = {};
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayoutService,
         {
           provide: PrismaService,
-          useValue: {
+          useValue: Object.assign(prisma, {
+            $transaction: jest.fn((run: (tx: unknown) => unknown) => run(prisma)),
             coachPayout: {
               findUnique: jest.fn().mockResolvedValue(existingPayout),
               create: jest.fn().mockImplementation(({ data }) => ({
@@ -33,20 +36,18 @@ describe("PayoutService", () => {
                 updatedAt: new Date(),
                 ...data
               })),
-              update: jest.fn().mockImplementation(({ data }) => ({
-                id: existingPayout?.id ?? "payout_1",
-                payrollRecordId: existingPayout?.payrollRecordId ?? "rec_1",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                ...existingPayout,
-                ...data
-              }))
+              updateMany: jest.fn().mockImplementation(({ data }) => {
+                if (!payoutState || payoutState.status === "PAID") return { count: 0 };
+                payoutState = { ...payoutState, ...data };
+                return { count: 1 };
+              }),
+              findUniqueOrThrow: jest.fn().mockImplementation(() => payoutState)
             },
             coachPayrollRecord: {
               findUnique: jest.fn().mockResolvedValue(record),
               update: jest.fn().mockResolvedValue(undefined)
             }
-          }
+          })
         },
         { provide: PayrollAuditService, useValue: { log: auditLog } },
         { provide: MessagingDispatchService, useValue: { dispatchInBackground: jest.fn() } }

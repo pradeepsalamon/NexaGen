@@ -44,6 +44,15 @@ function NumberField({
   value: number;
   onChange: (value: number) => void;
 }) {
+  // Typed freely, committed (clamped) on blur: clamping every keystroke turns
+  // "1" on the way to "15" into the minimum, and an emptied field into 0.
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = () => {
+    if (draft === null) return;
+    const n = Math.trunc(Number(draft));
+    onChange(draft.trim() !== "" && Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min);
+    setDraft(null);
+  };
   return (
     <FormField id={id} label={label} hint={hint}>
       <Input
@@ -52,11 +61,9 @@ function NumberField({
         inputMode="numeric"
         min={min}
         max={max}
-        value={Number.isFinite(value) ? value : ""}
-        onChange={(e) => {
-          const n = Math.trunc(Number(e.target.value));
-          onChange(Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min);
-        }}
+        value={draft ?? (Number.isFinite(value) ? value : "")}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
       />
     </FormField>
   );
@@ -65,6 +72,8 @@ function NumberField({
 function parseBonuses(text: string): number[] {
   return text
     .split(/[,\s]+/)
+    // An empty string is Number("") === 0: drop blanks before converting.
+    .filter(Boolean)
     .map((part) => Math.trunc(Number(part)))
     .filter((n) => Number.isFinite(n) && n >= 0)
     .map((n) => Math.min(10_000, n))

@@ -33,21 +33,35 @@ export function useServerTable({
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
-  useEffect(() => {
-    const handle = setTimeout(() => setDebouncedSearch(searchInput.trim()), searchDebounceMs);
-    return () => clearTimeout(handle);
-  }, [searchInput, searchDebounceMs]);
+  const toFirstPage = useCallback(
+    () => setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 })),
+    []
+  );
 
-  // Reset to the first page whenever a filter changes.
+  // A filter change and the reset to page 1 land in the same update, so
+  // `params` never pairs the new filter with the old page (a wasted request
+  // for a page that may not exist).
   useEffect(() => {
-    setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
-  }, [debouncedSearch, status]);
+    const handle = setTimeout(() => {
+      const next = searchInput.trim();
+      if (next === debouncedSearch) return;
+      setDebouncedSearch(next);
+      toFirstPage();
+    }, searchDebounceMs);
+    return () => clearTimeout(handle);
+  }, [searchInput, searchDebounceMs, debouncedSearch, toFirstPage]);
 
   const setSorting: typeof setSortingState = useCallback((updater) => {
     setSortingState(updater);
     setPagination((p) => (p.pageIndex === 0 ? p : { ...p, pageIndex: 0 }));
   }, []);
-  const setStatus = useCallback((next: string) => setStatusState(next), []);
+  const setStatus = useCallback(
+    (next: string) => {
+      setStatusState(next);
+      toFirstPage();
+    },
+    [toFirstPage]
+  );
 
   // Guard against a stale page number after the row count shrinks. Stable
   // identity so callers can put it in a `useEffect` dep list.

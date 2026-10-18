@@ -71,7 +71,7 @@ export class NotificationService {
 
   // ── write side (called by other services / schedulers) ──
 
-  /** Create one notification. Silently skips a duplicate `dedupeKey`. */
+  /** Create one notification. Silently skips a duplicate `dedupeKey`; any other failure throws so the outbox retries. */
   async notify(input: NotifyInput): Promise<void> {
     try {
       await this.prisma.notification.create({
@@ -92,6 +92,7 @@ export class NotificationService {
         return; // already sent (same userId + dedupeKey)
       }
       this.logger.warn(`Failed to create notification: ${(error as Error).message}`);
+      throw error;
     }
   }
 

@@ -114,7 +114,10 @@ export function ModuleList({
         </ol>
       )}
 
-      <AttachModuleModal courseId={courseId} open={attachOpen} onOpenChange={setAttachOpen} />
+      {/* Mounted only while open: its library queries and search reset each time. */}
+      {attachOpen ? (
+        <AttachModuleModal courseId={courseId} open={attachOpen} onOpenChange={setAttachOpen} />
+      ) : null}
     </Card>
   );
 }

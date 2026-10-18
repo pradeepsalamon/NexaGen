@@ -18,10 +18,12 @@ export function PgnPanel() {
     useShallow((s) => ({ pgn: s.pgn, pushHistory: s.pushHistory })),
   );
   const [draft, setDraft] = useState(pgn);
+  // While the coach is editing, a move on the board must not wipe their draft.
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
-    setDraft(pgn);
-  }, [pgn]);
+    if (!dirty) setDraft(pgn);
+  }, [pgn, dirty]);
 
   const handleCopy = async () => {
     if (!draft.trim()) {
@@ -35,6 +37,7 @@ export function PgnPanel() {
   const handleLoad = () => {
     const result = loadPgnIntoBoard(draft, pushHistory);
     if (result.ok) {
+      setDirty(false);
       toast.success(
         result.moveCount > 0 ? `Game loaded (${result.moveCount} moves)` : "Position loaded"
       );
@@ -53,9 +56,21 @@ export function PgnPanel() {
         className="min-h-[220px] flex-1 font-mono text-xs"
         placeholder={'[Event "Casual game"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 *'}
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          setDirty(true);
+        }}
       />
       <div className="flex flex-wrap justify-end gap-2">
+        {dirty ? (
+          <Button
+            variant="outline"
+            onClick={() => setDirty(false)}
+            className="h-auto px-3 py-1.5 text-xs font-normal"
+          >
+            Revert
+          </Button>
+        ) : null}
         <Button
           variant="outline"
           onClick={handleCopy}

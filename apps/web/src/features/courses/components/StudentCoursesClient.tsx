@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { useMyCourses } from "../hooks/useCoursesApi";
 
 export function StudentCoursesClient() {
-  const { data, isLoading } = useMyCourses();
+  const { data, isError, isLoading, refetch } = useMyCourses();
   const courses = data?.courses ?? [];
 
   return (
@@ -27,6 +28,8 @@ export function StudentCoursesClient() {
             <Skeleton key={i} className="h-40 w-full" />
           ))}
         </div>
+      ) : isError && !data ? (
+        <WidgetError message="Couldn't load your courses." onRetry={() => void refetch()} />
       ) : courses.length === 0 ? (
         <EmptyState
           icon={GraduationCap}

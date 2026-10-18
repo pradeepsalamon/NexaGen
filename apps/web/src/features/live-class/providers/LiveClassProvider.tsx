@@ -277,8 +277,9 @@ function createLiveClassStore(init: {
       },
       clearActivePuzzle: (assignmentId) => {
         const prev = get().activePuzzle;
-        const keep = !prev || (assignmentId !== undefined && prev.id !== assignmentId);
-        set({ ...(keep ? {} : { activePuzzle: null }), puzzleBoardsOpen: false, puzzleSolverOpen: false });
+        // A late "ended" for an earlier puzzle must not close the current one's views.
+        if (prev && assignmentId !== undefined && prev.id !== assignmentId) return;
+        set({ activePuzzle: null, puzzleBoardsOpen: false, puzzleSolverOpen: false });
       },
       puzzleBoardsOpen: false,
       puzzleSolverOpen: false,

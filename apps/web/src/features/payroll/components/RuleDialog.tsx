@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   PAYROLL_RULE_TYPE_LABELS,
+  toMinorUnits,
   type CancelledByActor,
   type PayrollRuleEffect,
   type PayrollRuleType
@@ -52,9 +53,14 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
   const [effectiveFrom, setEffectiveFrom] = useState(() => new Date().toISOString().slice(0, 10));
   const [enabled, setEnabled] = useState(true);
 
+  // Rules carry no currency of their own; payroll runs in INR (the profile default).
+  const percentValue = Number(percent);
+  const flatValue = Number(flatAmountMajor);
   const canSubmit =
     name.trim().length > 0 &&
-    (effectKind === "PAYOUT_PERCENT" ? percent.length > 0 : flatAmountMajor.length > 0);
+    (effectKind === "PAYOUT_PERCENT"
+      ? percent.length > 0 && Number.isFinite(percentValue) && percentValue >= 0 && percentValue <= 100
+      : flatAmountMajor.length > 0 && Number.isFinite(flatValue) && flatValue >= 0);
 
   const handleSubmit = () => {
     create.mutate(
@@ -71,7 +77,7 @@ export function RuleDialog({ onClose }: { onClose: () => void }) {
         effect:
           effectKind === "PAYOUT_PERCENT"
             ? { kind: "PAYOUT_PERCENT", percent: Number(percent) }
-            : { kind: "FLAT_AMOUNT", amountMinor: Math.round(Number(flatAmountMajor) * 100) },
+            : { kind: "FLAT_AMOUNT", amountMinor: toMinorUnits(flatValue, "INR") },
         priority: Number(priority) || 0,
         enabled,
         effectiveFrom: new Date(effectiveFrom).toISOString()

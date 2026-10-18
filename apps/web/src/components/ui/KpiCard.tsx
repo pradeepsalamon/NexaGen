@@ -66,6 +66,11 @@ export function KpiCard({
               <button
                 aria-label={`How ${label} is calculated`}
                 className="rounded-full p-0.5 hover:text-app-text"
+                // Inside a linked card: opening the tooltip must not navigate.
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
                 type="button"
               >
                 <Info className="size-3.5" strokeWidth={2.5} />
@@ -111,6 +116,13 @@ function DeltaChip({
         <ArrowRight className="size-3" /> 0%
       </span>
     ) : null;
+  }
+  if (kpi.deltaPct === 0) {
+    return (
+      <span className="flex items-center gap-0.5 text-xs text-app-muted">
+        <ArrowRight className="size-3" /> 0%
+      </span>
+    );
   }
   const up = kpi.deltaPct > 0;
   const good = invert ? !up : up;

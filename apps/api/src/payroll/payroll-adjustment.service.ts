@@ -94,7 +94,7 @@ export class PayrollAdjustmentService {
       entityId: adjustmentId,
       action: "ADJUSTMENT_REVERSED",
       userId: actorId,
-      metadata: { reversalReason: dto.reversalReason }
+      metadata: { payrollRecordId: adjustment.payrollRecordId, reversalReason: dto.reversalReason }
     });
 
     return this.toItem(updated);

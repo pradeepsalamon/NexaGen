@@ -44,6 +44,21 @@ describe("UserService", () => {
   let jwtService: { verifyAsync: jest.Mock };
   let trashRepository: { cascadeSoftDelete: jest.Mock; log: jest.Mock };
 
+  const studentRow = (id: string) => ({
+    coachProfile: null,
+    email: "student@example.com",
+    firstName: "Student",
+    id,
+    isEmailVerified: true,
+    lastName: null,
+    phoneNumber: null,
+    role: UserRole.STUDENT,
+    status: UserStatus.ACTIVE,
+    studentProfile: null,
+    timezone: "Asia/Kolkata",
+    username: null
+  });
+
   beforeEach(async () => {
     // `withDeleted` is the same Prisma client with the soft-delete filter
     // removed, so the double shares one user mock: a test can arrange or assert
@@ -232,20 +247,7 @@ describe("UserService", () => {
         id: "new-user",
         role: UserRole.STUDENT
       });
-      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce({
-        coachProfile: null,
-        email: "student@example.com",
-        firstName: "Student",
-        id: "new-user",
-        isEmailVerified: true,
-        lastName: null,
-        phoneNumber: null,
-        role: UserRole.STUDENT,
-        status: UserStatus.ACTIVE,
-        studentProfile: null,
-        timezone: "Asia/Kolkata",
-        username: null
-      });
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(studentRow("new-user"));
 
       const result = await service.create("token", createStudentPayload);
 
@@ -288,11 +290,9 @@ describe("UserService", () => {
       mockAuthContext();
       prismaService.user.findUnique.mockResolvedValueOnce({ id: "student-1", role: UserRole.STUDENT });
       prismaService.user.update.mockResolvedValueOnce({ id: "student-1" });
-      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(null);
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(studentRow("student-1"));
 
-      await service
-        .update("token", "student-1", { password: "New@Password1" } as UpdateUserRequest)
-        .catch(() => undefined);
+      await service.update("token", "student-1", { password: "New@Password1" } as UpdateUserRequest);
 
       expect(prismaService.authSession.updateMany).toHaveBeenCalledWith({
         data: { revokedAt: expect.any(Date) },
@@ -304,9 +304,9 @@ describe("UserService", () => {
       mockAuthContext();
       prismaService.user.findUnique.mockResolvedValueOnce({ id: "student-1", role: UserRole.STUDENT });
       prismaService.user.update.mockResolvedValueOnce({ id: "student-1" });
-      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(null);
+      prismaService.user.findUniqueOrThrow.mockResolvedValueOnce(studentRow("student-1"));
 
-      await service.update("token", "student-1", { firstName: "Renamed" }).catch(() => undefined);
+      await service.update("token", "student-1", { firstName: "Renamed" });
 
       expect(prismaService.user.update).toHaveBeenCalled();
       expect(prismaService.authSession.updateMany).not.toHaveBeenCalled();

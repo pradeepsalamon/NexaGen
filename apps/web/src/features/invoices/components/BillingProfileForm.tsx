@@ -12,6 +12,7 @@ import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
 import {
   useBillingProfile,
   useUpdateBillingProfile
@@ -25,7 +26,7 @@ import {
  * only: a receipt already issued keeps the details it was issued with.
  */
 export function BillingProfileForm() {
-  const { data, isLoading } = useBillingProfile();
+  const { data, isError, isLoading, refetch } = useBillingProfile();
   const update = useUpdateBillingProfile();
 
   const [form, setForm] = useState<BillingAddress | null>(null);
@@ -34,6 +35,9 @@ export function BillingProfileForm() {
     if (data) setForm(data.billingProfile);
   }, [data]);
 
+  if (isError && !data) {
+    return <WidgetError message="Couldn't load your billing details." onRetry={() => void refetch()} />;
+  }
   if (isLoading || !form) return <Skeleton className="h-72 w-full" />;
 
   const set = <K extends keyof BillingAddress>(
@@ -170,7 +174,7 @@ function Field({
   type?: string;
   value: string;
 }) {
-  const id = `billing-${label.toLowerCase().replace(/[^a-z]+/g, "-")}`;
+  const id = `billing-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 
   return (
     <div className="space-y-1.5">

@@ -22,6 +22,8 @@ export function RecordingPlayerDialog({ classId, isOpen, onClose, topic }: Recor
   const videoRef = useRef<HTMLVideoElement>(null);
   const highestTimeRef = useRef(0);
   const lastSyncTimeRef = useRef(0);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!isOpen || !classId) {
@@ -40,14 +42,14 @@ export function RecordingPlayerDialog({ classId, isOpen, onClose, topic }: Recor
           setVideoUrl(data.url);
         } else if (isMounted) {
           toast.error("Failed to load recording URL.");
-          onClose();
+          onCloseRef.current();
         }
       })
       .catch((error) => {
         console.error("Failed to get recording URL:", error);
         if (isMounted) {
           toast.error("Failed to load recording. It may have expired or is unavailable.");
-          onClose();
+          onCloseRef.current();
         }
       })
       .finally(() => {
@@ -61,7 +63,9 @@ export function RecordingPlayerDialog({ classId, isOpen, onClose, topic }: Recor
         updateRecordingProgress(classId, Math.floor(highestTimeRef.current)).catch(console.error);
       }
     };
-  }, [classId, isOpen, onClose]);
+    // onClose is read through a ref: callers pass an inline function, and
+    // depending on it reloaded the video on every parent render.
+  }, [classId, isOpen]);
 
   const handleTimeUpdate = () => {
     if (!videoRef.current || !classId) return;

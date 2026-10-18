@@ -31,7 +31,8 @@ export function useBulkAction<T>({
           : []
       );
       setResult({ action, failed, succeeded: items.length - failed.length });
-      await Promise.all(invalidates.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
+      // A failed refetch must not turn finished per-item work into an error.
+      await Promise.allSettled(invalidates.map((queryKey) => queryClient.invalidateQueries({ queryKey })));
     } finally {
       setIsPending(false);
     }

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialWithoutDefaults } from "./core-schemas";
 
 // ──────────────────────────────────────────────────────────────
 // Payments — shared contract
@@ -602,9 +603,7 @@ export const createPlanRequestSchema = z.object({
 });
 export type CreatePlanRequest = z.infer<typeof createPlanRequestSchema>;
 
-export const updatePlanRequestSchema = createPlanRequestSchema
-  .omit({ code: true })
-  .partial();
+export const updatePlanRequestSchema = partialWithoutDefaults(createPlanRequestSchema.omit({ code: true }));
 export type UpdatePlanRequest = z.infer<typeof updatePlanRequestSchema>;
 
 export type PlanItem = {
@@ -1050,9 +1049,9 @@ export const createDiscountRequestSchema = z.object({
 });
 export type CreateDiscountRequest = z.infer<typeof createDiscountRequestSchema>;
 
-export const updateDiscountRequestSchema = createDiscountRequestSchema
-  .omit({ code: true })
-  .partial();
+export const updateDiscountRequestSchema = partialWithoutDefaults(
+  createDiscountRequestSchema.omit({ code: true })
+);
 export type UpdateDiscountRequest = z.infer<typeof updateDiscountRequestSchema>;
 
 export type DiscountItem = {
@@ -1246,7 +1245,9 @@ export const recordManualPaymentRequestSchema = z.object({
   studentUserId: z.string().trim().min(1),
   planId: z.string().trim().min(1),
   methodId: z.string().trim().min(1),
-  reference: z.string().trim().max(200).optional()
+  reference: z.string().trim().max(200).optional(),
+  /** One per dialog open, so a double submit or retry records the payment once. */
+  idempotencyKey: z.string().uuid().optional()
 });
 export type RecordManualPaymentRequest = z.infer<
   typeof recordManualPaymentRequestSchema

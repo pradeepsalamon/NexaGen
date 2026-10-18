@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useAssignmentLibrary } from "@/features/assignments/hooks/useAssignmentsApi";
 import { usePuzzles } from "@/features/puzzles/hooks/usePuzzlesApi";
 import { PUZZLE_TYPE_LABELS } from "@/features/puzzles/lib/puzzleMeta";
+import { enumLabel } from "@/lib/utils";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useAttachModule } from "../hooks/useCoursesApi";
 
@@ -135,7 +136,7 @@ export function AttachModuleModal({
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-semibold text-app-text">{assignment.title}</p>
-                  <Badge variant="outline">{assignment.activityType}</Badge>
+                  <Badge variant="outline">{enumLabel(assignment.activityType)}</Badge>
                 </div>
                 <Button
                   type="button"

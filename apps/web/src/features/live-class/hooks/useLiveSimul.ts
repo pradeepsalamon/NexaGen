@@ -42,8 +42,11 @@ export function mergeSimulGame(
   qc.setQueryData<LiveSimulStateResponse>(queryKeys.liveSimul.state(classId), (old) => {
     if (!old?.simul || old.simul.id !== game.simulId) return old;
     const index = old.simul.games.findIndex((g) => g.id === game.id);
-    if (index === -1 || old.simul.games[index].ply > game.ply) return old;
-    result = { previous: old.simul.games[index] };
+    if (index === -1) return old;
+    const current = old.simul.games[index];
+    // A finished game never reopens, even from a same-ply ongoing copy.
+    if (current.ply > game.ply || (current.status === "FINISHED" && game.status === "ONGOING")) return old;
+    result = { previous: current };
     const games = [...old.simul.games];
     games[index] = game;
     return { simul: { ...old.simul, games } };

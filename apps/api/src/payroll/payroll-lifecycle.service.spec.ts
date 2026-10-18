@@ -28,24 +28,32 @@ describe("PayrollLifecycleService", () => {
     const recalculatePeriod = jest.fn().mockResolvedValue(undefined);
     const auditLog = jest.fn().mockResolvedValue(undefined);
     let currentStatus = initialStatus;
+    const prisma: Record<string, unknown> = {};
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayrollLifecycleService,
         {
           provide: PrismaService,
-          useValue: {
+          useValue: Object.assign(prisma, {
+            $transaction: jest.fn((run: (tx: unknown) => unknown) => run(prisma)),
             payrollPeriod: {
               update: jest.fn().mockImplementation(({ data }) => {
                 if (data.status) currentStatus = data.status;
                 return { ...period(currentStatus), ...data };
-              })
+              }),
+              updateMany: jest.fn().mockImplementation(({ where, data }) => {
+                if (where.status && where.status !== currentStatus) return { count: 0 };
+                if (data.status) currentStatus = data.status;
+                return { count: 1 };
+              }),
+              findUniqueOrThrow: jest.fn().mockImplementation(() => period(currentStatus))
             },
             coachPayrollRecord: {
               updateMany: jest.fn().mockResolvedValue({ count: 1 }),
               findMany: jest.fn().mockResolvedValue([])
             }
-          }
+          })
         },
         {
           provide: PayrollPeriodService,
@@ -141,14 +149,23 @@ describe("PayrollLifecycleService", () => {
   });
 
   it("bulk-syncs every CoachPayrollRecord in the period on each transition", async () => {
+    const bulkRecords = { updateMany: jest.fn().mockResolvedValue({ count: 3 }) };
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayrollLifecycleService,
         {
           provide: PrismaService,
           useValue: {
-            payrollPeriod: { update: jest.fn().mockResolvedValue(period("APPROVED")) },
-            coachPayrollRecord: { updateMany: jest.fn().mockResolvedValue({ count: 3 }) }
+            $transaction: jest.fn((run: (tx: unknown) => unknown) =>
+              run({
+                payrollPeriod: {
+                  updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+                  findUniqueOrThrow: jest.fn().mockResolvedValue(period("APPROVED"))
+                },
+                coachPayrollRecord: bulkRecords
+              })
+            ),
+            coachPayrollRecord: bulkRecords
           }
         },
         {

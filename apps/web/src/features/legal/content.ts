@@ -167,3 +167,14 @@ export const TERMS_SECTIONS: LegalSection[] = [
   { id: "liability", pending: "Limits of liability and disclaimers, as reviewed by counsel.", title: "Liability" },
   { id: "law", pending: "Governing law, jurisdiction, and how disputes are resolved.", title: "Governing law" }
 ];
+
+// Turning the draft off while any section still has placeholder text would
+// publish (and let search engines index) an unfinished policy: fail the build.
+if (!LEGAL_DRAFT) {
+  const unfinished = [...PRIVACY_SECTIONS, ...TERMS_SECTIONS].filter((section) => section.pending);
+  if (unfinished.length > 0) {
+    throw new Error(
+      `LEGAL_DRAFT is false but these sections are still pending: ${unfinished.map((s) => s.id).join(", ")}`
+    );
+  }
+}

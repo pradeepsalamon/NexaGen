@@ -218,13 +218,18 @@ export class StripeProvider implements PaymentProviderAdapter {
     const payload = parseJson(input.rawBody);
     const eventType = pickString(payload, "type") ?? "unknown";
     const object = pick(payload, "data", "object");
+    const isSession = pickString(object, "object") === "checkout.session";
+    // A subscription-mode session is the only event carrying both the session id
+    // we stored and the real sub_ id, so it must reach the subscription handler.
+    const isSubscriptionSession = isSession && pickString(object, "mode") === "subscription";
 
     const subject = eventType.startsWith("charge.refund")
       ? "REFUND"
       : eventType.startsWith("refund.")
         ? "REFUND"
         : eventType.startsWith("customer.subscription.") ||
-            eventType.startsWith("invoice.")
+            eventType.startsWith("invoice.") ||
+            isSubscriptionSession
           ? "SUBSCRIPTION"
           : "PAYMENT";
 
@@ -234,8 +239,6 @@ export class StripeProvider implements PaymentProviderAdapter {
       operation: `webhook:${eventType}`,
       success: signatureValid
     });
-
-    const isSession = pickString(object, "object") === "checkout.session";
 
     return {
       eventId: pickString(payload, "id") ?? hashPayload(input.rawBody),
@@ -268,7 +271,11 @@ export class StripeProvider implements PaymentProviderAdapter {
         subject === "REFUND" ? mapRefundStatus(pickString(object, "status")) : null,
       subscriptionStatus:
         subject === "SUBSCRIPTION"
-          ? mapSubscriptionStatus(pickString(object, "status"))
+          ? isSubscriptionSession
+            ? pickString(object, "payment_status") === "paid"
+              ? "ACTIVE"
+              : "PENDING_ACTIVATION"
+            : mapSubscriptionStatus(pickString(object, "status"))
           : null,
       method: methodFromObject(object),
       methodDetail: methodDetail(object),
@@ -546,8 +553,10 @@ export function mapSessionStatus(
   if (paymentStatus === "paid") return "PAID";
   if (paymentStatus === "no_payment_required") return "PAID";
   switch (status) {
+    // Complete but unpaid: a delayed method (bank debit) whose funds have not
+    // arrived. async_payment_succeeded later carries payment_status "paid".
     case "complete":
-      return "PAID";
+      return "PROCESSING";
     case "expired":
       return "EXPIRED";
     case "open":

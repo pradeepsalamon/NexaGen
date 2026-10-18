@@ -155,7 +155,11 @@ export function DiagramPositionActions({ analysis = true, children, confirmed, l
           <ul className="flex flex-col gap-1 text-sm">
             {duplicates?.map((p) => (
               <li key={p.id}>
-                <Link className="font-semibold text-primary-ink underline-offset-2 hover:underline" href={`${libraryBasePath}/${p.id}`}>
+                <Link
+                  className="font-semibold text-primary-ink underline-offset-2 hover:underline"
+                  href={`${libraryBasePath}/${p.id}`}
+                  {...(libraryInNewTab ? { rel: "noopener noreferrer", target: "_blank" } : {})}
+                >
                   {p.title}
                 </Link>{" "}
                 <span className="text-app-muted">({p.status.toLowerCase()})</span>

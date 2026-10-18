@@ -12,16 +12,18 @@ import { StarRatingInput } from "./StarRating";
 type AnswerState = Record<string, { ratingValue?: number | null; textValue?: string | null }>;
 
 function ChoicePills({
+  labelledBy,
   onChange,
   options,
   value
 }: {
+  labelledBy: string;
   options: string[];
   value: string | null | undefined;
   onChange: (value: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2" role="radiogroup">
+    <div aria-labelledby={labelledBy} className="flex flex-wrap gap-2" role="radiogroup">
       {options.map((option) => (
         <button
           aria-checked={value === option}
@@ -115,6 +117,7 @@ export function FeedbackQuestionnaire({
               />
             ) : (
               <ChoicePills
+                labelledBy={`${labelId}-label`}
                 onChange={(textValue) => set(question.id, { textValue })}
                 options={question.type === "YES_NO" ? ["Yes", "No"] : (question.options ?? [])}
                 value={answers[question.id]?.textValue}

@@ -81,6 +81,8 @@ export function AcademyNavbar() {
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="xl:hidden flex flex-col gap-1.5 p-2.5 rounded-xl border border-[#e2e8f0] hover:bg-[#1a3a52]/5 transition-colors"
+            aria-controls="academy-mobile-menu"
+            aria-expanded={mobileOpen}
             aria-label="Toggle menu"
           >
             <span
@@ -96,7 +98,10 @@ export function AcademyNavbar() {
         </div>
       </div>
 
+      {/* Collapsed, not unmounted (for the animation): hidden from AT and Tab while closed. */}
       <div
+        aria-hidden={!mobileOpen}
+        id="academy-mobile-menu"
         className={`xl:hidden glass-strong border-t border-[#1a3a52]/10 overflow-hidden transition-all duration-300 ease-in-out ${mobileOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}
       >
         <div className="px-4 py-6 space-y-1">
@@ -105,6 +110,7 @@ export function AcademyNavbar() {
               key={item.label}
               href={item.href}
               onClick={() => setMobileOpen(false)}
+              tabIndex={mobileOpen ? undefined : -1}
               className={`block px-4 py-3 text-sm font-medium text-[#4a5f7f] hover:text-[#1a3a52] hover:bg-[#1a3a52]/[0.06] rounded-xl transition-all duration-300 transform ${mobileOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
               style={{ transitionDelay: mobileOpen ? `${i * 50}ms` : "0ms" }}
             >
@@ -114,6 +120,7 @@ export function AcademyNavbar() {
           <a
             href="#demo"
             onClick={() => setMobileOpen(false)}
+            tabIndex={mobileOpen ? undefined : -1}
             className={`block btn-gold text-center mt-4 rounded-full transition-all duration-300 transform ${mobileOpen ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0"}`}
             style={{ transitionDelay: mobileOpen ? `${navItems.length * 50}ms` : "0ms" }}
           >

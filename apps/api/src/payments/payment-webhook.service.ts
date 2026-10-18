@@ -65,9 +65,8 @@ export class PaymentWebhookService {
     const result = await adapter.handleWebhook({ rawBody, headers });
 
     if (!result.signatureValid) {
-      await this.persist(provider, result, WebhookEventStatus.IGNORED, {
-        error: "Signature verification failed."
-      });
+      // Never persisted: an unsigned request would otherwise claim its event id
+      // and make the genuine signed delivery look like a duplicate.
       this.logger.warn(
         `Rejected an unsigned ${provider} webhook (${result.eventType}).`
       );

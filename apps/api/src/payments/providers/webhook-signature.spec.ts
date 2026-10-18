@@ -1,5 +1,8 @@
 import { createHmac } from "node:crypto";
+import type { ProviderHealthService } from "../provider-health.service";
+import { CashfreeProvider } from "./cashfree.provider";
 import { hmacBase64, hmacHex, safeCompare } from "./provider-http";
+import { RazorpayProvider } from "./razorpay.provider";
 import { verifyStripeSignature } from "./stripe.provider";
 
 /**
@@ -23,67 +26,116 @@ describe("safeCompare", () => {
   });
 });
 
-describe("Razorpay signature scheme", () => {
+const env: Record<string, string | undefined> = {};
+jest.mock("@nexa-chess/config/api", () => ({
+  ...jest.requireActual("@nexa-chess/config/api"),
+  getApiEnv: () => env
+}));
+
+const health = { record: jest.fn() } as unknown as ProviderHealthService;
+
+describe("RazorpayProvider.handleWebhook", () => {
   const secret = "razorpay-webhook-secret";
   const body = JSON.stringify({ event: "payment.captured", payload: {} });
+  const verify = (rawBody: string, headers: Record<string, string>) =>
+    new RazorpayProvider(health).handleWebhook({ rawBody, headers }).then((r) => r.signatureValid);
 
-  it("accepts a correctly signed body", () => {
-    expect(safeCompare(hmacHex(secret, body), hmacHex(secret, body))).toBe(true);
+  beforeEach(() => {
+    env.RAZORPAY_WEBHOOK_SECRET = secret;
   });
 
-  it("rejects a body altered after signing", () => {
+  it("accepts a correctly signed body", async () => {
+    await expect(verify(body, { "x-razorpay-signature": hmacHex(secret, body) })).resolves.toBe(true);
+  });
+
+  it("rejects a body altered after signing", async () => {
     const signature = hmacHex(secret, body);
-    const tampered = body.replace("captured", "failed");
-    expect(safeCompare(hmacHex(secret, tampered), signature)).toBe(false);
+    await expect(
+      verify(body.replace("captured", "failed"), { "x-razorpay-signature": signature })
+    ).resolves.toBe(false);
   });
 
-  it("rejects a signature made with a different secret", () => {
-    const forged = hmacHex("wrong-secret", body);
-    expect(safeCompare(hmacHex(secret, body), forged)).toBe(false);
+  it("rejects a signature made with a different secret", async () => {
+    await expect(
+      verify(body, { "x-razorpay-signature": hmacHex("wrong-secret", body) })
+    ).resolves.toBe(false);
   });
 
-  it("verifies the checkout handshake over order|payment", () => {
-    // What the browser hands back after Razorpay Checkout closes.
-    const orderId = "order_ABC";
-    const paymentId = "pay_XYZ";
-    const expected = hmacHex(secret, `${orderId}|${paymentId}`);
+  it("rejects a missing signature header", async () => {
+    await expect(verify(body, {})).resolves.toBe(false);
+  });
 
-    expect(safeCompare(hmacHex(secret, `${orderId}|${paymentId}`), expected)).toBe(
-      true
-    );
-    // A client swapping in someone else's payment id cannot re-sign it.
-    expect(safeCompare(hmacHex(secret, `${orderId}|pay_OTHER`), expected)).toBe(
-      false
-    );
+  it("fails closed when the secret is unset", async () => {
+    env.RAZORPAY_WEBHOOK_SECRET = undefined;
+    await expect(verify(body, { "x-razorpay-signature": hmacHex(secret, body) })).resolves.toBe(false);
   });
 });
 
-describe("Cashfree signature scheme", () => {
+describe("RazorpayProvider.verifyPayment handshake", () => {
+  const keySecret = "razorpay-key-secret";
+
+  beforeEach(() => {
+    env.RAZORPAY_KEY_SECRET = keySecret;
+  });
+
+  const verify = (providerPaymentId: string, signature: string) => {
+    const provider = new RazorpayProvider(health);
+    jest.spyOn(provider, "getPayment").mockResolvedValue(null as never);
+    return provider
+      .verifyPayment({ providerOrderId: "order_ABC", providerPaymentId, signature } as never)
+      .then((r) => r.verified);
+  };
+
+  it("accepts the signed order|payment pair", async () => {
+    await expect(verify("pay_XYZ", hmacHex(keySecret, "order_ABC|pay_XYZ"))).resolves.toBe(true);
+  });
+
+  it("rejects someone else's payment id under the same signature", async () => {
+    await expect(verify("pay_OTHER", hmacHex(keySecret, "order_ABC|pay_XYZ"))).resolves.toBe(false);
+  });
+});
+
+describe("CashfreeProvider.handleWebhook", () => {
   const secret = "cashfree-webhook-secret";
   const timestamp = "1757800000";
   const body = JSON.stringify({ type: "PAYMENT_SUCCESS_WEBHOOK", data: {} });
+  const signed = (ts = timestamp, payload = body, key = secret) => ({
+    "x-webhook-signature": hmacBase64(key, `${ts}${payload}`),
+    "x-webhook-timestamp": ts
+  });
+  const verify = (rawBody: string, headers: Record<string, string>) =>
+    new CashfreeProvider(health).handleWebhook({ rawBody, headers }).then((r) => r.signatureValid);
 
-  it("signs timestamp + body, base64", () => {
-    const expected = hmacBase64(secret, `${timestamp}${body}`);
-    expect(safeCompare(hmacBase64(secret, `${timestamp}${body}`), expected)).toBe(
-      true
-    );
+  beforeEach(() => {
+    env.CASHFREE_WEBHOOK_SECRET = secret;
   });
 
-  it("rejects a replay under a different timestamp", () => {
+  it("accepts timestamp + body signed in base64", async () => {
+    await expect(verify(body, signed())).resolves.toBe(true);
+  });
+
+  it("rejects a replay under a different timestamp", async () => {
     // The timestamp is inside the signed payload, so it cannot be swapped.
-    const signature = hmacBase64(secret, `${timestamp}${body}`);
-    expect(safeCompare(hmacBase64(secret, `1757900000${body}`), signature)).toBe(
-      false
-    );
+    const headers = { ...signed(), "x-webhook-timestamp": "1757900000" };
+    await expect(verify(body, headers)).resolves.toBe(false);
   });
 
-  it("rejects a tampered body", () => {
-    const signature = hmacBase64(secret, `${timestamp}${body}`);
-    const tampered = body.replace("SUCCESS", "FAILED");
-    expect(safeCompare(hmacBase64(secret, `${timestamp}${tampered}`), signature)).toBe(
-      false
-    );
+  it("rejects a tampered body", async () => {
+    await expect(verify(body.replace("SUCCESS", "FAILED"), signed())).resolves.toBe(false);
+  });
+
+  it("rejects a signature made with a different secret", async () => {
+    await expect(verify(body, signed(timestamp, body, "wrong-secret"))).resolves.toBe(false);
+  });
+
+  it("rejects missing headers", async () => {
+    await expect(verify(body, { "x-webhook-signature": signed()["x-webhook-signature"] })).resolves.toBe(false);
+    await expect(verify(body, {})).resolves.toBe(false);
+  });
+
+  it("fails closed when the secret is unset", async () => {
+    env.CASHFREE_WEBHOOK_SECRET = undefined;
+    await expect(verify(body, signed())).resolves.toBe(false);
   });
 });
 

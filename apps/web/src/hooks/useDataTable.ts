@@ -48,6 +48,11 @@ interface UseDataTableProps<TData, TValue> {
   manualPagination?: boolean;
   manualSorting?: boolean;
   pageCount?: number;
+  /**
+   * Row ids for selection. Without it TanStack keys rows by index, so after a
+   * page or filter change the same selection points at different rows.
+   */
+  getRowId?: (row: TData, index: number) => string;
 }
 
 /**
@@ -72,7 +77,8 @@ export function useDataTable<TData, TValue>({
   setSorting: setControlledSorting,
   manualPagination,
   manualSorting,
-  pageCount
+  pageCount,
+  getRowId
 }: UseDataTableProps<TData, TValue>) {
   const [internalRowSelection, setInternalRowSelection] =
     useState<RowSelectionState>({});
@@ -99,6 +105,7 @@ export function useDataTable<TData, TValue>({
     ...(manualPagination === undefined ? {} : { manualPagination }),
     ...(manualSorting === undefined ? {} : { manualSorting }),
     ...(pageCount === undefined ? {} : { pageCount }),
+    ...(getRowId ? { getRowId } : {}),
     state: {
       sorting,
       columnVisibility,
@@ -108,12 +115,12 @@ export function useDataTable<TData, TValue>({
       pagination
     },
     enableRowSelection: true,
+    // Resolved against the current value, with the callback outside the
+    // state updater (React may call an updater twice).
     onRowSelectionChange: (updater) => {
-      setRowSelection((old) => {
-        const newSelection = typeof updater === "function" ? updater(old) : updater;
-        onRowSelectionChange?.(newSelection);
-        return newSelection;
-      });
+      const newSelection = typeof updater === "function" ? updater(rowSelection) : updater;
+      setRowSelection(newSelection);
+      onRowSelectionChange?.(newSelection);
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,

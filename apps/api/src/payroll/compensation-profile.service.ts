@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   CompensationProfileItem,
   CompensationRateItem,
@@ -144,19 +144,29 @@ export class CompensationProfileService {
     dto: CreateCompensationRateRequest
   ): Promise<CompensationRateItem> {
     const effectiveFrom = new Date(dto.effectiveFrom);
+    const effectiveTo = dto.effectiveTo ? new Date(dto.effectiveTo) : null;
+    if (effectiveTo && effectiveTo <= effectiveFrom) {
+      throw new BadRequestException("The end date must be after the start date.");
+    }
     const scopeKey = JSON.stringify(dto.scopeConfig ?? null);
 
-    const openEnded = await this.prisma.coachCompensationRate.findMany({
-      where: {
-        coachId,
-        calculationType: dto.calculationType,
-        effectiveTo: null,
-        effectiveFrom: { lt: effectiveFrom }
-      }
-    });
-    const toClose = openEnded.filter((r) => JSON.stringify(r.scopeConfig ?? null) === scopeKey);
-
+    let toClose: { id: string }[] = [];
     const rate = await this.prisma.$transaction(async (tx) => {
+      const openEnded = (
+        await tx.coachCompensationRate.findMany({
+          where: { coachId, calculationType: dto.calculationType, effectiveTo: null }
+        })
+      ).filter((r) => JSON.stringify(r.scopeConfig ?? null) === scopeKey);
+      // A later open-ended rate this one would overlap makes the resolver's pick arbitrary.
+      const overlapsLater = openEnded.some(
+        (r) => r.effectiveFrom >= effectiveFrom && (!effectiveTo || effectiveTo > r.effectiveFrom)
+      );
+      if (overlapsLater) {
+        throw new ConflictException(
+          "An open-ended rate for this scope already starts on or after that date. End it first."
+        );
+      }
+      toClose = openEnded.filter((r) => r.effectiveFrom < effectiveFrom);
       for (const previous of toClose) {
         await tx.coachCompensationRate.update({
           where: { id: previous.id },
@@ -173,7 +183,7 @@ export class CompensationProfileService {
           tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
           scopeConfig: dto.scopeConfig as unknown as Prisma.InputJsonValue,
           effectiveFrom,
-          effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : null,
+          effectiveTo,
           createdById: actorId
         }
       });

@@ -255,7 +255,8 @@ export class LiveClassPuzzleService {
     if (!assignment) throw new NotFoundException("No puzzle has been shared in this class.");
 
     await this.prisma.$transaction(async (tx) => {
-      // Re-read inside the transaction so two quick clicks both land.
+      // Lock then re-read inside the transaction so two quick clicks both land.
+      await tx.$queryRaw`SELECT id FROM "live_class_puzzle_assignments" WHERE id = ${assignment.id} FOR UPDATE`;
       const row = await tx.liveClassPuzzleAssignment.findUniqueOrThrow({
         where: { id: assignment.id },
         select: { adjustmentsJson: true }

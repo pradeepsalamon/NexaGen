@@ -27,9 +27,7 @@ export function CoachStudentsClient({ initialBatchId }: { initialBatchId?: strin
 
   // Sync state if navigating via Link with different search params
   useEffect(() => {
-    if (initialBatchId) {
-      setSelectedBatch(initialBatchId);
-    }
+    setSelectedBatch(initialBatchId || "ALL");
   }, [initialBatchId]);
 
   const columns = useMemo<ColumnDef<CoachStudent>[]>(

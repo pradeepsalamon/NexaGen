@@ -255,6 +255,11 @@ export const API_ROUTES = {
     // Reset the global default back to Outfit + Nunito Sans — admin only.
     adminReset: "/typography/admin/reset"
   },
+  upload: {
+    // POST multipart image (avatars, puzzle art); DELETE { url } removes the caller's own.
+    image: "/upload/image",
+    pgn: "/upload/pgn"
+  },
   liveClassPresets: {
     // Layer 4 presets. List returns own PERSONAL + all ORG/system.
     list: "/live-class-presets",

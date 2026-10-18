@@ -3,6 +3,7 @@
 import { GraduationCap } from "lucide-react";
 import type { PendingCoach, PendingCoachesResponse, UpdateCoachStatusRequest } from "@nexa-chess/types";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { updateCoachStatus } from "@/features/admin/api/adminApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
@@ -13,7 +14,17 @@ import { useHiddenIds } from "./useHiddenIds";
 
 type ReviewVars = { coach: PendingCoach; status: UpdateCoachStatusRequest["status"] };
 
-export function PendingCoachesPanel({ data, isLoading }: { data?: PendingCoachesResponse; isLoading: boolean }) {
+export function PendingCoachesPanel({
+  data,
+  isError = false,
+  isLoading,
+  onRetry
+}: {
+  data?: PendingCoachesResponse;
+  isError?: boolean;
+  isLoading: boolean;
+  onRetry?: () => void;
+}) {
   const tz = useUserTimeZone();
   const { hiddenIds, toggle } = useHiddenIds();
 
@@ -32,6 +43,9 @@ export function PendingCoachesPanel({ data, isLoading }: { data?: PendingCoaches
   });
 
   if (isLoading) return <ApplicationListSkeleton />;
+  if (isError && !data) {
+    return <WidgetError message="Couldn't load pending coaches." onRetry={onRetry} />;
+  }
 
   const coaches = data?.coaches.filter((coach) => !hiddenIds.has(coach.id)) ?? [];
   if (!coaches.length) {

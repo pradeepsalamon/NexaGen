@@ -77,6 +77,7 @@ describe("ManualPaymentService", () => {
     const applyProviderState = jest.fn().mockResolvedValue({ changed: true, status: PaymentStatus.PAID });
 
     const prisma = {
+      $transaction: jest.fn(),
       plan: { findUnique: jest.fn().mockResolvedValue(plan) },
       user: { findUnique: jest.fn().mockResolvedValue(student) },
       batchCoach: {
@@ -107,6 +108,7 @@ describe("ManualPaymentService", () => {
         findUnique: jest.fn().mockImplementation(() => Promise.resolve(row))
       }
     };
+    prisma.$transaction.mockImplementation((run: (tx: unknown) => unknown) => run(prisma));
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

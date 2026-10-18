@@ -11,6 +11,8 @@ import { LiveKitService } from "./livekit.service";
 import { getApiEnv, getFrontendUrl } from "@nexa-chess/config/api";
 import { LiveSessionStatus, LiveKitTokenOptions } from "./types/live-class.types";
 import {
+  deriveLiveKitGrants,
+  liveClassSettingsSchema,
   type DemoClassPublicInfo,
   type GuestJoinDemoRequest,
   type GuestJoinDemoResponse,
@@ -169,11 +171,6 @@ export class LiveClassDemoService {
     }
 
     if (!isLive || !liveSession) {
-      // Guest demo registration — no account/timezone; state the schedule in UTC.
-      const formattedTime = coachClass.startsAt.toLocaleString('en-US', {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-        timeZone: 'UTC', timeZoneName: 'short'
-      });
       return {
         registered: true,
         joined: false,
@@ -182,7 +179,7 @@ export class LiveClassDemoService {
         roomName: null,
         topic,
         startsAt: coachClass.startsAt.toISOString(),
-        message: `You're registered! This demo class is scheduled for ${formattedTime}. Come back here once the coach starts the session.`
+        message: "You're registered! Come back here once the coach starts the session."
       };
     }
 
@@ -195,7 +192,8 @@ export class LiveClassDemoService {
       roomName: liveSession.roomName,
       participantIdentity,
       participantName: body.guestName || registration.name,
-      isCoach: false
+      isCoach: false,
+      grants: this.guestGrants(liveSession.effectiveSettings, coachClass.id)
     };
 
     const livekitToken = await this.livekit.generateAccessToken(tokenOptions);
@@ -365,6 +363,17 @@ export class LiveClassDemoService {
       this.logger.warn(
         `Demo registration confirmation for class ${classId} failed: ${(error as Error).message}`
       );
+    }
+  }
+
+  /** Guests get the class's student publish policy; no snapshot keeps the default grants. */
+  private guestGrants(snapshot: Prisma.JsonValue | null, classId: string): LiveKitTokenOptions["grants"] {
+    if (!snapshot) return undefined;
+    try {
+      return deriveLiveKitGrants(liveClassSettingsSchema.parse(snapshot), "STUDENT");
+    } catch (error) {
+      this.logger.warn(`Invalid effectiveSettings for demo class ${classId}; using default grants`, error as Error);
+      return undefined;
     }
   }
 }

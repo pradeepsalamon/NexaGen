@@ -205,7 +205,8 @@ export function ComboboxInput({
       setIsOpen(true);
     }
 
-    if (event.key === "Enter" && filteredItems[0]) {
+    // Only while the user is actually searching; otherwise Enter submits the form as usual.
+    if (event.key === "Enter" && isOpen && query.trim() && filteredItems[0]) {
       event.preventDefault();
       selectItem(filteredItems[0]);
       inputRef.current?.blur();

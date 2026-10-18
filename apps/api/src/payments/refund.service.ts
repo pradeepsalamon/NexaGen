@@ -149,7 +149,9 @@ export class RefundService {
       data: { status: PaymentStatus.REFUND_PENDING }
     });
 
-    if (dto.revokeAccess && payment.order.planId) {
+    // Revoked only once the gateway has not definitively refused the refund.
+    const revokeAccess = async () => {
+      if (!dto.revokeAccess || !payment.order.planId) return;
       await this.prisma.$transaction(async (tx) => {
         await this.entitlements.revokeForOrder(
           tx,
@@ -157,7 +159,7 @@ export class RefundService {
           `Refund requested: ${dto.reason}`.slice(0, 500)
         );
       });
-    }
+    };
 
     const adapter = this.registry.get(payment.provider);
 
@@ -176,6 +178,9 @@ export class RefundService {
       });
 
       await this.applyProviderState(refund.id, result);
+      if (result.status !== RefundStatus.FAILED && result.status !== RefundStatus.CANCELLED) {
+        await revokeAccess();
+      }
     } catch (error) {
       const message =
         error instanceof PaymentProviderError
@@ -198,6 +203,8 @@ export class RefundService {
 
       if (!retryable) {
         await this.restorePaymentStatus(payment.id);
+      } else {
+        await revokeAccess();
       }
 
       this.logger.error(`Refund ${refund.id} could not be placed: ${message}`);
@@ -392,8 +399,17 @@ export class RefundService {
           refund.payment.providerOrderId
         );
         // The payment's refunded total is the only signal every gateway gives
-        // consistently; a covered amount means this refund landed.
-        if (details.amountRefunded >= refund.amount) {
+        // consistently. It is cumulative, so it must cover the refunds already
+        // settled plus this one before this one counts as landed.
+        const settled = await this.prisma.refund.aggregate({
+          where: {
+            paymentId: refund.paymentId,
+            status: RefundStatus.SUCCEEDED,
+            id: { not: refund.id }
+          },
+          _sum: { amount: true }
+        });
+        if (details.amountRefunded >= (settled._sum.amount ?? 0) + refund.amount) {
           await this.applyProviderState(refund.id, {
             providerRefundId: refund.providerRefundId,
             status: RefundStatus.SUCCEEDED,

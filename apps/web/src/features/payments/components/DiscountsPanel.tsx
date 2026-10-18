@@ -49,14 +49,18 @@ import { Switch } from "@/components/ui/Switch";
 export function DiscountsPanel() {
   const timeZone = useUserTimeZone();
   const { data, isLoading } = useDiscounts();
-  const remove = useDeleteDiscount();
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const remove = useDeleteDiscount({
+    onSchedule: (id) => setHiddenIds((ids) => [...ids, id]),
+    onCancel: (id) => setHiddenIds((ids) => ids.filter((hidden) => hidden !== id))
+  });
 
   const [editing, setEditing] = useState<DiscountItem | null>(null);
   const [creating, setCreating] = useState(false);
 
   if (isLoading) return <Skeleton className="h-72 w-full" />;
 
-  const discounts = data?.discounts ?? [];
+  const discounts = (data?.discounts ?? []).filter((d) => !hiddenIds.includes(d.id));
 
   return (
     <div className="space-y-4">
@@ -65,7 +69,14 @@ export function DiscountsPanel() {
           A code is only counted when a payment actually succeeds, so an
           abandoned checkout never uses one up.
         </p>
-        <Button onClick={() => setCreating(true)} type="button" variant="primary">
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setCreating(true);
+          }}
+          type="button"
+          variant="primary"
+        >
           <Plus className="size-4" strokeWidth={2.5} />
           New code
         </Button>
@@ -73,6 +84,7 @@ export function DiscountsPanel() {
 
       {creating || editing ? (
         <DiscountForm
+          key={editing?.id ?? "new"}
           discount={editing}
           onClose={() => {
             setCreating(false);
@@ -162,8 +174,7 @@ export function DiscountsPanel() {
                   <Button
                     aria-label={`Remove ${discount.code}`}
                     className="size-8 rounded-full border border-app-danger bg-app-danger p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-danger)_75%,white)] hover:text-white"
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(discount.id)}
+                    onClick={() => void remove.run(discount.id)}
                     size="icon"
                     type="button"
                     variant="ghost"

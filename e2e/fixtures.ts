@@ -104,6 +104,60 @@ export async function loginContext(
   throw new Error(`Login for ${email} kept hitting the rate limiter.`);
 }
 
+/** A session cookie as `context.addCookies` takes it. */
+export type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
+
+/** Origin the API's CSRF check expects on writes (same resolution as playwright.config.ts). */
+export const WEB_URL =
+  process.env.E2E_BASE_URL || process.env.E2E_WEB_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+
+/**
+ * Logs in through the API and returns the `nexa_*` session cookies, for specs
+ * that juggle several users on one request context. Reads each Set-Cookie
+ * header on its own (an `Expires=` date holds a comma) and splits at the first
+ * `=` only (a value may contain one). Backs off on the 5/min login throttle.
+ */
+export async function login(request: APIRequestContext, role: TestRole | { email: string; password: string }): Promise<Cookie[]> {
+  const credentials = typeof role === "string" ? TEST_USERS[role] : role;
+  const send = () =>
+    request.post(`${API_URL}/auth/login`, { data: credentials, headers: { Origin: WEB_URL } });
+  let res = await send();
+  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
+    await new Promise((r) => setTimeout(r, 12_000));
+    res = await send();
+  }
+  expect(res.ok(), `login ${credentials.email}: ${res.status()} ${await res.text()}`).toBeTruthy();
+  const domain = new URL(API_URL).hostname;
+  return res
+    .headersArray()
+    .filter((header) => header.name.toLowerCase() === "set-cookie")
+    .map((header) => header.value.split(";")[0].trim())
+    .filter((pair) => pair.startsWith("nexa_"))
+    .map((pair) => {
+      const eq = pair.indexOf("=");
+      return { name: pair.slice(0, eq), value: pair.slice(eq + 1), domain, path: "/", httpOnly: true };
+    });
+}
+
+export function cookieHeader(cookies: Cookie[] | string): string {
+  return typeof cookies === "string" ? cookies : cookies.map((c) => `${c.name}=${c.value}`).join("; ");
+}
+
+/** An API call as the user whose cookies are passed (from `login`). */
+export function api(
+  request: APIRequestContext,
+  method: string,
+  path: string,
+  cookies: Cookie[] | string,
+  body?: unknown
+) {
+  return request.fetch(`${API_URL}${path}`, {
+    method,
+    headers: { "Content-Type": "application/json", Cookie: cookieHeader(cookies), Origin: WEB_URL },
+    data: body,
+  });
+}
+
 /**
  * Login via the actual UI (navigates to /login, fills form, submits).
  * Returns after the auth cookie is set and the page redirects.

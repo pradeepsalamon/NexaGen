@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialWithoutDefaults } from "./core-schemas";
 
 // ─────────────────────────────────────────────────────────────
 // Coach payroll & payslips — shared contract.
@@ -294,7 +295,7 @@ export const createPayrollRuleSchema = z.object({
 });
 export type CreatePayrollRuleRequest = z.infer<typeof createPayrollRuleSchema>;
 
-export const updatePayrollRuleSchema = createPayrollRuleSchema.partial();
+export const updatePayrollRuleSchema = partialWithoutDefaults(createPayrollRuleSchema);
 export type UpdatePayrollRuleRequest = z.infer<typeof updatePayrollRuleSchema>;
 
 export type PayrollRuleItem = {

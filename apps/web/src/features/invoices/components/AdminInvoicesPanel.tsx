@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -24,6 +24,7 @@ import {
   PAYMENT_SOURCE_LABELS,
   PAYMENT_SOURCES,
   type AdminInvoiceQuery,
+  type AdminInvoiceSortField,
   type InvoiceDocumentStatus,
   type InvoiceStats
 } from "@nexa-chess/types";
@@ -55,7 +56,7 @@ import {
 import { CreditNoteDialog } from "./CreditNoteDialog";
 import { InvoicePdfBadge, InvoiceStatusBadge } from "./InvoiceBadges";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
-import { useTableSort } from "@/hooks/useTableSort";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { DateStringPicker } from "@/components/ui/DatePicker";
 
@@ -102,18 +103,28 @@ export function AdminInvoicesPanel() {
   } | null>(null);
 
   const { data, isLoading } = useAdminInvoices(filters);
-  const { rows: invoices, sortProps } = useTableSort({
-    rows: data?.invoices,
-    accessors: {
-      amount: (i) => i.total,
-      customer: (i) => i.billing.name,
-      date: (i) => i.invoiceDate,
-      number: (i) => i.number,
-      order: (i) => i.orderNumber,
-      payment: (i) => (i.payment.provider ? PAYMENT_SOURCE_LABELS[i.payment.provider] : null),
-      status: (i) => i.status,
-      tax: (i) => i.taxTotal
-    }
+  const invoices = data?.invoices ?? [];
+
+  // Typed into here; sent once the admin pauses, not on every keystroke.
+  const [searchInput, setSearchInput] = useState(filters.search ?? "");
+  const debouncedSearch = useDebouncedValue(searchInput.trim(), 350);
+  useEffect(() => {
+    setFilters((current) =>
+      (current.search ?? "") === debouncedSearch
+        ? current
+        : { ...current, search: debouncedSearch || undefined, page: 1 }
+    );
+  }, [debouncedSearch]);
+
+  // Server-side sort: asc → desc → off, like useTableSort.
+  const sortProps = (field: AdminInvoiceSortField) => ({
+    direction: filters.sort === field ? (filters.order ?? "asc") : (false as const),
+    onClick: () =>
+      setFilters((current) => {
+        if (current.sort !== field) return { ...current, sort: field, order: "asc", page: 1 };
+        if ((current.order ?? "asc") === "asc") return { ...current, order: "desc", page: 1 };
+        return { ...current, sort: undefined, order: undefined, page: 1 };
+      })
   });
   const retryPdf = useRetryInvoicePdf();
   const resendEmail = useResendInvoiceEmail();
@@ -173,9 +184,9 @@ export function AdminInvoicesPanel() {
             <Input
               aria-label="Search invoices"
               className="pl-10"
-              onChange={(event) => set({ search: event.target.value })}
+              onChange={(event) => setSearchInput(event.target.value)}
               placeholder="Invoice, order, customer, transaction ID…"
-              value={filters.search ?? ""}
+              value={searchInput}
             />
           </div>
 
@@ -309,12 +320,12 @@ export function AdminInvoicesPanel() {
                   {(
                     [
                       ["Invoice", "number"],
-                      ["Customer", "customer"],
-                      ["Order", "order"],
-                      ["Date", "date"],
-                      ["Amount", "amount"],
-                      ["Tax", "tax"],
-                      ["Payment", "payment"],
+                      ["Customer", "billingName"],
+                      ["Order", null],
+                      ["Date", "invoiceDate"],
+                      ["Amount", "total"],
+                      ["Tax", "taxTotal"],
+                      ["Payment", null],
                       ["Status", "status"],
                       ["", null]
                     ] as const

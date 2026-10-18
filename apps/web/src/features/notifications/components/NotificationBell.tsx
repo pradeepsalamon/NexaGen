@@ -67,8 +67,9 @@ export function NotificationBell({
           {unreadCount > 0 && (
             <button
               type="button"
+              disabled={markRead.isPending}
               onClick={() => markRead.mutate(undefined)}
-              className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary-ink hover:underline disabled:opacity-60"
             >
               <CheckCheck className="size-3.5" strokeWidth={2.5} />
               Mark all read

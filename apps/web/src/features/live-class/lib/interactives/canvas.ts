@@ -62,16 +62,23 @@ export function wrapText(
   maxWidth: number,
   maxLines: number,
 ): string[] {
+  // A word wider than the whole line is cut to fit rather than overflowing.
+  const fit = (word: string) => {
+    if (ctx.measureText(word).width <= maxWidth) return word;
+    let cut = word;
+    while (cut.length > 1 && ctx.measureText(`${cut}…`).width > maxWidth) cut = cut.slice(0, -1);
+    return `${cut}…`;
+  };
   const words = text.split(/\s+/).filter(Boolean);
   const lines: string[] = [];
   let line = "";
   for (const word of words) {
     const next = line ? `${line} ${word}` : word;
-    if (ctx.measureText(next).width <= maxWidth || !line) {
+    if (ctx.measureText(next).width <= maxWidth) {
       line = next;
     } else {
-      lines.push(line);
-      line = word;
+      if (line) lines.push(line);
+      line = fit(word);
     }
   }
   if (line) lines.push(line);

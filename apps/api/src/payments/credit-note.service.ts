@@ -125,6 +125,9 @@ export class CreditNoteService {
     });
     if (!invoice) throw new NotFoundException("Invoice not found.");
 
+    // Serialize concurrent credits for one invoice, so both cannot read the same prior total.
+    await tx.$queryRaw`SELECT id FROM "invoices" WHERE id = ${invoice.id} FOR UPDATE`;
+
     const requested = input.amount ?? invoice.total;
     if (requested <= 0) {
       throw new BadRequestException("A credit note must be for a positive amount.");
@@ -176,7 +179,8 @@ export class CreditNoteService {
     const lines = this.creditLines(
       normalizeLines(invoice.lines),
       invoice.total,
-      requested
+      breakdown,
+      invoice.taxRatePercent
     );
 
     const creditNote = await tx.creditNote.create({
@@ -250,20 +254,21 @@ export class CreditNoteService {
   private creditLines(
     original: InvoiceLine[],
     invoiceTotal: number,
-    creditTotal: number
+    breakdown: { subtotal: number; taxTotal: number; total: number },
+    taxRatePercent: number
   ): InvoiceLine[] {
-    if (creditTotal >= invoiceTotal) return original;
+    if (breakdown.total >= invoiceTotal) return original;
 
     return [
       {
         productId: null,
         description: "Partial refund against the original invoice",
         quantity: 1,
-        unitAmount: creditTotal,
+        unitAmount: breakdown.subtotal,
         discountAmount: 0,
-        taxRate: 0,
-        taxAmount: 0,
-        amount: creditTotal
+        taxRate: taxRatePercent,
+        taxAmount: breakdown.taxTotal,
+        amount: breakdown.subtotal
       }
     ];
   }

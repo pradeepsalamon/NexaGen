@@ -31,6 +31,7 @@ import {
 } from "@nexa-chess/types";
 import {
   OrderStatus,
+  PaymentProvider,
   PaymentStatus,
   Prisma,
   UserRole,
@@ -51,7 +52,7 @@ import { PaymentRouterService } from "./payment-router.service";
 import { assertOwnerOrAdmin, fullName, isAdminRole } from "./payments-auth.helper";
 import {
   generateOrderNumber,
-  isUniqueViolation,
+  isUniqueViolationOn,
   normalizePhone,
   priceOrder,
   toJson,
@@ -357,13 +358,14 @@ export class PaymentService {
           expiresAt: new Date(
             Date.now() + this.env.PAYMENTS_ORDER_TTL_MINUTES * 60 * 1000
           ),
-          notes: { planCode: plan.code, method: dto.method ?? null }
+          // taxPercent is frozen here so a later plan edit cannot change the invoice.
+          notes: { planCode: plan.code, method: dto.method ?? null, taxPercent: plan.taxPercent }
         }
       })
       .catch((error: unknown) => {
         // Lost the race against a concurrent identical submit; the winner's
         // order is the one we want, so fall through to the replay path.
-        if (isUniqueViolation(error)) return null;
+        if (isUniqueViolationOn(error, "idempotencyKey")) return null;
         throw error;
       });
 
@@ -527,7 +529,8 @@ export class PaymentService {
     const payment = await this.requirePayment(paymentId);
     assertOwnerOrAdmin(user, payment.userId);
 
-    if (isInFlightPaymentStatus(payment.status)) {
+    // A manual payment has no gateway to ask; an admin settles it.
+    if (isInFlightPaymentStatus(payment.status) && payment.provider !== PaymentProvider.MANUAL) {
       await this.reconcile(payment.id);
     }
 
@@ -737,7 +740,7 @@ export class PaymentService {
           ],
           discountAmount: payment.order.discountAmount,
           discountCode: payment.order.discountCode,
-          taxPercent: payment.order.plan?.taxPercent ?? 0,
+          taxPercent: orderTaxPercent(payment.order.notes) ?? payment.order.plan?.taxPercent ?? 0,
           currency: payment.currency,
           paidAt: paidAt ?? new Date(),
           provider: payment.provider,
@@ -1126,11 +1129,37 @@ export class PaymentService {
       where: { id: orderId },
       include: {
         user: true,
+        plan: true,
         payments: { orderBy: { createdAt: "desc" }, take: 1 },
         attempts: { orderBy: { attemptNumber: "desc" }, take: 1 }
       }
     });
     if (!order) throw new NotFoundException("Order not found.");
+
+    // A recurring order never has a one-time charge: hand back its mandate.
+    if (order.plan && isRecurringInterval(order.plan.interval)) {
+      const subscription = await this.prisma.subscription.findUnique({
+        where: { initialOrderId: order.id },
+        select: { id: true }
+      });
+      if (!subscription) {
+        return this.openSubscription(order.user, order.id, order.plan.id, dto, appliedFromOrder(order));
+      }
+      return {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        paymentId: "",
+        attemptId: "",
+        status: PaymentStatus.PENDING,
+        amount: order.amount,
+        currency: order.currency,
+        handoff: null,
+        reused: true,
+        expiresAt: order.expiresAt?.toISOString() ?? null,
+        subscriptionId: subscription.id,
+        discount: appliedFromOrder(order)
+      };
+    }
 
     const latest = order.payments[0];
 
@@ -1176,6 +1205,8 @@ export class PaymentService {
 
       if (isInFlightPaymentStatus(refreshed.status)) {
         // Re-open the same provider session rather than minting another one.
+        // The input must match openAttempt's exactly: the gateway call reuses
+        // its idempotency key, and Stripe rejects a key replayed with new params.
         const adapter = this.registry.get(refreshed.provider);
         const handoff = await adapter
           .createPayment({
@@ -1185,7 +1216,7 @@ export class PaymentService {
             amount: order.amount,
             currency: order.currency,
             method: dto.method,
-            description: "NexaChess purchase",
+            description: order.plan?.name ?? "NexaChess purchase",
             customer: {
               id: order.userId,
               name: fullName(order.user) ?? order.user.email,
@@ -1196,7 +1227,13 @@ export class PaymentService {
               )
             },
             returnUrl: this.buildReturnUrl(refreshed.id, dto.returnPath),
-            notes: { orderId: order.id, nexaPaymentId: refreshed.id }
+            notes: {
+              orderId: order.id,
+              orderNumber: order.orderNumber,
+              userId: order.userId,
+              planId: order.planId ?? "",
+              nexaPaymentId: refreshed.id
+            }
           })
           .then((result) => result.handoff)
           .catch(() => null);
@@ -1259,14 +1296,20 @@ export class PaymentService {
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.payment.update({
-        where: { id: payment.id },
+      // Conditional on the current status: `payment` was read before the
+      // provider call, and a webhook may have captured it since.
+      const { count } = await tx.payment.updateMany({
+        where: {
+          id: payment.id,
+          status: { in: [PaymentStatus.CREATED, PaymentStatus.PENDING] }
+        },
         data: {
           status: PaymentStatus.EXPIRED,
           failureCode: "expired",
           failureMessage: "The payment window closed before the payment completed."
         }
       });
+      if (count === 0) return;
       await tx.paymentAttempt.updateMany({
         where: { paymentId: payment.id },
         data: { status: PaymentStatus.EXPIRED }
@@ -1340,6 +1383,13 @@ function appliedFromOrder(order: {
     type: "FIXED",
     amount: order.discountAmount
   };
+}
+
+/** The tax rate frozen on the order at checkout; absent on orders created before it was stored. */
+function orderTaxPercent(notes: Prisma.JsonValue): number | null {
+  if (!notes || typeof notes !== "object" || Array.isArray(notes)) return null;
+  const value = (notes as Prisma.JsonObject).taxPercent;
+  return typeof value === "number" ? value : null;
 }
 
 // Re-exported for the modules that already import them from here. The

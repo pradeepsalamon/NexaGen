@@ -17,13 +17,16 @@ import {
  * a freshly-created one is rarely on page 1 of a date-sorted history list.
  */
 async function findInDataTable(page: Page, text: string, maxPages = 15) {
+  const firstRow = page.locator("tbody tr").first();
   for (let i = 0; i < maxPages; i += 1) {
+    await firstRow.waitFor({ state: "visible" });
     const cell = page.getByText(text).first();
     if (await cell.isVisible().catch(() => false)) return cell;
     const next = page.getByRole("button", { name: /^next$/i });
     if (!(await next.isEnabled().catch(() => false))) break;
+    const before = await firstRow.innerText();
     await next.click();
-    await page.waitForTimeout(150);
+    await expect.poll(() => firstRow.innerText()).not.toBe(before);
   }
   return page.getByText(text).first();
 }
@@ -183,13 +186,12 @@ test.describe("Full Recording Lifecycle & Video Player Flow", () => {
     ).toBe(401);
 
     // ── 5. Recording metadata was promoted onto the session ─────────────────
-    const details = await jsonOf<{
-      class?: { recordingBytes?: number | string | null; recordingStatus?: string };
-      recordingBytes?: number | string | null;
-      recordingStatus?: string;
-    }>(await apiCallOk(coach, "GET", `/coach/classes/${classId}/details`));
-    const detail = details.class ?? details;
-    expect(String(detail.recordingStatus ?? "COMPLETED")).toBe("COMPLETED");
+    // The details API exposes only `hasRecording`; the byte count is checked
+    // against the downloaded body in step 6.
+    const details = await jsonOf<{ class: { hasRecording?: boolean } }>(
+      await apiCallOk(coach, "GET", `/coach/classes/${classId}/details`)
+    );
+    expect(details.class.hasRecording).toBe(true);
 
     // ── 6. Download URL resolves to the local stream endpoint for every role ─
     for (const [label, ctx] of [

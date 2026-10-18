@@ -57,7 +57,8 @@ export function AssignmentPuzzleSolver({
     retrySubmit,
     giveUp,
     serverHint,
-    requestHint
+    requestHint,
+    submitting
   } = usePuzzleAttempt({ start });
 
   // Tell the page when an attempt opened and when one finished, once each.
@@ -131,7 +132,7 @@ export function AssignmentPuzzleSolver({
           <Alert
             variant="warning"
             action={
-              <Button type="button" size="sm" variant="outline" onClick={() => void retrySubmit()}>
+              <Button disabled={submitting} type="button" size="sm" variant="outline" onClick={() => void retrySubmit()}>
                 Send again
               </Button>
             }
@@ -196,7 +197,7 @@ export function AssignmentPuzzleSolver({
 
         <div className="flex flex-wrap gap-2">
           {phase === "solving" && (
-            <Button type="button" variant="outline" size="sm" onClick={() => void giveUp()}>
+            <Button disabled={submitting} type="button" variant="outline" size="sm" onClick={() => void giveUp()}>
               Give up this try
             </Button>
           )}

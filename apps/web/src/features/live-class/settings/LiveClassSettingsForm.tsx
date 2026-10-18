@@ -156,7 +156,13 @@ export function LiveClassSettingsForm({
                               scope === "batch" ? "Clear batch default" : "Reset to inherited"
                             }
                             className="grid size-8 shrink-0 place-items-center rounded-full border border-app-border text-app-muted transition-colors hover:bg-app-soft hover:text-app-text"
-                            onClick={() => onOverrideChange(unsetAtPath(override, field.path))}
+                            onClick={() => {
+                              // Through handleChange, so restoring an inherited
+                              // ENABLED still clears its mutually exclusive partner.
+                              const inherited = getAtPath(inheritedFrom, field.path);
+                              if (typeof inherited === "string") handleChange(field.path, inherited);
+                              else onOverrideChange(unsetAtPath(override, field.path));
+                            }}
                           >
                             <RotateCcw className="size-4" strokeWidth={2.5} />
                           </button>

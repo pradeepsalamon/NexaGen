@@ -20,6 +20,7 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
+import { openInNewTab } from "@/lib/openInNewTab";
 import { RecordingPlayerDialog } from "@/features/student-dashboard/components/RecordingPlayerDialog";
 import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
@@ -87,10 +88,7 @@ export function StudentLiveClassesClient() {
 
   const handleDownload = async (classId: string) => {
     try {
-      const result = await getRecordingDownloadUrl(classId, { download: true });
-      if (result?.url) {
-        window.open(result.url, "_blank");
-      }
+      await openInNewTab(async () => (await getRecordingDownloadUrl(classId, { download: true }))?.url);
     } catch (err) {
       console.error("Failed to download recording:", err);
       toast.error("Failed to download recording. It may have expired or is unavailable.");

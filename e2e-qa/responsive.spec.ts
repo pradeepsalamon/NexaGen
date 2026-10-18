@@ -9,16 +9,17 @@ test("THEME: light <-> dark toggle persists data-theme on admin assignments", as
   await login(page, USERS.admin.email, USERS.admin.password);
   await page.goto("/admin/assignments");
   await page.waitForLoadState("networkidle");
-  const theme = () => page.evaluate(() => document.documentElement.getAttribute("data-theme"));
-  expect(await theme()).toBe("light");
+  const html = page.locator("html");
+  await expect(html).toHaveAttribute("data-theme", "light");
   // find the theme toggle (aria-label contains "theme")
-  const toggle = page.getByRole("button", { name: /theme/i });
-  await toggle.first().click();
-  await page.waitForTimeout(700);
-  expect(await theme()).toBe("dark");
-  await toggle.first().click();
-  await page.waitForTimeout(700);
-  expect(await theme()).toBe("light");
+  const toggle = page.getByRole("button", { name: /theme/i }).first();
+  await toggle.click();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  // The choice survives a reload.
+  await page.reload();
+  await expect(html).toHaveAttribute("data-theme", "dark");
+  await toggle.click();
+  await expect(html).toHaveAttribute("data-theme", "light");
 });
 
 for (const vp of [
@@ -37,5 +38,9 @@ for (const vp of [
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible();
     expect(await noHorizOverflow(page)).toBe(true);
+    const box = await dialog.boundingBox();
+    expect(box, "dialog has a layout box").not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(vp.width + 1);
   });
 }

@@ -118,6 +118,7 @@ export const queryKeys = {
   },
   courses: {
     all: ["courses"] as const,
+    lists: ["courses", "list"] as const,
     list: (params?: Record<string, unknown>) => ["courses", "list", params ?? null] as const,
     detail: (id: string) => ["courses", "detail", id] as const,
     mine: ["courses", "mine"] as const,
@@ -126,6 +127,8 @@ export const queryKeys = {
   payments: {
     all: ["payments"] as const,
     plans: ["payments", "plans"] as const,
+    // Under `plans`, so every plan invalidation refreshes both caches.
+    adminPlans: ["payments", "plans", "admin"] as const,
     checkoutConfig: (planId: string) =>
       ["payments", "checkout-config", planId] as const,
     status: (paymentId: string) => ["payments", "status", paymentId] as const,
@@ -164,6 +167,7 @@ export const queryKeys = {
     adminList: (params?: Record<string, unknown>) =>
       ["invoices", "admin", "list", params ?? null] as const,
     adminDetail: (id: string) => ["invoices", "admin", "detail", id] as const,
+    adminAudit: (id: string) => ["invoices", "admin", "audit", id] as const,
     adminCreditNotes: ["invoices", "admin", "credit-notes"] as const,
     settings: ["invoices", "settings"] as const,
   },
@@ -281,6 +285,7 @@ export const queryKeys = {
   },
   games: {
     all: ["games"] as const,
+    lists: ["games", "list"] as const,
     list: (filters: Record<string, unknown>) => ["games", "list", filters] as const,
     detail: (id: string) => ["games", "detail", id] as const,
     filterOptions: ["games", "filter-options"] as const,

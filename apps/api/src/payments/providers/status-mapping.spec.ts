@@ -121,7 +121,7 @@ describe("Stripe status mapping", () => {
     // A session can be "open" while payment_status is already "paid" for an
     // async method; the money is what matters.
     expect(mapStripeSession("open", "paid")).toBe("PAID");
-    expect(mapStripeSession("complete", "unpaid")).toBe("PAID");
+    expect(mapStripeSession("complete", "unpaid")).toBe("PROCESSING");
     expect(mapStripeSession("expired", "unpaid")).toBe("EXPIRED");
     expect(mapStripeSession("open", "unpaid")).toBe("PENDING");
     expect(mapStripeSession(null, null)).toBe("PENDING");

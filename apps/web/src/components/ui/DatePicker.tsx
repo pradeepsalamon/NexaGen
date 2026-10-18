@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/Calendar";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
   DialogTrigger,
   DialogClose
 } from "@/components/ui/Dialog";
@@ -140,12 +141,15 @@ export function DatePicker({
       </DialogTrigger>
 
       <DialogContent
+        aria-describedby={undefined}
         className="w-auto p-0 border-0 bg-transparent shadow-none sm:rounded-panel overflow-hidden flex flex-col items-center justify-center [&>button]:hidden"
       >
+        <DialogTitle className="sr-only">{withTime ? "Choose a date and time" : "Choose a date"}</DialogTitle>
         <div className="overflow-hidden rounded-panel border border-app-border bg-app-surface shadow-soft">
 
         <Calendar
           autoFocus
+          defaultMonth={selectedDate}
           mode="single"
           onSelect={handleSelect}
           selected={selectedDate}
@@ -158,6 +162,7 @@ export function DatePicker({
             </div>
             <div className="flex items-center gap-2">
               <select
+                aria-label="Hour"
                 className="h-9.5 cursor-pointer rounded-control border border-app-border bg-app-surface px-2.5 py-1 text-sm font-semibold text-app-text transition hover:border-primary/50 focus:border-primary focus:outline-none"
                 onChange={(event) => handleTimeChange("hour", event.target.value)}
                 value={
@@ -175,6 +180,7 @@ export function DatePicker({
               </select>
               <span className="text-sm font-bold text-app-muted">:</span>
               <select
+                aria-label="Minute"
                 className="h-9.5 cursor-pointer rounded-control border border-app-border bg-app-surface px-2.5 py-1 text-sm font-semibold text-app-text transition hover:border-primary/50 focus:border-primary focus:outline-none"
                 onChange={(event) =>
                   handleTimeChange("minute", event.target.value)
@@ -192,6 +198,7 @@ export function DatePicker({
                 ))}
               </select>
               <select
+                aria-label="AM or PM"
                 className="h-9.5 cursor-pointer rounded-control border border-app-border bg-app-surface px-2.5 py-1 text-sm font-semibold text-app-text transition hover:border-primary/50 focus:border-primary focus:outline-none"
                 onChange={(event) => handleTimeChange("ampm", event.target.value)}
                 value={selectedDate && selectedDate.getHours() >= 12 ? "PM" : "AM"}

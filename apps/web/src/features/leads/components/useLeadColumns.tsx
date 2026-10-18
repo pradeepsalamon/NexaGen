@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { format } from "date-fns";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate, formatTime } from "@/lib/datetime";
 import type { ColumnDef } from "@tanstack/react-table";
 import { LEAD_STATUS_LABELS, type LeadListItem } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -13,6 +14,7 @@ type RowActionHandlers = Omit<LeadRowActionsProps, "lead">;
 
 export function useLeadColumns(handlers: RowActionHandlers) {
   const { onViewDetails, onDelete, deletePending } = handlers;
+  const timeZone = useUserTimeZone();
 
   return useMemo<ColumnDef<LeadListItem>[]>(
     () => [
@@ -83,15 +85,12 @@ export function useLeadColumns(handlers: RowActionHandlers) {
             column={column}
           />
         ),
-        cell: ({ row }) => {
-          const date = new Date(row.getValue("createdAt"));
-          return (
-            <div className="text-sm">
-              <div>{format(date, "MMM d, yyyy")}</div>
-              <div className="text-app-muted">{format(date, "h:mm a")}</div>
-            </div>
-          );
-        }
+        cell: ({ row }) => (
+          <div className="text-sm">
+            <div>{formatFullDate(row.original.createdAt, timeZone)}</div>
+            <div className="text-app-muted">{formatTime(row.original.createdAt, timeZone)}</div>
+          </div>
+        )
       },
       {
         id: "actions",
@@ -108,6 +107,6 @@ export function useLeadColumns(handlers: RowActionHandlers) {
         )
       }
     ],
-    [onViewDetails, onDelete, deletePending]
+    [onViewDetails, onDelete, deletePending, timeZone]
   );
 }

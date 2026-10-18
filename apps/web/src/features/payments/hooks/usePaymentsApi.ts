@@ -22,6 +22,7 @@ import type {
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import {
   approveManualPayment,
   archiveBatchPlan,
@@ -288,7 +289,7 @@ export function useSaveRouting() {
 
 export function useAdminPlans() {
   return useQuery({
-    queryKey: queryKeys.payments.plans,
+    queryKey: queryKeys.payments.adminPlans,
     queryFn: getAdminPlans
   });
 }
@@ -376,22 +377,30 @@ export function useUpdateDiscount() {
   });
 }
 
-export function useDeleteDiscount() {
-  const queryClient = useQueryClient();
+/**
+ * Deferred (no restore endpoint): the caller hides the row via onSchedule, and
+ * the delete — or, for a used code, the deactivation — is sent after the undo window.
+ */
+export function useDeleteDiscount(options: {
+  onSchedule?: (id: string) => void;
+  onCancel?: (id: string) => void;
+} = {}) {
   const toast = useToast();
-
-  return useMutation({
+  return useUndoableMutation({
+    strategy: "defer",
     mutationFn: (id: string) => deleteDiscount(id),
-    onSuccess: (result) => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.payments.discounts
-      });
-      toast.success({
-        title: result.deleted ? "Discount deleted" : "Discount deactivated",
-        message: result.deleted
-          ? undefined
-          : "It has already been used, so it is kept for the record."
-      });
+    undo: async () => {},
+    toast: () => ({ title: "Removing discount code" }),
+    invalidates: [queryKeys.payments.discounts],
+    onSchedule: options.onSchedule,
+    onCancel: options.onCancel,
+    onCommitSuccess: (_id, result) => {
+      if (!result.deleted) {
+        toast.info({
+          title: "Discount deactivated",
+          message: "It has already been used, so it is kept for the record."
+        });
+      }
     }
   });
 }

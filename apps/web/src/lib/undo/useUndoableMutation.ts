@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import * as Sentry from "@sentry/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/providers/ToastProvider";
 import { UndoableMutationConfig, UndoableMutationResult } from "./types";
@@ -7,6 +8,7 @@ export function useUndoableMutation<TVars, TResult>(
   config: UndoableMutationConfig<TVars, TResult>
 ): UndoableMutationResult<TVars> {
   const [isPending, setIsPending] = useState(false);
+  const inFlight = useRef(false);
   const { undoable, error: showError, showToast, info } = useToast();
   const queryClient = useQueryClient();
 
@@ -25,7 +27,13 @@ export function useUndoableMutation<TVars, TResult>(
   } = config;
 
   const run = useCallback(
-    async (vars: TVars) => {
+    async (vars: TVars): Promise<void> => {
+      // A failed refetch must not turn a completed action into an error.
+      const invalidateAll = () =>
+        Promise.allSettled(
+          invalidates.map((key) => queryClient.invalidateQueries({ queryKey: key }))
+        );
+
       if (strategy === "defer") {
         const toastCopy = toast(vars);
         onSchedule?.(vars);
@@ -37,13 +45,11 @@ export function useUndoableMutation<TVars, TResult>(
           onCommit: async () => {
             try {
               const result = await mutationFn(vars);
-              invalidates.forEach((key) =>
-                queryClient.invalidateQueries({ queryKey: key })
-              );
+              await invalidateAll();
               onCommitSuccess?.(vars, result);
             } catch (err) {
               onCancel?.(vars);
-              console.error(err);
+              Sentry.captureException(err);
               showError({
                 title: "Action failed",
                 message: err instanceof Error ? err.message : "An error occurred"
@@ -52,13 +58,13 @@ export function useUndoableMutation<TVars, TResult>(
           }
         });
       } else {
-        // strategy === "immediate"
+        // strategy === "immediate"; a double click must not run the action twice.
+        if (inFlight.current) return;
+        inFlight.current = true;
         setIsPending(true);
         try {
           const result = await mutationFn(vars);
-          invalidates.forEach((key) =>
-            queryClient.invalidateQueries({ queryKey: key })
-          );
+          await invalidateAll();
 
           const toastCopy = toast(vars, result);
 
@@ -72,9 +78,7 @@ export function useUndoableMutation<TVars, TResult>(
               onClick: async () => {
                 try {
                   await undo(vars, result);
-                  invalidates.forEach((key) =>
-                    queryClient.invalidateQueries({ queryKey: key })
-                  );
+                  await invalidateAll();
                   const undoToastCopy = undoToast?.(vars) ?? { title: "Action undone." };
                   info(undoToastCopy);
                 } catch (err) {
@@ -92,6 +96,7 @@ export function useUndoableMutation<TVars, TResult>(
             message: err instanceof Error ? err.message : "An error occurred"
           });
         } finally {
+          inFlight.current = false;
           setIsPending(false);
         }
       }

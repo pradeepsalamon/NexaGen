@@ -50,12 +50,7 @@ export function StockfishPanel() {
         if (!controller.signal.aborted) setAnalysis({ ...result, fen });
         setError(null);
       } catch (err: any) {
-        const aborted =
-          err?.name === 'AbortError' ||
-          err?.name === 'CanceledError' ||
-          err?.code === 'ERR_CANCELED' ||
-          err?.message === 'canceled';
-        if (!aborted) {
+        if (!controller.signal.aborted) {
           setError(err?.message || 'Failed to fetch analysis');
           retryId = setTimeout(() => setRetryTick((tick) => tick + 1), ANALYSIS_RETRY_MS);
         }
@@ -78,15 +73,6 @@ export function StockfishPanel() {
     };
   }, [fen, isEnabled, retryTick]);
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-sm text-app-danger-ink p-4 text-center">
-        <span className="font-semibold mb-2">Analysis Error</span>
-        <p>{error}</p>
-      </div>
-    );
-  }
-
   if (!isEnabled) {
     return (
       <div className="flex flex-col h-full text-sm p-4 text-app-text">
@@ -105,6 +91,29 @@ export function StockfishPanel() {
         </div>
         <div className="flex flex-col items-center justify-center flex-1 text-app-muted p-4 text-center">
           <p>Engine analysis is paused.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col h-full text-sm p-4">
+        <div className="flex justify-end">
+          <SimpleTooltip label="Pause analysis">
+            <button
+              type="button"
+              onClick={() => setIsEnabled(false)}
+              aria-label="Pause analysis"
+              className="w-8 h-8 rounded-full border border-app-border bg-app-surface hover:bg-app-soft flex items-center justify-center shadow-card transition-colors"
+            >
+              <Pause className="size-3.5" />
+            </button>
+          </SimpleTooltip>
+        </div>
+        <div className="flex flex-1 flex-col items-center justify-center text-center text-app-danger-ink">
+          <span className="font-semibold mb-2">Analysis Error</span>
+          <p>{error}</p>
         </div>
       </div>
     );

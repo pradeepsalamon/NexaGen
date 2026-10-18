@@ -57,6 +57,7 @@ export function CapturedPieces({ color }: CapturedPiecesProps) {
     // If we are looking for pieces captured BY white, we look at black pieces missing.
     const sides = color === "white" ? ["p", "n", "b", "r", "q"] : ["P", "N", "B", "R", "Q"];
 
+    // Built pawns, knights, bishops, rooks, queens — the display order.
     const capturedList: string[] = [];
     let myMaterial = 0;
     let enemyMaterial = 0;
@@ -89,9 +90,6 @@ export function CapturedPieces({ color }: CapturedPiecesProps) {
     };
   }, [fen, color]);
 
-  // Order of display: Pawns, Knights, Bishops, Rooks, Queens
-  const order = ['p', 'n', 'b', 'r', 'q'];
-  captured.sort((a, b) => order.indexOf(a) - order.indexOf(b));
 
   return (
     <div className="flex items-center gap-2 h-6 text-app-muted font-medium">

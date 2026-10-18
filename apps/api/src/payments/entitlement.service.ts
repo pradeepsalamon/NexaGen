@@ -7,6 +7,7 @@ import {
   type Entitlement,
   type Plan
 } from "@prisma/client";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import {
   PrismaService,
   type PrismaTransactionClient
@@ -35,7 +36,10 @@ const ENTITLEMENT_INCLUDE = {
 export class EntitlementService {
   private readonly logger = new Logger(EntitlementService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobLocks: JobLockService
+  ) {}
 
   /**
    * Grants what an order bought. Idempotent by the unique (orderId, planId):
@@ -192,6 +196,10 @@ export class EntitlementService {
    */
   @Cron(CronExpression.EVERY_HOUR)
   async expireLapsed(): Promise<void> {
+    await this.jobLocks.runExclusive(JOB_LOCKS.entitlementExpiry, () => this.expireLapsedNow());
+  }
+
+  private async expireLapsedNow(): Promise<void> {
     const { count } = await this.prisma.entitlement.updateMany({
       where: {
         status: EntitlementStatus.ACTIVE,

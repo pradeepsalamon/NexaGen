@@ -5,56 +5,19 @@ import {
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
-import { scheduleClass, seededBatchId, sendLiveKitWebhook } from "./fixtures";
+import {
+  TEST_USERS,
+  api,
+  cookieHeader,
+  login,
+  scheduleClass,
+  seededBatchId,
+  sendLiveKitWebhook,
+} from "./fixtures";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const WEB_URL = process.env.WEB_URL || "http://localhost:3000";
 
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
-const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
-
-// ─── Helper: Login via API and return cookies ────────────────────────────────
-
-async function loginAs(
-  request: APIRequestContext,
-  email: string,
-  password: string
-): Promise<string> {
-  // /auth/login is throttled 5/60s. A full suite run does far more than 5
-  // logins/min, so back off and retry on 429 instead of failing the test.
-  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt++) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  }
-  expect(res.ok(), `Login failed for ${email}: ${await res.text()}`).toBeTruthy();
-
-  const setCookies = res.headers()["set-cookie"] || "";
-  const cookies = setCookies
-    .split(",")
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.includes("nexa_"))
-    .join("; ");
-  return cookies;
-}
-
-// ─── Helper: Make authenticated API call ─────────────────────────────────────
-
-async function api(
-  request: APIRequestContext,
-  method: string,
-  path: string,
-  cookies: string,
-  body?: Record<string, unknown>
-) {
-  const res = await request.fetch(`${API_URL}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Cookie: cookies },
-    data: body,
-  });
-  return res;
-}
+const { admin: ADMIN, coach: COACH, student: STUDENT } = TEST_USERS;
 
 const E2E_CLASS_TOPIC = "E2E Test Class - Pawn Structures";
 
@@ -149,7 +112,7 @@ test.describe("Full Attendance Flow", () => {
   test.beforeAll(async () => {
     const ctx = await playwrightRequest.newContext();
     try {
-      const coachCookies = await loginAs(ctx, COACH.email, COACH.password);
+      const coachCookies = cookieHeader(await login(ctx, "coach"));
       await cleanupLeftoverE2EClasses(ctx, coachCookies);
     } finally {
       await ctx.dispose();
@@ -159,7 +122,7 @@ test.describe("Full Attendance Flow", () => {
   test.afterAll(async () => {
     const ctx = await playwrightRequest.newContext();
     try {
-      const coachCookies = await loginAs(ctx, COACH.email, COACH.password);
+      const coachCookies = cookieHeader(await login(ctx, "coach"));
       if (classId) {
         // best-effort: end it if the test bailed before Step 12
         await api(ctx, "POST", `/live-class/${classId}/end`, coachCookies);
@@ -177,8 +140,8 @@ test.describe("Full Attendance Flow", () => {
     // ─────────────────────────────────────────────────────────────────────────
     // Step 1: Login as Coach via API
     // ─────────────────────────────────────────────────────────────────────────
-    const coachCookies = await loginAs(request, COACH.email, COACH.password);
-    expect(coachCookies).toBeTruthy();
+    const coachCookies = await login(request, "coach");
+    expect(coachCookies.length).toBeGreaterThan(0);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Step 2: Get the seeded batch ID for this coach
@@ -191,7 +154,7 @@ test.describe("Full Attendance Flow", () => {
     // Step 3: Schedule a class (coach requests, admin approves). It must start
     // within the early-start window so Step 4 can start it.
     // ─────────────────────────────────────────────────────────────────────────
-    const adminCookies = await loginAs(request, ADMIN.email, ADMIN.password);
+    const adminCookies = cookieHeader(await login(request, "admin"));
     const now = Date.now();
     classId = await scheduleClass(
       (method, path, body) => api(request, method, path, coachCookies, body),
@@ -234,12 +197,8 @@ test.describe("Full Attendance Flow", () => {
     // ─────────────────────────────────────────────────────────────────────────
     // Step 6: Login as Student
     // ─────────────────────────────────────────────────────────────────────────
-    const studentCookies = await loginAs(
-      request,
-      STUDENT.email,
-      STUDENT.password
-    );
-    expect(studentCookies).toBeTruthy();
+    const studentCookies = await login(request, "student");
+    expect(studentCookies.length).toBeGreaterThan(0);
 
     // Get student user ID
     const studentMeRes = await api(request, "GET", "/auth/me", studentCookies);
@@ -331,27 +290,22 @@ test.describe("Full Attendance Flow", () => {
       coachCookies
     );
     expect(classAttRes.ok()).toBeTruthy();
-    const classAttData = await classAttRes.json();
-    expect(classAttData).toBeTruthy();
+    const classAttData = (await classAttRes.json()) as {
+      classId: string;
+      students: Array<{ id: string; duration: number; logCount: number; status: string }>;
+    };
+    expect(classAttData.classId).toBe(classId);
+    const studentRecord = classAttData.students.find((s) => s.id === studentId);
+    expect(studentRecord, "student row in the class report").toBeTruthy();
+    // The join/leave webhooks above were recorded against this class.
+    expect(studentRecord!.logCount).toBeGreaterThan(0);
 
     // ─────────────────────────────────────────────────────────────────────────
     // Step 14: Verify Coach Attendance Page via Browser
     // ─────────────────────────────────────────────────────────────────────────
     const coachCtx = await browser.newContext();
     const coachPage = await coachCtx.newPage();
-    // Set auth cookies
-    for (const cookieStr of coachCookies.split("; ")) {
-      const [name, value] = cookieStr.split("=");
-      await coachCtx.addCookies([
-        {
-          name,
-          value,
-          domain: "localhost",
-          path: "/",
-          httpOnly: true,
-        },
-      ]);
-    }
+    await coachCtx.addCookies(coachCookies);
 
     await coachPage.goto("/coach/attendance");
     await coachPage.waitForLoadState("networkidle");
@@ -373,18 +327,7 @@ test.describe("Full Attendance Flow", () => {
     // ─────────────────────────────────────────────────────────────────────────
     const studentCtx = await browser.newContext();
     const studentPage = await studentCtx.newPage();
-    for (const cookieStr of studentCookies.split("; ")) {
-      const [name, value] = cookieStr.split("=");
-      await studentCtx.addCookies([
-        {
-          name,
-          value,
-          domain: "localhost",
-          path: "/",
-          httpOnly: true,
-        },
-      ]);
-    }
+    await studentCtx.addCookies(studentCookies);
 
     await studentPage.goto("/student/attendance");
     await studentPage.waitForLoadState("networkidle");
@@ -413,10 +356,6 @@ test.describe("Full Attendance Flow", () => {
     // ─────────────────────────────────────────────────────────────────────────
     const adminCtx = await browser.newContext();
     const adminPage = await adminCtx.newPage();
-    for (const cookieStr of coachCookies.split("; ")) {
-      // Re-use superadmin cookies - let's login as admin instead
-      break;
-    }
     // Login as admin via UI
     await loginViaUI(adminPage, ADMIN.email, ADMIN.password);
 

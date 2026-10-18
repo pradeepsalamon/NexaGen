@@ -1,13 +1,13 @@
 import { UserRole, UserStatus } from "@prisma/client";
 import { createTestApp, type TestApp } from "../app";
 import { createUser as rawCreateUser, resetDatabase } from "../db";
+import { registeredRoutes } from "../routes";
 import type { PrismaService } from "../../../prisma/prisma.service";
 const createUser = async (prisma: PrismaService, role: UserRole) => {
   const u = await rawCreateUser(prisma, role);
   return prisma.user.update({ data: { status: UserStatus.ACTIVE }, where: { id: u.id } });
 };
 
-type RouteLayer = { route?: { path: string; methods: Record<string, boolean> } };
 
 const KEYS = [
   "status", "difficulty", "visibility", "type", "role", "page", "limit", "pageSize", "sort", "sortBy", "order",
@@ -39,8 +39,9 @@ describeProbe("query probe", () => {
   });
 
   it("lists 500s", async () => {
-    const stack = (t.app.getHttpAdapter().getInstance() as { router: { stack: RouteLayer[] } }).router.stack;
-    const routes = stack.filter((l) => l.route?.methods.get).map((l) => l.route!.path);
+    const routes = registeredRoutes(t)
+      .filter((r) => r.method === "GET")
+      .map((r) => r.path);
     const users = {
       admin: await createUser(t.prisma, UserRole.SUPER_ADMIN),
       coach: await createUser(t.prisma, UserRole.COACH),

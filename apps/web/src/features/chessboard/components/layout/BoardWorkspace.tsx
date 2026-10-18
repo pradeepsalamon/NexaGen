@@ -41,7 +41,7 @@ export function BoardWorkspace() {
           <div className="absolute inset-0 m-auto flex flex-col items-center justify-center">
             {/* The board itself, bounded by a square */}
             <div
-              className="overflow-hidden bg-[#e0d8c8] shadow-card"
+              className="overflow-hidden bg-app-soft shadow-card"
               style={{
                 width: "min(100cqw - 2rem, 100cqh - 5rem)",
                 height: "min(100cqw - 2rem, 100cqh - 5rem)",

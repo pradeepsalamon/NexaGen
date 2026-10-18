@@ -60,12 +60,14 @@ export class TeachingDataAggregationService {
 
     for (const cls of classes) {
       if (cls.status === ClassStatus.COMPLETED) {
+        // A coach no-show is not a taught class: it must not earn per-class pay.
+        if (cls.coachAttendance?.status === AttendanceStatus.ABSENT) {
+          summary.noShowCount += 1;
+          continue;
+        }
         summary.completedClassesCount += 1;
         summary.totalTeachingSeconds += cls.coachAttendance?.totalDuration ?? 0;
         summary.totalBoardSeconds += cls.coachAttendance?.boardDuration ?? 0;
-        if (cls.coachAttendance?.status === AttendanceStatus.ABSENT) {
-          summary.noShowCount += 1;
-        }
         continue;
       }
 

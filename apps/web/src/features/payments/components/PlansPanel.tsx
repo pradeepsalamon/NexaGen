@@ -362,7 +362,11 @@ function PlanFormDialog({
             Cancel
           </Button>
           <Button
-            disabled={!form.name.trim() || (!plan && !form.code.trim())}
+            disabled={
+              !form.name.trim() ||
+              (!plan && !form.code.trim()) ||
+              toMinorUnits(Number(form.amountMajor) || 0, form.currency) <= 0
+            }
             isLoading={pending}
             onClick={handleSubmit}
             type="button"

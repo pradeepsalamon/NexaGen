@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatDateTime } from "@/lib/datetime";
 import {
   Calendar,
   CalendarClock,
@@ -48,19 +49,25 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
   const assignDemoClassMutation = useAssignLeadDemoClassMutation(leadId ?? "");
   const { data: upcomingDemoClasses } = useUpcomingDemoClassesQuery(!!leadId && isOpen);
   const [noteText, setNoteText] = useState("");
+  const timeZone = useUserTimeZone();
+
+  // A draft belongs to the lead it was typed for.
+  useEffect(() => {
+    setNoteText("");
+  }, [leadId]);
 
   const demoClassOptions = useMemo<SelectOption[]>(
     () =>
       (upcomingDemoClasses?.classes ?? []).map((demoClass) => ({
-        label: `${demoClass.topic} — ${format(new Date(demoClass.startsAt), "MMM d, h:mm a")} (${demoClass.coachName})`,
+        label: `${demoClass.topic} — ${formatDateTime(demoClass.startsAt, timeZone)} (${demoClass.coachName})`,
         value: demoClass.id
       })),
-    [upcomingDemoClasses]
+    [upcomingDemoClasses, timeZone]
   );
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return format(new Date(dateString), "MMM d, yyyy h:mm a");
+    return formatDateTime(dateString, timeZone);
   };
 
   return (
@@ -139,7 +146,7 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
                   <div className="mb-2 rounded-app border border-app-border bg-app-soft p-3 text-sm">
                     <p className="font-semibold text-app-text">{lead.assignedClass.topic}</p>
                     <p className="text-app-muted">
-                      {format(new Date(lead.assignedClass.startsAt), "MMM d, yyyy h:mm a")} with{" "}
+                      {formatDateTime(lead.assignedClass.startsAt, timeZone)} with{" "}
                       {lead.assignedClass.coachName}
                     </p>
                   </div>
@@ -246,7 +253,7 @@ export function LeadDetailsDialog({ leadId, isOpen, onOpenChange }: LeadDetailsD
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold text-app-text">{activity.title}</span>
                           <span className="shrink-0 text-xs text-app-muted">
-                            {format(new Date(activity.createdAt), "MMM d, h:mm a")}
+                            {formatDateTime(activity.createdAt, timeZone)}
                           </span>
                         </div>
                         {activity.description ? (

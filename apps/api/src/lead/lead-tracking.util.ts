@@ -59,9 +59,9 @@ export function parseUserAgent(userAgent: string | undefined): ParsedUserAgent {
 
   let os = "Other";
   if (/windows/i.test(ua)) os = "Windows";
+  else if (/iphone|ipad|ipod/i.test(ua)) os = "iOS";
   else if (/mac os/i.test(ua)) os = "MacOS";
   else if (/android/i.test(ua)) os = "Android";
-  else if (/iphone|ipad|ios/i.test(ua)) os = "iOS";
   else if (/linux/i.test(ua)) os = "Linux";
 
   const deviceType = /mobile|android|iphone/i.test(ua) ? "Mobile" : "Desktop";

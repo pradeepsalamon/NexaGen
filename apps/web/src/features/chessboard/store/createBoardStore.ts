@@ -174,6 +174,13 @@ export interface BoardActions {
   syncFromRemote: (
     payload: Partial<BoardState> & { moveType?: SoundType; treePgn?: string },
   ) => void;
+  /**
+   * A controlling student's move, replayed on this board's own tree. Only the
+   * move is taken from the packet — never its PGN or tree.
+   */
+  applyRemoteMove: (move: { from: string; to: string; promotion?: string }, moveType?: SoundType) => void;
+  /** A controlling student's undo/redo: moves the cursor along this board's own line only. */
+  applyRemoteCursor: (historyIndex: number) => void;
   
   // Workspace interactions
   setActiveBrush: (brush: string) => void;
@@ -616,7 +623,39 @@ export const createBoardStore = () => {
       set({ ...apply, remoteSyncId: state.remoteSyncId + 1 });
     },
 
-    
+        applyRemoteMove: ({ from, to, promotion }, moveType) => {
+      const state = get();
+      if (state.isDetached) return;
+      try {
+        const move = state.chess.move({ from, to, promotion });
+        if (!move) return;
+        const cursor = state.treeLinePath.slice(0, state.historyIndex + 1);
+        const added = addMoveToTree(state.tree, cursor, {
+          san: move.san,
+          uci: `${move.from}${move.to}${move.promotion ?? ""}`,
+          fen: state.chess.fen(),
+        });
+        if (moveType) playSound(moveType);
+        set({
+          ...deriveFromTree(state.chess, added.tree, added.path, added.path.length - 1),
+          remoteSyncId: state.remoteSyncId + 1
+        });
+      } catch {
+        // Not legal here after all: the packet is dropped.
+      }
+    },
+
+    applyRemoteCursor: (historyIndex) => {
+      const state = get();
+      if (state.isDetached) return;
+      if (!Number.isInteger(historyIndex) || historyIndex < -1 || historyIndex >= state.treeLinePath.length) return;
+      if (historyIndex === state.historyIndex) return;
+      set({
+        ...deriveFromTree(state.chess, state.tree, state.treeLinePath, historyIndex),
+        remoteSyncId: state.remoteSyncId + 1
+      });
+    },
+
     setActiveBrush: (brush) => set({ activeBrush: brush }),
     setEditingPosition: (editing) => set({ isEditingPosition: editing }),
     setPendingPromotion: (promo) => set({ pendingPromotion: promo }),

@@ -3,7 +3,6 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import {
   PAYMENT_METHOD_LABELS,
   PAYMENT_SOURCE_LABELS,
-  paymentRoutingConfigSchema,
   type PaymentListQuery,
   type PaymentListResponse,
   type PaymentOverviewResponse,
@@ -73,9 +72,12 @@ export class PaymentsAdminService {
       today.start.getTime() - (TREND_DAYS - 1) * 24 * 60 * 60 * 1000
     );
 
+    // Revenue figures are summed in one currency; another would be a different unit.
+    const currency = this.env.PAYMENTS_DEFAULT_CURRENCY;
+
     const [settled, counts, trendRows] = await Promise.all([
       this.prisma.payment.findMany({
-        where: { status: { in: SETTLED } },
+        where: { status: { in: SETTLED }, currency },
         select: {
           amount: true,
           amountRefunded: true,
@@ -90,12 +92,11 @@ export class PaymentsAdminService {
         _count: { _all: true }
       }),
       this.prisma.payment.findMany({
-        where: { status: { in: SETTLED }, paidAt: { gte: trendStart } },
+        where: { status: { in: SETTLED }, currency, paidAt: { gte: trendStart } },
         select: { amount: true, amountRefunded: true, paidAt: true }
       })
     ]);
 
-    const currency = this.env.PAYMENTS_DEFAULT_CURRENCY;
     const net = (row: { amount: number; amountRefunded: number }) =>
       row.amount - row.amountRefunded;
 
@@ -172,7 +173,7 @@ export class PaymentsAdminService {
           invoice: { select: { id: true, number: true } },
           attempts: { select: { id: true } }
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: "desc" },
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize
       })
@@ -318,10 +319,8 @@ export class PaymentsAdminService {
 
   async saveRouting(
     admin: User,
-    config: unknown
+    parsed: PaymentRoutingConfig
   ): Promise<{ config: PaymentRoutingConfig; configured: Record<string, boolean> }> {
-    const parsed = paymentRoutingConfigSchema.parse(config);
-
     // A rule naming an unconfigured gateway is not rejected — an admin may be
     // preparing one before its keys land — but the router skips it at runtime.
     return {
@@ -438,5 +437,7 @@ function dayAfter(tz: string, ymd: string): Date {
 }
 
 function csvCell(value: string): string {
-  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  // A leading =, +, -, @ or tab makes a spreadsheet evaluate the cell as a formula.
+  const safe = /^[=+\-@\t]/.test(value) && !/^-?\d+(\.\d+)?$/.test(value) ? `'${value}` : value;
+  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }

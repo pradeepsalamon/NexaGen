@@ -263,7 +263,11 @@ function RevisionItemsTable({
                     <p className="font-semibold text-app-text">{item.title}</p>
                     <p className="text-xs text-app-muted">
                       {item.kind === "TOPIC" ? "Folder · " : ""}
-                      {item.source === "MISTAKE" ? "Missed before" : item.source === "GAME" ? "From your game" : "Recommended"}
+                      {item.source === "MISTAKE"
+                        ? "Missed before"
+                        : item.source === "GAME"
+                          ? studentId === null ? "From your game" : "From the student's game"
+                          : "Recommended"}
                       {item.recommendedByName ? ` by ${item.recommendedByName}` : ""}
                       {item.longTermRecall ? " · long-term recall" : ""}
                     </p>

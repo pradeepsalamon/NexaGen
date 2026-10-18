@@ -147,5 +147,7 @@ describe("TeachingDataAggregationService", () => {
     ]);
     const { summary } = await service.getTeachingData("coach1", start, end);
     expect(summary.noShowCount).toBe(1);
+    // A no-show earns no per-class pay.
+    expect(summary.completedClassesCount).toBe(0);
   });
 });

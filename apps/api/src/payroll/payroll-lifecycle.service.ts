@@ -109,10 +109,14 @@ export class PayrollLifecycleService {
       );
     }
 
-    const updated = await this.prisma.payrollPeriod.update({
-      where: { id: periodId },
+    const { count } = await this.prisma.payrollPeriod.updateMany({
+      where: { id: periodId, status: period.status },
       data: { status: PayrollPeriodStatus.CANCELLED, notes: reason ?? period.notes }
     });
+    if (count === 0) {
+      throw new ConflictException("This period changed while you were cancelling it. Reload and try again.");
+    }
+    const updated = await this.periods.getOrThrow(periodId);
     await this.audit.log({
       entity: "PayrollPeriod",
       entityId: periodId,
@@ -144,21 +148,29 @@ export class PayrollLifecycleService {
     }
 
     const now = new Date();
-    const updated = await this.prisma.payrollPeriod.update({
-      where: { id: periodId },
-      data: {
-        status: config.to,
-        [config.periodTimestampField]: now,
-        ...(config.periodActorField ? { [config.periodActorField]: actorId } : {})
+    // Conditional on `from`, so two concurrent requests cannot both pass the
+    // check above and both run the side effects (payslips, messages).
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.payrollPeriod.updateMany({
+        where: { id: periodId, status: config.from },
+        data: {
+          status: config.to,
+          [config.periodTimestampField]: now,
+          ...(config.periodActorField ? { [config.periodActorField]: actorId } : {})
+        }
+      });
+      if (count === 0) {
+        throw new ConflictException("This period changed while you were updating it. Reload and try again.");
       }
-    });
 
-    await this.prisma.coachPayrollRecord.updateMany({
-      where: { periodId },
-      data: {
-        status: config.recordStatus,
-        ...(config.recordTimestampField ? { [config.recordTimestampField]: now } : {})
-      }
+      await tx.coachPayrollRecord.updateMany({
+        where: { periodId },
+        data: {
+          status: config.recordStatus,
+          ...(config.recordTimestampField ? { [config.recordTimestampField]: now } : {})
+        }
+      });
+      return tx.payrollPeriod.findUniqueOrThrow({ where: { id: periodId } });
     });
 
     await this.audit.log({

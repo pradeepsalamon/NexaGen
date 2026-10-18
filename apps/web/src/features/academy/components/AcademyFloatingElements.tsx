@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { ArrowUp } from "lucide-react";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 export function AcademyFloatingElements() {
   const [showBackToTop, setShowBackToTop] = useState(false);
@@ -45,10 +46,10 @@ export function AcademyFloatingElements() {
       </a>
 
       {/* 3D Animated Book Now floating button */}
+      <SimpleTooltip label="Book a Free Demo" side="left">
       <a
         href="#demo"
         className="btn-3d-book fixed bottom-20 md:bottom-[7rem] right-4 md:right-6 z-50 !w-12 !h-12 md:!w-14 md:!h-14 !rounded-full !p-0 !flex-col !gap-0.5 animate-[academy-float_6s_ease-in-out_infinite_0.5s]"
-        title="Book a Free Demo"
         aria-label="Book a Free Demo"
       >
         <svg
@@ -68,6 +69,7 @@ export function AcademyFloatingElements() {
         </svg>
         <span className="text-[6px] md:text-[7px] font-bold tracking-wider leading-none">BOOK NOW</span>
       </a>
+      </SimpleTooltip>
 
       {/* Back to top button */}
       <button
@@ -75,7 +77,9 @@ export function AcademyFloatingElements() {
         className={`fixed bottom-6 left-6 z-50 w-12 h-12 rounded-full bg-white border border-[#e2e8f0] hover:border-[#1a3a52]/30 flex items-center justify-center text-[#1a3a52] shadow-[0_10px_28px_-14px_rgba(15,31,47,0.6)] transition-all duration-300 hover:bg-[#1a3a52]/5 hover:scale-110 active:scale-95 ${
           showBackToTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10 pointer-events-none"
         }`}
+        aria-hidden={!showBackToTop}
         aria-label="Back to top"
+        tabIndex={showBackToTop ? undefined : -1}
       >
         <ArrowUp className="w-5 h-5" strokeWidth={2} />
       </button>

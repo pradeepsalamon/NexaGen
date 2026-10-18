@@ -37,6 +37,7 @@ import {
 import { PuzzleScoringFields, PuzzleScoringPreview } from "./scoring/PuzzleScoringFields";
 import {
   PUZZLE_DIFFICULTY_OPTIONS,
+  PUZZLE_STATUS_LABELS,
   PUZZLE_TYPE_OPTIONS,
   puzzleTopicOptions
 } from "../lib/puzzleMeta";
@@ -183,6 +184,8 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
       return;
     }
     setSaving(true);
+    // createMut / updateMut toast their own failures; only later steps need one here.
+    let inMutation = true;
     try {
       if (mode === "create") {
         const created = await createMut.mutateAsync({
@@ -196,6 +199,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         const { fen: _fen, solutionMoves: _line, ...editable } = buildPayload();
         const payload: UpdatePuzzleRequest = lichessCopy ? editable : buildPayload();
         await updateMut.mutateAsync({ id: puzzle.id, data: payload });
+        inMutation = false;
         if (publish && puzzle.status !== "PUBLISHED") {
           await setPuzzlePublished(puzzle.id, { published: true });
         }
@@ -203,7 +207,7 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         router.push(`${basePath}/${puzzle.id}`);
       }
     } catch (error) {
-      toast.error({ title: "Could not save puzzle", message: (error as Error).message });
+      if (!inMutation) toast.error({ title: "Could not save puzzle", message: (error as Error).message });
     } finally {
       setSaving(false);
     }
@@ -338,7 +342,14 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
         {lichessCopy ? (
           <LichessLockedNote />
         ) : (
-          <PositionEditor value={fen} onChange={setFen} />
+          <PositionEditor
+            value={fen}
+            onChange={(next) => {
+              setFen(next);
+              // A validation of the old position no longer applies.
+              setValidation(null);
+            }}
+          />
         )}
       </Card>
 
@@ -497,14 +508,16 @@ export function PuzzleForm({ mode, basePath, role, puzzle }: Props) {
           <div>
             <dt className="text-app-muted">Visibility</dt>
             <dd className="font-medium text-app-text">
-              {role === "admin"
+              {(puzzle?.visibility ?? (role === "admin" ? "GLOBAL" : "PRIVATE")) === "GLOBAL"
                 ? "Global — available to all coaches"
                 : "Private — only you and admins"}
             </dd>
           </div>
           <div>
             <dt className="text-app-muted">Status</dt>
-            <dd className="font-medium text-app-text">{puzzle?.status ?? "Draft"}</dd>
+            <dd className="font-medium text-app-text">
+              {puzzle?.status ? PUZZLE_STATUS_LABELS[puzzle.status] : "Draft"}
+            </dd>
           </div>
         </dl>
       </Card>

@@ -82,6 +82,7 @@ function ManualPaymentForm({
   const [reference, setReference] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
 
   const { data: plansData } = useManualBatchPlans(batchId || null);
   const { data: studentsData } = useManualBatchStudents(batchId || null);
@@ -114,7 +115,8 @@ function ManualPaymentForm({
           studentUserId,
           planId,
           methodId,
-          reference: reference.trim() || undefined
+          reference: reference.trim() || undefined,
+          idempotencyKey
         },
         file: file ?? undefined
       },

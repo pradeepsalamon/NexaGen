@@ -9,7 +9,7 @@ interface Announcement {
   title: string;
   createdAt: string;
   description: string;
-  type: "BATCH" | "COURSE" | "PLATFORM";
+  type: string;
 }
 
 interface AnnouncementsProps {

@@ -9,6 +9,7 @@ import {
   type InvoiceSettings
 } from "@nexa-chess/types";
 import { Info } from "lucide-react";
+import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -297,6 +298,25 @@ export function InvoiceSettingsPanel() {
           </Label>
         </div>
       </Card>
+
+      {/* Say why Save is disabled, and why a save failed. */}
+      {!parsed.success ? (
+        <Alert variant="warning">
+          <ul className="list-disc pl-4">
+            {parsed.error.issues.map((issue) => (
+              <li key={`${issue.path.join(".")}-${issue.message}`}>
+                {issue.path.length ? `${issue.path.join(".")}: ` : ""}
+                {issue.message}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      ) : null}
+      {update.isError ? (
+        <Alert variant="error">
+          {update.error instanceof Error ? update.error.message : "The billing details could not be saved."}
+        </Alert>
+      ) : null}
 
       <div className="flex justify-end gap-2">
         <Button

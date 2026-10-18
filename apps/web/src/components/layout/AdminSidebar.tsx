@@ -34,8 +34,18 @@ export function AdminSidebar() {
     [role, liveCount, chatBadge]
   );
 
-  const isItemActive = (href: string) =>
-    pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));
+  // Only the most specific match is active, so a nested link and its parent
+  // never both light up (e.g. /admin/classes and /admin/classes/requests).
+  const activeHref = useMemo(() => {
+    const matches = (href: string) =>
+      pathname === href || (href !== "/admin" && pathname.startsWith(`${href}/`));
+    return groups
+      .flatMap((group) => group.items.map((item) => item.href))
+      .filter(matches)
+      .sort((a, b) => b.length - a.length)[0];
+  }, [groups, pathname]);
+
+  const isItemActive = (href: string) => href === activeHref;
 
   // The section that owns the current route — derived from the URL, never from clicks.
   const routeGroup = useMemo(() => {

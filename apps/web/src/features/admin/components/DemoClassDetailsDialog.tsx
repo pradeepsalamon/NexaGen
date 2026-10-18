@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Calendar,
   Clock,
@@ -75,6 +75,13 @@ export function DemoClassDetailsDialog({
   const [pending, setPending] = useState<PendingInvitees>(EMPTY_PENDING_INVITEES);
   const [notify, setNotify] = useState(true);
   const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+
+  // One dialog serves every class: picks and hidden rows belong to the class they were made on.
+  useEffect(() => {
+    setPending(EMPTY_PENDING_INVITEES);
+    setNotify(true);
+    setHiddenIds([]);
+  }, [classId]);
 
   const demoClass = data?.class;
   const canInvite = demoClass?.status === "SCHEDULED" || demoClass?.status === "LIVE";

@@ -7,13 +7,18 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { PgnBoardViewer } from "@/features/assignments/components/PgnBoardViewer";
 import { useCompleteModule, useMyCourse } from "../hooks/useCoursesApi";
 
 export function StudentCourseDetailClient({ id }: { id: string }) {
-  const { data, isLoading } = useMyCourse(id);
+  const { data, isError, isLoading, refetch } = useMyCourse(id);
   const complete = useCompleteModule(id);
   const [openModuleId, setOpenModuleId] = useState<string | null>(null);
+
+  if (isError && !data) {
+    return <WidgetError message="Couldn't load this course." onRetry={() => void refetch()} />;
+  }
 
   if (isLoading || !data) {
     return (
@@ -97,7 +102,7 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
                 <div className="mt-3 flex justify-end">
                   <Button
                     size="sm"
-                    disabled={m.completed || complete.isPending}
+                    disabled={m.completed || (complete.isPending && complete.variables === m.id)}
                     onClick={() => complete.mutate(m.id)}
                   >
                     {m.completed ? "Completed" : "Mark complete"}

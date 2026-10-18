@@ -6,22 +6,24 @@ import { useTheme } from "@/providers/ThemeProvider";
 
 type ToasterProps = ComponentProps<typeof Sonner>;
 
+// Theme status tokens. Warning text is black: white on amber is unreadable.
+// A neutral toast inverts the page (text colour as its background).
 const toastColorVars = {
-  "--error-bg": "#dc2626",
-  "--error-border": "rgba(253, 164, 175, 0.78)",
-  "--error-text": "#ffffff",
-  "--success-bg": "#16a34a",
-  "--success-border": "rgba(110, 231, 183, 0.78)",
-  "--success-text": "#ffffff",
-  "--warning-bg": "#f59e0b",
-  "--warning-border": "rgba(253, 230, 138, 0.82)",
-  "--warning-text": "#ffffff",
-  "--info-bg": "#334155",
-  "--info-border": "rgba(100, 116, 139, 0.78)",
-  "--info-text": "#ffffff",
-  "--normal-bg": "#334155",
-  "--normal-border": "rgba(100, 116, 139, 0.78)",
-  "--normal-text": "#ffffff"
+  "--error-bg": "var(--color-danger)",
+  "--error-border": "color-mix(in srgb, var(--color-danger) 60%, white)",
+  "--error-text": "white",
+  "--success-bg": "var(--color-success)",
+  "--success-border": "color-mix(in srgb, var(--color-success) 60%, white)",
+  "--success-text": "white",
+  "--warning-bg": "var(--color-warning)",
+  "--warning-border": "color-mix(in srgb, var(--color-warning) 60%, white)",
+  "--warning-text": "black",
+  "--info-bg": "var(--color-info)",
+  "--info-border": "color-mix(in srgb, var(--color-info) 60%, white)",
+  "--info-text": "white",
+  "--normal-bg": "rgb(var(--rgb-text))",
+  "--normal-border": "rgb(var(--rgb-text-muted))",
+  "--normal-text": "rgb(var(--rgb-surface))"
 } as CSSProperties;
 
 export function Toaster({ ...props }: ToasterProps) {

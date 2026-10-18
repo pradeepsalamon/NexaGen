@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { formatDateTime } from "@/lib/datetime";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
@@ -68,7 +69,9 @@ export function PuzzleScoringDefaultsClient() {
         ) : null}
       </div>
 
-      {!scoring || !leaderboard ? (
+      {settings.isError && !settings.data ? (
+        <WidgetError message="Couldn't load the scoring defaults." onRetry={() => void settings.refetch()} />
+      ) : !scoring || !leaderboard ? (
         <div className="space-y-3">
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-32 w-full" />

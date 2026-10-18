@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { SectionCard } from "@/components/ui/SectionCard";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
+import { openInNewTab } from "@/lib/openInNewTab";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatFullDate } from "@/lib/datetime";
 import { RecordingPlayerDialog } from "./RecordingPlayerDialog";
@@ -37,10 +38,7 @@ export function PastClasses({ classes }: PastClassesProps) {
 
   const handleDownload = async (classId: string) => {
     try {
-      const data = await getRecordingDownloadUrl(classId, { download: true });
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
+      await openInNewTab(async () => (await getRecordingDownloadUrl(classId, { download: true }))?.url);
     } catch (error) {
       console.error("Failed to download recording:", error);
       toast.error("Failed to download recording. It may have expired or is unavailable.");

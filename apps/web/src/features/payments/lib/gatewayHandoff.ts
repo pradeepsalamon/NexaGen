@@ -107,7 +107,8 @@ async function openRazorpay(
       modal: { ondismiss: () => settle({ kind: "dismissed" }) }
     });
 
-    instance.on?.("payment.failed", () => settle({ kind: "dismissed" }));
+    // No payment.failed listener: Razorpay keeps the modal open for a retry
+    // after a failed attempt, and settling here would drop that retry's success.
     instance.open();
   });
 }

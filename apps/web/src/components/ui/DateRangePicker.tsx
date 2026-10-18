@@ -55,6 +55,17 @@ function labelFor(value: DateRangeValue): string {
   return "Last 30 days";
 }
 
+// Date-only values are calendar days: parse and format them from local
+// components. new Date("YYYY-MM-DD") is UTC midnight, and toISOString() of a
+// local midnight is the previous day anywhere east of UTC.
+const pad = (n: number) => String(n).padStart(2, "0");
+const parseDay = (day: string) => {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const formatDay = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
 export function DateRangePicker({
   value,
   onChange
@@ -65,7 +76,7 @@ export function DateRangePicker({
   const [open, setOpen] = useState(false);
   const toRange = (current: DateRangeValue): DateRange | undefined =>
     current.from && current.to
-      ? { from: new Date(current.from), to: new Date(current.to) }
+      ? { from: parseDay(current.from), to: parseDay(current.to) }
       : undefined;
   const [range, setRange] = useState<DateRange | undefined>(toRange(value));
 
@@ -74,8 +85,8 @@ export function DateRangePicker({
     if (next) {
       setRange(toRange(value));
     } else if (range?.from && range.to) {
-      const from = range.from.toISOString().slice(0, 10);
-      const to = range.to.toISOString().slice(0, 10);
+      const from = formatDay(range.from);
+      const to = formatDay(range.to);
       if (from !== value.from || to !== value.to) {
         onChange({ ...value, preset: "custom", from, to });
       }
@@ -124,6 +135,7 @@ export function DateRangePicker({
             </div>
             <div className="border-t border-app-border pt-1 sm:border-l sm:border-t-0 sm:pl-1 sm:pt-0">
               <Calendar
+                defaultMonth={range?.from}
                 mode="range"
                 numberOfMonths={1}
                 onSelect={setRange}

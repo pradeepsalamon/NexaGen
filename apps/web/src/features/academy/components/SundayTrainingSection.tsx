@@ -17,6 +17,10 @@ function AnimatedCounter({ target, suffix, isInView }: { target: number; suffix:
 
   useEffect(() => {
     if (!isInView) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCount(target);
+      return;
+    }
     let start = 0;
     const duration = 2000;
     const increment = target / (duration / 16);

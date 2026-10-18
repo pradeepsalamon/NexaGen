@@ -1,5 +1,7 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { PaymentProviderEventKind } from "@prisma/client";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { ProviderHealthService } from "./provider-health.service";
 
@@ -29,6 +31,7 @@ describe("ProviderHealthService", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProviderHealthService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         {
           provide: PrismaService,
           useValue: {

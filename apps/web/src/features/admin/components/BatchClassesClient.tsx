@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { format } from "date-fns";
 import { SlidersHorizontal, Info, Download, Radio } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { toast } from "sonner";
 import type { AdminBatchClass } from "@nexa-chess/types";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
+import { openInNewTab } from "@/lib/openInNewTab";
 
 import { Card } from "@/components/ui/Card";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { DataTable } from "@/components/ui/DataTable";
 import { DataTablePagination } from "@/components/ui/DataTablePagination";
 import { DataTableToolbar } from "@/components/ui/DataTableToolbar";
@@ -27,6 +28,8 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 
 import { useDataTable } from "@/hooks/useDataTable";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatDateTime, formatTime } from "@/lib/datetime";
 import { useServerTable } from "@/hooks/useServerTable";
 import { useAdminBatchClassesQuery } from "../hooks/useAdminBatchClasses";
 import { BatchClassDetailsDialog } from "./BatchClassDetailsDialog";
@@ -43,7 +46,8 @@ export function BatchClassesClient() {
   // Server-side pagination / search / sort / status filter (AUDIT H26).
   const serverTable = useServerTable({ pageSize: 10 });
   const { clampToPageCount } = serverTable;
-  const { data, isLoading } = useAdminBatchClassesQuery(serverTable.params);
+  const { data, isError, isLoading, refetch } = useAdminBatchClassesQuery(serverTable.params);
+  const timeZone = useUserTimeZone();
   const classes = data?.classes || [];
   const pageCount = data?.pagination?.totalPages ?? 1;
   useEffect(() => {
@@ -56,10 +60,7 @@ export function BatchClassesClient() {
 
   const handleDownload = async (classId: string) => {
     try {
-      const data = await getRecordingDownloadUrl(classId, { download: true });
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
+      await openInNewTab(async () => (await getRecordingDownloadUrl(classId, { download: true }))?.url);
     } catch (error) {
       console.error("Failed to download recording:", error);
       toast.error("Failed to download recording. It may have expired or is unavailable.");
@@ -130,11 +131,11 @@ export function BatchClassesClient() {
           <div className="min-w-40 text-sm text-app-text">
             <div>
               <span className="font-semibold">Starts: </span>
-              {format(new Date(row.original.startsAt), "MMM d, yyyy h:mm a")}
+              {formatDateTime(row.original.startsAt, timeZone)}
             </div>
             <div className="mt-1">
               <span className="font-semibold">Ends: </span>
-              {format(new Date(row.original.endsAt), "h:mm a")}
+              {formatTime(row.original.endsAt, timeZone)}
             </div>
           </div>
         )
@@ -236,7 +237,7 @@ export function BatchClassesClient() {
         }
       }
     ],
-    []
+    [timeZone]
   );
 
   const { table } = useDataTable<AdminBatchClass, unknown>({
@@ -280,12 +281,16 @@ export function BatchClassesClient() {
             searchValue={serverTable.search}
           />
 
-          <DataTable
-            columnsLength={columns.length}
-            isLoading={isLoading}
-            noDataText="No batch classes found."
-            table={table}
-          />
+          {isError && !data ? (
+            <WidgetError message="Couldn't load batch classes." onRetry={() => void refetch()} />
+          ) : (
+            <DataTable
+              columnsLength={columns.length}
+              isLoading={isLoading}
+              noDataText="No batch classes found."
+              table={table}
+            />
+          )}
 
           <DataTablePagination
             table={table}
@@ -299,7 +304,11 @@ export function BatchClassesClient() {
         isOpen={isDetailsOpen}
         onOpenChange={(open) => {
           setIsDetailsOpen(open);
-          if (!open) setTimeout(() => setDetailsClassId(null), 300);
+          // Cleared after the close animation, but only if no other class was opened meanwhile.
+          if (!open) {
+            const closing = detailsClassId;
+            setTimeout(() => setDetailsClassId((current) => (current === closing ? null : current)), 300);
+          }
         }}
       />
 

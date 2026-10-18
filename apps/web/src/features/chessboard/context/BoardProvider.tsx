@@ -24,12 +24,12 @@ export function BoardProvider({ children }: BoardProviderProps) {
 }
 
 // Hook to use the store
-export function useBoardStore<T>(selector: (state: BoardStore) => T): T;
-export function useBoardStore(): BoardStore;
-export function useBoardStore<T>(selector?: (state: BoardStore) => T) {
+// A selector is required: a bare call subscribes to the whole store and
+// re-renders on every change (CLAUDE.md §3.7 render cost).
+export function useBoardStore<T>(selector: (state: BoardStore) => T): T {
   const store = useContext(BoardContext);
   if (!store) {
     throw new Error("useBoardStore must be used within a BoardProvider");
   }
-  return useStore(store, selector!);
+  return useStore(store, selector);
 }

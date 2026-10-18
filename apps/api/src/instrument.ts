@@ -10,7 +10,7 @@ import {
 
 // apps/api/.env is otherwise only loaded by Prisma, after this file has run.
 function readEnv(name: string): string | undefined {
-  if (process.env[name]) return process.env[name];
+  if (process.env[name] !== undefined) return process.env[name];
   if (!existsSync(".env")) return undefined;
   return parseEnv(readFileSync(".env", "utf8"))[name] || undefined;
 }

@@ -165,6 +165,7 @@ describe("PuzzleCatalogService", () => {
       },
       puzzleTopic: {
         create: jest.fn().mockResolvedValue({ id: "folder-lichess" }),
+        findFirst: jest.fn(),
         findUnique: jest.fn().mockResolvedValue({ id: "folder-forks", name: "Forks", slug: "forks" })
       },
       withDeleted: {
@@ -351,7 +352,7 @@ describe("PuzzleCatalogService", () => {
       const dup = () =>
         new Prisma.PrismaClientKnownRequestError("dup", { code: "P2002", clientVersion: "6", meta: { target: ["slug"] } });
       prisma.withDeleted.puzzleTopic.findFirst.mockResolvedValue(null);
-      prisma.puzzleTopic.findFirst = jest.fn().mockResolvedValueOnce({ id: "folder-winner" });
+      prisma.puzzleTopic.findFirst.mockResolvedValueOnce({ id: "folder-winner" });
       prisma.puzzleTopic.create.mockRejectedValueOnce(dup());
       await expect(service.ensureLichessFolder(COACH_ID)).resolves.toBe("folder-winner");
 

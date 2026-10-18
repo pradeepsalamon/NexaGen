@@ -38,7 +38,8 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
     giveUp,
     showHint,
     serverHint,
-    requestHint
+    requestHint,
+    submitting
   } = attempt;
 
   if (detail.isLoading || (!session && !startError)) {
@@ -195,7 +196,7 @@ export function StudentPuzzleSolveClient({ id }: { id: string }) {
 
             <div className="flex flex-wrap gap-2">
               {phase === "solving" && (
-                <Button type="button" variant="outline" size="sm" onClick={giveUp}>
+                <Button disabled={submitting} type="button" variant="outline" size="sm" onClick={() => void giveUp()}>
                   Give up &amp; show solution
                 </Button>
               )}
