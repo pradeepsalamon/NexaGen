@@ -7,9 +7,11 @@ import type {
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
+import { useToast } from "@/providers/ToastProvider";
 import {
   createLiveClassChapter,
   deleteLiveClassChapter,
+  deleteLiveClassChapters,
   getLiveClassChapters,
   importLiveClassChapters,
   reorderLiveClassChapters,
@@ -40,8 +42,11 @@ export function useLiveClassChapters(classId: string, enabled = true) {
  */
 export function useLiveClassChapterActions(classId: string) {
   const qc = useQueryClient();
+  const toast = useToast();
   const key = useMemo(() => queryKeys.liveClassChapters.list(classId), [classId]);
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+  // Ids of a "Delete all" between confirm and commit — blocks a second one meanwhile.
+  const [bulkIds, setBulkIds] = useState<string[] | null>(null);
 
   const put = useCallback((res: LiveClassChaptersResponse) => qc.setQueryData(key, res), [qc, key]);
   const current = useCallback(
@@ -185,6 +190,55 @@ export function useLiveClassChapterActions(classId: string) {
     invalidates: []
   });
 
+  const unhide = useCallback(
+    (ids: string[]) =>
+      setHiddenIds((s) => {
+        const next = new Set(s);
+        for (const id of ids) next.delete(id);
+        return next;
+      }),
+    []
+  );
+
+  /**
+   * "Delete all", confirmed first by the panel's dialog, then deferred like a
+   * single delete: the rows hide until the toast closes and Undo brings them
+   * back untouched. The server removes only these ids, in one transaction.
+   */
+  const deleteAll = useUndoableMutation<{ ids: string[] }, number>({
+    strategy: "defer",
+    mutationFn: async ({ ids }) => {
+      try {
+        const res = await deleteLiveClassChapters(classId, { ids });
+        put(res);
+        return res.deleted;
+      } catch (error) {
+        // Nothing was deleted (one transaction) — reread in case the list moved meanwhile.
+        void qc.invalidateQueries({ queryKey: key });
+        throw error;
+      }
+    },
+    undo: async () => undefined,
+    toast: ({ ids }) => ({
+      title: `Deleting ${ids.length} ${ids.length === 1 ? "chapter" : "chapters"}`,
+      message: "Only the chapters — puzzles and student progress stay."
+    }),
+    onSchedule: ({ ids }) => {
+      setBulkIds(ids);
+      setHiddenIds((s) => new Set([...s, ...ids]));
+    },
+    onCancel: ({ ids }) => {
+      setBulkIds(null);
+      unhide(ids);
+    },
+    onCommitSuccess: ({ ids }, deleted) => {
+      setBulkIds(null);
+      unhide(ids);
+      toast.success({ title: `Deleted ${deleted} ${deleted === 1 ? "chapter" : "chapters"}` });
+    },
+    invalidates: []
+  });
+
   return {
     create: create.run,
     createNow,
@@ -193,6 +247,8 @@ export function useLiveClassChapterActions(classId: string) {
     importPuzzles: importPuzzles.run,
     importing: importPuzzles.isPending,
     remove: remove.run,
+    deleteAll: deleteAll.run,
+    deletingAll: bulkIds !== null,
     rename: rename.run,
     reorder: reorder.run,
     saveBoard: saveBoard.run,

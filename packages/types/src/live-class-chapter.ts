@@ -60,6 +60,15 @@ export const reorderLiveClassChaptersRequestSchema = z.object({
 });
 export type ReorderLiveClassChaptersRequest = z.infer<typeof reorderLiveClassChaptersRequestSchema>;
 
+/**
+ * "Delete all": the ids the coach confirmed. Only those are removed, so a
+ * chapter added after the dialog opened survives, and a retry deletes nothing more.
+ */
+export const deleteLiveClassChaptersRequestSchema = z.object({
+  ids: z.array(z.string().min(1).max(64)).min(1).max(MAX_LIVE_CLASS_CHAPTERS)
+});
+export type DeleteLiveClassChaptersRequest = z.infer<typeof deleteLiveClassChaptersRequestSchema>;
+
 export interface LiveClassChapter {
   id: string;
   title: string;
@@ -75,4 +84,9 @@ export interface LiveClassChaptersResponse {
   chapters: LiveClassChapter[];
   /** BATCH when the chapters carry over between this batch's classes. */
   scope: "BATCH" | "CLASS";
+}
+
+export interface DeleteLiveClassChaptersResponse extends LiveClassChaptersResponse {
+  /** How many of the requested chapters this call removed (0 on a retry). */
+  deleted: number;
 }

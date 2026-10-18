@@ -3,6 +3,8 @@ import {
   liveClassChapterStateSchema,
   MAX_LIVE_CLASS_CHAPTERS,
   type CreateLiveClassChapterRequest,
+  type DeleteLiveClassChaptersRequest,
+  type DeleteLiveClassChaptersResponse,
   type ImportLiveClassChaptersRequest,
   type LiveClassChapter,
   type LiveClassChapterState,
@@ -12,7 +14,7 @@ import {
 } from "@nexa-chess/types";
 import { Prisma, PuzzleSource, PuzzleStatus, PuzzleVisibility, UserRole, type LiveClassChapter as ChapterRow } from "@prisma/client";
 import { LiveClassService } from "../live-class/live-class.service";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 
 type Scope = { batchId: string | null; liveClassId: string | null; scopeKey: string };
 
@@ -180,18 +182,50 @@ export class LiveClassChapterService {
     // came from is referenced by id, never owned, so it is untouched.
     await this.prisma.$transaction(async (tx) => {
       await tx.liveClassChapter.delete({ where: { id: chapterId } });
-      const rest = await tx.liveClassChapter.findMany({
-        where: { scopeKey: scope.scopeKey },
-        orderBy: [{ position: "asc" }, { createdAt: "asc" }],
-        select: { id: true, position: true }
-      });
-      for (const [position, row] of rest.entries()) {
-        if (row.position !== position) {
-          await tx.liveClassChapter.update({ where: { id: row.id }, data: { position } });
-        }
-      }
+      await this.closeGaps(tx, scope);
     });
     return this.respond(scope);
+  }
+
+  /**
+   * "Delete all": removes the confirmed ids that are still in this class's
+   * scope, in one transaction (all or nothing). An id from another scope or
+   * one already gone is skipped, never an error, so a retried request is a
+   * no-op. Like `remove`, only chapter rows go — puzzles, attempts, the shared
+   * board and activity-queue items are untouched (a queued CHAPTER step whose
+   * chapter is gone records an activation error when reached).
+   */
+  async removeMany(
+    accessToken: string | undefined,
+    classId: string,
+    body: DeleteLiveClassChaptersRequest
+  ): Promise<DeleteLiveClassChaptersResponse> {
+    const { liveSession } = await this.liveClass.resolveClassManager(accessToken, classId);
+    const scope = this.scopeOf(liveSession);
+    const ids = [...new Set(body.ids)];
+
+    const deleted = await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.liveClassChapter.deleteMany({
+        where: { id: { in: ids }, scopeKey: scope.scopeKey }
+      });
+      if (count > 0) await this.closeGaps(tx, scope);
+      return count;
+    });
+    return { ...(await this.respond(scope)), deleted };
+  }
+
+  /** Renumbers what is left 0..n-1 after a delete. */
+  private async closeGaps(tx: PrismaTransactionClient, scope: Scope) {
+    const rest = await tx.liveClassChapter.findMany({
+      where: { scopeKey: scope.scopeKey },
+      orderBy: [{ position: "asc" }, { createdAt: "asc" }],
+      select: { id: true, position: true }
+    });
+    for (const [position, row] of rest.entries()) {
+      if (row.position !== position) {
+        await tx.liveClassChapter.update({ where: { id: row.id }, data: { position } });
+      }
+    }
   }
 
   private scopeOf(session: { batchId: string | null; classId: string }): Scope {

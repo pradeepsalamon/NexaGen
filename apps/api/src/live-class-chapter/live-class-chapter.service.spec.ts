@@ -29,7 +29,9 @@ function chapterTable() {
   let rows: any[] = [];
   let seq = 0;
   const match = (row: any, where: any = {}) =>
-    Object.entries(where).every(([key, value]) => row[key] === value);
+    Object.entries(where).every(([key, value]: [string, any]) =>
+      value && typeof value === "object" && "in" in value ? value.in.includes(row[key]) : row[key] === value
+    );
   const sorted = () => [...rows].sort((a, b) => a.position - b.position || a.createdAt - b.createdAt);
   const table = {
     count: jest.fn(async ({ where }: any) => rows.filter((r) => match(r, where)).length),
@@ -47,6 +49,11 @@ function chapterTable() {
     }),
     delete: jest.fn(async ({ where }: any) => {
       rows = rows.filter((r) => r.id !== where.id);
+    }),
+    deleteMany: jest.fn(async ({ where }: any) => {
+      const before = rows.length;
+      rows = rows.filter((r) => !match(r, where));
+      return { count: before - rows.length };
     }),
     findMany: jest.fn(async ({ where }: any) => sorted().filter((r) => match(r, where))),
     findUnique: jest.fn(async ({ where }: any) => {
@@ -194,6 +201,76 @@ describe("LiveClassChapterService", () => {
       ["c", 1]
     ]);
     expect(db.rows().find((r) => r.id === "c").position).toBe(1);
+  });
+
+  describe("delete all (removeMany)", () => {
+    const seedScope = (scopeKey: string, ids: string[]) =>
+      ids.forEach((id, i) => db.seed({ id, position: i, scopeKey, state: STATE, title: id }));
+
+    it("deletes every confirmed chapter in the class's scope", async () => {
+      seedScope(`batch:${BATCH_ID}`, ["a", "b", "c", "d"]);
+      const res = await service.removeMany(TOKEN, CLASS_ID, { ids: ["a", "b", "c", "d"] });
+      expect(res).toMatchObject({ chapters: [], deleted: 4, scope: "BATCH" });
+      expect(db.rows()).toHaveLength(0);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it("never touches another batch's or class's chapters, even when their ids are sent", async () => {
+      seedScope(`batch:${BATCH_ID}`, ["mine"]);
+      seedScope("batch:other", ["theirs"]);
+      seedScope(`class:${CLASS_ID}`, ["solo"]);
+      const res = await service.removeMany(TOKEN, CLASS_ID, { ids: ["mine", "theirs", "solo"] });
+      expect(res.deleted).toBe(1);
+      expect(db.rows().map((r) => r.id).sort()).toEqual(["solo", "theirs"]);
+      expect(db.table.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ["mine", "theirs", "solo"] }, scopeKey: `batch:${BATCH_ID}` }
+      });
+    });
+
+    it("keeps a chapter added after the confirmation and renumbers it", async () => {
+      seedScope(`batch:${BATCH_ID}`, ["a", "b", "late"]);
+      const res = await service.removeMany(TOKEN, CLASS_ID, { ids: ["a", "b"] });
+      expect(res.chapters.map((c) => [c.id, c.position])).toEqual([["late", 0]]);
+      expect(db.rows().find((r) => r.id === "late").position).toBe(0);
+    });
+
+    it("treats a duplicate or retried request as a no-op", async () => {
+      seedScope(`batch:${BATCH_ID}`, ["a", "b"]);
+      const first = await service.removeMany(TOKEN, CLASS_ID, { ids: ["a", "b", "a"] });
+      const retry = await service.removeMany(TOKEN, CLASS_ID, { ids: ["a", "b"] });
+      expect(first.deleted).toBe(2);
+      expect(retry).toMatchObject({ chapters: [], deleted: 0 });
+    });
+
+    it("succeeds with nothing to delete on an empty list", async () => {
+      const res = await service.removeMany(TOKEN, CLASS_ID, { ids: ["gone"] });
+      expect(res).toMatchObject({ chapters: [], deleted: 0 });
+      expect(db.table.update).not.toHaveBeenCalled();
+    });
+
+    it("refuses a caller who isn't the class's coach or an admin, deleting nothing", async () => {
+      seedScope(`batch:${BATCH_ID}`, ["a"]);
+      liveClass.resolveClassManager.mockRejectedValueOnce(new ForbiddenException());
+      await expect(service.removeMany(TOKEN, CLASS_ID, { ids: ["a"] })).rejects.toBeInstanceOf(ForbiddenException);
+      expect(db.table.deleteMany).not.toHaveBeenCalled();
+      expect(db.rows()).toHaveLength(1);
+    });
+
+    it("propagates a failed transaction without reporting a delete", async () => {
+      seedScope(`batch:${BATCH_ID}`, ["a", "b"]);
+      prisma.$transaction.mockRejectedValueOnce(new Error("connection lost"));
+      await expect(service.removeMany(TOKEN, CLASS_ID, { ids: ["a", "b"] })).rejects.toThrow("connection lost");
+      expect(db.rows()).toHaveLength(2);
+    });
+
+    it("leaves puzzles alone — only chapter rows are deleted", async () => {
+      db.seed({ id: "p", position: 0, puzzleId: "puzzle-1", scopeKey: `batch:${BATCH_ID}`, state: STATE, title: "P" });
+      prisma.puzzle.delete = jest.fn();
+      prisma.puzzle.deleteMany = jest.fn();
+      await service.removeMany(TOKEN, CLASS_ID, { ids: ["p"] });
+      expect(prisma.puzzle.delete).not.toHaveBeenCalled();
+      expect(prisma.puzzle.deleteMany).not.toHaveBeenCalled();
+    });
   });
 
   it("drops a stored row whose state no longer parses", async () => {

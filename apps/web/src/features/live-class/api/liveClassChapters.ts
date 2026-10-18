@@ -2,6 +2,8 @@ import { apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
   type CreateLiveClassChapterRequest,
+  type DeleteLiveClassChaptersRequest,
+  type DeleteLiveClassChaptersResponse,
   type ImportLiveClassChaptersRequest,
   type LiveClassChaptersResponse,
   type ReorderLiveClassChaptersRequest,
@@ -38,3 +40,9 @@ export const reorderLiveClassChapters = (
 
 export const deleteLiveClassChapter = (classId: string, chapterId: string): Promise<LiveClassChaptersResponse> =>
   apiFetch<LiveClassChaptersResponse>(API_ROUTES.liveClass.chapter(classId, chapterId), { method: "DELETE" });
+
+export const deleteLiveClassChapters = (
+  classId: string,
+  body: DeleteLiveClassChaptersRequest
+): Promise<DeleteLiveClassChaptersResponse> =>
+  apiFetch<DeleteLiveClassChaptersResponse>(API_ROUTES.liveClass.chapterBulkDelete(classId), { method: "POST", body });

@@ -1,12 +1,14 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, Req } from "@nestjs/common";
 import type { Request } from "express";
 import {
   API_ROUTES,
   createLiveClassChapterRequestSchema,
+  deleteLiveClassChaptersRequestSchema,
   importLiveClassChaptersRequestSchema,
   reorderLiveClassChaptersRequestSchema,
   updateLiveClassChapterRequestSchema,
   type CreateLiveClassChapterRequest,
+  type DeleteLiveClassChaptersRequest,
   type ImportLiveClassChaptersRequest,
   type ReorderLiveClassChaptersRequest,
   type UpdateLiveClassChapterRequest
@@ -40,6 +42,16 @@ export class LiveClassChapterController {
     @Req() request: Request
   ) {
     return this.service.importPuzzles(this.getAccessToken(request), id, body);
+  }
+
+  @Post(API_ROUTES.liveClass.chapterBulkDelete())
+  @HttpCode(HttpStatus.OK)
+  removeMany(
+    @Param("id") id: string,
+    @Body(new ZodBodyPipe(deleteLiveClassChaptersRequestSchema)) body: DeleteLiveClassChaptersRequest,
+    @Req() request: Request
+  ) {
+    return this.service.removeMany(this.getAccessToken(request), id, body);
   }
 
   @Put(API_ROUTES.liveClass.chapterOrder())

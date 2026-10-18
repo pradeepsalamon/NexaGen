@@ -88,6 +88,7 @@ const CROSS_USER: Case[] = [
   { name: "coach adds a chapter to another class", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.chapters(w.b.liveClass.id), body: { clientId: "intruder-0001", state: { arrows: [], fen: "8/8/8/8/8/8/8/K6k w - - 0 1", historyIndex: -1, orientation: "white", pgn: "", squares: {} }, title: "intruder" } },
   { name: "coach renames another batch's chapter through their own class", as: (w) => w.a.coach, method: "PATCH", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.b.chapter.id), body: { title: "hijacked" } },
   { name: "coach deletes another batch's chapter through their own class", as: (w) => w.a.coach, method: "DELETE", path: (w) => API_ROUTES.liveClass.chapter(w.a.liveClass.id, w.b.chapter.id) },
+  { name: "coach deletes all of another class's chapters", as: (w) => w.a.coach, method: "POST", path: (w) => API_ROUTES.liveClass.chapterBulkDelete(w.b.liveClass.id), body: (w: World) => ({ ids: [w.b.chapter.id] }) },
   // Activity queues (coach-owner/admin; a queue id from another class is a 404; students see only their own class's running queue)
   { name: "coach reads another class's activity queues", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityQueues(w.b.liveClass.id) },
   { name: "coach reads another class's queue progress through their own class", as: (w) => w.a.coach, path: (w) => API_ROUTES.liveClass.activityQueueProgress(w.a.liveClass.id, w.b.activityQueue.id) },
@@ -238,6 +239,7 @@ function rushReport(rushId: string) {
 
 const WRONG_ROLE: Case[] = [
   { name: "student reads own class's chapters", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.chapters(w.a.liveClass.id) },
+  { name: "student deletes all of own class's chapters", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.chapterBulkDelete(w.a.liveClass.id), body: (w: World) => ({ ids: [w.a.chapter.id] }) },
   { name: "student lists own class's activity queues", as: (w) => w.a.student, path: (w) => API_ROUTES.liveClass.activityQueues(w.a.liveClass.id) },
   { name: "student launches own class's activity queue", as: (w) => w.a.student, method: "POST", path: (w) => API_ROUTES.liveClass.activityQueueLaunch(w.a.liveClass.id, w.a.activityQueue.id) },
   { name: "student lists users", as: (w) => w.a.student, path: () => API_ROUTES.users.list },
@@ -286,6 +288,15 @@ describe("cross-user access (real app, real Postgres)", () => {
   it.each(CROSS_USER.map((c) => [c.name, c] as const))("denies: %s", async (_name, c) => {
     const res = await run(c);
     expect(`${res.status} ${c.path(w)}`).toMatch(/^40[34] /);
+  });
+
+  it("'delete all' through the coach's own class skips another batch's chapter ids", async () => {
+    const res = await t.call(w.a.coach, "POST", API_ROUTES.liveClass.chapterBulkDelete(w.a.liveClass.id), {
+      ids: [w.b.chapter.id]
+    });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ deleted: 0 });
+    expect(JSON.stringify(res.body)).not.toContain(w.b.chapter.id);
   });
 
   it.each(OWN_CASES.map((c) => [c.name, c] as const))("allows: %s", async (_name, c) => {

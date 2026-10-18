@@ -13,6 +13,7 @@ import {
   MoreVertical,
   Pencil,
   Save,
+  Trash,
   Trash2
 } from "lucide-react";
 import {
@@ -80,6 +81,8 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
   const [pending, setPending] = useState<PendingLoad | null>(null);
   const [askPreset, setAskPreset] = useState<SharePositionPreset | null>(null);
   const [busyLoad, setBusyLoad] = useState(false);
+  // "Delete all": the ids the dialog names, frozen when it opens — a chapter added meanwhile survives.
+  const [confirmAllIds, setConfirmAllIds] = useState<string[] | null>(null);
   // The newest Load wins: a slower save-then-load can't land after a later click.
   const loadToken = useRef(0);
 
@@ -205,6 +208,14 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
     void actions.reorder({ ids: next, previous: ids });
   };
 
+  const confirmDeleteAll = () => {
+    const ids = confirmAllIds;
+    setConfirmAllIds(null);
+    if (!ids || ids.length === 0 || actions.deletingAll) return;
+    if (selectedId && ids.includes(selectedId)) selection.select(classId, null, null);
+    void actions.deleteAll({ ids });
+  };
+
   const ask = (chapter: LiveClassChapter) =>
     setAskPreset({
       fen: chapter.state.fen,
@@ -244,6 +255,14 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
               <DropdownMenuItem disabled={!selected || actions.saving} onSelect={() => void saveToSelected()}>
                 <Save className="mr-2 size-4" />
                 {selected ? `Save board to "${selected.title}"` : "Save board to the selected chapter"}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={all.length === 0 || actions.deletingAll}
+                onSelect={() => setConfirmAllIds(all.map((c) => c.id))}
+                className="text-app-danger-ink focus:text-app-danger-ink"
+              >
+                <Trash className="mr-2 size-4" /> Delete all chapters
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -320,6 +339,30 @@ export function ChaptersPanel({ classId, activePuzzleId }: { classId: string; ac
             </Button>
             <Button disabled={pending?.reason === "unsaved-board" && full} onClick={() => void resolvePending("save")}>
               {pending?.reason === "dirty-chapter" ? "Save and load" : "Save as a chapter and load"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!confirmAllIds} onOpenChange={(open) => !open && setConfirmAllIds(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete all {confirmAllIds?.length ?? 0} {confirmAllIds?.length === 1 ? "chapter" : "chapters"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {chapters.data?.scope === "BATCH"
+                ? "Chapters belong to this batch, so they disappear from every class of the batch, not just this one."
+                : "This removes every saved chapter from this class."}{" "}
+              The shared board, library puzzles and student progress are not touched, and an activity-queue step that
+              loads one of these chapters will be skipped. You can undo for a few seconds afterwards.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="destructive" onClick={confirmDeleteAll} disabled={actions.deletingAll}>
+              <Trash className="mr-1.5 size-3.5" strokeWidth={2.5} />
+              Delete {confirmAllIds?.length ?? 0} {confirmAllIds?.length === 1 ? "chapter" : "chapters"}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
