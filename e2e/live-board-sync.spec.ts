@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
-import { scheduleClass } from "./fixtures";
+import { scheduleClass, seededBatchId } from "./fixtures";
 
 /**
  * Shared live-class chessboard sync — two real participants over LiveKit.
@@ -153,7 +153,7 @@ test.describe("Live board sync", () => {
     // ── class setup ────────────────────────────────────────────
     const batchesRes = await api(request, "GET", "/coach/batches", coachCookies);
     const batchesData = await batchesRes.json();
-    const batchId = (batchesData.batches || batchesData)[0].id;
+    const batchId = seededBatchId(batchesData);
 
     await clearCoachSchedule(request, coachCookies);
 

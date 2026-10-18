@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { scheduleClass } from "./fixtures";
+import { scheduleClass, seededBatchId } from "./fixtures";
 
 /**
  * Live-class puzzle assignment + leaderboard — API-level flow.
@@ -103,13 +103,7 @@ async function makeLiveClass(
   coach: string,
   admin: string
 ): Promise<string> {
-  const batches = await json<{ batches?: Array<{ id: string }> } & Array<{ id: string }>>(
-    request,
-    "GET",
-    "/coach/batches",
-    coach
-  );
-  const batchId = (batches.batches || batches)[0].id;
+  const batchId = seededBatchId(await json(request, "GET", "/coach/batches", coach));
   await clearCoachSchedule(request, coach);
 
   const now = Date.now();

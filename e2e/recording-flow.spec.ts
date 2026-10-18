@@ -7,6 +7,7 @@ import {
   apiCallOk,
   loginContext,
   scheduleClass,
+  seededBatchId,
   sendLiveKitWebhook,
 } from "./fixtures";
 
@@ -103,13 +104,7 @@ test.describe("Full Recording Lifecycle & Video Player Flow", () => {
     browser,
   }) => {
     // ── 1. A class to record ────────────────────────────────────────────────
-    // `/coach/batches` returns `{ batches: [...] }`; tolerate a bare array too.
-    const batches = await jsonOf<{ batches?: { id: string }[] } | { id: string }[]>(
-      await apiCallOk(coach, "GET", "/coach/batches")
-    );
-    const batchList = Array.isArray(batches) ? batches : (batches.batches ?? []);
-    expect(batchList.length, "coach has at least one batch").toBeGreaterThan(0);
-    const batchId = batchList[0].id;
+    const batchId = seededBatchId(await jsonOf(await apiCallOk(coach, "GET", "/coach/batches")));
 
     // Starts inside the early-start window so it can be started right away.
     const now = Date.now();

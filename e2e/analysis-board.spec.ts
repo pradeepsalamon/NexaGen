@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { scheduleClass } from "./fixtures";
+import { scheduleClass, seededBatchId } from "./fixtures";
 
 /**
  * Board workspace — Engine analysis, Load Game, Setup Position, Save.
@@ -96,7 +96,7 @@ test.describe("Analysis board", () => {
 
     const batchesRes = await api(request, "GET", "/coach/batches", coachCookies);
     const batchesData = await batchesRes.json();
-    const batchId = (batchesData.batches || batchesData)[0].id;
+    const batchId = seededBatchId(batchesData);
 
     await clearCoachSchedule(request, coachCookies);
 

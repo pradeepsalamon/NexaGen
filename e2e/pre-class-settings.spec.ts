@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { loginContext, scheduleClass } from "./fixtures";
+import { loginContext, scheduleClass, seededBatchId } from "./fixtures";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -128,7 +128,7 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
     const coach = await loginAs(request, COACH.email, COACH.password);
 
     const batches = await (await api(request, "GET", "/coach/batches", coach)).json();
-    const batchId = (batches.batches || batches)[0].id;
+    const batchId = seededBatchId(batches);
 
     // Admin sets a batch default; the coach may read it but not write it.
     const coachBatchWrite = await api(
