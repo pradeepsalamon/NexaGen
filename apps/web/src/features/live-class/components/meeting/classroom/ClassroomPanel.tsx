@@ -141,9 +141,9 @@ export function ClassroomPanel({
   const tabs = TABS.filter((t) => (isCoach || !t.coachOnly) && !inSideColumn(t.id));
 
   return (
-    // Stacked (tall tablet) the panel sits under the stage, video beside the tabs. Below lg the floating toolbar overlays its bottom.
+    // Stacked (tall tablet) the panel sits under the stage, video beside the tabs. Below xl the floating toolbar overlays its bottom.
     <aside
-      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border/70 bg-app-surface/40 pb-24 room:h-auto room:w-[var(--classroom-panel-w,380px)] room:flex-col room:border-l room:border-t-0 lg:pb-0 xl:w-[var(--classroom-panel-w,420px)] room:max-w-[calc(100vw-420px)]"
+      className="flex h-[42%] min-h-0 w-full shrink-0 border-t border-app-border/70 bg-app-surface/40 pb-24 room:h-auto room:w-[var(--classroom-panel-w,380px)] room:flex-col room:border-l room:border-t-0 xl:pb-0 xl:w-[var(--classroom-panel-w,420px)] room:max-w-[calc(100vw-420px)]"
       aria-label="Class panel"
       data-classroom-panel
     >

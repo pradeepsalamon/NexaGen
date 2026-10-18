@@ -264,10 +264,11 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   and for the coach Response, Engine, PGN, Games). The People list scrolls on
   its own, with a back-to-top rail (`ScrollToTopRail`) that is hidden at the
   top, small mid-list and a tall blue pill at the bottom. The floating toolbar
-  is offset by `CLASSROOM_PANEL_OFFSET` so it centres on the board (lg+; on a
-  short tablet the stage is too narrow, so it spans the width and the panel
-  keeps its bottom padding). The board header wraps rather than run under the
-  panel. `< 768 px`
+  is offset by `CLASSROOM_PANEL_OFFSET` so it centres on the board at xl+,
+  where dragging the panel always leaves the stage ≥ 740 px for the ~710 px
+  coach toolbar. Below xl the stage is narrower than that, so the toolbar spans
+  the width and the panel keeps its bottom padding. The board header wraps
+  rather than run under the panel. `< 768 px`
   keeps the video grid below, with the student's full-stage `BoardStage`.
 - Video grid: column math in
   [`videoGrid.utils.ts`](../apps/web/src/features/live-class/components/meeting/video-grid/videoGrid.utils.ts);

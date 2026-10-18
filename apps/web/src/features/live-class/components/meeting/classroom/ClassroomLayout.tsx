@@ -307,19 +307,21 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
 }
 
 /**
- * Width of `ClassroomPanel` beside the stage (lg+), so the floating toolbar can centre on it.
- * A short tablet's stage is too narrow for the toolbar, so there it spans the
+ * Width of `ClassroomPanel` beside the stage (xl+), so the floating toolbar can centre on it.
+ * Below xl the stage is narrower than the toolbar (~710px), so it spans the
  * width and the panel keeps its bottom padding, as when stacked.
  */
-export const CLASSROOM_PANEL_OFFSET =
-  "lg:right-[var(--classroom-panel-w,380px)] xl:right-[var(--classroom-panel-w,420px)]";
+export const CLASSROOM_PANEL_OFFSET = "xl:right-[var(--classroom-panel-w,420px)]";
 
 const PANEL_WIDTH_KEY = "nexa-live-class-panel-width";
 const PANEL_MIN = 300;
 const STAGE_MIN = 420;
+// xl+: the toolbar centres on the stage, so the stage must stay wide enough to hold it.
+const STAGE_MIN_XL = 740;
 
 function clampPanelWidth(width: number) {
-  const max = Math.max(PANEL_MIN, Math.min(760, window.innerWidth - STAGE_MIN));
+  const stageMin = window.innerWidth >= 1280 ? STAGE_MIN_XL : STAGE_MIN;
+  const max = Math.max(PANEL_MIN, Math.min(760, window.innerWidth - stageMin));
   return Math.round(Math.min(max, Math.max(PANEL_MIN, width)));
 }
 
