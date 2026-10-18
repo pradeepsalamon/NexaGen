@@ -1,0 +1,226 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+  # Manual redeploy, e.g. after a failed run (a later push that touches no app
+  # files would otherwise never deploy it), or a manual rollback.
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "deploy = build + ship main; rollback = restore the images that ran before the last successful deploy (no rebuild, no CI)"
+        type: choice
+        options: [deploy, rollback]
+        default: deploy
+      services:
+        description: "Services (rollback: 'both' means whatever the last deploy changed)"
+        type: choice
+        options: [both, api, web]
+        default: both
+
+# One production run at a time, never cancelled mid-deploy. GitHub keeps at
+# most one run pending per group and a newer one replaces it, so a burst of
+# pushes deploys the newest commit once. The VPS script adds its own flock and
+# refuses to deploy a commit older than the one live, which also covers a deploy
+# started by hand on the box.
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    if: github.event_name == 'push' || inputs.action != 'rollback'
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ github.event_name == 'workflow_dispatch' && (inputs.services == 'both' || inputs.services == 'web') || steps.filter.outputs.web }}
+      api: ${{ github.event_name == 'workflow_dispatch' && (inputs.services == 'both' || inputs.services == 'api') || steps.filter.outputs.api }}
+    steps:
+      - name: Checkout code
+        if: github.event_name == 'push'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Detect affected services
+        if: github.event_name == 'push'
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - 'packages/**'
+              - 'docker-compose.yml'
+              - 'docker-compose*.yml'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'turbo.json'
+            api:
+              - 'apps/api/**'
+              - 'prisma/**'
+              - 'packages/**'
+              - 'docker-compose.yml'
+              - 'docker-compose*.yml'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'turbo.json'
+
+  # Skips the re-run of CI after a PR merge when it would test identical code:
+  # the pushed commit has the same tree as the merged PR's head, and the PR's
+  # latest CI run on that head passed. Same tree means the head already
+  # contained this main, so the PR's tested merge was exactly this code. A PR
+  # that was behind main, a direct push, or any lookup failure runs CI as usual.
+  pr-ci:
+    needs: detect-changes
+    if: github.event_name == 'push' && (needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      passed: ${{ steps.check.outputs.passed }}
+    steps:
+      - name: Check the merged PR's CI covered this exact code
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -uo pipefail
+          passed=false
+          check() {
+            pr=$(gh api "repos/$REPO/commits/$SHA/pulls"               --jq '[.[] | select(.merged_at != null and .merge_commit_sha == env.SHA and .base.ref == "main")][0] | "\(.number) \(.head.sha)"') || return
+            [ -n "$pr" ] && [ "$pr" != "null null" ] || { echo "No merged PR for $SHA."; return; }
+            read -r number head <<< "$pr"
+
+            pushed_tree=$(gh api "repos/$REPO/commits/$SHA" --jq .commit.tree.sha) || return
+            head_tree=$(gh api "repos/$REPO/commits/$head" --jq .commit.tree.sha) || return
+            if [ "$pushed_tree" != "$head_tree" ]; then
+              echo "PR #$number was not up to date with main; running CI."
+              return
+            fi
+
+            conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?event=pull_request&head_sha=$head&per_page=20"               --jq "[.workflow_runs[] | select(any(.pull_requests[]; .number == $number))] | sort_by(.created_at) | last | .conclusion") || return
+            if [ "$conclusion" = "success" ]; then
+              echo "PR #$number's CI passed on $head with this exact tree; skipping the re-run."
+              passed=true
+            else
+              echo "PR #$number's latest CI run concluded '$conclusion'; running CI."
+            fi
+          }
+          check || true
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+
+  # Nothing reaches the VPS unless typecheck, lint, tests, migrations and the
+  # production build all pass on this exact code (here, or on the merged PR).
+  verify:
+    needs: [detect-changes, pr-ci]
+    if: >-
+      always() && !cancelled() && needs.detect-changes.result == 'success' &&
+      (needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true') &&
+      needs.pr-ci.outputs.passed != 'true'
+    # A called workflow can't ask for more than this; ci.yml's `changes` job needs pull-requests.
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      skip_api: ${{ needs.detect-changes.outputs.api != 'true' }}
+      skip_web: ${{ needs.detect-changes.outputs.web != 'true' }}
+
+  deploy:
+    needs: [detect-changes, pr-ci, verify]
+    if: >-
+      always() && !cancelled() && needs.detect-changes.result == 'success' &&
+      (needs.detect-changes.outputs.web == 'true' || needs.detect-changes.outputs.api == 'true') &&
+      (needs.verify.result == 'success' || (needs.verify.result == 'skipped' && needs.pr-ci.outputs.passed == 'true'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@029f5b4aeeeb58fdfe1410a5d17f967dacf36262 # v1.0.3
+        env:
+          WEB_CHANGED: ${{ needs.detect-changes.outputs.web }}
+          API_CHANGED: ${{ needs.detect-changes.outputs.api }}
+          COMMIT_SHA: ${{ github.sha }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          envs: WEB_CHANGED,API_CHANGED,COMMIT_SHA
+          command_timeout: 45m
+          script: |
+            echo "========================================"
+            echo "NEXA PRODUCTION DEPLOYMENT"
+            echo "========================================"
+            echo "Commit: $COMMIT_SHA"
+            
+            SERVICES=""
+            if [ "$WEB_CHANGED" = "true" ]; then
+              SERVICES="web"
+            fi
+            if [ "$API_CHANGED" = "true" ]; then
+              SERVICES="$SERVICES api"
+            fi
+            
+            # Trim leading/trailing whitespace
+            SERVICES=$(echo $SERVICES | xargs)
+            
+            echo "Affected services: $SERVICES"
+            
+            if [ -z "$SERVICES" ]; then
+              echo "No services affected. Exiting."
+              exit 0
+            fi
+            
+            # Navigate to the project directory
+            cd /opt/nexa-chess/NexaGen || { echo "Failed to find project directory"; exit 1; }
+
+            # Fetch the latest commit objects so we can extract the deployment script
+            git fetch origin main
+
+            # Run the target commit's script from a temp file, never by
+            # overwriting scripts/deploy-production.sh in the checkout: a deploy
+            # already running would be reading that file.
+            DEPLOY_SCRIPT=$(mktemp /tmp/nexa-deploy-production.XXXXXX.sh)
+            git show "$COMMIT_SHA:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT"
+            bash "$DEPLOY_SCRIPT" "$COMMIT_SHA" $SERVICES
+            STATUS=$?
+            rm -f "$DEPLOY_SCRIPT"
+            exit $STATUS
+
+  # Manual rollback (Actions → Deploy Production → Run workflow → rollback).
+  # Restores the images that were live before the last successful deploy and
+  # checks out that commit; nothing is rebuilt, so it takes seconds, and CI is
+  # skipped because those images already ran in production. Migrations are not
+  # reversed. Allowed once per successful deploy.
+  rollback:
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'rollback'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Roll back on VPS
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          ROLLBACK_SERVICES: ${{ inputs.services }}
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          envs: ROLLBACK_SERVICES
+          command_timeout: 15m
+          script: |
+            echo "========================================"
+            echo "NEXA PRODUCTION ROLLBACK"
+            echo "========================================"
+            cd /opt/nexa-chess/NexaGen || { echo "Failed to find project directory"; exit 1; }
+            git fetch origin main
+            # The rollback logic of main's newest script, not of whatever is
+            # checked out (that may be the very commit being rolled back).
+            DEPLOY_SCRIPT=$(mktemp /tmp/nexa-deploy-production.XXXXXX.sh)
+            git show "origin/main:scripts/deploy-production.sh" > "$DEPLOY_SCRIPT"
+            # "both" = whatever the last successful deploy changed.
+            [ "$ROLLBACK_SERVICES" = "both" ] && ROLLBACK_SERVICES=""
+            bash "$DEPLOY_SCRIPT" --rollback $ROLLBACK_SERVICES
+            STATUS=$?
+            rm -f "$DEPLOY_SCRIPT"
+            exit $STATUS

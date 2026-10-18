@@ -1,0 +1,56 @@
+node_modules
+dist
+.next
+.next-build
+out
+coverage
+.turbo
+**/.turbo
+*.tsbuildinfo
+.env
+.env.local
+npm-debug.log*
+bin/
+
+# Server-specific logs and keys
+backup.log
+api-dev.log
+web-dev.log
+*.log
+github-actions-key
+github-actions-key.pub
+
+# Responsive screenshot tool output
+scripts/responsive/shots/
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Agent worktrees
+.worktrees/
+
+# Local Recordings storage. Anchored to the repo root: an unanchored
+# `recordings/` matches a directory of that name at ANY depth, which silently
+# swallowed apps/web/src/app/admin/analytics/recordings/ — the page was written,
+# `git add -A` skipped it, `git status` stayed clean, and the route 404'd in
+# production because it never reached the repo.
+/recordings/
+
+test-results/
+
+# Performance outputs
+scripts/perf/out/
+
+# deploy-production.sh state on the VPS (rollback generations, lock, history)
+.deploy/
+
+# pdf.js browser build, copied from node_modules by apps/web/scripts/copy-pdfjs.mjs
+apps/web/public/vendor/pdfjs/
+# Local E2E secrets (template: .env.e2e.example)
+.env.e2e
+
+# Playwright MCP browser-tool logs
+.playwright-mcp/

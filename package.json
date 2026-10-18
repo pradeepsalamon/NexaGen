@@ -1,0 +1,56 @@
+{
+  "name": "nexa-chess",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "npm@11.15.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev --parallel",
+    "dev:clean": "npm run clean -w apps/web && npm run clean -w apps/api && turbo dev --parallel",
+    "dev:web": "turbo dev --filter=@nexa-chess/web --parallel",
+    "dev:web:clean": "npm run clean -w apps/web && npm run dev -w apps/web",
+    "dev:api": "turbo dev --filter=@nexa-chess/api --parallel",
+    "dev:api:clean": "npm run clean -w apps/api && npm run start:dev -w apps/api",
+    "build": "turbo build",
+    "build:prod": "npm run build:prod -w apps/api && npm run build -w apps/web",
+    "db:generate": "npm run prisma:generate -w apps/api",
+    "db:migrate:dev": "npm run migrate:dev -w apps/api",
+    "db:migrate:create": "npm run migrate:dev:create -w apps/api",
+    "db:migrate:deploy": "npm run migrate:deploy -w apps/api",
+    "db:migrate:status": "npm run migrate:status -w apps/api",
+    "db:reset": "npm run db:reset -w apps/api",
+    "db:seed": "npm run seed -w apps/api",
+    "prod": "docker compose up -d --build",
+    "prod:web": "docker compose up -d --build web",
+    "prod:api": "docker compose up -d --build api",
+    "prod:livekit": "docker compose up -d --build livekit",
+    "prod:db": "docker compose up -d postgres redis",
+    "prod:stop": "docker compose down",
+    "prod:status": "docker compose ps",
+    "prod:logs": "docker compose logs -f",
+    "lint": "turbo lint",
+    "prepare": "husky",
+    "precommit": "npm run typecheck && npm run lint && npm run test",
+    "test": "npm run test -w apps/api -- --runInBand",
+    "test:integration": "npm run test:integration -w apps/api",
+    "shots": "node scripts/responsive/capture.mjs",
+    "typecheck": "turbo typecheck"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "concurrently": "^8.2.2",
+    "husky": "^9.1.7",
+    "turbo": "^2.10.12",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "@nestjs/platform-express": {
+      "multer": "2.4.0"
+    },
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

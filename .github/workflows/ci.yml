@@ -1,0 +1,218 @@
+name: CI
+
+# The gate every production deploy waits on (deploy-production.yml calls this
+# workflow), and the check a pull request into main/dev runs.
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_call:
+    # The deploy passes what its detect-changes job found, so only the
+    # affected app is checked. Left unset, everything runs.
+    inputs:
+      skip_api:
+        type: boolean
+        default: false
+      skip_web:
+        type: boolean
+        default: false
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  # Which apps this run checks: a PR diffs its files, a deploy passes inputs,
+  # a manual run checks both. Same filters as deploy-production.yml.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      api: ${{ steps.out.outputs.api }}
+      web: ${{ steps.out.outputs.web }}
+    steps:
+      - if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
+        id: filter
+        with:
+          filters: |
+            shared: &shared
+              - 'packages/**'
+              - 'docker-compose*.yml'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'turbo.json'
+              - '.github/workflows/**'
+            web:
+              - *shared
+              - 'apps/web/**'
+            api:
+              - *shared
+              - 'apps/api/**'
+              - 'prisma/**'
+
+      - id: out
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
+            echo "web=${{ steps.filter.outputs.web }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "api=${{ inputs.skip_api != true }}" >> "$GITHUB_OUTPUT"
+            echo "web=${{ inputs.skip_web != true }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  # No separate typecheck: `npm run build` type-checks both apps (nest build,
+  # next build) and ts-jest type-checks the specs as they run.
+  verify:
+    name: Lint, unit tests
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || (github.event_name == 'pull_request' && needs.changes.outputs.web == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The base commit must exist for Jest --changedSince.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate Prisma client
+        if: needs.changes.outputs.api == 'true'
+        run: npm run db:generate
+
+      # The API imports the shared packages from their dist/ output.
+      - name: Build shared packages
+        if: needs.changes.outputs.api == 'true'
+        run: npx turbo run build --filter="./packages/*"
+
+      # PRs only: the pre-commit hook lints too, and lint can't break production.
+      - if: github.event_name == 'pull_request'
+        run: npm run lint
+
+      - name: Pick the specs to run
+        if: needs.changes.outputs.api == 'true'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: echo "JEST_SCOPE=$(bash scripts/ci/jest-scope.sh "$BASE")" >> "$GITHUB_ENV"
+
+      - name: API unit tests
+        if: needs.changes.outputs.api == 'true'
+        run: npm run test -w apps/api -- --runInBand --passWithNoTests $JEST_SCOPE
+
+  migrations:
+    name: Migrations, schema drift, DB integration tests
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        # Same major as docker-compose.yml.
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nexa_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nexa_ci?schema=public
+      INTEGRATION_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nexa_ci?schema=public
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # The base commit must exist for Jest --changedSince.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Apply every migration to an empty database
+        run: npm run db:migrate:deploy
+
+      # Exit code 2 = schema.prisma has changes no migration creates.
+      - name: Check schema.prisma has no unmigrated changes
+        working-directory: apps/api
+        run: |
+          npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code --script
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      # The API imports the shared packages from their dist/ output.
+      - name: Build shared packages
+        run: npx turbo run build --filter="./packages/*"
+
+      # Real-Postgres tests (`*.int-spec.ts`), with a non-UTC session zone.
+      # Runs after the drift check: global setup sets the database timezone.
+      - name: Pick the specs to run
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: echo "JEST_SCOPE=$(bash scripts/ci/jest-scope.sh "$BASE")" >> "$GITHUB_ENV"
+
+      - name: DB integration tests
+        run: npm run test:integration -w apps/api -- --passWithNoTests $JEST_SCOPE
+
+  build:
+    name: Production build
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - if: needs.changes.outputs.web == 'true'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: apps/web/.next/cache
+          key: next-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: next-${{ hashFiles('package-lock.json') }}-
+
+      # Catches what typecheck can't: RSC/client boundary errors, Nest build config.
+      # `<app>...` also builds the shared packages that app depends on.
+      - name: Build affected apps
+        env:
+          API: ${{ needs.changes.outputs.api }}
+          WEB: ${{ needs.changes.outputs.web }}
+        run: |
+          filters=()
+          [ "$API" = "true" ] && filters+=(--filter=@nexa-chess/api...)
+          [ "$WEB" = "true" ] && filters+=(--filter=@nexa-chess/web...)
+          npx turbo run build "${filters[@]}"
