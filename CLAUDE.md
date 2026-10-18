@@ -300,6 +300,10 @@ Global `UserThrottlerGuard` (100/min; auth 5/min, password reset 3/min), keyed b
 
 `@nexa-chess/types` `diagram-recognition.ts` / `diagram-position.ts` + `features/diagram-import/`. **The PDF never leaves the browser**; pdf.js loads from `public/vendor/pdfjs/` via a `webpackIgnore`'d import — don't bundle it. A diagram is pieces only: side to move/castling are never assumed. Details: [docs/FEATURES.md](docs/FEATURES.md).
 
+### 3.6k5 SEO & AI search (GEO)
+
+Facts about the academy live once in `features/academy/content.ts` and feed the visible `/academy` FAQ, the schema.org JSON-LD (`lib/structuredData.ts`, one Organization `@id` on every page) and `/llms.txt`. **Never put a claim in JSON-LD or llms.txt that the page doesn't show** (Google spam policy). Share images are `opengraph-image.tsx`; www → apex is a `next.config` redirect. Details: [docs/FEATURES.md](docs/FEATURES.md).
+
 ### 3.6k Demo classes (guest access, invites, static schedules)
 
 `demo-class/` + admin demo methods + public page `app/demo/[classId]`, super-admin only. A guest is a `DemoClassRegistration`, not a user; **`DemoInviteService` is the only way to add a guest**. Static demo schedules generate ordinary demo `CoachClass` rows (cron job lock `demo-schedule.top-up`). Details: [docs/CLASSES.md](docs/CLASSES.md).

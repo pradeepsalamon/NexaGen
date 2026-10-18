@@ -9,6 +9,7 @@ import { DemoBookingSection } from "@/features/academy/components/DemoBookingSec
 import { TestimonialsSection } from "@/features/academy/components/TestimonialsSection";
 import { StatsSection } from "@/features/academy/components/StatsSection";
 import { ContactSection } from "@/features/academy/components/ContactSection";
+import { FaqSection } from "@/features/academy/components/FaqSection";
 import { AcademyFooter } from "@/features/academy/components/AcademyFooter";
 import { AcademyFloatingElements } from "@/features/academy/components/AcademyFloatingElements";
 
@@ -40,6 +41,9 @@ export default function AcademyPage() {
       </div>
       <div className="cv-auto">
         <StatsSection />
+      </div>
+      <div className="cv-auto">
+        <FaqSection />
       </div>
       <div className="cv-auto">
         <ContactSection />

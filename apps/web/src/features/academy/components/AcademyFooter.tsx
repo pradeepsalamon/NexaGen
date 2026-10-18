@@ -8,6 +8,7 @@ const quickLinks = [
   { label: "Class Types", href: "#class-types" },
   { label: "About Us", href: "#why-choose-us" },
   { label: "Demo Classes", href: "#demo" },
+  { label: "FAQ", href: "#faq" },
   { label: "Contact", href: "#contact" }
 ];
 

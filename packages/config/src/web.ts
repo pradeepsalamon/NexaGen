@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 const webEnvSchema = z.object({
+  // Bing Webmaster Tools <meta name="msvalidate.01"> token (Bing also feeds ChatGPT / Copilot search).
+  NEXT_PUBLIC_BING_SITE_VERIFICATION: z.string().optional(),
   NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION: z.string().optional(),
   NEXT_PUBLIC_API_URL: z
     .string()
@@ -19,6 +21,7 @@ const webEnvSchema = z.object({
 export type WebEnv = z.infer<typeof webEnvSchema>;
 
 export function getWebEnv(source: { 
+  NEXT_PUBLIC_BING_SITE_VERIFICATION?: string | undefined;
   NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?: string | undefined;
   NEXT_PUBLIC_API_URL?: string | undefined;
   NEXT_PUBLIC_LIVEKIT_URL?: string | undefined;

@@ -1,4 +1,5 @@
 import { ArrowRight, Sparkles } from "lucide-react";
+import { ACADEMY_PROGRAMS } from "../content";
 
 const programs = [
   {
@@ -8,14 +9,7 @@ const programs = [
     borderColor: "hover:border-emerald-500/30",
     glowColor: "group-hover:shadow-emerald-500/10",
     bar: "from-emerald-500 via-emerald-400 to-emerald-500",
-    features: [
-      "Chess basics & rules",
-      "Piece movement mastery",
-      "Opening fundamentals",
-      "Simple tactics & puzzles",
-      "Confidence building",
-      "Interactive game play"
-    ],
+    features: ACADEMY_PROGRAMS[0].topics,
     tag: "Perfect Start",
     tagColor: "bg-emerald-500/10 text-emerald-700 border-emerald-600/20",
     bulletColor: "text-emerald-600"
@@ -27,14 +21,7 @@ const programs = [
     borderColor: "hover:border-gold/30",
     glowColor: "group-hover:shadow-gold/10",
     bar: "from-[#b8912e] via-[#d4a843] to-[#b8912e]",
-    features: [
-      "Strategy development",
-      "Tactical combinations",
-      "Positional understanding",
-      "Tournament preparation",
-      "Advanced openings",
-      "Game analysis sessions"
-    ],
+    features: ACADEMY_PROGRAMS[1].topics,
     tag: "Most Popular",
     tagColor: "bg-[#d4a843]/12 text-[#8a6b1d] border-[#d4a843]/35",
     bulletColor: "text-[#b8912e]",
@@ -47,14 +34,7 @@ const programs = [
     borderColor: "hover:border-purple-500/30",
     glowColor: "group-hover:shadow-purple-500/10",
     bar: "from-purple-500 via-purple-400 to-purple-500",
-    features: [
-      "Advanced opening theory",
-      "Deep calculation skills",
-      "Endgame mastery",
-      "Competitive tournament coaching",
-      "Grandmaster game studies",
-      "Psychological preparation"
-    ],
+    features: ACADEMY_PROGRAMS[2].topics,
     tag: "Elite Program",
     tagColor: "bg-purple-500/10 text-purple-700 border-purple-600/20",
     bulletColor: "text-purple-600"

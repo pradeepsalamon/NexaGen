@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { GOOGLE_SITE_VERIFICATION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { BING_SITE_VERIFICATION, GOOGLE_SITE_VERIFICATION, SITE_NAME, SITE_URL } from "@/lib/site";
 import { AppProviders } from "../providers/AppProviders";
 import { fontVariablesCss } from "./fonts";
 import "../styles/globals.css";
@@ -8,17 +8,20 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   // Pages set only their short name (lib/pageTitles.ts); this adds the brand.
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
-  description: "Online Chess Learning Management System",
+  description: "Nexa Chess Academy: live online chess classes, coaching and practice for students, parents and coaches.",
   applicationName: SITE_NAME,
   openGraph: {
-    description: "Online Chess Learning Management System",
-    locale: "en_US",
+    description: "Nexa Chess Academy: live online chess classes, coaching and practice for students, parents and coaches.",
+    locale: "en_IN",
     siteName: SITE_NAME,
     title: SITE_NAME,
     type: "website"
   },
   formatDetection: { address: false, email: false, telephone: false },
-  verification: GOOGLE_SITE_VERIFICATION ? { google: GOOGLE_SITE_VERIFICATION } : undefined
+  verification: {
+    ...(GOOGLE_SITE_VERIFICATION ? { google: GOOGLE_SITE_VERIFICATION } : {}),
+    ...(BING_SITE_VERIFICATION ? { other: { "msvalidate.01": BING_SITE_VERIFICATION } } : {})
+  }
 };
 
 export const viewport: Viewport = {

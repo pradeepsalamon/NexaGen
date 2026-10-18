@@ -370,7 +370,8 @@ helper for dirty-state UX.
   `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_LIVEKIT_URL` and `NEXT_PUBLIC_SITE_URL`
   (public origin for canonical URLs, `sitemap.xml`, `robots.txt` and Open Graph;
   compose defaults it to `https://nexachess.in`) with localhost defaults, and the
-  optional `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (Search Console meta tag).
+  optional `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` (Search Console meta tag) and
+  `NEXT_PUBLIC_BING_SITE_VERIFICATION` (Bing Webmaster Tools `msvalidate.01` tag).
   `NEXT_PUBLIC_CONTACT_EMAIL` is read directly from `process.env`. **`NEXT_PUBLIC_*`
   is build-time** — set before `docker compose build`.
 - **Root `.env`** feeds `docker-compose.yml` (Postgres creds, build args, all API

@@ -253,3 +253,38 @@ is shared with, retention) must stay true to the code — **a feature that
 stores new personal data or adds a processor updates it**. Sections with
 `pending` are placeholders for reviewed legal wording; while `LEGAL_DRAFT` is
 true the pages show a draft banner and are `noindex`.
+
+## SEO & AI search (GEO)
+
+The public pages are `/` and `/academy` (the marketing site); everything signed-in
+is disallowed in `robots.ts`.
+
+- **One source of facts**: `apps/web/src/features/academy/content.ts` — name and
+  alternate names, contacts, programs (also rendered by `ProgramsSection`), class
+  formats, the FAQ and `ACADEMY_SOCIAL_PROFILES`. The visible FAQ (`FaqSection`),
+  the JSON-LD and `/llms.txt` all read it. Only facts the site shows go here:
+  structured data that doesn't match visible content breaks Google's spam policy,
+  and AI answers quote it verbatim.
+- **JSON-LD** (`lib/structuredData.ts`): `homeJsonLd()` on `/`, `academyJsonLd()`
+  on `/academy` — `EducationalOrganization` (`#organization`, the same `@id`
+  everywhere so there is one entity), `WebSite`, `WebPage`, one `Course` per
+  program and an `FAQPage` matching the visible FAQ. `jsonLdScript()` escapes `<`.
+  No review/rating markup: Google ignores self-serving reviews for organizations.
+  Add the academy's official profiles to `ACADEMY_SOCIAL_PROFILES` → `sameAs`.
+- **`/llms.txt`** (`app/llms.txt/route.ts`, static): the llmstxt.org markdown brief
+  for AI assistants.
+- **robots.txt** names the search / AI-answer crawlers (Googlebot, Bingbot,
+  GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Applebot, Google-Extended …) as
+  allowed, with the same private paths as `*`. Blocking any of them removes the
+  site from that assistant's answers.
+- **Sitemap**: `/academy`, `/`, `/register`, `/login`; `/privacy` and `/terms` join
+  once `LEGAL_DRAFT` is false (they're `noindex` while drafts).
+- **Titles**: keyword first, brand last, ≤ 60 chars; descriptions ≤ 155 chars.
+  `/academy` uses `title.absolute` — the root template would add "| Nexa Chess".
+- **Share images**: `app/opengraph-image.tsx` and `app/academy/opengraph-image.tsx`
+  (1200×630, `lib/ogImage.tsx`, rendered at build from the logo).
+- **One host**: `next.config.mjs` 308-redirects `www.<site>` to the apex derived
+  from `NEXT_PUBLIC_SITE_URL` (nginx passes `Host`).
+- **Verification**: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` /
+  `NEXT_PUBLIC_BING_SITE_VERIFICATION` (build-time) render the meta tags.
+

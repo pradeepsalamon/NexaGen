@@ -62,6 +62,28 @@ function securityHeaders(isDev) {
   ];
 }
 
+/**
+ * www.<site> → the canonical apex, one 301 per URL, so search engines index a
+ * single host (nginx serves both and passes Host through). Derived from
+ * NEXT_PUBLIC_SITE_URL; nothing when that is unset, localhost or itself a www host.
+ */
+function canonicalHostRedirects() {
+  try {
+    const { host, protocol } = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "");
+    if (!host.includes(".") || host.startsWith("www.") || host.startsWith("localhost")) return [];
+    return [
+      {
+        destination: `${protocol}//${host}/:path*`,
+        has: [{ type: "host", value: `www.${host}` }],
+        permanent: true,
+        source: "/:path*"
+      }
+    ];
+  } catch {
+    return [];
+  }
+}
+
 /** @type {(phase: string) => import('next').NextConfig} */
 const nextConfig = (phase) => ({
   distDir:
@@ -94,6 +116,9 @@ const nextConfig = (phase) => ({
   },
   images: {
     formats: ["image/avif", "image/webp"]
+  },
+  async redirects() {
+    return canonicalHostRedirects();
   },
   output: "standalone",
   poweredByHeader: false,
