@@ -289,6 +289,7 @@ export function getCatalogPuzzles(query: CatalogListQuery): Promise<CatalogListR
       themeMode: query.themeMode,
       opening: query.opening,
       includeBelowGate: query.includeBelowGate ? "true" : undefined,
+      sort: query.sort,
       seed: query.seed,
       cursor: query.cursor,
       pageSize: query.pageSize

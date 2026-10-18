@@ -8,6 +8,7 @@ import { getPuzzle, getPuzzles } from "@/features/puzzles/api/puzzleApi";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
 import { loadPuzzleCursor, savePuzzleCursor } from "../lib/puzzleCursor";
+import { claimBoardForShare, putPuzzleOnBoard } from "../lib/puzzleShare";
 import { loadLastShareOptions } from "../lib/puzzleShareOptions";
 import { useAssignLivePuzzle } from "./useLivePuzzle";
 
@@ -55,8 +56,9 @@ export function useLoadNextPuzzle({
 }) {
   const qc = useQueryClient();
   const toast = useToast();
+  const store = useContext(BoardContext);
   const loadOnBoard = useLoadPuzzleOnBoard();
-  if (!loadOnBoard) throw new Error("useLoadNextPuzzle must be used within a BoardProvider");
+  if (!store || !loadOnBoard) throw new Error("useLoadNextPuzzle must be used within a BoardProvider");
   const assign = useAssignLivePuzzle(classId);
   const [loading, setLoading] = useState(false);
 
@@ -155,21 +157,28 @@ export function useLoadNextPuzzle({
           return;
         }
         if (!target) return;
+        const isNewest = claimBoardForShare(classId);
         const last = loadLastShareOptions();
+        let assignment;
         try {
-          await assign.mutateAsync({
+          ({ assignment } = await assign.mutateAsync({
             puzzleId: target.id,
             durationSeconds: last.durationSeconds ? Number(last.durationSeconds) : null,
             leaderboard: last.leaderboard,
             scoring: last.scoring
-          });
+          }));
         } catch {
           return; // Already toasted by useAssignLivePuzzle.
         }
         savePuzzleCursor({ puzzleId: target.id });
-        await loadOnBoard(target.id).catch(() => undefined);
+        if (!assignment || !isNewest()) return;
+        try {
+          putPuzzleOnBoard(store, assignment.fen, assignment.orientation);
+        } catch (error) {
+          toast.error({ title: "Shared, but the main board couldn't show it", message: (error as Error).message });
+        }
       }),
-    [run, assign, findStep, loadOnBoard, toast]
+    [run, assign, findStep, store, classId, toast]
   );
 
   return { share, load, loadCurrent, loading };

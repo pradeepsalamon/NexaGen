@@ -4647,6 +4647,8 @@ model LichessPuzzle {
   releaseId         String // LichessCatalogueRelease.id that last wrote the row (no FK)
 
   @@index([ratingBand, randKey, id], map: "lichess_puzzles_walk_idx")
+  /// Catalogue browse by exact rating (low→high or high→low), id as tiebreak.
+  @@index([rating, id], map: "lichess_puzzles_rating_idx")
   @@index([themes], type: Gin, map: "lichess_puzzles_themes_gin")
   @@index([openingTags], type: Gin, map: "lichess_puzzles_opening_gin")
   @@map("lichess_puzzles")

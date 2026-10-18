@@ -14,6 +14,7 @@ import {
   MAX_ACTIVITY_QUEUE_ITEMS,
   MAX_ACTIVITY_QUEUES_PER_CLASS,
   parseActivityChapterState,
+  sortCatalogByRating,
   type ActivityQueue,
   type ActivityQueueItem,
   type ActivityQueueItemInput,
@@ -22,6 +23,9 @@ import {
   type ActivityQueuesResponse,
   type ActivityResponseCell,
   type AddActivityQueueItemsRequest,
+  type AddCatalogPuzzlesToQueueRequest,
+  type AddCatalogPuzzlesToQueueResponse,
+  type CatalogQueueSkipReason,
   type AdvanceActivityQueueRequest,
   type CreateActivityQueueRequest,
   type RenameActivityQueueRequest,
@@ -36,6 +40,7 @@ import { LiveKitService } from "../live-class/livekit.service";
 import { LiveClassMovePollService } from "../move-poll/live-class-move-poll.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveClassPuzzleService } from "../puzzle/live-class-puzzle.service";
+import { PuzzleCatalogService } from "../puzzle/puzzle-catalog.service";
 import { fullName } from "../puzzle/puzzle-auth.helper";
 
 const queueInclude = {
@@ -76,7 +81,8 @@ export class ActivityQueueService {
     private readonly liveClass: LiveClassService,
     private readonly livekit: LiveKitService,
     private readonly puzzles: LiveClassPuzzleService,
-    private readonly polls: LiveClassMovePollService
+    private readonly polls: LiveClassMovePollService,
+    private readonly catalog: PuzzleCatalogService
   ) {}
 
   // ── Drafting (coach-owner / admin) ──
@@ -188,6 +194,82 @@ export class ActivityQueueService {
       });
     });
     return this.respond(queueId);
+  }
+
+  /**
+   * Lichess catalogue puzzles → PUZZLE items, appended lowest rating first (then
+   * by Lichess id) whatever order they were picked in. Existing items, and any
+   * manual order among them, are untouched. Each puzzle is materialised to its
+   * one library copy (the same copy a catalogue Share uses); one that can't be,
+   * is already in the queue, or doesn't fit is skipped and reported — never
+   * swapped for another puzzle. The queue row is locked for the append, so two
+   * concurrent adds can't both insert the same puzzle.
+   */
+  async addCatalogPuzzles(
+    accessToken: string | undefined,
+    classId: string,
+    queueId: string,
+    body: AddCatalogPuzzlesToQueueRequest
+  ): Promise<AddCatalogPuzzlesToQueueResponse> {
+    const manager = await this.resolveManager(accessToken, classId);
+    await this.findOwnDraft(classId, queueId);
+
+    const sourceIds = [...new Set(body.sourceIds)];
+    const rows = await this.prisma.lichessPuzzle.findMany({
+      where: { id: { in: sourceIds } },
+      select: { id: true, rating: true }
+    });
+    const ratingOf = new Map(rows.map((r) => [r.id, r.rating]));
+    const skipped: AddCatalogPuzzlesToQueueResponse["skipped"] = [];
+    const skip = (sourceId: string, reason: CatalogQueueSkipReason) =>
+      skipped.push({ reason, rating: ratingOf.get(sourceId) ?? null, sourceId });
+    for (const id of sourceIds) if (!ratingOf.has(id)) skip(id, "NOT_FOUND");
+
+    const ordered = sortCatalogByRating(rows.map((r) => ({ rating: r.rating, sourceId: r.id })));
+    const copies: { puzzleId: string; sourceId: string; title: string }[] = [];
+    for (const { sourceId } of ordered) {
+      const result = await this.catalog.materialise(sourceId, {
+        createdBy: null,
+        topicId: () => this.catalog.ensureLichessFolder(manager.user.id)
+      });
+      if (result.outcome === "NOT_FOUND" || result.outcome === "INVALID") skip(sourceId, result.outcome);
+      else if (result.outcome === "IN_TRASH" || result.puzzle.status !== PuzzleStatus.PUBLISHED) skip(sourceId, "UNAVAILABLE");
+      else copies.push({ puzzleId: result.puzzle.id, sourceId, title: result.puzzle.title });
+    }
+
+    const addedItemIds = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM live_class_activity_queues WHERE id = ${queueId} FOR UPDATE`;
+      const current = await tx.liveClassActivityQueue.findUnique({
+        where: { id: queueId },
+        select: { items: { select: { puzzleId: true } }, status: true }
+      });
+      if (!current || current.status !== LiveClassActivityQueueStatus.DRAFT) {
+        throw new ConflictException("This queue has already been launched — it can no longer be edited.");
+      }
+      const queued = new Set(current.items.map((i) => i.puzzleId).filter(Boolean));
+      const fresh = copies.filter((c) => {
+        if (!queued.has(c.puzzleId)) return true;
+        skip(c.sourceId, "ALREADY_QUEUED");
+        return false;
+      });
+      const room = Math.max(0, MAX_ACTIVITY_QUEUE_ITEMS - current.items.length);
+      for (const c of fresh.slice(room)) skip(c.sourceId, "QUEUE_FULL");
+      const toAdd = fresh.slice(0, room);
+      if (toAdd.length === 0) return [];
+      const created = await tx.liveClassActivityQueueItem.createManyAndReturn({
+        data: toAdd.map((c, i) => ({
+          durationSeconds: body.durationSeconds ?? null,
+          kind: LiveClassActivityKind.PUZZLE,
+          position: current.items.length + i,
+          puzzleId: c.puzzleId,
+          queueId,
+          title: c.title.slice(0, 200)
+        })),
+        select: { id: true, position: true }
+      });
+      return created.sort((a, b) => a.position - b.position).map((r) => r.id);
+    });
+    return { ...(await this.respond(queueId)), addedItemIds, skipped };
   }
 
   async reorder(

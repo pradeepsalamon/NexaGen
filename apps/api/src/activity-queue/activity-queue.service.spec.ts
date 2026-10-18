@@ -9,6 +9,7 @@ import { LiveKitService } from "../live-class/livekit.service";
 import { LiveClassMovePollService } from "../move-poll/live-class-move-poll.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveClassPuzzleService } from "../puzzle/live-class-puzzle.service";
+import { PuzzleCatalogService } from "../puzzle/puzzle-catalog.service";
 import { ActivityQueueService } from "./activity-queue.service";
 
 const TOKEN = "t";
@@ -40,6 +41,20 @@ const chapters = [
   { id: "ch-other", scopeKey: "batch:other", state: chapterState, title: "Another batch's" }
 ];
 
+/** Lichess catalogue rows by id → rating; "bad" doesn't replay, "trashed" has a copy in the Trash. */
+const lichess: Record<string, number> = {
+  aaa: 1500,
+  bad: 1250,
+  bbb: 1100,
+  ccc: 1300,
+  ddd: 1200,
+  eee: 950,
+  fff: 1000,
+  tieB: 1400,
+  tieA: 1400,
+  trashed: 1050
+};
+
 const p2002 = () => new Prisma.PrismaClientKnownRequestError("dup", { clientVersion: "test", code: "P2002" });
 
 /** A small in-memory stand-in for the tables the queue touches. */
@@ -69,6 +84,15 @@ function createFakePrisma() {
 
   const prisma: any = {
     $transaction: jest.fn(async (arg: any) => (typeof arg === "function" ? arg(prisma) : Promise.all(arg))),
+    // Only the queue row lock (SELECT … FOR UPDATE) goes through raw SQL.
+    $queryRaw: jest.fn(async () => []),
+    lichessPuzzle: {
+      findMany: jest.fn(async ({ where }: any) =>
+        Object.entries(lichess)
+          .filter(([id]) => where.id.in.includes(id))
+          .map(([id, rating]) => ({ id, rating }))
+      )
+    },
     batchStudent: {
       findMany: jest.fn(async () => [
         { student: { firstName: "Ava", id: "student-1", lastName: null } },
@@ -158,6 +182,11 @@ function createFakePrisma() {
         }
         return { count: data.length };
       }),
+      createManyAndReturn: jest.fn(async ({ data }: any) => {
+        const before = state.items.length;
+        await prisma.liveClassActivityQueueItem.createMany({ data });
+        return state.items.slice(before).map((i) => ({ id: i.id, position: i.position }));
+      }),
       delete: jest.fn(async ({ where }: any) => {
         state.items = state.items.filter((i) => i.id !== where.id);
       }),
@@ -216,6 +245,7 @@ describe("ActivityQueueService", () => {
   let livePuzzles: { assign: jest.Mock; end: jest.Mock };
   let polls: { end: jest.Mock; start: jest.Mock; update: jest.Mock };
   let liveClass: { resolveParticipant: jest.Mock };
+  let catalog: { ensureLichessFolder: jest.Mock; materialise: jest.Mock };
   let clock = T0.getTime();
 
   const as = (userId: string) => jwt.verifyAsync.mockResolvedValue({ sub: userId, type: "access" });
@@ -282,6 +312,18 @@ describe("ActivityQueueService", () => {
       resolveParticipant: jest.fn(async () => ({ liveSession: state.session, user: users["student-1"] }))
     };
 
+    catalog = {
+      ensureLichessFolder: jest.fn(async () => "topic-lichess"),
+      materialise: jest.fn(async (sourceId: string, placement: any) => {
+        await placement.topicId();
+        if (sourceId === "bad") return { message: "The setup move is not legal.", outcome: "INVALID" };
+        if (sourceId === "trashed") return { outcome: "IN_TRASH", puzzleId: `pz-lc-${sourceId}` };
+        return {
+          outcome: "EXISTING",
+          puzzle: { id: `pz-lc-${sourceId}`, status: "PUBLISHED", title: `Fork · ${lichess[sourceId]}` }
+        };
+      })
+    };
     const moduleRef = await Test.createTestingModule({
       providers: [
         ActivityQueueService,
@@ -290,7 +332,8 @@ describe("ActivityQueueService", () => {
         { provide: LiveClassService, useValue: liveClass },
         { provide: LiveKitService, useValue: livekit },
         { provide: LiveClassPuzzleService, useValue: livePuzzles },
-        { provide: LiveClassMovePollService, useValue: polls }
+        { provide: LiveClassMovePollService, useValue: polls },
+        { provide: PuzzleCatalogService, useValue: catalog }
       ]
     }).compile();
     service = moduleRef.get(ActivityQueueService);
@@ -621,6 +664,127 @@ describe("ActivityQueueService", () => {
     it("returns no queue to a student when none is running", async () => {
       await draftQueue();
       await expect(service.current(TOKEN, CLASS_ID)).resolves.toEqual({ queue: null });
+    });
+  });
+
+  describe("adding Lichess catalogue puzzles", () => {
+    const newDraft = async () =>
+      (await service.create(TOKEN, CLASS_ID, { clientId: "client-cat1", title: "Lichess set" })).queue.id;
+    const puzzleItems = (queue: { items: any[] }) => queue.items.filter((i) => i.kind === "PUZZLE");
+
+    it("appends the selection lowest rating first, numerically, whatever order it was picked in", async () => {
+      const queueId = await newDraft();
+      const res = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, {
+        sourceIds: ["aaa", "bbb", "ccc", "ddd", "fff", "eee"]
+      });
+      expect(res.queue.items.map((i) => i.title)).toEqual([
+        "Fork · 950",
+        "Fork · 1000",
+        "Fork · 1100",
+        "Fork · 1200",
+        "Fork · 1300",
+        "Fork · 1500"
+      ]);
+      expect(res.queue.items.map((i) => i.position)).toEqual([0, 1, 2, 3, 4, 5]);
+      expect(res.addedItemIds).toEqual(res.queue.items.map((i) => i.id));
+      expect(res.skipped).toEqual([]);
+      // Materialised lowest first too, each into the system Lichess folder.
+      expect(catalog.materialise.mock.calls.map((c) => c[0])).toEqual(["eee", "fff", "bbb", "ddd", "ccc", "aaa"]);
+    });
+
+    it("breaks a rating tie by Lichess id", async () => {
+      const queueId = await newDraft();
+      const res = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["tieB", "tieA"] });
+      expect(res.queue.items.map((i) => i.puzzleId)).toEqual(["pz-lc-tieA", "pz-lc-tieB"]);
+    });
+
+    it("keeps existing items and their manual order, appending after them", async () => {
+      const queueId = await draftQueue();
+      const { queue } = await service.addItems(TOKEN, CLASS_ID, queueId, {
+        items: [{ kind: "PUZZLE", puzzleId: "pz-global" }]
+      });
+      const manual = [...queue.items].reverse().map((i) => i.id);
+      await service.reorder(TOKEN, CLASS_ID, queueId, { ids: manual });
+
+      const res = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["ccc", "bbb"] });
+      expect(res.queue.items.slice(0, 4).map((i) => i.id)).toEqual(manual);
+      expect(res.queue.items.slice(4).map((i) => i.puzzleId)).toEqual(["pz-lc-bbb", "pz-lc-ccc"]);
+    });
+
+    it("never adds a puzzle twice — in one request or across requests", async () => {
+      const queueId = await newDraft();
+      const first = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["bbb", "bbb", "ccc"] });
+      expect(first.addedItemIds).toHaveLength(2);
+      const again = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["ccc", "ddd"] });
+      expect(again.skipped).toEqual([{ rating: 1300, reason: "ALREADY_QUEUED", sourceId: "ccc" }]);
+      expect(puzzleItems(again.queue).map((i) => i.puzzleId)).toEqual(["pz-lc-bbb", "pz-lc-ccc", "pz-lc-ddd"]);
+    });
+
+    it("reports a missing, broken or unavailable puzzle instead of replacing it", async () => {
+      const queueId = await newDraft();
+      const res = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, {
+        sourceIds: ["gone", "bad", "trashed", "ccc"]
+      });
+      expect(res.queue.items.map((i) => i.puzzleId)).toEqual(["pz-lc-ccc"]);
+      expect(res.skipped).toEqual(
+        expect.arrayContaining([
+          { rating: null, reason: "NOT_FOUND", sourceId: "gone" },
+          { rating: 1250, reason: "INVALID", sourceId: "bad" },
+          { rating: 1050, reason: "UNAVAILABLE", sourceId: "trashed" }
+        ])
+      );
+      expect(res.skipped).toHaveLength(3);
+    });
+
+    it("adds what fits, lowest rating first, and reports the rest as a full queue", async () => {
+      const queueId = await newDraft();
+      for (let i = 0; i < 38; i++) {
+        state.items.push({ id: `fill-${i}`, kind: "QUESTION", position: i, puzzleId: null, queueId, title: "Q" });
+      }
+      const res = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["aaa", "eee", "ccc"] });
+      expect(puzzleItems(res.queue).map((i) => i.puzzleId)).toEqual(["pz-lc-eee", "pz-lc-ccc"]);
+      expect(res.skipped).toEqual([{ rating: 1500, reason: "QUEUE_FULL", sourceId: "aaa" }]);
+    });
+
+    it("applies the timer to every added puzzle", async () => {
+      const queueId = await newDraft();
+      const res = await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, {
+        durationSeconds: 120,
+        sourceIds: ["bbb", "ccc"]
+      });
+      expect(res.queue.items.map((i) => i.durationSeconds)).toEqual([120, 120]);
+    });
+
+    it("refuses a launched queue, another class's queue, and anyone but the class's coach or an admin", async () => {
+      const queueId = await newDraft();
+      await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["bbb"] });
+      as("coach-2");
+      await expect(service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["ccc"] })).rejects.toBeInstanceOf(
+        ForbiddenException
+      );
+      as("student-1");
+      await expect(service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["ccc"] })).rejects.toBeInstanceOf(
+        ForbiddenException
+      );
+      as("admin");
+      await expect(
+        service.addCatalogPuzzles(TOKEN, OTHER_CLASS_ID, queueId, { sourceIds: ["ccc"] })
+      ).rejects.toBeInstanceOf(NotFoundException);
+      as(COACH_ID);
+      await service.launch(TOKEN, CLASS_ID, queueId);
+      await expect(service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["ccc"] })).rejects.toBeInstanceOf(
+        ConflictException
+      );
+      expect(catalog.materialise).toHaveBeenCalledTimes(1);
+    });
+
+    it("launches the lowest-rated puzzle first, then advances in rating order", async () => {
+      const queueId = await newDraft();
+      await service.addCatalogPuzzles(TOKEN, CLASS_ID, queueId, { sourceIds: ["ccc", "bbb", "ddd"] });
+      const launched = await service.launch(TOKEN, CLASS_ID, queueId);
+      expect(livePuzzles.assign).toHaveBeenLastCalledWith(TOKEN, CLASS_ID, expect.objectContaining({ puzzleId: "pz-lc-bbb" }));
+      await service.advance(TOKEN, CLASS_ID, queueId, { fromItemId: launched.queue.currentItemId! });
+      expect(livePuzzles.assign).toHaveBeenLastCalledWith(TOKEN, CLASS_ID, expect.objectContaining({ puzzleId: "pz-lc-ddd" }));
     });
   });
 });

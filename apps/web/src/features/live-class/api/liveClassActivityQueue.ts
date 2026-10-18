@@ -5,6 +5,8 @@ import {
   type ActivityQueueResponse,
   type ActivityQueuesResponse,
   type AddActivityQueueItemsRequest,
+  type AddCatalogPuzzlesToQueueRequest,
+  type AddCatalogPuzzlesToQueueResponse,
   type AdvanceActivityQueueRequest,
   type CreateActivityQueueRequest,
   type RenameActivityQueueRequest,
@@ -37,6 +39,16 @@ export const addActivityQueueItems = (
   body: AddActivityQueueItemsRequest
 ): Promise<ActivityQueueResponse> =>
   apiFetch<ActivityQueueResponse>(API_ROUTES.liveClass.activityQueueItems(classId, queueId), {
+    method: "POST",
+    body
+  });
+
+export const addCatalogPuzzlesToQueue = (
+  classId: string,
+  queueId: string,
+  body: AddCatalogPuzzlesToQueueRequest
+): Promise<AddCatalogPuzzlesToQueueResponse> =>
+  apiFetch<AddCatalogPuzzlesToQueueResponse>(API_ROUTES.liveClass.activityQueueCatalogItems(classId, queueId), {
     method: "POST",
     body
   });

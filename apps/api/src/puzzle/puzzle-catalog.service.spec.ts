@@ -23,8 +23,10 @@ import {
   buildLichessPuzzleCopy,
   catalogPuzzleTitle,
   decodeCatalogCursor,
+  decodeCatalogRatingCursor,
   difficultyForRating,
   encodeCatalogCursor,
+  encodeCatalogRatingCursor,
   puzzleTypeForThemes
 } from "./puzzle-catalog.service";
 
@@ -118,6 +120,16 @@ describe("catalogue transform (spec §3)", () => {
     const cursor = { band: 28, randKey: 2147483647, id: "KsvGQ" };
     expect(decodeCatalogCursor(encodeCatalogCursor(cursor))).toEqual(cursor);
     expect(() => decodeCatalogCursor("28.1.'; drop")).toThrow(BadRequestException);
+  });
+
+  it("round-trips a rating cursor, and never confuses it with a walk cursor", () => {
+    expect(decodeCatalogRatingCursor(encodeCatalogRatingCursor({ rating: 950, id: "KsvGQ" }))).toEqual({
+      rating: 950,
+      id: "KsvGQ"
+    });
+    expect(() => decodeCatalogRatingCursor("28.123.KsvGQ")).toThrow(BadRequestException);
+    expect(() => decodeCatalogCursor("r.950.KsvGQ")).toThrow(BadRequestException);
+    expect(() => decodeCatalogRatingCursor("r.950.'; drop")).toThrow(BadRequestException);
   });
 });
 
@@ -227,6 +239,38 @@ describe("PuzzleCatalogService", () => {
         hasMore: false,
         timedOut: true
       });
+    });
+
+    it("sorts by exact rating then id, low to high, with a rating cursor", async () => {
+      tx.$queryRaw.mockResolvedValue([ROW, { ...ROW, id: "KsvGR", rating: 1450 }]);
+      const res = await service.list(TOKEN, { pageSize: 1, ratingMin: 1000, ratingMax: 1500, sort: "rating_asc", seed: 9 });
+      const sql = sqlOf(tx.$queryRaw);
+      expect(sql).toContain("ORDER BY rating, id");
+      expect(sql).not.toContain('"ratingBand" BETWEEN');
+      expect(sql).not.toContain("(rating, id) >"); // first page: no keyset
+      expect(res.nextCursor).toBe("r.1444.KsvGQ");
+
+      await service.list(TOKEN, { cursor: res.nextCursor!, pageSize: 1, sort: "rating_asc" });
+      const next = tx.$queryRaw.mock.calls[tx.$queryRaw.mock.calls.length - 1];
+      expect(sqlOf(tx.$queryRaw)).toContain("(rating, id) > (");
+      expect(Prisma.sql(next[0], ...next.slice(1)).values).toEqual(expect.arrayContaining([1444, "KsvGQ"]));
+    });
+
+    it("sorts high to low with the keyset reversed", async () => {
+      await service.list(TOKEN, { cursor: "r.1600.abc", sort: "rating_desc" });
+      const sql = sqlOf(tx.$queryRaw);
+      expect(sql).toContain("ORDER BY rating DESC, id DESC");
+      expect(sql).toContain("(rating, id) < (");
+    });
+
+    it("keeps the shuffled walk order when no sort is sent", async () => {
+      await service.list(TOKEN, { ratingMin: 1000, ratingMax: 1500 });
+      const sql = sqlOf(tx.$queryRaw);
+      expect(sql).toContain(`ORDER BY "ratingBand", "randKey", id`);
+      await expect(service.list(TOKEN, { cursor: "r.1444.KsvGQ" })).rejects.toThrow(BadRequestException);
+      await expect(service.list(TOKEN, { cursor: "28.1.KsvGQ", sort: "rating_asc" })).rejects.toThrow(
+        BadRequestException
+      );
     });
 
     it("refuses an inverted rating window and students", async () => {

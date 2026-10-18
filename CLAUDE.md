@@ -318,6 +318,7 @@ Global `UserThrottlerGuard` (100/min; auth 5/min, password reset 3/min), keyed b
 - In-class moves/answers (simul, matches, polls, puzzles) go through REST with a status/ply-filtered `updateMany` claim (409 on a lost race), then a server-injected packet — never peer data.
 - The LiveKit webhook (`POST /webhooks/livekit`) needs its raw body; anything turning room identities into user ids must skip `isSpectatorIdentity`.
 - Pre-class settings: resolver + grant deriver live in `@nexa-chess/types` (`live-class-settings.ts`) — use them.
+- **Never put follow-up work (board loads) in a per-call `mutate(…, { onSuccess })`** in the room: sharing a puzzle switches the coach's stage and unmounts the caller, which silently drops it. Await `mutateAsync` instead (`useSharePuzzleWithClass`, queue Launch/Next). Catalogue browse sorts by exact rating (`lichess_puzzles_rating_idx`); catalogue picks go into a queue lowest rating first via `activityQueueCatalogItems`. Details: [docs/LIVE_CLASS.md](docs/LIVE_CLASS.md).
 
 Puzzle Library and student progress: [docs/PUZZLES.md](docs/PUZZLES.md). Academy-scheduled coach classes and class change requests: [docs/CLASSES.md](docs/CLASSES.md).
 

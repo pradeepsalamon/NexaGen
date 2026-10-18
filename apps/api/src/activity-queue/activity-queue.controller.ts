@@ -2,12 +2,14 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Req } from "@ne
 import type { Request } from "express";
 import {
   addActivityQueueItemsRequestSchema,
+  addCatalogPuzzlesToQueueRequestSchema,
   advanceActivityQueueRequestSchema,
   API_ROUTES,
   createActivityQueueRequestSchema,
   renameActivityQueueRequestSchema,
   reorderActivityQueueRequestSchema,
   type AddActivityQueueItemsRequest,
+  type AddCatalogPuzzlesToQueueRequest,
   type AdvanceActivityQueueRequest,
   type CreateActivityQueueRequest,
   type RenameActivityQueueRequest,
@@ -63,6 +65,16 @@ export class ActivityQueueController {
     @Req() request: Request
   ) {
     return this.service.addItems(this.getAccessToken(request), id, queueId, body);
+  }
+
+  @Post(API_ROUTES.liveClass.activityQueueCatalogItems())
+  addCatalogPuzzles(
+    @Param("id") id: string,
+    @Param("queueId") queueId: string,
+    @Body(new ZodBodyPipe(addCatalogPuzzlesToQueueRequestSchema)) body: AddCatalogPuzzlesToQueueRequest,
+    @Req() request: Request
+  ) {
+    return this.service.addCatalogPuzzles(this.getAccessToken(request), id, queueId, body);
   }
 
   @Put(API_ROUTES.liveClass.activityQueueItemOrder())

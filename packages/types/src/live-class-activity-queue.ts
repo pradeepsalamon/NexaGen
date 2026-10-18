@@ -91,6 +91,34 @@ export const addActivityQueueItemsRequestSchema = z.object({
 });
 export type AddActivityQueueItemsRequest = z.infer<typeof addActivityQueueItemsRequestSchema>;
 
+/**
+ * Appends Lichess catalogue puzzles (by Lichess id) as PUZZLE items, lowest
+ * rating first whatever order they were picked in. Duplicates in the request,
+ * and puzzles already in the queue, are skipped — never added twice.
+ */
+export const addCatalogPuzzlesToQueueRequestSchema = z.object({
+  sourceIds: z.array(z.string().trim().min(1).max(16)).min(1).max(MAX_ACTIVITY_QUEUE_ITEMS),
+  /** Applied to every added puzzle; null / absent = untimed. */
+  durationSeconds: z
+    .number()
+    .int()
+    .min(ACTIVITY_QUEUE_TIMER_MIN_SECONDS)
+    .max(ACTIVITY_QUEUE_TIMER_MAX_SECONDS)
+    .nullable()
+    .optional()
+});
+export type AddCatalogPuzzlesToQueueRequest = z.infer<typeof addCatalogPuzzlesToQueueRequestSchema>;
+
+/**
+ * NOT_FOUND       no longer in the catalogue
+ * INVALID         its position or line doesn't replay
+ * UNAVAILABLE     its library copy is in the Trash, archived or a draft
+ * ALREADY_QUEUED  that puzzle is already in this queue
+ * QUEUE_FULL      no room left (MAX_ACTIVITY_QUEUE_ITEMS)
+ */
+export const catalogQueueSkipReasonSchema = z.enum(["NOT_FOUND", "INVALID", "UNAVAILABLE", "ALREADY_QUEUED", "QUEUE_FULL"]);
+export type CatalogQueueSkipReason = z.infer<typeof catalogQueueSkipReasonSchema>;
+
 /** The full new order — every item id exactly once. */
 export const reorderActivityQueueRequestSchema = z.object({
   ids: z.array(idSchema).max(MAX_ACTIVITY_QUEUE_ITEMS)
@@ -151,6 +179,13 @@ export type ActivityQueuesResponse = {
 };
 
 export type ActivityQueueResponse = { queue: ActivityQueue };
+
+export type AddCatalogPuzzlesToQueueResponse = ActivityQueueResponse & {
+  /** The new items, in queue order (lowest rating first). */
+  addedItemIds: string[];
+  /** One entry per requested puzzle that was not added. */
+  skipped: { sourceId: string; reason: CatalogQueueSkipReason; rating: number | null }[];
+};
 
 /** What a student may know about the running queue. */
 export type StudentActivityQueueView = {

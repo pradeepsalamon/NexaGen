@@ -139,11 +139,14 @@ export const API_ROUTES = {
     // class's queues / POST create; PATCH rename / DELETE a draft or finished one;
     // POST items (append), PUT the item order, DELETE one item — drafts only;
     // POST launch / advance / finish (class must be LIVE for launch); GET progress.
+    // POST catalog-items: Lichess catalogue puzzles appended lowest rating first.
     activityQueues: (id: string = ":id") => `/live-class/${id}/activity-queues`,
     activityQueue: (id: string = ":id", queueId: string = ":queueId") =>
       `/live-class/${id}/activity-queues/${queueId}`,
     activityQueueItems: (id: string = ":id", queueId: string = ":queueId") =>
       `/live-class/${id}/activity-queues/${queueId}/items`,
+    activityQueueCatalogItems: (id: string = ":id", queueId: string = ":queueId") =>
+      `/live-class/${id}/activity-queues/${queueId}/catalog-items`,
     activityQueueItemOrder: (id: string = ":id", queueId: string = ":queueId") =>
       `/live-class/${id}/activity-queues/${queueId}/items/order`,
     activityQueueItem: (id: string = ":id", queueId: string = ":queueId", itemId: string = ":itemId") =>

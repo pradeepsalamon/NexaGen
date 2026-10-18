@@ -91,6 +91,90 @@ describe("Lichess catalogue (real Postgres)", () => {
     expect(fork.puzzles).toEqual([]);
   });
 
+  describe("sorted by rating", () => {
+    // randKeys deliberately disagree with the rating order, so a walk order would show.
+    const ROWS = [
+      { id: "SORT1600", rating: 1600, randKey: 1 },
+      { id: "SORT0950", rating: 950, randKey: 2 },
+      { id: "SORT1100", rating: 1100, randKey: 3 },
+      { id: "SORT1000", rating: 1000, randKey: 4 },
+      { id: "SORT1200b", rating: 1200, randKey: 5 },
+      { id: "SORT1200a", rating: 1200, randKey: 6 }, // tie: the id decides
+      { id: "SORT1601", rating: 1601, randKey: 7 },
+      { id: "SORT0999", rating: 999, randKey: 8, passesQualityGate: false }
+    ];
+
+    const browse = async (query: Parameters<PuzzleCatalogService["list"]>[1]) => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+      for (let page = 0; page < 20; page += 1) {
+        const res = await service.list("t", { ...query, cursor, pageSize: 2 });
+        expect(res.timedOut).toBe(false);
+        seen.push(...res.puzzles.map((p) => p.sourceId));
+        if (!res.hasMore) break;
+        cursor = res.nextCursor ?? undefined;
+      }
+      return seen;
+    };
+
+    beforeEach(() => seed(ROWS));
+
+    it("pages low to high by numeric rating, ties by id, each row once", async () => {
+      expect(await browse({ sort: "rating_asc" })).toEqual([
+        "SORT0950",
+        "SORT1000",
+        "SORT1100",
+        "SORT1200a",
+        "SORT1200b",
+        "SORT1600",
+        "SORT1601"
+      ]);
+    });
+
+    it("pages high to low with the same tiebreak reversed", async () => {
+      expect(await browse({ sort: "rating_desc", ratingMax: 1600 })).toEqual([
+        "SORT1600",
+        "SORT1200b",
+        "SORT1200a",
+        "SORT1100",
+        "SORT1000",
+        "SORT0950"
+      ]);
+    });
+
+    it("treats both bounds as inclusive, down to a single exact rating", async () => {
+      expect(await browse({ sort: "rating_asc", ratingMin: 1000, ratingMax: 1600 })).toEqual([
+        "SORT1000",
+        "SORT1100",
+        "SORT1200a",
+        "SORT1200b",
+        "SORT1600"
+      ]);
+      expect(await browse({ sort: "rating_asc", ratingMin: 1200, ratingMax: 1200 })).toEqual(["SORT1200a", "SORT1200b"]);
+    });
+
+    it("returns an empty page for a window nothing falls in, and refuses an inverted one", async () => {
+      await expect(service.list("t", { sort: "rating_asc", ratingMin: 1300, ratingMax: 1500 })).resolves.toMatchObject({
+        hasMore: false,
+        nextCursor: null,
+        puzzles: []
+      });
+      await expect(service.list("t", { sort: "rating_asc", ratingMin: 1500, ratingMax: 1400 })).rejects.toThrow(
+        "The minimum rating is above the maximum."
+      );
+    });
+
+    it("keeps the quality gate, theme filter and an admin's below-gate rows in rating order", async () => {
+      expect(await browse({ sort: "rating_asc", ratingMax: 1000, includeBelowGate: true })).toEqual([
+        "SORT0950",
+        "SORT0999",
+        "SORT1000"
+      ]);
+      expect(await browse({ sort: "rating_asc", themes: ["fork"] })).toHaveLength(7);
+      expect(await browse({ sort: "rating_asc", themes: ["pin"] })).toEqual([]);
+    });
+  });
+
   it("adopting moves a materialised copy out of the system folder, and browse reports it", async () => {
     await seed([{ id: "KsvGQ", rating: 1444, randKey: 1 }]);
     const { puzzleId } = await service.materialiseOne("t", { sourceId: "KsvGQ" });

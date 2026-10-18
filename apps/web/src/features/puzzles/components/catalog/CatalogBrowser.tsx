@@ -1,18 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  CATALOG_DEFAULT_RATING_MAX,
+  CATALOG_DEFAULT_RATING_MIN,
+  CATALOG_DEFAULT_SORT,
   CATALOG_MAX_THEMES,
+  CATALOG_RATING_STEPS,
   LICHESS_THEMES,
+  catalogRatingWindowError,
   isSystemPuzzleFolder,
   lichessThemeLabel,
+  sortCatalogByRating,
   type CatalogAdoptResponse,
   type CatalogPuzzleSummary,
+  type CatalogSort,
   type CatalogThemeMode,
   type SolutionMove
 } from "@nexa-chess/types";
-import { Eye, FolderPlus, GraduationCap, Library, Loader2, Shuffle, X } from "lucide-react";
+import { Eye, FolderPlus, GraduationCap, Library, ListPlus, Loader2, Shuffle, X } from "lucide-react";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -39,6 +46,17 @@ const THEME_OPTIONS = [...LICHESS_THEMES]
   .sort((a, b) => GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group))
   .map((t) => ({ value: t.key, label: t.label }));
 
+/** "1,000" — rating labels with a thousands separator. */
+const ratingLabel = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+const RATING_OPTIONS = CATALOG_RATING_STEPS.map((n) => ({ value: String(n), label: ratingLabel(n) }));
+const SORT_OPTIONS: { value: CatalogSort; label: string }[] = [
+  { value: "rating_asc", label: "Rating: low to high" },
+  { value: "rating_desc", label: "Rating: high to low" },
+  { value: "shuffle", label: "Shuffled" }
+];
+const DEFAULT_MIN = String(CATALOG_DEFAULT_RATING_MIN);
+const DEFAULT_MAX = String(CATALOG_DEFAULT_RATING_MAX);
+
 const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
 
@@ -51,7 +69,20 @@ interface Props {
   /** `compact` is the in-class share dialog: smaller grid, a Share button per puzzle. */
   variant?: "library" | "compact";
   onShare?: (puzzle: CatalogPuzzleSummary) => void;
+  /** A share is in flight: every Share button is disabled. */
   sharing?: boolean;
+  /** The puzzle whose share is in flight (its button spins). */
+  sharingId?: string | null;
+  /**
+   * Compact only: enables multi-select with "Add selected to queue". Receives
+   * the selection lowest rating first; resolve true to clear the selection.
+   */
+  onAddToQueue?: (puzzles: CatalogPuzzleSummary[]) => Promise<boolean>;
+  addingToQueue?: boolean;
+  /** Most puzzles one add may take (the queue's capacity). */
+  queueLimit?: number;
+  /** Rendered in the selection bar before the Add button — e.g. the target-queue picker. */
+  queueControls?: ReactNode;
 }
 
 /**
@@ -59,31 +90,44 @@ interface Props {
  * with "Load more" (there are no totals), preview with the solution, and —
  * by variant — adopt into a folder (admin), create homework, or share in class.
  */
-export function CatalogBrowser({ role, variant = "library", onShare, sharing = false }: Props) {
+export function CatalogBrowser({
+  role,
+  variant = "library",
+  onShare,
+  sharing = false,
+  sharingId = null,
+  onAddToQueue,
+  addingToQueue = false,
+  queueLimit,
+  queueControls
+}: Props) {
   const compact = variant === "compact";
   const isAdmin = role === "admin";
   const toast = useToast();
   const queryClient = useQueryClient();
 
-  const [ratingMinInput, setRatingMinInput] = useState("1000");
-  const [ratingMaxInput, setRatingMaxInput] = useState("1500");
+  // Rating bounds are dropdown values ("" = no bound), so no debounce: one pick, one request.
+  const [ratingMin, setRatingMin] = useState(DEFAULT_MIN);
+  const [ratingMax, setRatingMax] = useState(DEFAULT_MAX);
+  // Not persisted: every opening starts low → high.
+  const [sort, setSort] = useState<CatalogSort>(CATALOG_DEFAULT_SORT);
   const [themes, setThemes] = useState<string[]>([]);
   const [themeMode, setThemeMode] = useState<CatalogThemeMode>("any");
   const [openingInput, setOpeningInput] = useState("");
   const [includeBelowGate, setIncludeBelowGate] = useState(false);
   const [seed, setSeed] = useState(newSeed);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Kept by id across sorting, paging and filter changes until cleared or added.
+  const [selected, setSelected] = useState<Map<string, CatalogPuzzleSummary>>(() => new Map());
   const [targetFolder, setTargetFolder] = useState("");
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [homework, setHomework] = useState<Homework | null>(null);
   const [homeworkLoading, setHomeworkLoading] = useState<string | null>(null);
 
-  const ratingMin = useDebouncedValue(ratingMinInput, 400);
-  const ratingMax = useDebouncedValue(ratingMaxInput, 400);
   const opening = useDebouncedValue(openingInput.trim().replace(/\s+/g, "_"), 400);
   const parsedMin = ratingMin ? Number(ratingMin) : undefined;
   const parsedMax = ratingMax ? Number(ratingMax) : undefined;
-  const windowInvalid = parsedMin !== undefined && parsedMax !== undefined && parsedMin > parsedMax;
+  const windowError = catalogRatingWindowError(parsedMin, parsedMax);
+  const windowInvalid = windowError !== null;
 
   const query = useMemo(
     () => ({
@@ -93,10 +137,12 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
       themeMode: themes.length > 1 ? themeMode : undefined,
       opening: opening || undefined,
       includeBelowGate: isAdmin && includeBelowGate ? true : undefined,
-      seed,
+      sort,
+      // Only the shuffled order uses a seed; leaving it out keeps a sorted query's cache key stable.
+      seed: sort === "shuffle" ? seed : undefined,
       pageSize: compact ? 12 : 24
     }),
-    [parsedMin, parsedMax, themes, themeMode, opening, isAdmin, includeBelowGate, seed, compact]
+    [parsedMin, parsedMax, themes, themeMode, opening, isAdmin, includeBelowGate, sort, seed, compact]
   );
   const catalog = useCatalogPuzzles(query, !windowInvalid);
   const puzzles = useMemo(() => catalog.data?.pages.flatMap((p) => p.puzzles) ?? [], [catalog.data]);
@@ -110,28 +156,52 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
   const adopt = useAdoptCatalogPuzzles();
   const coachBatches = useCoachBatches({ enabled: role === "coach" && !compact });
 
-  const hasFilters = themes.length > 0 || !!openingInput || includeBelowGate;
-  const canSelect = isAdmin && !compact;
+  const hasFilters =
+    themes.length > 0 ||
+    !!openingInput ||
+    includeBelowGate ||
+    ratingMin !== DEFAULT_MIN ||
+    ratingMax !== DEFAULT_MAX ||
+    sort !== CATALOG_DEFAULT_SORT;
+  const queueMode = compact && !!onAddToQueue;
+  const canSelect = (isAdmin && !compact) || queueMode;
+  const visibleIds = useMemo(() => new Set(puzzles.map((p) => p.sourceId)), [puzzles]);
+  const hiddenSelected = [...selected.keys()].filter((id) => !visibleIds.has(id)).length;
+  const allVisibleSelected = puzzles.length > 0 && puzzles.every((p) => selected.has(p.sourceId));
+  const overLimit = queueLimit !== undefined && selected.size > queueLimit;
 
   const addTheme = (key: string) => {
     if (!key || themes.includes(key) || themes.length >= CATALOG_MAX_THEMES) return;
     setThemes([...themes, key]);
   };
-  const toggleSelected = (sourceId: string, on: boolean) =>
+  const toggleSelected = (puzzle: CatalogPuzzleSummary, on: boolean) =>
     setSelected((prev) => {
-      const next = new Set(prev);
-      if (on) next.add(sourceId);
-      else next.delete(sourceId);
+      const next = new Map(prev);
+      if (on) next.set(puzzle.sourceId, puzzle);
+      else next.delete(puzzle.sourceId);
       return next;
     });
+  /** Exactly the cards on screen (every page loaded so far) — never the rest of the catalogue. */
+  const selectAllVisible = () =>
+    setSelected((prev) => {
+      const next = new Map(prev);
+      for (const p of puzzles) next.set(p.sourceId, p);
+      return next;
+    });
+
+  const runAddToQueue = async () => {
+    if (!onAddToQueue || selected.size === 0 || overLimit || addingToQueue) return;
+    // The API orders by rating too; this is the order the coach is told about.
+    if (await onAddToQueue(sortCatalogByRating([...selected.values()]))) setSelected(new Map());
+  };
 
   const runAdopt = () => {
     if (!targetFolder || selected.size === 0) return;
     adopt.mutate(
-      { sourceIds: [...selected], topicId: targetFolder },
+      { sourceIds: [...selected.keys()], topicId: targetFolder },
       {
         onSuccess: (res) => {
-          setSelected(new Set());
+          setSelected(new Map());
           reportAdopt(res, toast);
         },
         onError: (error) => toast.error({ title: "Could not add puzzles", message: (error as Error).message })
@@ -159,7 +229,11 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
     }
   };
 
+  /** Back to the defaults: 1,000–1,500, any theme, low to high. The selection is kept. */
   const clearFilters = () => {
+    setRatingMin(DEFAULT_MIN);
+    setRatingMax(DEFAULT_MAX);
+    setSort(CATALOG_DEFAULT_SORT);
     setThemes([]);
     setOpeningInput("");
     setIncludeBelowGate(false);
@@ -169,30 +243,33 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
     <Card className={compact ? "grid gap-3 border-0 p-0 shadow-none" : "grid gap-4 p-4"}>
       <div className="flex flex-wrap items-center justify-end gap-2">
         <div className="flex items-center gap-1.5">
-          <Input
+          <Select
             aria-label="Minimum rating"
-            className="w-24"
-            inputMode="numeric"
-            max={4000}
-            min={0}
-            onChange={(e) => setRatingMinInput(e.target.value)}
-            placeholder="Min"
-            type="number"
-            value={ratingMinInput}
+            className="w-28"
+            hasError={windowInvalid}
+            onChange={(e) => setRatingMin(e.target.value)}
+            options={RATING_OPTIONS}
+            placeholder="Min: any"
+            value={ratingMin}
           />
           <span className="text-app-muted">–</span>
-          <Input
+          <Select
             aria-label="Maximum rating"
-            className="w-24"
-            inputMode="numeric"
-            max={4000}
-            min={0}
-            onChange={(e) => setRatingMaxInput(e.target.value)}
-            placeholder="Max"
-            type="number"
-            value={ratingMaxInput}
+            className="w-28"
+            hasError={windowInvalid}
+            onChange={(e) => setRatingMax(e.target.value)}
+            options={RATING_OPTIONS}
+            placeholder="Max: any"
+            value={ratingMax}
           />
         </div>
+        <Select
+          aria-label="Sort"
+          className="w-auto"
+          onChange={(e) => setSort(e.target.value as CatalogSort)}
+          options={SORT_OPTIONS}
+          value={sort}
+        />
         <Select
           aria-label="Add a theme"
           className="w-auto max-w-52"
@@ -220,13 +297,22 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
           </label>
         ) : null}
         <SimpleTooltip label="Shuffle">
-          <Button aria-label="Shuffle" variant="outline" size="icon" className={iconBtn} onClick={() => setSeed(newSeed())}>
+          <Button
+            aria-label="Shuffle"
+            variant="outline"
+            size="icon"
+            className={iconBtn}
+            onClick={() => {
+              setSort("shuffle");
+              setSeed(newSeed());
+            }}
+          >
             <Shuffle className="size-4" strokeWidth={2.5} />
           </Button>
         </SimpleTooltip>
         {hasFilters ? (
           <Button variant="outline" size="sm" onClick={clearFilters}>
-            Clear
+            Reset filters
           </Button>
         ) : null}
       </div>
@@ -261,7 +347,38 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
         </div>
       ) : null}
 
-      {canSelect && selected.size > 0 ? (
+      {queueMode && (selected.size > 0 || puzzles.length > 0) ? (
+        <div className="flex flex-wrap items-center justify-end gap-2 rounded-control border border-primary/30 bg-primary/5 p-2">
+          <span className="mr-auto text-sm font-semibold text-app-text" aria-live="polite">
+            {selected.size} selected
+            {hiddenSelected > 0 ? (
+              <span className="font-normal text-app-muted"> · {hiddenSelected} not shown by these filters</span>
+            ) : null}
+          </span>
+          <Button variant="outline" size="sm" onClick={selectAllVisible} disabled={allVisibleSelected}>
+            Select all visible
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setSelected(new Map())} disabled={selected.size === 0}>
+            Clear selection
+          </Button>
+          {queueControls}
+          <Button size="sm" onClick={() => void runAddToQueue()} disabled={selected.size === 0 || overLimit || addingToQueue}>
+            {addingToQueue ? (
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+            ) : (
+              <ListPlus className="mr-1.5 size-4" strokeWidth={2.5} />
+            )}
+            Add selected to queue
+          </Button>
+          {overLimit ? (
+            <p className="w-full text-right text-xs font-semibold text-app-danger-ink">
+              A queue holds at most {queueLimit} activities — clear some of the selection.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {canSelect && !queueMode && selected.size > 0 ? (
         <div className="flex flex-wrap items-center justify-end gap-2 rounded-control border border-primary/30 bg-primary/5 p-2">
           <span className="mr-auto text-sm font-semibold text-app-text">{selected.size} selected</span>
           <Select
@@ -280,14 +397,14 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
             )}
             Add to folder
           </Button>
-          <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
+          <Button variant="outline" size="sm" onClick={() => setSelected(new Map())}>
             Clear
           </Button>
         </div>
       ) : null}
 
       {windowInvalid ? (
-        <Alert variant="warning">The minimum rating is above the maximum.</Alert>
+        <Alert variant="warning">{windowError} Pick a lower minimum or a higher maximum.</Alert>
       ) : timedOut ? (
         <Alert variant="warning">That search took too long — narrow the rating range or the themes.</Alert>
       ) : null}
@@ -305,7 +422,7 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
           icon={Library}
           title="No catalogue puzzles match"
           description="Widen the rating range or remove a theme. If nothing ever appears, the catalogue hasn't been loaded on this server yet."
-          action={hasFilters ? { label: "Clear filters", onClick: clearFilters } : undefined}
+          action={hasFilters ? { label: "Reset filters", onClick: clearFilters } : undefined}
         />
       ) : (
         <div className={gridClass(compact)}>
@@ -313,7 +430,7 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
             <div
               key={puzzle.sourceId}
               className={`flex flex-col gap-2 rounded-control border bg-app-surface p-2 ${
-                selected.has(puzzle.sourceId) ? "border-primary" : "border-app-border"
+                selected.has(puzzle.sourceId) ? "border-primary ring-1 ring-primary" : "border-app-border"
               }`}
             >
               <button
@@ -333,7 +450,7 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
                   <Checkbox
                     aria-label={`Select ${puzzle.sourceId}`}
                     checked={selected.has(puzzle.sourceId)}
-                    onCheckedChange={(v) => toggleSelected(puzzle.sourceId, v === true)}
+                    onCheckedChange={(v) => toggleSelected(puzzle, v === true)}
                   />
                 ) : null}
                 <span className="text-sm font-bold text-app-text">{puzzle.rating}</span>
@@ -366,7 +483,12 @@ export function CatalogBrowser({ role, variant = "library", onShare, sharing = f
                   </Button>
                 </SimpleTooltip>
                 {compact ? (
-                  <Button size="sm" disabled={sharing} onClick={() => onShare?.(puzzle)}>
+                  <Button
+                    size="sm"
+                    disabled={sharing}
+                    isLoading={sharingId === puzzle.sourceId}
+                    onClick={() => onShare?.(puzzle)}
+                  >
                     Share
                   </Button>
                 ) : (

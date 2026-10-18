@@ -69,6 +69,7 @@ type CatalogRow = Pick<
 >;
 
 type Cursor = { band: number; randKey: number; id: string };
+type RatingCursor = { rating: number; id: string };
 
 /** The bits of a `puzzles` copy the materialise/adopt paths branch on. */
 const copySelect = {
@@ -183,6 +184,17 @@ export function decodeCatalogCursor(raw: string): Cursor {
   return { band: Number(match[1]), randKey: Number(match[2]), id: match[3] };
 }
 
+/** The `rating_asc` / `rating_desc` keyset: the last row's rating and id. Distinct from a walk cursor. */
+export function encodeCatalogRatingCursor(cursor: RatingCursor): string {
+  return `r.${cursor.rating}.${cursor.id}`;
+}
+
+export function decodeCatalogRatingCursor(raw: string): RatingCursor {
+  const match = /^r\.(\d{1,4})\.([A-Za-z0-9]{1,16})$/.exec(raw);
+  if (!match) throw new BadRequestException("Invalid catalogue cursor.");
+  return { rating: Number(match[1]), id: match[2] };
+}
+
 /** Folder names to try, in order, if an admin's own folder already has one. */
 const LICHESS_FOLDER_NAMES = ["Lichess", "Lichess catalogue", "Lichess catalogue (system)"];
 const LIVE_CLASS_FOLDER_NAMES = ["Asked in class", "Asked in class (system)"];
@@ -209,7 +221,12 @@ export class PuzzleCatalogService {
     private readonly evaluation: AssignmentEvaluationService
   ) {}
 
-  /** §6 browse: keyset over the walk index, no totals, no solution. */
+  /**
+   * §6 browse: keyset paging, no totals, no solution. `shuffle` (the default)
+   * walks `lichess_puzzles_walk_idx`; `rating_asc` / `rating_desc` walk
+   * `lichess_puzzles_rating_idx` by exact rating, then id — a total order, so
+   * pages never repeat or skip a row and the whole window is sorted, not just a page.
+   */
   async list(accessToken: string | undefined, query: CatalogListQuery): Promise<CatalogListResponse> {
     const user = assertStaffOrCoach(await authenticateUser(this.jwtService, this.prisma, accessToken));
 
@@ -217,18 +234,34 @@ export class PuzzleCatalogService {
     const hi = query.ratingMax ?? RATING_CEILING;
     if (lo > hi) throw new BadRequestException("The minimum rating is above the maximum.");
     const pageSize = Math.min(CATALOG_MAX_PAGE_SIZE, query.pageSize ?? DEFAULT_PAGE_SIZE);
-    const loBand = Math.floor(lo / 50);
-    const hiBand = Math.floor(hi / 50);
-    const cursor = query.cursor
-      ? decodeCatalogCursor(query.cursor)
-      : { band: loBand, randKey: query.seed ?? 0, id: "" };
+    const sort = query.sort ?? "shuffle";
 
     const themes = query.themes ?? [];
-    const filters: Prisma.Sql[] = [
-      Prisma.sql`"ratingBand" BETWEEN ${loBand}::smallint AND ${hiBand}::smallint`,
-      Prisma.sql`rating BETWEEN ${lo}::smallint AND ${hi}::smallint`,
-      Prisma.sql`("ratingBand", "randKey", id) > (${cursor.band}::smallint, ${cursor.randKey}::int, ${cursor.id}::text)`
-    ];
+    const filters: Prisma.Sql[] = [Prisma.sql`rating BETWEEN ${lo}::smallint AND ${hi}::smallint`];
+    let orderBy: Prisma.Sql;
+    if (sort === "shuffle") {
+      const loBand = Math.floor(lo / 50);
+      const hiBand = Math.floor(hi / 50);
+      const cursor = query.cursor
+        ? decodeCatalogCursor(query.cursor)
+        : { band: loBand, randKey: query.seed ?? 0, id: "" };
+      filters.push(
+        Prisma.sql`"ratingBand" BETWEEN ${loBand}::smallint AND ${hiBand}::smallint`,
+        Prisma.sql`("ratingBand", "randKey", id) > (${cursor.band}::smallint, ${cursor.randKey}::int, ${cursor.id}::text)`
+      );
+      orderBy = Prisma.sql`ORDER BY "ratingBand", "randKey", id`;
+    } else {
+      const cursor = query.cursor ? decodeCatalogRatingCursor(query.cursor) : null;
+      const descending = sort === "rating_desc";
+      if (cursor) {
+        filters.push(
+          descending
+            ? Prisma.sql`(rating, id) < (${cursor.rating}::smallint, ${cursor.id}::text)`
+            : Prisma.sql`(rating, id) > (${cursor.rating}::smallint, ${cursor.id}::text)`
+        );
+      }
+      orderBy = descending ? Prisma.sql`ORDER BY rating DESC, id DESC` : Prisma.sql`ORDER BY rating, id`;
+    }
     // Below-gate rows (low confidence, duplicates, retired) are an admin's call.
     if (!(query.includeBelowGate && isAdminRole(user.role))) filters.push(Prisma.sql`"passesQualityGate"`);
     if (themes.length > 0) {
@@ -252,7 +285,7 @@ export class PuzzleCatalogService {
           SELECT id, fen, moves, rating, popularity, "nbPlays", themes, "openingTags", "ratingBand", "randKey"
           FROM lichess_puzzles
           WHERE ${Prisma.join(filters, " AND ")}
-          ORDER BY "ratingBand", "randKey", id
+          ${orderBy}
           LIMIT ${pageSize + 1}`;
       });
     } catch (error) {
@@ -264,9 +297,15 @@ export class PuzzleCatalogService {
     const page = rows.slice(0, pageSize);
     const last = page[page.length - 1];
     const inLibrary = await this.inLibrary(page.map((row) => row.id));
+    const nextCursor =
+      hasMore && last
+        ? sort === "shuffle"
+          ? encodeCatalogCursor({ band: last.ratingBand, randKey: last.randKey, id: last.id })
+          : encodeCatalogRatingCursor({ rating: last.rating, id: last.id })
+        : null;
     return {
       puzzles: page.map((row) => this.toSummary(row, inLibrary.get(row.id) ?? null)),
-      nextCursor: hasMore && last ? encodeCatalogCursor({ band: last.ratingBand, randKey: last.randKey, id: last.id }) : null,
+      nextCursor,
       hasMore,
       timedOut: false
     };

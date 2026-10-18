@@ -514,12 +514,15 @@ function DraftEditor({
             <AlertDialogCancel>Not yet</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                launch.mutate(queue.id, {
-                  onSuccess: ({ queue: launched }) => {
+                // Awaited, not a mutate() callback: the launch swaps this draft view for the
+                // running one, and a per-call onSuccess is dropped when its component unmounts.
+                void launch
+                  .mutateAsync(queue.id)
+                  .then(({ queue: launched }) => {
                     const current = launched.items.find((i) => i.id === launched.currentItemId);
                     if (current) onActivityStarted?.(current);
-                  }
-                })
+                  })
+                  .catch(() => undefined) // useLaunchActivityQueue reports it
               }
             >
               Launch
@@ -640,18 +643,17 @@ function Runner({
   const goNext = () => {
     if (!current || advancingFrom.current === current.id) return;
     advancingFrom.current = current.id;
-    advance.mutate(
-      { fromItemId: current.id, queueId: queue.id },
-      {
-        onSettled: () => {
-          advancingFrom.current = null;
-        },
-        onSuccess: ({ queue: moved }) => {
-          const now = moved.items.find((i) => i.id === moved.currentItemId);
-          if (now) onActivityStarted?.(now);
-        }
-      }
-    );
+    // Awaited for the same reason as Launch: a puzzle share switches the coach's stage.
+    void advance
+      .mutateAsync({ fromItemId: current.id, queueId: queue.id })
+      .then(({ queue: moved }) => {
+        const now = moved.items.find((i) => i.id === moved.currentItemId);
+        if (now) onActivityStarted?.(now);
+      })
+      .catch(() => undefined) // useAdvanceActivityQueue reports it
+      .finally(() => {
+        advancingFrom.current = null;
+      });
   };
 
   return (

@@ -7,13 +7,16 @@ import {
   type ActivityQueue,
   type ActivityQueueItem,
   type ActivityQueueItemInput,
-  type ActivityQueuesResponse
+  type ActivityQueuesResponse,
+  type AddCatalogPuzzlesToQueueResponse,
+  type CatalogQueueSkipReason
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { useToast } from "@/providers/ToastProvider";
 import {
   addActivityQueueItems,
+  addCatalogPuzzlesToQueue,
   advanceActivityQueue,
   createActivityQueue,
   deleteActivityQueue,
@@ -228,6 +231,83 @@ export function useActivityQueueDraftActions(classId: string) {
     rename: rename.run,
     reorder: reorder.run
   };
+}
+
+const SKIP_LABELS: Record<CatalogQueueSkipReason, string> = {
+  ALREADY_QUEUED: "already in the queue",
+  INVALID: "not a valid puzzle",
+  NOT_FOUND: "no longer in the catalogue",
+  QUEUE_FULL: "the queue is full",
+  UNAVAILABLE: "archived or in the Trash"
+};
+
+/** "2 already in the queue · 1 the queue is full" — one count per reason. */
+export function describeCatalogQueueSkips(skipped: AddCatalogPuzzlesToQueueResponse["skipped"]): string | undefined {
+  if (skipped.length === 0) return undefined;
+  const counts = new Map<CatalogQueueSkipReason, number>();
+  for (const s of skipped) counts.set(s.reason, (counts.get(s.reason) ?? 0) + 1);
+  return `Skipped ${[...counts].map(([reason, n]) => `${n} ${SKIP_LABELS[reason]}`).join(" · ")}`;
+}
+
+type CatalogQueueAddVars = {
+  /** null = create a new draft named `queueTitle` first. */
+  queueId: string | null;
+  queueTitle: string;
+  sourceIds: string[];
+  durationSeconds: number | null;
+  onAdded: () => void;
+};
+
+/**
+ * Lichess catalogue picks → a draft queue, lowest rating first (the API orders
+ * and de-duplicates). `queueId: null` makes a new draft named `queueTitle`
+ * first. Undo removes exactly the items this added (and a queue it created).
+ */
+export function useAddCatalogPuzzlesToQueue(classId: string) {
+  const { drop, put } = useQueueCache(classId);
+  const mutation = useUndoableMutation<CatalogQueueAddVars, AddCatalogPuzzlesToQueueResponse & { createdQueue: boolean }>({
+    strategy: "immediate",
+    mutationFn: async ({ queueId, queueTitle, sourceIds, durationSeconds, onAdded }) => {
+      let target = queueId;
+      if (!target) {
+        const { queue } = await createActivityQueue(classId, { clientId: newClientId(), title: queueTitle });
+        put(queue);
+        target = queue.id;
+      }
+      const res = await addCatalogPuzzlesToQueue(classId, target, { durationSeconds, sourceIds });
+      put(res.queue);
+      onAdded();
+      return { ...res, createdQueue: !queueId };
+    },
+    undo: async (_vars, res) => {
+      if (res.createdQueue) {
+        await deleteActivityQueue(classId, res.queue.id);
+        drop(res.queue.id);
+        return;
+      }
+      for (const id of res.addedItemIds) put((await removeActivityQueueItem(classId, res.queue.id, id)).queue);
+    },
+    toast: ({ queueTitle }, res) => {
+      const added = res?.addedItemIds.length ?? 0;
+      return {
+        title: `Added ${added} ${added === 1 ? "puzzle" : "puzzles"} to "${res?.queue.title ?? queueTitle}"`,
+        message: res ? describeCatalogQueueSkips(res.skipped) : undefined
+      };
+    },
+    undoToast: () => ({ title: "Removed the added puzzles" }),
+    invalidates: []
+  });
+  const run = mutation.run;
+  /** Resolves true when the puzzles were added (a failure is already toasted). */
+  const add = useCallback(
+    async (vars: Omit<CatalogQueueAddVars, "onAdded">) => {
+      let added = false;
+      await run({ ...vars, onAdded: () => (added = true) });
+      return added;
+    },
+    [run]
+  );
+  return { add, adding: mutation.isPending };
 }
 
 /** Writes a queue response into the list cache and refreshes its progress grid. */

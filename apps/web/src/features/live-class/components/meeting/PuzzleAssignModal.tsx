@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, FileText, Folder, Trophy } from "lucide-react";
 import {
+  MAX_ACTIVITY_QUEUE_ITEMS,
   buildPuzzleTopicTree,
   isSystemPuzzleFolder,
   flattenPuzzleTopicTree,
@@ -29,12 +30,7 @@ import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { CatalogBrowser } from "@/features/puzzles/components/catalog/CatalogBrowser";
-import {
-  useMaterialiseCatalogPuzzle,
-  usePuzzleScoringSettings,
-  usePuzzleTopics,
-  usePuzzles
-} from "@/features/puzzles/hooks/usePuzzlesApi";
+import { usePuzzleScoringSettings, usePuzzleTopics, usePuzzles } from "@/features/puzzles/hooks/usePuzzlesApi";
 import {
   PuzzleLeaderboardFields,
   PuzzleScoringFields,
@@ -49,14 +45,18 @@ import {
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { useToast } from "@/providers/ToastProvider";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
-import { useAssignLivePuzzle } from "../../hooks/useLivePuzzle";
+import { useActivityQueues, useAddCatalogPuzzlesToQueue } from "../../hooks/useActivityQueue";
 import { useLoadPuzzleOnBoard } from "../../hooks/useLoadNextPuzzle";
+import { useSharePuzzleWithClass, type ShareTarget } from "../../hooks/useSharePuzzleWithClass";
 import { loadPuzzleCursor, savePuzzleCursor } from "../../lib/puzzleCursor";
 import { loadLastShareOptions, saveLastShareOptions } from "../../lib/puzzleShareOptions";
 
 // Mirrors the API's bounds on `durationSeconds` (live-class-puzzle.ts).
 const TIMER_MIN_SECONDS = 30;
 const TIMER_MAX_SECONDS = 3600;
+const NEW_QUEUE = "__new";
+const NEW_QUEUE_TITLE = "Lichess puzzles";
+
 const TIMER_PRESETS = [
   { value: "60", label: "1 min" },
   { value: "120", label: "2 min" },
@@ -157,10 +157,25 @@ export function PuzzleAssignModal({
     order: "asc"
   });
 
-  const assign = useAssignLivePuzzle(classId);
-  const materialise = useMaterialiseCatalogPuzzle();
+  const sharer = useSharePuzzleWithClass(classId);
   const loadOnBoard = useLoadPuzzleOnBoard();
   const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  // "Add selected to queue": the target is a draft of this class, or a new one.
+  const queues = useActivityQueues(open && source === "catalog" ? classId : "");
+  const drafts = useMemo(
+    () => (queues.data?.queues ?? []).filter((q) => q.status === "DRAFT"),
+    [queues.data]
+  );
+  const [queueChoice, setQueueChoice] = useState("");
+  const targetQueue = drafts.find((q) => q.id === queueChoice) ?? null;
+  // Newest draft by default; "New queue" when there is none (or the chosen one was launched).
+  useEffect(() => {
+    if (queueChoice === NEW_QUEUE || drafts.some((q) => q.id === queueChoice)) return;
+    setQueueChoice(drafts[0]?.id ?? NEW_QUEUE);
+  }, [drafts, queueChoice]);
+  const queueAdd = useAddCatalogPuzzlesToQueue(classId);
+  const queueRoom = targetQueue ? MAX_ACTIVITY_QUEUE_ITEMS - targetQueue.items.length : MAX_ACTIVITY_QUEUE_ITEMS;
 
   const customMinutes = durationSeconds ? Math.floor(Number(durationSeconds) / 60) : 0;
   const customSeconds = durationSeconds ? Number(durationSeconds) % 60 : 0;
@@ -172,36 +187,39 @@ export function PuzzleAssignModal({
     !!durationSeconds &&
     (Number(durationSeconds) < TIMER_MIN_SECONDS || Number(durationSeconds) > TIMER_MAX_SECONDS);
 
-  /** `topicId` moves the Ask / Load next cursor; a catalogue share leaves it where it was. */
-  const handleAssign = (puzzleId: string, topicId: string | null) => {
-    if (timerInvalid) return;
-    assign.mutate(
-      {
-        puzzleId,
-        durationSeconds: durationSeconds ? Number(durationSeconds) : null,
-        leaderboard: leaderboardOverride,
-        scoring: scoringOverride
-      },
-      {
-        onSuccess: () => {
-          saveLastShareOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
-          if (topicId) savePuzzleCursor({ folderId: topicId, puzzleId });
-          void loadOnBoard?.(puzzleId).catch(() => undefined);
-          onOpenChange(false);
-        }
-      }
-    );
+  /**
+   * Shares with the class and loads the position onto the shared board in one
+   * awaited flow (see useSharePuzzleWithClass: sharing switches the coach to
+   * Live boards, which unmounts this dialog). `topicId` moves the Ask / Load
+   * next cursor; a catalogue share leaves it where it was.
+   */
+  const handleShare = async (target: ShareTarget, topicId: string | null) => {
+    if (timerInvalid || sharer.sharing) return;
+    const assignment = await sharer.share(target, {
+      durationSeconds: durationSeconds ? Number(durationSeconds) : null,
+      leaderboard: leaderboardOverride,
+      scoring: scoringOverride
+    });
+    if (!assignment) return;
+    saveLastShareOptions({ durationSeconds, leaderboard: leaderboardOverride, scoring: scoringOverride });
+    if (topicId && "puzzleId" in target) savePuzzleCursor({ folderId: topicId, puzzleId: target.puzzleId });
+    onOpenChange(false);
   };
 
-  // A catalogue puzzle becomes a library copy (hidden folder) first, then it's an ordinary share.
-  const shareFromCatalog = async (puzzle: CatalogPuzzleSummary) => {
-    if (timerInvalid) return;
-    try {
-      const { puzzleId } = await materialise.mutateAsync(puzzle.sourceId);
-      handleAssign(puzzleId, null);
-    } catch (error) {
-      toast.error({ title: "Could not share this puzzle", message: (error as Error).message });
+  const addToQueue = async (picked: CatalogPuzzleSummary[]) => {
+    if (timerInvalid) {
+      toast.error({ title: "Fix the timer first", message: "It must be between 30 seconds and 60 minutes." });
+      return false;
     }
+    const added = await queueAdd.add({
+      durationSeconds: durationSeconds ? Number(durationSeconds) : null,
+      queueId: targetQueue?.id ?? null,
+      queueTitle: targetQueue?.title ?? NEW_QUEUE_TITLE,
+      sourceIds: picked.map((p) => p.sourceId)
+    });
+    // A new queue goes to the top of the list; the next add should go to it, not make another.
+    if (added && !targetQueue) setQueueChoice("");
+    return added;
   };
 
   const handleLoad = async (puzzleId: string, topicId: string) => {
@@ -361,8 +379,24 @@ export function PuzzleAssignModal({
             <CatalogBrowser
               role={isStaffRole(role) ? "admin" : "coach"}
               variant="compact"
-              onShare={(puzzle) => void shareFromCatalog(puzzle)}
-              sharing={materialise.isPending || assign.isPending}
+              onShare={(puzzle) => void handleShare({ catalogSourceId: puzzle.sourceId }, null)}
+              sharing={sharer.sharing}
+              sharingId={sharer.pendingKey}
+              onAddToQueue={addToQueue}
+              addingToQueue={queueAdd.adding}
+              queueLimit={queueRoom}
+              queueControls={
+                <Select
+                  aria-label="Queue to add to"
+                  className="w-auto max-w-56"
+                  onChange={(e) => setQueueChoice(e.target.value)}
+                  options={[
+                    ...drafts.map((q) => ({ value: q.id, label: `${q.title} (${q.items.length})` })),
+                    { value: NEW_QUEUE, label: "New queue" }
+                  ]}
+                  value={queueChoice || NEW_QUEUE}
+                />
+              }
             />
           </div>
         ) : (
@@ -478,8 +512,9 @@ export function PuzzleAssignModal({
                     <Button
                       type="button"
                       size="sm"
-                      onClick={() => handleAssign(puzzle.id, puzzle.topicId)}
-                      disabled={assign.isPending}
+                      onClick={() => void handleShare({ puzzleId: puzzle.id }, puzzle.topicId)}
+                      isLoading={sharer.pendingKey === puzzle.id}
+                      disabled={sharer.sharing}
                     >
                       Share
                     </Button>

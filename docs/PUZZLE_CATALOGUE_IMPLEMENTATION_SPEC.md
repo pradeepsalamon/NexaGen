@@ -399,6 +399,7 @@ it's restored rather than duplicated.
 |---|---|---|---|
 | `lichess_puzzles_pkey` | `id` | lookup, upsert conflict target, seen-set join | 132 MB (measured) |
 | `lichess_puzzles_walk_idx` | `(ratingBand, randKey, id)` btree | training walk, browse keyset, rating window | ~170–200 MB (*estimate*: measured 87 MB for `(band, randKey)` on 4.05M rows, plus the `id` column and all 6.15M rows) |
+| `lichess_puzzles_rating_idx` | `(rating, id)` btree | browse sorted by exact rating (`sort=rating_asc` / `rating_desc`, added 2026-10-18) | not yet measured on prod (*estimate* ~150–180 MB: a smallint + the id per row). Without it a sorted page re-sorts a whole 50-point band — measured 6.0 s cold on vps_dev's 6.16M rows, over the 3 s guard |
 | `lichess_puzzles_themes_gin` | `themes` GIN | rare-theme filters (planner's choice) | ~40 MB (measured 25 MB partial) |
 | `lichess_puzzles_opening_gin` | `openingTags` GIN | browse by opening | 9.6 MB (measured) |
 
@@ -459,6 +460,15 @@ ORDER BY "ratingBand", "randKey", id
 LIMIT $pageSize + 1;                                     -- the extra row ⇒ hasMore
 ```
 
+- **Sorted browse (2026-10-18).** `sort=rating_asc` / `rating_desc` drop the band
+  and cursor-on-walk lines and page `ORDER BY rating, id` (or `DESC, DESC`) with
+  the keyset `(rating, id) > ($r, $id)` (`<` descending) over
+  `lichess_puzzles_rating_idx`; the cursor is `r.<rating>.<id>`, never mistaken
+  for a walk cursor. That is a total order over the whole window, so every page
+  continues the previous one. A request without `sort` gets the walk below
+  (older clients' cursors keep working); the catalogue UI opens on `rating_asc`.
+  A rare theme in rating order may walk many rows — the 3 s guard turns that
+  into "narrow the filters", as for the walk.
 - The first page uses a per-session random `$seed` (start `randKey`), so
   "shuffle" is just a new seed. A browse never wraps. The order reads as
   "roughly by rating, shuffled within each 50-point band", which is the useful

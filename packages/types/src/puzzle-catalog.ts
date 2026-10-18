@@ -57,6 +57,38 @@ export const CATALOG_MAX_ADOPT = 200;
 export const catalogThemeModeSchema = z.enum(["any", "all"]);
 export type CatalogThemeMode = z.infer<typeof catalogThemeModeSchema>;
 
+/**
+ * Browse order. `rating_asc` / `rating_desc` page by exact numeric rating with
+ * the Lichess id as tiebreak (index `lichess_puzzles_rating_idx`); `shuffle` is
+ * the original walk order — 50-point bands ascending, shuffled within each band
+ * by `seed`. A request without `sort` gets `shuffle`, so an older client's cursor
+ * still decodes; the catalogue UI opens on `CATALOG_DEFAULT_SORT`.
+ */
+export const catalogSortSchema = z.enum(["rating_asc", "rating_desc", "shuffle"]);
+export type CatalogSort = z.infer<typeof catalogSortSchema>;
+export const CATALOG_DEFAULT_SORT: CatalogSort = "rating_asc";
+
+/** The rating dropdowns' steps: inclusive bounds, 100 points apart ("Any" = no bound). */
+export const CATALOG_RATING_STEPS = [1000, 1100, 1200, 1300, 1400, 1500, 1600] as const;
+export const CATALOG_DEFAULT_RATING_MIN = 1000;
+export const CATALOG_DEFAULT_RATING_MAX = 1500;
+
+/** Why a rating window can't be browsed, or null when it can (either bound may be open). */
+export function catalogRatingWindowError(min: number | null | undefined, max: number | null | undefined): string | null {
+  if (min != null && max != null && min > max) return "The minimum rating is above the maximum.";
+  return null;
+}
+
+/**
+ * Lowest rating first, then the Lichess id — the order a catalogue selection
+ * goes into a queue. Numeric, so 950 comes before 1000; never mutates `rows`.
+ */
+export function sortCatalogByRating<T extends { rating: number; sourceId: string }>(rows: readonly T[]): T[] {
+  return [...rows].sort(
+    (a, b) => a.rating - b.rating || (a.sourceId < b.sourceId ? -1 : a.sourceId > b.sourceId ? 1 : 0)
+  );
+}
+
 const csvOrArray = z
   .union([z.string(), z.array(z.string())])
   .transform((v) => (Array.isArray(v) ? v : v.split(",")).map((s) => s.trim()).filter(Boolean));
@@ -74,7 +106,8 @@ export const catalogListQuerySchema = z.object({
     .union([z.boolean(), z.enum(["true", "false", "1", "0"])])
     .transform((v) => v === true || v === "true" || v === "1")
     .optional(),
-  /** Start randKey of the first page; a new seed is a reshuffle. */
+  sort: catalogSortSchema.optional(),
+  /** `shuffle` only: start randKey of the first page; a new seed is a reshuffle. */
   seed: z.coerce.number().int().min(0).max(0x7fffffff).optional(),
   /** Opaque cursor from the previous page's `nextCursor`. */
   cursor: z.string().max(200).optional(),
