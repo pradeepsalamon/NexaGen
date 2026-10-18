@@ -79,8 +79,9 @@ export function StageSwitch({
 }
 
 /**
- * The single-page live class (md and up) — everything on one screen. Below lg
- * (tablet portrait) the panel stacks under the stage, video beside the tabs:
+ * The single-page live class (md and up) — everything on one screen. On a tall
+ * tablet (portrait, below lg) the panel stacks under the stage, video beside
+ * the tabs; at lg, or on a short tablet (`room` screen), it sits beside it:
  *
  *  ┌───────────────────────────────────┬──────────────┐
  *  │ [Board | Video | Puzzle | Simul…] │ Video        │
@@ -237,9 +238,9 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   const solving = stage === "puzzle";
 
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex-row">
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden room:flex-row">
       {stage === "puzzle" ? (
-        <PuzzleStage stageSwitch={stageSwitch} className="px-3 pb-24 pt-3 lg:px-6" />
+        <PuzzleStage stageSwitch={stageSwitch} className="px-3 pb-24 pt-3 room:px-6" />
       ) : stage === "boards" ? (
         <InlineStage
           title={activePuzzle ? `Live boards · ${activePuzzle.title}` : "Live boards"}
@@ -272,7 +273,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
         <PresentedInteractiveStage stageSwitch={stageSwitch} />
       ) : stage === "video" ? (
         <section className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-3 pt-3 lg:px-6">
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 px-3 pt-3 room:px-6">
             {/* Gallery ⇄ speaker: the speaker view is the panel's spotlight
                 beside the board, so "back" is the board stage. */}
             <Button size="sm" variant="ghost" onClick={() => changeStage("board")}>
@@ -292,8 +293,8 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
         />
       )}
       <PanelResizer />
-      {/* Below lg the panel stacks under the stage; give a solving student the whole height. */}
-      <div className={solving ? "hidden lg:contents" : "contents"}>
+      {/* Stacked, the panel sits under the stage; give a solving student the whole height. */}
+      <div className={solving ? "hidden room:contents" : "contents"}>
         <ClassroomPanel
           isCoach={isCoach}
           showVideo={stage !== "video"}
@@ -305,7 +306,11 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
   );
 }
 
-/** Width of `ClassroomPanel` beside the stage (lg+), so the floating toolbar can centre on it. Below lg the panel sits underneath. */
+/**
+ * Width of `ClassroomPanel` beside the stage (lg+), so the floating toolbar can centre on it.
+ * A short tablet's stage is too narrow for the toolbar, so there it spans the
+ * width and the panel keeps its bottom padding, as when stacked.
+ */
 export const CLASSROOM_PANEL_OFFSET =
   "lg:right-[var(--classroom-panel-w,380px)] xl:right-[var(--classroom-panel-w,420px)]";
 
@@ -325,7 +330,7 @@ function applyPanelWidth(width: number | null) {
 }
 
 /**
- * Drag handle between the stage and the panel (lg+): resizes board vs video.
+ * Drag handle between the stage and the panel (`room` screen): resizes board vs video.
  * The width lives in a CSS variable on <html> so the floating toolbar, which
  * renders outside this layout, stays centred on the board. Double-click resets.
  */
@@ -403,7 +408,7 @@ function PanelResizer() {
         else return;
         e.preventDefault();
       }}
-      className="group relative z-10 -mx-1.5 hidden w-3 shrink-0 cursor-col-resize touch-none items-center justify-center outline-none lg:flex"
+      className="group relative z-10 -mx-1.5 hidden w-3 shrink-0 cursor-col-resize touch-none items-center justify-center outline-none room:flex"
     >
       <span className="h-12 w-1 rounded-full bg-app-border transition-colors group-hover:bg-primary group-focus-visible:bg-primary group-active:bg-primary" />
     </div>

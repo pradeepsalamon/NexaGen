@@ -25,7 +25,7 @@ schedule, attendance, joining a class, chat) and **desktop-first for authoring**
 
 ## 2. Breakpoint system
 
-Tailwind defaults — **no custom `screens`** in
+Tailwind defaults, plus one live-class screen (`room`, below), in
 [`apps/web/tailwind.config.ts`](../apps/web/tailwind.config.ts). Mobile-first:
 an unprefixed utility applies everywhere, a prefixed one applies at that width
 and up.
@@ -35,6 +35,7 @@ and up.
 | _(none)_ | 0 | Phone portrait | Single column, stacked, full-bleed cards |
 | `sm:` | 640 px | Large phone / phone landscape | Header shows text labels, `PageHeader` goes row |
 | `md:` | 768 px | Tablet portrait | Nav drawer widens 240 → 280 px. Shared board mounts |
+| `room:` | lg, or ≥ 768 px wide and ≤ 820 px tall | Live class only | Classroom panel beside the stage instead of under it. Listed before `lg` so `lg`/`xl` still win; JS checks use `ROOM_ROW_QUERY` (`classroom/roomLayout.ts`) |
 | `lg:` | 1024 px | Tablet landscape / small laptop | Dashboard multi-column grids (`lg:grid-cols-3`), header Dashboard CTA when `compact` |
 | `xl:` | 1280 px | Laptop / desktop | Extra column density where useful |
 | `2xl:` | 1536 px | Large desktop | Rarely needed; container max-width already caps content |
@@ -250,7 +251,10 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   the shared board fills the left, and a stage switch swaps it for the video
   grid or any running activity (student: Puzzle, their Simul game, Matches;
   coach: the students' Live boards, Simul, Matches) — those are pop-ups only
-  below 768 px. A right column (`380 / 420px` at `lg / xl`, drag-resizable)
+  below 768 px. On a tall tablet (portrait, below lg) the panel stacks under
+  the stage; at the `room` screen (lg, or a short tablet such as 1000×760,
+  where stacking left a 264 px board) it is a right column (`380 / 420px` at
+  `room / xl`, at most `100vw − 420px`, drag-resizable)
   holds the panel video — **Gallery** (default: every participant in an
   equal 16:9 tile, `classroom/ClassroomGallery.tsx`, sized from the measured
   box; the speaker only gets a green ring) or **Speaker** (spotlight +
@@ -260,7 +264,10 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   and for the coach Response, Engine, PGN, Games). The People list scrolls on
   its own, with a back-to-top rail (`ScrollToTopRail`) that is hidden at the
   top, small mid-list and a tall blue pill at the bottom. The floating toolbar
-  is offset by `CLASSROOM_PANEL_OFFSET` so it centres on the board. `< 768 px`
+  is offset by `CLASSROOM_PANEL_OFFSET` so it centres on the board (lg+; on a
+  short tablet the stage is too narrow, so it spans the width and the panel
+  keeps its bottom padding). The board header wraps rather than run under the
+  panel. `< 768 px`
   keeps the video grid below, with the student's full-stage `BoardStage`.
 - Video grid: column math in
   [`videoGrid.utils.ts`](../apps/web/src/features/live-class/components/meeting/video-grid/videoGrid.utils.ts);

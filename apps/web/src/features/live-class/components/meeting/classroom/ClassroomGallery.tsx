@@ -5,6 +5,7 @@ import type { TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { cn } from "@/lib/utils";
 import { CompactVideoTile } from "../video-grid/CompactVideoTile";
+import { ROOM_ROW_QUERY } from "./roomLayout";
 import {
   balancedGridColumns,
   computeGridLayout,
@@ -26,7 +27,7 @@ const SPAN_TWO: CSSProperties = { gridColumn: "span 2" };
  * Gallery view of the class panel's video: every participant — coach,
  * students, screen shares — in one tile of exactly the same size.
  *
- * The split comes from the measured box, not breakpoints. With `fill` (lg+,
+ * The split comes from the measured box, not breakpoints. With `fill` (side by side,
  * the panel's resizer set a height) it picks the rows × columns that make the
  * tiles largest inside that box (`computeGridLayout`, shared with the stage
  * grid); otherwise the box grows with its rows, as square as the count
@@ -42,9 +43,9 @@ export function ClassroomGallery({
   fill: boolean;
 }) {
   const ordered = useStableTracks(tracks);
-  // `fill` only takes effect at lg — below that the box has no height of its
+  // `fill` only takes effect side by side — stacked, the box has no height of its
   // own to divide, and measuring one that grows with its content would loop.
-  const isLg = useMediaQuery("(min-width: 1024px)");
+  const isLg = useMediaQuery(ROOM_ROW_QUERY);
   const filled = fill && isLg;
   const size = useElementSize<HTMLDivElement>();
   const { height, ref } = size;
