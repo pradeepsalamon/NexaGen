@@ -1,0 +1,40 @@
+/*
+ * Styling for `ThemePreviewBoard` — a lightweight static 8x8 grid (not a
+ * live chessground instance) used in the theme/piece-set picker grids, so a
+ * picker with 6 boards doesn't mount 6 live chessground engines (spec §8/§24).
+ * Colors come from the same `--nexa-*` custom properties `boards.css` defines
+ * per `[data-nexa-board-theme]` — custom properties cascade to any
+ * descendant, so no color values are duplicated here.
+ */
+
+.nexa-preview-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  aspect-ratio: 1;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--nexa-border, transparent);
+}
+
+.nexa-preview-square {
+  position: relative;
+}
+
+.nexa-preview-square--light {
+  background-color: var(--nexa-light, #eeeeee);
+}
+
+.nexa-preview-square--dark {
+  background-color: var(--nexa-dark, #888888);
+}
+
+.nexa-preview-piece {
+  position: absolute;
+  inset: 6%;
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  pointer-events: none;
+}

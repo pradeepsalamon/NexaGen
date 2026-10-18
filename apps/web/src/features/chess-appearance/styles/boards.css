@@ -1,0 +1,187 @@
+/*
+ * Board surface themes. Self-authored CSS (no vendored images) — see
+ * chess-appearance.ts for why: lichess's own board textures are photographic
+ * with no documented license, and the spec forbids using a photo/screenshot
+ * as a static board background anyway. Colors are tuned to approximate the
+ * NexaChess reference board for "nexa-classic"; most of the others are flat/
+ * gradient colors, which carry no licensing concern.
+ *
+ * Every board (any of the 7 chessground-mounted components) carries
+ * `data-nexa-board-theme="<id>"` on the same element chessground marks
+ * `.cg-wrap` on, so these rules stay scoped — two differently-themed boards
+ * can render on the same page (e.g. a live-class puzzle leaderboard grid).
+ */
+
+[data-nexa-board-theme="nexa-classic"] {
+  --nexa-light: #ecd3a6;
+  --nexa-dark: #ad7a4c;
+  --nexa-grain-layer: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.05) 0px,
+    rgba(255, 255, 255, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  --nexa-border: #7a5330;
+}
+
+[data-nexa-board-theme="classic-green"] {
+  --nexa-light: #eeeed2;
+  --nexa-dark: #6e9552;
+  --nexa-border: #4c6938;
+}
+
+[data-nexa-board-theme="blue"] {
+  --nexa-light: #e4eaf3;
+  --nexa-dark: #6c8ebf;
+  --nexa-border: #4c6a94;
+}
+
+[data-nexa-board-theme="brown"] {
+  --nexa-light: #f0d9b5;
+  --nexa-dark: #b58863;
+  --nexa-grain-layer: repeating-linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.04) 0px,
+    rgba(255, 255, 255, 0.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  --nexa-border: #8a5f3d;
+}
+
+[data-nexa-board-theme="dark"] {
+  --nexa-light: #5b6472;
+  --nexa-dark: #2e333b;
+  --nexa-border: #1c1f24;
+}
+
+[data-nexa-board-theme="minimal"] {
+  --nexa-light: #f7f7f7;
+  --nexa-dark: #c4c4c4;
+  --nexa-border: #a8a8a8;
+}
+
+[data-nexa-board-theme="walnut"] {
+  --nexa-light: #dfc094;
+  --nexa-dark: #a5754c;
+  --nexa-grain-layer: repeating-linear-gradient(
+    112deg,
+    rgba(255, 255, 255, 0.07) 0px,
+    rgba(255, 255, 255, 0.07) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  --nexa-border: #6b4423;
+}
+
+/*
+ * Coordinate labels sit inside the edge squares, lichess-style: ranks in the
+ * top-right corner of the right-hand column, files in the bottom-left corner
+ * of the bottom row, each in the opposite square colour. Chessground's own
+ * placement uses negative offsets tuned for lichess's page padding and bleeds
+ * outside this app's wrap.
+ *
+ * coords is a later sibling of cg-board inside cg-container, so it paints on
+ * top of the squares/pieces with no z-index; `pointer-events: none` (base CSS)
+ * keeps it from blocking piece dragging.
+ */
+/* Frame on cg-container, not the wrap: chessground floors the container to a
+   multiple of 8px, so it can be a few px smaller than the wrap. Centred so
+   the leftover is split evenly instead of pooling on the right/bottom. */
+[data-nexa-board-theme] cg-container {
+  inset: 0;
+  margin: auto;
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px var(--nexa-border, transparent);
+}
+
+[data-nexa-board-theme] cg-board {
+  overflow: hidden;
+  border-radius: 2px;
+  background-color: var(--nexa-light);
+  /*
+   * A single conic-gradient wedge-quadrant tile (light/dark/light/dark going
+   * clockwise from the top) repeated at 2x2-square size — the only version of
+   * the "CSS-only checkerboard" that actually produces flat, solid-color
+   * squares. The two-layer 45deg linear-gradient variant (offset diagonal
+   * stripes) looks equivalent on paper but does NOT tile into clean squares:
+   * verified by sampling rendered pixels — individual squares came out
+   * diagonally split into two colors instead of one flat fill.
+   */
+  background-image: var(--nexa-grain-layer, none),
+    conic-gradient(
+      var(--nexa-dark) 90deg,
+      var(--nexa-light) 90deg 180deg,
+      var(--nexa-dark) 180deg 270deg,
+      var(--nexa-light) 270deg
+    );
+  background-size:
+    100% 100%,
+    25% 25%;
+  background-position:
+    0 0,
+    0 0;
+}
+
+/* Each strip spans exactly one column / row of squares, so every coord box
+   is one square and its corner is the square's corner. */
+[data-nexa-board-theme] coords {
+  opacity: 1;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: none;
+}
+
+[data-nexa-board-theme] coords.ranks {
+  top: 0;
+  right: 0;
+  left: auto;
+  width: 12.5%;
+  height: 100%;
+}
+
+[data-nexa-board-theme] coords.files {
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 12.5%;
+}
+
+[data-nexa-board-theme] coords coord {
+  display: flex;
+  flex: 1 1 0;
+}
+
+[data-nexa-board-theme] coords.ranks coord {
+  transform: none;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 3px 4px 0 0;
+}
+
+[data-nexa-board-theme] coords.files coord {
+  align-items: flex-end;
+  justify-content: flex-start;
+  padding: 0 0 2px 4px;
+}
+
+/* DOM order is always 1→8 / a→h; only the flex direction flips for black.
+   White: the right column is the h-file (h1 light) and the bottom row is
+   rank 1 (a1 dark). Black: the a-file (a1 dark) and rank 8 (a8 light). Each
+   label takes the opposite square's colour. */
+[data-nexa-board-theme] coords.ranks:not(.black) coord:nth-child(odd),
+[data-nexa-board-theme] coords.ranks.black coord:nth-child(even),
+[data-nexa-board-theme] coords.files:not(.black) coord:nth-child(even),
+[data-nexa-board-theme] coords.files.black coord:nth-child(odd) {
+  color: var(--nexa-dark);
+}
+
+[data-nexa-board-theme] coords.ranks:not(.black) coord:nth-child(even),
+[data-nexa-board-theme] coords.ranks.black coord:nth-child(odd),
+[data-nexa-board-theme] coords.files:not(.black) coord:nth-child(odd),
+[data-nexa-board-theme] coords.files.black coord:nth-child(even) {
+  color: var(--nexa-light);
+}
