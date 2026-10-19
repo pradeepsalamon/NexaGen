@@ -138,8 +138,9 @@ describe("admin-only routes refuse other roles (real app, real Postgres)", () =>
     for (const route of routes) {
       for (const role of ["student", "coach", "admin", "superAdmin"] as const) {
         const key = `${route.method} ${route.path}`;
-        const res = await call(users[role], route);
-        const ok = res.status === 403 || (res.status === 400 && route.method !== "GET");
+        const body = route.method === "PUT" ? { status: "ACTIVE" } : route.method === "GET" ? undefined : {};
+        const res = await t.call(users[role], route.method, route.path.replace(/:[^/]+/g, DUMMY_ID), body);
+        const ok = res.status === 403;
         expect({ role, route: key, status: res.status, ok }).toMatchObject({ ok: true });
       }
     }

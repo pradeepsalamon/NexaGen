@@ -13,6 +13,7 @@ export function useCurrentEntitlements() {
     queryKey: queryKeys.subscription.current,
     // Plans change rarely; the API enforces every gate regardless of this cache.
     staleTime: 5 * 60_000,
+    refetchInterval: 5 * 60_000,
   });
 }
 

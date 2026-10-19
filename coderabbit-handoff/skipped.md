@@ -72,3 +72,6 @@
 - Finding #16: TestimonialsSection.tsx — academy hardcoded colors: docs/UI_RULES.md exempts the academy marketing site ("has its own brand"); a11y improvements applied.
 - Finding #18: MasterbasePanel.tsx — backend proxy requires Lichess API token the academy must create; graceful 401 fallback is in place.
 
+## PR #72
+- Finding #1: live-class.service.ts — concurrent-class atomic reservation before room creation: docs/SAAS_PLANS.md explicitly documents that "the live-class check is best effort (LiveKit room creation sits between check and write); a one-room overshoot in a race is accepted". Holding locks or reservations across external LiveKit room creation calls risks stalling transactions and lock-pool exhaustion if LiveKit is slow.
+

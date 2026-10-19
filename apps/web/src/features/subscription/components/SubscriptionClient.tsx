@@ -153,11 +153,15 @@ function PlanComparison({ data }: { data: AdminSubscriptionResponse }) {
             {PLAN_LIMIT_KEYS.map((key) => (
               <TableRow key={key}>
                 <TableCell className="text-left font-semibold">{PLAN_LIMITS[key].label}</TableCell>
-                {data.plans.map((plan) => (
-                  <TableCell className={cn("text-center tabular-nums", highlight(plan))} key={plan.id}>
-                    {formatLimit(plan.limits[key])}
-                  </TableCell>
-                ))}
+                {data.plans.map((plan) => {
+                  const isCurrent = plan.code === currentCode;
+                  const limit = isCurrent ? data.limits[key] : plan.limits[key];
+                  return (
+                    <TableCell className={cn("text-center tabular-nums", highlight(plan))} key={plan.id}>
+                      {formatLimit(limit)}
+                    </TableCell>
+                  );
+                })}
               </TableRow>
             ))}
             {PLAN_FEATURE_KEYS.map((key) => (
@@ -167,7 +171,8 @@ function PlanComparison({ data }: { data: AdminSubscriptionResponse }) {
                   <p className="text-xs text-app-muted">{PLAN_FEATURES[key].description}</p>
                 </TableCell>
                 {data.plans.map((plan) => {
-                  const included = plan.features.includes(key);
+                  const isCurrent = plan.code === currentCode;
+                  const included = isCurrent ? data.features.includes(key) : plan.features.includes(key);
                   return (
                     <TableCell className={cn("text-center", highlight(plan))} key={plan.id}>
                       {included ? (

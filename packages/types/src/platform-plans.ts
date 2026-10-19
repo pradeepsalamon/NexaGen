@@ -401,13 +401,14 @@ export function resolveEntitlements(
   plan: { features: unknown; limits: unknown },
   overrides?: unknown
 ): ResolvedEntitlements {
-  const parsed = entitlementOverridesSchema.safeParse(overrides ?? {});
-  const extra = parsed.success ? parsed.data : { addFeatures: [], limits: {}, removeFeatures: [] };
-  const features = new Set([...sanitizePlanFeatures(plan.features), ...extra.addFeatures]);
-  for (const key of extra.removeFeatures) features.delete(key);
+  const raw = overrides && typeof overrides === "object" ? (overrides as Record<string, unknown>) : {};
+  const features = new Set([...sanitizePlanFeatures(plan.features), ...sanitizePlanFeatures(raw.addFeatures)]);
+  for (const key of sanitizePlanFeatures(raw.removeFeatures)) features.delete(key);
   const limits = sanitizePlanLimits(plan.limits);
+  const limitOverrides = raw.limits && typeof raw.limits === "object" ? (raw.limits as Record<string, unknown>) : {};
   for (const key of PLAN_LIMIT_KEYS) {
-    if (extra.limits[key] !== undefined) limits[key] = extra.limits[key] as number | null;
+    const value = limitOverrides[key];
+    if (value === null || (typeof value === "number" && Number.isInteger(value) && value >= 0)) limits[key] = value;
   }
   return { features: PLAN_FEATURE_KEYS.filter((key) => features.has(key)), limits };
 }
