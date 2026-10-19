@@ -32,6 +32,7 @@ Rules:
 - A variation's "san" must be moves copied exactly, in order, from the game in "fromEvidence" (a CHAPTER_PGN item).
 - The coach view may name students by pseudonym. The student view must never contain S1, S2, ... and speaks to the whole class.
 - Suggestions are ideas for the coach, not assignments.
+- Keep it short: observation text under 400 characters, a concept name is a few words, a variation is at most a few moves.
 Reply with JSON only, matching the schema.`;
 
 function userPrompt(bundle) {

@@ -24,10 +24,16 @@ export const summarySchema = z.object({
 
 // JSON Schema handed to Ollama's `format` (structured output). Kept by hand so
 // the script has no zod-to-json-schema dependency; summarySchema is the judge.
-const refArray = { items: { pattern: "^E[0-9]+$", type: "string" }, minItems: 1, type: "array" };
-const obsJson = { properties: { evidence: refArray, text: { type: "string" } }, required: ["text", "evidence"], type: "object" };
+// The length and count limits must match summarySchema: Ollama's grammar
+// enforces them while decoding, and without them the model wrote
+// paragraph-long names (first real run, 2026-10-19).
+const str = (maxLength) => ({ maxLength, minLength: 1, type: "string" });
+const arr = (items, minItems, maxItems) => ({ items, maxItems, minItems, type: "array" });
+const ref = { pattern: "^E[0-9]+$", type: "string" };
+const refArray = arr(ref, 1, 8);
+const obsJson = { properties: { evidence: refArray, text: str(400) }, required: ["text", "evidence"], type: "object" };
 const sugJson = {
-  properties: { kind: { enum: ["PRACTICE", "NEXT_TOPIC", "HOMEWORK_IDEA"], type: "string" }, text: { type: "string" } },
+  properties: { kind: { enum: ["PRACTICE", "NEXT_TOPIC", "HOMEWORK_IDEA"], type: "string" }, text: str(300) },
   required: ["text", "kind"],
   type: "object",
 };
@@ -35,29 +41,27 @@ export const summaryJsonSchema = {
   properties: {
     coach: {
       properties: {
-        lessonOverview: { items: obsJson, type: "array" },
-        nextLessonObjectives: { items: sugJson, type: "array" },
-        teachingObservations: { items: obsJson, type: "array" },
-        variations: {
-          items: {
-            properties: { comment: { type: "string" }, fromEvidence: { pattern: "^E[0-9]+$", type: "string" }, san: { type: "string" } },
+        lessonOverview: arr(obsJson, 1, 6),
+        nextLessonObjectives: arr(sugJson, 1, 5),
+        teachingObservations: arr(obsJson, 0, 6),
+        variations: arr(
+          {
+            properties: { comment: str(300), fromEvidence: ref, san: str(200) },
             required: ["san", "fromEvidence", "comment"],
             type: "object",
           },
-          type: "array",
-        },
+          0,
+          4,
+        ),
       },
       required: ["lessonOverview", "variations", "teachingObservations", "nextLessonObjectives"],
       type: "object",
     },
     student: {
       properties: {
-        keyConcepts: {
-          items: { properties: { evidence: refArray, name: { type: "string" } }, required: ["name", "evidence"], type: "object" },
-          type: "array",
-        },
-        practiceIdeas: { items: sugJson, type: "array" },
-        recap: { items: obsJson, type: "array" },
+        keyConcepts: arr({ properties: { evidence: refArray, name: str(80) }, required: ["name", "evidence"], type: "object" }, 1, 6),
+        practiceIdeas: arr(sugJson, 1, 5),
+        recap: arr(obsJson, 1, 6),
       },
       required: ["recap", "keyConcepts", "practiceIdeas"],
       type: "object",
