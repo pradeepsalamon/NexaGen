@@ -228,6 +228,12 @@ Each has a recommendation; none is approved.
 | OD-23 | Does the new `ai` CI job gate production deploys? | **No, not in P1**: it runs on PRs and manual dispatch only, path-filtered, not under `workflow_call`. Alternative: make it part of the deploy gate (a runtime-only failure would then block unrelated deploys) | Phase 1 |
 | OD-24 | Where the arm64 image build is verified | **CI with `docker buildx --platform linux/arm64` (QEMU)**: free, off the production box, slow but the image is small. Alternatives: a GitHub arm64 runner (availability for this repo's plan unverified [U]); the production box only with explicit approval, off-hours | Phase 1 |
 
+| OD-25 | Phase 3 model and digest | The 3a benchmark winner, pinned by Ollama digest; Apache/MIT licence preferred (PHASE3_SPEC.md §13) | Phase 3 |
+| OD-26 | First production run of `ai-runtime` + `ollama` (compose, deploy script, `api` env listing) | Its own change, after Phase 3 is green on staging | Phase 3 rollout |
+| OD-27 | Plan gating for summaries | New `aiClassSummaries` plan feature, Enterprise only at launch | Phase 3 |
+| OD-28 | What students see about AI | Always label the recap "Prepared by your coach with AI assistance" | Phase 3 |
+| OD-29 | Coach notification for a ready draft | In-app badge only in v1; no `MessagingEvent` | Phase 3 |
+
 ---
 
 ## 4. Approval log
