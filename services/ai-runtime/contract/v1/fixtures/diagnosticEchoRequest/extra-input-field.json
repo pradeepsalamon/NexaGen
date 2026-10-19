@@ -1,0 +1,13 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": {
+      "text": "hello",
+      "userId": "x"
+    },
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "unknown field inside input (strict)",
+  "valid": false
+}

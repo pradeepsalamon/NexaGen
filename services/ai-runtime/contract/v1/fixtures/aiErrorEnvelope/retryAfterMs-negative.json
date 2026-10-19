@@ -1,0 +1,12 @@
+{
+  "data": {
+    "error": {
+      "code": "INTERNAL",
+      "message": "Internal error.",
+      "retryAfterMs": -1,
+      "retryable": false
+    }
+  },
+  "reason": "retryAfterMs below 0",
+  "valid": false
+}

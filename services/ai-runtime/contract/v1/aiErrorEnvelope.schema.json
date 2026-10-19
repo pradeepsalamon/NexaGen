@@ -1,0 +1,50 @@
+{
+  "$id": "nexa-ai-runtime/v1/aiErrorEnvelope",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "error": {
+      "properties": {
+        "code": {
+          "enum": [
+            "INVALID_REQUEST",
+            "UNAUTHORIZED",
+            "POLICY_DENIED",
+            "PAYLOAD_TOO_LARGE",
+            "UNSUPPORTED_MEDIA",
+            "OUTPUT_SCHEMA_VIOLATION",
+            "BUSY",
+            "PROVIDER_QUOTA_EXHAUSTED",
+            "PROVIDER_UNAVAILABLE",
+            "TIMEOUT",
+            "CANCELLED",
+            "INTERNAL"
+          ],
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 500,
+          "type": "string"
+        },
+        "retryAfterMs": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "retryable"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "error"
+  ],
+  "title": "aiErrorEnvelope",
+  "type": "object"
+}

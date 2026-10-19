@@ -1,0 +1,14 @@
+{
+  "data": {
+    "aud": "ai-runtime",
+    "exp": 1760000030,
+    "iat": 1760000000,
+    "iss": "someone-else",
+    "jti": "3f2b8c1e-9a4d-4c6b-8e2f-1a2b3c4d5e6f",
+    "rid": "req-12345678",
+    "scope": "runtime:info",
+    "ver": 1
+  },
+  "reason": "iss literal mismatch",
+  "valid": false
+}

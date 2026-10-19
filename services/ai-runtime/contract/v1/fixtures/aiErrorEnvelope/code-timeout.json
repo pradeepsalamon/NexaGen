@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "TIMEOUT",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code TIMEOUT",
+  "valid": true
+}

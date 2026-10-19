@@ -1,0 +1,7 @@
+{
+  "data": {
+    "status": "ready"
+  },
+  "reason": "required field providers missing",
+  "valid": false
+}

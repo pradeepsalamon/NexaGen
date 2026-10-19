@@ -1,0 +1,10 @@
+{
+  "data": {
+    "providers": {
+      "mock": "ready"
+    },
+    "status": "ready"
+  },
+  "reason": "valid readiness",
+  "valid": true
+}

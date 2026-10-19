@@ -1,0 +1,27 @@
+{
+  "contractVersion": "1.0",
+  "errorCodes": [
+    "INVALID_REQUEST",
+    "UNAUTHORIZED",
+    "POLICY_DENIED",
+    "PAYLOAD_TOO_LARGE",
+    "UNSUPPORTED_MEDIA",
+    "OUTPUT_SCHEMA_VIOLATION",
+    "BUSY",
+    "PROVIDER_QUOTA_EXHAUSTED",
+    "PROVIDER_UNAVAILABLE",
+    "TIMEOUT",
+    "CANCELLED",
+    "INTERNAL"
+  ],
+  "files": {
+    "aiErrorEnvelope.schema.json": "60b3ae81bdcd8ca938dfccd03b03d0319a1d4fe9963b422f796eb7d8649b0eef",
+    "aiRuntimeInfo.schema.json": "c3ca496289389cc1121e5a6591a642bc4b9150a73fcac6d8c7b9d17159848f84",
+    "aiRuntimeReadiness.schema.json": "b67f2f931a0ae96b5d944609088a38cb8b36c9f7b5f174878ee43008d36719f2",
+    "aiServiceTokenClaims.schema.json": "2d5bd9e85f50be7c382f38752cfb92d87a324a90c45d216194324792753867d7",
+    "diagnosticEchoRequest.schema.json": "25d1345ca683f046a48e8737c39709dcab710f2dbd577dcb4a13bb3eb1994c12",
+    "diagnosticEchoResponse.schema.json": "96e559764be66d401c538b03ed1cf567908eeaa44d490b182c6ed669684f7d50",
+    "task-policy.json": "bf00d78c492ba92990f2a5ae0baba09b6213820bb48e5c9a8fe4be6edd768cbe"
+  },
+  "zodVersion": "4.4.3"
+}

@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "OUTPUT_SCHEMA_VIOLATION",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code OUTPUT_SCHEMA_VIOLATION",
+  "valid": true
+}

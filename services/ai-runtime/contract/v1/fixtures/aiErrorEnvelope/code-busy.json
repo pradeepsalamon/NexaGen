@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "BUSY",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code BUSY",
+  "valid": true
+}

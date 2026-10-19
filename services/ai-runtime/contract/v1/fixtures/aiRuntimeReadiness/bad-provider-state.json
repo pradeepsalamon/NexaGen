@@ -1,0 +1,10 @@
+{
+  "data": {
+    "providers": {
+      "mock": "down"
+    },
+    "status": "ready"
+  },
+  "reason": "provider state not in the enum",
+  "valid": false
+}

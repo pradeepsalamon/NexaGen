@@ -17,6 +17,7 @@ import { TrashModule } from "./trash/trash.module";
 import { UserModule } from "./user/user.module";
 import { LiveClassModule } from "./live-class/live-class.module";
 import { AdminModule } from './admin/admin.module';
+import { AiModule } from "./ai/ai.module";
 import { PresenceModule } from "./presence/presence.module";
 import { StudentModule } from "./student/student.module";
 import { ScheduleModule } from "@nestjs/schedule";
@@ -84,6 +85,7 @@ import { FeatureGateGuard } from "./platform/feature-gate.guard";
     UserModule,
     LiveClassModule,
     AdminModule,
+    AiModule,
     PresenceModule,
     StudentModule,
     UploadModule,

@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "PROVIDER_QUOTA_EXHAUSTED",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code PROVIDER_QUOTA_EXHAUSTED",
+  "valid": true
+}

@@ -18,6 +18,7 @@ const isAdminCourseRoute = (path: string) =>
 
 // AdminController is SUPER_ADMIN only (routeAccess.ts mirrors it on the web).
 const SUPER_ADMIN_PREFIXES = [
+  "/admin/ai",
   "/admin/backups",
   "/admin/classes",
   "/admin/coaches",

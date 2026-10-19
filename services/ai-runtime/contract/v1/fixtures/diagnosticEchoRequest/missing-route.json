@@ -1,0 +1,11 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": {
+      "text": "hello"
+    },
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "required field route missing",
+  "valid": false
+}

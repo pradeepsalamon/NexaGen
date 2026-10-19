@@ -1,0 +1,14 @@
+{
+  "data": {
+    "contractVersions": [
+      "1.0"
+    ],
+    "providers": [
+      "mock"
+    ],
+    "service": "ai-runtime",
+    "version": "0.1.0"
+  },
+  "reason": "required field tasks missing",
+  "valid": false
+}

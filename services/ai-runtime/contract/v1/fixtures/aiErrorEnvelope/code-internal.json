@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "INTERNAL",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code INTERNAL",
+  "valid": true
+}
