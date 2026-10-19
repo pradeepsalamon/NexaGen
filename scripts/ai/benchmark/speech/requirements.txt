@@ -1,0 +1,10 @@
+# Speech timing test (speech_bench.py). Installed into the throwaway container only.
+# torch comes from the CPU index (run-speech-benchmark.sh); IndicTransToolkit only with a HF token.
+faster-whisper==1.2.1
+ctranslate2==4.8.3
+av==16.0.1
+onnxruntime==1.23.2
+piper-tts==1.8.0
+transformers==4.57.6
+sentencepiece==0.2.2
+sacremoses==0.2.0

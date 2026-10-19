@@ -1,6 +1,7 @@
 # Live captions and translation in live classes
 
-Status: **proposal, not approved** (revision 1, 2026-10-19). Nothing is built.
+Status: **proposal, not approved** (revision 2, 2026-10-19). Only the speech
+timing test is built (§5.1); its first result is §5.2.
 It needs OD-30 to OD-33 (§7). Speech from students is out of scope (OD-13).
 
 Goal: the coach's speech becomes live captions in the room, translated into
@@ -116,6 +117,97 @@ the summary benchmark (off-hours, throwaway container, cleanup):
 
 Run it first on this box for the relative numbers, then on the candidate
 machine once one exists.
+
+### 5.1 Running it
+
+The harness is `scripts/ai/benchmark/run-speech-benchmark.sh` +
+`scripts/ai/benchmark/speech/`:
+
+```bash
+python3 -I scripts/ai/benchmark/speech/speech_bench.py --self-test   # scorer checks, no models
+scripts/ai/benchmark/run-speech-benchmark.sh --confirm-off-hours [--smoke] \
+  [--models base.en,small.en,distil-small.en] [--hf-token-file ~/.hf_token]
+```
+
+- **Guards.** Same pre-flight as the summary benchmark (§4.1 of
+  INFRASTRUCTURE_DECISION.md): off-hours flag, ≥ 20 GB free, recording cap
+  ≤ 90, no live LiveKit room, polled every 20 s (exit 3 on abort).
+- **Container.** `python:3.12-slim-bookworm`, `--cpus 1.5 --memory 5g
+  --cpu-shares 512`, no ports. Pinned packages (`speech/requirements.txt`)
+  are installed inside it. The container, its data volume and the image are
+  removed afterwards.
+- **Audio.** LibriSpeech test-clean (CC BY 4.0), the first 8–30-word
+  utterance of each of 40 speakers: the real-time factor and word error rate.
+  Plus 24 invented coach sentences (`speech/chess_script.py`) spoken by
+  Piper's public-domain LJSpeech voice: chess-term recall, with and without
+  a vocabulary prompt.
+- **Translation.** IndicTrans2 `en-indic-dist-200M` into Hindi and Tamil.
+  The model is gated on Hugging Face, so it needs `--hf-token-file` (an
+  account that accepted its terms). Without one, `opus-mt-en-hi` (Apache-2.0)
+  stands in as a **latency proxy only**.
+- **Targets.**
+  - real-time factor p95 ≤ 0.5
+  - caption latency p95 ≤ 3 s (0.5 s VAD tail + STT + every language's
+    translation in turn)
+  - LibriSpeech WER ≤ 8%
+  - chess-term recall ≥ 90% with the prompt
+  - peak RSS ≤ 4 GiB for STT and translator together
+- **Output.** `report.md`, `results.json` and `run.log` in
+  `~/ai-bench/speech-<UTC timestamp>/`.
+- **Limits.** The chess voice is synthetic US English. An Indian-accented
+  coach, a laptop mic and room noise will all score worse. Clips are pre-cut
+  phrases, so live VAD mis-cuts aren't measured.
+
+### 5.2 Result: run of 2026-10-19 (this box, no class live)
+
+Run 19:21 UTC, 1.5 CPUs / 5 GB, 2 threads. 40 LibriSpeech clips (306 s of
+audio), 24 chess sentences. Raw output is in
+`~/ai-bench/speech-20261019T191954Z/` on the box. The container, volume
+and image were removed afterwards.
+
+**No model passes on this box.** Captions can't run here, which matches §3.
+
+| Model | Real-time factor p50 / p95 | Caption latency p50 / p95 | WER | Chess terms, prompt / none | Peak RSS |
+|---|---|---|---|---|---|
+| `base.en` | 0.27 / **0.50** | 3.07 / **3.50 s** ✗ | 7.2% | 87% / 73% ✗ | 1.24 GiB |
+| `small.en` | 0.80 / **1.56** ✗ | 7.24 / **7.91 s** ✗ | 5.6% | 89% / 81% ✗ | 2.03 GiB |
+| `distil-small.en` | 0.66 / **1.40** ✗ | 14.8 / **61.2 s** ✗ | 5.4% | 30% / 76% ✗ | 1.91 GiB |
+
+Targets: real-time factor p95 ≤ 0.5, latency p95 ≤ 3 s, WER ≤ 8%, chess
+terms ≥ 90%, RSS ≤ 4 GiB. The chess-term figures were rescored after the run
+with an "end game" = "endgame" fix to the scorer; the run's report shows
+84% / 87% / 30%.
+
+Translation (proxy `opus-mt-en-hi`, not IndicTrans2): 0.58 s p50, 1.04 s p95
+per sentence, 0.77 GiB. The Hindi samples are poor: "Sicilian" became
+"Sciptanm" and "a6" became "सन्‌ 55". Translation quality needs IndicTrans2
+and a human reader.
+
+Reading:
+
+- **`base.en` is fast enough but not accurate enough.** Its STT p95 is
+  2.2 s. Adding translation and the VAD tail puts it just over 3 s. It hears
+  "knight" as "night".
+- **`small.en` is the accuracy candidate but runs 1.6× slower than speech at
+  p95 here.** It needs roughly 3× this CPU. Whether an 8-core machine gets
+  there is **[U]** until the test runs on one.
+- **`distil-small.en` is unusable with a vocabulary prompt.** It loops
+  ("Queen, Queen, Queen, …") and hits the 30 s window, which gives the 61 s
+  latency. Without a prompt its latency is about 5 s per sentence. Drop it.
+- **Typical misses**:
+  - pawn heard as "porn" or "corn", and "passed pawn" as "past pawn";
+  - "Ruy Lopez" heard as "Ryan Lopez";
+  - "fianchetto" heard as "kinfi, enchetto".
+
+  A deterministic chess-term correction pass after STT, and faster-whisper's
+  `hotwords` instead of `initial_prompt`, are the next things to try.
+
+Next:
+
+1. Measure IndicTrans2 with a Hugging Face token (`--hf-token-file`).
+2. Run `small.en` on the candidate machine (OD-31).
+3. Record a consented coach clip, Indian-accented English on a laptop mic,
+   to replace the synthetic voice.
 
 ## 6. Effort (once approved)
 
