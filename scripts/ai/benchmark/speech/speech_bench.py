@@ -389,7 +389,7 @@ def write_report(out, summaries, translation, meta, stt_results):
             lines.append(f"- {row['en']}")
             lines += [f"  - {lang}: {v['text']}" for lang, v in row["perLang"].items()]
     else:
-        lines.append("Translation: **not measured** (the translator failed to load; see run.log).")
+        lines.append("Translation: **not measured** (the translator failed; see run.log).")
     lines += ["", "Missed chess terms (prompted run of the model with the best recall):", ""]
     best_name = max(summaries, key=lambda s: s["chessTermRecall"])["model"]
     best = next(r for r in stt_results if r["model"] == best_name)

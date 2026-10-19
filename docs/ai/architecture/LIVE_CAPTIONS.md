@@ -202,9 +202,47 @@ Reading:
   A deterministic chess-term correction pass after STT, and faster-whisper's
   `hotwords` instead of `initial_prompt`, are the next things to try.
 
+### 5.3 Result: IndicTrans2 (run of 2026-10-19 20:47 UTC, `base.en`)
+
+The run used the owner's Hugging Face token. Raw output is in
+`~/ai-bench/speech-indictrans2/`.
+
+**Harness fix:** IndicTrans2's remote model code breaks the generation cache
+on `transformers` 4.57 (`'NoneType' object has no attribute 'shape'`).
+Turning the cache off works but costs about 20 s a sentence, so
+`requirements.txt` pins `transformers==4.46.3`.
+
+| | Hindi | Tamil |
+|---|---|---|
+| Per sentence, p50 / p95 | 1.30 / 1.66 s | 1.39 / 1.75 s |
+| Model load | 137 s (once per class) | |
+| Peak RSS | 1.14 GiB | |
+
+- **Latency.** With both languages translated one after the other, caption
+  latency is 5.2 s p50 and 6.0 s p95 (target 3 s). In parallel, or with one
+  language, it's about 4.4 s, still over target. This box can't do it.
+- **Quality.** Ordinary sentences read well. Chess terms are translated
+  literally, and that's wrong:
+
+  | English | Hindi | Tamil |
+  |---|---|---|
+  | knight | "शूरवीर" (warrior) | "குதிரை" (correct) |
+  | rook | "रूख" | "கோழி" (hen) |
+  | fork | "कांटा" (cutlery) | "முட்கரண்டி" (cutlery) |
+  | fianchetto | "मंगेतर" (fiancée) | "marry" |
+  | en passant | "एन पैसेंजर" (en passenger) | |
+
+  Squares (e5, d6) and "zugzwang" (transliterated) survive.
+
+- **Implication.** Launching needs a **chess glossary** for each language. The
+  glossary gives each term the translation coaches actually use, or keeps it
+  in English. Terms are swapped for placeholders before translation and put
+  back afterwards. A native-speaking coach must review it. Without the
+  glossary, the translation misleads students.
+
 Next:
 
-1. Measure IndicTrans2 with a Hugging Face token (`--hf-token-file`).
+1. ~~Measure IndicTrans2 with a Hugging Face token.~~ Done (§5.3).
 2. Run `small.en` on the candidate machine (OD-31).
 3. Record a consented coach clip, Indian-accented English on a laptop mic,
    to replace the synthetic voice.
