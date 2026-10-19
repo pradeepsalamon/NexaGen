@@ -1,8 +1,11 @@
 # Multi-tenant white-label SaaS — Phase 0 assessment and Phase 1 design
 
-Status: **proposal, awaiting owner sign-off** (written 2026-10-17). Nothing here is
-implemented. No application file, schema or migration has been changed. The
-decisions in §N block Phase 2.
+Status: **proposal, awaiting owner sign-off** (written 2026-10-17). The decisions
+in §N block Phase 2. **Implemented since (2026-10-19):** the plan/feature/limit
+half of §G — `Tenant` (one row, `tenant_nexa`), `PlatformPlan`,
+`TenantSubscription`, `TenantSubscriptionEvent`, `PlatformStaff`,
+`EntitlementService` and the feature gates. See [SAAS_PLANS.md](SAAS_PLANS.md).
+Online SaaS billing and everything tenant-isolation related are still proposals.
 
 Contents: A current state · B target architecture · C entity ownership matrix ·
 D schema and migration · E auth and isolation · F branding · G SaaS billing and

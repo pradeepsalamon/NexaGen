@@ -312,6 +312,10 @@ Facts about the academy live once in `features/academy/content.ts` and feed the 
 
 `privacy/` (API + web), Profile → "Your data" / "Delete account", admin `/admin/privacy`, public `/privacy` + `/terms`. **Secrets never leave an export**, and **a new model that stores personal data about a user gets a section in it**. Completing a deletion request goes through `UserService.deleteAs` (restorable from Trash). `features/legal/content.ts` must stay true to the code. Details: [docs/FEATURES.md](docs/FEATURES.md).
 
+### 3.6m SaaS plans (subscription tiers, features, limits)
+
+`apps/api/src/platform/` + `features/subscription/`, catalogue in `@nexa-chess/types` `platform-plans.ts`. The academy's `TenantSubscription` → `PlatformPlan` decides features and limits; **the API enforces every one**: the global `FeatureGateGuard` (subscription access mode + `@RequireFeature("key")` on the controller/handler — the one guard besides the throttler; it is not auth) and `EntitlementService.assertSeatAvailable` / `assertCanCreateBatch` / `assertCanStartLiveClass` inside the creating transaction. Refusals are **402**. A new catalogued feature must be required by a route (a spec fails otherwise) and added to the Enterprise row by migration. Plan changes are platform staff only (`platform_staff`, never a tenant role). Details: [docs/SAAS_PLANS.md](docs/SAAS_PLANS.md).
+
 ### 3.7 Live class / LiveKit
 
 `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. **Read [docs/LIVE_CLASS.md](docs/LIVE_CLASS.md) before changing anything in the room** — it covers recording, moderation, waiting room, presence/pull, private chat, media devices, PiP, video effects, puzzles in class, simul, matches, move polls, activity queue, interactives, spectators and pre-class settings. The rules that cut across all of it:

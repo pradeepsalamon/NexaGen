@@ -7,6 +7,7 @@ import { NavDrawer, NavDrawerAccordion, NavDrawerLink } from "@/components/layou
 import { getAdminNavGroups } from "@/components/layout/navItems";
 import { useChatNavBadge } from "@/features/chat/hooks/useChat";
 import { useLiveClassesMonitor } from "@/features/live-monitor/hooks/useLiveMonitor";
+import { useCurrentEntitlements } from "@/features/subscription/hooks/useSubscription";
 import { useAuthStore } from "@/stores/authStore";
 
 export function AdminSidebar() {
@@ -19,9 +20,10 @@ export function AdminSidebar() {
   });
   const liveCount = live?.classes.length ?? 0;
   const chatBadge = useChatNavBadge(role === "ADMIN" || role === "SUPER_ADMIN");
+  const planFeatures = useCurrentEntitlements().data?.features;
   const groups = useMemo(
     () =>
-      getAdminNavGroups(role).map((group) => ({
+      getAdminNavGroups(role, planFeatures).map((group) => ({
         ...group,
         items: group.items.map((item) =>
           item.href === "/admin/live-classes" && liveCount > 0
@@ -31,7 +33,7 @@ export function AdminSidebar() {
               : item
         )
       })),
-    [role, liveCount, chatBadge]
+    [role, liveCount, chatBadge, planFeatures]
   );
 
   // Only the most specific match is active, so a nested link and its parent

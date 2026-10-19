@@ -60,6 +60,7 @@ export const PAGE_TITLES = {
   "/admin/schedule/[id]": "Class schedule",
   "/admin/schedule/new": "New schedule",
   "/admin/students/[studentId]": "Student progress",
+  "/admin/subscription": "Subscription",
   "/admin/trash": "Trash",
   "/admin/typography": "Fonts & text",
   "/admin/users": "Users",

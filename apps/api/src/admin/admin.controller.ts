@@ -20,6 +20,7 @@ import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { authenticateUser } from '../auth/authenticate';
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 @Controller()
 export class AdminController {
@@ -86,6 +87,7 @@ export class AdminController {
     return this.adminService.updateCoachStatus(adminId, id, body);
   }
 
+  @RequireFeature("demoClasses")
   @Post(API_ROUTES.admin.demoClasses)
   async createDemoClass(
     @Body(new ZodBodyPipe(createDemoClassRequestSchema))
@@ -96,6 +98,7 @@ export class AdminController {
     return this.adminService.createDemoClass(adminId, body);
   }
 
+  @RequireFeature("demoClasses")
   @Patch(API_ROUTES.admin.updateDemoClass())
   async updateDemoClass(
     @Param('id') id: string,
@@ -107,6 +110,7 @@ export class AdminController {
     return this.adminService.updateDemoClass(adminId, id, body);
   }
 
+  @RequireFeature("demoClasses")
   @Patch(API_ROUTES.admin.cancelDemoClass())
   async cancelDemoClass(
     @Param('id') id: string,
@@ -116,6 +120,7 @@ export class AdminController {
     return this.adminService.cancelDemoClass(adminId, id);
   }
 
+  @RequireFeature("demoClasses")
   @Patch(API_ROUTES.admin.restoreDemoClass())
   async restoreDemoClass(
     @Param('id') id: string,
@@ -124,6 +129,8 @@ export class AdminController {
     const adminId = await this.getAdminId(request);
     return this.adminService.restoreDemoClass(adminId, id);
   }
+
+  @RequireFeature("demoClasses")
 
   @Get(API_ROUTES.admin.demoClasses)
   async listDemoClasses(
@@ -134,6 +141,7 @@ export class AdminController {
     return this.adminService.listDemoClasses(query);
   }
 
+  @RequireFeature("demoClasses")
   @Post(API_ROUTES.admin.demoClassInvitees())
   async addDemoInvitees(
     @Param('id') id: string,
@@ -144,6 +152,7 @@ export class AdminController {
     return this.adminService.addDemoInvitees(adminId, id, body);
   }
 
+  @RequireFeature("demoClasses")
   @Delete(API_ROUTES.admin.removeDemoClassInvitee())
   async removeDemoInvitee(
     @Param('id') id: string,
@@ -154,6 +163,7 @@ export class AdminController {
     return this.adminService.removeDemoInvitee(adminId, id, registrationId);
   }
 
+  @RequireFeature("demoClasses")
   @Get(API_ROUTES.admin.demoClassDetails())
   async getDemoClassDetails(
     @Param('id') id: string,

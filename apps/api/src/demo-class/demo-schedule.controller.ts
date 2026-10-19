@@ -10,7 +10,9 @@ import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { DemoScheduleService } from "./demo-schedule.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("demoClasses")
 @Controller()
 export class DemoScheduleController {
   constructor(private readonly demoSchedules: DemoScheduleService) {}

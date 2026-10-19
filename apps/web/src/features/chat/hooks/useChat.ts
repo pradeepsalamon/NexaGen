@@ -21,6 +21,7 @@ import {
   startDirectChat,
   updateChatGroupMembers,
 } from "../api/chatApi";
+import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 
 // There is no websocket outside a live class, so chat is polled. The open
 // thread polls fastest; the list and the sidebar badge slower; all of them
@@ -38,8 +39,10 @@ export function useConversations() {
 }
 
 export function useChatUnread(enabled = true) {
+  // Polls on every page: only once the plan is known to include chat, never into 402s.
+  const planHasChat = usePlanFeature("directChat") === true;
   return useQuery({
-    enabled,
+    enabled: enabled && planHasChat,
     queryFn: getChatUnread,
     queryKey: queryKeys.chat.unread,
     refetchInterval: CHAT_UNREAD_POLL_MS,

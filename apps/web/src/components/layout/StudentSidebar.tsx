@@ -4,10 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NavDrawer, NavDrawerLink } from "@/components/layout/Sidebar";
 import { RatingCard } from "@/components/layout/RatingCard";
-import { studentNavItems, type NavBadge, type NavItem } from "@/components/layout/navItems";
+import { filterNavByPlan, studentNavItems, type NavBadge, type NavItem } from "@/components/layout/navItems";
 import { useMyAssignmentReminders } from "@/features/assignments/hooks/useAssignmentsApi";
 import { useChatNavBadge } from "@/features/chat/hooks/useChat";
 import { useStudentDashboard } from "@/features/student-dashboard/hooks/useStudentApi";
+import { useCurrentEntitlements } from "@/features/subscription/hooks/useSubscription";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatRelativeDay } from "@/lib/datetime";
 import { useAuthStore } from "@/stores/authStore";
@@ -112,8 +113,9 @@ export function StudentSidebar() {
   const badges = useStudentNavBadges();
   const { data } = useStudentDashboard();
   const chatBadge = useChatNavBadge();
+  const planFeatures = useCurrentEntitlements().data?.features;
 
-  const items: NavItem[] = studentNavItems.map((item) => ({
+  const items: NavItem[] = filterNavByPlan(studentNavItems, planFeatures).map((item) => ({
     ...item,
     badge: item.href === "/messages" ? chatBadge : badges[item.href]
   }));

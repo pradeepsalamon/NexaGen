@@ -56,6 +56,8 @@ import { GameAnalysisModule } from "./game-analysis/game-analysis.module";
 import { GameLibraryModule } from "./game-library/game-library.module";
 import { GameSourcesModule } from "./game-sources/game-sources.module";
 import { ChatModule } from "./chat/chat.module";
+import { PlatformModule } from "./platform/platform.module";
+import { FeatureGateGuard } from "./platform/feature-gate.guard";
 
 @Module({
   imports: [
@@ -73,6 +75,7 @@ import { ChatModule } from "./chat/chat.module";
     ScheduleModule.forRoot(),
     QueueModule.forRoot(),
     PrismaModule, 
+    PlatformModule,
     AuthModule, 
     BatchModule,
     BatchScheduleModule,
@@ -128,6 +131,11 @@ import { ChatModule } from "./chat/chat.module";
     {
       provide: APP_GUARD,
       useClass: UserThrottlerGuard,
+    },
+    // After the throttler: subscription access mode + @RequireFeature (docs/SAAS_PLANS.md).
+    {
+      provide: APP_GUARD,
+      useClass: FeatureGateGuard,
     },
   ]
 })

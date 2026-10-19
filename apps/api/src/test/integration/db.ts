@@ -1,7 +1,12 @@
 import { UserRole } from "@prisma/client";
+import { ensurePlatformDefaults } from "../../platform/platform-defaults";
 import { PrismaService } from "../../prisma/prisma.service";
 
-/** Empties every table (migrations history excepted). */
+/**
+ * Empties every table (migrations history excepted), then puts back the
+ * migration-seeded SaaS rows: without a tenant subscription every route is a
+ * 402 SUBSCRIPTION_LOCKED (docs/SAAS_PLANS.md).
+ */
 export async function resetDatabase(prisma: PrismaService) {
   const tables = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables
@@ -10,6 +15,7 @@ export async function resetDatabase(prisma: PrismaService) {
   if (!tables.length) return;
   const list = tables.map((t) => `"public"."${t.tablename}"`).join(", ");
   await prisma.$queryRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`);
+  await ensurePlatformDefaults(prisma.withDeleted);
 }
 
 let seq = 0;

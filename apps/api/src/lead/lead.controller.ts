@@ -21,6 +21,7 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { LeadService } from "./lead.service";
 import { TRACKING_COOKIE_NAMES, TRACKING_COOKIE_PATH, VISITOR_ID_MAX_AGE } from "./types/tracking-cookie.types";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 @Controller()
 export class LeadController {
@@ -99,21 +100,25 @@ export class LeadController {
 
   // ── Admin ──
 
+  @RequireFeature("leadsCrm")
   @Get(API_ROUTES.adminLeads.list)
   list(@Req() request: Request, @Query() query: PaginatedQuery & { status?: string }) {
     return this.leadService.list(this.getAccessToken(request), query);
   }
 
+  @RequireFeature("leadsCrm")
   @Get(API_ROUTES.adminLeads.metrics)
   getMetrics(@Req() request: Request) {
     return this.leadService.getMetrics(this.getAccessToken(request));
   }
 
+  @RequireFeature("leadsCrm")
   @Get(API_ROUTES.adminLeads.get())
   getDetails(@Param("id") id: string, @Req() request: Request) {
     return this.leadService.getDetails(this.getAccessToken(request), id);
   }
 
+  @RequireFeature("leadsCrm")
   @Patch(API_ROUTES.adminLeads.updateStatus())
   updateStatus(
     @Param("id") id: string,
@@ -123,6 +128,7 @@ export class LeadController {
     return this.leadService.updateStatus(this.getAccessToken(request), id, body);
   }
 
+  @RequireFeature("leadsCrm")
   @Post(API_ROUTES.adminLeads.assignDemoClass())
   assignDemoClass(
     @Param("id") id: string,
@@ -132,6 +138,7 @@ export class LeadController {
     return this.leadService.assignDemoClass(this.getAccessToken(request), id, body);
   }
 
+  @RequireFeature("leadsCrm")
   @Post(API_ROUTES.adminLeads.notes())
   addNote(
     @Param("id") id: string,
@@ -141,6 +148,7 @@ export class LeadController {
     return this.leadService.addNote(this.getAccessToken(request), id, body);
   }
 
+  @RequireFeature("leadsCrm")
   @Delete(API_ROUTES.adminLeads.delete())
   delete(@Param("id") id: string, @Req() request: Request) {
     return this.leadService.delete(this.getAccessToken(request), id);

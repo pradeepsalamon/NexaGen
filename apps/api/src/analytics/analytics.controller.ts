@@ -5,7 +5,9 @@ import type { Request, Response } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { AnalyticsService } from "./analytics.service";
 import { AnalyticsTablesService } from "./analytics-tables.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("advancedAnalytics")
 @Controller()
 export class AnalyticsController {
   constructor(
@@ -17,6 +19,8 @@ export class AnalyticsController {
     return request.cookies?.[AUTH_COOKIE_NAMES.accessToken];
   }
 
+  // The admin home dashboard: on every plan.
+  @RequireFeature(null)
   @Get(API_ROUTES.analytics.overview)
   overview(@Query() query: AnalyticsRangeQuery, @Req() req: Request) {
     return this.analytics.overview(this.token(req), query);
@@ -95,11 +99,15 @@ export class AnalyticsController {
     return this.analytics.operations(this.token(req), query);
   }
 
+  // The admin home dashboard: on every plan.
+  @RequireFeature(null)
   @Get(API_ROUTES.analytics.today)
   today(@Query() query: AnalyticsRangeQuery, @Req() req: Request) {
     return this.analytics.today(this.token(req), query);
   }
 
+  // The admin home dashboard: on every plan.
+  @RequireFeature(null)
   @Get(API_ROUTES.analytics.alerts)
   alerts(@Query() query: AnalyticsRangeQuery, @Req() req: Request) {
     return this.analytics.alerts(this.token(req), query);

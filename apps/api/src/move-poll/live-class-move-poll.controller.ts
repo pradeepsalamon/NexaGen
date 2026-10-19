@@ -12,7 +12,9 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { LiveClassMovePollService } from "./live-class-move-poll.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("interactiveClassroom", { allowReads: true })
 @Controller()
 export class LiveClassMovePollController {
   constructor(private readonly service: LiveClassMovePollService) {}

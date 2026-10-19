@@ -11,6 +11,7 @@ import { UserService } from "./user.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { TrashRepository } from "../trash/trash.repository";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
+import { UNLIMITED_ENTITLEMENTS } from "../platform/entitlement.testing";
 
 type MockPrismaService = {
   user: {
@@ -107,7 +108,8 @@ describe("UserService", () => {
         },
         { provide: PrismaService, useValue: prismaService },
         { provide: JwtService, useValue: jwtService },
-        { provide: TrashRepository, useValue: trashRepository }
+        { provide: TrashRepository, useValue: trashRepository },
+        UNLIMITED_ENTITLEMENTS
       ]
     }).compile();
 

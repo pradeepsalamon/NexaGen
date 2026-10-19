@@ -31,11 +31,13 @@ import { PaymentService } from "./payment.service";
 import { authenticateUser } from "./payments-auth.helper";
 import { PlanService } from "./plan.service";
 import { SubscriptionService } from "./subscription.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 /**
  * Customer-facing payment routes. Auth is the token-string pattern (CLAUDE.md
  * §3.2): the controller lifts the raw cookie and the service verifies it.
  */
+@RequireFeature("studentPayments")
 @Controller()
 export class PaymentsController {
   constructor(

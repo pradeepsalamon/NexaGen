@@ -42,6 +42,7 @@ import { PayrollPeriodService } from "./payroll-period.service";
 import { PayrollRecordService } from "./payroll-record.service";
 import { PayrollRuleService } from "./payroll-rule.service";
 import { PayslipGenerationService } from "./payslip-generation.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 /**
  * Admin → Finance → Coach Payroll. Every route asserts an admin role
@@ -49,6 +50,7 @@ import { PayslipGenerationService } from "./payslip-generation.service";
  * Payroll Admin role for now). Auth is the token-string pattern (§3.2): the
  * controller lifts the raw cookie, the service verifies.
  */
+@RequireFeature("coachPayroll")
 @Controller()
 export class PayrollAdminController {
   constructor(

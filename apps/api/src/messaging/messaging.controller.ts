@@ -14,7 +14,9 @@ import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { MessagingRuleService } from "./messaging-rule.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("messagingAutomation")
 @Controller()
 export class MessagingController {
   constructor(private readonly messagingRuleService: MessagingRuleService) {}

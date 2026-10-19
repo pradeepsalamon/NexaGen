@@ -8,12 +8,14 @@ import { PrismaService } from "../prisma/prisma.service";
 import { assertOwnerOrAdmin, authenticateUser } from "./payroll-auth.helper";
 import { PayrollRecordService } from "./payroll-record.service";
 import { PayslipGenerationService } from "./payslip-generation.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 /**
  * Coach-facing payroll routes — read-only (§18/§19). A coach sees only their
  * own earnings; there is no coach-sees-coach case, matching the payments
  * module's "money is between the party and the academy" precedent.
  */
+@RequireFeature("coachPayroll")
 @Controller()
 export class PayrollController {
   constructor(

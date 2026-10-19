@@ -11,7 +11,9 @@ import type { z } from 'zod';
 import { AUTH_COOKIE_NAMES } from '../auth/types';
 import { ZodBodyPipe } from '../common/zod-body.pipe';
 import { GameSourcesService } from './game-sources.service';
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("gameAnalysis")
 @Controller()
 export class GameSourcesController {
   constructor(private readonly sources: GameSourcesService) {}

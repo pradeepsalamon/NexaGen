@@ -25,6 +25,7 @@ import { InvoiceAuditService } from "./invoice-audit.service";
 import { InvoiceGenerationService } from "./invoice-generation.service";
 import { InvoiceService } from "./invoice.service";
 import { authenticateUser } from "./payments-auth.helper";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 /**
  * Customer-facing invoice routes (§14, §15, §16).
@@ -34,6 +35,7 @@ import { authenticateUser } from "./payments-auth.helper";
  * else's invoice only if you are an admin. Auth is the token-string pattern
  * (CLAUDE.md §3.2): the controller lifts the raw cookie, the service verifies.
  */
+@RequireFeature("studentPayments")
 @Controller()
 export class InvoicesController {
   constructor(

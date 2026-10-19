@@ -10,6 +10,7 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { ChessAppearanceService } from "./chess-appearance.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 @Controller()
 export class ChessAppearanceController {
@@ -42,10 +43,13 @@ export class ChessAppearanceController {
     return this.appearanceService.resetMyPreference(this.getAccessToken(request));
   }
 
+  @RequireFeature("customBranding")
   @Get(API_ROUTES.chessAppearance.admin)
   getAdmin(@Req() request: Request) {
     return this.appearanceService.getGlobalSettings(this.getAccessToken(request));
   }
+
+  @RequireFeature("customBranding")
 
   @Put(API_ROUTES.chessAppearance.admin)
   updateAdmin(
@@ -56,6 +60,7 @@ export class ChessAppearanceController {
     return this.appearanceService.updateGlobalSettings(this.getAccessToken(request), body);
   }
 
+  @RequireFeature("customBranding")
   @Post(API_ROUTES.chessAppearance.adminReset)
   resetAdmin(@Req() request: Request) {
     return this.appearanceService.resetGlobalSettings(this.getAccessToken(request));

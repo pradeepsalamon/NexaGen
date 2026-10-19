@@ -18,7 +18,9 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { ActivityQueueService } from "./activity-queue.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("interactiveClassroom", { allowReads: true })
 @Controller()
 export class ActivityQueueController {
   constructor(private readonly service: ActivityQueueService) {}

@@ -10,7 +10,9 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { LiveClassPuzzleRushService } from "./live-class-puzzle-rush.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("interactiveClassroom", { allowReads: true })
 @Controller()
 export class LiveClassPuzzleRushController {
   constructor(private readonly service: LiveClassPuzzleRushService) {}
