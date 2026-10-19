@@ -110,6 +110,52 @@ scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen
 - **Output.** `report.md` and `results.json` in `~/ai-bench/<UTC timestamp>/`.
   Paste the verdict into this section.
 
+### 4.2 Result: run of 2026-10-19 (qwen2.5:3b, Ollama 0.34.4)
+
+Run 18:22 UTC, no class live. Raw output is in `~/ai-bench/20261019T170505Z/` on the box; the container, weights and image were removed afterwards.
+
+**Capacity: PASS. Quality: not good enough yet.**
+
+| Criterion | Target | Measured | |
+|---|---|---|---|
+| Summary p95 (incl. repair retry) | ≤ 10 min | 9.12 min | ok (tight) |
+| Peak RSS | ≤ 4.5 GiB | 3.31 GiB | ok |
+| Schema-valid before retry | ≥ 95% | 100% | ok |
+| Grounding violations after validation | 0 | 0 | ok |
+
+| Also measured | Value |
+|---|---|
+| Summaries usable (READY) after one retry | **5 / 10** |
+| Grounding violations before retry | 10, mostly invented `variations` (e.g. a poll's `Nxf7` cited as a move of the game, looping move lists) and one `S#` in the student view |
+| Prompt / generation tokens/s (median) | 18.1 / 4.2 |
+| Fact recall (keyword proxy) | 30% |
+| Stockfish slowdown during generation | 1.04× (median 5.3 s fixed-node search) |
+
+Reading:
+
+- **This box can run the model.** It stays within the 1.5-CPU / 5 GB envelope,
+  and Stockfish is barely affected.
+- **The four pass criteria miss the success rate.** Every rejected summary was
+  caught, so nothing wrong would reach a coach. But half the classes would
+  get no summary.
+- **Proposed fifth criterion:** "≥ 90% READY after one retry".
+
+Before Phase 3, re-run with these two changes:
+
+1. **`variations` comes from code.** Build `variations` deterministically from
+   the evidence (ADR-008: chess correctness is never delegated to an LLM). The
+   model only comments on lines it is given. This removes the largest failure
+   class.
+2. **Compare a stronger model.** Run a ≤4B candidate from AI_FOUNDATION.md §4.4
+   (e.g. Qwen3-4B) side by side.
+
+Harness fixes made during the run (commits `a8fd4f7`, `f41c7ba`):
+
+- **Streaming.** Generation streams, because Node's fetch drops a request
+  after 5 minutes with no headers.
+- **Grammar limits.** The JSON schema handed to Ollama carries the length and
+  count limits.
+
 ## 5. Recommendation
 
 1. **Now:** Option 1. Add a small `ai-runtime` to the existing Compose stack
