@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "PAYLOAD_TOO_LARGE",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code PAYLOAD_TOO_LARGE",
+  "valid": true
+}

@@ -1,0 +1,15 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": {
+      "text": "hello"
+    },
+    "permissions": [
+      "admin"
+    ],
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "unknown top-level field (strict request)",
+  "valid": false
+}

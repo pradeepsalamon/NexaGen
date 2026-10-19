@@ -1,0 +1,53 @@
+{
+  "$id": "nexa-ai-runtime/v1/diagnosticEchoResponse",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "contractVersion": {
+      "const": "1.0",
+      "type": "string"
+    },
+    "latencyMs": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "model": {
+      "const": "echo",
+      "type": "string"
+    },
+    "modelRevision": {
+      "type": "null"
+    },
+    "output": {
+      "properties": {
+        "echo": {
+          "type": "string"
+        },
+        "length": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "echo",
+        "length"
+      ],
+      "type": "object"
+    },
+    "provider": {
+      "const": "mock",
+      "type": "string"
+    }
+  },
+  "required": [
+    "contractVersion",
+    "latencyMs",
+    "model",
+    "modelRevision",
+    "output",
+    "provider"
+  ],
+  "title": "diagnosticEchoResponse",
+  "type": "object"
+}

@@ -1,0 +1,10 @@
+{
+  "data": {
+    "providers": {
+      "mock": "unavailable"
+    },
+    "status": "not_ready"
+  },
+  "reason": "not ready with an unavailable provider",
+  "valid": true
+}

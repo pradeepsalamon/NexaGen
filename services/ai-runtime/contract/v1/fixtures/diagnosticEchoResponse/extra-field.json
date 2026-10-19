@@ -1,0 +1,16 @@
+{
+  "data": {
+    "contractVersion": "1.0",
+    "futureField": "x",
+    "latencyMs": 0,
+    "model": "echo",
+    "modelRevision": null,
+    "output": {
+      "echo": "hello",
+      "length": 5
+    },
+    "provider": "mock"
+  },
+  "reason": "responses are read non-strictly; unknown fields are allowed",
+  "valid": true
+}

@@ -1,0 +1,32 @@
+{
+  "$id": "nexa-ai-runtime/v1/aiRuntimeReadiness",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "providers": {
+      "additionalProperties": {
+        "enum": [
+          "ready",
+          "unavailable"
+        ],
+        "type": "string"
+      },
+      "propertyNames": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "status": {
+      "enum": [
+        "ready",
+        "not_ready"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "providers",
+    "status"
+  ],
+  "title": "aiRuntimeReadiness",
+  "type": "object"
+}

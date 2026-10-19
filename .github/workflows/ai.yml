@@ -1,0 +1,117 @@
+name: AI runtime
+
+# The AI foundation's own checks (docs/ai/architecture/PHASE1_SPEC.md §8–9).
+# A separate workflow, not a job in ci.yml: ci.yml is the deploy gate
+# (workflow_call), and a called workflow inherits the caller's event name, so a
+# job there would also run inside a manually dispatched deploy. This one only
+# runs on PRs and by hand, so it never gates or delays a deploy (OD-23).
+# The ordinary apps/api specs for the AI module (conformance, config, token,
+# client, service) run in ci.yml's verify job like every other spec.
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+    paths:
+      - 'services/ai-runtime/**'
+      - 'packages/types/src/ai*.ts'
+      - 'scripts/ai/**'
+      - 'compose.ai.yml'
+      - 'apps/api/src/ai/**'
+      - 'apps/api/jest.runtime.config.ts'
+      - '.github/workflows/ai.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: ai-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22"
+  UV_VERSION: "0.13.1"
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  runtime:
+    name: Runtime tests, contract, round trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.12"
+
+      - name: Install runtime dependencies (locked)
+        working-directory: services/ai-runtime
+        run: uv sync --frozen
+
+      # Tests 11–15, 17–19. No step contacts a provider or reads a real secret.
+      - name: Runtime tests (pytest)
+        working-directory: services/ai-runtime
+        run: uv run --frozen pytest
+
+      - run: npm ci
+
+      - name: Build shared packages
+        run: npx turbo run build --filter="./packages/*"
+
+      # Test 16
+      - name: Contract drift
+        run: node scripts/ai/export-contract.mjs --check
+
+      # Test 17, Zod side. Also in ci.yml's verify job, but that job's path
+      # filter doesn't see a fixture-only change under services/.
+      - name: Contract conformance (Zod)
+        working-directory: apps/api
+        run: npx jest src/ai/contract-conformance.spec.ts --runInBand
+
+      # Test 1: the NestJS client against a real Uvicorn on loopback.
+      - name: Round trip against a local runtime
+        run: |
+          secret="$(openssl rand -base64 48)"
+          export AI_RUNTIME_SHARED_SECRET="$secret"
+          log="$RUNNER_TEMP/ai-runtime.log"
+          (cd services/ai-runtime && uv run --frozen uvicorn --factory app.main:create_app \
+            --host 127.0.0.1 --port 8000 --workers 1 --limit-concurrency 32 --timeout-keep-alive 5 \
+            --no-access-log >"$log" 2>&1) &
+          for _ in $(seq 1 30); do curl -fs http://127.0.0.1:8000/healthz >/dev/null && break; sleep 1; done
+          (cd apps/api && AI_RUNTIME_URL=http://127.0.0.1:8000 AI_RUNTIME_TEST_LOG="$log" \
+            npx jest --config jest.runtime.config.ts --runInBand)
+          echo "--- runtime log (metadata only) ---"; cat "$log"
+
+  topology:
+    name: Compose topology, arm64 image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Test 20 (and acceptance gate 2: production compose renders unchanged).
+      - name: Compose topology and port exposure
+        run: scripts/ai/compose-topology-test.sh
+
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # Test 21 (OD-24): the production box is ARM64; it is never used as a builder.
+      - name: Build the arm64 image under QEMU
+        run: |
+          docker buildx build --platform linux/arm64 --load -t nexa-ai-runtime:arm64-check services/ai-runtime
+          docker run --rm --platform linux/arm64 nexa-ai-runtime:arm64-check python -c "import app.main; print('import ok')"

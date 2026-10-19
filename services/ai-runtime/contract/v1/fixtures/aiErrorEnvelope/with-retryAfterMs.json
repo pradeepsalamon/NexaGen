@@ -1,0 +1,12 @@
+{
+  "data": {
+    "error": {
+      "code": "BUSY",
+      "message": "Busy.",
+      "retryAfterMs": 1000,
+      "retryable": true
+    }
+  },
+  "reason": "optional retryAfterMs",
+  "valid": true
+}

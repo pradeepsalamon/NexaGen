@@ -1,0 +1,48 @@
+# AI runtime overlay (docs/ai/architecture/PHASE1_SPEC.md §4, ADR-010).
+#
+# Opt-in only, on a dev machine or in CI:
+#   docker compose -f docker-compose.yml -f compose.ai.yml --profile ai up -d ai-runtime
+#
+# The production deploy never passes -f, so it never reads this file, and the
+# name is deliberately outside the deploy/CI filter `docker-compose*.yml`.
+# No ${VAR:?}: compose interpolates the whole file even for an inactive
+# profile. The runtime itself refuses to start on an empty secret.
+services:
+  ai-runtime:
+    profiles: ["ai"]
+    build:
+      context: services/ai-runtime
+    # ai_internal only, and no `ports:` — no egress, no host exposure.
+    networks: [ai_internal]
+    read_only: true
+    tmpfs: ["/tmp:size=16m"]
+    user: "10001:10001"
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    environment:
+      AI_RUNTIME_SHARED_SECRET: ${AI_RUNTIME_SHARED_SECRET:-}
+      AI_RUNTIME_SHARED_SECRET_PREVIOUS: ${AI_RUNTIME_SHARED_SECRET_PREVIOUS:-}
+      LOG_LEVEL: ${AI_RUNTIME_LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status==200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # Merged into the base `api` service: one more network and the AI_* variables.
+  # No depends_on: the API must boot and pass /health/ready without the runtime.
+  api:
+    networks: [nexa_network, ai_internal]
+    environment:
+      AI_ENABLED: ${AI_ENABLED:-false}
+      AI_RUNTIME_URL: http://ai-runtime:8000
+      AI_RUNTIME_SHARED_SECRET: ${AI_RUNTIME_SHARED_SECRET:-}
+
+networks:
+  ai_internal:
+    internal: true

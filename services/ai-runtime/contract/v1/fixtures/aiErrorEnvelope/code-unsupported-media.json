@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "UNSUPPORTED_MEDIA",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code UNSUPPORTED_MEDIA",
+  "valid": true
+}

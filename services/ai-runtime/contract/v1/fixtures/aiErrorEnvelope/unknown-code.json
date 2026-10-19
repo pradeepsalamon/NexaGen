@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "TEAPOT",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code not in the v1.0 list",
+  "valid": false
+}

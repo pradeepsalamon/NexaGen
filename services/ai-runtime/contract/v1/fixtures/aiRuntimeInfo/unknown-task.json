@@ -1,0 +1,17 @@
+{
+  "data": {
+    "contractVersions": [
+      "1.0"
+    ],
+    "providers": [
+      "mock"
+    ],
+    "service": "ai-runtime",
+    "tasks": [
+      "summary.v1"
+    ],
+    "version": "0.1.0"
+  },
+  "reason": "task id not in the v1.0 list",
+  "valid": false
+}

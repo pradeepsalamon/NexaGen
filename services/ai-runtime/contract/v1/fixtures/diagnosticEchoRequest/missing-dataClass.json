@@ -1,0 +1,11 @@
+{
+  "data": {
+    "input": {
+      "text": "hello"
+    },
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "required field dataClass missing",
+  "valid": false
+}

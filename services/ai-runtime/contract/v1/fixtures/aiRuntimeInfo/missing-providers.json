@@ -1,0 +1,14 @@
+{
+  "data": {
+    "contractVersions": [
+      "1.0"
+    ],
+    "service": "ai-runtime",
+    "tasks": [
+      "diagnostic.echo.v1"
+    ],
+    "version": "0.1.0"
+  },
+  "reason": "required field providers missing",
+  "valid": false
+}

@@ -1,0 +1,12 @@
+{
+  "data": {
+    "error": {
+      "code": "INTERNAL",
+      "message": "Internal error.",
+      "retryAfterMs": null,
+      "retryable": false
+    }
+  },
+  "reason": "optional fields may be absent but not null",
+  "valid": false
+}

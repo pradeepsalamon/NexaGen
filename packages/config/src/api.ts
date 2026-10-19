@@ -11,6 +11,8 @@ const optionalUrlSchema = z
   .or(z.literal("").transform(() => undefined));
 
 const MIN_JWT_SECRET_LENGTH = 32;
+const MIN_AI_SECRET_LENGTH = 32;
+const AI_RUNTIME_HOSTS = new Set(["ai-runtime", "localhost", "127.0.0.1"]);
 
 // Mirrors the Prisma UserRole enum (this package has no Prisma dependency).
 const MFA_ROLE_NAMES = ["ADMIN", "COACH", "STUDENT", "SUPER_ADMIN"];
@@ -91,6 +93,16 @@ const apiEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  // AI runtime (docs/ai/architecture/PHASE1_SPEC.md §7). Off by default; only
+  // compose.ai.yml passes these to the api container, so production compose
+  // can't turn it on. Enabling it without a valid secret fails boot.
+  AI_ENABLED: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  AI_RUNTIME_URL: z.string().default("http://ai-runtime:8000"),
+  AI_RUNTIME_SHARED_SECRET: z.string().optional(),
+  AI_RUNTIME_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(5000),
   COOKIE_DOMAIN: z.string().optional(),
   // Web and API are same-site subdomains, so Lax is enough and blocks cross-site form posts.
   // "none" only for a deployment where the API sits on a different registrable domain.
@@ -197,6 +209,11 @@ const apiEnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_API_VERSION: z.string().default("2024-06-20")
 }).superRefine((env, ctx) => {
+  // Every NODE_ENV, not just production: a misconfigured enable must fail boot
+  // rather than talk to the runtime with a guessable or reused secret.
+  if (env.AI_ENABLED) {
+    for (const issue of aiConfigIssues(env)) ctx.addIssue({ code: "custom", ...issue });
+  }
   if (env.NODE_ENV !== "production") return;
   // A default, empty or short signing secret lets anyone mint access tokens.
   for (const key of ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"] as const) {
@@ -231,12 +248,62 @@ const apiEnvSchema = z.object({
   }
 });
 
+function aiConfigIssues(env: {
+  AI_RUNTIME_SHARED_SECRET?: string;
+  AI_RUNTIME_URL: string;
+  JWT_ACCESS_SECRET: string;
+  JWT_REFRESH_SECRET: string;
+}): { message: string; path: string[] }[] {
+  const issues: { message: string; path: string[] }[] = [];
+  const secret = env.AI_RUNTIME_SHARED_SECRET ?? "";
+  if (secret.length < MIN_AI_SECRET_LENGTH || secret.startsWith("change-this")) {
+    issues.push({
+      message: `AI_RUNTIME_SHARED_SECRET must be a random value of at least ${MIN_AI_SECRET_LENGTH} characters when AI_ENABLED=true.`,
+      path: ["AI_RUNTIME_SHARED_SECRET"]
+    });
+  } else if (secret === env.JWT_ACCESS_SECRET || secret === env.JWT_REFRESH_SECRET) {
+    issues.push({
+      message: "AI_RUNTIME_SHARED_SECRET must differ from JWT_ACCESS_SECRET and JWT_REFRESH_SECRET.",
+      path: ["AI_RUNTIME_SHARED_SECRET"]
+    });
+  }
+  // Internal network only: plain http to a known host, nothing that could
+  // smuggle credentials or point the client somewhere else.
+  let url: URL | undefined;
+  try {
+    url = new URL(env.AI_RUNTIME_URL);
+  } catch {
+    url = undefined;
+  }
+  if (
+    !url ||
+    url.protocol !== "http:" ||
+    !AI_RUNTIME_HOSTS.has(url.hostname) ||
+    url.username ||
+    url.password ||
+    url.pathname !== "/" ||
+    url.search ||
+    url.hash
+  ) {
+    issues.push({
+      message: "AI_RUNTIME_URL must be http://ai-runtime, http://localhost or http://127.0.0.1 with an optional port and nothing else.",
+      path: ["AI_RUNTIME_URL"]
+    });
+  }
+  return issues;
+}
+
 export type ApiEnv = z.infer<typeof apiEnvSchema>;
 
 let cachedApiEnv: ApiEnv | undefined;
 
+/** Parses without caching; for tests that need several environments. */
+export function parseApiEnv(source: NodeJS.ProcessEnv): ApiEnv {
+  return apiEnvSchema.parse(source);
+}
+
 export function getApiEnv(source: NodeJS.ProcessEnv = process.env) {
-  cachedApiEnv ??= apiEnvSchema.parse(source);
+  cachedApiEnv ??= parseApiEnv(source);
   return cachedApiEnv;
 }
 

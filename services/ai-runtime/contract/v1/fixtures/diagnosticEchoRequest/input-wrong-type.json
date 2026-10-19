@@ -1,0 +1,10 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": "hello",
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "input is a string",
+  "valid": false
+}

@@ -1,0 +1,45 @@
+{
+  "$id": "nexa-ai-runtime/v1/aiRuntimeInfo",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "contractVersions": {
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "providers": {
+      "items": {
+        "const": "mock",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "service": {
+      "const": "ai-runtime",
+      "type": "string"
+    },
+    "tasks": {
+      "items": {
+        "enum": [
+          "diagnostic.echo.v1"
+        ],
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "contractVersions",
+    "providers",
+    "service",
+    "tasks",
+    "version"
+  ],
+  "title": "aiRuntimeInfo",
+  "type": "object"
+}

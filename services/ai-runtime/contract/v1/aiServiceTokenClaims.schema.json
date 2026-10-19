@@ -1,0 +1,76 @@
+{
+  "$id": "nexa-ai-runtime/v1/aiServiceTokenClaims",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "aud": {
+      "const": "ai-runtime",
+      "type": "string"
+    },
+    "bh": {
+      "pattern": "^[A-Za-z0-9_-]{43}$",
+      "type": "string"
+    },
+    "dataClass": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "PSEUDONYMOUS_STUDENT",
+        "PERSONAL_STUDENT",
+        "SENSITIVE_MINOR_COMMS"
+      ],
+      "type": "string"
+    },
+    "exp": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "iat": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "iss": {
+      "const": "nexa-api",
+      "type": "string"
+    },
+    "jti": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "rid": {
+      "pattern": "^[A-Za-z0-9-]{8,64}$",
+      "type": "string"
+    },
+    "scope": {
+      "enum": [
+        "runtime:info",
+        "runtime:diagnostic.echo"
+      ],
+      "type": "string"
+    },
+    "task": {
+      "enum": [
+        "diagnostic.echo.v1"
+      ],
+      "type": "string"
+    },
+    "ver": {
+      "const": 1,
+      "type": "number"
+    }
+  },
+  "required": [
+    "aud",
+    "exp",
+    "iat",
+    "iss",
+    "jti",
+    "rid",
+    "scope",
+    "ver"
+  ],
+  "title": "aiServiceTokenClaims",
+  "type": "object"
+}

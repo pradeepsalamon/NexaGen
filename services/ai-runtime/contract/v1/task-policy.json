@@ -1,0 +1,15 @@
+{
+  "contractVersion": "1.0",
+  "tasks": [
+    {
+      "dataClasses": [
+        "PUBLIC"
+      ],
+      "routes": [
+        "mock:echo"
+      ],
+      "scope": "runtime:diagnostic.echo",
+      "task": "diagnostic.echo.v1"
+    }
+  ]
+}

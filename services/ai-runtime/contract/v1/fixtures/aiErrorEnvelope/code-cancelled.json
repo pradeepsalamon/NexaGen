@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "CANCELLED",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code CANCELLED",
+  "valid": true
+}

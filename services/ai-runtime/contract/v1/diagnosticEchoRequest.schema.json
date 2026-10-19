@@ -1,0 +1,41 @@
+{
+  "$id": "nexa-ai-runtime/v1/diagnosticEchoRequest",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "dataClass": {
+      "const": "PUBLIC",
+      "type": "string"
+    },
+    "input": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "type": "object"
+    },
+    "route": {
+      "const": "mock:echo",
+      "type": "string"
+    },
+    "task": {
+      "const": "diagnostic.echo.v1",
+      "type": "string"
+    }
+  },
+  "required": [
+    "dataClass",
+    "input",
+    "route",
+    "task"
+  ],
+  "title": "diagnosticEchoRequest",
+  "type": "object"
+}
