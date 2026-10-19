@@ -37,7 +37,9 @@ function writeDismissed(keys: string[]) {
  */
 export function DashboardFeedback() {
   const { data } = usePendingFeedbackQuery();
-  const [dismissed, setDismissed] = useState<string[]>([]);
+  // null until sessionStorage is read (after mount, so SSR markup matches):
+  // the pop-up must not be picked before then, or a dismissed one reappears.
+  const [dismissed, setDismissed] = useState<string[] | null>(null);
   const [popupKey, setPopupKey] = useState<string | null>(null);
   const [popupDone, setPopupDone] = useState(false);
 
@@ -47,7 +49,7 @@ export function DashboardFeedback() {
 
   // Pick the pop-up once, when data first arrives.
   useEffect(() => {
-    if (popupDone || popupKey) return;
+    if (popupDone || popupKey || dismissed === null) return;
     const first = items.find(
       (item) => item.placements.includes("DASHBOARD_POPUP") && !dismissed.includes(itemKey(item))
     );
@@ -66,7 +68,7 @@ export function DashboardFeedback() {
   };
 
   const dismiss = (item: PendingFeedbackItem) => {
-    const next = [...dismissed, itemKey(item)];
+    const next = [...(dismissed ?? []), itemKey(item)];
     setDismissed(next);
     writeDismissed(next);
     closePopup();

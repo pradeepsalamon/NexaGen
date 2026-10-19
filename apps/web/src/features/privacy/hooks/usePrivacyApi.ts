@@ -21,8 +21,12 @@ export function useDownloadMyData() {
       const link = document.createElement("a");
       link.href = url;
       link.download = `nexa-my-data-${data.exportedAt.slice(0, 10)}.json`;
+      // Attached for the click (Firefox ignores a detached anchor), and the URL
+      // revoked a tick later so the download has started.
+      document.body.appendChild(link);
       link.click();
-      URL.revokeObjectURL(url);
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
     }
   });
 }

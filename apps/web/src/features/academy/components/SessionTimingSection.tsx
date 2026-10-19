@@ -60,9 +60,13 @@ export function SessionTimingSection() {
   useEffect(() => {
     if (!isVisible) return;
 
+    const end = 55;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCount(end);
+      return;
+    }
     let startTime: number;
     const duration = 2000;
-    const end = 55;
     let req: number;
 
     const animate = (timestamp: number) => {

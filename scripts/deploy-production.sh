@@ -390,8 +390,8 @@ git checkout -f "$COMMIT_SHA"
 # Tags Sentry errors with the commit that produced them (compose reads it).
 export SENTRY_RELEASE="$COMMIT_SHA"
 
-# A failed build replaces nothing (compose only retags `latest` on success), so
-# the running containers are untouched — just put the checkout back.
+# A failed build replaces no running container, but a service that did build
+# before another failed has a new `latest`; put that back with the checkout.
 echo "Building services: ${SERVICES[*]}..."
 if ! docker compose build "${SERVICES[@]}"; then
   echo "========================================"
@@ -399,6 +399,11 @@ if ! docker compose build "${SERVICES[@]}"; then
   echo "========================================"
   echo "No containers were replaced. Restoring the checkout to $PREV_COMMIT."
   git checkout -f "$PREV_COMMIT"
+  # The freshly built `latest` must not be picked up by an unrelated restart.
+  for SERVICE in "${SERVICES[@]}"; do
+    IMAGE=$(image_for "$SERVICE")
+    image_exists "$IMAGE:last-good" && docker tag "$IMAGE:last-good" "$IMAGE:latest"
+  done
   log_history "deploy ABORTED (build) commit=$COMMIT_SHA services=${SERVICES[*]}"
   exit 1
 fi

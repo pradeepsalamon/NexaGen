@@ -86,19 +86,37 @@ export function StudentRevisionClient() {
   // The puzzle was just submitted: re-read the open item for the server's verdict (outcome + the ratings
   // it accepts). The client never decides which ratings are allowed.
   const attemptId = current?.attemptId;
+  // Bumped when the attempt changes or the page unmounts: older polls stop and
+  // never write a result into a newer attempt.
+  const pollGeneration = useRef(0);
+  const pollTimer = useRef<number | undefined>(undefined);
+  useEffect(
+    () => () => {
+      pollGeneration.current += 1;
+      window.clearTimeout(pollTimer.current);
+    },
+    [attemptId]
+  );
   const onFinished = useCallback(() => {
+    const generation = ++pollGeneration.current;
+    const retry = (tries: number) => {
+      pollTimer.current = window.setTimeout(() => read(tries - 1), 800);
+    };
     const read = (tries: number) =>
       getRevisionSession()
         .then((res) => {
+          if (generation !== pollGeneration.current) return;
           const next = res.current;
           if (next && next.attemptId === attemptId && next.pendingRating) setCurrent(next);
-          else if (tries > 0) window.setTimeout(() => read(tries - 1), 800);
+          else if (tries > 0) retry(tries);
+          else toast.error({ title: "Couldn't load your result", message: "Reload the page to rate this puzzle." });
         })
         .catch((error: Error) => {
-          if (tries > 0) window.setTimeout(() => read(tries - 1), 800);
+          if (generation !== pollGeneration.current) return;
+          if (tries > 0) retry(tries);
           else toast.error({ message: error.message, title: "Couldn't load your result" });
         });
-    read(3);
+    void read(3);
   }, [attemptId, toast]);
 
   const begin = useCallback(() => {

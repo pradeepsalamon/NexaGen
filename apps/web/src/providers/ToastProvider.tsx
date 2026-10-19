@@ -68,7 +68,7 @@ function getDefaultDuration(type: ToastType): number {
   }
 }
 
-function showToast({ action, durationMs, message, title, type }: ToastInput) {
+function showToast({ action, durationMs, message, title, type }: ToastInput): string | number {
   const options = {
     action,
     description: message,
@@ -77,20 +77,15 @@ function showToast({ action, durationMs, message, title, type }: ToastInput) {
 
   switch (type) {
     case "error":
-      sonnerToast.error(title, options);
-      break;
+      return sonnerToast.error(title, options);
     case "warning":
-      sonnerToast.warning(title, options);
-      break;
+      return sonnerToast.warning(title, options);
     case "info":
-      sonnerToast.info(title, options);
-      break;
+      return sonnerToast.info(title, options);
     case "loading":
-      sonnerToast.loading(title, options);
-      break;
+      return sonnerToast.loading(title, options);
     case "success":
-      sonnerToast.success(title, options);
-      break;
+      return sonnerToast.success(title, options);
   }
 }
 
@@ -113,15 +108,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       undoable: ({ actionLabel, delayMs, message, onCommit, onUndo, title }) => {
         const duration = delayMs ?? 6000;
         let committed = false;
+        let toastId: string | number | undefined;
         const timer = setTimeout(() => {
           committed = true;
+          if (toastId !== undefined) sonnerToast.dismiss(toastId);
           onCommit();
         }, duration);
-        showToast({
+        toastId = showToast({
           action: {
             label: actionLabel ?? "Undo",
             onClick: () => {
-              if (committed) return;
+              if (committed) {
+                showToast({ title: "Too late to undo — the action was already applied.", type: "warning" });
+                return;
+              }
               clearTimeout(timer);
               onUndo?.();
             }

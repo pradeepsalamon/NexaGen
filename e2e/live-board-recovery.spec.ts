@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
-import { seededBatchId } from "./fixtures";
+import { api, login, seededBatchId, type Cookie } from "./fixtures";
 
 /**
  * Durable board recovery (`LiveSession.boardState`, `useBoardPersistence`).
@@ -10,51 +10,13 @@ import { seededBatchId } from "./fixtures";
  */
 
 const RUN = process.env.RUN_LIVE_BOARD_E2E === "1";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
-const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
-
 const START_PLACEMENT = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
-
-type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
 
 declare global {
   interface Window {
     __nexaBoard?: { move: (from: string, to: string) => boolean; fen: () => string };
     __seenFens?: string[];
   }
-}
-
-async function login(request: APIRequestContext, email: string, password: string): Promise<Cookie[]> {
-  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  }
-  expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
-  return (res.headers()["set-cookie"] || "")
-    .split("\n")
-    .flatMap((line) => line.split(/,(?=\s*nexa_)/))
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.startsWith("nexa_"))
-    .map((c) => {
-      const [name, ...v] = c.split("=");
-      return { name, value: v.join("="), domain: "localhost", path: "/", httpOnly: true };
-    });
-}
-
-function api(request: APIRequestContext, method: string, path: string, cookies: Cookie[], body?: object) {
-  return request.fetch(`${API_URL}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      Cookie: cookies.map((c) => `${c.name}=${c.value}`).join("; "),
-      Origin: "http://localhost:3000",
-    },
-    data: body,
-  });
 }
 
 /** Coaches can't create classes: request an extra class and have the admin approve it. */
@@ -143,9 +105,9 @@ test.describe("Live board recovery", () => {
 
   test("coach refresh restores the board and never resets the students", async ({ browser, playwright }) => {
     const request = await playwright.request.newContext();
-    const adminCookies = await login(request, ADMIN.email, ADMIN.password);
-    coachCookies = await login(request, COACH.email, COACH.password);
-    const studentCookies = await login(request, STUDENT.email, STUDENT.password);
+    const adminCookies = await login(request, "admin");
+    coachCookies = await login(request, "coach");
+    const studentCookies = await login(request, "student");
     classId = await makeLiveClass(request, coachCookies, adminCookies);
 
     const coachCtx = await browser.newContext();

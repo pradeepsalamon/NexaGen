@@ -107,9 +107,9 @@ export function DataTable<TData>({
       {stackOnMobile ? (
         <div className="sm:hidden">
           {isLoading || !rows.length ? (
-            <p className="rounded-[20px] border border-app-border bg-app-surface px-4 py-10 text-center text-sm font-semibold text-app-muted shadow-card">
+            <div className="rounded-[20px] border border-app-border bg-app-surface px-4 py-10 text-center text-sm font-semibold text-app-muted shadow-card">
               {isLoading ? loadingText : noDataText}
-            </p>
+            </div>
           ) : (
             <ul className="flex flex-col gap-3">
               {rows.map((row) => (

@@ -27,16 +27,19 @@ const move = (uci: string): AttemptMove => ({ ply: 1, uci, san: uci, fenAfter: S
 
 describe("AssignmentEvaluationService", () => {
   let service: AssignmentEvaluationService;
-  const stockfish = {
-    isAvailable: jest.fn().mockReturnValue(false),
-    getBestMove: jest.fn(),
-    analyzePosition: jest.fn()
+  let stockfish: {
+    isAvailable: jest.Mock;
+    getBestMove: jest.Mock;
+    analyzePosition: jest.Mock;
   };
 
   beforeEach(() => {
+    stockfish = {
+      isAvailable: jest.fn().mockReturnValue(false),
+      getBestMove: jest.fn(),
+      analyzePosition: jest.fn()
+    };
     service = new AssignmentEvaluationService(stockfish as unknown as StockfishService);
-    stockfish.isAvailable.mockReturnValue(false);
-    stockfish.analyzePosition.mockReset();
   });
 
   describe("assertValidFen", () => {

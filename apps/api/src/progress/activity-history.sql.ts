@@ -521,17 +521,19 @@ export function themesSql(ctx: HistoryContext, scope: ResolvedScope): Prisma.Sql
   const where = scopeWhere("g", "happened_at", scope);
   const systemSlugs = Prisma.join([...SYSTEM_PUZZLE_FOLDER_SLUGS]);
   return Prisma.sql`${historyCtes(ctx)}
-SELECT x.kind, x.key, max(x.label) AS label, count(*)::int AS graded, (count(*) FILTER (WHERE x.correct))::int AS correct
+SELECT x.kind, x.key, max(x.label) AS label, count(*)::int AS graded, (count(*) FILTER (WHERE x.correct))::int AS correct,
+  -- A group counts every graded attempt on its puzzles, so the same puzzle set = the same attempts.
+  md5(string_agg(DISTINCT x.puzzle_id, ',' ORDER BY x.puzzle_id)) AS puzzle_set
 FROM (
-  SELECT 'TYPE' AS kind, pz."puzzleType"::text AS key, NULL::text AS label, g.correct
+  SELECT 'TYPE' AS kind, pz."puzzleType"::text AS key, NULL::text AS label, g.correct, g.puzzle_id
   FROM graded g JOIN puzzles pz ON pz.id = g.puzzle_id
   WHERE ${where} AND pz."puzzleType" <> 'CUSTOM'
   UNION ALL
-  SELECT 'THEME', tag, NULL, g.correct
+  SELECT 'THEME', tag, NULL, g.correct, g.puzzle_id
   FROM graded g JOIN puzzles pz ON pz.id = g.puzzle_id CROSS JOIN LATERAL unnest(pz.tags) AS tag
   WHERE ${where}
   UNION ALL
-  SELECT 'FOLDER', t.id, t.name, g.correct
+  SELECT 'FOLDER', t.id, t.name, g.correct, g.puzzle_id
   FROM graded g JOIN puzzles pz ON pz.id = g.puzzle_id JOIN puzzle_topics t ON t.id = pz."topicId"
   WHERE ${where} AND t.slug NOT IN (${systemSlugs})
 ) x

@@ -1,6 +1,7 @@
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { createTestApp, type TestApp } from "../app";
 import { createUser, resetDatabase } from "../db";
+import { registeredRoutes } from "../routes";
 
 // Every registered route under these is checked automatically, so a new admin
 // route is covered the moment it exists. Mixed modules list their admin routes.
@@ -43,21 +44,6 @@ type Route = { method: string; path: string };
 const under = (path: string, prefixes: string[]) =>
   prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
 
-function registeredRoutes(t: TestApp): Route[] {
-  const express = t.app.getHttpAdapter().getInstance() as {
-    router?: { stack: { route?: { methods: Record<string, boolean>; path: string } }[] };
-    _router?: { stack: { route?: { methods: Record<string, boolean>; path: string } }[] };
-  };
-  const stack = (express.router ?? express._router)?.stack ?? [];
-  return stack.flatMap((layer) =>
-    layer.route
-      ? Object.keys(layer.route.methods).map((method) => ({
-          method: method.toUpperCase(),
-          path: String(layer.route!.path)
-        }))
-      : []
-  );
-}
 
 describe("admin-only routes refuse other roles (real app, real Postgres)", () => {
   let t: TestApp;

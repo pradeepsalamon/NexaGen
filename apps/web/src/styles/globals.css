@@ -19,6 +19,9 @@
   --rgb-text-muted: 94 103 132;
   --rgb-border: 221 225 240;
   --rgb-danger: 207 46 46;
+  /* The nav drawer is a brand-blue panel in light mode and a surface in dark. */
+  --rgb-nav-drawer: var(--rgb-primary);
+  --rgb-nav-drawer-border: var(--rgb-primary);
 
   /* Fixed semantic status hues — distinct from the four brand hues above, so
      a badge's meaning (success/warning/info) never overloads a brand color's
@@ -84,6 +87,8 @@
   --rgb-text-muted: 150 158 190;
   --rgb-border: 44 50 84;
   --rgb-danger: 220 38 38;
+  --rgb-nav-drawer: var(--rgb-surface);
+  --rgb-nav-drawer-border: var(--rgb-border);
   --rgb-success: 34 197 94;
   --rgb-warning: 245 158 11;
   --rgb-info: 59 130 246;

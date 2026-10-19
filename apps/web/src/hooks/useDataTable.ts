@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -48,6 +48,11 @@ interface UseDataTableProps<TData, TValue> {
   manualPagination?: boolean;
   manualSorting?: boolean;
   pageCount?: number;
+  /**
+   * Row ids for selection. Without it TanStack keys rows by index, so after a
+   * page or filter change the same selection points at different rows.
+   */
+  getRowId?: (row: TData, index: number) => string;
 }
 
 /**
@@ -72,12 +77,22 @@ export function useDataTable<TData, TValue>({
   setSorting: setControlledSorting,
   manualPagination,
   manualSorting,
-  pageCount
+  pageCount,
+  getRowId
 }: UseDataTableProps<TData, TValue>) {
   const [internalRowSelection, setInternalRowSelection] =
     useState<RowSelectionState>({});
   const rowSelection = controlledRowSelection ?? internalRowSelection;
   const setRowSelection = setControlledRowSelection ?? setInternalRowSelection;
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    onRowSelectionChange?.(rowSelection);
+  }, [rowSelection, onRowSelectionChange]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
     initialColumnVisibility
   );
@@ -99,6 +114,7 @@ export function useDataTable<TData, TValue>({
     ...(manualPagination === undefined ? {} : { manualPagination }),
     ...(manualSorting === undefined ? {} : { manualSorting }),
     ...(pageCount === undefined ? {} : { pageCount }),
+    ...(getRowId ? { getRowId } : {}),
     state: {
       sorting,
       columnVisibility,
@@ -109,11 +125,7 @@ export function useDataTable<TData, TValue>({
     },
     enableRowSelection: true,
     onRowSelectionChange: (updater) => {
-      setRowSelection((old) => {
-        const newSelection = typeof updater === "function" ? updater(old) : updater;
-        onRowSelectionChange?.(newSelection);
-        return newSelection;
-      });
+      setRowSelection((prev) => (typeof updater === "function" ? updater(prev) : updater));
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,

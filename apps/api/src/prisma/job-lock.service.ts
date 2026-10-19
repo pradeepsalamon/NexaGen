@@ -8,6 +8,7 @@ export const JOB_LOCKS = {
   attendanceHeartbeatSweep: "attendance.heartbeat-sweep",
   attendanceRoomPresenceSweep: "attendance.room-presence-sweep",
   demoScheduleTopUp: "demo-schedule.top-up",
+  entitlementExpiry: "payments.entitlement-expiry",
   externalGameSync: "game-sources.sync",
   gameAnalysisAutoQueue: "game-analysis.auto-queue",
   gameAnalysisStaleSweep: "game-analysis.stale-sweep",
@@ -16,6 +17,7 @@ export const JOB_LOCKS = {
   liveClassStaleSweep: "live-class.stale-sweep",
   messagingClassReminders: "messaging.class-reminders",
   messagingDueSoonReminders: "messaging.due-soon-reminders",
+  paymentProviderEventPrune: "payments.provider-event-prune",
   paymentReconciliation: "payments.reconciliation",
   paymentWebhookRecovery: "payments.webhook-recovery",
   payslipPdfSweep: "payroll.payslip-pdf-sweep",
@@ -45,9 +47,13 @@ export class JobLockService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * `run` receives a signal that aborts if the lease is lost mid-run (another
+   * instance may then hold it); a long job should check it between batches.
+   */
   async runExclusive<T>(
     name: JobLockName,
-    run: () => Promise<T>,
+    run: (signal: AbortSignal) => Promise<T>,
     options: { ttlMs?: number } = {}
   ): Promise<JobLockOutcome<T>> {
     const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS;
@@ -56,15 +62,29 @@ export class JobLockService {
       return { acquired: false };
     }
 
+    const lease = new AbortController();
+    let inFlightRenewal: Promise<void> | null = null;
     const renewal = setInterval(() => {
-      void this.renew(name, owner, ttlMs);
+      inFlightRenewal = this.renew(name, owner, ttlMs)
+        .then((held) => {
+          if (!held) lease.abort();
+        })
+        .catch(() => {
+          // safeguard against unhandled rejection
+        })
+        .finally(() => {
+          inFlightRenewal = null;
+        });
     }, Math.max(1_000, Math.floor(ttlMs / 3)));
     renewal.unref?.();
 
     try {
-      return { acquired: true, result: await run() };
+      return { acquired: true, result: await run(lease.signal) };
     } finally {
       clearInterval(renewal);
+      if (inFlightRenewal) {
+        await inFlightRenewal;
+      }
       await this.release(name, owner).catch((error: unknown) =>
         this.logger.warn(`Could not release job lock ${name}: ${(error as Error).message}`)
       );
@@ -92,7 +112,8 @@ export class JobLockService {
     return rows[0]?.owner === owner;
   }
 
-  private async renew(name: string, owner: string, ttlMs: number): Promise<void> {
+  /** False only when the lease is confirmed gone; a transient error keeps the job going. */
+  private async renew(name: string, owner: string, ttlMs: number): Promise<boolean> {
     try {
       const count = await this.prisma.$executeRaw`
         UPDATE "job_locks"
@@ -101,9 +122,12 @@ export class JobLockService {
       `;
       if (count === 0) {
         this.logger.warn(`Job lock ${name} lapsed while its job was still running`);
+        return false;
       }
+      return true;
     } catch (error) {
       this.logger.warn(`Could not renew job lock ${name}: ${(error as Error).message}`);
+      return true;
     }
   }
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialWithoutDefaults } from "./core-schemas";
 import {
   paymentMethodKindSchema,
   paymentSourceSchema,
@@ -290,10 +291,10 @@ export const billingAddressSchema = z.object({
 export type BillingAddress = z.infer<typeof billingAddressSchema>;
 
 /** What a buyer may edit about their own billing identity. */
-export const updateBillingProfileRequestSchema = billingAddressSchema.partial({
-  name: true,
-  country: true
-});
+export const updateBillingProfileRequestSchema = partialWithoutDefaults(billingAddressSchema, [
+  "name",
+  "country"
+]);
 export type UpdateBillingProfileRequest = z.infer<
   typeof updateBillingProfileRequestSchema
 >;
@@ -592,7 +593,7 @@ export const invoiceSettingsSchema = z.object({
 });
 export type InvoiceSettings = z.infer<typeof invoiceSettingsSchema>;
 
-export const updateInvoiceSettingsRequestSchema = invoiceSettingsSchema.partial();
+export const updateInvoiceSettingsRequestSchema = partialWithoutDefaults(invoiceSettingsSchema);
 export type UpdateInvoiceSettingsRequest = z.infer<
   typeof updateInvoiceSettingsRequestSchema
 >;
@@ -712,6 +713,16 @@ export type InvoiceAuditResponse = { entries: InvoiceAuditEntry[] };
 
 // ── Admin surfaces (§17) ──
 
+export const ADMIN_INVOICE_SORT_FIELDS = [
+  "billingName",
+  "invoiceDate",
+  "number",
+  "status",
+  "taxTotal",
+  "total"
+] as const;
+export type AdminInvoiceSortField = (typeof ADMIN_INVOICE_SORT_FIELDS)[number];
+
 export const adminInvoiceQuerySchema = z.object({
   search: z.string().trim().max(120).optional(),
   status: invoiceDocumentStatusSchema.optional(),
@@ -723,7 +734,10 @@ export const adminInvoiceQuerySchema = z.object({
   from: z.string().trim().optional(),
   to: z.string().trim().optional(),
   page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(200).default(50)
+  pageSize: z.coerce.number().int().positive().max(200).default(50),
+  /** Sorted on the server, so a column sort covers every page, not just this one. */
+  sort: z.enum(ADMIN_INVOICE_SORT_FIELDS).optional(),
+  order: z.enum(["asc", "desc"]).optional()
 });
 export type AdminInvoiceQuery = z.infer<typeof adminInvoiceQuerySchema>;
 

@@ -11,6 +11,7 @@ interface MasterbaseMove {
 }
 
 interface MasterbaseGame {
+  id: string;
   white: { name: string; rating?: number };
   black: { name: string; rating?: number };
   year: number;
@@ -43,6 +44,9 @@ export function MasterbasePanel() {
       try {
         const url = `https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}&topGames=5&moves=10`;
         const res = await fetch(url, { signal: controller.signal });
+        // Lichess now requires a signed-in token for the explorer; there is no
+        // server-side proxy holding one yet.
+        if (res.status === 401) throw new Error("Masterbase is unavailable right now.");
         if (!res.ok) throw new Error(`Explorer responded with ${res.status}`);
         const json = (await res.json()) as MasterbaseResponse;
         setData(json);
@@ -130,10 +134,10 @@ export function MasterbasePanel() {
         <div>
           <h4 className="text-xs font-semibold uppercase tracking-wider text-app-muted mb-2">Recent Games</h4>
           <div className="flex flex-col gap-1 text-xs">
-            {data.topGames.map((g, i) => (
+            {data.topGames.map((g) => (
               <a
-                key={i}
-                href={`https://lichess.org/masters/search?tags=${g.year}`}
+                key={g.id}
+                href={`https://lichess.org/${g.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex justify-between gap-2 rounded-control px-1 py-1 hover:bg-app-soft"

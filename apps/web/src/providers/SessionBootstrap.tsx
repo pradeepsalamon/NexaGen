@@ -5,14 +5,15 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { getCurrentUser } from "../features/auth/api/authApi";
+import { ApiError } from "../lib/api";
 import { queryKeys } from "../lib/queryKeys";
-import { canAccessPath, getRoleDashboardHref } from "../lib/routeAccess";
+import { canAccessPath, getRoleDashboardHref, isPublicPath } from "../lib/routeAccess";
 import { useAuthStore } from "../stores/authStore";
 
-// The only surfaces an anonymous visitor routinely lands on. Everywhere else we
-// still probe the session so a returning user with a valid cookie but no
-// persisted store (e.g. cleared localStorage) is recovered.
-const PUBLIC_PATHS = new Set(["/", "/academy", "/forgot-password", "/login", "/register", "/signup"]);
+// Only a 401/403 means "no session"; a network blip or 5xx must not sign the user out.
+function isAuthRejection(error: unknown) {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
 
 export function SessionBootstrap() {
   const router = useRouter();
@@ -26,15 +27,16 @@ export function SessionBootstrap() {
   const userId = useAuthStore((state) => state.user?.id);
 
   // Skip the /auth/me call (and its 401 → refresh → 401) for anonymous visitors
-  // on public pages, unless we already hold a persisted user (AUDIT L5).
-  const onPublicPath = pathname != null && PUBLIC_PATHS.has(pathname);
+  // on public pages, unless we already hold a persisted user (AUDIT L5). Everywhere
+  // else we still probe, so a valid cookie with a cleared store is recovered.
+  const onPublicPath = pathname != null && isPublicPath(pathname);
   const sessionEnabled = isHydrated && (hasUser || !onPublicPath);
 
   const sessionQuery = useQuery({
     enabled: sessionEnabled,
     queryFn: getCurrentUser,
     queryKey: queryKeys.auth.session,
-    retry: false
+    retry: (failureCount, error) => !isAuthRejection(error) && failureCount < 2
   });
 
   useEffect(() => {
@@ -95,10 +97,10 @@ export function SessionBootstrap() {
   }, [pathname, router, verifiedRole]);
 
   useEffect(() => {
-    if (sessionQuery.isError) {
+    if (sessionQuery.isError && isAuthRejection(sessionQuery.error)) {
       clearSession();
     }
-  }, [clearSession, sessionQuery.isError]);
+  }, [clearSession, sessionQuery.error, sessionQuery.isError]);
 
   useEffect(() => {
     // Once hydrated, resolve the "checking session" gate as soon as the query

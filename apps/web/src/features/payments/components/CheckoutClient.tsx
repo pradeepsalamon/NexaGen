@@ -56,6 +56,8 @@ export function CheckoutClient({ planId }: Props) {
   const [discount, setDiscount] = useState<AppliedDiscount | null>(null);
   const [paymentId, setPaymentId] = useState<string | null>(null);
   const [qrHandoff, setQrHandoff] = useState<CheckoutHandoff | null>(null);
+  // What the server charged (after any discount), which is what the QR must show.
+  const [qrAmount, setQrAmount] = useState<number | null>(null);
 
   // One key per (user, plan) checkout intent, held in sessionStorage. A double
   // click, a refresh or a second tab replays the same key, and the server's
@@ -118,6 +120,7 @@ export function CheckoutClient({ planId }: Props) {
       }
 
       if (session.handoff.kind === "QR") {
+        setQrAmount(session.amount);
         setQrHandoff(session.handoff);
         return;
       }
@@ -185,8 +188,11 @@ export function CheckoutClient({ planId }: Props) {
               signature: outcome.signature
             }
           });
+        } else if (outcome.kind === "failed") {
+          toast.error({ title: "Could not open checkout", message: outcome.message });
         }
       } else if (session.handoff?.kind === "QR") {
+        setQrAmount(session.amount);
         setQrHandoff(session.handoff);
       }
     } catch (mutationError) {
@@ -253,7 +259,7 @@ export function CheckoutClient({ planId }: Props) {
 
       {qrHandoff && paymentId ? (
         <UpiQrPanel
-          amount={config.total}
+          amount={qrAmount ?? config.total}
           currency={config.currency}
           handoff={qrHandoff}
           onClose={() => setQrHandoff(null)}

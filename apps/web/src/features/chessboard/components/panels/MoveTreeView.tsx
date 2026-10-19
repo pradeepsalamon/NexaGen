@@ -326,7 +326,7 @@ function CommentEditor({ comment, onSave }: { comment: string; onSave: (text: st
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="sm" className="h-7 min-h-7 px-2 text-xs" aria-label="Comment on this move" title="Comment on this move">
+        <Button variant="ghost" size="sm" className="h-7 min-h-7 px-2 text-xs" aria-label="Comment on this move">
           <MessageSquareText className="mr-1 size-3.5" aria-hidden />
           {comment ? "Edit comment" : "Comment"}
         </Button>

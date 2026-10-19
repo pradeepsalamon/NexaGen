@@ -281,6 +281,8 @@ export function UserManagementClient() {
   } = useDataTable<AuthUser, unknown>({
     columns,
     data: users,
+    // Selection follows the user, not the row's position on this page.
+    getRowId: (user) => user.id,
     rowSelection,
     setRowSelection,
     pagination: serverTable.pagination,
@@ -292,6 +294,11 @@ export function UserManagementClient() {
   });
 
   const selectedRows = table.getSelectedRowModel().rows.map((row) => row.original);
+
+  // A new page, search, filter or sort starts with nothing selected.
+  useEffect(() => {
+    setRowSelection({});
+  }, [serverTable.params]);
 
   // undo: intentionally excluded — bulk ops confirm first and report per-row results; deleted rows restore from Trash
   const runBulk = async (kind: "archive" | "delete") => {

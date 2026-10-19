@@ -132,7 +132,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
         </p>
       </div>
       <Button asChild className="shrink-0" variant={finished ? "outline" : "primary"}>
-        <Link href={`/live-class/${nextClass.id}`}>
+        <Link href={`/classes/${nextClass.id}`}>
           View class
           <ArrowRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
         </Link>

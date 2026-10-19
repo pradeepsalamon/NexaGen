@@ -29,6 +29,7 @@ import { WidgetError } from "@/components/ui/WidgetError";
 import { AttendanceStatusBadge } from "@/features/attendance/components/AttendanceStatusBadge";
 import { BatchTypeBadge } from "@/features/batches/components/BatchTypeBadge";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
+import { openInNewTab } from "@/lib/openInNewTab";
 import { RecordingPlayerDialog } from "@/features/student-dashboard/components/RecordingPlayerDialog";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import {
@@ -212,8 +213,7 @@ function ClassActionCard({ cls }: { cls: StudentClassDetail }) {
 
   const download = async () => {
     try {
-      const result = await getRecordingDownloadUrl(cls.id, { download: true });
-      if (result?.url) window.open(result.url, "_blank");
+      await openInNewTab(async () => (await getRecordingDownloadUrl(cls.id, { download: true }))?.url);
     } catch {
       toast.error("Failed to download recording. It may have expired or is unavailable.");
     }

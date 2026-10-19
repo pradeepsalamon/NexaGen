@@ -9,15 +9,18 @@ interface FormInputProps extends Omit<InputProps, "name"> {
 }
 
 export function FormInput({ name, label, hint, id, ...props }: FormInputProps) {
-  const { register, formState: { errors } } = useFormContext();
-  const error = errors[name]?.message as string | undefined;
+  const { register, getFieldState, formState } = useFormContext();
+  // getFieldState resolves dotted/indexed names ("guardian.phone", "items.0.qty").
+  const error = getFieldState(name, formState).error?.message;
   const inputId = id || name;
+  const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
 
   return (
     <BaseFormField id={inputId} label={label} hint={hint} error={error}>
       <Input
         id={inputId}
         hasError={!!error}
+        aria-describedby={describedBy}
         {...register(name)}
         {...props}
       />

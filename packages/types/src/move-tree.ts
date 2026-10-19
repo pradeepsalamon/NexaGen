@@ -257,6 +257,7 @@ export function promoteVariationOneLevel(
     }
   }
   if (depth < 0) return { tree, path };
+  if (!getMoveTreeNode(tree, path.slice(0, depth + 1))) return { tree, path };
   const { tree: next, nodes } = cloneAlong(tree, path.slice(0, depth));
   const level = depth === 0 ? next.children : nodes[depth - 1].children;
   const index = path[depth];
@@ -449,7 +450,7 @@ function splitFirstGame(pgn: string): { headers: PgnHeaders; movetext: string } 
   // The movetext runs until the next game's header block.
   const rest: string[] = [];
   for (; i < lines.length; i += 1) {
-    if (rest.length > 0 && /^\s*\[\s*[A-Za-z0-9_]+\s+"/.test(lines[i]) && /\b(1-0|0-1|1\/2-1\/2|\*)\s*$/.test(rest.join(" "))) {
+    if (rest.length > 0 && /^\s*\[\s*[A-Za-z0-9_]+\s+"/.test(lines[i]) && /(?:^|\s)(1-0|0-1|1\/2-1\/2|\*)\s*$/.test(rest.join(" "))) {
       break;
     }
     rest.push(lines[i]);
@@ -556,7 +557,7 @@ export function parsePgnToMoveTree(pgn: string, createChess: MoveTreeChessFactor
   const fenOf = (node: MoveTreeNode | null) => (node ? node.fen : rootFen);
   const childrenOf = (node: MoveTreeNode | null) => (node ? node.children : tree.children);
 
-  for (const token of tokens) {
+  tokenLoop: for (const token of tokens) {
     switch (token.kind) {
       case "move": {
         const fromFen = fenOf(frame.last ?? frame.parent);
@@ -621,7 +622,11 @@ export function parsePgnToMoveTree(pgn: string, createChess: MoveTreeChessFactor
         break;
       }
       case "result": {
-        if (stack.length === 0) result = token.value;
+        if (stack.length === 0) {
+          // The game is over; anything after it is not this game's movetext.
+          result = token.value;
+          break tokenLoop;
+        }
         break;
       }
     }

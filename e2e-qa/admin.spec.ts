@@ -1,19 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
+import { API_BASE, apiLogin as loginOverApi, clickBoardSquare } from "./_helpers";
 import { login, USERS } from "./_login";
 
-export { login, USERS };
-
-const API_BASE = "http://localhost:3011";
 let adminCookie: string | null = null;
 
 async function apiLogin() {
-  if (adminCookie) return adminCookie;
-  const res = await fetch(`${API_BASE}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(USERS.admin),
-  });
-  adminCookie = res.headers.getSetCookie().map((c) => c.split(";")[0]).join("; ");
+  adminCookie ??= await loginOverApi(USERS.admin);
   return adminCookie;
 }
 
@@ -87,19 +79,6 @@ test("ADMIN: PositionEditor - castling toggles + drag piece update FEN", async (
   await dragPiece(page, dialog, "Queen", "e4", board);
   await expect(fenInput).toHaveValue(/Q4\/|4Q3|Q\//);
 });
-export async function clickBoardSquare(page: Page, board: ReturnType<Page["locator"]>, square: string) {
-  await board.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300);
-  const file = square.charCodeAt(0) - 97; // 0-7
-  const rank = parseInt(square[1], 10); // 1-8
-  const box = await board.boundingBox();
-  if (!box) throw new Error("board not found");
-  const x = box.x + box.width * ((file + 0.5) / 8);
-  const y = box.y + box.height * ((8 - rank + 0.5) / 8);
-  await page.mouse.click(x, y);
-  await page.waitForTimeout(250);
-}
-
 test("ADMIN: create SOLVE_LINE with PositionEditor + SolutionEditor", async ({ page }) => {
   test.setTimeout(180_000);
   await login(page, USERS.admin.email, USERS.admin.password);
@@ -180,7 +159,7 @@ test("ADMIN: create SOLVE_LINE with PositionEditor + SolutionEditor", async ({ p
 
   // Save
   await dialog.getByRole("button", { name: /Create assignment/i }).click();
-  await page.waitForTimeout(2500);
+  await expect(dialog).toBeHidden();
   await expect(page.getByText("QA UI Solve Line")).toBeVisible();
 
   // Verify config persisted via library API
@@ -206,8 +185,8 @@ test("ADMIN: invalid PGN rejected for REPLAY", async ({ page }) => {
   await dialog.getByLabel("Title").fill("QA UI Bad PGN");
   await dialog.getByLabel("PGN", { exact: true }).fill("1. e4 e5 ZZ invalid!!@@#$ not chess");
   await dialog.getByRole("button", { name: /Create assignment/i }).click();
-  await page.waitForTimeout(2500);
-  // dialog still open => not created; server returned a parse error toast
+  // The server's parse error comes back as an error toast; the dialog stays open.
+  await expect(page.locator('[data-sonner-toast][data-type="error"]').first()).toBeVisible();
   await expect(dialog).toBeVisible();
   // The failed assignment must not appear in the library
   const items = await getAssignments("QA UI Bad PGN");
@@ -224,31 +203,32 @@ test("ADMIN: valid REPLAY + preview + edit + light/dark theme", async ({ page })
   await dialog.getByLabel("Title").fill("QA UI Replay");
   await dialog.getByLabel("PGN", { exact: true }).fill("1. e4 e5 2. Nf3 Nc6 3. Bb5 a6");
   await dialog.getByRole("button", { name: /Create assignment/i }).click();
-  await page.waitForTimeout(2000);
+  await expect(dialog).toBeHidden();
   await expect(page.getByText("QA UI Replay")).toBeVisible();
 
-  // find its card and preview
-  const card = page.locator("div", { hasText: "QA UI Replay" }).last();
-  // Preview via icon button aria-label
-  const previewBtn = page.getByRole("button", { name: "Preview" }).first();
-  await previewBtn.click();
+  // The innermost element holding both the title and its Edit button is the card.
+  const card = page
+    .locator("div")
+    .filter({ hasText: "QA UI Replay" })
+    .filter({ has: page.getByRole("button", { name: "Edit assignment" }) })
+    .last();
+  await card.getByRole("button", { name: "Preview" }).click();
   const prev = page.getByRole("dialog");
   await expect(prev.getByText("Study PGN")).toBeVisible();
   // board nav buttons present
   await expect(prev.getByRole("button", { name: "Next move" })).toBeVisible();
-  await prev.getByRole("button", { name: /Close/i }).click().catch(() => page.keyboard.press("Escape"));
+  await page.keyboard.press("Escape");
+  await expect(prev).toBeHidden();
 
   // Edit
-  await page.getByRole("button", { name: "Edit assignment" }).first().click();
+  await card.getByRole("button", { name: "Edit assignment" }).click();
   const ed = page.getByRole("dialog");
   await ed.getByLabel("Title").fill("QA UI Replay Edited");
   await ed.getByRole("button", { name: /Save changes/i }).click();
-  await page.waitForTimeout(2000);
+  await expect(ed).toBeHidden();
   await expect(page.getByText("QA UI Replay Edited")).toBeVisible();
 
   // dark theme toggle on the assignments page
-  await page.getByRole("button", { name: /dark theme/i }).click().catch(() => {});
-  await page.waitForTimeout(500);
-  const dark = await page.evaluate(() => document.documentElement.getAttribute("data-theme"));
-  console.log("data-theme after toggle:", dark);
+  await page.getByRole("button", { name: /dark theme/i }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });

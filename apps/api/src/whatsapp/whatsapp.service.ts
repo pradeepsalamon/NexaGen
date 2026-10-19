@@ -79,6 +79,11 @@ export class WhatsAppService {
     if (!message.name?.trim()) {
       throw new BadRequestException("WhatsApp template name is required.");
     }
+    if (message.headerDocument && !message.headerDocument.mediaId && !message.headerDocument.link) {
+      throw new BadRequestException(
+        "A WhatsApp header document needs either an uploaded mediaId or a link."
+      );
+    }
 
     const to = this.resolveRecipient(message.to);
     return this.send(buildTemplatePayload(message, to), to);
@@ -160,6 +165,15 @@ export class WhatsAppService {
         signal: AbortSignal.timeout(this.env.WHATSAPP_TIMEOUT_MS)
       });
     } catch (error) {
+      // A timeout is not a clean failure: Meta may already have accepted the
+      // message, and a retry would send it twice.
+      if ((error as Error).name === "TimeoutError") {
+        throw this.fail({
+          message: "WhatsApp did not answer in time; the message may have been sent.",
+          status: 0,
+          retryable: false
+        });
+      }
       throw this.fail(parseSendFailure(0, null), (error as Error).message);
     }
 
@@ -207,11 +221,20 @@ export class WhatsAppService {
     options: { previewUrl?: boolean } = {}
   ): Promise<Record<string, WhatsAppSendOutcome>> {
     const unique = [...new Set(recipients.filter(Boolean))];
+    // "+91 98…" and "098…" are one phone: send once, report it under each input.
+    const byNumber = new Map<string, string[]>();
+    for (const raw of unique) {
+      const key = this.normalizeRecipient(raw) ?? `invalid:${raw}`;
+      byNumber.set(key, [...(byNumber.get(key) ?? []), raw]);
+    }
+    const groups = [...byNumber.values()];
     const outcomes = await Promise.all(
-      unique.map((to) => this.trySendText({ to, body, previewUrl: options.previewUrl }))
+      groups.map((raws) => this.trySendText({ to: raws[0], body, previewUrl: options.previewUrl }))
     );
 
-    return Object.fromEntries(unique.map((to, index) => [to, outcomes[index]]));
+    return Object.fromEntries(
+      groups.flatMap((raws, index) => raws.map((raw) => [raw, outcomes[index]] as const))
+    );
   }
 
   /** Normalize a raw phone number the way a send would, without sending. */

@@ -20,6 +20,7 @@ import {
   createRefundRequestSchema,
   manualPaymentReviewStatusSchema,
   paymentListQuerySchema,
+  paymentRoutingConfigSchema,
   rejectManualPaymentRequestSchema,
   updateDiscountRequestSchema,
   updateOfflinePaymentMethodRequestSchema,
@@ -31,6 +32,7 @@ import {
   type CreateRefundRequest,
   type ManualPaymentReviewStatus,
   type PaymentListQuery,
+  type PaymentRoutingConfig,
   type RejectManualPaymentRequest,
   type UpdateDiscountRequest,
   type UpdateOfflinePaymentMethodRequest,
@@ -127,7 +129,10 @@ export class PaymentsAdminController {
   }
 
   @Put(API_ROUTES.adminPayments.routing)
-  async saveRouting(@Body() body: unknown, @Req() request: Request) {
+  async saveRouting(
+    @Body(new ZodBodyPipe(paymentRoutingConfigSchema)) body: PaymentRoutingConfig,
+    @Req() request: Request
+  ) {
     const admin = await this.adminUser(request);
     return this.admin.saveRouting(admin, body);
   }

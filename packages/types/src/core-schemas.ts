@@ -16,6 +16,36 @@ export const paginationMetaSchema = z.object({
 
 export const chessColorSchema = z.enum(["white", "black"]);
 
+/** Strips `.default()` / `.prefault()` / `.optional()` wrappers, keeping `.nullable()`. */
+function withoutDefault(schema: z.ZodType): z.ZodType {
+  if (schema instanceof z.ZodDefault || schema instanceof z.ZodPrefault || schema instanceof z.ZodOptional) {
+    return withoutDefault(schema.unwrap() as z.ZodType);
+  }
+  if (schema instanceof z.ZodNullable) return withoutDefault(schema.unwrap() as z.ZodType).nullable();
+  return schema;
+}
+
+type PartialShape<Shape extends z.core.$ZodShape, Keys extends PropertyKey> = {
+  -readonly [K in keyof Shape]: K extends Keys ? z.ZodOptional<Shape[K]> : Shape[K];
+};
+
+/**
+ * `.partial()` for update requests. Zod 4 still applies a field's `.default()`
+ * after `.partial()` makes it optional, so an omitted field would parse as its
+ * create default and overwrite the stored value. Here it stays absent.
+ */
+export function partialWithoutDefaults<
+  Shape extends z.core.$ZodShape,
+  Config extends z.core.$ZodObjectConfig,
+  Keys extends keyof Shape = keyof Shape
+>(schema: z.ZodObject<Shape, Config>, keys?: readonly Keys[]): z.ZodObject<PartialShape<Shape, Keys>, Config> {
+  const shape: Record<string, z.ZodType> = {};
+  for (const key of keys ?? (Object.keys(schema.shape) as Keys[])) {
+    shape[key as string] = withoutDefault(schema.shape[key] as unknown as z.ZodType).optional();
+  }
+  return schema.extend(shape) as unknown as z.ZodObject<PartialShape<Shape, Keys>, Config>;
+}
+
 const UCI_RE = /^[a-h][1-8][a-h][1-8][qrbnQRBN]?$/;
 
 /** One move of a stored solution line. `uci` is the source of truth for scoring. */

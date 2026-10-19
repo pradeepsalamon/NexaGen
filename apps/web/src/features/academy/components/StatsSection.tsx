@@ -17,6 +17,10 @@ function Counter({ target, suffix, isInView }: { target: number; suffix: string;
 
   useEffect(() => {
     if (!isInView) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCount(target);
+      return;
+    }
     let start = 0;
     const duration = 2500;
     const increment = target / (duration / 16);

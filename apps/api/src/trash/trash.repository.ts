@@ -12,6 +12,7 @@ type PrismaDelegateLike = {
   count: (args: unknown) => Promise<number>;
   create: (args: unknown) => Promise<unknown>;
   delete: (args: unknown) => Promise<unknown>;
+  deleteMany: (args: unknown) => Promise<{ count: number }>;
   findFirst: (args: unknown) => Promise<TrashRecord | null>;
   findMany: (args: unknown) => Promise<TrashRecord[]>;
   update: (args: unknown) => Promise<unknown>;
@@ -304,11 +305,14 @@ export class TrashRepository {
     id: string,
     userId: string | null,
     action: TrashAction = "PERMANENT_DELETE"
-  ) {
+  ): Promise<boolean> {
     const entity = this.getEntityOrThrow(entityName);
-    await this.getDelegate(client, entity.delegate).delete({
-      where: { id }
+    // Only a row that is still in the trash: the caller listed it before this
+    // ran, and it may have been restored since.
+    const { count } = await this.getDelegate(client, entity.delegate).deleteMany({
+      where: { id, isDeleted: true }
     });
+    if (count === 0) return false;
 
     await this.log(client, {
       action,
@@ -316,6 +320,7 @@ export class TrashRepository {
       entityId: id,
       userId
     });
+    return true;
   }
 
   async findExpired(cutoff: Date, client: PrismaClientLike = this.prisma.withDeleted) {

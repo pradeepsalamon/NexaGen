@@ -121,15 +121,8 @@ describe("PaymentWebhookService", () => {
       BadRequestException
     );
 
-    // Recorded for the audit trail, but the handler never ran.
-    expect(createEvent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          status: WebhookEventStatus.IGNORED,
-          signatureValid: false
-        })
-      })
-    );
+    // Not stored, so it cannot claim the event id a genuine delivery needs.
+    expect(createEvent).not.toHaveBeenCalled();
     expect(applyProviderState).not.toHaveBeenCalled();
   });
 

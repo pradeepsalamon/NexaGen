@@ -1,6 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import type { UpdateUserRequest, UserListResponse, UserResponse } from "@nexa-chess/types";
 import type { Request } from "express";
+import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { UserController } from "./user.controller";
 import { UserService } from "./user.service";
 import { CreateUserDto } from "./dto/user.dto";
@@ -58,7 +59,7 @@ describe("UserController", () => {
 
   const mockRequest = (token?: string) =>
     ({
-      cookies: token ? { nexa_access_token: token } : {}
+      cookies: token ? { [AUTH_COOKIE_NAMES.accessToken]: token } : {}
     }) as Request;
 
   it("calls list", async () => {

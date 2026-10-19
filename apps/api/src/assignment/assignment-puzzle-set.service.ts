@@ -453,9 +453,42 @@ export class AssignmentPuzzleSetService {
   async refreshAssignmentRollups(assignmentId: string): Promise<void> {
     const rows = await this.prisma.studentAssignment.findMany({
       where: { assignmentBatch: { assignmentId } },
-      select: { id: true }
+      select: {
+        id: true,
+        status: true,
+        completedAt: true,
+        assignmentBatchId: true,
+        assignmentBatch: { select: { assignment: true } }
+      }
     });
-    for (const row of rows) await this.refreshRollup(row.id);
+
+    const byBatch = new Map<string, typeof rows>();
+    for (const row of rows) {
+      const list = byBatch.get(row.assignmentBatchId) ?? [];
+      list.push(row);
+      byBatch.set(row.assignmentBatchId, list);
+    }
+
+    for (const [batchId, students] of byBatch) {
+      const assignment = students[0]?.assignmentBatch?.assignment;
+      if (!assignment || assignment.activityType !== "PUZZLE_SET") continue;
+
+      const { results } = await this.computeDeployment(batchId, assignment);
+      const resultsById = new Map(results.map((r) => [r.studentAssignmentId, r]));
+
+      for (const sa of students) {
+        const self = resultsById.get(sa.id);
+        if (!self) continue;
+        const rollup = toStudentAssignmentRollup(self);
+        await this.prisma.studentAssignment.update({
+          where: { id: sa.id },
+          data: {
+            ...rollup,
+            completedAt: rollup.status === "COMPLETED" ? (sa.completedAt ?? rollup.completedAt) : null
+          }
+        });
+      }
+    }
   }
 
   // ── internals ──

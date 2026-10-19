@@ -14,9 +14,11 @@ interface FormSelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export function FormSelect({ name, label, hint, id, options, placeholder, ...props }: FormSelectProps) {
-  const { register, formState: { errors } } = useFormContext();
-  const error = errors[name]?.message as string | undefined;
+  const { register, getFieldState, formState } = useFormContext();
+  // getFieldState resolves dotted/indexed names ("guardian.phone", "items.0.qty").
+  const error = getFieldState(name, formState).error?.message;
   const selectId = id || name;
+  const describedBy = error ? `${selectId}-error` : hint ? `${selectId}-hint` : undefined;
 
   return (
     <BaseFormField id={selectId} label={label} hint={hint} error={error}>
@@ -25,6 +27,7 @@ export function FormSelect({ name, label, hint, id, options, placeholder, ...pro
         options={options}
         placeholder={placeholder}
         hasError={!!error}
+        aria-describedby={describedBy}
         {...register(name)}
         {...props}
       />

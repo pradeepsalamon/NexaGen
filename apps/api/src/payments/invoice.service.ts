@@ -355,12 +355,16 @@ export class InvoiceService {
     query: AdminInvoiceQuery
   ): Promise<AdminInvoiceListResponse> {
     const where = this.buildAdminWhere(user, query);
+    // Newest first unless a column is chosen; ties keep a stable order across pages.
+    const orderBy: Prisma.InvoiceOrderByWithRelationInput[] = query.sort
+      ? [{ [query.sort]: query.order ?? "asc" }, { id: "asc" }]
+      : [{ invoiceDate: "desc" }, { id: "asc" }];
 
     const [rows, total, stats] = await Promise.all([
       this.prisma.invoice.findMany({
         where,
         include: INVOICE_INCLUDE,
-        orderBy: { invoiceDate: "asc" },
+        orderBy,
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize
       }),

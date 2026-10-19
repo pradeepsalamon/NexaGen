@@ -130,11 +130,7 @@ export class AttendanceMonitoringService {
       const monthTotal = totalByMonth.get(key) ?? 0;
 
       monthlyTrend.push({
-        month: monthDate.toLocaleDateString("en-US", {
-          month: "short",
-          year: "numeric",
-          timeZone: "UTC",
-        }),
+        month: monthDate.toISOString(),
         classes: classesByMonth.get(key) ?? 0,
         attended: monthAttended,
         total: monthTotal,
@@ -402,15 +398,15 @@ export class AttendanceMonitoringService {
    * the LiveKit webhook path actually worked over a trailing window.
    *
    * `recordDisconnectEvent`/`recordCoachDisconnectEvent` are called from
-   * nowhere except `sweepStaleHeartbeats` (§4.1), always with
-   * `reason: "heartbeat_timeout"` — so counting DISCONNECT logs with that
-   * reason *is* counting heartbeat-fallback triggers, no separate bookkeeping
-   * needed. "Webhook loss" is broader: a participant session with no LEAVE
-   * log anywhere in its history never got a clean webhook leave at all —
-   * either the fallback caught it (a DISCONNECT log exists), or it didn't and
-   * `closeOpenAttendanceLogs` silently force-closed it at finalize with no
-   * marker row of its own. The two counts aren't a strict subset of one
-   * another (a session can fall back once, reconnect, then leave cleanly —
+   * `sweepStaleHeartbeats` (§4.1) with `reason: "heartbeat_timeout"` and
+   * `AttendanceRoomPresenceService.sweep` with `reason: "not_in_room"` —
+   * so counting DISCONNECT logs with either of those reasons *is* counting
+   * fallback triggers, no separate bookkeeping needed. "Webhook loss" is broader:
+   * a participant session with no LEAVE log anywhere in its history never got a
+   * clean webhook leave at all — either the fallback caught it (a DISCONNECT log
+   * exists), or it didn't and `closeOpenAttendanceLogs` silently force-closed it
+   * at finalize with no marker row of its own. The two counts aren't a strict subset
+   * of one another (a session can fall back once, reconnect, then leave cleanly —
    * that has both a DISCONNECT and a LEAVE log) so both are computed
    * independently from the same per-row log set.
    */
@@ -468,7 +464,13 @@ export class AttendanceMonitoringService {
       if (!row.logs.some((l) => l.eventType === "LEAVE")) {
         webhookLossCount += 1;
       }
-      if (row.logs.some((l) => l.eventType === "DISCONNECT" && l.reason === "heartbeat_timeout")) {
+      if (
+        row.logs.some(
+          (l) =>
+            l.eventType === "DISCONNECT" &&
+            (l.reason === "heartbeat_timeout" || l.reason === "not_in_room")
+        )
+      ) {
         heartbeatFallbackCount += 1;
       }
     }

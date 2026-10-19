@@ -49,10 +49,15 @@ export class PayrollCalculationService {
       );
     }
 
-    await this.prisma.payrollPeriod.update({
-      where: { id: periodId },
+    // Claimed conditionally: a concurrent calculate or approve that changed the
+    // status since the read above must not be overwritten.
+    const { count } = await this.prisma.payrollPeriod.updateMany({
+      where: { id: periodId, status: requiredStatus },
       data: { status: PayrollPeriodStatus.CALCULATING }
     });
+    if (count === 0) {
+      throw new ConflictException("This period changed while you were calculating it. Reload and try again.");
+    }
 
     try {
       const coachIds = await this.getInScopeCoachIds(period.startDate, period.endDate);
@@ -102,11 +107,12 @@ export class PayrollCalculationService {
     const profile = await this.prisma.coachCompensationProfile.findUnique({ where: { coachId } });
     const compensationModel = profile?.defaultCompensationModel ?? "HOURLY";
 
-    // Rates/rules are resolved as of the period's end — a rate change
+    // Rates/rules are resolved as of the period's last instant — a rate change
     // mid-period always wins for that whole period (a documented
     // simplification; effective-dating finer than one period is not needed
-    // for WEEKLY/BIWEEKLY/MONTHLY/CUSTOM runs).
-    const asOf = endDate;
+    // for WEEKLY/BIWEEKLY/MONTHLY/CUSTOM runs). endDate is exclusive, so a rate
+    // starting on the next period's first day must not apply here.
+    const asOf = new Date(endDate.getTime() - 1);
 
     const { summary, cancelledClasses } = await this.teachingData.getTeachingData(
       coachId,

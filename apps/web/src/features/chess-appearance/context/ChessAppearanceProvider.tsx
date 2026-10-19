@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 import {
   DEFAULT_CHESS_APPEARANCE,
   type BoardOrientation,
@@ -77,6 +77,19 @@ export function ChessAppearanceProvider({ children }: { children: ReactNode }) {
   usePieceRecolorStyle(config.pieceSetId, config.pieceColorWhite, config.pieceColorBlack);
   useSoundSettingsSync(config.soundThemeId, config.soundEnabled, config.soundVolume);
 
+  const { mutate: mutateUpdate } = updateMutation;
+  const { mutate: mutateReset } = resetMutation;
+
+  const updatePreference = useCallback(
+    (override: ChessAppearanceOverride) => mutateUpdate({ settings: override }),
+    [mutateUpdate],
+  );
+
+  const resetPreference = useCallback(
+    () => mutateReset(),
+    [mutateReset],
+  );
+
   const value = useMemo<ChessAppearanceContextValue>(
     () => ({
       currentBoardTheme: config.boardThemeId,
@@ -99,11 +112,10 @@ export function ChessAppearanceProvider({ children }: { children: ReactNode }) {
       soundVolume: config.soundVolume,
       locked: data?.locked ?? false,
       isLoading,
-      updatePreference: (override: ChessAppearanceOverride) =>
-        updateMutation.mutate({ settings: override }),
-      resetPreference: () => resetMutation.mutate(),
+      updatePreference,
+      resetPreference,
     }),
-    [config, animationEnabled, data?.locked, isLoading, updateMutation, resetMutation],
+    [config, animationEnabled, data?.locked, isLoading, updatePreference, resetPreference],
   );
 
   return (

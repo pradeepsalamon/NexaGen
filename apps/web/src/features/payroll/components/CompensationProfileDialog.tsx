@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   COACH_COMPENSATION_MODEL_LABELS,
   COACH_ENGAGEMENT_TYPE_LABELS,
@@ -67,8 +67,12 @@ export function CompensationProfileDialog({
   const [currency, setCurrency] = useState("INR");
   const [notes, setNotes] = useState("");
 
+  // Filled on the first load only: adding a rate refetches the profile, and
+  // that must not wipe profile edits not yet saved.
+  const hydrated = useRef(false);
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || hydrated.current) return;
+    hydrated.current = true;
     setEngagementType(profile.engagementType);
     setDefaultCompensationModel(profile.defaultCompensationModel);
     setCurrency(profile.currency);
@@ -288,6 +292,11 @@ export function CompensationProfileDialog({
                               ? Math.round(Number(percent) * 100)
                               : undefined,
                           effectiveFrom: new Date(effectiveFrom).toISOString()
+                        }
+                      }, {
+                        onSuccess: () => {
+                          setRateMajor("");
+                          setPercent("");
                         }
                       })
                     }

@@ -35,7 +35,7 @@ services:
     container_name: nexa_redis
     restart: unless-stopped
 
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 480mb --maxmemory-policy noeviction
 
     # Loopback-only, like postgres — lets `npm run dev:api` on the host reach
     # the same Redis the containers use (start it with `npm run prod:db`).
@@ -88,7 +88,7 @@ services:
           # allowed ~11 peer connections before everyone else fell back to TCP.
           udp_port: 7882
           use_external_ip: true
-          node_ip: ${LIVEKIT_NODE_IP:-146.56.55.170}
+          node_ip: ${LIVEKIT_NODE_IP:?Set LIVEKIT_NODE_IP to this host's public IP}
         # Embedded TURN for students on networks that block UDP / odd ports.
         # Needs a DNS name pointing at this box and a cert for it (certbot).
         turn:
@@ -353,6 +353,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 120s
 
     logging:
       driver: json-file

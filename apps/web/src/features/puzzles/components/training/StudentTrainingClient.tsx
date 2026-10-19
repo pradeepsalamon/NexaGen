@@ -63,10 +63,20 @@ export function StudentTrainingClient() {
   }, [pick, data, next.isPending, next.isError, requestNext]);
 
   const finishedChange = pick ? data?.recent.find((r) => r.attemptId === pick.attemptId) : undefined;
+  // A timer, not a check on re-render: structurally shared query data can stop
+  // re-rendering this, which left "updating your rating…" up forever.
   useEffect(() => {
     if (awaitingSince === null) return;
-    if (finishedChange?.ratingChange != null || Date.now() - awaitingSince > RATING_WAIT_MS) setAwaitingSince(null);
-  }, [awaitingSince, finishedChange, data]);
+    if (finishedChange?.ratingChange != null) {
+      setAwaitingSince(null);
+      return;
+    }
+    const timer = setTimeout(
+      () => setAwaitingSince(null),
+      Math.max(0, awaitingSince + RATING_WAIT_MS - Date.now())
+    );
+    return () => clearTimeout(timer);
+  }, [awaitingSince, finishedChange]);
 
   const onFinished = useCallback(() => {
     setAwaitingSince(Date.now());

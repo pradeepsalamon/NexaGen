@@ -64,11 +64,21 @@ export function ApprovalsClient() {
         </TabsList>
 
         <TabsContent className="mt-2" value="students">
-          <PendingStudentsPanel data={students.data} isLoading={students.isLoading} />
+          <PendingStudentsPanel
+            data={students.data}
+            isError={students.isError}
+            isLoading={students.isLoading}
+            onRetry={() => void students.refetch()}
+          />
         </TabsContent>
         {canReviewCoaches ? (
           <TabsContent className="mt-2" value="coaches">
-            <PendingCoachesPanel data={coaches.data} isLoading={coaches.isLoading} />
+            <PendingCoachesPanel
+              data={coaches.data}
+              isError={coaches.isError}
+              isLoading={coaches.isLoading}
+              onRetry={() => void coaches.refetch()}
+            />
           </TabsContent>
         ) : null}
       </Tabs>

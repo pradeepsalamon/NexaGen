@@ -79,8 +79,10 @@ export function MovePollCoachPanel() {
   }, [poll, showArrows, onBoard, setOverlayArrows]);
   useEffect(() => () => setOverlayArrows([]), [setOverlayArrows]);
 
-  const ask = () =>
+  const ask = () => {
+    if (start.isPending) return;
     start.mutate({ fen, prompt: prompt.trim() || undefined }, { onSuccess: () => setPrompt("") });
+  };
 
   const waiting = useMemo(() => {
     if (!poll) return [];

@@ -261,12 +261,17 @@ function ResultBadge({ result }: { result: ChessGameResult }) {
 }
 
 function GameRow({ game, timeZone }: { game: GameLibraryItem; timeZone: string }) {
+  const [downloading, setDownloading] = useState(false);
   const handleDownload = async () => {
+    if (downloading) return;
+    setDownloading(true);
     try {
       const detail = await getGame(game.id);
       downloadPgn(detail.pgn, detail.title);
     } catch {
       toast.error("The PGN could not be downloaded.");
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -310,17 +315,18 @@ function GameRow({ game, timeZone }: { game: GameLibraryItem; timeZone: string }
             size="icon"
             className="rounded-full bg-primary text-white hover:bg-primary/85"
             aria-label={`Download PGN of ${game.title}`}
+            disabled={downloading}
             onClick={() => void handleDownload()}
           >
             <Download className="size-4" strokeWidth={2.5} />
           </Button>
         </SimpleTooltip>
-        <Link href={`/games/${game.id}`}>
-          <Button size="sm">
+        <Button asChild size="sm">
+          <Link href={`/games/${game.id}`}>
             <Eye className="mr-1.5 size-4" aria-hidden />
             Open
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
     </li>
   );

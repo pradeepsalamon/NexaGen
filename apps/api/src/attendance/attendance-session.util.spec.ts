@@ -48,13 +48,14 @@ describe("resolveJoinAction", () => {
     });
   });
 
-  it("falls back to whichever session is open when clientId is unknown (legacy client)", () => {
+  it("falls back to the newest open session when clientId is unknown (legacy client)", () => {
     const openLogs = [
-      { id: "log-a", clientId: null, timestamp: new Date("2026-01-01T09:00:00Z") },
+      { id: "log-older", clientId: null, timestamp: new Date("2026-01-01T08:00:00Z") },
+      { id: "log-newer", clientId: null, timestamp: new Date("2026-01-01T09:00:00Z") },
     ];
     expect(resolveJoinAction(true, openLogs, undefined, now, WINDOW_MS)).toEqual({
       kind: "GHOST_DROP_RECONNECT",
-      staleLogId: "log-a",
+      staleLogId: "log-newer",
     });
   });
 

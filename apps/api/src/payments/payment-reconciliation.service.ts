@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { getApiEnv } from "@nexa-chess/config/api";
-import { OrderStatus, PaymentStatus } from "@prisma/client";
+import { OrderStatus, PaymentProvider, PaymentStatus } from "@prisma/client";
 import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PaymentService } from "./payment.service";
@@ -70,7 +70,8 @@ export class PaymentReconciliationService {
             PaymentStatus.AUTHORIZED
           ]
         },
-        createdAt: { lt: settleWindowStart, gte: horizon }
+        createdAt: { lt: settleWindowStart, gte: horizon },
+        provider: { not: PaymentProvider.MANUAL }
       },
       orderBy: { createdAt: "asc" },
       take: BATCH_SIZE,

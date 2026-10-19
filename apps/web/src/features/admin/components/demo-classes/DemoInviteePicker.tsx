@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { useLeadsQuery } from "@/features/leads/hooks/useAdminLeads";
 import { cn } from "@/lib/utils";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 
 export interface PendingInvitees {
   leads: Pick<LeadListItem, "id" | "studentName" | "phone">[];
@@ -117,7 +118,8 @@ function LeadSearch({
   disabled?: boolean;
 }) {
   const [search, setSearch] = useState("");
-  const { data, isLoading } = useLeadsQuery({ search: search.trim() || undefined, pageSize: 8 });
+  const debouncedSearch = useDebouncedValue(search.trim());
+  const { data, isLoading } = useLeadsQuery({ search: debouncedSearch || undefined, pageSize: 8 });
   const leads = data?.items ?? [];
 
   return (

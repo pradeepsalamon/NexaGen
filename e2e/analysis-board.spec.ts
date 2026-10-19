@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { scheduleClass, seededBatchId } from "./fixtures";
+import { api, login, scheduleClass, seededBatchId, type Cookie } from "./fixtures";
 
 /**
  * Board workspace — Engine analysis, Load Game, Setup Position, Save.
@@ -13,47 +13,6 @@ import { scheduleClass, seededBatchId } from "./fixtures";
  */
 
 const RUN = process.env.RUN_ANALYSIS_E2E === "1";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
-
-type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
-
-async function login(request: APIRequestContext, email: string, password: string): Promise<Cookie[]> {
-  // /auth/login is throttled 5/60s; back off on 429 during a full-suite run.
-  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  }
-  expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
-  const raw = res.headers()["set-cookie"] || "";
-  return raw
-    .split("\n")
-    .flatMap((line) => line.split(/,(?=\s*nexa_)/))
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.startsWith("nexa_"))
-    .map((c) => {
-      const [name, ...v] = c.split("=");
-      return { name, value: v.join("="), domain: "localhost", path: "/", httpOnly: true };
-    });
-}
-
-async function api(
-  request: APIRequestContext,
-  method: string,
-  path: string,
-  cookies: Cookie[],
-  body?: Record<string, unknown>,
-) {
-  const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-  return request.fetch(`${API_URL}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Cookie: cookieHeader },
-    data: body,
-  });
-}
-
 /**
  * Sweep the coach's leftover E2E classes (stuck SCHEDULED/LIVE from earlier
  * runs on the shared dev DB) so the scheduling-conflict check doesn't 409 the
@@ -92,7 +51,7 @@ test.describe("Analysis board", () => {
 
   test("engine analysis, load game, setup position, save", async ({ browser, playwright }) => {
     const request = await playwright.request.newContext();
-    coachCookies = await login(request, COACH.email, COACH.password);
+    coachCookies = await login(request, "coach");
 
     const batchesRes = await api(request, "GET", "/coach/batches", coachCookies);
     const batchesData = await batchesRes.json();
@@ -100,7 +59,7 @@ test.describe("Analysis board", () => {
 
     await clearCoachSchedule(request, coachCookies);
 
-    const adminCookies = await login(request, ADMIN.email, ADMIN.password);
+    const adminCookies = await login(request, "admin");
     const now = Date.now();
     classId = await scheduleClass(
       (method, path, body) => api(request, method, path, coachCookies, body),
@@ -181,9 +140,12 @@ test.describe("Analysis board", () => {
       .toContain("r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R");
 
     // ── Save ──────────────────────────────────────────────────────
+    // navigator.clipboard is a getter-only property: plain assignment is a no-op.
     await page.evaluate(() => {
-      // @ts-expect-error test stub
-      navigator.clipboard = { writeText: async () => {} };
+      Object.defineProperty(navigator, "clipboard", {
+        configurable: true,
+        value: { writeText: async () => {} },
+      });
     });
     await page.getByRole("button", { name: /^Save$/ }).click();
     await expect(page.getByText(/PGN saved to Cloud/i)).toBeVisible({ timeout: 15_000 });

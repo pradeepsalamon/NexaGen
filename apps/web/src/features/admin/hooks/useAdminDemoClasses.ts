@@ -5,9 +5,15 @@ import type { ListParams } from "@/lib/pagination";
 import { addDemoInvitees, createDemoSchedule, getDemoClasses, getDemoSchedules, createDemoClass, updateDemoClass, cancelDemoClass, restoreDemoClass, getDemoClassDetails, updateDemoSchedule } from "../api/adminApi";
 import type { AddDemoInviteesRequest, AddDemoInviteesResponse, CreateDemoClassRequest, CreateDemoScheduleRequest, DemoScheduleResponse, ListDemoSchedulesResponse, UpdateDemoClassRequest, DemoClass, ListDemoClassesResponse } from "@nexa-chess/types";
 
+export const demoQueryKeys = {
+  classes: [...queryKeys.admin.base, "demo-classes"] as const,
+  classDetails: (classId: string) => [...queryKeys.admin.base, "demo-class", classId] as const,
+  schedules: [...queryKeys.admin.base, "demo-schedules"] as const
+};
+
 export function useDemoClassesQuery(params: ListParams = {}) {
   return useQuery<ListDemoClassesResponse, Error>({
-    queryKey: [...queryKeys.admin.base, "demo-classes", params],
+    queryKey: [...demoQueryKeys.classes, params],
     queryFn: () => getDemoClasses(params),
     placeholderData: keepPreviousData
   });
@@ -21,7 +27,7 @@ export function useCreateDemoClassMutation() {
     mutationFn: createDemoClass,
     onSuccess: () => {
       toast.success({ title: "Demo class created successfully" });
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.base, "demo-classes"] });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
       toast.error({ title: "Failed to create demo class", message: error.message });
@@ -37,7 +43,7 @@ export function useUpdateDemoClassMutation(id: string) {
     mutationFn: (data) => updateDemoClass(id, data),
     onSuccess: () => {
       toast.success({ title: "Demo class updated successfully" });
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.base, "demo-classes"] });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
       toast.error({ title: "Failed to update demo class", message: error.message });
@@ -53,7 +59,7 @@ export function useCancelDemoClassMutation() {
     mutationFn: (id) => cancelDemoClass(id),
     onSuccess: () => {
       toast.success({ title: "Demo class cancelled successfully" });
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.base, "demo-classes"] });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
       toast.error({ title: "Failed to cancel demo class", message: error.message });
@@ -69,7 +75,7 @@ export function useRestoreDemoClassMutation() {
     mutationFn: (id) => restoreDemoClass(id),
     onSuccess: () => {
       toast.success({ title: "Demo class restored successfully" });
-      queryClient.invalidateQueries({ queryKey: [...queryKeys.admin.base, "demo-classes"] });
+      queryClient.invalidateQueries({ queryKey: demoQueryKeys.classes });
     },
     onError: (error) => {
       toast.error({ title: "Failed to restore demo class", message: error.message });
@@ -79,17 +85,11 @@ export function useRestoreDemoClassMutation() {
 
 export function useDemoClassDetailsQuery(classId: string, enabled: boolean = true) {
   return useQuery({
-    queryKey: [...queryKeys.admin.base, "demo-class", classId],
+    queryKey: demoQueryKeys.classDetails(classId),
     queryFn: () => getDemoClassDetails(classId),
     enabled
   });
 }
-
-export const demoQueryKeys = {
-  classes: [...queryKeys.admin.base, "demo-classes"] as const,
-  classDetails: (classId: string) => [...queryKeys.admin.base, "demo-class", classId] as const,
-  schedules: [...queryKeys.admin.base, "demo-schedules"] as const
-};
 
 export function useAddDemoInviteesMutation(classId: string) {
   const queryClient = useQueryClient();

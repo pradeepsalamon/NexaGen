@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Percent, Target, TrendingUp, UserPlus } from "lucide-react";
 import type { LeadListItem } from "@nexa-chess/types";
 
@@ -36,14 +36,18 @@ export function LeadsManagementClient() {
 
   const deleteMutation = useDeleteLeadMutation();
 
-  const openDetails = (id: string) => {
+  // Stable, so useLeadColumns keeps its memoized columns.
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openDetails = useCallback((id: string) => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
     setDetailsLeadId(id);
     setIsDetailsOpen(true);
-  };
+  }, []);
+  const requestDelete = useCallback((id: string) => setPendingDeleteId(id), []);
 
   const columns = useLeadColumns({
     onViewDetails: openDetails,
-    onDelete: (id: string) => setPendingDeleteId(id),
+    onDelete: requestDelete,
     deletePending: deleteMutation.isPending
   });
 
@@ -133,7 +137,7 @@ export function LeadsManagementClient() {
         leadId={detailsLeadId}
         onOpenChange={(open) => {
           setIsDetailsOpen(open);
-          if (!open) setTimeout(() => setDetailsLeadId(null), 300);
+          if (!open) closeTimer.current = setTimeout(() => setDetailsLeadId(null), 300);
         }}
       />
 

@@ -15,7 +15,7 @@ export const DEFAULT_TIMER_PHASES: TimerPhase[] = [
   { id: "review", label: "Review", seconds: 5 * 60 },
 ];
 
-export function formatClock(ms: number): string {
+export function formatClockMs(ms: number): string {
   const total = Math.ceil(ms / 1000);
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
@@ -123,7 +123,13 @@ export function useClassroomTimer(classId: string, isManager: boolean) {
     const key = `${state.index}:${state.since}`;
     if (expired.current === key) return;
     expired.current = key;
-    save.mutate(timerTransitions(state, nowMs).expire());
+    save.mutate(timerTransitions(state, nowMs).expire(), {
+      onError: () => {
+        if (expired.current === key) {
+          expired.current = null;
+        }
+      },
+    });
   }, [isManager, state, remainingMs, nowMs, save]);
 
   // Everyone hears and sees the transition.
@@ -146,7 +152,7 @@ export function useClassroomTimer(classId: string, isManager: boolean) {
       playPhaseChime();
       toast.info({
         title: `Now: ${state.phases[state.index].label}`,
-        message: formatClock(remainingMs),
+        message: formatClockMs(remainingMs),
       });
     }
   }, [state, remainingMs, toast]);

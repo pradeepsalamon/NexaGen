@@ -37,3 +37,20 @@ const EVENT_LABELS: Record<string, string> = {
 export function formatEventLabel(eventType: string) {
   return EVENT_LABELS[eventType] ?? eventType;
 }
+
+export function getEventDotClass(type: string) {
+  switch (type) {
+    case "JOIN":
+      return "bg-success ring-2 ring-success/20";
+    case "LEAVE":
+      return "bg-app-muted ring-2 ring-app-border";
+    case "DISCONNECT":
+      return "bg-warning ring-2 ring-warning/20";
+    case "RECONNECT":
+    case "BOARD_JOIN":
+    case "BOARD_LEAVE":
+      return "bg-primary ring-2 ring-primary/40";
+    default:
+      return "bg-app-muted ring-2 ring-app-border";
+  }
+}

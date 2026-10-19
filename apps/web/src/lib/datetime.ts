@@ -10,8 +10,14 @@ const FALLBACK_TIME_ZONE = "Asia/Kolkata";
 
 /** The user's saved `timezone`, falling back to the browser's, then the default. */
 export function resolveTimeZone(preferred?: string | null): string {
+  // A bad saved zone would make every Intl formatter below throw a RangeError.
   if (preferred) {
-    return preferred;
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: preferred });
+      return preferred;
+    } catch {
+      // fall through to the browser's zone
+    }
   }
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || FALLBACK_TIME_ZONE;

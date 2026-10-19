@@ -59,6 +59,19 @@ export function reduceReadOnlyBoard(
   ) {
     return prev;
   }
+  // A controlling student changes only the position, and only by one legal
+  // ply: forward for a MOVE (checked above), either way for UNDO/REDO. This
+  // board keeps no line to check a longer jump against, so it waits for the
+  // coach's next packet instead.
+  if (!isFromCoach && (msg.type === "MOVE" || msg.type === "UNDO" || msg.type === "REDO")) {
+    const fen = msg.payload?.fen;
+    if (!fen) return prev;
+    if (msg.type !== "MOVE" && !isOneLegalMoveAway(prev.fen, fen) && !isOneLegalMoveAway(fen, prev.fen)) {
+      return prev;
+    }
+    return { ...prev, fen };
+  }
+
   switch (msg.type) {
     case "MOVE":
     case "UNDO":

@@ -5,6 +5,17 @@ import { ArrowLeft, ChevronDown, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { formatMoney } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/Dialog";
+import { Label } from "@/components/ui/Label";
+import { Textarea } from "@/components/ui/Textarea";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -41,6 +52,35 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
   const finalize = useFinalizePayrollPeriod();
   const markPaid = useMarkPayrollPeriodPaid();
   const cancel = useCancelPayrollPeriod();
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [periodActionPending, setPeriodActionPending] = useState(false);
+
+  // One-way transitions with no reverse endpoint: held for the undo window
+  // before they are sent, so a misclick can still be taken back.
+  type PeriodAction = { kind: "cancel"; reason: string } | { kind: "finalize" } | { kind: "markPaid" };
+  const { run: runPeriodAction } = useUndoableMutation<PeriodAction, unknown>({
+    strategy: "defer",
+    mutationFn: (action) =>
+      action.kind === "cancel"
+        ? cancel.mutateAsync({ id: periodId, body: action.reason ? { reason: action.reason } : {} })
+        : action.kind === "finalize"
+          ? finalize.mutateAsync(periodId)
+          : markPaid.mutateAsync(periodId),
+    undo: async () => {},
+    onSchedule: () => setPeriodActionPending(true),
+    onCancel: () => setPeriodActionPending(false),
+    onCommitSuccess: () => setPeriodActionPending(false),
+    toast: (action) => ({
+      title:
+        action.kind === "cancel"
+          ? "Cancelling payroll period"
+          : action.kind === "finalize"
+            ? "Finalizing payroll period"
+            : "Marking every coach paid"
+    }),
+    invalidates: []
+  });
 
   const period = periodData?.period;
   const records = recordsData?.records ?? [];
@@ -117,8 +157,11 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                     </Button>
                     <Button
                       isLoading={cancel.isPending}
-                      onClick={() => cancel.mutate({ id: periodId, body: {} })}
-                      variant="ghost"
+                      onClick={() => {
+                        setCancelReason("");
+                        setCancelling(true);
+                      }}
+                      variant="outline"
                     >
                       Cancel period
                     </Button>
@@ -126,13 +169,21 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                 ) : null}
 
                 {period.status === "APPROVED" ? (
-                  <Button isLoading={finalize.isPending} onClick={() => finalize.mutate(periodId)}>
+                  <Button
+                    disabled={periodActionPending}
+                    isLoading={finalize.isPending}
+                    onClick={() => void runPeriodAction({ kind: "finalize" })}
+                  >
                     Finalize
                   </Button>
                 ) : null}
 
                 {period.status === "FINALIZED" ? (
-                  <Button isLoading={markPaid.isPending} onClick={() => markPaid.mutate(periodId)}>
+                  <Button
+                    disabled={periodActionPending}
+                    isLoading={markPaid.isPending}
+                    onClick={() => void runPeriodAction({ kind: "markPaid" })}
+                  >
                     Mark period paid
                   </Button>
                 ) : null}
@@ -223,16 +274,29 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
                             <PayrollRecordStatusBadge status={record.status} />
                           </TableCell>
                           <TableCell className="px-4 py-3 text-right">
-                            {expanded === record.id ? (
-                              <ChevronDown className="ml-auto size-4 text-app-muted" strokeWidth={2.5} />
-                            ) : (
-                              <ChevronRight className="ml-auto size-4 text-app-muted" strokeWidth={2.5} />
-                            )}
+                            {/* The keyboard / screen-reader way in; the row click stays for the mouse. */}
+                            <button
+                              aria-controls={`payroll-record-${record.id}`}
+                              aria-expanded={expanded === record.id}
+                              aria-label={`${expanded === record.id ? "Hide" : "Show"} breakdown for ${record.coachName}`}
+                              className="ml-auto grid size-8 place-items-center rounded-full text-app-muted transition-colors hover:bg-app-soft hover:text-app-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setExpanded(expanded === record.id ? null : record.id);
+                              }}
+                              type="button"
+                            >
+                              {expanded === record.id ? (
+                                <ChevronDown aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                              ) : (
+                                <ChevronRight aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                              )}
+                            </button>
                           </TableCell>
                         </TableRow>
                         {expanded === record.id ? (
                           <TableRow>
-                            <TableCell className="text-left p-0" colSpan={7}>
+                            <TableCell className="text-left p-0" colSpan={7} id={`payroll-record-${record.id}`}>
                               <PayrollRecordDetailPanel
                                 payout={payoutsByRecord.get(record.id)}
                                 record={record}
@@ -249,6 +313,41 @@ export function AdminPayrollPeriodDetailClient({ periodId }: { periodId: string 
           )}
         </>
       ) : null}
+      <Dialog onOpenChange={setCancelling} open={cancelling}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel this payroll period?</DialogTitle>
+            <DialogDescription>
+              Its calculated records are kept for the record, but nobody is paid from it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="payroll-cancel-reason">Reason (optional)</Label>
+            <Textarea
+              id="payroll-cancel-reason"
+              maxLength={1000}
+              onChange={(event) => setCancelReason(event.target.value)}
+              rows={3}
+              value={cancelReason}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setCancelling(false)} type="button" variant="outline">
+              Keep period
+            </Button>
+            <Button
+              onClick={() => {
+                setCancelling(false);
+                void runPeriodAction({ kind: "cancel", reason: cancelReason.trim() });
+              }}
+              type="button"
+              variant="destructive"
+            >
+              Cancel period
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

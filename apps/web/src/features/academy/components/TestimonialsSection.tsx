@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Quote, Star } from "lucide-react";
+import { Pause, Play, Quote, Star } from "lucide-react";
 
 const testimonials = [
   {
@@ -50,13 +50,18 @@ const testimonials = [
 
 export function TestimonialsSection() {
   const [activeIndex, setActiveIndex] = useState(0);
+  // Paused by the button or by picking a slide; hovering/focusing holds it too.
+  const [paused, setPaused] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
 
   useEffect(() => {
+    if (paused || hovered || focused) return;
     const timer = setInterval(() => {
       setActiveIndex((prev) => (prev + 1) % testimonials.length);
     }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [paused, hovered, focused]);
 
   return (
     <section className="relative py-24 sm:py-32 overflow-hidden">
@@ -76,11 +81,23 @@ export function TestimonialsSection() {
           <p className="section-sub">Hear what our chess families have to say</p>
         </div>
 
-        <div className="max-w-4xl mx-auto reveal reveal-up" style={{ transitionDelay: "0.2s" }}>
+        <div
+          className="max-w-4xl mx-auto reveal reveal-up"
+          onBlur={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+              setFocused(false);
+            }
+          }}
+          onFocus={() => setFocused(true)}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          style={{ transitionDelay: "0.2s" }}
+        >
           <div className="relative overflow-hidden">
             <div className="relative h-64 sm:h-56">
               {testimonials.map((testimonial, i) => (
                 <div
+                  aria-hidden={i !== activeIndex}
                   key={i}
                   className={`absolute inset-0 p-8 sm:p-12 rounded-2xl glass-strong shadow-[0_28px_60px_-40px_rgba(15,31,47,0.5)] transition-all duration-500 ease-in-out flex flex-col justify-center ${
                     i === activeIndex ? "opacity-100 translate-x-0" : "opacity-0 translate-x-8 pointer-events-none"
@@ -111,11 +128,26 @@ export function TestimonialsSection() {
             </div>
           </div>
 
-          <div className="flex justify-center gap-2 mt-8">
+          <div className="flex items-center justify-center gap-2 mt-8">
+            <button
+              aria-label={paused ? "Play testimonials" : "Pause testimonials"}
+              className="mr-2 inline-flex size-8 items-center justify-center rounded-full border border-[#cbd8e4] text-[#1a3a52] transition-colors hover:bg-[#1a3a52]/5"
+              onClick={() => setPaused((p) => !p)}
+              type="button"
+            >
+              {paused ? (
+                <Play aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+              ) : (
+                <Pause aria-hidden="true" className="size-3.5" strokeWidth={2.5} />
+              )}
+            </button>
             {testimonials.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setActiveIndex(i)}
+                onClick={() => {
+                  setActiveIndex(i);
+                  setPaused(true);
+                }}
                 className={`h-2.5 rounded-full transition-all duration-300 ${
                   i === activeIndex ? "bg-[#1a3a52] w-8" : "bg-[#cbd8e4] hover:bg-[#1a3a52]/40 w-2.5"
                 }`}

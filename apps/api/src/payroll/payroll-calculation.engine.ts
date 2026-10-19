@@ -252,19 +252,33 @@ function computeCancellationCompensation(
   });
 }
 
+/**
+ * What the class would have paid had it run, using the same per-class
+ * components as computeBaseEarnings. A fixed salary is not earned per class,
+ * so it never feeds a cancellation percentage.
+ */
 function wouldBeEarningsForClass(
   model: CoachCompensationModel,
   rates: EngineResolvedRates,
   scheduledDurationSeconds: number
 ): number {
   const hours = hoursOf(scheduledDurationSeconds);
+  let amount = 0;
   if ((model === "HOURLY" || model === "HOURLY_PLUS_CLASS" || model === "HYBRID") && rates.hourly?.rateMinor) {
-    return Math.round(hours * rates.hourly.rateMinor);
+    amount += Math.round(hours * rates.hourly.rateMinor);
   }
   if ((model === "PER_CLASS" || model === "HOURLY_PLUS_CLASS" || model === "HYBRID") && rates.perClass?.rateMinor) {
-    return rates.perClass.rateMinor;
+    amount += rates.perClass.rateMinor;
   }
-  return 0;
+  if (model === "TIERED" && rates.tier) {
+    // The class's own hours priced from the first tier: which tier a single
+    // class falls in depends on the period's other hours, so the base rate is used.
+    const base = [...(rates.tier.tierConfig ?? [])].sort(
+      (a, b) => (a.uptoHours ?? Number.POSITIVE_INFINITY) - (b.uptoHours ?? Number.POSITIVE_INFINITY)
+    )[0];
+    if (base && hours > 0) amount += Math.round(hours * base.rateMinor);
+  }
+  return amount;
 }
 
 function computeRuleLines(

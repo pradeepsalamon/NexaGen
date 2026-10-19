@@ -8,6 +8,7 @@ import type {
   StudentClassDetailResponse,
   StudentDashboardFeaturedClass,
   StudentDashboardLiveClass,
+  StudentDashboardResponse,
   StudentDashboardUpcomingClass
 } from "@nexa-chess/types";
 import { isSpectatorIdentity, resolveBatchType } from "@nexa-chess/types";
@@ -39,7 +40,7 @@ export class StudentService {
     private readonly prisma: PrismaService
   ) { }
 
-  async getDashboard(accessToken: string | undefined) {
+  async getDashboard(accessToken: string | undefined): Promise<StudentDashboardResponse> {
     const user = await this.getAuthenticatedUser(accessToken);
     // Real calendar day in the student's timezone, not a rolling window (M7).
     const { start: todayStart, end: todayEnd } = zonedDayBounds(user.timezone);
@@ -207,10 +208,14 @@ export class StudentService {
     );
     const attendedClassesCount = attendanceStats.attended;
     const attendancePercent = attendanceStats.percentage;
+    // All of them, not just the handful of recent activities fetched above.
+    const lessonsCompleted = await this.prisma.studentActivity.count({
+      where: { studentId: user.id, type: "LESSON_COMPLETED" }
+    });
 
     const progressMetrics = [
       { label: "Classes Attended", value: attendedClassesCount.toString(), trend: "" },
-      { label: "Lessons Completed", value: activities.filter((a: any) => a.type === 'LESSON_COMPLETED').length.toString(), trend: "" },
+      { label: "Lessons Completed", value: lessonsCompleted.toString(), trend: "" },
       { label: "Attendance", value: `${attendancePercent}%`, trend: "" }
     ];
 

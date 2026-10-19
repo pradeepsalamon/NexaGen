@@ -52,7 +52,9 @@ export function useLiveMatchState(classId: string) {
 export function mergeMatchGame(
   qc: QueryClient,
   classId: string,
-  game: LiveMatchGame
+  game: LiveMatchGame,
+  // An optimistic copy carries the old serverTime; it must not re-skew the clock.
+  { fromServer = true }: { fromServer?: boolean } = {}
 ): { previous: LiveMatchGame } | null {
   let result: { previous: LiveMatchGame } | null = null;
   qc.setQueryData<LiveMatchStateResponse>(queryKeys.liveMatch.state(classId), (old) => {
@@ -66,7 +68,7 @@ export function mergeMatchGame(
     games[index] = game;
     return { round: { ...old.round, games } };
   });
-  if (result) noteServerTime(game);
+  if (result && fromServer) noteServerTime(game);
   return result;
 }
 
@@ -156,7 +158,7 @@ export function useLiveMatchMove(classId: string) {
         ply: game.ply + 1,
         turn: game.turn === "white" ? "black" : "white",
         turnSince: new Date(matchNow()).toISOString()
-      });
+      }, { fromServer: false });
     },
     onSuccess: (data) => mergeMatchGame(qc, classId, data.game),
     onError: (error: Error) => {

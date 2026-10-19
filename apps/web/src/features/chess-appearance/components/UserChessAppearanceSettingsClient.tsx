@@ -36,8 +36,18 @@ function sourceLabel(source: "user" | "admin-default" | "system-default") {
 }
 
 export function UserChessAppearanceSettingsClient() {
-  const { data: resolved, isLoading: loadingResolved, isError, refetch } = useResolvedChessAppearanceQuery();
-  const { data: catalog, isLoading: loadingCatalog } = useChessAppearanceCatalogQuery();
+  const {
+    data: resolved,
+    isLoading: loadingResolved,
+    isError: isResolvedError,
+    refetch: refetchResolved
+  } = useResolvedChessAppearanceQuery();
+  const {
+    data: catalog,
+    isLoading: loadingCatalog,
+    isError: isCatalogError,
+    refetch: refetchCatalog
+  } = useChessAppearanceCatalogQuery();
   const updateMutation = useUpdateChessAppearanceMutation();
   const resetMutation = useResetChessAppearanceMutation();
 
@@ -53,6 +63,12 @@ export function UserChessAppearanceSettingsClient() {
   const dirty = resolved ? JSON.stringify(draft) !== JSON.stringify(resolved.config) : false;
   const hasOwnPreference = resolved?.source === "user";
   const isLoading = loadingResolved || loadingCatalog;
+  const isError = isResolvedError || isCatalogError;
+
+  const handleRetry = () => {
+    void refetchResolved();
+    void refetchCatalog();
+  };
 
   return (
     <div className="space-y-5">
@@ -70,7 +86,7 @@ export function UserChessAppearanceSettingsClient() {
         </Card>
       ) : isError || !resolved || !catalog ? (
         <Card className="p-5 sm:p-6">
-          <WidgetError message="Couldn't load your board appearance." onRetry={() => refetch()} />
+          <WidgetError message="Couldn't load your board appearance." onRetry={handleRetry} />
         </Card>
       ) : (
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">

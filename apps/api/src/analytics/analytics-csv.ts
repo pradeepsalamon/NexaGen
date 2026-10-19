@@ -9,7 +9,8 @@ export function toCsvCell(value: unknown): string {
       : value instanceof Date
         ? value.toISOString()
         : String(value);
-  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+  // Text only: a number such as -12.5 is data, not a formula.
+  if (typeof value === "string" && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   if (/[",\n\r]/.test(s)) s = `"${s.replace(/"/g, '""')}"`;
   return s;
 }

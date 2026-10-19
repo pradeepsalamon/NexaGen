@@ -53,5 +53,5 @@ cg-board square.current-premove {
 /* highlightEnabled = false: suppress selected-square + last-move tinting. */
 [data-nexa-highlights="off"] cg-board square.last-move,
 [data-nexa-highlights="off"] cg-board square.selected {
-  background: none;
+  background-color: transparent;
 }

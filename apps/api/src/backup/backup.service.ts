@@ -1,5 +1,5 @@
 import { Injectable, Logger, InternalServerErrorException, BadRequestException } from '@nestjs/common';
-import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, type ListObjectsV2CommandOutput } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -74,13 +74,22 @@ export class BackupService {
   async listBackups(): Promise<BackupItem[]> {
     const bucketName = this.validateConfig();
     try {
-      const command = new ListObjectsV2Command({
-        Bucket: bucketName,
-        Prefix: 'database/',
-      });
-      const response = await this.s3Client.send(command);
-      
-      const backups: BackupItem[] = (response.Contents || [])
+      let continuationToken: string | undefined;
+      const allContents: NonNullable<ListObjectsV2CommandOutput['Contents']> = [];
+      do {
+        const command = new ListObjectsV2Command({
+          Bucket: bucketName,
+          Prefix: 'database/',
+          ContinuationToken: continuationToken,
+        });
+        const response = await this.s3Client.send(command);
+        if (response.Contents) {
+          allContents.push(...response.Contents);
+        }
+        continuationToken = response.IsTruncated ? response.NextContinuationToken : undefined;
+      } while (continuationToken);
+
+      const backups: BackupItem[] = allContents
         .filter(obj => typeof obj.Key === 'string' && obj.Key.endsWith('.sql.gz'))
         .map(obj => {
           const key = obj.Key as string;
@@ -170,8 +179,9 @@ export class BackupService {
       }
       
       // pg_dump (libpq) rejects Prisma-specific query params like ?schema=public
-      // So we strip all query parameters before passing it to pg_dump
-      const cleanDbUrl = new URL(dbUrl.split('?')[0]);
+      // Remove Prisma-specific params while preserving libpq params (e.g. sslmode)
+      const cleanDbUrl = new URL(dbUrl);
+      cleanDbUrl.searchParams.delete('schema');
       // The password goes in PGPASSWORD, not the command line: a failed exec's
       // error message echoes the command into the logs, and `ps` shows it too.
       const password = decodeURIComponent(cleanDbUrl.password);
@@ -183,10 +193,10 @@ export class BackupService {
       await execAsync(pgDumpCommand, { env: { ...process.env, PGPASSWORD: password } });
       this.logger.log('Database dump completed. Uploading to OCI Object Storage...');
 
-      // Use readFileSync (Buffer) instead of createReadStream.
+      // Use readFile (Buffer) instead of createReadStream.
       // OCI S3 Compatibility API rejects aws-chunked transfer encoding which AWS SDK
       // automatically uses for streams. Passing a Buffer provides an exact Content-Length.
-      const fileBuffer = fs.readFileSync(backupFilePath);
+      const fileBuffer = await fs.promises.readFile(backupFilePath);
 
       const uploadCommand = new PutObjectCommand({
         Bucket: bucketName,
@@ -214,9 +224,7 @@ export class BackupService {
       this.logger.error('Backup process failed:', error);
       throw new InternalServerErrorException('Backup failed. Ensure pg_dump is installed and OCI credentials are correct.');
     } finally {
-      if (fs.existsSync(backupFilePath)) {
-        fs.unlinkSync(backupFilePath);
-      }
+      await fs.promises.rm(backupFilePath, { force: true }).catch(() => {});
     }
   }
 }

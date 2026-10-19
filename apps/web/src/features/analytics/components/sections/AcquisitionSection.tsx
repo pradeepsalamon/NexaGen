@@ -2,6 +2,7 @@
 
 import type { AnalyticsRangeQuery } from "@nexa-chess/types";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { BarChartCard } from "@/components/charts/Charts";
 import { ChartContainer } from "@/components/charts/ChartContainer";
@@ -12,7 +13,14 @@ import { SortButton } from "@/components/ui/DataTableSortButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/Table";
 
 export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
+  const searchParams = useSearchParams();
   const { data, isLoading, isError, refetch } = useAcquisitionQuery(query);
+
+  const buildSourceHref = (key: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("acquisitionSource", key);
+    return `/admin/analytics/users?${next.toString()}`;
+  };
 
   const chartData =
     data?.sources
@@ -81,7 +89,7 @@ export function AcquisitionSection({ query }: { query: AnalyticsRangeQuery }) {
                     <TableCell className="text-left py-2">
                       <Link
                         className="inline-flex items-center gap-1 font-medium text-primary-ink hover:underline"
-                        href={`/admin/analytics/users?acquisitionSource=${s.key}`}
+                        href={buildSourceHref(s.key)}
                       >
                         {s.label}
                         <ArrowUpRight className="size-3" />

@@ -16,6 +16,7 @@ import { PrismaService } from "../prisma/prisma.service";
 describe("CreditNoteService", () => {
   let service: CreditNoteService;
   let tx: {
+    $queryRaw: jest.Mock;
     invoice: { findUnique: jest.Mock };
     creditNote: {
       findUnique: jest.Mock;
@@ -67,6 +68,7 @@ describe("CreditNoteService", () => {
 
   beforeEach(async () => {
     tx = {
+      $queryRaw: jest.fn().mockResolvedValue([]),
       invoice: { findUnique: jest.fn().mockResolvedValue(invoice) },
       creditNote: {
         findUnique: jest.fn().mockResolvedValue(null),

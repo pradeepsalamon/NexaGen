@@ -23,13 +23,9 @@ export function PromotionDialog() {
     }
   };
 
+  // ChessgroundBoard resets the dragged pawn when pendingPromotion clears.
   const handleCancel = () => {
-    // Note: since the piece visually moved on chessground, we must reset the board state
-    // to match chess.js state. We can just touch FEN.
     setPendingPromotion(null);
-    // Force a re-render/sync by setting fen to itself (which will trigger a chessground sync)
-    // Actually, chessground might be out of sync until a new valid move is made.
-    // For now, canceling just dismisses the dialog.
   };
 
   return (

@@ -120,6 +120,7 @@ function ReplayActivity({
   const [note, setNote] = useState("");
   const noteRef = useRef(note);
   const startedRef = useRef(false);
+  const completedRef = useRef(false);
   const [timeSpentSeconds, setTimeSpentSeconds] = useState(0);
 
   useEffect(() => {
@@ -128,7 +129,10 @@ function ReplayActivity({
 
   useEffect(() => {
     if (assignment.note) setNote(assignment.note);
-    if (assignment.status === "COMPLETED") setTimeSpentSeconds(assignment.timeSpentSeconds ?? 0);
+    if (assignment.status === "COMPLETED") {
+      setTimeSpentSeconds(assignment.timeSpentSeconds ?? 0);
+      completedRef.current = true;
+    }
   }, [assignment]);
 
   useEffect(() => {
@@ -146,7 +150,8 @@ function ReplayActivity({
 
   useEffect(() => {
     if (assignment.status === "COMPLETED" || !assignment.timeLimitMinutes) return;
-    if (timeSpentSeconds >= assignment.timeLimitMinutes * 60 && !statusMutation.isPending) {
+    if (timeSpentSeconds >= assignment.timeLimitMinutes * 60 && !statusMutation.isPending && !completedRef.current) {
+      completedRef.current = true;
       statusMutation.mutate({
         status: "COMPLETED",
         note: noteRef.current.trim() || undefined,

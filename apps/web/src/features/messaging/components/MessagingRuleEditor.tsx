@@ -74,12 +74,16 @@ export function MessagingRuleEditor({
   const test = useTestMessagingRule();
 
   const [draft, setDraft] = useState(rule);
+  // The textarea's own text: parsed into whatsappTemplateParams only on save,
+  // so typing Enter or a trailing space isn't stripped as you type.
+  const [paramsText, setParamsText] = useState(rule.whatsappTemplateParams.join("\n"));
   const [testNumber, setTestNumber] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setDraft(rule);
+      setParamsText(rule.whatsappTemplateParams.join("\n"));
       setTestResult(null);
     }
   }, [open, rule]);
@@ -116,7 +120,10 @@ export function MessagingRuleEditor({
           body: draft.body,
           whatsappTemplateName: draft.whatsappTemplateName,
           whatsappTemplateLanguage: draft.whatsappTemplateLanguage,
-          whatsappTemplateParams: draft.whatsappTemplateParams
+          whatsappTemplateParams: paramsText
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean)
         }
       },
       { onSuccess: () => onOpenChange(false) }
@@ -212,10 +219,14 @@ export function MessagingRuleEditor({
                   id={`${rule.event}-lead`}
                   min={1}
                   onChange={(e) =>
-                    setDraft((current) => ({
-                      ...current,
-                      leadTimeMinutes: Number(e.target.value) || null
-                    }))
+                    setDraft((current) => {
+                      // Whole minutes, at least 1; anything else saves as "not set".
+                      const minutes = Number(e.target.value);
+                      return {
+                        ...current,
+                        leadTimeMinutes: Number.isInteger(minutes) && minutes >= 1 ? minutes : null
+                      };
+                    })
                   }
                   type="number"
                   value={draft.leadTimeMinutes ?? ""}
@@ -402,18 +413,10 @@ export function MessagingRuleEditor({
             >
               <Textarea
                 id={`${rule.event}-params`}
-                onChange={(e) =>
-                  setDraft((current) => ({
-                    ...current,
-                    whatsappTemplateParams: e.target.value
-                      .split("\n")
-                      .map((line) => line.trim())
-                      .filter(Boolean)
-                  }))
-                }
+                onChange={(e) => setParamsText(e.target.value)}
                 placeholder={"{{recipient.firstName}}\n{{class.time}}"}
                 rows={3}
-                value={draft.whatsappTemplateParams.join("\n")}
+                value={paramsText}
               />
             </FormField>
           </details>

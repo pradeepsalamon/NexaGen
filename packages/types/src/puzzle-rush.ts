@@ -248,15 +248,22 @@ export function decodePuzzleRushMessage(payload: Uint8Array): PuzzleRushMessage 
 
 type Rankable = Pick<PuzzleRushStanding, "score" | "errors" | "moves" | "finishedAt" | "name">;
 
-/** Highest score first; then fewer errors, more moves, and whoever finished first. */
+/** Highest score first; then fewer errors, more moves, and whoever finished first (finished before unfinished). */
 export function comparePuzzleRushStandings(a: Rankable, b: Rankable): number {
   return (
     b.score - a.score ||
     a.errors - b.errors ||
     b.moves - a.moves ||
-    (a.finishedAt && b.finishedAt ? a.finishedAt.localeCompare(b.finishedAt) : 0) ||
+    compareFinishedAt(a.finishedAt, b.finishedAt) ||
     a.name.localeCompare(b.name)
   );
+}
+
+function compareFinishedAt(a: string | null | undefined, b: string | null | undefined): number {
+  if (a && b) return a.localeCompare(b);
+  if (a) return -1;
+  if (b) return 1;
+  return 0;
 }
 
 /** Sorts and numbers the standings; ties on score + errors share a rank. */

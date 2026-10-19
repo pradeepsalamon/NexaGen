@@ -8,6 +8,7 @@ import {
   type ProviderHealthResponse
 } from "@nexa-chess/types";
 import { PaymentProviderEventKind } from "@prisma/client";
+import { JOB_LOCKS, JobLockService } from "../prisma/job-lock.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 /** Provider telemetry rows older than this are pruned nightly. */
@@ -26,7 +27,10 @@ export class ProviderHealthService {
   private readonly env = getApiEnv();
   private readonly logger = new Logger(ProviderHealthService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobLocks: JobLockService
+  ) {}
 
   /**
    * Records one provider interaction. Never throws and never awaits the
@@ -168,6 +172,10 @@ export class ProviderHealthService {
 
   @Cron(CronExpression.EVERY_DAY_AT_3AM)
   async pruneOldEvents(): Promise<void> {
+    await this.jobLocks.runExclusive(JOB_LOCKS.paymentProviderEventPrune, () => this.pruneOldEventsNow());
+  }
+
+  private async pruneOldEventsNow(): Promise<void> {
     const cutoff = new Date(
       Date.now() - EVENT_RETENTION_DAYS * 24 * 60 * 60 * 1000
     );

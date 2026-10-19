@@ -100,7 +100,11 @@ export class LiveClassChatService {
       recipient.id === liveSession.coachId ||
       recipient.role === UserRole.ADMIN ||
       recipient.role === UserRole.SUPER_ADMIN ||
-      !!liveSession.batch?.students.some((s) => s.studentId === recipient.id);
+      !!liveSession.batch?.students.some((s) => s.studentId === recipient.id) ||
+      !!(await this.prisma.liveClassPull.findFirst({
+        where: { liveSessionId: liveSession.id, studentId: recipient.id, status: { in: ["PENDING", "JOINED"] } },
+        select: { id: true },
+      }));
     if (!inClass) {
       throw new ForbiddenException("That person is not in this class.");
     }

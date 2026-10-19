@@ -18,6 +18,8 @@ function formatColumnLabel(columnId: string) {
     coachName: "Coach",
     startsAt: "Schedule",
     status: "Status",
+    access: "Access",
+    guests: "Guests",
   };
   return labels[columnId] ?? columnId;
 }

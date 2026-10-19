@@ -40,9 +40,18 @@ export class PayrollAuditService {
     });
   }
 
+  /** The record's own entries plus its adjustments and payout, which name it in metadata. */
   async listForRecord(payrollRecordId: string) {
     return this.prisma.trashAuditLog.findMany({
-      where: { entity: "CoachPayrollRecord", entityId: payrollRecordId },
+      where: {
+        OR: [
+          { entity: "CoachPayrollRecord", entityId: payrollRecordId },
+          {
+            entity: { in: ["PayrollAdjustment", "CoachPayout"] },
+            metadata: { path: ["payrollRecordId"], equals: payrollRecordId }
+          }
+        ]
+      },
       orderBy: { createdAt: "desc" }
     });
   }

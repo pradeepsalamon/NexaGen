@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { WidgetError } from "@/components/ui/WidgetError";
+import { useToast } from "@/providers/ToastProvider";
 import { PracticeBoard } from "@/features/chessboard/components/board/PracticeBoard";
 import { AppearanceTogglesForm } from "./AppearanceTogglesForm";
 import { BoardThemePicker } from "./BoardThemePicker";
@@ -32,6 +33,7 @@ import { Switch } from "@/components/ui/Switch";
 const PREVIEW_FEN = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
 
 export function AdminChessAppearanceClient() {
+  const toast = useToast();
   const { data, isLoading, isError, refetch } = useChessAppearanceAdminQuery();
   const updateMutation = useUpdateChessAppearanceAdminMutation();
   const resetMutation = useResetChessAppearanceAdminMutation();
@@ -54,8 +56,22 @@ export function AdminChessAppearanceClient() {
 
   const patch = (p: Partial<ChessAppearance>) => setDraft((d) => ({ ...d, ...p }));
 
-  const toggleDisabled = (list: string[], setList: (next: string[]) => void, id: string) => {
-    setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  const toggleDisabled = (
+    list: string[],
+    setList: (next: string[]) => void,
+    id: string,
+    activeId?: string,
+    itemType?: string
+  ) => {
+    const isCurrentlyDisabled = list.includes(id);
+    if (!isCurrentlyDisabled && id === activeId) {
+      toast.warning({
+        title: `Cannot disable active ${itemType ?? "theme"}`,
+        message: `Please select a different default ${itemType ?? "theme"} before disabling this one.`
+      });
+      return;
+    }
+    setList(isCurrentlyDisabled ? list.filter((x) => x !== id) : [...list, id]);
   };
 
   const dirty = data
@@ -186,7 +202,13 @@ export function AdminChessAppearanceClient() {
                       label={theme.name}
                       checked={!disabledBoardThemeIds.includes(theme.id)}
                       onCheckedChange={() =>
-                        toggleDisabled(disabledBoardThemeIds, setDisabledBoardThemeIds, theme.id)
+                        toggleDisabled(
+                          disabledBoardThemeIds,
+                          setDisabledBoardThemeIds,
+                          theme.id,
+                          draft.boardThemeId,
+                          "board theme"
+                        )
                       }
                     />
                   ))}
@@ -200,7 +222,13 @@ export function AdminChessAppearanceClient() {
                       label={set.name}
                       checked={!disabledPieceSetIds.includes(set.id)}
                       onCheckedChange={() =>
-                        toggleDisabled(disabledPieceSetIds, setDisabledPieceSetIds, set.id)
+                        toggleDisabled(
+                          disabledPieceSetIds,
+                          setDisabledPieceSetIds,
+                          set.id,
+                          draft.pieceSetId,
+                          "piece set"
+                        )
                       }
                     />
                   ))}
@@ -214,7 +242,13 @@ export function AdminChessAppearanceClient() {
                       label={theme.name}
                       checked={!disabledSoundThemeIds.includes(theme.id)}
                       onCheckedChange={() =>
-                        toggleDisabled(disabledSoundThemeIds, setDisabledSoundThemeIds, theme.id)
+                        toggleDisabled(
+                          disabledSoundThemeIds,
+                          setDisabledSoundThemeIds,
+                          theme.id,
+                          draft.soundThemeId,
+                          "sound theme"
+                        )
                       }
                     />
                   ))}

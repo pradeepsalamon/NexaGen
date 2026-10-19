@@ -79,6 +79,7 @@ describe('UploadController — deleteImage', () => {
   const req = () => ({ cookies: { nexa_access_token: 't' } }) as unknown as Request;
 
   beforeEach(async () => {
+    process.env.CLOUDINARY_CLOUD_NAME = 'demo';
     deleteImage = jest.fn().mockResolvedValue(undefined);
     me = { avatarUrl: OWN, id: 'u1', role: 'STUDENT', status: 'ACTIVE' };
     sharedWith = 0;
@@ -123,6 +124,13 @@ describe('UploadController — deleteImage', () => {
   it('refuses a non-profile Cloudinary asset even when set as the avatar', async () => {
     me.avatarUrl = OTHER;
     await expect(controller.deleteImage(OTHER, req())).rejects.toBeInstanceOf(ForbiddenException);
+    expect(deleteImage).not.toHaveBeenCalled();
+  });
+
+  it('refuses a profile-folder path on a host that is not Cloudinary', async () => {
+    const SPOOFED = 'https://evil.example.com/demo/image/upload/v1700000000/nexa_chess/profiles/abc123.jpg';
+    me.avatarUrl = SPOOFED;
+    await expect(controller.deleteImage(SPOOFED, req())).rejects.toBeInstanceOf(ForbiddenException);
     expect(deleteImage).not.toHaveBeenCalled();
   });
 

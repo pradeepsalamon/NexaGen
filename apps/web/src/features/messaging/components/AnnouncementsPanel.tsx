@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { FormField } from "@/components/ui/FormField";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -164,12 +165,20 @@ function Composer() {
 }
 
 function History() {
-  const { data, isLoading } = useAnnouncements();
-  const remove = useDeleteAnnouncement();
+  const { data, isError, isLoading, refetch } = useAnnouncements();
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
+  const remove = useDeleteAnnouncement({
+    onSchedule: (id) => setHiddenIds((ids) => [...ids, id]),
+    onCancel: (id) => setHiddenIds((ids) => ids.filter((hidden) => hidden !== id))
+  });
+  const announcements = data?.announcements.filter((a) => !hiddenIds.includes(a.id)) ?? [];
   const timeZone = useUserTimeZone();
 
   if (isLoading) return <Skeleton className="h-48 w-full" />;
-  if (!data || data.announcements.length === 0) {
+  if (isError && !data) {
+    return <WidgetError message="Couldn't load announcements." onRetry={() => void refetch()} />;
+  }
+  if (announcements.length === 0) {
     return (
       <EmptyState
         description="Anything you publish shows up here and on every member's dashboard."
@@ -180,7 +189,7 @@ function History() {
 
   return (
     <Card className="overflow-hidden p-0">
-      {data.announcements.map((announcement) => (
+      {announcements.map((announcement) => (
         <div
           className="flex items-start justify-between gap-4 border-b border-app-border px-4 py-4 last:border-b-0 sm:px-5"
           key={announcement.id}
@@ -205,8 +214,7 @@ function History() {
             <Button
               aria-label={`Delete announcement ${announcement.title}`}
               className="size-8 shrink-0 rounded-full border-app-danger p-0 text-app-danger hover:bg-app-danger hover:text-white"
-              disabled={remove.isPending}
-              onClick={() => remove.mutate(announcement.id)}
+              onClick={() => void remove.run(announcement.id)}
               size="icon"
               type="button"
               variant="outline"

@@ -144,14 +144,31 @@ export function defaultRevisionGrade(outcome: RevisionOutcome): RevisionGrade {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+const zoneFormatters = new Map<string, Intl.DateTimeFormat>();
+
+/** Wall-clock fields of `at` in `timeZone`, read with formatToParts (locale-proof). */
+function zonedParts(timeZone: string, at: Date) {
+  let formatter = zoneFormatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-US", {
+      day: "numeric",
+      hour: "numeric",
+      hourCycle: "h23",
+      minute: "numeric",
+      month: "numeric",
+      timeZone,
+      year: "numeric"
+    });
+    zoneFormatters.set(timeZone, formatter);
+  }
+  const parts = formatter.formatToParts(at);
+  const field = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return { d: field("day"), hh: field("hour") % 24, m: field("month"), mm: field("minute"), y: field("year") };
+}
+
 function zonedYmd(timeZone: string, at: Date): [number, number, number] {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone,
-    year: "numeric"
-  }).format(at);
-  const [y, m, d] = parts.split("-").map(Number);
+  const { d, m, y } = zonedParts(timeZone, at);
   return [y, m, d];
 }
 
@@ -171,14 +188,7 @@ function localMidnight(timeZone: string, y: number, m: number, d: number): Date 
   // Two passes: the offset at the guess, then at the corrected instant (DST edges).
   let at = guess;
   for (let i = 0; i < 2; i += 1) {
-    const [ly, lm, ld] = zonedYmd(timeZone, new Date(at));
-    const local = new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      hourCycle: "h23",
-      minute: "2-digit",
-      timeZone
-    }).format(new Date(at));
-    const [hh, mm] = local.split(":").map(Number);
+    const { d: ld, hh, m: lm, mm, y: ly } = zonedParts(timeZone, new Date(at));
     const shownAsUtc = Date.UTC(ly, lm - 1, ld, hh, mm);
     at = at - (shownAsUtc - guess);
   }

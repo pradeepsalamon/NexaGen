@@ -46,7 +46,9 @@ export class UploadService {
 
   /** Whether `url` names an image `uploadImage` stored (the profiles folder). */
   isProfileImageUrl(url: string): boolean {
-    return this.publicIdOf(url)?.startsWith(`${PROFILE_IMAGE_FOLDER}/`) ?? false;
+    // The host check matters: deleteImage destroys by public id in our account,
+    // whatever host the URL names.
+    return isProfileImageUrl(url);
   }
 
   async deleteImage(url: string): Promise<void> {

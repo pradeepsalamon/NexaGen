@@ -7,6 +7,8 @@
 // (legal to load, unlikely in a real game). Chess.js stays out of this package:
 // callers pass a probe built on their own castling-safe Chess wrapper.
 
+import { possibleCastlingFlags, type CastlingFlag } from "./chess-fen";
+
 export type DiagramIssue = {
   code: string;
   message: string;
@@ -128,22 +130,19 @@ export function validateDiagramPosition(fen: string, probe?: DiagramChessProbe):
     if (df <= 1 && dr <= 1) errors.push({ code: "kings-adjacent", message: `The kings stand next to each other (${wk}, ${bk}).` });
   }
 
-  const castlingNeeds: Record<string, [string, string, string, string, string]> = {
-    K: ["e1", "K", "h1", "R", "White kingside"],
-    Q: ["e1", "K", "a1", "R", "White queenside"],
-    k: ["e8", "k", "h8", "r", "Black kingside"],
-    q: ["e8", "k", "a8", "r", "Black queenside"],
+  // The rule is possibleCastlingFlags (chess-fen.ts); these are only the messages.
+  const castlingMessages: Record<CastlingFlag, string> = {
+    K: "White kingside castling needs the king on e1 and a rook on h1.",
+    Q: "White queenside castling needs the king on e1 and a rook on a1.",
+    k: "Black kingside castling needs the king on e8 and a rook on h8.",
+    q: "Black queenside castling needs the king on e8 and a rook on a8.",
   };
   if (castling !== "-") {
+    const possible = possibleCastlingFlags(placement);
     for (const flag of castling) {
-      const need = castlingNeeds[flag];
-      if (!need) continue;
-      const [kSq, k, rSq, r, label] = need;
-      if (squares.get(kSq) !== k || squares.get(rSq) !== r) {
-        errors.push({
-          code: "castling-placement",
-          message: `${label} castling needs the king on ${kSq} and a rook on ${rSq}.`,
-        });
+      if (!(flag in castlingMessages)) continue;
+      if (!possible[flag as CastlingFlag]) {
+        errors.push({ code: "castling-placement", message: castlingMessages[flag as CastlingFlag] });
       }
     }
   }

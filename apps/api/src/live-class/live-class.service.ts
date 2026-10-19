@@ -402,7 +402,6 @@ export class LiveClassService {
 
     for (const participant of participants) {
       if (isCoachParticipant(participant.identity, coachId)) continue;
-      if (participant.identity.startsWith("guest_")) continue;
       // Role is signed into participant metadata; only real students are clamped
       // (admins join with a coach-equivalent token).
       let role: string | undefined;
@@ -668,7 +667,18 @@ export class LiveClassService {
     }
 
     const isCoach = user.role === UserRole.COACH && scheduledClass.coachId === user.id;
-    const isStudent = user.role === UserRole.STUDENT && scheduledClass.batch?.students.some((s: any) => s.studentId === user.id);
+    const isStudent =
+      user.role === UserRole.STUDENT &&
+      (!!scheduledClass.batch?.students.some((s) => s.studentId === user.id) ||
+        (!!scheduledClass.liveSession &&
+          !!(await this.prisma.liveClassPull.findFirst({
+            where: {
+              liveSessionId: scheduledClass.liveSession.id,
+              studentId: user.id,
+              status: { in: ["PENDING", "JOINED"] },
+            },
+            select: { id: true },
+          }))));
     const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN;
 
     if (!isCoach && !isStudent && !isAdmin) {

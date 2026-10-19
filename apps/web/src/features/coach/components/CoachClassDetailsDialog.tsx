@@ -1,4 +1,3 @@
-import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +10,10 @@ import { Button } from "@/components/ui/Button";
 import { Clock, Users, User, Calendar, GraduationCap, Download, Video } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
+import { openInNewTab } from "@/lib/openInNewTab";
 import { toast } from "sonner";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatDateTime, formatTime } from "@/lib/datetime";
 
 interface CoachClassDetailsDialogProps {
   classId: string | null;
@@ -30,14 +32,12 @@ export function CoachClassDetailsDialog({
   );
 
   const coachClass = data?.class;
+  const timeZone = useUserTimeZone();
 
   const handleDownload = async () => {
     if (!classId) return;
     try {
-      const data = await getRecordingDownloadUrl(classId, { download: true });
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
+      await openInNewTab(async () => (await getRecordingDownloadUrl(classId, { download: true }))?.url);
     } catch (error) {
       console.error("Failed to download recording:", error);
       toast.error("Failed to download recording. It may have expired or is unavailable.");
@@ -46,7 +46,7 @@ export function CoachClassDetailsDialog({
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
-    return format(new Date(dateString), "MMM d, yyyy h:mm a");
+    return formatDateTime(dateString, timeZone);
   };
 
   return (
@@ -89,7 +89,7 @@ export function CoachClassDetailsDialog({
                   <Calendar className="size-4 text-app-muted" />
                   <span className="font-medium min-w-[110px]">Scheduled:</span>
                   <span>
-                    {formatDate(coachClass.startsAt)} - {format(new Date(coachClass.endsAt), "h:mm a")}
+                    {formatDate(coachClass.startsAt)} - {formatTime(coachClass.endsAt, timeZone)}
                   </span>
                 </div>
                 
@@ -142,7 +142,7 @@ export function CoachClassDetailsDialog({
                           <User className="size-3 text-app-muted" /> {p.name}
                         </span>
                         <span className="text-app-muted text-xs">
-                          {p.joinedAt ? format(new Date(p.joinedAt), "h:mm a") : "—"}
+                          {p.joinedAt ? formatTime(p.joinedAt, timeZone) : "—"}
                         </span>
                       </li>
                     ))}

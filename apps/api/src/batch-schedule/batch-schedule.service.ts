@@ -35,6 +35,7 @@ import {
   instantsOverlap,
   RecurrenceValidationError,
   timeToMinutes,
+  validateRules,
   type Occurrence,
   type RecurrenceRuleInput
 } from "./recurrence.util";
@@ -526,6 +527,33 @@ export class BatchScheduleService {
       );
     }
 
+    if (body.rules) {
+      const coachIds = Array.from(new Set(body.rules.map((r) => r.coachId)));
+      const coaches = await this.prisma.user.findMany({
+        where: { id: { in: coachIds }, role: UserRole.COACH, status: UserStatus.ACTIVE }
+      });
+      if (coaches.length !== coachIds.length) {
+        throw new BadRequestException("One or more selected coaches are invalid or inactive.");
+      }
+      try {
+        validateRules(
+          body.rules.map((rule, index) => ({
+            id: String(index),
+            dayOfWeek: rule.dayOfWeek,
+            startTime: rule.startTime,
+            endTime: rule.endTime,
+            coachId: rule.coachId,
+            isEnabled: rule.isEnabled
+          }))
+        );
+      } catch (error) {
+        if (error instanceof RecurrenceValidationError) {
+          throw new BadRequestException(error.message);
+        }
+        throw error;
+      }
+    }
+
     const nextEndDate = body.endDate
       ? localDateToUtc(body.endDate)
       : schedule.endDate;
@@ -558,17 +586,57 @@ export class BatchScheduleService {
       }
 
       if (body.rules) {
-        await tx.batchClassScheduleRule.deleteMany({ where: { scheduleId: id } });
-        await tx.batchClassScheduleRule.createMany({
-          data: body.rules.map((rule) => ({
-            scheduleId: id,
-            dayOfWeek: rule.dayOfWeek,
-            startTime: rule.startTime,
-            endTime: rule.endTime,
-            coachId: rule.coachId,
-            isEnabled: rule.isEnabled ?? true
-          }))
+        const existingRules = await tx.batchClassScheduleRule.findMany({
+          where: { scheduleId: id }
         });
+        const retainedRuleIds = new Set<string>();
+
+        for (const rule of body.rules) {
+          const matching = existingRules.find(
+            (r) =>
+              !retainedRuleIds.has(r.id) &&
+              r.dayOfWeek === rule.dayOfWeek &&
+              r.startTime === rule.startTime &&
+              r.endTime === rule.endTime &&
+              r.coachId === rule.coachId
+          );
+          if (matching) {
+            retainedRuleIds.add(matching.id);
+            if (matching.isEnabled !== (rule.isEnabled ?? true)) {
+              await tx.batchClassScheduleRule.update({
+                where: { id: matching.id },
+                data: { isEnabled: rule.isEnabled ?? true }
+              });
+            }
+          } else {
+            const created = await tx.batchClassScheduleRule.create({
+              data: {
+                scheduleId: id,
+                dayOfWeek: rule.dayOfWeek,
+                startTime: rule.startTime,
+                endTime: rule.endTime,
+                coachId: rule.coachId,
+                isEnabled: rule.isEnabled ?? true
+              }
+            });
+            retainedRuleIds.add(created.id);
+          }
+        }
+
+        const toDelete = existingRules.filter((r) => !retainedRuleIds.has(r.id));
+        if (toDelete.length > 0) {
+          await tx.coachClass.deleteMany({
+            where: {
+              scheduleId: id,
+              scheduleRuleId: { in: toDelete.map((r) => r.id) },
+              status: ClassStatus.SCHEDULED,
+              startsAt: { gt: new Date() }
+            }
+          });
+          await tx.batchClassScheduleRule.deleteMany({
+            where: { id: { in: toDelete.map((r) => r.id) } }
+          });
+        }
       }
 
       if (body.regenerate) {

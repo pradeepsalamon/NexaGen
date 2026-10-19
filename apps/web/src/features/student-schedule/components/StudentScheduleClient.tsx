@@ -98,6 +98,26 @@ export function StudentScheduleClient() {
 
   const classes = calendarData?.classes ?? [];
 
+  // The upcoming list has its own window (now → 90 days), so paging the
+  // calendar to another month never changes the list or its count.
+  const [upcomingRange] = useState(() => {
+    const now = Date.now();
+    return {
+      from: new Date(now - 6 * 60 * 60 * 1000).toISOString(),
+      to: new Date(now + 90 * 24 * 60 * 60 * 1000).toISOString()
+    };
+  });
+  const {
+    data: upcomingData,
+    isLoading: upcomingLoading,
+    isError: upcomingError,
+    refetch: refetchUpcoming
+  } = useScheduleCalendarQuery({
+    from: upcomingRange.from,
+    to: upcomingRange.to,
+    batchId: selectedBatchId || undefined
+  });
+
   // Group classes by local day key
   const classesByDay = useMemo(() => {
     const map = new Map<string, ScheduleCalendarClass[]>();
@@ -152,10 +172,10 @@ export function StudentScheduleClient() {
   // classes stay on the calendar (marked) but are never "upcoming".
   const upcomingClassesList = useMemo(() => {
     const now = Date.now();
-    return [...classes]
+    return [...(upcomingData?.classes ?? [])]
       .filter((c) => isUpcomingClass(c, now))
       .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime());
-  }, [classes]);
+  }, [upcomingData]);
 
   const batchOptions = [
     { label: "All My Batches", value: "" },
@@ -331,7 +351,12 @@ export function StudentScheduleClient() {
               {selectedDayKey && (
                 <button
                   type="button"
-                  onClick={() => setSelectedDayKey(todayKey)}
+                  onClick={() => {
+                    // The grid follows too, not just the detail panel.
+                    const [year, month] = todayKey.split("-").map(Number);
+                    setCursor({ year, month: month - 1 });
+                    setSelectedDayKey(todayKey);
+                  }}
                   className="font-semibold text-primary hover:underline"
                 >
                   Jump to Today
@@ -423,7 +448,18 @@ export function StudentScheduleClient() {
       ) : (
         /* List View */
         <Card className="p-6 shadow-card">
-          {upcomingClassesList.length === 0 ? (
+          {upcomingLoading ? (
+            <div className="space-y-4">
+              <Skeleton className="h-16 rounded-app" />
+              <Skeleton className="h-16 rounded-app" />
+              <Skeleton className="h-16 rounded-app" />
+            </div>
+          ) : upcomingError ? (
+            <WidgetError
+              message="Could not load your upcoming classes. Please check your connection."
+              onRetry={() => refetchUpcoming()}
+            />
+          ) : upcomingClassesList.length === 0 ? (
             <EmptyState
               icon={CalendarDays}
               title="No upcoming classes found"

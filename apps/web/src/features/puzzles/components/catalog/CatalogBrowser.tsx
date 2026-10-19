@@ -287,7 +287,8 @@ export function CatalogBrowser({
             value={openingInput}
           />
         ) : null}
-        {canSelect ? (
+        {/* Only admins' requests honour it (includeBelowGate is sent for admins only). */}
+        {isAdmin ? (
           <label className="flex items-center gap-2 text-sm text-app-text">
             <Checkbox
               checked={includeBelowGate}

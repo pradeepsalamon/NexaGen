@@ -114,7 +114,7 @@ export class InvoiceStorageService {
     if (!url) return null;
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {
         this.logger.warn(
           `Invoice PDF ${storageKey} fetch returned ${response.status}.`

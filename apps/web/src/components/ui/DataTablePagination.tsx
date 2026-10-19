@@ -25,6 +25,7 @@ export function DataTablePagination<TData>({
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <Select
+          aria-label="Rows per page"
           className="w-32"
           onChange={(event) => table.setPageSize(Number(event.target.value))}
           options={pageSizeOptions}

@@ -17,7 +17,11 @@ const baseUserFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().optional(),
   email: z.string().email("Invalid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters").optional(),
+  // "" = keep the current password (edit mode); create mode requires one below.
+  password: z
+    .string()
+    .refine((value) => value === "" || value.length >= 8, "Password must be at least 8 characters")
+    .optional(),
   role: z.enum(["STUDENT", "COACH", "ADMIN", "SUPER_ADMIN"]),
   status: z.enum(["ACTIVE", "PENDING", "ARCHIVED", "DELETED"]),
 });

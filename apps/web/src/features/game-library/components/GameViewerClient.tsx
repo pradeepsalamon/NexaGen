@@ -438,7 +438,11 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
             <AlertDialogAction asChild>
               <Button
                 variant="destructive"
-                onClick={() =>
+                disabled={remove.isPending}
+                isLoading={remove.isPending}
+                onClick={(event) => {
+                  // Stay open until it is actually gone; a failure keeps the dialog.
+                  event.preventDefault();
                   remove.mutate(game.id, {
                     onError: (err) => toast.error(err instanceof Error ? err.message : "The game could not be deleted."),
                     onSuccess: () => {
@@ -446,8 +450,8 @@ function GameViewer({ game }: { game: GameLibraryDetail }) {
                       toast.success("Game deleted");
                       router.push("/games");
                     },
-                  })
-                }
+                  });
+                }}
               >
                 Delete game
               </Button>

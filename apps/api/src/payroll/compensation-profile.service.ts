@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import type {
   CompensationProfileItem,
   CompensationRateItem,
@@ -144,19 +144,34 @@ export class CompensationProfileService {
     dto: CreateCompensationRateRequest
   ): Promise<CompensationRateItem> {
     const effectiveFrom = new Date(dto.effectiveFrom);
+    const effectiveTo = dto.effectiveTo ? new Date(dto.effectiveTo) : null;
+    if (effectiveTo && effectiveTo <= effectiveFrom) {
+      throw new BadRequestException("The end date must be after the start date.");
+    }
     const scopeKey = JSON.stringify(dto.scopeConfig ?? null);
 
-    const openEnded = await this.prisma.coachCompensationRate.findMany({
-      where: {
-        coachId,
-        calculationType: dto.calculationType,
-        effectiveTo: null,
-        effectiveFrom: { lt: effectiveFrom }
-      }
-    });
-    const toClose = openEnded.filter((r) => JSON.stringify(r.scopeConfig ?? null) === scopeKey);
-
+    let toClose: { id: string }[] = [];
     const rate = await this.prisma.$transaction(async (tx) => {
+      const sameScope = (
+        await tx.coachCompensationRate.findMany({
+          where: { coachId, calculationType: dto.calculationType }
+        })
+      ).filter((r) => JSON.stringify(r.scopeConfig ?? null) === scopeKey);
+      const openEnded = sameScope.filter((r) => r.effectiveTo === null);
+      toClose = openEnded.filter((r) => r.effectiveFrom < effectiveFrom);
+      const closing = new Set(toClose.map((r) => r.id));
+      // Any remaining rate that intersects [effectiveFrom, effectiveTo) makes the resolver's pick arbitrary.
+      const overlaps = sameScope.some(
+        (r) =>
+          !closing.has(r.id) &&
+          (!effectiveTo || r.effectiveFrom < effectiveTo) &&
+          (!r.effectiveTo || r.effectiveTo > effectiveFrom)
+      );
+      if (overlaps) {
+        throw new ConflictException(
+          "Another rate for this scope already covers part of that period. End it first."
+        );
+      }
       for (const previous of toClose) {
         await tx.coachCompensationRate.update({
           where: { id: previous.id },
@@ -173,7 +188,7 @@ export class CompensationProfileService {
           tierConfig: dto.tierConfig as unknown as Prisma.InputJsonValue,
           scopeConfig: dto.scopeConfig as unknown as Prisma.InputJsonValue,
           effectiveFrom,
-          effectiveTo: dto.effectiveTo ? new Date(dto.effectiveTo) : null,
+          effectiveTo,
           createdById: actorId
         }
       });

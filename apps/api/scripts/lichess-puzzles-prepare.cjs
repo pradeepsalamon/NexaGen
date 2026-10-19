@@ -4,7 +4,7 @@
  * Runs OFF the production box: replaying 6M puzzles with chess.js is about
  * 1.75 CPU-hours. A pure function of the input file, so retry = re-run.
  *
- *   curl -fLO https://database.lichess.org/lichess_db_puzzle.csv.zst
+ *   curl -fLOR https://database.lichess.org/lichess_db_puzzle.csv.zst   (-R keeps the server's date)
  *   npm run puzzles:prepare -w apps/api -- --in lichess_db_puzzle.csv.zst --out ./lichess-release
  *
  * Options: --workers N (default: CPUs - 1), --dump-date YYYY-MM-DD (default: the
@@ -77,8 +77,13 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
     if (!key.startsWith("--")) throw new Error(`Unexpected argument: ${key}`);
-    args[key.slice(2)] = argv[i + 1];
+    const value = argv[i + 1];
+    if (value === undefined || value.startsWith("--")) throw new Error(`${key} needs a value.`);
+    args[key.slice(2)] = value;
     i += 1;
+  }
+  if (args.workers !== undefined && !/^[1-9]\d*$/.test(args.workers)) {
+    throw new Error(`--workers must be a positive integer (got "${args.workers}").`);
   }
   if (!args.in || !args.out) {
     throw new Error("Usage: lichess-puzzles-prepare.cjs --in <dump.csv.zst> --out <dir> [--workers N] [--dump-date YYYY-MM-DD]");

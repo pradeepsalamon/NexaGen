@@ -7,10 +7,10 @@ import {
   formatPayslipNumber,
   type PayslipDocument
 } from "@nexa-chess/types";
-import { PayslipPdfStatus } from "@prisma/client";
+import { PayslipPdfStatus, Prisma } from "@prisma/client";
 import type { Queue } from "bullmq";
 import { JOB_LOCKS, JobLockService, type JobLockName } from "../prisma/job-lock.service";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import { isQueueEnabled } from "../queue/queue.config";
 import { fullName } from "../payments/payments-auth.helper";
 import { payslipPdfJobId, PAYSLIP_JOBS, PAYSLIP_QUEUE } from "./payslip-queue";
@@ -78,24 +78,35 @@ export class PayslipGenerationService {
     });
     const engagementType = profile?.engagementType ?? "EMPLOYEE";
 
-    const documentNumber = await this.allocateDocumentNumber();
-
-    const payslip = await this.prisma.payslip.create({
-      data: {
-        documentNumber,
-        payrollRecordId,
-        documentKind: documentKindForEngagement(engagementType),
-        engagementTypeAtIssue: engagementType,
-        issuedAt: new Date(),
-        pdfStatus: PayslipPdfStatus.PENDING
+    // Number and row in one transaction, so a failed create gives the number back.
+    try {
+      const payslip = await this.prisma.$transaction(async (tx) => {
+        const documentNumber = await this.allocateDocumentNumber(tx);
+        return tx.payslip.create({
+          data: {
+            documentNumber,
+            payrollRecordId,
+            documentKind: documentKindForEngagement(engagementType),
+            engagementTypeAtIssue: engagementType,
+            issuedAt: new Date(),
+            pdfStatus: PayslipPdfStatus.PENDING
+          }
+        });
+      });
+      return payslip.id;
+    } catch (error) {
+      // A concurrent finalize created this record's payslip first.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const raced = await this.prisma.payslip.findUnique({ where: { payrollRecordId } });
+        if (raced) return raced.id;
       }
-    });
-    return payslip.id;
+      throw error;
+    }
   }
 
-  private async allocateDocumentNumber(): Promise<string> {
+  private async allocateDocumentNumber(tx: PrismaTransactionClient): Promise<string> {
     const year = new Date().getUTCFullYear();
-    const sequence = await this.prisma.payslipSequence.upsert({
+    const sequence = await tx.payslipSequence.upsert({
       where: { year },
       create: { year, lastNumber: 1 },
       update: { lastNumber: { increment: 1 } }
@@ -186,6 +197,10 @@ export class PayslipGenerationService {
       }
     });
     const record = payslip.payrollRecord;
+    const profile = await this.prisma.coachCompensationProfile.findUnique({
+      where: { coachId: record.coachId },
+      select: { currency: true }
+    });
 
     return {
       documentNumber: payslip.documentNumber,
@@ -200,7 +215,7 @@ export class PayslipGenerationService {
         name: fullName(record.coach) ?? record.coach.email,
         engagementType: payslip.engagementTypeAtIssue
       },
-      currency: "INR",
+      currency: profile?.currency ?? "INR",
       teachingSummary: {
         scheduledClassesCount: record.scheduledClassesCount,
         completedClassesCount: record.completedClassesCount,

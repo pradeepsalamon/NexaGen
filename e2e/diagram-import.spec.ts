@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+import { API_URL, cookieHeader, login, type Cookie } from "./fixtures";
 
 /**
  * PDF chess-diagram import — the real browser pipeline: pdf.js renders each
@@ -18,8 +19,6 @@ import { test, expect, type APIRequestContext, type Page } from "@playwright/tes
  */
 
 const RUN = process.env.RUN_DIAGRAM_IMPORT_E2E === "1";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
 const FIXTURES = join(__dirname, "fixtures/diagram-import");
 const expected = JSON.parse(readFileSync(join(FIXTURES, "expected.json"), "utf8")) as Record<
   string,
@@ -28,27 +27,6 @@ const expected = JSON.parse(readFileSync(join(FIXTURES, "expected.json"), "utf8"
 
 // Fake camera/microphone for the live-classroom test (harmless for the rest).
 test.use({ launchOptions: { args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] } });
-
-type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
-
-async function login(request: APIRequestContext, baseURL: string): Promise<Cookie[]> {
-  const headers = { Origin: baseURL };
-  let res = await request.post(`${API_URL}/auth/login`, { data: COACH, headers });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: COACH, headers });
-  }
-  expect(res.ok(), `login: ${await res.text()}`).toBeTruthy();
-  return (res.headers()["set-cookie"] || "")
-    .split("\n")
-    .flatMap((line) => line.split(/,(?=\s*nexa_)/))
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.startsWith("nexa_"))
-    .map((c) => {
-      const [name, ...v] = c.split("=");
-      return { name, value: v.join("="), domain: "localhost", path: "/", httpOnly: true };
-    });
-}
 
 const placementOf = (fen: string) => fen.split(" ")[0];
 
@@ -131,9 +109,10 @@ test.describe("PDF diagram import", () => {
 
   let cookies: Cookie[] = [];
 
-  test.beforeAll(async ({ playwright, baseURL }) => {
+  // One login for the serial suite: /auth/login is throttled 5/min.
+  test.beforeAll(async ({ playwright }) => {
     const request = await playwright.request.newContext();
-    cookies = await login(request, baseURL as string);
+    cookies = await login(request, "coach");
     await request.dispose();
   });
 
@@ -275,7 +254,7 @@ test.describe("PDF diagram import", () => {
     const movedPlacement = Array.from({ length: 8 }, (_, r) => moved.slice(r * 8, r * 8 + 8).join("").replace(/\.+/g, (m) => String(m.length))).join("/");
     await expect.poll(async () => placementOf(await fen(page))).toBe(movedPlacement);
     await page.getByRole("button", { name: "Reset" }).click();
-    expect(placementOf(await fen(page))).toBe(recognized);
+    await expect.poll(async () => placementOf(await fen(page))).toBe(recognized);
     await reviewAndCorrect(page, placementOf(d.fen));
 
     // Answer everything → confirm → open on the analysis board (a private Game Library import).
@@ -319,8 +298,8 @@ test.describe("PDF diagram import — live classroom", () => {
 
   test("a confirmed position replaces the shared board only after a second confirmation", async ({ page, playwright, baseURL }) => {
     const request = await playwright.request.newContext();
-    const cookies = await login(request, baseURL as string);
-    const headers = { Cookie: cookies.map((c) => `${c.name}=${c.value}`).join("; "), Origin: baseURL as string };
+    const cookies = await login(request, "coach");
+    const headers = { Cookie: cookieHeader(cookies), Origin: baseURL as string };
     const started = await request.post(`${API_URL}/live-class/${CLASS_ID}/start`, { headers });
     expect([200, 201, 409]).toContain(started.status()); // 409 = already live
     await page.context().addCookies(cookies);

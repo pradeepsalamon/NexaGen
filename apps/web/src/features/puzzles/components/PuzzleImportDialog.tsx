@@ -127,6 +127,15 @@ export function PuzzleImportDialog({ open, onOpenChange, role }: Props) {
         reset();
         onOpenChange(false);
       } else {
+        // Keep only what failed selected, so a retry doesn't re-create the rest.
+        // failed[].index is the position in the request, i.e. in `chosen`.
+        setSelected(
+          new Set(
+            res.failed
+              .map((failure) => chosen[failure.index]?.index)
+              .filter((index): index is number => index !== undefined)
+          )
+        );
         toast.warning({
           title: `Imported ${res.created}, ${res.failed.length} failed`,
           message: res.failed

@@ -154,12 +154,28 @@ export const CoachAttendanceView = memo(function CoachAttendanceView({
                           className="hover:bg-app-soft/50 transition-colors cursor-pointer"
                         >
                           <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 w-10">
-                            {logs.length > 0 &&
-                              (isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-app-muted" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-app-muted" />
-                              ))}
+                            {logs.length > 0 && (
+                              <button
+                                type="button"
+                                aria-label={
+                                  isExpanded
+                                    ? `Hide event timeline for ${record.topic}`
+                                    : `Show event timeline for ${record.topic}`
+                                }
+                                aria-expanded={isExpanded}
+                                className="flex items-center justify-center rounded p-1 text-app-muted hover:text-app-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleClass(record.id);
+                                }}
+                              >
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-app-muted" aria-hidden="true" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-app-muted" aria-hidden="true" />
+                                )}
+                              </button>
+                            )}
                           </TableCell>
                           <TableCell className="text-left px-3 py-3 md:px-6 md:py-4 whitespace-nowrap text-app-text font-medium">
                             {formatDate(record.actualStart ?? record.date, tz, {

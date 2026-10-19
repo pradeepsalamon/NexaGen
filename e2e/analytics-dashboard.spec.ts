@@ -1,31 +1,7 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { API_URL, TEST_USERS, loginContext } from "./fixtures";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
-const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
-
-async function loginCookies(
-  request: APIRequestContext,
-  email: string,
-  password: string
-): Promise<string> {
-  // /auth/login is throttled 5/60s; a full-suite run trips it — back off on 429.
-  let res = await request.post(`${API_URL}/auth/login`, {
-    data: { email, password }
-  });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  }
-  expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
-  const setCookies = res.headers()["set-cookie"] || "";
-  return setCookies
-    .split(",")
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.includes("nexa_"))
-    .join("; ");
-}
+const { admin: ADMIN, student: STUDENT } = TEST_USERS;
 
 const SECTIONS = [
   "overview",
@@ -45,12 +21,11 @@ const SECTIONS = [
 ] as const;
 
 test.describe("Admin analytics API", () => {
-  test("every section responds for an admin", async ({ request }) => {
-    const cookies = await loginCookies(request, ADMIN.email, ADMIN.password);
+  test("every section responds for an admin", async ({ context }) => {
+    await loginContext(context, "admin");
+    const request = context.request;
     for (const section of SECTIONS) {
-      const res = await request.get(`${API_URL}/analytics/${section}`, {
-        headers: { Cookie: cookies }
-      });
+      const res = await request.get(`${API_URL}/analytics/${section}`);
       expect(res.status(), `${section} status`).toBe(200);
       const body = await res.json();
       expect(body.meta, `${section} meta`).toBeTruthy();
@@ -58,28 +33,25 @@ test.describe("Admin analytics API", () => {
     }
   });
 
-  test("date-range presets change the returned window", async ({ request }) => {
-    const cookies = await loginCookies(request, ADMIN.email, ADMIN.password);
+  test("date-range presets change the returned window", async ({ context }) => {
+    await loginContext(context, "admin");
+    const request = context.request;
     const last7 = await (
-      await request.get(`${API_URL}/analytics/overview?preset=last7`, {
-        headers: { Cookie: cookies }
-      })
+      await request.get(`${API_URL}/analytics/overview?preset=last7`)
     ).json();
     const thisYear = await (
-      await request.get(`${API_URL}/analytics/overview?preset=thisYear`, {
-        headers: { Cookie: cookies }
-      })
+      await request.get(`${API_URL}/analytics/overview?preset=thisYear`)
     ).json();
     expect(new Date(last7.meta.rangeStart).getTime()).toBeGreaterThan(
       new Date(thisYear.meta.rangeStart).getTime()
     );
   });
 
-  test("drill-down tables paginate", async ({ request }) => {
-    const cookies = await loginCookies(request, ADMIN.email, ADMIN.password);
+  test("drill-down tables paginate", async ({ context }) => {
+    await loginContext(context, "admin");
+    const request = context.request;
     const res = await request.get(
-      `${API_URL}/analytics/tables/users?page=1&pageSize=5`,
-      { headers: { Cookie: cookies } }
+      `${API_URL}/analytics/tables/users?page=1&pageSize=5`
     );
     expect(res.status()).toBe(200);
     const body = await res.json();
@@ -87,11 +59,10 @@ test.describe("Admin analytics API", () => {
     expect(body.pagination.pageSize).toBe(5);
   });
 
-  test("CSV export returns a text/csv attachment", async ({ request }) => {
-    const cookies = await loginCookies(request, ADMIN.email, ADMIN.password);
-    const res = await request.get(`${API_URL}/analytics/export/coaches`, {
-      headers: { Cookie: cookies }
-    });
+  test("CSV export returns a text/csv attachment", async ({ context }) => {
+    await loginContext(context, "admin");
+    const request = context.request;
+    const res = await request.get(`${API_URL}/analytics/export/coaches`);
     expect(res.status()).toBe(200);
     expect(res.headers()["content-type"]).toContain("text/csv");
     expect(res.headers()["content-disposition"]).toContain("attachment");
@@ -99,11 +70,10 @@ test.describe("Admin analytics API", () => {
     expect(text.split("\n")[0]).toContain("Coach");
   });
 
-  test("a student is forbidden", async ({ request }) => {
-    const cookies = await loginCookies(request, STUDENT.email, STUDENT.password);
-    const res = await request.get(`${API_URL}/analytics/overview`, {
-      headers: { Cookie: cookies }
-    });
+  test("a student is forbidden", async ({ context }) => {
+    await loginContext(context, "student");
+    const request = context.request;
+    const res = await request.get(`${API_URL}/analytics/overview`);
     expect(res.status()).toBe(403);
   });
 

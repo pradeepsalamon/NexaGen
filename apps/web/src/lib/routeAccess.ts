@@ -40,6 +40,27 @@ function matchRule(pathname: string): RouteRule | undefined {
   );
 }
 
+// Pages an anonymous visitor routinely lands on: no session probe, no "session expired" toast.
+const PUBLIC_PREFIXES = [
+  "/academy",
+  "/demo",
+  "/forgot-password",
+  "/login",
+  "/privacy",
+  "/register",
+  "/reset-password",
+  "/signup",
+  "/terms",
+  "/verify-email"
+] as const;
+
+export function isPublicPath(pathname: string): boolean {
+  return (
+    pathname === "/" ||
+    PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+  );
+}
+
 export function isProtectedPath(pathname: string): boolean {
   return matchRule(pathname) !== undefined;
 }

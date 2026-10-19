@@ -1,45 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { loginContext, scheduleClass, seededBatchId } from "./fixtures";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
-const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
-
-async function loginAs(
-  request: APIRequestContext,
-  email: string,
-  password: string,
-): Promise<string> {
-  // /auth/login is throttled 5/60s. These specs do 2 logins per test across
-  // several tests, so a burst run trips the limiter — back off and retry on 429.
-  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  }
-  expect(res.ok(), `Login failed for ${email}: ${await res.text()}`).toBeTruthy();
-  return (res.headers()["set-cookie"] || "")
-    .split(",")
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.includes("nexa_"))
-    .join("; ");
-}
-
-function api(
-  request: APIRequestContext,
-  method: string,
-  path: string,
-  cookies: string,
-  body?: Record<string, unknown>,
-) {
-  return request.fetch(`${API_URL}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Cookie: cookies },
-    data: body,
-  });
-}
+import { api, cookieHeader, login, loginContext, scheduleClass, seededBatchId } from "./fixtures";
 
 /**
  * Cancel/end the coach's leftover E2E classes (stuck SCHEDULED/LIVE from earlier
@@ -66,8 +26,8 @@ async function clearCoachSchedule(request: APIRequestContext, cookies: string) {
 
 test.describe("Pre-class settings — layered resolution & authz", () => {
   test("system policy: admin reads & writes, coach cannot write", async ({ request }) => {
-    const admin = await loginAs(request, ADMIN.email, ADMIN.password);
-    const coach = await loginAs(request, COACH.email, COACH.password);
+    const admin = cookieHeader(await login(request, "admin"));
+    const coach = cookieHeader(await login(request, "coach"));
 
     const get = await api(request, "GET", "/live-class-settings/policy", admin);
     expect(get.status()).toBe(200);
@@ -86,8 +46,8 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
   });
 
   test("presets: coach makes a personal one, only admin makes an org one", async ({ request }) => {
-    const coach = await loginAs(request, COACH.email, COACH.password);
-    const admin = await loginAs(request, ADMIN.email, ADMIN.password);
+    const coach = cookieHeader(await login(request, "coach"));
+    const admin = cookieHeader(await login(request, "admin"));
 
     const personal = await api(request, "POST", "/live-class-presets", coach, {
       name: `E2E personal ${Date.now()}`,
@@ -124,8 +84,8 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
   });
 
   test("batch → class inheritance and the pre-join settings preview", async ({ request }) => {
-    const admin = await loginAs(request, ADMIN.email, ADMIN.password);
-    const coach = await loginAs(request, COACH.email, COACH.password);
+    const admin = cookieHeader(await login(request, "admin"));
+    const coach = cookieHeader(await login(request, "coach"));
 
     const batches = await (await api(request, "GET", "/coach/batches", coach)).json();
     const batchId = seededBatchId(batches);
@@ -152,53 +112,70 @@ test.describe("Pre-class settings — layered resolution & authz", () => {
     // New class in that batch inherits the batch default until overridden.
     await clearCoachSchedule(request, coach);
     const now = Date.now();
-    const classId = await scheduleClass(
-      (method, path, body) => api(request, method, path, coach, body),
-      (method, path, body) => api(request, method, path, admin, body),
-      {
-        batchId,
-        topic: "E2E pre-class settings",
-        startsAt: new Date(now + 5 * 60_000).toISOString(),
-        endsAt: new Date(now + 65 * 60_000).toISOString(),
-      },
-    );
-    const classWrite = await api(request, "PUT", `/live-class-settings/class/${classId}`, coach, {
-      liveClassSettings: { student: { mic: "FORCED_OFF" } },
-    });
-    expect(classWrite.status(), `class settings: ${await classWrite.text()}`).toBe(200);
+    let classId: string | undefined;
+    try {
+      classId = await scheduleClass(
+        (method, path, body) => api(request, method, path, coach, body),
+        (method, path, body) => api(request, method, path, admin, body),
+        {
+          batchId,
+          topic: "E2E pre-class settings",
+          startsAt: new Date(now + 5 * 60_000).toISOString(),
+          endsAt: new Date(now + 65 * 60_000).toISOString(),
+        },
+      );
+      const classWrite = await api(request, "PUT", `/live-class-settings/class/${classId}`, coach, {
+        liveClassSettings: { student: { mic: "FORCED_OFF" } },
+      });
+      expect(classWrite.status(), `class settings: ${await classWrite.text()}`).toBe(200);
 
-    const forClass = await (
-      await api(request, "GET", `/live-class-settings/class/${classId}`, coach)
-    ).json();
-    expect(forClass.resolved.student.screenShare).toBe("ALLOWED"); // from batch
-    expect(forClass.resolved.student.mic).toBe("FORCED_OFF"); // from class override
-    expect(forClass.classOverride.student.mic).toBe("FORCED_OFF");
+      const forClass = await (
+        await api(request, "GET", `/live-class-settings/class/${classId}`, coach)
+      ).json();
+      expect(forClass.resolved.student.screenShare).toBe("ALLOWED"); // from batch
+      expect(forClass.resolved.student.mic).toBe("FORCED_OFF"); // from class override
+      expect(forClass.classOverride.student.mic).toBe("FORCED_OFF");
 
-    // The student-visible class fetch carries the resolved preview.
-    const student = await loginAs(request, STUDENT.email, STUDENT.password);
-    const liveClass = await (await api(request, "GET", `/live-class/${classId}`, student)).json();
-    expect(liveClass.preClassSettings.student.mic).toBe("FORCED_OFF");
-
-    // Reset the batch default so the run is idempotent.
-    await api(request, "PUT", `/live-class-settings/batch/${batchId}`, admin, {
-      liveClassSettings: null,
-    });
+      // The student-visible class fetch carries the resolved preview.
+      const student = cookieHeader(await login(request, "student"));
+      const liveClass = await (await api(request, "GET", `/live-class/${classId}`, student)).json();
+      expect(liveClass.preClassSettings.student.mic).toBe("FORCED_OFF");
+    } finally {
+      // Leave nothing behind for the next run, even when an assertion failed.
+      if (classId) await api(request, "PATCH", `/coach/classes/${classId}/cancel`, coach);
+      await api(request, "PUT", `/live-class-settings/batch/${batchId}`, admin, {
+        liveClassSettings: null,
+      });
+    }
   });
 
   test("audit log: admin only, records the change", async ({ request }) => {
-    const admin = await loginAs(request, ADMIN.email, ADMIN.password);
-    const student = await loginAs(request, STUDENT.email, STUDENT.password);
+    const admin = cookieHeader(await login(request, "admin"));
+    const student = cookieHeader(await login(request, "student"));
 
     expect((await api(request, "GET", "/live-class-settings/audit", student)).status()).toBe(403);
 
-    await api(request, "PUT", "/live-class-settings/policy", admin, {
-      settings: { student: { chat: "ENABLED" } },
-    });
+    // Flip student chat so the write is a real change, then put it back.
+    const policy = await (await api(request, "GET", "/live-class-settings/policy", admin)).json();
+    const originalChat: "ENABLED" | "DISABLED" = policy.settings.student.chat;
+    const flipped = originalChat === "ENABLED" ? "DISABLED" : "ENABLED";
+    try {
+      const write = await api(request, "PUT", "/live-class-settings/policy", admin, {
+        settings: { student: { chat: flipped } },
+      });
+      expect(write.status(), `policy write: ${await write.text()}`).toBe(200);
 
-    const audit = await (await api(request, "GET", "/live-class-settings/audit", admin)).json();
-    expect(Array.isArray(audit.entries)).toBe(true);
-    expect(audit.entries.length).toBeGreaterThan(0);
-    expect(audit.entries[0].scope).toBeTruthy();
+      const audit = await (await api(request, "GET", "/live-class-settings/audit", admin)).json();
+      const newest = audit.entries[0];
+      expect(newest.entity).toBe("LiveClassPolicy");
+      expect(newest.scope).toBe("SYSTEM");
+      expect(newest.before?.student?.chat).toBe(originalChat);
+      expect(newest.after?.student?.chat).toBe(flipped);
+    } finally {
+      await api(request, "PUT", "/live-class-settings/policy", admin, {
+        settings: { student: { chat: originalChat } },
+      });
+    }
   });
 });
 

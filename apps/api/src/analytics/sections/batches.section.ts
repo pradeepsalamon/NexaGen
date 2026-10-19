@@ -11,7 +11,7 @@ import { getApiEnv } from "@nexa-chess/config/api";
 import { PrismaService } from "../../prisma/prisma.service";
 import { zonedMonthBounds } from "../../common/time";
 import { densifySeries, roundTo } from "../analytics-math";
-import { buildMeta, pct, type AnalyticsContext } from "../analytics-support";
+import { buildMeta, pct, sqlTimestamp, type AnalyticsContext } from "../analytics-support";
 
 @Injectable()
 export class BatchesAnalyticsSection {
@@ -151,13 +151,13 @@ export class BatchesAnalyticsSection {
       this.prisma.$queryRaw<
         { bucket: string; attended: bigint; total: bigint }[]
       >(Prisma.sql`
-        SELECT to_char(date_trunc(${range.granularity}, (c."startsAt" AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
+        SELECT to_char(date_trunc(${range.granularity}, ((c."startsAt" AT TIME ZONE 'UTC') AT TIME ZONE ${range.timezone})), 'YYYY-MM-DD') AS bucket,
                count(*) FILTER (WHERE ca.status IN ('PRESENT','LATE'))::bigint AS attended,
                count(*)::bigint AS total
         FROM "class_attendance" ca
         JOIN "classes" c ON c.id = ca."classId"
         WHERE c.status = 'COMPLETED' AND c."batchId" = ${batchId}
-          AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+          AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
         GROUP BY 1 ORDER BY 1
       `),
       this.studentsForBatch(batchId, range)
@@ -216,7 +216,7 @@ export class BatchesAnalyticsSection {
       FROM "batch_students" bs
       JOIN "users" u ON u.id = bs."studentId"
       LEFT JOIN "classes" c ON c."batchId" = bs."batchId" AND c.status = 'COMPLETED'
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       LEFT JOIN "class_attendance" ca ON ca."classId" = c.id AND ca."studentId" = u.id
       WHERE bs."batchId" = ${batchId} AND bs."isDeleted" = false AND u."isDeleted" = false
       GROUP BY 1, 2, 3, 4
@@ -323,10 +323,10 @@ export class BatchesAnalyticsSection {
       FROM "users" u
       WHERE u.role = 'STUDENT' AND u."isDeleted" = false
         AND (
-          (u."lastActiveAt" >= ${start} AND u."lastActiveAt" < ${end})
+          (u."lastActiveAt" >= ${sqlTimestamp(start)} AND u."lastActiveAt" < ${sqlTimestamp(end)})
           OR EXISTS (
             SELECT 1 FROM "analytics_events" e
-            WHERE e."userId" = u.id AND e."occurredAt" >= ${start} AND e."occurredAt" < ${end}
+            WHERE e."userId" = u.id AND e."occurredAt" >= ${sqlTimestamp(start)} AND e."occurredAt" < ${sqlTimestamp(end)}
           )
         )
     `);
@@ -347,7 +347,7 @@ export class BatchesAnalyticsSection {
       FROM "class_attendance" ca
       JOIN "classes" c ON c.id = ca."classId"
       WHERE ca.status IN ('PRESENT','LATE') AND c.status = 'COMPLETED'
-        AND c."startsAt" >= ${start} AND c."startsAt" < ${end}
+        AND c."startsAt" >= ${sqlTimestamp(start)} AND c."startsAt" < ${sqlTimestamp(end)}
     `);
     return Number(rows[0]?.count ?? 0);
   }
@@ -417,7 +417,7 @@ export class BatchesAnalyticsSection {
       JOIN "classes" c ON c.id = ca."classId"
       JOIN "users" u ON u.id = ca."studentId"
       WHERE c.status = 'COMPLETED' AND u."isDeleted" = false
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2, 3, 4
       HAVING count(*) >= 3
         AND (count(*) FILTER (WHERE ca.status IN ('PRESENT','LATE'))::float / count(*)) * 100 < ${threshold}
@@ -465,7 +465,7 @@ export class BatchesAnalyticsSection {
       JOIN "classes" c ON c.id = ca."classId"
       JOIN "users" u ON u.id = ca."studentId"
       WHERE c.status = 'COMPLETED' AND u."isDeleted" = false
-        AND c."startsAt" >= ${range.start} AND c."startsAt" < ${range.end}
+        AND c."startsAt" >= ${sqlTimestamp(range.start)} AND c."startsAt" < ${sqlTimestamp(range.end)}
       GROUP BY 1, 2, 3, 4
       ORDER BY attended DESC, seconds DESC
       LIMIT 20

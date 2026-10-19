@@ -52,7 +52,12 @@ export const useOperationsQuery = (q: AnalyticsRangeQuery) =>
     refetchInterval: 60_000
   });
 export const useTodayQuery = (q: AnalyticsRangeQuery) =>
-  useSection("today", analyticsApi.today, q);
+  useQuery({
+    queryKey: queryKeys.analytics.section("today", q as Record<string, unknown>),
+    queryFn: () => analyticsApi.today(q),
+    staleTime: 30_000,
+    refetchInterval: 60_000
+  });
 export const useAlertsQuery = (q: AnalyticsRangeQuery) =>
   useSection("alerts", analyticsApi.alerts, q);
 

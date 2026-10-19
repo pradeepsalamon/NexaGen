@@ -30,7 +30,7 @@ export function ThemePreviewBoard({ boardThemeId, pieceSetId, className }: Theme
   const squares = [];
   for (let rank = 8; rank >= 1; rank--) {
     for (let file = 0; file < 8; file++) {
-      const isLight = (file + rank) % 2 === 1;
+      const isLight = (file + rank) % 2 === 0;
       const piece = pieceForSquare(file, rank);
       squares.push(
         <div

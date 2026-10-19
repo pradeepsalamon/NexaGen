@@ -62,7 +62,10 @@ export function BatchPricingTab({ batchId }: Props) {
           monthly subscription alongside a one-time fee.
         </p>
         <Button
-          onClick={() => setCreating(true)}
+          onClick={() => {
+            setEditing(null);
+            setCreating(true);
+          }}
           size="sm"
           type="button"
           variant="primary"
@@ -155,6 +158,8 @@ export function BatchPricingTab({ batchId }: Props) {
 
       {creating || editing ? (
         <PriceOptionForm
+          // Remount per plan, so switching edits never keeps the last plan's values.
+          key={editing?.id ?? "new"}
           batchId={batchId}
           onClose={() => {
             setCreating(false);

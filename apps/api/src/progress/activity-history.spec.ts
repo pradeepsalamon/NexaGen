@@ -70,7 +70,7 @@ describe("pickWeakThemes", () => {
     expect(weak.map((t) => t.key)).toEqual(["skewer", "fork"]);
   });
   it("shows the same tries once, under the most specific name", () => {
-    const same = { ...accuracyStats(10, 2) };
+    const same = { ...accuracyStats(10, 2), attemptSetKey: "same-puzzles" };
     const { weak } = pickWeakThemes(
       [
         { ...same, key: "TACTICAL", kind: "TYPE", label: "Tactical" },
@@ -80,6 +80,16 @@ describe("pickWeakThemes", () => {
       60
     );
     expect(weak.map((t) => t.label)).toEqual(["Fork"]);
+  });
+  it("keeps unrelated themes that only happen to share their counts", () => {
+    const { weak } = pickWeakThemes(
+      [
+        { ...accuracyStats(10, 2), attemptSetKey: "a", key: "fork", kind: "THEME", label: "Fork" },
+        { ...accuracyStats(10, 2), attemptSetKey: "b", key: "pin", kind: "THEME", label: "Pin" }
+      ],
+      60
+    );
+    expect(weak.map((t) => t.key).sort()).toEqual(["fork", "pin"]);
   });
   it("flags nothing without an overall accuracy", () => {
     expect(pickWeakThemes([theme("fork", 10, 0)], null).weak).toEqual([]);

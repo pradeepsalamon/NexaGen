@@ -82,6 +82,8 @@ function useAccountMutation<TArgs, TResult>(fn: (args: TArgs) => Promise<TResult
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.gameSources.overview });
       void qc.invalidateQueries({ queryKey: queryKeys.games.all });
+      // Imported games feed the insights.
+      void qc.invalidateQueries({ queryKey: queryKeys.gameAnalysis.all });
     },
   });
 }

@@ -8,6 +8,7 @@ import type {
 } from "@nexa-chess/types";
 import { queryKeys } from "@/lib/queryKeys";
 import { useToast } from "@/providers/ToastProvider";
+import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import {
   createAnnouncement,
   deleteAnnouncement,
@@ -102,17 +103,21 @@ export function useCreateAnnouncement() {
   });
 }
 
-export function useDeleteAnnouncement() {
-  const queryClient = useQueryClient();
-  const toast = useToast();
-
-  return useMutation({
-    mutationFn: (id: string) => deleteAnnouncement(id),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.messaging.announcements
-      });
-      toast.success({ title: "Announcement removed from the dashboard feed" });
-    }
+/**
+ * Deferred (no restore endpoint): the caller hides the row via onSchedule, and
+ * the delete is only sent once the undo window passes.
+ */
+export function useDeleteAnnouncement(options: {
+  onSchedule?: (id: string) => void;
+  onCancel?: (id: string) => void;
+} = {}) {
+  return useUndoableMutation<string, unknown>({
+    strategy: "defer",
+    mutationFn: (id) => deleteAnnouncement(id),
+    undo: async () => {},
+    toast: () => ({ title: "Announcement removed from the dashboard feed" }),
+    invalidates: [queryKeys.messaging.announcements],
+    onSchedule: options.onSchedule,
+    onCancel: options.onCancel
   });
 }

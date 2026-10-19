@@ -22,12 +22,13 @@ const badgeVariants = cva(
   }
 );
 
-type BadgeProps = React.HTMLAttributes<HTMLDivElement> &
+type BadgeProps = React.HTMLAttributes<HTMLSpanElement> &
   VariantProps<typeof badgeVariants>;
 
+// A span, so a badge is valid inside a <p>, a button or a table cell's text.
 function Badge({ className, variant, ...props }: BadgeProps) {
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <span className={cn(badgeVariants({ variant }), className)} {...props} />
   );
 }
 

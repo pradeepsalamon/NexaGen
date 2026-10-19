@@ -3,6 +3,7 @@ import {
   attemptMoveSchema,
   chessColorSchema,
   paginationMetaSchema,
+  partialWithoutDefaults,
   solutionMoveSchema
 } from "./core-schemas";
 import { batchTypeSchema, type BatchType, type BatchTypeSource } from "./batch-type";
@@ -34,7 +35,13 @@ import {
   type SoundThemeMeta
 } from "./chess-appearance";
 
-export { attemptMoveSchema, chessColorSchema, paginationMetaSchema, solutionMoveSchema } from "./core-schemas";
+export {
+  attemptMoveSchema,
+  chessColorSchema,
+  paginationMetaSchema,
+  partialWithoutDefaults,
+  solutionMoveSchema
+} from "./core-schemas";
 export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
@@ -300,7 +307,7 @@ export const createBatchRequestSchema = createBatchRequestBaseSchema.refine(
   batchDateRefinementOptions
 );
 
-export const updateBatchRequestSchema = createBatchRequestBaseSchema.partial().refine(
+export const updateBatchRequestSchema = partialWithoutDefaults(createBatchRequestBaseSchema).refine(
   batchDateRefinement,
   batchDateRefinementOptions
 );
@@ -314,7 +321,7 @@ export const createUserRequestSchema = z.object({
   status: userStatusSchema.optional().default("ACTIVE")
 });
 
-export const updateUserRequestSchema = createUserRequestSchema.partial();
+export const updateUserRequestSchema = partialWithoutDefaults(createUserRequestSchema);
 
 export type ReferralSource = z.infer<typeof referralSourceSchema>;
 
@@ -873,7 +880,7 @@ export const createLiveClassPresetRequestSchema = z.object({
 });
 export type CreateLiveClassPresetRequest = z.infer<typeof createLiveClassPresetRequestSchema>;
 
-export const updateLiveClassPresetRequestSchema = createLiveClassPresetRequestSchema.partial();
+export const updateLiveClassPresetRequestSchema = partialWithoutDefaults(createLiveClassPresetRequestSchema);
 export type UpdateLiveClassPresetRequest = z.infer<typeof updateLiveClassPresetRequestSchema>;
 
 export type CoachClassListResponse = {
@@ -1229,10 +1236,16 @@ export const reliabilityMetricsSchema = z.object({
 export type ReliabilityMetrics = z.infer<typeof reliabilityMetricsSchema>;
 
 export const recordingProgressRequestSchema = z.object({
-  watchedSeconds: z.number().int().min(0)
+  watchedSeconds: z.number().int().min(0).max(24 * 60 * 60)
 });
 
 export type RecordingProgressRequest = z.infer<typeof recordingProgressRequestSchema>;
+
+export const liveClassHeartbeatRequestSchema = z.object({
+  clientId: z.string().min(1).max(100).optional()
+});
+
+export type LiveClassHeartbeatRequest = z.infer<typeof liveClassHeartbeatRequestSchema>;
 
 // -- ATTENDANCE POLICY TYPES --
 
@@ -2640,6 +2653,30 @@ export type StudentDashboardUpcomingClass = {
   startsAt: string;
   endsAt: string;
   status: ClassStatus;
+};
+
+/** `GET /student/dashboard`. Every date is an ISO-8601 UTC string. */
+export type StudentDashboardResponse = {
+  batchName: string | null;
+  chessRating: number | null;
+  liveClass: StudentDashboardLiveClass | null;
+  todaysClass: StudentDashboardFeaturedClass | null;
+  nextClasses: StudentDashboardUpcomingClass[];
+  upcomingClasses: { id: string; startsAt: string; coach: string; topic: string; status: string }[];
+  courses: { id: string; title: string; module: string; progressPercent: number; lastOpenedAt: string }[];
+  practices: { id: string; title: string; difficulty: string; dueDate: string; status: string }[];
+  activities: { id: string; type: string; title: string; createdAt: string }[];
+  announcements: { id: string; title: string; description: string; type: string; createdAt: string }[];
+  pastClasses: {
+    id: string;
+    topic: string;
+    coachName: string;
+    startsAt: string;
+    endsAt: string;
+    status: string;
+    hasRecording: boolean;
+  }[];
+  progressMetrics: { label: string; value: string; trend: string }[];
 };
 
 /** `GET /student/classes/:id` — one class as an enrolled student sees it. */

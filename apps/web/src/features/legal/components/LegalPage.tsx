@@ -41,8 +41,8 @@ export function LegalPage({ intro, other, sections, title }: LegalPageProps) {
             <h2 className="text-xl font-bold text-app-text" id={`${section.id}-heading`}>
               {section.title}
             </h2>
-            {section.paragraphs?.map((paragraph) => (
-              <p className="mt-3 leading-7 text-app-text" key={paragraph}>
+            {section.paragraphs?.map((paragraph, index) => (
+              <p className="mt-3 leading-7 text-app-text" key={`${section.id}-${index}`}>
                 {paragraph}
               </p>
             ))}

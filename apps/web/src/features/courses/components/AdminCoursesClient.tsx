@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { CourseListQuery, CourseStatus, CourseSummary } from "@nexa-chess/types";
 import { Archive, ArchiveRestore, Pencil, Plus, Send, Trash2, Undo2 } from "lucide-react";
@@ -61,6 +61,11 @@ export function AdminCoursesClient() {
     }
   });
   const pagination = data?.pagination;
+  // A filter or delete can shrink the result below the current page.
+  const totalPages = pagination?.totalPages ?? 0;
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
   const hasFilters = Boolean(searchInput || status);
 
   const clearFilters = () => {

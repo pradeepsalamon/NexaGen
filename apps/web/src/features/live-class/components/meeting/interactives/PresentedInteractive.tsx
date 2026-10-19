@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 import { Pause, Shapes, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatClock } from "../../../hooks/useClassroomTimer";
+import { formatClockMs } from "../../../hooks/useClassroomTimer";
 import { InlineStage } from "../classroom/InlineStage";
 import { MeetingControlButton } from "../MeetingControlButton";
 import { InteractivePanel } from "./InteractivePanel";
@@ -107,7 +107,7 @@ export function StudentInteractivesControl() {
 
   const clock = timerVisible ? (
     <span
-      aria-label={`Classroom timer: ${timer.phase?.label}, ${formatClock(timer.remainingMs)} left`}
+      aria-label={`Classroom timer: ${timer.phase?.label}, ${formatClockMs(timer.remainingMs)} left`}
       className={cn(
         "flex items-center gap-0.5 whitespace-nowrap rounded-full border border-app-border bg-app-surface px-1.5 text-[0.6875rem] font-bold leading-5 tabular-nums shadow-card",
         tool && "absolute -top-2.5 left-1/2 z-10 -translate-x-1/2",
@@ -118,7 +118,7 @@ export function StudentInteractivesControl() {
       role="timer"
     >
       <Timer aria-hidden="true" className="size-3" strokeWidth={2.5} />
-      {formatClock(timer.remainingMs)}
+      {formatClockMs(timer.remainingMs)}
       {timer.state?.status === "PAUSED" ? (
         <Pause aria-hidden="true" className="size-3" strokeWidth={2.5} />
       ) : null}

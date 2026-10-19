@@ -64,11 +64,30 @@ describe("AssignmentAttemptService", () => {
   let prisma: {
     user: { findUnique: jest.Mock };
     studentAssignment: { findUnique: jest.Mock; update: jest.Mock };
-    studentAssignmentAttempt: { create: jest.Mock; update: jest.Mock; findFirst: jest.Mock };
+    studentAssignmentAttempt: {
+      create: jest.Mock;
+      update: jest.Mock;
+      updateMany: jest.Mock;
+      findUniqueOrThrow: jest.Mock;
+      findFirst: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
 
   beforeEach(() => {
+    const currentAttempt: Record<string, unknown> = {
+      id: "att-1",
+      attemptNumber: 1,
+      status: "IN_PROGRESS",
+      movesJson: [],
+      scorePercent: null,
+      accuracyPercent: null,
+      hintsUsed: 0,
+      durationSeconds: 0,
+      result: null,
+      startedAt: new Date(),
+      completedAt: null
+    };
     const jwt = { verifyAsync: jest.fn().mockResolvedValue({ sub: STUDENT_ID, type: "access" }) };
     prisma = {
       user: {
@@ -108,6 +127,11 @@ describe("AssignmentAttemptService", () => {
           completedAt: null,
           ...data
         })),
+        updateMany: jest.fn().mockImplementation(({ data }) => {
+          Object.assign(currentAttempt, data);
+          return Promise.resolve({ count: 1 });
+        }),
+        findUniqueOrThrow: jest.fn().mockImplementation(() => currentAttempt),
         findFirst: jest.fn().mockResolvedValue(null)
       },
       $transaction: jest.fn((cb: (tx: unknown) => unknown) => cb(prisma))

@@ -288,7 +288,16 @@ export class PayslipPdfService {
                   [
                     { text: "GROSS EARNINGS", style: "totalLabelStrong" },
                     { text: money(payslip.grossEarningsMinor), style: "totalValueStrong", alignment: "right" }
-                  ]
+                  ],
+                  // A net-positive adjustment is an earning; a negative one is listed under deductions.
+                  ...(payslip.totalAdjustmentsMinor > 0
+                    ? [
+                        [
+                          { text: "Adjustments", style: "totalLabel" },
+                          { text: money(payslip.totalAdjustmentsMinor), style: "totalValue", alignment: "right" }
+                        ]
+                      ]
+                    : [])
                 ]
               },
               layout: "noBorders"
@@ -310,7 +319,7 @@ export class PayslipPdfService {
     );
     const rows: [string, string][] = deductionLines.map((line) => [line.label, money(line.amountMinor)]);
     if (payslip.totalAdjustmentsMinor < 0) {
-      rows.push(["Adjustments", money(payslip.totalAdjustmentsMinor)]);
+      rows.push(["Adjustments", money(-payslip.totalAdjustmentsMinor)]);
     }
     if (rows.length === 0) return [];
 

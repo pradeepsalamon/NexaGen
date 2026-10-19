@@ -38,14 +38,27 @@ export function ImportGameDialog({
   const [batchId, setBatchId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  const onFile = async (file: File | undefined) => {
+  const onFile = async (input: HTMLInputElement) => {
+    const file = input.files?.[0];
+    // Cleared so picking the same file again still fires onChange.
+    input.value = "";
     if (!file) return;
     if (file.size > MAX_FILE_BYTES) {
       setError("That file is too large (200 KB max).");
       return;
     }
-    setPgn(await file.text());
-    setError(null);
+    try {
+      setPgn(await file.text());
+      setError(null);
+    } catch {
+      setError("That file could not be read.");
+    }
+  };
+
+  // No closing mid-import: the request would finish with nowhere to report.
+  const handleOpenChange = (next: boolean) => {
+    if (!next && importGame.isPending) return;
+    onOpenChange(next);
   };
 
   const submit = () => {
@@ -64,7 +77,7 @@ export function ImportGameDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>Import a PGN</DialogTitle>
@@ -89,7 +102,7 @@ export function ImportGameDialog({
                 type="file"
                 accept=".pgn,text/plain,application/x-chess-pgn"
                 className="sr-only"
-                onChange={(e) => void onFile(e.target.files?.[0])}
+                onChange={(e) => void onFile(e.target)}
               />
             </label>
           </div>
@@ -115,7 +128,7 @@ export function ImportGameDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" disabled={importGame.isPending} onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={submit} disabled={!pgn.trim() || importGame.isPending}>

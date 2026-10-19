@@ -125,13 +125,23 @@ in_blackout() {
   local now from to
   now=$(date -u +%H%M); from=${BLACKOUT_UTC%-*}; to=${BLACKOUT_UTC#*-}
   from=${from/:/}; to=${to/:/}
-  [ "$((10#$now))" -ge "$((10#$from))" ] && [ "$((10#$now))" -lt "$((10#$to))" ]
+  now=$((10#$now)); from=$((10#$from)); to=$((10#$to))
+  if [ "$from" -le "$to" ]; then
+    [ "$now" -ge "$from" ] && [ "$now" -lt "$to" ]
+  else
+    # Crosses midnight, e.g. 23:30-01:00.
+    [ "$now" -ge "$from" ] || [ "$now" -lt "$to" ]
+  fi
 }
 in_blackout && die "inside the backup window ($BLACKOUT_UTC UTC) — run later"
 
 # ── Resource gate (spec §13) ─────────────────────────────────────────────────
+# A failed or non-200 probe counts as the timeout, never as a fast answer.
 health_sample() {
-  curl -s -o /dev/null -m 10 -w '%{time_total}' "$API_HEALTH_URL" 2>/dev/null || echo 10
+  local out code time
+  out=$(curl -s -o /dev/null -m 10 -w '%{http_code} %{time_total}' "$API_HEALTH_URL" 2>/dev/null) || { echo 10; return; }
+  read -r code time <<< "$out"
+  if [ "$code" = "200" ]; then echo "$time"; else echo 10; fi
 }
 health_median() {
   local samples=()
@@ -284,6 +294,7 @@ SQL
 done
 
 # ── 4. Retire ids this release no longer contains ────────────────────────────
+wait_for_gate 0
 RETIRED=$(psql_db <<'SQL'
 WITH r AS (
   UPDATE lichess_puzzles c
@@ -298,6 +309,7 @@ SQL
 log "Retired $RETIRED rows"
 
 # ── 5. Vacuum ────────────────────────────────────────────────────────────────
+wait_for_gate 0
 log "VACUUM (FREEZE, ANALYZE) …"
 psql_db <<'SQL'
 SET maintenance_work_mem = '256MB';

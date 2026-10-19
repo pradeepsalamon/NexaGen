@@ -174,6 +174,28 @@ describe("recurrence engine", () => {
         })
       ).toThrow(RecurrenceValidationError);
     });
+
+    it("rejects a range exceeding 2 years", () => {
+      expect(() =>
+        generateOccurrences({
+          startDate: "2026-01-01",
+          endDate: "2029-01-01",
+          timezone: "UTC",
+          rules: [{ id: "a", dayOfWeek: MON, startTime: "18:00", endTime: "19:00", coachId: "c1" }]
+        })
+      ).toThrow("Schedule range cannot exceed 2 years.");
+    });
+
+    it("rejects invalid calendar dates like Feb 30", () => {
+      expect(() =>
+        generateOccurrences({
+          startDate: "2026-02-30",
+          endDate: "2026-03-15",
+          timezone: "UTC",
+          rules: [{ id: "a", dayOfWeek: MON, startTime: "18:00", endTime: "19:00", coachId: "c1" }]
+        })
+      ).toThrow(RecurrenceValidationError);
+    });
   });
 
   describe("instantsOverlap", () => {

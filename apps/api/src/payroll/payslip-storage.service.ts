@@ -81,7 +81,7 @@ export class PayslipStorageService {
     if (!url) return null;
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {
         this.logger.warn(`Payslip PDF ${storageKey} fetch returned ${response.status}.`);
         return null;

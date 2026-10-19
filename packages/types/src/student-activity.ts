@@ -329,22 +329,23 @@ const KIND_SPECIFICITY: Record<ActivityThemeStat["kind"], number> = { FOLDER: 1,
  * Themes with enough graded attempts whose accuracy sits at least
  * THEME_GAP_POINTS under the overall figure, weakest first.
  */
-export function pickWeakThemes(
-  themes: ActivityThemeStat[],
+export function pickWeakThemes<T extends ActivityThemeStat & { attemptSetKey?: string }>(
+  themes: T[],
   overallAccuracy: number | null,
   limit = 5
-): { weak: ActivityThemeStat[]; comparable: number } {
+): { weak: T[]; comparable: number } {
   const comparable = themes.filter((t) => t.gradedAttempts >= THEME_MIN_SAMPLE && t.accuracyPercent !== null);
   if (overallAccuracy === null) return { comparable: comparable.length, weak: [] };
   // A theme tag, its folder and its puzzle type often measure the very same
-  // tries; show that evidence once, under its most specific name.
+  // tries; show that evidence once, under its most specific name. Only an
+  // `attemptSetKey` proves that: equal counts alone can be unrelated themes.
   const seen = new Set<string>();
   const weak = [...comparable]
     .sort((a, b) => KIND_SPECIFICITY[a.kind] - KIND_SPECIFICITY[b.kind])
     .filter((t) => {
-      const signature = `${t.gradedAttempts}:${t.correctAttempts}`;
-      if (seen.has(signature)) return false;
-      seen.add(signature);
+      if (!t.attemptSetKey) return true;
+      if (seen.has(t.attemptSetKey)) return false;
+      seen.add(t.attemptSetKey);
       return true;
     })
     .filter((t) => (t.accuracyPercent as number) <= overallAccuracy - THEME_GAP_POINTS)

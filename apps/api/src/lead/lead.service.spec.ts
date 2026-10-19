@@ -196,7 +196,7 @@ describe("LeadService", () => {
         sessionId: "session-1",
         url: "https://academy.nexa.test/academy?utm_source=facebook&utm_campaign=launch&fbclid=abc",
         referrer: "https://facebook.com",
-        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS) AppleWebKit Safari/604.1",
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
         ipAddress: "203.0.113.5"
       });
 

@@ -45,7 +45,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     chess, fen, turn, orientation, moveHistory, historyIndex,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
-    isDetached, localFlip, overlayArrows
+    isDetached, localFlip, overlayArrows, pendingPromotion
   } = useBoardStore(
     useShallow((s) => ({
       chess: s.chess,
@@ -68,6 +68,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       isDetached: s.isDetached,
       localFlip: s.localFlip,
       overlayArrows: s.overlayArrows,
+      pendingPromotion: s.pendingPromotion,
     })),
   );
   // Everyone may draw arrows on an interactive board. A student's marks stay on
@@ -273,6 +274,19 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       while (boardEl && boardEl.firstChild) boardEl.removeChild(boardEl.firstChild);
     };
   }, [showCoordinates]); // Re-create on coordinate toggle: chessground v9 renders rank/file labels only at construction (renderWrap)
+
+  // A cancelled promotion leaves the dragged pawn on the last rank with no new
+  // fen to correct it, so put chessground back on the store's position.
+  const hadPromotion = useRef(false);
+  useEffect(() => {
+    if (pendingPromotion) {
+      hadPromotion.current = true;
+      return;
+    }
+    if (hadPromotion.current && cg) cg.set({ fen });
+    hadPromotion.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingPromotion, cg]);
 
   // Update brushes dynamically when activeBrush changes
   useEffect(() => {

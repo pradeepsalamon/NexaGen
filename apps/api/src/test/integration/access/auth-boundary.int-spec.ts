@@ -4,6 +4,7 @@ import { hashSecret } from "../../../auth/auth.utils";
 import { TEST_ORIGIN } from "../app-env";
 import { createTestApp, type TestApp } from "../app";
 import { createUser, resetDatabase } from "../db";
+import { registeredRoutes } from "../routes";
 
 /**
  * Routes that answer without a session, by design. Everything else the app
@@ -16,18 +17,6 @@ const ANONYMOUS_OK = new Set([
   "POST /auth/logout"
 ]);
 
-function mountedRoutes(t: TestApp) {
-  // Express 5 keeps the route table on `router.stack`.
-  const stack = (t.app.getHttpAdapter().getInstance() as { router: { stack: RouteLayer[] } }).router.stack;
-  return stack.flatMap((layer) =>
-    layer.route
-      ? Object.keys(layer.route.methods)
-          .filter((m) => ["get", "post", "put", "patch", "delete"].includes(m))
-          .map((m) => ({ method: m.toUpperCase(), path: layer.route!.path }))
-      : []
-  );
-}
-type RouteLayer = { route?: { path: string; methods: Record<string, boolean> } };
 
 describe("auth boundary (real app, real Postgres)", () => {
   let t: TestApp;
@@ -41,7 +30,7 @@ describe("auth boundary (real app, real Postgres)", () => {
   });
 
   it("every mounted route refuses an anonymous caller unless it is public by design", async () => {
-    const routes = mountedRoutes(t);
+    const routes = registeredRoutes(t);
     expect(routes.length).toBeGreaterThan(400);
     const answered: string[] = [];
     for (const route of routes) {

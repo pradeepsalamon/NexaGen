@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { useAuthStore } from "@/stores/authStore";
 import { useToast } from "@/providers/ToastProvider";
@@ -19,12 +19,30 @@ import {
   valuesFromUser
 } from "./profile-form/profileForm.utils";
 
+function cleanPayload<T extends Record<string, unknown>>(obj: T): T {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const nested = cleanPayload(value as Record<string, unknown>);
+        if (Object.keys(nested).length > 0) {
+          result[key] = nested;
+        }
+      } else {
+        result[key] = value;
+      }
+    }
+  }
+  return result as T;
+}
+
 export function ProfileForm() {
   const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
   const user = useAuthStore((state) => state.user);
   const [values, setValues] = useState<ProfileFormValues>(emptyValues);
   const [isUploading, setIsUploading] = useState(false);
+  const uploadingRef = useRef(false);
 
   // undo: intentionally excluded — self-service account settings form with an
   // explicit Save button, not a row action; may also change the password
@@ -60,16 +78,24 @@ export function ProfileForm() {
 
   const handleAvatarUpload = useCallback(
     (file: File) => {
+      if (uploadingRef.current) return;
+      uploadingRef.current = true;
       setIsUploading(true);
       const uploadPromise = (async () => {
-        if (values.avatarUrl) {
-          await deleteImage(values.avatarUrl).catch(() => {});
+        try {
+          if (values.avatarUrl) {
+            await deleteImage(values.avatarUrl).catch(() => {});
+          }
+          const { url } = await uploadImage(file);
+          updateField("avatarUrl", url);
+          await profileMutation.mutateAsync(
+            cleanPayload(
+              toProfilePayload({ ...values, avatarUrl: url, email: user?.email ?? values.email }, user)
+            )
+          );
+        } finally {
+          uploadingRef.current = false;
         }
-        const { url } = await uploadImage(file);
-        updateField("avatarUrl", url);
-        await profileMutation.mutateAsync(
-          toProfilePayload({ ...values, avatarUrl: url, email: user?.email ?? values.email }, user)
-        );
       })();
 
       toast.promise(uploadPromise, {
@@ -84,15 +110,23 @@ export function ProfileForm() {
   );
 
   const handleAvatarRemove = useCallback(() => {
+    if (uploadingRef.current || !values.avatarUrl) return;
     const oldUrl = values.avatarUrl;
+    uploadingRef.current = true;
     setIsUploading(true);
 
     const removePromise = (async () => {
-      await deleteImage(oldUrl);
-      updateField("avatarUrl", "");
-      await profileMutation.mutateAsync(
-        toProfilePayload({ ...values, avatarUrl: "", email: user?.email ?? values.email }, user)
-      );
+      try {
+        await deleteImage(oldUrl);
+        updateField("avatarUrl", "");
+        await profileMutation.mutateAsync(
+          cleanPayload(
+            toProfilePayload({ ...values, avatarUrl: "", email: user?.email ?? values.email }, user)
+          )
+        );
+      } finally {
+        uploadingRef.current = false;
+      }
     })();
 
     toast.promise(removePromise, {
@@ -109,7 +143,7 @@ export function ProfileForm() {
     if (!canSubmit) return;
 
     try {
-      await profileMutation.mutateAsync(toProfilePayload(values, user));
+      await profileMutation.mutateAsync(cleanPayload(toProfilePayload(values, user)));
       toast.success({ title: "Profile updated." });
     } catch (error) {
       // The server's reason matters here ("Current password is incorrect.").

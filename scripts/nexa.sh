@@ -29,14 +29,35 @@ function show_usage() {
     exit 1
 }
 
+# Only what this script started: killing the tmux session ends its panes'
+# processes. Anything else on the ports is reported, never killed.
+function stop_session() {
+    if tmux has-session -t nexa-dev 2>/dev/null; then
+        tmux kill-session -t nexa-dev
+        sleep 1
+    fi
+    local port
+    for port in 3010 3011; do
+        if command -v ss >/dev/null 2>&1 && ss -ltn "sport = :$port" | grep -q LISTEN; then
+            echo "Warning: port $port is still in use by a process this script did not start."
+        fi
+    done
+}
+
+# One status value: curl prints 000 itself when the request fails.
+function http_status() {
+    local code
+    code=$(curl -s -o /dev/null -w "%{http_code}" "$@") || true
+    [ -z "$code" ] || [ "$code" = "000" ] && code="DOWN"
+    echo "$code"
+}
+
 function start_dev() {
     echo "Stopping any existing dev/staging processes..."
-    tmux kill-session -t nexa-dev 2>/dev/null || true
-    fuser -k 3010/tcp 3011/tcp 2>/dev/null || true
-    sleep 1
+    stop_session
 
     tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
-    tmux new-window -t nexa-dev:2 -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
+    tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
 
     echo "Dev servers launched in background tmux session 'nexa-dev'!"
     echo "API listening on: http://127.0.0.1:3011"
@@ -45,25 +66,22 @@ function start_dev() {
 
 function start_stage() {
     echo "Stopping any existing dev/staging processes..."
-    tmux kill-session -t nexa-dev 2>/dev/null || true
-    fuser -k 3010/tcp 3011/tcp 2>/dev/null || true
-    sleep 1
+    stop_session
 
     echo "=== Building Apps in Production Mode for DEV Testing ==="
     cd "$ROOT_DIR"
     npm run build
 
     echo "=== Launching Production-Optimized DEV Servers on Ports 3010 / 3011 ==="
-    tmux new-session -d -s nexa-dev -n "api-prod" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
-    tmux new-window -t nexa-dev:2 -n "web-prod" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+    tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+    tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
 
     echo "Production-mode DEV servers launched in background tmux session 'nexa-dev'!"
 }
 
 function stop_dev() {
-    tmux kill-session -t nexa-dev 2>/dev/null || true
-    fuser -k 3010/tcp 3011/tcp 2>/dev/null || true
-    echo "Stopped dev/staging servers and freed ports 3010 & 3011."
+    stop_session
+    echo "Stopped dev/staging servers."
 }
 
 function status_dev() {
@@ -71,8 +89,8 @@ function status_dev() {
     tmux ls 2>/dev/null | grep nexa-dev || echo "nexa-dev is not running"
     echo ""
     echo "=== Dev Services Health ==="
-    WEB_STATUS=$(curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3010/ || echo "DOWN")
-    API_STATUS=$(curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:3011/auth/login -H "Content-Type: application/json" -d '{}' || echo "DOWN")
+    WEB_STATUS=$(http_status http://127.0.0.1:3010/)
+    API_STATUS=$(http_status -X POST http://127.0.0.1:3011/auth/login -H "Content-Type: application/json" -d '{}')
 
     if [ "$WEB_STATUS" = "200" ]; then
       echo "✓ Dev Web (Port 3010): UP (HTTP 200)"
@@ -89,8 +107,8 @@ function status_dev() {
 
 function status_prod() {
     echo "=== Prod Services Health ==="
-    WEB_STATUS=$(curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/ || echo "DOWN")
-    API_STATUS=$(curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:3001/auth/login -H "Content-Type: application/json" -d '{}' || echo "DOWN")
+    WEB_STATUS=$(http_status http://127.0.0.1:3000/)
+    API_STATUS=$(http_status -X POST http://127.0.0.1:3001/auth/login -H "Content-Type: application/json" -d '{}')
 
     if [ "$WEB_STATUS" = "200" ]; then
       echo "✓ Prod Web (Port 3000): UP (HTTP 200)"
@@ -125,10 +143,10 @@ if [[ "$COMMAND" == "logs" || "$COMMAND" == "attach" ]]; then
         tmux capture-pane -pt nexa-dev:web
     else
         echo "=== API Logs ==="
-        tmux capture-pane -pt nexa-dev:api | tail -n 20
+        tmux capture-pane -pt nexa-dev:api 2>/dev/null | tail -n 20 || echo "(api window not running)"
         echo ""
         echo "=== Web Logs ==="
-        tmux capture-pane -pt nexa-dev:web | tail -n 20
+        tmux capture-pane -pt nexa-dev:web 2>/dev/null | tail -n 20 || echo "(web window not running)"
     fi
     exit 0
 fi

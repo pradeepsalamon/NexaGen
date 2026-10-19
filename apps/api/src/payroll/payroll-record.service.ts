@@ -10,12 +10,12 @@ import { fullName } from "../payments/payments-auth.helper";
 
 type RecordWithRelations = CoachPayrollRecord & {
   coach: Pick<User, "firstName" | "lastName" | "email">;
-  period: Pick<PayrollPeriod, "periodType" | "startDate" | "endDate">;
+  period: Pick<PayrollPeriod, "periodType" | "startDate" | "endDate" | "status">;
 };
 
 const INCLUDE = {
   coach: { select: { firstName: true, lastName: true, email: true } },
-  period: { select: { periodType: true, startDate: true, endDate: true } }
+  period: { select: { periodType: true, startDate: true, endDate: true, status: true } }
 } as const;
 
 /** Read access to `CoachPayrollRecord` rows — no mutation lives here. */
@@ -63,7 +63,8 @@ export class PayrollRecordService {
       period: {
         periodType: record.period.periodType,
         startDate: record.period.startDate.toISOString().slice(0, 10),
-        endDate: record.period.endDate.toISOString().slice(0, 10)
+        endDate: record.period.endDate.toISOString().slice(0, 10),
+        status: record.period.status
       },
       coachId: record.coachId,
       coachName: fullName(record.coach) ?? record.coach.email,

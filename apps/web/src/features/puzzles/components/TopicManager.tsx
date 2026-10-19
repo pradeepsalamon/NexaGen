@@ -402,7 +402,8 @@ export function TopicManager({
 
       {canManage && (
         <TopicFormDialog
-          key={editing?.id ?? `new-${creatingIn ?? "root"}`}
+          // "closed" differs from a top-level create, so every opening remounts with a clean form.
+          key={editing?.id ?? (creatingIn === undefined ? "closed" : `new-${creatingIn ?? "root"}`)}
           open={creatingIn !== undefined || !!editing}
           topic={editing}
           topics={topics}

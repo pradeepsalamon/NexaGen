@@ -47,8 +47,27 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
   }
 
   async function copyRecoveryCodes(codes: string[]) {
-    await navigator.clipboard.writeText(codes.join("\n"));
-    toast.success({ title: "Recovery codes copied" });
+    try {
+      await navigator.clipboard.writeText(codes.join("\n"));
+      toast.success({ title: "Recovery codes copied" });
+    } catch {
+      toast.error({
+        title: "Could not copy codes",
+        message: "Please select and copy the recovery codes manually."
+      });
+    }
+  }
+
+  async function copySecret(secret: string) {
+    try {
+      await navigator.clipboard.writeText(secret);
+      toast.success({ title: "Setup key copied" });
+    } catch {
+      toast.error({
+        title: "Could not copy key",
+        message: "Please select and copy the setup key manually."
+      });
+    }
   }
 
   if (enabled) {
@@ -99,12 +118,24 @@ export function MfaEnrollment({ challengeToken, onCancel, onComplete }: MfaEnrol
           <div className="rounded-control bg-white p-3">
             <QRCodeSVG aria-label="Authenticator setup QR code" size={168} value={setup.data.otpauthUrl} />
           </div>
-          <p className="text-center text-xs text-app-muted">
-            Can&apos;t scan? Enter this key:{" "}
-            <span className="break-all font-mono text-app-text">
-              {setup.data.secret.match(/.{1,4}/g)?.join(" ")}
-            </span>
-          </p>
+          <div className="flex flex-col items-center gap-1.5 text-center text-xs text-app-muted">
+            <p>
+              Can&apos;t scan? Enter this key:{" "}
+              <span className="break-all font-mono text-app-text">
+                {setup.data.secret.match(/.{1,4}/g)?.join(" ")}
+              </span>
+            </p>
+            <Button
+              className="h-7 text-xs"
+              onClick={() => copySecret(setup.data.secret)}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              <Copy className="mr-1.5 size-3.5" strokeWidth={2.5} />
+              Copy key
+            </Button>
+          </div>
         </div>
       ) : (
         <Skeleton className="mx-auto size-[192px]" />

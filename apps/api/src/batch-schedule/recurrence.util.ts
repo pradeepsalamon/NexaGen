@@ -48,6 +48,8 @@ export interface Occurrence {
 
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+export class RecurrenceValidationError extends Error {}
+
 /** Parses "YYYY-MM-DD" (or the UTC day of a Date) into numeric parts. */
 export function toLocalDateParts(value: string | Date): {
   year: number;
@@ -61,11 +63,22 @@ export function toLocalDateParts(value: string | Date): {
       day: value.getUTCDate()
     };
   }
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (!match) {
-    throw new Error(`Invalid date: ${value}`);
+    throw new RecurrenceValidationError(`Invalid date: ${value}`);
   }
-  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const check = new Date(Date.UTC(year, month - 1, day));
+  if (
+    check.getUTCFullYear() !== year ||
+    check.getUTCMonth() + 1 !== month ||
+    check.getUTCDate() !== day
+  ) {
+    throw new RecurrenceValidationError(`Invalid date: ${value}`);
+  }
+  return { year, month, day };
 }
 
 export function formatLocalDate(year: number, month: number, day: number): string {
@@ -133,7 +146,7 @@ export function zonedWallTimeToUtc(
 function parseTime(value: string): { hour: number; minute: number } {
   const match = TIME_RE.exec(value);
   if (!match) {
-    throw new Error(`Invalid time "${value}" (expected HH:MM)`);
+    throw new RecurrenceValidationError(`Invalid time "${value}" (expected HH:MM)`);
   }
   return { hour: Number(match[1]), minute: Number(match[2]) };
 }
@@ -143,8 +156,6 @@ export function timeToMinutes(value: string): number {
   const { hour, minute } = parseTime(value);
   return hour * 60 + minute;
 }
-
-export class RecurrenceValidationError extends Error {}
 
 /**
  * Structural validation of a rule set (independent of the date range):
@@ -206,6 +217,9 @@ export function generateOccurrences(input: RecurrenceInput): Occurrence[] {
   const endCursor = Date.UTC(end.year, end.month - 1, end.day);
   if (endCursor < startCursor) {
     throw new RecurrenceValidationError("End date must be on or after start date.");
+  }
+  if (endCursor - startCursor > 2 * 366 * DAY_MS) {
+    throw new RecurrenceValidationError("Schedule range cannot exceed 2 years.");
   }
 
   const exclusions = new Set(

@@ -1,5 +1,7 @@
 import { Test, type TestingModule } from "@nestjs/testing";
 import { EntitlementStatus } from "@prisma/client";
+import { JobLockService } from "../prisma/job-lock.service";
+import { createJobLockStub } from "../prisma/job-lock.testing";
 import { PrismaService } from "../prisma/prisma.service";
 import { EntitlementService } from "./entitlement.service";
 
@@ -40,6 +42,7 @@ describe("EntitlementService.grant", () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EntitlementService,
+        { provide: JobLockService, useValue: createJobLockStub() },
         { provide: PrismaService, useValue: { entitlement: { count: jest.fn() } } }
       ]
     }).compile();

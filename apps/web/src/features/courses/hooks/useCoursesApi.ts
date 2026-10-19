@@ -105,7 +105,11 @@ export function useAttachModule(courseId: string) {
   const toast = useToast();
   return useMutation({
     mutationFn: (data: AttachCourseModuleRequest) => attachCourseModule(courseId, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId) }),
+    onSuccess: () => {
+      // The admin list shows each course's module count.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.courses.detail(courseId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.courses.lists });
+    },
     onError: (error: Error) =>
       toast.error({ title: "Could not attach module", message: error.message })
   });
@@ -129,7 +133,7 @@ export function useRemoveModule(courseId: string) {
     mutationFn: (moduleId: string) => removeCourseModule(courseId, moduleId),
     undo: (moduleId: string) => restoreTrashItem("CourseModule", moduleId),
     toast: () => ({ title: "Module removed" }),
-    invalidates: [queryKeys.courses.detail(courseId)]
+    invalidates: [queryKeys.courses.detail(courseId), queryKeys.courses.lists]
   });
 }
 

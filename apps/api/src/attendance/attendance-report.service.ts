@@ -919,6 +919,7 @@ export class AttendanceReportService {
     const user = await this.getAuthenticatedUser(accessToken);
 
     let coachId = user.id;
+    let coachTimezone = user.timezone;
     if (targetCoachId) {
       if (
         user.role !== UserRole.ADMIN &&
@@ -927,12 +928,17 @@ export class AttendanceReportService {
         throw new ForbiddenException("Not authorized to view this coach's stats.");
       }
       coachId = targetCoachId;
+      const targetCoach = await this.prisma.user.findUnique({
+        where: { id: targetCoachId },
+        select: { timezone: true }
+      });
+      coachTimezone = targetCoach?.timezone ?? user.timezone;
     } else if (user.role !== UserRole.COACH) {
       throw new ForbiddenException("Coach ID required for non-coach users.");
     }
 
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthStart = zonedMonthBounds(coachTimezone, now).start;
 
     const [
       totalClasses,

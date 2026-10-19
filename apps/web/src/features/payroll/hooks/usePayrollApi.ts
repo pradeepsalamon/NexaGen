@@ -210,8 +210,9 @@ export function useCreatePayrollAdjustment() {
     mutationFn: ({ recordId, body }: { recordId: string; body: CreatePayrollAdjustmentRequest }) =>
       createPayrollAdjustment(recordId, body),
     onSuccess: (_result, { recordId }) => {
+      // payroll.all also covers the period's record list, whose totals just changed.
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminAdjustments(recordId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminRecord(recordId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.all });
       toast.success({ title: "Adjustment added" });
     }
   });
@@ -232,7 +233,7 @@ export function useReversePayrollAdjustment() {
     }) => reversePayrollAdjustment(id, body),
     onSuccess: (_result, { recordId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminAdjustments(recordId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminRecord(recordId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.all });
       toast.success({ title: "Adjustment reversed" });
     }
   });
@@ -289,6 +290,8 @@ export function useAddCompensationRate() {
       addCompensationRate(coachId, body),
     onSuccess: (_result, { coachId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationRates(coachId) });
+      // CompensationProfileDialog lists the rates from the profile query.
+      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationProfile(coachId) });
       toast.success({ title: "Rate added" });
     }
   });
@@ -309,6 +312,7 @@ export function useCloseCompensationRate() {
     }) => closeCompensationRate(id, body),
     onSuccess: (_result, { coachId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationRates(coachId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payroll.adminCompensationProfile(coachId) });
       toast.success({ title: "Rate ended" });
     }
   });

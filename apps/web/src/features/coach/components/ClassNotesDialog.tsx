@@ -22,7 +22,8 @@ import { updateClass } from "../api/coachApi";
 function toPayload(cls: CoachClass): UpdateClassRequest {
   return {
     title: cls.title ?? "",
-    topic: cls.topic || undefined,
+    // "" clears the topic; undefined would drop the field and leave the old one.
+    topic: cls.topic ?? "",
     description: cls.description ?? "",
     homework: cls.homework ?? "",
     notes: cls.notes ?? ""
@@ -72,7 +73,7 @@ export function ClassNotesDialog({ open, onOpenChange, classItem }: ClassNotesDi
 
   const onSubmit = (data: UpdateClassRequest) => {
     if (!classItem) return;
-    run({ id: classItem.id, payload: { ...data, topic: data.topic || undefined }, previous: classItem });
+    run({ id: classItem.id, payload: { ...data, topic: data.topic ?? "" }, previous: classItem });
   };
 
   return (

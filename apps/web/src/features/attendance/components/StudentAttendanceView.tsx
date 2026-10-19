@@ -36,7 +36,7 @@ interface StudentAttendanceViewProps {
   hideHeading?: boolean;
 }
 
-type StatusFilter = "ALL" | "PRESENT" | "LATE" | "ABSENT";
+type StatusFilter = "ALL" | "PRESENT" | "LATE" | "PARTIAL" | "ABSENT";
 
 export const StudentAttendanceView = memo(function StudentAttendanceView({
   data,
@@ -227,7 +227,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             {/* Status Filter Buttons */}
             <div className="flex bg-app-soft/80 p-1 rounded-control border border-app-border">
-              {(["ALL", "PRESENT", "LATE", "ABSENT"] as const).map((status) => {
+              {(["ALL", "PRESENT", "LATE", "PARTIAL", "ABSENT"] as const).map((status) => {
                 const isActive = statusFilter === status;
                 const label = status === "ALL" ? "All" : status.charAt(0) + status.slice(1).toLowerCase();
                 return (
@@ -344,9 +344,9 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                         <SimpleTooltip label="View attendance logs">
                           <Button
                             aria-label={`View attendance logs for ${record.topic}, ${formattedDate}`}
-                            variant="ghost"
+                            variant="outline"
                             size="icon"
-                            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                            className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
                             disabled={!interactive}
                             onClick={(e) => {
                               e.stopPropagation();

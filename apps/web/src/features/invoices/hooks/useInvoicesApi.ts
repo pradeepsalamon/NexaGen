@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   AdminInvoiceQuery,
   CreateCreditNoteRequest,
@@ -100,7 +100,9 @@ export function useUpdateBillingProfile() {
 export function useAdminInvoices(query: Partial<AdminInvoiceQuery>) {
   return useQuery({
     queryKey: queryKeys.invoices.adminList(query),
-    queryFn: () => getAdminInvoices(query)
+    queryFn: () => getAdminInvoices(query),
+    // Keep the table and stats on screen while the next page or filter loads.
+    placeholderData: keepPreviousData
   });
 }
 
@@ -114,7 +116,7 @@ export function useAdminInvoice(id: string | null) {
 
 export function useAdminInvoiceAudit(id: string | null) {
   return useQuery({
-    queryKey: queryKeys.invoices.audit(id ?? ""),
+    queryKey: queryKeys.invoices.adminAudit(id ?? ""),
     queryFn: () => getAdminInvoiceAudit(id as string),
     enabled: Boolean(id)
   });

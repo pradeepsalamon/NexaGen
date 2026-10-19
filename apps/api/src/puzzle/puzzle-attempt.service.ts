@@ -97,6 +97,12 @@ export class PuzzleAttemptService {
         ]
       });
     }
+    // In the where clause, not filtered afterwards, so the page and total match.
+    const solvedByStudent: Prisma.PuzzleWhereInput = {
+      attempts: { some: { studentId: student.id, status: "SOLVED" } }
+    };
+    if (query.solved === "yes") and.push(solvedByStudent);
+    if (query.solved === "no") and.push({ NOT: solvedByStudent });
     if (and.length > 0) where.AND = and;
 
     const [rows, total] = await Promise.all([
@@ -128,7 +134,7 @@ export class PuzzleAttemptService {
     const solvedIds = new Set(solved.map((s) => s.puzzleId));
     const byPuzzle = new Map(attempts.map((a) => [a.puzzleId, a]));
 
-    let list = rows.map<StudentPuzzleSummary>((row) => {
+    const list = rows.map<StudentPuzzleSummary>((row) => {
       const agg = byPuzzle.get(row.id);
       return {
         ...this.toSummary(row, student),
@@ -137,9 +143,6 @@ export class PuzzleAttemptService {
         attemptedCount: agg?._count._all ?? 0
       };
     });
-
-    if (query.solved === "yes") list = list.filter((p) => p.solved);
-    if (query.solved === "no") list = list.filter((p) => !p.solved);
 
     return { puzzles: list, pagination: paginationMeta(total, page, pageSize) };
   }

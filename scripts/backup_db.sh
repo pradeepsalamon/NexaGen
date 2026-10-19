@@ -49,7 +49,9 @@ RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 
 DATE=$(date +%Y-%m-%d-%H-%M-%S)
 FILENAME="nexa-db-${DATE}.sql.gz"
-TEMP_FILE="/tmp/${FILENAME}"
+# Owner-only and unpredictable: the dump holds every user's data.
+umask 077
+TEMP_FILE=$(mktemp --suffix=.sql.gz "/tmp/nexa-db-${DATE}.XXXXXX")
 REMOTE_PATH="database/automatic/${FILENAME}"
 
 # Trap for cleanup

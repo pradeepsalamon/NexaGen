@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Save } from "lucide-react";
 import { FormPageShell } from "@/components/layout/FormPageShell";
@@ -74,8 +74,12 @@ export function CourseEditClient({ id }: { id: string }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
+  // Filled once per course: module edits refetch the course, and a refetch
+  // must not wipe a title or description the admin is still typing.
+  const hydratedId = useRef<string | null>(null);
   useEffect(() => {
-    if (data?.course) {
+    if (data?.course && hydratedId.current !== data.course.id) {
+      hydratedId.current = data.course.id;
       setTitle(data.course.title);
       setDescription(data.course.description ?? "");
     }

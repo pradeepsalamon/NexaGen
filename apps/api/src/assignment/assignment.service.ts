@@ -337,7 +337,22 @@ export class AssignmentService {
       else if (!isSet && wasSet) await this.puzzleSets.clearSet(tx, id);
     });
 
-    if (set || (wasSet && !isSet)) await this.puzzleSets.refreshAssignmentRollups(id);
+    if (set) {
+      await this.puzzleSets.refreshAssignmentRollups(id);
+    } else if (wasSet && !isSet) {
+      await this.prisma.studentAssignment.updateMany({
+        where: { assignmentBatch: { assignmentId: id } },
+        data: {
+          status: "PENDING",
+          completedAt: null,
+          bestScorePercent: null,
+          bestAccuracyPercent: null,
+          attemptCount: 0,
+          timeSpentSeconds: null,
+          lastAttemptAt: null
+        }
+      });
+    }
 
     return this.getLibraryItem(accessToken, id);
   }
@@ -526,17 +541,11 @@ export class AssignmentService {
       throw new NotFoundException("Assignment not found.");
     }
 
-    if (row.assignmentBatch.assignment.activityType === "PUZZLE_SET") {
+    if (row.assignmentBatch.assignment.activityType !== "REPLAY") {
       throw new BadRequestException(
-        "A puzzle set's progress comes from solving its puzzles, not from a manual status."
-      );
-    }
-    if (
-      row.assignmentBatch.assignment.activityType !== "REPLAY" &&
-      dto.status === "COMPLETED"
-    ) {
-      throw new BadRequestException(
-        "This assignment is completed by finishing an attempt, not marked manually."
+        row.assignmentBatch.assignment.activityType === "PUZZLE_SET"
+          ? "A puzzle set's progress comes from solving its puzzles, not from a manual status."
+          : "This assignment is completed by finishing an attempt, not marked manually."
       );
     }
 

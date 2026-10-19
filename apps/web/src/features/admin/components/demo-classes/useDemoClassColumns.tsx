@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
-import { format } from "date-fns";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DEMO_CLASS_ACCESS_MODE_LABELS, type DemoClass } from "@nexa-chess/types";
 import { Repeat } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatFullDate, formatTime } from "@/lib/datetime";
 import {
   DemoClassRowActions,
   type DemoClassRowActionsProps,
@@ -25,6 +26,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
     cancelPending,
     restorePending,
   } = handlers;
+  const timeZone = useUserTimeZone();
 
   return useMemo<ColumnDef<DemoClass>[]>(
     () => [
@@ -94,15 +96,12 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
             column={column}
           />
         ),
-        cell: ({ row }) => {
-          const date = new Date(row.getValue("startsAt"));
-          return (
-            <div className="text-sm">
-              <div>{format(date, "MMM d, yyyy")}</div>
-              <div className="text-app-muted">{format(date, "h:mm a")}</div>
-            </div>
-          );
-        },
+        cell: ({ row }) => (
+          <div className="text-sm">
+            <div>{formatFullDate(row.original.startsAt, timeZone)}</div>
+            <div className="text-app-muted">{formatTime(row.original.startsAt, timeZone)}</div>
+          </div>
+        ),
       },
       {
         id: "access",
@@ -173,6 +172,7 @@ export function useDemoClassColumns(handlers: RowActionHandlers) {
       onViewDetails,
       cancelPending,
       restorePending,
+      timeZone,
     ]
   );
 }

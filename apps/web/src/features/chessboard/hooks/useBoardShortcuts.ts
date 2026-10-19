@@ -54,7 +54,9 @@ export function useBoardShortcuts() {
       }
 
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z') {
+        // Shift makes the key "Z", so compare case-insensitively.
+        if (e.key.toLowerCase() === 'z') {
+          e.preventDefault();
           if (e.shiftKey) {
             redo();
           } else {

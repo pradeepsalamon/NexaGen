@@ -196,7 +196,9 @@ export class ActivityHistoryService {
       this.prisma.$queryRaw<
         { puzzle_id: string; title: string; incorrect: number; graded: number; last_at: Date; solved: boolean }[]
       >(repeatedMistakesSql(ctx, scope, REPEATED_MISTAKES_LIMIT)),
-      this.prisma.$queryRaw<{ kind: ActivityThemeStat["kind"]; key: string; label: string | null; graded: number; correct: number }[]>(
+      this.prisma.$queryRaw<
+        { kind: ActivityThemeStat["kind"]; key: string; label: string | null; graded: number; correct: number; puzzle_set: string }[]
+      >(
         themesSql(ctx, scope)
       ),
       this.prisma.$queryRaw<{ earlier: boolean; graded: number; correct: number }[]>(
@@ -232,10 +234,11 @@ export class ActivityHistoryService {
       .filter((d): d is Date => d !== null)
       .sort((a, b) => b.getTime() - a.getTime())[0];
 
-    const themeStats: ActivityThemeStat[] = themes
+    const themeStats: (ActivityThemeStat & { attemptSetKey: string })[] = themes
       .filter((t) => t.kind !== "THEME" || !NON_TEACHING_THEME_GROUPS.has(lichessTheme(t.key)?.group ?? ""))
       .map((t) => ({
         ...accuracyStats(t.graded, t.correct),
+        attemptSetKey: t.puzzle_set,
         key: t.key,
         kind: t.kind,
         label: t.kind === "TYPE" ? this.typeLabel(t.key) : t.kind === "THEME" ? lichessThemeLabel(t.key) : (t.label ?? t.key)
@@ -289,7 +292,7 @@ export class ActivityHistoryService {
             splitAt: trendWindow.split.toISOString(),
             status: classifyTrend(earlierStats, recentStats)
           },
-          weakThemes: weak.weak
+          weakThemes: weak.weak.map(({ attemptSetKey: _attemptSetKey, ...stat }) => stat)
         },
         lastActivityAt: lastActivity ? lastActivity.toISOString() : null,
         puzzles: { uniqueAttempted: unique[0]?.attempted ?? 0, uniqueSolved: unique[0]?.solved ?? 0 },

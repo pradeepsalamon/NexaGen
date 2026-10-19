@@ -113,8 +113,12 @@ function LiveAlert({ liveClass }: { liveClass: PresenceLiveClass | null }) {
 
   useEffect(() => {
     if (!liveClass || alerted.current.has(liveClass.classId)) return;
+    if (pathname?.startsWith("/live-class/")) {
+      // Already in this class: nothing to say. In another one: say it once they leave.
+      if (pathname.startsWith(`/live-class/${liveClass.classId}`)) alerted.current.add(liveClass.classId);
+      return;
+    }
     alerted.current.add(liveClass.classId);
-    if (pathname?.startsWith("/live-class/")) return;
 
     const title = "Your class is live";
     const message = `${liveClass.topic} with ${liveClass.coachName}`;

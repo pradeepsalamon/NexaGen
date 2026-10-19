@@ -194,7 +194,7 @@ export function NavDrawer({
       >
         <aside
           aria-label={`${title} navigation`}
-          className="flex h-full flex-col overflow-hidden rounded-[24px] bg-primary shadow-lift dark:border dark:border-app-border dark:bg-app-surface"
+          className="flex h-full flex-col overflow-hidden rounded-[24px] border border-app-drawer-border bg-app-drawer shadow-lift"
           ref={panelRef}
         >
           <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
@@ -206,7 +206,7 @@ export function NavDrawer({
             ) : null}
           </div>
 
-          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-primary px-[14px] py-4 [contain:content] [scrollbar-width:none] dark:bg-app-surface [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
+          <nav className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain bg-app-drawer px-[14px] py-4 [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0">
             {children}
           </nav>
 

@@ -78,8 +78,10 @@ describe("LiveClassPuzzleService", () => {
         findFirst: jest.fn().mockResolvedValue(null),
         updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         update: jest.fn().mockResolvedValue(assignmentRow({ status: "ENDED" })),
-        create: jest.fn().mockResolvedValue(assignmentRow())
+        create: jest.fn().mockResolvedValue(assignmentRow()),
+        findUniqueOrThrow: jest.fn()
       },
+      $queryRaw: jest.fn().mockResolvedValue([]),
       puzzleAttempt: { findMany: jest.fn().mockResolvedValue([]) },
       liveSession: { findUnique: jest.fn().mockResolvedValue(null) },
       $transaction: jest.fn().mockImplementation(async (fn: any) => fn(prisma))
@@ -603,9 +605,7 @@ describe("LiveClassPuzzleService", () => {
 
     it("adds a manual adjustment onto the existing one", async () => {
       prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(assignmentRow({ scoringJson: scoring }));
-      prisma.liveClassPuzzleAssignment.findUniqueOrThrow = jest
-        .fn()
-        .mockResolvedValue({ adjustmentsJson: { "s-a": 10 } });
+      prisma.liveClassPuzzleAssignment.findUniqueOrThrow.mockResolvedValue({ adjustmentsJson: { "s-a": 10 } });
       await service.adjust(TOKEN, CLASS_ID, { studentId: "s-a", delta: 5 });
       expect(prisma.liveClassPuzzleAssignment.update).toHaveBeenCalledWith(
         expect.objectContaining({ data: { adjustmentsJson: { "s-a": 15 } } })

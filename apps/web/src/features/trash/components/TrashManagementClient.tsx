@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   type ColumnDef,
   type PaginationState,
@@ -31,6 +31,9 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DataTableSortButton } from "@/components/ui/DataTableSortButton";
 import { useDataTable } from "@/hooks/useDataTable";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatDateTime } from "@/lib/datetime";
 import { useUndoableMutation } from "@/lib/undo/useUndoableMutation";
 import { queryKeys } from "@/lib/queryKeys";
 import {
@@ -75,13 +78,17 @@ export function TrashManagementClient() {
     pageSize: 10
   });
 
+  const timeZone = useUserTimeZone();
+  // The input stays instant; the query waits for a pause in typing.
+  const debouncedSearch = useDebouncedValue(search, 300);
+
   const query = useTrashQuery({
     deletedFrom,
     deletedTo,
     entity,
     page: pagination.pageIndex + 1,
     pageSize: pagination.pageSize,
-    search,
+    search: debouncedSearch,
     sortBy: sorting[0]?.id as any || "deletedAt",
     sortOrder: sorting[0]?.desc ? "desc" : "asc"
   });
@@ -94,12 +101,17 @@ export function TrashManagementClient() {
   const total = query.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / pagination.pageSize));
 
-  const selectedItems = useMemo(() => {
-    return Object.keys(rowSelection)
-      .filter((key) => rowSelection[key])
-      .map((key) => items[parseInt(key, 10)])
-      .filter(Boolean);
-  }, [items, rowSelection]);
+  // Rows are keyed by item identity (getRowId below), never by position:
+  // after a page change, a filter or a hidden row, an index points elsewhere.
+  const selectedItems = useMemo(
+    () => items.filter((item) => rowSelection[getItemKey(item)]),
+    [items, rowSelection]
+  );
+
+  // A new page or filter starts with nothing selected.
+  useEffect(() => {
+    setRowSelection({});
+  }, [pagination.pageIndex, pagination.pageSize, debouncedSearch, entity, deletedFrom, deletedTo]);
 
   const restoreMutation = useRestoreTrashItemMutation();
   const deleteMutation = useDeleteTrashItemPermanentlyMutation();
@@ -112,6 +124,12 @@ export function TrashManagementClient() {
     setHiddenItems((prev) => {
       const next = { ...prev };
       for (const key of keys) next[key] = true;
+      return next;
+    });
+    // Acted-on rows leave the selection too.
+    setRowSelection((prev) => {
+      const next = { ...prev };
+      for (const key of keys) delete next[key];
       return next;
     });
   }, []);
@@ -229,7 +247,7 @@ export function TrashManagementClient() {
             column={column}
           />
         ),
-        cell: ({ row }) => formatDate(row.original.deletedAt)
+        cell: ({ row }) => formatDate(row.original.deletedAt, timeZone)
       },
       {
         id: "deletedBy",
@@ -294,7 +312,7 @@ export function TrashManagementClient() {
         )
       }
     ],
-    [runRestore, runDelete, restoreMutation.isPending, deleteMutation.isPending]
+    [runRestore, runDelete, restoreMutation.isPending, deleteMutation.isPending, timeZone]
   );
 
   // Trash pages and sorts on the server, so the table must not slice or
@@ -302,6 +320,7 @@ export function TrashManagementClient() {
   const { table } = useDataTable<TrashItem, unknown>({
     columns,
     data: items,
+    getRowId: getItemKey,
     pageCount,
     manualPagination: true,
     manualSorting: true,
@@ -493,15 +512,8 @@ function formatDeletedBy(item: TrashItem) {
   );
 }
 
-function formatDate(value: string | null) {
-  if (!value) {
-    return "Not set";
-  }
-
-  return new Intl.DateTimeFormat("en", {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(new Date(value));
+function formatDate(value: string | null, timeZone: string) {
+  return value ? formatDateTime(value, timeZone) : "Not set";
 }
 
 function getRetentionVariant(item: TrashItem) {

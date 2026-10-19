@@ -116,7 +116,7 @@ export class ManualPaymentAttachmentStorage {
     if (!url) return null;
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: AbortSignal.timeout(10_000) });
       if (!response.ok) {
         this.logger.warn(
           `Manual payment attachment ${key} fetch returned ${response.status}.`

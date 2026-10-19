@@ -72,7 +72,7 @@ function isCoachParticipant(participant: LkParticipant) {
 function ConnectionDot({ participant }: { participant: LkParticipant }) {
   const { quality } = useConnectionQualityIndicator({ participant });
   const color =
-    quality === ConnectionQuality.Poor
+    quality === ConnectionQuality.Poor || quality === ConnectionQuality.Lost
       ? "bg-warning"
       : quality === ConnectionQuality.Unknown
         ? "bg-app-border"
@@ -133,7 +133,8 @@ interface ParticipantItemProps {
   /** Coach/admin viewing a student: enables the force-mute + private-message actions. */
   canModerate?: boolean;
   onModerate?: (identity: string, source: ModeratableSource, name: string) => void;
-  onKick?: (identity: string, name: string) => void;
+  onKick?: (identity: string, name: string) => Promise<boolean> | void;
+  isKicking?: boolean;
   onMessagePrivately?: (userId: string, name: string) => void;
   /** Side this student may move, or null when they hold no control. */
   boardControlSide?: BoardControlSide | null;
@@ -149,10 +150,12 @@ const ParticipantListItem = memo(function ParticipantListItem({
   canModerate,
   onModerate,
   onKick,
+  isKicking = false,
   onMessagePrivately,
   boardControlSide = null,
   onSetBoardControlSide,
 }: ParticipantItemProps) {
+  const [kickOpen, setKickOpen] = useState(false);
   const user = useAuthStore((state) => state.user);
   const isMuted = !participant.isMicrophoneEnabled;
   const isCameraEnabled = participant.isCameraEnabled;
@@ -282,7 +285,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
         )}
 
         {canAct && onKick && (
-          <Popover>
+          <Popover open={kickOpen} onOpenChange={setKickOpen}>
             <PopoverTrigger asChild>
               <button
                 type="button"
@@ -302,10 +305,16 @@ const ParticipantListItem = memo(function ParticipantListItem({
               </p>
               <button
                 type="button"
-                onClick={() => onKick(participant.identity, name)}
-                className="mt-2.5 w-full rounded-control bg-app-danger px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90"
+                disabled={isKicking}
+                onClick={async () => {
+                  const success = await onKick(participant.identity, name);
+                  if (success !== false) {
+                    setKickOpen(false);
+                  }
+                }}
+                className="mt-2.5 w-full rounded-control bg-app-danger px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Remove from class
+                {isKicking ? "Removing…" : "Remove from class"}
               </button>
             </PopoverContent>
           </Popover>
@@ -482,9 +491,14 @@ export function MeetingParticipants({
     [roomId],
   );
 
+  const kickingRef = useRef<string | null>(null);
+  const [kickingIdentity, setKickingIdentity] = useState<string | null>(null);
+
   const handleKick = useCallback(
     async (identity: string, name: string) => {
-      if (!roomId) return;
+      if (!roomId || kickingRef.current) return false;
+      kickingRef.current = identity;
+      setKickingIdentity(identity);
       try {
         await kickParticipant(roomId, { identity });
         meetingToast({
@@ -492,12 +506,17 @@ export function MeetingParticipants({
           title: `Removed ${name} from the class`,
           description: "Pull them back in from \"Not in class\" to let them rejoin.",
         });
+        return true;
       } catch (error) {
         meetingToast({
           tone: "warning",
           title: `Couldn't remove ${name}`,
           description: error instanceof Error ? error.message : undefined,
         });
+        return false;
+      } finally {
+        kickingRef.current = null;
+        setKickingIdentity(null);
       }
     },
     [roomId],
@@ -610,6 +629,7 @@ export function MeetingParticipants({
       canModerate={isCoach}
       onModerate={isCoach ? handleModerate : undefined}
       onKick={isCoach ? handleKick : undefined}
+      isKicking={kickingIdentity === p.identity}
       onMessagePrivately={
         canMessagePrivately(p.identity.split("_")[0]) ? handleMessagePrivately : undefined
       }

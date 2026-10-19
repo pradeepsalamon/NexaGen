@@ -106,7 +106,8 @@ export function AreaChartCard({
   series,
   height = 260,
   format = num,
-  xFormat
+  xFormat,
+  stacked
 }: AxisChartProps) {
   const c = useChartColors();
   const tooltip = useTooltipStyle();
@@ -141,6 +142,7 @@ export function AreaChartCard({
           width={44}
         />
         <Tooltip {...tooltip} formatter={(v: number) => format(v)} />
+        {series.length > 1 ? <Legend wrapperStyle={{ fontSize: 12 }} /> : null}
         {series.map((s, i) => {
           const color = s.color ?? c.categorical[i % c.categorical.length];
           return (
@@ -152,6 +154,7 @@ export function AreaChartCard({
               stroke={color}
               strokeWidth={2}
               fill={`url(#${gradId(i)})`}
+              stackId={stacked ? "a" : undefined}
             />
           );
         })}

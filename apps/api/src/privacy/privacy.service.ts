@@ -85,15 +85,26 @@ export class PrivacyService {
       typography,
       classChangeRequests
     ] = await Promise.all([
-      p.studentProfile.findMany({ where: { userId: id } }),
-      p.coachProfile.findMany({ where: { userId: id } }),
+      // Soft-deleted rows are still personal data held about the user, so they are exported too.
+      p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
+      p.withDeleted.coachProfile.findMany({ where: { userId: id } }),
       p.billingProfile.findMany({ where: { userId: id } }),
-      p.batchStudent.findMany({
-        select: { batch: { select: { id: true, name: true } }, enrolledAt: true },
+      p.withDeleted.batchStudent.findMany({
+        select: {
+          batch: { select: { id: true, name: true } },
+          deletedAt: true,
+          enrolledAt: true,
+          isDeleted: true
+        },
         where: { studentId: id }
       }),
-      p.batchCoach.findMany({
-        select: { assignedAt: true, batch: { select: { id: true, name: true } } },
+      p.withDeleted.batchCoach.findMany({
+        select: {
+          assignedAt: true,
+          batch: { select: { id: true, name: true } },
+          deletedAt: true,
+          isDeleted: true
+        },
         where: { coachId: id }
       }),
       p.classAttendance.findMany({ where: { studentId: id } }),

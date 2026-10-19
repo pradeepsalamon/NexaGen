@@ -17,6 +17,8 @@ import { useTableSort } from "@/hooks/useTableSort";
 import { SortButton } from "@/components/ui/DataTableSortButton";
 import { pageTitle } from "@/lib/pageTitles";
 import type { Tone } from "@/lib/tone";
+import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { formatDate } from "@/lib/datetime";
 
 const attendanceExportUrl =
   getWebEnv({ NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL })
@@ -38,6 +40,7 @@ const MORE_REPORTS = [
 ] as const;
 
 export default function AdminAttendanceDashboardPage() {
+  const timeZone = useUserTimeZone();
   const [data, setData] = useState<AdminAttendanceDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
@@ -139,7 +142,7 @@ export default function AdminAttendanceDashboardPage() {
           <TableBody>
             {monthlyTrend.map((trend) => (
               <TableRow key={trend.month}>
-                <TableCell className="whitespace-nowrap text-left font-medium text-app-text">{trend.month}</TableCell>
+                <TableCell className="whitespace-nowrap text-left font-medium text-app-text">{formatDate(trend.month, timeZone, { month: "short", year: "numeric" })}</TableCell>
                 <TableCell className="text-right tabular-nums">{trend.classes}</TableCell>
                 <TableCell className="text-left">
                   <AttendancePercentBar percent={trend.percent} />

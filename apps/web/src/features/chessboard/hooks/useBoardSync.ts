@@ -19,6 +19,7 @@ import { BoardControlSide, BoardSyncMessage } from "../types/sync";
 import {
   isCoachParticipant,
   isOneLegalMoveAway,
+  legalMoveBetween,
   moverColorFromFen,
   senderMayMutateBoard,
 } from "../lib/boardSyncRules";
@@ -223,6 +224,27 @@ export function useBoardSyncEngine(): BoardSyncActions {
         return;
       }
 
+      // A controlling student is held to their move or cursor step: their
+      // PGN, tree and other position fields are never loaded.
+      if (!isFromCoach && (msg.type === "MOVE" || msg.type === "UNDO" || msg.type === "REDO")) {
+        if (msg.type === "MOVE") {
+          const move = legalMoveBetween(current.fen, msg.payload?.fen);
+          if (!move) return;
+          current.applyRemoteMove(move, msg.payload?.moveType);
+          // The coach is the clock authority. A controlling student's MOVE
+          // carries no clock update, so re-derive it here and broadcast.
+          if (isCoach && !suppressBroadcast) {
+            const after = store.getState();
+            const mover = after.turn === "white" ? "black" : "white";
+            const nextClock = applyMoveToClock(after.clock, mover, Date.now());
+            if (nextClock !== after.clock) after.setClock(nextClock);
+          }
+        } else if (typeof msg.payload?.historyIndex === "number") {
+          current.applyRemoteCursor(msg.payload.historyIndex);
+        }
+        return;
+      }
+
       switch (msg.type) {
         case "MOVE":
         case "UNDO":
@@ -260,14 +282,6 @@ export function useBoardSyncEngine(): BoardSyncActions {
                 : {}),
             });
 
-            // The coach is the clock authority. A controlling student's MOVE
-            // carries no clock update, so re-derive it here and broadcast.
-            if (msg.type === "MOVE" && isCoach && !isFromCoach && !suppressBroadcast) {
-              const after = store.getState();
-              const mover = after.turn === "white" ? "black" : "white";
-              const nextClock = applyMoveToClock(after.clock, mover, Date.now());
-              if (nextClock !== after.clock) after.setClock(nextClock);
-            }
           }
           break;
         case "UPDATE_ANNOTATIONS":
@@ -404,8 +418,18 @@ export function useBoardSyncEngine(): BoardSyncActions {
         // comment, promotion or step back does not.
         const advanced =
           state.fen !== prevState.fen && state.historyIndex > prevState.historyIndex;
+        // Stepping along the same line is UNDO/REDO, not a MOVE: receivers let a
+        // controlling student move only the cursor on their own copy of the line.
+        const samePath =
+          state.treeLinePath === prevState.treeLinePath ||
+          (state.treeLinePath.length === prevState.treeLinePath.length &&
+            state.treeLinePath.every((v, i) => v === prevState.treeLinePath[i]));
+        const cursorOnly =
+          state.tree === prevState.tree &&
+          samePath &&
+          state.historyIndex !== prevState.historyIndex;
         broadcastMsg({
-          type: "MOVE",
+          type: cursorOnly ? (state.historyIndex < prevState.historyIndex ? "UNDO" : "REDO") : "MOVE",
           payload: {
             fen: state.fen,
             pgn: state.fullPgn || state.pgn,

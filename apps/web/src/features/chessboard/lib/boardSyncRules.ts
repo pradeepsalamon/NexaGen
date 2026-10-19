@@ -92,6 +92,27 @@ function positionKey(fen: string) {
 }
 
 /**
+ * The legal move from `fromFen` that reaches `toFen`, or null. Lets a receiver
+ * replay a controlling student's move on its own tree instead of loading the
+ * PGN/tree the packet carries.
+ */
+export function legalMoveBetween(
+  fromFen: string | undefined,
+  toFen: string | undefined
+): { from: string; to: string; promotion?: string } | null {
+  if (!fromFen || !toFen) return null;
+  try {
+    const target = positionKey(toFen);
+    const move = new Chess(fromFen)
+      .moves({ verbose: true })
+      .find((candidate) => positionKey(candidate.after) === target);
+    return move ? { from: move.from, to: move.to, promotion: move.promotion } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * True when `toFen` is exactly one legal move away from `fromFen` — chess
  * rules, whose turn it is and all. A student's MOVE packet is checked with this
  * against the receiver's own board, so a control holder can play a move but

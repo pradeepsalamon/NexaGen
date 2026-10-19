@@ -11,6 +11,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/Button";
@@ -55,7 +56,7 @@ export function DeliveryLogPanel() {
   const [status, setStatus] = useState<MessageDeliveryStatus | "">("");
 
   const retry = useRetryMessageDelivery();
-  const { data, isLoading } = useMessageDeliveries({
+  const { data, isError, isLoading, refetch } = useMessageDeliveries({
     ...(event ? { event } : {}),
     ...(status ? { status } : {}),
     limit: 100
@@ -95,11 +96,17 @@ export function DeliveryLogPanel() {
 
       {isLoading ? (
         <Skeleton className="h-64 w-full" />
+      ) : isError && !data ? (
+        <WidgetError message="Couldn't load the delivery log." onRetry={() => void refetch()} />
       ) : !data || data.deliveries.length === 0 ? (
-        <EmptyState
-          description="Every message the platform sends is recorded here, including the ones it could not deliver."
-          title="Nothing sent yet"
-        />
+        event || status ? (
+          <EmptyState description="Try another event or status." title="No messages match these filters" />
+        ) : (
+          <EmptyState
+            description="Every message the platform sends is recorded here, including the ones it could not deliver."
+            title="Nothing sent yet"
+          />
+        )
       ) : (
         <Card className="overflow-hidden p-0">
           {data.deliveries.map((delivery) => (

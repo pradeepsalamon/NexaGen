@@ -47,6 +47,10 @@ const config: Config = {
         app: {
           background: "rgb(var(--rgb-background) / <alpha-value>)",
           border: "rgb(var(--rgb-border) / <alpha-value>)",
+          drawer: {
+            DEFAULT: "rgb(var(--rgb-nav-drawer) / <alpha-value>)",
+            border: "rgb(var(--rgb-nav-drawer-border) / <alpha-value>)"
+          },
           danger: {
             DEFAULT: "rgb(var(--rgb-danger) / <alpha-value>)",
             ink: "var(--color-danger-ink)"

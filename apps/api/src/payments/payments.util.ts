@@ -89,8 +89,9 @@ export function normalizePhone(
   const digits = raw.replace(/[^\d]/g, "");
   if (digits.length === 0) return undefined;
 
-  // A national number with a leading trunk 0 needs the country code prepended.
-  if (defaultCountryCode && digits.length <= 11) {
+  // A national number with a leading trunk 0 needs the country code prepended;
+  // a "+" number is already international.
+  if (defaultCountryCode && !raw.trim().startsWith("+") && digits.length <= 11) {
     const national = digits.replace(/^0+/, "");
     if (national.length >= 6 && national.length <= 10) {
       return `${defaultCountryCode}${national}`;
@@ -146,6 +147,13 @@ export function isUniqueViolation(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
   );
+}
+
+/** A P2002 whose violated unique index covers `field`. */
+export function isUniqueViolationOn(error: unknown, field: string): boolean {
+  if (!isUniqueViolation(error)) return false;
+  const target = (error as Prisma.PrismaClientKnownRequestError).meta?.target;
+  return Array.isArray(target) ? target.includes(field) : String(target ?? "").includes(field);
 }
 
 /** Provider payloads are stored verbatim; anything unserialisable is dropped. */

@@ -3,6 +3,7 @@ import { getWebEnv } from "@nexa-chess/config/web";
 import { toast } from "sonner";
 import { API_ROUTES } from "@nexa-chess/types";
 import { useAuthStore } from "../stores/authStore";
+import { isPublicPath } from "./routeAccess";
 
 export const API_BASE_URL = getWebEnv({
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL
@@ -80,14 +81,10 @@ apiClient.interceptors.response.use(
         useAuthStore.getState().clearSession();
         
         if (typeof window !== "undefined" && wasAuthenticated) {
-          const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/demo"];
-          const isPublicRoute = publicRoutes.some(route => window.location.pathname.startsWith(route));
-          if (!isPublicRoute) {
-            import("sonner").then(({ toast }) => {
-              toast.error("Session Expired", {
-                description: "Your session has expired. Please log in again to continue.",
-                id: "session-expired",
-              });
+          if (!isPublicPath(window.location.pathname)) {
+            toast.error("Session Expired", {
+              description: "Your session has expired. Please log in again to continue.",
+              id: "session-expired"
             });
             window.dispatchEvent(new CustomEvent("auth:logout"));
           }
@@ -140,14 +137,16 @@ function reportNetworkSuccess() {
  */
 export class ApiError extends Error {
   code?: string;
+  /** HTTP status; undefined when no response arrived (network failure). */
+  status?: number;
 
-  constructor(message: string, code?: string) {
+  constructor(message: string, code?: string, status?: number) {
     super(message);
     this.name = "ApiError";
     this.code = code;
+    this.status = status;
   }
 }
-
 
 export async function apiFetch<TResponse>(
   path: string,
@@ -177,7 +176,7 @@ export async function apiFetch<TResponse>(
       else reportNetworkFailure(silent);
 
       const code = error.response?.data?.code;
-      throw new ApiError(message, typeof code === "string" ? code : undefined);
+      throw new ApiError(message, typeof code === "string" ? code : undefined, error.response?.status);
     }
 
     throw error;
@@ -197,11 +196,12 @@ function getApiErrorMessage(error: AxiosError<{ message?: string | string[] }>) 
   }
 
   if (error.response?.status === 429) {
-    const retryAfter = error.response.headers["retry-after"];
-    if (retryAfter) {
-      return `Too Many Requests please try (${retryAfter}s remaining)`;
+    // Retry-After is either a delay in seconds or an HTTP date.
+    const retryAfter = String(error.response.headers["retry-after"] ?? "").trim();
+    if (/^\d+$/.test(retryAfter)) {
+      return `Too many requests. Please try again in ${retryAfter} seconds.`;
     }
-    return "Too Many Requests please try again later";
+    return "Too many requests. Please try again later.";
   }
 
   const message = error.response?.data?.message;

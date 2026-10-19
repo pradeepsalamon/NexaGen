@@ -553,7 +553,7 @@ Apply committed migrations in production:
 npm run db:migrate:deploy
 ```
 
-Build for production and apply migrations first:
+Build for production (no database access; apply migrations as their own release step, `npm run db:migrate:deploy`, before starting the new build):
 
 ```bash
 npm run build:prod

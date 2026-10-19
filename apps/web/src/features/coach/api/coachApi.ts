@@ -2,12 +2,17 @@ import { API_ROUTES } from "@nexa-chess/types";
 import type {
   CoachDashboardResponse,
   CoachBatchesResponse,
+  CoachClassDetailsResponse,
   CoachClassListResponse,
   CoachClassResponse,
   CoachStudentsResponse,
   UpdateClassRequest
 } from "@nexa-chess/types";
 import { apiFetch } from "../../../lib/api";
+
+export function getCoachClassDetails(id: string): Promise<CoachClassDetailsResponse> {
+  return apiFetch<CoachClassDetailsResponse>(API_ROUTES.coach.classDetails(id));
+}
 
 export async function getCoachDashboard(): Promise<CoachDashboardResponse> {
   return apiFetch(API_ROUTES.coach.dashboard);

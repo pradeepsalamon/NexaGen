@@ -15,8 +15,13 @@ fi
 
 # Changes the import graph can't see: shared packages resolve through node_modules
 # (Jest ignores it), migrations/schema aren't imported, and test config/helpers or
-# dependencies affect every spec.
-if git diff --name-only "$base" HEAD | grep -qE \
+# dependencies affect every spec. Three dots = since the merge base, the same
+# range --changedSince covers; a failed diff must not pass for "nothing changed".
+if ! changed=$(git diff --name-only "${base}...HEAD"); then
+  echo "git diff against ${base} failed; running the full suite." >&2
+  exit 0
+fi
+if printf '%s\n' "$changed" | grep -qE \
   '^(packages/|prisma/|apps/api/prisma/|apps/api/src/test/|apps/api/(jest[^/]*|tsconfig[^/]*|package)\.(ts|json)$|package(-lock)?\.json$|turbo\.json$|\.github/workflows/)'; then
   echo "Shared packages, schema, test setup or dependencies changed; running the full suite." >&2
   exit 0

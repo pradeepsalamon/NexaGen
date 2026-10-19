@@ -2,8 +2,8 @@ import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useBoardStore } from "../../context/BoardProvider";
 import { useShallow } from "zustand/react/shallow";
-import { useAuthStore } from "@/stores/authStore";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/Tooltip";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 export function DrawingToolbar() {
   const { activeBrush, setActiveBrush, clearAnnotations } = useBoardStore(
@@ -14,10 +14,8 @@ export function DrawingToolbar() {
     })),
   );
   const user = useAuthStore((state) => state.user);
-  const isCoach = user?.role === "COACH";
-
-  // Only show drawing tools if coach or if everyone can draw (this can be expanded)
-  if (!isCoach) return null; 
+  // Coaches and staff, matching ChessClock, SidebarTabs and MoveHistory.
+  if (user?.role !== "COACH" && !isStaffRole(user?.role)) return null;
 
   const colors = [
     { id: 'green', hex: '#15781B', label: 'Green' },
@@ -37,9 +35,10 @@ export function DrawingToolbar() {
     <div className="flex items-center gap-2 rounded-full border border-app-border bg-app-surface px-2 py-1 shadow-card">
       <div className="flex items-center gap-1">
         {colors.map(color => (
-          <Tooltip key={color.id}>
-            <TooltipTrigger asChild>
+          <SimpleTooltip key={color.id} label={color.label} side="top">
               <Button 
+                aria-label={`${color.label.split(" ")[0]} brush`}
+                aria-pressed={activeBrush === color.id}
                 variant="ghost" 
                 size="icon"
                 onClick={() => setActiveBrush(color.id)}
@@ -54,25 +53,16 @@ export function DrawingToolbar() {
                   style={{ backgroundColor: color.hex }}
                 />
               </Button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              {color.label}
-            </TooltipContent>
-          </Tooltip>
+          </SimpleTooltip>
         ))}
         
         <div className="mx-1 h-5 w-px bg-app-border" />
         
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="w-8 h-8 rounded-full text-app-muted hover:bg-app-danger/10 hover:text-app-danger-ink" onClick={handleClear}>
-              <Trash2 className="size-4" />
+        <SimpleTooltip label="Clear all annotations (or left-click the board)" side="top">
+            <Button aria-label="Clear annotations" variant="ghost" size="icon" className="w-8 h-8 rounded-full text-app-muted hover:bg-app-danger/10 hover:text-app-danger-ink" onClick={handleClear}>
+              <Trash2 aria-hidden="true" className="size-4" />
             </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            Clear all annotations (or left-click the board)
-          </TooltipContent>
-        </Tooltip>
+        </SimpleTooltip>
       </div>
     </div>);
 }

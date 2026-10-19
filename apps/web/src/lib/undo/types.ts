@@ -51,6 +51,6 @@ export type UndoableMutationConfig<TVars, TResult> = {
 };
 
 export type UndoableMutationResult<TVars> = {
-  run: (vars: TVars) => void;
+  run: (vars: TVars) => Promise<void>;
   isPending: boolean;
 };

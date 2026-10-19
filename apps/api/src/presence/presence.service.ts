@@ -63,7 +63,9 @@ export class PresenceService {
       this.prisma.liveSession.findFirst({
         where: {
           status: "LIVE",
-          class: { batch: { students: { some: { studentId: user.id, isDeleted: false } } } }
+          class: {
+            batch: { isDeleted: false, students: { some: { studentId: user.id, isDeleted: false } } }
+          }
         },
         orderBy: { startedAt: "desc" },
         include: {

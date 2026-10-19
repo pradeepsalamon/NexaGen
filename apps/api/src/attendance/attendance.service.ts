@@ -158,7 +158,9 @@ export class AttendanceService {
     // Update the attendance record
     await this.prisma.classAttendance.update({
       where: { id: attendance.id },
-      data: { leftAt: now, lastActivity: now },
+      data: openSession
+        ? { leftAt: now, lastActivity: now }
+        : { lastActivity: now },
     });
 
     this.logger.log(
@@ -466,7 +468,9 @@ export class AttendanceService {
 
     await this.prisma.coachAttendance.update({
       where: { id: attendance.id },
-      data: { leftAt: now, lastActivity: now },
+      data: openSession
+        ? { leftAt: now, lastActivity: now }
+        : { lastActivity: now },
     });
 
     this.logger.log(`COACH LEAVE recorded: coach=${coachId} class=${classId}`);

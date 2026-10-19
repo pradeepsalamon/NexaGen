@@ -20,9 +20,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { Switch } from "@/components/ui/Switch";
 import { Textarea } from "@/components/ui/Textarea";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
 import { formatDateTime } from "@/lib/datetime";
 import {
@@ -58,7 +60,11 @@ export function GameSourcesCard() {
           Upload PGN
         </Button>
       </div>
-      {enabled ? (
+      {sources.isLoading ? (
+        <Skeleton className="h-10 w-full rounded-control" />
+      ) : sources.isError && !sources.data ? (
+        <WidgetError message="Couldn't load your linked accounts." onRetry={() => void sources.refetch()} />
+      ) : enabled ? (
         <LinkedAccounts accounts={sources.data?.accounts ?? []} />
       ) : (
         <p className="text-xs text-app-muted">Importing straight from Lichess or Chess.com isn’t switched on for this academy yet — download a PGN there and upload it.</p>
@@ -276,7 +282,7 @@ function AccountRow({ account }: { account: ExternalChessAccountDto }) {
               size="icon"
               variant="ghost"
             >
-              <Trash2 className="size-4" strokeWidth={2.5} />
+              <Trash2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
             </Button>
           </SimpleTooltip>
         </div>

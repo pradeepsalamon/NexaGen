@@ -31,7 +31,7 @@ export function FormField({
       {children}
       {error ? (
         <p
-          className="sr-only"
+          className="m-0 text-xs leading-5 text-app-danger-ink"
           id={`${id}-error`}
           role="alert"
         >

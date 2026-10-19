@@ -196,9 +196,10 @@ export function CoachRegisterForm() {
           <Input
             id="fide-rating"
             inputMode="numeric"
-            onChange={(event) =>
-              updateField("fideRating", parseInt(event.target.value) || undefined)
-            }
+            onChange={(event) => {
+              const val = parseInt(event.target.value, 10);
+              updateField("fideRating", Number.isNaN(val) ? undefined : val);
+            }}
             placeholder="e.g. 2000"
             type="number"
             value={values.fideRating ?? ""}
@@ -210,9 +211,10 @@ export function CoachRegisterForm() {
           <Input
             id="years-of-experience"
             inputMode="numeric"
-            onChange={(event) =>
-              updateField("yearsOfExperience", parseInt(event.target.value) || undefined)
-            }
+            onChange={(event) => {
+              const val = parseInt(event.target.value, 10);
+              updateField("yearsOfExperience", Number.isNaN(val) ? undefined : val);
+            }}
             placeholder="e.g. 5"
             type="number"
             value={values.yearsOfExperience ?? ""}

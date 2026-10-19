@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException
@@ -158,7 +159,7 @@ export class UserService {
         where: { id: created.id },
         include: userInclude
       });
-    });
+    }).catch(rethrowUniqueAsConflict);
 
     return { user: this.toAuthUser(newUser) };
   }
@@ -183,6 +184,10 @@ export class UserService {
 
     if (data.role && data.role !== userToUpdate.role) {
       this.assertCanChangeRole(authUser, userToUpdate, data.role);
+    }
+    // Deactivating yourself would end your own session mid-edit and lock you out.
+    if (data.status && data.status !== userToUpdate.status && userToUpdate.id === authUser.id) {
+      throw new BadRequestException("You cannot change your own status.");
     }
 
     if (data.email && data.email !== userToUpdate.email) {
@@ -292,7 +297,7 @@ export class UserService {
         where: { id },
         include: userInclude
       });
-    });
+    }).catch(rethrowUniqueAsConflict);
 
     return { user: this.toAuthUser(updated) };
   }
@@ -490,4 +495,12 @@ export class UserService {
       username: user.username
     };
   }
+}
+
+/** A concurrent create/edit won the email (or username) between the pre-check and the write. */
+function rethrowUniqueAsConflict(error: unknown): never {
+  if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+    throw new ConflictException("User with this email already exists.");
+  }
+  throw error;
 }

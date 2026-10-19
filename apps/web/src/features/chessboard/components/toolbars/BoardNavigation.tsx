@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useBoardStore } from "../../context/BoardProvider";
 import { useShallow } from "zustand/react/shallow";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/Tooltip";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 
 export function BoardNavigation() {
   const { 
@@ -48,67 +48,29 @@ export function BoardNavigation() {
   const canRedo = historyIndex < moveHistory.length - 1;
 
   return (
-    <TooltipProvider>
-      <div className="flex items-center justify-center gap-2 mt-4 text-app-muted">
-        
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavIconButton icon={<SkipBack className="size-4" />} onClick={jumpToStart} disabled={!canUndo} />
-          </TooltipTrigger>
-          <TooltipContent>Jump to Start (↑)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavIconButton icon={<ChevronLeft className="size-[18px]" />} onClick={undo} disabled={!canUndo} />
-          </TooltipTrigger>
-          <TooltipContent>Previous Move (←)</TooltipContent>
-        </Tooltip>
-        
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavIconButton 
-              icon={<PenTool className="size-4" />} 
-              onClick={() => setIsDrawingMode(!isDrawingMode)} 
-              isActive={isDrawingMode} 
-            />
-          </TooltipTrigger>
-          <TooltipContent>Toggle 1-Click Drawing Mode</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavIconButton 
-              icon={<RotateCw className="size-4" />} 
-              onClick={() => setOrientation(orientation === 'white' ? 'black' : 'white')} 
-            />
-          </TooltipTrigger>
-          <TooltipContent>Flip Board</TooltipContent>
-        </Tooltip>
-        
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavIconButton icon={<X className="size-4" />} onClick={reset} disabled={!canModify} />
-          </TooltipTrigger>
-          <TooltipContent>Reset Board</TooltipContent>
-        </Tooltip>
-        
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavIconButton icon={<ChevronRight className="size-[18px]" />} onClick={redo} disabled={!canRedo} />
-          </TooltipTrigger>
-          <TooltipContent>Next Move (→)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <NavIconButton icon={<SkipForward className="size-4" />} onClick={jumpToEnd} disabled={!canRedo} />
-          </TooltipTrigger>
-          <TooltipContent>Jump to End (↓)</TooltipContent>
-        </Tooltip>
-
-      </div>
-    </TooltipProvider>
+    <div className="flex items-center justify-center gap-2 mt-4 text-app-muted">
+      <SimpleTooltip label="Jump to start (↑)">
+        <NavIconButton aria-label="Jump to start" icon={<SkipBack className="size-4" />} onClick={jumpToStart} disabled={!canUndo} />
+      </SimpleTooltip>
+      <SimpleTooltip label="Previous move (←)">
+        <NavIconButton aria-label="Previous move" icon={<ChevronLeft className="size-[18px]" />} onClick={undo} disabled={!canUndo} />
+      </SimpleTooltip>
+      <SimpleTooltip label="Toggle 1-click drawing mode">
+        <NavIconButton aria-label="Toggle drawing mode" icon={<PenTool className="size-4" />} onClick={() => setIsDrawingMode(!isDrawingMode)} isActive={isDrawingMode} />
+      </SimpleTooltip>
+      <SimpleTooltip label="Flip board">
+        <NavIconButton aria-label="Flip board" icon={<RotateCw className="size-4" />} onClick={() => setOrientation(orientation === 'white' ? 'black' : 'white')} />
+      </SimpleTooltip>
+      <SimpleTooltip label="Reset board">
+        <NavIconButton aria-label="Reset board" icon={<X className="size-4" />} onClick={reset} disabled={!canModify} />
+      </SimpleTooltip>
+      <SimpleTooltip label="Next move (→)">
+        <NavIconButton aria-label="Next move" icon={<ChevronRight className="size-[18px]" />} onClick={redo} disabled={!canRedo} />
+      </SimpleTooltip>
+      <SimpleTooltip label="Jump to end (↓)">
+        <NavIconButton aria-label="Jump to end" icon={<SkipForward className="size-4" />} onClick={jumpToEnd} disabled={!canRedo} />
+      </SimpleTooltip>
+    </div>
   );
 }
 

@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { DEFAULT_TIME_ZONE, zonedDayBounds } from "../common/time";
 import { PrismaService } from "../prisma/prisma.service";
 import type { AnalyticsEventType } from "./analytics-events.constants";
 
@@ -45,8 +46,8 @@ export class AnalyticsEventService {
     classId: string
   ): Promise<void> {
     try {
-      const since = new Date();
-      since.setHours(0, 0, 0, 0);
+      // The academy's day, not the container's local midnight.
+      const since = zonedDayBounds(DEFAULT_TIME_ZONE).start;
       const existing = await this.prisma.analyticsEvent.findFirst({
         where: {
           userId,

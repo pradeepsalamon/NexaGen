@@ -102,10 +102,14 @@ export class GameAnalysisWorker implements OnModuleInit, OnApplicationShutdown {
       while (!this.shuttingDown && this.running.size < env.GAME_ANALYSIS_CONCURRENCY) {
         const claimed = await this.claim();
         if (!claimed) break;
-        void this.run(claimed).finally(() => {
-          this.running.delete(claimed.id);
-          this.nudge();
-        });
+        void this.run(claimed)
+          .catch((error) => {
+            this.logger.error(`Game analysis job failed: ${claimed.id}`, error);
+          })
+          .finally(() => {
+            this.running.delete(claimed.id);
+            this.nudge();
+          });
       }
     } finally {
       this.draining = false;

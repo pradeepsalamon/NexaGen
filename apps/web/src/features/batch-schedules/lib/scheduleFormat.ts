@@ -58,7 +58,10 @@ export function todayISODate(): string {
 
 export function addMonthsISO(dateISO: string, months: number): string {
   const [y, m, d] = dateISO.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1 + months, d));
+  const targetMonth = m - 1 + months;
+  const maxDay = new Date(Date.UTC(y, targetMonth + 1, 0)).getUTCDate();
+  const clampedDay = Math.min(d, maxDay);
+  const dt = new Date(Date.UTC(y, targetMonth, clampedDay));
   return dt.toISOString().slice(0, 10);
 }
 

@@ -28,10 +28,12 @@ import {
   liveBoardStateSchema,
   moderateAllRequestSchema,
   kickParticipantRequestSchema,
+  liveClassHeartbeatRequestSchema,
   moderateParticipantRequestSchema,
   requestTrackOnRequestSchema,
   resolveScreenShareRequestSchema,
   pullStudentRequestSchema,
+  recordingProgressRequestSchema,
   resolveWaitingRoomRequestSchema,
   saveLiveChatMessageRequestSchema,
   updateLiveClassSettingsRequestSchema,
@@ -39,10 +41,12 @@ import {
   type LiveBoardState,
   type ModerateAllRequest,
   type KickParticipantRequest,
+  type LiveClassHeartbeatRequest,
   type ModerateParticipantRequest,
   type RequestTrackOnRequest,
   type ResolveScreenShareRequest,
   type PullStudentRequest,
+  type RecordingProgressRequest,
   type ResolveWaitingRoomRequest,
   type SaveLiveChatMessageRequest,
   type UpdateLiveClassSettingsRequest,
@@ -109,9 +113,9 @@ export class LiveClassController {
   heartbeat(
     @Param("id") id: string,
     @Req() request: Request,
-    @Body() body: { clientId?: string }
+    @Body(new ZodBodyPipe(liveClassHeartbeatRequestSchema)) body: LiveClassHeartbeatRequest
   ) {
-    return this.liveClassService.heartbeat(this.getAccessToken(request), id, body?.clientId);
+    return this.liveClassService.heartbeat(this.getAccessToken(request), id, body.clientId);
   }
 
   @Post(API_ROUTES.liveClass.chat())
@@ -317,7 +321,7 @@ export class LiveClassController {
   updateRecordingProgress(
     @Param("id") id: string,
     @Req() request: Request,
-    @Body() body: { watchedSeconds: number }
+    @Body(new ZodBodyPipe(recordingProgressRequestSchema)) body: RecordingProgressRequest
   ) {
     return this.recording.updateRecordingProgress(
       this.getAccessToken(request),

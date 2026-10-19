@@ -1,6 +1,7 @@
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { parseISO } from "date-fns";
 import { Save, UserMinus } from "lucide-react";
 import {
   BATCH_TYPE_OPTIONS,
@@ -212,7 +213,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               name="startsAt"
               render={({ field }) => (
                 <DatePicker
-                  value={field.value ? new Date(field.value) : undefined}
+                  value={field.value ? parseISO(field.value) : undefined}
                   onChange={(date) => field.onChange(date ? date.toISOString() : "")}
                 />
               )}
@@ -225,7 +226,7 @@ export function BatchForm({ selectedBatch, onSuccess }: BatchFormProps) {
               name="endsAt"
               render={({ field }) => (
                 <DatePicker
-                  value={field.value ? new Date(field.value) : undefined}
+                  value={field.value ? parseISO(field.value) : undefined}
                   onChange={(date) => field.onChange(date ? date.toISOString() : "")}
                 />
               )}

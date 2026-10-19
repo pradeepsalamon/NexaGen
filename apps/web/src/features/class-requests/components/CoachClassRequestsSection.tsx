@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { CLASS_REQUEST_TYPE_LABELS, type ClassChangeRequestDto } from "@nexa-chess/types";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -13,13 +14,24 @@ import { ClassRequestWhen } from "./ClassRequestWhen";
 /** The coach's own extra-class / reschedule requests and where each one stands. */
 export function CoachClassRequestsSection() {
   const { data, isLoading } = useClassRequests();
+  // Requests whose withdrawal is waiting out the undo window: no second click.
+  const [queued, setQueued] = useState<ReadonlySet<string>>(new Set());
+  const mark = (id: string, on: boolean) =>
+    setQueued((ids) => {
+      const next = new Set(ids);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
 
   const { run: withdraw } = useUndoableMutation({
     strategy: "defer",
     mutationFn: (request: ClassChangeRequestDto) => withdrawClassRequest(request.id),
     undo: async () => {},
     toast: () => ({ title: "Withdrawing request" }),
-    invalidates: CLASS_REQUEST_INVALIDATES
+    invalidates: CLASS_REQUEST_INVALIDATES,
+    onSchedule: (request) => mark(request.id, true),
+    onCancel: (request) => mark(request.id, false)
   });
 
   const requests = data?.requests ?? [];
@@ -51,7 +63,13 @@ export function CoachClassRequestsSection() {
               ) : null}
               {r.status === "PENDING" ? (
                 <div>
-                  <Button type="button" size="sm" variant="outline" onClick={() => withdraw(r)}>
+                  <Button
+                    disabled={queued.has(r.id)}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => withdraw(r)}
+                  >
                     Withdraw
                   </Button>
                 </div>

@@ -418,8 +418,11 @@ async function main() {
   const isProduction = process.env.NODE_ENV === "production";
   const forceSeed = process.env.FORCE_SEED === "true";
 
+  // The accounts below share a public password: never on production unless forced.
   if (isProduction && !forceSeed) {
-    console.warn("⚠️ Production environment detected. Only the Super Admin account will be seeded.");
+    console.warn("⚠️ Production environment detected: seeding system presets only (FORCE_SEED=true seeds the accounts).");
+    await seedSystemPresets();
+    return;
   }
 
   const password = await hashSecret(seedPassword);
@@ -591,41 +594,40 @@ async function main() {
         }
       }));
 
-    const existingBatchCoach = await prisma.batchCoach.findUnique({
+    // This client has no soft-delete filter, so a trashed batch or link is
+    // reused above; restore it so the e2e suite (`seededBatchId`) can see it.
+    const restored = { deletedAt: null, deletedById: null, isDeleted: false };
+    if (batch.isDeleted) {
+      await prisma.batch.update({ where: { id: batch.id }, data: restored });
+    }
+
+    await prisma.batchCoach.upsert({
       where: {
         batchId_coachId: {
           batchId: batch.id,
           coachId: coach.id
         }
-      }
+      },
+      create: {
+        batchId: batch.id,
+        coachId: coach.id
+      },
+      update: restored
     });
 
-    if (!existingBatchCoach) {
-      await prisma.batchCoach.create({
-        data: {
-          batchId: batch.id,
-          coachId: coach.id
-        }
-      });
-    }
-
-    const existingBatchStudent = await prisma.batchStudent.findUnique({
+    await prisma.batchStudent.upsert({
       where: {
         batchId_studentId: {
           batchId: batch.id,
           studentId: student.id
         }
-      }
+      },
+      create: {
+        batchId: batch.id,
+        studentId: student.id
+      },
+      update: restored
     });
-
-    if (!existingBatchStudent) {
-      await prisma.batchStudent.create({
-        data: {
-          batchId: batch.id,
-          studentId: student.id
-        }
-      });
-    }
 
     console.log(`- batch: ${batch.name}`);
 

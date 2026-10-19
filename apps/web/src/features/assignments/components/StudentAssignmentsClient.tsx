@@ -96,16 +96,17 @@ function Section({
                   </div>
                   {a.puzzleSet && <PuzzleSetProgressLine set={a.puzzleSet} />}
                 </div>
-                <Link href={`/student/practice/${a.id}`} className="w-full sm:w-auto">
-                  <Button
-                    variant={a.status === "COMPLETED" ? "outline" : "primary"}
-                    size="sm"
-                    className="w-full font-bold"
-                  >
+                <Button
+                  asChild
+                  variant={a.status === "COMPLETED" ? "outline" : "primary"}
+                  size="sm"
+                  className="w-full font-bold sm:w-auto"
+                >
+                  <Link href={`/student/practice/${a.id}`}>
                     {a.status === "PENDING" ? "Start" : a.status === "IN_PROGRESS" ? "Resume" : "Review"}
                     <ArrowRight className="ml-1.5 size-3.5" />
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             ))}
           </div>

@@ -20,6 +20,7 @@ import {
   DialogTitle
 } from "@/components/ui/Dialog";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { WidgetError } from "@/components/ui/WidgetError";
 import { Select } from "@/components/ui/Select";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Textarea } from "@/components/ui/Textarea";
@@ -39,7 +40,7 @@ export function AdminClassRequestsClient() {
   const [status, setStatus] = useState<ClassRequestStatus | "">("PENDING");
   const [deciding, setDeciding] = useState<Decision | null>(null);
   const [note, setNote] = useState("");
-  const { data, isLoading } = useClassRequests(status || undefined);
+  const { data, isError, isLoading, refetch } = useClassRequests(status || undefined);
 
   // No reverse endpoint (an approval creates or moves a class), so the
   // decision is held for the undo window before it's sent.
@@ -89,6 +90,8 @@ export function AdminClassRequestsClient() {
           <Skeleton className="h-24 w-full rounded-app" />
           <Skeleton className="h-24 w-full rounded-app" />
         </div>
+      ) : isError && !data ? (
+        <WidgetError message="Couldn't load class requests." onRetry={() => void refetch()} />
       ) : requests.length === 0 ? (
         <Card>
           <EmptyState variant="inline"

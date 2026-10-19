@@ -43,6 +43,7 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
   const [accessMode, setAccessMode] = useState<DemoClassAccessMode>(selectedClass?.accessMode ?? "PUBLIC");
   const [passcode, setPasscode] = useState(selectedClass?.passcode ?? "");
   const [passcodeError, setPasscodeError] = useState<string | undefined>();
+  const [durationError, setDurationError] = useState<string | undefined>();
   const [invitees, setInvitees] = useState<PendingInvitees>(EMPTY_PENDING_INVITEES);
   const [notifyInvitees, setNotifyInvitees] = useState(true);
   const { data: usersData, isLoading: isLoadingUsers } = useAssignableUsersQuery();
@@ -94,8 +95,19 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
     }
     setPasscodeError(undefined);
 
+    const minutes = Number(duration);
+    if (!Number.isInteger(minutes) || minutes <= 0 || minutes > 1440) {
+      setDurationError("Enter the duration as a whole number of minutes (1 to 1440).");
+      return;
+    }
+
     const startObj = new Date(values.startsAt);
-    const endsAtObj = new Date(startObj.getTime() + parseInt(duration) * 60000);
+    const endsAtObj = new Date(startObj.getTime() + minutes * 60000);
+    if (Number.isNaN(endsAtObj.getTime())) {
+      setDurationError("Please enter a valid start time and duration.");
+      return;
+    }
+    setDurationError(undefined);
 
     const submitData = {
       ...values,
@@ -183,8 +195,14 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                   type="number"
                   min={1}
                   placeholder="Minutes (e.g. 60)"
+                  aria-describedby={durationError ? "demo-duration-error" : undefined}
+                  aria-invalid={!!durationError}
+                  hasError={!!durationError}
                   value={duration}
-                  onChange={(e) => setDuration(e.target.value)}
+                  onChange={(e) => {
+                    setDuration(e.target.value);
+                    setDurationError(undefined);
+                  }}
                   onFocus={() => setIsDurationDropdownOpen(true)}
                   onBlur={() => setTimeout(() => setIsDurationDropdownOpen(false), 200)}
                 />
@@ -214,6 +232,11 @@ export function DemoClassForm({ onSuccess, selectedClass }: DemoClassFormProps) 
                   </div>
                 )}
               </div>
+              {durationError ? (
+                <p className="m-0 text-xs leading-5 text-app-danger-ink" id="demo-duration-error" role="alert">
+                  {durationError}
+                </p>
+              ) : null}
             </div>
           </div>
           <BaseFormField

@@ -62,6 +62,8 @@ export function ManualPaymentsPanel() {
   const [status, setStatus] = useState<ManualPaymentReviewStatus | "">("PENDING");
   const [recording, setRecording] = useState(false);
   const [rejecting, setRejecting] = useState<ManualPaymentRecordItem | null>(null);
+  // Approval grants access and can't be reversed here, so it is confirmed first.
+  const [approving, setApproving] = useState<ManualPaymentRecordItem | null>(null);
 
   const { data, isLoading } = useAdminManualPayments(status || undefined);
   const approve = useApproveManualPayment();
@@ -106,6 +108,34 @@ export function ManualPaymentsPanel() {
       {recording ? (
         <RecordManualPaymentDialog onClose={() => setRecording(false)} scope="admin" />
       ) : null}
+      {approving ? (
+        <Dialog onOpenChange={(open) => !open && setApproving(null)} open>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Approve this payment?</DialogTitle>
+              <DialogDescription>
+                {approving.studentName ?? "This student"} gets {approving.planName} for{" "}
+                {formatMoney(approving.amount, approving.currency)}. Access is granted and an
+                invoice issued straight away.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setApproving(null)} type="button" variant="outline">
+                Cancel
+              </Button>
+              <Button
+                isLoading={approve.isPending}
+                onClick={() => approve.mutate(approving.id, { onSuccess: () => setApproving(null) })}
+                type="button"
+                variant="primary"
+              >
+                Approve
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+
       {rejecting ? (
         <RejectManualPaymentDialog
           onClose={() => setRejecting(null)}
@@ -206,7 +236,7 @@ export function ManualPaymentsPanel() {
                               aria-label={`Approve payment for ${record.studentName ?? "student"}`}
                               className="size-8 rounded-full border border-accent bg-accent p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-accent)_75%,white)] hover:text-white"
                               disabled={approve.isPending}
-                              onClick={() => approve.mutate(record.id)}
+                              onClick={() => setApproving(record)}
                               size="icon"
                               type="button"
                               variant="ghost"
@@ -311,7 +341,14 @@ function OfflineMethodsSection() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="text-sm font-bold text-app-text">Offline payment methods</h3>
-        <Button onClick={() => setCreating(true)} type="button" variant="outline">
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setCreating(true);
+          }}
+          type="button"
+          variant="outline"
+        >
           <Plus className="size-4" strokeWidth={2.5} />
           Add method
         </Button>
@@ -319,6 +356,7 @@ function OfflineMethodsSection() {
 
       {creating || editing ? (
         <OfflineMethodForm
+          key={editing?.id ?? "new"}
           method={editing}
           onClose={() => {
             setCreating(false);

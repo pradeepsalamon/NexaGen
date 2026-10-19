@@ -89,7 +89,7 @@ function describeEdge(diff: number): string {
 export function ChessBalanceTool() {
   const board = useContext(BoardContext);
   const [scale, setScale] = useState<Pans>(() =>
-    readLocal<Pans>(STORAGE_KEY, { black: { ...START }, white: { ...START } }),
+    readLocal<Pans>(STORAGE_KEY, { black: { ...START }, white: { ...START } }, parsePans),
   );
   useEffect(() => writeLocal(STORAGE_KEY, scale), [scale]);
   // A watching student sees the coach's scale, without the controls.

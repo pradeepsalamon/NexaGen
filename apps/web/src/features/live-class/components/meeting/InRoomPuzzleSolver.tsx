@@ -96,7 +96,7 @@ export function InRoomPuzzleSolver({
   const start = useCallback(() => startLivePuzzleAttempt(classId), [classId]);
   const {
     session, startError, moves, phase, wrong, wrongMoves, resetNonce, result, currentFen,
-    begin, handleMove, giveUp, pendingSubmit, retrySubmit, serverHint, requestHint
+    begin, handleMove, giveUp, pendingSubmit, retrySubmit, serverHint, requestHint, submitting
   } = usePuzzleAttempt({ start });
   // In class a hint only ever lights up the piece to move, never the move itself.
   const hintSquares = phase === "solving" ? hintSquaresFor(serverHint ? { ...serverHint, toSquare: null } : null) : null;
@@ -168,7 +168,7 @@ export function InRoomPuzzleSolver({
       {pendingSubmit && !result ? (
         <Card className="space-y-2 border-app-danger/40 p-3 text-sm text-app-text">
           <p>Your answer didn&apos;t reach the server, so your coach can&apos;t see it yet.</p>
-          <Button type="button" size="sm" onClick={() => void retrySubmit()}>
+          <Button disabled={submitting} type="button" size="sm" onClick={() => void retrySubmit()}>
             Submit again
           </Button>
         </Card>

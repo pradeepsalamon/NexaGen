@@ -122,12 +122,20 @@ export class AccountDeletionService {
       select: { isDeleted: true },
       where: { id: request.userId }
     });
-    if (target && !target.isDeleted) {
-      await this.users.deleteAs(admin, request.userId);
-    }
-
+    // Claim the request first, so two admins cannot both run the deletion.
     const note = dto.note || null;
     const row = await this.resolve(id, admin.id, AccountDeletionStatus.COMPLETED, note);
+    if (target && !target.isDeleted) {
+      try {
+        await this.users.deleteAs(admin, request.userId);
+      } catch (error) {
+        await this.prisma.accountDeletionRequest.updateMany({
+          data: { reviewNote: null, reviewedAt: null, reviewedById: null, status: AccountDeletionStatus.PENDING },
+          where: { id, status: AccountDeletionStatus.COMPLETED }
+        });
+        throw error;
+      }
+    }
     this.notifyUser(row.userEmail, true, note);
     return { request: toItem(row) };
   }

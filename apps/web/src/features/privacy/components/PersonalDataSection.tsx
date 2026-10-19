@@ -3,6 +3,7 @@
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { useToast } from "@/providers/ToastProvider";
+import { getErrorMessage } from "@/lib/errors";
 import { useDownloadMyData } from "../hooks/usePrivacyApi";
 
 /** Profile → "Your data": a JSON copy of everything the academy holds about you. */
@@ -29,6 +30,7 @@ export function PersonalDataSection() {
           disabled={download.isPending}
           onClick={() =>
             download.mutate(undefined, {
+              onError: (error) => toast.error({ message: getErrorMessage(error), title: "Couldn't download your data" }),
               onSuccess: () => toast.success({ title: "Your data was downloaded" })
             })
           }

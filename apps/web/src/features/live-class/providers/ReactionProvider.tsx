@@ -107,12 +107,18 @@ export function ReactionProvider({ children }: { children: ReactNode }) {
   );
 
   const onMessage = useCallback(
-    (packet: { payload: Uint8Array; from?: { metadata?: string } }) => {
+    (packet: { payload: Uint8Array; from?: { identity?: string; metadata?: string; name?: string } }) => {
       const msg = decodeReaction(packet.payload);
       if (!msg) return;
       // Peer packets never pass the API, so the receiver enforces the switch.
       // A puzzle-solve celebration is not a student's own reaction and still shows.
       if (msg.type === "REACTION" && studentReactionsOff && senderRole(packet.from) !== "COACH") return;
+      // A reaction is labelled with who sent it per the LiveKit envelope, never
+      // the name a peer wrote into the payload (anyone could claim "Coach").
+      if (msg.type === "REACTION") {
+        show({ ...msg, name: packet.from?.name || packet.from?.identity || "" });
+        return;
+      }
       show(msg);
     },
     [show, studentReactionsOff],

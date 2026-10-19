@@ -7,6 +7,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import type { CoachClass } from "@nexa-chess/types";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
+import { openInNewTab } from "@/lib/openInNewTab";
 import { Button } from "@/components/ui/Button";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { DataTable } from "@/components/ui/DataTable";
@@ -30,10 +31,7 @@ export function CoachHistoryClient() {
 
   const handleDownload = async (classId: string) => {
     try {
-      const data = await getRecordingDownloadUrl(classId, { download: true });
-      if (data?.url) {
-        window.open(data.url, "_blank");
-      }
+      await openInNewTab(async () => (await getRecordingDownloadUrl(classId, { download: true }))?.url);
     } catch (error) {
       console.error("Failed to download recording:", error);
       toast.error("Failed to download recording. It may have expired or is unavailable.");

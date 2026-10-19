@@ -59,7 +59,7 @@ export function QueuePuzzlePicker({
   const folderOptions = useMemo(() => {
     const visible = (topics.data?.topics ?? []).filter((t) => !isSystemPuzzleFolder(t));
     return flattenPuzzleTopicTree(buildPuzzleTopicTree(visible)).map((node) => ({
-      label: `${" ".repeat(node.depth)}${node.topic.name}`,
+      label: `${"\u00A0\u00A0".repeat(node.depth)}${node.topic.name}`,
       value: node.topic.id
     }));
   }, [topics.data]);

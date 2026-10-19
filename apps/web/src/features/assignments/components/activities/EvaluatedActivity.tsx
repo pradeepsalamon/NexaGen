@@ -287,11 +287,18 @@ export function EvaluatedActivity({ assignmentId, onBack }: Props) {
         if (new Chess(engine.fenAfter).isGameOver()) {
           await doSubmit(next);
         }
+      } catch {
+        setMoves(moves);
+        setFen(replay(startFen, moves));
+        toast.error({
+          title: "Engine error",
+          message: "Failed to get engine move. Please try again."
+        });
       } finally {
         setBusy(false);
       }
     },
-    [moves, assignmentId, attemptId, doSubmit, persist, toast]
+    [moves, assignmentId, attemptId, doSubmit, persist, toast, startFen]
   );
 
   const handleFreeMove = useCallback(

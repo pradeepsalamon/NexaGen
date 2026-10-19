@@ -206,9 +206,10 @@ export function DemoBookingSection() {
                 </form>
 
                 <div
+                  aria-hidden={!submitted}
                   className={`absolute inset-0 flex items-center justify-center bg-white/95 rounded-2xl backdrop-blur-sm transition-all duration-500 transform ${submitted ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"}`}
                 >
-                  <div className="text-center p-6">
+                  <div aria-live="polite" className="text-center p-6" role="status">
                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 mb-4 animate-bounce">
                       <CircleCheckBig className="w-8 h-8" strokeWidth={2} />
                     </div>

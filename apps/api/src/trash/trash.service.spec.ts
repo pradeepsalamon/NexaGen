@@ -23,9 +23,9 @@ describe("TrashService — financial history retention", () => {
       findDeleted: jest.fn().mockResolvedValue({}),
       findExpired: jest.fn(),
       findUserIdsWithRetainedHistory: jest.fn().mockResolvedValue(new Set()),
-      hardDelete: jest.fn().mockResolvedValue(undefined)
+      hardDelete: jest.fn().mockResolvedValue(true)
     };
-    const tx = {};
+    const tx = { $queryRaw: jest.fn().mockResolvedValue([]) };
     const prisma = {
       $queryRaw: jest.fn().mockResolvedValue([{ locked: true }]),
       $transaction: jest.fn((callback: (client: unknown) => unknown) => callback(tx)),

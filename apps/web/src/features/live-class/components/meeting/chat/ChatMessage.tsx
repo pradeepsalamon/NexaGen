@@ -51,9 +51,13 @@ export const ChatMessage = memo(function ChatMessage({
   const { setDraft } = useLiveClassChat();
   const reducedMotion = useReducedMotion();
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText(msg.message);
-    toast.success("Message copied!");
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(msg.message);
+      toast.success("Message copied!");
+    } catch {
+      toast.error("Failed to copy message");
+    }
   }, [msg.message]);
 
   const handleReply = useCallback(() => {
@@ -130,7 +134,7 @@ export const ChatMessage = memo(function ChatMessage({
               "px-3.5 py-2.5 text-sm leading-relaxed [word-break:break-word] shadow-card transition duration-200",
               msg.isOwn
                 ? "bg-primary text-white rounded-app rounded-tr-sm"
-                : "bg-app-surface border border-app-border text-app-text rounded-app rounded-tl-sm dark:bg-app-soft/50",
+                : "bg-app-surface border border-app-border text-app-text rounded-app rounded-tl-sm",
             )}
           >
             {msg.message.split("\n").map((line, lineIndex) => {

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext, type BrowserContext, type Page } from "@playwright/test";
-import { scheduleClass, seededBatchId } from "./fixtures";
+import { api, login, scheduleClass, seededBatchId, type Cookie } from "./fixtures";
 
 /**
  * Shared live-class chessboard sync — two real participants over LiveKit.
@@ -16,12 +16,6 @@ import { scheduleClass, seededBatchId } from "./fixtures";
  */
 
 const RUN = process.env.RUN_LIVE_BOARD_E2E === "1";
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-
-const ADMIN = { email: "superadmin@nexa.test", password: "Test@12345" };
-const COACH = { email: "coach@nexa.test", password: "Test@12345" };
-const STUDENT = { email: "student@nexa.test", password: "Test@12345" };
-
 const FAKE_MEDIA_ARGS = [
   "--use-fake-ui-for-media-stream",
   "--use-fake-device-for-media-stream",
@@ -41,43 +35,6 @@ declare global {
   interface Window {
     __nexaBoard?: NexaBoardHarness;
   }
-}
-
-type Cookie = { name: string; value: string; domain: string; path: string; httpOnly: boolean };
-
-async function login(request: APIRequestContext, email: string, password: string): Promise<Cookie[]> {
-  // /auth/login is throttled 5/60s; back off on 429 during a full-suite run.
-  let res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  for (let attempt = 0; res.status() === 429 && attempt < 6; attempt += 1) {
-    await new Promise((r) => setTimeout(r, 12_000));
-    res = await request.post(`${API_URL}/auth/login`, { data: { email, password } });
-  }
-  expect(res.ok(), `login ${email}: ${await res.text()}`).toBeTruthy();
-  const raw = res.headers()["set-cookie"] || "";
-  return raw
-    .split("\n")
-    .flatMap((line) => line.split(/,(?=\s*nexa_)/))
-    .map((c) => c.trim().split(";")[0])
-    .filter((c) => c.startsWith("nexa_"))
-    .map((c) => {
-      const [name, ...v] = c.split("=");
-      return { name, value: v.join("="), domain: "localhost", path: "/", httpOnly: true };
-    });
-}
-
-async function api(
-  request: APIRequestContext,
-  method: string,
-  path: string,
-  cookies: Cookie[],
-  body?: Record<string, unknown>,
-) {
-  const cookieHeader = cookies.map((c) => `${c.name}=${c.value}`).join("; ");
-  return request.fetch(`${API_URL}${path}`, {
-    method,
-    headers: { "Content-Type": "application/json", Cookie: cookieHeader },
-    data: body,
-  });
 }
 
 /**
@@ -147,8 +104,8 @@ test.describe("Live board sync", () => {
 
   test("coach drives, granted student drives back, clock + detach", async ({ browser, playwright }) => {
     const request = await playwright.request.newContext();
-    coachCookies = await login(request, COACH.email, COACH.password);
-    const studentCookies = await login(request, STUDENT.email, STUDENT.password);
+    coachCookies = await login(request, "coach");
+    const studentCookies = await login(request, "student");
 
     // ── class setup ────────────────────────────────────────────
     const batchesRes = await api(request, "GET", "/coach/batches", coachCookies);
@@ -157,7 +114,7 @@ test.describe("Live board sync", () => {
 
     await clearCoachSchedule(request, coachCookies);
 
-    const adminCookies = await login(request, ADMIN.email, ADMIN.password);
+    const adminCookies = await login(request, "admin");
     const now = Date.now();
     classId = await scheduleClass(
       (method, path, body) => api(request, method, path, coachCookies, body),
@@ -224,14 +181,15 @@ test.describe("Live board sync", () => {
     await studentCtx.setOffline(true);
     await coachPage.waitForTimeout(2000); // Give LiveKit time to notice the drop and enter Reconnecting
 
-    // Coach makes a move while student is offline
-    // (Coach was white but currently the turn might be black, wait, let's just use move or resync)
-    // Actually, fen is identical. Let's just make sure student fetches state upon reconnect.
-    const beforeDropFen = await coach.fen();
+    // The coach moves while the student is offline (1.e4 e5: White to move).
+    expect(await coach.move("g1", "f3")).toBe(true);
+    const whileOfflineFen = await coach.fen();
+    expect(whileOfflineFen).not.toBe(coachFen);
+    expect(await student.fen()).not.toBe(whileOfflineFen);
     await studentCtx.setOffline(false); // Reconnect
-    
+
     // Board should re-sync automatically upon LiveKit reconnect (REQUEST_SYNC -> SYNC_STATE)
-    await expect.poll(() => student.fen(), { timeout: 15_000 }).toBe(beforeDropFen);
+    await expect.poll(() => student.fen(), { timeout: 15_000 }).toBe(whileOfflineFen);
 
     await request.dispose();
   });

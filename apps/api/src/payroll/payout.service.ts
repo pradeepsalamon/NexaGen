@@ -4,7 +4,7 @@ import type {
   CoachPayoutListResponse,
   MarkPayoutPaidRequest
 } from "@nexa-chess/types";
-import type { CoachPayout } from "@prisma/client";
+import { Prisma, type CoachPayout } from "@prisma/client";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { PrismaService } from "../prisma/prisma.service";
 import { PayrollAuditService } from "./payroll-audit.service";
@@ -51,15 +51,26 @@ export class PayoutService {
       );
     }
 
-    const payout = await this.prisma.coachPayout.create({
-      data: { payrollRecordId, adminId: actorId, status: "PENDING" }
-    });
+    let payout: CoachPayout;
+    try {
+      payout = await this.prisma.coachPayout.create({
+        data: { payrollRecordId, adminId: actorId, status: "PENDING" }
+      });
+    } catch (error) {
+      // A concurrent request created it first.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+        const raced = await this.prisma.coachPayout.findUnique({ where: { payrollRecordId } });
+        if (raced) return this.toItem(raced);
+      }
+      throw error;
+    }
 
     await this.audit.log({
       entity: "CoachPayout",
       entityId: payout.id,
       action: "PAYOUT_CREATED",
-      userId: actorId
+      userId: actorId,
+      metadata: { payrollRecordId }
     });
 
     return this.toItem(payout);
@@ -71,24 +82,29 @@ export class PayoutService {
       throw new ConflictException("This payout is already marked paid.");
     }
 
-    const payout = await this.prisma.coachPayout.update({
-      where: { id },
-      data: {
-        status: "PAID",
-        reference: dto.reference,
-        method: dto.method,
-        paidAt: new Date(dto.paidAt),
-        notes: dto.notes,
-        adminId: actorId
-      }
-    });
+    const payout = await this.prisma.$transaction(async (tx) => {
+      // Conditional so two concurrent submits cannot both mark it paid.
+      const { count } = await tx.coachPayout.updateMany({
+        where: { id, status: { not: "PAID" } },
+        data: {
+          status: "PAID",
+          reference: dto.reference,
+          method: dto.method,
+          paidAt: new Date(dto.paidAt),
+          notes: dto.notes,
+          adminId: actorId
+        }
+      });
+      if (count === 0) throw new ConflictException("This payout is already marked paid.");
 
-    // Only this coach's record moves to PAID — the period-level PAID status
-    // (every coach paid) is a separate, explicit admin action
-    // (`PayrollLifecycleService.markPaid`), not auto-derived here.
-    await this.prisma.coachPayrollRecord.update({
-      where: { id: existing.payrollRecordId },
-      data: { status: "PAID" }
+      // Only this coach's record moves to PAID — the period-level PAID status
+      // (every coach paid) is a separate, explicit admin action
+      // (`PayrollLifecycleService.markPaid`), not auto-derived here.
+      await tx.coachPayrollRecord.update({
+        where: { id: existing.payrollRecordId },
+        data: { status: "PAID" }
+      });
+      return tx.coachPayout.findUniqueOrThrow({ where: { id } });
     });
 
     this.messaging.dispatchInBackground({
@@ -101,7 +117,7 @@ export class PayoutService {
       entityId: id,
       action: "PAYOUT_MARKED_PAID",
       userId: actorId,
-      metadata: { reference: dto.reference, method: dto.method }
+      metadata: { reference: dto.reference, method: dto.method, payrollRecordId: existing.payrollRecordId }
     });
 
     return this.toItem(payout);

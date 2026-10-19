@@ -26,12 +26,15 @@ describe("PayrollAdjustmentService", () => {
     adjustments: Record<string, unknown>[] = []
   ) => {
     const auditLog = jest.fn().mockResolvedValue(undefined);
+    const prisma: Record<string, unknown> = {};
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PayrollAdjustmentService,
         {
           provide: PrismaService,
-          useValue: {
+          useValue: Object.assign(prisma, {
+            $transaction: jest.fn((run: (tx: unknown) => unknown) => run(prisma)),
+            $queryRaw: jest.fn().mockResolvedValue([]),
             coachPayrollRecord: {
               findUnique: jest.fn().mockResolvedValue(record),
               findUniqueOrThrow: jest.fn().mockResolvedValue(record),
@@ -55,7 +58,7 @@ describe("PayrollAdjustmentService", () => {
                 ...data
               }))
             }
-          }
+          })
         },
         { provide: PayrollAuditService, useValue: { log: auditLog } }
       ]

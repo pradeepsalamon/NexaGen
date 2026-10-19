@@ -144,7 +144,7 @@ function MonitorBody({
 
       <div className="grid grid-cols-4 divide-x divide-app-border/60 border-b border-app-border/60">
         <Stat icon={<Wifi className="size-4 text-success-ink" />} label="Online" value={online} />
-        <Stat icon={<AlertTriangle className="size-4 text-warning-ink" />} label="Reconnecting" value={atRisk} />
+        <Stat icon={<AlertTriangle className="size-4 text-warning-ink" />} label="Connection issues" value={atRisk} />
         <Stat icon={<WifiOff className="size-4 text-app-muted" />} label="Left" value={left} />
         <Stat icon={<Users className="size-4 text-app-muted" />} label="Not joined" value={absent} />
       </div>

@@ -258,8 +258,12 @@ export async function renderGameVideo(
       "This browser can't record video from the page. Try Chrome, Edge or Safari.",
     );
 
+  // A cancel before or during the piece load must not start a recording.
+  const cancelled = () => new DOMException("Cancelled", "AbortError");
+  if (signal.aborted) throw cancelled();
   const frames = buildFrames(game, opts.lastPlies);
   const pieces = await loadPieces(opts.pieceSet);
+  if (signal.aborted) throw cancelled();
   const c = brandColors();
 
   const canvas = document.createElement("canvas");

@@ -113,10 +113,12 @@ export class TrashService {
     await this.assertNoRetainedHistory([{ entity, id }]);
 
     try {
-      await this.prisma.$transaction(async (transaction) => {
-        await this.deleteExternalAssets(entity, id);
-        await this.trashRepository.hardDelete(transaction, entity, id, user.id);
+      const avatars = await this.prisma.$transaction(async (transaction) => {
+        const avatar = await this.readAvatar(transaction, entity, id);
+        const removed = await this.trashRepository.hardDelete(transaction, entity, id, user.id);
+        return removed && avatar ? [avatar] : [];
       });
+      await this.deleteAvatars(avatars);
     } catch (error) {
       // e.g. a soft-deleted Puzzle/Assignment still referenced by a
       // CourseModule (onDelete: Restrict) — the row itself must go first.
@@ -148,24 +150,19 @@ export class TrashService {
 
     let deletedCount = 0;
     try {
-      await this.prisma.$transaction(async (transaction) => {
+      const avatars = await this.prisma.$transaction(async (transaction) => {
+        const found: string[] = [];
         for (const item of items) {
-          try {
-            await this.trashRepository.findDeleted(item.entity, item.id);
-          } catch (error) {
-            if (error instanceof NotFoundException) continue; // already gone
-            throw error;
+          const avatar = await this.readAvatar(transaction, item.entity, item.id);
+          // hardDelete skips a row already gone or restored since it was selected.
+          if (await this.trashRepository.hardDelete(transaction, item.entity, item.id, user.id)) {
+            deletedCount += 1;
+            if (avatar) found.push(avatar);
           }
-          await this.deleteExternalAssets(item.entity, item.id);
-          await this.trashRepository.hardDelete(
-            transaction,
-            item.entity,
-            item.id,
-            user.id
-          );
-          deletedCount += 1;
         }
+        return found;
       });
+      await this.deleteAvatars(avatars);
     } catch (error) {
       // One selected item is still referenced elsewhere (e.g. a Puzzle/
       // Assignment still attached to a live CourseModule) — reject the whole
@@ -234,11 +231,14 @@ export class TrashService {
 
   async emptyTrash(accessToken: string | undefined) {
     const user = await this.getSuperAdmin(accessToken);
-    const items = await this.withoutRetainedHistory(
-      await this.trashRepository.findExpired(new Date())
-    );
-    const deletedCount = await this.hardDeleteInChunks(items, user.id, "PERMANENT_DELETE");
-    return { deletedCount, ok: true };
+    // Shares the sweeper's lock, so the two never purge the same rows at once.
+    const outcome = await this.jobLocks.runExclusive(JOB_LOCKS.trashCleanup, async () => {
+      const items = await this.withoutRetainedHistory(
+        await this.trashRepository.findExpired(new Date())
+      );
+      return this.hardDeleteInChunks(items, user.id, "PERMANENT_DELETE");
+    });
+    return { deletedCount: outcome.acquired ? outcome.result : 0, ok: true };
   }
 
   async cleanupExpiredTrash() {
@@ -275,19 +275,20 @@ export class TrashService {
     for (let i = 0; i < ordered.length; i += CHUNK) {
       const chunk = ordered.slice(i, i + CHUNK);
       try {
-        await this.prisma.$transaction(async (transaction) => {
+        const { avatars, count } = await this.prisma.$transaction(async (transaction) => {
+          const found: string[] = [];
+          let removed = 0;
           for (const item of chunk) {
-            await this.deleteExternalAssets(item.entity, item.id);
-            await this.trashRepository.hardDelete(
-              transaction,
-              item.entity,
-              item.id,
-              userId,
-              action
-            );
+            const avatar = await this.readAvatar(transaction, item.entity, item.id);
+            if (await this.trashRepository.hardDelete(transaction, item.entity, item.id, userId, action)) {
+              removed += 1;
+              if (avatar) found.push(avatar);
+            }
           }
+          return { avatars: found, count: removed };
         });
-        deleted += chunk.length;
+        await this.deleteAvatars(avatars);
+        deleted += count;
       } catch (error) {
         if (!isForeignKeyRestrictError(error)) throw error;
         // One row in this chunk is still referenced elsewhere (e.g. a Puzzle/
@@ -310,10 +311,13 @@ export class TrashService {
     let deleted = 0;
     for (const item of chunk) {
       try {
-        await this.prisma.$transaction(async (transaction) => {
-          await this.deleteExternalAssets(item.entity, item.id);
-          await this.trashRepository.hardDelete(transaction, item.entity, item.id, userId, action);
+        const removed = await this.prisma.$transaction(async (transaction) => {
+          const url = await this.readAvatar(transaction, item.entity, item.id);
+          const done = await this.trashRepository.hardDelete(transaction, item.entity, item.id, userId, action);
+          return done ? { url } : null;
         });
+        if (!removed) continue;
+        await this.deleteAvatars(removed.url ? [removed.url] : []);
         deleted += 1;
       } catch (error) {
         if (!isForeignKeyRestrictError(error)) throw error;
@@ -334,23 +338,32 @@ export class TrashService {
   }
 
   /**
-   * Remove external assets owned by a row about to be permanently deleted
-   * (AUDIT M12 — this was a no-op stub). Currently just the Cloudinary avatar
-   * of a User; recordings live on `LiveSession`, which is not trash-enabled.
+   * External assets owned by a row about to be permanently deleted (AUDIT M12).
+   * Currently just the Cloudinary avatar of a User; recordings live on
+   * `LiveSession`, which is not trash-enabled. Read inside the delete's
+   * transaction and removed only after it commits, so a rollback keeps the avatar.
    */
-  private async deleteExternalAssets(entity: string, id: string) {
-    if (entity !== "User") return;
-    try {
-      const user = await this.prisma.withDeleted.user.findUnique({
-        where: { id },
-        select: { avatarUrl: true }
-      });
-      if (user?.avatarUrl) {
-        await this.uploadService.deleteImage(user.avatarUrl);
+  private async readAvatar(
+    client: Pick<PrismaService, "$queryRaw">,
+    entity: string,
+    id: string
+  ): Promise<string | null> {
+    if (entity !== "User") return null;
+    // Raw: the soft-delete extension would hide this (trashed) user from findUnique.
+    const rows = await client.$queryRaw<{ avatarUrl: string | null }[]>`
+      SELECT "avatarUrl" FROM "users" WHERE id = ${id}
+    `;
+    return rows[0]?.avatarUrl ?? null;
+  }
+
+  private async deleteAvatars(urls: string[]) {
+    for (const url of urls) {
+      try {
+        await this.uploadService.deleteImage(url);
+      } catch (error) {
+        // Best-effort: the rows are already gone.
+        this.logger.warn(`Failed to delete an avatar after a permanent delete: ${(error as Error).message}`);
       }
-    } catch (error) {
-      // Best-effort: a failed asset cleanup must not block the DB delete.
-      console.error(`Failed to delete external assets for User ${id}`, error);
     }
   }
 

@@ -66,7 +66,7 @@ export function StarRatingDisplay({
   const rounded = value === null ? 0 : Math.round(value);
   return (
     <span
-      aria-label={value === null ? "No rating yet" : `${value} out of ${FEEDBACK_RATING_MAX}`}
+      aria-label={value === null ? "No rating yet" : `${value.toFixed(1)} out of ${FEEDBACK_RATING_MAX}`}
       className={cn("inline-flex items-center gap-0.5", className)}
       role="img"
     >
