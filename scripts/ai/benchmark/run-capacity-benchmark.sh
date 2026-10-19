@@ -16,7 +16,8 @@
 #   3. Scores 10 synthetic class bundles (bench.mjs), samples RSS, and measures
 #      a concurrent fixed-node Stockfish search inside nexa_api.
 #   4. Aborts if a class goes live (polled every 20 s).
-#   5. Always removes the container AND the weights volume, even on Ctrl-C.
+#   5. Always removes the container, the weights volume and (unless
+#      --keep-image) the Ollama image, even on Ctrl-C.
 #
 # Exit codes: 0 pass, 2 fail, 3 aborted (class went live), 1 refused/error.
 set -euo pipefail
@@ -33,6 +34,7 @@ ENV_FILE=/opt/nexa-chess/NexaGen/.env
 OUT="$HOME/ai-bench/$(date -u +%Y%m%dT%H%M%SZ)"
 CONFIRMED=false
 STOCKFISH=true
+KEEP_IMAGE=false
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -42,6 +44,7 @@ while [ $# -gt 0 ]; do
     --out) OUT="$2"; shift ;;
     --env-file) ENV_FILE="$2"; shift ;;
     --no-stockfish) STOCKFISH=false ;;
+    --keep-image) KEEP_IMAGE=true ;;
     *) echo "unknown argument: $1" >&2; exit 1 ;;
   esac
   shift
@@ -85,7 +88,8 @@ cleanup() {
   [ -n "$WATCHER_PID" ] && kill "$WATCHER_PID" 2>/dev/null || true
   docker rm -f "$NAME" >/dev/null 2>&1 || true
   docker volume rm -f "$VOLUME" >/dev/null 2>&1 || true
-  echo "Cleanup: container and weights volume removed. $(df -h --output=avail / | tail -1 | tr -d ' ') free."
+  $KEEP_IMAGE || docker image rm "$IMAGE" >/dev/null 2>&1 || true
+  echo "Cleanup: container, weights volume and image removed. $(df -h --output=avail / | tail -1 | tr -d ' ') free."
 }
 trap cleanup EXIT
 

@@ -42,6 +42,9 @@ function repairPrompt(bundle, problems) {
   return `${userPrompt(bundle)}\n\nYour previous answer was rejected:\n- ${problems.join("\n- ")}\nFix these problems and reply with the full JSON again.`;
 }
 
+// Streams the answer: with stream:false Ollama sends no headers until it is
+// done, and Node's fetch gives up after 5 min without headers. The 15-min cap
+// is class_summary.v1's timeoutMs (PHASE3_SPEC.md §5).
 async function generate(host, model, prompt, numThread) {
   const started = performance.now();
   const response = await fetch(`${host}/api/generate`, {
@@ -51,22 +54,39 @@ async function generate(host, model, prompt, numThread) {
       model,
       options: { num_ctx: 8192, temperature: 0.2, ...(numThread ? { num_thread: numThread } : {}) },
       prompt,
-      stream: false,
+      stream: true,
       system: SYSTEM_PROMPT,
     }),
     headers: { "content-type": "application/json" },
     method: "POST",
+    signal: AbortSignal.timeout(15 * 60 * 1000),
   });
   if (!response.ok) throw new Error(`ollama ${response.status}: ${await response.text()}`);
-  const body = await response.json();
+  let text = "";
+  let final = {};
+  let buffer = "";
+  const decoder = new TextDecoder();
+  for await (const chunk of response.body) {
+    buffer += decoder.decode(chunk, { stream: true });
+    let nl;
+    while ((nl = buffer.indexOf("\n")) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (!line) continue;
+      const part = JSON.parse(line);
+      if (part.error) throw new Error(`ollama: ${part.error}`);
+      text += part.response ?? "";
+      if (part.done) final = part;
+    }
+  }
   const ns = (v) => (v ?? 0) / 1e9;
   return {
-    evalCount: body.eval_count ?? 0,
-    genTokPerSec: body.eval_count ? body.eval_count / ns(body.eval_duration) : 0,
-    loadSec: ns(body.load_duration),
-    promptCount: body.prompt_eval_count ?? 0,
-    promptTokPerSec: body.prompt_eval_count ? body.prompt_eval_count / ns(body.prompt_eval_duration) : 0,
-    text: body.response,
+    evalCount: final.eval_count ?? 0,
+    genTokPerSec: final.eval_count ? final.eval_count / ns(final.eval_duration) : 0,
+    loadSec: ns(final.load_duration),
+    promptCount: final.prompt_eval_count ?? 0,
+    promptTokPerSec: final.prompt_eval_count ? final.prompt_eval_count / ns(final.prompt_eval_duration) : 0,
+    text,
     wallMs: performance.now() - started,
   };
 }
@@ -185,7 +205,14 @@ async function main() {
       await new Promise((r) => setTimeout(r, 15_000));
       for (let i = 0; i < 3; i += 1) stockfish.underLoadMs.push(await stockfishProbe(sfCommand, sfNodes));
     }
-    const first = await firstCall;
+    let first;
+    try {
+      first = await firstCall;
+    } catch (error) {
+      console.log(`  FAILED: ${error.message}`);
+      runs.push({ attempts: 1, bundleId: bundle.bundleId, calls: [], factRecall: 0, finalStatus: "FAILED", firstSchemaValid: false, firstViolations: [], groundingLeak: false, schemaErrors: [error.message], totalMs: 15 * 60 * 1000 });
+      continue;
+    }
     const firstCheck = validateSummary(first.text, bundle);
     const run = {
       attempts: 1,
