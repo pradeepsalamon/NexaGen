@@ -10,6 +10,7 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { TypographyService } from "./typography.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 @Controller()
 export class TypographyController {
@@ -37,10 +38,13 @@ export class TypographyController {
     return this.typographyService.resetMyPreference(this.getAccessToken(request));
   }
 
+  @RequireFeature("customBranding")
   @Get(API_ROUTES.typography.admin)
   getAdmin(@Req() request: Request) {
     return this.typographyService.getGlobalSettings(this.getAccessToken(request));
   }
+
+  @RequireFeature("customBranding")
 
   @Put(API_ROUTES.typography.admin)
   updateAdmin(
@@ -50,6 +54,7 @@ export class TypographyController {
     return this.typographyService.updateGlobalSettings(this.getAccessToken(request), body);
   }
 
+  @RequireFeature("customBranding")
   @Post(API_ROUTES.typography.adminReset)
   resetAdmin(@Req() request: Request) {
     return this.typographyService.resetGlobalSettings(this.getAccessToken(request));

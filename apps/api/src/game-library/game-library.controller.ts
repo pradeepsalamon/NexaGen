@@ -12,7 +12,9 @@ import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { GameLibraryService } from "./game-library.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("gameLibrary")
 @Controller()
 export class GameLibraryController {
   constructor(private readonly games: GameLibraryService) {}

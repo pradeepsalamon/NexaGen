@@ -524,6 +524,26 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.leadNote;
   }
 
+  get tenant() {
+    return this.client.tenant;
+  }
+
+  get platformPlan() {
+    return this.client.platformPlan;
+  }
+
+  get tenantSubscription() {
+    return this.client.tenantSubscription;
+  }
+
+  get tenantSubscriptionEvent() {
+    return this.client.tenantSubscriptionEvent;
+  }
+
+  get platformStaff() {
+    return this.client.platformStaff;
+  }
+
   async $connect() {
     return this.client.$connect();
   }

@@ -10,6 +10,12 @@ is in CLAUDE.md §3.2; this file is the policy.
   `ADMIN` and `SUPER_ADMIN` see every batch, class and student. Scope below that
   comes from relationships — `BatchCoach`, `BatchStudent`, `CoachClass.coachId`,
   `LiveSession.coachId`, ownership columns (`createdById`, `userId`, `ownerId`).
+- **Plan before role, platform staff apart.** Before a handler runs, the
+  global `FeatureGateGuard` refuses (402) a route whose SaaS-plan feature the
+  academy lacks, or any change while the subscription is read-only/locked
+  (docs/SAAS_PLANS.md). It narrows, never grants: the role checks below still
+  run. `/platform/*` (plans, the academy's subscription) needs a
+  `platform_staff` row; no tenant role, `SUPER_ADMIN` included, reaches it.
 - **The API is the boundary.** Every route authenticates through
   `authenticateUser` (identity + `ACTIVE` + a live session, see below) and then
   checks the resource. The web's `routeAccess.ts` / `middleware.ts` and hidden

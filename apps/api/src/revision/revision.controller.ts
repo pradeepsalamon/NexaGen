@@ -12,7 +12,9 @@ import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { RevisionService } from "./revision.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("smartRevision")
 @Controller()
 export class RevisionController {
   constructor(private readonly revision: RevisionService) {}

@@ -5,9 +5,10 @@ import { paginationMeta, resolveOrderBy, resolvePagination } from '../common/pag
 import { PrismaService } from '../prisma/prisma.service';
 import { TrashRepository } from '../trash/trash.repository';
 import type { AddDemoInviteesRequest, DemoClass, DemoClassDetailsResponse, PaginatedQuery, PendingCoachesResponse, PendingStudentsResponse, UpdateCoachStatusRequest, UpdateStudentStatusRequest, CreateDemoClassRequest, UpdateDemoClassRequest } from '@nexa-chess/types';
-import { ClassStatus, Prisma, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
+import { ClassStatus, Prisma, UserRole, UserStatus, type CoachClass, type DemoSchedule, type User } from '@prisma/client';
 import { DemoInviteService, demoInvitePath } from '../demo-class/demo-invite.service';
 import { queryEnum } from '../common/query-params';
+import { EntitlementService } from '../platform/entitlement.service';
 
 type DemoClassRow = CoachClass & {
   coach: Pick<User, 'firstName' | 'lastName'>;
@@ -25,6 +26,7 @@ const DEMO_CLASS_INCLUDE = {
 export class AdminService {
   constructor(
     private readonly demoInvites: DemoInviteService,
+    private readonly entitlements: EntitlementService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
     private readonly trashRepository: TrashRepository
@@ -98,6 +100,9 @@ export class AdminService {
         return;
       }
 
+      if (data.status !== 'ARCHIVED' && user.status !== UserStatus.ACTIVE) {
+        await this.entitlements.assertSeatAvailable(tx, UserRole.COACH, coachId);
+      }
       await tx.user.update({
         where: { id: coachId },
         data: { status: data.status === 'ARCHIVED' ? 'ARCHIVED' : 'ACTIVE' }
@@ -133,9 +138,14 @@ export class AdminService {
     }
 
     // Status-filtered so a double click or a second admin can't review twice.
-    const { count } = await this.prisma.user.updateMany({
-      where: { id: studentId, role: 'STUDENT', status: UserStatus.PENDING },
-      data: { status: data.status === 'ACTIVE' ? UserStatus.ACTIVE : UserStatus.ARCHIVED }
+    const { count } = await this.prisma.$transaction(async (tx) => {
+      if (data.status === 'ACTIVE') {
+        await this.entitlements.assertSeatAvailable(tx, UserRole.STUDENT, studentId);
+      }
+      return tx.user.updateMany({
+        where: { id: studentId, role: 'STUDENT', status: UserStatus.PENDING },
+        data: { status: data.status === 'ACTIVE' ? UserStatus.ACTIVE : UserStatus.ARCHIVED }
+      });
     });
 
     if (count === 0) {

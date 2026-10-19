@@ -38,6 +38,7 @@ import { InvoiceSettingsService } from "./invoice-settings.service";
 import { InvoiceService } from "./invoice.service";
 import { safeFilename, sendPdf } from "./invoices.controller";
 import { assertAdmin, authenticateUser } from "./payments-auth.helper";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 /**
  * Admin → Finance → Invoices (§17), and Admin → Settings → Billing &
@@ -46,6 +47,7 @@ import { assertAdmin, authenticateUser } from "./payments-auth.helper";
  * Every route asserts an admin role before doing anything. There is no coach
  * view here by design — money is between the student and the academy.
  */
+@RequireFeature("studentPayments")
 @Controller()
 export class InvoicesAdminController {
   constructor(

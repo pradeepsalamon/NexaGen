@@ -6,7 +6,9 @@ import { ZodBodyPipe } from '../common/zod-body.pipe';
 import { GameAnalysisService } from './game-analysis.service';
 import { GameInsightsService } from './game-insights.service';
 import { GameRevisionService } from './game-revision.service';
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("gameAnalysis")
 @Controller()
 export class GameAnalysisController {
   constructor(

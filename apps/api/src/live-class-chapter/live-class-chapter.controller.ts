@@ -16,7 +16,9 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { LiveClassChapterService } from "./live-class-chapter.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("interactiveClassroom", { allowReads: true })
 @Controller()
 export class LiveClassChapterController {
   constructor(private readonly service: LiveClassChapterService) {}

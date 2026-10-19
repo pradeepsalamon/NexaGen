@@ -23,7 +23,9 @@ import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { CourseProgressService } from "./course-progress.service";
 import { CourseService } from "./course.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("courses")
 @Controller()
 export class CourseController {
   constructor(

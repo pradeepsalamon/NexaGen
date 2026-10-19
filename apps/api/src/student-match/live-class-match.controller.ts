@@ -20,7 +20,9 @@ import {
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { LiveClassMatchService } from "./live-class-match.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("interactiveClassroom", { allowReads: true })
 @Controller()
 export class LiveClassMatchController {
   constructor(private readonly service: LiveClassMatchService) {}

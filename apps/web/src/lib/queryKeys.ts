@@ -196,6 +196,11 @@ export const queryKeys = {
     resolved: ["typography", "resolved"] as const,
     admin: ["typography", "admin"] as const,
   },
+  subscription: {
+    all: ["subscription"] as const,
+    current: ["subscription", "current"] as const,
+    admin: ["subscription", "admin"] as const,
+  },
   presence: {
     heartbeat: ["presence", "heartbeat"] as const,
   },

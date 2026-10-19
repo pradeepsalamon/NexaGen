@@ -54,8 +54,10 @@ import { assertAdmin, authenticateUser } from "./payments-auth.helper";
 import { PlanService } from "./plan.service";
 import { RefundService } from "./refund.service";
 import { SubscriptionService } from "./subscription.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 /** Admin payment dashboard, refunds, plan catalogue and routing config. */
+@RequireFeature("studentPayments")
 @Controller()
 export class PaymentsAdminController {
   constructor(

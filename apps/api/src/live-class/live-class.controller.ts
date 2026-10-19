@@ -52,6 +52,7 @@ import {
   type UpdateLiveClassSettingsRequest,
 } from "@nexa-chess/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 @Controller()
 export class LiveClassController {
@@ -270,6 +271,7 @@ export class LiveClassController {
     return this.demo.joinDemoClass(id, body);
   }
 
+  @RequireFeature("classRecording")
   @Post(API_ROUTES.liveClass.startRecording())
   startRecording(@Param("id") id: string, @Req() request: Request) {
     return this.recording.startRecording(this.getAccessToken(request), id);

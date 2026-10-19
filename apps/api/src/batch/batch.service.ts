@@ -33,6 +33,7 @@ import { TrashRepository } from "../trash/trash.repository";
 import { authenticateUser } from "../auth/authenticate";
 import { batchClassWindow } from "../common/batch-dates";
 import { queryEnum } from "../common/query-params";
+import { EntitlementService } from "../platform/entitlement.service";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 /** The client handed to a `prisma.$transaction(async (tx) => …)` callback. */
@@ -70,6 +71,7 @@ const batchInclude = {
 export class BatchService {
 
   constructor(
+    private readonly entitlements: EntitlementService,
     private readonly jwtService: JwtService,
     private readonly prisma: PrismaService,
     private readonly trashRepository: TrashRepository
@@ -174,25 +176,28 @@ export class BatchService {
     this.assertDateRange(payload.startsAt, payload.endsAt);
     await this.assertAssignableUsers(payload.coachIds ?? [], payload.studentIds ?? []);
 
-    const batch = await this.prisma.batch.create({
-      data: {
-        batchType: payload.batchType ?? null,
-        createdById: user.id,
-        description: this.toNullableString(payload.description),
-        endsAt: this.toNullableDate(payload.endsAt),
-        name: payload.name.trim(),
-        puzzleTrainingEnabled: payload.puzzleTrainingEnabled ?? true,
-        scheduleNotes: this.toNullableString(payload.scheduleNotes),
-        startsAt: this.toNullableDate(payload.startsAt),
-        status: payload.status ?? BatchStatus.ACTIVE,
-        coaches: {
-          create: (payload.coachIds ?? []).map((coachId) => ({ coachId }))
+    const batch = await this.prisma.$transaction(async (tx) => {
+      await this.entitlements.assertCanCreateBatch(tx);
+      return tx.batch.create({
+        data: {
+          batchType: payload.batchType ?? null,
+          createdById: user.id,
+          description: this.toNullableString(payload.description),
+          endsAt: this.toNullableDate(payload.endsAt),
+          name: payload.name.trim(),
+          puzzleTrainingEnabled: payload.puzzleTrainingEnabled ?? true,
+          scheduleNotes: this.toNullableString(payload.scheduleNotes),
+          startsAt: this.toNullableDate(payload.startsAt),
+          status: payload.status ?? BatchStatus.ACTIVE,
+          coaches: {
+            create: (payload.coachIds ?? []).map((coachId) => ({ coachId }))
+          },
+          students: {
+            create: (payload.studentIds ?? []).map((studentId) => ({ studentId }))
+          }
         },
-        students: {
-          create: (payload.studentIds ?? []).map((studentId) => ({ studentId }))
-        }
-      },
-      include: batchInclude
+        include: batchInclude
+      });
     });
 
     return { batch: this.toBatch(batch) };

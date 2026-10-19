@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { TrashRepository } from '../trash/trash.repository';
 import { MessagingDispatchService } from '../messaging/messaging-dispatch.service';
 import { DemoInviteService } from '../demo-class/demo-invite.service';
+import { UNLIMITED_ENTITLEMENTS } from "../platform/entitlement.testing";
 
 describe('AdminService', () => {
   let service: AdminService;
@@ -24,6 +25,10 @@ describe('AdminService', () => {
       },
       $transaction: jest.fn()
     };
+    // Interactive transactions run against the same mock client.
+    prismaService.$transaction.mockImplementation((callback: (tx: typeof prismaService) => unknown) =>
+      callback(prismaService)
+    );
     messaging = { dispatchInBackground: jest.fn() };
     prisma = prismaService;
 
@@ -33,6 +38,7 @@ describe('AdminService', () => {
         { provide: DemoInviteService, useValue: { addInvitees: jest.fn(), removeInvitee: jest.fn() } },
         { provide: MessagingDispatchService, useValue: messaging },
         { provide: PrismaService, useValue: prismaService },
+        UNLIMITED_ENTITLEMENTS,
         {
           provide: TrashRepository,
           useValue: {

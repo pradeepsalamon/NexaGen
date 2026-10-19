@@ -12,6 +12,8 @@
 | "model X does not exist on PrismaService" | missing getter in `prisma.service.ts` |
 | Deleted rows still showing / unique constraint on re-create | `soft-delete.extension.ts` relation filters, missing partial unique index |
 | Prod missing a table | migration not committed / `db push` was used |
+| 402 `PLAN_FEATURE_REQUIRED` / `PLAN_LIMIT_REACHED` | The academy's SaaS plan (§3.6m): `GET /admin/subscription` shows plan, features and usage; `SELECT * FROM tenant_subscriptions` + `platform_plans`. Change it as platform staff (`PUT /platform/tenants/tenant_nexa/subscription`, docs/SAAS_PLANS.md). A plan edit reaches each API process within 30s (in-process cache) |
+| Every route 402 `SUBSCRIPTION_LOCKED` (incl. integration tests) | No `tenant_subscriptions` row for `tenant_nexa`, or it ended (status/dates, `resolveTenantAccessMode`). The migration seeds it; integration `resetDatabase` re-seeds it via `ensurePlatformDefaults` — a suite that truncates by hand must too |
 | Web: unstyled HTML or missing `.next/server` chunk | `npm run dev:web:clean` |
 | API: missing module from `dist` | `npm run dev:api:clean` |
 | A class ended by itself / a class stayed LIVE after the coach left | `LiveClassService.sweepStaleClasses` (per-minute, job lock `live-class.stale-sweep`): coach absent mid-class → `coachAbsentSince` → ends after `LIVE_CLASS_COACH_ABSENT_GRACE_MINUTES`; coach absent after `endsAt` → ends at once; `LIVE_CLASS_MAX_OVERRUN_MINUTES` past `endsAt` → ends regardless (0 disables a rule). A coach-absence end records `endedAt` = when the coach left, so attendance excludes the grace minutes. A coach/admin who can't get back in can end it from `/classes/:id` or the Connection lost screen (`EndClassButton`) |

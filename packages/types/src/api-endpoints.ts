@@ -731,6 +731,18 @@ export const API_ROUTES = {
     recommendation: (id: string = ":id", itemId: string = ":itemId") =>
       `/revision/students/${id}/recommendations/${itemId}`
   },
+  // SaaS plan of the academy (docs/SAAS_PLANS.md). `current`: any signed-in
+  // user (drives web feature gating); `admin`: academy admins, with usage.
+  subscription: {
+    current: "/subscription",
+    admin: "/admin/subscription"
+  },
+  // Platform staff only (PlatformStaff row), never a tenant role.
+  platform: {
+    plans: "/platform/plans",
+    plan: (id: string = ":id") => `/platform/plans/${id}`,
+    tenantSubscription: (tenantId: string = ":tenantId") => `/platform/tenants/${tenantId}/subscription`
+  },
   health: {
     // Public, unauthenticated, not rate limited. `live` never touches a
     // dependency; `ready` checks Postgres (required) and Redis (optional).

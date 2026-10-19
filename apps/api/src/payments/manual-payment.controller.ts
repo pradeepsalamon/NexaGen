@@ -29,6 +29,7 @@ import { OfflinePaymentMethodService } from "./offline-payment-method.service";
 import { assertAdminOrCoach, authenticateUser } from "./payments-auth.helper";
 import { safeFilename } from "./invoices.controller";
 import { parseOrBadRequest } from "../common/zod-body.pipe";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
 const MANUAL_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024;
 const MANUAL_ATTACHMENT_MIME_PATTERN =
@@ -39,6 +40,7 @@ const MANUAL_ATTACHMENT_MIME_PATTERN =
  * touch, always scoped to their own batches (§3.2: no guards, controller
  * lifts the cookie, `assertAdminOrCoach`/the service assert the rest).
  */
+@RequireFeature("studentPayments")
 @Controller()
 export class ManualPaymentController {
   constructor(

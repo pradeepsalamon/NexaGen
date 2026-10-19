@@ -17,7 +17,9 @@ import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { ChatService } from "./chat.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("directChat")
 @Controller()
 export class ChatController {
   constructor(private readonly chat: ChatService) {}

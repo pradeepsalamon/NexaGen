@@ -2719,3 +2719,8 @@ export * from "./presence";
 // Privacy: personal data export (and, later, account deletion requests).
 // ──────────────────────────────────────────────
 export * from "./privacy";
+
+// ──────────────────────────────────────────────
+// SaaS plans: features + limits per academy subscription (docs/SAAS_PLANS.md).
+// ──────────────────────────────────────────────
+export * from "./platform-plans";

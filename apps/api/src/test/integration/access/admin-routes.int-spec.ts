@@ -131,6 +131,20 @@ describe("admin-only routes refuse other roles (real app, real Postgres)", () =>
     }
   }, 120_000);
 
+  // Platform powers come from a PlatformStaff row, never a tenant role (docs/SAAS_PLANS.md).
+  it("every /platform route refuses every tenant role, super admin included, with 403", async () => {
+    const routes = registeredRoutes(t).filter((r) => under(r.path, ["/platform"]));
+    expect(routes.length).toBeGreaterThan(0);
+    for (const route of routes) {
+      for (const role of ["student", "coach", "admin", "superAdmin"] as const) {
+        const key = `${route.method} ${route.path}`;
+        const res = await call(users[role], route);
+        const ok = res.status === 403 || (res.status === 400 && route.method !== "GET");
+        expect({ role, route: key, status: res.status, ok }).toMatchObject({ ok: true });
+      }
+    }
+  }, 120_000);
+
   it("a super admin is never refused (positive control)", async () => {
     for (const route of adminRoutes) {
       if (route.method !== "GET" || OUTSIDE_EFFECTS.has(`${route.method} ${route.path}`)) continue;

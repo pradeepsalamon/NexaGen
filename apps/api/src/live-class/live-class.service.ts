@@ -38,6 +38,7 @@ import { LiveClassAccessService } from "./live-class-access.service";
 import { GameRecorderService } from "../game-library/game-recorder.service";
 import { LiveClassWaitingRoomService } from "./live-class-waiting-room.service";
 import { isCoachParticipant, withScreenShareSources } from "./live-class.util";
+import { EntitlementService } from "../platform/entitlement.service";
 
 /** Live-class lifecycle: start, join token, mid-class settings, heartbeat, end and the stale-class sweep. */
 @Injectable()
@@ -55,7 +56,8 @@ export class LiveClassService {
     private readonly analyticsEvents: AnalyticsEventService,
     private readonly access: LiveClassAccessService,
     private readonly waitingRoom: LiveClassWaitingRoomService,
-    private readonly gameRecorder: GameRecorderService
+    private readonly gameRecorder: GameRecorderService,
+    private readonly entitlements: EntitlementService
   ) {}
 
   /** Sibling modules (puzzle, simul, match, move poll) reach the access checks through here. */
@@ -116,6 +118,8 @@ export class LiveClassService {
     if (liveSession && liveSession.status === LiveSessionStatus.LIVE) {
       throw new ConflictException("Live class is already running.");
     }
+
+    await this.entitlements.assertCanStartLiveClass(classId);
 
     if (!liveSession) {
       const roomName = this.livekit.generateRoomName(classId);

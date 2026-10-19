@@ -14,6 +14,7 @@ import type { LiveClassSettingsOverride } from "@nexa-chess/types";
 import { Chess } from "chess.js";
 import { hashSecret } from "../src/auth/auth.utils";
 import { puzzleContentHash } from "../src/puzzle/puzzle-content-hash";
+import { ensurePlatformDefaults } from "../src/platform/platform-defaults";
 
 const prisma = new PrismaClient();
 const seedPassword = "Test@12345";
@@ -429,6 +430,8 @@ async function main() {
   const verifiedAt = new Date();
 
   await seedSystemPresets();
+  // SaaS plans + the academy on Enterprise (the migration already did this on a migrated DB).
+  await ensurePlatformDefaults(prisma);
 
   const superAdmin = await upsertUser(
     "superadmin@nexa.test",
@@ -450,6 +453,13 @@ async function main() {
       status: UserStatus.ACTIVE
     }
   );
+
+  // Local platform staff, so the /platform plan endpoints can be tried (docs/SAAS_PLANS.md).
+  await prisma.platformStaff.upsert({
+    create: { userId: superAdmin.id },
+    update: {},
+    where: { userId: superAdmin.id }
+  });
 
   const coach = await upsertUser(
     "coach@nexa.test",

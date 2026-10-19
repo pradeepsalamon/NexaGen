@@ -20,6 +20,7 @@ import {
   submitFeedback,
   updateFeedbackForm
 } from "../api/feedbackApi";
+import { usePlanFeature } from "@/features/subscription/hooks/useSubscription";
 
 // ── Student ──
 
@@ -31,8 +32,10 @@ export function usePendingFeedbackQuery(
   enabled = true,
   { retryWhileEmpty = false }: { retryWhileEmpty?: boolean } = {}
 ) {
+  // Mounted on dashboards and at class end: wait until the plan is known to include feedback.
+  const planHasFeedback = usePlanFeature("coachFeedback") === true;
   return useQuery({
-    enabled,
+    enabled: enabled && planHasFeedback,
     refetchInterval: (q) =>
       retryWhileEmpty &&
       q.state.data?.items.length === 0 &&

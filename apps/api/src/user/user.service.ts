@@ -26,6 +26,7 @@ import { TrashRepository } from "../trash/trash.repository";
 import { MessagingDispatchService } from "../messaging/messaging-dispatch.service";
 import { authenticateUser } from "../auth/authenticate";
 import { queryEnum } from "../common/query-params";
+import { EntitlementService } from "../platform/entitlement.service";
 
 type AuthenticatedUser = Pick<User, "id" | "email" | "role" | "status">;
 type UserWithProfiles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
@@ -39,6 +40,7 @@ const userInclude = {
 export class UserService {
 
   constructor(
+    private readonly entitlements: EntitlementService,
     private readonly jwtService: JwtService,
     private readonly messaging: MessagingDispatchService,
     private readonly prisma: PrismaService,
@@ -123,6 +125,9 @@ export class UserService {
     const passwordHash = await hashSecret(data.password);
 
     const newUser = await this.prisma.$transaction(async (tx) => {
+      if ((data.status ?? UserStatus.ACTIVE) === UserStatus.ACTIVE) {
+        await this.entitlements.assertSeatAvailable(tx, data.role ?? UserRole.STUDENT);
+      }
       const created = await tx.user.create({
         data: {
           email: data.email,
@@ -206,6 +211,15 @@ export class UserService {
     }
 
     const updated = await this.prisma.$transaction(async (tx) => {
+      // Becoming an active student/coach (by role or status) takes a plan seat.
+      const nextRole = data.role ?? userToUpdate.role;
+      const nextStatus = data.status ?? userToUpdate.status;
+      if (
+        nextStatus === UserStatus.ACTIVE &&
+        (nextRole !== userToUpdate.role || userToUpdate.status !== UserStatus.ACTIVE)
+      ) {
+        await this.entitlements.assertSeatAvailable(tx, nextRole, id);
+      }
       const upd = await tx.user.update({
         data: {
           email: data.email,
@@ -345,10 +359,15 @@ export class UserService {
 
     this.assertCanModifyTarget(authUser, userToRestore);
 
-    const updated = await this.prisma.user.update({
-      where: { id, isDeleted: false },
-      data: { status: UserStatus.ACTIVE },
-      include: userInclude
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (userToRestore.status !== UserStatus.ACTIVE) {
+        await this.entitlements.assertSeatAvailable(tx, userToRestore.role, id);
+      }
+      return tx.user.update({
+        where: { id, isDeleted: false },
+        data: { status: UserStatus.ACTIVE },
+        include: userInclude
+      });
     });
 
     this.messaging.dispatchInBackground({

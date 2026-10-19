@@ -14,7 +14,9 @@ import type { Request } from "express";
 import { AUTH_COOKIE_NAMES } from "../auth/types";
 import { ZodBodyPipe } from "../common/zod-body.pipe";
 import { FeedbackService } from "./feedback.service";
+import { RequireFeature } from "../platform/require-feature.decorator";
 
+@RequireFeature("coachFeedback")
 @Controller()
 export class FeedbackController {
   constructor(private readonly feedbackService: FeedbackService) {}
