@@ -1,7 +1,7 @@
 # AI architecture decision records
 
-Status: **OD-1, OD-2 and OD-20 to OD-24 approved 2026-10-19** (§4); everything
-else is still a proposal. §1 records constraints the audit verified; those are
+Status: **OD-1, OD-2, OD-6 (option a), OD-19 and OD-20 to OD-24 approved
+2026-10-19** (§4); everything else is still a proposal. §1 records constraints the audit verified; those are
 facts, not choices. §2 holds proposed decisions. §3 lists owner decisions. A
 recommendation is not approved just because a brief or prompt mentions it.
 
@@ -228,6 +228,12 @@ Each has a recommendation; none is approved.
 | OD-23 | Does the new `ai` CI job gate production deploys? | **No, not in P1**: it runs on PRs and manual dispatch only, path-filtered, not under `workflow_call`. Alternative: make it part of the deploy gate (a runtime-only failure would then block unrelated deploys) | Phase 1 |
 | OD-24 | Where the arm64 image build is verified | **CI with `docker buildx --platform linux/arm64` (QEMU)**: free, off the production box, slow but the image is small. Alternatives: a GitHub arm64 runner (availability for this repo's plan unverified [U]); the production box only with explicit approval, off-hours | Phase 1 |
 
+| OD-25 | Phase 3 model and digest | The 3a benchmark winner, pinned by Ollama digest; Apache/MIT licence preferred (PHASE3_SPEC.md §13) | Phase 3 |
+| OD-26 | First production run of `ai-runtime` + `ollama` (compose, deploy script, `api` env listing) | Its own change, after Phase 3 is green on staging | Phase 3 rollout |
+| OD-27 | Plan gating for summaries | New `aiClassSummaries` plan feature, Enterprise only at launch | Phase 3 |
+| OD-28 | What students see about AI | Always label the recap "Prepared by your coach with AI assistance" | Phase 3 |
+| OD-29 | Coach notification for a ready draft | In-app badge only in v1; no `MessagingEvent` | Phase 3 |
+
 ---
 
 ## 4. Approval log
@@ -241,6 +247,8 @@ Each has a recommendation; none is approved.
 | 2026-10-19 | OD-22 | P1 branches off `dev` and merges to `dev` only, on explicit approval; `main` is a separate approval | |
 | 2026-10-19 | OD-23 | `ai` CI job on PRs + manual dispatch only; not a deploy gate | |
 | 2026-10-19 | OD-24 | arm64 image verified in CI with `buildx` + QEMU, never on the production box | |
+| 2026-10-19 | OD-6 | (a) benchmark a ≤4B model off-hours on the current VPS first (INFRASTRUCTURE_DECISION.md §4). (c), the OCI A1 limit inquiry, is the owner's to send, with no commitment | Phase 3a may run once a no-class window is named |
+| 2026-10-19 | OD-19 | Recording cap to 90 GB and prune the build cache before any weights | Build cache pruned 2026-10-19 (9.08 GB freed, 138 GB free). The cap change in the production `.env` is still to do; `run-capacity-benchmark.sh` refuses to run until the live API reports ≤ 90 |
 
 ADR-002 to ADR-009 stay proposals; P1 follows ADR-009 (no tables) because the
 spec already limits it to that.

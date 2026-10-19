@@ -22,9 +22,9 @@ dev = [
 
 [tool.uv]
 package = false
-# Resolve nothing published after this date: a brand-new release gets time to
-# be yanked before it can land here. Move it forward deliberately when bumping.
-exclude-newer = "2026-10-01T00:00:00Z"
+# Wait 7 days before resolving newly published package versions (dependency cooldown):
+# a brand-new release gets time to be yanked before it can land here.
+exclude-newer = "7 days"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
