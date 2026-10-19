@@ -233,6 +233,10 @@ Each has a recommendation; none is approved.
 | OD-27 | Plan gating for summaries | New `aiClassSummaries` plan feature, Enterprise only at launch | Phase 3 |
 | OD-28 | What students see about AI | Always label the recap "Prepared by your coach with AI assistance" | Phase 3 |
 | OD-29 | Coach notification for a ready draft | In-app badge only in v1; no `MessagingEvent` | Phase 3 |
+| OD-30 | Live captions in class, coach's mic only (LIVE_CAPTIONS.md) | Yes, after the speech timing test | Live captions |
+| OD-31 | Where captions run | A second machine (OCI A1 limit increase first); not the production box; not cloud STT | Live captions |
+| OD-32 | Caption languages at launch | English + the two most-requested Indian languages | Live captions |
+| OD-33 | Coach transcript retention | 30 days, like summary evidence | Live captions |
 
 ---
 
