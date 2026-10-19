@@ -85,6 +85,31 @@ because migrations are additive.
   - schema-valid ≥ 95% before retry
   - grounding violations 0 after validation
 
+### 4.1 Running it
+
+Approved 2026-10-19 (OD-6a, OD-19). The harness is `scripts/ai/benchmark/`:
+
+```bash
+node scripts/ai/benchmark/bench.mjs --self-test        # validator checks, no model, safe anywhere
+scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen2.5:3b]
+```
+
+- **Pre-flight refusals.** The runner refuses with < 20 GB free, while the live
+  `nexa_api` has `RECORDING_STORAGE_LIMIT_GB` > 90 (OD-19), or while LiveKit
+  reports any room with participants. It polls LiveKit every 20 s and stops
+  the model if a class starts (exit 3).
+- **Container.** `ollama/ollama:0.34.4` runs with `--cpus 1.5 --memory 5g
+  --cpu-shares 512` on a loopback-only port. The container and its weights
+  volume are always removed, even on Ctrl-C.
+- **Bundles.** Ten synthetic bundles (`bundles.mjs`: public-domain games,
+  invented students). They're scored against the Phase 3 schema and grounding
+  rules (`validate.mjs`) with one repair retry.
+- **Measured besides the four criteria.** Tokens/s, a keyword fact-recall
+  proxy (the Phase 3 golden set doesn't exist yet), and the slowdown of a
+  fixed-node Stockfish search inside `nexa_api`.
+- **Output.** `report.md` and `results.json` in `~/ai-bench/<UTC timestamp>/`.
+  Paste the verdict into this section.
+
 ## 5. Recommendation
 
 1. **Now:** Option 1. Add a small `ai-runtime` to the existing Compose stack

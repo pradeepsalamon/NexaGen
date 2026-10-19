@@ -1,7 +1,7 @@
 # AI architecture decision records
 
-Status: **OD-1, OD-2 and OD-20 to OD-24 approved 2026-10-19** (§4); everything
-else is still a proposal. §1 records constraints the audit verified; those are
+Status: **OD-1, OD-2, OD-6 (option a), OD-19 and OD-20 to OD-24 approved
+2026-10-19** (§4); everything else is still a proposal. §1 records constraints the audit verified; those are
 facts, not choices. §2 holds proposed decisions. §3 lists owner decisions. A
 recommendation is not approved just because a brief or prompt mentions it.
 
@@ -241,6 +241,8 @@ Each has a recommendation; none is approved.
 | 2026-10-19 | OD-22 | P1 branches off `dev` and merges to `dev` only, on explicit approval; `main` is a separate approval | |
 | 2026-10-19 | OD-23 | `ai` CI job on PRs + manual dispatch only; not a deploy gate | |
 | 2026-10-19 | OD-24 | arm64 image verified in CI with `buildx` + QEMU, never on the production box | |
+| 2026-10-19 | OD-6 | (a) benchmark a ≤4B model off-hours on the current VPS first (INFRASTRUCTURE_DECISION.md §4). (c), the OCI A1 limit inquiry, is the owner's to send, with no commitment | Phase 3a may run once a no-class window is named |
+| 2026-10-19 | OD-19 | Recording cap to 90 GB and prune the build cache before any weights | Build cache pruned 2026-10-19 (9.08 GB freed, 138 GB free). The cap change in the production `.env` is still to do; `run-capacity-benchmark.sh` refuses to run until the live API reports ≤ 90 |
 
 ADR-002 to ADR-009 stay proposals; P1 follows ADR-009 (no tables) because the
 spec already limits it to that.
