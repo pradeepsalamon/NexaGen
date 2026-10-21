@@ -17,7 +17,8 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { SendPositionButton } from "@/features/assignments/components/SendPositionButton";
 import { ChessgroundBoard } from "@/features/chessboard/components/board/ChessgroundBoard";
 import { PromotionDialog } from "@/features/chessboard/components/dialogs/PromotionDialog";
-import { SetupPositionDialog } from "@/features/chessboard/components/dialogs/SetupPositionDialog";
+import { SetupPositionWorkspace } from "@/features/chessboard/components/layout/SetupPositionWorkspace";
+import { SetupOnlyNotice } from "@/features/chessboard/components/panels/SetupOnlyNotice";
 import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
 import { BoardNavigation, NavIconButton } from "@/features/chessboard/components/toolbars/BoardNavigation";
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
@@ -46,6 +47,7 @@ function CoachBoardShortcuts() {
   useBoardShortcuts();
   const { playEngineMove } = useEngineMove();
   const setIsSetupPositionOpen = useBoardStore((s) => s.setIsSetupPositionOpen);
+  const isSetupOpen = useBoardStore((s) => s.isSetupPositionOpen);
 
   useEffect(() => {
     const openSetup = () => setIsSetupPositionOpen(true);
@@ -64,7 +66,8 @@ function CoachBoardShortcuts() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      // While setting up, the main board is hidden: Space must not play on it.
+      if (isSetupOpen || e.key !== " " || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       const target = e.target instanceof HTMLElement ? e.target : null;
       if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))) return;
       if (target?.closest('[role="dialog"],[role="menu"],[role="listbox"]')) return;
@@ -74,7 +77,7 @@ function CoachBoardShortcuts() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [playEngineMove]);
+  }, [playEngineMove, isSetupOpen]);
 
   // Chessground cancels mousedown, so clicking the board after typing in chat
   // never blurs the text box and every shortcut is swallowed by it. Release
@@ -160,25 +163,22 @@ export function ClassroomBoard({
   );
   const userRole = useAuthStore((s) => s.user?.role);
   const waiting = !isCoach && !isChessboardOpen;
-  const boardBoxRef = useSideColumnFit(isCoach, onSideColumnChange);
+  const isSetupOpen = useBoardStore((s) => s.isSetupPositionOpen);
+  // Setup Position replaces the coach's board in place; students never see it.
+  const settingUp = isCoach && isSetupOpen;
+  // Off while setting up: the parent then reports no side column, so the
+  // panel brings its own Chat tab back while the column steps aside.
+  const boardBoxRef = useSideColumnFit(isCoach && !settingUp, onSideColumnChange);
+  const setIsSetupPositionOpen = useBoardStore((s) => s.setIsSetupPositionOpen);
+  // Leaving the board stage mid-setup abandons it: back on the board, the
+  // coach sees the board, not a stale set-up workspace.
+  useEffect(() => () => setIsSetupPositionOpen(false), [setIsSetupPositionOpen]);
 
   return (
     // Side by side: bottom padding clears the floating toolbar (stacked, it floats over the panel).
     <section className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-2 px-3 pb-3 pt-3 room:px-6 room:pb-24">
       <PromotionDialog />
-      {isCoach ? (
-        <>
-          <CoachBoardShortcuts />
-          <SetupPositionDialog
-            pdfImport={{
-              activityNote: activePuzzle
-                ? "The puzzle the class is solving keeps running — students' puzzle boards are not affected."
-                : undefined,
-              libraryBasePath: isStaffRole(userRole) ? "/admin/puzzles" : "/coach/puzzles",
-            }}
-          />
-        </>
-      ) : null}
+      {isCoach ? <CoachBoardShortcuts /> : null}
 
       {/* Wraps on a narrow stage instead of running under the side panel. */}
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
@@ -187,6 +187,7 @@ export function ClassroomBoard({
           Shared Board
           {isCoach ? <SendPositionButton fen={fen} className="ml-1" /> : null}
         </div>
+        <SetupOnlyNotice />
         <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 overflow-x-auto">
           <ChessClock layout="horizontal" />
           {!isCoach ? <RequestControlButton surface /> : null}
@@ -207,8 +208,20 @@ export function ClassroomBoard({
       </div>
 
       <div className="flex min-h-0 flex-1" style={{ gap: SIDE_COLUMN_GAP }}>
-        {sideColumn ? <ClassroomSidebar classId={classId} width={SIDE_COLUMN_W} /> : null}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+        {/* Setting up a position is brief and needs the room: the side column steps aside. */}
+        {sideColumn && !settingUp ? <ClassroomSidebar classId={classId} width={SIDE_COLUMN_W} /> : null}
+        {settingUp ? (
+          <SetupPositionWorkspace
+            pdfImport={{
+              activityNote: activePuzzle
+                ? "The puzzle the class is solving keeps running — students' puzzle boards are not affected."
+                : undefined,
+              libraryBasePath: isStaffRole(userRole) ? "/admin/puzzles" : "/coach/puzzles",
+            }}
+          />
+        ) : null}
+        {/* Hidden, not unmounted, while setting up: the side-column fit keeps observing the board box. */}
+        <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col gap-2", settingUp && "hidden")}>
           <div ref={boardBoxRef} className="flex min-h-0 flex-1 items-center justify-center" style={{ containerType: "size" }}>
             <div className="relative shadow-card" style={{ width: "min(100cqw, 100cqh)", height: "min(100cqw, 100cqh)" }}>
               <ChessgroundBoard />
@@ -368,10 +381,14 @@ function CoachPuzzleButtons() {
   // . / , share, ] / [ load, / asks about the current position — same actions as the menus.
   const loadingRef = useRef(loading);
   loadingRef.current = loading;
+  const isSetupOpen = useBoardStore((s) => s.isSetupPositionOpen);
+  const setupOpenRef = useRef(isSetupOpen);
+  setupOpenRef.current = isSetupOpen;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const id = matchCoachBoardShortcut(e);
-      if (!id || id === "setup") return;
+      // Nothing loads onto the hidden board while the set-up board is open.
+      if (!id || id === "setup" || setupOpenRef.current) return;
       e.preventDefault();
       if (id === "askCurrent") {
         setShareCurrentOpen(true);

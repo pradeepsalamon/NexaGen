@@ -24,6 +24,8 @@ export interface BoardTestHarness {
   setFen: (fen: string) => void;
   loadPgn: (pgn: string) => void;
   moveCount: () => number;
+  /** Non-empty while the board shows a set-up only position. */
+  positionIssues: () => string[];
 }
 
 declare global {
@@ -55,6 +57,7 @@ export function installBoardTestHarness(store: StoreApi<BoardStore>): () => void
       s.pushHistory(s.fen, pgn);
     },
     moveCount: () => store.getState().moveHistory.length,
+    positionIssues: () => store.getState().positionIssues,
   };
   return () => {
     delete window.__nexaBoard;

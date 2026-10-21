@@ -45,7 +45,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     chess, fen, turn, orientation, moveHistory, historyIndex,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
-    isDetached, localFlip, overlayArrows, pendingPromotion
+    isDetached, localFlip, overlayArrows, pendingPromotion, positionIssues
   } = useBoardStore(
     useShallow((s) => ({
       chess: s.chess,
@@ -69,6 +69,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       localFlip: s.localFlip,
       overlayArrows: s.overlayArrows,
       pendingPromotion: s.pendingPromotion,
+      positionIssues: s.positionIssues,
     })),
   );
   // Everyone may draw arrows on an interactive board. A student's marks stay on
@@ -103,9 +104,11 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   const canMove = controlSide !== null;
   // A single-colour grant only unlocks the board on that colour's turn.
   const isMyTurn = canMove && (controlSide === "both" || controlSide === turn);
+  // A set-up only position (missing / extra kings, ...) is shown, never played.
+  const setupOnly = positionIssues.length > 0;
   const movableColor = isEditingPosition
     ? "both"
-    : isGameOver || !isMyTurn
+    : isGameOver || !isMyTurn || setupOnly
       ? undefined
       : controlSide === "both"
         ? turn
@@ -215,7 +218,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
-      check: chess.inCheck(),
+      check: !setupOnly && chess.inCheck(),
       lastMove: lastMoveSquares as any,
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
@@ -305,7 +308,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
-      check: chess.inCheck(),
+      check: !setupOnly && chess.inCheck(),
       lastMove: lastMoveSquares as any,
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
@@ -322,7 +325,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     });
   }, [
     cg, fen, turn, viewOrientation, showCoordinates, animationEnabled, highlightSettings, chess,
-    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw
+    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw, setupOnly
   ]);
   
   // Sync annotations (arrows)

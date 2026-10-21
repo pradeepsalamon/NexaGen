@@ -74,3 +74,144 @@ export function sanitizeCastlingRights(fen: string): string {
   fields[2] = next;
   return fields.join(" ");
 }
+
+// ── Set-up positions ────────────────────────────────────────────────────────
+// A position editor must accept positions chess can't be played from (no
+// king, three queens and two kings, a pawn on the eighth rank...). Reading the
+// notation and judging the position are kept apart: `readSetupFen` rejects
+// only notation that isn't a board, and reports every chess-rule problem in
+// `issues` instead.
+
+export type SetupFenRead =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      /** Omitted trailing fields filled in, impossible castling flags dropped; pieces untouched. */
+      fen: string;
+      /** Why chess can't be played from this position. Empty = it can (as far as these checks go). */
+      issues: string[];
+    };
+
+const PIECE_LETTER = /^[pnbrqkPNBRQK]$/;
+
+/** 8×8 grid, [0] = rank 8, [0][0] = a8; "" for an empty square. Assumes a well-formed placement. */
+function placementGrid(placement: string): string[][] {
+  return placement
+    .split("/")
+    .map((rank) => rank.replace(/[1-8]/g, (n) => ".".repeat(Number(n))).split("").map((c) => (c === "." ? "" : c)));
+}
+
+function placementError(placement: string): string | null {
+  const ranks = placement.split("/");
+  if (ranks.length !== 8) return `the board needs 8 ranks separated by "/", found ${ranks.length}`;
+  for (let i = 0; i < 8; i += 1) {
+    let squares = 0;
+    let previousWasDigit = false;
+    for (const ch of ranks[i]) {
+      if (/[1-8]/.test(ch)) {
+        if (previousWasDigit) return `rank ${8 - i} has two numbers in a row`;
+        squares += Number(ch);
+        previousWasDigit = true;
+      } else if (PIECE_LETTER.test(ch)) {
+        squares += 1;
+        previousWasDigit = false;
+      } else {
+        return `"${ch}" on rank ${8 - i} is not a piece letter`;
+      }
+    }
+    if (squares !== 8) return `rank ${8 - i} has ${squares} squares instead of 8`;
+  }
+  return null;
+}
+
+const KNIGHT_STEPS = [[1, 2], [2, 1], [2, -1], [1, -2], [-1, -2], [-2, -1], [-2, 1], [-1, 2]];
+const KING_STEPS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+const ROOK_RAYS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+const BISHOP_RAYS = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+/** Is the square at (row, col) attacked by `by`'s pieces? Rows count down from rank 8. */
+function isAttacked(grid: string[][], row: number, col: number, by: "w" | "b"): boolean {
+  const own = (letter: string) => (by === "w" ? letter.toUpperCase() : letter);
+  const at = (r: number, c: number) => (r >= 0 && r < 8 && c >= 0 && c < 8 ? grid[r][c] : undefined);
+
+  // A white pawn attacks up the board (towards row 0), so it stands one row below.
+  const pawnRow = by === "w" ? row + 1 : row - 1;
+  if (at(pawnRow, col - 1) === own("p") || at(pawnRow, col + 1) === own("p")) return true;
+  if (KNIGHT_STEPS.some(([dr, dc]) => at(row + dr, col + dc) === own("n"))) return true;
+  if (KING_STEPS.some(([dr, dc]) => at(row + dr, col + dc) === own("k"))) return true;
+
+  const slides = (rays: number[][], letters: string[]) =>
+    rays.some(([dr, dc]) => {
+      for (let r = row + dr, c = col + dc; at(r, c) !== undefined; r += dr, c += dc) {
+        const piece = at(r, c);
+        if (piece) return letters.includes(piece);
+      }
+      return false;
+    });
+  return slides(ROOK_RAYS, [own("r"), own("q")]) || slides(BISHOP_RAYS, [own("b"), own("q")]);
+}
+
+function setupIssues(placement: string, turn: "w" | "b"): string[] {
+  const issues: string[] = [];
+  for (const [letter, side] of [["K", "white"], ["k", "black"]] as const) {
+    const count = placement.split(letter).length - 1;
+    if (count === 0) issues.push(`no ${side} king`);
+    else if (count > 1) issues.push(`${count} ${side} kings`);
+  }
+  const ranks = placement.split("/");
+  if (/[pP]/.test(ranks[0] + ranks[7])) issues.push("a pawn on the first or last rank");
+
+  // The side that just moved must not have left its king in check.
+  if (!issues.some((issue) => issue.includes("king"))) {
+    const grid = placementGrid(placement);
+    const waiting = turn === "w" ? "b" : "w";
+    const kingLetter = waiting === "w" ? "K" : "k";
+    const row = grid.findIndex((rank) => rank.includes(kingLetter));
+    if (isAttacked(grid, row, grid[row].indexOf(kingLetter), turn)) {
+      issues.push(`${waiting === "w" ? "White" : "Black"} is in check with ${turn === "w" ? "White" : "Black"} to move`);
+    }
+  }
+  return issues;
+}
+
+/**
+ * Reads any FEN whose fields are well formed, legal position or not. Missing
+ * trailing fields default like chess.js does (`w - - 0 1`); a placement alone
+ * is enough. Only notation that can't be read as a board is an error.
+ */
+export function readSetupFen(input: string): SetupFenRead {
+  const tokens = input.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return { ok: false, error: "the FEN is empty" };
+  if (tokens.length > 6) return { ok: false, error: "a FEN has at most 6 fields" };
+  const [placement, turn = "w", castling = "-", enPassant = "-", halfMove = "0", fullMove = "1"] = tokens;
+
+  const boardError = placementError(placement);
+  if (boardError) return { ok: false, error: boardError };
+  if (turn !== "w" && turn !== "b") return { ok: false, error: `side to move must be "w" or "b", not "${turn}"` };
+  if (!/^(-|[KQkq]{1,4})$/.test(castling)) return { ok: false, error: `"${castling}" is not a castling field` };
+  if (!/^(-|[a-h][36])$/.test(enPassant)) return { ok: false, error: `"${enPassant}" is not an en passant square` };
+  if ((enPassant[1] === "3" && turn === "w") || (enPassant[1] === "6" && turn === "b")) {
+    return { ok: false, error: `en passant on ${enPassant} does not fit ${turn === "w" ? "White" : "Black"} to move` };
+  }
+  if (!/^\d+$/.test(halfMove)) return { ok: false, error: "the halfmove clock must be a whole number" };
+  if (!/^[1-9]\d*$/.test(fullMove)) return { ok: false, error: "the move number must be 1 or more" };
+
+  const fen = sanitizeCastlingRights([placement, turn, castling, enPassant, halfMove, fullMove].join(" "));
+  return { ok: true, fen, issues: setupIssues(placement, turn) };
+}
+
+/** Placement with `square` (e.g. "e4") set to `piece` (a FEN letter) or emptied (null). Malformed input is returned as is. */
+export function setPlacementSquare(placement: string, square: string, piece: string | null): string {
+  if (placementError(placement) !== null) return placement;
+  const file = "abcdefgh".indexOf(square[0]);
+  const rank = Number(square[1]);
+  if (square.length !== 2 || file < 0 || !(rank >= 1 && rank <= 8)) return placement;
+  if (piece !== null && !PIECE_LETTER.test(piece)) return placement;
+
+  const ranks = placement.split("/");
+  const row = 8 - rank;
+  const cells = ranks[row].replace(/[1-8]/g, (n) => ".".repeat(Number(n))).split("");
+  cells[file] = piece ?? ".";
+  ranks[row] = cells.join("").replace(/\.+/g, (run) => String(run.length));
+  return ranks.join("/");
+}

@@ -25,6 +25,7 @@ import {
   freezeClock,
 } from "../lib/clock";
 import { useBoardStore as usePersistedStore } from "./boardStore";
+import { inspectFen } from "../lib/fen";
 
 export type OverlayArrow = {
   orig: string;
@@ -48,6 +49,12 @@ export interface BoardState {
   // Game Status
   isGameOver: boolean;
   turn: "white" | "black";
+  /**
+   * Why the position on the board can't be played (missing or extra kings,
+   * a pawn on the back rank, ...). Non-empty = a set-up only position: shown
+   * exactly as set up, but no moves, no engine. Empty for every normal game.
+   */
+  positionIssues: string[];
   
   // Move tree. `tree` holds every line (mainline = children[0] at each
   // depth). `treeLinePath` is the full line currently selected (a variation or
@@ -206,6 +213,29 @@ function uciParts(uci: string) {
   return { from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.length > 4 ? uci.slice(4) : undefined };
 }
 
+const NO_ISSUES: string[] = [];
+let issuesCache: { fen: string; issues: string[] } | null = null;
+
+/** `inspectFen` issues for a tree root, memoised: every move re-derives from the same root. */
+function rootIssues(rootFen: string): string[] {
+  if (issuesCache?.fen !== rootFen) {
+    const read = inspectFen(rootFen);
+    issuesCache = { fen: rootFen, issues: read.ok ? (read.issues.length ? read.issues : NO_ISSUES) : [read.error] };
+  }
+  return issuesCache.issues;
+}
+
+/**
+ * A move tree rooted at `fen`, legal chess position or not; null only when the
+ * FEN can't be read as a board. A playable FEN is normalised by chess.js as
+ * before; any other keeps its pieces exactly as given (see `inspectFen`).
+ */
+export function moveTreeForFen(fen: string): MoveTree | null {
+  const read = inspectFen(fen);
+  if (!read.ok) return null;
+  return createMoveTree(read.issues.length ? read.fen : new Chess(read.fen).fen());
+}
+
 /**
  * Everything the store derives from (tree, line, cursor): `chess` is replayed
  * to the cursor (so its own history/pgn are the moves to it), and a scratch
@@ -217,6 +247,31 @@ function deriveFromTree(
   requestedLine: MoveTreePath,
   requestedIndex: number,
 ): Partial<BoardState> {
+  const issues = rootIssues(tree.rootFen);
+  if (issues.length > 0) {
+    // A set-up only position has no moves to replay. `chess` holds what it
+    // can of it (nothing reads it while `positionIssues` is set); the board
+    // shows `fen`, which keeps every piece as set up.
+    try {
+      chess.load(tree.rootFen, { skipValidation: true });
+    } catch (e) {
+      // keeps its previous position
+      console.warn("Set-up position not loaded into chess.js; it keeps its previous position", tree.rootFen, e);
+    }
+    return {
+      tree: createMoveTree(tree.rootFen),
+      treeLinePath: [],
+      historyIndex: -1,
+      moveHistory: [],
+      fullPgn: "",
+      fen: tree.rootFen,
+      pgn: "",
+      isGameOver: false,
+      turn: tree.rootFen.split(" ")[1] === "b" ? "black" : "white",
+      positionIssues: issues,
+    };
+  }
+
   // Extend the selected line to its end so "forward" always has somewhere to go.
   const line = lineThroughPath(tree, requestedLine);
   const historyIndex = Math.max(-1, Math.min(requestedIndex, line.nodes.length - 1));
@@ -249,12 +304,13 @@ function deriveFromTree(
     pgn: chess.pgn(),
     isGameOver: chess.isGameOver(),
     turn: chess.turn() === "w" ? "white" : "black",
+    positionIssues: NO_ISSUES,
   };
 }
 
 /** Tree for a PGN, variations included; falls back to chess.js for oddities it accepts. */
 export function moveTreeFromPgn(pgn: string, fallbackFen?: string): MoveTree | null {
-  if (!pgn.trim()) return fallbackFen ? createMoveTree(new Chess(fallbackFen).fen()) : null;
+  if (!pgn.trim()) return fallbackFen ? moveTreeForFen(fallbackFen) : null;
   try {
     return parsePgnToMoveTree(pgn, createMoveTreeChess).tree;
   } catch {
@@ -283,6 +339,7 @@ export const createBoardStore = () => {
     fullPgn: "",
     isGameOver: false,
     turn: "white",
+    positionIssues: NO_ISSUES,
 
     tree: createMoveTree(INITIAL_FEN),
     treeLinePath: [],
@@ -315,6 +372,7 @@ export const createBoardStore = () => {
 
     makeMove: (from, to, promotion = 'q') => {
       const state = get();
+      if (state.positionIssues.length > 0) return false;
       try {
         const move = state.chess.move({ from, to, promotion });
         if (move) {
@@ -465,12 +523,12 @@ export const createBoardStore = () => {
     
     setFen: (fen) => {
       const state = get();
-      try {
-        const root = new Chess(fen).fen();
-        set({ ...deriveFromTree(state.chess, createMoveTree(root), [], -1), gameId: newBoardGameId() });
-      } catch (e) {
+      const tree = moveTreeForFen(fen);
+      if (!tree) {
         console.warn("Invalid FEN", fen);
+        return;
       }
+      set({ ...deriveFromTree(state.chess, tree, [], -1), gameId: newBoardGameId() });
     },
     
     setPgn: (pgn) => {
@@ -625,7 +683,7 @@ export const createBoardStore = () => {
 
         applyRemoteMove: ({ from, to, promotion }, moveType) => {
       const state = get();
-      if (state.isDetached) return;
+      if (state.isDetached || state.positionIssues.length > 0) return;
       try {
         const move = state.chess.move({ from, to, promotion });
         if (!move) return;

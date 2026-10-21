@@ -280,6 +280,10 @@ Global `UserThrottlerGuard` (100/min; auth 5/min, password reset 3/min), keyed b
 
 `packages/types/src/move-tree.ts` is the one branching move tree (a different move **adds a variation, never truncates**; callers pass a `MoveTreeChessFactory`). Game Library: `game-library/` (API + web), pages `/games`; `GameRecorderService` copies class games fire-and-forget, idempotent on `sourceKey`. Details: [docs/FEATURES.md](docs/FEATURES.md).
 
+### 3.6k1b Setup Position & set-up only positions
+
+Setup Position is `SetupPositionWorkspace`, rendered **in place of the main board** (never a dialog), seeded from the board. `PositionEditor` has tap-to-select tools (piece / Remove / Move) beside drag. **Setting up never checks legality**: `readSetupFen` (`@nexa-chess/types`) rejects only unreadable notation; anything else loads, and a position with `issues` (no/extra kings, back-rank pawns, wrong side in check) becomes a set-up only board (`positionIssues` in the board store: no moves, no engine). Never route a setup FEN through `new Chess(fen)` — use `moveTreeForFen` / `inspectFen`. Details: [docs/FEATURES.md](docs/FEATURES.md).
+
 ### 3.6k2 Persistent chat (outside live classes)
 
 `chat/` (API + web), page `/messages`, separate from in-class chat. **`directChatAllowed` (`packages/types/src/chat.ts`) is the single rule** (never student ↔ student). Sends idempotent on `(senderId, clientId)`; no websocket — the web polls. Details: [docs/FEATURES.md](docs/FEATURES.md).

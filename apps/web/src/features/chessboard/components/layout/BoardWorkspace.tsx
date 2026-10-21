@@ -4,67 +4,79 @@ import { useBoardStore } from "../../context/BoardProvider";
 import { ChessgroundBoard } from "../board/ChessgroundBoard";
 import { DrawingToolbar } from "../toolbars/DrawingToolbar";
 import { PromotionDialog } from "../dialogs/PromotionDialog";
-import { SetupPositionDialog } from "../dialogs/SetupPositionDialog";
+import { SetupPositionWorkspace } from "./SetupPositionWorkspace";
+import { SetupOnlyNotice } from "../panels/SetupOnlyNotice";
 import { useBoardShortcuts } from "../../hooks/useBoardShortcuts";
 import { BoardNavigation } from "../toolbars/BoardNavigation";
 import { ChessClock } from "../panels/ChessClock";
 import { SidebarTabs } from "../panels/SidebarTabs";
+import { cn } from "@/lib/utils";
 
 export function BoardWorkspace() {
   useBoardShortcuts();
   const fen = useBoardStore((state) => state.fen);
+  const isSetupOpen = useBoardStore((state) => state.isSetupPositionOpen);
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-transparent text-app-text p-0 md:p-4 overflow-hidden gap-4">
 
-      {/* Left: Board Area */}
+      {/* Left: Board Area — Setup Position takes it over in place of the board */}
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col md:h-full">
         <PromotionDialog />
+        {isSetupOpen ? (
+          <SetupPositionWorkspace className="m-2 md:m-0" />
+        ) : (
+          <>
+            {/* Header row — keeps the clock above the board instead of floating over it */}
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 pt-3 md:px-8">
+              <div className="flex items-center gap-2 text-sm font-semibold text-app-text">
+                <Crown className="size-4 text-secondary-ink" />
+                <span>Shared Board</span>
+                <SendPositionButton fen={fen} className="ml-1" />
+              </div>
+              <SetupOnlyNotice />
+              <ChessClock
+                layout="horizontal"
+                className="rounded-control border border-app-border bg-app-surface/95 px-1.5 py-1 shadow-card backdrop-blur"
+              />
+            </div>
 
-        {/* Header row — keeps the clock above the board instead of floating over it */}
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 pt-3 md:px-8">
-          <div className="flex items-center gap-2 text-sm font-semibold text-app-text">
-            <Crown className="size-4 text-secondary-ink" />
-            <span>Shared Board</span>
-            <SendPositionButton fen={fen} className="ml-1" />
-          </div>
-          <ChessClock
-            layout="horizontal"
-            className="rounded-control border border-app-border bg-app-surface/95 px-1.5 py-1 shadow-card backdrop-blur"
-          />
-        </div>
-
-        <div
-          className="relative mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-center px-4 md:px-8"
-          style={{ containerType: "size" }}
-        >
-          <div className="absolute inset-0 m-auto flex flex-col items-center justify-center">
-            {/* The board itself, bounded by a square */}
             <div
-              className="overflow-hidden bg-app-soft shadow-card"
-              style={{
-                width: "min(100cqw - 2rem, 100cqh - 5rem)",
-                height: "min(100cqw - 2rem, 100cqh - 5rem)",
-              }}
+              className="relative mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col justify-center px-4 md:px-8"
+              style={{ containerType: "size" }}
             >
-              <ChessgroundBoard />
-            </div>
+              <div className="absolute inset-0 m-auto flex flex-col items-center justify-center">
+                {/* The board itself, bounded by a square */}
+                <div
+                  className="overflow-hidden bg-app-soft shadow-card"
+                  style={{
+                    width: "min(100cqw - 2rem, 100cqh - 5rem)",
+                    height: "min(100cqw - 2rem, 100cqh - 5rem)",
+                  }}
+                >
+                  <ChessgroundBoard />
+                </div>
 
-            {/* Board Navigation Row */}
-            <div className="mt-4 flex w-full flex-wrap items-center justify-center gap-3">
-              <BoardNavigation />
-              <DrawingToolbar />
+                {/* Board Navigation Row */}
+                <div className="mt-4 flex w-full flex-wrap items-center justify-center gap-3">
+                  <BoardNavigation />
+                  <DrawingToolbar />
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
 
-      {/* Right Sidebar Area */}
-      <div className="w-full h-[46dvh] md:w-[480px] lg:w-[550px] flex-shrink-0 bg-app-surface shadow-card border border-app-border md:h-full flex flex-col overflow-hidden">
+      {/* Right Sidebar Area (hidden on a phone while setting up, so the board gets the screen) */}
+      <div
+        className={cn(
+          "w-full h-[46dvh] md:w-[480px] lg:w-[550px] flex-shrink-0 bg-app-surface shadow-card border border-app-border md:h-full flex-col overflow-hidden",
+          isSetupOpen ? "hidden md:flex" : "flex",
+        )}
+      >
         <SidebarTabs />
       </div>
-
-      <SetupPositionDialog />
     </div>
   );
 }

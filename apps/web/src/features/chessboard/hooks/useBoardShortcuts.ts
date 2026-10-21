@@ -13,7 +13,7 @@ const ARROW_ACTIONS = {
 export function useBoardShortcuts() {
   const {
     undo, redo, jumpToStart, jumpToEnd, setOrientation, orientation,
-    isEditingPosition, setEditingPosition
+    isEditingPosition, setEditingPosition, isSetupPositionOpen
   } = useBoardStore(
     useShallow((s) => ({
       undo: s.undo,
@@ -24,12 +24,15 @@ export function useBoardShortcuts() {
       orientation: s.orientation,
       isEditingPosition: s.isEditingPosition,
       setEditingPosition: s.setEditingPosition,
+      isSetupPositionOpen: s.isSetupPositionOpen,
     })),
   );
   const { showCoordinates, updatePreference } = useChessAppearance();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // The set-up board replaces the main one; its keys must not move the hidden game.
+      if (isSetupPositionOpen) return;
       // Don't trigger shortcuts if user is typing in an input
       if (
         e.target instanceof HTMLInputElement ||
@@ -82,5 +85,5 @@ export function useBoardShortcuts() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, jumpToStart, jumpToEnd, setOrientation, orientation, showCoordinates, updatePreference, isEditingPosition, setEditingPosition]);
+  }, [undo, redo, jumpToStart, jumpToEnd, setOrientation, orientation, showCoordinates, updatePreference, isEditingPosition, setEditingPosition, isSetupPositionOpen]);
 }
