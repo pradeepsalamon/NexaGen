@@ -9,6 +9,7 @@ import { useBoardStore } from "../context/BoardProvider";
 export function useEngineMove() {
   const fen = useBoardStore((s) => s.fen);
   const isGameOver = useBoardStore((s) => s.isGameOver);
+  const setupOnly = useBoardStore((s) => s.positionIssues.length > 0);
   const makeMove = useBoardStore((s) => s.makeMove);
   const [isEngineMoving, setIsEngineMoving] = useState(false);
   const busy = useRef(false);
@@ -20,6 +21,10 @@ export function useEngineMove() {
     if (busy.current) return;
     if (isGameOver) {
       toast.error("The game is already over.");
+      return;
+    }
+    if (setupOnly) {
+      toast.error("The engine needs a legal position — this one is set-up only.");
       return;
     }
     busy.current = true;
@@ -44,7 +49,7 @@ export function useEngineMove() {
       busy.current = false;
       setIsEngineMoving(false);
     }
-  }, [fen, isGameOver, makeMove]);
+  }, [fen, isGameOver, setupOnly, makeMove]);
 
   return { isEngineMoving, playEngineMove };
 }

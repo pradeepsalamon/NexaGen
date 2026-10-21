@@ -1,4 +1,4 @@
-import { sanitizeCastlingRights } from "@nexa-chess/types";
+import { readSetupFen, sanitizeCastlingRights, setPlacementSquare, type SetupFenRead } from "@nexa-chess/types";
 import { Chess } from "@/lib/chess";
 
 // FEN helpers shared by the reusable position editor and its consumers.
@@ -67,17 +67,26 @@ export function composeFen(parts: FenParts): string {
   );
 }
 
-export function validateFen(fen: string): { ok: true } | { ok: false; error: string } {
+export type FenInspection = SetupFenRead;
+
+/**
+ * `readSetupFen` (the shared, chess.js-free reader), plus chess.js's own
+ * verdict when that found nothing: anything chess.js still refuses becomes an
+ * issue, so a position with no issues always loads into the game store.
+ * Board position and chess legality stay separate: the board store shows a
+ * position with issues as set-up only (no moves, no engine) and plays one
+ * without them as usual.
+ */
+export function inspectFen(input: string): FenInspection {
+  const read = readSetupFen(input);
+  if (!read.ok || read.issues.length > 0) return read;
   try {
-    new Chess(fen);
-    return { ok: true };
+    new Chess(read.fen);
+    return read;
   } catch (e) {
-    return {
-      ok: false,
-      error:
-        e instanceof Error && e.message
-          ? e.message.replace(/^Invalid FEN:\s*/i, "")
-          : "Invalid position — check for missing or adjacent kings.",
-    };
+    const reason = e instanceof Error && e.message ? e.message.replace(/^Invalid FEN:\s*/i, "") : "not a legal position";
+    return { ...read, issues: [reason] };
   }
 }
+
+export { setPlacementSquare };

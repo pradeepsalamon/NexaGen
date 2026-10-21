@@ -61,6 +61,49 @@ variations/comments/NAGs round-trips via `moveTreeToPgn` /
   once COMPLETED, same start FEN, optimistic `version` (409 on a stale one).
   Only IMPORT games are deletable (importer or admin). Not soft-deletable.
 
+## 3.6k1b Setup Position & set-up only positions
+
+**Setup Position opens in place, not in a dialog.** While the board store's
+`isSetupPositionOpen` is set, `SetupPositionWorkspace`
+(`features/chessboard/components/layout/`) takes the main board's spot —
+`BoardWorkspace` swaps it for the board column (phones also hide the sidebar),
+`ClassroomBoard` (coach only) hides its board column (kept mounted so the
+side-column `ResizeObserver` survives) and renders the workspace there. The
+set-up board starts from the main board's FEN and orientation; nothing reaches
+the board — or the class — until **Load Position** (`pushHistory`). Tabs: Setup
+Position, Load Game (PGN), From PDF (live class only). Escape drops the selected
+tool first, then closes. While open, `useBoardShortcuts`, the coach's Space
+(engine move) and the puzzle share/load keys are off.
+
+**`PositionEditor` tools** (every consumer: setup, puzzle form, assignment form,
+PDF review): tap a spare piece to select it (`aria-pressed`, stays selected),
+then tap — or drag across — squares to place it; **Remove** erases the same way;
+**Move** (or tapping the selected piece again, or Escape) goes back to plain
+dragging. Hold-and-drag from the tray (`dragNewPiece`, now on `pointerdown`) and
+dragging pieces off the board still work. Board presses with a tool selected are
+caught by native capture listeners before chessground sees them (`touchstart`
+non-passive, so no scroll). `emit` updates `partsRef` synchronously so rapid taps
+never build on a stale placement.
+
+**Legality is not checked while setting up.** `readSetupFen` (`@nexa-chess/types`
+`chess-fen.ts`, pure) rejects only notation that isn't a board (wrong rank
+count/length, bad side/castling/en-passant/counters) and reports everything else
+as `issues`: no king / several kings of a colour, a pawn on the first or last
+rank, the side not to move in check. Web `inspectFen` (`lib/fen.ts`) adds
+chess.js's own verdict, so "no issues" always loads into chess.js. The editor
+shows the verdict under the FEN field. A position with issues loads as a
+**set-up only** position: the board store keeps the FEN exactly (`fen` =
+`tree.rootFen`, no moves) and sets `positionIssues`; `makeMove` /
+`applyRemoteMove` refuse, chessground gets no movable colour or check marker,
+Stockfish / Masterbase / the engine move stand down, and `SetupOnlyNotice` says
+why. Normal games never see any of this (`positionIssues` is empty and every
+legality check is unchanged). `moveTreeForFen` is the tolerant FEN → tree path
+used by `pushHistory`, `setFen`, `syncFromRemote` and chapters, so students,
+reloads and chapter restores accept the position too; an empty-move board is
+not recorded in the Game Library. Load Game (PGN) stays strict — a game needs
+legal moves. Tests: `apps/api/src/common/chess/setup-fen.spec.ts`,
+`e2e/analysis-board.spec.ts`.
+
 ## 3.6k2 Persistent chat (outside live classes)
 
 `apps/api/src/chat/`, `features/chat/`, page `/messages` (all roles), routes
@@ -191,7 +234,7 @@ side-to-move helpers) + `diagram-position.ts` (`validateDiagramPosition`:
 errors block, warnings need the coach; takes a chess.js probe) +
 `diagram-piece-templates.ts` (**generated** — `scripts/diagram-import/`); web
 `features/diagram-import/`, pages `/coach|admin/puzzles/import-pdf`, and the
-"From PDF" tab of `SetupPositionDialog` (only when `pdfImport` is passed —
+"From PDF" tab of `SetupPositionWorkspace` (only when `pdfImport` is passed —
 `ClassroomBoard` does, for the coach; lazy-loaded).
 
 - **The PDF never leaves the browser.** No upload route, no storage, nothing to
