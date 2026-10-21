@@ -254,8 +254,9 @@ function deriveFromTree(
     // shows `fen`, which keeps every piece as set up.
     try {
       chess.load(tree.rootFen, { skipValidation: true });
-    } catch {
+    } catch (e) {
       // keeps its previous position
+      console.warn("Set-up position not loaded into chess.js; it keeps its previous position", tree.rootFen, e);
     }
     return {
       tree: createMoveTree(tree.rootFen),

@@ -117,8 +117,6 @@ function useSideColumnFit(enabled: boolean, onChange?: (fits: boolean) => void) 
     if (!enabled || !onChange || !el) return;
     const wide = window.matchMedia(ROOM_ROW_QUERY);
     const measure = () => {
-      // Hidden (the coach is setting up a position): keep the column as it is.
-      if (el.clientWidth === 0 && el.clientHeight === 0) return;
       const shown = shownRef.current;
       const spare = el.clientWidth - el.clientHeight + (shown ? SIDE_COLUMN_W + SIDE_COLUMN_GAP : 0);
       const need = SIDE_COLUMN_W + SIDE_COLUMN_GAP + (shown ? -SIDE_COLUMN_HYSTERESIS : SIDE_COLUMN_HYSTERESIS);
@@ -168,7 +166,13 @@ export function ClassroomBoard({
   const isSetupOpen = useBoardStore((s) => s.isSetupPositionOpen);
   // Setup Position replaces the coach's board in place; students never see it.
   const settingUp = isCoach && isSetupOpen;
-  const boardBoxRef = useSideColumnFit(isCoach, onSideColumnChange);
+  // Off while setting up: the parent then reports no side column, so the
+  // panel brings its own Chat tab back while the column steps aside.
+  const boardBoxRef = useSideColumnFit(isCoach && !settingUp, onSideColumnChange);
+  const setIsSetupPositionOpen = useBoardStore((s) => s.setIsSetupPositionOpen);
+  // Leaving the board stage mid-setup abandons it: back on the board, the
+  // coach sees the board, not a stale set-up workspace.
+  useEffect(() => () => setIsSetupPositionOpen(false), [setIsSetupPositionOpen]);
 
   return (
     // Side by side: bottom padding clears the floating toolbar (stacked, it floats over the panel).
