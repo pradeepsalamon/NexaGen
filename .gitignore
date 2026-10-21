@@ -55,3 +55,8 @@ apps/web/public/vendor/pdfjs/
 
 # Playwright MCP browser-tool logs
 .playwright-mcp/
+
+# Python bytecode / test caches (services/ai-runtime, scripts/ai)
+__pycache__/
+*.py[cod]
+.pytest_cache/
