@@ -1,0 +1,12 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": {
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "text at the 200-character limit",
+  "valid": true
+}

@@ -1,0 +1,16 @@
+{
+  "data": {
+    "contractVersions": [
+      "1.0"
+    ],
+    "providers": [
+      "mock"
+    ],
+    "tasks": [
+      "diagnostic.echo.v1"
+    ],
+    "version": "0.1.0"
+  },
+  "reason": "required field service missing",
+  "valid": false
+}

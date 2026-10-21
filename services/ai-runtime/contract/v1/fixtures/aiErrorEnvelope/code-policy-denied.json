@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "POLICY_DENIED",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code POLICY_DENIED",
+  "valid": true
+}

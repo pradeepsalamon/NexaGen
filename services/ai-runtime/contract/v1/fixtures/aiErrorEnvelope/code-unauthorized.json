@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "UNAUTHORIZED",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code UNAUTHORIZED",
+  "valid": true
+}

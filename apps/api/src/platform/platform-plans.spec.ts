@@ -63,6 +63,16 @@ describe("resolveEntitlements", () => {
   it("ignores malformed overrides instead of granting anything", () => {
     expect(resolveEntitlements(plan, { addFeatures: "everything" }).features).toEqual(["courses", "directChat"]);
   });
+
+  it("sanitizes override fields independently so invalid addFeatures does not discard valid removals or limits", () => {
+    const resolved = resolveEntitlements(plan, {
+      addFeatures: ["notARealFeature"],
+      limits: { maxStudents: 40 },
+      removeFeatures: ["courses"]
+    });
+    expect(resolved.features).toEqual(["directChat"]);
+    expect(resolved.limits.maxStudents).toBe(40);
+  });
 });
 
 describe("limits and upgrade path", () => {

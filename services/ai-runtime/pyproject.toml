@@ -1,0 +1,36 @@
+[project]
+name = "nexa-ai-runtime"
+version = "0.1.0"
+description = "Stateless model plane for Nexa Chess AI tasks (docs/ai/architecture/PHASE1_SPEC.md)."
+requires-python = ">=3.12,<3.13"
+# Runtime dependencies are deliberately few and contain no provider SDK or
+# HTTP client (tests/test_dependencies.py enforces an allowlist over uv.lock).
+# uvicorn without [standard]: no native uvloop/httptools.
+dependencies = [
+  "fastapi>=0.115,<1",
+  "pydantic>=2.9,<3",
+  "pyjwt>=2.9,<3",
+  "uvicorn>=0.32,<1",
+]
+
+[dependency-groups]
+dev = [
+  "httpx>=0.27,<1",
+  "jsonschema>=4.23,<5",
+  "pytest>=8.3,<9",
+]
+
+[tool.uv]
+package = false
+# Wait 7 days before resolving newly published package versions (dependency cooldown):
+# a brand-new release gets time to be yanked before it can land here.
+exclude-newer = "7 days"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+filterwarnings = [
+  # starlette 1.x TestClient nudges towards httpx2; httpx is what we pin.
+  "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]

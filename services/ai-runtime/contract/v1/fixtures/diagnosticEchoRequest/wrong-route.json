@@ -1,0 +1,12 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": {
+      "text": "hello"
+    },
+    "route": "ollama:llama",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "route literal mismatch",
+  "valid": false
+}

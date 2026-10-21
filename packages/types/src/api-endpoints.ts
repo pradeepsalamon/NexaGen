@@ -44,6 +44,10 @@ export const API_ROUTES = {
     deleteItem: (entity: string = ":entity", id: string = ":id") => `/admin/trash/${entity}/${id}`
   },
   // Admin "Live now" monitor: every LIVE class + a hidden spectator seat (ADMIN/SUPER_ADMIN).
+  adminAi: {
+    echo: "/admin/ai/echo",
+    status: "/admin/ai/status"
+  },
   adminLiveClasses: {
     list: "/admin/live-classes",
     spectate: (id: string = ":id") => `/admin/live-classes/${id}/spectate`

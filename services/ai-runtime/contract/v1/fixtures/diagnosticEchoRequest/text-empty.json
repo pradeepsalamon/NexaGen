@@ -1,0 +1,12 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": {
+      "text": ""
+    },
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "text of 0 characters",
+  "valid": false
+}

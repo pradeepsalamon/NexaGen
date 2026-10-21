@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "INVALID_REQUEST",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code INVALID_REQUEST",
+  "valid": true
+}

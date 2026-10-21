@@ -1,0 +1,14 @@
+{
+  "data": {
+    "contractVersion": "1.0",
+    "latencyMs": 0,
+    "model": "echo",
+    "modelRevision": null,
+    "output": {
+      "echo": "hello",
+      "length": 5
+    }
+  },
+  "reason": "required field provider missing",
+  "valid": false
+}

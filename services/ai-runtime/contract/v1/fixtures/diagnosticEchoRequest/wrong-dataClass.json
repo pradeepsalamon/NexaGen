@@ -1,0 +1,12 @@
+{
+  "data": {
+    "dataClass": "INTERNAL",
+    "input": {
+      "text": "hello"
+    },
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "dataClass must be PUBLIC for this task",
+  "valid": false
+}

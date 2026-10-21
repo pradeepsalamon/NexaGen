@@ -1,0 +1,10 @@
+{
+  "data": {
+    "dataClass": "PUBLIC",
+    "input": {},
+    "route": "mock:echo",
+    "task": "diagnostic.echo.v1"
+  },
+  "reason": "required field input.text missing",
+  "valid": false
+}

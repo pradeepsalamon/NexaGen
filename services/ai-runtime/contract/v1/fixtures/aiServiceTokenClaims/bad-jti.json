@@ -1,0 +1,14 @@
+{
+  "data": {
+    "aud": "ai-runtime",
+    "exp": 1760000030,
+    "iat": 1760000000,
+    "iss": "nexa-api",
+    "jti": "not-a-uuid",
+    "rid": "req-12345678",
+    "scope": "runtime:info",
+    "ver": 1
+  },
+  "reason": "jti is not a UUID v4",
+  "valid": false
+}

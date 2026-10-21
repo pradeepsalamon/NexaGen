@@ -1,0 +1,18 @@
+{
+  "data": {
+    "contractVersions": [
+      "1.0"
+    ],
+    "providers": [
+      "mock"
+    ],
+    "service": "ai-runtime",
+    "tasks": [
+      "diagnostic.echo.v1"
+    ],
+    "uptime": 1,
+    "version": "0.1.0"
+  },
+  "reason": "responses are read non-strictly",
+  "valid": true
+}

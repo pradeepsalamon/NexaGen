@@ -1,0 +1,11 @@
+{
+  "data": {
+    "error": {
+      "code": "PROVIDER_UNAVAILABLE",
+      "message": "Internal error.",
+      "retryable": false
+    }
+  },
+  "reason": "error code PROVIDER_UNAVAILABLE",
+  "valid": true
+}

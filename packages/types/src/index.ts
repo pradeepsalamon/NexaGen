@@ -42,6 +42,8 @@ export {
   partialWithoutDefaults,
   solutionMoveSchema
 } from "./core-schemas";
+export * from "./ai";
+export * from "./ai-runtime-contract";
 export * from "./api-endpoints";
 export * from "./live-class-settings";
 export * from "./live-class-moderation";
