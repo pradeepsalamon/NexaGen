@@ -129,7 +129,9 @@ positions and finished games included); a drop that chess.js accepts still goes
 through `makeMove` (notation, promotion dialog, clock), anything else through
 `makeFreeMove` → `freeMoveFen` (`chess-fen.ts`: lift the piece, capture whatever
 is on the target — a king too — other side to move, broken castling rights
-dropped, no en passant, a pawn stays a pawn). The move tree only holds legal
+dropped, no en passant, a pawn stays a pawn). A free move updates the moved
+piece's clock, including out-of-turn moves, when that clock is enabled and
+running for the mover. The move tree only holds legal
 moves, so a free move starts a new tree at the resulting position (new
 `gameId`) and pushes the old `{tree, line, cursor, gameId}` on `freeMoveUndo`;
 Undo / Redo at either end of the line step across those (`freeMoveRedo`), every

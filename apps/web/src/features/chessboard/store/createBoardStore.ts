@@ -467,9 +467,9 @@ export const createBoardStore = () => {
       const fen = freeMoveFen(state.fen, from, to);
       const tree = fen ? moveTreeForFen(fen) : null;
       if (!fen || !tree) return false;
-      const mover = state.turn;
       // A free move hands the turn to the opposite colour of the moved piece.
       const nextTurn = fen.split(" ")[1] === "b" ? "black" : "white";
+      const mover = nextTurn === "white" ? "black" : "white";
       const pieces = (f: string) => f.split(" ")[0].replace(/[^a-z]/gi, "").length;
       const moveType: SoundType = pieces(fen) < pieces(state.fen) ? "capture" : "move";
       playSound(moveType);
@@ -479,7 +479,7 @@ export const createBoardStore = () => {
         gameId: newBoardGameId(),
         freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)].slice(-FREE_MOVE_HISTORY_LIMIT),
         freeMoveRedo: NO_SNAPSHOTS,
-        clock: nextTurn !== mover ? applyMoveToClock(state.clock, mover, Date.now()) : state.clock,
+        clock: applyMoveToClock(state.clock, mover, Date.now()),
       });
       return true;
     },
