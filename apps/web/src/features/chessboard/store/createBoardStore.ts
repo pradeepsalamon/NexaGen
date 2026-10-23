@@ -3,6 +3,7 @@ import { Move } from "chess.js";
 import {
   addMoveToTree,
   createMoveTree,
+  freeMoveFen,
   deleteFromPath,
   findMoveTreePath,
   getMoveTreeNode,
@@ -26,6 +27,16 @@ import {
 } from "../lib/clock";
 import { useBoardStore as usePersistedStore } from "./boardStore";
 import { inspectFen } from "../lib/fen";
+
+/** The board before a free move replaced it — what Undo across that move restores. */
+type FreeMoveSnapshot = {
+  tree: MoveTree;
+  treeLinePath: MoveTreePath;
+  historyIndex: number;
+  gameId: string;
+};
+
+const FREE_MOVE_HISTORY_LIMIT = 200;
 
 export type OverlayArrow = {
   orig: string;
@@ -100,6 +111,18 @@ export interface BoardState {
   // Editor & Interactions
   activeBrush: string; // e.g. "green", "red"
   isEditingPosition: boolean;
+  /**
+   * Per-client, never broadcast; only the coach's toolbar sets it. While on,
+   * a move chess rules refuse is still played (`makeFreeMove`).
+   */
+  allowIllegalMoves: boolean;
+  /**
+   * A free move can't live in the move tree (it holds only legal moves), so
+   * it starts a new tree at the resulting position; these stacks let Undo /
+   * Redo step back across it. Cleared by every load.
+   */
+  freeMoveUndo: FreeMoveSnapshot[];
+  freeMoveRedo: FreeMoveSnapshot[];
   pendingPromotion: { from: string, to: string } | null;
   isSetupPositionOpen: boolean;
   isDrawingMode: boolean;
@@ -126,6 +149,12 @@ export interface BoardState {
 export interface BoardActions {
   // Game Actions
   makeMove: (from: string, to: string, promotion?: string) => boolean;
+  /**
+   * Picks up the piece on `from` and puts it on `to`, chess rules ignored
+   * (see `freeMoveFen`). For "Allow illegal moves"; a legal move should go
+   * through `makeMove` so it keeps its notation.
+   */
+  makeFreeMove: (from: string, to: string) => boolean;
   undo: () => void;
   redo: () => void;
   jumpToStart: () => void;
@@ -192,6 +221,7 @@ export interface BoardActions {
   // Workspace interactions
   setActiveBrush: (brush: string) => void;
   setEditingPosition: (editing: boolean) => void;
+  setAllowIllegalMoves: (allow: boolean) => void;
   setPendingPromotion: (promo: { from: string, to: string } | null) => void;
   setIsDrawingMode: (mode: boolean) => void;
   setIsSetupPositionOpen: (open: boolean) => void;
@@ -207,6 +237,19 @@ const INITIAL_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 export function newBoardGameId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `g${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+}
+
+const NO_SNAPSHOTS: FreeMoveSnapshot[] = [];
+/** Spread into every load: Undo never crosses into a board from before it. */
+const CLEAR_FREE_MOVES = { freeMoveUndo: NO_SNAPSHOTS, freeMoveRedo: NO_SNAPSHOTS };
+
+function snapshotOf(state: BoardState): FreeMoveSnapshot {
+  return {
+    tree: state.tree,
+    treeLinePath: state.treeLinePath,
+    historyIndex: state.historyIndex,
+    gameId: state.gameId,
+  };
 }
 
 function uciParts(uci: string) {
@@ -362,6 +405,9 @@ export const createBoardStore = () => {
 
     activeBrush: "green",
     isEditingPosition: false,
+    allowIllegalMoves: false,
+    freeMoveUndo: NO_SNAPSHOTS,
+    freeMoveRedo: NO_SNAPSHOTS,
     pendingPromotion: null,
     isSetupPositionOpen: false,
 
@@ -400,6 +446,7 @@ export const createBoardStore = () => {
 
           set({
             ...deriveFromTree(state.chess, added.tree, added.path, added.path.length - 1),
+            freeMoveRedo: NO_SNAPSHOTS,
             clock: applyMoveToClock(
               state.clock,
               move.color === 'w' ? 'white' : 'black',
@@ -415,18 +462,59 @@ export const createBoardStore = () => {
       return false;
     },
     
+    makeFreeMove: (from, to) => {
+      const state = get();
+      const fen = freeMoveFen(state.fen, from, to);
+      const tree = fen ? moveTreeForFen(fen) : null;
+      if (!fen || !tree) return false;
+      // A free move hands the turn to the opposite colour of the moved piece.
+      const nextTurn = fen.split(" ")[1] === "b" ? "black" : "white";
+      const mover = nextTurn === "white" ? "black" : "white";
+      const pieces = (f: string) => f.split(" ")[0].replace(/[^a-z]/gi, "").length;
+      const moveType: SoundType = pieces(fen) < pieces(state.fen) ? "capture" : "move";
+      playSound(moveType);
+      usePersistedStore.getState().setLastMoveType(moveType);
+      set({
+        ...deriveFromTree(state.chess, tree, [], -1),
+        gameId: newBoardGameId(),
+        freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)].slice(-FREE_MOVE_HISTORY_LIMIT),
+        freeMoveRedo: NO_SNAPSHOTS,
+        clock: applyMoveToClock(state.clock, mover, Date.now()),
+      });
+      return true;
+    },
+
+    // At the start of the current line, Undo / Redo step across free moves.
     undo: () => {
       const state = get();
       if (state.historyIndex >= 0) {
         set(deriveFromTree(state.chess, state.tree, state.treeLinePath, state.historyIndex - 1));
+        return;
       }
+      const previous = state.freeMoveUndo[state.freeMoveUndo.length - 1];
+      if (!previous) return;
+      set({
+        ...deriveFromTree(state.chess, previous.tree, previous.treeLinePath, previous.historyIndex),
+        gameId: previous.gameId,
+        freeMoveUndo: state.freeMoveUndo.slice(0, -1),
+        freeMoveRedo: [...state.freeMoveRedo, snapshotOf(state)],
+      });
     },
     
     redo: () => {
       const state = get();
       if (state.historyIndex < state.moveHistory.length - 1) {
         set(deriveFromTree(state.chess, state.tree, state.treeLinePath, state.historyIndex + 1));
+        return;
       }
+      const next = state.freeMoveRedo[state.freeMoveRedo.length - 1];
+      if (!next) return;
+      set({
+        ...deriveFromTree(state.chess, next.tree, next.treeLinePath, next.historyIndex),
+        gameId: next.gameId,
+        freeMoveRedo: state.freeMoveRedo.slice(0, -1),
+        freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)],
+      });
     },
     
     jumpToStart: () => {
@@ -500,6 +588,7 @@ export const createBoardStore = () => {
       const line = linePath ?? lineThroughPath(tree, []).path;
       set({
         ...deriveFromTree(state.chess, tree, line, historyIndex ?? line.length - 1),
+        ...CLEAR_FREE_MOVES,
         gameId: newBoardGameId(),
       });
     },
@@ -508,6 +597,7 @@ export const createBoardStore = () => {
       const state = get();
       set({
         ...deriveFromTree(state.chess, createMoveTree(INITIAL_FEN), [], -1),
+        ...CLEAR_FREE_MOVES,
         gameId: newBoardGameId(),
         arrows: [],
         squareStyles: {},
@@ -528,7 +618,7 @@ export const createBoardStore = () => {
         console.warn("Invalid FEN", fen);
         return;
       }
-      set({ ...deriveFromTree(state.chess, tree, [], -1), gameId: newBoardGameId() });
+      set({ ...deriveFromTree(state.chess, tree, [], -1), ...CLEAR_FREE_MOVES, gameId: newBoardGameId() });
     },
     
     setPgn: (pgn) => {
@@ -539,7 +629,7 @@ export const createBoardStore = () => {
         return;
       }
       const line = lineThroughPath(tree, []).path;
-      set({ ...deriveFromTree(state.chess, tree, line, line.length - 1), gameId: newBoardGameId() });
+      set({ ...deriveFromTree(state.chess, tree, line, line.length - 1), ...CLEAR_FREE_MOVES, gameId: newBoardGameId() });
     },
 
     pushHistory: (fen, pgn) => {
@@ -548,7 +638,7 @@ export const createBoardStore = () => {
         const tree = moveTreeFromPgn(pgn, fen);
         if (!tree) throw new Error("invalid");
         const line = lineThroughPath(tree, []).path;
-        set({ ...deriveFromTree(state.chess, tree, line, line.length - 1), gameId: newBoardGameId() });
+        set({ ...deriveFromTree(state.chess, tree, line, line.length - 1), ...CLEAR_FREE_MOVES, gameId: newBoardGameId() });
       } catch (e) {
         console.warn("Failed to load position", fen);
       }
@@ -716,6 +806,7 @@ export const createBoardStore = () => {
 
     setActiveBrush: (brush) => set({ activeBrush: brush }),
     setEditingPosition: (editing) => set({ isEditingPosition: editing }),
+    setAllowIllegalMoves: (allow) => set({ allowIllegalMoves: allow }),
     setPendingPromotion: (promo) => set({ pendingPromotion: promo }),
     setIsDrawingMode: (mode) => set({ isDrawingMode: mode }),
     setIsSetupPositionOpen: (open) => set({ isSetupPositionOpen: open }),

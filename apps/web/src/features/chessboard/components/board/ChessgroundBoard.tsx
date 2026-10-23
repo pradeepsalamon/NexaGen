@@ -45,7 +45,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     chess, fen, turn, orientation, moveHistory, historyIndex,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
-    isDetached, localFlip, overlayArrows, pendingPromotion, positionIssues
+    isDetached, localFlip, overlayArrows, pendingPromotion, positionIssues, allowIllegalMoves, makeFreeMove
   } = useBoardStore(
     useShallow((s) => ({
       chess: s.chess,
@@ -70,6 +70,8 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       overlayArrows: s.overlayArrows,
       pendingPromotion: s.pendingPromotion,
       positionIssues: s.positionIssues,
+      allowIllegalMoves: s.allowIllegalMoves,
+      makeFreeMove: s.makeFreeMove,
     })),
   );
   // Everyone may draw arrows on an interactive board. A student's marks stay on
@@ -106,7 +108,10 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   const isMyTurn = canMove && (controlSide === "both" || controlSide === turn);
   // A set-up only position (missing / extra kings, ...) is shown, never played.
   const setupOnly = positionIssues.length > 0;
-  const movableColor = isEditingPosition
+  // The coach's "Allow Illegal Moves": every piece moves, whoever's turn it
+  // is, set-up only position or finished game included.
+  const freeMoves = allowIllegalMoves && isCoach && !readOnly;
+  const movableColor = isEditingPosition || freeMoves
     ? "both"
     : isGameOver || !isMyTurn || setupOnly
       ? undefined
@@ -117,7 +122,8 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   // Compute legal moves
   const dests = useMemo(() => {
     if (isEditingPosition) return undefined; // Free movement
-    if (isGameOver || !movableColor) return new Map();
+    // Still computed with free moves on: the legal ones keep their hints.
+    if (isGameOver || !movableColor || setupOnly) return new Map();
     const moves = new Map();
     const legalMoves = chess.moves({ verbose: true });
     for (const move of legalMoves) {
@@ -127,7 +133,12 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       moves.get(move.from).push(move.to);
     }
     return moves;
-  }, [fen, isGameOver, chess, movableColor, isEditingPosition]);
+  }, [fen, isGameOver, chess, movableColor, isEditingPosition, setupOnly]);
+
+  // chessground keeps the `after` handler from construction: it reads the
+  // live values through this ref.
+  const moveRef = useRef({ freeMoves, setupOnly, fen, makeFreeMove });
+  moveRef.current = { freeMoves, setupOnly, fen, makeFreeMove };
 
   // Use a ref to access the latest state in the onChange callback without triggering infinite loops
   const stateRef = useRef({ arrows, activeBrush });
@@ -227,13 +238,26 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       viewOnly: false,
       movable: {
         color: movableColor,
-        free: isEditingPosition,
+        free: isEditingPosition || freeMoves,
         showDests: highlightSettings.legalMovesEnabled,
         dests,
         events: {
           after: (orig, dest) => {
              if (isEditingPosition) {
                 return;
+             }
+             const live = moveRef.current;
+             if (live.freeMoves) {
+                // A legal move keeps its notation (and promotion choice);
+                // anything else is played as a free move.
+                const legal =
+                  !live.setupOnly &&
+                  chess.moves({ verbose: true }).some((m) => m.from === orig && m.to === dest);
+                if (!legal) {
+                  // Nothing changed in the store: put chessground back.
+                  if (!live.makeFreeMove(orig, dest)) cgRef.current?.set({ fen: live.fen });
+                  return;
+                }
              }
              const piece = chess.get(orig as any);
              if (piece && piece.type === 'p' && (dest[1] === '1' || dest[1] === '8')) {
@@ -318,14 +342,14 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       drawable: { enabled: canDraw },
       movable: {
         color: movableColor,
-        free: isEditingPosition,
+        free: isEditingPosition || freeMoves,
         showDests: highlightSettings.legalMovesEnabled,
         dests
       }
     });
   }, [
     cg, fen, turn, viewOrientation, showCoordinates, animationEnabled, highlightSettings, chess,
-    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw, setupOnly
+    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw, setupOnly, freeMoves
   ]);
   
   // Sync annotations (arrows)

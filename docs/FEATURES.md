@@ -75,6 +75,22 @@ Position, Load Game (PGN), From PDF (live class only). Escape drops the selected
 tool first, then closes. While open, `useBoardShortcuts`, the coach's Space
 (engine move) and the puzzle share/load keys are off.
 
+**Workspace layout (`PositionEditor fill`).** The editor is the workspace's
+*one* scroller and sizes the board in JS (`fillLayout`): a `ResizeObserver`
+measures the scroller's content box and the board column's non-board height
+(trays, plus Move/Remove when they sit below), and the board takes what's left
+(never under 284px, a six-piece tray). Settings go beside the board while that
+leaves it ≥ 300px, else below; Move/Remove sit in a rail left of the board when
+the column has room. The board block is centred with auto margins, never
+`align-items: center` — that was the 2026-10 bug: a centred board taller than
+its `container-type: size` box overflowed upward, off the scroller's reachable
+top, so the black tray and top ranks were unreachable at short heights, while
+the settings column scrolled separately beside it. Header controls: **Collapse
+/ Expand settings** (hides the column, values kept), **Maximize board** (the
+same section goes `fixed inset-0 z-40` over the room — no remount, so the FEN
+and the selected tool survive) and **Restore layout** (undoes both; Escape
+while maximized restores before it closes).
+
 **`PositionEditor` tools** (every consumer: setup, puzzle form, assignment form,
 PDF review): tap a spare piece to select it (`aria-pressed`, stays selected),
 then tap — or drag across — squares to place it; **Remove** erases the same way;
@@ -103,6 +119,25 @@ reloads and chapter restores accept the position too; an empty-move board is
 not recorded in the Game Library. Load Game (PGN) stays strict — a game needs
 legal moves. Tests: `apps/api/src/common/chess/setup-fen.spec.ts`,
 `e2e/analysis-board.spec.ts`.
+
+**Allow Illegal Moves (coach main board).** `IllegalMovesToggle`
+(`components/toolbars/`, in `ClassroomBoard`'s top row and `BoardWorkspace`'s
+header, staff/coach only) sets the board store's `allowIllegalMoves` —
+per-client, never broadcast, off on every load. While on, `ChessgroundBoard`
+gives chessground `movable: { color: "both", free: true }` (set-up only
+positions and finished games included); a drop that chess.js accepts still goes
+through `makeMove` (notation, promotion dialog, clock), anything else through
+`makeFreeMove` → `freeMoveFen` (`chess-fen.ts`: lift the piece, capture whatever
+is on the target — a king too — other side to move, broken castling rights
+dropped, no en passant, a pawn stays a pawn). A free move updates the moved
+piece's clock, including out-of-turn moves, when that clock is enabled and
+running for the mover. The move tree only holds legal
+moves, so a free move starts a new tree at the resulting position (new
+`gameId`) and pushes the old `{tree, line, cursor, gameId}` on `freeMoveUndo`;
+Undo / Redo at either end of the line step across those (`freeMoveRedo`), every
+load clears both. Students get the position through the normal MOVE broadcast
+(`moveTreeForFen` accepts it, set-up only or not). Off again = legal moves
+immediately, no refresh.
 
 ## 3.6k2 Persistent chat (outside live classes)
 

@@ -215,3 +215,36 @@ export function setPlacementSquare(placement: string, square: string, piece: str
   ranks[row] = cells.join("").replace(/\.+/g, (run) => String(run.length));
   return ranks.join("/");
 }
+
+/**
+ * The position after picking up the piece on `from` and putting it on `to`,
+ * chess rules ignored (the coach's "Allow illegal moves" board): whatever
+ * stood on `to` is captured — a king included — and a pawn stays a pawn.
+ * The other side moves next; castling rights the move breaks are dropped, en
+ * passant is cleared, and the move number advances after Black. Null when
+ * either square is invalid, `from` is empty, `from === to`, or the FEN's board can't be read.
+ */
+export function freeMoveFen(fen: string, from: string, to: string): string | null {
+  const [placement = "", , castling = "-", , halfMove = "0", fullMove = "1"] = fen.trim().split(/\s+/);
+  if (!/^[a-h][1-8]$/.test(from) || !/^[a-h][1-8]$/.test(to) || from === to || placementError(placement) !== null) return null;
+  const squares = placementSquares(placement);
+  const piece = squares.get(from);
+  if (!piece) return null;
+  const moved = setPlacementSquare(setPlacementSquare(placement, from, null), to, piece);
+  if (moved === placement) return null;
+
+  const white = piece === piece.toUpperCase();
+  const next = white ? "b" : "w";
+  const half = /^\d+$/.test(halfMove) ? Number(halfMove) : 0;
+  const full = /^[1-9]\d*$/.test(fullMove) ? Number(fullMove) : 1;
+  // A Black move (in turn or not) closes the move pair.
+  const nextFull = white ? full : full + 1;
+  const captured = squares.get(to);
+  const nextHalf = piece.toLowerCase() === "p" || captured ? 0 : half + 1;
+  // Replacing a home rook with another rook must not inherit its castling right.
+  const nextCastling = CASTLING_ORDER.filter((flag) => {
+    const req = CASTLING_REQUIREMENTS[flag];
+    return castling.includes(flag) && !(to === req.rook && captured === req.piece.rook);
+  }).join("") || "-";
+  return sanitizeCastlingRights([moved, next, nextCastling, "-", String(nextHalf), String(nextFull)].join(" "));
+}
