@@ -122,10 +122,10 @@ legal moves. Tests: `apps/api/src/common/chess/setup-fen.spec.ts`,
 
 **Allow Illegal Moves (coach main board).** `IllegalMovesToggle`
 (`components/toolbars/`, in `ClassroomBoard`'s top row and `BoardWorkspace`'s
-header, staff/coach only) sets the board store's `allowIllegalMoves` —
-per-client, never broadcast, off on every load. While on, `ChessgroundBoard`
-gives chessground `movable: { color: "both", free: true }` (set-up only
-positions and finished games included); a drop that chess.js accepts still goes
+header, staff/coach only; the `I` key toggles it while it is on screen) sets
+the board store's `allowIllegalMoves`, off on every load. While on,
+`ChessgroundBoard` gives chessground `movable: { color: <side this client
+controls>, free: true }` (set-up only positions and finished games included); a drop that chess.js accepts still goes
 through `makeMove` (notation, promotion dialog, clock), anything else through
 `makeFreeMove` → `freeMoveFen` (`chess-fen.ts`: lift the piece, capture whatever
 is on the target — a king too — other side to move, broken castling rights
@@ -138,6 +138,23 @@ Undo / Redo at either end of the line step across those (`freeMoveRedo`), every
 load clears both. Students get the position through the normal MOVE broadcast
 (`moveTreeForFen` accepts it, set-up only or not). Off again = legal moves
 immediately, no refresh.
+
+**Students with board control move freely too.** In a live class the flag rides
+on `UPDATE_PERMISSIONS` (`PermissionPayload.allowIllegalMoves`; the coach
+rebroadcasts when it flips, `useLiveBoardSync`), so a student holding control —
+everyone (`EVERYONE`) or a per-student grant — gets free moves **for the
+colour(s) they were granted only** (a white-only grant drags any white piece,
+any time); a detached student does not. They see an `IllegalMovesBadge` instead
+of the switch. Receivers never trust the packet's FEN: `isOneAllowedMoveAway`
+(`boardSyncRules.ts`) accepts a student's MOVE that is one legal move **or**,
+while the receiver's own flag is on, one free move (`freeMoveBetween` in
+`chess-fen.ts`, which finds the from/to squares and re-derives the FEN), and the
+side check still applies; the board replays it with `applyRemoteFreeMove`, so
+every client keeps the same `freeMoveUndo` stack. A student's Undo / Redo across
+a free move is broadcast as UNDO / REDO and replayed with
+`applyRemoteFreeMoveStep` (only if it lands on the same position). The coach
+stays the clock authority as for legal moves. The recorder / spectator board
+(`readOnlyBoard.ts`) applies the same rule.
 
 ## 3.6k2 Persistent chat (outside live classes)
 

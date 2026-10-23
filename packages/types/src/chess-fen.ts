@@ -248,3 +248,31 @@ export function freeMoveFen(fen: string, from: string, to: string): string | nul
   }).join("") || "-";
   return sanitizeCastlingRights([moved, next, nextCastling, "-", String(nextHalf), String(nextFull)].join(" "));
 }
+
+/**
+ * The free move (`freeMoveFen`) from `fromFen` that reaches `toFen`, or null.
+ * Lets a receiver check a controlling student's illegal move against its own
+ * board and replay it, instead of trusting the FEN the packet carries. Only
+ * placement, side to move and castling are compared — the move counters don't
+ * make a different position.
+ */
+export function freeMoveBetween(fromFen: string, toFen: string): { from: string; to: string } | null {
+  const before = placementSquares(fromFen.trim().split(/\s+/)[0] ?? "");
+  const after = placementSquares(toFen.trim().split(/\s+/)[0] ?? "");
+  // One piece moved: its square emptied, and the target now holds it.
+  const emptied: string[] = [];
+  const filled: string[] = [];
+  for (const square of new Set([...before.keys(), ...after.keys()])) {
+    const was = before.get(square);
+    const now = after.get(square);
+    if (was === now) continue;
+    if (was && !now) emptied.push(square);
+    else if (now) filled.push(square);
+  }
+  if (emptied.length !== 1 || filled.length !== 1) return null;
+  const [from] = emptied;
+  const [to] = filled;
+  const moved = freeMoveFen(fromFen, from, to);
+  const key = (fen: string) => fen.trim().split(/\s+/).slice(0, 3).join(" ");
+  return moved && key(moved) === key(sanitizeCastlingRights(toFen.trim())) ? { from, to } : null;
+}

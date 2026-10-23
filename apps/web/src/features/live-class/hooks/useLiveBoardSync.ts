@@ -32,6 +32,7 @@ export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
   const permissionMode = useBoardStore((s) => s.permissionMode);
   const selectedStudentIds = useBoardStore((s) => s.selectedStudentIds);
   const selectedStudentSides = useBoardStore((s) => s.selectedStudentSides);
+  const allowIllegalMoves = useBoardStore((s) => s.allowIllegalMoves);
   const { broadcastState, broadcastPermissions } = actions;
   const hasInitialized = useRef(false);
   const lastBroadcastSig = useRef<string | null>(null);
@@ -69,7 +70,8 @@ export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
   // forever (the grant/revoke button visibly flickering).
   useEffect(() => {
     if (!isChessboardOpen || !isCoach) return;
-    const sig = permissionSignature(permissionMode, selectedStudentIds, selectedStudentSides);
+    // Students holding control get the coach's "Allow Illegal Moves" with their grant.
+    const sig = `${permissionSignature(permissionMode, selectedStudentIds, selectedStudentSides)}|${allowIllegalMoves}`;
     if (sig === lastBroadcastSig.current) return;
     lastBroadcastSig.current = sig;
     broadcastPermissions();
@@ -77,6 +79,7 @@ export function useLiveBoardSyncBridge(actions: BoardSyncActions) {
     permissionMode,
     selectedStudentIds,
     selectedStudentSides,
+    allowIllegalMoves,
     isChessboardOpen,
     broadcastPermissions,
     isCoach,

@@ -1,4 +1,4 @@
-import { sanitizeCastlingRights } from "@nexa-chess/types";
+import { freeMoveBetween, sanitizeCastlingRights } from "@nexa-chess/types";
 import { Chess } from "@/lib/chess";
 import type {
   BoardColor,
@@ -130,6 +130,20 @@ export function isOneLegalMoveAway(fromFen: string | undefined, toFen: string | 
 }
 
 /**
+ * Whether a controlling student's MOVE may take the board from `fromFen` to
+ * `toFen`: one legal move, or — while the coach has "Allow Illegal Moves" on —
+ * one free move (any piece to any square, `freeMoveBetween`).
+ */
+export function isOneAllowedMoveAway(
+  fromFen: string | undefined,
+  toFen: string | undefined,
+  allowIllegalMoves: boolean | undefined,
+): boolean {
+  if (isOneLegalMoveAway(fromFen, toFen)) return true;
+  return !!allowIllegalMoves && !!fromFen && !!toFen && freeMoveBetween(fromFen, toFen) !== null;
+}
+
+/**
  * Authoritative check, run on every received board-sync message: may the
  * participant it came from apply this change to our board?
  *
@@ -142,7 +156,8 @@ export function isOneLegalMoveAway(fromFen: string | undefined, toFen: string | 
  *   white-only student cannot drive black's pieces even by hand-crafting a
  *   packet. A student's MOVE must also be one legal move from the position
  *   the receiver is showing (`isLegalMove`), so "both" means "either colour,
- *   on its turn" rather than "anything". `UNDO`/`REDO` reposition the shared line rather than play a colour,
+ *   on its turn" rather than "anything" — unless the coach turned on "Allow
+ *   Illegal Moves", when one free move of their colour(s) passes too. `UNDO`/`REDO` reposition the shared line rather than play a colour,
  *   so they stay open to any control holder.
  *
  * `fromIdentity` and every entry in `selectedStudentIds` are **full LiveKit
@@ -158,8 +173,8 @@ export function senderMayMutateBoard(params: {
   /** Colour that played the incoming move (MOVE only). */
   moverColor?: BoardColor;
   /**
-   * MOVE only: whether the packet's position is one legal move from the
-   * receiver's current board (`isOneLegalMoveAway`). Omitted = not checked.
+   * MOVE only: whether the packet's position is one allowed move from the
+   * receiver's current board (`isOneAllowedMoveAway`). Omitted = not checked.
    */
   isLegalMove?: boolean;
 }): boolean {

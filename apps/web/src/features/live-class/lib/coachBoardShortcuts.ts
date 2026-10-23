@@ -6,6 +6,7 @@ import { create } from "zustand";
  */
 export const COACH_BOARD_SHORTCUTS = [
   { id: "setup", key: "S", label: "Setup position" },
+  { id: "illegalMoves", key: "I", label: "Allow illegal moves on/off" },
   { id: "shareNext", key: ".", label: "Share next puzzle" },
   { id: "sharePrevious", key: ",", label: "Share previous puzzle" },
   { id: "loadNext", key: "]", label: "Load next puzzle" },
@@ -40,6 +41,9 @@ export function matchCoachBoardShortcut(e: KeyboardEvent): CoachBoardShortcutId 
     case "s":
     case "S": // Caps Lock, not Shift
       return e.shiftKey ? null : "setup";
+    case "i":
+    case "I":
+      return e.shiftKey ? null : "illegalMoves";
     case "]":
       return "loadNext";
     case "[":

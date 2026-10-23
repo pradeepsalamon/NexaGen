@@ -16,9 +16,10 @@ import { useParams } from "next/navigation";
 import { useBoardStore, BoardContext } from "../context/BoardProvider";
 import { useBoardStore as usePersistedStore } from "../store/boardStore";
 import { BoardControlSide, BoardSyncMessage } from "../types/sync";
+import { freeMoveBetween } from "@nexa-chess/types";
 import {
   isCoachParticipant,
-  isOneLegalMoveAway,
+  isOneAllowedMoveAway,
   legalMoveBetween,
   moverColorFromFen,
   senderMayMutateBoard,
@@ -175,6 +176,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
         mode: s.permissionMode,
         selectedStudentIds: s.selectedStudentIds,
         selectedStudentSides: s.selectedStudentSides,
+        allowIllegalMoves: s.allowIllegalMoves,
       },
     });
   }, [broadcastMsg, store]);
@@ -211,10 +213,11 @@ export function useBoardSyncEngine(): BoardSyncActions {
           // a white-only student's packet moving a black piece is dropped.
           moverColor: msg.type === "MOVE" ? moverColorFromFen(msg.payload?.fen) : undefined,
           // A student's move must be one legal move from the board we show:
-          // turn order and chess rules, not just the colour, are enforced here.
+          // turn order and chess rules, not just the colour, are enforced here
+          // — or one free move while the coach allows illegal moves.
           isLegalMove:
             msg.type === "MOVE" && !isFromCoach
-              ? isOneLegalMoveAway(current.fen, msg.payload?.fen)
+              ? isOneAllowedMoveAway(current.fen, msg.payload?.fen, current.allowIllegalMoves)
               : undefined,
         })
       ) {
@@ -228,9 +231,15 @@ export function useBoardSyncEngine(): BoardSyncActions {
       // PGN, tree and other position fields are never loaded.
       if (!isFromCoach && (msg.type === "MOVE" || msg.type === "UNDO" || msg.type === "REDO")) {
         if (msg.type === "MOVE") {
-          const move = legalMoveBetween(current.fen, msg.payload?.fen);
-          if (!move) return;
-          current.applyRemoteMove(move, msg.payload?.moveType);
+          const fen = msg.payload?.fen;
+          const move = legalMoveBetween(current.fen, fen);
+          if (move) {
+            current.applyRemoteMove(move, msg.payload?.moveType);
+          } else {
+            const free = current.allowIllegalMoves && fen ? freeMoveBetween(current.fen, fen) : null;
+            if (!free) return;
+            current.applyRemoteFreeMove(free, msg.payload?.moveType);
+          }
           // The coach is the clock authority. A controlling student's MOVE
           // carries no clock update, so re-derive it here and broadcast.
           if (isCoach && !suppressBroadcast) {
@@ -239,7 +248,11 @@ export function useBoardSyncEngine(): BoardSyncActions {
             const nextClock = applyMoveToClock(after.clock, mover, Date.now());
             if (nextClock !== after.clock) after.setClock(nextClock);
           }
-        } else if (typeof msg.payload?.historyIndex === "number") {
+        } else if (
+          !(msg.payload?.fen && current.applyRemoteFreeMoveStep(msg.type === "UNDO" ? "undo" : "redo", msg.payload.fen)) &&
+          typeof msg.payload?.historyIndex === "number"
+        ) {
+          // Not an Undo / Redo across a free move: an ordinary cursor step.
           current.applyRemoteCursor(msg.payload.historyIndex);
         }
         return;
@@ -309,6 +322,7 @@ export function useBoardSyncEngine(): BoardSyncActions {
               permissionMode: msg.payload.mode,
               selectedStudentIds: grantedIds,
               selectedStudentSides: grantedSides,
+              allowIllegalMoves: msg.payload.allowIllegalMoves === true,
             });
             liveClassStore?.getState().setBoardControlStudents(grantedSides);
           }
@@ -428,8 +442,18 @@ export function useBoardSyncEngine(): BoardSyncActions {
           state.tree === prevState.tree &&
           samePath &&
           state.historyIndex !== prevState.historyIndex;
+        // Undo / Redo across a free move swaps in a saved tree. Receivers
+        // step their own free-move stack for it, so it isn't a MOVE either.
+        const lastUndo = prevState.freeMoveUndo[prevState.freeMoveUndo.length - 1];
+        const lastRedo = prevState.freeMoveRedo[prevState.freeMoveRedo.length - 1];
+        const freeStep =
+          lastUndo && state.tree === lastUndo.tree
+            ? "UNDO"
+            : lastRedo && state.tree === lastRedo.tree
+              ? "REDO"
+              : null;
         broadcastMsg({
-          type: cursorOnly ? (state.historyIndex < prevState.historyIndex ? "UNDO" : "REDO") : "MOVE",
+          type: freeStep ?? (cursorOnly ? (state.historyIndex < prevState.historyIndex ? "UNDO" : "REDO") : "MOVE"),
           payload: {
             fen: state.fen,
             pgn: state.fullPgn || state.pgn,
