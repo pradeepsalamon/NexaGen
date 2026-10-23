@@ -1,5 +1,5 @@
 import type { BoardColor, BoardControlSide, BoardPermissionMode, BoardSyncMessage } from "../types/sync";
-import { isCoachParticipant, isOneLegalMoveAway, moverColorFromFen, senderMayMutateBoard } from "./boardSyncRules";
+import { isCoachParticipant, isOneAllowedMoveAway, moverColorFromFen, senderMayMutateBoard } from "./boardSyncRules";
 
 /**
  * What a passive viewer of the live board needs: the egress recorder and an
@@ -18,6 +18,8 @@ export type ReadOnlyBoardState = {
   permissionMode?: BoardPermissionMode;
   selectedStudentIds?: string[];
   selectedStudentSides?: Record<string, BoardControlSide>;
+  /** The coach's "Allow Illegal Moves", from the same packet. */
+  allowIllegalMoves?: boolean;
 };
 
 /** The LiveKit envelope's sender, never the payload. */
@@ -54,19 +56,26 @@ export function reduceReadOnlyBoard(
       selectedStudentSides: prev.selectedStudentSides,
       moverColor: msg.type === "MOVE" ? moverColorFromFen(msg.payload?.fen) : undefined,
       isLegalMove:
-        msg.type === "MOVE" && !isFromCoach ? isOneLegalMoveAway(prev.fen, msg.payload?.fen) : undefined,
+        msg.type === "MOVE" && !isFromCoach
+          ? isOneAllowedMoveAway(prev.fen, msg.payload?.fen, prev.allowIllegalMoves)
+          : undefined,
     })
   ) {
     return prev;
   }
   // A controlling student changes only the position, and only by one legal
-  // ply: forward for a MOVE (checked above), either way for UNDO/REDO. This
+  // ply (or free move, while allowed): forward for a MOVE (checked above),
+  // either way for UNDO/REDO. This
   // board keeps no line to check a longer jump against, so it waits for the
   // coach's next packet instead.
   if (!isFromCoach && (msg.type === "MOVE" || msg.type === "UNDO" || msg.type === "REDO")) {
     const fen = msg.payload?.fen;
     if (!fen) return prev;
-    if (msg.type !== "MOVE" && !isOneLegalMoveAway(prev.fen, fen) && !isOneLegalMoveAway(fen, prev.fen)) {
+    if (
+      msg.type !== "MOVE" &&
+      !isOneAllowedMoveAway(prev.fen, fen, prev.allowIllegalMoves) &&
+      !isOneAllowedMoveAway(fen, prev.fen, prev.allowIllegalMoves)
+    ) {
       return prev;
     }
     return { ...prev, fen };
@@ -101,6 +110,7 @@ export function reduceReadOnlyBoard(
         permissionMode: p.mode,
         selectedStudentIds: p.selectedStudentIds ?? [],
         selectedStudentSides: p.selectedStudentSides ?? {},
+        allowIllegalMoves: p.allowIllegalMoves === true,
       };
     }
     default:

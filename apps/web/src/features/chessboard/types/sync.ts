@@ -74,6 +74,11 @@ export interface PermissionPayload {
   selectedStudentIds?: string[];
   /** identity -> side that identity may move. A missing entry means `"both"`. */
   selectedStudentSides?: Record<string, BoardControlSide>;
+  /**
+   * The coach's "Allow Illegal Moves": students holding control may then move
+   * their colour(s) anywhere too. Missing (older clients) means off.
+   */
+  allowIllegalMoves?: boolean;
 }
 
 export interface UiStatePayload {

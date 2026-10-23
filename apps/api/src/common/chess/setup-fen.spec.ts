@@ -1,4 +1,4 @@
-import { freeMoveFen, readSetupFen, setPlacementSquare } from "@nexa-chess/types";
+import { freeMoveBetween, freeMoveFen, readSetupFen, setPlacementSquare } from "@nexa-chess/types";
 import { Chess } from "./chess";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -211,5 +211,34 @@ describe("freeMoveFen", () => {
     expect(freeMoveFen(START, "e4", "e5")).toBeNull();
     expect(freeMoveFen(START, "e2", "e2")).toBeNull();
     expect(freeMoveFen("8/8 w - - 0 1", "a1", "a2")).toBeNull();
+  });
+});
+
+describe("freeMoveBetween", () => {
+  it("finds the free move that reaches a position", () => {
+    expect(freeMoveBetween(START, freeMoveFen(START, "f1", "f5")!)).toEqual({ from: "f1", to: "f5" });
+    expect(freeMoveBetween(START, freeMoveFen(START, "e7", "e5")!)).toEqual({ from: "e7", to: "e5" });
+  });
+
+  it("finds a free capture, a king included", () => {
+    const from = "4k3/8/8/8/8/8/8/4K2Q w - - 0 1";
+    expect(freeMoveBetween(from, freeMoveFen(from, "h1", "e8")!)).toEqual({ from: "h1", to: "e8" });
+  });
+
+  it("ignores the move counters", () => {
+    expect(freeMoveBetween(START, "rnbqkbnr/pppppppp/8/5B2/8/8/PPPPPPPP/RNBQK1NR b KQkq - 7 30")).toEqual({
+      from: "f1",
+      to: "f5",
+    });
+  });
+
+  it.each([
+    ["the same position", START],
+    ["two pieces moved", "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"],
+    ["a piece that appeared", "rnbqkbnr/pppppppp/8/8/4Q3/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1"],
+    ["a piece that changed", "rnbqkbnr/pppppppp/8/8/4Q3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"],
+    ["the wrong side to move", "rnbqkbnr/pppppppp/8/5B2/8/8/PPPPPPPP/RNBQK1NR w KQkq - 1 1"],
+  ])("rejects %s", (_label, to) => {
+    expect(freeMoveBetween(START, to)).toBeNull();
   });
 });

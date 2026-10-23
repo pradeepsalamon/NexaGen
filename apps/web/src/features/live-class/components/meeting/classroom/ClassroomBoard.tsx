@@ -22,7 +22,7 @@ import { SetupOnlyNotice } from "@/features/chessboard/components/panels/SetupOn
 import { ChessClock } from "@/features/chessboard/components/panels/ChessClock";
 import { BoardNavigation, NavIconButton } from "@/features/chessboard/components/toolbars/BoardNavigation";
 import { DrawingToolbar } from "@/features/chessboard/components/toolbars/DrawingToolbar";
-import { IllegalMovesToggle } from "@/features/chessboard/components/toolbars/IllegalMovesToggle";
+import { IllegalMovesBadge, IllegalMovesToggle } from "@/features/chessboard/components/toolbars/IllegalMovesToggle";
 import { useBoardStore } from "@/features/chessboard/context/BoardProvider";
 import { useBoardShortcuts } from "@/features/chessboard/hooks/useBoardShortcuts";
 import { useEngineMove } from "@/features/chessboard/hooks/useEngineMove";
@@ -203,7 +203,7 @@ export function ClassroomBoard({
             </button>
           ) : null}
         </div>
-        {isCoach ? <IllegalMovesToggle /> : null}
+        {isCoach ? <IllegalMovesToggle /> : <IllegalMovesBadge />}
         {isCoach ? <DrawingToolbar /> : null}
         <FlipBoardButton className="size-8 shrink-0" />
         {stageSwitch}
@@ -390,7 +390,7 @@ function CoachPuzzleButtons() {
     const onKey = (e: KeyboardEvent) => {
       const id = matchCoachBoardShortcut(e);
       // Nothing loads onto the hidden board while the set-up board is open.
-      if (!id || id === "setup" || setupOpenRef.current) return;
+      if (!id || id === "setup" || id === "illegalMoves" || setupOpenRef.current) return;
       e.preventDefault();
       if (id === "askCurrent") {
         setShareCurrentOpen(true);

@@ -112,8 +112,10 @@ export interface BoardState {
   activeBrush: string; // e.g. "green", "red"
   isEditingPosition: boolean;
   /**
-   * Per-client, never broadcast; only the coach's toolbar sets it. While on,
-   * a move chess rules refuse is still played (`makeFreeMove`).
+   * The coach's "Allow Illegal Moves". Only the coach's toolbar sets it; it
+   * reaches students with the board permissions (`UPDATE_PERMISSIONS`). While
+   * on, a move chess rules refuse is still played (`makeFreeMove`) by the
+   * coach and by any student holding control of that colour.
    */
   allowIllegalMoves: boolean;
   /**
@@ -215,6 +217,14 @@ export interface BoardActions {
    * move is taken from the packet — never its PGN or tree.
    */
   applyRemoteMove: (move: { from: string; to: string; promotion?: string }, moveType?: SoundType) => void;
+  /** A controlling student's free move (illegal moves allowed), replayed on this board. */
+  applyRemoteFreeMove: (move: { from: string; to: string }, moveType?: SoundType) => void;
+  /**
+   * A controlling student's Undo / Redo across a free move: steps this board's
+   * own free-move stack, and only when that lands on `fen`. False when it
+   * doesn't apply (an ordinary cursor step).
+   */
+  applyRemoteFreeMoveStep: (direction: "undo" | "redo", fen: string) => boolean;
   /** A controlling student's undo/redo: moves the cursor along this board's own line only. */
   applyRemoteCursor: (historyIndex: number) => void;
   
@@ -712,6 +722,7 @@ export const createBoardStore = () => {
           permissionMode: payload.permissionMode,
           selectedStudentIds: payload.selectedStudentIds ?? [],
           selectedStudentSides: payload.selectedStudentSides ?? {},
+          ...(payload.allowIllegalMoves !== undefined ? { allowIllegalMoves: payload.allowIllegalMoves } : {}),
           remoteSyncId: state.remoteSyncId + 1
         });
         return;
@@ -791,6 +802,49 @@ export const createBoardStore = () => {
       } catch {
         // Not legal here after all: the packet is dropped.
       }
+    },
+
+    applyRemoteFreeMove: ({ from, to }, moveType) => {
+      const state = get();
+      if (state.isDetached) return;
+      const fen = freeMoveFen(state.fen, from, to);
+      const tree = fen ? moveTreeForFen(fen) : null;
+      if (!tree) return;
+      if (moveType) playSound(moveType);
+      // Same new tree root and Undo snapshot as the sender's `makeFreeMove`.
+      set({
+        ...deriveFromTree(state.chess, tree, [], -1),
+        gameId: newBoardGameId(),
+        freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)].slice(-FREE_MOVE_HISTORY_LIMIT),
+        freeMoveRedo: NO_SNAPSHOTS,
+        remoteSyncId: state.remoteSyncId + 1
+      });
+    },
+
+    applyRemoteFreeMoveStep: (direction, fen) => {
+      const state = get();
+      if (state.isDetached) return false;
+      const atEdge = direction === "undo"
+        ? state.historyIndex < 0
+        : state.historyIndex >= state.moveHistory.length - 1;
+      const stack = direction === "undo" ? state.freeMoveUndo : state.freeMoveRedo;
+      const target = stack[stack.length - 1];
+      if (!atEdge || !target) return false;
+      const node = target.historyIndex >= 0
+        ? getMoveTreeNode(target.tree, target.treeLinePath.slice(0, target.historyIndex + 1))
+        : null;
+      const targetFen = node ? node.fen : target.tree.rootFen;
+      const key = (f: string) => f.trim().split(/\s+/).slice(0, 3).join(" ");
+      if (key(targetFen) !== key(fen)) return false;
+      set({
+        ...deriveFromTree(state.chess, target.tree, target.treeLinePath, target.historyIndex),
+        gameId: target.gameId,
+        ...(direction === "undo"
+          ? { freeMoveUndo: stack.slice(0, -1), freeMoveRedo: [...state.freeMoveRedo, snapshotOf(state)] }
+          : { freeMoveRedo: stack.slice(0, -1), freeMoveUndo: [...state.freeMoveUndo, snapshotOf(state)] }),
+        remoteSyncId: state.remoteSyncId + 1
+      });
+      return true;
     },
 
     applyRemoteCursor: (historyIndex) => {

@@ -108,16 +108,23 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   const isMyTurn = canMove && (controlSide === "both" || controlSide === turn);
   // A set-up only position (missing / extra kings, ...) is shown, never played.
   const setupOnly = positionIssues.length > 0;
-  // The coach's "Allow Illegal Moves": every piece moves, whoever's turn it
-  // is, set-up only position or finished game included.
-  const freeMoves = allowIllegalMoves && isCoach && !readOnly;
-  const movableColor = isEditingPosition || freeMoves
+  // The coach's "Allow Illegal Moves": every piece of a colour this client
+  // controls moves, whoever's turn it is, set-up only position or finished
+  // game included — for the coach and for a student holding control (not one
+  // detached on their own line, who may move without a grant).
+  const freeMoves = allowIllegalMoves && canMove && !isDetached;
+  const movableColor = isEditingPosition
     ? "both"
-    : isGameOver || !isMyTurn || setupOnly
-      ? undefined
-      : controlSide === "both"
-        ? turn
-        : controlSide ?? undefined;
+    : freeMoves
+      ? controlSide ?? undefined
+      : isGameOver || !isMyTurn || setupOnly
+        ? undefined
+        : controlSide === "both"
+          ? turn
+          : controlSide ?? undefined;
+  // chessground moves a single colour only on its own turn: a one-colour
+  // grant with free moves gets that colour as the board's turn instead.
+  const cgTurn = freeMoves && (movableColor === "white" || movableColor === "black") ? movableColor : turn;
 
   // Compute legal moves
   const dests = useMemo(() => {
@@ -225,7 +232,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
 
     const config: Config = {
       fen,
-      turnColor: turn,
+      turnColor: cgTurn,
       orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
@@ -328,7 +335,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     if (!cg) return;
     cg.set({
       fen,
-      turnColor: turn,
+      turnColor: cgTurn,
       orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
@@ -349,7 +356,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     });
   }, [
     cg, fen, turn, viewOrientation, showCoordinates, animationEnabled, highlightSettings, chess,
-    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw, setupOnly, freeMoves
+    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw, setupOnly, freeMoves, cgTurn
   ]);
   
   // Sync annotations (arrows)
