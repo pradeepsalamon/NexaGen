@@ -89,6 +89,7 @@ export function SetupPositionWorkspace({
       if (target?.closest('[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]')) return;
       if (maximizedRef.current) {
         setMaximized(false);
+        setSettingsCollapsed(false);
         return;
       }
       setIsSetupPositionOpen(false);

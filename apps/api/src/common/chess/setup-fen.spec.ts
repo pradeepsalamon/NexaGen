@@ -185,6 +185,24 @@ describe("freeMoveFen", () => {
     );
   });
 
+  it.each([
+    ["e4", "h1", "Qkq"],
+    ["e4", "a1", "Kkq"],
+    ["d4", "h8", "KQq"],
+    ["d4", "a8", "KQk"],
+    ["d4", "h1", "Qkq"],
+    ["e4", "a8", "KQk"],
+  ])("drops only the captured or replaced home rook's right: %s to %s", (from, to, rights) => {
+    const fen = freeMoveFen("r3k2r/8/8/8/3rR3/8/8/R3K2R w KQkq - 7 9", from, to);
+    expect(fen?.split(" ")[2]).toBe(rights);
+    expect(fen?.split(" ")[4]).toBe("0");
+  });
+
+  it.each(["", "i4", "a0", "h9", "E4", "a10", "e4extra", " e4", "e4\n"])("rejects an invalid source or destination %j", (square) => {
+    expect(freeMoveFen(START, "e2", square)).toBeNull();
+    expect(freeMoveFen(START, square, "e4")).toBeNull();
+  });
+
   it("keeps a pawn a pawn on the back rank", () => {
     expect(freeMoveFen("4k3/8/8/8/8/8/P7/4K3 w - - 0 1", "a2", "a8")).toBe("P3k3/8/8/8/8/8/8/4K3 b - - 0 1");
   });
