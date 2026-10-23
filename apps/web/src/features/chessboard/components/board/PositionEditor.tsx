@@ -36,11 +36,51 @@ export interface PositionEditorProps {
    */
   showDetails?: boolean;
   /**
-   * Fill the parent's height: the board grows to the space left by the trays
-   * (side by side with the details from `md`). For the in-place Setup Position
+   * Fill the parent's box: the editor becomes that box's one scroller and
+   * sizes the board to what is left after the trays and tools, so the whole
+   * board — both trays included — fits on screen. The details sit beside the
+   * board when there is room, else below it. For the in-place Setup Position
    * workspace; dialogs keep the compact default.
    */
   fill?: boolean;
+  /** With `fill`: hide the details so the board takes the whole width. Their values are kept. */
+  detailsCollapsed?: boolean;
+}
+
+/** Narrowest board: a tray of six 44px pieces. */
+const MIN_BOARD_PX = 284;
+const GAP_PX = 24;
+/** Fill layout: the details column's width, and the board width below which the details go under the board. */
+const detailsWidthFor = (width: number) => (width >= 1000 ? 288 : 248);
+const SIDE_BY_SIDE_MIN_BOARD_PX = 300;
+/** Move / Remove beside the board (left) when the column is wide enough: the board gets their height. */
+const TOOL_RAIL_PX = 104;
+const TOOL_RAIL_GAP_PX = 12;
+
+type FillLayout = {
+  side: boolean;
+  toolsBeside: boolean;
+  boardPx: number;
+  height: number | undefined;
+  detailsWidth: number;
+};
+
+/**
+ * Where the fill layout puts things in a `width` × `height` box when the
+ * board column's other rows (trays; tools when below) take `chrome` px.
+ */
+function fillLayout(width: number, height: number, chrome: number, detailsCollapsed: boolean): FillLayout {
+  const detailsWidth = detailsWidthFor(width);
+  const side = !detailsCollapsed && width - detailsWidth - GAP_PX >= SIDE_BY_SIDE_MIN_BOARD_PX;
+  const column = side ? width - detailsWidth - GAP_PX : width;
+  const toolsBeside = column - TOOL_RAIL_PX - TOOL_RAIL_GAP_PX >= MIN_BOARD_PX;
+  const boardColumn = toolsBeside ? column - TOOL_RAIL_PX - TOOL_RAIL_GAP_PX : column;
+  // Never wider than its column; never shorter than a tray unless the column is.
+  const boardPx = Math.floor(Math.min(boardColumn, Math.max(MIN_BOARD_PX, height - chrome)));
+  // Side by side, the row is the box's height (the details scroll on their
+  // own) — taller only when even the smallest board can't fit, and then the
+  // whole editor scrolls. Stacked, the details follow below the board.
+  return { side, toolsBeside, boardPx, height: side ? Math.max(height, boardPx + chrome) : undefined, detailsWidth };
 }
 
 /**
@@ -84,8 +124,12 @@ export function PositionEditor({
   className,
   showDetails = true,
   fill = false,
+  detailsCollapsed = false,
 }: PositionEditorProps) {
   const boardRef = useRef<HTMLDivElement>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const boardColumnRef = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState<{ width: number; height: number; chrome: number } | null>(null);
   const apiRef = useRef<Api | null>(null);
   const [tool, setTool] = useState<EditorTool>("move");
   const toolRef = useRef(tool);
@@ -209,6 +253,34 @@ export function PositionEditor({
     apiRef.current?.set({ orientation });
   }, [orientation]);
 
+  // Fill layout: measure the scroller's content box and the board column's
+  // non-board height (trays, plus tools and hint when they sit below) and
+  // size the board to what's left.
+  useEffect(() => {
+    if (!fill) return;
+    const scroller = scrollerRef.current;
+    const block = boardColumnRef.current;
+    const boardEl = boardRef.current;
+    if (!scroller || !block || !boardEl) return;
+    const measure = () => {
+      const style = getComputedStyle(scroller);
+      const width = scroller.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+      const height = scroller.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+      const chrome = Math.ceil(block.offsetHeight - boardEl.offsetHeight);
+      setBox((prev) =>
+        prev && prev.width === width && prev.height === height && prev.chrome === chrome
+          ? prev
+          : { width, height, chrome },
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    observer.observe(block);
+    measure();
+    return () => observer.disconnect();
+  }, [fill]);
+  const layout = fill && box ? fillLayout(box.width, box.height, box.chrome, detailsCollapsed || !showDetails) : null;
+
   // chessground caches the board's screen position and only re-reads it on
   // scroll/resize. Content above the board that changes height after mount (a
   // dialog's tabs, an alert, an image loading) would make every drag land on
@@ -241,14 +313,33 @@ export function PositionEditor({
         ? "Tap or drag over pieces to remove them."
         : "Tap or drag over squares to place it.";
 
-  const board = (
+  const toolsBeside = layout?.toolsBeside ?? false;
+  const tools = (
+    <div className={cn(toolsBeside ? "flex flex-col gap-2" : "mt-2")} style={toolsBeside ? { width: TOOL_RAIL_PX } : undefined}>
+      <div className={cn("flex gap-2", toolsBeside ? "flex-col" : "flex-wrap items-center")} role="group" aria-label="Board tool">
+        <ToolButton active={tool === "move"} icon={<Hand className="size-3.5" strokeWidth={2.5} />} onClick={() => setTool("move")}>
+          Move
+        </ToolButton>
+        <ToolButton active={tool === "erase"} icon={<Eraser className="size-3.5" strokeWidth={2.5} />} onClick={() => toggleTool("erase")}>
+          Remove
+        </ToolButton>
+      </div>
+      <p className={cn("text-xs text-app-muted", toolsBeside ? "" : "mt-1 truncate")} aria-live="polite">
+        {toolHint}
+      </p>
+    </div>
+  );
+
+  const boardAndTrays = (
     <div
+      ref={boardColumnRef}
       className={cn(
         "shrink-0",
         fill
-          ? "mx-auto w-full max-w-[max(284px,calc(100svh-17rem))] md:w-[max(284px,min(100cqw,calc(100cqh-10.75rem)))] md:max-w-none"
+          ? "w-full max-w-[420px]"
           : "w-full max-w-[min(420px,max(284px,calc(100dvh-19rem)))]",
       )}
+      style={layout ? { width: layout.boardPx, maxWidth: "none" } : undefined}
     >
       <SpareRow
         color="black"
@@ -281,47 +372,46 @@ export function PositionEditor({
         onSpawn={spawnPiece}
         onSelect={toggleTool}
       />
-      <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label="Board tool">
-        <ToolButton active={tool === "move"} icon={<Hand className="size-3.5" strokeWidth={2.5} />} onClick={() => setTool("move")}>
-          Move
-        </ToolButton>
-        <ToolButton active={tool === "erase"} icon={<Eraser className="size-3.5" strokeWidth={2.5} />} onClick={() => toggleTool("erase")}>
-          Remove
-        </ToolButton>
-      </div>
-      <p className="mt-1 text-xs text-app-muted" aria-live="polite">
-        {toolHint}
-      </p>
+      {toolsBeside ? null : tools}
     </div>
   );
 
-  return (
+  const board = fill ? (
+    // Auto margins centre it and, unlike align-items: center, never push an
+    // oversized board above the scroller's reachable top.
     <div
-      className={cn(
-        "flex flex-col gap-5 md:flex-row md:items-start md:gap-6",
-        fill && "min-h-0 md:h-full md:items-stretch",
-        className,
-      )}
-      // Escape drops the selected piece first (a surrounding workspace closes on the next one).
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && toolRef.current !== "move") {
-          e.preventDefault();
-          setTool("move");
-        }
-      }}
+      data-testid="position-editor-board-block"
+      className="m-auto flex shrink-0 items-center"
+      style={{ gap: toolsBeside ? TOOL_RAIL_GAP_PX : undefined }}
     >
-      {/* Board + spare pieces. Capped by the visible height too, so on a
-          landscape tablet the board, both trays and the controls fit without
-          scrolling (never narrower than a 6-piece tray). */}
-      {fill ? (
-        <div className="flex min-h-0 min-w-0 justify-center md:flex-1 md:items-center md:[container-type:size]">{board}</div>
-      ) : (
-        board
-      )}
+      {toolsBeside ? tools : null}
+      {boardAndTrays}
+    </div>
+  ) : (
+    boardAndTrays
+  );
 
-      {/* Metadata controls */}
-      {showDetails ? (
-      <div className={cn("flex min-w-0 flex-1 flex-col gap-4", fill && "md:w-60 md:flex-none md:overflow-y-auto md:pr-1 xl:w-72")}>
+  // Escape drops the selected piece first (a surrounding workspace closes on the next one).
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && toolRef.current !== "move") {
+      e.preventDefault();
+      setTool("move");
+    }
+  };
+
+  const details = showDetails ? (
+      <div
+        data-testid="position-editor-details"
+        className={cn(
+          "flex min-w-0 flex-col gap-4",
+          !fill && "flex-1",
+          fill && detailsCollapsed && "hidden",
+          // Beside the board: its own scroll, and only when it is taller than the row.
+          layout?.side && "min-h-0 shrink-0 overflow-y-auto overscroll-contain pr-1",
+          fill && !layout?.side && "w-full",
+        )}
+        style={layout?.side ? { width: layout.detailsWidth } : undefined}
+      >
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold text-app-text">Side to move</legend>
           <div className="flex gap-4 text-sm text-app-text">
@@ -342,7 +432,7 @@ export function PositionEditor({
 
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-semibold text-app-text">Castling</legend>
-          <div className={cn("grid gap-2 text-sm text-app-text", fill ? "grid-cols-1" : "grid-cols-2")}>
+          <div className={cn("grid gap-2 text-sm text-app-text", !fill ? "grid-cols-2" : layout?.side ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
             <CastlingBox label="White kingside (O-O)" possible={canCastle.K} checked={parts.castling.K} onChange={(c) => setCastling("K", c)} />
             <CastlingBox label="White queenside (O-O-O)" possible={canCastle.Q} checked={parts.castling.Q} onChange={(c) => setCastling("Q", c)} />
             <CastlingBox label="Black kingside (O-O)" possible={canCastle.k} checked={parts.castling.k} onChange={(c) => setCastling("k", c)} />
@@ -416,7 +506,32 @@ export function PositionEditor({
           )}
         </p>
       </div>
-      ) : null}
+  ) : null;
+
+  if (fill) {
+    return (
+      // The one scroller of the workspace: nothing inside clips the board.
+      <div
+        ref={scrollerRef}
+        data-testid="position-editor-scroller"
+        className={cn("h-full min-h-0 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4", className)}
+        onKeyDown={onKeyDown}
+      >
+        <div
+          className={cn("flex", layout?.side ? "flex-row" : "flex-col gap-5")}
+          style={layout ? { height: layout.height, gap: layout.side ? GAP_PX : undefined } : undefined}
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">{board}</div>
+          {details}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("flex flex-col gap-5 md:flex-row md:items-start md:gap-6", className)} onKeyDown={onKeyDown}>
+      {board}
+      {details}
     </div>
   );
 }
@@ -470,7 +585,7 @@ function SpareRow({
   const TAP_SLOP_PX = 10;
 
   return (
-    <div className="flex justify-center gap-1">
+    <div className="flex justify-center gap-1" data-spare-tray={color}>
       {ROLES.map(({ role, label }) => {
         const id = `${color}-${role}` as const;
         const selected = tool === id;

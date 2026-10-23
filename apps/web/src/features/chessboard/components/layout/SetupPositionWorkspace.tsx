@@ -8,7 +8,8 @@ import { loadPgnIntoBoard } from "../../lib/loadPgn";
 import { inspectFen } from "../../lib/fen";
 import { PositionEditor } from "../board/PositionEditor";
 import { toast } from "sonner";
-import { Upload } from "lucide-react";
+import { Maximize2, Minimize2, PanelRightClose, PanelRightOpen, Upload } from "lucide-react";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { Textarea } from "@/components/ui/Textarea";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,12 @@ export type SetupPositionPdfImport = {
  * orientation, same appearance). Nothing reaches the main board — or, in a live
  * class, the students — until "Load Position". `pdfImport` adds the "From PDF"
  * tab (PDF chess-diagram import) — the live classroom passes it for the coach.
+ *
+ * Layout controls: "Collapse settings" hides the side-to-move / castling /
+ * FEN column so the board takes its width; "Maximize board" lifts the
+ * workspace over the rest of the page; "Restore layout" undoes both. They
+ * only change classes — the editor stays mounted, so the position and the
+ * selected tool survive every switch.
  */
 export function SetupPositionWorkspace({
   pdfImport,
@@ -53,6 +60,10 @@ export function SetupPositionWorkspace({
   );
   const viewOrientation = localFlip ? (orientation === "white" ? "black" : "white") : orientation;
   const [tab, setTab] = useState<Tab>("setup");
+  const [settingsCollapsed, setSettingsCollapsed] = useState(false);
+  const [maximized, setMaximized] = useState(false);
+  const maximizedRef = useRef(maximized);
+  maximizedRef.current = maximized;
   // Mounted only while open, so this is the main board's position at opening.
   const [fen, setFen] = useState(boardFen);
 
@@ -63,13 +74,23 @@ export function SetupPositionWorkspace({
 
   const close = () => setIsSetupPositionOpen(false);
 
+  const restoreLayout = () => {
+    setMaximized(false);
+    setSettingsCollapsed(false);
+  };
+
   // Escape cancels, as the dialog it replaced did — unless something inside
-  // (the editor's selected piece, an open menu) used it first.
+  // (the editor's selected piece, an open menu) used it first. Maximized, it
+  // restores the layout first.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented) return;
       const target = e.target instanceof Element ? e.target : null;
       if (target?.closest('[role="dialog"],[role="alertdialog"],[role="menu"],[role="listbox"]')) return;
+      if (maximizedRef.current) {
+        setMaximized(false);
+        return;
+      }
       setIsSetupPositionOpen(false);
     };
     window.addEventListener("keydown", onKey);
@@ -124,9 +145,12 @@ export function SetupPositionWorkspace({
       ref={rootRef}
       aria-labelledby="setup-position-title"
       data-testid="setup-position-workspace"
+      data-maximized={maximized ? "true" : undefined}
       className={cn(
         "flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-app border border-app-border bg-app-surface shadow-card",
         className,
+        // Over the room's panels and toolbars; tooltips, menus and dialogs (z-50) stay above.
+        maximized && "fixed inset-0 z-40 m-0 rounded-none border-0 md:m-0",
       )}
     >
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="flex min-h-0 flex-1 flex-col">
@@ -141,6 +165,21 @@ export function SetupPositionWorkspace({
             {pdfImport ? <TabsTrigger value="pdf">From PDF</TabsTrigger> : null}
           </TabsList>
           <div className="ml-auto flex items-center gap-2">
+            {tab === "setup" ? (
+              <LayoutButton
+                label={settingsCollapsed ? "Expand settings" : "Collapse settings"}
+                icon={settingsCollapsed ? <PanelRightOpen className="size-4" strokeWidth={2.5} /> : <PanelRightClose className="size-4" strokeWidth={2.5} />}
+                onClick={() => setSettingsCollapsed((c) => !c)}
+                testId="setup-toggle-settings"
+                expanded={!settingsCollapsed}
+              />
+            ) : null}
+            <LayoutButton
+              label={maximized ? "Restore layout" : "Maximize board"}
+              icon={maximized ? <Minimize2 className="size-4" strokeWidth={2.5} /> : <Maximize2 className="size-4" strokeWidth={2.5} />}
+              onClick={maximized ? restoreLayout : () => setMaximized(true)}
+              testId="setup-toggle-maximize"
+            />
             <Button variant="outline" size="sm" onClick={close}>
               Cancel
             </Button>
@@ -158,14 +197,21 @@ export function SetupPositionWorkspace({
 
         <div
           className={cn(
-            "min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 sm:px-4",
-            // The editor sizes its board to this box from md up; on a very
-            // short screen the 284px minimum board scrolls rather than clips.
-            tab === "setup" && "md:flex md:flex-col",
+            "min-h-0 flex-1",
+            // The editor is its own (single) scroller and sizes the board to
+            // this box; the other tabs scroll here.
+            tab === "setup" ? "flex flex-col" : "overflow-y-auto overscroll-contain px-3 py-3 sm:px-4",
           )}
         >
-          <TabsContent value="setup" className="mt-0 md:min-h-0 md:flex-1">
-            <PositionEditor value={fen} onChange={setFen} orientation={viewOrientation} fill className="md:h-full" />
+          <TabsContent value="setup" className="mt-0 flex min-h-0 flex-1 flex-col">
+            <PositionEditor
+              value={fen}
+              onChange={setFen}
+              orientation={viewOrientation}
+              fill
+              detailsCollapsed={settingsCollapsed}
+              className="h-auto flex-1"
+            />
           </TabsContent>
 
           <TabsContent value="game" className="mt-0">
@@ -209,5 +255,36 @@ export function SetupPositionWorkspace({
         </div>
       </Tabs>
     </section>
+  );
+}
+
+function LayoutButton({
+  label,
+  icon,
+  onClick,
+  testId,
+  expanded,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  testId: string;
+  expanded?: boolean;
+}) {
+  return (
+    <SimpleTooltip label={label}>
+      <Button
+        aria-expanded={expanded}
+        aria-label={label}
+        className="size-8 rounded-full"
+        data-testid={testId}
+        onClick={onClick}
+        size="icon"
+        type="button"
+        variant="outline"
+      >
+        {icon}
+      </Button>
+    </SimpleTooltip>
   );
 }

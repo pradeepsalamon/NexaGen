@@ -1,4 +1,4 @@
-import { readSetupFen, setPlacementSquare } from "@nexa-chess/types";
+import { freeMoveFen, readSetupFen, setPlacementSquare } from "@nexa-chess/types";
 import { Chess } from "./chess";
 
 const START = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -160,5 +160,38 @@ describe("setPlacementSquare", () => {
     expect(setPlacementSquare("8/8", "e4", "Q")).toBe("8/8");
     expect(setPlacementSquare(empty, "i9", "Q")).toBe(empty);
     expect(setPlacementSquare(empty, "e4", "X")).toBe(empty);
+  });
+});
+
+describe("freeMoveFen", () => {
+  it("moves a piece where chess rules would not let it go", () => {
+    // A bishop through its own pawn; Black moves next.
+    expect(freeMoveFen(START, "f1", "f5")).toBe("rnbqkbnr/pppppppp/8/5B2/8/8/PPPPPPPP/RNBQK1NR b KQkq - 1 1");
+  });
+
+  it("lets the side not to move play, and hands the move back", () => {
+    expect(freeMoveFen(START, "e7", "e5")).toBe("rnbqkbnr/pppp1ppp/8/4p3/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 2");
+  });
+
+  it("captures whatever stands on the target square, a king included", () => {
+    const fen = freeMoveFen("4k3/8/8/8/8/8/8/4K2Q w - - 0 1", "h1", "e8");
+    expect(fen).toBe("4Q3/8/8/8/8/8/8/4K3 b - - 0 1");
+    expect(readSetupFen(fen!)).toMatchObject({ ok: true, issues: ["no black king"] });
+  });
+
+  it("drops the castling rights the move breaks and clears en passant", () => {
+    expect(freeMoveFen("r3k2r/8/8/3pP3/8/8/8/R3K2R w KQkq d6 0 9", "h1", "h4")).toBe(
+      "r3k2r/8/8/3pP3/7R/8/8/R3K3 b Qkq - 1 9",
+    );
+  });
+
+  it("keeps a pawn a pawn on the back rank", () => {
+    expect(freeMoveFen("4k3/8/8/8/8/8/P7/4K3 w - - 0 1", "a2", "a8")).toBe("P3k3/8/8/8/8/8/8/4K3 b - - 0 1");
+  });
+
+  it("returns null for an empty square, a null move or an unreadable board", () => {
+    expect(freeMoveFen(START, "e4", "e5")).toBeNull();
+    expect(freeMoveFen(START, "e2", "e2")).toBeNull();
+    expect(freeMoveFen("8/8 w - - 0 1", "a1", "a2")).toBeNull();
   });
 });

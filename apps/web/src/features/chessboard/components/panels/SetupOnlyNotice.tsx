@@ -9,6 +9,7 @@ import { useBoardStore } from "../../context/BoardProvider";
  */
 export function SetupOnlyNotice({ className }: { className?: string }) {
   const issues = useBoardStore((s) => s.positionIssues);
+  const freeMoves = useBoardStore((s) => s.allowIllegalMoves);
   if (issues.length === 0) return null;
   return (
     <p
@@ -21,7 +22,7 @@ export function SetupOnlyNotice({ className }: { className?: string }) {
     >
       <TriangleAlert className="size-3.5 shrink-0" strokeWidth={2.5} />
       <span>
-        Set-up position — moves are off ({issues.join(", ")})
+        Set-up position — {freeMoves ? "illegal moves only" : "moves are off"} ({issues.join(", ")})
       </span>
     </p>
   );

@@ -3,6 +3,7 @@ import { SendPositionButton } from "@/features/assignments/components/SendPositi
 import { useBoardStore } from "../../context/BoardProvider";
 import { ChessgroundBoard } from "../board/ChessgroundBoard";
 import { DrawingToolbar } from "../toolbars/DrawingToolbar";
+import { IllegalMovesToggle } from "../toolbars/IllegalMovesToggle";
 import { PromotionDialog } from "../dialogs/PromotionDialog";
 import { SetupPositionWorkspace } from "./SetupPositionWorkspace";
 import { SetupOnlyNotice } from "../panels/SetupOnlyNotice";
@@ -11,11 +12,14 @@ import { BoardNavigation } from "../toolbars/BoardNavigation";
 import { ChessClock } from "../panels/ChessClock";
 import { SidebarTabs } from "../panels/SidebarTabs";
 import { cn } from "@/lib/utils";
+import { isStaffRole, useAuthStore } from "@/stores/authStore";
 
 export function BoardWorkspace() {
   useBoardShortcuts();
   const fen = useBoardStore((state) => state.fen);
   const isSetupOpen = useBoardStore((state) => state.isSetupPositionOpen);
+  const role = useAuthStore((state) => state.user?.role);
+  const isCoach = role === "COACH" || isStaffRole(role);
 
   return (
     <div className="flex flex-col md:flex-row h-full w-full bg-transparent text-app-text p-0 md:p-4 overflow-hidden gap-4">
@@ -35,6 +39,7 @@ export function BoardWorkspace() {
                 <SendPositionButton fen={fen} className="ml-1" />
               </div>
               <SetupOnlyNotice />
+              {isCoach ? <IllegalMovesToggle /> : null}
               <ChessClock
                 layout="horizontal"
                 className="rounded-control border border-app-border bg-app-surface/95 px-1.5 py-1 shadow-card backdrop-blur"
