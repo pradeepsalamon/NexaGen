@@ -1,10 +1,12 @@
-import { API_ROUTES } from "@nexa-chess/types";
+import { API_ROUTES, MAX_BULK_PUZZLE_UPDATE } from "@nexa-chess/types";
 import type {
   PuzzleTrainingNextRequest,
   PuzzleTrainingNextResponse,
   PuzzleTrainingStatusResponse,
   BulkPuzzleActionRequest,
   BulkPuzzleActionResponse,
+  BulkUpdatePuzzlesRequest,
+  BulkUpdatePuzzlesResponse,
   CatalogAdoptRequest,
   CatalogAdoptResponse,
   CatalogListQuery,
@@ -174,6 +176,27 @@ export function bulkPuzzleAction(
   data: BulkPuzzleActionRequest
 ): Promise<BulkPuzzleActionResponse> {
   return apiFetch(API_ROUTES.puzzles.bulk, { method: "POST", body: data });
+}
+
+/** Change the chosen fields on many puzzles at once; the rest stay as they are. */
+export function bulkUpdatePuzzles(data: BulkUpdatePuzzlesRequest): Promise<BulkUpdatePuzzlesResponse> {
+  return apiFetch(API_ROUTES.puzzles.bulkUpdate, { method: "POST", body: data });
+}
+
+/**
+ * Every puzzle filed directly in one folder (not its subfolders), by title,
+ * up to `MAX_BULK_PUZZLE_UPDATE` — the folder view's list, preview and bulk edit.
+ */
+export async function getFolderPuzzles(topicId: string): Promise<PuzzleListResponse> {
+  const pageSize = 100;
+  const first = await getPuzzles({ order: "asc", page: 1, pageSize, sort: "title", topicId, topicScope: "direct" });
+  const pages = Math.min(first.pagination?.totalPages ?? 1, Math.ceil(MAX_BULK_PUZZLE_UPDATE / pageSize));
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, pages - 1) }, (_, i) =>
+      getPuzzles({ order: "asc", page: i + 2, pageSize, sort: "title", topicId, topicScope: "direct" })
+    )
+  );
+  return { ...first, puzzles: [first, ...rest].flatMap((r) => r.puzzles) };
 }
 
 export function importPuzzles(data: ImportPuzzlesRequest): Promise<ImportPuzzlesResponse> {

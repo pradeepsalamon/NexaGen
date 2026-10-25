@@ -8,6 +8,8 @@ import { JwtService } from "@nestjs/jwt";
 import type {
   BulkPuzzleActionRequest,
   BulkPuzzleActionResponse,
+  BulkUpdatePuzzlesRequest,
+  BulkUpdatePuzzlesResponse,
   CreatePuzzleRequest,
   ImportPuzzlesRequest,
   ImportPuzzlesResponse,
@@ -26,6 +28,7 @@ import type {
 } from "@nexa-chess/types";
 import {
   LICHESS_FOLDER_SLUG,
+  MAX_PUZZLE_TAGS,
   SYSTEM_PUZZLE_FOLDER_SLUGS,
   parseScoringOverride,
   type PuzzleScoringOverride
@@ -505,6 +508,134 @@ export class PuzzleService {
       }
     });
     return { updated };
+  }
+
+  /**
+   * Field-level bulk edit. Each puzzle is all-or-nothing: one that can't take
+   * every requested change (not yours, moved out of `fromTopicId`, no solution
+   * to publish, too many tags, an empty title) is skipped and reported, never
+   * half-edited. Fields the request leaves out are never written.
+   */
+  async bulkUpdate(
+    accessToken: string | undefined,
+    dto: BulkUpdatePuzzlesRequest
+  ): Promise<BulkUpdatePuzzlesResponse> {
+    const user = assertStaffOrCoach(
+      await authenticateUser(this.jwtService, this.prisma, accessToken)
+    );
+
+    if (dto.topicId) {
+      const topic = await this.prisma.puzzleTopic.findUnique({
+        where: { id: dto.topicId },
+        select: { slug: true }
+      });
+      if (!topic) throw new BadRequestException("The selected topic does not exist.");
+      if (SYSTEM_PUZZLE_FOLDER_SLUGS.includes(topic.slug)) {
+        throw new BadRequestException("Puzzles can't be moved into a system folder.");
+      }
+    }
+
+    const ids = [...new Set(dto.ids)];
+    const rows = await this.prisma.puzzle.findMany({
+      where: { id: { in: ids }, ...this.visibilityWhere(user) },
+      select: {
+        id: true,
+        title: true,
+        topicId: true,
+        createdById: true,
+        visibility: true,
+        status: true,
+        tags: true,
+        solutionMovesJson: true
+      }
+    });
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const skipped: BulkUpdatePuzzlesResponse["skipped"] = [];
+    const removeTags = new Set((dto.removeTags ?? []).map((t) => t.toLowerCase()));
+    const now = new Date();
+
+    const writes: { id: string; data: Prisma.PuzzleUncheckedUpdateInput }[] = [];
+    for (const id of ids) {
+      const row = byId.get(id);
+      if (!row) {
+        skipped.push({ id, title: "Unknown puzzle", reason: "Not found, or not visible to you." });
+        continue;
+      }
+      const skip = (reason: string) => skipped.push({ id, title: row.title, reason });
+      if (!this.canManage(row, user)) {
+        skip("You can only edit your own puzzles.");
+        continue;
+      }
+      if (dto.fromTopicId && row.topicId !== dto.fromTopicId) {
+        skip("Moved to another folder since it was selected.");
+        continue;
+      }
+
+      const data: Prisma.PuzzleUncheckedUpdateInput = { updatedById: user.id };
+      if (dto.topicId !== undefined) data.topicId = dto.topicId;
+      if (dto.difficulty !== undefined) data.difficulty = dto.difficulty;
+      if (dto.puzzleType !== undefined) data.puzzleType = dto.puzzleType;
+
+      if (dto.titleReplace) {
+        const title = row.title.split(dto.titleReplace.find).join(dto.titleReplace.replace).trim();
+        if (!title || title.length > 200) {
+          skip("The new title would be empty or longer than 200 characters.");
+          continue;
+        }
+        if (title !== row.title) data.title = title;
+      }
+
+      if (removeTags.size || dto.addTags?.length) {
+        const tags = row.tags.filter((t) => !removeTags.has(t.toLowerCase()));
+        for (const tag of dto.addTags ?? []) {
+          if (!tags.some((t) => t.toLowerCase() === tag.toLowerCase())) tags.push(tag);
+        }
+        if (tags.length > MAX_PUZZLE_TAGS) {
+          skip(`A puzzle can have at most ${MAX_PUZZLE_TAGS} tags.`);
+          continue;
+        }
+        data.tags = tags;
+      }
+
+      // Same transitions as the single publish / archive routes; an unchanged
+      // status is left alone so its publishedAt / archivedAt keep their dates.
+      if (dto.status && dto.status !== row.status) {
+        if (dto.status === "PUBLISHED") {
+          if (this.solutionFromRow(row.solutionMovesJson).length === 0) {
+            skip("No solution moves yet, so it can't be published.");
+            continue;
+          }
+          Object.assign(data, {
+            status: PuzzleStatus.PUBLISHED,
+            publishedAt: now,
+            publishedById: user.id,
+            archivedAt: null,
+            archivedById: null
+          });
+        } else if (dto.status === "ARCHIVED") {
+          Object.assign(data, {
+            status: PuzzleStatus.ARCHIVED,
+            archivedAt: now,
+            archivedById: user.id
+          });
+        } else {
+          Object.assign(data, { status: PuzzleStatus.DRAFT, archivedAt: null, archivedById: null });
+        }
+      }
+      writes.push({ id, data });
+    }
+
+    if (writes.length) {
+      await this.prisma.$transaction(
+        async (tx) => {
+          for (const write of writes) {
+            await tx.puzzle.update({ where: { id: write.id }, data: write.data });
+          }
+        },
+        { timeout: 30_000 }
+      );
+    }
+    return { updated: writes.length, skipped };
   }
 
   async stats(accessToken: string | undefined): Promise<PuzzleStatsResponse> {

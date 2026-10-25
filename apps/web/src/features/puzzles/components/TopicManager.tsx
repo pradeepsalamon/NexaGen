@@ -73,6 +73,7 @@ import {
   useUpdatePuzzleTopic
 } from "../hooks/usePuzzlesApi";
 import { puzzleTopicOptions } from "../lib/puzzleMeta";
+import { FolderPuzzlesPanel } from "./folder/FolderPuzzlesPanel";
 
 const iconBtn =
   "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
@@ -86,9 +87,12 @@ type TopicFormValues = {
 };
 
 export function TopicManager({
+  basePath,
   canManage,
   onAssignFolder
 }: {
+  /** Library route, for the opened folder's preview / edit links. */
+  basePath: string;
   canManage: boolean;
   /** Coach: assign a homework-approved folder through the ordinary homework dialog. */
   onAssignFolder?: (topic: PuzzleTopicDto) => void;
@@ -105,6 +109,9 @@ export function TopicManager({
   // Folders start closed.
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [clipboard, setClipboard] = useState<{ mode: "copy" | "cut"; node: TopicNode } | null>(null);
+  // A folder opened to list, preview and bulk edit its own puzzles; the tree's
+  // expanded state stays put underneath, so Back returns to the same place.
+  const [openFolderId, setOpenFolderId] = useState<string | null>(null);
 
   const topics = useMemo(() => data?.topics ?? [], [data]);
   const tree = useMemo(() => buildPuzzleTopicTree(topics), [topics]);
@@ -172,6 +179,23 @@ export function TopicManager({
     () => (clipboard ? new Set(collectPuzzleTopicSubtreeIds(topics, clipboard.node.topic.id)) : null),
     [clipboard, topics]
   );
+
+  const openNode = openFolderId
+    ? flattenPuzzleTopicTree(tree).find((node) => node.topic.id === openFolderId) ?? null
+    : null;
+  if (openNode) {
+    return (
+      <Card className="p-4">
+        <FolderPuzzlesPanel
+          basePath={basePath}
+          folder={openNode.topic}
+          subfolderCount={openNode.children.length}
+          topics={topics}
+          onBack={() => setOpenFolderId(null)}
+        />
+      </Card>
+    );
+  }
 
   const toggle = (id: string) =>
     setExpanded((prev) => {
@@ -300,7 +324,20 @@ export function TopicManager({
                       {topic.description ?? "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {topic.puzzleCount}
+                      {topic.puzzleCount > 0 ? (
+                        <SimpleTooltip label="Open folder to preview and bulk edit its puzzles">
+                          <button
+                            type="button"
+                            aria-label={`Open ${topic.name} (${topic.puzzleCount} puzzle${topic.puzzleCount === 1 ? "" : "s"})`}
+                            onClick={() => setOpenFolderId(topic.id)}
+                            className="rounded-control px-1.5 py-0.5 font-semibold text-primary-ink underline-offset-2 hover:bg-app-soft hover:underline"
+                          >
+                            {topic.puzzleCount}
+                          </button>
+                        </SimpleTooltip>
+                      ) : (
+                        topic.puzzleCount
+                      )}
                       {node.totalPuzzleCount !== topic.puzzleCount ? (
                         <span className="text-app-muted"> ({node.totalPuzzleCount} total)</span>
                       ) : null}

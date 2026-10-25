@@ -33,6 +33,7 @@ import {
   getPuzzleStats,
   importPuzzles,
   getFolderHomework,
+  getFolderPuzzles,
   getPuzzleTopics,
   getPuzzles,
   updatePuzzle,
@@ -64,6 +65,15 @@ export function usePuzzles(query: PuzzleListQuery) {
     queryKey: queryKeys.puzzles.list(query),
     queryFn: () => getPuzzles(query),
     placeholderData: keepPreviousData
+  });
+}
+
+/** A folder's own puzzles (Topics tab). Under `puzzles.list`, so every puzzle mutation refreshes it. */
+export function useFolderPuzzles(topicId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.puzzles.list({ folder: topicId }),
+    queryFn: () => getFolderPuzzles(topicId!),
+    enabled: !!topicId
   });
 }
 

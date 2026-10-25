@@ -14,6 +14,7 @@ import type { Request } from "express";
 import {
   API_ROUTES,
   bulkPuzzleActionRequestSchema,
+  bulkUpdatePuzzlesRequestSchema,
   catalogAdoptRequestSchema,
   catalogListQuerySchema,
   catalogMaterialiseRequestSchema,
@@ -35,6 +36,7 @@ import {
   updatePuzzleTopicRequestSchema,
   validatePuzzleRequestSchema,
   type BulkPuzzleActionRequest,
+  type BulkUpdatePuzzlesRequest,
   type CatalogAdoptRequest,
   type CatalogListQuery,
   type CatalogMaterialiseRequest,
@@ -230,6 +232,14 @@ export class PuzzleController {
     @Req() request: Request
   ) {
     return this.puzzleService.bulk(this.token(request), body);
+  }
+
+  @Post(API_ROUTES.puzzles.bulkUpdate)
+  bulkUpdate(
+    @Body(new ZodBodyPipe(bulkUpdatePuzzlesRequestSchema)) body: BulkUpdatePuzzlesRequest,
+    @Req() request: Request
+  ) {
+    return this.puzzleService.bulkUpdate(this.token(request), body);
   }
 
   @Post(API_ROUTES.puzzles.import)
