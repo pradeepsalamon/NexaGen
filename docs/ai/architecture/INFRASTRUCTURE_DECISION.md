@@ -339,6 +339,61 @@ What changes in the scoring, and what doesn't:
 **Expanded evaluation set:** none exists. The Phase 3 golden set (PHASE3_SPEC.md
 §11) hasn't been built, so only the 10 bundles are run.
 
+### 4.6 Result: hardened re-run of 2026-10-25 (§4.5 design, `qwen2.5:3b`)
+
+The window was 21:04–22:30 IST, confirmed by the owner, with a hard stop at
+22:28. The run went from 21:35 to 22:22. LiveKit reported no live room at any
+20 s check. The container, weights volume and image were removed afterwards.
+Raw output is in `~/ai-bench/hardened-qwen2.5-3b/` on the box. Code: `8d1d90d`.
+
+Every number here is **measured** on this run; none is carried over from §4.4.
+
+| Criterion (unchanged) | Target | §4.4 (before) | **§4.6 (fresh)** |
+|---|---|---|---|
+| Summary p95 (incl. retry) | ≤ 10 min | 8.22 min | **6.92 min** ok |
+| Peak RSS | ≤ 4.5 GiB | 3.26 GiB | **3.22 GiB** ok |
+| Schema-valid before retry | ≥ 95% | 100% | **100%** ok |
+| Unsupported items in a READY summary | 0 | 0 | **0** ok |
+| Usable after one retry | ≥ 90% | 90% (9/10) | **100% (10/10)** ok |
+| **Verdict** | | PASS | **PASS** |
+
+| Also measured | §4.4 | **§4.6** |
+|---|---|---|
+| Retry rate | 60% | **10%** (1/10) |
+| Unsupported-claim rate, first / after retry (before removal) | 9% / 5% | **1% / 1%** |
+| Items removed | 5 | **1** |
+| Student-view items naming a student: first answers / repairs / delivered in READY | not recorded | **0 / 0 / 0** |
+| Ranges shortened to 6 moves | n/a | **6** (in 5 bundles) |
+| Retried bundles that kept the first answer | n/a | **1 / 1** |
+| Summary p50 | 6.76 min | **3.67 min** |
+| Prompt / generation tokens/s (median) | 17.0 / 3.6 | 15.8 / 3.6 |
+| Fact recall (keyword proxy) | 45% | 40% |
+| Stockfish slowdown during generation | 1.14× | 1.29× (3 probes) |
+
+What each change did in this run:
+
+- **A (range capping) did almost all the work.** It shortened six over-long
+  ranges, such as 1–20 to 1–6 and 6–14 to 6–11, that would have triggered a
+  retry. Bundles 2, 3, 4, 7 and 8 finished on the first answer. Bench-3, the
+  §4.4 failure, never reached the retry that had broken it.
+- **B (better of two) ran once.** Bench-5's first answer wrote `Bf7+`, where
+  the game has `Bxf7+`. The repair didn't improve on it, so the first answer
+  was kept and that one item removed.
+- **C (privacy) wasn't triggered.** No answer named a student. The rule is
+  proven only by its tests (`class-summary.spec.ts`, the stub harness test),
+  not by this run.
+
+Reading and caveats:
+
+- **This implementation passes all five criteria on the 10 original bundles.**
+  The scoring, bundles, model and settings are the same as §4.4.
+- **The sample is still 10 synthetic bundles.** The Phase 3 golden set (§11 of
+  PHASE3_SPEC.md) doesn't exist yet, so this says nothing about real classes.
+  Fact recall is a keyword proxy, and 40% shows the summaries cover the lesson
+  only partly.
+- **Stockfish slowed more (1.29× vs 1.14×).** It's 3 probes during the first
+  bundle, so it's noisy, but worth watching in the staging rollout (OD-11).
+
 ## 5. Recommendation
 
 1. **Now:** Option 1. Add a small `ai-runtime` to the existing Compose stack
