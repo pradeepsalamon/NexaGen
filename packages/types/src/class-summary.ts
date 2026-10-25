@@ -147,7 +147,11 @@ export type SummaryViolation = { path: string; reason: string };
 const SAN_TOKEN = /(?<![A-Za-z0-9])(O-O-O|O-O|0-0-0|0-0|[KQRBN][a-h]?[1-8]?x?[a-h][1-8](?:=[QRBN])?[+#]?|[a-h]x[a-h][1-8](?:=[QRBN])?[+#]?|[a-h][1-8](?:=[QRBN])?[+#]?)(?![A-Za-z0-9])/g;
 const EVALUATION_TOKEN = /(?<![\w.])[+\-−]\d+\.\d+(?![\w.])/g;
 const RESULT_TOKEN = /(?<![\d/½])(1-0|0-1|1\/2-1\/2|½-½)(?![\d/½])/g;
-const PSEUDONYM_TOKEN = /\bS\d+\b/;
+// Internal student identifiers: the S1, S2, … pseudonyms (also "S 1", "S-1",
+// "s1") and "student 3" / "student #3". The letter must stand alone, so
+// "Bus 2", "moves 1" or "S-shaped" don't match, and no chess token is an S
+// followed by digits.
+const STUDENT_IDENTIFIER = /(?<![A-Za-z0-9])(?:[Ss][ -]?\d{1,3}|[Ss]tudent\s*#?\s*\d{1,3})(?![0-9])/g;
 const DEFAULT_PUZZLE_ID = /\bpz_[0-9]+_[0-9]+\b/g;
 
 /** Squares holding a piece in a FEN's placement field. */
@@ -238,13 +242,50 @@ function textProblems(text: string, facts: GroundingFacts, puzzleIdPattern: RegE
   for (const match of text.matchAll(new RegExp(puzzleIdPattern.source, "g"))) {
     if (!facts.puzzleIds.has(match[0])) problems.push(`puzzle "${match[0]}" is not in the evidence`);
   }
-  if (studentView && PSEUDONYM_TOKEN.test(text)) problems.push("the student view names a student (S#)");
+  if (studentView) {
+    const ids = findStudentIdentifiers(text);
+    if (ids.length) problems.push(`the student view names a student (S#: ${ids.join(", ")})`);
+  }
   return problems;
 }
 
+/** Internal student identifiers in a string, in order of appearance. */
+export function findStudentIdentifiers(text: string): string[] {
+  return [...text.matchAll(STUDENT_IDENTIFIER)].map((m) => m[0]);
+}
+
+export type StudentPrivacyViolation = { identifiers: string[]; path: string };
+
+/**
+ * Every string anywhere in a student-facing object (any field, at any depth)
+ * that names a student by an internal identifier. The student view must
+ * return []: the summary gate here, and the Phase 3 publish route (§7).
+ */
+export function studentViewPrivacyViolations(studentView: unknown, path = "student"): StudentPrivacyViolation[] {
+  if (typeof studentView === "string") {
+    const identifiers = findStudentIdentifiers(studentView);
+    return identifiers.length ? [{ identifiers, path }] : [];
+  }
+  if (Array.isArray(studentView)) return studentView.flatMap((v, i) => studentViewPrivacyViolations(v, `${path}.${i}`));
+  if (studentView && typeof studentView === "object") {
+    return Object.entries(studentView).flatMap(([key, v]) => studentViewPrivacyViolations(v, `${path}.${key}`));
+  }
+  return [];
+}
+
+/** A variation range shortened to stay inside its game and the move cap. */
+export type SummaryRangeAdjustment = { applied: [number, number]; path: string; requested: [number, number] };
+
 export type ClassSummaryCheck =
   | { claimCount: 0; ok: false; schemaErrors: string[] }
-  | { claimCount: number; ok: true; output: ClassSummaryModelOutput; violations: SummaryViolation[] };
+  | {
+      adjustments: SummaryRangeAdjustment[];
+      claimCount: number;
+      ok: true;
+      /** With over-long variation ranges already shortened (`adjustments`). */
+      output: ClassSummaryModelOutput;
+      violations: SummaryViolation[];
+    };
 
 export type ClassSummaryCheckOptions = { lines?: SummaryLine[]; puzzleIdPattern?: RegExp };
 
@@ -268,6 +309,7 @@ export function checkClassSummaryOutput(raw: unknown, bundle: SummaryBundle, opt
   }
 
   const output = result.data;
+  const adjustments: SummaryRangeAdjustment[] = [];
   const facts = groundingFacts(bundle, options.lines ?? buildSummaryLines(bundle));
   const puzzleIdPattern = options.puzzleIdPattern ?? DEFAULT_PUZZLE_ID;
   const violations: SummaryViolation[] = [];
@@ -292,8 +334,17 @@ export function checkClassSummaryOutput(raw: unknown, bundle: SummaryBundle, opt
     const last = line.moveNumbers[line.moveNumbers.length - 1];
     const range: string[] = [];
     if (v.fromMove > v.toMove) range.push(`fromMove ${v.fromMove} is after toMove ${v.toMove}`);
-    else if (v.fromMove < first || v.toMove > last) range.push(`moves ${v.fromMove}–${v.toMove} are outside ${v.line} (${first}–${last})`);
-    else if (v.toMove - v.fromMove + 1 > SUMMARY_MAX_VARIATION_MOVES) range.push(`a variation is at most ${SUMMARY_MAX_VARIATION_MOVES} moves`);
+    else if (v.fromMove < first || v.fromMove > last) range.push(`move ${v.fromMove} is outside ${v.line} (${first}–${last})`);
+    else {
+      // The start is in the game: shorten the end to the game's last move and
+      // to the move cap. The moves still come from the game, so this can't
+      // invent anything; a start outside the game can't be repaired.
+      const toMove = Math.min(v.toMove, last, v.fromMove + SUMMARY_MAX_VARIATION_MOVES - 1);
+      if (toMove !== v.toMove) {
+        adjustments.push({ applied: [v.fromMove, toMove], path, requested: [v.fromMove, v.toMove] });
+        output.coach.variations[i] = { ...v, toMove };
+      }
+    }
     flag(path, [...range, ...textProblems(v.comment, facts, puzzleIdPattern, false)]);
   });
   observations("student.recap", output.student.recap, true);
@@ -310,7 +361,7 @@ export function checkClassSummaryOutput(raw: unknown, bundle: SummaryBundle, opt
     output.student.recap.length +
     output.student.keyConcepts.length +
     output.student.practiceIdeas.length;
-  return { claimCount, ok: true, output, violations };
+  return { adjustments, claimCount, ok: true, output, violations };
 }
 
 /** Problems as one-line strings, for the repair prompt. */
@@ -385,18 +436,31 @@ function toModelOutput(summary: GroundedClassSummary): ClassSummaryModelOutput {
 
 // ---------------------------------------------------------------- generation policy
 
-export type ClassSummaryAttempt = { claimCount: number; schemaErrors: string[]; schemaValid: boolean; violations: SummaryViolation[] };
+export type ClassSummaryAttempt = {
+  adjustments: SummaryRangeAdjustment[];
+  claimCount: number;
+  /** Student-view items naming a student, before removal. */
+  privacyViolations: number;
+  schemaErrors: string[];
+  schemaValid: boolean;
+  violations: SummaryViolation[];
+};
 
 export type GroundedClassSummaryResult = {
+  adjustments: SummaryRangeAdjustment[];
   attempts: 1 | 2;
   failureCode?: "GROUNDING" | "RUNTIME" | "SCHEMA";
   firstAttempt?: ClassSummaryAttempt;
   finalAttempt?: ClassSummaryAttempt;
   lines: SummaryLine[];
+  /** Student-identifier hits left in the delivered student view; must be 0 for READY. */
+  privacyResidual: number;
   removedPaths: string[];
   /** Violations left in the coach-facing summary; 0 by construction (a leak check). */
   residualViolations: number;
   runtimeError?: string;
+  /** Which answer the summary was built from (see `selectClassSummaryCandidate`). */
+  selectedAttempt?: 1 | 2;
   /** DEFERRED: `beforeRetry` declined the repair call (e.g. a class went live). */
   status: "DEFERRED" | "FAILED" | "READY";
   summary?: GroundedClassSummary;
@@ -405,14 +469,80 @@ export type GroundedClassSummaryResult = {
 
 export type ClassSummaryGenerate = (request: { attempt: 1 | 2; lines: SummaryLine[]; problems: string[] }) => Promise<string>;
 
+const isStudentPrivacyViolation = (v: SummaryViolation) => v.reason.startsWith("the student view names a student");
+
 const toAttempt = (check: ClassSummaryCheck): ClassSummaryAttempt =>
   check.ok
-    ? { claimCount: check.claimCount, schemaErrors: [], schemaValid: true, violations: check.violations }
-    : { claimCount: 0, schemaErrors: check.schemaErrors, schemaValid: false, violations: [] };
+    ? {
+        adjustments: check.adjustments,
+        claimCount: check.claimCount,
+        privacyViolations: new Set(check.violations.filter(isStudentPrivacyViolation).map((v) => v.path)).size,
+        schemaErrors: [],
+        schemaValid: true,
+        violations: check.violations,
+      }
+    : { adjustments: [], claimCount: 0, privacyViolations: 0, schemaErrors: check.schemaErrors, schemaValid: false, violations: [] };
+
+/** One schema-valid answer after removal of its unsupported items, with every gate evaluated. */
+export type ClassSummaryCandidate = {
+  adjustments: SummaryRangeAdjustment[];
+  attempt: 1 | 2;
+  privacyResidual: number;
+  ready: boolean;
+  removedPaths: string[];
+  residualViolations: number;
+  summary: GroundedClassSummary;
+  unsupportedItems: number;
+  usability: ClassSummaryUsability;
+};
+
+function toCandidate(
+  attempt: 1 | 2,
+  check: Extract<ClassSummaryCheck, { ok: true }>,
+  bundle: SummaryBundle,
+  options: ClassSummaryCheckOptions & { lines: SummaryLine[] },
+): ClassSummaryCandidate {
+  const { removedPaths, summary } = pruneClassSummary(check.output, check.violations, options.lines);
+  const usability = assessClassSummaryUsability(summary, check.claimCount, removedPaths.length);
+  const residual = checkClassSummaryOutput(toModelOutput(summary), bundle, options);
+  const residualViolations = residual.ok ? residual.violations.length : 1;
+  const privacyResidual = studentViewPrivacyViolations(summary.student).length;
+  return {
+    adjustments: check.adjustments,
+    attempt,
+    privacyResidual,
+    ready: usability.usable && residualViolations === 0 && privacyResidual === 0,
+    removedPaths,
+    residualViolations,
+    summary,
+    unsupportedItems: removedPaths.length,
+    usability,
+  };
+}
 
 /**
- * One generation, one repair retry on any schema error or violation, then
- * removal of whatever is still unsupported. Never invents content.
+ * Deterministic choice between the first answer and the repair. Both have
+ * already passed the same schema, grounding and privacy checks; a candidate
+ * that fails any gate is never READY, whichever is picked. In order:
+ *   1. a READY candidate beats one that isn't;
+ *   2. fewer unsupported items removed;
+ *   3. a larger share of items kept;
+ *   4. the repair (it answered the listed problems).
+ */
+export function selectClassSummaryCandidate(candidates: ClassSummaryCandidate[]): ClassSummaryCandidate | undefined {
+  return [...candidates].sort(
+    (a, b) =>
+      Number(b.ready) - Number(a.ready) ||
+      a.unsupportedItems - b.unsupportedItems ||
+      b.usability.keptShare - a.usability.keptShare ||
+      b.attempt - a.attempt,
+  )[0];
+}
+
+/**
+ * One generation, at most one repair retry on any schema error or violation,
+ * removal of whatever is still unsupported, then the better of the two
+ * answers. Never invents content.
  */
 export async function generateGroundedClassSummary(input: {
   beforeRetry?: () => Promise<boolean> | boolean;
@@ -422,7 +552,7 @@ export async function generateGroundedClassSummary(input: {
 }): Promise<GroundedClassSummaryResult> {
   const lines = buildSummaryLines(input.bundle);
   const options = { lines, puzzleIdPattern: input.puzzleIdPattern };
-  const base = { lines, removedPaths: [] as string[], residualViolations: 0 };
+  const base = { adjustments: [] as SummaryRangeAdjustment[], lines, privacyResidual: 0, removedPaths: [] as string[], residualViolations: 0 };
 
   let raw: string;
   try {
@@ -430,40 +560,43 @@ export async function generateGroundedClassSummary(input: {
   } catch (error) {
     return { ...base, attempts: 1, failureCode: "RUNTIME", runtimeError: (error as Error).message, status: "FAILED" };
   }
-  let check = checkClassSummaryOutput(raw, input.bundle, options);
-  const firstAttempt = toAttempt(check);
+  const first = checkClassSummaryOutput(raw, input.bundle, options);
+  const firstAttempt = toAttempt(first);
+  const checks: Array<[1 | 2, ClassSummaryCheck]> = [[1, first]];
   let attempts: 1 | 2 = 1;
+  let runtimeError: string | undefined;
 
-  if (!check.ok || check.violations.length > 0) {
+  if (!first.ok || first.violations.length > 0) {
     if (input.beforeRetry && !(await input.beforeRetry())) return { ...base, attempts, firstAttempt, status: "DEFERRED" };
-    const problems = check.ok ? describeSummaryViolations(check.violations) : check.schemaErrors;
+    const problems = first.ok ? describeSummaryViolations(first.violations) : first.schemaErrors;
     attempts = 2;
     try {
       raw = await input.generate({ attempt: 2, lines, problems });
+      checks.push([2, checkClassSummaryOutput(raw, input.bundle, options)]);
     } catch (error) {
-      return { ...base, attempts, failureCode: "RUNTIME", firstAttempt, runtimeError: (error as Error).message, status: "FAILED" };
+      runtimeError = (error as Error).message; // the first answer can still be used if it is good enough
     }
-    check = checkClassSummaryOutput(raw, input.bundle, options);
   }
 
-  const finalAttempt = toAttempt(check);
-  if (!check.ok) return { ...base, attempts, failureCode: "SCHEMA", finalAttempt, firstAttempt, status: "FAILED" };
-
-  const { removedPaths, summary } = pruneClassSummary(check.output, check.violations, lines);
-  const usability = assessClassSummaryUsability(summary, check.claimCount, removedPaths.length);
-  const residual = checkClassSummaryOutput(toModelOutput(summary), input.bundle, options);
-  const residualViolations = residual.ok ? residual.violations.length : 1;
-  const ready = usability.usable && residualViolations === 0;
+  const finalAttempt = attempts === 2 && checks.length === 2 ? toAttempt(checks[1][1]) : attempts === 1 ? firstAttempt : undefined;
+  const candidates = checks
+    .filter((entry): entry is [1 | 2, Extract<ClassSummaryCheck, { ok: true }>] => entry[1].ok)
+    .map(([attempt, check]) => toCandidate(attempt, check, input.bundle, options));
+  const chosen = selectClassSummaryCandidate(candidates);
+  const common = { attempts, finalAttempt, firstAttempt, lines, runtimeError };
+  if (!chosen) {
+    return { ...base, ...common, failureCode: runtimeError ? "RUNTIME" : "SCHEMA", status: "FAILED" };
+  }
   return {
-    attempts,
-    failureCode: ready ? undefined : "GROUNDING",
-    finalAttempt,
-    firstAttempt,
-    lines,
-    removedPaths,
-    residualViolations,
-    status: ready ? "READY" : "FAILED",
-    summary,
-    usability,
+    ...common,
+    adjustments: chosen.adjustments,
+    failureCode: chosen.ready ? undefined : runtimeError ? "RUNTIME" : "GROUNDING",
+    privacyResidual: chosen.privacyResidual,
+    removedPaths: chosen.removedPaths,
+    residualViolations: chosen.residualViolations,
+    selectedAttempt: chosen.attempt,
+    status: chosen.ready ? "READY" : "FAILED",
+    summary: chosen.summary,
+    usability: chosen.usability,
   };
 }

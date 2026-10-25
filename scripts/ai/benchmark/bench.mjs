@@ -261,6 +261,7 @@ async function main() {
       },
     });
     const run = {
+      adjustments: result.adjustments,
       attempts: result.attempts,
       bundleId: bundle.bundleId,
       calls,
@@ -274,11 +275,16 @@ async function main() {
       firstViolations: result.firstAttempt?.violations ?? [],
       finalClaims: result.finalAttempt?.claimCount ?? 0,
       finalUnsupportedClaims: uniquePaths(result.finalAttempt?.violations ?? []),
+      finalPrivacyViolations: result.finalAttempt?.privacyViolations ?? 0,
       finalViolations: result.finalAttempt?.violations ?? [],
+      firstPrivacyViolations: result.firstAttempt?.privacyViolations ?? 0,
       // A leak is a READY summary that still has an unsupported item: must be 0 by construction.
       groundingLeak: result.status === "READY" && result.residualViolations > 0,
+      // Student-identifier hits in the delivered student view: must be 0 for READY.
+      privacyResidual: result.privacyResidual,
       removedPaths: result.removedPaths,
       runtimeError: result.runtimeError ?? null,
+      selectedAttempt: result.selectedAttempt ?? null,
       // Wall time of the whole bundle, including a call that failed.
       totalMs: performance.now() - bundleStarted,
       usability: result.usability ?? null,
@@ -288,7 +294,8 @@ async function main() {
     const first = calls[0];
     console.log(
       `  ${run.finalStatus}${run.failureCode ? ` (${run.failureCode})` : ""} in ${(run.totalMs / 1000).toFixed(1)} s, attempts ${run.attempts}, ` +
-        `unsupported ${run.firstUnsupportedClaims}/${run.firstClaims} first, removed ${run.removedPaths.length}` +
+        `unsupported ${run.firstUnsupportedClaims}/${run.firstClaims} first, removed ${run.removedPaths.length}, ` +
+        `kept answer ${run.selectedAttempt ?? "-"}, ranges shortened ${run.adjustments.length}, S# items ${run.firstPrivacyViolations}` +
         (first ? `, prompt ${first.promptTokPerSec.toFixed(1)} tok/s, gen ${first.genTokPerSec.toFixed(1)} tok/s` : ""),
     );
   }
@@ -313,11 +320,16 @@ async function main() {
     groundingLeaks: runs.filter((r) => r.groundingLeak).length,
     groundingViolationsFirstTry: sum(runs.map((r) => r.firstViolations.length)),
     p50SummaryMs: totals.length ? median(totals) : null,
+    privacyResidualReady: sum(runs.filter((r) => r.finalStatus === "READY").map((r) => r.privacyResidual)),
+    privacyViolationsFinal: sum(retried.map((r) => r.finalPrivacyViolations)),
+    privacyViolationsFirst: sum(runs.map((r) => r.firstPrivacyViolations)),
+    rangesShortened: sum(runs.map((r) => r.adjustments.length)),
     p95SummaryMs: totals.length ? p95(totals) : null,
     peakRssBytes: rss,
     promptTokPerSecMedian: calls.length ? median(calls.map((c) => c.promptTokPerSec)) : 0,
     removedClaims: sum(runs.map((r) => r.removedPaths.length)),
     retryRate: runs.length ? retried.length / runs.length : 0,
+    selectedFirstAfterRetry: retried.filter((r) => r.selectedAttempt === 1).length,
     schemaValidFirstTry: runs.length ? firstValid.length / runs.length : 0,
     stockfishSlowdown: stockfish.underLoadMs.length ? median(stockfish.underLoadMs) / median(stockfish.baselineMs) : null,
     usableAfterRetry: count ? runs.filter((r) => r.finalStatus === "READY").length / count : 0,
@@ -355,6 +367,9 @@ async function main() {
     `| Retry rate | ${pct(metrics.retryRate)} |`,
     `| Unsupported-claim rate, first answer / after retry (before removal) | ${pct(metrics.fabricatedClaimRateFirst)} / ${pct(metrics.fabricatedClaimRateFinal)} |`,
     `| Items removed as unsupported | ${metrics.removedClaims} |`,
+    `| Student-view items naming a student: first answers / repairs / delivered in READY | ${metrics.privacyViolationsFirst} / ${metrics.privacyViolationsFinal} / ${metrics.privacyResidualReady} |`,
+    `| Over-long variation ranges shortened to 6 moves | ${metrics.rangesShortened} |`,
+    `| Retried bundles that kept the first answer | ${metrics.selectedFirstAfterRetry} / ${retried.length} |`,
     `| Grounding violations before retry | ${metrics.groundingViolationsFirstTry} |`,
     `| Summary p50 | ${min(metrics.p50SummaryMs)} |`,
     `| Prompt tokens/s (median) | ${metrics.promptTokPerSecMedian.toFixed(1)} |`,

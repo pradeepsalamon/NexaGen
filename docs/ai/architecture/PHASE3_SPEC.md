@@ -273,15 +273,20 @@ Checks (`checkClassSummaryOutput`), each per item:
 
 1. Zod-parse; on a failure, `SCHEMA`. A model-written `san` is a schema error.
 2. Every `E#` exists in the bundle.
-3. Every variation names an existing line. Its range is inside the line, in
-   order, and ≤ 6 moves. With no games there are no lines, so any variation
-   is unsupported.
+3. Every variation names an existing line and starts inside it, in order.
+   Its end is shortened to the game's last move and to 6 moves
+   (`adjustments`); the moves are always the game's. With no games there are
+   no lines, so any variation is unsupported.
 4. Every chess token in prose must be in the evidence: a move (SAN), a
    square, a signed engine score, a game result or a puzzle id. A square counts
    if a piece stands on it in the line's start FEN, a move lands on it, or the
    evidence text mentions it. Puzzle ids are matched with the caller's
    `puzzleIdPattern`; the default only fits the benchmark's `pz_…` ids.
-5. No `S\d+` token anywhere in `student`.
+5. No internal student identifier anywhere in `student` (`findStudentIdentifiers`:
+   `S1`, `S 1`, `S-1`, `s1`, `student 3`). A student item that names a student
+   is removed, never rewritten. A READY summary's whole student view must pass
+   `studentViewPrivacyViolations`, which the publish route (§7) reuses for its
+   400.
 6. Every quoted chat span (text in "…") is a substring of a cited `ROOM_CHAT`
    ref. *(Not yet in the module; add it with OD-12.)*
 
@@ -290,6 +295,9 @@ Checks (`checkClassSummaryOutput`), each per item:
 - On any failure the worker makes **one** repair call that lists the problems.
   After that, schema errors make the row `FAILED` with `SCHEMA`.
 - Unsupported items are **removed** (`pruneClassSummary`), never rewritten.
+- Both schema-valid answers are judged the same way. The better one is kept
+  (`selectClassSummaryCandidate`): READY first, then fewer removals, then a
+  larger share kept, then the repair.
   The rest counts only if it is usable (`assessClassSummaryUsability`): every
   required section keeps an item, at least 75% of items are kept, and
   re-checking the result finds nothing unsupported.

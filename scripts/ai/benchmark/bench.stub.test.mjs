@@ -15,11 +15,17 @@ import { makeBundles } from "./bundles.mjs";
 import { referenceOutput } from "./validate.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const bundles = makeBundles(4);
+const bundles = makeBundles(5);
 
 const withFabricatedMove = (b) => {
   const out = referenceOutput(b);
   out.coach.teachingObservations.push({ evidence: [b.pgnRef], text: "Black should have played Qh5 instead." });
+  return out;
+};
+
+const withNamedRecap = (b) => {
+  const out = referenceOutput(b);
+  out.student.recap = [{ evidence: ["E1"], text: "S3 repeated the line until it stuck." }];
   return out;
 };
 
@@ -29,6 +35,7 @@ const SCRIPT = [
   [withFabricatedMove(bundles[1]), withFabricatedMove(bundles[1])], // removed after retry → READY
   ["{not json", "{still not json"], // FAILED (SCHEMA)
   [new Error("boom")], // FAILED (RUNTIME), no retry
+  [withFabricatedMove(bundles[4]), withNamedRecap(bundles[4])], // the repair is worse → keeps the first answer → READY
 ];
 
 function startStub() {
@@ -63,7 +70,7 @@ test("bench.mjs scores retries, removals and failures from a stub model", async 
   try {
     const { port } = server.address();
     const code = await new Promise((resolve) => {
-      const child = spawn(process.execPath, [join(here, "bench.mjs"), "--host", `http://127.0.0.1:${port}`, "--model", "stub", "--bundles", "4", "--out", out], {
+      const child = spawn(process.execPath, [join(here, "bench.mjs"), "--host", `http://127.0.0.1:${port}`, "--model", "stub", "--bundles", "5", "--out", out], {
         stdio: ["ignore", "ignore", "inherit"],
       });
       child.on("exit", resolve);
@@ -71,22 +78,27 @@ test("bench.mjs scores retries, removals and failures from a stub model", async 
     const report = JSON.parse(readFileSync(join(out, "results.json"), "utf8"));
     const status = report.runs.map((r) => [r.finalStatus, r.failureCode, r.attempts, r.removedPaths.length]);
 
-    assert.equal(code, 2, "fails overall: 50% usable < 90%");
+    assert.equal(code, 2, "fails overall: 60% usable < 90%");
     assert.deepEqual(status, [
       ["READY", null, 2, 0],
       ["READY", null, 2, 1],
       ["FAILED", "SCHEMA", 2, 0],
       ["FAILED", "RUNTIME", 1, 0],
+      ["READY", null, 2, 1],
     ]);
-    assert.deepEqual([...seen.values()], [2, 2, 2, 1]);
-    assert.equal(report.metrics.usableAfterRetry, 0.5);
-    assert.equal(report.metrics.retryRate, 0.75);
+    assert.deepEqual([...seen.values()], [2, 2, 2, 1, 2]);
+    assert.equal(report.runs[4].selectedAttempt, 1);
+    assert.equal(report.metrics.usableAfterRetry, 0.6);
+    assert.equal(report.metrics.retryRate, 0.8);
+    assert.equal(report.metrics.selectedFirstAfterRetry, 1);
+    assert.equal(report.metrics.privacyViolationsFinal, 1);
+    assert.equal(report.metrics.privacyResidualReady, 0);
     assert.equal(report.metrics.groundingLeaks, 0);
     assert.equal(report.checks.usableAfterRetry, false);
     const kept = JSON.parse(readFileSync(join(out, "bench-2.json"), "utf8")).summary;
     assert.ok(!JSON.stringify(kept).includes("Qh5"), "the unsupported claim is not in the coach's summary");
     assert.match(kept.coach.variations[0].san, /^1\. e4 e5 2\. Nf3/, "moves are rendered from the game");
-    assert.match(readFileSync(join(out, "report.md"), "utf8"), /Usable after one retry \(§4\.3\) \| ≥ 90% \| 50% \| FAIL/);
+    assert.match(readFileSync(join(out, "report.md"), "utf8"), /Usable after one retry \(§4\.3\) \| ≥ 90% \| 60% \| FAIL/);
   } finally {
     server.close();
     rmSync(out, { force: true, recursive: true });

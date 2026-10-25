@@ -306,6 +306,39 @@ needs a fresh run to count):
    pseudonym's sentence before judging. This needs a decision, because it
    rewrites model text, where removal so far only drops whole items.
 
+### 4.5 Hardened re-run design (pre-registered 2026-10-25, before the run)
+
+Approved by the owner 2026-10-25: `qwen2.5:3b` as the candidate, with the three
+§4.4 proposals. §4.2 and §4.4 stay as recorded; only a fresh run counts for
+this code.
+
+| | Change | Where |
+|---|---|---|
+| A | **A range is shortened, not rejected.** It must start inside the game, and the end is shortened to the game's last move and to 6 moves (`adjustments`). A start outside the game, a reversed range or an unknown line is still unsupported. The moves are still rendered from the game | `checkClassSummaryOutput` |
+| B | **The better of the two answers.** After the one retry, both schema-valid answers go through the same removal, usability, leak and privacy gates. The order is fixed: READY first, then fewer items removed, then a larger share kept, then the repair. If the repair call fails, a usable first answer can still be used. There is never a third call | `selectClassSummaryCandidate` |
+| C | **Student-view privacy in code.** `findStudentIdentifiers` matches `S1`, `S 1`, `S-1`, `s1` and `student 3` / `student #3`. It ignores chess notation, colours and ordinary words: a standalone S plus digits matches, but "bus 2" doesn't. A student item that names a student is **removed, not rewritten**. Before READY, `studentViewPrivacyViolations` scans every string of the delivered student view. The Phase 3 publish route will reuse the same function | `class-summary.ts` |
+
+What changes in the scoring, and what doesn't:
+
+- **The five criteria and the "usable" rule (§4.3) are unchanged.** That
+  covers the 75% kept share and the required sections.
+- **A over-long range is no longer an unsupported item.** That's change A as
+  approved. A range that **starts** outside the game still is.
+- **A READY summary now also needs** a student view with 0 identifier hits. That
+  makes READY stricter, not looser.
+- **Unchanged inputs:** the same 10 bundles (`bundles.mjs`), prompts, schema,
+  `qwen2.5:3b`, Ollama 0.34.4, container limits, `num_ctx`, temperature and seed.
+
+**Newly recorded:**
+
+- student-view items naming a student, in first answers, in repairs, and
+  delivered in READY summaries (must be 0);
+- ranges shortened;
+- retried bundles that kept the first answer.
+
+**Expanded evaluation set:** none exists. The Phase 3 golden set (PHASE3_SPEC.md
+§11) hasn't been built, so only the 10 bundles are run.
+
 ## 5. Recommendation
 
 1. **Now:** Option 1. Add a small `ai-runtime` to the existing Compose stack

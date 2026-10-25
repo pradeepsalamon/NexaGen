@@ -3,8 +3,12 @@ import {
   buildSummaryLines,
   checkClassSummaryOutput,
   classSummaryOutputJsonSchema,
+  findStudentIdentifiers,
   formatSummaryLine,
   generateGroundedClassSummary,
+  selectClassSummaryCandidate,
+  studentViewPrivacyViolations,
+  type ClassSummaryCandidate,
   type ClassSummaryModelOutput,
   type SummaryBundle,
 } from "@nexa-chess/types";
@@ -142,16 +146,19 @@ describe("checkClassSummaryOutput", () => {
     ]);
   });
 
-  it("flags variations on an unknown line, out of range, reversed or too long", () => {
+  it("flags variations on an unknown line, starting outside the game, or reversed", () => {
     const output = goodOutput();
     output.coach.variations = [
       { comment: "a", fromMove: 1, line: "L9", toMove: 2 },
-      { comment: "b", fromMove: 16, line: "L1", toMove: 18 },
+      { comment: "b", fromMove: 18, line: "L1", toMove: 19 },
       { comment: "c", fromMove: 5, line: "L1", toMove: 4 },
-      { comment: "d", fromMove: 1, line: "L1", toMove: 7 },
     ];
     const check = checkClassSummaryOutput(output, bundle());
-    expect(check.ok && check.violations.map((v) => v.path)).toEqual([0, 1, 2, 3].map((i) => `coach.variations.${i}`));
+    expect(check.ok && check.violations.map((v) => v.reason)).toEqual([
+      "unknown line L9",
+      "move 18 is outside L1 (1–17)",
+      "fromMove 5 is after toMove 4",
+    ]);
   });
 
   it("flags unknown evidence refs, unknown puzzles and S# in the student view", () => {
@@ -170,6 +177,111 @@ describe("checkClassSummaryOutput", () => {
   it("with no games, any variation is unsupported", () => {
     const check = checkClassSummaryOutput(goodOutput(), bundle({ games: false }));
     expect(check.ok && check.violations.some((v) => v.reason === "unknown line L1")).toBe(true);
+  });
+});
+
+describe("variation ranges are capped at six moves from the game", () => {
+  const withRange = (fromMove: number, toMove: number) => {
+    const output = goodOutput();
+    output.coach.variations = [{ comment: "Key line.", fromMove, line: "L1", toMove }];
+    return output;
+  };
+  const rendered = async (fromMove: number, toMove: number) => {
+    const result = await generateGroundedClassSummary({ bundle: bundle(), generate: async () => json(withRange(fromMove, toMove)) });
+    return { result, variation: result.summary?.coach.variations[0] };
+  };
+
+  it("keeps a six-move range as asked", async () => {
+    const check = checkClassSummaryOutput(withRange(9, 14), bundle());
+    expect(check.ok && [check.violations, check.adjustments]).toEqual([[], []]);
+    const { variation } = await rendered(9, 14);
+    expect(variation).toMatchObject({ fromMove: 9, toMove: 14 });
+  });
+
+  it("shortens a seven-move range to the first six moves of the game, in game order", async () => {
+    const check = checkClassSummaryOutput(withRange(9, 15), bundle());
+    expect(check.ok && check.adjustments).toEqual([{ applied: [9, 14], path: "coach.variations.0", requested: [9, 15] }]);
+    const { result, variation } = await rendered(9, 15);
+    expect(result).toMatchObject({ attempts: 1, removedPaths: [], status: "READY" });
+    expect(variation?.san).toBe(
+      "9. Bg5 b5 10. Nxb5 cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7 Rxd7 14. Rd1 Qe6",
+    );
+  });
+
+  it("shortens a much longer range the same way", async () => {
+    const { variation } = await rendered(1, 17);
+    expect(variation).toMatchObject({ fromMove: 1, san: "1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6", toMove: 6 });
+  });
+
+  it("stops at the game's last move and never extends past it", async () => {
+    const { variation } = await rendered(16, 20);
+    expect(variation).toMatchObject({ san: "16. Qb8+ Nxb8 17. Rd8#", toMove: 17 });
+    const [line] = buildSummaryLines(bundle());
+    expect(variation?.san.split(" ").filter((t) => !/^\d+\./.test(t)).every((san) => line.moves.includes(san))).toBe(true);
+  });
+
+  it("can't repair a range on a game without moves", () => {
+    const b = bundle({ games: false });
+    b.evidence.push({ id: "E9", kind: "CHAPTER_PGN", moves: [], title: "Empty chapter" });
+    const check = checkClassSummaryOutput(withRange(1, 10), b);
+    expect(check.ok && check.violations.map((v) => v.reason)).toContain("unknown line L1");
+    expect(check.ok && check.adjustments).toEqual([]);
+  });
+});
+
+describe("student-view privacy", () => {
+  it("finds internal identifiers in their common spellings", () => {
+    expect(findStudentIdentifiers("S1 and S12 asked; S-3, s 4 and Student #5 too; student 6 agreed.")).toEqual([
+      "S1",
+      "S12",
+      "S-3",
+      "s 4",
+      "Student #5",
+      "student 6",
+    ]);
+  });
+
+  it("does not flag chess notation, colours or ordinary words", () => {
+    const clean = [
+      "Bxf7+ Kxf7 then Qf3+ and Rd8#, 1-0 after 17 moves.",
+      "Black's queen on d8; White castles O-O-O on move 12.",
+      "The Sicilian, a S-shaped pawn chain, 5 puzzles, lesson 2, 3 students.",
+      "Moves 1 to 6, bus 2, vs 3, rooks 2, the 7th rank.",
+    ];
+    for (const text of clean) expect(findStudentIdentifiers(text)).toEqual([]);
+  });
+
+  it("removes a student item that names a student, from prose and from concept names (headings)", () => {
+    const output = goodOutput();
+    output.student.recap.push({ evidence: ["E3"], text: "S1 solved the pin puzzle first." });
+    output.student.keyConcepts.push({ evidence: ["E3"], name: "S2's pin" });
+    const check = checkClassSummaryOutput(output, bundle());
+    expect(check.ok && check.violations.map((v) => v.path)).toEqual(["student.recap.1", "student.keyConcepts.1"]);
+  });
+
+  it("keeps identifiers in the coach view, including variation comments", () => {
+    const output = goodOutput();
+    output.coach.variations[0].comment = "S2 asked about this line.";
+    output.coach.lessonOverview[0].text = "S1 and S3 led the discussion.";
+    const check = checkClassSummaryOutput(output, bundle());
+    expect(check.ok && check.violations).toEqual([]);
+  });
+
+  it("scans every string of a student view, whatever its shape", () => {
+    expect(
+      studentViewPrivacyViolations({ heading: "Recap for S4", items: [{ comment: "Well done", text: "student 2 fixed it" }], title: "Pins" }),
+    ).toEqual([
+      { identifiers: ["S4"], path: "student.heading" },
+      { identifiers: ["student 2"], path: "student.items.0.text" },
+    ]);
+  });
+
+  it("never delivers a READY summary whose student view names a student", async () => {
+    const leaky = goodOutput();
+    leaky.student.recap = [{ evidence: ["E2"], text: "S1 found Rd8 mate." }];
+    const result = await generateGroundedClassSummary({ bundle: bundle(), generate: async () => json(leaky) });
+    expect(result).toMatchObject({ failureCode: "GROUNDING", privacyResidual: 0, status: "FAILED" });
+    expect(studentViewPrivacyViolations(result.summary?.student)).toEqual([]);
   });
 });
 
@@ -248,6 +360,72 @@ describe("generateGroundedClassSummary", () => {
     const result = await generateGroundedClassSummary({ beforeRetry: () => false, bundle: bundle(), generate });
     expect(result.status).toBe("DEFERRED");
     expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the first answer when the retry is worse (the 2026-10-25 bench-3 regression)", async () => {
+    // First answer: an invented move in a coach item, and a fine student recap.
+    const first = goodOutput();
+    first.coach.teachingObservations.push({ evidence: ["E2"], text: "Black missed Qh5." });
+    // Repair: fixes the coach item but writes a pseudonym into the only recap item.
+    const retry = goodOutput();
+    retry.student.recap = [{ evidence: ["E3"], text: "Students were confused by the pin; S3 repeated the line." }];
+    const { generate } = scripted(json(first), json(retry));
+    const result = await generateGroundedClassSummary({ bundle: bundle(), generate });
+    expect(result).toMatchObject({ attempts: 2, removedPaths: ["coach.teachingObservations.1"], selectedAttempt: 1, status: "READY" });
+    expect(studentViewPrivacyViolations(result.summary?.student)).toEqual([]);
+    expect(json(result.summary)).not.toContain("Qh5");
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("prefers the answer with fewer unsupported items when both are usable", async () => {
+    const one = goodOutput();
+    one.coach.teachingObservations.push({ evidence: ["E2"], text: "Qh5 was strong." });
+    const two = goodOutput();
+    two.coach.teachingObservations.push({ evidence: ["E2"], text: "Qh5 was strong." }, { evidence: ["E2"], text: "So was Qg4." });
+    two.coach.lessonOverview.push(
+      { evidence: ["E1"], text: "Development first." },
+      { evidence: ["E1"], text: "Then pins." },
+      { evidence: ["E1"], text: "Then the attack." },
+    );
+    const { generate } = scripted(json(one), json(two));
+    const result = await generateGroundedClassSummary({ bundle: bundle(), generate });
+    expect(result).toMatchObject({ selectedAttempt: 1, status: "READY" });
+  });
+
+  it("uses a good first answer when the repair call itself fails", async () => {
+    const first = goodOutput();
+    first.coach.teachingObservations.push({ evidence: ["E2"], text: "Black missed Qh5." });
+    const { generate } = scripted(json(first), new Error("ollama 500"));
+    const result = await generateGroundedClassSummary({ bundle: bundle(), generate });
+    expect(result).toMatchObject({ attempts: 2, runtimeError: "ollama 500", selectedAttempt: 1, status: "READY" });
+  });
+
+  it("fails safely when neither answer is usable, and never makes a third call", async () => {
+    const bad = goodOutput();
+    bad.student.recap = [{ evidence: ["E2"], text: "S1 won with Qh5." }];
+    const { generate } = scripted(json(bad), "{broken");
+    const result = await generateGroundedClassSummary({ bundle: bundle(), generate });
+    expect(result).toMatchObject({ attempts: 2, failureCode: "GROUNDING", selectedAttempt: 1, status: "FAILED" });
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("selection order is fixed: READY, then fewer removals, then more kept, then the repair", () => {
+    const candidate = (attempt: 1 | 2, ready: boolean, unsupportedItems: number, keptShare: number): ClassSummaryCandidate => ({
+      adjustments: [],
+      attempt,
+      privacyResidual: 0,
+      ready,
+      removedPaths: [],
+      residualViolations: 0,
+      summary: { ...goodOutput(false), coach: { ...goodOutput(false).coach, variations: [] } },
+      unsupportedItems,
+      usability: { keptShare, reasons: [], usable: ready },
+    });
+    expect(selectClassSummaryCandidate([candidate(1, false, 0, 1), candidate(2, true, 2, 0.8)])?.attempt).toBe(2);
+    expect(selectClassSummaryCandidate([candidate(1, true, 1, 0.9), candidate(2, true, 2, 0.8)])?.attempt).toBe(1);
+    expect(selectClassSummaryCandidate([candidate(1, true, 1, 0.9), candidate(2, true, 1, 0.8)])?.attempt).toBe(1);
+    expect(selectClassSummaryCandidate([candidate(1, true, 1, 0.9), candidate(2, true, 1, 0.9)])?.attempt).toBe(2);
+    expect(selectClassSummaryCandidate([])).toBeUndefined();
   });
 
   it("summarises a class with no games: no lines, no variations, still READY", async () => {
