@@ -84,14 +84,17 @@ because migrations are additive.
   - peak RSS ≤ 4.5 GB
   - schema-valid ≥ 95% before retry
   - grounding violations 0 after validation
+  - **usable ≥ 90% after one retry** (added 2026-10-25 for the re-run; "usable"
+    is defined in §4.3 before any run)
 
 ### 4.1 Running it
 
 Approved 2026-10-19 (OD-6a, OD-19). The harness is `scripts/ai/benchmark/`:
 
 ```bash
-node scripts/ai/benchmark/bench.mjs --self-test        # validator checks, no model, safe anywhere
-scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen2.5:3b]
+node scripts/ai/benchmark/bench.mjs --self-test                 # validator checks, no model, safe anywhere
+node --test scripts/ai/benchmark/bench.stub.test.mjs            # whole scorer against a stub Ollama
+scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen2.5:3b] [--no-think]
 ```
 
 - **Pre-flight refusals.** The runner refuses with < 20 GB free, while the live
@@ -103,8 +106,11 @@ scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen
   volume are always removed, even on Ctrl-C.
 - **Bundles.** Ten synthetic bundles (`bundles.mjs`: public-domain games,
   invented students). They're scored against the Phase 3 schema and grounding
-  rules (`validate.mjs`) with one repair retry.
-- **Measured besides the four criteria.** Tokens/s, a keyword fact-recall
+  rules with one repair retry. Since 2026-10-25 the rules are the shared
+  module `packages/types/src/class-summary.ts` (§4.3); `validate.mjs` only
+  wraps it, and the runner builds `@nexa-chess/types` and runs both tests
+  before it starts a container.
+- **Measured besides the five criteria.** Tokens/s, a keyword fact-recall
   proxy (the Phase 3 golden set doesn't exist yet), and the slowdown of a
   fixed-node Stockfish search inside `nexa_api`.
 - **Output.** `report.md` and `results.json` in `~/ai-bench/<UTC timestamp>/`.
@@ -155,6 +161,73 @@ Harness fixes made during the run (commits `a8fd4f7`, `f41c7ba`):
   after 5 minutes with no headers.
 - **Grammar limits.** The JSON schema handed to Ollama carries the length and
   count limits.
+
+### 4.3 Re-run design (pre-registered 2026-10-25, before any run)
+
+What changed since §4.2 (branch `feat/ai-summary-grounded-lines`):
+
+- **Move lines come from code.** Each game in the evidence carries its SAN
+  mainline, replayed by code. `buildSummaryLines` turns each one into a line
+  `L1`, `L2`, …. The model gets the lines as numbered moves. A variation it
+  returns is `{ line, fromMove, toMove, comment }`, at most 6 moves, with no
+  moves in it. The SAN a coach sees is rendered by `formatSummaryLine` from
+  the game. A model-written `san` is a schema error.
+- **Chess tokens in prose are checked.** Every move, square, signed engine
+  score (`+1.5`), game result (`1-0`) and puzzle id the model writes must
+  appear in the evidence. A square counts if a piece stands on it in the
+  line's start position, a move lands on it, or the evidence text mentions it.
+  Unknown evidence refs and `S#` in the student view are still checked.
+- **Retry, then remove.** Any schema error or unsupported item gets one
+  repair call that lists the problems. After that, schema errors fail the
+  summary (`SCHEMA`). Unsupported items are **removed**, never rewritten or
+  invented, and the rest is judged by the usability rule below.
+- **Limit.** Claims about game events in plain words ("White resigned",
+  "S2 won the match") can't be checked mechanically. The coach's review (OD-5)
+  stays the safeguard, and nothing is published without it.
+
+**"Usable" (fixed now; the scoring may not change after the run).** A
+bundle counts as usable (READY) when, after at most one repair retry and
+removal of unsupported items:
+
+1. the final answer is schema-valid;
+2. every required section still has at least one item: lesson overview, next
+   objectives, recap, key concepts and practice ideas;
+3. at least **75%** of the model's items were kept
+   (`SUMMARY_MIN_KEPT_CLAIM_SHARE`); and
+4. re-checking the delivered summary finds **0** unsupported items (the leak
+   check, criterion 4).
+
+A model error or timeout counts as not usable. The criterion is
+`usable / 10 bundles ≥ 90%`. The code is `assessClassSummaryUsability` and
+`generateGroundedClassSummary`, with their regression tests in
+`apps/api/src/ai/class-summary.spec.ts`.
+
+**Also recorded:** retry rate; unsupported-claim rate (unsupported items ÷
+items) on the first answer and after the retry, before removal; items
+removed; p50/p95 latency; peak RSS; Stockfish slowdown; tokens/s; fact recall.
+
+**Comparable settings.** Both models run the same way:
+
+- same 10 bundles, same prompts and schema;
+- `ollama/ollama:0.34.4`, `--cpus 1.5 --memory 5g --cpu-shares 512`;
+- `num_ctx 8192`, temperature 0.2, seed 42;
+- one model at a time, in a fresh container each.
+
+The two models:
+
+- `qwen2.5:3b`, the §4.2 baseline, now with the new pipeline;
+- `qwen3:4b` (Apache-2.0, 2.5 GB weights) with `--no-think`, so it doesn't
+  spend tokens on a reasoning trace.
+
+**Data.** Only `bundles.mjs`: public-domain games, invented students and chat
+lines. Nothing comes from the database. The model runs in a loopback-only
+local container. The only outbound traffic is pulling the image and weights,
+and no class data leaves the box.
+
+**Still to do:** the run itself (OD-6a, which needs a named no-class window).
+The comparison with §4.2 isn't one-to-one. The prompt and schema changed (lines
+instead of free SAN), so a better READY rate reflects the pipeline and the
+model together.
 
 ## 5. Recommendation
 
