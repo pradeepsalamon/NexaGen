@@ -11,6 +11,7 @@
     "dev": "turbo dev --parallel",
     "dev:clean": "npm run clean -w apps/web && npm run clean -w apps/api && turbo dev --parallel",
     "dev:web": "turbo dev --filter=@nexa-chess/web --parallel",
+    "dev:web:remote": "node scripts/dev-remote-api.mjs",
     "dev:web:clean": "npm run clean -w apps/web && npm run dev -w apps/web",
     "dev:api": "turbo dev --filter=@nexa-chess/api --parallel",
     "dev:api:clean": "npm run clean -w apps/api && npm run start:dev -w apps/api",

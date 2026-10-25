@@ -421,6 +421,21 @@ edit, stop the API server and restart it with a clean build output:
 npm run dev:api:clean
 ```
 
+Frontend-only, against the staging API (no Postgres, Redis or local API — for
+low-spec machines):
+
+```bash
+npm install
+npm run dev:web:remote   # web on http://localhost:3000, API proxy on :3001 → https://api-dev.nexachess.in
+```
+
+`scripts/dev-remote-api.mjs` proxies the API so its `.nexachess.in` cookies
+become localhost cookies (a page on localhost never receives the originals, so
+login would bounce). You work on the shared `vps_dev` data — what you create
+everyone on staging sees. Point it elsewhere with `REMOTE_API_URL`; change ports
+with `WEB_PORT` / `PROXY_PORT` (the remote's `CORS_ORIGIN` must list the web
+origin; staging lists `http://localhost:3000`).
+
 Default local URLs:
 
 - Web: http://localhost:3010 (Dev mode) or http://localhost:3000 (Production container)

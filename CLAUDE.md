@@ -34,6 +34,7 @@ Infra: `docker-compose.yml` (web, api, postgres, redis, livekit), self-hosted on
 npm install
 npm run dev              # web + api together (turbo --parallel)
 npm run dev:web          # web only            npm run dev:api         # api only
+npm run dev:web:remote   # web only, against the staging API via a local proxy (no DB needed)
 npm run dev:web:clean    # clears .next        npm run dev:api:clean   # clears dist
 npm run typecheck        # turbo typecheck across all workspaces
 npm run build            # turbo build
