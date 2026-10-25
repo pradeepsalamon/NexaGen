@@ -241,6 +241,7 @@ async function main() {
     console.log(`${bundle.bundleId}: generating…`);
     const calls = [];
     const texts = [];
+    const bundleStarted = performance.now();
     const result = await generateGroundedClassSummary({
       // A class going live stops the container; don't spend the repair call on a dead model.
       beforeRetry: () => !aborted(),
@@ -278,7 +279,8 @@ async function main() {
       groundingLeak: result.status === "READY" && result.residualViolations > 0,
       removedPaths: result.removedPaths,
       runtimeError: result.runtimeError ?? null,
-      totalMs: calls.reduce((sum, c) => sum + c.wallMs, 0) || 15 * 60 * 1000,
+      // Wall time of the whole bundle, including a call that failed.
+      totalMs: performance.now() - bundleStarted,
       usability: result.usability ?? null,
     };
     writeFileSync(join(out, `${bundle.bundleId}.json`), JSON.stringify({ rawAnswers: texts, summary: result.summary ?? null }, null, 2));

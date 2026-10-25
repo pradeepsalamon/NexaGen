@@ -229,6 +229,83 @@ The comparison with §4.2 isn't one-to-one. The prompt and schema changed (lines
 instead of free SAN), so a better READY rate reflects the pipeline and the
 model together.
 
+### 4.4 Result: re-run of 2026-10-25 (§4.3 design, Ollama 0.34.4)
+
+Window 17:38–21:00 IST, confirmed by the owner. LiveKit reported no live room
+at any of the 20 s checks. Both containers, weights volumes and images were
+removed afterwards. Raw output is in `~/ai-bench/grounded-qwen2.5-3b/` and
+`~/ai-bench/grounded-qwen3-4b/` on the box.
+
+All numbers below are **measured** unless marked otherwise.
+
+| Criterion | Target | `qwen2.5:3b` | `qwen3:4b` (`think: false`) |
+|---|---|---|---|
+| Summary p95 (incl. retry) | ≤ 10 min | **8.22 min** ok | 17.65 min ✗ |
+| Peak RSS | ≤ 4.5 GiB | **3.26 GiB** ok | 4.96 GiB ✗ (two runner crashes) |
+| Schema-valid before retry | ≥ 95% | **100%** ok | 80% ✗ (the two crashes) |
+| Unsupported items in a READY summary | 0 | **0** ok | 0 ok |
+| Usable after one retry (§4.3) | ≥ 90% | **90% (9/10)** ok | 30% (3/10) ✗ |
+| **Verdict** | | **PASS** | **FAIL** |
+
+| Also measured | `qwen2.5:3b` | `qwen3:4b` |
+|---|---|---|
+| Retry rate | 60% | 50% |
+| Unsupported-claim rate, first / after retry (before removal) | 9% / 5% | 11% / 14% |
+| Items removed | 5 | 8 |
+| Summary p50 | 6.76 min | 10.08 min |
+| Prompt / generation tokens/s (median) | 17.0 / 3.6 | 12.3 / 2.0 |
+| Fact recall (keyword proxy) | 45% | 50% |
+| Stockfish slowdown during generation | 1.14× | 1.12× |
+| Failures | 1 GROUNDING | 5 GROUNDING, 2 RUNTIME |
+
+What the failures were:
+
+- **`qwen2.5:3b`.** There were 7 first-answer problems:
+  - six were a variation longer than 6 moves, a range rule, not an invented
+    move;
+  - one was an invented move (`Bf7+`; the game has `Bxf7+`), removed after the
+    retry.
+
+  The one failure (bench-3) came from the retry. It wrote "S3 repeated the
+  line" into the student recap. Removing it emptied the recap, even though the
+  first answer's recap was fine.
+- **`qwen3:4b`.**
+  - **Student names (9 problems).** `S#` in the student view was the main
+    problem, and all 5 GROUNDING failures emptied the recap.
+  - **Ranges (5 problems).** The rest were variations over 6 moves.
+  - **Crashes (2).** Ollama's runner stopped ("resource limitations") at the
+    5 GB memory cap.
+
+  Each crash took about 15 minutes before it was reported. That figure is an
+  **estimate**: this run's harness recorded failed calls as a flat 900 s. It
+  now records the real wall time.
+
+Reading:
+
+- **Capacity and grounding: PASS with `qwen2.5:3b`.** The change from §4.2
+  (code-built lines, retry then remove) raised usable summaries from 5/10 to
+  9/10, with p95 down from 9.12 to 8.22 min. No unsupported item reached a
+  READY summary.
+- **`qwen3:4b` doesn't fit this box.** It's slower (2.0 tok/s), crashes at the
+  5 GB cap, and leaks pseudonyms into the student view more often. Its fact
+  recall is only 5 points higher (50% vs 45%, a keyword proxy). It isn't a
+  candidate for OD-25 on this hardware.
+- **The margin is thin.** 9/10 is exactly the 90% bar. One more failure would
+  have failed the criterion, and 10 bundles is a small sample.
+
+Proposed harness and pipeline changes (not applied to these results; each
+needs a fresh run to count):
+
+1. **Clamp, don't reject, an over-long range.** A variation's moves come from
+   the game, so cutting a range at 6 moves can't invent anything. It would
+   have removed 6 of `qwen2.5:3b`'s 7 first-answer problems, and most of its
+   retries (about 3.5 min each).
+2. **Keep the better of the two answers.** Choose by the same usability rule,
+   instead of always the repair. That would have saved bench-3.
+3. **Strip `S#` from the student view in code.** One option is to drop the
+   pseudonym's sentence before judging. This needs a decision, because it
+   rewrites model text, where removal so far only drops whole items.
+
 ## 5. Recommendation
 
 1. **Now:** Option 1. Add a small `ai-runtime` to the existing Compose stack
