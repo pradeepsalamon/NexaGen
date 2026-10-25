@@ -25,7 +25,7 @@ Infra: `docker-compose.yml` (web, api, postgres, redis, livekit), self-hosted on
 ## 2. Environment & commands
 
 - **Platform: Windows.** Primary shell is PowerShell; a Bash tool is also available. Use forward slashes in paths.
-- Node package manager: **npm** (`npm@11.15.0`). Never use `pnpm`/`yarn` (a stray `pnpm-lock.yaml` exists in `packages/types` — ignore it).
+- Node package manager: **npm** (`npm@11.15.0`). Never use `pnpm`/`yarn`. A vulnerable transitive dependency with no fixed parent release is pinned in root `package.json` `overrides` — npm only applies a new override to a package already in the lockfile after its `package-lock.json` entry is removed and `npm install` re-run.
 - API env file: `apps/api/.env` (not committed). Root `.env` is for docker-compose. Examples: `.env.example`, `apps/api/.env.example`.
 
 ### Common commands (run from repo root)
