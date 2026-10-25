@@ -43,7 +43,8 @@ jobs:
               - 'package.json'
               - 'package-lock.json'
               - 'turbo.json'
-              - '.github/workflows/**'
+              - '.github/workflows/ci.yml'
+              - 'scripts/ci/**'
             web:
               - *shared
               - 'apps/web/**'
