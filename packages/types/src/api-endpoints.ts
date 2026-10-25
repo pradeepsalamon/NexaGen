@@ -381,6 +381,8 @@ export const API_ROUTES = {
     stats: "/puzzles/stats",
     validate: "/puzzles/validate",
     bulk: "/puzzles/bulk",
+    // Field-level bulk edit (folder, difficulty, type, status, tags, title).
+    bulkUpdate: "/puzzles/bulk-update",
     import: "/puzzles/import",
     // ── Lichess catalogue (admin + coach; never students) ──
     // Browse rows carry no solution; preview is the only route that does.

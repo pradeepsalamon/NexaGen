@@ -315,4 +315,119 @@ describe("PuzzleService", () => {
       id: { notIn: ["pz-new"] }
     });
   });
+
+  describe("bulkUpdate", () => {
+    const asAdmin = () => {
+      prisma.user.findUnique.mockResolvedValue(asRole(ADMIN_ID, UserRole.ADMIN));
+      jwt.verifyAsync.mockResolvedValue({ sub: ADMIN_ID, type: "access" });
+    };
+
+    it("writes only the requested fields, to the selected puzzles", async () => {
+      asAdmin();
+      prisma.puzzleTopic.findUnique.mockResolvedValue({ slug: "endgames" });
+      prisma.puzzle.findMany.mockResolvedValue([
+        puzzleRow({ id: "pz-1", tags: ["fork", "old"] }),
+        puzzleRow({ id: "pz-2", tags: [] })
+      ]);
+
+      const res = await service.bulkUpdate(TOKEN, {
+        ids: ["pz-1", "pz-2"],
+        topicId: "topic-2",
+        addTags: ["Pin"],
+        removeTags: ["OLD"]
+      });
+
+      expect(res).toEqual({ updated: 2, skipped: [] });
+      expect(prisma.puzzle.findMany.mock.calls[0][0].where.id).toEqual({ in: ["pz-1", "pz-2"] });
+      expect(prisma.puzzle.update).toHaveBeenCalledWith({
+        where: { id: "pz-1" },
+        data: { updatedById: ADMIN_ID, topicId: "topic-2", tags: ["fork", "Pin"] }
+      });
+      expect(prisma.puzzle.update).toHaveBeenCalledWith({
+        where: { id: "pz-2" },
+        data: { updatedById: ADMIN_ID, topicId: "topic-2", tags: ["Pin"] }
+      });
+    });
+
+    it("skips another coach's puzzle, one moved out of the folder, and a missing one", async () => {
+      prisma.puzzle.findMany.mockResolvedValue([
+        puzzleRow({ id: "mine" }),
+        puzzleRow({ id: "theirs", createdById: COACH_B, visibility: PuzzleVisibility.GLOBAL }),
+        puzzleRow({ id: "moved", topicId: "topic-9" })
+      ]);
+
+      const res = await service.bulkUpdate(TOKEN, {
+        ids: ["mine", "theirs", "moved", "gone"],
+        fromTopicId: "topic-1",
+        difficulty: "ADVANCED"
+      });
+
+      expect(res.updated).toBe(1);
+      expect(res.skipped.map((s) => s.id)).toEqual(["theirs", "moved", "gone"]);
+      expect(prisma.puzzle.update).toHaveBeenCalledTimes(1);
+      expect(prisma.puzzle.update.mock.calls[0][0].where).toEqual({ id: "mine" });
+    });
+
+    it("never publishes a puzzle without a solution, and leaves the others' status dates alone", async () => {
+      asAdmin();
+      prisma.puzzle.findMany.mockResolvedValue([
+        puzzleRow({ id: "empty", solutionMovesJson: [] }),
+        puzzleRow({ id: "live", status: PuzzleStatus.PUBLISHED }),
+        puzzleRow({ id: "draft" })
+      ]);
+
+      const res = await service.bulkUpdate(TOKEN, { ids: ["empty", "live", "draft"], status: "PUBLISHED" });
+
+      expect(res.updated).toBe(2);
+      expect(res.skipped).toEqual([expect.objectContaining({ id: "empty" })]);
+      const byId = Object.fromEntries(
+        prisma.puzzle.update.mock.calls.map(([arg]: any[]) => [arg.where.id, arg.data])
+      );
+      expect(byId.live).toEqual({ updatedById: ADMIN_ID });
+      expect(byId.draft).toMatchObject({ status: PuzzleStatus.PUBLISHED, publishedById: ADMIN_ID });
+    });
+
+    it("replaces text in titles and skips a title that would become empty", async () => {
+      asAdmin();
+      prisma.puzzle.findMany.mockResolvedValue([
+        puzzleRow({ id: "a", title: "Fork 1" }),
+        puzzleRow({ id: "b", title: "Fork" })
+      ]);
+
+      const res = await service.bulkUpdate(TOKEN, {
+        ids: ["a", "b"],
+        titleReplace: { find: "Fork", replace: "" }
+      });
+
+      expect(res.updated).toBe(1);
+      expect(res.skipped).toEqual([expect.objectContaining({ id: "b" })]);
+      expect(prisma.puzzle.update).toHaveBeenCalledWith({
+        where: { id: "a" },
+        data: { updatedById: ADMIN_ID, title: "1" }
+      });
+    });
+
+    it("refuses a tag change that would exceed the tag limit", async () => {
+      asAdmin();
+      prisma.puzzle.findMany.mockResolvedValue([
+        puzzleRow({ id: "full", tags: Array.from({ length: 12 }, (_, i) => `t${i}`) })
+      ]);
+      const res = await service.bulkUpdate(TOKEN, { ids: ["full"], addTags: ["extra"] });
+      expect(res).toEqual({ updated: 0, skipped: [expect.objectContaining({ id: "full" })] });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it("rejects a missing or system target folder before touching any puzzle", async () => {
+      asAdmin();
+      prisma.puzzleTopic.findUnique.mockResolvedValueOnce(null);
+      await expect(
+        service.bulkUpdate(TOKEN, { ids: ["pz-1"], topicId: "nope" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      prisma.puzzleTopic.findUnique.mockResolvedValueOnce({ slug: "__lichess" });
+      await expect(
+        service.bulkUpdate(TOKEN, { ids: ["pz-1"], topicId: "lichess-folder" })
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.puzzle.findMany).not.toHaveBeenCalled();
+    });
+  });
 });
