@@ -85,3 +85,22 @@ runs and nothing is sent. Errors only — no tracing, replay or logs.
 - The user id is set in `authenticateUser` (API, request-scoped) and
   `SessionBootstrap` (web). `SENTRY_RELEASE` = the commit SHA, exported by
   `scripts/deploy-production.sh`.
+
+## Edge: Cloudflare stays DNS-only
+
+Every app hostname (`nexachess.in`, `www`, `api`, `livekit`, `dev`, `api-dev`, `crm`)
+is a **DNS-only (grey cloud)** record pointing straight at the VPS; TLS is
+certbot on the box (`certbot.timer`). Only `monitor.` is proxied. Don't turn the
+proxy on:
+
+- **It made the app slow.** On the free plan, Indian ISPs (Jio, Airtel) are
+  often routed to a Cloudflare edge outside India (e.g. Singapore), so every
+  request left the country and came back to the Mumbai VPS (`ap-mumbai-1`).
+  Check from a user's network: `https://monitor.nexachess.in/cdn-cgi/trace` →
+  `colo=` (`BOM` is Mumbai).
+- **`livekit.` can't be proxied** (WebRTC UDP / TURN ports), and it shares the
+  VPS IP, so proxying the rest wouldn't hide the origin anyway.
+- Free-plan proxy limits (100 MB request body, ~100 s timeout) would hit uploads
+  and recordings on `api.`.
+
+A new subdomain: add the record grey, run certbot on the box.
