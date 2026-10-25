@@ -1,22 +1,12 @@
 name: CI
 
-# The gate every production deploy waits on (deploy-production.yml calls this
-# workflow), and the check a pull request into main/dev runs.
+# The check a pull request into main/dev runs. The `main: CI before merge`
+# ruleset requires it (and an up-to-date branch), so the deploy doesn't re-run it.
 on:
   pull_request:
     branches:
       - main
       - dev
-  workflow_call:
-    # The deploy passes what its detect-changes job found, so only the
-    # affected app is checked. Left unset, everything runs.
-    inputs:
-      skip_api:
-        type: boolean
-        default: false
-      skip_web:
-        type: boolean
-        default: false
   workflow_dispatch:
 
 concurrency:
@@ -31,8 +21,8 @@ env:
   TURBO_TELEMETRY_DISABLED: "1"
 
 jobs:
-  # Which apps this run checks: a PR diffs its files, a deploy passes inputs,
-  # a manual run checks both. Same filters as deploy-production.yml.
+  # Which apps this run checks: a PR diffs its files, a manual run checks both.
+  # Same filters as deploy-production.yml.
   changes:
     runs-on: ubuntu-latest
     permissions:
@@ -68,8 +58,8 @@ jobs:
             echo "api=${{ steps.filter.outputs.api }}" >> "$GITHUB_OUTPUT"
             echo "web=${{ steps.filter.outputs.web }}" >> "$GITHUB_OUTPUT"
           else
-            echo "api=${{ inputs.skip_api != true }}" >> "$GITHUB_OUTPUT"
-            echo "web=${{ inputs.skip_web != true }}" >> "$GITHUB_OUTPUT"
+            echo "api=true" >> "$GITHUB_OUTPUT"
+            echo "web=true" >> "$GITHUB_OUTPUT"
           fi
 
   # No separate typecheck: `npm run build` type-checks both apps (nest build,
@@ -106,8 +96,7 @@ jobs:
       - if: github.event_name == 'pull_request'
         run: npm run lint
 
-      # PRs only: a push (the deploy gate) runs the full suite, since the previous
-      # push may not have passed and its changes would otherwise go untested.
+      # PRs only: a manual run has no base and runs the full suite.
       - name: Pick the specs to run
         if: needs.changes.outputs.api == 'true' && github.event.pull_request.base.sha != ''
         env:
@@ -178,7 +167,7 @@ jobs:
       # Runs after the drift check: global setup sets the database timezone.
       - name: Pick the specs to run
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
         run: echo "JEST_SCOPE=$(bash scripts/ci/jest-scope.sh "$BASE")" >> "$GITHUB_ENV"
 
       - name: DB integration tests
