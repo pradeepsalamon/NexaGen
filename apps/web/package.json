@@ -44,7 +44,7 @@
     "framer-motion": "^12.42.2",
     "livekit-client": "^2.20.0",
     "lucide-react": "^1.21.0",
-    "next": "^15.5.27",
+    "next": "^15.5.28",
     "pdfjs-dist": "5.4.624",
     "qrcode.react": "^4.2.0",
     "react": "^19.3.0",
@@ -55,7 +55,7 @@
     "sharp": "^0.35.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3",
+    "zod": "^4.6.7",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -65,8 +65,8 @@
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.5.2",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^15.5.27",
-    "postcss": "^8.4.31",
+    "eslint-config-next": "^15.5.28",
+    "postcss": "^8.5.31",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.5.4"
   }
