@@ -229,7 +229,8 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
         </div>
       )}
 
-      <Tabs defaultValue={tabs[0].key}>
+      {/* Admins land on the folder tree; coaches on their puzzle list. */}
+      <Tabs defaultValue={role === "admin" ? "topics" : tabs[0].key}>
         <TabsList className="flex-wrap justify-self-end">
           {tabs.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>
@@ -250,6 +251,7 @@ export function PuzzleLibraryClient({ role, basePath }: Props) {
         </TabsContent>
         <TabsContent value="topics">
           <TopicManager
+            basePath={basePath}
             canManage={role === "admin"}
             onAssignFolder={role === "coach" ? setAssigningFolder : undefined}
           />

@@ -45,7 +45,7 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     chess, fen, turn, orientation, moveHistory, historyIndex,
     makeMove, isGameOver, arrows, setAnnotations, permissionMode, selectedStudentIds,
     selectedStudentSides, isEditingPosition, setPendingPromotion, activeBrush, isDrawingMode,
-    isDetached, localFlip, overlayArrows, pendingPromotion
+    isDetached, localFlip, overlayArrows, pendingPromotion, positionIssues, allowIllegalMoves, makeFreeMove
   } = useBoardStore(
     useShallow((s) => ({
       chess: s.chess,
@@ -69,6 +69,9 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       localFlip: s.localFlip,
       overlayArrows: s.overlayArrows,
       pendingPromotion: s.pendingPromotion,
+      positionIssues: s.positionIssues,
+      allowIllegalMoves: s.allowIllegalMoves,
+      makeFreeMove: s.makeFreeMove,
     })),
   );
   // Everyone may draw arrows on an interactive board. A student's marks stay on
@@ -103,18 +106,31 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
   const canMove = controlSide !== null;
   // A single-colour grant only unlocks the board on that colour's turn.
   const isMyTurn = canMove && (controlSide === "both" || controlSide === turn);
+  // A set-up only position (missing / extra kings, ...) is shown, never played.
+  const setupOnly = positionIssues.length > 0;
+  // The coach's "Allow Illegal Moves": every piece of a colour this client
+  // controls moves, whoever's turn it is, set-up only position or finished
+  // game included — for the coach and for a student holding control (not one
+  // detached on their own line, who may move without a grant).
+  const freeMoves = allowIllegalMoves && canMove && !isDetached;
   const movableColor = isEditingPosition
     ? "both"
-    : isGameOver || !isMyTurn
-      ? undefined
-      : controlSide === "both"
-        ? turn
-        : controlSide ?? undefined;
+    : freeMoves
+      ? controlSide ?? undefined
+      : isGameOver || !isMyTurn || setupOnly
+        ? undefined
+        : controlSide === "both"
+          ? turn
+          : controlSide ?? undefined;
+  // chessground moves a single colour only on its own turn: a one-colour
+  // grant with free moves gets that colour as the board's turn instead.
+  const cgTurn = freeMoves && (movableColor === "white" || movableColor === "black") ? movableColor : turn;
 
   // Compute legal moves
   const dests = useMemo(() => {
     if (isEditingPosition) return undefined; // Free movement
-    if (isGameOver || !movableColor) return new Map();
+    // Still computed with free moves on: the legal ones keep their hints.
+    if (isGameOver || !movableColor || setupOnly) return new Map();
     const moves = new Map();
     const legalMoves = chess.moves({ verbose: true });
     for (const move of legalMoves) {
@@ -124,7 +140,12 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       moves.get(move.from).push(move.to);
     }
     return moves;
-  }, [fen, isGameOver, chess, movableColor, isEditingPosition]);
+  }, [fen, isGameOver, chess, movableColor, isEditingPosition, setupOnly]);
+
+  // chessground keeps the `after` handler from construction: it reads the
+  // live values through this ref.
+  const moveRef = useRef({ freeMoves, setupOnly, fen, makeFreeMove });
+  moveRef.current = { freeMoves, setupOnly, fen, makeFreeMove };
 
   // Use a ref to access the latest state in the onChange callback without triggering infinite loops
   const stateRef = useRef({ arrows, activeBrush });
@@ -211,11 +232,11 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
 
     const config: Config = {
       fen,
-      turnColor: turn,
+      turnColor: cgTurn,
       orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
-      check: chess.inCheck(),
+      check: !setupOnly && chess.inCheck(),
       lastMove: lastMoveSquares as any,
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
@@ -224,13 +245,26 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       viewOnly: false,
       movable: {
         color: movableColor,
-        free: isEditingPosition,
+        free: isEditingPosition || freeMoves,
         showDests: highlightSettings.legalMovesEnabled,
         dests,
         events: {
           after: (orig, dest) => {
              if (isEditingPosition) {
                 return;
+             }
+             const live = moveRef.current;
+             if (live.freeMoves) {
+                // A legal move keeps its notation (and promotion choice);
+                // anything else is played as a free move.
+                const legal =
+                  !live.setupOnly &&
+                  chess.moves({ verbose: true }).some((m) => m.from === orig && m.to === dest);
+                if (!legal) {
+                  // Nothing changed in the store: put chessground back.
+                  if (!live.makeFreeMove(orig, dest)) cgRef.current?.set({ fen: live.fen });
+                  return;
+                }
              }
              const piece = chess.get(orig as any);
              if (piece && piece.type === 'p' && (dest[1] === '1' || dest[1] === '8')) {
@@ -301,11 +335,11 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
     if (!cg) return;
     cg.set({
       fen,
-      turnColor: turn,
+      turnColor: cgTurn,
       orientation: viewOrientation,
       coordinates: showCoordinates,
       animation: { enabled: animationEnabled && !isEditingPosition },
-      check: chess.inCheck(),
+      check: !setupOnly && chess.inCheck(),
       lastMove: lastMoveSquares as any,
       highlight: {
         lastMove: highlightSettings.highlightEnabled,
@@ -315,14 +349,14 @@ export function ChessgroundBoard({ readOnly = false }: { readOnly?: boolean } = 
       drawable: { enabled: canDraw },
       movable: {
         color: movableColor,
-        free: isEditingPosition,
+        free: isEditingPosition || freeMoves,
         showDests: highlightSettings.legalMovesEnabled,
         dests
       }
     });
   }, [
     cg, fen, turn, viewOrientation, showCoordinates, animationEnabled, highlightSettings, chess,
-    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw
+    lastMoveSquares, isGameOver, dests, canMove, movableColor, isEditingPosition, canDraw, setupOnly, freeMoves, cgTurn
   ]);
   
   // Sync annotations (arrows)

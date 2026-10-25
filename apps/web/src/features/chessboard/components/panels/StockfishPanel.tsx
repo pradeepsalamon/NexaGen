@@ -16,6 +16,9 @@ function whitePerspective(fen: string, result: StockfishAnalysisResult) {
 
 export function StockfishPanel() {
   const fen = usePersistedStore(state => state.fen);
+  // Stockfish refuses a position with missing / extra kings: don't ask it.
+  const positionIssues = usePersistedStore(state => state.positionIssues);
+  const setupOnly = positionIssues.length > 0;
   // Kept with the FEN it describes, so the score's sign uses the right side to move.
   const [analysis, setAnalysis] = useState<(StockfishAnalysisResult & { fen: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +28,7 @@ export function StockfishPanel() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    if (!fen || !isEnabled) return;
+    if (!fen || !isEnabled || setupOnly) return;
     let retryId: ReturnType<typeof setTimeout> | undefined;
 
     const performAnalysis = async () => {
@@ -71,7 +74,16 @@ export function StockfishPanel() {
         abortControllerRef.current.abort();
       }
     };
-  }, [fen, isEnabled, retryTick]);
+  }, [fen, isEnabled, setupOnly, retryTick]);
+
+  if (setupOnly) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
+        <span className="font-semibold mb-2 text-app-text">No engine for a set-up position</span>
+        <p>Stockfish needs a legal position. This one has {positionIssues.join(", ")}.</p>
+      </div>
+    );
+  }
 
   if (!isEnabled) {
     return (

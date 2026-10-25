@@ -2,7 +2,7 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 import { api, login, scheduleClass, seededBatchId, type Cookie } from "./fixtures";
 
 /**
- * Board workspace — Engine analysis, Load Game, Setup Position, Save.
+ * Board workspace — Engine analysis, Load Game, Setup Position (in place, tap-to-place, illegal positions), Save.
  *
  * Opt-in (needs infrastructure the rest of the suite doesn't):
  *   1. LiveKit + Postgres + Redis running:  docker compose up -d livekit postgres redis
@@ -94,7 +94,7 @@ test.describe("Analysis board", () => {
     await expect(page.getByText("Best Move")).toBeVisible();
 
     // ── Load Game (PGN) ───────────────────────────────────────────
-    await page.getByRole("button", { name: /Load Games\/Positions/i }).click();
+    await page.getByRole("button", { name: /^Setup Position$/ }).click();
     await page.getByRole("tab", { name: /Load Game/i }).click();
     await page
       .getByPlaceholder(/Casual game/i)
@@ -104,40 +104,82 @@ test.describe("Analysis board", () => {
     await expect.poll(() => page.evaluate(() => window.__nexaBoard!.moveCount())).toBe(6);
     await expect(page.getByText("Nf3", { exact: false })).toBeVisible();
 
-    // ── Setup Position ────────────────────────────────────────────
-    await page.getByRole("button", { name: /Load Games\/Positions/i }).click();
+    // ── Setup Position (in place of the board, not a dialog) ─────
+    await page.getByRole("button", { name: /^Setup Position$/ }).click();
     const fen = "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 0 1";
-    await page.getByRole("tab", { name: /Setup Position/i }).click();
+    const workspace = page.getByTestId("setup-position-workspace");
+    await expect(workspace).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(workspace.getByRole("tab", { name: /Setup Position/i })).toHaveAttribute("aria-selected", "true");
 
-    const dialog = page.getByRole("dialog");
-    const boardPieces = dialog.locator('[data-testid="position-editor-board"] piece');
+    const editorBoard = workspace.getByTestId("position-editor-board");
+    const boardPieces = editorBoard.locator("piece:not(.ghost)");
 
-    // Board actually renders (regression: the setup board used to be blank).
+    // Starts from the board's own position (the PGN loaded above), not the start position.
     await expect.poll(() => boardPieces.count()).toBe(32);
+    await expect(workspace.getByLabel("FEN")).toHaveValue(/^r1bqkbnr\/1ppp1ppp\/p1n5\/1B2p3/);
 
     // Spare-piece palette renders (6 roles x 2 colors).
-    await expect(dialog.locator("[data-spare-piece]")).toHaveCount(12);
-    await expect(dialog.locator('[data-spare-piece="white-queen"]')).toBeVisible();
+    await expect(workspace.locator("[data-spare-piece]")).toHaveCount(12);
+    await expect(workspace.locator('[data-spare-piece="white-queen"]')).toBeVisible();
 
     // Castling controls are visible and clickable (regression: a stray bar used
     // to overlap the black-castling row).
-    const blackKingside = dialog.getByRole("checkbox", { name: "Black kingside (O-O)" });
+    const blackKingside = workspace.getByRole("checkbox", { name: "Black kingside (O-O)" });
     await expect(blackKingside).toBeVisible();
     await blackKingside.uncheck();
     await expect(blackKingside).not.toBeChecked();
 
     // FEN field drives the board reactively.
-    await dialog.getByLabel("FEN").fill("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
+    await workspace.getByLabel("FEN").fill("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
     await expect.poll(() => boardPieces.count()).toBe(2);
 
-    await dialog.getByLabel("FEN").fill(fen);
+    // Tap-to-place: select a spare piece, then tap squares (it stays selected).
+    const square = async (sq: string) => {
+      const box = (await editorBoard.boundingBox())!;
+      const col = "abcdefgh".indexOf(sq[0]);
+      const row = 8 - Number(sq[1]);
+      return { x: box.x + (col + 0.5) * (box.width / 8), y: box.y + (row + 0.5) * (box.height / 8) };
+    };
+    const whiteQueen = workspace.locator('[data-spare-piece="white-queen"]');
+    await whiteQueen.click();
+    await expect(whiteQueen).toHaveAttribute("aria-pressed", "true");
+    for (const sq of ["d4", "a6"]) {
+      const at = await square(sq);
+      await page.mouse.click(at.x, at.y);
+    }
+    await expect(workspace.getByLabel("FEN")).toHaveValue(/^4k3\/8\/Q7\/8\/3Q4\/8\/8\/4K3 /);
+
+    // An illegal position (kings removed, a pawn on the 8th rank) loads as set-up only.
+    await workspace.getByRole("button", { name: "Remove", exact: true }).click();
+    for (const sq of ["e1", "e8"]) {
+      const at = await square(sq);
+      await page.mouse.click(at.x, at.y);
+    }
+    await workspace.locator('[data-spare-piece="white-pawn"]').click();
+    {
+      const at = await square("h8");
+      await page.mouse.click(at.x, at.y);
+    }
+    await expect(workspace.getByText(/Set-up position \(no white king, no black king/)).toBeVisible();
+    await workspace.getByRole("button", { name: /^Load Position$/ }).click();
+    await expect(workspace).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => window.__nexaBoard!.fen())).toContain("7P/8/Q7/8/3Q4/8/8/8");
+    await expect(page.getByTestId("setup-only-notice")).toBeVisible();
+    expect(await page.evaluate(() => window.__nexaBoard!.move("d4", "d5"))).toBe(false);
+
+    // Back to a legal position; play resumes under normal rules.
+    await page.getByRole("button", { name: /^Setup Position$/ }).click();
+    await workspace.getByLabel("FEN").fill(fen);
     await expect.poll(() => boardPieces.count()).toBe(32);
 
-    await page.getByRole("button", { name: /^Load Position$/ }).click();
+    await workspace.getByRole("button", { name: /^Load Position$/ }).click();
 
     await expect
       .poll(() => page.evaluate(() => window.__nexaBoard!.fen()))
       .toContain("r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R");
+    await expect(page.getByTestId("setup-only-notice")).toHaveCount(0);
+    expect(await page.evaluate(() => window.__nexaBoard!.positionIssues())).toEqual([]);
 
     // ── Save ──────────────────────────────────────────────────────
     // navigator.clipboard is a getter-only property: plain assignment is a no-op.

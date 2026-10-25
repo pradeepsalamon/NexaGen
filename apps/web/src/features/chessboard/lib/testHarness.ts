@@ -24,6 +24,14 @@ export interface BoardTestHarness {
   setFen: (fen: string) => void;
   loadPgn: (pgn: string) => void;
   moveCount: () => number;
+  /** Non-empty while the board shows a set-up only position. */
+  positionIssues: () => string[];
+  /** "Allow Illegal Moves" as this board sees it (synced to students). */
+  allowIllegalMoves: () => boolean;
+  /** A free move, chess rules ignored — what a drop does with illegal moves allowed. */
+  freeMove: (from: string, to: string) => boolean;
+  undo: () => void;
+  redo: () => void;
 }
 
 declare global {
@@ -55,6 +63,11 @@ export function installBoardTestHarness(store: StoreApi<BoardStore>): () => void
       s.pushHistory(s.fen, pgn);
     },
     moveCount: () => store.getState().moveHistory.length,
+    positionIssues: () => store.getState().positionIssues,
+    allowIllegalMoves: () => store.getState().allowIllegalMoves,
+    freeMove: (from, to) => store.getState().makeFreeMove(from, to),
+    undo: () => store.getState().undo(),
+    redo: () => store.getState().redo(),
   };
   return () => {
     delete window.__nexaBoard;

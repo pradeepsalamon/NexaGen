@@ -25,7 +25,9 @@ export function BoardNavigation() {
     historyIndex,
     moveHistory,
     isDrawingMode,
-    setIsDrawingMode
+    setIsDrawingMode,
+    hasFreeUndo,
+    hasFreeRedo
   } = useBoardStore(
     useShallow((s) => ({
       orientation: s.orientation,
@@ -40,12 +42,17 @@ export function BoardNavigation() {
       moveHistory: s.moveHistory,
       isDrawingMode: s.isDrawingMode,
       setIsDrawingMode: s.setIsDrawingMode,
+      hasFreeUndo: s.freeMoveUndo.length > 0,
+      hasFreeRedo: s.freeMoveRedo.length > 0,
     })),
   );
   
   const canModify = permissionMode !== "VIEW_ONLY"; 
   const canUndo = historyIndex >= 0;
   const canRedo = historyIndex < moveHistory.length - 1;
+  // Prev / Next also step across illegal (free) moves, which start a new line.
+  const canStepBack = canUndo || hasFreeUndo;
+  const canStepForward = canRedo || hasFreeRedo;
 
   return (
     <div className="flex items-center justify-center gap-2 mt-4 text-app-muted">
@@ -53,7 +60,7 @@ export function BoardNavigation() {
         <NavIconButton aria-label="Jump to start" icon={<SkipBack className="size-4" />} onClick={jumpToStart} disabled={!canUndo} />
       </SimpleTooltip>
       <SimpleTooltip label="Previous move (←)">
-        <NavIconButton aria-label="Previous move" icon={<ChevronLeft className="size-[18px]" />} onClick={undo} disabled={!canUndo} />
+        <NavIconButton aria-label="Previous move" icon={<ChevronLeft className="size-[18px]" />} onClick={undo} disabled={!canStepBack} />
       </SimpleTooltip>
       <SimpleTooltip label="Toggle 1-click drawing mode">
         <NavIconButton aria-label="Toggle drawing mode" icon={<PenTool className="size-4" />} onClick={() => setIsDrawingMode(!isDrawingMode)} isActive={isDrawingMode} />
@@ -65,7 +72,7 @@ export function BoardNavigation() {
         <NavIconButton aria-label="Reset board" icon={<X className="size-4" />} onClick={reset} disabled={!canModify} />
       </SimpleTooltip>
       <SimpleTooltip label="Next move (→)">
-        <NavIconButton aria-label="Next move" icon={<ChevronRight className="size-[18px]" />} onClick={redo} disabled={!canRedo} />
+        <NavIconButton aria-label="Next move" icon={<ChevronRight className="size-[18px]" />} onClick={redo} disabled={!canStepForward} />
       </SimpleTooltip>
       <SimpleTooltip label="Jump to end (↓)">
         <NavIconButton aria-label="Jump to end" icon={<SkipForward className="size-4" />} onClick={jumpToEnd} disabled={!canRedo} />

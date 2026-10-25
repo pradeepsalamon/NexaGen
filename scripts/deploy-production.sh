@@ -494,13 +494,17 @@ echo "========================================"
 echo "Cleaning up dangling images and build cache..."
 # Only dangling images go: `:last-good` and `:previous` are tagged, so the
 # rollback generations survive.
-# Build cache: `--reserved-space 2GB` alone exited 0 without removing anything
-# on Engine 29 / buildx 0.36 (52GB of week-old layers survived a dozen deploys),
-# so prune by age, then cap the total. Output stays visible in the deploy log.
+# Build cache: on Engine 29's containerd image store the cache total also counts
+# the layers of every live image, so size caps (`--reserved-space`,
+# `--max-used-space 10GB`) and `--filter until=72h` all left most of it behind
+# (2026-10-25: until=72h reclaimed 0B, ~26GB survived deploys). Drop all unused
+# cache instead — rollback uses the tagged images, never the cache; the cost is
+# a cold `npm ci` on the next build. The before/after lines show a no-op.
 if [ "${DEPLOY_SKIP_PRUNE:-}" != "1" ]; then
   docker image prune -f
-  docker builder prune -f --filter until=72h || true
-  docker builder prune -f --max-used-space 10GB || docker builder prune -f --keep-storage 10GB || true
+  docker system df | grep -E '^(TYPE|Build Cache)' || true
+  docker builder prune -f | tail -1 || true
+  docker system df | grep -E '^Build Cache' || true
 fi
 
 echo "Deployment complete."

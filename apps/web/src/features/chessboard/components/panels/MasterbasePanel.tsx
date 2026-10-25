@@ -30,12 +30,14 @@ interface MasterbaseResponse {
 
 export function MasterbasePanel() {
   const fen = useBoardStore((state) => state.fen);
+  // No master game reached a position with missing / extra kings.
+  const setupOnly = useBoardStore((state) => state.positionIssues.length > 0);
   const [data, setData] = useState<MasterbaseResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!fen) return;
+    if (!fen || setupOnly) return;
 
     const controller = new AbortController();
     const fetchExplorer = async () => {
@@ -61,7 +63,16 @@ export function MasterbasePanel() {
 
     fetchExplorer();
     return () => controller.abort();
-  }, [fen]);
+  }, [fen, setupOnly]);
+
+  if (setupOnly) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-sm text-app-muted p-4 text-center">
+        <span className="font-semibold mb-2">Masterbase Explorer</span>
+        <p>Master games start from legal positions — there is nothing to look up for a set-up position.</p>
+      </div>
+    );
+  }
 
   if (error) {
     return (

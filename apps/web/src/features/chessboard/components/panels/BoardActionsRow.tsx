@@ -13,7 +13,7 @@ import { NavIconButton } from "../toolbars/BoardNavigation";
 
 /** Coach's board actions: save, setup position, undo/redo, PGN copy/paste, engine move. */
 export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => void; className?: string }) {
-  const { pgn, undo, redo, historyIndex, moveHistory, isGameOver, setIsSetupPositionOpen } = useBoardStore(
+  const { pgn, undo, redo, historyIndex, moveHistory, isGameOver, setIsSetupPositionOpen, hasFreeUndo, hasFreeRedo } = useBoardStore(
     useShallow((s) => ({
       pgn: s.pgn,
       undo: s.undo,
@@ -22,6 +22,9 @@ export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => v
       moveHistory: s.moveHistory,
       isGameOver: s.isGameOver,
       setIsSetupPositionOpen: s.setIsSetupPositionOpen,
+      // Undo / Redo also step across illegal (free) moves.
+      hasFreeUndo: s.freeMoveUndo.length > 0,
+      hasFreeRedo: s.freeMoveRedo.length > 0,
     })),
   );
   const { isEngineMoving, playEngineMove } = useEngineMove();
@@ -66,14 +69,14 @@ export function BoardActionsRow({ onPastePgn, className }: { onPastePgn: () => v
         Setup Position
       </Button>
       <SimpleTooltip label="Undo">
-        <NavIconButton aria-label="Undo" icon={<Undo2 className="size-4" />} onClick={undo} disabled={historyIndex < 0} />
+        <NavIconButton aria-label="Undo" icon={<Undo2 className="size-4" />} onClick={undo} disabled={historyIndex < 0 && !hasFreeUndo} />
       </SimpleTooltip>
       <SimpleTooltip label="Redo">
         <NavIconButton
           aria-label="Redo"
           icon={<Redo2 className="size-4" />}
           onClick={redo}
-          disabled={historyIndex >= moveHistory.length - 1}
+          disabled={historyIndex >= moveHistory.length - 1 && !hasFreeRedo}
         />
       </SimpleTooltip>
       <SimpleTooltip label="Copy PGN">

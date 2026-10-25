@@ -25,7 +25,7 @@ Infra: `docker-compose.yml` (web, api, postgres, redis, livekit), self-hosted on
 ## 2. Environment & commands
 
 - **Platform: Windows.** Primary shell is PowerShell; a Bash tool is also available. Use forward slashes in paths.
-- Node package manager: **npm** (`npm@11.15.0`). Never use `pnpm`/`yarn` (a stray `pnpm-lock.yaml` exists in `packages/types` — ignore it).
+- Node package manager: **npm** (`npm@11.15.0`). Never use `pnpm`/`yarn`. A vulnerable transitive dependency with no fixed parent release is pinned in root `package.json` `overrides` — npm only applies a new override to a package already in the lockfile after its `package-lock.json` entry is removed and `npm install` re-run.
 - API env file: `apps/api/.env` (not committed). Root `.env` is for docker-compose. Examples: `.env.example`, `apps/api/.env.example`.
 
 ### Common commands (run from repo root)
@@ -279,6 +279,10 @@ Global `UserThrottlerGuard` (100/min; auth 5/min, password reset 3/min), keyed b
 ### 3.6k1 Move tree, variations & Game Library
 
 `packages/types/src/move-tree.ts` is the one branching move tree (a different move **adds a variation, never truncates**; callers pass a `MoveTreeChessFactory`). Game Library: `game-library/` (API + web), pages `/games`; `GameRecorderService` copies class games fire-and-forget, idempotent on `sourceKey`. Details: [docs/FEATURES.md](docs/FEATURES.md).
+
+### 3.6k1b Setup Position & set-up only positions
+
+Setup Position is `SetupPositionWorkspace`, rendered **in place of the main board** (never a dialog), seeded from the board. `PositionEditor` has tap-to-select tools (piece / Remove / Move) beside drag. **Setting up never checks legality**: `readSetupFen` (`@nexa-chess/types`) rejects only unreadable notation; anything else loads, and a position with `issues` (no/extra kings, back-rank pawns, wrong side in check) becomes a set-up only board (`positionIssues` in the board store: no moves, no engine). Never route a setup FEN through `new Chess(fen)` — use `moveTreeForFen` / `inspectFen`. The editor in the workspace (`fill`) is its one scroller and sizes the board in JS — never centre an overflowing board with `align-items: center`. The coach's **Allow Illegal Moves** (`allowIllegalMoves`, key `I`) plays a refused move via `makeFreeMove` as a new tree root; `freeMoveUndo`/`freeMoveRedo` let Undo cross it. It rides on `UPDATE_PERMISSIONS`, so a student holding control moves their granted colour(s) freely too — receivers accept only a re-derived free move (`isOneAllowedMoveAway` / `freeMoveBetween`), never the packet's FEN. Details: [docs/FEATURES.md](docs/FEATURES.md).
 
 ### 3.6k2 Persistent chat (outside live classes)
 

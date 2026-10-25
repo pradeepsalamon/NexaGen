@@ -202,7 +202,7 @@ theme is persisted in `localStorage` (`nexa-chess-theme`).
   `overflow-y-auto overscroll-contain`; add `sm:max-w-[600px]`, full-bleed-ish
   on phone. A dialog whose content changes height while open (tabs, activity
   type, a growing solution) gets a **fixed** height plus a pinned footer
-  (`AssignmentFormDialog`, `SetupPositionDialog`) — a centred dialog that
+  (`AssignmentFormDialog`) — a centred dialog that
   grows or shrinks visibly jumps up and down on every change.
 - On touch (`pointer: coarse`) `DialogContent` focuses the dialog itself on
   open, not its first field, so the keyboard doesn't pop up uninvited.

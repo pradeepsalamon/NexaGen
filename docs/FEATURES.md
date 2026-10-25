@@ -61,6 +61,101 @@ variations/comments/NAGs round-trips via `moveTreeToPgn` /
   once COMPLETED, same start FEN, optimistic `version` (409 on a stale one).
   Only IMPORT games are deletable (importer or admin). Not soft-deletable.
 
+## 3.6k1b Setup Position & set-up only positions
+
+**Setup Position opens in place, not in a dialog.** While the board store's
+`isSetupPositionOpen` is set, `SetupPositionWorkspace`
+(`features/chessboard/components/layout/`) takes the main board's spot —
+`BoardWorkspace` swaps it for the board column (phones also hide the sidebar),
+`ClassroomBoard` (coach only) hides its board column (kept mounted so the
+side-column `ResizeObserver` survives) and renders the workspace there. The
+set-up board starts from the main board's FEN and orientation; nothing reaches
+the board — or the class — until **Load Position** (`pushHistory`). Tabs: Setup
+Position, Load Game (PGN), From PDF (live class only). Escape drops the selected
+tool first, then closes. While open, `useBoardShortcuts`, the coach's Space
+(engine move) and the puzzle share/load keys are off.
+
+**Workspace layout (`PositionEditor fill`).** The editor is the workspace's
+*one* scroller and sizes the board in JS (`fillLayout`): a `ResizeObserver`
+measures the scroller's content box and the board column's non-board height
+(trays, plus Move/Remove when they sit below), and the board takes what's left
+(never under 284px, a six-piece tray). Settings go beside the board while that
+leaves it ≥ 300px, else below; Move/Remove sit in a rail left of the board when
+the column has room. The board block is centred with auto margins, never
+`align-items: center` — that was the 2026-10 bug: a centred board taller than
+its `container-type: size` box overflowed upward, off the scroller's reachable
+top, so the black tray and top ranks were unreachable at short heights, while
+the settings column scrolled separately beside it. Header controls: **Collapse
+/ Expand settings** (hides the column, values kept), **Maximize board** (the
+same section goes `fixed inset-0 z-40` over the room — no remount, so the FEN
+and the selected tool survive) and **Restore layout** (undoes both; Escape
+while maximized restores before it closes).
+
+**`PositionEditor` tools** (every consumer: setup, puzzle form, assignment form,
+PDF review): tap a spare piece to select it (`aria-pressed`, stays selected),
+then tap — or drag across — squares to place it; **Remove** erases the same way;
+**Move** (or tapping the selected piece again, or Escape) goes back to plain
+dragging. Hold-and-drag from the tray (`dragNewPiece`, now on `pointerdown`) and
+dragging pieces off the board still work. Board presses with a tool selected are
+caught by native capture listeners before chessground sees them (`touchstart`
+non-passive, so no scroll). `emit` updates `partsRef` synchronously so rapid taps
+never build on a stale placement.
+
+**Legality is not checked while setting up.** `readSetupFen` (`@nexa-chess/types`
+`chess-fen.ts`, pure) rejects only notation that isn't a board (wrong rank
+count/length, bad side/castling/en-passant/counters) and reports everything else
+as `issues`: no king / several kings of a colour, a pawn on the first or last
+rank, the side not to move in check. Web `inspectFen` (`lib/fen.ts`) adds
+chess.js's own verdict, so "no issues" always loads into chess.js. The editor
+shows the verdict under the FEN field. A position with issues loads as a
+**set-up only** position: the board store keeps the FEN exactly (`fen` =
+`tree.rootFen`, no moves) and sets `positionIssues`; `makeMove` /
+`applyRemoteMove` refuse, chessground gets no movable colour or check marker,
+Stockfish / Masterbase / the engine move stand down, and `SetupOnlyNotice` says
+why. Normal games never see any of this (`positionIssues` is empty and every
+legality check is unchanged). `moveTreeForFen` is the tolerant FEN → tree path
+used by `pushHistory`, `setFen`, `syncFromRemote` and chapters, so students,
+reloads and chapter restores accept the position too; an empty-move board is
+not recorded in the Game Library. Load Game (PGN) stays strict — a game needs
+legal moves. Tests: `apps/api/src/common/chess/setup-fen.spec.ts`,
+`e2e/analysis-board.spec.ts`.
+
+**Allow Illegal Moves (coach main board).** `IllegalMovesToggle`
+(`components/toolbars/`, in `ClassroomBoard`'s top row and `BoardWorkspace`'s
+header, staff/coach only; the `I` key toggles it while it is on screen) sets
+the board store's `allowIllegalMoves`, off on every load. While on,
+`ChessgroundBoard` gives chessground `movable: { color: <side this client
+controls>, free: true }` (set-up only positions and finished games included); a drop that chess.js accepts still goes
+through `makeMove` (notation, promotion dialog, clock), anything else through
+`makeFreeMove` → `freeMoveFen` (`chess-fen.ts`: lift the piece, capture whatever
+is on the target — a king too — other side to move, broken castling rights
+dropped, no en passant, a pawn stays a pawn). A free move updates the moved
+piece's clock, including out-of-turn moves, when that clock is enabled and
+running for the mover. The move tree only holds legal
+moves, so a free move starts a new tree at the resulting position (new
+`gameId`) and pushes the old `{tree, line, cursor, gameId}` on `freeMoveUndo`;
+Undo / Redo at either end of the line step across those (`freeMoveRedo`), every
+load clears both. Students get the position through the normal MOVE broadcast
+(`moveTreeForFen` accepts it, set-up only or not). Off again = legal moves
+immediately, no refresh.
+
+**Students with board control move freely too.** In a live class the flag rides
+on `UPDATE_PERMISSIONS` (`PermissionPayload.allowIllegalMoves`; the coach
+rebroadcasts when it flips, `useLiveBoardSync`), so a student holding control —
+everyone (`EVERYONE`) or a per-student grant — gets free moves **for the
+colour(s) they were granted only** (a white-only grant drags any white piece,
+any time); a detached student does not. They see an `IllegalMovesBadge` instead
+of the switch. Receivers never trust the packet's FEN: `isOneAllowedMoveAway`
+(`boardSyncRules.ts`) accepts a student's MOVE that is one legal move **or**,
+while the receiver's own flag is on, one free move (`freeMoveBetween` in
+`chess-fen.ts`, which finds the from/to squares and re-derives the FEN), and the
+side check still applies; the board replays it with `applyRemoteFreeMove`, so
+every client keeps the same `freeMoveUndo` stack. A student's Undo / Redo across
+a free move is broadcast as UNDO / REDO and replayed with
+`applyRemoteFreeMoveStep` (only if it lands on the same position). The coach
+stays the clock authority as for legal moves. The recorder / spectator board
+(`readOnlyBoard.ts`) applies the same rule.
+
 ## 3.6k2 Persistent chat (outside live classes)
 
 `apps/api/src/chat/`, `features/chat/`, page `/messages` (all roles), routes
@@ -191,7 +286,7 @@ side-to-move helpers) + `diagram-position.ts` (`validateDiagramPosition`:
 errors block, warnings need the coach; takes a chess.js probe) +
 `diagram-piece-templates.ts` (**generated** — `scripts/diagram-import/`); web
 `features/diagram-import/`, pages `/coach|admin/puzzles/import-pdf`, and the
-"From PDF" tab of `SetupPositionDialog` (only when `pdfImport` is passed —
+"From PDF" tab of `SetupPositionWorkspace` (only when `pdfImport` is passed —
 `ClassroomBoard` does, for the coach; lazy-loaded).
 
 - **The PDF never leaves the browser.** No upload route, no storage, nothing to

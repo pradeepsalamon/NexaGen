@@ -321,6 +321,47 @@ export const bulkPuzzleActionRequestSchema = z.object({
 export type BulkPuzzleActionRequest = z.infer<typeof bulkPuzzleActionRequestSchema>;
 export type BulkPuzzleActionResponse = { updated: number };
 
+/** Most puzzles one bulk edit may touch (a folder's worth). */
+export const MAX_BULK_PUZZLE_UPDATE = 500;
+
+/**
+ * Bulk edit: only the fields present change; everything else on each puzzle
+ * stays as it is. `fromTopicId` pins the edit to the folder the puzzles were
+ * picked from — a puzzle moved elsewhere since is skipped, not edited.
+ */
+export const bulkUpdatePuzzlesRequestSchema = z
+  .object({
+    ids: z.array(z.string().min(1)).min(1).max(MAX_BULK_PUZZLE_UPDATE),
+    fromTopicId: z.string().min(1).optional(),
+    topicId: z.string().min(1).optional(),
+    difficulty: puzzleDifficultySchema.optional(),
+    puzzleType: puzzleTypeSchema.optional(),
+    status: z.enum(["PUBLISHED", "DRAFT", "ARCHIVED"]).optional(),
+    addTags: puzzleTagsSchema.optional(),
+    removeTags: puzzleTagsSchema.optional(),
+    /** Literal, case-sensitive find → replace in each title. */
+    titleReplace: z
+      .object({ find: z.string().min(1).max(200), replace: z.string().max(200) })
+      .optional()
+  })
+  .refine(
+    (v) =>
+      v.topicId !== undefined ||
+      v.difficulty !== undefined ||
+      v.puzzleType !== undefined ||
+      v.status !== undefined ||
+      (v.addTags?.length ?? 0) > 0 ||
+      (v.removeTags?.length ?? 0) > 0 ||
+      v.titleReplace !== undefined,
+    { message: "Choose at least one field to change." }
+  );
+export type BulkUpdatePuzzlesRequest = z.infer<typeof bulkUpdatePuzzlesRequestSchema>;
+export type BulkUpdatePuzzlesResponse = {
+  updated: number;
+  /** Puzzles left untouched, and why (not yours, moved, no solution to publish…). */
+  skipped: { id: string; title: string; reason: string }[];
+};
+
 export const MAX_PUZZLE_IMPORT = 200;
 
 /** Many puzzles at once, e.g. every game of a multi-game PGN file. */
