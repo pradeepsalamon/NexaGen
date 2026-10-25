@@ -22,7 +22,7 @@ if ! changed=$(git diff --name-only "${base}...HEAD"); then
   exit 0
 fi
 if printf '%s\n' "$changed" | grep -qE \
-  '^(packages/|prisma/|apps/api/prisma/|apps/api/src/test/|apps/api/(jest[^/]*|tsconfig[^/]*|package)\.(ts|json)$|package(-lock)?\.json$|turbo\.json$|\.github/workflows/)'; then
+  '^(packages/|prisma/|apps/api/prisma/|apps/api/src/test/|apps/api/(jest[^/]*|tsconfig[^/]*|package)\.(ts|json)$|package(-lock)?\.json$|turbo\.json$|\.github/workflows/ci\.yml$|scripts/ci/)'; then
   echo "Shared packages, schema, test setup or dependencies changed; running the full suite." >&2
   exit 0
 fi
