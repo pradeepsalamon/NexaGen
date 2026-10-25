@@ -5,10 +5,14 @@
 #
 #   scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours \
 #     [--model qwen2.5:3b] [--bundles 10] [--out DIR] \
-#     [--env-file /opt/nexa-chess/NexaGen/.env] [--no-stockfish]
+#     [--env-file /opt/nexa-chess/NexaGen/.env] [--no-stockfish] [--no-think]
+#
+# --no-think: send Ollama `think: false` (thinking models such as qwen3:4b).
 #
 # What it does, in order:
-#   1. Refuses unless: --confirm-off-hours, ≥ 20 GB disk free, the live API's
+#   1. Builds @nexa-chess/types (the shared grounding rules, class-summary.ts)
+#      and runs the scorer's self-test and stub test. Then refuses unless:
+#      --confirm-off-hours, ≥ 20 GB disk free, the live API's
 #      RECORDING_STORAGE_LIMIT_GB ≤ 90 (OD-19), and LiveKit reports no room
 #      with participants.
 #   2. Starts a throwaway Ollama (--cpus 1.5, --memory 5g, lower CPU weight than
@@ -35,6 +39,7 @@ OUT="$HOME/ai-bench/$(date -u +%Y%m%dT%H%M%SZ)"
 CONFIRMED=false
 STOCKFISH=true
 KEEP_IMAGE=false
+THINK_ARGS=()
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -45,6 +50,7 @@ while [ $# -gt 0 ]; do
     --env-file) ENV_FILE="$2"; shift ;;
     --no-stockfish) STOCKFISH=false ;;
     --keep-image) KEEP_IMAGE=true ;;
+    --no-think) THINK_ARGS=(--no-think) ;;
     *) echo "unknown argument: $1" >&2; exit 1 ;;
   esac
   shift
@@ -56,6 +62,11 @@ live_rooms() { node scripts/ai/benchmark/livekit-rooms.mjs --env-file "$ENV_FILE
 
 echo "Pre-flight"
 $CONFIRMED || refuse "pass --confirm-off-hours (no live class may run during the benchmark)"
+
+npm run build -w @nexa-chess/types >/dev/null 2>&1 || refuse "npm run build -w @nexa-chess/types failed"
+node scripts/ai/benchmark/bench.mjs --self-test >/dev/null || refuse "scorer self-test failed"
+node --test scripts/ai/benchmark/bench.stub.test.mjs >/dev/null 2>&1 || refuse "scorer stub test failed"
+echo "  ok  scorer self-test + stub test"
 
 free_gb=$(df -BG --output=avail / | tail -1 | tr -dc 0-9)
 [ "$free_gb" -ge 20 ] || refuse "only ${free_gb} GB free on /"
@@ -124,7 +135,7 @@ SAMPLER_PID=$!
 done) &
 WATCHER_PID=$!
 
-bench_args=(--host "http://127.0.0.1:${PORT}" --model "$MODEL" --bundles "$BUNDLES" --out "$OUT" --rss-file "$RSS_FILE" --abort-file "$ABORT_FILE")
+bench_args=(--host "http://127.0.0.1:${PORT}" --model "$MODEL" --bundles "$BUNDLES" --out "$OUT" --rss-file "$RSS_FILE" --abort-file "$ABORT_FILE" "${THINK_ARGS[@]}")
 $STOCKFISH && bench_args+=(--stockfish "docker exec -i nexa_api stockfish")
 
 set +e

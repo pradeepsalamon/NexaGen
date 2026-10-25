@@ -5,6 +5,19 @@
 // E1..En, students S1..Sn, room-wide chat only. Nothing here comes from the
 // database; the games are public-domain classics and every name is invented.
 // Deterministic for a given index, so runs on different machines compare.
+//
+// Game items carry `moves`, the SAN mainline replayed here, as the Phase 3
+// evidence builder will replay a chapter's move tree. Summary lines are built
+// from it in code (class-summary.ts); the model never writes moves.
+// (chess.js directly: these are standard-start games, so the castling-rights
+// issue the apps' Chess wrapper guards against can't arise.)
+import { Chess } from "chess.js";
+
+function replay(pgn) {
+  const chess = new Chess();
+  chess.loadPgn(pgn);
+  return chess.history();
+}
 
 const GAMES = [
   {
@@ -72,9 +85,9 @@ export function makeBundle(index) {
 
   add({ kind: "CLASS", title: `Batch lesson ${index + 1}: ${game.topic}`, durationMinutes: 45 + (index % 4) * 15, level: pick(["BEGINNER", "INTERMEDIATE"]) });
   add({ kind: "ACTIVITY_OUTLINE", items: ["Warm-up puzzles", `Model game: ${game.title}`, "Puzzle set", "Q&A"] });
-  const pgnRef = add({ kind: "CHAPTER_PGN", title: game.title, pgn: game.pgn });
+  const pgnRef = add({ kind: "CHAPTER_PGN", moves: replay(game.pgn), title: game.title, pgn: game.pgn });
   const extra = GAMES[(index + 1) % GAMES.length];
-  add({ kind: "CHAPTER_PGN", title: `Homework preview: ${extra.title}`, pgn: extra.pgn });
+  add({ kind: "CHAPTER_PGN", moves: replay(extra.pgn), title: `Homework preview: ${extra.title}`, pgn: extra.pgn });
   add({ kind: "ATTENDANCE", present: studentCount - (index % 2), rostered: studentCount });
 
   const puzzleCount = 3 + (index % 3);

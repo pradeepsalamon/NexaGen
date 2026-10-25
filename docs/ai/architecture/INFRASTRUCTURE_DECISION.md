@@ -84,14 +84,17 @@ because migrations are additive.
   - peak RSS ≤ 4.5 GB
   - schema-valid ≥ 95% before retry
   - grounding violations 0 after validation
+  - **usable ≥ 90% after one retry** (added 2026-10-25 for the re-run; "usable"
+    is defined in §4.3 before any run)
 
 ### 4.1 Running it
 
 Approved 2026-10-19 (OD-6a, OD-19). The harness is `scripts/ai/benchmark/`:
 
 ```bash
-node scripts/ai/benchmark/bench.mjs --self-test        # validator checks, no model, safe anywhere
-scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen2.5:3b]
+node scripts/ai/benchmark/bench.mjs --self-test                 # validator checks, no model, safe anywhere
+node --test scripts/ai/benchmark/bench.stub.test.mjs            # whole scorer against a stub Ollama
+scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen2.5:3b] [--no-think]
 ```
 
 - **Pre-flight refusals.** The runner refuses with < 20 GB free, while the live
@@ -103,12 +106,293 @@ scripts/ai/benchmark/run-capacity-benchmark.sh --confirm-off-hours [--model qwen
   volume are always removed, even on Ctrl-C.
 - **Bundles.** Ten synthetic bundles (`bundles.mjs`: public-domain games,
   invented students). They're scored against the Phase 3 schema and grounding
-  rules (`validate.mjs`) with one repair retry.
-- **Measured besides the four criteria.** Tokens/s, a keyword fact-recall
+  rules with one repair retry. Since 2026-10-25 the rules are the shared
+  module `packages/types/src/class-summary.ts` (§4.3); `validate.mjs` only
+  wraps it, and the runner builds `@nexa-chess/types` and runs both tests
+  before it starts a container.
+- **Measured besides the five criteria.** Tokens/s, a keyword fact-recall
   proxy (the Phase 3 golden set doesn't exist yet), and the slowdown of a
   fixed-node Stockfish search inside `nexa_api`.
 - **Output.** `report.md` and `results.json` in `~/ai-bench/<UTC timestamp>/`.
   Paste the verdict into this section.
+
+### 4.2 Result: run of 2026-10-19 (qwen2.5:3b, Ollama 0.34.4)
+
+Run 18:22 UTC, no class live. Raw output is in `~/ai-bench/20261019T170505Z/` on the box; the container, weights and image were removed afterwards.
+
+**Capacity: PASS. Quality: not good enough yet.**
+
+| Criterion | Target | Measured | |
+|---|---|---|---|
+| Summary p95 (incl. repair retry) | ≤ 10 min | 9.12 min | ok (tight) |
+| Peak RSS | ≤ 4.5 GiB | 3.31 GiB | ok |
+| Schema-valid before retry | ≥ 95% | 100% | ok |
+| Grounding violations after validation | 0 | 0 | ok |
+
+| Also measured | Value |
+|---|---|
+| Summaries usable (READY) after one retry | **5 / 10** |
+| Grounding violations before retry | 10, mostly invented `variations` (e.g. a poll's `Nxf7` cited as a move of the game, looping move lists) and one `S#` in the student view |
+| Prompt / generation tokens/s (median) | 18.1 / 4.2 |
+| Fact recall (keyword proxy) | 30% |
+| Stockfish slowdown during generation | 1.04× (median 5.3 s fixed-node search) |
+
+Reading:
+
+- **This box can run the model.** It stays within the 1.5-CPU / 5 GB envelope,
+  and Stockfish is barely affected.
+- **The four pass criteria miss the success rate.** Every rejected summary was
+  caught, so nothing wrong would reach a coach. But half the classes would
+  get no summary.
+- **Proposed fifth criterion:** "≥ 90% READY after one retry".
+
+Before Phase 3, re-run with these two changes:
+
+1. **`variations` comes from code.** Build `variations` deterministically from
+   the evidence (ADR-008: chess correctness is never delegated to an LLM). The
+   model only comments on lines it is given. This removes the largest failure
+   class.
+2. **Compare a stronger model.** Run a ≤4B candidate from AI_FOUNDATION.md §4.4
+   (e.g. Qwen3-4B) side by side.
+
+Harness fixes made during the run (commits `a8fd4f7`, `f41c7ba`):
+
+- **Streaming.** Generation streams, because Node's fetch drops a request
+  after 5 minutes with no headers.
+- **Grammar limits.** The JSON schema handed to Ollama carries the length and
+  count limits.
+
+### 4.3 Re-run design (pre-registered 2026-10-25, before any run)
+
+What changed since §4.2 (branch `feat/ai-summary-grounded-lines`):
+
+- **Move lines come from code.** Each game in the evidence carries its SAN
+  mainline, replayed by code. `buildSummaryLines` turns each one into a line
+  `L1`, `L2`, …. The model gets the lines as numbered moves. A variation it
+  returns is `{ line, fromMove, toMove, comment }`, at most 6 moves, with no
+  moves in it. The SAN a coach sees is rendered by `formatSummaryLine` from
+  the game. A model-written `san` is a schema error.
+- **Chess tokens in prose are checked.** Every move, square, signed engine
+  score (`+1.5`), game result (`1-0`) and puzzle id the model writes must
+  appear in the evidence. A square counts if a piece stands on it in the
+  line's start position, a move lands on it, or the evidence text mentions it.
+  Unknown evidence refs and `S#` in the student view are still checked.
+- **Retry, then remove.** Any schema error or unsupported item gets one
+  repair call that lists the problems. After that, schema errors fail the
+  summary (`SCHEMA`). Unsupported items are **removed**, never rewritten or
+  invented, and the rest is judged by the usability rule below.
+- **Limit.** Claims about game events in plain words ("White resigned",
+  "S2 won the match") can't be checked mechanically. The coach's review (OD-5)
+  stays the safeguard, and nothing is published without it.
+
+**"Usable" (fixed now; the scoring may not change after the run).** A
+bundle counts as usable (READY) when, after at most one repair retry and
+removal of unsupported items:
+
+1. the final answer is schema-valid;
+2. every required section still has at least one item: lesson overview, next
+   objectives, recap, key concepts and practice ideas;
+3. at least **75%** of the model's items were kept
+   (`SUMMARY_MIN_KEPT_CLAIM_SHARE`); and
+4. re-checking the delivered summary finds **0** unsupported items (the leak
+   check, criterion 4).
+
+A model error or timeout counts as not usable. The criterion is
+`usable / 10 bundles ≥ 90%`. The code is `assessClassSummaryUsability` and
+`generateGroundedClassSummary`, with their regression tests in
+`apps/api/src/ai/class-summary.spec.ts`.
+
+**Also recorded:** retry rate; unsupported-claim rate (unsupported items ÷
+items) on the first answer and after the retry, before removal; items
+removed; p50/p95 latency; peak RSS; Stockfish slowdown; tokens/s; fact recall.
+
+**Comparable settings.** Both models run the same way:
+
+- same 10 bundles, same prompts and schema;
+- `ollama/ollama:0.34.4`, `--cpus 1.5 --memory 5g --cpu-shares 512`;
+- `num_ctx 8192`, temperature 0.2, seed 42;
+- one model at a time, in a fresh container each.
+
+The two models:
+
+- `qwen2.5:3b`, the §4.2 baseline, now with the new pipeline;
+- `qwen3:4b` (Apache-2.0, 2.5 GB weights) with `--no-think`, so it doesn't
+  spend tokens on a reasoning trace.
+
+**Data.** Only `bundles.mjs`: public-domain games, invented students and chat
+lines. Nothing comes from the database. The model runs in a loopback-only
+local container. The only outbound traffic is pulling the image and weights,
+and no class data leaves the box.
+
+**Still to do:** the run itself (OD-6a, which needs a named no-class window).
+The comparison with §4.2 isn't one-to-one. The prompt and schema changed (lines
+instead of free SAN), so a better READY rate reflects the pipeline and the
+model together.
+
+### 4.4 Result: re-run of 2026-10-25 (§4.3 design, Ollama 0.34.4)
+
+Window 17:38–21:00 IST, confirmed by the owner. LiveKit reported no live room
+at any of the 20 s checks. Both containers, weights volumes and images were
+removed afterwards. Raw output is in `~/ai-bench/grounded-qwen2.5-3b/` and
+`~/ai-bench/grounded-qwen3-4b/` on the box.
+
+All numbers below are **measured** unless marked otherwise.
+
+| Criterion | Target | `qwen2.5:3b` | `qwen3:4b` (`think: false`) |
+|---|---|---|---|
+| Summary p95 (incl. retry) | ≤ 10 min | **8.22 min** ok | 17.65 min ✗ |
+| Peak RSS | ≤ 4.5 GiB | **3.26 GiB** ok | 4.96 GiB ✗ (two runner crashes) |
+| Schema-valid before retry | ≥ 95% | **100%** ok | 80% ✗ (the two crashes) |
+| Unsupported items in a READY summary | 0 | **0** ok | 0 ok |
+| Usable after one retry (§4.3) | ≥ 90% | **90% (9/10)** ok | 30% (3/10) ✗ |
+| **Verdict** | | **PASS** | **FAIL** |
+
+| Also measured | `qwen2.5:3b` | `qwen3:4b` |
+|---|---|---|
+| Retry rate | 60% | 50% |
+| Unsupported-claim rate, first / after retry (before removal) | 9% / 5% | 11% / 14% |
+| Items removed | 5 | 8 |
+| Summary p50 | 6.76 min | 10.08 min |
+| Prompt / generation tokens/s (median) | 17.0 / 3.6 | 12.3 / 2.0 |
+| Fact recall (keyword proxy) | 45% | 50% |
+| Stockfish slowdown during generation | 1.14× | 1.12× |
+| Failures | 1 GROUNDING | 5 GROUNDING, 2 RUNTIME |
+
+What the failures were:
+
+- **`qwen2.5:3b`.** There were 7 first-answer problems:
+  - six were a variation longer than 6 moves, a range rule, not an invented
+    move;
+  - one was an invented move (`Bf7+`; the game has `Bxf7+`), removed after the
+    retry.
+
+  The one failure (bench-3) came from the retry. It wrote "S3 repeated the
+  line" into the student recap. Removing it emptied the recap, even though the
+  first answer's recap was fine.
+- **`qwen3:4b`.**
+  - **Student names (9 problems).** `S#` in the student view was the main
+    problem, and all 5 GROUNDING failures emptied the recap.
+  - **Ranges (5 problems).** The rest were variations over 6 moves.
+  - **Crashes (2).** Ollama's runner stopped ("resource limitations") at the
+    5 GB memory cap.
+
+  Each crash took about 15 minutes before it was reported. That figure is an
+  **estimate**: this run's harness recorded failed calls as a flat 900 s. It
+  now records the real wall time.
+
+Reading:
+
+- **Capacity and grounding: PASS with `qwen2.5:3b`.** The change from §4.2
+  (code-built lines, retry then remove) raised usable summaries from 5/10 to
+  9/10, with p95 down from 9.12 to 8.22 min. No unsupported item reached a
+  READY summary.
+- **`qwen3:4b` doesn't fit this box.** It's slower (2.0 tok/s), crashes at the
+  5 GB cap, and leaks pseudonyms into the student view more often. Its fact
+  recall is only 5 points higher (50% vs 45%, a keyword proxy). It isn't a
+  candidate for OD-25 on this hardware.
+- **The margin is thin.** 9/10 is exactly the 90% bar. One more failure would
+  have failed the criterion, and 10 bundles is a small sample.
+
+Proposed harness and pipeline changes (not applied to these results; each
+needs a fresh run to count):
+
+1. **Clamp, don't reject, an over-long range.** A variation's moves come from
+   the game, so cutting a range at 6 moves can't invent anything. It would
+   have removed 6 of `qwen2.5:3b`'s 7 first-answer problems, and most of its
+   retries (about 3.5 min each).
+2. **Keep the better of the two answers.** Choose by the same usability rule,
+   instead of always the repair. That would have saved bench-3.
+3. **Strip `S#` from the student view in code.** One option is to drop the
+   pseudonym's sentence before judging. This needs a decision, because it
+   rewrites model text, where removal so far only drops whole items.
+
+### 4.5 Hardened re-run design (pre-registered 2026-10-25, before the run)
+
+Approved by the owner 2026-10-25: `qwen2.5:3b` as the candidate, with the three
+§4.4 proposals. §4.2 and §4.4 stay as recorded; only a fresh run counts for
+this code.
+
+| | Change | Where |
+|---|---|---|
+| A | **A range is shortened, not rejected.** It must start inside the game, and the end is shortened to the game's last move and to 6 moves (`adjustments`). A start outside the game, a reversed range or an unknown line is still unsupported. The moves are still rendered from the game | `checkClassSummaryOutput` |
+| B | **The better of the two answers.** After the one retry, both schema-valid answers go through the same removal, usability, leak and privacy gates. The order is fixed: READY first, then fewer items removed, then a larger share kept, then the repair. If the repair call fails, a usable first answer can still be used. There is never a third call | `selectClassSummaryCandidate` |
+| C | **Student-view privacy in code.** `findStudentIdentifiers` matches `S1`, `S 1`, `S-1`, `s1` and `student 3` / `student #3`. It ignores chess notation, colours and ordinary words: a standalone S plus digits matches, but "bus 2" doesn't. A student item that names a student is **removed, not rewritten**. Before READY, `studentViewPrivacyViolations` scans every string of the delivered student view. The Phase 3 publish route will reuse the same function | `class-summary.ts` |
+
+What changes in the scoring, and what doesn't:
+
+- **The five criteria and the "usable" rule (§4.3) are unchanged.** That
+  covers the 75% kept share and the required sections.
+- **A over-long range is no longer an unsupported item.** That's change A as
+  approved. A range that **starts** outside the game still is.
+- **A READY summary now also needs** a student view with 0 identifier hits. That
+  makes READY stricter, not looser.
+- **Unchanged inputs:** the same 10 bundles (`bundles.mjs`), prompts, schema,
+  `qwen2.5:3b`, Ollama 0.34.4, container limits, `num_ctx`, temperature and seed.
+
+**Newly recorded:**
+
+- student-view items naming a student, in first answers, in repairs, and
+  delivered in READY summaries (must be 0);
+- ranges shortened;
+- retried bundles that kept the first answer.
+
+**Expanded evaluation set:** none exists. The Phase 3 golden set (PHASE3_SPEC.md
+§11) hasn't been built, so only the 10 bundles are run.
+
+### 4.6 Result: hardened re-run of 2026-10-25 (§4.5 design, `qwen2.5:3b`)
+
+The window was 21:04–22:30 IST, confirmed by the owner, with a hard stop at
+22:28. The run went from 21:35 to 22:22. LiveKit reported no live room at any
+20 s check. The container, weights volume and image were removed afterwards.
+Raw output is in `~/ai-bench/hardened-qwen2.5-3b/` on the box. Code: `8d1d90d`.
+
+Every number here is **measured** on this run; none is carried over from §4.4.
+
+| Criterion (unchanged) | Target | §4.4 (before) | **§4.6 (fresh)** |
+|---|---|---|---|
+| Summary p95 (incl. retry) | ≤ 10 min | 8.22 min | **6.92 min** ok |
+| Peak RSS | ≤ 4.5 GiB | 3.26 GiB | **3.22 GiB** ok |
+| Schema-valid before retry | ≥ 95% | 100% | **100%** ok |
+| Unsupported items in a READY summary | 0 | 0 | **0** ok |
+| Usable after one retry | ≥ 90% | 90% (9/10) | **100% (10/10)** ok |
+| **Verdict** | | PASS | **PASS** |
+
+| Also measured | §4.4 | **§4.6** |
+|---|---|---|
+| Retry rate | 60% | **10%** (1/10) |
+| Unsupported-claim rate, first / after retry (before removal) | 9% / 5% | **1% / 1%** |
+| Items removed | 5 | **1** |
+| Student-view items naming a student: first answers / repairs / delivered in READY | not recorded | **0 / 0 / 0** |
+| Ranges shortened to 6 moves | n/a | **6** (in 5 bundles) |
+| Retried bundles that kept the first answer | n/a | **1 / 1** |
+| Summary p50 | 6.76 min | **3.67 min** |
+| Prompt / generation tokens/s (median) | 17.0 / 3.6 | 15.8 / 3.6 |
+| Fact recall (keyword proxy) | 45% | 40% |
+| Stockfish slowdown during generation | 1.14× | 1.29× (3 probes) |
+
+What each change did in this run:
+
+- **A (range capping) did almost all the work.** It shortened six over-long
+  ranges, such as 1–20 to 1–6 and 6–14 to 6–11, that would have triggered a
+  retry. Bundles 2, 3, 4, 7 and 8 finished on the first answer. Bench-3, the
+  §4.4 failure, never reached the retry that had broken it.
+- **B (better of two) ran once.** Bench-5's first answer wrote `Bf7+`, where
+  the game has `Bxf7+`. The repair didn't improve on it, so the first answer
+  was kept and that one item removed.
+- **C (privacy) wasn't triggered.** No answer named a student. The rule is
+  proven only by its tests (`class-summary.spec.ts`, the stub harness test),
+  not by this run.
+
+Reading and caveats:
+
+- **This implementation passes all five criteria on the 10 original bundles.**
+  The scoring, bundles, model and settings are the same as §4.4.
+- **The sample is still 10 synthetic bundles.** The Phase 3 golden set (§11 of
+  PHASE3_SPEC.md) doesn't exist yet, so this says nothing about real classes.
+  Fact recall is a keyword proxy, and 40% shows the summaries cover the lesson
+  only partly.
+- **Stockfish slowed more (1.29× vs 1.14×).** It's 3 probes during the first
+  bundle, so it's noisy, but worth watching in the staging rollout (OD-11).
 
 ## 5. Recommendation
 
