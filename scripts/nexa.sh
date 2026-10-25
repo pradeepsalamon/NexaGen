@@ -12,16 +12,17 @@ ROOT_DIR="$(cd -P "$SCRIPTS_DIR/.." && pwd)"
 
 COMMAND=$1
 ENV=$2
+TARGET=$3
 
 function show_usage() {
     echo "Nexa Unified CLI"
     echo ""
-    echo "Usage: nexa <command> [environment]"
+    echo "Usage: nexa <command> [environment] [component]"
     echo ""
     echo "Commands:"
-    echo "  start   <dev|stage|prod>   Start the specified environment"
-    echo "  stop    <dev|stage|prod>   Stop the specified environment"
-    echo "  restart <dev|stage|prod>   Restart the specified environment"
+    echo "  start   <dev|stage|prod> [api]   Start environment (or just api)"
+    echo "  stop    <dev|stage|prod>         Stop the specified environment"
+    echo "  restart <dev|stage|prod> [api]   Restart environment (or just api)"
     echo "  status                     Show status of all environments"
     echo "  logs [api|web]             View logs (for dev)"
     echo "  attach                     Attach to the dev tmux session"
@@ -53,6 +54,21 @@ function http_status() {
 }
 
 function start_dev() {
+    local target=$1
+    if [ "$target" = "api" ]; then
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
+            tmux kill-window -t nexa-dev:api 2>/dev/null || true
+        fi
+        echo "=== Launching Dev API on Port 3011 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
+        else
+            tmux new-window -t nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 npm run dev:api 2>&1 | tee api-dev.log'"
+        fi
+        echo "Dev API launched on port 3011!"
+        return
+    fi
+
     echo "Stopping any existing dev/staging processes..."
     stop_session
 
@@ -65,6 +81,25 @@ function start_dev() {
 }
 
 function start_stage() {
+    local target=$1
+    if [ "$target" = "api" ]; then
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
+            tmux kill-window -t nexa-dev:api 2>/dev/null || true
+        fi
+        echo "=== Building API in Production Mode for Staging Testing ==="
+        cd "$ROOT_DIR"
+        npm run build:prod -w apps/api
+
+        echo "=== Launching Production-Optimized Dev API on Port 3011 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+        else
+            tmux new-window -t nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
+        fi
+        echo "Production-mode Dev API launched on port 3011!"
+        return
+    fi
+
     echo "Stopping any existing dev/staging processes..."
     stop_session
 
@@ -164,9 +199,9 @@ case "$COMMAND" in
             echo "Starting prod environment (Docker)..."
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
-            start_stage
+            start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
-            start_dev
+            start_dev "$TARGET"
         else
             echo "Unknown environment: $ENV"
             exit 1
@@ -177,7 +212,15 @@ case "$COMMAND" in
             echo "Stopping prod environment (Docker)..."
             docker compose down
         elif [[ "$ENV" == "dev" || "$ENV" == "stage" ]]; then
-            stop_dev
+            if [ "$TARGET" = "web" ] && tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": web"; then
+                tmux kill-window -t nexa-dev:web
+                echo "Stopped dev web window."
+            elif [ "$TARGET" = "api" ] && tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
+                tmux kill-window -t nexa-dev:api
+                echo "Stopped dev api window."
+            else
+                stop_dev
+            fi
         else
             echo "Unknown environment: $ENV"
             exit 1
@@ -190,12 +233,10 @@ case "$COMMAND" in
             docker compose up -d --build
         elif [[ "$ENV" == "stage" ]]; then
             echo "Restarting stage environment (Tmux)..."
-            stop_dev
-            start_stage
+            start_stage "$TARGET"
         elif [[ "$ENV" == "dev" ]]; then
             echo "Restarting dev environment (Tmux)..."
-            stop_dev
-            start_dev
+            start_dev "$TARGET"
         else
             echo "Unknown environment: $ENV"
             exit 1
