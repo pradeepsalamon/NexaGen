@@ -5,6 +5,7 @@ import {
   Brain,
   CalendarClock,
   CalendarDays,
+  Captions,
   ClipboardCheck,
   ClipboardList,
   Clock,
@@ -136,6 +137,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/attendance", label: "Attendance reports", icon: BarChart3, group: "Classes" },
   { href: "/admin/attendance/policy", label: "Attendance policy", icon: ClipboardCheck, group: "Classes" },
   { href: "/admin/reliability", label: "Live reliability", icon: Wifi, group: "Classes" },
+  { href: "/admin/caption-test", label: "Caption test", icon: Captions, group: "Classes" },
   // Learning content
   { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Learning", feature: "courses" },
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Learning" },

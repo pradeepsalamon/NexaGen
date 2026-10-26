@@ -30,6 +30,7 @@ export const PAGE_TITLES = {
   "/admin/attendance/policy": "Attendance policy",
   "/admin/backups": "Database backups",
   "/admin/batches": "Batches",
+  "/admin/caption-test": "Caption test",
   "/admin/chess-appearance": "Chess appearance",
   "/admin/class-requests": "Class requests",
   "/admin/classes": "Batch classes",

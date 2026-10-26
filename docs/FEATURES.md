@@ -383,3 +383,32 @@ is disallowed in `robots.ts`.
 - **Verification**: `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION` /
   `NEXT_PUBLIC_BING_SITE_VERIFICATION` (build-time) render the meta tags.
 
+
+## Live captions: browser speech test (admin only)
+
+`/admin/caption-test` (staff, nav "Classes → Caption test"),
+`features/live-captions/`. A test bench for option A of live captions: the
+browser's own Web Speech API (`SpeechRecognition`) on the speaker's mic, in
+Tamil (`ta-IN`) or English (`en-IN` / `en-US`). Nothing touches the API or
+LiveKit and nothing is stored; the transcript can be copied or downloaded as
+text for review.
+
+- **Audio goes to Google.** Chrome's recognition is server-side. The page
+  warns about this and won't start until the speaker's consent is ticked.
+  Putting captions into real classes needs the coach's consent in the staff
+  terms and a `features/legal/content.ts` update (new processor).
+- **No on-device mode.** `processLocally` and `SpeechRecognition.available()`
+  with it crash the renderer in Chromium 151, and on-device mode doesn't
+  cover Tamil anyway, so neither is called.
+- **Browsers.** Desktop Google Chrome. Firefox has no API. Edge and plain
+  Chromium may accept `start()` and then neither start nor fail, so
+  `useSpeechCaptions` gives up after 8 s with an error. Chrome ends a session
+  after silence or about a minute, and the hook restarts it (counted as
+  "Recognition restarts").
+- **Chess terms.** `lib/chessTermFixes.ts` corrects common English mishearings
+  ("porn" → pawn, "night" → knight, "Ryan Lopez" → Ruy Lopez, "E4" → e4) and
+  keeps the original. Tamil output is shown as heard until a coach-reviewed
+  glossary exists.
+- **Measured per phrase:** first-heard time, confidence when the browser
+  gives one, and the wait from the last interim result to the final one
+  (roughly the delay after the speaker pauses).
