@@ -18,9 +18,6 @@ on:
       - '.github/workflows/rag-poc.yml'
   workflow_dispatch:
     inputs:
-      embedders:
-        description: Comma-separated embedders (bge-small, e5-small, nomic)
-        default: bge-small,e5-small
       chunk_tokens:
         description: Comma-separated chunk sizes
         default: '400,250'
@@ -37,9 +34,15 @@ env:
 
 jobs:
   evaluate:
-    name: Retrieval, permissions, deletion (pgvector, arm64)
+    name: Evaluate ${{ matrix.embedder }}, rerank top ${{ matrix.rerank_candidates }} (pgvector, arm64)
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        embedder: [bge-small, e5-small]
+        # 30 is the spec; 10 tests whether a shorter rerank meets the latency target.
+        rerank_candidates: [30, 10]
     services:
       postgres:
         image: pgvector/pgvector:0.8.7-pg15
@@ -80,7 +83,7 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: services/ai-runtime/eval/rag_poc/.cache
-          key: rag-poc-${{ hashFiles('services/ai-runtime/eval/rag_poc/manifest.json', 'services/ai-runtime/eval/rag_poc/embedders.py') }}
+          key: rag-poc-${{ matrix.embedder }}-${{ hashFiles('services/ai-runtime/eval/rag_poc/manifest.json', 'services/ai-runtime/eval/rag_poc/embedders.py') }}
 
       - name: Fetch and verify the public sources
         working-directory: services/ai-runtime
@@ -90,13 +93,14 @@ jobs:
       - name: Evaluate
         working-directory: services/ai-runtime
         env:
-          EMBEDDERS: ${{ inputs.embedders || 'bge-small,e5-small' }}
+          EMBEDDER: ${{ matrix.embedder }}
+          RERANK_CANDIDATES: ${{ matrix.rerank_candidates }}
           CHUNKS: ${{ inputs.chunk_tokens || '400,250' }}
         run: |
           taskset -c 0,1 uv run --frozen --group rag-poc python -m eval.rag_poc matrix \
             --store postgresql://poc:poc@127.0.0.1:5432/rag_poc \
-            --embedders "$EMBEDDERS" --chunk-tokens "$CHUNKS" --threads 2 \
-            --out "$RUNNER_TEMP/rag_poc"
+            --embedders "$EMBEDDER" --chunk-tokens "$CHUNKS" --rerank-candidates "$RERANK_CANDIDATES" \
+            --threads 2 --out "$RUNNER_TEMP/rag_poc"
           cat "$RUNNER_TEMP/rag_poc/summary.md" >> "$GITHUB_STEP_SUMMARY"
 
       # Hard fails (RAG_POC.md §4): any leak, a deletion or re-index failure, a kept forged citation.
@@ -125,6 +129,31 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: always()
         with:
-          name: rag-poc-report
+          name: rag-poc-${{ matrix.embedder }}-rc${{ matrix.rerank_candidates }}
           path: ${{ runner.temp }}/rag_poc
           if-no-files-found: ignore
+
+  summary:
+    name: Combined report
+    needs: evaluate
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          pattern: rag-poc-*
+          path: ${{ runner.temp }}/parts
+
+      - name: Merge
+        working-directory: services/ai-runtime
+        run: |
+          python3 -m eval.rag_poc merge "$RUNNER_TEMP"/parts/*/report.json --out "$RUNNER_TEMP/rag_poc"
+          cat "$RUNNER_TEMP/rag_poc/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rag-poc-report
+          path: ${{ runner.temp }}/rag_poc

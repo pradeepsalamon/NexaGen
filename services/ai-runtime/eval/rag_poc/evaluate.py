@@ -33,10 +33,12 @@ class Config:
     embedder: str
     chunk_tokens: int
     modes: tuple[Mode, ...] = MODES
+    rerank_candidates: int = 30
 
     @property
     def name(self) -> str:
-        return f"{self.embedder}-{self.chunk_tokens}"
+        suffix = "" if self.rerank_candidates == 30 else f"-rc{self.rerank_candidates}"
+        return f"{self.embedder}-{self.chunk_tokens}{suffix}"
 
 
 def load_questions(path: Path = QUESTIONS) -> list[dict[str, Any]]:
@@ -105,7 +107,9 @@ def run(
 ) -> dict[str, Any]:
     questions = list(questions if questions is not None else load_questions())
     modes = tuple(m for m in config.modes if m != "hybrid_rerank" or reranker is not None)
-    pipeline = Pipeline(store, embedder, chunk_tokens=config.chunk_tokens, reranker=reranker)
+    pipeline = Pipeline(
+        store, embedder, chunk_tokens=config.chunk_tokens, reranker=reranker, rerank_candidates=config.rerank_candidates
+    )
     report: dict[str, Any] = {
         "config": config.name,
         "embedder": embedder.name,
@@ -113,6 +117,7 @@ def run(
         "dim": embedder.dim,
         "chunkTokens": config.chunk_tokens,
         "reranker": getattr(reranker, "name", None),
+        "rerankCandidates": config.rerank_candidates,
     }
 
     # ── Ingest ──

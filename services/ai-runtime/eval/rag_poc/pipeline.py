@@ -59,11 +59,14 @@ class Pipeline:
         *,
         chunk_tokens: int = 400,
         reranker: Reranker | None = None,
+        rerank_candidates: int = CANDIDATES,
     ) -> None:
         self.store = store
         self.embedder = embedder
         self.chunk_tokens = chunk_tokens
         self.reranker = reranker
+        # Cross-encoder cost is linear in this; it dominates query latency on CPU.
+        self.rerank_candidates = rerank_candidates
 
     # ── Ingest ──
 
@@ -116,7 +119,7 @@ class Pipeline:
 
         if self.reranker is None:
             raise ValueError("hybrid_rerank needs a reranker.")
-        candidates = fused[:CANDIDATES]
+        candidates = fused[: self.rerank_candidates]
         chunks = self.store.get(candidates)
         t = time.perf_counter()
         scores = self.reranker.scores(query, [chunks[i].text for i in candidates])

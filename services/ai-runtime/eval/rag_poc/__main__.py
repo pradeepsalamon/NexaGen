@@ -32,9 +32,22 @@ def main(argv: list[str] | None = None) -> int:
     matrix.add_argument("--embedders", default="hash")
     matrix.add_argument("--chunk-tokens", default="400,250")
     matrix.add_argument("--no-rerank", action="store_true")
+    matrix.add_argument("--rerank-candidates", type=int, default=30)
+    merge = sub.add_parser("merge", help="combine report.json files into one summary")
+    merge.add_argument("reports", nargs="+", type=Path)
+    merge.add_argument("--out", type=Path, required=True)
     matrix.add_argument("--threads", type=int, default=None, help="ONNX threads (2 = the production box)")
     matrix.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
+
+    if args.command == "merge":
+        runs = [json.loads(p.read_text()) for p in args.reports]
+        reports = [r for run_ in runs for r in run_["reports"]]
+        args.out.mkdir(parents=True, exist_ok=True)
+        (args.out / "report.json").write_text(json.dumps({"meta": [r["meta"] for r in runs], "reports": reports}, indent=2) + "\n")
+        (args.out / "summary.md").write_text(summary_markdown(reports))
+        print(summary_markdown(reports))
+        return 0
 
     documents = all_documents()
     if args.command == "fetch":
@@ -48,7 +61,8 @@ def main(argv: list[str] | None = None) -> int:
     for embedder_key in args.embedders.split(","):
         embedder = make_embedder(embedder_key, cache_dir=models, threads=args.threads)
         for tokens in (int(t) for t in args.chunk_tokens.split(",")):
-            reports.append(run(Config(embedder_key, tokens), store, embedder, documents, reranker=reranker))
+            config = Config(embedder_key, tokens, rerank_candidates=args.rerank_candidates)
+            reports.append(run(config, store, embedder, documents, reranker=reranker))
 
     args.out.mkdir(parents=True, exist_ok=True)
     meta = {
