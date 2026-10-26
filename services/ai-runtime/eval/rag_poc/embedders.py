@@ -90,12 +90,13 @@ MODELS: dict[str, ModelSpec] = {
 }
 
 
-def _snapshot_revision(cache_dir: Path, hf_repo: str | None, fallback: str) -> str:
-    """The Hugging Face snapshot (commit) the weights were loaded from."""
-    if hf_repo:
-        snapshots = sorted((cache_dir / f"models--{hf_repo.replace('/', '--')}" / "snapshots").glob("*"))
-        if snapshots:
-            return f"{hf_repo}@{snapshots[-1].name}"
+def _snapshot_revision(model_dir: Any, hf_repo: str | None, fallback: str) -> str:
+    """The Hugging Face snapshot (commit) the weights were loaded from: the
+    directory snapshot_download() returned, `.../snapshots/<commit>`."""
+    if hf_repo and model_dir is not None:
+        path = Path(model_dir)
+        if path.parent.name == "snapshots":
+            return f"{hf_repo}@{path.name}"
     return fallback
 
 
@@ -125,7 +126,8 @@ class FastEmbedder:
         hf_repo = spec.custom_hf or next(
             (m["sources"]["hf"] for m in TextEmbedding.list_supported_models() if m["model"] == spec.model), None
         )
-        self._revision = _snapshot_revision(cache_dir, hf_repo, f"{spec.model}@fastembed-{fastembed.__version__}")
+        model_dir = getattr(getattr(self._model, "model", None), "_model_dir", None)
+        self._revision = _snapshot_revision(model_dir, hf_repo, f"{spec.model}@fastembed-{fastembed.__version__}")
 
     @property
     def revision(self) -> str:

@@ -99,7 +99,10 @@ class MemoryStore:
         self.versions.clear()
 
     def has_version(self, collection: str, sha256: str) -> bool:
-        return any(v["collection"] == collection and v["sha256"] == sha256 for v in self.versions.values())
+        return any(
+            v["collection"] == collection and v["sha256"] == sha256 and v["status"] != "SUPERSEDED"
+            for v in self.versions.values()
+        )
 
     def add_version(self, version: NewVersion) -> str:
         doc = version.document
@@ -214,7 +217,8 @@ class PgStore:
     def has_version(self, collection: str, sha256: str) -> bool:
         with self._conn.cursor() as cur:
             cur.execute(
-                "SELECT 1 FROM rag_poc.knowledge_document_version WHERE collection_id = %s AND sha256 = %s",
+                "SELECT 1 FROM rag_poc.knowledge_document_version"
+                " WHERE collection_id = %s AND sha256 = %s AND status <> 'SUPERSEDED'",
                 (collection, sha256),
             )
             found = cur.fetchone() is not None
@@ -286,7 +290,8 @@ class PgStore:
             )
             rows = [(r[0], float(r[1])) for r in cur.fetchall()]
         self._conn.commit()
-        return rows
+        # relaxed_order iterative scans may return rows slightly out of order.
+        return sorted(rows, key=lambda p: -p[1])
 
     def text_search(self, query: str, allowed: Sequence[str], k: int) -> list[tuple[str, float]]:
         # OR of the query's words: a question rarely contains every word of

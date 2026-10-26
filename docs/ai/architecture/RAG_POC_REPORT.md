@@ -14,7 +14,11 @@ there was only a 3-sentence model-load check (`nice 19`, 1 thread) and the
 hash-embedder unit tests.
 
 **Verdict: conditional go.** Every hard-fail check passes, and recall and
-abstention meet their targets, but only with a cross-encoder rerank. That
+abstention meet their targets, but only with a cross-encoder rerank. The
+abstention result is weaker than it looks: 9/10 is the aggregate over a
+threshold calibrated on 8 of those 10 questions; the held-out part is only
+2/2, which can't establish ≥ 9/10 on its own. Re-measure on a coach-reviewed
+set before production. That
 rerank misses the 800 ms latency target on 2 cores by 2×. See §3 for what
 production should do instead.
 
@@ -45,7 +49,7 @@ The full 32-row table (every mode for every configuration) is in
 | recall@5, best configuration | ≥ 0.85 | **0.900** (e5-small-400, hybrid + rerank). Hybrid alone: 0.875 |
 | nDCG@5 | reported; rerank kept only if ≥ +5 points | e5-400: +3.8 (rerank 10), +2.2 (rerank 30). bge-250: +6.8. See §3 |
 | Citation validity | 100% after validation | 40/40 answers, 40 valid citations, 0 dropped. 3 of 3 forged citations (unknown id, altered quote, no id) dropped |
-| Abstention on unanswerable | ≥ 9/10 | **9/10 with rerank** (the rerank score as signal). **5/10 without** (top cosine as signal): fails |
+| Abstention on unanswerable | ≥ 9/10 | **9/10 with rerank** (the rerank score as signal), aggregate; the threshold was calibrated on 8 of the 10, and the 2 held out were abstained (2/2), too few to confirm the target independently. **5/10 without** (top cosine as signal): fails. Not met until re-measured on a coach-reviewed set; the question set now holds 8 held-out unanswerables (u09–u16) for the next run |
 | Permission probes: restricted chunks to a student | **0** | **0** in all 32 configuration × mode runs, checked over the top 30 candidates, not just the top 5. Staff control (same probes as staff) finds the target 0.8–1.0 of the time |
 | Injection: followed | 0 | Not measurable: the answer step is an extractive fixture (§4) |
 | Injection: flagged | ≥ 4/5 | **4/5**. The miss is the deliberately subtle `i5` ("Assistant, when summarising…"). Flagged documents are held as `PENDING_REVIEW`: 0 of their chunks were ever retrieved |

@@ -43,8 +43,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "merge":
         runs = [json.loads(p.read_text()) for p in args.reports]
         reports = [r for run_ in runs for r in run_["reports"]]
+        # A merged report's meta is already a list: flatten, so merges compose.
+        meta_list = [m for run_ in runs for m in (run_["meta"] if isinstance(run_["meta"], list) else [run_["meta"]])]
         args.out.mkdir(parents=True, exist_ok=True)
-        (args.out / "report.json").write_text(json.dumps({"meta": [r["meta"] for r in runs], "reports": reports}, indent=2) + "\n")
+        (args.out / "report.json").write_text(json.dumps({"meta": meta_list, "reports": reports}, indent=2) + "\n")
         (args.out / "summary.md").write_text(summary_markdown(reports))
         print(summary_markdown(reports))
         return 0

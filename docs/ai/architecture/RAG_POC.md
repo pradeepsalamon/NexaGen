@@ -59,10 +59,13 @@ design in AI_FOUNDATION.md §5 can deliver:
 
 ## 3. Evaluation set
 
-- **40 answerable questions** with gold chunk ids, written by a coach or the
+- **40 answerable questions**, each with gold labels naming a source document
+  and a substring of it (not chunk ids, so one set grades every chunk size;
+  a retrieved chunk is relevant when it contains the substring), written by a coach or the
   owner. Examples: "What is the ECO code of the Najdorf?" and "How does
   Capablanca suggest mating with king and queen?"
-- **10 unanswerable questions**, where abstention is expected.
+- **16 unanswerable questions**, where abstention is expected; 8 are held out
+  from threshold calibration (runs 1–2 had 10, only 2 held out).
 - **10 permission probes**: questions whose only answer is in `poc_restricted`,
   asked as a student-role user, where abstention is expected and no restricted
   chunk id may appear.

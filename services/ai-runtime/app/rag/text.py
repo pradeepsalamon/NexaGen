@@ -6,9 +6,10 @@ import hashlib
 import re
 import unicodedata
 
-# C0/C1 controls except tab and newline, plus zero-width and bidi overrides:
+# C0/C1 controls except tab and newline, soft hyphen, zero-width, bidi
+# overrides and isolates, and Unicode tag characters:
 # invisible characters are where hidden instructions hide (AI_FOUNDATION.md §5.2).
-_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f​-‏‪-‮⁠-⁤﻿]")
+_CONTROL = re.compile("[\x00-\x08\x0b-\x1f\x7f-\x9f\u00ad\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\U000e0000-\U000e007f]")
 _TRAILING_SPACE = re.compile(r"[ \t]+\n")
 _BLANK_RUN = re.compile(r"\n{3,}")
 _TOKEN = re.compile(r"[A-Za-z0-9]+|[^\sA-Za-z0-9]")

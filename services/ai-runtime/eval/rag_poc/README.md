@@ -12,7 +12,7 @@ database whose name doesn't end in `_poc`, because it drops its schema.
 |---|---|
 | `manifest.json` | Sources, licences and pinned sha256 (OD-7: public domain, CC0, academy-owned) |
 | `corpus/` | Owned documents: the academy FAQ export, 5 synthetic staff-only docs, 5 injection probes |
-| `questions.jsonl` | 40 answerable (gold = document + a substring), 10 unanswerable, 10 permission probes, 5 injection probes; 10 held out |
+| `questions.jsonl` | 40 answerable (gold = document + a substring), 16 unanswerable, 10 permission probes, 5 injection probes; 16 held out (8 answerable, 8 unanswerable) |
 | `sources.py` | Downloads into `.cache/` (gitignored), verifies hashes, builds documents |
 | `embedders.py` | `hash` (tests), `bge-small`, `e5-small`, `nomic` via fastembed; the MiniLM cross-encoder |
 | `stores.py`, `schema.sql` | pgvector store + an in-memory twin. The permission filter is inside the search |

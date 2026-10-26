@@ -32,7 +32,15 @@ def build_context(chunks: Sequence[ContextChunk], *, nonce: str | None = None) -
     parts = []
     for chunk in chunks:
         # The nonce is fresh per call; strip it anyway in case a caller reuses one.
-        body = chunk.text.replace(tag, "")
-        title = chunk.title.replace(tag, "").replace('"', "'")
+        body = _strip(chunk.text, tag)
+        title = _strip(chunk.title, tag).replace('"', "'")
         parts.append(f'<{tag} id="{chunk.chunk_id}" title="{title}">\n{body}\n</{tag}>')
     return "SOURCES:\n" + "\n".join(parts)
+
+
+def _strip(text: str, tag: str) -> str:
+    """Remove `tag` until none is left: one pass over "</source-<tag>N>" would
+    join the pieces into a new closing delimiter."""
+    while tag in text:
+        text = text.replace(tag, "")
+    return text

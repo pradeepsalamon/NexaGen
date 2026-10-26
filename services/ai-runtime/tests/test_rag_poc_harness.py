@@ -6,6 +6,7 @@ citations) are wired; retrieval quality is measured by the real run in CI."""
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -52,13 +53,13 @@ def test_question_file_is_well_formed() -> None:
     kinds = [q["kind"] for q in questions]
     assert (kinds.count("answerable"), kinds.count("unanswerable"), kinds.count("permission"), kinds.count("injection")) == (
         40,
-        10,
+        16,
         10,
         5,
     )
     assert len({q["id"] for q in questions}) == len(questions)
     held_out = [q for q in questions if q["split"] == "holdout"]
-    assert len(held_out) == 10
+    assert len(held_out) == 16
 
 
 def test_permission_probes_never_leak(report: dict) -> None:
@@ -78,6 +79,18 @@ def test_injection_documents_are_held_for_review(report: dict) -> None:
         assert mode["injection"]["flagged"] >= 4
         assert mode["injection"]["pendingReviewChunksReturned"] == 0
     assert sum(k.startswith("injection:") for k in report["ingest"]["pendingReview"]) >= 4
+
+
+def test_reverting_to_superseded_content_creates_a_live_version() -> None:
+    store = MemoryStore()
+    store.reset(256, "hash")
+    pipeline = Pipeline(store, HashEmbedder(), chunk_tokens=250)
+    edited = replace(BOOK, text=BOOK.text + " Edited.")
+    assert pipeline.ingest(BOOK).status == "READY"
+    assert pipeline.ingest(edited).status == "READY"
+    assert pipeline.ingest(BOOK).status == "READY"  # the original text again
+    assert store.version_statuses(BOOK.key) == ["READY", "SUPERSEDED", "SUPERSEDED"]
+    assert pipeline.ingest(BOOK).status == "DUPLICATE"
 
 
 def test_forged_citations_are_dropped(report: dict) -> None:

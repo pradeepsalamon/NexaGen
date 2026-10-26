@@ -30,11 +30,15 @@ CREATE TABLE rag_poc.knowledge_document_version (
   warnings text[] NOT NULL DEFAULT '{}',
   created_at timestamp NOT NULL DEFAULT now()
 );
--- The same normalised file is never ingested twice into one collection.
-CREATE UNIQUE INDEX knowledge_document_version_dedupe ON rag_poc.knowledge_document_version (collection_id, sha256);
+-- The same normalised file is never live twice in one collection. A SUPERSEDED
+-- version doesn't count, so reverting a document to earlier content re-ingests it.
+CREATE UNIQUE INDEX knowledge_document_version_dedupe
+  ON rag_poc.knowledge_document_version (collection_id, sha256) WHERE status IN ('READY', 'PENDING_REVIEW');
 -- At most one READY version per document.
 CREATE UNIQUE INDEX knowledge_document_version_one_ready
   ON rag_poc.knowledge_document_version (document_id) WHERE status = 'READY';
+-- Document-delete cascades reach every status.
+CREATE INDEX knowledge_document_version_document ON rag_poc.knowledge_document_version (document_id);
 
 CREATE TABLE rag_poc.knowledge_chunk (
   id text PRIMARY KEY,
@@ -55,3 +59,5 @@ CREATE TABLE rag_poc.knowledge_chunk (
 CREATE INDEX knowledge_chunk_embedding ON rag_poc.knowledge_chunk USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX knowledge_chunk_tsv ON rag_poc.knowledge_chunk USING gin (tsv);
 CREATE INDEX knowledge_chunk_collection ON rag_poc.knowledge_chunk (collection_id);
+-- Version-delete cascades and the superseded-chunk delete in PgStore.add_version.
+CREATE INDEX knowledge_chunk_version ON rag_poc.knowledge_chunk (version_id);

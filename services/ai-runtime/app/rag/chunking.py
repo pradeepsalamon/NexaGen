@@ -90,21 +90,39 @@ def parse_blocks(text: str, fmt: DocumentFormat) -> list[Block]:
 
 def _classify(paragraph: str, start: int, stop: int, fmt: DocumentFormat) -> list[Block]:
     if fmt == "markdown":
-        # A Markdown heading may sit directly above its paragraph.
-        lines = paragraph.split("\n")
-        heading = _MD_HEADING.match(lines[0])
-        if heading:
-            out = [Block("heading", heading.group(2), start, start + len(lines[0]), level=len(heading.group(1)))]
-            rest = "\n".join(lines[1:]).strip()
-            if rest:
-                rest_start = paragraph.index(rest, len(lines[0])) + start
-                out.append(Block("paragraph", rest, rest_start, rest_start + len(rest), atomic=is_atomic(rest)))
-            return out
+        # Headings may sit directly above (or below) other lines with no blank
+        # line between: each heading line is its own block, and the lines
+        # between headings form paragraphs.
+        out: list[Block] = []
+        body_start: int | None = None
+        offset = 0
+        for line in paragraph.split("\n"):
+            heading = _MD_HEADING.match(line)
+            if heading:
+                if body_start is not None:
+                    out.append(_paragraph(paragraph, body_start, offset - 1, start))
+                    body_start = None
+                out.append(Block("heading", heading.group(2), start + offset, start + offset + len(line), level=len(heading.group(1))))
+            elif body_start is None:
+                body_start = offset
+            offset += len(line) + 1
+        if out:
+            if body_start is not None:
+                out.append(_paragraph(paragraph, body_start, len(paragraph), start))
+            return [b for b in out if b.text]
     else:
         level = _plain_heading_level(paragraph)
         if level:
             return [Block("heading", paragraph, start, stop, level=level)]
     return [Block("paragraph", paragraph, start, stop, atomic=is_atomic(paragraph))]
+
+
+def _paragraph(paragraph: str, begin: int, end: int, start: int) -> Block:
+    """The stripped paragraph[begin:end], with offsets shifted by `start`."""
+    raw = paragraph[begin:end]
+    text = raw.strip()
+    first = begin + (raw.index(text) if text else 0)
+    return Block("paragraph", text, start + first, start + first + len(text), atomic=is_atomic(text))
 
 
 def _split_prose(block: Block, target_tokens: int) -> list[Block]:

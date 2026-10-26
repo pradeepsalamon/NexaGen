@@ -13,6 +13,9 @@ on:
     paths:
       - 'services/ai-runtime/app/rag/**'
       - 'services/ai-runtime/eval/rag_poc/**'
+      - 'services/ai-runtime/pyproject.toml'
+      - 'services/ai-runtime/uv.lock'
+      - 'services/ai-runtime/tests/test_rag*.py'
       - 'scripts/ai/rag-poc/**'
       - 'apps/web/src/features/academy/content.ts'
       - '.github/workflows/rag-poc.yml'
@@ -117,6 +120,9 @@ jobs:
                       problems.append(f"{r['config']}/{mode}: restricted chunks returned to a student")
                   if m["injection"]["pendingReviewChunksReturned"]:
                       problems.append(f"{r['config']}/{mode}: a document held for review was retrieved")
+                  # The fixture has 5 probe documents; 4 carry a known injection pattern.
+                  if m["injection"]["flagged"] < 4:
+                      problems.append(f"{r['config']}/{mode}: only {m['injection']['flagged']} injection documents flagged (need 4)")
               for check in ("deletion", "reindex", "duplicateUpload"):
                   if not r[check]["pass"]:
                       problems.append(f"{r['config']}: {check} failed: {r[check]}")
