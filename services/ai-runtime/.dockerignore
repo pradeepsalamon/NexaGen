@@ -5,3 +5,4 @@ tests/
 contract/v1/fixtures/
 Dockerfile
 .dockerignore
+eval/

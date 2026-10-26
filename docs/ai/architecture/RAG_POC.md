@@ -1,7 +1,21 @@
 # RAG proof of concept (non-production)
 
-Status: **proposal, not approved.** It needs Phase 1 (PHASE1_SPEC.md) and OD-7
-(content licensing).
+Status: **started 2026-10-26** (DECISIONS.md §4: Phase 2, OD-7 as recommended).
+Code: `services/ai-runtime/app/rag/` (reusable, stdlib only) and
+`services/ai-runtime/eval/rag_poc/` (the harness; README there). The real run
+is `.github/workflows/rag-poc.yml` on a GitHub arm64 runner. Results:
+[RAG_POC_REPORT.md](RAG_POC_REPORT.md).
+
+Deviations from the plan below:
+
+- Gold labels are a document plus a substring, not chunk ids, so one question
+  set grades every chunk size.
+- PGN in the openings TSV is checked by a notation pattern only. The chess
+  wrapper is TypeScript, and python-chess is GPL-3.0.
+- Documents matching an injection pattern are ingested as `PENDING_REVIEW` and
+  never retrieved, which is what "flagged for staff review" means in production.
+- The question set was drafted from the sources by Claude, not written by a
+  coach. A coach should review it (§3).
 
 Goal: before any production schema or database image change, prove that the
 design in AI_FOUNDATION.md §5 can deliver:
