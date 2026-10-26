@@ -4,7 +4,8 @@ Status: **started 2026-10-26** (DECISIONS.md §4: Phase 2, OD-7 as recommended).
 Code: `services/ai-runtime/app/rag/` (reusable, stdlib only) and
 `services/ai-runtime/eval/rag_poc/` (the harness; README there). The real run
 is `.github/workflows/rag-poc.yml` on a GitHub arm64 runner. Results:
-[RAG_POC_REPORT.md](RAG_POC_REPORT.md).
+[RAG_POC_REPORT.md](RAG_POC_REPORT.md) (2026-10-26: conditional go; every hard
+check passes, but the rerank that abstention needs misses the latency target).
 
 Deviations from the plan below:
 
