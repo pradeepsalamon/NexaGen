@@ -210,6 +210,28 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     }
   });
 
+  // Knowledge base: an article only this side's batch may read, and a
+  // suggestion by this side's coach waiting for review.
+  const kbArticle = await prisma.knowledgeArticle.create({
+    data: {
+      audience: ["STUDENT", "COACH"],
+      batches: { create: [{ batchId: batch.id }] },
+      latestVersionNumber: 1,
+      slug: `batch-notes-${label.toLowerCase()}`,
+      status: "PUBLISHED"
+    }
+  });
+  const kbVersion = await prisma.knowledgeArticleVersion.create({
+    data: { articleId: kbArticle.id, body: `Notes for batch ${label}`, number: 1, publishedAt: new Date(), status: "PUBLISHED", title: `Batch notes ${label}` }
+  });
+  await prisma.knowledgeArticle.update({ data: { publishedVersionId: kbVersion.id }, where: { id: kbArticle.id } });
+  const kbSuggestionArticle = await prisma.knowledgeArticle.create({
+    data: { audience: [], createdById: coach.id, latestVersionNumber: 1, slug: `suggestion-${label.toLowerCase()}` }
+  });
+  const kbSuggestion = await prisma.knowledgeArticleVersion.create({
+    data: { articleId: kbSuggestionArticle.id, authorId: coach.id, body: "Idea", number: 1, status: "SUBMITTED", title: `Suggestion ${label}` }
+  });
+
   return {
     activityQueue,
     assignment,
@@ -224,6 +246,8 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
     coach,
     deployment,
     invoice,
+    kbArticle,
+    kbSuggestion,
     liveClass,
     order,
     payrollRecord,

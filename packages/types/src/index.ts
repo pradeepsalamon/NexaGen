@@ -67,6 +67,8 @@ export * from "./game-tactics";
 export * from "./game-analysis-report";
 export * from "./game-sources";
 export * from "./chat";
+export * from "./knowledge";
+export * from "./assistant-tools";
 export * from "./assignment-reminders";
 
 // ──────────────────────────────────────────────

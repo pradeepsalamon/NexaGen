@@ -46,7 +46,40 @@ export const API_ROUTES = {
   // Admin "Live now" monitor: every LIVE class + a hidden spectator seat (ADMIN/SUPER_ADMIN).
   adminAi: {
     echo: "/admin/ai/echo",
-    status: "/admin/ai/status"
+    status: "/admin/ai/status",
+    // Assistant tool registry (docs/KNOWLEDGE_BASE.md §6): list, and dry-run one as yourself.
+    tools: "/admin/ai/tools",
+    runTool: "/admin/ai/tools/run"
+  },
+  // Knowledge base: help centre (every signed-in role), coach suggestions, admin authoring.
+  knowledge: {
+    help: "/knowledge/help",
+    helpArticle: (slug: string = ":slug") => `/knowledge/help/articles/${slug}`,
+    feedback: (id: string = ":id") => `/knowledge/help/articles/${id}/feedback`,
+    suggestions: "/knowledge/suggestions",
+    suggestion: (id: string = ":id") => `/knowledge/suggestions/${id}`,
+    trends: "/knowledge/trends"
+  },
+  adminKnowledge: {
+    articles: "/admin/knowledge/articles",
+    article: (id: string = ":id") => `/admin/knowledge/articles/${id}`,
+    draft: (id: string = ":id") => `/admin/knowledge/articles/${id}/draft`,
+    settings: (id: string = ":id") => `/admin/knowledge/articles/${id}/settings`,
+    publish: (id: string = ":id") => `/admin/knowledge/articles/${id}/publish`,
+    unpublish: (id: string = ":id") => `/admin/knowledge/articles/${id}/unpublish`,
+    archive: (id: string = ":id") => `/admin/knowledge/articles/${id}/archive`,
+    restore: (id: string = ":id") => `/admin/knowledge/articles/${id}/restore`,
+    rollback: (id: string = ":id") => `/admin/knowledge/articles/${id}/rollback`,
+    reject: (id: string = ":id") => `/admin/knowledge/articles/${id}/reject`,
+    diff: (id: string = ":id") => `/admin/knowledge/articles/${id}/diff`,
+    submissions: "/admin/knowledge/submissions",
+    categories: "/admin/knowledge/categories",
+    category: (id: string = ":id") => `/admin/knowledge/categories/${id}`,
+    preview: "/admin/knowledge/preview",
+    insights: "/admin/knowledge/insights",
+    resolveQuery: "/admin/knowledge/insights/resolve",
+    export: "/admin/knowledge/export",
+    import: "/admin/knowledge/import"
   },
   adminLiveClasses: {
     list: "/admin/live-classes",

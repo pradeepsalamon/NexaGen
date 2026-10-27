@@ -84,7 +84,9 @@ export class PrivacyService {
       chessAppearance,
       typography,
       classChangeRequests,
-      platformStaff
+      platformStaff,
+      helpFeedback,
+      helpSuggestions
     ] = await Promise.all([
       // Soft-deleted rows are still personal data held about the user, so they are exported too.
       p.withDeleted.studentProfile.findMany({ where: { userId: id } }),
@@ -155,7 +157,23 @@ export class PrivacyService {
       p.userChessAppearancePreference.findMany({ where: { userId: id } }),
       p.userTypographyPreference.findMany({ where: { userId: id } }),
       p.classChangeRequest.findMany({ where: { coachId: id } }),
-      p.platformStaff.findMany({ where: { userId: id } })
+      p.platformStaff.findMany({ where: { userId: id } }),
+      // Help-centre votes, and help articles a coach suggested or an admin wrote.
+      p.knowledgeFeedback.findMany({ where: { userId: id } }),
+      p.knowledgeArticleVersion.findMany({
+        select: {
+          articleId: true,
+          body: true,
+          createdAt: true,
+          id: true,
+          number: true,
+          reviewNote: true,
+          status: true,
+          summary: true,
+          title: true
+        },
+        where: { authorId: id }
+      })
     ]);
 
     return {
@@ -178,6 +196,8 @@ export class PrivacyService {
         courseProgress: records(courseProgress),
         entitlements: records(entitlements),
         feedbackGiven: records(feedbackGiven),
+        helpFeedback: records(helpFeedback),
+        helpSuggestions: records(helpSuggestions),
         invoices: records(invoices),
         moduleProgress: records(moduleProgress),
         movePollAnswers: records(movePollAnswers),

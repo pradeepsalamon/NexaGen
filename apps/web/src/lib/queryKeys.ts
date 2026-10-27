@@ -307,4 +307,22 @@ export const queryKeys = {
     mine: ["assignments", "reminders", "mine"] as const,
     overview: (filters: Record<string, unknown>) => ["assignments", "overview", filters] as const,
   },
+  knowledge: {
+    all: ["knowledge"] as const,
+    help: (filters: Record<string, unknown>) => ["knowledge", "help", filters] as const,
+    article: (slug: string) => ["knowledge", "article", slug] as const,
+    suggestions: ["knowledge", "suggestions"] as const,
+    trends: ["knowledge", "trends"] as const,
+    admin: {
+      all: ["knowledge", "admin"] as const,
+      list: (filters: Record<string, unknown>) => ["knowledge", "admin", "list", filters] as const,
+      detail: (id: string) => ["knowledge", "admin", "detail", id] as const,
+      diff: (id: string, from: string, to: string) => ["knowledge", "admin", "diff", id, from, to] as const,
+      submissions: ["knowledge", "admin", "submissions"] as const,
+      categories: ["knowledge", "admin", "categories"] as const,
+      insights: ["knowledge", "admin", "insights"] as const,
+      preview: (filters: Record<string, unknown>) => ["knowledge", "admin", "preview", filters] as const,
+    },
+  },
+  assistantTools: ["admin", "ai", "tools"] as const,
 } as const;

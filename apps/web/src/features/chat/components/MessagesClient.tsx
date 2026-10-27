@@ -24,13 +24,22 @@ export function MessagesClient() {
   const params = useSearchParams();
   const selectedId = params.get("c");
   const conversations = useConversations();
-  const [newOpen, setNewOpen] = useState(false);
+  // `/messages?new=1&draft=…` (the help centre's "Ask my coach"): open the
+  // picker, then pre-fill the first thread opened with the question.
+  const [newOpen, setNewOpen] = useState(() => params.get("new") === "1");
+  const [carriedDraft, setCarriedDraft] = useState(() => params.get("draft")?.slice(0, 2000) ?? null);
+
+  const [draftFor, setDraftFor] = useState<{ id: string; text: string } | null>(null);
 
   const select = useCallback(
     (id: string | null) => {
+      if (id && carriedDraft) {
+        setDraftFor({ id, text: carriedDraft });
+        setCarriedDraft(null);
+      }
       router.replace(id ? `${pathname}?c=${encodeURIComponent(id)}` : pathname, { scroll: false });
     },
-    [pathname, router],
+    [carriedDraft, pathname, router],
   );
 
   return (
@@ -69,7 +78,12 @@ export function MessagesClient() {
 
       <section className={cn("min-w-0 flex-1 flex-col", selectedId ? "flex" : "hidden md:flex")}>
         {selectedId ? (
-          <ChatThread conversationId={selectedId} key={selectedId} onBack={() => select(null)} />
+          <ChatThread
+            conversationId={selectedId}
+            initialDraft={draftFor?.id === selectedId ? draftFor.text : undefined}
+            key={selectedId}
+            onBack={() => select(null)}
+          />
         ) : (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
             <span className="flex size-14 items-center justify-center rounded-full bg-app-soft">

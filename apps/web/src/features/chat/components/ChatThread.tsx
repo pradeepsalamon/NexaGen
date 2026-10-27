@@ -22,9 +22,14 @@ import { ConversationAvatar } from "./ConversationList";
 
 type Pending = { body: string; clientId: string; failed: boolean };
 
-type Props = { conversationId: string; onBack: () => void };
+type Props = {
+  conversationId: string;
+  onBack: () => void;
+  /** Pre-fills the composer once (e.g. a question carried over from the help centre). */
+  initialDraft?: string;
+};
 
-export function ChatThread({ conversationId, onBack }: Props) {
+export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
   const toast = useToast();
   const timeZone = useUserTimeZone();
   const meId = useAuthStore((s) => s.user?.id);
@@ -38,6 +43,7 @@ export function ChatThread({ conversationId, onBack }: Props) {
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
   const [draft, setDraft] = useState("");
+  const initialDraftRef = useRef(initialDraft);
   const [membersOpen, setMembersOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -47,7 +53,8 @@ export function ChatThread({ conversationId, onBack }: Props) {
     setKnownMessages(new Map());
     setOlderCursor(undefined);
     setPending([]);
-    setDraft("");
+    setDraft(initialDraftRef.current ?? "");
+    initialDraftRef.current = undefined;
     stickToBottom.current = true;
   }, [conversationId]);
 
