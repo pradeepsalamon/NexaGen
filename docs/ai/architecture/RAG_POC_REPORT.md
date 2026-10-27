@@ -132,8 +132,10 @@ As exercised by `eval/rag_poc/schema.sql`:
   `Unsupported("vector(384)")` in Prisma, with its HNSW (`vector_cosine_ops`)
   and GIN (`tsv`, a generated `to_tsvector('english', text)` column) indexes
   created in the raw SQL of the migration.
-- `KnowledgeDocumentVersion` adds **`collectionId`** with a unique
-  `(collectionId, sha256)` (the dedupe), a partial unique index allowing one
+- `KnowledgeDocumentVersion` adds **`collectionId`** with a partial unique
+  `(collectionId, sha256) WHERE status IN ('READY', 'PENDING_REVIEW')` (the
+  dedupe; a `SUPERSEDED` version doesn't count, so reverting a document to
+  earlier content re-ingests it), a partial unique index allowing one
   `READY` version per document, and status **`PENDING_REVIEW`** beside
   `READY` / `SUPERSEDED`.
 - pgvector ≥ 0.8 is required for `iterative_scan`. The API sets

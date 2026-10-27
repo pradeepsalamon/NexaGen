@@ -209,7 +209,6 @@ Each has a recommendation; none is approved.
 | OD-5 | Coach approves student-facing AI text before students see it | **Yes, required** | Phase 3 |
 | OD-6 | Where generation runs: (a) current VPS off-hours with a ≤4B model after a benchmark; (b) a separate machine (purchase needed); (c) an OCI limit increase request (cost to be verified); (d) external, PUBLIC data only | **(a) benchmark first**, with (c) asked of Oracle in parallel at no commitment. See INFRASTRUCTURE_DECISION.md | Phase 3 |
 | OD-6b | pgvector in production via a custom alpine image | Approve **only when** RAG goes to production, with a backup and a rehearsed rollback | Phase 5 |
-| OD-7 | Licensing of RAG content | Public domain, CC0/CC-BY and academy-owned only. **No copyrighted books** without written permission. **Approved 2026-10-27** (§4) | RAG PoC dataset, Phase 5 |
 | OD-8 | Coach-owned knowledge collections | Later (Phase 7+) | — |
 | OD-9 | Student-facing assistant | Last. Needs notices, a scope policy and moderation | Phase 8 |
 | OD-10 | Assistant conversation retention | 30 days; coaches can't read student conversations | Phase 6 |
@@ -233,6 +232,9 @@ Each has a recommendation; none is approved.
 | OD-27 | Plan gating for summaries | New `aiClassSummaries` plan feature, Enterprise only at launch | Phase 3 |
 | OD-28 | What students see about AI | Always label the recap "Prepared by your coach with AI assistance" | Phase 3 |
 | OD-29 | Coach notification for a ready draft | In-app badge only in v1; no `MessagingEvent` | Phase 3 |
+
+
+Closed: **OD-7** (licensing of RAG content) was approved 2026-10-27: public domain, CC0/CC-BY and academy-owned only, no copyrighted books without written permission. The approval log (§4) is the record.
 
 ---
 
