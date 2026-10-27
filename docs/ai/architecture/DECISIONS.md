@@ -1,7 +1,7 @@
 # AI architecture decision records
 
 Status: **OD-1, OD-2, OD-6 (option a), OD-19 and OD-20 to OD-24 approved
-2026-10-19** (§4); everything else is still a proposal. §1 records constraints the audit verified; those are
+2026-10-19; OD-7 approved 2026-10-27** (§4); everything else is still a proposal. §1 records constraints the audit verified; those are
 facts, not choices. §2 holds proposed decisions. §3 lists owner decisions. A
 recommendation is not approved just because a brief or prompt mentions it.
 
@@ -209,7 +209,7 @@ Each has a recommendation; none is approved.
 | OD-5 | Coach approves student-facing AI text before students see it | **Yes, required** | Phase 3 |
 | OD-6 | Where generation runs: (a) current VPS off-hours with a ≤4B model after a benchmark; (b) a separate machine (purchase needed); (c) an OCI limit increase request (cost to be verified); (d) external, PUBLIC data only | **(a) benchmark first**, with (c) asked of Oracle in parallel at no commitment. See INFRASTRUCTURE_DECISION.md | Phase 3 |
 | OD-6b | pgvector in production via a custom alpine image | Approve **only when** RAG goes to production, with a backup and a rehearsed rollback | Phase 5 |
-| OD-7 | Licensing of RAG content | Public domain, CC0/CC-BY and academy-owned only. **No copyrighted books** without written permission | RAG PoC dataset, Phase 5 |
+| OD-7 | Licensing of RAG content | Public domain, CC0/CC-BY and academy-owned only. **No copyrighted books** without written permission. **Approved 2026-10-27** (§4) | RAG PoC dataset, Phase 5 |
 | OD-8 | Coach-owned knowledge collections | Later (Phase 7+) | — |
 | OD-9 | Student-facing assistant | Last. Needs notices, a scope policy and moderation | Phase 8 |
 | OD-10 | Assistant conversation retention | 30 days; coaches can't read student conversations | Phase 6 |
@@ -250,6 +250,7 @@ Each has a recommendation; none is approved.
 | 2026-10-19 | OD-6 | (a) benchmark a ≤4B model off-hours on the current VPS first (INFRASTRUCTURE_DECISION.md §4). (c), the OCI A1 limit inquiry, is the owner's to send, with no commitment | Phase 3a may run once a no-class window is named |
 | 2026-10-19 | OD-19 | Recording cap to 90 GB and prune the build cache before any weights | Build cache pruned 2026-10-19 (9.08 GB freed, 138 GB free). The cap change in the production `.env` is still to do; `run-capacity-benchmark.sh` refuses to run until the live API reports ≤ 90 |
 | 2026-10-26 | Phase 2 (RAG PoC) start; OD-7 **pending** | Owner asked to "start to implement rag": that approves starting Phase 2 only. OD-7 is **not yet decided**: the PoC follows its recommended option (public domain, CC0/CC-BY and academy-owned content only, no copyrighted books without written permission) until the owner confirms it in writing; the PoC uses only CC0, a 1921 public-domain book and owned or synthetic text, so nothing changes if they do | PoC built on `feat/rag-poc`; runs off-box in CI only (RAG_POC.md hard limits). Phase 5 (production RAG) is still unapproved |
+| 2026-10-27 | OD-7 | As recommended: knowledge-base content is limited to academy-owned material, public domain and CC0/CC-BY (credited). No copyrighted books, courses or other academies' material without written permission. With the owner's same-day direction that the product ships **no** pre-loaded knowledge base (every document is added by an admin, with per-role audiences and versioning), this is a rule for what admins upload: Phase 5 gives each document a required source/licence field and shows it in the change log. The PoC corpus is evaluation-only and is never loaded into the product | The PoC dataset needs no change. Phase 5 (production RAG) is still unapproved: OD-6b and a build go-ahead remain |
 
 ADR-002 to ADR-009 stay proposals; P1 follows ADR-009 (no tables) because the
 spec already limits it to that.

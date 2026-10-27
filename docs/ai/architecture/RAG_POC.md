@@ -1,6 +1,6 @@
 # RAG proof of concept (non-production)
 
-Status: **started 2026-10-26** (DECISIONS.md §4: Phase 2, OD-7 as recommended).
+Status: **started 2026-10-26** (DECISIONS.md §4: Phase 2; OD-7 as recommended, approved 2026-10-27).
 Code: `services/ai-runtime/app/rag/` (reusable, stdlib only) and
 `services/ai-runtime/eval/rag_poc/` (the harness; README there). The real run
 is `.github/workflows/rag-poc.yml` on a GitHub arm64 runner. Results:
