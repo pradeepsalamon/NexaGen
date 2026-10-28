@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { PuzzleStatus, PuzzleVisibility, UserRole, UserStatus } from "@prisma/client";
 import { LiveClassService } from "../live-class/live-class.service";
@@ -92,7 +92,8 @@ describe("LiveClassPuzzleService", () => {
         .mockResolvedValue({ user: asUser(COACH_ID, UserRole.COACH), liveSession }),
       resolveParticipant: jest
         .fn()
-        .mockResolvedValue({ user: asUser(STUDENT_ID, UserRole.STUDENT), liveSession })
+        .mockResolvedValue({ user: asUser(STUDENT_ID, UserRole.STUDENT), liveSession }),
+      resolveDemoGuest: jest.fn().mockResolvedValue({ registration: { id: "reg-1" }, liveSession })
     };
     attempts = { start: jest.fn().mockResolvedValue({ attempt: { attempt: { id: "att-1" } } }) };
     puzzles = { create: jest.fn().mockResolvedValue({ puzzle: { id: "pz-new" } }) };
@@ -205,6 +206,34 @@ describe("LiveClassPuzzleService", () => {
         liveClassId: CLASS_ID,
         startedAfter: row.startedAt
       });
+    });
+  });
+
+  describe("getCurrentForGuest", () => {
+    it("is refused when the guest token doesn't check out", async () => {
+      liveClass.resolveDemoGuest.mockRejectedValue(new UnauthorizedException());
+      await expect(service.getCurrentForGuest("bad", CLASS_ID)).rejects.toBeInstanceOf(UnauthorizedException);
+      expect(prisma.liveClassPuzzleAssignment.findFirst).not.toHaveBeenCalled();
+    });
+
+    it("returns the active puzzle with its solution, never starting an attempt", async () => {
+      prisma.liveClassPuzzleAssignment.findFirst.mockResolvedValue(
+        assignmentRow({ puzzle: puzzleRow({ explanation: "Back rank", hintsJson: ["Look at the 8th rank", 3] }) })
+      );
+      const res = await service.getCurrentForGuest("guest", CLASS_ID);
+      expect(liveClass.resolveDemoGuest).toHaveBeenCalledWith("guest", CLASS_ID);
+      expect(res.assignment).toMatchObject({ id: "a-1", fen: FEN });
+      expect(res.solution).toEqual({
+        explanation: "Back rank",
+        hints: ["Look at the 8th rank"],
+        solutionMoves: [{ uci: "a1a8", san: "Ra8#" }]
+      });
+      expect(attempts.start).not.toHaveBeenCalled();
+    });
+
+    it("has no solution when nothing is active", async () => {
+      const res = await service.getCurrentForGuest("guest", CLASS_ID);
+      expect(res).toMatchObject({ assignment: null, solution: null });
     });
   });
 

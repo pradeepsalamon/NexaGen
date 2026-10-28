@@ -213,6 +213,7 @@ export const queryKeys = {
     leaderboard: (classId: string) => ["live-puzzle", "leaderboard", classId] as const,
     classLeaderboard: (classId: string) => ["live-puzzle", "class-leaderboard", classId] as const,
     boards: (classId: string) => ["live-puzzle", "boards", classId] as const,
+    guest: (classId: string) => ["live-puzzle", "guest", classId] as const,
   },
   liveSimul: {
     state: (classId: string) => ["live-simul", "state", classId] as const,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Play, RotateCcw, Square } from "lucide-react";
+import { Gamepad2, ListOrdered, Play, RotateCcw, Square } from "lucide-react";
 import { PUZZLE_RUSH_POOL_SIZE, type PuzzleRushMode } from "@nexa-chess/types";
 import { Alert } from "@/components/ui/Alert";
 import {
@@ -15,6 +15,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/AlertDialog";
 import { Button } from "@/components/ui/Button";
+import { useAuthStore } from "@/stores/authStore";
 import {
   formatRushClock,
   useEndPuzzleRush,
@@ -24,14 +25,22 @@ import {
 } from "../../../../../hooks/usePuzzleRush";
 import { SectionTitle, ToolLoadError, ToolLoading, useIsPresenting } from "../../shared";
 import { RaceTrack, RUSH_LABEL, RushRules, RushStandings } from "./RushParts";
+import { RushPlayer } from "./RushPlayer";
 
-/** The coach's side: rules, Start / End, and the class standings live. */
+/**
+ * The coach's side: rules, Start / End, and the class standings live — or,
+ * with "Play along", the coach's own run of the same puzzles (ranked with the
+ * class, labelled as the coach). End stays in reach either way.
+ */
 export function RushCoachPanel({ classId, mode }: { classId: string; mode: PuzzleRushMode }) {
   const query = usePuzzleRush(classId);
   const start = useStartPuzzleRush(classId);
   const end = useEndPuzzleRush(classId);
   const presenting = useIsPresenting();
+  const userId = useAuthStore((s) => s.user?.id);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  // The round id the coach chose to play, so a new round opens on the standings again.
+  const [playingRushId, setPlayingRushId] = useState<string | null>(null);
   const { rush, skewMs } = query;
   const active = !!rush && rush.status !== "ENDED";
   const now = useServerNow(skewMs, active, 500);
@@ -56,6 +65,23 @@ export function RushCoachPanel({ classId, mode }: { classId: string; mode: Puzzl
   }
 
   const startLabel = mode === "STORM" ? "Start Puzzle Storm" : "Start the race";
+  const coachPlaying = !!mine && playingRushId === mine.id;
+  const playToggle =
+    mine && (mine.status !== "ENDED" || coachPlaying) ? (
+      <Button
+        className="w-full"
+        onClick={() => setPlayingRushId(coachPlaying ? null : mine.id)}
+        size="sm"
+        variant={coachPlaying ? "outline" : "secondary"}
+      >
+        {coachPlaying ? (
+          <ListOrdered aria-hidden="true" className="size-4" strokeWidth={2.5} />
+        ) : (
+          <Gamepad2 aria-hidden="true" className="size-4" strokeWidth={2.5} />
+        )}
+        {coachPlaying ? "Back to the standings" : mode === "STORM" ? "Play along" : "Join the race"}
+      </Button>
+    ) : null;
 
   return (
     <div className="space-y-4">
@@ -95,11 +121,15 @@ export function RushCoachPanel({ classId, mode }: { classId: string; mode: Puzzl
         </div>
       )}
 
-      {mine ? (
+      {playToggle}
+
+      {coachPlaying ? (
+        <RushPlayer classId={classId} compact mode={mode} />
+      ) : mine ? (
         <div className="space-y-2">
           <SectionTitle>{mine.status === "ENDED" ? "Final standings" : "Standings"}</SectionTitle>
-          {mine.mode === "RACER" ? <RaceTrack meId={null} standings={mine.standings} /> : null}
-          <RushStandings mode={mine.mode} standings={mine.standings} />
+          {mine.mode === "RACER" ? <RaceTrack meId={userId} standings={mine.standings} /> : null}
+          <RushStandings meId={userId} mode={mine.mode} standings={mine.standings} />
         </div>
       ) : null}
 

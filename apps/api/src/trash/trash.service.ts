@@ -224,6 +224,9 @@ export class TrashService {
         return 2;
       case "User":
         return 3;
+      // After the puzzles a deleted folder held (puzzles.topicId is RESTRICT).
+      case "PuzzleTopic":
+        return 3;
       default:
         return 2;
     }

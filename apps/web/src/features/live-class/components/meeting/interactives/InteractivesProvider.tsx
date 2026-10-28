@@ -10,7 +10,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useParams } from "next/navigation";
 import type { LiveClassInteractiveId, PresentingState, PuzzleRushMode } from "@nexa-chess/types";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useClassroomTimer } from "../../../hooks/useClassroomTimer";
@@ -20,6 +19,7 @@ import {
   useSaveClassroomTool,
 } from "../../../hooks/useClassroomTools";
 import { usePuzzleRush, usePuzzleRushSync } from "../../../hooks/usePuzzleRush";
+import { useMemberClassId } from "../../../providers/LiveRoomContext";
 
 /** The Interactive that plays each Storm / Racer round. */
 const PUZZLE_RUSH_TOOL: Record<PuzzleRushMode, LiveClassInteractiveId> = {
@@ -61,8 +61,7 @@ const TimerContext = createContext<ClassroomTimer | null>(null);
  * running round stays on their stage until it ends).
  */
 export function InteractivesProvider({ children }: { children: ReactNode }) {
-  const params = useParams();
-  const classId = (params?.roomId as string) ?? "";
+  const classId = useMemberClassId();
   const user = useAuthStore((s) => s.user);
   // Same rule as the rest of the toolbar; the API re-checks class ownership.
   const isManager = user?.role === "COACH" || isStaffRole(user?.role);

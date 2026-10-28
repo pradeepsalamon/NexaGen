@@ -74,7 +74,8 @@ function MatchBoard({ game }: { game: LiveMatchGame }) {
             : `${opponent.name} is thinking…`}
       </div>
 
-      <div className="mx-auto flex max-w-[min(440px,64dvh)] flex-col items-center gap-2">
+      {/* Side by side, the board shrinks so it and both player rows clear the floating mic / camera toolbar. */}
+      <div className="mx-auto flex max-w-[min(440px,64dvh)] flex-col items-center gap-2 room:max-w-[min(440px,64dvh,calc(100dvh-21.5rem))]">
         <PlayerRow name={opponent.name} game={game} color={theirColor} onFlag={claimTimeout} />
         <PracticeBoard
           fen={game.fen}

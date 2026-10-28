@@ -4,15 +4,18 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  UnauthorizedException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { LiveKitService } from "./livekit.service";
 import { JwtService } from "@nestjs/jwt";
 import { LiveSessionStatus } from "./types/live-class.types";
 import {
+  DemoGuestApproval,
   UserRole,
 } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
+import { readDemoGuestToken } from "./demo-guest-token";
 
 /** Who may enter a live class: authentication plus participant / manager checks shared by every in-room feature. */
 @Injectable()
@@ -105,6 +108,37 @@ export class LiveClassAccessService {
     }
 
     return { user, liveSession };
+  }
+
+  /**
+   * Public: a demo guest (no user, no session) by the `guestToken` its join
+   * returned. The token must name this class, its registration must still be
+   * admitted, and the class must be a LIVE demo. For the few in-room routes a
+   * guest may call; everything else stays user-only.
+   */
+  async resolveDemoGuest(guestToken: string | undefined, classId: string) {
+    const payload = await readDemoGuestToken(this.jwtService, guestToken);
+    if (!payload || payload.classId !== classId) {
+      throw new UnauthorizedException("Join the demo class again to continue.");
+    }
+    const registration = await this.prisma.demoClassRegistration.findUnique({
+      where: { id: payload.sub },
+      select: { approval: true, class: { select: { isDemo: true } }, classId: true, id: true },
+    });
+    if (!registration || registration.classId !== classId || !registration.class.isDemo) {
+      throw new UnauthorizedException("Join the demo class again to continue.");
+    }
+    if (registration.approval === DemoGuestApproval.DENIED) {
+      throw new ForbiddenException("The coach has not admitted you to this class.");
+    }
+    const liveSession = await this.prisma.liveSession.findUnique({ where: { classId } });
+    if (!liveSession) {
+      throw new NotFoundException("Live class not found.");
+    }
+    if (liveSession.status !== LiveSessionStatus.LIVE) {
+      throw new BadRequestException("Class is not currently live.");
+    }
+    return { registration, liveSession };
   }
 
   /** Public: user ids connected to the room right now (empty when LiveKit is unreachable). */

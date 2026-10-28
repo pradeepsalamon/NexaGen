@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { useParams } from "next/navigation";
 import { useIsMuted, type TrackReferenceOrPlaceholder } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { Loader2, Mic, MicOff, MonitorOff, Video, VideoOff } from "lucide-react";
@@ -13,6 +12,7 @@ import { moderateParticipant, requestTrackOn } from "../../../api/live-class";
 import { meetingToast } from "../../../lib/meetingToasts";
 import { useOptionalLiveClassState } from "../../../providers/LiveClassProvider";
 import { getRole } from "./videoGrid.utils";
+import { useMemberClassId } from "../../../providers/LiveRoomContext";
 
 type Participant = TrackReferenceOrPlaceholder["participant"];
 type Pending = "microphone" | "camera" | "screen_share" | null;
@@ -64,8 +64,7 @@ function Controls({
   size: "sm" | "md";
   className?: string;
 }) {
-  const params = useParams();
-  const roomId = params?.roomId as string | undefined;
+  const roomId = useMemberClassId();
   // Subscribed per participant, so the icon flips the moment LiveKit reports
   // the mute — no waiting for the grid's own track list to re-render.
   const micOff = useIsMuted({ participant, source: Track.Source.Microphone });

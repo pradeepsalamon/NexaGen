@@ -8,6 +8,7 @@ import { MeetingToolbar } from "./MeetingToolbar";
 import { MeetingSidebar } from "./MeetingSidebar";
 import { ConnectionBanner } from "./MeetingStatus";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
+import { useClassroomPresentation } from "../../hooks/useClassroomPresentation";
 import { useCoachBoardOpen } from "../../hooks/useCoachBoardOpen";
 import { BoardProvider } from "@/features/chessboard/context/BoardProvider";
 import { LiveBoardSyncBridge } from "./LiveBoardSyncBridge";
@@ -24,6 +25,7 @@ import { PresentedInteractiveOverlay } from "./interactives/PresentedInteractive
 function MeetingLayoutEffects({ autoShare }: { autoShare: boolean }) {
   useKeyboardShortcuts();
   useCoachBoardOpen({ autoShare });
+  useClassroomPresentation();
   return null;
 }
 

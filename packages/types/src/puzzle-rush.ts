@@ -139,8 +139,11 @@ export function puzzleRushPlayerMoves(puzzle: Pick<PuzzleRushPuzzle, "moves">): 
 export type PuzzleRushStatus = "COUNTDOWN" | "RUNNING" | "ENDED";
 
 export type PuzzleRushStanding = {
+  /** The player's user id — a student, or the class's coach playing along. */
   studentId: string;
   name: string;
+  /** The class's coach playing along (labelled, still ranked). */
+  isCoach?: boolean;
   /** Storm: puzzles solved. Racer: points (moves + combo bonus). */
   score: number;
   /** Correct moves played. */
@@ -209,6 +212,7 @@ export type ReportPuzzleRushProgressResponse = { standing: PuzzleRushStanding };
 const standingSchema = z.object({
   studentId: z.string(),
   name: z.string(),
+  isCoach: z.boolean().optional(),
   score: z.number(),
   moves: z.number(),
   errors: z.number(),

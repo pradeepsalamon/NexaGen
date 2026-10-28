@@ -57,6 +57,7 @@ R = read, C = create, U = update, D = delete, P = publish/share/launch.
 | Batches | R (enrolled) | R (own batch) | R C U D | |
 | Classes (`CoachClass`) | R (enrolled batch) | R, U notes/topic (own class), cancel own | R C U D | Coach scheduling changes go through `ClassChangeRequest` (admin approves). |
 | Live class: join / token | enrolled, or pulled, or admitted from waiting room; not if removed | own class | any (visible), or hidden spectator seat | Demo guests via `DemoClassRegistration`. |
+| Live class: demo guest puzzle (`GET /live-class/:id/puzzle/guest`) | — (users use `GET …/puzzle`) | — | — | Demo guests only, by the `guestToken` from their join (header `x-nexa-demo-guest`): this class, registration not DENIED, class a LIVE demo. Returns the solution — a guest practises unscored. |
 | Live class: settings, moderation, kick, pull, waiting room, screen-share approval, end | — (may request screen share / admission) | own class | any class | `resolveClassManager`. |
 | Live class: **recording** start/stop | — | own class | any class | Fixed 2026-10-16 (was any coach). |
 | Recording: view / stream / download | enrolled batch | own class | any | Stream token is signed per viewer + class and re-checked. |

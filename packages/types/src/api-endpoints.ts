@@ -153,6 +153,8 @@ export const API_ROUTES = {
     // Coach-owner+admin only: every enrolled student's current board position.
     puzzleBoards: (id: string = ":id") => `/live-class/${id}/puzzle/boards`,
     puzzleFromBoard: (id: string = ":id") => `/live-class/${id}/puzzle/from-board`,
+    // Demo guest (no session — `DEMO_GUEST_TOKEN_HEADER`): the active puzzle + its solution, to practise.
+    puzzleGuest: (id: string = ":id") => `/live-class/${id}/puzzle/guest`,
     // Coach-owner+admin: manual +/- points for one student on the active puzzle.
     puzzleAdjust: (id: string = ":id") => `/live-class/${id}/puzzle/adjust`,
     // Whole-class standings across every puzzle shared in the class (GET any participant).
@@ -400,6 +402,7 @@ export const API_ROUTES = {
   puzzles: {
     // ── Topics (admin authors; staff + coach read) ──
     topics: "/puzzles/topics",
+    /** GET / PATCH; DELETE = the folder, its subfolders and puzzles to Trash (admin). */
     topic: (id: string = ":id") => `/puzzles/topics/${id}`,
     archiveTopic: (id: string = ":id") => `/puzzles/topics/${id}/archive`,
     reassignTopic: (id: string = ":id") => `/puzzles/topics/${id}/reassign`,

@@ -2,7 +2,6 @@
 
 import { useState, type ReactNode } from "react";
 import { useDisconnectButton } from "@livekit/components-react";
-import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import {
@@ -15,6 +14,7 @@ import {
 } from "@/components/ui/Dialog";
 import { Button } from "@/components/ui/Button";
 import { endLiveClass } from "../../api/live-class";
+import { useMemberClassId } from "../../providers/LiveRoomContext";
 
 /**
  * Shared "leave the class" affordance. Students get a lightweight confirm so the
@@ -27,8 +27,7 @@ export function LeaveClassControl({
 }: {
   children: (open: () => void) => ReactNode;
 }) {
-  const params = useParams();
-  const roomId = params?.roomId as string;
+  const roomId = useMemberClassId();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { buttonProps: leaveProps } = useDisconnectButton({ stopTracks: true });

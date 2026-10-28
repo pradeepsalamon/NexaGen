@@ -57,7 +57,8 @@ export function InteractivePanel({
         "animate-in fade-in slide-in-from-bottom-4 duration-200",
         placement === "side"
           ? "fixed inset-x-2 bottom-2 top-14 z-40 sm:inset-x-auto sm:bottom-24 sm:right-4 sm:top-16 sm:w-[26rem]"
-          : "pointer-events-auto max-h-[calc(100dvh-6rem)] w-full max-w-lg",
+          // Never taller than the space between the top bar and the toolbar it centres in.
+          : "pointer-events-auto max-h-full w-full max-w-lg",
       )}
       onKeyDown={(e) => {
         // Only keys pressed in the panel itself — Escape in a modal opened from a
