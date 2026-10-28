@@ -45,6 +45,13 @@ Dependencies: `uv lock` respects `exclude-newer` in `pyproject.toml`. Runtime
 packages must stay on the allowlist in `tests/test_dependencies.py`, which
 admits no provider SDK and no HTTP client.
 
+## RAG proof of concept
+
+`app/rag/` holds the RAG building blocks (chunking, injection flags, rank
+fusion, citation validation). They're stdlib only and not reachable over HTTP
+yet. The PoC harness is `eval/rag_poc/` (its README covers running it). It
+needs `uv sync --group rag-poc` and is excluded from the image.
+
 ## Containers
 
 Only through the opt-in overlay, never by the production deploy:

@@ -1,0 +1,969 @@
+{
+  "meta": {
+    "generatedAt": "2026-10-26T11:51:10+00:00",
+    "machine": "aarch64",
+    "python": "3.12.3",
+    "store": "pgvector",
+    "threads": 2
+  },
+  "reports": [
+    {
+      "config": "bge-small-400",
+      "embedder": "bge-small",
+      "embeddingRevision": "Qdrant/bge-small-en-v1.5-onnx-Q@aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+      "dim": 384,
+      "chunkTokens": 400,
+      "reranker": "Xenova/ms-marco-MiniLM-L-6-v2",
+      "ingest": {
+        "documents": 512,
+        "chunks": 870,
+        "seconds": 165.05,
+        "chunksPerSecond": 5.3,
+        "pendingReview": [
+          "injection:i1-italian",
+          "injection:i2-endgame",
+          "injection:i3-tool",
+          "injection:i4-roleplay"
+        ]
+      },
+      "duplicateUpload": {
+        "status": "DUPLICATE",
+        "pass": true
+      },
+      "modes": {
+        "vector": {
+          "recallAt5": 0.75,
+          "ndcgAt5": 0.656,
+          "recallAt5Holdout": 0.75,
+          "threshold": 0.5616018518628576,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 5,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 17.0,
+            "p95": 20.5
+          },
+          "misses": [
+            "a01",
+            "a08",
+            "a10",
+            "a15",
+            "a17",
+            "a21",
+            "a22",
+            "a23",
+            "a27",
+            "a28"
+          ]
+        },
+        "text": {
+          "recallAt5": 0.55,
+          "ndcgAt5": 0.434,
+          "recallAt5Holdout": 0.625,
+          "threshold": 0.35,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 8,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 6,
+            "probes": 10,
+            "staffControlRecallAt5": 0.8
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 2.3,
+            "p95": 4.2
+          },
+          "misses": [
+            "a05",
+            "a08",
+            "a09",
+            "a10",
+            "a12",
+            "a13",
+            "a17",
+            "a18",
+            "a21",
+            "a22",
+            "a23",
+            "a27",
+            "a28",
+            "a31",
+            "a32",
+            "a35",
+            "a36",
+            "a37"
+          ]
+        },
+        "hybrid": {
+          "recallAt5": 0.775,
+          "ndcgAt5": 0.641,
+          "recallAt5Holdout": 0.875,
+          "threshold": 0.5616018518628576,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 5,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 20.2,
+            "p95": 24.7
+          },
+          "misses": [
+            "a08",
+            "a10",
+            "a17",
+            "a21",
+            "a22",
+            "a27",
+            "a32",
+            "a36",
+            "a37"
+          ]
+        },
+        "hybrid_rerank": {
+          "recallAt5": 0.9,
+          "ndcgAt5": 0.714,
+          "recallAt5Holdout": 1,
+          "threshold": -3.28428053855896,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 9,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 9,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 4854.0,
+            "p95": 4895.9
+          },
+          "misses": [
+            "a01",
+            "a17",
+            "a18",
+            "a22"
+          ]
+        }
+      },
+      "bestMode": "hybrid_rerank",
+      "citations": {
+        "answered": 40,
+        "validCitations": 40,
+        "droppedFixtureCitations": 0,
+        "forgedCitationsDropped": 3,
+        "forgedCitationsKept": 0
+      },
+      "deletion": {
+        "document": "restricted:r1-coach-payout",
+        "chunksBefore": 1,
+        "chunksAfter": 0,
+        "retrievalHitsAfter": 0,
+        "pass": true
+      },
+      "reindex": {
+        "versionStatuses": [
+          "READY",
+          "SUPERSEDED"
+        ],
+        "staleChunksReturned": 0,
+        "chunksForDocument": 13,
+        "newVersionChunks": 13,
+        "pass": true
+      },
+      "maxRssMb": 2763.5,
+      "abstainToken": "NO_APPROVED_SOURCE"
+    },
+    {
+      "config": "bge-small-250",
+      "embedder": "bge-small",
+      "embeddingRevision": "Qdrant/bge-small-en-v1.5-onnx-Q@aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+      "dim": 384,
+      "chunkTokens": 250,
+      "reranker": "Xenova/ms-marco-MiniLM-L-6-v2",
+      "ingest": {
+        "documents": 512,
+        "chunks": 1162,
+        "seconds": 179.55,
+        "chunksPerSecond": 6.5,
+        "pendingReview": [
+          "injection:i1-italian",
+          "injection:i2-endgame",
+          "injection:i3-tool",
+          "injection:i4-roleplay"
+        ]
+      },
+      "duplicateUpload": {
+        "status": "DUPLICATE",
+        "pass": true
+      },
+      "modes": {
+        "vector": {
+          "recallAt5": 0.75,
+          "ndcgAt5": 0.633,
+          "recallAt5Holdout": 0.75,
+          "threshold": 0.5669768925602634,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 5,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 18.6,
+            "p95": 22.0
+          },
+          "misses": [
+            "a01",
+            "a02",
+            "a03",
+            "a08",
+            "a10",
+            "a15",
+            "a16",
+            "a17",
+            "a21",
+            "a22"
+          ]
+        },
+        "text": {
+          "recallAt5": 0.675,
+          "ndcgAt5": 0.494,
+          "recallAt5Holdout": 0.75,
+          "threshold": 0.35,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 8,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 7,
+            "probes": 10,
+            "staffControlRecallAt5": 0.8
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 2.1,
+            "p95": 4.6
+          },
+          "misses": [
+            "a05",
+            "a10",
+            "a12",
+            "a16",
+            "a17",
+            "a18",
+            "a22",
+            "a23",
+            "a27",
+            "a28",
+            "a31",
+            "a36",
+            "a37"
+          ]
+        },
+        "hybrid": {
+          "recallAt5": 0.825,
+          "ndcgAt5": 0.686,
+          "recallAt5Holdout": 0.875,
+          "threshold": 0.5669768925602634,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 5,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 20.3,
+            "p95": 25.3
+          },
+          "misses": [
+            "a10",
+            "a16",
+            "a17",
+            "a22",
+            "a23",
+            "a36",
+            "a37"
+          ]
+        },
+        "hybrid_rerank": {
+          "recallAt5": 0.8,
+          "ndcgAt5": 0.683,
+          "recallAt5Holdout": 0.875,
+          "threshold": -4.210224151611328,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 9,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 9,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 3538.2,
+            "p95": 3830.2
+          },
+          "misses": [
+            "a01",
+            "a02",
+            "a03",
+            "a06",
+            "a10",
+            "a16",
+            "a17",
+            "a22"
+          ]
+        }
+      },
+      "bestMode": "hybrid",
+      "citations": {
+        "answered": 40,
+        "validCitations": 40,
+        "droppedFixtureCitations": 0,
+        "forgedCitationsDropped": 3,
+        "forgedCitationsKept": 0
+      },
+      "deletion": {
+        "document": "restricted:r1-coach-payout",
+        "chunksBefore": 1,
+        "chunksAfter": 0,
+        "retrievalHitsAfter": 0,
+        "pass": true
+      },
+      "reindex": {
+        "versionStatuses": [
+          "READY",
+          "SUPERSEDED"
+        ],
+        "staleChunksReturned": 0,
+        "chunksForDocument": 13,
+        "newVersionChunks": 13,
+        "pass": true
+      },
+      "maxRssMb": 2835.3,
+      "abstainToken": "NO_APPROVED_SOURCE"
+    },
+    {
+      "config": "e5-small-400",
+      "embedder": "e5-small",
+      "embeddingRevision": "intfloat/multilingual-e5-small@614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "dim": 384,
+      "chunkTokens": 400,
+      "reranker": "Xenova/ms-marco-MiniLM-L-6-v2",
+      "ingest": {
+        "documents": 512,
+        "chunks": 870,
+        "seconds": 197.56,
+        "chunksPerSecond": 4.4,
+        "pendingReview": [
+          "injection:i1-italian",
+          "injection:i2-endgame",
+          "injection:i3-tool",
+          "injection:i4-roleplay"
+        ]
+      },
+      "duplicateUpload": {
+        "status": "DUPLICATE",
+        "pass": true
+      },
+      "modes": {
+        "vector": {
+          "recallAt5": 0.75,
+          "ndcgAt5": 0.614,
+          "recallAt5Holdout": 0.75,
+          "threshold": 0.8066022276472005,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 9,
+            "probes": 10,
+            "staffControlRecallAt5": 0.9
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 18.4,
+            "p95": 21.6
+          },
+          "misses": [
+            "a01",
+            "a05",
+            "a09",
+            "a15",
+            "a17",
+            "a21",
+            "a22",
+            "a23",
+            "a24",
+            "a36"
+          ]
+        },
+        "text": {
+          "recallAt5": 0.55,
+          "ndcgAt5": 0.433,
+          "recallAt5Holdout": 0.625,
+          "threshold": 0.35,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 8,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 6,
+            "probes": 10,
+            "staffControlRecallAt5": 0.8
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 2.4,
+            "p95": 4.4
+          },
+          "misses": [
+            "a05",
+            "a08",
+            "a09",
+            "a10",
+            "a12",
+            "a13",
+            "a17",
+            "a18",
+            "a21",
+            "a22",
+            "a23",
+            "a27",
+            "a28",
+            "a31",
+            "a32",
+            "a35",
+            "a36",
+            "a37"
+          ]
+        },
+        "hybrid": {
+          "recallAt5": 0.875,
+          "ndcgAt5": 0.694,
+          "recallAt5Holdout": 1,
+          "threshold": 0.8066022276472005,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 9,
+            "probes": 10,
+            "staffControlRecallAt5": 0.9
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 21.7,
+            "p95": 24.8
+          },
+          "misses": [
+            "a17",
+            "a22",
+            "a23",
+            "a27",
+            "a36"
+          ]
+        },
+        "hybrid_rerank": {
+          "recallAt5": 0.9,
+          "ndcgAt5": 0.709,
+          "recallAt5Holdout": 1,
+          "threshold": -3.28428053855896,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 9,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 10,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 4862.9,
+            "p95": 4907.1
+          },
+          "misses": [
+            "a01",
+            "a17",
+            "a18",
+            "a22"
+          ]
+        }
+      },
+      "bestMode": "hybrid_rerank",
+      "citations": {
+        "answered": 40,
+        "validCitations": 40,
+        "droppedFixtureCitations": 0,
+        "forgedCitationsDropped": 3,
+        "forgedCitationsKept": 0
+      },
+      "deletion": {
+        "document": "restricted:r1-coach-payout",
+        "chunksBefore": 1,
+        "chunksAfter": 0,
+        "retrievalHitsAfter": 0,
+        "pass": true
+      },
+      "reindex": {
+        "versionStatuses": [
+          "READY",
+          "SUPERSEDED"
+        ],
+        "staleChunksReturned": 0,
+        "chunksForDocument": 13,
+        "newVersionChunks": 13,
+        "pass": true
+      },
+      "maxRssMb": 4580.2,
+      "abstainToken": "NO_APPROVED_SOURCE"
+    },
+    {
+      "config": "e5-small-250",
+      "embedder": "e5-small",
+      "embeddingRevision": "intfloat/multilingual-e5-small@614241f622f53c4eeff9890bdc4f31cfecc418b3",
+      "dim": 384,
+      "chunkTokens": 250,
+      "reranker": "Xenova/ms-marco-MiniLM-L-6-v2",
+      "ingest": {
+        "documents": 512,
+        "chunks": 1162,
+        "seconds": 209.39,
+        "chunksPerSecond": 5.5,
+        "pendingReview": [
+          "injection:i1-italian",
+          "injection:i2-endgame",
+          "injection:i3-tool",
+          "injection:i4-roleplay"
+        ]
+      },
+      "duplicateUpload": {
+        "status": "DUPLICATE",
+        "pass": true
+      },
+      "modes": {
+        "vector": {
+          "recallAt5": 0.775,
+          "ndcgAt5": 0.638,
+          "recallAt5Holdout": 0.75,
+          "threshold": 0.8076314925441971,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 9,
+            "probes": 10,
+            "staffControlRecallAt5": 0.9
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 19.8,
+            "p95": 22.6
+          },
+          "misses": [
+            "a01",
+            "a02",
+            "a05",
+            "a09",
+            "a12",
+            "a15",
+            "a16",
+            "a17",
+            "a22"
+          ]
+        },
+        "text": {
+          "recallAt5": 0.675,
+          "ndcgAt5": 0.49,
+          "recallAt5Holdout": 0.75,
+          "threshold": 0.35,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 8,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 7,
+            "probes": 10,
+            "staffControlRecallAt5": 0.8
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 2.2,
+            "p95": 4.8
+          },
+          "misses": [
+            "a05",
+            "a10",
+            "a12",
+            "a16",
+            "a17",
+            "a18",
+            "a22",
+            "a23",
+            "a27",
+            "a28",
+            "a31",
+            "a36",
+            "a37"
+          ]
+        },
+        "hybrid": {
+          "recallAt5": 0.775,
+          "ndcgAt5": 0.685,
+          "recallAt5Holdout": 0.75,
+          "threshold": 0.8076314925441971,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 5,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 1,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 9,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 23.2,
+            "p95": 26.9
+          },
+          "misses": [
+            "a05",
+            "a15",
+            "a16",
+            "a17",
+            "a22",
+            "a23",
+            "a27",
+            "a36",
+            "a37"
+          ]
+        },
+        "hybrid_rerank": {
+          "recallAt5": 0.825,
+          "ndcgAt5": 0.711,
+          "recallAt5Holdout": 1,
+          "threshold": -3.734520673751831,
+          "abstention": {
+            "answerableAnswered": 40,
+            "answerable": 40,
+            "unanswerableAbstained": 9,
+            "unanswerable": 10
+          },
+          "abstentionHoldout": {
+            "answerableAnswered": 8,
+            "answerable": 8,
+            "unanswerableAbstained": 2,
+            "unanswerable": 2
+          },
+          "permission": {
+            "restrictedChunksReturned": 0,
+            "leaks": [],
+            "studentAbstained": 10,
+            "probes": 10,
+            "staffControlRecallAt5": 1.0
+          },
+          "injection": {
+            "flagged": 4,
+            "documents": 5,
+            "pendingReviewChunksReturned": 0,
+            "payloadQuotedInFixtureAnswer": 0
+          },
+          "latencyMs": {
+            "p50": 3474.6,
+            "p95": 3828.1
+          },
+          "misses": [
+            "a01",
+            "a02",
+            "a03",
+            "a06",
+            "a16",
+            "a17",
+            "a22"
+          ]
+        }
+      },
+      "bestMode": "hybrid_rerank",
+      "citations": {
+        "answered": 40,
+        "validCitations": 40,
+        "droppedFixtureCitations": 0,
+        "forgedCitationsDropped": 3,
+        "forgedCitationsKept": 0
+      },
+      "deletion": {
+        "document": "restricted:r1-coach-payout",
+        "chunksBefore": 1,
+        "chunksAfter": 0,
+        "retrievalHitsAfter": 0,
+        "pass": true
+      },
+      "reindex": {
+        "versionStatuses": [
+          "READY",
+          "SUPERSEDED"
+        ],
+        "staleChunksReturned": 0,
+        "chunksForDocument": 13,
+        "newVersionChunks": 13,
+        "pass": true
+      },
+      "maxRssMb": 4664.1,
+      "abstainToken": "NO_APPROVED_SOURCE"
+    }
+  ]
+}

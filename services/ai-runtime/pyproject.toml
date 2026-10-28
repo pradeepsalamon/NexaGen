@@ -19,6 +19,13 @@ dev = [
   "jsonschema>=4.23,<5",
   "pytest>=8.3,<10",
 ]
+# RAG proof of concept only (docs/ai/architecture/RAG_POC.md): never in the
+# runtime image (the Dockerfile syncs --no-dev, and this group is not a default
+# group). Run with `uv run --group rag-poc python -m eval.rag_poc ...`.
+rag-poc = [
+  "fastembed>=0.5,<1",
+  "psycopg[binary]>=3.2,<4",
+]
 
 [tool.uv]
 package = false

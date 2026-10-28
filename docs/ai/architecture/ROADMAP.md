@@ -1,7 +1,8 @@
 # AI implementation roadmap
 
-Status: **Phase 1 and Phase 3a approved 2026-10-19** (DECISIONS.md §4); every
-later phase is still a proposal. 3a waits for an off-hours window. Each phase starts only after the
+Status: **Phase 1 and Phase 3a approved 2026-10-19; Phase 2 (RAG PoC)
+implementation began 2026-10-26** on the owner's request to start it, with
+its gate OD-7 approved 2026-10-27 (DECISIONS.md §4); every later phase is still a proposal. 3a waits for an off-hours window. Each phase starts only after the
 owner approves it explicitly. OD-x refers to DECISIONS.md §3.
 
 Every phase:
