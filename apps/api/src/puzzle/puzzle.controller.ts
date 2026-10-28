@@ -107,6 +107,11 @@ export class PuzzleController {
     return this.topicService.update(this.token(request), id, body);
   }
 
+  @Delete(API_ROUTES.puzzles.topic())
+  deleteTopic(@Param("id") id: string, @Req() request: Request) {
+    return this.topicService.remove(this.token(request), id);
+  }
+
   @Post(API_ROUTES.puzzles.archiveTopic())
   archiveTopic(@Param("id") id: string, @Req() request: Request) {
     return this.topicService.archive(this.token(request), id);

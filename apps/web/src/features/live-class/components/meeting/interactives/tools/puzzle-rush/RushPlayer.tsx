@@ -42,8 +42,20 @@ import {
 /** A trailing report at most this often — every move would flood the room. */
 const REPORT_EVERY_MS = 700;
 
-/** A student's side of Puzzle Storm / Puzzle Racer: wait, count down, play, see results. */
-export function RushPlayer({ classId, mode }: { classId: string; mode: PuzzleRushMode }) {
+/**
+ * A player's side of Puzzle Storm / Puzzle Racer: wait, count down, play, see
+ * results. Students, and the coach playing along inside their tool panel
+ * (`compact`: one column sized to the panel, not the viewport).
+ */
+export function RushPlayer({
+  classId,
+  compact = false,
+  mode,
+}: {
+  classId: string;
+  compact?: boolean;
+  mode: PuzzleRushMode;
+}) {
   const query = usePuzzleRush(classId);
   const userId = useAuthStore((s) => s.user?.id);
   const { rush, skewMs } = query;
@@ -70,7 +82,17 @@ export function RushPlayer({ classId, mode }: { classId: string; mode: PuzzleRus
     return <RoundResults meId={userId} rush={rush} standing={null} />;
   }
 
-  return <ActiveRun classId={classId} key={rush.id} me={me} rush={rush} skewMs={skewMs} userId={userId} />;
+  return (
+    <ActiveRun
+      classId={classId}
+      compact={compact}
+      key={rush.id}
+      me={me}
+      rush={rush}
+      skewMs={skewMs}
+      userId={userId}
+    />
+  );
 }
 
 function RacerCountdown({
@@ -167,12 +189,14 @@ function emptyReport(rushId: string) {
 
 function ActiveRun({
   classId,
+  compact,
   me,
   rush,
   skewMs,
   userId,
 }: {
   classId: string;
+  compact: boolean;
   me: PuzzleRushStanding | null;
   rush: PuzzleRush;
   skewMs: number;
@@ -297,13 +321,22 @@ function ActiveRun({
   const toMove = run.color === "white" ? "White" : "Black";
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-[minmax(0,1fr)_15rem] md:items-start">
+    <div className={cn("grid grid-cols-1 gap-4", !compact && "md:grid-cols-[minmax(0,1fr)_15rem] md:items-start")}>
       <div className="space-y-2">
         <p className="text-center text-sm font-semibold text-app-text">
           {startedAt === null && storm ? "Your move — the clock starts when you play." : `Find the best move for ${toMove}.`}
         </p>
+        {/* Sized to the space left once the top bar, stage header and the
+            floating mic / camera toolbar are taken off, so the whole board is
+            in view without scrolling under the toolbar. */}
         <PracticeBoard
-          className="mx-auto max-w-[min(100%,calc(100dvh-16rem))] md:max-w-[min(100%,calc(100dvh-12rem))]"
+          className={cn(
+            "mx-auto",
+            compact
+              ? // The coach's tool panel: 100dvh − 4rem (phones) / − 10rem (sm+), less its header and controls.
+                "max-w-[min(100%,calc(100dvh-20rem))] sm:max-w-[min(100%,calc(100dvh-26rem))]"
+              : "max-w-[min(100%,calc(100dvh-17rem))] md:max-w-[min(100%,calc(58dvh-11rem))] room:max-w-[min(100%,calc(100dvh-19rem))]",
+          )}
           fen={run.fen}
           lastMove={run.lastMove}
           onMove={onMove}
