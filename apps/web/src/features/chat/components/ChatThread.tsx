@@ -42,8 +42,8 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
   const [olderCursor, setOlderCursor] = useState<string | null | undefined>(undefined);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
-  const [draft, setDraft] = useState("");
-  const initialDraftRef = useRef(initialDraft);
+  // The parent keys this component by conversation, so the carried draft only ever seeds a fresh mount.
+  const [draft, setDraft] = useState(initialDraft ?? "");
   const [membersOpen, setMembersOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -53,8 +53,6 @@ export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
     setKnownMessages(new Map());
     setOlderCursor(undefined);
     setPending([]);
-    setDraft(initialDraftRef.current ?? "");
-    initialDraftRef.current = undefined;
     stickToBottom.current = true;
   }, [conversationId]);
 

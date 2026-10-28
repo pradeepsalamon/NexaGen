@@ -164,9 +164,13 @@ export class PrivacyService {
         select: {
           articleId: true,
           body: true,
+          changeNote: true,
           createdAt: true,
           id: true,
           number: true,
+          pgn: true,
+          resourceRef: true,
+          resourceType: true,
           reviewNote: true,
           status: true,
           summary: true,

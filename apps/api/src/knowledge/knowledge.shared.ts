@@ -82,7 +82,7 @@ export function readerWhere(reader: KnowledgeReader, now: Date): Prisma.Knowledg
     { OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] },
   ];
   if (reader.audience !== "ADMIN") {
-    and.push({ OR: [{ batches: { none: {} } }, { batches: { some: { batchId: { in: reader.batchIds } } } }] });
+    and.push({ OR: [{ batchScoped: false }, { batches: { some: { batchId: { in: reader.batchIds } } } }] });
   }
   return {
     AND: and,
@@ -99,6 +99,7 @@ export function assertReadable(
     status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
     publishedVersionId: string | null;
     audience: KnowledgeAudience[];
+    batchScoped: boolean;
     batches: { batchId: string }[];
     publishAt: Date | null;
     expiresAt: Date | null;
@@ -110,6 +111,7 @@ export function assertReadable(
     {
       audience: article.audience,
       batchIds: article.batches.map((b) => b.batchId),
+      batchScoped: article.batchScoped,
       expiresAt: article.expiresAt,
       hasPublishedVersion: article.publishedVersionId !== null,
       publishAt: article.publishAt,

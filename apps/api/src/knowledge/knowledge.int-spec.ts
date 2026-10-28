@@ -151,6 +151,13 @@ describe("knowledge base (real app, real Postgres)", () => {
       const res = await t.call(u[who], "GET", API_ROUTES.knowledge.helpArticle(article.slug));
       expect({ who, status: res.status }).toEqual({ status: sees ? 200 : 404, who });
     }
+    // Purging the batch from Trash cascades its scope row away: the article stays hidden, never public.
+    await t.prisma.knowledgeArticleBatch.deleteMany({ where: { articleId: article.id } });
+    for (const who of ["student", "otherStudent", "otherCoach"] as const) {
+      const res = await t.call(u[who], "GET", API_ROUTES.knowledge.helpArticle(article.slug));
+      expect({ who, status: res.status }).toEqual({ status: 404, who });
+    }
+    expect((await t.call(u.admin, "GET", API_ROUTES.knowledge.helpArticle(article.slug))).status).toBe(200);
   });
 
   it("a scheduled or expired article is hidden until / after its window", async () => {

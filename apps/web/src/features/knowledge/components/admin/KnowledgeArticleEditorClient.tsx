@@ -256,8 +256,11 @@ function Editor({ article }: { article: KnowledgeAdminArticleDetail | null }) {
   const saveDraft = () => article && act("save the draft", () => api.saveKnowledgeDraft(article.id, contentPayload(content)), "Draft saved.");
   const saveSettings = () => article && act("save the settings", () => api.updateKnowledgeSettings(article.id, settingsPayload(settings)), "Settings saved.");
 
-  const publish = async (versionId?: string, acknowledgeWarnings = false) => {
+  const publish = async (requestedVersionId?: string, acknowledgeWarnings = false) => {
     if (!article) return;
+    // "Republish": unpublished, nothing new to publish — make the last published version live again.
+    const republish = article.status === "DRAFT" && !!article.published && !article.draft && !contentDirty;
+    const versionId = requestedVersionId ?? (republish ? article.published?.id : undefined);
     if (settingsDirty) {
       const saved = await act("save the settings", () => api.updateKnowledgeSettings(article.id, settingsPayload(settings)));
       if (!saved) return;

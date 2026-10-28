@@ -215,6 +215,7 @@ async function createSide(prisma: PrismaService, label: string, topicId: string,
   const kbArticle = await prisma.knowledgeArticle.create({
     data: {
       audience: ["STUDENT", "COACH"],
+      batchScoped: true,
       batches: { create: [{ batchId: batch.id }] },
       latestVersionNumber: 1,
       slug: `batch-notes-${label.toLowerCase()}`,

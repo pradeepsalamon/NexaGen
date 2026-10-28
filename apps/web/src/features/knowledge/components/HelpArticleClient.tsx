@@ -17,6 +17,7 @@ import { canAccessPath } from "@/lib/routeAccess";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useHelpArticle, useHelpFeedback } from "../hooks/useKnowledgeApi";
+import { classifyHref } from "../lib/markdown";
 import { SuggestionDialog } from "./CoachHelpPanels";
 import { ArticleCard, KIND_LABEL } from "./HelpCenterClient";
 import { KnowledgeMarkdown, PgnViewer } from "./KnowledgeMarkdown";
@@ -138,7 +139,15 @@ export function ArticleView({ article, readOnly = false }: { article: KnowledgeH
       {role === "COACH" && (
         <SuggestionDialog
           articleId={article.id}
-          initial={{ body: article.body, summary: article.summary ?? "", title: article.title }}
+          articleKind={article.kind}
+          initial={{
+            body: article.body,
+            pgn: article.pgn ?? "",
+            resourceRef: article.resourceRef ?? "",
+            resourceType: article.resourceType ?? "",
+            summary: article.summary ?? "",
+            title: article.title,
+          }}
           onOpenChange={setSuggestOpen}
           open={suggestOpen}
           suggestion={null}
@@ -164,7 +173,7 @@ function ResourceLink({ article, role }: { article: KnowledgeHelpArticle; role: 
             : role === "STUDENT"
               ? "/student/practice"
               : `/admin/puzzles`;
-  if (!href.startsWith("/") || !canAccessPath(href.split(/[?#]/)[0], role)) return null;
+  if (classifyHref(href) !== "internal" || !canAccessPath(href.split(/[?#]/)[0], role)) return null;
   return (
     <Button asChild>
       <Link href={href}>

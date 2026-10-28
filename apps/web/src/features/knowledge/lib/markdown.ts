@@ -31,7 +31,9 @@ export function parseMarkdown(source: string): MdBlock[] {
       i++;
       continue;
     }
-    const fence = line.match(/^```\s*([A-Za-z0-9_-]*)\s*$/);
+    // Anything after the language word (```c++, ```js title=x) is ignored, so every
+    // line isBlockStart calls a fence really opens one.
+    const fence = line.match(/^```\s*([A-Za-z0-9_-]*)/);
     if (fence) {
       const body: string[] = [];
       i++;
@@ -40,7 +42,7 @@ export function parseMarkdown(source: string): MdBlock[] {
       blocks.push({ lang: fence[1].toLowerCase(), text: body.join("\n"), type: "code" });
       continue;
     }
-    const heading = line.match(/^(#{1,3})\s+(.*)$/);
+    const heading = line.match(/^(#{1,3})\s+([\s\S]*)$/);
     if (heading) {
       blocks.push({ level: heading[1].length as 1 | 2 | 3, text: heading[2].trim(), type: "heading" });
       i++;
@@ -52,12 +54,12 @@ export function parseMarkdown(source: string): MdBlock[] {
       blocks.push({ text: body.join(" "), type: "quote" });
       continue;
     }
-    const listItem = line.match(/^\s*([-*]|\d+\.)\s+(.*)$/);
+    const listItem = line.match(/^\s*([-*]|\d+\.)\s+([\s\S]*)$/);
     if (listItem) {
       const ordered = /\d/.test(listItem[1]);
       const items: string[] = [];
       while (i < lines.length) {
-        const m = lines[i].match(/^\s*([-*]|\d+\.)\s+(.*)$/);
+        const m = lines[i].match(/^\s*([-*]|\d+\.)\s+([\s\S]*)$/);
         if (m && /\d/.test(m[1]) === ordered) {
           items.push(m[2]);
           i++;
@@ -69,7 +71,8 @@ export function parseMarkdown(source: string): MdBlock[] {
       blocks.push({ items, ordered, type: "list" });
       continue;
     }
-    const body: string[] = [];
+    // The first line always goes in, so a line no branch above took can never stall the loop.
+    const body: string[] = [lines[i++].trim()];
     while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i])) body.push(lines[i++].trim());
     blocks.push({ text: body.join(" "), type: "paragraph" });
   }
@@ -123,7 +126,8 @@ export function parseInline(text: string): MdInline[] {
 
 /** Only site paths and http(s) links are rendered as links; anything else is text. */
 export function classifyHref(href: string): "internal" | "external" | "unsafe" {
-  if (/^\/(?!\/)/.test(href)) return "internal";
+  // Not "//host" or "/\\host": browsers read both as another site.
+  if (/^\/(?![/\\])/.test(href)) return "internal";
   if (/^https?:\/\//i.test(href)) return "external";
   return "unsafe";
 }

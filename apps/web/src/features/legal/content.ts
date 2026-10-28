@@ -48,7 +48,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
-          "What you search for in the help centre (without your name: only your role and batch), and whether you marked a help article helpful. Coaches can suggest help articles; those suggestions are kept with their name.",
+          "What you search for in the help centre (without your name: only your role and batch, the page you searched from, how many results it found and when), and whether you marked a help article helpful. Coaches can suggest help articles; those suggestions are kept with their name.",
         label: "Help centre"
       },
       {

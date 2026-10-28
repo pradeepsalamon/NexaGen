@@ -16,6 +16,7 @@ const NOW = new Date("2026-10-27T12:00:00Z");
 const article = (over: Partial<KnowledgeVisibilityFacts> = {}): KnowledgeVisibilityFacts => ({
   audience: ["STUDENT"],
   batchIds: [],
+  batchScoped: false,
   expiresAt: null,
   hasPublishedVersion: true,
   publishAt: null,
@@ -51,9 +52,11 @@ describe("knowledge visibility (canReadKnowledgeArticle)", () => {
   });
 
   it("batch scope limits students and coaches, never admins", () => {
-    expect(canReadKnowledgeArticle(student, article({ batchIds: ["b1", "b2"] }), NOW)).toBe(true);
-    expect(canReadKnowledgeArticle(student, article({ batchIds: ["b2"] }), NOW)).toBe(false);
-    expect(canReadKnowledgeArticle(admin, article({ audience: ["ADMIN"], batchIds: ["b2"] }), NOW)).toBe(true);
+    expect(canReadKnowledgeArticle(student, article({ batchIds: ["b1", "b2"], batchScoped: true }), NOW)).toBe(true);
+    expect(canReadKnowledgeArticle(student, article({ batchIds: ["b2"], batchScoped: true }), NOW)).toBe(false);
+    expect(canReadKnowledgeArticle(admin, article({ audience: ["ADMIN"], batchIds: ["b2"], batchScoped: true }), NOW)).toBe(true);
+    // Its last batch purged from Trash: still scoped, so nobody outside staff reaches it.
+    expect(canReadKnowledgeArticle(student, article({ batchIds: [], batchScoped: true }), NOW)).toBe(false);
   });
 });
 

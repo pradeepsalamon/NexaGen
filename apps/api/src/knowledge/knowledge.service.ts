@@ -9,6 +9,7 @@ import { JwtService } from "@nestjs/jwt";
 import {
   KNOWLEDGE_SEARCH_LIMIT,
   KNOWLEDGE_TREND_DAYS,
+  KNOWLEDGE_TREND_MIN_BATCH_SIZE,
   KNOWLEDGE_TREND_MIN_COUNT,
   detectKnowledgeWarnings,
   isKnowledgeStaff,
@@ -28,7 +29,7 @@ import {
 } from "@nexa-chess/types";
 import { Prisma, UserRole } from "@prisma/client";
 import { authenticateUser } from "../auth/authenticate";
-import { PrismaService } from "../prisma/prisma.service";
+import { PrismaService, type PrismaTransactionClient } from "../prisma/prisma.service";
 import {
   assertReadable,
   readerForUser,
@@ -48,7 +49,8 @@ const SNIPPET_RADIUS = 90;
 
 const summaryInclude = {
   category: { select: { name: true } },
-  publishedVersion: { select: { body: true, summary: true, title: true } },
+  // No body: the help list holds every visible row; snippets load bodies for the shown page only.
+  publishedVersion: { select: { summary: true, title: true } },
 } satisfies Prisma.KnowledgeArticleInclude;
 
 type SummaryRow = Prisma.KnowledgeArticleGetPayload<{ include: typeof summaryInclude }>;
@@ -87,7 +89,6 @@ export class KnowledgeService {
     const where: Prisma.KnowledgeArticleWhereInput = {
       AND: [
         readerWhere(reader, now),
-        query.categoryId ? { categoryId: query.categoryId } : {},
         query.language ? { language: query.language } : {},
       ],
     };
@@ -100,6 +101,7 @@ export class KnowledgeService {
     const route = query.route;
     const forPage = (row: SummaryRow) => !!route && row.routeTags.some((tag) => knowledgeRouteMatches(tag, route));
 
+    // Counts and chips come from every visible row, so picking a category keeps the others on offer.
     const categoryCounts = new Map<string, number>();
     for (const row of visible) if (row.categoryId) categoryCounts.set(row.categoryId, (categoryCounts.get(row.categoryId) ?? 0) + 1);
     const categories = categoryCounts.size
@@ -109,21 +111,23 @@ export class KnowledgeService {
         })
       : [];
 
+    const inCategory = query.categoryId ? visible.filter((r) => r.categoryId === query.categoryId) : visible;
     const q = query.q?.trim() ?? "";
     let articles: KnowledgeHelpArticleSummary[];
     if (q) {
       const ranked = await this.rank(
-        visible.map((r) => r.id),
+        inCategory.map((r) => r.id),
         q,
       );
-      const byId = new Map(visible.map((r) => [r.id, r]));
-      articles = ranked
+      const byId = new Map(inCategory.map((r) => [r.id, r]));
+      const shown = ranked
         .map((id) => byId.get(id))
         .filter((r): r is SummaryRow => !!r)
         // Page-tagged matches first, keeping text rank inside each group.
         .sort((a, b) => Number(forPage(b)) - Number(forPage(a)))
-        .slice(0, KNOWLEDGE_SEARCH_LIMIT)
-        .map((r) => this.toSummary(r, forPage(r), q));
+        .slice(0, KNOWLEDGE_SEARCH_LIMIT);
+      const bodies = await this.publishedBodies(shown);
+      articles = shown.map((r) => this.toSummary(r, forPage(r), q, bodies.get(r.id)));
       if (log && normalizeKnowledgeQuery(q).length >= MIN_LOGGED_QUERY) {
         await this.prisma.knowledgeSearchLog.create({
           data: {
@@ -137,7 +141,7 @@ export class KnowledgeService {
       }
     } else {
       const sortKey = new Map(categories.map((c, i) => [c.id, i]));
-      articles = [...visible]
+      articles = [...inCategory]
         .sort(
           (a, b) =>
             (sortKey.get(a.categoryId ?? "") ?? 1e6) - (sortKey.get(b.categoryId ?? "") ?? 1e6) ||
@@ -154,7 +158,7 @@ export class KnowledgeService {
         id: c.id,
         name: c.name,
       })),
-      forThisPage: route ? visible.filter(forPage).slice(0, 8).map((r) => this.toSummary(r, true, null)) : [],
+      forThisPage: route ? inCategory.filter(forPage).slice(0, 8).map((r) => this.toSummary(r, true, null)) : [],
       searched: !!q,
     };
   }
@@ -255,7 +259,7 @@ export class KnowledgeService {
     const rows = await this.prisma.knowledgeArticleVersion.findMany({
       include: {
         ...versionInclude,
-        article: { select: { id: true, publishedVersion: { select: { title: true } }, slug: true } },
+        article: { select: { id: true, kind: true, publishedVersion: { select: { title: true } }, slug: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -265,6 +269,7 @@ export class KnowledgeService {
       submissions: rows.map(
         (v): KnowledgeSubmissionDto => ({
           articleId: v.article.id,
+          articleKind: v.article.kind,
           articleSlug: v.article.slug,
           articleTitle: v.article.publishedVersion?.title ?? null,
           isNewArticle: v.number === 1,
@@ -401,11 +406,19 @@ export class KnowledgeService {
     const user = await this.getAuthenticatedUser(accessToken);
     this.assertCoach(user);
     const links = await this.prisma.batchCoach.findMany({
-      select: { batch: { select: { id: true, name: true } } },
+      select: { batch: { select: { _count: { select: { students: { where: { isDeleted: false } } } }, id: true, name: true } } },
       where: { coachId: user.id },
     });
     const batches = links.map((l) => l.batch);
-    const base = { days: KNOWLEDGE_TREND_DAYS, minCount: KNOWLEDGE_TREND_MIN_COUNT };
+    // Too few students and a repeated query could only be one of them (the log has no user id).
+    const largeEnough = new Set(
+      batches.filter((b) => b._count.students >= KNOWLEDGE_TREND_MIN_BATCH_SIZE).map((b) => b.id),
+    );
+    const base = {
+      days: KNOWLEDGE_TREND_DAYS,
+      minBatchSize: KNOWLEDGE_TREND_MIN_BATCH_SIZE,
+      minCount: KNOWLEDGE_TREND_MIN_COUNT,
+    };
     if (!batches.length) return { ...base, batches: [] };
     const since = new Date(Date.now() - KNOWLEDGE_TREND_DAYS * DAY_MS);
     const logs = await this.prisma.knowledgeSearchLog.findMany({
@@ -417,6 +430,7 @@ export class KnowledgeService {
       ...base,
       batches: batches
         .map((batch) => {
+          if (!largeEnough.has(batch.id)) return { id: batch.id, name: batch.name, queries: [] };
           const counts = new Map<string, number>();
           for (const log of logs) {
             if (log.batchIds.includes(batch.id)) counts.set(log.query, (counts.get(log.query) ?? 0) + 1);
@@ -464,7 +478,17 @@ export class KnowledgeService {
     return rows.map((r) => r.id);
   }
 
-  private toSummary(row: SummaryRow, forThisPage: boolean, q: string | null): KnowledgeHelpArticleSummary {
+  private async publishedBodies(rows: SummaryRow[]): Promise<Map<string, string>> {
+    const ids = rows.map((r) => r.publishedVersionId).filter((id): id is string => !!id);
+    if (!ids.length) return new Map();
+    const versions = await this.prisma.knowledgeArticleVersion.findMany({
+      select: { articleId: true, body: true },
+      where: { id: { in: ids } },
+    });
+    return new Map(versions.map((v) => [v.articleId, v.body]));
+  }
+
+  private toSummary(row: SummaryRow, forThisPage: boolean, q: string | null, body?: string): KnowledgeHelpArticleSummary {
     return {
       categoryId: row.categoryId,
       categoryName: row.category?.name ?? null,
@@ -473,7 +497,7 @@ export class KnowledgeService {
       kind: row.kind,
       language: row.language,
       slug: row.slug,
-      snippet: q && row.publishedVersion ? snippetFor(row.publishedVersion.body, q) : null,
+      snippet: q && body !== undefined ? snippetFor(body, q) : null,
       summary: row.publishedVersion?.summary ?? null,
       title: row.publishedVersion?.title ?? row.slug,
       updatedAt: row.updatedAt.toISOString(),
@@ -484,12 +508,13 @@ export class KnowledgeService {
     const v = await this.prisma.knowledgeArticleVersion.findUniqueOrThrow({
       include: {
         ...versionInclude,
-        article: { select: { id: true, publishedVersion: { select: { title: true } }, slug: true } },
+        article: { select: { id: true, kind: true, publishedVersion: { select: { title: true } }, slug: true } },
       },
       where: { id: versionId },
     });
     return {
       articleId: v.article.id,
+      articleKind: v.article.kind,
       articleSlug: v.article.slug,
       articleTitle: v.article.publishedVersion?.title ?? null,
       isNewArticle: v.number === 1,
@@ -508,7 +533,7 @@ export class KnowledgeService {
 }
 
 /** `base`, or `base-2`, `base-3`… — slugs are unique across every article. */
-export async function uniqueKnowledgeSlug(prisma: Pick<PrismaService, "knowledgeArticle">, base: string): Promise<string> {
+export async function uniqueKnowledgeSlug(prisma: Pick<PrismaTransactionClient, "knowledgeArticle">, base: string): Promise<string> {
   const taken = new Set(
     (
       await prisma.knowledgeArticle.findMany({

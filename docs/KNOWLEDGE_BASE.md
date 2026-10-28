@@ -63,7 +63,10 @@ query that fetches rows):
 2. the reader's audience is listed (`SUPER_ADMIN` reads as `ADMIN`);
 3. if the article is batch-scoped, a student/coach reaches it only through one
    of those batches (their current, non-deleted enrolment / coaching link).
-   Admins are never batch-scoped.
+   Admins are never batch-scoped. Scope is the `batchScoped` flag, not "has
+   batch rows": a batch purged from Trash cascades its row away, and a scoped
+   article left with no batches is hidden from students and coaches, never
+   opened to all. Saving its settings with no batches makes it unscoped.
 
 A hidden article is a **404** (slugs can't be probed). Search ranks only ids
 the rule already allowed, so ranking can't widen visibility. Staff's
@@ -86,7 +89,10 @@ A search of 3+ characters is logged; one that found nothing feeds the admins'
 **unanswered inbox** (Questions & feedback tab), where it can be answered
 (opens a new FAQ pre-filled with the question and the asking roles) or
 dismissed. Coaches see **What students ask**: queries from their batches'
-students made at least `KNOWLEDGE_TREND_MIN_COUNT` (2) times in 30 days.
+students made at least `KNOWLEDGE_TREND_MIN_COUNT` (2) times in 30 days,
+only for batches with at least `KNOWLEDGE_TREND_MIN_BATCH_SIZE` (5) current
+students: the log has no user id, so in a smaller batch one student's repeated
+query would point at them.
 
 ## 5. Lifecycle
 

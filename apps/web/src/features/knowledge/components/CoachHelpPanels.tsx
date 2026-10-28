@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Lightbulb, Loader2, Pencil, Trash2, TrendingUp } from "lucide-react";
-import type { KnowledgeSubmissionDto, KnowledgeVersionStatus } from "@nexa-chess/types";
+import type { KnowledgeArticleKind, KnowledgeSubmissionDto, KnowledgeVersionStatus } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -125,14 +125,18 @@ export function SuggestionDialog({
   onOpenChange,
   suggestion,
   articleId,
+  articleKind,
   initial,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   suggestion: KnowledgeSubmissionDto | null;
   articleId?: string;
+  /** The kind of the article being edited; a new suggestion is an ARTICLE. */
+  articleKind?: KnowledgeArticleKind;
   initial?: Partial<ContentDraft>;
 }) {
+  const kind = suggestion?.articleKind ?? articleKind ?? "ARTICLE";
   const toast = useToast();
   const invalidate = useInvalidateKnowledge();
   const [value, setValue] = useState<ContentDraft>(EMPTY_CONTENT);
@@ -189,7 +193,7 @@ export function SuggestionDialog({
           <DialogTitle>{suggestion ? "Edit suggestion" : articleId ? "Suggest an edit" : "Suggest a help article"}</DialogTitle>
           <DialogDescription>Admins review every suggestion before anyone else can see it.</DialogDescription>
         </DialogHeader>
-        <ContentEditor kind="ARTICLE" onChange={setValue} previewRole="STUDENT" showChangeNote={!!articleId || !!suggestion} value={value} />
+        <ContentEditor kind={kind} onChange={setValue} previewRole="STUDENT" showChangeNote={!!articleId || !!suggestion} value={value} />
         <DialogFooter>
           <Button onClick={() => onOpenChange(false)} variant="outline">
             Cancel
@@ -208,12 +212,13 @@ export function CoachTrendsPanel() {
   const trends = useCoachTrends();
   if (trends.isError) return <WidgetError message="Trends could not be loaded." onRetry={() => void trends.refetch()} />;
   if (!trends.data) return <Skeleton className="h-40" />;
-  const { batches, days, minCount } = trends.data;
+  const { batches, days, minBatchSize, minCount } = trends.data;
   return (
     <div className="space-y-4">
       <p className="max-w-2xl text-sm text-app-muted">
         What students in your batches searched for in the help centre over the last {days} days. Searches are anonymous,
-        and a question shows once at least {minCount} searches asked it.
+        and a question shows once at least {minCount} searches asked it. Batches with fewer than {minBatchSize}{" "}
+        students show none, so no search can be traced to one student.
       </p>
       {batches.length === 0 ? (
         <EmptyState description="You aren't coaching a batch yet." icon={TrendingUp} title="No batches" />

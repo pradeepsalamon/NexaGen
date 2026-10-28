@@ -5524,6 +5524,9 @@ model KnowledgeArticle {
   category            KnowledgeCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   /// Empty = nobody but staff in the editor.
   audience            KnowledgeAudience[]
+  /// Limited to the batches in `batches`. Kept even when a purged batch takes its
+  /// row with it, so losing every batch hides the article instead of opening it up.
+  batchScoped         Boolean                   @default(false)
   /// Pages this article helps with ("/student/assignments"); boosts it in page-aware help.
   routeTags           String[]
   /// BCP 47-ish code ("en", "ta", "hi").

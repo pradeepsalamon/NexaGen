@@ -304,6 +304,8 @@ export class KnowledgeAdminService {
 
       if (version.status === "PUBLISHED") {
         if (article.status === "PUBLISHED") throw new ConflictException("That version is already live.");
+        // Its content was already reviewed; only the source credit (which may have changed since) is checked.
+        this.assertPublishable(version, article, true);
         await tx.knowledgeArticle.update({ data: { status: "PUBLISHED" }, where: { id } });
         await tx.knowledgeArticleEvent.create({
           data: { actorId: user.id, articleId: id, detail: { republished: true }, type: "PUBLISHED", versionId: version.id },
@@ -342,7 +344,12 @@ export class KnowledgeAdminService {
 
   /** Back to how it was: live again if it had a published version, else a draft. */
   async restore(accessToken: string | undefined, id: string): Promise<KnowledgeAdminArticleDetail> {
-    const article = await this.prisma.knowledgeArticle.findUnique({ select: { publishedVersionId: true }, where: { id } });
+    const article = await this.prisma.knowledgeArticle.findUnique({
+      select: { publishedVersionId: true, sourceNote: true, sourceType: true },
+      where: { id },
+    });
+    // Going straight back live must pass the same OD-7 credit check as a publish.
+    if (article?.publishedVersionId) this.assertPublishable({ warnings: [] }, article, true);
     return this.setStatus(accessToken, id, article?.publishedVersionId ? "PUBLISHED" : "DRAFT", "RESTORED", ["ARCHIVED"]);
   }
 
@@ -444,7 +451,7 @@ export class KnowledgeAdminService {
     const rows = await this.prisma.knowledgeArticleVersion.findMany({
       include: {
         ...versionInclude,
-        article: { select: { id: true, publishedVersion: { select: { title: true } }, slug: true } },
+        article: { select: { id: true, kind: true, publishedVersion: { select: { title: true } }, slug: true } },
       },
       orderBy: { createdAt: "asc" },
       take: 200,
@@ -453,6 +460,7 @@ export class KnowledgeAdminService {
     return {
       submissions: rows.map((v) => ({
         articleId: v.article.id,
+        articleKind: v.article.kind,
         articleSlug: v.article.slug,
         articleTitle: v.article.publishedVersion?.title ?? null,
         isNewArticle: v.number === 1,
@@ -638,52 +646,64 @@ export class KnowledgeAdminService {
     };
   }
 
-  /** Each item becomes a new article with a DRAFT version: nothing imported goes live unreviewed. */
+  /**
+   * Each item becomes a new article with a DRAFT version: nothing imported goes
+   * live unreviewed. Every item is validated first and all of them are written in
+   * one transaction, so a failed import leaves nothing behind to duplicate on retry.
+   */
   async importItems(accessToken: string | undefined, body: KnowledgeImportRequest): Promise<KnowledgeImportResponse> {
     const user = await this.getStaff(accessToken);
     const parsed = parseOrBadRequest(knowledgeImportSchema, body);
-    const articleIds: string[] = [];
-    const categoryIds = new Map<string, string>();
-    for (const item of parsed.items) {
-      let categoryId: string | null = null;
-      if (item.category) {
-        const key = item.category.toLowerCase();
-        if (!categoryIds.has(key)) {
-          const existing = await this.prisma.knowledgeCategory.findFirst({
-            select: { id: true },
-            where: { name: { equals: item.category, mode: "insensitive" } },
-          });
-          const id = existing?.id ?? (await this.prisma.knowledgeCategory.create({ data: { name: item.category } })).id;
-          categoryIds.set(key, id);
-        }
-        categoryId = categoryIds.get(key)!;
-      }
-      const settings = parseOrBadRequest(knowledgeSettingsSchema, {
+    const items = parsed.items.map((item) => ({
+      category: item.category,
+      content: parseOrBadRequest(knowledgeContentSchema, item.content),
+      settings: parseOrBadRequest(knowledgeSettingsSchema, {
         audience: [],
         batchIds: [],
         kind: "ARTICLE",
         routeTags: [],
         ...item.settings,
-        categoryId,
+        categoryId: null,
         translationOfId: null,
-      });
-      const content = parseOrBadRequest(knowledgeContentSchema, item.content);
-      const wanted = slugifyKnowledgeTitle(item.slug || content.title);
-      const slug = await uniqueKnowledgeSlug(this.prisma, wanted);
-      const created = await this.prisma.$transaction(async (tx) => {
-        const article = await tx.knowledgeArticle.create({
-          data: { ...this.settingsData(settings), createdById: user.id, latestVersionNumber: 1, slug },
-        });
-        const version = await tx.knowledgeArticleVersion.create({
-          data: { ...this.contentData(content, settings), articleId: article.id, authorId: user.id, number: 1 },
-        });
-        await tx.knowledgeArticleEvent.create({
-          data: { actorId: user.id, articleId: article.id, detail: { imported: true }, type: "CREATED", versionId: version.id },
-        });
-        return article;
-      });
-      articleIds.push(created.id);
-    }
+      }),
+      slug: item.slug,
+    }));
+    const articleIds = await this.prisma.$transaction(
+      async (tx) => {
+        const ids: string[] = [];
+        const categoryIds = new Map<string, string>();
+        for (const item of items) {
+          let categoryId: string | null = null;
+          if (item.category) {
+            const key = item.category.toLowerCase();
+            if (!categoryIds.has(key)) {
+              const existing = await tx.knowledgeCategory.findFirst({
+                select: { id: true },
+                where: { name: { equals: item.category, mode: "insensitive" } },
+              });
+              categoryIds.set(key, existing?.id ?? (await tx.knowledgeCategory.create({ data: { name: item.category } })).id);
+            }
+            categoryId = categoryIds.get(key)!;
+          }
+          const settings = { ...item.settings, categoryId };
+          // Inside the transaction, so two items with the same title get distinct slugs.
+          const slug = await uniqueKnowledgeSlug(tx, slugifyKnowledgeTitle(item.slug || item.content.title));
+          const article = await tx.knowledgeArticle.create({
+            data: { ...this.settingsData(settings), createdById: user.id, latestVersionNumber: 1, slug },
+          });
+          const version = await tx.knowledgeArticleVersion.create({
+            data: { ...this.contentData(item.content, settings), articleId: article.id, authorId: user.id, number: 1 },
+          });
+          await tx.knowledgeArticleEvent.create({
+            data: { actorId: user.id, articleId: article.id, detail: { imported: true }, type: "CREATED", versionId: version.id },
+          });
+          ids.push(article.id);
+        }
+        return ids;
+      },
+      // Up to KNOWLEDGE_IMPORT_MAX items at ~5 statements each.
+      { timeout: 60_000 },
+    );
     return { articleIds, created: articleIds.length };
   }
 
@@ -798,6 +818,7 @@ export class KnowledgeAdminService {
   private settingsData(settings: KnowledgeSettingsInput) {
     return {
       audience: [...new Set(settings.audience)],
+      batchScoped: settings.batchIds.length > 0,
       categoryId: settings.categoryId,
       expiresAt: settings.expiresAt ? new Date(settings.expiresAt) : null,
       kind: settings.kind,

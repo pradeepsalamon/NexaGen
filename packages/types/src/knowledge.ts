@@ -61,6 +61,12 @@ export const KNOWLEDGE_SEARCH_LIMIT = 20;
 export const KNOWLEDGE_TREND_DAYS = 30;
 /** A coach sees a student query in trends only once this many searches made it. */
 export const KNOWLEDGE_TREND_MIN_COUNT = 2;
+/**
+ * …and only for a batch with at least this many current students. The log has no
+ * user id, so repeat searches can't be told apart from distinct students; in a
+ * small batch one student's repeated query would point straight at them.
+ */
+export const KNOWLEDGE_TREND_MIN_BATCH_SIZE = 5;
 
 // ── Visibility ──────────────────────────────────────────────────────────────
 
@@ -80,7 +86,13 @@ export type KnowledgeVisibilityFacts = {
   status: KnowledgeArticleStatus;
   hasPublishedVersion: boolean;
   audience: readonly KnowledgeAudience[];
-  /** Empty = every batch. */
+  /**
+   * Set when an admin limited the article to batches. It outlives the batch rows,
+   * so purging a batch from Trash can't turn a scoped article into a public one:
+   * scoped with no batches left = no student or coach reaches it.
+   */
+  batchScoped: boolean;
+  /** The batches it is limited to (ignored unless `batchScoped`). */
   batchIds: readonly string[];
   publishAt: Date | null;
   expiresAt: Date | null;
@@ -109,7 +121,7 @@ export function canReadKnowledgeArticle(
 ): boolean {
   if (!isKnowledgeArticleLive(article, now)) return false;
   if (!article.audience.includes(reader.audience)) return false;
-  if (reader.audience === "ADMIN" || article.batchIds.length === 0) return true;
+  if (reader.audience === "ADMIN" || !article.batchScoped) return true;
   return article.batchIds.some((id) => reader.batchIds.includes(id));
 }
 
@@ -273,7 +285,7 @@ export const knowledgeContentSchema = z
     summary: optionalText(KNOWLEDGE_SUMMARY_MAX),
     title: z.string().trim().min(1, "Give it a title.").max(KNOWLEDGE_TITLE_MAX),
   })
-  .refine((v) => v.resourceType !== "PAGE" || !v.resourceRef || v.resourceRef.startsWith("/"), {
+  .refine((v) => v.resourceType !== "PAGE" || !v.resourceRef || /^\/(?![/\\])/.test(v.resourceRef), {
     message: "A page link is a path starting with /.",
     path: ["resourceRef"],
   });
@@ -504,6 +516,8 @@ export type KnowledgeVersionDiffResponse = {
 
 export type KnowledgeSubmissionDto = {
   articleId: string;
+  /** So an edit keeps the kind-specific fields (PGN, resource link). */
+  articleKind: KnowledgeArticleKind;
   articleSlug: string;
   /** The live title, or null for a suggested new article. */
   articleTitle: string | null;
@@ -572,6 +586,7 @@ export type KnowledgeInsightsResponse = {
 
 export type KnowledgeCoachTrendsResponse = {
   days: number;
+  minBatchSize: number;
   minCount: number;
   batches: { id: string; name: string; queries: { query: string; count: number }[] }[];
 };
