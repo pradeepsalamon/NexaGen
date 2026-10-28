@@ -329,6 +329,7 @@ NestJS `apps/api/src/ai/` is the only caller of the stateless Python `services/a
 
 `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. **Read [docs/LIVE_CLASS.md](docs/LIVE_CLASS.md) before changing anything in the room** — it covers recording, moderation, waiting room, presence/pull, private chat, media devices, PiP, video effects, puzzles in class, simul, matches, move polls, activity queue, interactives, spectators and pre-class settings. The rules that cut across all of it:
 
+- **In-room code takes the class id from `useRoomClassId()` / `useMemberClassId()` (`providers/LiveRoomContext.tsx`), never `useParams().roomId`** — demo guests (no session, a `guestToken` instead) are at `/demo/[classId]`; `useMemberClassId` is `""` for them so user-only queries stay off.
 - **Data packets are untrusted.** A receiver of an API-only topic (anything the API injects with `sendData`) drops a packet that has a `from`; a peer topic takes the sender from the LiveKit envelope and checks it.
 - **Render cost:** read `LiveClassProvider` with field selectors (`useLiveClassState("a", "b")`), use `useRoster()` / `useGridTracks()` instead of raw `useParticipants()` / `useTracks()`, and give board-store reads a selector.
 - **Service layout:** `LiveClassService` is lifecycle only; each in-room concern is a sibling service using `LiveClassAccessService` for auth. Specs register `LIVE_CLASS_SERVICES`.

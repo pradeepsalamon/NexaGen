@@ -731,13 +731,15 @@ export class StockfishService implements OnModuleInit, OnModuleDestroy {
     if (cached) return cached;
 
     const onUpdate = opts.onUpdate;
+    // Named after the search starts, so the engine running it has introduced itself.
+    const named = (r: StockfishAnalysisResult) => ({ ...r, engine: this.engineName() });
     const raw = await this.search(
       cacheKey,
       { fen, movetimeMs, depth, priority: 'interactive' },
       opts.signal,
-      onUpdate && ((partial) => onUpdate(toAnalysisResult(fen, partial))),
+      onUpdate && ((partial) => onUpdate(named(toAnalysisResult(fen, partial)))),
     );
-    const result = toAnalysisResult(fen, raw);
+    const result = named(toAnalysisResult(fen, raw));
 
     this.cache.set(cacheKey, result);
     if (this.cache.size > StockfishService.CACHE_LIMIT) {

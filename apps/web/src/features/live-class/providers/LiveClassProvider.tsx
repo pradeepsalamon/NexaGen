@@ -10,6 +10,7 @@ import type {
   WaitingRoomEntry,
 } from "@nexa-chess/types";
 import type { BoardControlSide } from "@/features/chessboard/types/sync";
+import type { ClassroomPresentation, PresentationState } from "../lib/classroomPresentation";
 import type { RaisedHand } from "../lib/handRaise";
 
 export type SidebarTab = "chat" | "participants" | "settings" | "notes" | "puzzle" | null;
@@ -62,6 +63,19 @@ export interface LiveClassState {
   isChessboardOpen: boolean;
   setIsChessboardOpen: (val: boolean) => void;
   toggleChessboard: () => void;
+
+  /**
+   * What the coach presents as the main stage (`lib/classroomPresentation.ts`):
+   * gallery (a class starts here), the main board, or the board pushed into
+   * the gallery. The coach sets it; students mirror the coach's attribute.
+   */
+  classroomPresentation: ClassroomPresentation;
+  /** Grows with every press (`PresentationState.seq`), so re-presenting the same thing still lands. */
+  presentationSeq: number;
+  /** Coach: present `presentation` now (a new press). */
+  presentClassroom: (presentation: ClassroomPresentation) => void;
+  /** Take a press as published by the coach (or restored after a reload). */
+  applyClassroomPresentation: (state: PresentationState) => void;
 
   /**
    * Participant identity -> the side that student may move (empty = coach
@@ -235,6 +249,17 @@ function createLiveClassStore(init: {
       isChessboardOpen: false,
       setIsChessboardOpen: (isChessboardOpen) => set({ isChessboardOpen }),
       toggleChessboard: () => set((s) => ({ isChessboardOpen: !s.isChessboardOpen })),
+
+      classroomPresentation: "gallery",
+      presentationSeq: 0,
+      presentClassroom: (classroomPresentation) =>
+        set((s) => ({ classroomPresentation, presentationSeq: s.presentationSeq + 1 })),
+      applyClassroomPresentation: ({ presentation, seq }) =>
+        set((s) =>
+          s.classroomPresentation === presentation && s.presentationSeq === seq
+            ? s
+            : { classroomPresentation: presentation, presentationSeq: seq },
+        ),
 
       boardControlStudents: {},
       boardControlStudentIds: [],

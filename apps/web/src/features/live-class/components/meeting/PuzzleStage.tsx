@@ -3,15 +3,18 @@
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Crown, Puzzle as PuzzleIcon } from "lucide-react";
-import { useParams } from "next/navigation";
 import { getPuzzle } from "@/features/puzzles/api/puzzleApi";
 import { PuzzleSolver } from "@/features/puzzles/components/solver/PuzzleSolver";
 import { queryKeys } from "@/lib/queryKeys";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
+import { Button } from "@/components/ui/Button";
+import { useGuestLivePuzzle } from "../../hooks/useLivePuzzle";
 import { useLiveClassState } from "../../providers/LiveClassProvider";
+import { useDemoGuestToken } from "../../providers/LiveRoomContext";
 import { InRoomPuzzleSolver } from "./InRoomPuzzleSolver";
 import { EndPuzzleButton, PuzzleTimerBadge } from "./PuzzleSessionControls";
+import { useRoomClassId } from "../../providers/LiveRoomContext";
 
 /**
  * The coach's own copy of the class puzzle, to check it plays as intended.
@@ -45,20 +48,57 @@ function CoachPuzzlePreview({ puzzleId }: { puzzleId: string }) {
 }
 
 /**
+ * A demo guest's copy of the class puzzle. A guest is not a user, so it can't
+ * own a server-scored attempt: like the coach's preview it is solved
+ * client-side, from the solution the guest route sends, and never scored.
+ */
+function GuestPuzzlePractice({ classId, guestToken, assignmentId }: { classId: string; guestToken: string; assignmentId: string }) {
+  const query = useGuestLivePuzzle(classId, guestToken);
+  const data = query.data;
+  // The packet can land before the refetch it triggers: wait for the same assignment.
+  const current = data?.assignment?.id === assignmentId ? data : null;
+  if (!current?.assignment || !current.solution) {
+    if (query.isError || (data && !query.isFetching)) {
+      return (
+        <div className="mx-auto flex max-w-sm flex-col items-center gap-3 py-10 text-center text-sm text-app-muted">
+          <p>{query.error instanceof Error ? query.error.message : "Couldn't load the puzzle."}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void query.refetch()}>
+            Try again
+          </Button>
+        </div>
+      );
+    }
+    return <p className="py-10 text-center text-sm text-app-muted">Loading…</p>;
+  }
+  return (
+    <div className="mx-auto w-full max-w-3xl space-y-2 overflow-y-auto">
+      <p className="text-center text-xs text-app-muted">Practice puzzle — guests aren&apos;t scored or ranked.</p>
+      <PuzzleSolver
+        fen={current.assignment.fen}
+        orientation={current.assignment.orientation}
+        solutionMoves={current.solution.solutionMoves}
+        hints={current.solution.hints}
+        explanation={current.solution.explanation}
+      />
+    </div>
+  );
+}
+
+/**
  * The class puzzle as the main stage, in place of the shared board (desktop
  * `ClassroomLayout`, phone `MeetingVideoGrid`). Open while `puzzleSolverOpen`
  * is set, so only one board ever drives the attempt. A coach (desktop "Activity"
  * tab) gets a practice copy instead of an attempt.
  */
 export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNode; className?: string }) {
-  const params = useParams();
-  const classId = (params?.roomId as string) ?? "";
+  const classId = useRoomClassId();
   const { activePuzzle, setPuzzleSolverOpen } = useLiveClassState(
     "activePuzzle",
     "setPuzzleSolverOpen",
   );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
+  const guestToken = useDemoGuestToken();
   if (!activePuzzle) return null;
 
   return (
@@ -81,7 +121,14 @@ export function PuzzleStage({ stageSwitch, className }: { stageSwitch?: ReactNod
         {stageSwitch}
       </div>
       {/* Keyed by assignment so a swapped puzzle starts a fresh attempt. */}
-      {isCoach ? (
+      {guestToken ? (
+        <GuestPuzzlePractice
+          key={activePuzzle.id}
+          classId={classId}
+          guestToken={guestToken}
+          assignmentId={activePuzzle.id}
+        />
+      ) : isCoach ? (
         <CoachPuzzlePreview key={activePuzzle.id} puzzleId={activePuzzle.puzzleId} />
       ) : (
         <InRoomPuzzleSolver

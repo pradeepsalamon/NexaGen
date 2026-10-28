@@ -5,6 +5,7 @@ import { ClassStatus, DemoClassAccessMode, DemoGuestApproval, DemoRegistrationCo
 import type { GuestJoinDemoRequest } from "@nexa-chess/types";
 import { LiveClassDemoService } from "./live-class-demo.service";
 import { LIVE_CLASS_SERVICES } from "./live-class.testing";
+import { readDemoGuestToken } from "./demo-guest-token";
 import { LiveKitService } from "./livekit.service";
 import { AttendanceService } from "../attendance/attendance.service";
 import { BackupService } from "../backup/backup.service";
@@ -86,7 +87,7 @@ describe("LiveClassDemoService.joinDemoClass", () => {
             leadActivity: { create: jest.fn().mockResolvedValue(undefined) }
           }
         },
-        { provide: JwtService, useValue: {} },
+        { provide: JwtService, useValue: new JwtService({}) },
         { provide: LiveKitService, useValue: { generateAccessToken, broadcastData } },
         { provide: AttendanceService, useValue: {} },
         { provide: BackupService, useValue: {} },
@@ -176,6 +177,12 @@ describe("LiveClassDemoService.joinDemoClass", () => {
 
     expect(result.joined).toBe(true);
     expect(result.token).toBe("livekit-token");
+    // The guest's credential for the in-room routes a guest may call, bound to this class.
+    await expect(readDemoGuestToken(new JwtService({}), result.guestToken ?? undefined)).resolves.toMatchObject({
+      classId: "class-1",
+      sub: "reg-1",
+      type: "demo_guest"
+    });
     expect(result.roomName).toBe("room-1");
     expect(generateAccessToken).toHaveBeenCalledWith(
       expect.objectContaining({ roomName: "room-1", participantName: "Asha", isCoach: false })

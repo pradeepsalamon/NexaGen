@@ -9,7 +9,15 @@ import { MoveTreeView } from "./MoveTreeView";
  * or delete a variation, or comment on a move — a promotion never happens by
  * just playing or selecting a move.
  */
-export function MoveHistory() {
+export function MoveHistory({
+  layout,
+  evaluations,
+}: {
+  /** See `MoveTreeView`: `rows` lists one move per row. */
+  layout?: "flow" | "rows";
+  /** Formatted evaluations by FEN, shown beside each move (rows layout). */
+  evaluations?: Readonly<Record<string, string>>;
+} = {}) {
   const { tree, treeLinePath, historyIndex, goToPath, promoteVariation, deleteVariation, setMoveComment } =
     useBoardStore(
       useShallow((s) => ({
@@ -40,6 +48,8 @@ export function MoveHistory() {
         onPromote={promoteVariation}
         onDelete={deleteVariation}
         onComment={setMoveComment}
+        layout={layout}
+        evaluations={evaluations}
       />
     </div>
   );
