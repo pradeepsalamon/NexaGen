@@ -28,14 +28,15 @@ describe("PuzzleTopicService", () => {
   let service: PuzzleTopicService;
   let jwt: { verifyAsync: jest.Mock };
   let prisma: any;
-  let trash: { softDelete: jest.Mock; softDeleteGroup: jest.Mock };
+  let trash: { softDelete: jest.Mock; softDeleteGroup: jest.Mock; softDeleteManyIntoGroup: jest.Mock };
   let puzzleSets: { folderHomeworkCounts: jest.Mock; folderHomework: jest.Mock };
 
   beforeEach(async () => {
     jwt = { verifyAsync: jest.fn().mockResolvedValue({ sub: ADMIN_ID, type: "access" }) };
     trash = {
       softDelete: jest.fn().mockResolvedValue(undefined),
-      softDeleteGroup: jest.fn().mockResolvedValue(undefined)
+      softDeleteGroup: jest.fn().mockResolvedValue("group-1"),
+      softDeleteManyIntoGroup: jest.fn().mockResolvedValue(7)
     };
     puzzleSets = {
       folderHomeworkCounts: jest.fn().mockResolvedValue(new Map()),
@@ -122,6 +123,41 @@ describe("PuzzleTopicService", () => {
       expect.arrayContaining(["t1", "t2", "t3"]),
       ADMIN_ID
     );
+  });
+
+  it("deletes a folder with its subfolders and puzzles into one trash group", async () => {
+    prisma.puzzleTopic.findUnique.mockResolvedValue({ id: "t1" });
+    prisma.puzzleTopic.findMany.mockResolvedValue(TREE);
+    prisma.puzzleTopic.count.mockResolvedValue(0);
+    await expect(service.remove(TOKEN, "t1")).resolves.toEqual({ folders: 3, puzzles: 7, success: true });
+    expect(trash.softDeleteGroup).toHaveBeenCalledWith(
+      prisma,
+      "PuzzleTopic",
+      expect.arrayContaining(["t1", "t2", "t3"]),
+      ADMIN_ID
+    );
+    expect(trash.softDeleteGroup.mock.calls[0][2]).not.toContain("t4");
+    expect(trash.softDeleteManyIntoGroup).toHaveBeenCalledWith(
+      prisma,
+      "Puzzle",
+      { topicId: { in: expect.arrayContaining(["t1", "t2", "t3"]) } },
+      { cascadedFrom: "PuzzleTopic", deleteGroupId: "group-1", parentId: "t1", userId: ADMIN_ID }
+    );
+  });
+
+  it("refuses to delete a subtree holding a system folder", async () => {
+    prisma.puzzleTopic.findUnique.mockResolvedValue({ id: "t1" });
+    prisma.puzzleTopic.findMany.mockResolvedValue(TREE);
+    prisma.puzzleTopic.count.mockResolvedValue(1);
+    await expect(service.remove(TOKEN, "t1")).rejects.toBeInstanceOf(BadRequestException);
+    expect(trash.softDeleteGroup).not.toHaveBeenCalled();
+  });
+
+  it("forbids a coach from deleting a folder", async () => {
+    prisma.user.findUnique.mockResolvedValue(asRole(COACH_ID, UserRole.COACH));
+    jwt.verifyAsync.mockResolvedValue({ sub: COACH_ID, type: "access" });
+    await expect(service.remove(TOKEN, "t1")).rejects.toBeInstanceOf(ForbiddenException);
+    expect(trash.softDeleteGroup).not.toHaveBeenCalled();
   });
 
   it("creates a subfolder under an existing parent", async () => {

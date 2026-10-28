@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "next/navigation";
 import { Eye, EyeOff, Lock, LockOpen, MessageCircleQuestion, Plus, X } from "lucide-react";
 import type { LiveMovePoll } from "@nexa-chess/types";
 import { Badge } from "@/components/ui/Badge";
@@ -20,6 +19,7 @@ import {
 } from "../../../hooks/useLiveMovePoll";
 import { MovePollResults } from "./MovePollResults";
 import { useRoster } from "@/features/live-class/hooks/useRoster";
+import { useMemberClassId } from "../../../providers/LiveRoomContext";
 
 /** Placement + side to move; move counters don't make it a different question. */
 const positionKey = (fen: string) => fen.split(" ").slice(0, 2).join(" ");
@@ -56,8 +56,7 @@ function tallyArrows(poll: LiveMovePoll): OverlayArrow[] {
 
 /** Coach's "Response" tab on the shared board: ask the class about the current position. */
 export function MovePollCoachPanel() {
-  const params = useParams();
-  const classId = (params?.roomId as string) ?? "";
+  const classId = useMemberClassId();
   useLiveMovePollSync(classId, { isManager: true });
   const { data, isLoading } = useLiveMovePollState(classId);
   const poll = data?.poll ?? null;

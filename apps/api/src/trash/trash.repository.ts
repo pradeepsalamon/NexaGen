@@ -228,10 +228,10 @@ export class TrashRepository {
     client: PrismaClientLike,
     entityName: string,
     ids: string[],
-    userId: string
-  ) {
+    userId: string,
+    deleteGroupId: string = randomUUID()
+  ): Promise<string> {
     const entity = this.getEntityOrThrow(entityName);
-    const deleteGroupId = randomUUID();
     const deletedAt = new Date();
 
     for (const id of ids) {
@@ -247,6 +247,38 @@ export class TrashRepository {
         userId
       });
     }
+    return deleteGroupId;
+  }
+
+  /**
+   * Soft-delete every live row of one model matching `where` into an existing
+   * `deleteGroupId` (one `updateMany`, one audit row), so the rows go and come
+   * back with the group — e.g. the puzzles inside a deleted folder subtree.
+   * `parentId` is the group's root row, logged as the entity id.
+   */
+  async softDeleteManyIntoGroup(
+    client: PrismaClientLike,
+    entityName: string,
+    where: Record<string, unknown>,
+    options: { cascadedFrom: string; deleteGroupId: string; parentId: string; userId: string }
+  ): Promise<number> {
+    const entity = this.getEntityOrThrow(entityName);
+    const { cascadedFrom, deleteGroupId, parentId, userId } = options;
+    const { count } = await this.getDelegate(client, entity.delegate).updateMany({
+      data: { deleteGroupId, deletedAt: new Date(), deletedById: userId, isDeleted: true },
+      where: { ...where, isDeleted: false }
+    });
+
+    if (count > 0) {
+      await this.log(client, {
+        action: "SOFT_DELETE",
+        entity: entity.label,
+        entityId: parentId,
+        metadata: { cascadedFrom, count, deleteGroupId },
+        userId
+      });
+    }
+    return count;
   }
 
   /**

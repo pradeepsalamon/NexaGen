@@ -313,6 +313,10 @@ Facts about the academy live once in `features/academy/content.ts` and feed the 
 
 `demo-class/` + admin demo methods + public page `app/demo/[classId]`, super-admin only. A guest is a `DemoClassRegistration`, not a user; **`DemoInviteService` is the only way to add a guest**. Static demo schedules generate ordinary demo `CoachClass` rows (cron job lock `demo-schedule.top-up`). Details: [docs/CLASSES.md](docs/CLASSES.md).
 
+### 3.6k6 Knowledge base & help centre
+
+`knowledge/` (API + web), pages `/help`, `/admin/knowledge`; rules in `@nexa-chess/types` `knowledge.ts`. **Nothing ships pre-loaded** — admins/super admins write every article. **`canReadKnowledgeArticle` / `readerWhere` is the one visibility rule** (live + audience role + batch scope), applied inside the fetching query; a hidden article is a 404. Content changes are versions (published versions are immutable; rollback copies forward); OD-7 licensing is a per-article source field. Assistant tools (`ai/tools/AssistantToolRegistry`) run with the caller's token through the same rule. Details: [docs/KNOWLEDGE_BASE.md](docs/KNOWLEDGE_BASE.md).
+
 ### 3.6l Privacy (data export, account deletion, legal pages)
 
 `privacy/` (API + web), Profile → "Your data" / "Delete account", admin `/admin/privacy`, public `/privacy` + `/terms`. **Secrets never leave an export**, and **a new model that stores personal data about a user gets a section in it**. Completing a deletion request goes through `UserService.deleteAs` (restorable from Trash). `features/legal/content.ts` must stay true to the code. Details: [docs/FEATURES.md](docs/FEATURES.md).
@@ -329,6 +333,7 @@ NestJS `apps/api/src/ai/` is the only caller of the stateless Python `services/a
 
 `apps/api/src/live-class/` + `apps/web/src/features/live-class/`. **Read [docs/LIVE_CLASS.md](docs/LIVE_CLASS.md) before changing anything in the room** — it covers recording, moderation, waiting room, presence/pull, private chat, media devices, PiP, video effects, puzzles in class, simul, matches, move polls, activity queue, interactives, spectators and pre-class settings. The rules that cut across all of it:
 
+- **In-room code takes the class id from `useRoomClassId()` / `useMemberClassId()` (`providers/LiveRoomContext.tsx`), never `useParams().roomId`** — demo guests (no session, a `guestToken` instead) are at `/demo/[classId]`; `useMemberClassId` is `""` for them so user-only queries stay off.
 - **Data packets are untrusted.** A receiver of an API-only topic (anything the API injects with `sendData`) drops a packet that has a `from`; a peer topic takes the sender from the LiveKit envelope and checks it.
 - **Render cost:** read `LiveClassProvider` with field selectors (`useLiveClassState("a", "b")`), use `useRoster()` / `useGridTracks()` instead of raw `useParticipants()` / `useTracks()`, and give board-store reads a selector.
 - **Service layout:** `LiveClassService` is lifecycle only; each in-room concern is a sibling service using `LiveClassAccessService` for auth. Specs register `LIVE_CLASS_SERVICES`.

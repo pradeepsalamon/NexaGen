@@ -5,6 +5,7 @@ import {
   Brain,
   CalendarClock,
   CalendarDays,
+  Captions,
   ClipboardCheck,
   ClipboardList,
   Clock,
@@ -15,6 +16,8 @@ import {
   Layers3,
   LayoutDashboard,
   Library,
+  LibraryBig,
+  LifeBuoy,
   LineChart,
   MessageSquare,
   MessageSquareHeart,
@@ -84,6 +87,7 @@ export const studentNavItems: NavItem[] = [
   { href: "/messages", label: "Messages", icon: MessagesSquare, feature: "directChat" },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard, feature: "studentPayments" },
+  { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
   { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
@@ -103,6 +107,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/presets", label: "Class presets", icon: SlidersHorizontal },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet, feature: "coachPayroll" },
   { href: "/coach/payments", label: "Payments", icon: CreditCard, feature: "studentPayments" },
+  { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
   { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
@@ -136,12 +141,14 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/attendance", label: "Attendance reports", icon: BarChart3, group: "Classes" },
   { href: "/admin/attendance/policy", label: "Attendance policy", icon: ClipboardCheck, group: "Classes" },
   { href: "/admin/reliability", label: "Live reliability", icon: Wifi, group: "Classes" },
+  { href: "/admin/caption-test", label: "Caption test", icon: Captions, group: "Classes" },
   // Learning content
   { href: "/admin/courses", label: "Courses", icon: BookOpen, group: "Learning", feature: "courses" },
   { href: "/admin/assignments", label: "Assignments", icon: ClipboardList, group: "Learning" },
   { href: "/admin/puzzles", label: "Puzzle library", icon: Puzzle, group: "Learning" },
   { href: "/admin/puzzles/scoring", label: "Puzzle points", icon: Trophy, group: "Learning" },
   { href: "/games", label: "Game library", icon: Library, group: "Learning", feature: "gameLibrary" },
+  { href: "/admin/knowledge", label: "Knowledge base", icon: LibraryBig, group: "Learning" },
   // Finance
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance", feature: "studentPayments" },
   { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Finance", feature: "studentPayments" },

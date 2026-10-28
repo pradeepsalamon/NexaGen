@@ -264,6 +264,34 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.chatMessage;
   }
 
+  get knowledgeCategory() {
+    return this.client.knowledgeCategory;
+  }
+
+  get knowledgeArticle() {
+    return this.client.knowledgeArticle;
+  }
+
+  get knowledgeArticleBatch() {
+    return this.client.knowledgeArticleBatch;
+  }
+
+  get knowledgeArticleVersion() {
+    return this.client.knowledgeArticleVersion;
+  }
+
+  get knowledgeArticleEvent() {
+    return this.client.knowledgeArticleEvent;
+  }
+
+  get knowledgeFeedback() {
+    return this.client.knowledgeFeedback;
+  }
+
+  get knowledgeSearchLog() {
+    return this.client.knowledgeSearchLog;
+  }
+
   get liveClassPuzzleAssignment() {
     return this.client.liveClassPuzzleAssignment;
   }

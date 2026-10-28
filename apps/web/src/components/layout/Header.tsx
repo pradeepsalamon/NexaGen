@@ -1,10 +1,11 @@
 "use client";
 
-import { LayoutDashboard, Loader2, LogIn, Menu } from "lucide-react";
+import { LayoutDashboard, LifeBuoy, Loader2, LogIn, Menu } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Logo } from "@/components/Logo";
+import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { UserNavMenu } from "@/components/layout/UserNavMenu";
 import { NotificationBell } from "@/features/notifications/components/NotificationBell";
 import { resolvePageTitle } from "@/lib/pageTitles";
@@ -110,6 +111,21 @@ export function Header({
               <LayoutDashboard aria-hidden="true" className="size-4" strokeWidth={2.5} />
               <span className="hidden sm:inline">Dashboard</span>
             </Link>
+          )}
+          {activeUser && !pathname.startsWith("/help") && (
+            <span className={cn("hidden sm:block", compact && "sm:hidden lg:block")}>
+              {/* Page-aware help: the help centre lists articles tagged for the page you came from. */}
+              <SimpleTooltip label="Help">
+                <Link
+                  aria-label="Help"
+                  className="inline-flex size-10 shrink-0 items-center justify-center rounded-full border border-app-border bg-app-soft text-app-text shadow-card transition hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+                  href={`/help?from=${encodeURIComponent(pathname)}`}
+                  {...(openLinksInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                >
+                  <LifeBuoy aria-hidden="true" className="size-4" strokeWidth={2.5} />
+                </Link>
+              </SimpleTooltip>
+            </span>
           )}
           {activeUser && (
             <span className={cn(compact && "hidden lg:block")}>

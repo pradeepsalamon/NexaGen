@@ -64,7 +64,7 @@ const entryRow = (over: Record<string, unknown> = {}) => ({
   startedAt: null,
   clockEndsAt: null,
   finishedAt: null,
-  student: { firstName: "Sam", lastName: null },
+  student: { firstName: "Sam", lastName: null, role: UserRole.STUDENT },
   ...over
 });
 
@@ -219,8 +219,18 @@ describe("LiveClassPuzzleRushService", () => {
   });
 
   describe("reportProgress", () => {
-    it("is students only", async () => {
+    it("lets the class's own coach play along, flagged as the coach", async () => {
       liveClass.resolveParticipant.mockResolvedValue({ user: asUser(COACH_ID, UserRole.COACH), liveSession });
+      entry = entryRow({ studentId: COACH_ID, student: { firstName: "Cara", lastName: null, role: UserRole.COACH } });
+      const res = await service.reportProgress(TOKEN, CLASS_ID, progress({ moves: 2, solved: 1, puzzleIndex: 1 }));
+      expect(res.standing.isCoach).toBe(true);
+      expect(res.standing.score).toBe(1);
+    });
+
+    it("refuses another class's coach and admins", async () => {
+      liveClass.resolveParticipant.mockResolvedValue({ user: asUser("coach-2", UserRole.COACH), liveSession });
+      await expect(service.reportProgress(TOKEN, CLASS_ID, progress())).rejects.toBeInstanceOf(ForbiddenException);
+      liveClass.resolveParticipant.mockResolvedValue({ user: asUser("admin-1", UserRole.ADMIN), liveSession });
       await expect(service.reportProgress(TOKEN, CLASS_ID, progress())).rejects.toBeInstanceOf(ForbiddenException);
     });
 

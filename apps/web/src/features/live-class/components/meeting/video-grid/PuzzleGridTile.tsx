@@ -3,7 +3,6 @@
 import type { CSSProperties } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, Puzzle as PuzzleIcon, Trophy } from "lucide-react";
-import { useParams } from "next/navigation";
 import type { LivePuzzleAssignment } from "@nexa-chess/types";
 import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
@@ -12,6 +11,7 @@ import { PuzzleTimerBadge } from "../PuzzleSessionControls";
 import { useLivePuzzleLeaderboard } from "../../../hooks/useLivePuzzle";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { PuzzleBoardTile } from "../PuzzleBoardTile";
+import { useMemberClassId } from "../../../providers/LiveRoomContext";
 
 /**
  * The shared puzzle as a tile in the video grid — like the shared board tile —
@@ -26,8 +26,7 @@ export function PuzzleGridTile({
   puzzle: LivePuzzleAssignment;
   style?: CSSProperties;
 }) {
-  const params = useParams();
-  const classId = (params?.roomId as string) ?? "";
+  const classId = useMemberClassId();
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
   const { setActiveSidebar, setPuzzleSolverOpen } = useLiveClassState(

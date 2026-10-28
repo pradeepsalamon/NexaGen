@@ -33,6 +33,7 @@ import type {
   ReassignPuzzleTopicRequest,
   CopyPuzzleTopicRequest,
   CopyPuzzleTopicResponse,
+  DeletePuzzleTopicResponse,
   SavePuzzleAttemptRequest,
   SetPuzzleArchivedRequest,
   SetPuzzlePublishedRequest,
@@ -79,6 +80,11 @@ export function updatePuzzleTopic(
 
 export function archivePuzzleTopic(id: string): Promise<{ success: true }> {
   return apiFetch(API_ROUTES.puzzles.archiveTopic(id), { method: "POST" });
+}
+
+/** Admin: the folder, its subfolders and their puzzles go to Trash together. */
+export function deletePuzzleTopic(id: string): Promise<DeletePuzzleTopicResponse> {
+  return apiFetch(API_ROUTES.puzzles.topic(id), { method: "DELETE" });
 }
 
 export function reassignPuzzleTopic(
