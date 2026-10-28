@@ -69,6 +69,10 @@ export class LiveClassService {
     return this.access.resolveClassManager(accessToken, classId, opts);
   }
 
+  resolveDemoGuest(guestToken: string | undefined, classId: string) {
+    return this.access.resolveDemoGuest(guestToken, classId);
+  }
+
   connectedUserIds(roomName: string): Promise<Set<string>> {
     return this.access.connectedUserIds(roomName);
   }

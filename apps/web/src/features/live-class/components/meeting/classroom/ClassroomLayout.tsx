@@ -1,9 +1,13 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Crown, Grid2x2, LayoutGrid, Puzzle, Shapes, SquareUser, Swords, Users } from "lucide-react";
+import { Crown, Grid2x2, LayoutGrid, Puzzle, Shapes, SquareUser, Swords, Undo2, Users, Video } from "lucide-react";
 import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { cn } from "@/lib/utils";
+import {
+  stageForPresentation,
+  type ClassroomPresentation
+} from "../../../lib/classroomPresentation";
 import { useLiveClassState } from "../../../providers/LiveClassProvider";
 import { useMatch } from "../../../providers/MatchProvider";
 import { useSimul } from "../../../providers/SimulProvider";
@@ -79,6 +83,60 @@ export function StageSwitch({
 }
 
 /**
+ * Coach only, beside the stage tabs: what everyone's main stage presents.
+ * "Pull back to main board" puts the class on the main board; "Push to video"
+ * puts the board's content (position, PGN, the class puzzle) into the gallery
+ * as tiles. The stage tabs themselves stay the coach's own view.
+ */
+function PresentationControls({
+  presentation,
+  onPresent
+}: {
+  presentation: ClassroomPresentation;
+  onPresent: (presentation: ClassroomPresentation) => void;
+}) {
+  const actions = [
+    {
+      id: "board" as const,
+      label: "Pull back to main board",
+      icon: <Undo2 className="size-3.5" strokeWidth={2.5} />
+    },
+    {
+      id: "pushed" as const,
+      label: "Push to video",
+      icon: <Video className="size-3.5" strokeWidth={2.5} />
+    }
+  ];
+  return (
+    <div
+      className="flex shrink-0 rounded-full border border-app-border bg-app-surface p-0.5 shadow-card"
+      role="group"
+      aria-label="Present to the class"
+    >
+      {actions.map((a) => {
+        const active = presentation === a.id;
+        return (
+          <SimpleTooltip key={a.id} label={a.label}>
+            <button
+              type="button"
+              aria-label={a.label}
+              aria-pressed={active}
+              onClick={() => onPresent(a.id)}
+              className={cn(
+                "grid size-7 place-items-center rounded-full transition-colors",
+                active ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
+              )}
+            >
+              {a.icon}
+            </button>
+          </SimpleTooltip>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
  * The single-page live class (md and up) — everything on one screen. On a tall
  * tablet (portrait, below lg) the panel stacks under the stage, video beside
  * the tabs; at lg, or on a short tablet (`room` screen), it sits beside it:
@@ -90,6 +148,10 @@ export function StageSwitch({
  *  │  or a running activity            │ Chat, People │
  *  └───────────────────────────────────┴──────────────┘
  *
+ * It opens on the stage the coach presents (`classroomPresentation`: a new
+ * class starts on the gallery) and follows the coach's Pull back / Push to
+ * video; anyone can still switch tabs themselves in between.
+ *
  * Each activity tab mirrors the open flag its phone dialog uses
  * (`puzzleSolverOpen`, `puzzleBoardsOpen`, simul / match `coachOpen` or
  * `studentOpen`, the Interactives' `studentOpen`), so whatever "opens" an
@@ -100,16 +162,31 @@ export function StageSwitch({
  * `<SimulProvider>` and `<MatchProvider>`.
  */
 export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
-  const [stage, setStage] = useState<ClassroomStage>("board");
   const [sideColumnFits, setSideColumnFits] = useState(false);
-  const { activePuzzle, puzzleSolverOpen, setPuzzleSolverOpen, puzzleBoardsOpen, setPuzzleBoardsOpen } =
-    useLiveClassState(
-      "activePuzzle",
-      "puzzleSolverOpen",
-      "setPuzzleSolverOpen",
-      "puzzleBoardsOpen",
-      "setPuzzleBoardsOpen"
-    );
+  const {
+    activePuzzle,
+    classroomPresentation,
+    puzzleSolverOpen,
+    setPuzzleSolverOpen,
+    puzzleBoardsOpen,
+    setPuzzleBoardsOpen,
+    presentationSeq,
+    presentClassroom
+  } = useLiveClassState(
+    "activePuzzle",
+    "classroomPresentation",
+    "puzzleSolverOpen",
+    "setPuzzleSolverOpen",
+    "puzzleBoardsOpen",
+    "setPuzzleBoardsOpen",
+    "presentationSeq",
+    "presentClassroom"
+  );
+  const [stage, setStage] = useState<ClassroomStage>(() => stageForPresentation(classroomPresentation));
+  // The press this layout last applied, and what it presents (the fallback when an activity closes).
+  const appliedSeq = useRef(presentationSeq);
+  const presentationRef = useRef(classroomPresentation);
+  presentationRef.current = classroomPresentation;
   const simul = useSimul();
   const match = useMatch();
   const interactives = useInteractives();
@@ -156,8 +233,17 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     }
   }, []);
 
+  // A new press of Pull back / Push to video (a student hears it through the coach's attribute).
+  useEffect(() => {
+    if (appliedSeq.current === presentationSeq) return;
+    appliedSeq.current = presentationSeq;
+    changeStage(stageForPresentation(classroomPresentation));
+  }, [presentationSeq, classroomPresentation, changeStage]);
+
+  const present = useCallback((next: ClassroomPresentation) => presentClassroom(next), [presentClassroom]);
+
   // Something opened an activity → show its tab. Its flag closing (Esc, the
-  // puzzle ending) or the activity going away → back to the board.
+  // puzzle ending) or the activity going away → back to what the coach presents.
   useEffect(() => {
     const before = flagsRef.current;
     // A flag raised before its activity's data arrived stays "unseen" until it does.
@@ -174,7 +260,7 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
       return;
     }
     if (stage !== "board" && stage !== "video" && ((before[stage] && !flags[stage]) || !available[stage])) {
-      setStage("board");
+      setStage(stageForPresentation(presentationRef.current));
       if (flags[stage]) settersRef.current[stage](false);
     }
     // The flag/availability booleans are the real inputs; the records are rebuilt every render.
@@ -234,7 +320,12 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
     matchBadge
   ]);
 
-  const stageSwitch = <StageSwitch stage={stage} options={options} onChange={changeStage} />;
+  const stageSwitch = (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {isCoach ? <PresentationControls presentation={classroomPresentation} onPresent={present} /> : null}
+      <StageSwitch stage={stage} options={options} onChange={changeStage} />
+    </div>
+  );
   const solving = stage === "puzzle";
 
   return (
@@ -282,7 +373,8 @@ export function ClassroomLayout({ isCoach }: { isCoach: boolean }) {
             </Button>
             {stageSwitch}
           </div>
-          <MeetingVideoGrid hideBoard />
+          {/* Pushed: the board's content joins the participants as tiles. */}
+          <MeetingVideoGrid hideBoard={classroomPresentation !== "pushed"} presentBoard />
         </section>
       ) : (
         <ClassroomBoard

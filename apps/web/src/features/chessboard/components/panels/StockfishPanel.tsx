@@ -1,11 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useState } from 'react';
 import { useBoardStore as usePersistedStore } from "../../context/BoardProvider";
-import { analyzePositionStream, StockfishAnalysisResult } from '../../api/stockfishApi';
+import { useEngineAnalysis } from "../../hooks/useEngineAnalysis";
+import type { StockfishAnalysisResult } from '../../api/stockfishApi';
 import { Loader2, Pause, Play } from 'lucide-react';
 import { SimpleTooltip } from "@/components/ui/Tooltip";
-
-const ANALYSIS_DEBOUNCE_MS = 150;
-const ANALYSIS_RETRY_MS = 3000;
 
 /** The engine scores for the side to move; the panel shows White's view. */
 function whitePerspective(fen: string, result: StockfishAnalysisResult) {
@@ -19,62 +17,8 @@ export function StockfishPanel() {
   // Stockfish refuses a position with missing / extra kings: don't ask it.
   const positionIssues = usePersistedStore(state => state.positionIssues);
   const setupOnly = positionIssues.length > 0;
-  // Kept with the FEN it describes, so the score's sign uses the right side to move.
-  const [analysis, setAnalysis] = useState<(StockfishAnalysisResult & { fen: string }) | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEnabled, setIsEnabled] = useState(true);
-  const [retryTick, setRetryTick] = useState(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    if (!fen || !isEnabled || setupOnly) return;
-    let retryId: ReturnType<typeof setTimeout> | undefined;
-
-    const performAnalysis = async () => {
-      // Cancel previous analysis request if exists
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
-      setIsAnalyzing(true);
-      setError(null);
-
-      try {
-        const result = await analyzePositionStream(fen, {
-          signal: controller.signal,
-          // Paint each deeper line as it arrives; a superseded stream stays silent.
-          onUpdate: (partial) => {
-            if (!controller.signal.aborted) setAnalysis({ ...partial, fen });
-          },
-        });
-        if (!controller.signal.aborted) setAnalysis({ ...result, fen });
-        setError(null);
-      } catch (err: any) {
-        if (!controller.signal.aborted) {
-          setError(err?.message || 'Failed to fetch analysis');
-          retryId = setTimeout(() => setRetryTick((tick) => tick + 1), ANALYSIS_RETRY_MS);
-        }
-      } finally {
-        if (!controller.signal.aborted) setIsAnalyzing(false);
-      }
-    };
-
-    // Debounce so rapid position changes (dragging, syncing) don't spam the engine pool
-    const debounceId = setTimeout(() => {
-      performAnalysis();
-    }, ANALYSIS_DEBOUNCE_MS);
-
-    return () => {
-      clearTimeout(debounceId);
-      clearTimeout(retryId);
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, [fen, isEnabled, setupOnly, retryTick]);
+  const { analysis, error, isAnalyzing } = useEngineAnalysis(fen, isEnabled && !setupOnly);
 
   if (setupOnly) {
     return (

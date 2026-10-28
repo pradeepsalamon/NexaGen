@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from "@nestjs/
 import type { Request } from "express";
 import {
   API_ROUTES,
+  DEMO_GUEST_TOKEN_HEADER,
   adjustClassLeaderboardRequestSchema,
   adjustLivePuzzlePointsRequestSchema,
   assignLivePuzzleRequestSchema,
@@ -70,6 +71,13 @@ export class LiveClassPuzzleController {
   @Get(API_ROUTES.liveClass.puzzle())
   getCurrent(@Param("id") id: string, @Req() request: Request) {
     return this.service.getCurrent(this.token(request), id);
+  }
+
+  /** Demo guests only: no session cookie, the guest token from the join instead. */
+  @Get(API_ROUTES.liveClass.puzzleGuest())
+  getCurrentForGuest(@Param("id") id: string, @Req() request: Request) {
+    const header = request.headers[DEMO_GUEST_TOKEN_HEADER];
+    return this.service.getCurrentForGuest(typeof header === "string" ? header : undefined, id);
   }
 
   @Post(API_ROUTES.liveClass.puzzleAttempt())

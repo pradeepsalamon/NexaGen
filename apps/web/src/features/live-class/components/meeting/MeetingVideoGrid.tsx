@@ -34,10 +34,13 @@ const SPAN_TWO_TILE_STYLE: CSSProperties = { gridColumn: "span 2" };
 export function MeetingVideoGrid({
   compact = false,
   hideBoard = false,
+  presentBoard = false,
 }: {
   compact?: boolean;
   /** The single-page layout already shows the board beside the video. */
   hideBoard?: boolean;
+  /** The coach pushed the board into the gallery ("Push to video"): its tile shows for the coach too. */
+  presentBoard?: boolean;
 }) {
   const {
     pinnedParticipantSid,
@@ -54,7 +57,7 @@ export function MeetingVideoGrid({
   );
   const user = useAuthStore((state) => state.user);
   const isCoach = user?.role === "COACH" || isStaffRole(user?.role);
-  const showBoardTile = isChessboardOpen && !isCoach && !hideBoard;
+  const showBoardTile = isChessboardOpen && !hideBoard && (!isCoach || presentBoard);
   // A shared board is a grid tile; full screen is opt-in and ends with the share.
   const [boardStage, setBoardStage] = useState(false);
   useEffect(() => {

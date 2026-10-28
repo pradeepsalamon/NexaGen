@@ -1,12 +1,12 @@
 "use client";
 
-import { useParams } from "next/navigation";
 import { Check, ListOrdered } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/authStore";
 import { useActivityQueueSync, useCurrentActivityQueue } from "../../hooks/useActivityQueue";
 import { ActivityKindIcon, activityKindLabel } from "./activityQueueUi";
+import { useMemberClassId } from "../../providers/LiveRoomContext";
 
 /**
  * Top-bar pill while the coach runs an activity queue: "2 / 5", opening to the
@@ -16,7 +16,7 @@ import { ActivityKindIcon, activityKindLabel } from "./activityQueueUi";
  * dialog. Must render inside `<LiveKitRoom>`.
  */
 export function ActivityQueueStatusPill() {
-  const classId = (useParams()?.roomId as string | undefined) ?? "";
+  const classId = useMemberClassId();
   const role = useAuthStore((s) => s.user?.role);
   const isStudent = role === "STUDENT";
   useActivityQueueSync(classId, { isManager: !isStudent });

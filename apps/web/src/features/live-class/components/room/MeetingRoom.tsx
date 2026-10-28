@@ -28,6 +28,7 @@ import { WaitingRoomBridge } from "../meeting/WaitingRoomBridge";
 import { ScreenShareRequestBridge } from "../meeting/ScreenShareRequestBridge";
 import { ChatProvider } from "../../providers/ChatProvider";
 import { ConnectionStateManager } from "../../providers/ConnectionStateManager";
+import { LiveRoomProvider } from "../../providers/LiveRoomContext";
 import { MediaDeviceProvider } from "../../providers/MediaDeviceProvider";
 import { VideoEffectsProvider } from "../../providers/VideoEffectsProvider";
 import { loadMediaPrefs } from "../../lib/mediaDevices";
@@ -44,6 +45,8 @@ const env = getWebEnv({
 interface MeetingRoomProps {
   token: string;
   classId: string;
+  /** Demo guests only: the credential for the guest puzzle route. */
+  guestToken?: string | null;
 }
 
 // Only the handful of benign strings LiveKit raises when a disconnect we already
@@ -88,7 +91,7 @@ function ReconnectToaster() {
   return null;
 }
 
-export function MeetingRoom({ token, classId }: MeetingRoomProps) {
+export function MeetingRoom({ token, classId, guestToken = null }: MeetingRoomProps) {
   const [error, setError] = useState<string | null>(null);
   const [ended, setEnded] = useState(false);
   const router = useRouter();
@@ -199,6 +202,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
         setError(roomError.message);
       }}
     >
+      <LiveRoomProvider classId={classId} guestToken={guestToken}>
       <ReconnectToaster />
       <AudioSessionBridge />
       <MediaDeviceProvider>
@@ -229,6 +233,7 @@ export function MeetingRoom({ token, classId }: MeetingRoomProps) {
       </MediaDeviceProvider>
       <RoomAudioRenderer />
       <StartAudio label="Click to allow audio playback" />
+      </LiveRoomProvider>
     </LiveKitRoom>
   );
 }

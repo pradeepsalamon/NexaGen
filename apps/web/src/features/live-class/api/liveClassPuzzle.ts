@@ -1,10 +1,12 @@
 import { apiFetch } from "@/lib/api";
 import {
   API_ROUTES,
+  DEMO_GUEST_TOKEN_HEADER,
   type AdjustClassLeaderboardRequest,
   type AdjustLivePuzzlePointsRequest,
   type AssignLivePuzzleRequest,
   type ClassLeaderboardResponse,
+  type GuestLivePuzzleResponse,
   type LivePuzzleBoardsResponse,
   type LivePuzzleLeaderboardResponse,
   type LivePuzzleStateResponse,
@@ -15,6 +17,13 @@ import {
 
 export const getLivePuzzleState = (classId: string): Promise<LivePuzzleStateResponse> =>
   apiFetch<LivePuzzleStateResponse>(API_ROUTES.liveClass.puzzle(classId));
+
+/** Demo guests: no session cookie — the guest token from the join goes in a header instead. */
+export const getGuestLivePuzzle = (classId: string, guestToken: string): Promise<GuestLivePuzzleResponse> =>
+  apiFetch<GuestLivePuzzleResponse>(API_ROUTES.liveClass.puzzleGuest(classId), {
+    headers: { [DEMO_GUEST_TOKEN_HEADER]: guestToken },
+    silent: true
+  });
 
 export const assignLivePuzzle = (
   classId: string,

@@ -46,15 +46,14 @@ import { cn } from "@/lib/utils";
 import { isStaffRole, useAuthStore } from "@/stores/authStore";
 import { useLiveClassChat } from "../../providers/ChatProvider";
 import { Z, useReducedMotion } from "../../lib/meetingUi";
-import { useParams } from "next/navigation";
 import { useRecordingState } from "../../hooks/useRecordingState";
 import { startRecording, stopRecording, requestScreenShare, endScreenShare } from "../../api/live-class";
 import { toast } from "sonner";
 import { useRoster } from "@/features/live-class/hooks/useRoster";
+import { useMemberClassId } from "../../providers/LiveRoomContext";
 
 export const MeetingToolbar = memo(function MeetingToolbar() {
-  const params = useParams();
-  const roomId = params?.roomId as string;
+  const roomId = useMemberClassId();
   const reducedMotion = useReducedMotion();
 
   const {
