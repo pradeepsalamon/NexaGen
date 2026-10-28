@@ -369,6 +369,7 @@ export const API_ROUTES = {
   puzzles: {
     // ── Topics (admin authors; staff + coach read) ──
     topics: "/puzzles/topics",
+    /** GET / PATCH; DELETE = the folder, its subfolders and puzzles to Trash (admin). */
     topic: (id: string = ":id") => `/puzzles/topics/${id}`,
     archiveTopic: (id: string = ":id") => `/puzzles/topics/${id}/archive`,
     reassignTopic: (id: string = ":id") => `/puzzles/topics/${id}/reassign`,

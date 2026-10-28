@@ -13,9 +13,11 @@ import {
   isSystemPuzzleFolder,
   MAX_PUZZLE_TOPIC_DEPTH,
   puzzleTopicPath,
+  SYSTEM_PUZZLE_FOLDER_SLUGS,
   type CopyPuzzleTopicRequest,
   type CopyPuzzleTopicResponse,
   type CreatePuzzleTopicRequest,
+  type DeletePuzzleTopicResponse,
   type FolderHomeworkResponse,
   type PuzzleTopicDto,
   type PuzzleTopicListResponse,
@@ -225,6 +227,37 @@ export class PuzzleTopicService {
 
     await this.prisma.$transaction((tx) => this.archiveSubtree(tx, subtree, user.id));
     return { success: true };
+  }
+
+  /**
+   * Delete a folder with everything in it: its subfolders and every live puzzle
+   * they hold go to Trash under one `deleteGroupId`, so restoring any of them
+   * brings the whole folder back, and the trash sweep purges them after the
+   * retention period (puzzles before folders — `puzzles.topicId` is RESTRICT).
+   */
+  async remove(accessToken: string | undefined, id: string): Promise<DeletePuzzleTopicResponse> {
+    const user = assertAdmin(await authenticateUser(this.jwtService, this.prisma, accessToken));
+    const topic = await this.prisma.puzzleTopic.findUnique({ where: { id } });
+    if (!topic) throw new NotFoundException("Topic not found.");
+
+    const subtree = collectPuzzleTopicSubtreeIds(await this.loadLinks(), id);
+    const system = await this.prisma.puzzleTopic.count({
+      where: { id: { in: subtree }, slug: { in: [...SYSTEM_PUZZLE_FOLDER_SLUGS] } }
+    });
+    if (system > 0) {
+      throw new BadRequestException("System folders can't be deleted.");
+    }
+
+    const puzzles = await this.prisma.$transaction(async (tx) => {
+      const deleteGroupId = await this.trash.softDeleteGroup(tx, "PuzzleTopic", subtree, user.id);
+      return this.trash.softDeleteManyIntoGroup(
+        tx,
+        "Puzzle",
+        { topicId: { in: subtree } },
+        { cascadedFrom: "PuzzleTopic", deleteGroupId, parentId: id, userId: user.id }
+      );
+    });
+    return { folders: subtree.length, puzzles, success: true };
   }
 
   /** Move every live puzzle in the folder's subtree elsewhere, then archive the subtree. */
