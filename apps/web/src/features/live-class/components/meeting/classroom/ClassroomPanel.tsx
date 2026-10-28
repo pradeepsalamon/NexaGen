@@ -12,7 +12,6 @@ import {
   Trophy,
   Users,
 } from "lucide-react";
-import { BoardActionsRow } from "@/features/chessboard/components/panels/BoardActionsRow";
 import { EngineEvalSummary } from "@/features/chessboard/components/panels/EngineEvalSummary";
 import { MasterbasePanel } from "@/features/chessboard/components/panels/MasterbasePanel";
 import { MoveHistory } from "@/features/chessboard/components/panels/MoveHistory";
@@ -209,13 +208,11 @@ export function ClassroomPanel({
 
         <div className="min-h-0 flex-1 overflow-hidden" role="tabpanel">
           {activeTab === "moves" ? (
-            <div className="flex h-full flex-col gap-3 overflow-y-auto p-3">
-              {isCoach ? (
-                <BoardActionsRow onPastePgn={() => setTab("pgn")} />
-              ) : null}
+            // Lichess-style: engine header → its lines → the move list, one continuous column.
+            <div className="custom-scrollbar flex h-full flex-col overflow-y-auto">
               {/* Engine analysis is coach / admin only (the API refuses students). */}
               {isCoach ? <EngineEvalSummary className="shrink-0" /> : null}
-              {/* Never squeezed below a few rows by the engine card: the tab scrolls instead. */}
+              {/* Never squeezed below a few rows by the engine lines: the tab scrolls instead. */}
               <div className="light-theme-overrides min-h-40 flex-1 text-app-text">
                 <ClassroomMoveList withEvaluations={isCoach} />
               </div>
@@ -252,7 +249,7 @@ export function ClassroomPanel({
 /** The board's moves one per row, with the engine's score beside each position it has analysed. */
 function ClassroomMoveList({ withEvaluations }: { withEvaluations: boolean }) {
   const evaluations = useEngineEvalCache((s) => s.evals);
-  return <MoveHistory layout="rows" evaluations={withEvaluations ? evaluations : undefined} />;
+  return <MoveHistory layout="rows" embedded evaluations={withEvaluations ? evaluations : undefined} />;
 }
 
 const VIDEO_HEIGHT_KEY = "nexa-live-class-video-height";
