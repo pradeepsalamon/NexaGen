@@ -99,45 +99,41 @@ export const ACADEMY_FAQ: { question: string; answer: string }[] = [
   {
     question: "What is Nexa Chess Academy?",
     answer:
-      "Nexa Chess Academy (nexachess.in) is an online chess academy offering live, interactive chess classes for beginner, intermediate and advanced players. It has trained students in more than 8 countries."
+      "Nexa Chess Academy (nexachess.in) is an elite chess coaching platform offering structured, interactive chess education for beginners, intermediate improvers, and competitive tournament players across the globe."
   },
   {
-    question: "Are the chess classes online?",
+    question: "Who can join the classes?",
     answer:
-      "Yes. Every class is a live online session with real-time interaction on a shared chessboard, so students can join from anywhere in the world."
+      "Anyone passionate about learning or mastering chess! We welcome absolute beginners who have never touched a piece, aspiring club players wanting structured tactics, and competitive tournament players preparing for FIDE ratings."
   },
   {
-    question: "What age can my child start learning chess?",
+    question: "What age groups do you teach?",
     answer:
-      "Children can start young — several of our students began at about 6 years old and have gone on to win tournaments. Teenagers and adults join the same level-based programs."
+      "We teach children from 5 years old up to teenagers and adults. Our curriculum is tailored by skill level and cognitive stage, ensuring an engaging, supportive learning experience for every student."
   },
   {
-    question: "Which levels do you teach?",
+    question: "Do you provide certificates?",
     answer:
-      "Three programs: Beginner (rules, piece movement, opening fundamentals, simple tactics), Intermediate (strategy, tactical combinations, positional play, tournament preparation) and Advanced (opening theory, deep calculation, endgames, grandmaster game studies, psychological preparation)."
+      "Yes. Upon completing curriculum milestones, tournament events, and proficiency evaluations, students receive official Nexa Chess Academy achievement certificates."
   },
   {
-    question: "What class formats are available?",
+    question: "Do you offer trial classes?",
     answer:
-      "Individual one-on-one classes, buddy combo classes for learning with friends, and group classes. You choose the format that suits your child's pace and budget."
+      "Yes! We offer a completely free, zero-commitment 1-on-1 demo evaluation class where you meet an expert coach, assess your current skill level, and experience our interactive teaching environment."
   },
   {
-    question: "How long is each chess class?",
+    question: "Are the classes live?",
     answer:
-      "45 to 55 minutes: a warm-up and review, the core lesson and theory, practice with puzzles, then game play and analysis."
+      "100% of our classes are live and interactive. Students and coaches collaborate in real time on interactive digital chessboards with two-way audio and video guidance."
   },
   {
-    question: "Who are the coaches?",
+    question: "How are coaches selected?",
     answer:
-      "FIDE-rated chess professionals with years of teaching and tournament experience, who build a learning path around each student's strengths and goals."
+      "Our coaching roster comprises FIDE-rated masters, titled players, and certified national instructors selected through rigorous background verification, tactical screening, and child pedagogy standards."
   },
   {
-    question: "Do you help students play tournaments and get a FIDE rating?",
+    question: "What makes Nexa Chess different?",
     answer:
-      "Yes. Training covers preparation for national and international tournaments, and every Sunday there is tournament practice — simulations, game analysis, opening preparation and endgame drills. Many of our students have earned FIDE ratings and won tournaments."
-  },
-  {
-    question: "How do I book a free demo class?",
-    answer: `Fill in the "Book Your Free Demo Class" form on nexachess.in, message us on WhatsApp at ${ACADEMY_WHATSAPP.replace("-", " ")}, call ${ACADEMY_PHONE.replace("-", " ")} or email ${ACADEMY_EMAIL}.`
+      "Unlike generic video courses or crowded classrooms, Nexa Chess combines personalized Grandmaster-designed roadmaps, dedicated 1-on-1 and micro-batch coaching, weekly Sunday tournament practice, and detailed performance analytics."
   }
 ];

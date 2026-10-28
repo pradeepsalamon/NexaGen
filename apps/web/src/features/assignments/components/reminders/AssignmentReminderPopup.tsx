@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +12,7 @@ import {
   DialogTitle
 } from "@/components/ui/Dialog";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
+import { useTheme } from "@/providers/ThemeProvider";
 import { useMyAssignmentReminders } from "../../hooks/useAssignmentsApi";
 import { describeReminderCounts } from "./reminderText";
 import { ReminderItemRow } from "./ReminderItemRow";
@@ -36,12 +36,10 @@ function markShown() {
   }
 }
 
-/**
- * Opens once per session when something is overdue or due today — "due soon"
- * alone only gets the banner, so the popup stays an interruption worth having.
- */
 export function AssignmentReminderPopup() {
   const timeZone = useUserTimeZone();
+  const { mode, isHydrated } = useTheme();
+  const isDark = isHydrated && mode === "dark";
   const { data } = useMyAssignmentReminders();
   const [open, setOpen] = useState(false);
 
@@ -55,30 +53,72 @@ export function AssignmentReminderPopup() {
   }, [pressing]);
 
   if (!data) return null;
-  const items = data.items.filter((i) => i.dueStatus !== "DUE_SOON").slice(0, 5);
+  const items = data.items
+    .filter((i) => i.dueStatus !== "DUE_SOON")
+    .slice(0, 5);
 
   return (
     <Dialog onOpenChange={setOpen} open={open}>
-      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        className={`max-h-[90dvh] overflow-y-auto sm:max-w-md rounded-2xl border p-6 ${isDark
+            ? "bg-[#07142B] border-white/12 text-white"
+            : "bg-white border-[#E8EDF5] text-[#071B41]"
+          }`}
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle aria-hidden className="size-5 text-app-danger-ink" />
-            Don&apos;t forget your homework
+          <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-bold">
+            <span
+              className={`flex size-9 shrink-0 items-center justify-center rounded-xl border ${isDark
+                  ? "bg-red-500/15 border-red-500/30 text-red-400"
+                  : "bg-red-50 border-red-200 text-red-600"
+                }`}
+            >
+              <AlertTriangle aria-hidden className="size-4.5" strokeWidth={2.2} />
+            </span>
+            <span>Don&apos;t forget your homework</span>
           </DialogTitle>
-          <DialogDescription>You have {describeReminderCounts(data.counts)}.</DialogDescription>
+          <DialogDescription
+            className={`text-xs sm:text-sm mt-1 ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
+              }`}
+          >
+            You have {describeReminderCounts(data.counts)}.
+          </DialogDescription>
         </DialogHeader>
-        <ul className="space-y-0.5">
+
+        <ul className="space-y-1 my-2">
           {items.map((item) => (
-            <ReminderItemRow item={item} key={item.id} onNavigate={() => setOpen(false)} timeZone={timeZone} />
+            <ReminderItemRow
+              item={item}
+              key={item.id}
+              onNavigate={() => setOpen(false)}
+              timeZone={timeZone}
+            />
           ))}
         </ul>
-        <DialogFooter>
-          <Button onClick={() => setOpen(false)} variant="outline">
+
+        <DialogFooter className="flex items-center justify-end gap-2.5 pt-2">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className={`h-9 px-4 rounded-full text-xs font-bold border transition-colors cursor-pointer ${isDark
+                ? "bg-[#0B1B38] border-white/15 text-white hover:border-white/30"
+                : "bg-white border-[#CBD5E1] text-[#071B41] hover:bg-[#F8FAFC]"
+              }`}
+          >
             Later
-          </Button>
-          <Button asChild onClick={() => setOpen(false)}>
-            <Link href="/student/practice">Go to assignments</Link>
-          </Button>
+          </button>
+
+          <Link
+            href="/student/practice"
+            onClick={() => setOpen(false)}
+            className={`inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold transition-all ${isDark
+                ? "bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C] text-[#071B41]"
+                : "bg-[#071B41] hover:bg-[#0B2559] text-white"
+              }`}
+          >
+            <span>Go to assignments</span>
+            <ArrowRight className="size-3.5" strokeWidth={2.3} />
+          </Link>
         </DialogFooter>
       </DialogContent>
     </Dialog>

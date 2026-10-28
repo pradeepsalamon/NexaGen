@@ -1,65 +1,94 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/Tabs";
-import { AuthHeader } from "@/features/auth/components/AuthHeader";
+import Link from "next/link";
 import { RegisterForm } from "@/features/auth/components/RegisterForm";
 import { CoachRegisterForm } from "@/features/auth/components/CoachRegisterForm";
-import { cn } from "@/lib/utils";
+import { AuthSplitShell } from "@/features/auth/components/AuthSplitShell";
+import { useTheme } from "@/providers/ThemeProvider";
 
 type Role = "student" | "coach";
 
-const TRIGGER_CLASS =
-  "relative z-10 px-6 data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:hover:bg-transparent";
-
 export default function RegisterPage() {
   const [role, setRole] = useState<Role>("student");
-  // null until the first switch, so the initial render doesn't animate.
-  const [direction, setDirection] = useState<"left" | "right" | null>(null);
-
-  const handleChange = (next: string) => {
-    if (next === role) return;
-    setDirection(next === "coach" ? "right" : "left");
-    setRole(next as Role);
-  };
-
-  const contentClass = cn(
-    direction === "right" && "motion-safe:data-[state=active]:animate-tab-in-right",
-    direction === "left" && "motion-safe:data-[state=active]:animate-tab-in-left"
-  );
+  const { mode, isHydrated } = useTheme();
+  const isDark = isHydrated && mode === "dark";
 
   return (
-    <div className="w-full max-w-[720px] animate-slide-up p-2 sm:p-4 [@media(max-height:700px)]:py-0">
-      <Tabs className="gap-4 [@media(max-height:700px)]:gap-2" onValueChange={handleChange} value={role}>
-        <div className="border-b border-app-border pb-4 [@media(max-height:700px)]:pb-2">
-          <AuthHeader
-            actionHref="/login"
-            actionLabel="Log in"
-            helperText="Already learning with us?"
-            title="Create account"
-            rightContent={
-              <TabsList aria-label="Register as" className="relative grid grid-cols-2">
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    "absolute inset-y-1 left-1 w-[calc(50%-6px)] rounded-lg bg-primary shadow-[0_4px_12px_-4px_rgb(var(--rgb-primary)/0.7)] motion-safe:transition-transform motion-safe:duration-300 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]",
-                    role === "coach" && "translate-x-[calc(100%+4px)]"
-                  )}
-                />
-                <TabsTrigger className={TRIGGER_CLASS} value="student">Student</TabsTrigger>
-                <TabsTrigger className={TRIGGER_CLASS} value="coach">Coach</TabsTrigger>
-              </TabsList>
-            }
-          />
-        </div>
+    <AuthSplitShell
+      variant={role === "student" ? "student-register" : "coach-register"}
+      cardMaxWidthClass="max-w-[560px]"
+    >
+      {/* Compact Header */}
+      <div className="mb-2.5">
+        <h2
+          className={`font-[family-name:var(--font-playfair)] text-xl sm:text-2xl font-bold leading-tight ${isDark ? "text-white" : "text-[#071B41]"
+            }`}
+        >
+          Create your account
+        </h2>
+        <p
+          className={`text-xs mt-0.5 ${isDark ? "text-[#C1C4CC]" : "text-[#555C68]"
+            }`}
+        >
+          Already learning with us?{" "}
+          <Link
+            href="/login"
+            className={`font-bold underline-offset-2 hover:underline ${isDark
+                ? "text-white hover:text-[#E2B355]"
+                : "text-[#071B41] hover:text-[#C58927]"
+              }`}
+          >
+            Log in
+          </Link>
+        </p>
+      </div>
 
-        <TabsContent className={contentClass} value="student">
-          <RegisterForm />
-        </TabsContent>
-        <TabsContent className={contentClass} value="coach">
-          <CoachRegisterForm />
-        </TabsContent>
-      </Tabs>
-    </div>
+      {/* Role Pill Switcher (Student | Coach) */}
+      <div
+        role="tablist"
+        aria-label="Register as"
+        className={`grid grid-cols-2 gap-1.5 mb-3 p-1 rounded-full border ${isDark
+            ? "bg-[#0B1D3F] border-white/10"
+            : "bg-[#F1F5F9] border-[#E2E8F0]"
+          }`}
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={role === "student"}
+          onClick={() => setRole("student")}
+          className={`h-8 sm:h-9 rounded-full text-xs sm:text-[13px] font-bold transition-all duration-200 cursor-pointer ${role === "student"
+              ? isDark
+                ? "bg-gradient-to-r from-[#E5B85B] to-[#CE942E] text-[#071B41] shadow-xs"
+                : "bg-[#071B41] text-white shadow-xs"
+              : isDark
+                ? "text-[#C1C4CC] hover:text-white"
+                : "text-[#555C68] hover:text-[#071B41]"
+            }`}
+        >
+          Student
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={role === "coach"}
+          onClick={() => setRole("coach")}
+          className={`h-8 sm:h-9 rounded-full text-xs sm:text-[13px] font-bold transition-all duration-200 cursor-pointer ${role === "coach"
+              ? isDark
+                ? "bg-gradient-to-r from-[#E5B85B] to-[#CE942E] text-[#071B41] shadow-xs"
+                : "bg-[#071B41] text-white shadow-xs"
+              : isDark
+                ? "text-[#C1C4CC] hover:text-white"
+                : "text-[#555C68] hover:text-[#071B41]"
+            }`}
+        >
+          Coach
+        </button>
+      </div>
+
+      {/* Active Registration Form */}
+      {role === "student" ? <RegisterForm /> : <CoachRegisterForm />}
+    </AuthSplitShell>
   );
 }

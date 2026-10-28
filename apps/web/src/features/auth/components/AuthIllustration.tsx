@@ -17,10 +17,10 @@ export function AuthIllustration() {
         ))}
       </div>
       <div className="absolute grid translate-y-1 items-center justify-items-center">
-        <span className="block size-12 rounded-full bg-[linear-gradient(145deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_62%,black))] shadow-[0_18px_32px_color-mix(in_srgb,var(--color-primary)_28%,transparent)]" />
-        <span className="-mt-1.5 block h-14 w-9 rounded-app bg-[linear-gradient(145deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_62%,black))] shadow-[0_18px_32px_color-mix(in_srgb,var(--color-primary)_28%,transparent)]" />
-        <span className="-mt-1.5 block h-16 w-24 rounded-t-[34px] rounded-b-app bg-[linear-gradient(145deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_62%,black))] shadow-[0_18px_32px_color-mix(in_srgb,var(--color-primary)_28%,transparent)]" />
-        <span className="-mt-1 block h-7 w-36 rounded-app bg-[linear-gradient(145deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_62%,black))] shadow-[0_18px_32px_color-mix(in_srgb,var(--color-primary)_28%,transparent)]" />
+        <span className="block size-12 rounded-full bg-primary shadow-md" />
+        <span className="-mt-1.5 block h-14 w-9 rounded-app bg-primary shadow-md" />
+        <span className="-mt-1.5 block h-16 w-24 rounded-t-[34px] rounded-b-app bg-primary shadow-md" />
+        <span className="-mt-1 block h-7 w-36 rounded-app bg-primary shadow-md" />
       </div>
     </div>
   );

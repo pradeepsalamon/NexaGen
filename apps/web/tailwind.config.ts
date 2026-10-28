@@ -41,12 +41,14 @@ const config: Config = {
       },
       colors: {
         accent: {
-          DEFAULT: "rgb(var(--rgb-accent) / <alpha-value>)",
+          DEFAULT: "var(--accent, rgb(var(--rgb-accent) / <alpha-value>))",
+          bright: "var(--accent-bright)",
+          light: "var(--accent-light)",
           ink: "var(--color-accent-ink)"
         },
         app: {
-          background: "rgb(var(--rgb-background) / <alpha-value>)",
-          border: "rgb(var(--rgb-border) / <alpha-value>)",
+          background: "var(--background, rgb(var(--rgb-background) / <alpha-value>))",
+          border: "var(--border, rgb(var(--rgb-border) / <alpha-value>))",
           drawer: {
             DEFAULT: "rgb(var(--rgb-nav-drawer) / <alpha-value>)",
             border: "rgb(var(--rgb-nav-drawer-border) / <alpha-value>)"
@@ -56,13 +58,18 @@ const config: Config = {
             ink: "var(--color-danger-ink)"
           },
           focus: "var(--color-focus)",
-          muted: "rgb(var(--rgb-text-muted) / <alpha-value>)",
-          soft: "rgb(var(--rgb-surface-soft) / <alpha-value>)",
-          surface: "rgb(var(--rgb-surface) / <alpha-value>)",
-          text: "rgb(var(--rgb-text) / <alpha-value>)"
+          muted: "var(--text-secondary, rgb(var(--rgb-text-muted) / <alpha-value>))",
+          soft: "var(--surface-hover, rgb(var(--rgb-surface-soft) / <alpha-value>))",
+          surface: "var(--surface, rgb(var(--rgb-surface) / <alpha-value>))",
+          text: "var(--text-primary, rgb(var(--rgb-text) / <alpha-value>))"
+        },
+        surface: {
+          DEFAULT: "var(--surface, rgb(var(--rgb-surface) / <alpha-value>))",
+          hover: "var(--surface-hover, rgb(var(--rgb-surface-soft) / <alpha-value>))"
         },
         primary: {
-          DEFAULT: "rgb(var(--rgb-primary) / <alpha-value>)",
+          DEFAULT: "var(--primary, rgb(var(--rgb-primary) / <alpha-value>))",
+          dark: "var(--primary-dark)",
           ink: "var(--color-primary-ink)"
         },
         secondary: {
@@ -85,22 +92,27 @@ const config: Config = {
           DEFAULT: "rgb(var(--rgb-info) / <alpha-value>)",
           ink: "var(--color-info-ink)"
         },
-        // Academy marketing page (/academy) only — its own palette, ported
-        // verbatim from the standalone landing site. Plain hex (not the
-        // rgb(var(...)) pattern above) so Tailwind's opacity modifiers
-        // (bg-gold/5, border-gold/30, ...) work automatically.
-        gold: {
-          DEFAULT: "#1a3a52",
-          light: "#2a5a8a",
-          dark: "#0f1f2f"
+        // Brand palette aligned with NEXA Chess visual guidelines
+        navy: {
+          DEFAULT: "#071B41",
+          dark: "#030D24",
+          card: "#0B1A38",
+          light: "#102347"
         },
-        "text-primary": "#1a3a52",
-        "text-secondary": "#4a5f7f",
-        "text-muted": "#7a8fa5"
+        gold: {
+          DEFAULT: "#BB8B37",
+          bright: "#E2B355",
+          light: "#F1D58F",
+          dark: "#996E25"
+        },
+        "text-primary": "var(--text-primary)",
+        "text-secondary": "var(--text-secondary)",
+        "text-muted": "var(--text-secondary)"
       },
       fontFamily: {
-        display: ["var(--font-display)"],
-        sans: ["var(--font-sans)"]
+        display: ["var(--font-playfair)", "Playfair Display", "Georgia", "serif"],
+        serif: ["var(--font-playfair)", "Playfair Display", "Georgia", "serif"],
+        sans: ["var(--font-inter)", "Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"]
       },
       keyframes: {
         fadeIn: {

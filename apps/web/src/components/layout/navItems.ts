@@ -2,7 +2,6 @@ import {
   Activity,
   BarChart3,
   BookOpen,
-  Brain,
   CalendarClock,
   CalendarDays,
   Captions,
@@ -24,11 +23,9 @@ import {
   Puzzle,
   Radio,
   ReceiptText,
-  ScanSearch,
   Settings,
   ShieldCheck,
   SlidersHorizontal,
-  Target,
   Trash2,
   TrendingUp,
   Trophy,
@@ -70,23 +67,17 @@ export type NavItem = {
   feature?: PlanFeatureKey;
 };
 
+// Replace `studentNavItems` in src/components/layout/navItems.ts with:
 export const studentNavItems: NavItem[] = [
   { href: "/student", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/student/courses", label: "My courses", icon: BookOpen, feature: "courses" },
-  { href: "/student/batches", label: "My batches", icon: Layers3 },
-  { href: "/student/live-classes", label: "Live classes", icon: Video },
-  { href: "/student/schedule", label: "Schedule", icon: CalendarDays },
-  { href: "/student/practice", label: "Assignments", icon: Target },
-  { href: "/student/training", label: "Puzzle training", icon: Puzzle },
-  { href: "/student/revision", label: "Smart revision", icon: Brain, feature: "smartRevision" },
+  { href: "/student/schedule", label: "My Classes", icon: CalendarDays },
+  { href: "/student/practice", label: "Assignments", icon: ClipboardList },
+  { href: "/student/training", label: "Practice", icon: Puzzle },
   { href: "/student/progress", label: "Progress", icon: TrendingUp },
-  { href: "/student/insights", label: "Game insights", icon: ScanSearch, feature: "gameAnalysis" },
-  { href: "/games", label: "Game library", icon: Library, feature: "gameLibrary" },
-  { href: "/messages", label: "Messages", icon: MessagesSquare, feature: "directChat" },
-  { href: "/student/attendance", label: "Attendance", icon: UserCheck },
-  { href: "/student/billing", label: "Billing", icon: CreditCard, feature: "studentPayments" },
-  { href: "/chess-board", label: "Chess board", icon: Palette },
-  { href: "/profile", label: "Profile & settings", icon: Settings }
+  { href: "/student/courses", label: "Certificates", icon: Trophy, feature: "courses" },
+  { href: "/messages", label: "My Coach", icon: Users, feature: "directChat" },
+  { href: "/games", label: "Resources", icon: BookOpen, feature: "gameLibrary" },
+  { href: "/profile", label: "Profile", icon: UserCheck }
 ];
 
 export const coachNavItems: NavItem[] = [

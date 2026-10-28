@@ -1,81 +1,259 @@
-import { GraduationCap, Target, Trophy, Laptop, CalendarDays, Handshake } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+"use client";
 
-const features: { Icon: LucideIcon; title: string; description: string }[] = [
+import Image from "next/image";
+import {
+  GraduationCap,
+  BookOpen,
+  Trophy,
+  Video,
+  TrendingUp,
+  Users,
+  ArrowRight,
+  type LucideIcon
+} from "lucide-react";
+import { useTheme } from "@/providers/ThemeProvider";
+
+const BG_LIGHT = "/academy_advantage/01_cinematic_chess_light.png";
+const BG_DARK = "/academy_advantage/02_cinematic_chess_shadow.png";
+
+interface AdvantageItem {
+  number: string;
+  Icon: LucideIcon;
+  title: string;
+  description: string;
+  featured?: boolean;
+}
+
+const features: AdvantageItem[] = [
   {
+    number: "01",
     Icon: GraduationCap,
-    title: "Expert Chess Coaches",
-    description: "FIDE-rated professionals with years of teaching and tournament experience"
+    title: "Expert Coaching",
+    description:
+      "Learn from titled Grandmasters and certified FIDE coaches with decades of competitive and mentoring experience.",
+    featured: false
   },
   {
-    Icon: Target,
-    title: "Personalized Guidance",
-    description: "Custom learning paths tailored to each student's strengths and goals"
+    number: "02",
+    Icon: BookOpen,
+    title: "Structured Curriculum",
+    description:
+      "Step-by-step progressive curriculum designed from beginner fundamentals to elite tournament mastery.",
+    featured: true
   },
   {
+    number: "03",
     Icon: Trophy,
-    title: "Tournament Preparation",
-    description: "Comprehensive preparation for national and international chess tournaments"
+    title: "Tournaments & Competitions",
+    description:
+      "Regular Sunday tournaments, arena matches, and rated practice sessions to test and sharpen your game.",
+    featured: false
   },
   {
-    Icon: Laptop,
-    title: "Interactive Online Classes",
-    description: "Engaging live sessions with real-time interaction and digital tools"
+    number: "04",
+    Icon: Video,
+    title: "Interactive Live Classes",
+    description:
+      "Engaging, real-time interactive chess training on collaborative boards with live video and instant coach feedback.",
+    featured: false
   },
   {
-    Icon: CalendarDays,
-    title: "Flexible Scheduling",
-    description: "Choose class times that work for your schedule, including weekends"
+    number: "05",
+    Icon: TrendingUp,
+    title: "Progress Tracking",
+    description:
+      "Comprehensive performance analytics, rating progress reports, and tactical mistake assessments after every session.",
+    featured: false
   },
   {
-    Icon: Handshake,
-    title: "Friendly Environment",
-    description: "Supportive and encouraging atmosphere that makes learning enjoyable"
+    number: "06",
+    Icon: Users,
+    title: "Supportive Community",
+    description:
+      "Join an inspiring global network of students, parents, and coaches driven by a shared passion for chess excellence.",
+    featured: false
   }
 ];
 
 export function WhyChooseUsSection() {
-  return (
-    <section id="why-choose-us" className="relative py-24 sm:py-32 overflow-hidden">
-      <div className="absolute inset-0 chess-pattern opacity-15" />
-      <div className="absolute inset-0 mesh-soft" />
-      <div className="absolute top-0 left-0 right-0 hairline" />
+  const { mode, isHydrated } = useTheme();
+  const isDark = isHydrated && mode === "dark";
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="section-head mb-16 reveal reveal-up" style={{ transitionDelay: "0s" }}>
-          <span className="eyebrow mb-5">
-            <span className="eyebrow-dot" />
-            Why Choose Us
-          </span>
-          <h2 className="section-title font-[family-name:var(--font-playfair)] mb-4">
-            Why <span className="gold-text">Nexa Chess</span> Academy?
+  return (
+    <section
+      id="why-choose-us"
+      className={`relative py-16 sm:py-24 overflow-hidden select-none transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#F8FAFC] text-[#071B41]"
+        }`}
+    >
+      {/* ================= FULL-BLEED BACKGROUND ARTWORK ================= */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 overflow-hidden"
+        aria-hidden="true"
+      >
+        {/* Light Mode Background (01_cinematic_chess_light.jpg) */}
+        <Image
+          src={BG_LIGHT}
+          alt="Why Nexa Chess Academy Light Background"
+          fill
+          quality={95}
+          sizes="100vw"
+          className={`object-cover object-center transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
+            }`}
+        />
+
+        {/* Dark Mode Background (02_cinematic_chess_shadow.jpg) */}
+        <Image
+          src={BG_DARK}
+          alt="Why Nexa Chess Academy Dark Background"
+          fill
+          quality={95}
+          sizes="100vw"
+          className={`object-cover object-center transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
+            }`}
+        />
+
+        {/* Subtle Top & Bottom Section Edge Blends */}
+        <div
+          className={`absolute inset-x-0 top-0 h-16 ${isDark
+              ? "bg-gradient-to-b from-[#030D24] to-transparent"
+              : "bg-gradient-to-b from-white/85 to-transparent"
+            }`}
+        />
+        <div
+          className={`absolute inset-x-0 bottom-0 h-16 ${isDark
+              ? "bg-gradient-to-t from-[#030D24] to-transparent"
+              : "bg-gradient-to-t from-white/85 to-transparent"
+            }`}
+        />
+      </div>
+
+      {/* ================= FOREGROUND CONTENT ================= */}
+      {/* Max-width 1080px keeps the 6 cards framed between the Left Knight & Right King */}
+      <div className="relative z-10 max-w-[1080px] mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Section Header */}
+        <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-14">
+          {/* Pill Eyebrow: [• ACADEMY ADVANTAGES] */}
+          <div
+            className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full border text-[11px] sm:text-xs font-bold uppercase tracking-[0.18em] mb-4 shadow-2xs backdrop-blur-md ${isDark
+                ? "bg-[#081736]/85 border-white/15 text-white"
+                : "bg-white/90 border-[#E2E8F0] text-[#071B41]"
+              }`}
+          >
+            <span className="size-2 rounded-full bg-[#D49B35]" />
+            <span>ACADEMY ADVANTAGES</span>
+          </div>
+
+          {/* Two-Tone Serif Heading */}
+          <h2 className="font-[family-name:var(--font-playfair)] font-bold text-3xl sm:text-4xl lg:text-[46px] leading-[1.14] tracking-[-0.02em] mb-3.5">
+            <span className={isDark ? "text-white" : "text-[#071B41]"}>
+              Why{" "}
+            </span>
+            <span className="text-[#C58927] dark:text-[#E2B355]">
+              Nexa Chess{" "}
+            </span>
+            <span
+              className={`block sm:inline ${isDark ? "text-white" : "text-[#071B41]"
+                }`}
+            >
+              Academy?
+            </span>
           </h2>
-          <p className="section-sub">
-            Discover what makes our academy the preferred choice for chess excellence
+
+          {/* Subtitle */}
+          <p
+            className={`text-xs sm:text-base lg:text-[16px] leading-relaxed max-w-[500px] mx-auto ${isDark ? "text-[#C8CDD6]" : "text-[#3B4454]"
+              }`}
+          >
+            Discover why thousands of students and parents choose our structured
+            coaching methodology.
           </p>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature, i) => (
-            <div
-              key={feature.title}
-              className="group relative u-card p-6 sm:p-8 hover:border-gold/20 card-lift reveal reveal-up"
-              style={{ transitionDelay: `${0.1 + i * 0.1}s` }}
-            >
-              <div className="absolute inset-0 rounded-[1.25rem] bg-gradient-to-br from-gold/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+        {/* ================= 6 ADVANTAGE CARDS GRID (3x2 on Desktop) ================= */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch">
+          {features.map((item) => {
+            const Icon = item.Icon;
+            const isFeatured = Boolean(item.featured);
 
-              <div className="relative">
-                <span className="icon-tile icon-tile-lg mb-5">
-                  <feature.Icon className="w-6 h-6" strokeWidth={1.75} />
-                </span>
-                <br />
-                <h3 className="text-lg font-bold font-[family-name:var(--font-playfair)] tracking-[-0.01em] mb-2 text-text-primary group-hover:text-gold transition-colors duration-300">
-                  {feature.title}
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed">{feature.description}</p>
+            const cardSurfaceClass = isFeatured
+              ? isDark
+                ? "bg-[#091834]/90 border-[#E2B355] ring-1 ring-[#E2B355]/40 shadow-[0_16px_45px_-10px_rgba(226,179,85,0.22)]"
+                : "bg-[#FFFDF7]/95 border-[#E2B355] ring-1 ring-[#E2B355]/35 shadow-[0_16px_40px_-10px_rgba(212,155,53,0.2)]"
+              : isDark
+                ? "bg-[#06132D]/88 border-white/12 hover:border-[#E2B355]/50 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)]"
+                : "bg-white/95 border-[#E5E9F0] hover:border-[#D49B35]/60 shadow-[0_12px_34px_-10px_rgba(7,27,65,0.08)]";
+
+            const numberBadgeClass = isFeatured
+              ? isDark
+                ? "bg-[#E2B355]/15 text-[#E2B355] border-[#E2B355]/30"
+                : "bg-[#FDF3DC] text-[#C58927] border-[#F2DCB1]"
+              : isDark
+                ? "bg-white/5 text-[#E2B355] border-white/10"
+                : "bg-[#F1F5F9] text-[#64748B] border-[#E2E8F0]";
+
+            const iconBadgeClass = isFeatured
+              ? isDark
+                ? "bg-[#E2B355]/15 text-[#E2B355] border-[#E2B355]/30"
+                : "bg-[#FDF3DC] text-[#071B41] border-[#F2DCB1]"
+              : isDark
+                ? "bg-[#0E2044] text-[#E2B355] border-white/10"
+                : "bg-[#F8FAFC] text-[#071B41] border-[#E2E8F0]";
+
+            return (
+              <div
+                key={item.title}
+                className={`group relative rounded-[22px] border backdrop-blur-xl p-5 sm:p-6 lg:px-6 lg:py-7 transition-all duration-300 hover:-translate-y-1 flex flex-row lg:flex-col items-start lg:items-center text-left lg:text-center gap-4 lg:gap-0 ${cardSurfaceClass}`}
+              >
+                {/* Left (Mobile) / Top Centered (Desktop): Number Badge (01–06) + Icon Badge */}
+                <div className="flex items-center gap-2.5 lg:gap-3.5 shrink-0 lg:mb-5 mt-0.5 lg:mt-0">
+                  <span
+                    className={`size-9 sm:size-11 rounded-full border flex items-center justify-center font-[family-name:var(--font-playfair)] font-bold text-xs sm:text-sm ${numberBadgeClass}`}
+                  >
+                    {item.number}
+                  </span>
+
+                  <span
+                    className={`size-10 sm:size-12 rounded-2xl border flex items-center justify-center transition-transform duration-200 group-hover:scale-105 ${iconBadgeClass}`}
+                  >
+                    <Icon className="size-5 sm:size-6" strokeWidth={1.9} />
+                  </span>
+                </div>
+
+                {/* Right (Mobile) / Bottom Centered (Desktop): Title, Description & Learn More */}
+                <div className="flex flex-col flex-1 lg:items-center min-w-0">
+                  <h3
+                    className={`font-[family-name:var(--font-playfair)] font-bold text-lg sm:text-xl leading-snug mb-1.5 sm:mb-2 ${isDark ? "text-white" : "text-[#071B41]"
+                      }`}
+                  >
+                    {item.title}
+                  </h3>
+
+                  <p
+                    className={`text-xs sm:text-[13.5px] leading-relaxed mb-4 lg:mb-5 flex-1 ${isDark ? "text-[#C1C4CC]" : "text-[#4A5568]"
+                      }`}
+                  >
+                    {item.description}
+                  </p>
+
+                  {/* Learn More Link */}
+                  <a
+                    href="#demo"
+                    className={`inline-flex items-center gap-1.5 text-xs sm:text-[13px] font-bold transition-colors mt-auto ${isFeatured
+                        ? isDark
+                          ? "text-[#E2B355] hover:text-[#f0c975]"
+                          : "text-[#C58927] hover:text-[#a8721b]"
+                        : isDark
+                          ? "text-white hover:text-[#E2B355]"
+                          : "text-[#071B41] hover:text-[#C58927]"
+                      }`}
+                  >
+                    <span>Learn More</span>
+                    <ArrowRight className="size-3.5 stroke-[2.4] transition-transform duration-200 group-hover:translate-x-1" />
+                  </a>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>

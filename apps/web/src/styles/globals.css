@@ -2,50 +2,124 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* "Royal Ink" palette — one deep brand hue that also tints text, borders and
-     surfaces, plus three role hues. Channel triplets are the source of truth so
-     Tailwind alpha modifiers (bg-primary/10) resolve; --color-* mirrors them for
-     color-mix() and getComputedStyle consumers. Nothing overrides these at
-     runtime — ThemeProvider only switches light/dark. */
-  --rgb-primary: 36 71 160;
-  --rgb-secondary: 244 182 63;
-  --rgb-accent: 31 157 120;
+:root[data-theme="dark"] {
+  --primary: #071B41;
+  --primary-dark: #030D24;
+
+  --accent: #E2B355;
+  --accent-bright: #E2B355;
+  --accent-light: #F1D58F;
+
+  --background: #030D24;
+  --surface: #0B1A38;
+  --surface-secondary: #071B41;
+  --surface-hover: #102347;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #C1C4CC;
+  --border: rgba(255, 255, 255, 0.10);
+
+  --rgb-primary: 7 27 65;
+  --rgb-primary-dark: 3 13 36;
+  --rgb-secondary: 226 179 85;
+  --rgb-accent: 226 179 85;
+  --rgb-accent-bright: 226 179 85;
+  --rgb-accent-light: 241 213 143;
+  --rgb-background: 3 13 36;
+  --rgb-surface: 11 26 56;
+  --rgb-surface-soft: 16 35 71;
+  --rgb-surface-hover: 16 35 71;
+  --rgb-text: 255 255 255;
+  --rgb-text-muted: 193 196 204;
+  --rgb-border: 45 60 88;
+  --rgb-danger: 220 38 38;
+  --rgb-nav-drawer: var(--rgb-surface);
+  --rgb-nav-drawer-border: var(--rgb-border);
+  --rgb-success: 34 197 94;
+  --rgb-warning: 245 158 11;
+  --rgb-info: 59 130 246;
+
+  --color-primary: var(--primary);
+  --color-secondary: var(--accent);
+  --color-accent: var(--accent);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-hover);
+  --color-text: var(--text-primary);
+  --color-text-muted: var(--text-secondary);
+  --color-border: var(--border);
+
+  --color-primary-ink: color-mix(in srgb, var(--accent) 70%, white);
+  --color-secondary-ink: color-mix(in srgb, var(--accent-bright) 70%, white);
+  --color-accent-ink: color-mix(in srgb, var(--accent) 60%, white);
+  --color-warm-ink: color-mix(in srgb, var(--color-warm) 60%, white);
+  --color-danger-ink: color-mix(in srgb, var(--color-danger) 52%, white);
+  --color-success-ink: color-mix(in srgb, var(--color-success) 60%, white);
+  --color-warning-ink: color-mix(in srgb, var(--color-warning) 60%, white);
+  --color-info-ink: color-mix(in srgb, var(--color-info) 60%, white);
+
+  --shadow-soft: 0 24px 90px rgb(0 0 0 / 0.45);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.55);
+  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 20px 44px -14px rgb(0 0 0 / 0.65);
+  --color-scroll-shade: rgb(0 0 0 / 0.55);
+}
+
+:root,
+:root[data-theme="light"] {
+  --primary: #071B41;
+  --primary-dark: #030D24;
+
+  --accent: #BB8B37;
+  --accent-bright: #E2B355;
+  --accent-light: #F1D58F;
+
+  --background: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-secondary: #F7F8FA;
+  --surface-soft: #F1F4F8;
+  --surface-hover: #F1F4F8;
+
+  --text-primary: #071B41;
+  --text-secondary: #555C68;
+  --border: #DDE2EA;
+
+  --rgb-primary: 7 27 65;
+  --rgb-primary-dark: 3 13 36;
+  --rgb-secondary: 187 139 55;
+  --rgb-accent: 187 139 55;
+  --rgb-accent-bright: 226 179 85;
+  --rgb-accent-light: 241 213 143;
   --rgb-warm: 224 104 90;
-  --rgb-background: 246 247 252;
+  --rgb-background: 255 255 255;
   --rgb-surface: 255 255 255;
-  --rgb-surface-soft: 238 241 250;
-  --rgb-text: 23 32 73;
-  --rgb-text-muted: 94 103 132;
-  --rgb-border: 221 225 240;
+  --rgb-surface-soft: 241 244 248;
+  --rgb-surface-hover: 241 244 248;
+  --rgb-text: 7 27 65;
+  --rgb-text-muted: 85 92 104;
+  --rgb-border: 221 226 234;
   --rgb-danger: 207 46 46;
-  /* The nav drawer is a brand-blue panel in light mode and a surface in dark. */
   --rgb-nav-drawer: var(--rgb-primary);
   --rgb-nav-drawer-border: var(--rgb-primary);
 
-  /* Fixed semantic status hues — distinct from the four brand hues above, so
-     a badge's meaning (success/warning/info) never overloads a brand color's
-     own meaning (e.g. secondary orange already means "attention/practice"). */
   --rgb-success: 22 163 74;
   --rgb-warning: 217 119 6;
   --rgb-info: 37 99 235;
 
-  --color-primary: rgb(var(--rgb-primary));
-  --color-secondary: rgb(var(--rgb-secondary));
-  --color-accent: rgb(var(--rgb-accent));
+  --color-primary: var(--primary);
+  --color-secondary: var(--accent);
+  --color-accent: var(--accent);
   --color-warm: rgb(var(--rgb-warm));
-  --color-background: rgb(var(--rgb-background));
-  --color-surface: rgb(var(--rgb-surface));
-  --color-surface-soft: rgb(var(--rgb-surface-soft));
-  --color-text: rgb(var(--rgb-text));
-  --color-text-muted: rgb(var(--rgb-text-muted));
-  --color-border: rgb(var(--rgb-border));
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-hover);
+  --color-text: var(--text-primary);
+  --color-text-muted: var(--text-secondary);
+  --color-border: var(--border);
   --color-danger: rgb(var(--rgb-danger));
   --color-success: rgb(var(--rgb-success));
   --color-warning: rgb(var(--rgb-warning));
   --color-info: rgb(var(--rgb-info));
 
-  /* Readable text/icon weight of each hue against a light surface. */
   --color-primary-ink: color-mix(in srgb, var(--color-primary) 85%, #0b1640);
   --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 70%, #431407);
   --color-accent-ink: color-mix(in srgb, var(--color-accent) 70%, #05402a);
@@ -57,56 +131,19 @@
 
   --color-focus: color-mix(in srgb, var(--color-primary) 72%, white);
 
-  /* Depth is tinted with the brand hue, never neutral black. */
   --shadow-soft: 0 24px 64px -16px rgb(var(--rgb-primary) / 0.22);
   --shadow-card: 0 1px 2px rgb(var(--rgb-text) / 0.06), 0 10px 28px -12px rgb(var(--rgb-primary) / 0.18);
   --shadow-lift: 0 2px 4px rgb(var(--rgb-text) / 0.06), 0 18px 40px -14px rgb(var(--rgb-primary) / 0.28);
-  /* Edge shade on a horizontal scroller with hidden content (ScrollShadow). */
   --color-scroll-shade: rgb(var(--rgb-text) / 0.16);
   --radius-control: 12px;
   --radius-app: 20px;
   --radius-panel: 24px;
 
-  /* Typography. The --font-<id> variables come from next/font (app/fonts.ts);
-     TypographyProvider repoints heading/body and sets the scale from the
-     resolved admin default / user preference, so these are only the fallback. */
   --font-heading: var(--font-outfit);
   --font-body: var(--font-nunito-sans);
   --text-scale: 1;
   --font-sans: var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--font-heading), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-
-:root[data-theme="dark"] {
-  /* Ink-navy surfaces instead of pure black, so dark mode stays in the brand family.
-     Brand hues are deliberately NOT redefined here — they are identical in both themes. */
-  --rgb-background: 9 12 26;
-  --rgb-surface: 16 20 40;
-  --rgb-surface-soft: 25 30 56;
-  --rgb-text: 236 239 250;
-  --rgb-text-muted: 150 158 190;
-  --rgb-border: 44 50 84;
-  --rgb-danger: 220 38 38;
-  --rgb-nav-drawer: var(--rgb-surface);
-  --rgb-nav-drawer-border: var(--rgb-border);
-  --rgb-success: 34 197 94;
-  --rgb-warning: 245 158 11;
-  --rgb-info: 59 130 246;
-
-  /* Inks lighten instead of darken so they stay legible on dark surfaces. */
-  --color-primary-ink: color-mix(in srgb, var(--color-primary) 60%, white);
-  --color-secondary-ink: color-mix(in srgb, var(--color-secondary) 70%, white);
-  --color-accent-ink: color-mix(in srgb, var(--color-accent) 60%, white);
-  --color-warm-ink: color-mix(in srgb, var(--color-warm) 60%, white);
-  --color-danger-ink: color-mix(in srgb, var(--color-danger) 52%, white);
-  --color-success-ink: color-mix(in srgb, var(--color-success) 60%, white);
-  --color-warning-ink: color-mix(in srgb, var(--color-warning) 60%, white);
-  --color-info-ink: color-mix(in srgb, var(--color-info) 60%, white);
-
-  --shadow-soft: 0 24px 90px rgb(0 0 0 / 0.45);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 12px 32px -12px rgb(0 0 0 / 0.55);
-  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 20px 44px -14px rgb(0 0 0 / 0.65);
-  --color-scroll-shade: rgb(0 0 0 / 0.55);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -145,6 +182,7 @@
 
   html {
     @apply min-h-full;
+    scroll-behavior: smooth;
     /* Every rem-based size follows the user's text size choice. */
     font-size: calc(100% * var(--text-scale));
     /* Tablets: no auto-inflated text on rotate, no grey flash on every tap. */
@@ -175,11 +213,7 @@
 
   body {
     @apply min-h-full bg-app-background font-sans text-app-text;
-    background-image:
-      radial-gradient(circle at top left,
-        color-mix(in srgb, var(--color-primary) 8%, transparent),
-        transparent 30rem),
-      linear-gradient(135deg, var(--color-background), var(--color-surface-soft));
+    background-color: var(--background);
   }
 
   a {
@@ -224,14 +258,7 @@
 
   .custom-prejoin .lk-video-container::before {
     content: "";
-    @apply pointer-events-none absolute inset-0 z-0;
-    background:
-      radial-gradient(circle at center, transparent 48%, rgba(0, 0, 0, 0.2)),
-      linear-gradient(
-        to top right,
-        color-mix(in srgb, var(--color-primary) 8%, transparent),
-        color-mix(in srgb, var(--color-accent) 5%, transparent)
-      );
+    @apply pointer-events-none absolute inset-0 z-0 bg-black/20;
   }
 
   .custom-prejoin .lk-video-container > * {
@@ -266,9 +293,9 @@
   }
 
   .custom-prejoin button[type="submit"] {
-    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-white shadow-[0_10px_28px_rgba(66,120,206,0.24)] transition hover:opacity-90 active:scale-[0.98] sm:text-lg;
-    background: linear-gradient(to right, var(--color-primary), color-mix(in srgb, var(--color-primary) 80%, transparent));
-    border: 1px solid color-mix(in srgb, var(--color-primary) 20%, transparent);
+    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-white shadow-card transition hover:opacity-90 active:scale-[0.98] sm:text-lg;
+    background: var(--color-primary);
+    border: 1px solid var(--color-primary);
   }
 
   .custom-prejoin .lk-button-group .lk-button svg,

@@ -127,7 +127,7 @@ export function StudentLiveClassesClient() {
         <div className="space-y-8">
           {/* Active Live Session or Next Up Card */}
           {liveClass ? (
-            <Card className="flex flex-col gap-6 border-app-danger/40 bg-[linear-gradient(135deg,color-mix(in_srgb,var(--color-danger)_10%,var(--color-surface)),var(--color-surface))] p-6 shadow-lift sm:flex-row sm:items-center sm:justify-between sm:p-8">
+            <Card className="flex flex-col gap-6 border-app-danger/40 bg-app-surface p-6 shadow-lift sm:flex-row sm:items-center sm:justify-between sm:p-8">
               <div className="min-w-0 space-y-2">
                 <div className="inline-flex items-center gap-2 rounded-full bg-app-danger/15 px-3 py-1 text-xs font-extrabold text-app-danger-ink">
                   <span className="relative flex size-2.5">

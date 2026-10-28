@@ -70,9 +70,8 @@ export function homeJsonLd() {
   return { "@context": "https://schema.org", "@graph": [organization(), website()] };
 }
 
-/** `/academy`: the organization, its three programs as courses, and the FAQ shown on the page. */
-export function academyJsonLd() {
-  const pageUrl = `${SITE_URL}/academy`;
+/** `/` (or `/academy`): the organization, its three programs as courses, and the FAQ shown on the page. */
+export function academyJsonLd(pageUrl = SITE_URL) {
   return {
     "@context": "https://schema.org",
     "@graph": [

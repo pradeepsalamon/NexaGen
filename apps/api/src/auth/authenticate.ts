@@ -26,7 +26,7 @@ export async function verifyAccessToken(
   } catch {
     throw new UnauthorizedException("Invalid or expired token.");
   }
-  if (payload.type !== "access" || !payload.sub) {
+  if (payload.type !== "access" || !payload.sub || !payload.sessionId) {
     throw new UnauthorizedException("Invalid token type.");
   }
   return payload;
@@ -62,17 +62,15 @@ export async function authenticateUser(
     // An access token outlives nothing it was minted from: logout, a password
     // reset or refresh-token reuse revokes the session family, and that must
     // end this token now rather than when its 15 minutes run out.
-    payload.sessionId
-      ? prisma.authSession.findUnique({
-          where: { id: payload.sessionId },
-          select: { revokedAt: true, userId: true }
-        })
-      : null
+    prisma.authSession.findUnique({
+      where: { id: payload.sessionId },
+      select: { revokedAt: true, userId: true }
+    })
   ]);
   if (!user || user.status !== UserStatus.ACTIVE) {
     throw new UnauthorizedException("Invalid session.");
   }
-  if (payload.sessionId && (!session || session.revokedAt || session.userId !== user.id)) {
+  if (!session || session.revokedAt || session.userId !== user.id) {
     throw new UnauthorizedException("Invalid session.");
   }
   // Request-scoped; id and role only, never contact details.

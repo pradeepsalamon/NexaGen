@@ -47,7 +47,7 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
             role="progressbar"
           >
             <div
-              className="h-full rounded-full bg-gradient-to-r from-warm to-primary transition-[width] duration-700 ease-out"
+              className="h-full rounded-full bg-primary transition-[width] duration-700 ease-out"
               style={{ width: `${course.progressPercent}%` }}
             />
           </div>

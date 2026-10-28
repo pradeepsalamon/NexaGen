@@ -23,10 +23,21 @@ import "@/features/chess-appearance/styles/index.css";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isMeetingRoute = pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
-  // The academy marketing page has its own nav/footer chrome — never the
-  // dashboard shell.
-  const isChromeless = isMeetingRoute || pathname?.startsWith("/academy");
+  // const isMeetingRoute = pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
+  // // The academy marketing page (and homepage) has its own nav/footer chrome — never the
+  // // dashboard shell.
+  // const isChromeless = isMeetingRoute || pathname === "/";
+
+  // Inside src/providers/AppProviders.tsx, update `isChromeless`:
+  const isMeetingRoute =
+    pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
+  const isAuthRoute =
+    pathname?.startsWith("/login") ||
+    pathname?.startsWith("/register") ||
+    pathname?.startsWith("/forgot-password") ||
+    pathname?.startsWith("/reset-password");
+
+  const isChromeless = isMeetingRoute || isAuthRoute || pathname === "/";
 
   const [queryClient] = useState(
     () =>

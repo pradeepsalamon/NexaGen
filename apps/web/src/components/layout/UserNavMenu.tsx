@@ -4,11 +4,18 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
-import { LayoutDashboard, User as UserIcon, LogOut, ChevronDown, Palette } from "lucide-react";
+import {
+  LayoutDashboard,
+  User as UserIcon,
+  LogOut,
+  ChevronDown,
+  Palette
+} from "lucide-react";
 import type { AuthUser } from "@nexa-chess/types";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
 import { useToast } from "@/providers/ToastProvider";
+import { useTheme } from "@/providers/ThemeProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
@@ -19,7 +26,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenuTrigger
 } from "@/components/ui/DropdownMenu";
 
 type UserWithAvatar = AuthUser & {
@@ -28,7 +35,6 @@ type UserWithAvatar = AuthUser & {
 
 type UserNavMenuProps = {
   user: UserWithAvatar;
-  /** Live class only: menu links open in a new tab instead of unmounting the room. */
   openLinksInNewTab?: boolean;
 };
 
@@ -65,12 +71,23 @@ function getInitials(user?: Pick<UserWithAvatar, "firstName" | "lastName">) {
   const firstInitial = user?.firstName?.trim().charAt(0) ?? "";
   const lastInitial = user?.lastName?.trim().charAt(0) ?? "";
   const initials = `${firstInitial}${lastInitial}`.toUpperCase();
-  return initials || "NC";
+  if (initials.length === 1 && user?.firstName && user.firstName.length >= 2) {
+    return (
+      user.firstName.charAt(0) + user.firstName.charAt(user.firstName.length - 1)
+    ).toUpperCase();
+  }
+  return initials || "TS";
 }
 
-export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProps) {
+export function UserNavMenu({
+  user,
+  openLinksInNewTab = false
+}: UserNavMenuProps) {
   const router = useRouter();
   const toast = useToast();
+  const { mode, isHydrated } = useTheme();
+  const isDark = isHydrated && mode === "dark";
+
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const clearSession = useAuthStore((state) => state.clearSession);
 
@@ -79,13 +96,13 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
     onError: (error) => {
       toast.error({
         message: getErrorMessage(error),
-        title: "Logout request failed",
+        title: "Logout request failed"
       });
     },
     onSuccess: () => {
       toast.success({
         message: "You have been signed out.",
-        title: "Logout successful",
+        title: "Logout successful"
       });
     },
     onSettled: () => {
@@ -93,7 +110,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
       clearSession();
       router.replace("/login");
       router.refresh();
-    },
+    }
   });
 
   const dashboardHref = getRoleDashboardHref(user.role);
@@ -109,9 +126,17 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
           <button
             type="button"
             aria-label="User navigation menu"
-            className="group inline-flex items-center gap-2 rounded-full border border-app-border bg-app-surface p-1 pr-2.5 text-sm font-bold text-app-text shadow-card transition hover:border-primary/50 hover:bg-app-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus"
+            className={`group inline-flex items-center gap-2 rounded-full border p-1 pr-2.5 text-xs font-bold transition cursor-pointer ${isDark
+                ? "bg-[#0B1B38] border-white/12 text-white hover:border-[#E2B355]/50"
+                : "bg-[#F8FAFC] border-[#E2E8F0] text-[#071B41] hover:border-[#CBD5E1]"
+              }`}
           >
-            <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-app-border bg-[color-mix(in_srgb,var(--color-primary)_14%,var(--color-surface))] text-xs font-extrabold text-primary-ink">
+            <div
+              className={`flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-extrabold ${isDark
+                  ? "bg-[#1A2E56] text-[#E2B355]"
+                  : "bg-[#FCE8D8] text-[#C85A28]"
+                }`}
+            >
               {user.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -124,12 +149,16 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
                 <span>{initials}</span>
               )}
             </div>
-            <span className="hidden max-w-[120px] truncate text-xs font-bold sm:inline-block">
+            <span className="hidden max-w-[110px] truncate text-xs font-bold sm:inline-block">
               {user.firstName}
             </span>
-            <ChevronDown className="size-3.5 text-app-muted transition group-data-[state=open]:rotate-180" />
+            <ChevronDown
+              className={`size-3.5 transition group-data-[state=open]:rotate-180 ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
+                }`}
+            />
           </button>
         </DropdownMenuTrigger>
+
         <DropdownMenuContent align="end" className="w-56 p-1.5 shadow-lift">
           <DropdownMenuLabel className="font-normal p-2">
             <div className="flex flex-col space-y-1">
@@ -137,7 +166,10 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
                 <p className="text-sm font-extrabold leading-none text-app-text truncate">
                   {user.firstName} {user.lastName || ""}
                 </p>
-                <Badge variant={getRoleVariant(user.role)} className="shrink-0 text-[10px] px-1.5 py-0.5">
+                <Badge
+                  variant={getRoleVariant(user.role)}
+                  className="shrink-0 text-[10px] px-1.5 py-0.5"
+                >
                   {getRoleLabel(user.role)}
                 </Badge>
               </div>
@@ -165,7 +197,7 @@ export function UserNavMenu({ user, openLinksInNewTab = false }: UserNavMenuProp
                 {...newTabProps}
               >
                 <UserIcon className="size-4 text-app-muted" />
-                <span>Profile & settings</span>
+                <span>Profile &amp; settings</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

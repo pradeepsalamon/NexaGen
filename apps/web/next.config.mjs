@@ -18,11 +18,10 @@ function originsOf(url) {
 }
 
 /**
- * Report-only for now: Next's inline bootstrap needs 'unsafe-inline' until
- * nonces are wired through middleware, so this policy's job is to surface
- * every origin the app really uses (browser console) before it is enforced.
+ * Content Security Policy enforcing strict origin boundaries across all assets,
+ * connections, frames, and scripts.
  */
-function reportOnlyCsp(isDev) {
+function contentSecurityPolicy(isDev) {
   const live = [
     ...originsOf(process.env.NEXT_PUBLIC_API_URL),
     ...originsOf(process.env.NEXT_PUBLIC_LIVEKIT_URL)
@@ -45,11 +44,10 @@ function reportOnlyCsp(isDev) {
   ].join("; ");
 }
 
-/** Headers safe to enforce today; nothing in the app embeds it or uses plugins. */
+/** Enforced security headers across all routes. */
 function securityHeaders(isDev) {
   return [
-    { key: "Content-Security-Policy", value: "frame-ancestors 'none'; object-src 'none'; base-uri 'self'" },
-    { key: "Content-Security-Policy-Report-Only", value: reportOnlyCsp(isDev) },
+    { key: "Content-Security-Policy", value: contentSecurityPolicy(isDev) },
     { key: "X-Frame-Options", value: "DENY" },
     { key: "X-Content-Type-Options", value: "nosniff" },
     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
@@ -116,10 +114,18 @@ const nextConfig = (phase) => ({
     ];
   },
   images: {
-    formats: ["image/avif", "image/webp"]
+    formats: ["image/avif", "image/webp"],
+    qualities: [75, 80, 85, 90, 95, 100]
   },
   async redirects() {
-    return canonicalHostRedirects();
+    return [
+      ...canonicalHostRedirects(),
+      {
+        source: "/academy",
+        destination: "/",
+        permanent: true
+      }
+    ];
   },
   output: "standalone",
   poweredByHeader: false,

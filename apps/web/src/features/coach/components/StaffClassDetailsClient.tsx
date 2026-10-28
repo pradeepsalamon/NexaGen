@@ -191,7 +191,7 @@ export function StaffClassDetailsClient({ classId, isCoach }: { classId: string;
         </div>
       </div>
 
-      <Card className="p-5 sm:p-8 border-primary/20 bg-[linear-gradient(145deg,color-mix(in_srgb,var(--color-primary)_5%,var(--color-surface)),color-mix(in_srgb,var(--color-accent)_5%,var(--color-surface)))]">
+      <Card className="p-5 sm:p-8 border-primary/20 bg-app-surface">
         <div className="flex flex-col items-center text-center max-w-md mx-auto space-y-4">
           <div className="p-4 rounded-full bg-primary/10 text-primary-ink mb-2">
             {shown === "CANCELLED" || shown === "NOT_HELD" ? (
