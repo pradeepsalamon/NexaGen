@@ -887,6 +887,7 @@ export class KnowledgeAdminService {
         {
           audience: row.audience,
           batchIds: [],
+          batchScoped: row.batchScoped,
           expiresAt: row.expiresAt,
           hasPublishedVersion: !!row.publishedVersionId,
           publishAt: row.publishAt,

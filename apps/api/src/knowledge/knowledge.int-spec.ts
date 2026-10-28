@@ -1,4 +1,9 @@
-import { API_ROUTES, type KnowledgeAdminArticleDetail, type KnowledgeHelpResponse } from "@nexa-chess/types";
+import {
+  API_ROUTES,
+  KNOWLEDGE_TREND_MIN_BATCH_SIZE,
+  type KnowledgeAdminArticleDetail,
+  type KnowledgeHelpResponse,
+} from "@nexa-chess/types";
 import { UserRole, UserStatus, type User } from "@prisma/client";
 import { AssistantToolRegistry } from "../ai/tools/assistant-tool.registry";
 import { createTestApp, type TestApp } from "../test/integration/app";
@@ -279,7 +284,7 @@ describe("knowledge base (real app, real Postgres)", () => {
     expect(JSON.stringify(mine.body)).toContain("Covered elsewhere");
   });
 
-  it("searches that find nothing reach the inbox; coach trends need two searches", async () => {
+  it("searches that find nothing reach the inbox; coach trends need two searches and a big enough batch", async () => {
     await search(u.student, "how do i change my avatar");
     await search(u.student, "how do i change my avatar");
     await search(u.otherStudent, "how do i change my avatar");
@@ -287,7 +292,15 @@ describe("knowledge base (real app, real Postgres)", () => {
     expect(insights.body).toMatchObject({
       unanswered: expect.arrayContaining([expect.objectContaining({ count: 3, query: "how do i change my avatar", roles: ["STUDENT"] })]),
     });
+    // Batch K has one student: a repeated query would point straight at them, so none show.
+    const small = await t.call(u.coach, "GET", API_ROUTES.knowledge.trends);
+    expect(small.body).toMatchObject({ batches: [{ name: "Batch K", queries: [] }], minBatchSize: KNOWLEDGE_TREND_MIN_BATCH_SIZE });
+    const extra = await Promise.all(
+      Array.from({ length: KNOWLEDGE_TREND_MIN_BATCH_SIZE - 1 }, () => createUser(t.prisma, UserRole.STUDENT)),
+    );
+    await t.prisma.batchStudent.createMany({ data: extra.map((s) => ({ batchId, studentId: s.id })) });
     const trends = await t.call(u.coach, "GET", API_ROUTES.knowledge.trends);
+    await t.prisma.batchStudent.deleteMany({ where: { studentId: { in: extra.map((s) => s.id) } } });
     expect(trends.body).toMatchObject({
       batches: [{ name: "Batch K", queries: expect.arrayContaining([{ count: 2, query: "how do i change my avatar" }]) }],
     });
