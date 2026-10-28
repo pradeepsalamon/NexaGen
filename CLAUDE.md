@@ -313,6 +313,10 @@ Facts about the academy live once in `features/academy/content.ts` and feed the 
 
 `demo-class/` + admin demo methods + public page `app/demo/[classId]`, super-admin only. A guest is a `DemoClassRegistration`, not a user; **`DemoInviteService` is the only way to add a guest**. Static demo schedules generate ordinary demo `CoachClass` rows (cron job lock `demo-schedule.top-up`). Details: [docs/CLASSES.md](docs/CLASSES.md).
 
+### 3.6k6 Knowledge base & help centre
+
+`knowledge/` (API + web), pages `/help`, `/admin/knowledge`; rules in `@nexa-chess/types` `knowledge.ts`. **Nothing ships pre-loaded** — admins/super admins write every article. **`canReadKnowledgeArticle` / `readerWhere` is the one visibility rule** (live + audience role + batch scope), applied inside the fetching query; a hidden article is a 404. Content changes are versions (published versions are immutable; rollback copies forward); OD-7 licensing is a per-article source field. Assistant tools (`ai/tools/AssistantToolRegistry`) run with the caller's token through the same rule. Details: [docs/KNOWLEDGE_BASE.md](docs/KNOWLEDGE_BASE.md).
+
 ### 3.6l Privacy (data export, account deletion, legal pages)
 
 `privacy/` (API + web), Profile → "Your data" / "Delete account", admin `/admin/privacy`, public `/privacy` + `/terms`. **Secrets never leave an export**, and **a new model that stores personal data about a user gets a section in it**. Completing a deletion request goes through `UserService.deleteAs` (restorable from Trash). `features/legal/content.ts` must stay true to the code. Details: [docs/FEATURES.md](docs/FEATURES.md).

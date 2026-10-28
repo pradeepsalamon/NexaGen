@@ -22,9 +22,14 @@ import { ConversationAvatar } from "./ConversationList";
 
 type Pending = { body: string; clientId: string; failed: boolean };
 
-type Props = { conversationId: string; onBack: () => void };
+type Props = {
+  conversationId: string;
+  onBack: () => void;
+  /** Pre-fills the composer once (e.g. a question carried over from the help centre). */
+  initialDraft?: string;
+};
 
-export function ChatThread({ conversationId, onBack }: Props) {
+export function ChatThread({ conversationId, onBack, initialDraft }: Props) {
   const toast = useToast();
   const timeZone = useUserTimeZone();
   const meId = useAuthStore((s) => s.user?.id);
@@ -37,7 +42,8 @@ export function ChatThread({ conversationId, onBack }: Props) {
   const [olderCursor, setOlderCursor] = useState<string | null | undefined>(undefined);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
-  const [draft, setDraft] = useState("");
+  // The parent keys this component by conversation, so the carried draft only ever seeds a fresh mount.
+  const [draft, setDraft] = useState(initialDraft ?? "");
   const [membersOpen, setMembersOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const stickToBottom = useRef(true);
@@ -47,7 +53,6 @@ export function ChatThread({ conversationId, onBack }: Props) {
     setKnownMessages(new Map());
     setOlderCursor(undefined);
     setPending([]);
-    setDraft("");
     stickToBottom.current = true;
   }, [conversationId]);
 

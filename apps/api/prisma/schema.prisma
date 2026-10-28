@@ -428,15 +428,20 @@ model User {
   platformStaff            PlatformStaff?
   tenantSubscriptionEvents TenantSubscriptionEvent[]
 
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @updatedAt
-  isDeleted                Boolean                  @default(false)
-  deletedAt                DateTime?
-  deletedById              String?
-  deletedBy                User?                    @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  deletedUsers             User[]                   @relation("UserDeletedBy")
-  deleteGroupId            String?
-  recordingWatchProgresses RecordingWatchProgress[]
+  createdAt                 DateTime                  @default(now())
+  updatedAt                 DateTime                  @updatedAt
+  isDeleted                 Boolean                   @default(false)
+  deletedAt                 DateTime?
+  deletedById               String?
+  deletedBy                 User?                     @relation("UserDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deletedUsers              User[]                    @relation("UserDeletedBy")
+  deleteGroupId             String?
+  recordingWatchProgresses  RecordingWatchProgress[]
+  knowledgeArticlesCreated  KnowledgeArticle[]        @relation("KnowledgeArticleCreatedBy")
+  knowledgeVersionsAuthored KnowledgeArticleVersion[] @relation("KnowledgeVersionAuthor")
+  knowledgeVersionsReviewed KnowledgeArticleVersion[] @relation("KnowledgeVersionReviewer")
+  knowledgeEvents           KnowledgeArticleEvent[]   @relation("KnowledgeEventActor")
+  knowledgeFeedback         KnowledgeFeedback[]       @relation("KnowledgeFeedbackUser")
 
   @@index([role])
   @@index([status])
@@ -677,13 +682,14 @@ model Batch {
   chessGames          ChessGame[]
   conversation        Conversation?
 
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  isDeleted     Boolean   @default(false)
-  deletedAt     DateTime?
-  deletedById   String?
-  deletedBy     User?     @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
-  deleteGroupId String?
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  isDeleted         Boolean                 @default(false)
+  deletedAt         DateTime?
+  deletedById       String?
+  deletedBy         User?                   @relation("BatchDeletedBy", fields: [deletedById], references: [id], onDelete: SetNull)
+  deleteGroupId     String?
+  knowledgeArticles KnowledgeArticleBatch[]
 
   @@index([status])
   @@index([createdById])
@@ -5417,4 +5423,243 @@ model PlatformStaff {
   createdAt DateTime          @default(now())
 
   @@map("platform_staff")
+}
+
+//
+// KNOWLEDGE BASE (help centre; admin-managed, per-role audiences, versioned)
+//
+
+/// Who an article is written for. SUPER_ADMIN reads as ADMIN.
+enum KnowledgeAudience {
+  STUDENT
+  COACH
+  ADMIN
+}
+
+enum KnowledgeArticleKind {
+  /// A how-to / explainer (platform help, navigation, chess lessons).
+  ARTICLE
+  /// A question with its answer (the title is the question).
+  FAQ
+  /// A chess game: PGN shown on a board, the body is the commentary.
+  GAME
+  /// A pointer to something already on the platform (a page, course, puzzle folder, library game).
+  RESOURCE
+}
+
+enum KnowledgeArticleStatus {
+  /// Never published (or a coach suggestion not yet approved).
+  DRAFT
+  PUBLISHED
+  /// Hidden from readers; restorable.
+  ARCHIVED
+}
+
+enum KnowledgeVersionStatus {
+  /// Being written; the only editable state.
+  DRAFT
+  /// A coach's suggestion waiting for an admin.
+  SUBMITTED
+  /// The live version (at most one per article).
+  PUBLISHED
+  /// Was live, replaced by a newer one; kept for history and rollback.
+  SUPERSEDED
+  /// A coach suggestion an admin turned down.
+  REJECTED
+}
+
+/// OD-7: academy-owned, public domain, CC0/CC-BY, or written permission only.
+enum KnowledgeSourceType {
+  OWN_WORK
+  PUBLIC_DOMAIN
+  CC0
+  CC_BY
+  PERMISSION
+}
+
+enum KnowledgeResourceType {
+  PAGE
+  COURSE
+  PUZZLE_FOLDER
+  LIBRARY_GAME
+}
+
+enum KnowledgeEventType {
+  CREATED
+  DRAFT_SAVED
+  SUBMITTED
+  PUBLISHED
+  REJECTED
+  UNPUBLISHED
+  ARCHIVED
+  RESTORED
+  ROLLED_BACK
+  SETTINGS_CHANGED
+}
+
+enum KnowledgeQueryResolution {
+  ANSWERED
+  DISMISSED
+}
+
+model KnowledgeCategory {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  description String?
+  sortOrder   Int                @default(0)
+  archivedAt  DateTime?
+  articles    KnowledgeArticle[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("knowledge_categories")
+}
+
+model KnowledgeArticle {
+  id                  String                    @id @default(cuid())
+  slug                String                    @unique
+  kind                KnowledgeArticleKind      @default(ARTICLE)
+  status              KnowledgeArticleStatus    @default(DRAFT)
+  categoryId          String?
+  category            KnowledgeCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  /// Empty = nobody but staff in the editor.
+  audience            KnowledgeAudience[]
+  /// Limited to the batches in `batches`. Kept even when a purged batch takes its
+  /// row with it, so losing every batch hides the article instead of opening it up.
+  batchScoped         Boolean                   @default(false)
+  /// Pages this article helps with ("/student/assignments"); boosts it in page-aware help.
+  routeTags           String[]
+  /// BCP 47-ish code ("en", "ta", "hi").
+  language            String                    @default("en")
+  /// Articles sharing a group are translations of each other.
+  translationGroupId  String?
+  sourceType          KnowledgeSourceType       @default(OWN_WORK)
+  /// Author / licence credit (required for CC_BY and PERMISSION).
+  sourceNote          String?
+  publishAt           DateTime?
+  expiresAt           DateTime?
+  reviewBy            DateTime?
+  publishedVersionId  String?                   @unique
+  publishedVersion    KnowledgeArticleVersion?  @relation("KnowledgePublishedVersion", fields: [publishedVersionId], references: [id], onDelete: SetNull)
+  latestVersionNumber Int                       @default(0)
+  createdById         String?
+  createdBy           User?                     @relation("KnowledgeArticleCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  versions            KnowledgeArticleVersion[] @relation("KnowledgeArticleVersions")
+  batches             KnowledgeArticleBatch[]
+  events              KnowledgeArticleEvent[]
+  feedback            KnowledgeFeedback[]
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+
+  @@index([status])
+  @@index([categoryId])
+  @@index([translationGroupId])
+  @@index([createdById])
+  @@map("knowledge_articles")
+}
+
+/// Batch scope: when an article has rows here, students/coaches see it only through one of these batches.
+model KnowledgeArticleBatch {
+  articleId String
+  article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  batchId   String
+  batch     Batch            @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, batchId])
+  @@index([batchId])
+  @@map("knowledge_article_batches")
+}
+
+/// Immutable once it leaves DRAFT/SUBMITTED.
+model KnowledgeArticleVersion {
+  id           String                  @id @default(cuid())
+  articleId    String
+  article      KnowledgeArticle        @relation("KnowledgeArticleVersions", fields: [articleId], references: [id], onDelete: Cascade)
+  publishedFor KnowledgeArticle?       @relation("KnowledgePublishedVersion")
+  number       Int
+  status       KnowledgeVersionStatus  @default(DRAFT)
+  title        String
+  summary      String?
+  /// Markdown.
+  body         String
+  pgn          String?
+  resourceType KnowledgeResourceType?
+  /// A path for PAGE, an id otherwise.
+  resourceRef  String?
+  changeNote   String?
+  /// Injection-pattern and content checks; publishing with any needs an explicit acknowledgement.
+  warnings     String[]
+  authorId     String?
+  author       User?                   @relation("KnowledgeVersionAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  reviewedById String?
+  reviewedBy   User?                   @relation("KnowledgeVersionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  reviewNote   String?
+  publishedAt  DateTime?
+  events       KnowledgeArticleEvent[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@unique([articleId, number])
+  @@index([status])
+  @@index([authorId])
+  @@index([reviewedById])
+  @@map("knowledge_article_versions")
+}
+
+/// The change log: who did what, when.
+model KnowledgeArticleEvent {
+  id        String                   @id @default(cuid())
+  articleId String
+  article   KnowledgeArticle         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  versionId String?
+  version   KnowledgeArticleVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  actorId   String?
+  actor     User?                    @relation("KnowledgeEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  type      KnowledgeEventType
+  /// Before/after of changed settings, the rolled-back-to version, a reject note.
+  detail    Json?
+  createdAt DateTime                 @default(now())
+
+  @@index([articleId, createdAt])
+  @@index([versionId])
+  @@index([actorId])
+  @@map("knowledge_article_events")
+}
+
+/// One helpful / not-helpful vote per reader per article (re-voting overwrites).
+model KnowledgeFeedback {
+  id        String           @id @default(cuid())
+  articleId String
+  article   KnowledgeArticle @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  versionId String?
+  userId    String
+  user      User             @relation("KnowledgeFeedbackUser", fields: [userId], references: [id], onDelete: Cascade)
+  helpful   Boolean
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([articleId, userId])
+  @@index([userId])
+  @@map("knowledge_feedback")
+}
+
+/// Help searches, for the unanswered-questions inbox and topic trends. No user id:
+/// only the role and the searcher's batch ids (trends per batch). Kept 90 days (RETENTION_RULES).
+model KnowledgeSearchLog {
+  id                String                    @id @default(cuid())
+  /// Lower-cased, whitespace-collapsed query.
+  query             String
+  role              KnowledgeAudience
+  batchIds          String[]
+  route             String?
+  resultCount       Int
+  resolution        KnowledgeQueryResolution?
+  resolvedArticleId String?
+  resolvedAt        DateTime?
+  createdAt         DateTime                  @default(now())
+
+  @@index([createdAt])
+  @@index([query])
+  @@map("knowledge_search_logs")
 }

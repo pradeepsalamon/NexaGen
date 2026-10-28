@@ -27,7 +27,10 @@ export const RETENTION_RULES: readonly RetentionRule[] = [
     days: 180,
     table: "visitor_sessions",
     where: `NOT EXISTS (SELECT 1 FROM "leads" l WHERE l."visitorSessionId" = t."id")`
-  }
+  },
+  // Help-centre searches (free text typed by students, who are minors): only
+  // the recent window feeds the unanswered inbox and topic trends.
+  { column: "createdAt", days: 90, table: "knowledge_search_logs" }
 ];
 
 export const RETENTION_BATCH_SIZE = 5000;

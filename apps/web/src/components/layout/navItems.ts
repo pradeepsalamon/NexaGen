@@ -16,6 +16,8 @@ import {
   Layers3,
   LayoutDashboard,
   Library,
+  LibraryBig,
+  LifeBuoy,
   LineChart,
   MessageSquare,
   MessageSquareHeart,
@@ -85,6 +87,7 @@ export const studentNavItems: NavItem[] = [
   { href: "/messages", label: "Messages", icon: MessagesSquare, feature: "directChat" },
   { href: "/student/attendance", label: "Attendance", icon: UserCheck },
   { href: "/student/billing", label: "Billing", icon: CreditCard, feature: "studentPayments" },
+  { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
   { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
@@ -104,6 +107,7 @@ export const coachNavItems: NavItem[] = [
   { href: "/coach/presets", label: "Class presets", icon: SlidersHorizontal },
   { href: "/coach/earnings", label: "Earnings", icon: Wallet, feature: "coachPayroll" },
   { href: "/coach/payments", label: "Payments", icon: CreditCard, feature: "studentPayments" },
+  { href: "/help", label: "Help centre", icon: LifeBuoy },
   { href: "/chess-board", label: "Chess board", icon: Palette },
   { href: "/profile", label: "Profile & settings", icon: Settings }
 ];
@@ -144,6 +148,7 @@ export const adminNavItems: NavItem[] = [
   { href: "/admin/puzzles", label: "Puzzle library", icon: Puzzle, group: "Learning" },
   { href: "/admin/puzzles/scoring", label: "Puzzle points", icon: Trophy, group: "Learning" },
   { href: "/games", label: "Game library", icon: Library, group: "Learning", feature: "gameLibrary" },
+  { href: "/admin/knowledge", label: "Knowledge base", icon: LibraryBig, group: "Learning" },
   // Finance
   { href: "/admin/payments", label: "Payments", icon: CreditCard, group: "Finance", feature: "studentPayments" },
   { href: "/admin/finance/invoices", label: "Invoices", icon: ReceiptText, group: "Finance", feature: "studentPayments" },

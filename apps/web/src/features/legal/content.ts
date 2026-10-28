@@ -48,6 +48,11 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
       },
       {
         detail:
+          "What you search for in the help centre (without your name: only your role and batch, the page you searched from, how many results it found and when), and whether you marked a help article helpful. Coaches can suggest help articles; those suggestions are kept with their name.",
+        label: "Help centre"
+      },
+      {
+        detail:
           "Classes run over live video and audio. A coach may record a class; recordings include the video, audio and chessboard of everyone present.",
         label: "Class video and recordings"
       },
@@ -99,6 +104,7 @@ export const PRIVACY_SECTIONS: LegalSection[] = [
     items: [
       { detail: "Removed a day after they expire.", label: "Sign-in sessions and reset links" },
       { detail: "Removed after 180 days of inactivity unless you booked a demo.", label: "Website visit records" },
+      { detail: "Removed after 90 days.", label: "Help-centre searches" },
       {
         detail: "Can be restored for 30 days, then permanently removed — except records we must keep (below).",
         label: "Deleted accounts"
