@@ -285,7 +285,9 @@ export const knowledgeContentSchema = z
     summary: optionalText(KNOWLEDGE_SUMMARY_MAX),
     title: z.string().trim().min(1, "Give it a title.").max(KNOWLEDGE_TITLE_MAX),
   })
-  .refine((v) => v.resourceType !== "PAGE" || !v.resourceRef || /^\/(?![/\\])/.test(v.resourceRef), {
+  // Not "//host" or "/\\host", and no control characters: browsers drop tabs and
+  // newlines from URLs, so "/\t/host" would open as "//host".
+  .refine((v) => v.resourceType !== "PAGE" || !v.resourceRef || (/^\/(?![/\\])/.test(v.resourceRef) && !/[\u0000-\u001F\u007F]/.test(v.resourceRef)), {
     message: "A page link is a path starting with /.",
     path: ["resourceRef"],
   });

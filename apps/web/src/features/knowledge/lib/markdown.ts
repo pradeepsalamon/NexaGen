@@ -128,6 +128,8 @@ export function parseInline(text: string): MdInline[] {
 
 /** Only site paths and http(s) links are rendered as links; anything else is text. */
 export function classifyHref(href: string): "internal" | "external" | "unsafe" {
+  // Browsers drop tabs/newlines from URLs ("/\t/host" opens as "//host"), so no control characters at all.
+  if (/[\u0000-\u001F\u007F]/.test(href)) return "unsafe";
   // Not "//host" or "/\\host": browsers read both as another site.
   if (/^\/(?![/\\])/.test(href)) return "internal";
   if (/^https?:\/\//i.test(href)) return "external";
