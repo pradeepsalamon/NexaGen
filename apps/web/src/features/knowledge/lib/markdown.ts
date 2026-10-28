@@ -33,13 +33,15 @@ export function parseMarkdown(source: string): MdBlock[] {
     }
     // Anything after the language word (```c++, ```js title=x) is ignored, so every
     // line isBlockStart calls a fence really opens one.
-    const fence = line.match(/^```\s*([A-Za-z0-9_-]*)/);
+    const fence = line.match(/^(`{3,})\s*([A-Za-z0-9_-]*)/);
     if (fence) {
+      // Closed only by a run of backticks at least as long as the opener's.
+      const closer = new RegExp(`^\`{${fence[1].length},}\\s*$`);
       const body: string[] = [];
       i++;
-      while (i < lines.length && !/^```\s*$/.test(lines[i])) body.push(lines[i++]);
+      while (i < lines.length && !closer.test(lines[i])) body.push(lines[i++]);
       i++; // closing fence (or end of text)
-      blocks.push({ lang: fence[1].toLowerCase(), text: body.join("\n"), type: "code" });
+      blocks.push({ lang: fence[2].toLowerCase(), text: body.join("\n"), type: "code" });
       continue;
     }
     const heading = line.match(/^(#{1,3})\s+([\s\S]*)$/);

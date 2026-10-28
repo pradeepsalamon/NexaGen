@@ -344,6 +344,8 @@ export class KnowledgeAdminService {
 
   /** Back to how it was: live again if it had a published version, else a draft. */
   async restore(accessToken: string | undefined, id: string): Promise<KnowledgeAdminArticleDetail> {
+    // Authenticate before reading the article, so the credit check can't tell outsiders anything.
+    await this.getStaff(accessToken);
     const article = await this.prisma.knowledgeArticle.findUnique({
       select: { publishedVersionId: true, sourceNote: true, sourceType: true },
       where: { id },
