@@ -11,10 +11,10 @@ import {
   Lock,
   Phone,
   ShieldCheck,
-  UserRound,
-  Eye,
-  EyeOff
+  UserRound
 } from "lucide-react";
+import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { getStoredAcquisition } from "@/lib/acquisition";
@@ -38,8 +38,6 @@ export function RegisterForm() {
   const toast = useToast();
 
   const [values, setValues] = useState<RegisterFormValues>(initialValues);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null);
 
   const registerMutation = useMutation({
@@ -121,9 +119,7 @@ export function RegisterForm() {
     );
   }
 
-  const surfaceInput = "bg-nx-field border-nx-field-line text-nx-ink placeholder:text-nx-icon-faint focus:border-nx-gold-ink";
 
-  const inputBaseClass = `w-full h-9 sm:h-[38px] pl-8 pr-3 rounded-xl text-xs border outline-none transition-colors ${surfaceInput}`;
   const labelBaseClass = `block text-[11px] font-bold mb-1 text-nx-ink`;
 
   return (
@@ -134,38 +130,34 @@ export function RegisterForm() {
           <label htmlFor="student-name" className={labelBaseClass}>
             Student Full Name <span className="text-nx-gold-600">*</span>
           </label>
-          <div className="relative">
-            <UserRound className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
-            <input
-              id="student-name"
-              type="text"
-              autoComplete="name"
-              required
-              placeholder="e.g. Aarav Sharma"
-              value={values.studentName}
-              onChange={(e) => updateField("studentName", e.target.value)}
-              className={inputBaseClass}
-            />
-          </div>
+          <Input
+            autoComplete="name"
+            density="compact"
+            id="student-name"
+            leadingIcon={<UserRound />}
+            onChange={(e) => updateField("studentName", e.target.value)}
+            placeholder="e.g. Aarav Sharma"
+            required
+            type="text"
+            value={values.studentName}
+          />
         </div>
 
         <div>
           <label htmlFor="parent-name" className={labelBaseClass}>
             Parent / Guardian Name <span className="text-nx-gold-600">*</span>
           </label>
-          <div className="relative">
-            <UserRound className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
-            <input
-              id="parent-name"
-              type="text"
-              autoComplete="name"
-              required
-              placeholder="e.g. Rajesh Sharma"
-              value={values.parentName}
-              onChange={(e) => updateField("parentName", e.target.value)}
-              className={inputBaseClass}
-            />
-          </div>
+          <Input
+            autoComplete="name"
+            density="compact"
+            id="parent-name"
+            leadingIcon={<UserRound />}
+            onChange={(e) => updateField("parentName", e.target.value)}
+            placeholder="e.g. Rajesh Sharma"
+            required
+            type="text"
+            value={values.parentName}
+          />
         </div>
       </div>
 
@@ -175,55 +167,52 @@ export function RegisterForm() {
           <label htmlFor="student-age" className={labelBaseClass}>
             Student Age <span className="text-nx-gold-600">*</span>
           </label>
-          <div className="relative">
-            <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
-            <input
-              id="student-age"
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              required
-              placeholder="e.g. 9"
-              value={values.studentAge}
-              onChange={(e) => {
+          <Input
+            density="compact"
+            id="student-age"
+            inputMode="numeric"
+            leadingIcon={<CalendarDays />}
+            onChange={(e) => {
                 const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
                 updateField("studentAge", digitsOnly);
               }}
-              className={inputBaseClass}
-            />
-          </div>
+            pattern="[0-9]*"
+            placeholder="e.g. 9"
+            required
+            type="text"
+            value={values.studentAge}
+          />
         </div>
 
         <div>
           <label htmlFor="contact-number" className={labelBaseClass}>
             WhatsApp / Phone Number <span className="text-nx-gold-600">*</span>
           </label>
-          <div className="relative">
-            <Phone className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
-            <input
-              id="contact-number"
-              type="tel"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="tel"
-              required
-              maxLength={15}
-              placeholder="9876543210"
-              value={values.contactNumber}
-              onChange={(e) => {
+          <Input
+            autoComplete="tel"
+            density="compact"
+            id="contact-number"
+            inputMode="numeric"
+            leadingIcon={<Phone />}
+            maxLength={15}
+            onChange={(e) => {
                 const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 15);
                 updateField("contactNumber", digitsOnly);
               }}
-              className={inputBaseClass}
-            />
-          </div>
+            pattern="[0-9]*"
+            placeholder="9876543210"
+            required
+            type="tel"
+            value={values.contactNumber}
+          />
         </div>
       </div>
 
       {/* Row 3: How did you hear about us? & Email Address */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="[&_label]:!text-[11px] [&_label]:!font-bold [&_label]:!mb-1 [&_select]:!h-9 sm:[&_select]:!h-[38px] [&_select]:!py-0 [&_select]:!rounded-xl [&_select]:!text-xs">
+        <div className="[&_label]:!text-[11px] [&_label]:!font-bold [&_label]:!mb-1">
           <AcquisitionSourceSelect
+            density="compact"
             detail={values.acquisitionDetail}
             onDetailChange={(detail) => updateField("acquisitionDetail", detail)}
             onValueChange={(value) => updateField("acquisitionSource", value)}
@@ -236,20 +225,18 @@ export function RegisterForm() {
           <label htmlFor="email" className={labelBaseClass}>
             Email Address <span className="text-nx-gold-600">*</span>
           </label>
-          <div className="relative">
-            <AtSign className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
-            <input
-              id="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              required
-              placeholder="student@example.com"
-              value={values.email}
-              onChange={(e) => updateField("email", e.target.value)}
-              className={inputBaseClass}
-            />
-          </div>
+          <Input
+            autoComplete="email"
+            density="compact"
+            id="email"
+            inputMode="email"
+            leadingIcon={<AtSign />}
+            onChange={(e) => updateField("email", e.target.value)}
+            placeholder="student@example.com"
+            required
+            type="email"
+            value={values.email}
+          />
         </div>
       </div>
 
@@ -259,66 +246,36 @@ export function RegisterForm() {
           <label htmlFor="password" className={labelBaseClass}>
             Password <span className="text-nx-gold-600">*</span>
           </label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="new-password"
-              required
-              placeholder="Create a secure password"
-              value={values.password}
-              onChange={(e) => updateField("password", e.target.value)}
-              className={`${inputBaseClass} pr-8`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((p) => !p)}
-              aria-label="Toggle password visibility"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-nx-slate"
-            >
-              {showPassword ? (
-                <EyeOff className="size-3.5" />
-              ) : (
-                <Eye className="size-3.5" />
-              )}
-            </button>
-          </div>
+          <PasswordInput
+            autoComplete="new-password"
+            density="compact"
+            id="password"
+            leadingIcon={<Lock />}
+            onChange={(e) => updateField("password", e.target.value)}
+            placeholder="Create a secure password"
+            required
+            value={values.password}
+          />
         </div>
 
         <div>
           <label htmlFor="confirm-password" className={labelBaseClass}>
             Confirm Password <span className="text-nx-gold-600">*</span>
           </label>
-          <div className="relative">
-            <Lock className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
-            <input
-              id="confirm-password"
-              name="confirmPassword"
-              type={showConfirm ? "text" : "password"}
-              autoComplete="new-password"
-              required
-              placeholder="Confirm your password"
-              value={values.confirmPassword}
-              onChange={(e) => {
+          <PasswordInput
+            autoComplete="new-password"
+            density="compact"
+            id="confirm-password"
+            leadingIcon={<Lock />}
+            name="confirmPassword"
+            onChange={(e) => {
                 e.target.setCustomValidity("");
                 updateField("confirmPassword", e.target.value);
               }}
-              className={`${inputBaseClass} pr-8`}
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirm((p) => !p)}
-              aria-label="Toggle confirm password visibility"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-nx-slate"
-            >
-              {showConfirm ? (
-                <EyeOff className="size-3.5" />
-              ) : (
-                <Eye className="size-3.5" />
-              )}
-            </button>
-          </div>
+            placeholder="Confirm your password"
+            required
+            value={values.confirmPassword}
+          />
         </div>
       </div>
 

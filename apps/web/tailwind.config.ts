@@ -38,6 +38,7 @@ const config: Config = {
         "nx-card": "var(--nx-shadow-card)",
         "nx-drawer": "var(--nx-shadow-drawer)",
         "nx-float": "var(--nx-shadow-float)",
+        "nx-focus": "var(--nx-shadow-focus)",
         "nx-panel": "var(--nx-shadow-panel)",
         "nx-cta-glow": "var(--nx-shadow-cta-glow)",
         card: "var(--shadow-card)",

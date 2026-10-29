@@ -9,7 +9,10 @@ import {
 } from "@nexa-chess/types";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useMemo, useState } from "react";
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
+import { Mail, Lock, ArrowRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/Checkbox";
+import { Input } from "@/components/ui/Input";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { useToast } from "@/providers/ToastProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { useTouchedFields } from "@/hooks/useTouchedFields";
@@ -32,7 +35,6 @@ export function LoginForm() {
   const toast = useToast();
   const setUser = useAuthStore((state) => state.setUser);
   const [values, setValues] = useState<LoginFormValues>(initialValues);
-  const [showPassword, setShowPassword] = useState(false);
   const [challenge, setChallenge] = useState<MfaChallengeResponse | null>(null);
   const { touched, touchAll, touchField } = useTouchedFields<LoginFormValues>();
   const errors = useMemo(
@@ -142,32 +144,18 @@ export function LoginForm() {
           >
             Email address
           </label>
-          <div className="relative">
-            <Mail
-              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-nx-muted"
-              strokeWidth={2}
-            />
-            <input
-              id="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              placeholder="student@nexa.test"
-              value={values.email}
-              onBlur={() => touchField("email")}
-              onChange={(e) => updateField("email", e.target.value)}
-              className={`
-                w-full h-11 pl-10 pr-4 rounded-xl text-sm
-                bg-nx-field
-                border ${errors.email
-                  ? "border-nx-live"
-                  : "border-nx-field-line focus:border-nx-gold-ink"
-                }
-                text-nx-ink placeholder:text-nx-slate-light
-                outline-none transition-colors
-              `}
-            />
-          </div>
+          <Input
+            autoComplete="email"
+            id="email"
+            hasError={Boolean(errors.email)}
+            inputMode="email"
+            leadingIcon={<Mail strokeWidth={2} />}
+            onBlur={() => touchField("email")}
+            onChange={(e) => updateField("email", e.target.value)}
+            placeholder="student@nexa.test"
+            type="email"
+            value={values.email}
+          />
           {errors.email && (
             <p className="mt-1 text-xs font-medium text-nx-live">{errors.email}</p>
           )}
@@ -181,39 +169,16 @@ export function LoginForm() {
           >
             Password
           </label>
-          <div className="relative">
-            <Lock
-              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-nx-muted"
-              strokeWidth={2}
-            />
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              value={values.password}
-              onBlur={() => touchField("password")}
-              onChange={(e) => updateField("password", e.target.value)}
-              className={`
-                w-full h-11 pl-10 pr-10 rounded-xl text-sm
-                bg-nx-field
-                border ${errors.password
-                  ? "border-nx-live"
-                  : "border-nx-field-line focus:border-nx-gold-ink"
-                }
-                text-nx-ink placeholder:text-nx-slate-light
-                outline-none transition-colors
-              `}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword((prev) => !prev)}
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-nx-muted hover:text-nx-ink"
-            >
-              {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-            </button>
-          </div>
+          <PasswordInput
+            autoComplete="current-password"
+            id="password"
+            hasError={Boolean(errors.password)}
+            leadingIcon={<Lock strokeWidth={2} />}
+            onBlur={() => touchField("password")}
+            onChange={(e) => updateField("password", e.target.value)}
+            placeholder="Enter your password"
+            value={values.password}
+          />
           {errors.password && (
             <p className="mt-1 text-xs font-medium text-nx-live">
               {errors.password}
@@ -227,12 +192,10 @@ export function LoginForm() {
             htmlFor="remember-me"
             className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-nx-body"
           >
-            <input
-              id="remember-me"
-              type="checkbox"
+            <Checkbox
               checked={values.rememberMe}
-              onChange={(e) => updateField("rememberMe", e.target.checked)}
-              className="size-4 rounded border-nx-line-bold accent-nx-emphasis"
+              id="remember-me"
+              onCheckedChange={(checked) => updateField("rememberMe", checked === true)}
             />
             <span>Remember me</span>
           </label>

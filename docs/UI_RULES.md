@@ -52,7 +52,8 @@ and are mapped in `tailwind.config.ts`.
 
 | Element | Radius token |
 |---|---|
-| Buttons, inputs, selects, badges, pills, avatars, icon buttons | `rounded-full` (the components already do this) |
+| Buttons, badges, pills, avatars, icon buttons | `rounded-full` (the components already do this) |
+| Text fields: `Input`, `PasswordInput`, `Select`, `Combobox`, `Textarea`, date/time pickers | `rounded-control`, from `fieldClasses()` in `components/ui/fieldStyles.ts` (the components already do this) |
 | Small tiles, chips, list rows, menu items, textareas-in-panels | `rounded-control` (12px) |
 | Cards, panels, tables, dialogs | `rounded-app` (20px) / `rounded-[20px]` |
 | Large feature panels | `rounded-panel` (24px) |
@@ -79,7 +80,7 @@ disagree.
 | Status labels | `Badge` (`default`, `secondary`, `success`, `warning`, `info`, `destructive`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. Text is sentence case: show an API enum through `enumLabel()` (`lib/utils.ts`), never raw `ACTIVE`, and never `uppercase`. |
 | On/off setting | `Switch` | "Lock …", "Enabled", "Send WhatsApp", preferences. |
 | Pick several / row selection / consent | `Checkbox` | Multi-select lists, table rows, "Remember me", "I understand …". |
-| Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). |
+| Text / number fields | `Input`, `Textarea`, `PasswordInput`, `Select`, `Combobox` | Never raw `<input>` / `<textarea>` / `<select>` (file, colour, range and radio inputs are the exceptions). They share one look (`fieldClasses()`: tinted `nx-field` fill, gold border + ring on focus); change it there, not per form. `leadingIcon` puts an icon inside; `density="compact"` (Input, PasswordInput, Select) is the dense field of multi-column forms such as registration. |
 | Dates and times | `DatePicker`, `DateStringPicker` (for `"YYYY-MM-DD"` / `"YYYY-MM-DDTHH:mm"` state), `TimePicker`, `DateRangePicker` | Never `type="date|time|datetime-local"`. |
 | Tabs | `Tabs` / `TabsList` / `TabsTrigger` | Segmented style: primary-tinted `rounded-xl` track, active tab is a solid primary chip with white text. |
 | Inline messages / load errors | `Alert` (`error`, `warning`, `info`, `success`), `WidgetError` | Correct `role`/`aria-live` built in. |

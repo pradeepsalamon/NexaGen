@@ -5,6 +5,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/Button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/Popover";
 import { cn } from "@/lib/utils";
+import { fieldClasses } from "./fieldStyles";
 
 type TimePickerProps = {
   /** 24h "HH:MM" */
@@ -74,7 +75,8 @@ export function TimePicker({
           id={id}
           variant="outline"
           className={cn(
-            "min-h-11 w-full justify-start gap-2 rounded-full px-4 font-medium border border-app-border bg-app-surface text-app-text shadow-[inset_0_1px_2px_rgb(var(--rgb-text)/0.06)] hover:border-[color-mix(in_srgb,var(--color-primary)_42%,var(--color-border))] hover:bg-app-surface",
+            "min-h-11 w-full justify-start gap-2 px-4 font-medium shadow-none hover:bg-nx-field hover:text-nx-ink",
+            fieldClasses(),
             className
           )}
         >

@@ -239,6 +239,8 @@
      the backdrop blur showed. */
   --nx-auth-card: rgb(255 255 255 / 0.95);
   --nx-auth-note: transparent;
+  /* Focus ring of every text field (components/ui/fieldStyles.ts). */
+  --nx-shadow-focus: 0 0 0 3px rgb(197 137 39 / 0.18);
   --nx-shadow-cta-glow: 0 0 #0000;
   /* .nx-cta: the primary call to action — navy, a gold gradient in dark. */
   --nx-cta: rgb(7 27 65);
@@ -331,6 +333,7 @@
   --nx-chart-4: rgb(158 120 41);
   --nx-auth-card: transparent;
   --nx-auth-note: rgb(9 25 54 / 0.9);
+  --nx-shadow-focus: 0 0 0 3px rgb(226 179 85 / 0.22);
   --nx-shadow-cta-glow: 0 4px 14px rgba(212, 155, 53, 0.3);
   --nx-cta: rgb(206 148 46);
   --nx-cta-hover: rgb(216 158 53);

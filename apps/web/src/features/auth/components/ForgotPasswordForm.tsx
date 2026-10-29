@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Lock, Mail, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/Input";
 import { getErrorMessage } from "@/lib/errors";
 import { useToast } from "@/providers/ToastProvider";
 import { forgotPassword } from "../api/authApi";
@@ -72,30 +73,17 @@ export function ForgotPasswordForm() {
           >
             Email address
           </label>
-          <div className="relative">
-            <Mail
-              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-nx-muted"
-              strokeWidth={2}
-            />
-            <input
-              id="forgot-email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              required
-              placeholder="student@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="
-                w-full h-11 pl-10 pr-4 rounded-xl text-sm
-                bg-nx-field
-                border border-nx-field-line
-                focus:border-nx-gold-ink
-                text-nx-ink placeholder:text-nx-slate-light
-                outline-none transition-colors
-              "
-            />
-          </div>
+          <Input
+            autoComplete="email"
+            id="forgot-email"
+            inputMode="email"
+            leadingIcon={<Mail strokeWidth={2} />}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="student@example.com"
+            required
+            type="email"
+            value={email}
+          />
         </div>
 
         {/* Send Reset Link Button */}
