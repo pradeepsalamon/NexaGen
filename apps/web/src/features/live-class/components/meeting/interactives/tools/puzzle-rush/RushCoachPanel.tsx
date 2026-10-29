@@ -41,6 +41,9 @@ export function RushCoachPanel({ classId, mode }: { classId: string; mode: Puzzl
   const [confirmEnd, setConfirmEnd] = useState(false);
   // The round id the coach chose to play, so a new round opens on the standings again.
   const [playingRushId, setPlayingRushId] = useState<string | null>(null);
+  // Once the coach joins a round the player stays mounted (hidden behind the
+  // standings), so switching views keeps the run and its unsent progress.
+  const [joinedRushId, setJoinedRushId] = useState<string | null>(null);
   const { rush, skewMs } = query;
   const active = !!rush && rush.status !== "ENDED";
   const now = useServerNow(skewMs, active, 500);
@@ -70,7 +73,10 @@ export function RushCoachPanel({ classId, mode }: { classId: string; mode: Puzzl
     mine && (mine.status !== "ENDED" || coachPlaying) ? (
       <Button
         className="w-full"
-        onClick={() => setPlayingRushId(coachPlaying ? null : mine.id)}
+        onClick={() => {
+          setPlayingRushId(coachPlaying ? null : mine.id);
+          if (!coachPlaying) setJoinedRushId(mine.id);
+        }}
         size="sm"
         variant={coachPlaying ? "outline" : "secondary"}
       >
@@ -123,9 +129,12 @@ export function RushCoachPanel({ classId, mode }: { classId: string; mode: Puzzl
 
       {playToggle}
 
-      {coachPlaying ? (
-        <RushPlayer classId={classId} compact mode={mode} />
-      ) : mine ? (
+      {mine && joinedRushId === mine.id ? (
+        <div hidden={!coachPlaying}>
+          <RushPlayer classId={classId} compact mode={mode} />
+        </div>
+      ) : null}
+      {coachPlaying ? null : mine ? (
         <div className="space-y-2">
           <SectionTitle>{mine.status === "ENDED" ? "Final standings" : "Standings"}</SectionTitle>
           {mine.mode === "RACER" ? <RaceTrack meId={userId} standings={mine.standings} /> : null}

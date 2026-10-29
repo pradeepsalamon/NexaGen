@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
+import { ACADEMY_PROGRAMS } from "../content";
 
 const SECTION_BG_LIGHT = "/programs/01_chess_reverie_light.webp";
 const SECTION_BG_DARK = "/programs/02_chess_reverie_dark.webp";
@@ -19,19 +20,12 @@ interface ProgramItem {
   featured: boolean;
 }
 
-const programs: ProgramItem[] = [
+const programPresentation: Omit<ProgramItem, "features">[] = [
   {
     level: "Beginner Level",
     subtitle: "For students starting their chess journey.",
     pieceType: "pawn",
     pieceImage: "/programs/01_gold_pawn.webp",
-    features: [
-      "Fundamentals of chess",
-      "Basic tactics and strategy",
-      "Live interactive classes",
-      "Practice with peers",
-      "Progress tracking"
-    ],
     tag: "Foundation",
     featured: false
   },
@@ -40,13 +34,6 @@ const programs: ProgramItem[] = [
     subtitle: "For players ready to improve their game.",
     pieceType: "knight",
     pieceImage: "/programs/02_gold_knight.webp",
-    features: [
-      "Advanced tactics",
-      "Focused understanding",
-      "Live online coaching",
-      "Tournament preparation",
-      "Performance analytics"
-    ],
     tag: "Most Popular",
     featured: true
   },
@@ -55,17 +42,17 @@ const programs: ProgramItem[] = [
     subtitle: "For serious competitive players.",
     pieceType: "king",
     pieceImage: "/programs/03_black_gold_king.webp",
-    features: [
-      "Competitive training",
-      "Deep calculation",
-      "Personalized coaching",
-      "Tournament preparation",
-      "Advanced analysis"
-    ],
     tag: "Mastery",
     featured: false
   }
 ];
+
+// The topics come from content.ts, the same list the JSON-LD and llms.txt
+// publish, so the page never claims less (or more) than the structured data.
+const programs: ProgramItem[] = programPresentation.map((program) => ({
+  ...program,
+  features: ACADEMY_PROGRAMS.find((p) => p.level === program.level)?.topics ?? []
+}));
 
 function ChessCornerIcon({
   type,

@@ -1,5 +1,3 @@
-"use client";
-
 import { GraduationCap, BookOpen, Target, type LucideIcon } from "lucide-react";
 
 interface ProgressMetric {

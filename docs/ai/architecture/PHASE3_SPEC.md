@@ -287,8 +287,10 @@ Checks (`checkClassSummaryOutput`), each per item:
    is removed, never rewritten. A READY summary's whole student view must pass
    `studentViewPrivacyViolations`, which the publish route (§7) reuses for its
    400.
-6. Every quoted chat span (text in "…") is a substring of a cited `ROOM_CHAT`
-   ref. *(Not yet in the module; add it with OD-12.)*
+6. Every quoted chat span (text in "…") is an exact substring of a cited
+   `ROOM_CHAT` ref, with a regression test that a fabricated quote is rejected.
+   *(Not yet in the module. Until this check ships, `ROOM_CHAT` stays out of the
+   evidence bundle even though OD-12 is approved.)*
 
 **Retry, then remove.**
 

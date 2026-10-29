@@ -68,6 +68,20 @@ function start_dev() {
         echo "Dev API launched on port 3011!"
         return
     fi
+    if [ "$target" = "web" ]; then
+        # Restart only the web window; the API keeps running.
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": web"; then
+            tmux kill-window -t nexa-dev:web 2>/dev/null || true
+        fi
+        echo "=== Launching Dev Web on Port 3010 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
+        else
+            tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 npm run dev -w apps/web -- -p 3010 2>&1 | tee web-dev.log'"
+        fi
+        echo "Dev web launched on port 3010!"
+        return
+    fi
 
     echo "Stopping any existing dev/staging processes..."
     stop_session
@@ -88,6 +102,9 @@ function start_stage() {
         fi
         echo "=== Building API in Production Mode for Staging Testing ==="
         cd "$ROOT_DIR"
+        # The shared packages (@nexa-chess/config, /types) first, so the API never
+        # builds against missing or stale outputs.
+        npx turbo run build --filter=@nexa-chess/api^...
         npm run build:prod -w apps/api
 
         echo "=== Launching Production-Optimized Dev API on Port 3011 ==="
@@ -97,6 +114,23 @@ function start_stage() {
             tmux new-window -t nexa-dev -n "api" "bash -c 'cd \"$ROOT_DIR\" && PORT=3011 NODE_ENV=production node apps/api/dist/src/main.js 2>&1 | tee api-prod.log'"
         fi
         echo "Production-mode Dev API launched on port 3011!"
+        return
+    fi
+    if [ "$target" = "web" ]; then
+        # Rebuild and restart only the web window; the API keeps running.
+        echo "=== Building Web in Production Mode for Staging Testing ==="
+        cd "$ROOT_DIR"
+        npx turbo run build --filter=@nexa-chess/web
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": web"; then
+            tmux kill-window -t nexa-dev:web 2>/dev/null || true
+        fi
+        echo "=== Launching Production-Optimized Dev Web on Port 3010 ==="
+        if ! tmux has-session -t nexa-dev 2>/dev/null; then
+            tmux new-session -d -s nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+        else
+            tmux new-window -t nexa-dev -n "web" "bash -c 'cd \"$ROOT_DIR\" && PORT=3010 NODE_ENV=production npm run start -w apps/web -- -p 3010 2>&1 | tee web-prod.log'"
+        fi
+        echo "Production-mode Dev web launched on port 3010!"
         return
     fi
 
@@ -218,6 +252,9 @@ case "$COMMAND" in
             elif [ "$TARGET" = "api" ] && tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
                 tmux kill-window -t nexa-dev:api
                 echo "Stopped dev api window."
+            elif [ -n "$TARGET" ]; then
+                # Only that component was asked for; never stop the rest.
+                echo "Dev $TARGET is not running."
             else
                 stop_dev
             fi

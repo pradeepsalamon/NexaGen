@@ -65,7 +65,7 @@ export function EngineEvalSummary({ className }: { className?: string }) {
         </span>
         <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-xs font-semibold text-app-text">{analysis?.engine ?? "Stockfish"}</p>
-          <p className="truncate text-[11px] text-app-muted" aria-live="polite">
+          <p className="truncate text-[11px] text-app-muted">
             {status}
           </p>
         </div>

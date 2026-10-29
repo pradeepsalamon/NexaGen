@@ -249,6 +249,9 @@ async function main() {
       generate: async ({ attempt, lines, problems }) => {
         const prompt = attempt === 1 ? userPrompt(bundle, lines) : repairPrompt(bundle, lines, problems);
         const pending = generate(host, model, prompt, numThread, think);
+        // A rejection during the probe wait below must not crash the process as
+        // unhandled; awaiting `pending` afterwards still surfaces it.
+        pending.catch(() => {});
         // Probe Stockfish while the first bundle generates (after the model load).
         if (sfCommand && runs.length === 0 && attempt === 1) {
           await new Promise((r) => setTimeout(r, 15_000));

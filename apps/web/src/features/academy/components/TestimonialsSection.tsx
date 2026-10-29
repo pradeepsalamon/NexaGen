@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, type KeyboardEvent } from "react";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 
@@ -212,18 +212,17 @@ export function TestimonialsSection() {
     setActiveIndex((prev) => (prev + 1) % total);
   }, [total]);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") handlePrev();
-      if (e.key === "ArrowRight") handleNext();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [handlePrev, handleNext]);
+  // Arrow keys only while focus is inside the section (e.g. on its buttons),
+  // never from a field elsewhere on the page.
+  const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    if (e.key === "ArrowLeft") handlePrev();
+    if (e.key === "ArrowRight") handleNext();
+  };
 
   return (
     <section
       id="testimonials"
+      onKeyDown={onKeyDown}
       className={`relative py-16 sm:py-24 overflow-hidden transition-colors duration-300 select-none ${isDark ? "bg-[#030D24] text-white" : "bg-[#FAFBFD] text-[#071B41]"
         }`}
     >

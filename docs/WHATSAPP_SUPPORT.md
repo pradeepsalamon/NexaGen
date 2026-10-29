@@ -74,9 +74,14 @@ Customer ──WhatsApp──▶ Meta Cloud API
                           ▼
 nginx (api.nexachess.in) ─▶ NestJS WhatsAppWebhookController   [@SkipThrottle, origin-check exempt, raw body]
    1. verify signature (constant time) → 401 if bad
-   2. INSERT whatsapp_webhook_events (unique on wamid / status id)  ← Meta retries collide here
+   2. INSERT whatsapp_webhook_events (unique dedupeKey: wamid for a message,
+      wamid + status for a status update, so sent → delivered → read are
+      distinct rows; wamid stays the message lookup key)  ← Meta retries collide here
    3. respond 200 immediately
-   4. process in-process after the response (+ cron sweep for unprocessed rows after a crash)
+   4. process in-process after the response: an atomic claim
+      (UPDATE … SET claimedAt = now() WHERE id = $1 AND processedAt IS NULL AND
+      (claimedAt IS NULL OR claimedAt < now() - lease)), so two handlers never
+      both act; the cron sweep picks up only rows whose lease expired
           │
           ▼
 SupportConversationService (one transaction, SELECT … FOR UPDATE on the conversation row)
@@ -106,7 +111,7 @@ path unit-testable without Meta (same pattern as `class-availability.ts`,
 
 ```
 START ─▶ MAIN_MENU (list message, 6 rows)
- ├─ course   ▶ COURSE_MENU ▶ {FEES_BATCHES → answer from ACADEMY_FAQ | TRIAL_DETAILS: age → experience → preferred time → parent name}
+ ├─ course   ▶ COURSE_MENU ▶ {FEES_BATCHES → answer from ACADEMY_FAQ | TRIAL_DETAILS: student name → age → experience → preferred time → parent name}
  │             ▶ CONFIRM ▶ LEAD_CREATED ▶ (HUMAN_FOLLOW_UP)
  ├─ refund   ▶ REFUND_REASON ▶ REFUND_STUDENT (name → registered phone → course)
  │             ▶ REFUND_PAYMENT (txn/ref id → payment date → explanation?) ▶ CONFIRM ▶ TICKET_CREATED
@@ -132,8 +137,9 @@ Rules:
 - **Concurrency.** At most one open conversation per contact (partial unique
   index); a row lock serializes its messages. `flowVersion` is stored so a flow
   change doesn't break in-flight conversations.
-- **Duplicate tickets.** `dedupeKey` = conversation + category; a customer who
-  repeats the same refund within 7 days is shown their existing reference.
+- **Duplicate tickets.** `dedupeKey` = tenant + contact + category + 7-day
+  window, not the conversation: a customer who repeats the same refund within
+  7 days, even in a new conversation, is shown their existing reference.
 - **Sensitive input.** Never ask for passwords, OTPs or card numbers. Input that
   looks like a card number (Luhn-valid, 13–19 digits) or an OTP is redacted
   before storage and the customer is warned.
@@ -142,14 +148,21 @@ Rules:
 
 New models (each gets a `PrismaService` getter):
 
-- `WhatsAppWebhookEvent` — raw inbound event, unique on provider id,
-  `processedAt`, `error`. Goes in `RETENTION_RULES` (~30 days).
+- `WhatsAppWebhookEvent` — inbound event, unique `dedupeKey` (§3), `claimedAt`,
+  `processedAt`, `ignoredAt`, `error`. Stores only the fields the flow reads
+  (sender, type, text/interactive id, status, timestamps), with message text
+  passed through the same card/OTP redaction as `SupportMessage.body` before
+  insert, never the raw payload. Goes in `RETENTION_RULES` (~30 days), the
+  privacy export and account deletion, and is readable only through the
+  `ADMIN`/`SUPER_ADMIN` inbox.
 - `WhatsAppContact` — `waId` (unique), `profileName`, `linkedUserId?`,
   `linkedAt?`, `lastInboundAt` (24 h window), `optedOutAt?`, `blockedAt?`.
 - `SupportConversation` — `contactId`, `state`, `flowVersion`, `draft Json`,
   `status (BOT | WAITING_AGENT | AGENT | CLOSED)`, `assignedToId?`,
   `lastInboundAt`, `expiresAt`.
-- `SupportMessage` — `direction`, `providerMessageId` (unique), `type`, `body`
+- `SupportMessage` — `direction`, `providerMessageId` (unique, nullable: an
+  outbound row is written PENDING before Meta returns an id), `clientKey`
+  (unique, the local idempotency key a retry reuses), `type`, `body`
   (redacted), `interactiveId?`, `status`, `error?`, `sentById?` (agent). The
   transcript.
 - `SupportTicket` — human-readable `reference` (`NXS-2026-000123`, Postgres
@@ -216,15 +229,22 @@ production, a missing app secret refuses to boot (same pattern as
 - **Webhook.** HMAC-SHA256 over the raw bytes, constant-time compare; `GET`
   verify checks the token. Route added to `PUBLIC_ROUTES` (route-auth spec),
   `ANONYMOUS_OK` (auth-boundary suite) and the origin-check exempt list in
-  `app.setup.ts`. `@SkipThrottle` at IP level, replaced by a **per-contact**
-  abuse limit (~30 messages / 10 min → bot pauses, contact flagged).
+  `app.setup.ts`. The route gets its own size-bounded raw-text parser
+  registered before the JSON parser (as the payment webhooks do with
+  `express.text`), so the signed bytes survive for the HMAC. A bounded
+  **IP-level** limit (nginx, before body parsing and signature work) caps
+  unsigned floods; after the signature check a **per-contact** abuse limit
+  (~30 messages / 10 min → bot pauses, contact flagged) applies.
 - **Identity.** WhatsApp authenticates the sender's number (`wa_id`): it proves
   control of the number, **not** a link to a student. Phases 1–2 never reveal
   account data — the bot only collects and hands over to staff. For Phase 3
   account-aware answers ("my next class"), link from inside the app: a signed-in
   user taps Profile → "Link WhatsApp", which opens
   `wa.me/<number>?text=LINK-<one-time code>`, and the bot binds that `wa_id` to
-  the user. The bot never asks for an OTP; the code comes from the user's own
+  the user. The code is cryptographically random, expires in ~10 minutes, is
+  consumed atomically (single use), and attempts are rate-limited per sender
+  number **and** per code: the inbound-message limit alone wouldn't stop
+  guessing spread across many numbers. The bot never asks for an OTP; the code comes from the user's own
   authenticated session. Unlinked numbers get public information only.
 - **Minors.** Collect names/ages/phones only from the parent and only per flow.
   The first message links to `/privacy`. Phones are unmasked only in the support
@@ -238,8 +258,11 @@ production, a missing app secret refuses to boot (same pattern as
   isolation waits on multi-tenancy Phase 2; `tenantId` on the new tables keeps
   that change small.
 - **Consent.** Inbound support messages are user-initiated. Proactive templates
-  need opt-in; "STOP" sets `optedOutAt`. ⚠️ The **existing** outbound messaging
-  rules check no opt-out today — worth fixing in the same project.
+  need opt-in; "STOP" sets `optedOutAt`. Opt-out is enforced at the proactive
+  send boundary: every proactive path, `MessagingDeliveryWorker` retries
+  included, checks `optedOutAt` right before sending and skips an opted-out
+  recipient. Inbound support replies are unaffected. ⚠️ The **existing**
+  outbound messaging rules check no opt-out today, so this fixes them too.
 - **DPDP Act 2023 / Rules 2025 (❓ needs legal review).** Verifiable parental
   consent for children's data, purpose-limited notice, retention limits, erasure
   on request. Proposed retention: transcripts 12 months after ticket close, raw
@@ -277,7 +300,8 @@ compliance for minors.
   `api-dev.nexachess.in`.
 - **Rollout:** additive migrations; ship dark (`SUPPORT_BOT_ENABLED=false`), then
   enable with a staff-only allowlist, then the real number. Rollback = flag off;
-  the webhook keeps recording events and answering 200.
+  the webhook keeps recording events and answering 200, but marks them
+  `ignoredAt` so re-enabling never replays messages from the disabled period.
 - **Monitoring:** failed sends and unprocessed webhook events surface in the
   inbox and `/health`; add a [TROUBLESHOOTING.md](TROUBLESHOOTING.md) row.
 

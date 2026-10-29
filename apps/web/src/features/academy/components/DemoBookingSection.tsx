@@ -17,7 +17,7 @@ import {
   ArrowRight,
   CircleCheckBig
 } from "lucide-react";
-import type { LeadExperienceLevel } from "@nexa-chess/types";
+import { createLeadRequestSchema, type LeadExperienceLevel } from "@nexa-chess/types";
 import { useTheme } from "@/providers/ThemeProvider";
 import { useCreateLeadMutation } from "../hooks/useLeadPublicApi";
 
@@ -101,7 +101,8 @@ export function DemoBookingSection() {
     const experienceLevel = (formData.program || "beginner") as LeadExperienceLevel;
 
     const email = formData.email.trim();
-    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    // The API's own rule (createLeadRequestSchema), so the two never disagree.
+    if (email && !createLeadRequestSchema.shape.email.safeParse(email).success) {
       setError("Please enter a valid email address, or leave it blank.");
       return;
     }

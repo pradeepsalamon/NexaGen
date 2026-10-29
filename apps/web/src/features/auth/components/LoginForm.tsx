@@ -146,6 +146,7 @@ export function LoginForm() {
           </label>
           <Input
             autoComplete="email"
+            aria-describedby={errors.email ? "email-error" : undefined}
             id="email"
             hasError={Boolean(errors.email)}
             inputMode="email"
@@ -157,7 +158,7 @@ export function LoginForm() {
             value={values.email}
           />
           {errors.email && (
-            <p className="mt-1 text-xs font-medium text-nx-live">{errors.email}</p>
+            <p className="mt-1 text-xs font-medium text-nx-live" id="email-error">{errors.email}</p>
           )}
         </div>
 
@@ -171,6 +172,7 @@ export function LoginForm() {
           </label>
           <PasswordInput
             autoComplete="current-password"
+            aria-describedby={errors.password ? "password-error" : undefined}
             id="password"
             hasError={Boolean(errors.password)}
             leadingIcon={<Lock strokeWidth={2} />}
@@ -180,7 +182,7 @@ export function LoginForm() {
             value={values.password}
           />
           {errors.password && (
-            <p className="mt-1 text-xs font-medium text-nx-live">
+            <p className="mt-1 text-xs font-medium text-nx-live" id="password-error">
               {errors.password}
             </p>
           )}

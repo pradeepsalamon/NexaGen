@@ -1,4 +1,11 @@
 import { MessageCircle, Phone, Mail, BookOpen, Users, ArrowRight, Sparkles } from "lucide-react";
+import { ACADEMY_EMAIL, ACADEMY_PHONE, ACADEMY_WHATSAPP } from "../content";
+
+// content.ts is the one source of the contact details (JSON-LD and llms.txt
+// read it too). "+91-7010854643" → "+91 7010854643" / "917010854643".
+const displayNumber = (value: string) => value.replace("-", " ");
+const digits = (value: string) => value.replace(/\D/g, "");
+const whatsappHref = `https://wa.me/${digits(ACADEMY_WHATSAPP)}`;
 
 const conversionOptions = [
   {
@@ -20,7 +27,7 @@ const conversionOptions = [
   {
     title: "Join Our Community",
     subtitle: "Connect with fellow players, tournaments, and master workshops.",
-    href: "https://wa.me/917010854643",
+    href: whatsappHref,
     cta: "Chat on WhatsApp",
     primary: false,
     Icon: Users
@@ -30,20 +37,20 @@ const conversionOptions = [
 const directContacts = [
   {
     label: "WhatsApp",
-    value: "+91 7010854643",
-    href: "https://wa.me/917010854643",
+    value: displayNumber(ACADEMY_WHATSAPP),
+    href: whatsappHref,
     Icon: MessageCircle
   },
   {
     label: "Direct Phone",
-    value: "+91 7010854643",
-    href: "tel:+917010854643",
+    value: displayNumber(ACADEMY_PHONE),
+    href: `tel:+${digits(ACADEMY_PHONE)}`,
     Icon: Phone
   },
   {
     label: "Email Support",
-    value: "nexachessacademy@gmail.com",
-    href: "mailto:nexachessacademy@gmail.com",
+    value: ACADEMY_EMAIL,
+    href: `mailto:${ACADEMY_EMAIL}`,
     Icon: Mail
   }
 ];

@@ -22,7 +22,7 @@ export function StudentDashboardClient() {
   const { user } = useAuthStore();
   const { data, error, isLoading, refetch } = useStudentDashboard();
 
-  const displayName = user?.firstName || "Test";
+  const firstName = user?.firstName?.trim();
 
   const header = (
     <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
@@ -30,7 +30,7 @@ export function StudentDashboardClient() {
         <h1
           className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-nx-ink"
         >
-          Welcome back, {displayName}!
+          {firstName ? `Welcome back, ${firstName}!` : "Welcome back!"}
         </h1>
         <p
           className="mt-1 text-xs sm:text-sm text-nx-muted"

@@ -227,7 +227,7 @@ export function ComboboxInput({
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={cn(
-          "min-h-10 min-w-0 flex-1 bg-transparent text-sm font-medium text-nx-ink outline-none placeholder:text-nx-slate-light focus-visible:outline-none",
+          "min-h-10 min-w-0 flex-1 bg-transparent text-sm font-medium text-nx-ink outline-none placeholder:text-nx-muted focus-visible:outline-none",
           className
         )}
         disabled={isDisabled}

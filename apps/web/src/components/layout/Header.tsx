@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, LogIn, Menu, Search, Sun, Moon } from "lucide-react";
+import { Loader2, LogIn, Menu, Sun, Moon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -10,6 +10,7 @@ import { NotificationBell } from "@/features/notifications/components/Notificati
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
 import { useTheme } from "@/providers/ThemeProvider";
+import { resolvePageTitle } from "@/lib/pageTitles";
 import { cn } from "@/lib/utils";
 
 export function Header({
@@ -30,6 +31,7 @@ export function Header({
   const isSessionChecked = useAuthStore((state) => state.isSessionChecked);
   const isSessionLoading = useAuthStore((state) => state.isSessionLoading);
   const user = useAuthStore((state) => state.user);
+  const pageTitle = resolvePageTitle(pathname);
   const hasSidebar = useSidebarStore((state) => state.available);
   const sidebarOpen = useSidebarStore((state) => state.open);
   const toggleSidebar = useSidebarStore((state) => state.toggle);
@@ -92,27 +94,19 @@ export function Header({
           {leftSlot}
         </div>
 
-        {/* Optional Center Slot */}
+        {/* Center: the caller's slot, else the page name from PAGE_TITLES. Not a
+            heading: each page's PageHeader owns the one <h1>. */}
         {centerSlot ? (
           <div className="hidden md:block min-w-0 truncate">{centerSlot}</div>
-        ) : null}
+        ) : (
+          <p className="hidden min-w-0 truncate text-center font-display text-base font-extrabold text-nx-ink lg:block">
+            {activeUser ? pageTitle : null}
+          </p>
+        )}
 
         {/* Right Controls: Cleanly spaced so it never collides with the left Logo */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {rightSlot}
-
-          {activeUser && !compact && (
-            <button
-              type="button"
-              aria-label="Search"
-              className={cn(
-                "inline-flex size-8 sm:size-9 items-center justify-center rounded-full border transition-colors shrink-0",
-                "bg-nx-tile border-nx-line text-nx-muted-strong hover:text-nx-ink hover:border-nx-line-hover"
-              )}
-            >
-              <Search className="size-3.5 sm:size-4" strokeWidth={2.1} />
-            </button>
-          )}
 
           {activeUser && (
             <span className={cn("shrink-0", compact && "hidden lg:block")}>

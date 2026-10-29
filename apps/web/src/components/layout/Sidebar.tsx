@@ -115,6 +115,22 @@ export function NavDrawer({
     if (open) setPeek(false);
   }, [open, peek]);
 
+  // A peek ends once the pointer is past the drawer, even if it never entered
+  // it (then the drawer's pointerleave never fires and the dim would stay).
+  useEffect(() => {
+    if (!peek || open) return;
+    const onPointerMove = (event: globalThis.PointerEvent) => {
+      // Layout box, not getBoundingClientRect: mid-slide the transform would
+      // put the edge short of where the drawer ends up.
+      const wrapper = wrapperRef.current;
+      if (!wrapper) return;
+      const right = wrapper.offsetLeft + wrapper.offsetWidth;
+      if (!pull.current && event.clientX > right + EDGE_GAP_PX) setPeek(false);
+    };
+    document.addEventListener("pointermove", onPointerMove);
+    return () => document.removeEventListener("pointermove", onPointerMove);
+  }, [open, peek]);
+
   const maxPull = () => (wrapperRef.current?.offsetWidth ?? 270) + EDGE_GAP_PX;
 
   const onPullStart = (event: PointerEvent<HTMLElement>) => {

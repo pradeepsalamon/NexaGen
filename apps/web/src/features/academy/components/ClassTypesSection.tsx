@@ -4,12 +4,13 @@ import Image from "next/image";
 import {
   User,
   Users,
-  Calendar,
+  Handshake,
   ArrowRight,
   Check,
   type LucideIcon
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
+import { ACADEMY_CLASS_FORMATS } from "../content";
 
 // Section background artwork (already in public/academy/)
 const SECTION_BG_LIGHT = "/programs/01_chess_reverie_light.webp";
@@ -29,44 +30,35 @@ interface LearningOption {
   highlight: boolean;
 }
 
+// Formats come from content.ts (also published in llms.txt): the names are
+// its names and the bullets restate its descriptions, so the page makes no
+// claim the structured data doesn't (and the reverse). The subtitles stay one
+// short line; a longer one runs under the piece artwork.
+const [individualFormat, buddyFormat, groupFormat] = ACADEMY_CLASS_FORMATS;
+
 const learningOptions: LearningOption[] = [
   {
-    title: "Individual Classes",
-    subtitle: "One-on-one personalized coaching.",
+    title: individualFormat.name,
+    subtitle: "One-on-one coaching.",
     Icon: User,
     pieceImage: IMG_INDIVIDUAL,
-    features: [
-      "Dedicated Grandmaster / FIDE coach",
-      "Personalized learning pace",
-      "Flexible lesson scheduling",
-      "Tailored focus on individual weaknesses"
-    ],
+    features: ["One-on-one coaching", "Personalised attention", "Flexible timing", "A custom curriculum"],
     highlight: false
   },
   {
-    title: "Batch / Group Classes",
-    subtitle: "Structured learning with peers.",
-    Icon: Users,
+    title: buddyFormat.name,
+    subtitle: "Learn together with friends.",
+    Icon: Handshake,
     pieceImage: IMG_BATCH,
-    features: [
-      "Interactive small batches (4–6 peers)",
-      "Collaborative tactics & discussions",
-      "Structured weekly curriculum",
-      "Friendly peer competition & motivation"
-    ],
+    features: ["Learn together with friends", "Interactive and fun", "A friendly competitive setting"],
     highlight: true
   },
   {
-    title: "Camps / Events",
-    subtitle: "Intensive training and tournament experiences.",
-    Icon: Calendar,
+    title: groupFormat.name,
+    subtitle: "Coaching in a group.",
+    Icon: Users,
     pieceImage: IMG_CAMPS,
-    features: [
-      "Weekend bootcamps & masterclasses",
-      "Intensive opening & endgame workshops",
-      "Live supervised tournament practice",
-      "Game analysis with guest masters"
-    ],
+    features: ["Collaborative coaching", "Affordable", "Team activities"],
     highlight: false
   }
 ];

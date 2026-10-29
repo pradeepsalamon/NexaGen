@@ -247,6 +247,7 @@ describe("student-view privacy", () => {
       "Black's queen on d8; White castles O-O-O on move 12.",
       "The Sicilian, a S-shaped pawn chain, 5 puzzles, lesson 2, 3 students.",
       "Moves 1 to 6, bus 2, vs 3, rooks 2, the 7th rank.",
+      "Sasha's 3 puzzles and the coach’s 2 hints.",
     ];
     for (const text of clean) expect(findStudentIdentifiers(text)).toEqual([]);
   });

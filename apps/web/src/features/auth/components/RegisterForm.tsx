@@ -176,8 +176,10 @@ export function RegisterForm() {
                 const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 2);
                 updateField("studentAge", digitsOnly);
               }}
-            pattern="[0-9]*"
+            // 3–99 with no leading zero: the demo form's rule.
+            pattern="[3-9]|[1-9][0-9]"
             placeholder="e.g. 9"
+            title="Enter an age from 3 to 99."
             required
             type="text"
             value={values.studentAge}

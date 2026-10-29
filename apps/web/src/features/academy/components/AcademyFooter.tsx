@@ -18,6 +18,7 @@ import {
   Youtube,
   Linkedin
 } from "@/components/icons/BrandIcons";
+import { ACADEMY_EMAIL, ACADEMY_PHONE, ACADEMY_SOCIAL_PROFILES } from "../content";
 
 type LinkItem = {
   label: string;
@@ -47,12 +48,19 @@ const supportLinks: LinkItem[] = [
   { label: "Privacy", href: "/privacy", isRoute: true }
 ];
 
-const socialLinks = [
-  { Icon: Facebook, href: "#", label: "Facebook" },
-  { Icon: Instagram, href: "#", label: "Instagram" },
-  { Icon: Youtube, href: "#", label: "YouTube" },
-  { Icon: Linkedin, href: "#", label: "LinkedIn" }
+const socialIcons = [
+  { Icon: Facebook, host: "facebook.com", label: "Facebook" },
+  { Icon: Instagram, host: "instagram.com", label: "Instagram" },
+  { Icon: Youtube, host: "youtube.com", label: "YouTube" },
+  { Icon: Linkedin, host: "linkedin.com", label: "LinkedIn" }
 ];
+
+// Only the academy's real profiles (content.ts, also in the JSON-LD sameAs);
+// none listed means no icons rather than dead "#" links.
+const socialLinks = socialIcons.flatMap(({ host, ...icon }) => {
+  const href = ACADEMY_SOCIAL_PROFILES.find((url) => url.includes(host));
+  return href ? [{ ...icon, href }] : [];
+});
 
 const linkClassName =
   "text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors flex items-center gap-2 group";
@@ -162,39 +170,6 @@ export function AcademyFooter() {
     <footer className="relative bg-[#FFFFFF] dark:bg-[#030D24] border-t border-[#E5E9F0] dark:border-white/10 select-none">
       <div className="relative max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-8">
 
-        {/* ================= NEWSLETTER BANNER ================= */}
-        {/* <div className="mb-14 rounded-[16px] bg-[#FEF9C3]/40 dark:bg-[#0F172A] border border-[#FEF08A] dark:border-white/5 p-5 sm:p-6 lg:p-8 flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-4 sm:gap-5 text-center lg:text-left flex-col sm:flex-row">
-            <div className="size-12 shrink-0 rounded-[12px] bg-[#FDE047] dark:bg-[#1E293B] flex items-center justify-center text-[#CA8A04] dark:text-[#EAB308] shadow-sm">
-              <Mail className="size-6" strokeWidth={1.8} />
-            </div>
-            <div>
-              <h3 className="text-[17px] sm:text-lg font-bold font-[family-name:var(--font-playfair)] text-[#071B41] dark:text-white mb-1">
-                Stay in the Loop
-              </h3>
-              <p className="text-[13px] sm:text-sm text-[#555C68] dark:text-[#9BA4B5]">
-                Get updates on new programs, tournaments, and chess tips.
-              </p>
-            </div>
-          </div>
-
-          <form className="w-full lg:w-auto flex flex-col sm:flex-row items-center gap-2 sm:gap-3 shrink-0">
-            <input
-              type="email"
-              placeholder="Enter your email address"
-              className="w-full sm:w-[280px] h-11 px-4 rounded-[8px] border border-[#E5E9F0] dark:border-white/10 bg-white dark:bg-[#030D24] text-[#071B41] dark:text-white placeholder:text-[#94A3B8] text-sm focus:outline-none focus:border-[#C88E2B] dark:focus:border-[#E2B355] transition-colors"
-              required
-            />
-            <button
-              type="submit"
-              className="w-full sm:w-auto h-11 px-5 rounded-[8px] bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C] hover:from-[#EDC36E] hover:to-[#D89B32] text-[#071B41] font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-sm shrink-0"
-            >
-              Subscribe
-              <Send className="size-4" strokeWidth={2.2} />
-            </button>
-          </form>
-        </div> */}
-
         {/* ================= MAIN FOOTER CONTENT ================= */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12">
 
@@ -224,13 +199,13 @@ export function AcademyFooter() {
 
             {/* select-text so visitors can copy the phone number / email */}
             <div className="flex flex-col gap-3 text-[13px] sm:text-sm text-[#555C68] dark:text-[#C1C4CC] mb-8 select-text">
-              <a href="tel:+917010854643" className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
+              <a href={`tel:+${ACADEMY_PHONE.replace(/\D/g, "")}`} className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
                 <Phone className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
-                +91 7010854643
+                {ACADEMY_PHONE.replace("-", " ")}
               </a>
-              <a href="mailto:nexachessacademy@gmail.com" className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
+              <a href={`mailto:${ACADEMY_EMAIL}`} className="flex items-center gap-3 hover:text-[#C88E2B] dark:hover:text-[#E2B355] transition-colors">
                 <Mail className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
-                nexachessacademy@gmail.com
+                {ACADEMY_EMAIL}
               </a>
               <span className="flex items-center gap-3">
                 <Globe className="size-4 shrink-0 text-[#C88E2B] dark:text-[#E2B355]" />
@@ -239,6 +214,7 @@ export function AcademyFooter() {
             </div>
 
             {/* Social Icons */}
+            {socialLinks.length > 0 ? (
             <div className="flex items-center gap-3">
               {socialLinks.map((social) => (
                 <a
@@ -246,11 +222,14 @@ export function AcademyFooter() {
                   href={social.href}
                   className="size-9 rounded-full bg-[#F8FAFC] dark:bg-[#1E293B] border border-[#E5E9F0] dark:border-white/5 flex items-center justify-center text-[#475569] dark:text-[#94A3B8] hover:text-[#C88E2B] hover:border-[#C88E2B] dark:hover:text-[#E2B355] dark:hover:border-[#E2B355] transition-all duration-200"
                   aria-label={social.label}
+                  rel="noopener noreferrer"
+                  target="_blank"
                 >
                   <social.Icon className="size-4" />
                 </a>
               ))}
             </div>
+            ) : null}
           </div>
 
           {/* Links Columns */}

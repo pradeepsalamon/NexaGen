@@ -96,12 +96,18 @@ export function CaptionTestClient() {
 
   const lastLines = segments.slice(-2);
   const settings = { fixChessTerms, lang };
+  // The settings the transcript was captured with: changing the language
+  // after Stop must not relabel what was already recorded.
+  const [captured, setCaptured] = useState(settings);
 
-  const handleStart = () => start(settings);
+  const handleStart = () => {
+    setCaptured(settings);
+    start(settings);
+  };
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(transcriptText(segments, settings));
+      await navigator.clipboard.writeText(transcriptText(segments, captured));
       toast.success({ title: "Transcript copied" });
     } catch {
       toast.error({ title: "Couldn't copy the transcript" });
@@ -109,11 +115,11 @@ export function CaptionTestClient() {
   };
 
   const handleDownload = () => {
-    const blob = new Blob([transcriptText(segments, settings)], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([transcriptText(segments, captured)], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `caption-test-${lang}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
+    link.download = `caption-test-${captured.lang}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
     link.click();
     URL.revokeObjectURL(url);
   };

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  */
 export function fieldClasses({ hasError = false, within = false }: { hasError?: boolean; within?: boolean } = {}) {
   return cn(
-    "rounded-control border bg-nx-field text-sm text-nx-ink transition-[border-color,box-shadow] placeholder:text-nx-slate-light hover:border-nx-line-strong disabled:cursor-not-allowed disabled:opacity-60",
+    "rounded-control border bg-nx-field text-sm text-nx-ink transition-[border-color,box-shadow] placeholder:text-nx-muted hover:border-nx-line-strong disabled:cursor-not-allowed disabled:opacity-60",
     within
       ? "focus-within:border-nx-gold-ink focus-within:shadow-nx-focus"
       : "focus:border-nx-gold-ink focus:shadow-nx-focus focus:outline-none",

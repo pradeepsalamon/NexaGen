@@ -38,14 +38,13 @@ export default function RegisterPage() {
 
       {/* Role Pill Switcher (Student | Coach) */}
       <div
-        role="tablist"
+        role="group"
         aria-label="Register as"
         className="grid grid-cols-2 gap-1.5 mb-3 p-1 rounded-full border bg-nx-field border-nx-line"
       >
         <button
           type="button"
-          role="tab"
-          aria-selected={role === "student"}
+          aria-pressed={role === "student"}
           onClick={() => setRole("student")}
           className={`h-8 sm:h-9 rounded-full text-xs sm:text-[13px] font-bold transition-all duration-200 cursor-pointer ${role === "student"
               ? "nx-cta"
@@ -56,8 +55,7 @@ export default function RegisterPage() {
         </button>
         <button
           type="button"
-          role="tab"
-          aria-selected={role === "coach"}
+          aria-pressed={role === "coach"}
           onClick={() => setRole("coach")}
           className={`h-8 sm:h-9 rounded-full text-xs sm:text-[13px] font-bold transition-all duration-200 cursor-pointer ${role === "coach"
               ? "nx-cta"
