@@ -15,7 +15,6 @@ import {
   EyeOff
 } from "lucide-react";
 import { useToast } from "@/providers/ToastProvider";
-import { useTheme } from "@/providers/ThemeProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { getStoredAcquisition } from "@/lib/acquisition";
 import { registerCoach } from "../api/authApi";
@@ -44,8 +43,6 @@ const initialValues: RegisterCoachRequest = {
 
 export function CoachRegisterForm() {
   const toast = useToast();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   const [values, setValues] = useState<RegisterCoachRequest>(initialValues);
   const [showPassword, setShowPassword] = useState(false);
@@ -121,7 +118,7 @@ export function CoachRegisterForm() {
       <div className="grid gap-3 text-center py-4">
         <CheckCircle2
           aria-hidden="true"
-          className="mx-auto size-11 text-emerald-500"
+          className="mx-auto size-11 text-nx-emerald"
           strokeWidth={2.3}
         />
         <div className="grid gap-1">
@@ -143,14 +140,11 @@ export function CoachRegisterForm() {
     );
   }
 
-  const surfaceInput = isDark
-    ? "bg-[#0B1D3F] border-white/15 text-white placeholder:text-[#8E98A8] focus:border-[#E2B355]"
-    : "bg-[#F8FAFC] border-[#DCE3EE] text-[#071B41] placeholder:text-[#94A3B8] focus:border-[#C58927]";
+  const surfaceInput = "bg-nx-field border-nx-field-line text-nx-ink placeholder:text-nx-icon-faint focus:border-nx-gold-ink";
 
   const inputWithIconClass = `w-full h-9 sm:h-[38px] pl-8 pr-3 rounded-xl text-xs border outline-none transition-colors ${surfaceInput}`;
   const inputPlainClass = `w-full h-9 sm:h-[38px] px-3 rounded-xl text-xs border outline-none transition-colors ${surfaceInput}`;
-  const labelBaseClass = `block text-[11px] font-bold mb-1 ${isDark ? "text-white" : "text-[#071B41]"
-    }`;
+  const labelBaseClass = `block text-[11px] font-bold mb-1 text-nx-ink`;
 
   return (
     <form className="space-y-2.5" onSubmit={handleSubmit}>
@@ -158,10 +152,10 @@ export function CoachRegisterForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor="coach-name" className={labelBaseClass}>
-            Full Name <span className="text-[#C58927]">*</span>
+            Full Name <span className="text-nx-gold-600">*</span>
           </label>
           <div className="relative">
-            <UserRound className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#64748B]" />
+            <UserRound className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
             <input
               id="coach-name"
               type="text"
@@ -177,10 +171,10 @@ export function CoachRegisterForm() {
 
         <div>
           <label htmlFor="email" className={labelBaseClass}>
-            Email Address <span className="text-[#C58927]">*</span>
+            Email Address <span className="text-nx-gold-600">*</span>
           </label>
           <div className="relative">
-            <AtSign className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#64748B]" />
+            <AtSign className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
             <input
               id="email"
               type="email"
@@ -200,10 +194,10 @@ export function CoachRegisterForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor="contact-number" className={labelBaseClass}>
-            WhatsApp / Phone Number <span className="text-[#C58927]">*</span>
+            WhatsApp / Phone Number <span className="text-nx-gold-600">*</span>
           </label>
           <div className="relative">
-            <Phone className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#64748B]" />
+            <Phone className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
             <input
               id="contact-number"
               type="tel"
@@ -330,10 +324,10 @@ export function CoachRegisterForm() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label htmlFor="coach-password" className={labelBaseClass}>
-            Password <span className="text-[#C58927]">*</span>
+            Password <span className="text-nx-gold-600">*</span>
           </label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#64748B]" />
+            <Lock className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
             <input
               id="coach-password"
               type={showPassword ? "text" : "password"}
@@ -348,7 +342,7 @@ export function CoachRegisterForm() {
               type="button"
               onClick={() => setShowPassword((p) => !p)}
               aria-label="Toggle password visibility"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#64748B]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-nx-slate"
             >
               {showPassword ? (
                 <EyeOff className="size-3.5" />
@@ -361,10 +355,10 @@ export function CoachRegisterForm() {
 
         <div>
           <label htmlFor="coach-confirm-password" className={labelBaseClass}>
-            Confirm Password <span className="text-[#C58927]">*</span>
+            Confirm Password <span className="text-nx-gold-600">*</span>
           </label>
           <div className="relative">
-            <Lock className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[#64748B]" />
+            <Lock className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-nx-slate" />
             <input
               id="coach-confirm-password"
               name="confirmPassword"
@@ -383,7 +377,7 @@ export function CoachRegisterForm() {
               type="button"
               onClick={() => setShowConfirm((p) => !p)}
               aria-label="Toggle confirm password visibility"
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#64748B]"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-nx-slate"
             >
               {showConfirm ? (
                 <EyeOff className="size-3.5" />
@@ -399,10 +393,7 @@ export function CoachRegisterForm() {
       <button
         type="submit"
         disabled={registerMutation.isPending}
-        className={`mt-1.5 w-full h-10 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 shadow-md transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-60 cursor-pointer ${isDark
-            ? "bg-gradient-to-r from-[#E5B85B] via-[#DDA843] to-[#CE942E] text-[#071B41]"
-            : "bg-[#071B41] hover:bg-[#0B2559] text-white"
-          }`}
+        className={`mt-1.5 w-full h-10 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 shadow-md transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-60 cursor-pointer nx-cta`}
       >
         <span>
           {registerMutation.isPending ? "Submitting..." : "Submit application"}
@@ -412,11 +403,10 @@ export function CoachRegisterForm() {
 
       {/* Approval Note */}
       <p
-        className={`flex items-center justify-center gap-1.5 text-center text-[11px] pt-0.5 ${isDark ? "text-[#C1C4CC]" : "text-[#555C68]"
-          }`}
+        className="flex items-center justify-center gap-1.5 text-center text-[11px] pt-0.5 text-nx-body"
       >
         <ShieldCheck
-          className="size-3.5 shrink-0 text-emerald-500"
+          className="size-3.5 shrink-0 text-nx-emerald"
           strokeWidth={2.4}
         />
         <span>

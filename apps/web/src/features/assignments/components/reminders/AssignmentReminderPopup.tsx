@@ -12,7 +12,6 @@ import {
   DialogTitle
 } from "@/components/ui/Dialog";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { useTheme } from "@/providers/ThemeProvider";
 import { useMyAssignmentReminders } from "../../hooks/useAssignmentsApi";
 import { describeReminderCounts } from "./reminderText";
 import { ReminderItemRow } from "./ReminderItemRow";
@@ -38,8 +37,6 @@ function markShown() {
 
 export function AssignmentReminderPopup() {
   const timeZone = useUserTimeZone();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
   const { data } = useMyAssignmentReminders();
   const [open, setOpen] = useState(false);
 
@@ -60,26 +57,19 @@ export function AssignmentReminderPopup() {
   return (
     <Dialog onOpenChange={setOpen} open={open}>
       <DialogContent
-        className={`max-h-[90dvh] overflow-y-auto sm:max-w-md rounded-2xl border p-6 ${isDark
-            ? "bg-[#07142B] border-white/12 text-white"
-            : "bg-white border-[#E8EDF5] text-[#071B41]"
-          }`}
+        className="max-h-[90dvh] overflow-y-auto sm:max-w-md rounded-2xl border p-6 bg-nx-card border-nx-line text-nx-ink"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2.5 text-base sm:text-lg font-bold">
             <span
-              className={`flex size-9 shrink-0 items-center justify-center rounded-xl border ${isDark
-                  ? "bg-red-500/15 border-red-500/30 text-red-400"
-                  : "bg-red-50 border-red-200 text-red-600"
-                }`}
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl border bg-nx-danger-soft border-nx-danger-line text-nx-danger-ink"
             >
               <AlertTriangle aria-hidden className="size-4.5" strokeWidth={2.2} />
             </span>
             <span>Don&apos;t forget your homework</span>
           </DialogTitle>
           <DialogDescription
-            className={`text-xs sm:text-sm mt-1 ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-              }`}
+            className="text-xs sm:text-sm mt-1 text-nx-muted"
           >
             You have {describeReminderCounts(data.counts)}.
           </DialogDescription>
@@ -100,10 +90,7 @@ export function AssignmentReminderPopup() {
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className={`h-9 px-4 rounded-full text-xs font-bold border transition-colors cursor-pointer ${isDark
-                ? "bg-[#0B1B38] border-white/15 text-white hover:border-white/30"
-                : "bg-white border-[#CBD5E1] text-[#071B41] hover:bg-[#F8FAFC]"
-              }`}
+            className={`h-9 px-4 rounded-full text-xs font-bold border transition-colors cursor-pointer bg-nx-raised border-nx-line-strong text-nx-ink hover:border-nx-line-strong-hover hover:bg-nx-raised-hover`}
           >
             Later
           </button>
@@ -111,10 +98,7 @@ export function AssignmentReminderPopup() {
           <Link
             href="/student/practice"
             onClick={() => setOpen(false)}
-            className={`inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold transition-all ${isDark
-                ? "bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C] text-[#071B41]"
-                : "bg-[#071B41] hover:bg-[#0B2559] text-white"
-              }`}
+            className={`inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold transition-all nx-cta`}
           >
             <span>Go to assignments</span>
             <ArrowRight className="size-3.5" strokeWidth={2.3} />

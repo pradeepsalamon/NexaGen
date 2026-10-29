@@ -14,14 +14,11 @@ import {
 import type { NavItem } from "@/components/layout/navItems";
 import { useAuthStore } from "@/stores/authStore";
 import { useSidebarStore } from "@/stores/sidebarStore";
-import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
 
 /** Signed-in user pinned to the drawer's foot; links to their profile. */
 function NavDrawerUser() {
   const user = useAuthStore((state) => state.user);
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   if (!user) return null;
 
@@ -35,18 +32,14 @@ function NavDrawerUser() {
     <Link
       className={cn(
         "flex items-center gap-3 rounded-[14px] p-2.5 transition-colors duration-150 border",
-        isDark
-          ? "bg-[#0B1D3F] border-white/10 text-white hover:bg-[#102652]"
-          : "bg-[#F8FAFC] border-[#E8EDF5] text-[#071B41] hover:bg-[#EEF2F7]"
+        "bg-nx-field border-nx-line text-nx-ink hover:bg-nx-hover-strong"
       )}
       href="/profile"
     >
       <span
         className={cn(
           "flex size-9 shrink-0 items-center justify-center rounded-[10px] text-xs font-extrabold",
-          isDark
-            ? "bg-[#1A2E56] text-[#E2B355]"
-            : "bg-[#FDF3DC] text-[#C58927]"
+          "bg-nx-gold-active text-nx-gold-ink"
         )}
       >
         {initials}
@@ -56,7 +49,7 @@ function NavDrawerUser() {
         <span
           className={cn(
             "block truncate text-[11px]",
-            isDark ? "text-[#94A3B8]" : "text-[#64748B]"
+            "text-nx-muted"
           )}
         >
           {user.email}
@@ -86,8 +79,6 @@ export function NavDrawer({
   const show = useSidebarStore((state) => state.show);
   const toggle = useSidebarStore((state) => state.toggle);
   const setAvailable = useSidebarStore((state) => state.setAvailable);
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   const panelRef = useRef<HTMLElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -224,24 +215,16 @@ export function NavDrawer({
         <aside
           aria-label={`${title} navigation`}
           ref={panelRef}
-          style={{
-            backgroundColor: isDark ? "#06132B" : "#FFFFFF"
-          }}
           className={cn(
             "flex h-full flex-col overflow-hidden rounded-[22px] border transition-colors duration-200",
-            isDark
-              ? "bg-[#06132B] border-white/15 text-white shadow-[0_24px_60px_rgba(0,0,0,0.85)]"
-              : "bg-white border-[#DCE3EE] text-[#071B41] shadow-[0_20px_50px_rgba(7,27,65,0.22)]"
+            "bg-nx-card border-nx-field-line text-nx-ink shadow-nx-drawer"
           )}
         >
           {/* Drawer Header */}
           <div
-            style={{
-              backgroundColor: isDark ? "#081735" : "#FAFBFD"
-            }}
             className={cn(
               "flex shrink-0 items-center justify-between gap-3 border-b px-5 py-3.5",
-              isDark ? "border-white/10" : "border-[#EEF2F7]"
+              "border-nx-line bg-nx-drawer-bar"
             )}
           >
             <span className="font-display text-base font-bold tracking-tight">
@@ -251,9 +234,7 @@ export function NavDrawer({
               <span
                 className={cn(
                   "min-w-0 truncate rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em]",
-                  isDark
-                    ? "border-[#E2B355]/35 bg-[#E2B355]/15 text-[#E2B355]"
-                    : "border-[#F3DFB6] bg-[#FDF3DC] text-[#C58927]"
+                  "border-nx-gold-line-strong bg-nx-gold-tint text-nx-gold-ink"
                 )}
               >
                 {subtitle}
@@ -263,9 +244,6 @@ export function NavDrawer({
 
           {/* Drawer Navigation Links */}
           <nav
-            style={{
-              backgroundColor: isDark ? "#06132B" : "#FFFFFF"
-            }}
             className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overscroll-contain px-3.5 py-3.5 [contain:content] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
           >
             {children}
@@ -273,12 +251,9 @@ export function NavDrawer({
 
           {/* Drawer Footer */}
           <div
-            style={{
-              backgroundColor: isDark ? "#081735" : "#FAFBFD"
-            }}
             className={cn(
               "flex shrink-0 flex-col gap-2 border-t p-3",
-              isDark ? "border-white/10" : "border-[#EEF2F7]"
+              "border-nx-line bg-nx-drawer-bar"
             )}
           >
             {footer ?? <NavDrawerUser />}
@@ -297,7 +272,7 @@ export function NavDrawer({
           >
             <span
               className={cn(
-                "h-12 w-1 rounded-full bg-[#D49B35]/60 transition-opacity duration-200",
+                "h-12 w-1 rounded-full bg-nx-gold-500/60 transition-opacity duration-200",
                 peek || dragging ? "opacity-100" : "opacity-0"
               )}
             />
@@ -309,7 +284,7 @@ export function NavDrawer({
           aria-expanded={open}
           aria-label={open ? "Close sidebar" : "Open sidebar"}
           className={cn(
-            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-gradient-to-b from-[#E6B960] to-[#CC922C] text-[#071B41] shadow-md transition-[width,margin,border-radius] duration-300 cursor-pointer",
+            "absolute left-full top-1/2 flex h-14 -translate-y-1/2 items-center justify-center bg-gradient-to-b from-nx-gold-300 to-nx-gold-700 text-nx-navy shadow-md transition-[width,margin,border-radius] duration-300 cursor-pointer",
             open
               ? "ml-2 w-7 rounded-xl"
               : "w-5 touch-none rounded-r-xl hover:w-6"
@@ -336,19 +311,19 @@ export function NavDrawer({
 }
 
 const BADGE_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
-  accent: "bg-[#FDF3DC] text-[#C58927]",
-  danger: "bg-red-500 text-white",
-  primary: "bg-[#071B41] text-white",
-  secondary: "bg-[#E5B85B] text-[#071B41]",
-  warm: "bg-amber-500/20 text-amber-500"
+  accent: "bg-nx-gold-50 text-nx-gold-600",
+  danger: "bg-nx-live text-white",
+  primary: "bg-nx-navy text-white",
+  secondary: "bg-nx-gold-350 text-nx-navy",
+  warm: "bg-nx-amber/20 text-nx-amber"
 };
 
 const DOT_TONE: Record<NonNullable<NavItem["badge"]>["tone"], string> = {
-  accent: "bg-[#D49B35]",
-  danger: "bg-red-500",
-  primary: "bg-[#071B41]",
-  secondary: "bg-[#E5B85B]",
-  warm: "bg-amber-500"
+  accent: "bg-nx-gold-500",
+  danger: "bg-nx-live",
+  primary: "bg-nx-navy",
+  secondary: "bg-nx-gold-350",
+  warm: "bg-nx-amber"
 };
 
 function NavBadge({ badge }: { badge: NonNullable<NavItem["badge"]> }) {
@@ -387,8 +362,6 @@ export function NavDrawerLink({
 }) {
   const Icon = item.icon;
   const close = useSidebarStore((state) => state.close);
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   return (
     <Link
@@ -396,12 +369,8 @@ export function NavDrawerLink({
       className={cn(
         "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-all duration-150",
         active
-          ? isDark
-            ? "bg-[#192D54] text-[#E2B355] border border-[#E2B355]/35 font-bold shadow-2xs"
-            : "bg-[#FDF3DC] text-[#071B41] border border-[#F3DFB6] font-bold shadow-2xs"
-          : isDark
-            ? "text-[#C8CDD6] hover:bg-[#0D2147] hover:text-white"
-            : "text-[#3B4454] hover:bg-[#F1F5F9] hover:text-[#071B41]"
+          ? "bg-nx-gold-active text-nx-emphasis border border-nx-gold-line-strong font-bold shadow-2xs"
+          : "text-nx-nav-ink hover:bg-nx-hover hover:text-nx-ink"
       )}
       href={item.href}
       onClick={close}
@@ -412,12 +381,8 @@ export function NavDrawerLink({
           className={cn(
             "size-[18px]",
             active
-              ? isDark
-                ? "text-[#E2B355]"
-                : "text-[#C58927]"
-              : isDark
-                ? "text-[#8E98A8]"
-                : "text-[#64748B]"
+              ? "text-nx-gold-ink"
+              : "text-nx-icon"
           )}
           strokeWidth={active ? 2.3 : 2}
         />
@@ -446,8 +411,6 @@ export function NavDrawerAccordion({
   open: boolean;
 }) {
   const close = useSidebarStore((state) => state.close);
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
   const panelId = `sidebar-submenu-${id}`;
 
   return (
@@ -458,12 +421,8 @@ export function NavDrawerAccordion({
         className={cn(
           "flex h-10 w-full items-center gap-3 rounded-xl px-3 text-sm font-semibold text-left transition-colors duration-150",
           open
-            ? isDark
-              ? "bg-[#0D2147] text-white"
-              : "bg-[#F1F5F9] text-[#071B41]"
-            : isDark
-              ? "text-[#C8CDD6] hover:bg-[#0D2147] hover:text-white"
-              : "text-[#3B4454] hover:bg-[#F1F5F9] hover:text-[#071B41]"
+            ? "bg-nx-hover text-nx-ink"
+            : "text-nx-nav-ink hover:bg-nx-hover hover:text-nx-ink"
         )}
         onClick={onToggle}
         type="button"
@@ -492,9 +451,7 @@ export function NavDrawerAccordion({
         <div
           className={cn(
             "flex flex-col gap-1 rounded-xl p-2 ml-3 border-l",
-            isDark
-              ? "border-white/10 bg-[#081735]"
-              : "border-[#E2E8F0] bg-[#F8FAFC]"
+            "border-nx-line bg-nx-tile"
           )}
         >
           {items.map((item) => {
@@ -506,12 +463,8 @@ export function NavDrawerAccordion({
                 className={cn(
                   "flex h-9 items-center gap-2 rounded-lg px-2.5 text-xs transition-colors duration-150",
                   active
-                    ? isDark
-                      ? "bg-[#192D54] text-[#E2B355] font-bold"
-                      : "bg-[#FDF3DC] text-[#071B41] font-bold"
-                    : isDark
-                      ? "text-[#C8CDD6] hover:bg-[#0D2147] hover:text-white font-medium"
-                      : "text-[#3B4454] hover:bg-white hover:text-[#071B41] font-medium"
+                    ? "bg-nx-gold-active text-nx-emphasis font-bold"
+                    : "text-nx-nav-ink hover:bg-nx-ink-inverse hover:text-nx-ink font-medium"
                 )}
                 href={item.href}
                 key={item.href}

@@ -6,7 +6,6 @@ import Link from "next/link";
 import type { StudentDashboardLiveClass } from "@nexa-chess/types";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { useTheme } from "@/providers/ThemeProvider";
 import { formatRelativeDay, formatTime } from "@/lib/datetime";
 
 type FeaturedClass = {
@@ -44,13 +43,9 @@ function useElapsed(since: string | null | undefined) {
 
 export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
   const timeZone = useUserTimeZone();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
   const uptime = useElapsed(liveClass?.startedAt ?? liveClass?.startsAt);
 
-  const surfaceClass = isDark
-    ? "bg-[#07142B] border-white/10 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-    : "bg-white border-[#E8EDF5] text-[#071B41] shadow-[0_4px_20px_rgba(7,27,65,0.04)]";
+  const surfaceClass = "bg-nx-card border-nx-line text-nx-ink shadow-nx-card";
 
   if (liveClass) {
     return (
@@ -58,10 +53,10 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
         className={`flex flex-col gap-4 rounded-2xl border p-4 sm:p-5 sm:flex-row sm:items-center sm:justify-between ${surfaceClass}`}
       >
         <div className="min-w-0">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-red-500">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-nx-live">
             <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full rounded-full bg-red-500 opacity-75 motion-safe:animate-ping" />
-              <span className="relative inline-flex size-2 rounded-full bg-red-500" />
+              <span className="absolute inline-flex size-full rounded-full bg-nx-live opacity-75 motion-safe:animate-ping" />
+              <span className="relative inline-flex size-2 rounded-full bg-nx-live" />
             </span>
             Live now
           </span>
@@ -69,15 +64,14 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
             {liveClass.topic}
           </h2>
           <p
-            className={`mt-0.5 text-xs sm:text-sm ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-              }`}
+            className="mt-0.5 text-xs sm:text-sm text-nx-muted"
           >
             {liveClass.coachName}
             {uptime ? ` · live for ${uptime}` : ""}
             {` · ends ${formatTime(liveClass.endsAt, timeZone)}`}
           </p>
           {liveClass.coachPresent === false ? (
-            <p className="mt-1 text-xs text-amber-500">
+            <p className="mt-1 text-xs text-nx-amber">
               Waiting for your coach to join.
             </p>
           ) : null}
@@ -85,7 +79,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
 
         <Link
           href={`/live-class/${liveClass.id}`}
-          className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs sm:text-sm font-bold shrink-0 transition-colors"
+          className="inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full bg-nx-live-strong hover:bg-nx-live-deep text-white text-xs sm:text-sm font-bold shrink-0 transition-colors"
         >
           <Play aria-hidden="true" className="size-3.5 fill-current" />
           <span>Join class</span>
@@ -101,10 +95,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
       >
         <div className="flex items-start sm:items-center gap-3.5">
           <span
-            className={`flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl border ${isDark
-                ? "bg-[#112244] border-[#E2B355]/25 text-[#E2B355]"
-                : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C58927]"
-              }`}
+            className="flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl border bg-nx-gold-soft border-nx-gold-line text-nx-gold-ink"
           >
             <CalendarX2 aria-hidden="true" className="size-5" strokeWidth={2} />
           </span>
@@ -114,8 +105,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
               No classes scheduled
             </h2>
             <p
-              className={`mt-0.5 text-xs sm:text-[13px] leading-relaxed ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                }`}
+              className="mt-0.5 text-xs sm:text-[13px] leading-relaxed text-nx-muted"
             >
               Your next class will show up here. Meanwhile, catch up on your
               assignments.
@@ -125,10 +115,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
 
         <Link
           href="/student/practice"
-          className={`inline-flex items-center justify-center h-9 sm:h-10 px-5 rounded-full text-xs font-bold border shrink-0 transition-colors ${isDark
-              ? "bg-[#0B1B38] border-white/15 text-white hover:border-[#E2B355]"
-              : "bg-white border-[#CBD5E1] text-[#071B41] hover:border-[#071B41]"
-            }`}
+          className="inline-flex items-center justify-center h-9 sm:h-10 px-5 rounded-full text-xs font-bold border shrink-0 transition-colors bg-nx-tile border-nx-line-strong text-nx-ink hover:border-nx-emphasis"
         >
           View Assignments
         </Link>
@@ -146,8 +133,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <p
-            className={`text-xs font-bold uppercase tracking-wider ${isDark ? "text-[#E2B355]" : "text-[#C58927]"
-              }`}
+            className="text-xs font-bold uppercase tracking-wider text-nx-gold-ink"
           >
             {day === "Today" ? "Today's class" : "Next class"}
           </p>
@@ -157,8 +143,7 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
           {nextClass.topic}
         </h2>
         <p
-          className={`mt-0.5 text-xs sm:text-sm ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-            }`}
+          className="mt-0.5 text-xs sm:text-sm text-nx-muted"
         >
           {nextClass.coachName ? `${nextClass.coachName} · ` : ""}
           {day !== "Today" ? `${day}, ` : ""}
@@ -170,10 +155,8 @@ export function NextClassCard({ liveClass, nextClass }: NextClassCardProps) {
       <Link
         href={`/classes/${nextClass.id}`}
         className={`inline-flex items-center justify-center gap-2 h-10 px-5 rounded-full text-xs sm:text-sm font-bold shrink-0 transition-colors ${finished
-            ? isDark
-              ? "border border-white/15 text-white"
-              : "border border-[#CBD5E1] text-[#071B41]"
-            : "bg-[#071B41] text-white dark:bg-[#E2B355] dark:text-[#071B41]"
+            ? "border border-nx-line-strong text-nx-ink"
+            : "bg-nx-emphasis text-nx-ink-inverse"
           }`}
       >
         <span>View class</span>

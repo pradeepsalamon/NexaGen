@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { AlarmClock, AlertTriangle, ArrowRight } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { useTheme } from "@/providers/ThemeProvider";
 import { cn } from "@/lib/utils";
 import { useMyAssignmentReminders } from "../../hooks/useAssignmentsApi";
 import { describeReminderCounts } from "./reminderText";
@@ -14,8 +13,6 @@ const SHOWN = 3;
 /** Student dashboard: overdue / due-today / due-soon work, nearest first. Hidden when there is none. */
 export function AssignmentReminderBanner() {
   const timeZone = useUserTimeZone();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
   const { data } = useMyAssignmentReminders();
 
   if (!data || data.items.length === 0) return null;
@@ -28,10 +25,8 @@ export function AssignmentReminderBanner() {
       aria-label="Assignment reminders"
       className={cn(
         "rounded-2xl border border-l-4 p-4 sm:p-5 transition-colors duration-200",
-        isDark
-          ? "bg-[#07142B] border-white/10 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-          : "bg-white border-[#E8EDF5] text-[#071B41] shadow-[0_4px_20px_rgba(7,27,65,0.04)]",
-        urgent ? "border-l-red-500" : "border-l-[#D49B35]"
+        "bg-nx-card border-nx-line text-nx-ink shadow-nx-card",
+        urgent ? "border-l-nx-live" : "border-l-nx-gold-500"
       )}
     >
       <div className="flex flex-col gap-3.5 sm:flex-row sm:items-center sm:justify-between">
@@ -40,12 +35,8 @@ export function AssignmentReminderBanner() {
             className={cn(
               "flex size-10 shrink-0 items-center justify-center rounded-xl border",
               urgent
-                ? isDark
-                  ? "bg-red-500/15 border-red-500/30 text-red-400"
-                  : "bg-red-50 border-red-200 text-red-600"
-                : isDark
-                  ? "bg-[#112244] border-[#E2B355]/25 text-[#E2B355]"
-                  : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C58927]"
+                ? "bg-nx-danger-soft border-nx-danger-line text-nx-danger-ink"
+                : "bg-nx-gold-soft border-nx-gold-line text-nx-gold-ink"
             )}
           >
             <Icon aria-hidden className="size-5" strokeWidth={2} />
@@ -60,7 +51,7 @@ export function AssignmentReminderBanner() {
             <p
               className={cn(
                 "mt-0.5 text-xs sm:text-[13px]",
-                isDark ? "text-[#94A3B8]" : "text-[#64748B]"
+                "text-nx-muted"
               )}
             >
               You have {describeReminderCounts(data.counts)}.
@@ -72,9 +63,7 @@ export function AssignmentReminderBanner() {
           href="/student/practice"
           className={cn(
             "inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-full text-xs font-bold border shrink-0 self-start sm:self-center transition-colors",
-            isDark
-              ? "bg-[#0B1B38] border-white/15 text-white hover:border-[#E2B355]"
-              : "bg-white border-[#CBD5E1] text-[#071B41] hover:border-[#071B41]"
+            "bg-nx-tile border-nx-line-strong text-nx-ink hover:border-nx-emphasis"
           )}
         >
           <span>See all assignments</span>
@@ -92,7 +81,7 @@ export function AssignmentReminderBanner() {
         <p
           className={cn(
             "mt-2 px-2 text-xs font-medium",
-            isDark ? "text-[#94A3B8]" : "text-[#64748B]"
+            "text-nx-muted"
           )}
         >
           +{data.items.length - SHOWN} more on the assignments page

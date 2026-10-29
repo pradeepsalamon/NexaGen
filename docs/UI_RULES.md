@@ -2,8 +2,16 @@
 
 These rules keep every screen looking and behaving like one product. They apply
 to everything under `apps/web/src` except the academy marketing site
-(`app/academy`, `features/academy`), which has its own brand, and the recording
-template (`app/recorder`).
+(`features/academy`, rendered by `app/page.tsx`), which has its own brand, and the
+recording template (`app/recorder`).
+
+**The navy/gold redesign** (student dashboard, app shell, auth pages) uses the
+`nx-*` colours: theme-switched roles (`text-nx-ink`, `bg-nx-card`,
+`border-nx-line`, `text-nx-gold-ink` …) are CSS variables in `globals.css`, fixed
+brand shades (`nx-navy`, `nx-gold-400` …) are hex in `tailwind.config.ts`, and its
+primary button is the `nx-cta` class. Never branch on `useTheme()` to pick a
+colour — the variables switch with `data-theme` before first paint; JS only knows
+the theme after hydration, so dark mode would paint light first.
 
 **The one rule behind all the others:** use the shared component or the theme
 token. If you find yourself typing a hex colour, a Tailwind palette colour

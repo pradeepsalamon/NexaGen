@@ -102,14 +102,12 @@ export function AuthSplitShell({
 
     return (
         <div
-            className={`relative min-h-[100dvh] w-full overflow-x-hidden flex flex-col select-none transition-colors duration-300 ${isDark ? "bg-[#030D24] text-white" : "bg-[#F4F7FB] text-[#071B41]"
-                }`}
+            className="relative min-h-[100dvh] w-full overflow-x-hidden flex flex-col select-none transition-colors duration-300 bg-nx-backdrop text-nx-ink"
         >
             {/* ================= FULL-BLEED BACKGROUND ARTWORK ================= */}
             <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
                 <div
-                    className={`absolute inset-0 ${isDark ? "bg-[#030D24]" : "bg-[#F4F7FB]"
-                        }`}
+                    className="absolute inset-0 bg-nx-backdrop"
                 />
 
                 {/* Light Mode Image */}
@@ -124,7 +122,7 @@ export function AuthSplitShell({
                         sizes="100vw"
                         className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
                     />
-                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-[#F4F7FB] via-[#F4F7FB]/65 to-transparent" />
+                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-nx-snow-blue via-nx-snow-blue/65 to-transparent" />
                 </div>
 
                 {/* Dark Mode Image */}
@@ -141,7 +139,7 @@ export function AuthSplitShell({
                         sizes="100vw"
                         className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
                     />
-                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-[#030D24] via-[#030D24]/65 to-transparent" />
+                    <div className="absolute inset-x-0 top-0 h-[44%] bg-gradient-to-b from-nx-navy-deep via-nx-navy-deep/65 to-transparent" />
                 </div>
             </div>
 
@@ -153,16 +151,19 @@ export function AuthSplitShell({
                     aria-label="Back to Nexa Chess Home"
                 >
                     <Image
-                        src={
-                            isDark
-                                ? "/academy/nexa_logo_dark1.png"
-                                : "/academy/nexa_logo_light1.png"
-                        }
+                        src="/academy/nexa_logo_light1.png"
                         alt="NEXA Chess"
                         width={160}
                         height={44}
                         priority
-                        className="h-8 sm:h-9 w-auto object-contain"
+                        className="h-8 sm:h-9 w-auto object-contain dark:hidden"
+                    />
+                    <Image
+                        src="/academy/nexa_logo_dark1.png"
+                        alt="NEXA Chess"
+                        width={160}
+                        height={44}
+                        className="hidden h-8 sm:h-9 w-auto object-contain dark:block"
                     />
                 </Link>
 
@@ -171,24 +172,15 @@ export function AuthSplitShell({
                     onClick={toggleMode}
                     type="button"
                     aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-                    className={`inline-flex items-center gap-1 p-1 rounded-full backdrop-blur-md border shadow-xs transition-all duration-200 cursor-pointer ${isDark
-                            ? "bg-[#0B1A38]/90 border-white/15"
-                            : "bg-white/90 border-[#E2E8F0]"
-                        }`}
+                    className="inline-flex items-center gap-1 p-1 rounded-full backdrop-blur-md border shadow-xs transition-all duration-200 cursor-pointer bg-nx-glass border-nx-field-line"
                 >
                     <span
-                        className={`size-6 rounded-full flex items-center justify-center transition-all ${!isDark
-                                ? "bg-[#FDF3DC] text-[#D49B35]"
-                                : "text-[#8E98A8] hover:text-white"
-                            }`}
+                        className="size-6 rounded-full flex items-center justify-center transition-all bg-nx-toggle-sun text-nx-toggle-sun-ink hover:text-nx-toggle-sun-hover"
                     >
                         <Sun className="size-3.5" strokeWidth={2.2} />
                     </span>
                     <span
-                        className={`size-6 rounded-full flex items-center justify-center transition-all ${isDark
-                                ? "bg-[#162952] text-[#E2B355]"
-                                : "text-[#64748B] hover:text-[#071B41]"
-                            }`}
+                        className="size-6 rounded-full flex items-center justify-center transition-all bg-nx-toggle-moon text-nx-toggle-moon-ink hover:text-nx-toggle-moon-hover"
                     >
                         <Moon className="size-3.5" strokeWidth={2.2} />
                     </span>
@@ -210,15 +202,11 @@ export function AuthSplitShell({
                         <div className="max-w-[390px]">
                             {/* Academy Pill Badge */}
                             <div
-                                className={`inline-flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md border shadow-2xs mb-2.5 ${isDark
-                                        ? "bg-[#0B1A38]/90 border-white/15"
-                                        : "bg-white/90 border-[#E2E8F0]"
-                                    }`}
+                                className="inline-flex items-center gap-2 px-3 py-1 rounded-full backdrop-blur-md border shadow-2xs mb-2.5 bg-nx-glass border-nx-field-line"
                             >
-                                <Crown className="size-3.5 text-[#D49B35]" strokeWidth={2.3} />
+                                <Crown className="size-3.5 text-nx-gold-500" strokeWidth={2.3} />
                                 <span
-                                    className={`text-[11px] font-semibold ${isDark ? "text-white/90" : "text-[#071B41]"
-                                        }`}
+                                    className="text-[11px] font-semibold text-nx-ink-soft"
                                 >
                                     Live chess coaching academy
                                 </span>
@@ -226,16 +214,14 @@ export function AuthSplitShell({
 
                             {/* Serif Display Heading */}
                             <h1
-                                className={`font-display font-bold text-3xl xl:text-[38px] leading-[1.1] tracking-[-0.02em] mb-2.5 ${isDark ? "text-white" : "text-[#071B41]"
-                                    }`}
+                                className="font-display font-bold text-3xl xl:text-[38px] leading-[1.1] tracking-[-0.02em] mb-2.5 text-nx-ink"
                             >
                                 {heroContent.title}
                             </h1>
 
                             {/* Subtitle */}
                             <p
-                                className={`text-xs xl:text-[13px] leading-relaxed mb-4 max-w-[350px] ${isDark ? "text-[#C1C4CC]" : "text-[#2F3847]"
-                                    }`}
+                                className="text-xs xl:text-[13px] leading-relaxed mb-4 max-w-[350px] text-nx-body-strong"
                             >
                                 {heroContent.subtitle}
                             </p>
@@ -243,35 +229,25 @@ export function AuthSplitShell({
                             {/* Login / Forgot-Password Highlight Card */}
                             {(variant === "login" || variant === "forgot-password") && (
                                 <div
-                                    className={`max-w-[300px] rounded-2xl p-3.5 backdrop-blur-md border flex items-start gap-3 ${isDark
-                                            ? "bg-[#091936]/90 border-white/15 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.55)]"
-                                            : "bg-white/92 border-[#E5E9F0] shadow-[0_10px_28px_-8px_rgba(7,27,65,0.12)]"
-                                        }`}
+                                    className="max-w-[300px] rounded-2xl p-3.5 backdrop-blur-md border flex items-start gap-3 bg-nx-auth-note border-nx-line-glass shadow-nx-float"
                                 >
                                     <div
-                                        className={`size-9 rounded-xl shrink-0 flex items-center justify-center border ${isDark
-                                                ? "bg-[#E2B355]/15 border-[#E2B355]/30 text-[#E2B355]"
-                                                : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C88E2B]"
-                                            }`}
+                                        className="size-9 rounded-xl shrink-0 flex items-center justify-center border bg-nx-gold-tint border-nx-gold-line-medium text-nx-gold-ink"
                                     >
                                         <TrendingUp className="size-4" strokeWidth={2.2} />
                                     </div>
                                     <div>
                                         <div
-                                            className={`text-xs font-bold ${isDark ? "text-white" : "text-[#071B41]"
-                                                }`}
+                                            className="text-xs font-bold text-nx-ink"
                                         >
-                                            {isDark
-                                                ? "Practice between classes"
-                                                : "Progress you can see"}
+                                            <span className="dark:hidden">Progress you can see</span>
+                                            <span className="hidden dark:inline">Practice between classes</span>
                                         </div>
                                         <p
-                                            className={`text-[11px] leading-snug mt-0.5 ${isDark ? "text-[#C1C4CC]" : "text-[#555C68]"
-                                                }`}
+                                            className="text-[11px] leading-snug mt-0.5 text-nx-body"
                                         >
-                                            {isDark
-                                                ? "Solve puzzles, play games and sharpen your skills."
-                                                : "Track your improvement with personalized guidance."}
+                                            <span className="dark:hidden">Track your improvement with personalized guidance.</span>
+                                            <span className="hidden dark:inline">Solve puzzles, play games and sharpen your skills.</span>
                                         </p>
                                     </div>
                                 </div>
@@ -285,16 +261,12 @@ export function AuthSplitShell({
                                     {featureBullets.map(({ Icon, label }) => (
                                         <div key={label} className="flex items-center gap-3">
                                             <div
-                                                className={`size-9 rounded-xl shrink-0 flex items-center justify-center border shadow-xs ${isDark
-                                                        ? "bg-[#0B1A38]/90 border-[#E2B355]/35 text-[#E2B355]"
-                                                        : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C88E2B]"
-                                                    }`}
+                                                className="size-9 rounded-xl shrink-0 flex items-center justify-center border shadow-xs bg-nx-gold-glass border-nx-gold-line-strong text-nx-gold-ink"
                                             >
                                                 <Icon className="size-4" strokeWidth={2.2} />
                                             </div>
                                             <span
-                                                className={`text-xs font-bold leading-snug whitespace-pre-line ${isDark ? "text-white" : "text-[#071B41]"
-                                                    }`}
+                                                className="text-xs font-bold leading-snug whitespace-pre-line text-nx-ink"
                                             >
                                                 {label}
                                             </span>
@@ -307,10 +279,7 @@ export function AuthSplitShell({
                     {/* RIGHT FORM CARD COLUMN */}
                     <div className="lg:col-span-7 flex justify-center lg:justify-end items-center">
                         <div
-                            className={`w-full ${cardMaxWidthClass} rounded-[22px] backdrop-blur-xl border px-5 py-4 sm:px-7 sm:py-5 transition-all duration-300 ${isDark
-                                    ? "bg-[#071633]/92 border-white/12 shadow-[0_24px_70px_-12px_rgba(0,0,0,0.75)]"
-                                    : "bg-white/95 border-[#E5E9F0] shadow-[0_20px_60px_-15px_rgba(7,27,65,0.16)]"
-                                }`}
+                            className={`w-full ${cardMaxWidthClass} rounded-[22px] backdrop-blur-xl border px-5 py-4 sm:px-7 sm:py-5 transition-all duration-300 bg-nx-auth-card border-nx-line shadow-nx-panel`}
                         >
                             {children}
                         </div>

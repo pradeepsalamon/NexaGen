@@ -9,7 +9,6 @@ import { AssignmentReminderPopup } from "@/features/assignments/components/remin
 import { DashboardFeedback } from "@/features/feedback/components/DashboardFeedback";
 import { RevisionDashboardCard } from "@/features/revision/components/RevisionDashboardCard";
 import { useAuthStore } from "@/stores/authStore";
-import { useTheme } from "@/providers/ThemeProvider";
 import { useStudentDashboard } from "../hooks/useStudentApi";
 import { Announcements } from "./Announcements";
 import { ContinueLearning } from "./ContinueLearning";
@@ -21,8 +20,6 @@ import { UpcomingClasses } from "./UpcomingClasses";
 
 export function StudentDashboardClient() {
   const { user } = useAuthStore();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
   const { data, error, isLoading, refetch } = useStudentDashboard();
 
   const displayName = user?.firstName || "Test";
@@ -31,14 +28,12 @@ export function StudentDashboardClient() {
     <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
       <div>
         <h1
-          className={`font-display text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#071B41]"
-            }`}
+          className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-nx-ink"
         >
           Welcome back, {displayName}!
         </h1>
         <p
-          className={`mt-1 text-xs sm:text-sm ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-            }`}
+          className="mt-1 text-xs sm:text-sm text-nx-muted"
         >
           {data?.batchName ||
             "Keep learning, keep improving. Chess is a journey, and you're on the right track!"}
@@ -50,9 +45,9 @@ export function StudentDashboardClient() {
         className="
           inline-flex items-center justify-center gap-2
           h-10 px-5 rounded-full shrink-0
-          bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C]
-          hover:from-[#EDC36E] hover:to-[#D89B32]
-          text-[#071B41] text-xs sm:text-sm font-bold
+          bg-gradient-to-r from-nx-gold-300 via-nx-gold-450 to-nx-gold-700
+          hover:from-nx-gold-200-alt hover:to-nx-gold-550-alt
+          text-nx-navy text-xs sm:text-sm font-bold
           shadow-[0_4px_14px_rgba(212,155,53,0.3)]
           transition-all duration-200 hover:-translate-y-0.5
         "

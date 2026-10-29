@@ -8,7 +8,6 @@ import {
   DialogDescription,
   DialogTitle
 } from "@/components/ui/Dialog";
-import { useTheme } from "@/providers/ThemeProvider";
 import { usePendingFeedbackQuery } from "../hooks/useFeedbackApi";
 import { FeedbackItemCard, FeedbackItemHeading } from "./FeedbackItemCard";
 import { FeedbackQuestionnaire } from "./FeedbackQuestionnaire";
@@ -36,8 +35,6 @@ function writeDismissed(keys: string[]) {
 }
 
 export function DashboardFeedback() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
   const { data } = usePendingFeedbackQuery();
   const [dismissed, setDismissed] = useState<string[] | null>(null);
   const [popupKey, setPopupKey] = useState<string | null>(null);
@@ -85,8 +82,7 @@ export function DashboardFeedback() {
           <FeedbackItemCard item={cardItem} key={itemKey(cardItem)} />
           {cardItems.length > 1 ? (
             <p
-              className={`px-1 text-xs font-medium ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                }`}
+              className="px-1 text-xs font-medium text-nx-muted"
             >
               {cardItems.length - 1} more feedback request
               {cardItems.length > 2 ? "s" : ""} after this one
@@ -103,10 +99,7 @@ export function DashboardFeedback() {
       >
         {popupItem ? (
           <DialogContent
-            className={`max-h-[90dvh] overflow-y-auto sm:max-w-lg rounded-2xl border p-6 ${isDark
-                ? "bg-[#07142B] border-white/12 text-white"
-                : "bg-white border-[#E8EDF5] text-[#071B41]"
-              }`}
+            className="max-h-[90dvh] overflow-y-auto sm:max-w-lg rounded-2xl border p-6 bg-nx-card border-nx-line text-nx-ink"
             onOpenAutoFocus={(event) => event.preventDefault()}
           >
             <DialogDescription className="sr-only">

@@ -9,7 +9,6 @@ import { SimpleTooltip } from "@/components/ui/Tooltip";
 import { getRecordingDownloadUrl } from "@/features/live-class/api/live-class";
 import { openInNewTab } from "@/lib/openInNewTab";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { useTheme } from "@/providers/ThemeProvider";
 import { formatFullDate } from "@/lib/datetime";
 import { RecordingPlayerDialog } from "./RecordingPlayerDialog";
 
@@ -29,8 +28,6 @@ type PastClassesProps = {
 
 export function PastClasses({ classes }: PastClassesProps) {
   const timeZone = useUserTimeZone();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   const [recordingPlayerConfig, setRecordingPlayerConfig] = useState<{
     isOpen: boolean;
@@ -56,18 +53,12 @@ export function PastClasses({ classes }: PastClassesProps) {
     <>
       <div
         data-testid="past-classes"
-        className={`rounded-2xl border p-4 sm:p-6 transition-colors duration-200 ${isDark
-            ? "bg-[#07142B] border-white/10 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-            : "bg-white border-[#E8EDF5] text-[#071B41] shadow-[0_4px_20px_rgba(7,27,65,0.04)]"
-          }`}
+        className="rounded-2xl border p-4 sm:p-6 transition-colors duration-200 bg-nx-card border-nx-line text-nx-ink shadow-nx-card"
       >
         {/* Header */}
         <div className="flex items-start gap-3 mb-4">
           <span
-            className={`flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl border mt-0.5 ${isDark
-                ? "bg-[#112244] border-[#E2B355]/25 text-[#E2B355]"
-                : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C58927]"
-              }`}
+            className="flex size-9 sm:size-10 shrink-0 items-center justify-center rounded-xl border mt-0.5 bg-nx-gold-soft border-nx-gold-line text-nx-gold-ink"
           >
             <Video aria-hidden="true" className="size-4 sm:size-5" strokeWidth={2} />
           </span>
@@ -76,8 +67,7 @@ export function PastClasses({ classes }: PastClassesProps) {
               Past classes
             </h2>
             <p
-              className={`mt-0.5 text-xs ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                }`}
+              className="mt-0.5 text-xs text-nx-muted"
             >
               Rewatch a session any time.
             </p>
@@ -86,8 +76,7 @@ export function PastClasses({ classes }: PastClassesProps) {
 
         {/* Rows */}
         <ul
-          className={`divide-y ${isDark ? "divide-white/8" : "divide-[#EEF2F7]"
-            }`}
+          className="divide-y divide-nx-line"
         >
           {classes.map((c) => (
             <li
@@ -98,10 +87,7 @@ export function PastClasses({ classes }: PastClassesProps) {
               <div className="flex items-center gap-3 min-w-0">
                 {/* Circular Play Badge */}
                 <span
-                  className={`flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-full ${isDark
-                      ? "bg-[#11244A] text-[#60A5FA]"
-                      : "bg-[#EFF6FF] text-[#1D4ED8]"
-                    }`}
+                  className="flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-full bg-nx-hover text-nx-info-ink"
                 >
                   <Play className="size-3.5 fill-current ml-0.5" />
                 </span>
@@ -111,8 +97,7 @@ export function PastClasses({ classes }: PastClassesProps) {
                     {c.topic}
                   </p>
                   <p
-                    className={`mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                      }`}
+                    className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:text-xs text-nx-muted"
                   >
                     <span>
                       {c.coachName} · {formatFullDate(c.startsAt, timeZone)}
@@ -164,14 +149,12 @@ export function PastClasses({ classes }: PastClassesProps) {
                 ) : (
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`text-[11px] sm:text-xs ${isDark ? "text-[#64748B]" : "text-[#94A3B8]"
-                        }`}
+                      className="text-[11px] sm:text-xs text-nx-faint"
                     >
                       No recording
                     </span>
                     <MoreVertical
-                      className={`size-4 ${isDark ? "text-[#64748B]" : "text-[#94A3B8]"
-                        }`}
+                      className="size-4 text-nx-faint"
                     />
                   </div>
                 )}

@@ -15,7 +15,6 @@ import type { AuthUser } from "@nexa-chess/types";
 import { getRoleDashboardHref, useAuthStore } from "@/stores/authStore";
 import { logout } from "@/features/auth/api/authApi";
 import { useToast } from "@/providers/ToastProvider";
-import { useTheme } from "@/providers/ThemeProvider";
 import { getErrorMessage } from "@/lib/errors";
 import { Badge } from "@/components/ui/Badge";
 import { ConfirmationModal } from "@/components/common/ConfirmationModal";
@@ -85,8 +84,6 @@ export function UserNavMenu({
 }: UserNavMenuProps) {
   const router = useRouter();
   const toast = useToast();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const clearSession = useAuthStore((state) => state.clearSession);
@@ -126,16 +123,10 @@ export function UserNavMenu({
           <button
             type="button"
             aria-label="User navigation menu"
-            className={`group inline-flex items-center gap-2 rounded-full border p-1 pr-2.5 text-xs font-bold transition cursor-pointer ${isDark
-                ? "bg-[#0B1B38] border-white/12 text-white hover:border-[#E2B355]/50"
-                : "bg-[#F8FAFC] border-[#E2E8F0] text-[#071B41] hover:border-[#CBD5E1]"
-              }`}
+            className="group inline-flex items-center gap-2 rounded-full border p-1 pr-2.5 text-xs font-bold transition cursor-pointer bg-nx-tile border-nx-line text-nx-ink hover:border-nx-line-focus"
           >
             <div
-              className={`flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-extrabold ${isDark
-                  ? "bg-[#1A2E56] text-[#E2B355]"
-                  : "bg-[#FCE8D8] text-[#C85A28]"
-                }`}
+              className="flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full text-[11px] font-extrabold bg-nx-warm-soft text-nx-warm-ink"
             >
               {user.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -153,8 +144,7 @@ export function UserNavMenu({
               {user.firstName}
             </span>
             <ChevronDown
-              className={`size-3.5 transition group-data-[state=open]:rotate-180 ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                }`}
+              className="size-3.5 transition group-data-[state=open]:rotate-180 text-nx-muted"
             />
           </button>
         </DropdownMenuTrigger>

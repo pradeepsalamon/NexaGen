@@ -351,7 +351,7 @@ true the pages show a draft banner and are `noindex`.
 
 ## SEO & AI search (GEO)
 
-The public pages are `/` and `/academy` (the marketing site); everything signed-in
+The public home page `/` is the academy marketing site (`/academy` 301s to it); everything signed-in
 is disallowed in `robots.ts`.
 
 - **One source of facts**: `apps/web/src/features/academy/content.ts` — name and
@@ -360,8 +360,8 @@ is disallowed in `robots.ts`.
   the JSON-LD and `/llms.txt` all read it. Only facts the site shows go here:
   structured data that doesn't match visible content breaks Google's spam policy,
   and AI answers quote it verbatim.
-- **JSON-LD** (`lib/structuredData.ts`): `homeJsonLd()` on `/`, `academyJsonLd()`
-  on `/academy` — `EducationalOrganization` (`#organization`, the same `@id`
+- **JSON-LD** (`lib/structuredData.ts`): `academyJsonLd()` on `/` —
+  `EducationalOrganization` (`#organization`, the same `@id`
   everywhere so there is one entity), `WebSite`, `WebPage`, one `Course` per
   program and an `FAQPage` matching the visible FAQ. `jsonLdScript()` escapes `<`.
   No review/rating markup: Google ignores self-serving reviews for organizations.
@@ -372,11 +372,11 @@ is disallowed in `robots.ts`.
   GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot, Applebot, Google-Extended …) as
   allowed, with the same private paths as `*`. Blocking any of them removes the
   site from that assistant's answers.
-- **Sitemap**: `/academy`, `/`, `/register`, `/login`; `/privacy` and `/terms` join
+- **Sitemap**: `/`, `/register`, `/login`; `/privacy` and `/terms` join
   once `LEGAL_DRAFT` is false (they're `noindex` while drafts).
 - **Titles**: keyword first, brand last, ≤ 60 chars; descriptions ≤ 155 chars.
-  `/academy` uses `title.absolute` — the root template would add "| Nexa Chess".
-- **Share images**: `app/opengraph-image.tsx` and `app/academy/opengraph-image.tsx`
+  `/` uses `title.absolute` — the root template would add "| Nexa Chess".
+- **Share images**: `app/opengraph-image.tsx`
   (1200×630, `lib/ogImage.tsx`, rendered at build from the logo).
 - **One host**: `next.config.mjs` 308-redirects `www.<site>` to the apex derived
   from `NEXT_PUBLIC_SITE_URL` (nginx passes `Host`).

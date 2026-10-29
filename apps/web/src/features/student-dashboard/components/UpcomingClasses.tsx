@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/Button";
 import { ClassStatusBadge } from "@/components/ui/ClassStatusBadge";
 import { BatchTypeBadge } from "@/features/batches/components/BatchTypeBadge";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { useTheme } from "@/providers/ThemeProvider";
 import {
   formatDayOfMonth,
   formatMonthShort,
@@ -102,24 +101,15 @@ function UpcomingClassRow({ cls }: { cls: StudentDashboardUpcomingClass }) {
 }
 
 export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
-
   return (
     <div
-      className={`h-full rounded-2xl border p-4 sm:p-6 flex flex-col transition-colors duration-200 ${isDark
-          ? "bg-[#07142B] border-white/10 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-          : "bg-white border-[#E8EDF5] text-[#071B41] shadow-[0_4px_20px_rgba(7,27,65,0.04)]"
-        }`}
+      className="h-full rounded-2xl border p-4 sm:p-6 flex flex-col transition-colors duration-200 bg-nx-card border-nx-line text-nx-ink shadow-nx-card"
     >
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-2.5">
           <span
-            className={`flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl border ${isDark
-                ? "bg-[#112244] border-[#E2B355]/25 text-[#E2B355]"
-                : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C58927]"
-              }`}
+            className="flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl border bg-nx-gold-soft border-nx-gold-line text-nx-gold-ink"
           >
             <Calendar aria-hidden="true" className="size-4" strokeWidth={2.1} />
           </span>
@@ -128,8 +118,7 @@ export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
 
         <Link
           href="/student/schedule"
-          className={`inline-flex items-center gap-1 text-xs font-bold hover:underline ${isDark ? "text-[#94A3B8] hover:text-white" : "text-[#475569] hover:text-[#071B41]"
-            }`}
+          className="inline-flex items-center gap-1 text-xs font-bold hover:underline text-nx-muted-strong hover:text-nx-ink"
         >
           <span>View all</span>
           <ArrowRight className="size-3.5" strokeWidth={2.3} aria-hidden="true" />
@@ -140,16 +129,12 @@ export function UpcomingClasses({ classes = [] }: UpcomingClassesProps) {
       {classes.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
           <div
-            className={`size-10 rounded-xl border flex items-center justify-center mb-2.5 ${isDark
-                ? "bg-[#0B1B38] border-white/10 text-[#64748B]"
-                : "bg-[#F8FAFC] border-[#E2E8F0] text-[#94A3B8]"
-              }`}
+            className="size-10 rounded-xl border flex items-center justify-center mb-2.5 bg-nx-tile border-nx-line text-nx-faint"
           >
             <Calendar className="size-5" strokeWidth={1.8} />
           </div>
           <p
-            className={`text-xs ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-              }`}
+            className="text-xs text-nx-muted"
           >
             Nothing scheduled yet.
           </p>

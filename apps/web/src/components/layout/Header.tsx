@@ -44,17 +44,7 @@ export function Header({
   const homeHref = activeUser ? dashboardHref : "/";
 
   return (
-    <header
-      style={{
-        backgroundColor: isDark ? "#051024" : "#FFFFFF"
-      }}
-      className={cn(
-        "fixed inset-x-0 top-0 z-40 h-16 border-b transition-colors duration-200",
-        isDark
-          ? "bg-[#051024] border-white/10 text-white"
-          : "bg-white border-[#E8EDF5] text-[#071B41]"
-      )}
-    >
+    <header className="fixed inset-x-0 top-0 z-40 h-16 border-b border-nx-line bg-nx-bar text-nx-ink transition-colors duration-200">
       <div className="mx-auto flex h-full w-full max-w-[1360px] items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
         {/* Left: Mobile Hamburger + Logo */}
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-3 shrink-0">
@@ -64,9 +54,7 @@ export function Header({
               aria-label="Open menu"
               className={cn(
                 "lg:hidden inline-flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl transition-colors",
-                isDark
-                  ? "text-white hover:bg-white/10"
-                  : "text-[#071B41] hover:bg-[#F1F5F9]"
+                "text-nx-ink hover:bg-nx-hover-faint"
               )}
               onClick={toggleSidebar}
               type="button"
@@ -83,17 +71,21 @@ export function Header({
               ? { target: "_blank", rel: "noopener noreferrer" }
               : {})}
           >
+            {/* Both logos render; CSS shows the current theme's (no flash before hydration). */}
             <Image
-              src={
-                isDark
-                  ? "/academy/nexa_logo_dark1.png"
-                  : "/academy/nexa_logo_light1.png"
-              }
+              src="/academy/nexa_logo_light1.png"
               alt="NEXA Chess"
               width={140}
               height={38}
               priority
-              className="h-7 w-auto max-w-[108px] sm:max-w-none sm:h-9 object-contain object-left"
+              className="h-7 w-auto max-w-[108px] sm:max-w-none sm:h-9 object-contain object-left dark:hidden"
+            />
+            <Image
+              src="/academy/nexa_logo_dark1.png"
+              alt="NEXA Chess"
+              width={140}
+              height={38}
+              className="hidden h-7 w-auto max-w-[108px] sm:max-w-none sm:h-9 object-contain object-left dark:block"
             />
           </Link>
 
@@ -115,9 +107,7 @@ export function Header({
               aria-label="Search"
               className={cn(
                 "inline-flex size-8 sm:size-9 items-center justify-center rounded-full border transition-colors shrink-0",
-                isDark
-                  ? "bg-[#0B1B38] border-white/10 text-[#94A3B8] hover:text-white hover:border-white/25"
-                  : "bg-[#F8FAFC] border-[#E2E8F0] text-[#475569] hover:text-[#071B41]"
+                "bg-nx-tile border-nx-line text-nx-muted-strong hover:text-nx-ink hover:border-nx-line-hover"
               )}
             >
               <Search className="size-3.5 sm:size-4" strokeWidth={2.1} />
@@ -137,9 +127,7 @@ export function Header({
             aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
             className={cn(
               "sm:hidden inline-flex size-8 shrink-0 items-center justify-center rounded-full border transition-colors",
-              isDark
-                ? "bg-[#0B1B38] border-white/10 text-[#E2B355]"
-                : "bg-[#F8FAFC] border-[#E2E8F0] text-[#D49B35]"
+              "bg-nx-tile border-nx-line text-nx-gold-bright-ink"
             )}
           >
             {isDark ? (
@@ -158,9 +146,7 @@ export function Header({
               aria-label="Checking session"
               className={cn(
                 "inline-flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-full border",
-                isDark
-                  ? "border-white/10 bg-[#0B1B38] text-[#94A3B8]"
-                  : "border-[#E2E8F0] bg-[#F8FAFC] text-[#64748B]"
+                "border-nx-line bg-nx-tile text-nx-muted"
               )}
               role="status"
             >
@@ -177,7 +163,7 @@ export function Header({
             />
           ) : pathname === "/login" ? null : (
             <Link
-              className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-full bg-[#071B41] dark:bg-[#E2B355] px-3 sm:px-4 text-xs font-bold text-white dark:text-[#071B41] transition hover:opacity-90"
+              className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-full bg-nx-emphasis px-3 sm:px-4 text-xs font-bold text-nx-ink-inverse transition hover:opacity-90"
               aria-label="Log in"
               href="/login"
             >

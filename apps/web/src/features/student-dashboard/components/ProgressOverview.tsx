@@ -1,7 +1,6 @@
 "use client";
 
 import { GraduationCap, BookOpen, Target, type LucideIcon } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
 
 interface ProgressMetric {
   label: string;
@@ -19,20 +18,13 @@ const DEFAULT_METRICS: ProgressMetric[] = [
   { label: "Attendance", value: "0%" }
 ];
 
-function MetricArtwork({
-  label,
-  isDark
-}: {
-  label: string;
-  isDark: boolean;
-}) {
+function MetricArtwork({ label }: { label: string }) {
   if (label === "Classes Attended") {
     return (
       <svg
         viewBox="0 0 110 96"
         fill="none"
-        className={`pointer-events-none absolute right-1.5 sm:right-3 bottom-1 w-14 sm:w-28 h-12 sm:h-24 select-none opacity-65 sm:opacity-100 ${isDark ? "text-[#172B52]" : "text-[#F7E6C4]"
-          }`}
+        className="pointer-events-none absolute right-1.5 sm:right-3 bottom-1 w-14 sm:w-28 h-12 sm:h-24 select-none opacity-65 sm:opacity-100 text-nx-gold-pale-ink"
         aria-hidden="true"
       >
         <path
@@ -54,8 +46,7 @@ function MetricArtwork({
       <svg
         viewBox="0 0 110 90"
         fill="none"
-        className={`pointer-events-none absolute right-1.5 sm:right-3 bottom-1.5 w-14 sm:w-28 h-12 sm:h-22 select-none opacity-65 sm:opacity-100 ${isDark ? "text-[#15284E]" : "text-[#F9E3DA]"
-          }`}
+        className="pointer-events-none absolute right-1.5 sm:right-3 bottom-1.5 w-14 sm:w-28 h-12 sm:h-22 select-none opacity-65 sm:opacity-100 text-nx-warm-pale-ink"
         aria-hidden="true"
       >
         <path
@@ -84,7 +75,7 @@ function MetricArtwork({
         width="12"
         height="22"
         rx="3"
-        fill={isDark ? "#3D3522" : "#F8E5B8"}
+        className="fill-nx-chart-1"
       />
       <rect
         x="36"
@@ -92,7 +83,7 @@ function MetricArtwork({
         width="12"
         height="34"
         rx="3"
-        fill={isDark ? "#574724" : "#F3D38C"}
+        className="fill-nx-chart-2"
       />
       <rect
         x="54"
@@ -100,7 +91,7 @@ function MetricArtwork({
         width="12"
         height="46"
         rx="3"
-        fill={isDark ? "#785D26" : "#ECC060"}
+        className="fill-nx-chart-3"
       />
       <rect
         x="72"
@@ -108,11 +99,11 @@ function MetricArtwork({
         width="12"
         height="62"
         rx="3"
-        fill={isDark ? "#9E7829" : "#DFA83C"}
+        className="fill-nx-chart-4"
       />
       <path
         d="M20 50 L42 36 L60 26 L78 12"
-        stroke={isDark ? "#E2B355" : "#C58927"}
+        className="stroke-nx-gold-ink"
         strokeWidth="3"
         strokeLinecap="round"
       />
@@ -124,39 +115,28 @@ const METRIC_CONFIG: Record<
   string,
   {
     Icon: LucideIcon;
-    badgeBgLight: string;
-    badgeBgDark: string;
-    iconColorLight: string;
-    iconColorDark: string;
+    badge: string;
+    icon: string;
   }
 > = {
   "Classes Attended": {
     Icon: GraduationCap,
-    badgeBgLight: "bg-[#071B41]",
-    badgeBgDark: "bg-[#11244A] border border-white/10",
-    iconColorLight: "text-[#E5B85B]",
-    iconColorDark: "text-[#E2B355]"
+    badge: "bg-nx-stat-navy border-nx-stat-navy-line",
+    icon: "text-nx-stat-navy-ink"
   },
   "Lessons Completed": {
     Icon: BookOpen,
-    badgeBgLight: "bg-[#FCE8E0]",
-    badgeBgDark: "bg-[#3A2028] border border-rose-400/20",
-    iconColorLight: "text-[#D96B43]",
-    iconColorDark: "text-[#F28B66]"
+    badge: "bg-nx-stat-coral border-nx-stat-coral-line",
+    icon: "text-nx-stat-coral-ink"
   },
   Attendance: {
     Icon: Target,
-    badgeBgLight: "bg-[#FDF3DC]",
-    badgeBgDark: "bg-[#2C281E] border border-[#E2B355]/25",
-    iconColorLight: "text-[#C58927]",
-    iconColorDark: "text-[#E2B355]"
+    badge: "bg-nx-stat-gold border-nx-stat-gold-line",
+    icon: "text-nx-gold-ink"
   }
 };
 
 export function ProgressOverview({ metrics }: ProgressOverviewProps) {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
-
   const rawMetrics = metrics?.length ? metrics : DEFAULT_METRICS;
   const orderedLabels = ["Classes Attended", "Lessons Completed", "Attendance"];
   const displayMetrics = orderedLabels.map(
@@ -174,23 +154,18 @@ export function ProgressOverview({ metrics }: ProgressOverviewProps) {
         return (
           <div
             key={metric.label}
-            className={`relative overflow-hidden rounded-2xl border p-3 sm:p-5 transition-all duration-200 ${isDark
-                ? "bg-[#07142B] border-white/10 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-                : "bg-white border-[#E8EDF5] text-[#071B41] shadow-[0_4px_20px_rgba(7,27,65,0.04)]"
-              }`}
+            className="relative overflow-hidden rounded-2xl border p-3 sm:p-5 transition-all duration-200 bg-nx-card border-nx-line text-nx-ink shadow-nx-card"
           >
             {/* Right-Side Watermark Illustration */}
-            <MetricArtwork label={metric.label} isDark={isDark} />
+            <MetricArtwork label={metric.label} />
 
             <div className="relative z-10 flex flex-col justify-between h-full">
               {/* Top Circular Icon Badge */}
               <div
-                className={`size-8 sm:size-10 rounded-full flex items-center justify-center mb-2.5 sm:mb-4 ${isDark ? cfg.badgeBgDark : cfg.badgeBgLight
-                  }`}
+                className={`size-8 sm:size-10 rounded-full border flex items-center justify-center mb-2.5 sm:mb-4 ${cfg.badge}`}
               >
                 <Icon
-                  className={`size-4 sm:size-5 ${isDark ? cfg.iconColorDark : cfg.iconColorLight
-                    }`}
+                  className={`size-4 sm:size-5 ${cfg.icon}`}
                   strokeWidth={2.1}
                 />
               </div>
@@ -201,8 +176,7 @@ export function ProgressOverview({ metrics }: ProgressOverviewProps) {
                   {metric.value}
                 </div>
                 <div
-                  className={`mt-1.5 text-[10px] sm:text-xs font-semibold leading-tight ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                    }`}
+                  className="mt-1.5 text-[10px] sm:text-xs font-semibold leading-tight text-nx-muted"
                 >
                   {metric.label}
                 </div>

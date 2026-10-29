@@ -2,7 +2,6 @@
 
 import { Megaphone } from "lucide-react";
 import { useUserTimeZone } from "@/hooks/useUserTimeZone";
-import { useTheme } from "@/providers/ThemeProvider";
 import { formatFullDate } from "@/lib/datetime";
 
 interface Announcement {
@@ -19,22 +18,14 @@ interface AnnouncementsProps {
 
 export function Announcements({ announcements }: AnnouncementsProps) {
   const timeZone = useUserTimeZone();
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   return (
     <div
-      className={`h-full rounded-2xl border p-4 sm:p-6 transition-colors duration-200 ${isDark
-          ? "bg-[#07142B] border-white/10 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)]"
-          : "bg-white border-[#E8EDF5] text-[#071B41] shadow-[0_4px_20px_rgba(7,27,65,0.04)]"
-        }`}
+      className="h-full rounded-2xl border p-4 sm:p-6 transition-colors duration-200 bg-nx-card border-nx-line text-nx-ink shadow-nx-card"
     >
       <div className="flex items-center gap-2.5 mb-4">
         <span
-          className={`flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl border ${isDark
-              ? "bg-[#112244] border-[#E2B355]/25 text-[#E2B355]"
-              : "bg-[#FDF4E1] border-[#F3DFB6] text-[#C58927]"
-            }`}
+          className="flex size-8 sm:size-9 shrink-0 items-center justify-center rounded-xl border bg-nx-gold-soft border-nx-gold-line text-nx-gold-ink"
         >
           <Megaphone aria-hidden="true" className="size-4" strokeWidth={2.1} />
         </span>
@@ -42,8 +33,7 @@ export function Announcements({ announcements }: AnnouncementsProps) {
       </div>
 
       <ul
-        className={`-my-2 divide-y ${isDark ? "divide-white/8" : "divide-[#EEF2F7]"
-          }`}
+        className="-my-2 divide-y divide-nx-line"
       >
         {announcements.map((announcement) => (
           <li className="py-3" key={announcement.id}>
@@ -52,15 +42,13 @@ export function Announcements({ announcements }: AnnouncementsProps) {
                 {announcement.title}
               </p>
               <span
-                className={`shrink-0 text-xs ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                  }`}
+                className="shrink-0 text-xs text-nx-muted"
               >
                 {formatFullDate(announcement.createdAt, timeZone)}
               </span>
             </div>
             <p
-              className={`mt-1 line-clamp-2 text-xs sm:text-sm ${isDark ? "text-[#94A3B8]" : "text-[#64748B]"
-                }`}
+              className="mt-1 line-clamp-2 text-xs sm:text-sm text-nx-muted"
             >
               {announcement.description}
             </p>

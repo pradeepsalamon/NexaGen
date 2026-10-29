@@ -93,10 +93,10 @@ export function LoginForm() {
     const enrolling = challenge.mfaRequired === "SETUP";
     return (
       <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#071B41] dark:text-white mb-1.5">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-nx-ink mb-1.5">
           {enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
         </h1>
-        <p className="text-xs sm:text-sm text-[#555C68] dark:text-[#C1C4CC] mb-5">
+        <p className="text-xs sm:text-sm text-nx-body mb-5">
           {enrolling
             ? "Your account needs a second step at sign-in. This takes a minute."
             : "One more step to confirm it's you."}
@@ -124,10 +124,10 @@ export function LoginForm() {
     <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
       {/* Card Header */}
       <div className="mb-6">
-        <h2 className="font-display text-2xl sm:text-[30px] font-bold text-[#071B41] dark:text-white leading-tight">
+        <h2 className="font-display text-2xl sm:text-[30px] font-bold text-nx-ink leading-tight">
           Welcome Back
         </h2>
-        <p className="text-xs sm:text-sm text-[#555C68] dark:text-[#C1C4CC] mt-1.5 leading-relaxed">
+        <p className="text-xs sm:text-sm text-nx-body mt-1.5 leading-relaxed">
           Continue your chess journey with expert coaching and a global community.
         </p>
       </div>
@@ -138,13 +138,13 @@ export function LoginForm() {
         <div>
           <label
             htmlFor="email"
-            className="block text-xs font-bold text-[#071B41] dark:text-white mb-1.5"
+            className="block text-xs font-bold text-nx-ink mb-1.5"
           >
             Email address
           </label>
           <div className="relative">
             <Mail
-              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B] dark:text-[#94A3B8]"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-nx-muted"
               strokeWidth={2}
             />
             <input
@@ -158,18 +158,18 @@ export function LoginForm() {
               onChange={(e) => updateField("email", e.target.value)}
               className={`
                 w-full h-11 pl-10 pr-4 rounded-xl text-sm
-                bg-[#F8FAFC] dark:bg-[#0B1D3F]
+                bg-nx-field
                 border ${errors.email
-                  ? "border-red-500"
-                  : "border-[#DCE3EE] dark:border-white/15 focus:border-[#C58927] dark:focus:border-[#E2B355]"
+                  ? "border-nx-live"
+                  : "border-nx-field-line focus:border-nx-gold-ink"
                 }
-                text-[#071B41] dark:text-white placeholder:text-[#94A3B8]
+                text-nx-ink placeholder:text-nx-slate-light
                 outline-none transition-colors
               `}
             />
           </div>
           {errors.email && (
-            <p className="mt-1 text-xs font-medium text-red-500">{errors.email}</p>
+            <p className="mt-1 text-xs font-medium text-nx-live">{errors.email}</p>
           )}
         </div>
 
@@ -177,13 +177,13 @@ export function LoginForm() {
         <div>
           <label
             htmlFor="password"
-            className="block text-xs font-bold text-[#071B41] dark:text-white mb-1.5"
+            className="block text-xs font-bold text-nx-ink mb-1.5"
           >
             Password
           </label>
           <div className="relative">
             <Lock
-              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B] dark:text-[#94A3B8]"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-nx-muted"
               strokeWidth={2}
             />
             <input
@@ -196,12 +196,12 @@ export function LoginForm() {
               onChange={(e) => updateField("password", e.target.value)}
               className={`
                 w-full h-11 pl-10 pr-10 rounded-xl text-sm
-                bg-[#F8FAFC] dark:bg-[#0B1D3F]
+                bg-nx-field
                 border ${errors.password
-                  ? "border-red-500"
-                  : "border-[#DCE3EE] dark:border-white/15 focus:border-[#C58927] dark:focus:border-[#E2B355]"
+                  ? "border-nx-live"
+                  : "border-nx-field-line focus:border-nx-gold-ink"
                 }
-                text-[#071B41] dark:text-white placeholder:text-[#94A3B8]
+                text-nx-ink placeholder:text-nx-slate-light
                 outline-none transition-colors
               `}
             />
@@ -209,13 +209,13 @@ export function LoginForm() {
               type="button"
               onClick={() => setShowPassword((prev) => !prev)}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] dark:text-[#94A3B8] hover:text-[#071B41] dark:hover:text-white"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-nx-muted hover:text-nx-ink"
             >
               {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
           </div>
           {errors.password && (
-            <p className="mt-1 text-xs font-medium text-red-500">
+            <p className="mt-1 text-xs font-medium text-nx-live">
               {errors.password}
             </p>
           )}
@@ -225,21 +225,21 @@ export function LoginForm() {
         <div className="flex items-center justify-between pt-0.5">
           <label
             htmlFor="remember-me"
-            className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-[#555C68] dark:text-[#C1C4CC]"
+            className="inline-flex items-center gap-2 cursor-pointer text-xs font-medium text-nx-body"
           >
             <input
               id="remember-me"
               type="checkbox"
               checked={values.rememberMe}
               onChange={(e) => updateField("rememberMe", e.target.checked)}
-              className="size-4 rounded border-[#CBD5E1] dark:border-white/25 accent-[#071B41] dark:accent-[#E2B355]"
+              className="size-4 rounded border-nx-line-bold accent-nx-emphasis"
             />
             <span>Remember me</span>
           </label>
 
           <Link
             href="/forgot-password"
-            className="text-xs font-bold text-[#C58927] dark:text-[#E2B355] hover:underline"
+            className="text-xs font-bold text-nx-gold-ink hover:underline"
           >
             Forgot password?
           </Link>
@@ -252,10 +252,7 @@ export function LoginForm() {
           className="
             w-full h-11 sm:h-12 rounded-xl font-bold text-sm
             inline-flex items-center justify-center gap-2
-            bg-[#071B41] hover:bg-[#0B2559] text-white
-            dark:bg-gradient-to-r dark:from-[#E5B85B] dark:via-[#DDA843] dark:to-[#CE942E]
-            dark:hover:from-[#ECC36B] dark:hover:to-[#D89E35]
-            dark:text-[#071B41]
+            nx-cta
             shadow-md transition-all duration-200 hover:-translate-y-0.5
             disabled:opacity-60 disabled:pointer-events-none cursor-pointer
           "
@@ -265,11 +262,11 @@ export function LoginForm() {
         </button>
 
         {/* Bottom Switch to Register */}
-        <p className="text-center text-xs text-[#555C68] dark:text-[#C1C4CC] pt-2">
+        <p className="text-center text-xs text-nx-body pt-2">
           Don&apos;t have an account?{" "}
           <Link
             href="/register"
-            className="font-bold text-[#C58927] dark:text-[#E2B355] hover:underline"
+            className="font-bold text-nx-gold-ink hover:underline"
           >
             Create account
           </Link>
