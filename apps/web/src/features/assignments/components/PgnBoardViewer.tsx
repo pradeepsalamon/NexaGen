@@ -176,7 +176,7 @@ export function PgnBoardViewer({ pgn }: { pgn: string }) {
                     onClick={() => setCursor(index)}
                     className={cn(
                       "rounded px-1.5 py-0.5 font-medium transition-colors hover:bg-app-soft",
-                      cursor === index ? "bg-primary text-white hover:bg-primary" : "text-app-text"
+                      cursor === index ? "bg-primary text-on-primary hover:bg-primary" : "text-app-text"
                     )}
                   >
                     {ply.san}

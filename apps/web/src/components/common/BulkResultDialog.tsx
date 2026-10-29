@@ -75,7 +75,7 @@ export function BulkResultDialog({
                 ))}
               </ul>
             ) : null}
-            <AlertDialogAction className="inline-flex h-10 min-w-[108px] items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-5 text-sm font-bold text-white transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
+            <AlertDialogAction className="inline-flex h-10 min-w-[108px] items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] px-5 text-sm font-bold text-on-primary transition-colors hover:bg-[color-mix(in_srgb,var(--color-primary)_92%,white)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-app-focus">
               Done
             </AlertDialogAction>
           </>

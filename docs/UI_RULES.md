@@ -32,15 +32,19 @@ and are mapped in `tailwind.config.ts`.
 | Body / secondary text | `text-app-text`, `text-app-muted` | `text-gray-*`, `text-black` |
 | Borders / dividers | `border-app-border`, `divide-app-border` | `border-gray-*`, `border-white/20` |
 | Brand fills (buttons, chips, active states) | `bg-primary`, `bg-secondary`, `bg-accent`, `bg-warm`, `bg-app-danger` | `bg-blue-600`, `bg-yellow-400` |
+| Text / icons on a `bg-primary` fill | `text-on-primary` (white in light, navy in dark) | `text-white` — primary is gold in dark |
 | **Coloured text or icons on a surface** | the **`-ink`** token: `text-primary-ink`, `text-secondary-ink`, `text-accent-ink`, `text-warm-ink`, `text-app-danger-ink` | `text-primary` on a surface — deep blue is unreadable in dark mode |
 | Status | `success`, `warning`, `info` (+ `-ink` for text) | `green-500`, `amber-100`, `orange-800` |
 | Tints | alpha on a token: `bg-primary/10`, `border-accent/40` (on-scale values, or `bg-primary/[0.06]`) | a separate pale palette colour |
 
-- **Brand hues mean one thing each** (keep them): primary = classes/actions,
-  accent (emerald) = success/active, secondary (saffron) = attention/practice,
+- **Brand hues mean one thing each** (keep them): primary (navy; gold in dark)
+  = classes/actions, accent (emerald) = success/active, secondary (gold) =
+  attention/practice,
   warm (coral) = learning/courses, danger = destructive + LIVE only.
-- **Brand hues are identical in light and dark.** Readable coloured text in dark
-  comes from the `-ink` tokens, which lighten automatically.
+- **Brand hues are identical in light and dark, except primary**, which is
+  gold in dark (the `nx-cta` colour) because navy vanishes on the navy surfaces.
+  Readable coloured text in dark comes from the `-ink` tokens, which lighten
+  automatically.
 - **No `dark:` colour overrides in feature code.** Tokens already switch with
   the theme. A hand-written `dark:border-white/10` drifts from the palette and,
   inside a shared component, silently overrides every caller's colour (this is
@@ -72,9 +76,9 @@ disagree.
 
 | Need | Component | Notes |
 |---|---|---|
-| Any clickable action | `Button` | Variants: `primary` (main CTA), `outline` (secondary), `ghost` (quiet), `secondary` (saffron), `destructive`. Never a hand-styled `<button>` for a normal action. Keep one `primary` per area. |
+| Any clickable action | `Button` | Variants: `primary` (main CTA), `outline` (secondary), `ghost` (quiet), `secondary` (gold), `destructive`. Never a hand-styled `<button>` for a normal action. Keep one `primary` per area. |
 | Confirm / dismiss pairs | `Button` | The positive action (Apply, Save, Confirm, Done) is **filled** — `primary`, or `destructive` when it deletes. The negative one (Cancel, Clear, Reset, Close, Skip, Decline) is **`outline`**, never `ghost` — a borderless dismiss reads as plain text. |
-| Table row actions | `RowActions` | Filled round icon buttons by `tone` (`default` blue, `warning` saffron, `danger` red). Everything inline by default; `inline={n}` groups the rest behind "⋮" only when asked. A hand-written action button must use the same filled classes **and `variant="ghost"`** — never `outline`, whose dark styling repaints it. |
+| Table row actions | `RowActions` | Filled round icon buttons by `tone` (`default` primary, `warning` gold, `danger` red). Everything inline by default; `inline={n}` groups the rest behind "⋮" only when asked. A hand-written action button must use the same filled classes **and `variant="ghost"`** — never `outline`, whose dark styling repaints it. |
 | Data lists | `DataTable` (TanStack) or `Table` + `TableHeader/Body/Row/Head/Cell` | Never a raw `<table>`. The header is the blue brand row in sentence case; don't colour or uppercase `TableHead` yourself. Body cells that need left/right alignment say so (`text-left`/`text-right`). A table wider than its card scrolls inside it, and `Table` shades the edge that hides columns. When a row has actions or more than ~4 columns, pass `stackOnMobile` to `DataTable` and give every function-header column a `meta: { label }`: below `sm` each row becomes a card, so no action sits off-screen. Columns with ids `select` and `actions` go in the card's header and footer. A plain `Table` whose last column holds row actions passes `pin="end"` to that `TableHead`/`TableCell` so it stays on screen below `lg` (`DataTable` does this for an `actions` column automatically). |
 | Sortable column header | `DataTableSortButton` (TanStack `column`) / `SortButton` + `useTableSort` (plain `Table`) | Sorting is **opt-in**: lists load in the API's own order and nothing is sorted (no `initialKey` / `initialSorting`) until the user clicks a header. Each sortable header shows ↑ asc / ↓ desc / faint ↕ unsorted; a click cycles asc → desc → unsorted. Server-paginated lists sort on the server (`sort`/`order`; with none sent, `resolveOrderBy` uses the endpoint's fallback order) — client-sorting one page would misorder the rest. Document-order tables (invoice lines, move lists, ranked leaderboards, the topic folder tree) keep their natural order and have no sort arrows. |
 | Status labels | `Badge` (`default`, `secondary`, `success`, `warning`, `info`, `destructive`, `outline`) | Never a hand-rolled `rounded-full px-2 text-xs` span. Text is sentence case: show an API enum through `enumLabel()` (`lib/utils.ts`), never raw `ACTIVE`, and never `uppercase`. |

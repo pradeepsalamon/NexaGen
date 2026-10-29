@@ -62,7 +62,7 @@ export function FilterPopover<T extends object>({
           <Funnel className="size-4" strokeWidth={2.5} />
           Filters
           {activeCount ? (
-            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-white">
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-bold text-on-primary">
               {activeCount}
             </span>
           ) : null}

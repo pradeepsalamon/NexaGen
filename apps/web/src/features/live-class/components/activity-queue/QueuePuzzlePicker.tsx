@@ -143,7 +143,7 @@ export function QueuePuzzlePicker({
                     {PUZZLE_DIFFICULTY_LABELS[puzzle.difficulty]}
                   </Badge>
                   {checked ? (
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-on-primary">
                       {order + 1}
                     </span>
                   ) : null}

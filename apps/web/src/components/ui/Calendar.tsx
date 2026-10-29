@@ -167,7 +167,7 @@ function CalendarDayButton({
           !modifiers.selected &&
           "border-primary text-app-text ring-1 ring-primary ring-offset-0",
         modifiers.selected &&
-          "border-primary bg-primary text-white hover:bg-primary hover:text-white",
+          "border-primary bg-primary text-on-primary hover:bg-primary hover:text-on-primary",
         className
       )}
       data-day={`${day.date.getFullYear()}-${day.date.getMonth() + 1}-${day.date.getDate()}`}

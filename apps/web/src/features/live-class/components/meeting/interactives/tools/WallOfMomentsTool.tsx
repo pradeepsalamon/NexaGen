@@ -210,7 +210,7 @@ export function WallOfMomentsTool({ classId, isManager }: ToolContext) {
         </CoachRunsThis>
       )}
 
-      <div className="rounded-app bg-primary p-4 text-white">
+      <div className="rounded-app bg-primary p-4 text-on-primary">
         <p className="flex items-center gap-2 text-lg font-extrabold">
           <Trophy aria-hidden="true" className="size-5" strokeWidth={2.5} />
           {state.title}

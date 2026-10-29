@@ -112,7 +112,7 @@ export function ScrollToTopRail({
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2 focus-visible:ring-offset-app-surface",
             hidden ? "pointer-events-none" : "pointer-events-auto",
             prominent
-              ? "h-24 w-8 bg-primary text-white shadow-card hover:bg-primary/90"
+              ? "h-24 w-8 bg-primary text-on-primary shadow-card hover:bg-primary/90"
               : "size-7 border border-app-border bg-app-surface/90 text-app-muted shadow-soft backdrop-blur-sm hover:bg-app-soft hover:text-app-text",
           )}
         >

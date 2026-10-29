@@ -79,7 +79,7 @@ import { puzzleTopicOptions } from "../lib/puzzleMeta";
 import { FolderPuzzlesPanel } from "./folder/FolderPuzzlesPanel";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
 
 type TopicNode = PuzzleTopicTreeNode<PuzzleTopicDto>;
 type TopicFormValues = {
@@ -633,7 +633,7 @@ function HomeworkCell({
             aria-label={`Assign folder ${topic.name}`}
             variant="ghost"
             size="icon"
-            className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+            className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
             onClick={onAssign}
           >
             <ClipboardCheck className="size-4" strokeWidth={2.5} />
@@ -663,7 +663,7 @@ function HomeworkCell({
                 variant="ghost"
                 size="icon"
                 disabled={!!structuralBlocker}
-                className="size-8 rounded-full border border-primary bg-primary p-0 text-white shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-white"
+                className="size-8 rounded-full border border-primary bg-primary p-0 text-on-primary shadow-none transition-colors hover:border-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:bg-[color-mix(in_srgb,var(--color-primary)_75%,white)] hover:text-on-primary"
                 onClick={() => onApprove(true)}
               >
                 <ShieldCheck className="size-4" strokeWidth={2.5} />

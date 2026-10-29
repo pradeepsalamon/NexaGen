@@ -204,7 +204,7 @@ const ParticipantListItem = memo(function ParticipantListItem({
               type="button"
               onClick={() => onMessagePrivately(participantUserId, name)}
               aria-label={`Message ${name} privately`}
-              className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-primary hover:text-white"
+              className="flex size-6 items-center justify-center rounded-full text-app-muted transition-colors hover:bg-primary hover:text-on-primary"
             >
               <Lock className="size-3.5" />
             </button>

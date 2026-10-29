@@ -157,7 +157,7 @@ export function PuzzleQuickPreviewDialog({
                         aria-current={i === ply - 1 ? "step" : undefined}
                         className={cn(
                           "rounded-control px-1.5 py-0.5 transition-colors hover:bg-app-soft",
-                          i === ply - 1 ? "bg-primary font-bold text-white hover:bg-primary" : "text-app-text"
+                          i === ply - 1 ? "bg-primary font-bold text-on-primary hover:bg-primary" : "text-app-text"
                         )}
                         onClick={() => setPly(i + 1)}
                         type="button"

@@ -24,7 +24,7 @@ import { AssignmentOverviewPanel } from "./reminders/AssignmentOverviewPanel";
 import { Badge } from "@/components/ui/Badge";
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
 
 export function CoachAssignmentsClient() {
   const timeZone = useUserTimeZone();

@@ -87,7 +87,7 @@ export function ConversationList({ conversations, isLoading, onSelect, selectedI
                     {unread && (
                       <span
                         aria-label={`${c.unreadCount} unread`}
-                        className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-white"
+                        className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-bold text-on-primary"
                       >
                         {c.unreadCount > 99 ? "99+" : c.unreadCount}
                       </span>

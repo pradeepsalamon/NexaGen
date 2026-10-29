@@ -58,7 +58,7 @@ const DEFAULT_MIN = String(CATALOG_DEFAULT_RATING_MIN);
 const DEFAULT_MAX = String(CATALOG_DEFAULT_RATING_MAX);
 
 const iconBtn =
-  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-white";
+  "size-8 rounded-full border-app-border p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary";
 
 const newSeed = () => Math.floor(Math.random() * 0x7fffffff);
 

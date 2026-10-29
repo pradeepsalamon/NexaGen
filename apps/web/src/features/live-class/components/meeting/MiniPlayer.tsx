@@ -153,7 +153,7 @@ function MiniPlayerContent() {
           onClick={returnToClass}
           aria-label="Back to class"
           title="Back to class"
-          className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-bold text-primary-ink transition-colors hover:bg-primary hover:text-white"
+          className="flex h-8 items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 text-[11px] font-bold text-primary-ink transition-colors hover:bg-primary hover:text-on-primary"
         >
           <Undo2 className="size-3.5" strokeWidth={2.5} />
           Back

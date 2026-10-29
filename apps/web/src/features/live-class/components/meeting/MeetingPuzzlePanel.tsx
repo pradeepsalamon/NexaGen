@@ -86,7 +86,7 @@ function AdjustPopover({
           <button
             type="button"
             aria-label={label}
-            className="grid size-7 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-primary hover:text-white"
+            className="grid size-7 shrink-0 place-items-center rounded-full border border-app-border p-0 text-app-muted transition-colors hover:bg-primary hover:text-on-primary"
           >
             <PlusCircle className="size-3.5" strokeWidth={2.5} />
           </button>
@@ -192,7 +192,7 @@ function selfCellClass(isSelf: boolean) {
 
 function YouTag() {
   return (
-    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold uppercase leading-4 text-white">
+    <span className="shrink-0 rounded-full bg-primary px-1.5 text-[10px] font-bold uppercase leading-4 text-on-primary">
       You
     </span>
   );

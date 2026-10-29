@@ -19,10 +19,14 @@
   --text-secondary: #C1C4CC;
   --border: rgba(255, 255, 255, 0.10);
 
-  --rgb-primary: 7 27 65;
+  /* Primary turns gold in dark, like .nx-cta: navy on the navy surfaces had
+     1.13:1 contrast. Text on a primary fill uses on-primary (navy here). */
+  --rgb-primary: 206 148 46;
+  --rgb-on-primary: 7 27 65;
   --rgb-primary-dark: 3 13 36;
   --rgb-secondary: 226 179 85;
-  --rgb-accent: 226 179 85;
+  /* Accent stays the success green — secondary is the gold. */
+  --rgb-accent: 31 157 120;
   --rgb-accent-bright: 226 179 85;
   --rgb-accent-light: 241 213 143;
   --rgb-background: 3 13 36;
@@ -40,9 +44,9 @@
   --rgb-warning: 245 158 11;
   --rgb-info: 59 130 246;
 
-  --color-primary: var(--primary);
+  --color-primary: rgb(var(--rgb-primary));
   --color-secondary: var(--accent);
-  --color-accent: var(--accent);
+  --color-accent: rgb(var(--rgb-accent));
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-soft: var(--surface-hover);
@@ -52,7 +56,7 @@
 
   --color-primary-ink: color-mix(in srgb, var(--accent) 70%, white);
   --color-secondary-ink: color-mix(in srgb, var(--accent-bright) 70%, white);
-  --color-accent-ink: color-mix(in srgb, var(--accent) 60%, white);
+  --color-accent-ink: color-mix(in srgb, var(--color-accent) 60%, white);
   --color-warm-ink: color-mix(in srgb, var(--color-warm) 60%, white);
   --color-danger-ink: color-mix(in srgb, var(--color-danger) 52%, white);
   --color-success-ink: color-mix(in srgb, var(--color-success) 60%, white);
@@ -86,8 +90,9 @@
 
   --rgb-primary: 7 27 65;
   --rgb-primary-dark: 3 13 36;
+  --rgb-on-primary: 255 255 255;
   --rgb-secondary: 187 139 55;
-  --rgb-accent: 187 139 55;
+  --rgb-accent: 31 157 120;
   --rgb-accent-bright: 226 179 85;
   --rgb-accent-light: 241 213 143;
   --rgb-warm: 224 104 90;
@@ -108,7 +113,7 @@
 
   --color-primary: var(--primary);
   --color-secondary: var(--accent);
-  --color-accent: var(--accent);
+  --color-accent: rgb(var(--rgb-accent));
   --color-warm: rgb(var(--rgb-warm));
   --color-background: var(--background);
   --color-surface: var(--surface);

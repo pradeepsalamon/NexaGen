@@ -291,7 +291,7 @@ export function PracticeBoard({
                 <button
                   key={p}
                   type="button"
-                  className="size-12 rounded-control border border-app-border bg-app-background text-lg font-bold uppercase text-app-text transition-colors hover:bg-primary hover:text-white"
+                  className="size-12 rounded-control border border-app-border bg-app-background text-lg font-bold uppercase text-app-text transition-colors hover:bg-primary hover:text-on-primary"
                   onClick={() => {
                     const { from, to } = promotion;
                     setPromotion(null);

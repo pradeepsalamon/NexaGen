@@ -73,6 +73,7 @@ const config: Config = {
           DEFAULT: "rgb(var(--rgb-surface) / <alpha-value>)",
           hover: "rgb(var(--rgb-surface-soft) / <alpha-value>)"
         },
+        "on-primary": "rgb(var(--rgb-on-primary) / <alpha-value>)",
         primary: {
           DEFAULT: "rgb(var(--rgb-primary) / <alpha-value>)",
           dark: "rgb(var(--rgb-primary-dark) / <alpha-value>)",

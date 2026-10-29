@@ -346,7 +346,7 @@ export const StudentAttendanceView = memo(function StudentAttendanceView({
                             aria-label={`View attendance logs for ${record.topic}, ${formattedDate}`}
                             variant="outline"
                             size="icon"
-                            className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-white"
+                            className="size-8 rounded-full border-primary p-0 text-app-text transition-colors hover:bg-primary hover:text-on-primary"
                             disabled={!interactive}
                             onClick={(e) => {
                               e.stopPropagation();

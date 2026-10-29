@@ -115,7 +115,7 @@ export function GrandmasterMapperTool({ classId, isManager }: ToolContext) {
             >
               <div
                 aria-hidden="true"
-                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-white"
+                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-extrabold text-on-primary"
               >
                 {initials(gm.name)}
               </div>

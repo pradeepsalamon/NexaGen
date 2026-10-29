@@ -32,7 +32,7 @@ export function BulkActionsBar({
   return (
     <div
       aria-label="Bulk actions"
-      className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] animate-slide-up items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] p-1.5 pl-4 text-white shadow-lift"
+      className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100vw-2rem)] animate-slide-up items-center gap-1.5 rounded-full bg-[color-mix(in_srgb,var(--color-primary)_96%,white)] p-1.5 pl-4 text-on-primary shadow-lift"
       role="toolbar"
     >
       <span aria-live="polite" className="mr-1 whitespace-nowrap text-sm font-bold">

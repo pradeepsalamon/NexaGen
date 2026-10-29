@@ -187,7 +187,7 @@ export function OpeningOfTheDayTool({ isManager }: ToolContext) {
               className={cn(
                 "rounded-control px-1.5 py-0.5 transition-colors enabled:hover:bg-app-soft",
                 i === at - 1
-                  ? "bg-primary font-bold text-white hover:bg-primary"
+                  ? "bg-primary font-bold text-on-primary hover:bg-primary"
                   : "text-app-text",
               )}
               disabled={watching}

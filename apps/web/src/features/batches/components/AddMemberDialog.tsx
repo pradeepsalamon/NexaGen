@@ -46,7 +46,7 @@ export function AddMemberDialog({ members, onAdd, type }: AddMemberDialogProps) 
                     <button
                       type="button"
                       aria-label={`Add ${m.firstName} ${m.lastName || ""}`.trim()}
-                      className="flex size-8 items-center justify-center rounded-full border border-primary text-primary-ink transition-colors hover:bg-primary hover:text-white"
+                      className="flex size-8 items-center justify-center rounded-full border border-primary text-primary-ink transition-colors hover:bg-primary hover:text-on-primary"
                       onClick={() => { onAdd(m.id); setOpen(false); setSearch(""); }}
                     >
                       <UserPlus className="size-4" strokeWidth={2.5} />

@@ -139,7 +139,7 @@ export function PuzzleGridTile({
                 "inline-flex min-h-8 w-full items-center justify-center rounded-control px-3 text-xs font-bold transition",
                 actionDisabled
                   ? "bg-app-soft text-app-muted"
-                  : "bg-primary text-white group-hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]",
+                  : "bg-primary text-on-primary group-hover:bg-[color-mix(in_srgb,var(--color-primary)_88%,black)]",
               )}
             >
               {action}

@@ -313,7 +313,7 @@ function GameRow({ game, timeZone }: { game: GameLibraryItem; timeZone: string }
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full bg-primary text-white hover:bg-primary/85"
+            className="rounded-full bg-primary text-on-primary hover:bg-primary/85"
             aria-label={`Download PGN of ${game.title}`}
             disabled={downloading}
             onClick={() => void handleDownload()}

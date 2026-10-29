@@ -30,7 +30,7 @@ function ChoicePills({
           className={cn(
             "min-h-10 rounded-full border px-4 text-sm font-semibold transition",
             value === option
-              ? "border-primary bg-primary text-white"
+              ? "border-primary bg-primary text-on-primary"
               : "border-app-border bg-app-surface text-app-text hover:border-primary"
           )}
           key={option}
