@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 
-const PORTAL_BG_LIGHT = "/session/01_golden_chess_portal_light.png";
-const PORTAL_BG_DARK = "/session/02_golden_chess_portal_dark.png";
+const PORTAL_BG_LIGHT = "/session/01_golden_chess_portal_light.webp";
+const PORTAL_BG_DARK = "/session/02_golden_chess_portal_dark.webp";
 
 interface SessionElement {
   title: string;
@@ -182,20 +182,16 @@ export function SessionTimingSection() {
           src={PORTAL_BG_LIGHT}
           alt="Nexa Chess 55 Minute Session Portal Light"
           fill
-          quality={95}
           sizes="65vw"
-          className={`object-cover object-[46%_bottom] transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
-            }`}
+          className={`object-cover object-[46%_bottom] dark:hidden`}
         />
 
         <Image
           src={PORTAL_BG_DARK}
           alt="Nexa Chess 55 Minute Session Portal Dark"
           fill
-          quality={95}
           sizes="65vw"
-          className={`object-cover object-[46%_bottom] transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
-            }`}
+          className={`object-cover object-[46%_bottom] hidden dark:block`}
         />
 
         <div
@@ -272,19 +268,15 @@ export function SessionTimingSection() {
                 src={PORTAL_BG_LIGHT}
                 alt=""
                 fill
-                quality={90}
                 sizes="100vw"
-                className={`object-cover object-center transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
-                  }`}
+                className={`object-cover object-center dark:hidden`}
               />
               <Image
                 src={PORTAL_BG_DARK}
                 alt=""
                 fill
-                quality={90}
                 sizes="100vw"
-                className={`object-cover object-center transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
-                  }`}
+                className={`object-cover object-center hidden dark:block`}
               />
               <div
                 className={`absolute inset-x-0 top-0 h-14 ${isDark

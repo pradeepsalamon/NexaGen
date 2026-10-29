@@ -12,13 +12,13 @@ import {
 import { useTheme } from "@/providers/ThemeProvider";
 
 // Section background artwork (already in public/academy/)
-const SECTION_BG_LIGHT = "/class/01_chess_reverie_light.png";
-const SECTION_BG_DARK = "/class/02_chess_reverie_dark.png";
+const SECTION_BG_LIGHT = "/programs/01_chess_reverie_light.webp";
+const SECTION_BG_DARK = "/programs/02_chess_reverie_dark.webp";
 
 // Update these 3 filenames if yours are named differently in public/academy/
-const IMG_INDIVIDUAL = "/class/01_gold_king.png";
-const IMG_BATCH = "/class/02_black_gold_pawn.png";
-const IMG_CAMPS = "/class/03_black_gold_rook.png";
+const IMG_INDIVIDUAL = "/class/01_gold_king.webp";
+const IMG_BATCH = "/class/02_black_gold_pawn.webp";
+const IMG_CAMPS = "/class/03_black_gold_rook.webp";
 
 interface LearningOption {
   title: string;
@@ -88,10 +88,8 @@ export function ClassTypesSection() {
           src={SECTION_BG_LIGHT}
           alt="Nexa Chess Learning Formats Light Background"
           fill
-          quality={95}
           sizes="100vw"
-          className={`object-cover object-top transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
-            }`}
+          className={`object-cover object-top dark:hidden`}
         />
 
         {/* Dark Mode Twin Knights Background */}
@@ -99,10 +97,8 @@ export function ClassTypesSection() {
           src={SECTION_BG_DARK}
           alt="Nexa Chess Learning Formats Dark Background"
           fill
-          quality={95}
           sizes="100vw"
-          className={`object-cover object-top transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
-            }`}
+          className={`object-cover object-top hidden dark:block`}
         />
 
         {/* Smooth Top & Bottom Section Blend */}

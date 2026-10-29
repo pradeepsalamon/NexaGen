@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 
-const COLOSSEUM_BG_LIGHT = "/sunday/01_day_chess_colosseum.png";
-const COLOSSEUM_BG_DARK = "/sunday/02_night_chess_colosseum.png";
+const COLOSSEUM_BG_LIGHT = "/sunday/01_day_chess_colosseum.webp";
+const COLOSSEUM_BG_DARK = "/sunday/02_night_chess_colosseum.webp";
 
 interface TournamentStat {
   value: string;
@@ -64,10 +64,8 @@ export function SundayTrainingSection() {
             src={COLOSSEUM_BG_LIGHT}
             alt="Nexa Chess Sunday Tournament Colosseum Light"
             fill
-            quality={100}
             sizes="75vw"
-            className={`object-cover object-[right_center] transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
-              }`}
+            className={`object-cover object-[right_center] dark:hidden`}
           />
 
           {/* Dark Mode Colosseum */}
@@ -75,10 +73,8 @@ export function SundayTrainingSection() {
             src={COLOSSEUM_BG_DARK}
             alt="Nexa Chess Sunday Tournament Colosseum Dark"
             fill
-            quality={100}
             sizes="75vw"
-            className={`object-cover object-[right_center] transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
-              }`}
+            className={`object-cover object-[right_center] hidden dark:block`}
           />
 
           {/* Smooth Left-to-Right Fade */}
@@ -115,21 +111,15 @@ export function SundayTrainingSection() {
           src={COLOSSEUM_BG_LIGHT}
           alt="Sunday Tournament King Light"
           fill
-          priority
-          quality={100}
           sizes="100vw"
-          className={`object-cover object-[90%_top] sm:object-[86%_center] scale-110 transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
-            }`}
+          className={`object-cover object-[90%_top] sm:object-[86%_center] scale-110 dark:hidden`}
         />
         <Image
           src={COLOSSEUM_BG_DARK}
           alt="Sunday Tournament King Dark"
           fill
-          priority
-          quality={100}
           sizes="100vw"
-          className={`object-cover object-[90%_top] sm:object-[86%_center] scale-110 transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
-            }`}
+          className={`object-cover object-[90%_top] sm:object-[86%_center] scale-110 hidden dark:block`}
         />
 
         {/* Soft bottom gradient blending into the overlapping mobile card */}

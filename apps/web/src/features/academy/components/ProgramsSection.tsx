@@ -4,8 +4,8 @@ import Image from "next/image";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 
-const SECTION_BG_LIGHT = "/programs/01_chess_reverie_light.png";
-const SECTION_BG_DARK = "/programs/02_chess_reverie_dark.png";
+const SECTION_BG_LIGHT = "/programs/01_chess_reverie_light.webp";
+const SECTION_BG_DARK = "/programs/02_chess_reverie_dark.webp";
 
 type PieceType = "pawn" | "knight" | "king";
 
@@ -24,7 +24,7 @@ const programs: ProgramItem[] = [
     level: "Beginner Level",
     subtitle: "For students starting their chess journey.",
     pieceType: "pawn",
-    pieceImage: "/programs/01_gold_pawn.png",
+    pieceImage: "/programs/01_gold_pawn.webp",
     features: [
       "Fundamentals of chess",
       "Basic tactics and strategy",
@@ -39,7 +39,7 @@ const programs: ProgramItem[] = [
     level: "Intermediate Level",
     subtitle: "For players ready to improve their game.",
     pieceType: "knight",
-    pieceImage: "/programs/02_gold_knight.png",
+    pieceImage: "/programs/02_gold_knight.webp",
     features: [
       "Advanced tactics",
       "Focused understanding",
@@ -54,7 +54,7 @@ const programs: ProgramItem[] = [
     level: "Advanced Level",
     subtitle: "For serious competitive players.",
     pieceType: "king",
-    pieceImage: "/programs/03_black_gold_king.png",
+    pieceImage: "/programs/03_black_gold_king.webp",
     features: [
       "Competitive training",
       "Deep calculation",
@@ -144,10 +144,8 @@ export function ProgramsSection() {
           src={SECTION_BG_LIGHT}
           alt="Nexa Chess Programs Light Background"
           fill
-          quality={95}
           sizes="100vw"
-          className={`object-cover object-top transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
-            }`}
+          className={`object-cover object-top dark:hidden`}
         />
 
         {/* Dark Mode Background (02_chess_reverie_dark.png) */}
@@ -155,10 +153,8 @@ export function ProgramsSection() {
           src={SECTION_BG_DARK}
           alt="Nexa Chess Programs Dark Background"
           fill
-          quality={95}
           sizes="100vw"
-          className={`object-cover object-top transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
-            }`}
+          className={`object-cover object-top hidden dark:block`}
         />
 
         {/* Soft Top & Bottom Vignettes so the section blends cleanly */}

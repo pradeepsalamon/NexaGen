@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 
-const BG_LIGHT = "/academy_advantage/01_cinematic_chess_light.png";
-const BG_DARK = "/academy_advantage/02_cinematic_chess_shadow.png";
+const BG_LIGHT = "/academy_advantage/01_cinematic_chess_light.webp";
+const BG_DARK = "/academy_advantage/02_cinematic_chess_shadow.webp";
 
 interface AdvantageItem {
   number: string;
@@ -95,10 +95,8 @@ export function WhyChooseUsSection() {
           src={BG_LIGHT}
           alt="Why Nexa Chess Academy Light Background"
           fill
-          quality={95}
           sizes="100vw"
-          className={`object-cover object-center transition-opacity duration-500 ${isDark ? "opacity-0" : "opacity-100"
-            }`}
+          className={`object-cover object-center dark:hidden`}
         />
 
         {/* Dark Mode Background (02_cinematic_chess_shadow.jpg) */}
@@ -106,10 +104,8 @@ export function WhyChooseUsSection() {
           src={BG_DARK}
           alt="Why Nexa Chess Academy Dark Background"
           fill
-          quality={95}
           sizes="100vw"
-          className={`object-cover object-center transition-opacity duration-500 ${isDark ? "opacity-100" : "opacity-0"
-            }`}
+          className={`object-cover object-center hidden dark:block`}
         />
 
         {/* Subtle Top & Bottom Section Edge Blends */}

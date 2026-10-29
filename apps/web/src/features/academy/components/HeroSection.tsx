@@ -11,11 +11,10 @@ import {
   ClipboardList,
   Trophy
 } from "lucide-react";
-import { useTheme } from "@/providers/ThemeProvider";
 
 // Update these if your filenames in `public/academy/` are different
-const HERO_BG_LIGHT = "/academy/hero_light.png";
-const HERO_BG_DARK = "/academy/hero_dark.png";
+const HERO_BG_LIGHT = "/academy/hero_light.webp";
+const HERO_BG_DARK = "/academy/hero_dark.webp";
 
 const heroStats = [
   { value: "5,000+", label: "Active Students", Icon: Users },
@@ -119,8 +118,6 @@ function CountUp({
 }
 
 export function HeroSection() {
-  const { mode, isHydrated } = useTheme();
-  const isDark = isHydrated && mode === "dark";
 
   return (
     <section
@@ -140,13 +137,11 @@ export function HeroSection() {
           alt="NEXA Chess Golden Knight on Luxe Chessboard"
           fill
           priority
-          quality={100}
           sizes="100vw"
           className={`
             object-cover
             object-[74%_bottom] sm:object-[70%_bottom] lg:object-[center_bottom]
-            transition-opacity duration-300
-            ${isDark ? "opacity-0" : "opacity-100"}
+            dark:hidden
           `}
         />
 
@@ -155,14 +150,14 @@ export function HeroSection() {
           src={HERO_BG_DARK}
           alt="NEXA Chess Faceted Gold Knight in Midnight Chess"
           fill
-          priority
-          quality={100}
+          // Lazy + display:none in light mode = never fetched there; only the
+          // light variant is preloaded.
+          fetchPriority="high"
           sizes="100vw"
           className={`
             object-cover
             object-[74%_bottom] sm:object-[70%_bottom] lg:object-[center_bottom]
-            transition-opacity duration-300
-            ${isDark ? "opacity-100" : "opacity-0"}
+            hidden dark:block
           `}
         />
 

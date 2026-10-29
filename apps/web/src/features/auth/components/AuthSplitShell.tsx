@@ -17,8 +17,8 @@ import {
 } from "lucide-react";
 import { useTheme } from "@/providers/ThemeProvider";
 
-const AUTH_BG_LIGHT = "/auth/auth_light.png";
-const AUTH_BG_DARK = "/auth/auth_dark.png";
+const AUTH_BG_LIGHT = "/auth/auth_light.webp";
+const AUTH_BG_DARK = "/auth/auth_dark.webp";
 
 export type AuthShellVariant =
     | "login"
@@ -114,15 +114,13 @@ export function AuthSplitShell({
 
                 {/* Light Mode Image */}
                 <div
-                    className={`absolute inset-0 transition-opacity duration-300 ${isDark ? "opacity-0" : "opacity-100"
-                        }`}
+                    className="absolute inset-0 dark:hidden"
                 >
                     <Image
                         src={AUTH_BG_LIGHT}
                         alt="Nexa Chess Golden Knight Light Background"
                         fill
                         priority
-                        quality={100}
                         sizes="100vw"
                         className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
                     />
@@ -131,15 +129,15 @@ export function AuthSplitShell({
 
                 {/* Dark Mode Image */}
                 <div
-                    className={`absolute inset-0 transition-opacity duration-300 ${isDark ? "opacity-100" : "opacity-0"
-                        }`}
+                    className="absolute inset-0 hidden dark:block"
                 >
                     <Image
                         src={AUTH_BG_DARK}
                         alt="Nexa Chess Golden Knight Dark Background"
                         fill
-                        priority
-                        quality={100}
+                        // Lazy + display:none in light mode = never fetched there;
+                        // only the light variant is preloaded.
+                        fetchPriority="high"
                         sizes="100vw"
                         className="object-cover object-[12%_bottom] lg:object-[left_bottom]"
                     />
@@ -228,7 +226,7 @@ export function AuthSplitShell({
 
                             {/* Serif Display Heading */}
                             <h1
-                                className={`font-[family-name:var(--font-playfair)] font-bold text-3xl xl:text-[38px] leading-[1.1] tracking-[-0.02em] mb-2.5 ${isDark ? "text-white" : "text-[#071B41]"
+                                className={`font-display font-bold text-3xl xl:text-[38px] leading-[1.1] tracking-[-0.02em] mb-2.5 ${isDark ? "text-white" : "text-[#071B41]"
                                     }`}
                             >
                                 {heroContent.title}

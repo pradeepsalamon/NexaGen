@@ -16,8 +16,8 @@ import {
 import { useTheme } from "@/providers/ThemeProvider";
 import { ACADEMY_FAQ } from "../content";
 
-const FAQ_IMG_LIGHT = "/faq/faq_light.png";
-const FAQ_IMG_DARK = "/faq/faq_dark.png";
+const FAQ_IMG_LIGHT = "/faq/faq_light.webp";
+const FAQ_IMG_DARK = "/faq/faq_dark.webp";
 
 const faqIcons = [
   BookOpen,    // What is Nexa Chess Academy?
@@ -102,21 +102,15 @@ export function FaqSection() {
                     src={FAQ_IMG_LIGHT}
                     alt="Still have a question illustration"
                     fill
-                    priority
-                    quality={100}
                     sizes="280px"
-                    className={`object-contain object-center scale-110 transition-opacity duration-300 ${isDark ? "opacity-0" : "opacity-100"
-                      }`}
+                    className={`object-contain object-center scale-110 dark:hidden`}
                   />
                   <Image
                     src={FAQ_IMG_DARK}
                     alt="Still have a question illustration"
                     fill
-                    priority
-                    quality={100}
                     sizes="280px"
-                    className={`object-contain object-center scale-110 transition-opacity duration-300 ${isDark ? "opacity-100" : "opacity-0"
-                      }`}
+                    className={`object-contain object-center scale-110 hidden dark:block`}
                   />
                 </div>
 
