@@ -150,8 +150,9 @@ const RESULT_TOKEN = /(?<![\d/½])(1-0|0-1|1\/2-1\/2|½-½)(?![\d/½])/g;
 // Internal student identifiers: the S1, S2, … pseudonyms (also "S 1", "S-1",
 // "s1") and "student 3" / "student #3". The letter must stand alone, so
 // "Bus 2", "moves 1" or "S-shaped" don't match, and no chess token is an S
-// followed by digits. A possessive's "s" ("Sasha's 3 puzzles") is not one.
-const STUDENT_IDENTIFIER = /(?<![A-Za-z0-9'’])(?:[Ss][ -]?\d{1,3}|[Ss]tudent\s*#?\s*\d{1,3})(?![0-9])/g;
+// followed by digits. A possessive's "s" ("Sasha's 3 puzzles": an apostrophe
+// right after a letter) is not one; a quoted 'S1' still is.
+const STUDENT_IDENTIFIER = /(?<![A-Za-z0-9])(?<![A-Za-z]['’])(?:[Ss][ -]?\d{1,3}|[Ss]tudent\s*#?\s*\d{1,3})(?![0-9])/g;
 const DEFAULT_PUZZLE_ID = /\bpz_[0-9]+_[0-9]+\b/g;
 
 /** Squares holding a piece in a FEN's placement field. */

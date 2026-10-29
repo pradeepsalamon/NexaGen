@@ -241,6 +241,10 @@ describe("student-view privacy", () => {
     ]);
   });
 
+  it("flags a quoted identifier", () => {
+    expect(findStudentIdentifiers("'S1' solved it, then “S2” and ‘S3’.")).toEqual(["S1", "S2", "S3"]);
+  });
+
   it("does not flag chess notation, colours or ordinary words", () => {
     const clean = [
       "Bxf7+ Kxf7 then Qf3+ and Rd8#, 1-0 after 17 moves.",

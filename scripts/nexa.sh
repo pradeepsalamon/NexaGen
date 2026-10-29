@@ -97,15 +97,16 @@ function start_dev() {
 function start_stage() {
     local target=$1
     if [ "$target" = "api" ]; then
-        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
-            tmux kill-window -t nexa-dev:api 2>/dev/null || true
-        fi
         echo "=== Building API in Production Mode for Staging Testing ==="
         cd "$ROOT_DIR"
         # The shared packages (@nexa-chess/config, /types) first, so the API never
         # builds against missing or stale outputs.
         npx turbo run build --filter=@nexa-chess/api^...
         npm run build:prod -w apps/api
+        # Only once both builds succeeded: a failed build leaves the running API up.
+        if tmux list-windows -t nexa-dev 2>/dev/null | grep -q ": api"; then
+            tmux kill-window -t nexa-dev:api 2>/dev/null || true
+        fi
 
         echo "=== Launching Production-Optimized Dev API on Port 3011 ==="
         if ! tmux has-session -t nexa-dev 2>/dev/null; then
@@ -226,6 +227,12 @@ if [[ -z "$ENV" ]]; then
 fi
 
 cd "$ROOT_DIR"
+
+# A mistyped component must not fall through to the whole-environment path.
+if [[ -n "$TARGET" && "$TARGET" != "api" && "$TARGET" != "web" ]]; then
+    echo "Unknown component: $TARGET (expected api or web)"
+    exit 1
+fi
 
 # Prod is the whole Docker stack: a component target would be ignored and the
 # command would take everything down, so refuse it up front.
