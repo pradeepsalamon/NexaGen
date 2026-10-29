@@ -31,7 +31,8 @@
   --rgb-surface-hover: 16 35 71;
   --rgb-text: 255 255 255;
   --rgb-text-muted: 193 196 204;
-  --rgb-border: 45 60 88;
+  /* --border (white/10) composited on --surface, so `border-app-border/50` works. */
+  --rgb-border: 35 49 76;
   --rgb-danger: 220 38 38;
   --rgb-nav-drawer: var(--rgb-surface);
   --rgb-nav-drawer-border: var(--rgb-border);

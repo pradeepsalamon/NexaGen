@@ -23,19 +23,16 @@ import "@/features/chess-appearance/styles/index.css";
 
 export function AppProviders({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  // const isMeetingRoute = pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
-  // // The academy marketing page (and homepage) has its own nav/footer chrome — never the
-  // // dashboard shell.
-  // const isChromeless = isMeetingRoute || pathname === "/";
-
-  // Inside src/providers/AppProviders.tsx, update `isChromeless`:
   const isMeetingRoute =
     pathname?.startsWith("/live-class") || pathname?.startsWith("/demo");
+  // The marketing home page and the auth pages bring their own full-page
+  // chrome (AcademyNavbar / AuthSplitShell) — never the dashboard shell.
   const isAuthRoute =
     pathname?.startsWith("/login") ||
     pathname?.startsWith("/register") ||
     pathname?.startsWith("/forgot-password") ||
-    pathname?.startsWith("/reset-password");
+    pathname?.startsWith("/reset-password") ||
+    pathname?.startsWith("/verify-email");
 
   const isChromeless = isMeetingRoute || isAuthRoute || pathname === "/";
 

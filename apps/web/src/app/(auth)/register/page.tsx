@@ -22,7 +22,7 @@ export default function RegisterPage() {
       {/* Compact Header */}
       <div className="mb-2.5">
         <h2
-          className={`font-[family-name:var(--font-playfair)] text-xl sm:text-2xl font-bold leading-tight ${isDark ? "text-white" : "text-[#071B41]"
+          className={`font-display text-xl sm:text-2xl font-bold leading-tight ${isDark ? "text-white" : "text-[#071B41]"
             }`}
         >
           Create your account

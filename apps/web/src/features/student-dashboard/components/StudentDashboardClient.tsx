@@ -31,7 +31,7 @@ export function StudentDashboardClient() {
     <div className="mb-5 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3.5">
       <div>
         <h1
-          className={`font-[family-name:var(--font-playfair)] text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#071B41]"
+          className={`font-display text-2xl sm:text-3xl font-bold tracking-tight ${isDark ? "text-white" : "text-[#071B41]"
             }`}
         >
           Welcome back, {displayName}!

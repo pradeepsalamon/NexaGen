@@ -244,7 +244,7 @@ export function NavDrawer({
               isDark ? "border-white/10" : "border-[#EEF2F7]"
             )}
           >
-            <span className="font-[family-name:var(--font-playfair)] text-base font-bold tracking-tight">
+            <span className="font-display text-base font-bold tracking-tight">
               {title}
             </span>
             {subtitle ? (

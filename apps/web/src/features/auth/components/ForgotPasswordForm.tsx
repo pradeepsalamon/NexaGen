@@ -53,7 +53,7 @@ export function ForgotPasswordForm() {
           <Lock className="size-6" strokeWidth={2.2} />
         </div>
 
-        <h2 className="font-[family-name:var(--font-playfair)] text-2xl sm:text-[28px] font-bold text-[#071B41] dark:text-white leading-tight">
+        <h2 className="font-display text-2xl sm:text-[28px] font-bold text-[#071B41] dark:text-white leading-tight">
           Forgot Password?
         </h2>
 

@@ -41,14 +41,14 @@ const config: Config = {
       },
       colors: {
         accent: {
-          DEFAULT: "var(--accent, rgb(var(--rgb-accent) / <alpha-value>))",
-          bright: "var(--accent-bright)",
-          light: "var(--accent-light)",
+          DEFAULT: "rgb(var(--rgb-accent) / <alpha-value>)",
+          bright: "rgb(var(--rgb-accent-bright) / <alpha-value>)",
+          light: "rgb(var(--rgb-accent-light) / <alpha-value>)",
           ink: "var(--color-accent-ink)"
         },
         app: {
-          background: "var(--background, rgb(var(--rgb-background) / <alpha-value>))",
-          border: "var(--border, rgb(var(--rgb-border) / <alpha-value>))",
+          background: "rgb(var(--rgb-background) / <alpha-value>)",
+          border: "rgb(var(--rgb-border) / <alpha-value>)",
           drawer: {
             DEFAULT: "rgb(var(--rgb-nav-drawer) / <alpha-value>)",
             border: "rgb(var(--rgb-nav-drawer-border) / <alpha-value>)"
@@ -58,18 +58,18 @@ const config: Config = {
             ink: "var(--color-danger-ink)"
           },
           focus: "var(--color-focus)",
-          muted: "var(--text-secondary, rgb(var(--rgb-text-muted) / <alpha-value>))",
-          soft: "var(--surface-hover, rgb(var(--rgb-surface-soft) / <alpha-value>))",
-          surface: "var(--surface, rgb(var(--rgb-surface) / <alpha-value>))",
-          text: "var(--text-primary, rgb(var(--rgb-text) / <alpha-value>))"
+          muted: "rgb(var(--rgb-text-muted) / <alpha-value>)",
+          soft: "rgb(var(--rgb-surface-soft) / <alpha-value>)",
+          surface: "rgb(var(--rgb-surface) / <alpha-value>)",
+          text: "rgb(var(--rgb-text) / <alpha-value>)"
         },
         surface: {
-          DEFAULT: "var(--surface, rgb(var(--rgb-surface) / <alpha-value>))",
-          hover: "var(--surface-hover, rgb(var(--rgb-surface-soft) / <alpha-value>))"
+          DEFAULT: "rgb(var(--rgb-surface) / <alpha-value>)",
+          hover: "rgb(var(--rgb-surface-soft) / <alpha-value>)"
         },
         primary: {
-          DEFAULT: "var(--primary, rgb(var(--rgb-primary) / <alpha-value>))",
-          dark: "var(--primary-dark)",
+          DEFAULT: "rgb(var(--rgb-primary) / <alpha-value>)",
+          dark: "rgb(var(--rgb-primary-dark) / <alpha-value>)",
           ink: "var(--color-primary-ink)"
         },
         secondary: {
@@ -110,9 +110,8 @@ const config: Config = {
         "text-muted": "var(--text-secondary)"
       },
       fontFamily: {
-        display: ["var(--font-playfair)", "Playfair Display", "Georgia", "serif"],
-        serif: ["var(--font-playfair)", "Playfair Display", "Georgia", "serif"],
-        sans: ["var(--font-inter)", "Inter", "-apple-system", "BlinkMacSystemFont", "sans-serif"]
+        display: ["var(--font-display)"],
+        sans: ["var(--font-sans)"]
       },
       keyframes: {
         fadeIn: {

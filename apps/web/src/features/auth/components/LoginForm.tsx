@@ -93,7 +93,7 @@ export function LoginForm() {
     const enrolling = challenge.mfaRequired === "SETUP";
     return (
       <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
-        <h1 className="font-[family-name:var(--font-playfair)] text-2xl sm:text-3xl font-bold text-[#071B41] dark:text-white mb-1.5">
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-[#071B41] dark:text-white mb-1.5">
           {enrolling ? "Set up two-factor sign-in" : "Two-factor sign-in"}
         </h1>
         <p className="text-xs sm:text-sm text-[#555C68] dark:text-[#C1C4CC] mb-5">
@@ -124,7 +124,7 @@ export function LoginForm() {
     <AuthSplitShell variant="login" cardMaxWidthClass="max-w-[440px]">
       {/* Card Header */}
       <div className="mb-6">
-        <h2 className="font-[family-name:var(--font-playfair)] text-2xl sm:text-[30px] font-bold text-[#071B41] dark:text-white leading-tight">
+        <h2 className="font-display text-2xl sm:text-[30px] font-bold text-[#071B41] dark:text-white leading-tight">
           Welcome Back
         </h2>
         <p className="text-xs sm:text-sm text-[#555C68] dark:text-[#C1C4CC] mt-1.5 leading-relaxed">

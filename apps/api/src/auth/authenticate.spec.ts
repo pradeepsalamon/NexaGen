@@ -6,10 +6,7 @@ import { authenticateUser, verifyAccessToken } from "./authenticate";
 
 describe("authenticateUser", () => {
   let jwt: { verifyAsync: jest.Mock };
-  let prisma: {
-    authSession: { findUnique: jest.Mock };
-    user: { findUnique: jest.Mock };
-  };
+  let prisma: { user: { findUnique: jest.Mock } };
 
   const run = (token: string | undefined, args?: { include: { coachProfile: true } }) =>
     args
@@ -17,9 +14,8 @@ describe("authenticateUser", () => {
       : authenticateUser(jwt as unknown as JwtService, prisma as unknown as PrismaService, token);
 
   beforeEach(() => {
-    jwt = { verifyAsync: jest.fn().mockResolvedValue({ type: "access", sub: "user_1", sessionId: "sess_1" }) };
+    jwt = { verifyAsync: jest.fn().mockResolvedValue({ type: "access", sub: "user_1" }) };
     prisma = {
-      authSession: { findUnique: jest.fn().mockResolvedValue({ revokedAt: null, userId: "user_1" }) },
       user: { findUnique: jest.fn().mockResolvedValue({ id: "user_1", status: "ACTIVE", role: "COACH" }) }
     };
   });
@@ -41,11 +37,6 @@ describe("authenticateUser", () => {
 
   it("rejects a token that is not an access token", async () => {
     jwt.verifyAsync.mockResolvedValue({ type: "refresh", sub: "user_1" });
-    await expect(run("token")).rejects.toThrow("Invalid token type.");
-  });
-
-  it("rejects an access token missing a session id", async () => {
-    jwt.verifyAsync.mockResolvedValue({ type: "access", sub: "user_1" });
     await expect(run("token")).rejects.toThrow("Invalid token type.");
   });
 

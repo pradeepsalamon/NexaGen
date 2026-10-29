@@ -10,7 +10,6 @@ import {
   Clock,
   UserRound,
   CalendarDays,
-  Mail,
   Phone,
   GraduationCap,
   ChevronDown,
@@ -69,9 +68,8 @@ export function DemoBookingSection() {
   const [formData, setFormData] = useState({
     fullName: "",
     parentName: "",
-    email: "",
     phone: "",
-    age: "10",
+    age: "",
     program: "beginner"
   });
 
@@ -93,7 +91,11 @@ export function DemoBookingSection() {
     }
 
     const parentName = formData.parentName.trim() || studentName;
-    const studentAge = Number(formData.age) || 10;
+    const studentAge = Number(formData.age);
+    if (!Number.isInteger(studentAge) || studentAge < 3 || studentAge > 99) {
+      setError("Please enter the student's age (3–99).");
+      return;
+    }
     const experienceLevel = (formData.program || "beginner") as LeadExperienceLevel;
 
     setError("");
@@ -113,9 +115,8 @@ export function DemoBookingSection() {
           setFormData({
             fullName: "",
             parentName: "",
-            email: "",
             phone: "",
-            age: "10",
+            age: "",
             program: "beginner"
           });
         },
@@ -298,33 +299,7 @@ export function DemoBookingSection() {
                   </div>
                 </div>
 
-                {/* Row 3: Email Address */}
-                <div>
-                  <label htmlFor="demo-email" className={labelClass}>
-                    EMAIL ADDRESS
-                  </label>
-                  <div className="relative">
-                    <Mail
-                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
-                      strokeWidth={2}
-                    />
-                    <input
-                      id="demo-email"
-                      type="email"
-                      inputMode="email"
-                      autoComplete="email"
-                      enterKeyHint="next"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      className={`${inputBaseClass} pl-10 pr-4`}
-                      placeholder="e.g. parent@example.com"
-                    />
-                  </div>
-                </div>
-
-                {/* Row 4: Phone Number (10 Digits Only) */}
+                {/* Row 3: Phone Number (10 Digits Only) */}
                 <div>
                   <label htmlFor="demo-phone" className={labelClass}>
                     PHONE NUMBER (10 DIGITS)
