@@ -47,7 +47,7 @@ function FontPicker({
                 aria-hidden="true"
                 className={cn(
                   "flex size-11 shrink-0 items-center justify-center rounded-control text-xl",
-                  active ? "bg-primary text-white" : "bg-app-soft text-app-text"
+                  active ? "bg-primary text-on-primary" : "bg-app-soft text-app-text"
                 )}
                 style={{ fontFamily: fontFamilyOf(font.id) }}
               >

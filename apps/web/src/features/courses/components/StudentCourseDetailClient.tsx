@@ -63,7 +63,7 @@ export function StudentCourseDetailClient({ id }: { id: string }) {
             <div className="flex items-center gap-3">
               <span
                 className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-extrabold ${
-                  m.completed ? "bg-primary text-white" : "bg-app-soft text-app-muted"
+                  m.completed ? "bg-primary text-on-primary" : "bg-app-soft text-app-muted"
                 }`}
               >
                 {m.completed ? <CheckCircle2 className="size-4" strokeWidth={2.5} /> : index + 1}

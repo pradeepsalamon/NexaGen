@@ -6,6 +6,8 @@ const config: Config = {
   theme: {
     // Tailwind's defaults plus `room`, listed before lg so lg/xl rules still win where both match.
     screens: {
+      // Large phones; the redesign's header and hero use it.
+      xs: "400px",
       sm: "640px",
       md: "768px",
       // Live-class side-by-side layout: lg, or a short tablet. Keep in sync with ROOM_ROW_QUERY.

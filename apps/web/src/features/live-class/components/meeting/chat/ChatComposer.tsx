@@ -117,7 +117,7 @@ export const ChatComposer = memo(function ChatComposer({
           className={cn(
             "flex size-8 shrink-0 items-center justify-center rounded-full transition duration-300",
             draft.trim()
-              ? "bg-primary text-white shadow-lift shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95"
+              ? "bg-primary text-on-primary shadow-lift shadow-primary/30 hover:bg-primary/90 hover:scale-105 active:scale-95"
               : "bg-app-border/40 text-app-muted/50 cursor-not-allowed",
           )}
         >

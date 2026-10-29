@@ -74,7 +74,7 @@ export function ComboBar({ mode, combo }: { mode: PuzzleRushMode; combo: number 
           <span
             className={cn(
               "flex-1 rounded-control px-1 py-0.5 text-center text-[0.6875rem] font-bold tabular-nums",
-              level > i ? "bg-primary text-white" : "bg-app-soft text-app-muted",
+              level > i ? "bg-primary text-on-primary" : "bg-app-soft text-app-muted",
             )}
             key={threshold}
             title={`${threshold} in a row`}

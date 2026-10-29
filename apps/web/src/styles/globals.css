@@ -508,7 +508,7 @@
   }
 
   .custom-prejoin button[type="submit"] {
-    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-white shadow-card transition hover:opacity-90 active:scale-[0.98] sm:text-lg;
+    @apply mt-1 min-h-12 w-full rounded-app px-5 py-3 text-base font-extrabold leading-none text-on-primary shadow-card transition hover:opacity-90 active:scale-[0.98] sm:text-lg;
     background: var(--color-primary);
     border: 1px solid var(--color-primary);
   }

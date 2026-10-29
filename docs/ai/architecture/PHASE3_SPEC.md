@@ -271,7 +271,10 @@ the game by `formatSummaryLine`.
 
 Checks (`checkClassSummaryOutput`), each per item:
 
-1. Zod-parse; on a failure, `SCHEMA`. A model-written `san` is a schema error.
+1. Zod-parse; on a failure, `SCHEMA`. A variation must point at a code-built
+   line (`line`/`fromMove`/`toMove`); a model-written `san` is dropped, never
+   shown: the SAN always comes from `formatSummaryLine`. (Strict parsing would
+   fail a whole summary over any stray key.)
 2. Every `E#` exists in the bundle.
 3. Every variation names an existing line and starts inside it, in order.
    Its end is shortened to the game's last move and to 6 moves

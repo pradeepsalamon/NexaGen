@@ -714,7 +714,7 @@ export function MeetingPuzzlePanel() {
               onClick={() => setBoardView(id)}
               className={cn(
                 "flex h-7 flex-1 items-center justify-center rounded-full text-xs font-semibold transition-colors",
-                boardView === id ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
+                boardView === id ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text"
               )}
             >
               {label}

@@ -49,7 +49,9 @@ export function useClassroomPresentation() {
     if (restoring.current && encodeClassroomPresentation(restoring.current) !== encodeClassroomPresentation(state)) return;
     restoring.current = null;
     saveClassroomPresentation(classId, state);
-    if (!connected || !localParticipant) return;
+    // Nothing pressed or restored yet (seq 0): stay silent, so an admin or a
+    // second coach tab joining never broadcasts the store default over the coach.
+    if (presentationSeq === 0 || !connected || !localParticipant) return;
     const value = encodeClassroomPresentation(state);
     if (localParticipant.attributes?.[CLASSROOM_PRESENTATION_ATTRIBUTE] === value) return;
     localParticipant.setAttributes({ [CLASSROOM_PRESENTATION_ATTRIBUTE]: value }).catch(console.warn);
@@ -57,6 +59,9 @@ export function useClassroomPresentation() {
 
   useEffect(() => {
     if (isCoach) return;
+    // The staff presentation with the highest seq wins, not roster order, so
+    // two presenters can't flip students back and forth on every roster change.
+    let latest: PresentationState | null = null;
     for (const p of participants) {
       let coachRole = false;
       try {
@@ -66,11 +71,9 @@ export function useClassroomPresentation() {
         // ignore malformed metadata
       }
       const presented = coachRole ? parseClassroomPresentation(p.attributes?.[CLASSROOM_PRESENTATION_ATTRIBUTE]) : null;
-      if (presented) {
-        applyClassroomPresentation(presented);
-        return;
-      }
+      if (presented && (!latest || presented.seq > latest.seq)) latest = presented;
     }
+    if (latest) applyClassroomPresentation(latest);
     // No coach in the room: keep the last one (the store starts on the gallery),
     // so a coach's reconnect doesn't bounce everyone's stage.
   }, [participants, isCoach, applyClassroomPresentation]);

@@ -1,4 +1,5 @@
 // End-to-end check of bench.mjs against a stub Ollama (no model, no Docker):
+//   npm run build -w @nexa-chess/types   # once: the scorer loads its dist/
 //   node --test scripts/ai/benchmark/bench.stub.test.mjs
 // Scripted answers per bundle exercise the retry, removal and failure paths,
 // and the report's five criteria.

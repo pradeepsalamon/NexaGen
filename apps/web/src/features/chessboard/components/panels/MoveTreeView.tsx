@@ -91,13 +91,13 @@ export function MoveTreeView({
           className={cn(
             "inline-flex items-baseline gap-0.5 rounded px-1 py-0.5 font-mono transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
             main ? "font-semibold text-app-text" : "text-app-muted",
-            active ? "bg-primary text-white" : "hover:bg-app-soft hover:text-primary-ink",
+            active ? "bg-primary text-on-primary" : "hover:bg-app-soft hover:text-primary-ink",
           )}
         >
-          {label && <span className={cn("font-normal", active ? "text-white/80" : "text-app-muted")}>{label}</span>}
+          {label && <span className={cn("font-normal", active ? "text-on-primary/80" : "text-app-muted")}>{label}</span>}
           <span>{node.san}</span>
           {node.nags?.map((nag) => (
-            <span key={nag} className={active ? "text-white" : "text-primary-ink"}>
+            <span key={nag} className={active ? "text-on-primary" : "text-primary-ink"}>
               {nagSymbol(nag)}
             </span>
           ))}
@@ -122,19 +122,19 @@ export function MoveTreeView({
         aria-label={`${label} ${node.san}${evaluation ? `, evaluation ${evaluation}` : ""}`}
         className={cn(
           "flex min-w-0 items-baseline gap-1 px-2 py-1 text-left font-mono transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/50",
-          active ? "bg-primary text-white" : "text-app-text hover:bg-app-soft",
+          active ? "bg-primary text-on-primary" : "text-app-text hover:bg-app-soft",
         )}
       >
         <span className="min-w-0 flex-1 truncate font-semibold">
           {node.san}
           {node.nags?.map((nag) => (
-            <span key={nag} className={active ? "text-white" : "text-primary-ink"}>
+            <span key={nag} className={active ? "text-on-primary" : "text-primary-ink"}>
               {nagSymbol(nag)}
             </span>
           ))}
         </span>
         {evaluation ? (
-          <span className={cn("shrink-0 text-[11px] tabular-nums", active ? "text-white" : "text-app-muted")}>{evaluation}</span>
+          <span className={cn("shrink-0 text-[11px] tabular-nums", active ? "text-on-primary" : "text-app-muted")}>{evaluation}</span>
         ) : null}
       </button>
     );

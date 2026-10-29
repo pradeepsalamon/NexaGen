@@ -110,7 +110,7 @@ export function ConversationAvatar({ conversation }: { conversation: ChatConvers
       aria-hidden
       className={cn(
         "flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold",
-        conversation.type === "DIRECT" ? "bg-primary text-white" : "bg-app-soft text-primary-ink",
+        conversation.type === "DIRECT" ? "bg-primary text-on-primary" : "bg-app-soft text-primary-ink",
       )}
     >
       {Icon ? <Icon className="size-5" /> : initialsOf(conversation.title)}

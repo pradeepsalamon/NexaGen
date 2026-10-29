@@ -75,7 +75,7 @@ function getInitials(user?: Pick<UserWithAvatar, "firstName" | "lastName">) {
       user.firstName.charAt(0) + user.firstName.charAt(user.firstName.length - 1)
     ).toUpperCase();
   }
-  return initials || "TS";
+  return initials || "NC";
 }
 
 export function UserNavMenu({

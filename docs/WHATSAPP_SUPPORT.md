@@ -15,7 +15,7 @@ Contents: 1 current architecture · 2 reusable pieces · 3 integration approach 
 
 ## 1. Current architecture
 
-- ✅ NestJS 11 API + Next.js 14 web, Prisma 6 / Postgres 15, optional
+- ✅ NestJS 11 API + Next.js 15 web, Prisma 6 / Postgres 15, optional
   Redis/BullMQ, one ARM64 Oracle VPS shared with LiveKit and Frappe CRM. The API
   is public at `api.nexachess.in` through nginx.
 - ✅ Auth is cookie JWT → `authenticateUser` (no guards). Roles: `SUPER_ADMIN`,

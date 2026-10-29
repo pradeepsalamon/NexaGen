@@ -58,7 +58,7 @@ export function StageSwitch({
             onClick={() => onChange(o.id)}
             className={cn(
               "relative flex h-7 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors",
-              active ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
+              active ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text"
             )}
           >
             {o.icon}
@@ -124,7 +124,7 @@ function PresentationControls({
               onClick={() => onPresent(a.id)}
               className={cn(
                 "grid size-7 place-items-center rounded-full transition-colors",
-                active ? "bg-primary text-white" : "text-app-muted hover:text-app-text"
+                active ? "bg-primary text-on-primary" : "text-app-muted hover:text-app-text"
               )}
             >
               {a.icon}

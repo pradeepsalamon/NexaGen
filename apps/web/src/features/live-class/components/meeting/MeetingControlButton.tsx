@@ -27,7 +27,7 @@ const variantStyles: Record<ControlVariant, string> = {
   default:
     "bg-app-surface text-app-muted hover:bg-app-soft hover:text-app-text border border-app-border",
   active:
-    "bg-primary text-white hover:bg-primary/90 shadow-card",
+    "bg-primary text-on-primary hover:bg-primary/90 shadow-card",
   danger:
     "bg-app-danger text-white hover:opacity-90 border border-app-danger shadow-card",
 };

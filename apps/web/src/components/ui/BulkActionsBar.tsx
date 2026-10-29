@@ -61,7 +61,7 @@ export function BulkActionsBar({
       <SimpleTooltip label="Clear selection">
         <button
           aria-label="Clear selection"
-          className="inline-flex size-9 items-center justify-center rounded-full text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+          className="inline-flex size-9 items-center justify-center rounded-full text-on-primary/80 transition-colors hover:bg-white/15 hover:text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           onClick={onClear}
           type="button"
         >

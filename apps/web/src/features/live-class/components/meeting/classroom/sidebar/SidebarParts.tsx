@@ -96,13 +96,13 @@ export function SidebarTabs<T extends string>({
             onClick={() => onChange(tab.id)}
             className={cn(
               "relative flex h-8 flex-1 items-center justify-center gap-1.5 rounded-control text-xs font-semibold transition-colors",
-              active ? "bg-primary text-white shadow-soft" : "text-app-muted hover:bg-app-soft hover:text-app-text"
+              active ? "bg-primary text-on-primary shadow-soft" : "text-app-muted hover:bg-app-soft hover:text-app-text"
             )}
           >
             {tab.icon}
             {tab.label}
             {tab.count !== undefined ? (
-              <span className={cn("tabular-nums", active ? "text-white/80" : "text-app-muted")}>({tab.count})</span>
+              <span className={cn("tabular-nums", active ? "text-on-primary/80" : "text-app-muted")}>({tab.count})</span>
             ) : null}
             {tab.badge ? (
               <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-app-danger px-1 text-[9px] font-bold text-white ring-2 ring-app-surface">

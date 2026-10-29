@@ -20,9 +20,9 @@ function show_usage() {
     echo "Usage: nexa <command> [environment] [component]"
     echo ""
     echo "Commands:"
-    echo "  start   <dev|stage|prod> [api]   Start environment (or just api)"
-    echo "  stop    <dev|stage|prod>         Stop the specified environment"
-    echo "  restart <dev|stage|prod> [api]   Restart environment (or just api)"
+    echo "  start   <dev|stage|prod> [api|web]   Start environment (component: dev/stage only)"
+    echo "  stop    <dev|stage|prod> [api|web]   Stop environment (component: dev/stage only)"
+    echo "  restart <dev|stage|prod> [api|web]   Restart environment (component: dev/stage only)"
     echo "  status                     Show status of all environments"
     echo "  logs [api|web]             View logs (for dev)"
     echo "  attach                     Attach to the dev tmux session"
@@ -226,6 +226,13 @@ if [[ -z "$ENV" ]]; then
 fi
 
 cd "$ROOT_DIR"
+
+# Prod is the whole Docker stack: a component target would be ignored and the
+# command would take everything down, so refuse it up front.
+if [[ "$ENV" == "prod" && -n "$TARGET" ]]; then
+    echo "Component targets are dev/stage only. For prod use: docker compose up -d --build $TARGET"
+    exit 1
+fi
 
 case "$COMMAND" in
     start)
