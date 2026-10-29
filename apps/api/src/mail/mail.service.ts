@@ -280,6 +280,7 @@ export class MailService {
     studentAge: number;
     experienceLevel: string;
     phone: string;
+    email: string | null;
     source: string | null;
     campaign: string | null;
   }) {
@@ -302,6 +303,7 @@ export class MailService {
         `Parent: ${input.parentName}`,
         `Experience: ${input.experienceLevel}`,
         `Phone: ${input.phone}`,
+        `Email: ${input.email ?? "-"}`,
         `Source: ${input.source ?? "Unknown"}`,
         `Campaign: ${input.campaign ?? "-"}`
       ].join("\n"),
@@ -314,6 +316,7 @@ export class MailService {
             <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Parent</td><td>${escapeHtml(input.parentName)}</td></tr>
             <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Experience</td><td>${escapeHtml(input.experienceLevel)}</td></tr>
             <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Phone</td><td>${escapeHtml(input.phone)}</td></tr>
+            <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Email</td><td>${escapeHtml(input.email ?? "-")}</td></tr>
             <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Source</td><td>${escapeHtml(input.source ?? "Unknown")}</td></tr>
             <tr><td style="padding:4px 12px 4px 0;color:#5d6672">Campaign</td><td>${escapeHtml(input.campaign ?? "-")}</td></tr>
           </table>

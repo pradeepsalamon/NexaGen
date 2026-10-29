@@ -13,6 +13,7 @@ import {
   Phone,
   GraduationCap,
   ChevronDown,
+  Mail,
   ArrowRight,
   CircleCheckBig
 } from "lucide-react";
@@ -68,6 +69,7 @@ export function DemoBookingSection() {
   const [formData, setFormData] = useState({
     fullName: "",
     parentName: "",
+    email: "",
     phone: "",
     age: "",
     program: "beginner"
@@ -98,6 +100,12 @@ export function DemoBookingSection() {
     }
     const experienceLevel = (formData.program || "beginner") as LeadExperienceLevel;
 
+    const email = formData.email.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError("Please enter a valid email address, or leave it blank.");
+      return;
+    }
+
     setError("");
 
     createLead.mutate(
@@ -106,7 +114,8 @@ export function DemoBookingSection() {
         parentName,
         studentAge,
         experienceLevel,
-        phone: cleanPhone
+        phone: cleanPhone,
+        email
       },
       {
         onSuccess: () => {
@@ -115,6 +124,7 @@ export function DemoBookingSection() {
           setFormData({
             fullName: "",
             parentName: "",
+            email: "",
             phone: "",
             age: "",
             program: "beginner"
@@ -299,7 +309,37 @@ export function DemoBookingSection() {
                   </div>
                 </div>
 
-                {/* Row 3: Phone Number (10 Digits Only) */}
+                {/* Row 3: Email Address */}
+                <div>
+                  <label htmlFor="demo-email" className={labelClass}>
+                    EMAIL ADDRESS
+                    <span className="font-medium normal-case tracking-normal opacity-70">
+                      {" "}
+                      (optional)
+                    </span>
+                  </label>
+                  <div className="relative">
+                    <Mail
+                      className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 size-4 text-[#64748B]"
+                      strokeWidth={2}
+                    />
+                    <input
+                      id="demo-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      enterKeyHint="next"
+                      value={formData.email}
+                      onChange={(e) =>
+                        setFormData({ ...formData, email: e.target.value })
+                      }
+                      className={`${inputBaseClass} pl-10 pr-4`}
+                      placeholder="e.g. parent@example.com"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4: Phone Number (10 Digits Only) */}
                 <div>
                   <label htmlFor="demo-phone" className={labelClass}>
                     PHONE NUMBER (10 DIGITS)

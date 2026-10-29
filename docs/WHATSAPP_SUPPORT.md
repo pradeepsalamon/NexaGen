@@ -36,7 +36,7 @@ Contents: 1 current architecture · 2 reusable pieces · 3 integration approach 
 | Inbound webhook | ✅ **None** — no verify-token handler, no `X-Hub-Signature-256` check anywhere | **Build** |
 | Outbox + retry | ✅ `MessageDelivery` + `MessagingDeliveryWorker` (`SKIP LOCKED` claim, backoff, unique `dedupeKey`) — [MESSAGING.md](MESSAGING.md) | Reuse the pattern; its once-a-minute sweep is too slow for chat replies (see §4) |
 | Webhook plumbing | ✅ Payment webhooks: raw body + origin-check exemption (`apps/api/src/app.setup.ts:21-41`), `@SkipThrottle` (`payments/payments-webhook.controller.ts:20`), event dedupe in `PaymentWebhookEvent` | **Copy exactly** |
-| Leads | ✅ `Lead` / `LeadActivity` / `LeadNote`, `LeadStatus` pipeline, admin leads UI. `Lead` requires `studentName`, `parentName`, `studentAge` (Int), `experienceLevel`, `phone`; no phone dedupe | Course inquiry / trial → `Lead` with `source = "WhatsApp"` |
+| Leads | ✅ `Lead` / `LeadActivity` / `LeadNote`, `LeadStatus` pipeline, admin leads UI. `Lead` requires `studentName`, `parentName`, `studentAge` (Int), `experienceLevel`, `phone` (plus an optional lower-cased `email`); no phone dedupe | Course inquiry / trial → `Lead` with `source = "WhatsApp"` |
 | Refunds | ✅ `Refund` = a provider-executed refund, admin-only (`payments/payments-admin.controller.ts:324`) | **A refund request is not a `Refund`.** It is a ticket; an admin uses the existing refund route — "received ≠ approved" by construction |
 | Staff notifications | ✅ `Notification` (in-app) + `MessagingDispatchService` | Reuse; `MessagingAudience` has no admin audience — small extension |
 | In-app chat | ✅ `Conversation` / `ChatMessage` | **Don't reuse** — members must be `User`s; a WhatsApp customer usually isn't |

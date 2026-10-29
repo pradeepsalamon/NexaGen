@@ -43,6 +43,9 @@ export function useLeadColumns(handlers: RowActionHandlers) {
           <div>
             <p className="text-app-text">{row.original.parentName}</p>
             <p className="text-xs text-app-muted">{row.original.phone}</p>
+            {row.original.email ? (
+              <p className="break-all text-xs text-app-muted">{row.original.email}</p>
+            ) : null}
           </div>
         )
       },

@@ -6,6 +6,7 @@ import {
   UnauthorizedException
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
+import { createLeadRequestSchema } from "@nexa-chess/types";
 import { ClassStatus, UserRole, UserStatus } from "@prisma/client";
 import { LeadService } from "./lead.service";
 import { PrismaService } from "../prisma/prisma.service";
@@ -168,6 +169,54 @@ describe("LeadService", () => {
           })
         })
       );
+    });
+
+    it("stores the optional email and passes it to the admin notification", async () => {
+      prisma.lead.create.mockImplementation(({ data }) => ({
+        id: "lead-4",
+        ...data,
+        lastActivityAt: null,
+        convertedAt: null,
+        createdAt: new Date()
+      }));
+
+      const result = await service.createLead(
+        { ...requestBody, email: "parent@example.com" },
+        { sessionId: undefined }
+      );
+
+      expect(prisma.lead.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ email: "parent@example.com" }) })
+      );
+      expect(result.lead.email).toBe("parent@example.com");
+      expect(sendNewLeadNotification).toHaveBeenCalledWith(
+        expect.objectContaining({ email: "parent@example.com" })
+      );
+    });
+
+    it("stores no email when the field is left blank", async () => {
+      prisma.lead.create.mockImplementation(({ data }) => ({
+        id: "lead-5",
+        ...data,
+        lastActivityAt: null,
+        convertedAt: null,
+        createdAt: new Date()
+      }));
+
+      await service.createLead({ ...requestBody, email: "" }, { sessionId: undefined });
+
+      expect(prisma.lead.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ email: null }) })
+      );
+    });
+
+    it("lower-cases the email and rejects one that is not an address", () => {
+      const base = { ...requestBody, phone: "9876543210" };
+      expect(createLeadRequestSchema.parse({ ...base, email: " Parent@Example.COM " }).email).toBe(
+        "parent@example.com"
+      );
+      expect(createLeadRequestSchema.safeParse({ ...base, email: "not-an-email" }).success).toBe(false);
+      expect(createLeadRequestSchema.parse(base).email).toBeUndefined();
     });
 
     it("never fails the public request when the notification email rejects", async () => {

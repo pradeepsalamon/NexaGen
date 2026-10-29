@@ -45,6 +45,7 @@ type LeadRow = {
   studentAge: number;
   experienceLevel: string;
   phone: string;
+  email: string | null;
   status: LeadStatus;
   source: string | null;
   campaign: string | null;
@@ -94,6 +95,7 @@ export class LeadService {
         studentAge: body.studentAge,
         experienceLevel: body.experienceLevel,
         phone,
+        email: body.email || null,
         source,
         campaign,
         visitorSessionId: visitorSession?.id ?? null,
@@ -116,6 +118,7 @@ export class LeadService {
         studentAge: lead.studentAge,
         experienceLevel: lead.experienceLevel,
         phone: lead.phone,
+        email: lead.email,
         source: lead.source,
         campaign: lead.campaign
       })
@@ -192,7 +195,8 @@ export class LeadService {
       where.OR = [
         { studentName: { contains: search, mode: "insensitive" } },
         { parentName: { contains: search, mode: "insensitive" } },
-        { phone: { contains: search } }
+        { phone: { contains: search } },
+        { email: { contains: search, mode: "insensitive" } }
       ];
     }
 
@@ -447,6 +451,7 @@ export class LeadService {
       studentAge: lead.studentAge,
       experienceLevel: lead.experienceLevel,
       phone: lead.phone,
+      email: lead.email,
       status: lead.status,
       source: lead.source,
       campaign: lead.campaign,
