@@ -78,7 +78,7 @@ export function ClassTypesSection() {
         {/* Light Mode Twin Knights Background */}
         <Image
           src={SECTION_BG_LIGHT}
-          alt="Nexa Chess Learning Formats Light Background"
+          alt=""
           fill
           sizes="100vw"
           className={`object-cover object-top dark:hidden`}
@@ -87,7 +87,7 @@ export function ClassTypesSection() {
         {/* Dark Mode Twin Knights Background */}
         <Image
           src={SECTION_BG_DARK}
-          alt="Nexa Chess Learning Formats Dark Background"
+          alt=""
           fill
           sizes="100vw"
           className={`object-cover object-top hidden dark:block`}
@@ -178,7 +178,7 @@ export function ClassTypesSection() {
                 >
                   <Image
                     src={opt.pieceImage}
-                    alt={opt.title}
+                    alt=""
                     fill
                     sizes="(max-width: 768px) 180px, 220px"
                     className={`object-cover object-[58%_center] scale-110 transition-transform duration-500 group-hover:scale-115 ${isDark ? "brightness-90 contrast-110" : "brightness-100"
@@ -239,6 +239,7 @@ export function ClassTypesSection() {
 
                   {/* Bottom CTA Button */}
                   <a
+                    aria-label={`${opt.title}: book a free demo class`}
                     href="#demo"
                     className={`w-full h-10 sm:h-11 rounded-xl font-bold text-xs sm:text-sm inline-flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 ${isHighlighted
                         ? "bg-gradient-to-r from-[#E6B960] via-[#DCA642] to-[#CC922C] hover:from-[#EDC36E] hover:to-[#D89B32] text-[#071B41] shadow-[0_6px_20px_rgba(212,155,53,0.35)]"

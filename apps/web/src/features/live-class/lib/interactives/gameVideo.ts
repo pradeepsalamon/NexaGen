@@ -187,7 +187,7 @@ function drawChrome(
   ctx.fillStyle = c.secondary;
   ctx.fillRect(0, 0, SIZE, 10);
   ctx.textBaseline = "middle";
-  ctx.fillStyle = "white";
+  ctx.fillStyle = c.onPrimary;
   ctx.font = bodyFont(800, 46);
   ctx.fillText(wrapText(ctx, opts.title, SIZE - 120, 1)[0] ?? "", 60, 64);
   ctx.globalAlpha = 0.85;
